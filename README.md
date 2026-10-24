@@ -83,11 +83,12 @@ docker compose up -d postgres
 ```
 
 ```bash
-ARCHSIM_DATABASE_URL=postgresql+psycopg://archsim:archsim@localhost:5432/archsim uv run archsim-api serve
+ARCHSIM_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim uv run archsim-api serve
 ```
 
-On Windows PowerShell, set the variable first with
-`$env:ARCHSIM_DATABASE_URL = "postgresql+psycopg://archsim:archsim@localhost:5432/archsim"`.
+Use `127.0.0.1` rather than `localhost`: with Docker Desktop on Windows, `localhost` may try
+IPv6 first and stall. On Windows PowerShell, set the variable first with
+`$env:ARCHSIM_DATABASE_URL = "postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim"`.
 All settings are listed in [.env.example](.env.example).
 
 ### Everything in Docker

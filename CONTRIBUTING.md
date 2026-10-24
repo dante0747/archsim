@@ -41,7 +41,7 @@ To develop against PostgreSQL instead of SQLite:
 
 ```bash
 docker compose up -d postgres
-export ARCHSIM_DATABASE_URL=postgresql+psycopg://archsim:archsim@localhost:5432/archsim
+export ARCHSIM_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim
 uv run archsim-api migrate
 uv run archsim-api seed           # optional: one project per example file
 ```
@@ -67,7 +67,9 @@ uv run mypy packages/engine/src services/api/src
 uv run pytest                                   # engine + API tests (SQLite)
 
 # API tests against PostgreSQL (drops all tables in the target database!)
-ARCHSIM_TEST_DATABASE_URL=postgresql+psycopg://archsim:archsim@localhost:5432/archsim_test \
+docker compose up -d postgres
+docker compose exec postgres createdb -U archsim archsim_test   # once
+ARCHSIM_TEST_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test \
   uv run pytest services/api/tests
 
 # Web

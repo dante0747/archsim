@@ -89,14 +89,23 @@ canvas overlay; "Run all & compare" across six scenarios; saving and reloading; 
 themes. CLI and API results matched (same input and result digests). `npm run build`
 succeeds.
 
+With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
+
+- `docker compose build` builds both images (`archsim-api` about 495 MB, `archsim-web` about
+  305 MB) and `docker compose up -d` brings up PostgreSQL 16, the API and the web app with
+  passing health checks. Migrations run on startup against PostgreSQL.
+- Smoke test through the web container's proxy (web -> API -> PostgreSQL): create a project
+  from an example, run two scenarios in a batch, compare them, open the editor page. The API
+  reports `"database": "postgresql"`.
+- All 16 API tests pass against PostgreSQL 16 (`ARCHSIM_TEST_DATABASE_URL`), including the
+  check that Alembic migrations match the ORM models.
+- The "3 API replicas" scenario simulated inside the Linux container produced the same result
+  digest as the identical model simulated on Windows.
+
 ## Not verified yet
 
-- **Docker**: the images and the Compose stack were written but not built or run (the Docker
-  daemon was not running on the development machine). `docker compose config` parses.
-- **PostgreSQL**: not run locally. The CI job `api-postgres` runs the API tests against
-  PostgreSQL 16 but has not executed yet (the repository has not been pushed).
-- **CI on GitHub**: the workflow has not run; action versions and the Dependabot `uv`
-  ecosystem are untested.
+- **CI on GitHub**: the workflow has not run (the repository has not been pushed); action
+  versions and the Dependabot `uv` ecosystem are untested.
 - **Browsers other than Chromium**, very large graphs, and screen readers beyond basic labels.
 
 ## Known limitations
@@ -123,8 +132,7 @@ succeeds.
 
 ## Next steps
 
-1. Run CI on GitHub (including PostgreSQL) and build the Docker images; fix anything they
-   surface.
+1. Push to GitHub and run CI (including the PostgreSQL job); fix anything it surfaces.
 2. Add a Playwright end-to-end test of the main journey (open example, edit, run, compare,
    save, reload).
 3. Move simulations to a process pool or a Redis/RQ worker (the `JobRunner` protocol is the

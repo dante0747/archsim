@@ -10,7 +10,7 @@ from sqlalchemy import MetaData, create_engine
 
 from api_helpers import make_client
 
-# Set ARCHSIM_TEST_DATABASE_URL (e.g. postgresql+psycopg://archsim:archsim@localhost:5432/archsim_test)
+# Set ARCHSIM_TEST_DATABASE_URL (e.g. postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test)
 # to run the API tests against a real PostgreSQL database. Every table in that database is
 # dropped before each test, so never point it at a database you care about.
 TEST_DATABASE_URL = os.environ.get("ARCHSIM_TEST_DATABASE_URL")

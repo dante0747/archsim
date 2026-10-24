@@ -110,7 +110,10 @@ def make_engine(url: str) -> Engine:
             cur.close()
 
         return engine
-    return create_engine(url, pool_pre_ping=True)
+    connect_args: dict[str, Any] = {}
+    if url.startswith("postgresql"):
+        connect_args["connect_timeout"] = 10  # seconds; fail fast instead of hanging
+    return create_engine(url, pool_pre_ping=True, connect_args=connect_args)
 
 
 class Database:

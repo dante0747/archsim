@@ -52,7 +52,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      ARCHSIM_TEST_DATABASE_URL: postgresql+psycopg://archsim:archsim@localhost:5432/archsim_test
+      ARCHSIM_TEST_DATABASE_URL: postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
