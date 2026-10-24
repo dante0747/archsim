@@ -15,6 +15,7 @@ import {
   type ArchEdge,
   type ArchNode,
   type GraphState,
+  DEFAULT_OBJECTIVES,
   DEFAULT_WORKLOAD,
   defaultEdgeConfig,
   fromDocument,
@@ -30,6 +31,8 @@ import type {
   DocMetadata,
   EdgeConfig,
   Issue,
+  Objectives,
+  Preset,
   Project,
   Scenario,
   Workload,
@@ -66,6 +69,8 @@ export interface EditorState extends GraphState {
   onEdgesChange: (changes: EdgeChange<ArchEdge>[]) => void;
   connect: (conn: Connection) => { ok: boolean; reason?: string };
   addNode: (type: string, position: { x: number; y: number }) => string | null;
+  /** Add a node configured from a technology preset (preset config merged over the defaults). */
+  addPresetNode: (type: string, position: { x: number; y: number }, preset: Preset) => string | null;
   updateNode: (id: string, patch: { label?: string; description?: string | null }) => void;
   setNodeConfig: (id: string, key: string, value: unknown) => void;
   setEdgeConfig: (id: string, key: keyof EdgeConfig | string, value: unknown) => void;
@@ -74,6 +79,7 @@ export interface EditorState extends GraphState {
   duplicateSelection: () => void;
   setWorkload: (patch: Partial<Workload>, key?: string) => void;
   setScenarios: (scenarios: Scenario[], key?: string) => void;
+  setObjectives: (patch: Partial<Objectives>, key?: string) => void;
   setMetadata: (patch: Partial<DocMetadata>, key?: string) => void;
   select: (sel: { nodeId?: string | null; edgeId?: string | null }) => void;
   autoLayout: () => Promise<void>;
@@ -90,6 +96,7 @@ function snapshot(s: GraphState): GraphState {
     edges: s.edges.map((e) => (e.selected ? { ...e, selected: false } : e)),
     workload: s.workload,
     scenarios: s.scenarios,
+    objectives: s.objectives,
     metadata: s.metadata,
   };
 }
@@ -102,6 +109,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   edges: [],
   workload: DEFAULT_WORKLOAD,
   scenarios: [],
+  objectives: DEFAULT_OBJECTIVES,
   metadata: { name: "" },
   initialViewport: null,
   dirty: false,
@@ -126,6 +134,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       edges: g.edges,
       workload: g.workload,
       scenarios: g.scenarios,
+      objectives: g.objectives,
       metadata: { ...g.metadata, name: project.name },
       initialViewport: g.viewport,
       dirty: false,
@@ -145,6 +154,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       edges: g.edges,
       workload: g.workload,
       scenarios: g.scenarios,
+      objectives: g.objectives,
       metadata: { ...g.metadata, name: s.metadata.name },
       dirty: true,
       layoutVersion: s.layoutVersion + 1,
@@ -263,6 +273,20 @@ export const useEditor = create<EditorState>()((set, get) => ({
     return id;
   },
 
+  addPresetNode: (type, position, preset) => {
+    const id = get().addNode(type, position);
+    if (!id) return null;
+    const labels = new Set(get().nodes.filter((n) => n.id !== id).map((n) => n.data.label));
+    let label = preset.name;
+    for (let i = 2; labels.has(label); i++) label = `${preset.name} ${i}`;
+    set((st) => ({
+      nodes: st.nodes.map((n) =>
+        n.id === id ? { ...n, data: { ...n.data, label, config: { ...n.data.config, ...structuredClone(preset.config) } } } : n,
+      ),
+    }));
+    return id;
+  },
+
   updateNode: (id, patch) => {
     get().pushHistory(`node:${id}:meta`);
     set((st) => ({
@@ -357,6 +381,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
       edges: [...st.edges, ...copiedEdges],
       dirty: true,
     }));
+  },
+
+  setObjectives: (patch, key) => {
+    get().pushHistory(key ? `objectives:${key}` : undefined);
+    set((st) => ({ objectives: { ...st.objectives, ...patch }, dirty: true }));
   },
 
   setWorkload: (patch, key) => {

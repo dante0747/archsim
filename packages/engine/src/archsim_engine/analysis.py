@@ -18,6 +18,7 @@ import math
 from collections import deque
 from typing import Any
 
+from archsim_engine.findings_ext import extension_findings
 from archsim_engine.schema import ArchitectureDocument
 
 STATUS_RANK = {"saturated": 3, "hot": 2, "warm": 1, "ok": 0, "idle": -1}
@@ -59,6 +60,10 @@ def classify(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
     util = s["utilization"] or 0.0
     rej = s["rejectionRate"] or 0.0
     growing = _queue_growing(node["timeseries"].get("queueMean", []), i0, i1)
+    if node["type"] == "message_queue" and rej < 0.01 and (util >= 0.85 or growing):
+        # Producers still get their acks: a saturated consumer group shows up as consumer lag
+        # (see the queue_lag finding), not as a bottleneck on the client's request path.
+        return "hot", [f"consumers {util:.0%} busy"] + (["backlog kept growing"] if growing else [])
     reasons = []
     if util >= 0.95:
         reasons.append(f"utilization {util:.0%}")
@@ -151,11 +156,15 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
         s = n["summary"]
         noun = SLOT_NOUN.get(n["type"], "slots")
         util = s["utilization"] or 0.0
-        parts = [f"On average {util:.0%} of its {s['slots']:,} {noun} were busy"]
-        peak = s.get("peakUtilization")
-        if peak is not None and peak - util >= 0.1:
-            parts[0] += f", peaking at {peak:.0%}"
-        parts[0] += "."
+        if s.get("slots") is not None and s.get("utilization") is not None:
+            parts = [f"On average {util:.0%} of its {s['slots']:,} {noun} were busy"]
+            peak = s.get("peakUtilization")
+            if peak is not None and peak - util >= 0.1:
+                parts[0] += f", peaking at {peak:.0%}"
+            parts[0] += "."
+        else:
+            # Components without a slot pool (e.g. unlimited external APIs) saturate by rejecting.
+            parts = [f"It received {_fmt_rps(s['arrivalRps'])}."]
         if (s["meanQueue"] or 0) >= 0.5 or s["peakQueue"]:
             q = f"The queue averaged {s['meanQueue'] or 0:.1f} requests (peak {s['peakQueue']:,})"
             if "queue kept growing" in n["statusReasons"]:
@@ -373,4 +382,5 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
                 "evidence": {},
             },
         )
+    findings.extend(extension_findings(report, resolved))
     return findings

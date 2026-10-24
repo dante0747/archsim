@@ -17,6 +17,7 @@ import {
 import { useEffect, useMemo } from "react";
 import { AssumptionTag, FieldGroups } from "@/components/editor/FieldControl";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
+import { TechnologyPicker } from "@/components/build/TechnologyPicker";
 import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { WorkloadPanel } from "@/components/editor/WorkloadPanel";
 import { Button } from "@/components/ui/button";
@@ -143,7 +144,16 @@ function DesignOverview() {
   const nodeCount = useEditor((s) => s.nodes.length);
   const edgeCount = useEditor((s) => s.edges.length);
   const scenarioCount = useEditor((s) => s.scenarios.length);
-  const kinds: Kind[] = ["traffic", "network", "compute", "cache", "database"];
+  const kinds: Kind[] = ["traffic", "network", "compute", "cache", "database", "messaging", "external"];
+  const roles: Record<string, string> = {
+    traffic: "generates requests",
+    network: "routes and rate-limits them",
+    compute: "processes them",
+    cache: "serves hot reads",
+    database: "stores the data",
+    messaging: "buffers async work",
+    external: "third-party dependency",
+  };
   return (
     <div className="space-y-5 p-4">
       <div>
@@ -165,7 +175,7 @@ function DesignOverview() {
               <ShapeGlyph shape={SHAPE_OF[k]} className="shrink-0 text-ink-2" w={24} h={16} />
               <span className="font-mono text-[11px] text-ink">{KIND_LABEL[k]}</span>
               <span className="text-ink-3">
-                {k === "traffic" ? "— generates requests" : k === "network" ? "— routes them" : k === "compute" ? "— processes them" : k === "cache" ? "— serves hot reads" : "— stores the data"}
+                — {roles[k]}
               </span>
             </li>
           ))}
@@ -332,6 +342,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
           </div>
         </div>
         {comp?.description && <p className="mt-2 text-[11.5px] leading-relaxed text-ink-2">{comp.description}</p>}
+        <TechnologyPicker nodeId={nodeId} comp={comp} config={node.data.config} />
       </div>
 
       {nodeIssues.length > 0 && (

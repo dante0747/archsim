@@ -6,7 +6,7 @@ tested on its own.
 ```mermaid
 flowchart LR
   subgraph web["apps/web (Next.js)"]
-    UI["Editor: palette, React Flow canvas,<br/>inspector, results, compare"]
+    UI["Studio: Build / Stress / Decide<br/>canvas, technology library, flight recorder,<br/>scorecard, trade-offs, exports"]
     Store["Zustand store<br/>(document, history, runs)"]
     Proxy["/api/v1/* route handler<br/>(proxy to ARCHSIM_API_URL)"]
   end
@@ -73,8 +73,11 @@ docs at `/api/v1/docs`.
 A Next.js App Router application. The browser only talks to its own origin (`/api/v1/*`);
 a route handler forwards those requests to the API at `ARCHSIM_API_URL`
 (default `http://127.0.0.1:8000`). The editor keeps the working document in a Zustand store,
-renders it with React Flow, and builds the palette and inspector forms from the component
-catalog returned by `GET /api/v1/components`.
+renders it with React Flow, and builds the technology library, the inspector forms and the
+technology presets from the component catalog returned by `GET /api/v1/components`. Design
+review rules, cost estimates, SLO evaluation, replay events, load sweeps and the
+docker-compose / Kubernetes / Mermaid exporters are pure TypeScript modules in
+`apps/web/src/lib/` with unit tests; the simulation itself only ever runs in the engine.
 
 ## The document: four separate concerns
 

@@ -1,26 +1,14 @@
 "use client";
 
-import {
-  ArrowRight,
-  Boxes,
-  Cable,
-  Copy,
-  FileJson,
-  GitCompareArrows,
-  LoaderCircle,
-  MoreHorizontal,
-  MousePointerClick,
-  Play,
-  Plus,
-  Trash2,
-  Upload,
-} from "lucide-react";
+import { ArrowRight, Boxes, Copy, FileJson, LoaderCircle, MoreHorizontal, Play, Plus, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand";
-import { type DiagramEdge, type DiagramNode, MiniDiagram, SchematicDiagram } from "@/components/projects/MiniDiagram";
+import { HeroRecorder } from "@/components/projects/HeroRecorder";
+import { MiniDiagram } from "@/components/projects/MiniDiagram";
+import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Empty } from "@/components/ui/misc";
@@ -28,70 +16,34 @@ import { Dialog, DialogContent, Menu, MenuContent, MenuItem, MenuSeparator, Menu
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ApiError, api } from "@/lib/api";
 import { fmtRelativeTime } from "@/lib/format";
-import type { ArchitectureDocument, ExampleSummary, ProjectSummary } from "@/lib/types";
+import { FAMILIES, familyOf, kindOf } from "@/lib/theme";
+import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
 import { cn, readJsonFile } from "@/lib/utils";
 
-const HERO_NODES: DiagramNode[] = [
-  { id: "clients", kind: "traffic", label: "Clients", x: 0, y: 96 },
-  { id: "lb", kind: "network", label: "Balancer", x: 148, y: 96 },
+const WORKSPACES = [
   {
-    id: "api",
-    kind: "compute",
-    label: "API",
-    x: 296,
-    y: 96,
-    layers: 2,
-    note: { text: "91% busy", color: "var(--status-serious)" },
-  },
-  { id: "cache", kind: "cache", label: "Redis", x: 452, y: 8 },
-  { id: "db", kind: "database", label: "Postgres", x: 600, y: 118 },
-];
-
-const HERO_EDGES: DiagramEdge[] = [
-  { id: "e1", source: "clients", target: "lb", types: ["read", "write"] },
-  { id: "e2", source: "lb", target: "api", types: ["read", "write"] },
-  { id: "e3", source: "api", target: "cache", types: ["read"] },
-  { id: "e4", source: "api", target: "db", types: ["write"] },
-  { id: "e5", source: "cache", target: "db", types: ["read"], miss: true },
-];
-
-/** Decorative illustration of the starter design (not live data). */
-function HeroDiagram() {
-  return (
-    <SchematicDiagram
-      nodes={HERO_NODES}
-      edges={HERO_EDGES}
-      nodeW={120}
-      nodeH={56}
-      unit={0.6}
-      font={14}
-      text="full"
-      strokeWidth={1.4}
-      className="h-auto w-full"
-    />
-  );
-}
-
-const HOW = [
-  {
-    icon: MousePointerClick,
-    title: "Draw",
-    text: "Place clients, balancers, services, caches and databases on a canvas, then wire them up.",
+    key: "build",
+    n: "01",
+    title: "Build",
+    tagline: "design with real technologies",
+    text: "PostgreSQL with read replicas, sharded MongoDB, Cassandra quorums, Redis, Kafka, Kubernetes autoscaling, serverless, third-party APIs. A design review flags single points of failure, retry storms and timeout inversions as you draw.",
+    bullets: ["technology library", "design review", "docker-compose · k8s · mermaid export"],
   },
   {
-    icon: Cable,
-    title: "Describe",
-    text: "Set replicas, queues, service times, hit ratios, and how much traffic arrives.",
+    key: "stress",
+    n: "02",
+    title: "Stress",
+    tagline: "traffic · chaos · flight recorder",
+    text: "Shape traffic on a timeline, drop faults on it (outages, slowdowns, network latency), run, then scrub through the recording: every component's utilization, queues and flow, second by second.",
+    bullets: ["experiment timeline", "fault injection", "replay with heat lanes"],
   },
   {
-    icon: Play,
-    title: "Simulate",
-    text: "A discrete-event engine moves every request through queues and workers.",
-  },
-  {
-    icon: GitCompareArrows,
-    title: "Compare",
-    text: "See bottlenecks and latency, then test alternatives side by side.",
+    key: "decide",
+    n: "03",
+    title: "Decide",
+    tagline: "SLOs · cost · capacity",
+    text: "Score every run against your SLOs and error budget, see monthly cost and cost per million requests, compare options on a cost-vs-latency map, and find the load where the design breaks.",
+    bullets: ["scorecard", "trade-off map", "breaking-point finder"],
   },
 ];
 
@@ -100,6 +52,7 @@ export function ProjectsHome() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [examples, setExamples] = useState<ExampleSummary[]>([]);
   const [exampleDocs, setExampleDocs] = useState<Record<string, ArchitectureDocument>>({});
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -117,6 +70,10 @@ export function ProjectsHome() {
 
   useEffect(() => {
     let alive = true;
+    api
+      .components()
+      .then((c) => alive && setCatalog(c))
+      .catch(() => undefined);
     Promise.all([api.listProjects(), api.examples()])
       .then(async ([p, e]) => {
         if (!alive) return;
@@ -192,7 +149,7 @@ export function ProjectsHome() {
   return (
     <div className="min-h-full bg-page">
       <header className="sticky top-0 z-30 border-b border-line bg-page/85 backdrop-blur">
-        <div className="mx-auto flex h-12 max-w-6xl items-center gap-3 px-4">
+        <div className="mx-auto flex h-12 max-w-7xl items-center gap-3 px-4">
           <Logo />
           <span className="microlabel hidden sm:inline">architecture simulator</span>
           <div className="ml-auto flex items-center gap-1">
@@ -207,25 +164,24 @@ export function ProjectsHome() {
       </header>
 
       <section className="schematic-grid relative overflow-hidden border-b border-line">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 lg:grid-cols-[1fr_1.05fr]">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <p className="microlabel mb-5">
               <span className="mr-1 opacity-60" aria-hidden>
                 {"//"}
               </span>
-              open-source · discrete-event · local-first
+              open-source · deterministic · local-first
             </p>
-            <h1 className="text-4xl font-semibold leading-[1.12] tracking-tight text-ink sm:text-[2.85rem]">
-              Draw your system.
+            <h1 className="text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-[3.1rem]">
+              A flight simulator
               <br />
-              Push traffic through it.
-              <br />
-              See where it breaks.
+              for your architecture
               <span className="caret ml-1.5 inline-block h-[0.82em] w-[0.42em] translate-y-[0.06em] bg-accent" aria-hidden />
             </h1>
             <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-ink-2">
-              ArchSim simulates every request through your load balancers, services, caches and databases, then explains the bottleneck.
-              Results are estimates driven by the assumptions you enter, not production guarantees.
+              Model the stack you actually run, push traffic and failures through it, replay every second of what happened, and
+              decide with SLOs, cost and capacity curves. A discrete-event engine moves every single request; results are
+              estimates from the assumptions you enter, so they are reproducible and explainable, not guarantees.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               {starter && (
@@ -257,7 +213,7 @@ export function ProjectsHome() {
                 {busy === "import" ? <LoaderCircle className="animate-spin" /> : <Upload />} Import JSON
               </Button>
             </div>
-            <p className="mt-5 font-mono text-[11px] text-ink-3">runs locally · no account · no telemetry</p>
+            <p className="mt-5 font-mono text-[11px] text-ink-3">runs locally · same seed, same result · no account · no telemetry</p>
           </div>
           <figure className="overflow-hidden rounded-lg border border-line-strong bg-surface shadow-float" aria-hidden>
             <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
@@ -266,22 +222,20 @@ export function ProjectsHome() {
                   <span key={i} className="size-2.5 rounded-full border border-line-strong" />
                 ))}
               </span>
-              <span className="ml-2 truncate font-mono text-[11px] text-ink-2">cache-aside-starter.archsim.json</span>
-              <span className="microlabel ml-auto shrink-0">illustration</span>
+              <span className="ml-2 truncate font-mono text-[11px] text-ink-2">flight-recorder · cache outage experiment</span>
+              <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[10px] text-ink-3">
+                <span className="size-1.5 rounded-full bg-[var(--status-critical)] pulse-soft" /> rec
+              </span>
+              <span className="microlabel shrink-0">illustration</span>
             </div>
-            <div className="schematic-grid px-4 py-6">
-              <HeroDiagram />
+            <div className="schematic-grid px-4 pb-3 pt-5">
+              <HeroRecorder />
             </div>
-            <figcaption className="flex items-center gap-3 border-t border-line bg-surface-2 px-3 py-1.5 font-mono text-[10.5px] text-ink-3">
-              <span>400 req/s · 90% reads · 60 s</span>
-              <span className="ml-auto">● read ■ write</span>
-              <span>seed 42</span>
-            </figcaption>
           </figure>
         </div>
       </section>
 
-      <main className="mx-auto max-w-6xl space-y-14 px-4 py-12">
+      <main className="mx-auto max-w-7xl space-y-14 px-4 py-12">
         {error && (
           <div role="alert" className="rounded-lg border border-line bg-critical-soft p-4 text-sm text-ink">
             <p className="font-medium">Cannot reach the ArchSim API</p>
@@ -289,26 +243,35 @@ export function ProjectsHome() {
           </div>
         )}
 
-        <section aria-labelledby="how-heading">
-          <h2 id="how-heading" className="microlabel mb-4">
+        <section aria-labelledby="ws-heading">
+          <h2 id="ws-heading" className="microlabel mb-4">
             <span className="mr-1 opacity-60" aria-hidden>
               {"//"}
             </span>
-            How it works
+            Three workspaces, one canvas
           </h2>
-          <ol className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-            {HOW.map((h, i) => (
-              <li key={h.title} className="bg-surface p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="font-mono text-xs text-ink-3">{String(i + 1).padStart(2, "0")}</span>
-                  <h.icon className="size-4 text-ink-3" aria-hidden />
+          <ol className="grid gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-3">
+            {WORKSPACES.map((w) => (
+              <li key={w.key} className="relative bg-surface p-5">
+                <div className="mb-3 flex items-baseline gap-3">
+                  <span className="font-mono text-xs text-accent">{w.n}</span>
+                  <span className="font-mono text-[15px] font-semibold uppercase tracking-[0.16em] text-ink">{w.title}</span>
+                  <span className="ml-auto font-mono text-[10.5px] text-ink-3">{w.tagline}</span>
                 </div>
-                <p className="font-mono text-[13px] font-semibold text-ink">{h.title}</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{h.text}</p>
+                <p className="text-[13px] leading-relaxed text-ink-2">{w.text}</p>
+                <ul className="mt-4 flex flex-wrap gap-1.5">
+                  {w.bullets.map((b) => (
+                    <li key={b} className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10.5px] text-ink-2">
+                      {b}
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ol>
         </section>
+
+        {catalog && <TechWall catalog={catalog} />}
 
         <section aria-labelledby="examples-heading">
           <div className="mb-4 flex items-end justify-between">
@@ -451,7 +414,7 @@ export function ProjectsHome() {
       </main>
 
       <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-6 font-mono text-[11px] text-ink-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-6 font-mono text-[11px] text-ink-3">
           <span>archsim · AGPL-3.0</span>
           <span>·</span>
           <span>estimates from your assumptions; calibrate before trusting absolute numbers</span>
@@ -466,6 +429,51 @@ export function ProjectsHome() {
         onCreate={(body, key) => void create(body, key)}
       />
     </div>
+  );
+}
+
+/** Every technology profile the engine ships, grouped by family (read from the live catalog). */
+function TechWall({ catalog }: { catalog: Catalog }) {
+  const items = catalog.components.flatMap((c) =>
+    (c.presets ?? []).map((p) => ({ ...p, kind: kindOf(c.type, c.category), type: c.displayName })),
+  );
+  if (items.length === 0) return null;
+  const groups = FAMILIES.map((f) => ({ f, items: items.filter((i) => familyOf(i.kind).key === f.key) })).filter((g) => g.items.length);
+  return (
+    <section aria-labelledby="tech-heading">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <h2 id="tech-heading" className="microlabel">
+            <span className="mr-1 opacity-60" aria-hidden>
+              {"//"}
+            </span>
+            {items.length} technology profiles
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-ink-2">
+            Each profile is a component with transparent, editable defaults: replicas, shards, consistency, autoscaling, rate
+            limits. Behaviour comes from those numbers, and every default is marked as an assumption.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+        {groups.map(({ f, items: list }) => (
+          <div key={f.key} className="bg-surface p-4">
+            <p className="mb-3 flex items-center gap-2">
+              <ShapeGlyph shape={SHAPE_OF[list[0].kind]} w={26} h={17} className="text-ink-2" />
+              <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-ink">{f.label}</span>
+            </p>
+            <ul className="space-y-1">
+              {list.map((p) => (
+                <li key={`${p.type}-${p.id}`} className="flex items-baseline gap-2" title={p.description}>
+                  <span className="truncate text-[13px] text-ink">{p.name}</span>
+                  <span className="ml-auto shrink-0 font-mono text-[10px] lowercase text-ink-3">{p.family}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

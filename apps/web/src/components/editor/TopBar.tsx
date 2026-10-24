@@ -6,6 +6,7 @@ import {
   ChevronDown,
   CircleAlert,
   Download,
+  FileCode2,
   Keyboard,
   LayoutGrid,
   LoaderCircle,
@@ -44,6 +45,7 @@ import { useUi } from "@/store/ui";
 
 export const SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ K  ·  /", "Command palette"],
+  ["1  ·  2  ·  3", "Build · Stress · Decide workspaces"],
   ["Ctrl/⌘ S", "Save"],
   ["Ctrl/⌘ Enter", "Run simulation"],
   ["Ctrl/⌘ Z", "Undo"],
@@ -210,6 +212,7 @@ export function TopBar({
   const { save, exportJson, importJson } = useEditorActions();
   const fileRef = useRef<HTMLInputElement>(null);
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
+  const setExportOpen = useUi((s) => s.setExportOpen);
 
   return (
     <header className="relative z-30 flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-3">
@@ -305,6 +308,9 @@ export function TopBar({
             <MenuSeparator />
             <MenuItem onSelect={exportJson}>
               <Download /> Export JSON
+            </MenuItem>
+            <MenuItem onSelect={() => setExportOpen(true)}>
+              <FileCode2 /> Export docker-compose · Kubernetes · Mermaid
             </MenuItem>
             <MenuItem onSelect={() => fileRef.current?.click()}>
               <Upload /> Import JSON into this project

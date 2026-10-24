@@ -1,65 +1,73 @@
 # ArchSim
 
-**Draw a distributed system, give it traffic, and watch where it breaks.**
+**A flight simulator for your architecture.**
 
-ArchSim is an open-source visual designer and discrete-event simulator for software
-architectures. You sketch a system (clients, load balancers, services, caches, databases),
-describe the workload and your performance assumptions, and run a real simulation that moves
-every request through queues, worker pools and network links. You get throughput, latency
-percentiles, queueing, utilization, timeouts and a plain-language explanation of the
-bottleneck, and you can compare alternatives side by side.
+ArchSim is an open-source, local-first studio for designing distributed systems and testing them
+before you build them. Model the stack you actually run (PostgreSQL with read replicas, sharded
+MongoDB, Cassandra quorums, Redis, Kafka, Kubernetes autoscaling, serverless functions,
+third-party APIs), push traffic and failures through it with a discrete-event engine that moves
+every single request, replay what happened second by second, and decide with SLOs, cost and
+capacity curves. Same document and seed, same result.
 
 > **Results are estimates, not production guarantees.** Every number comes from the model you
 > drew and the assumptions you entered. Without calibration against real telemetry, trust
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![The editor after simulating the starter with one API replica: components are drawn as schematic shapes (parallelogram clients, hexagon load balancer, stacked API servers, memory-chip cache, cylinder database), the saturated API is outlined in red, and the last-run card reads "API Servers is the primary bottleneck" with throughput, p95 latency and success rate](docs/images/editor-results.jpg)
+![The Stress workspace replaying a Black Friday ramp at t = 62 s: the Kubernetes checkout service glows red while the autoscaler catches up, the timeline below shows heat lanes per component (blue to amber to red), latency against the SLO and failures, and the experiment panel reports "Hypothesis held"](docs/images/editor-results.jpg)
 
-*Captured at 800x500. A demo GIF is still to be recorded.*
+*The flight recorder replaying the Black Friday on Kubernetes template. Captured at 800x500; a demo GIF is still to be recorded.*
 
 ## What you can do
 
-- **Follow the steps**: a workflow bar (Design, Traffic, Simulate, Insights, Compare) checks
-  off what you have done and always suggests the next action, so a first-time user is never
-  stuck wondering what to click.
-- **Design** on a schematic canvas: each kind of component has its own shape (clients are a
-  parallelogram, load balancers a hexagon, services stacked boxes with one layer per replica,
-  caches a memory chip, databases a cylinder), links are right-angle wires, and color is kept
-  for what needs attention. Drag or click components from the rail (or search the library),
-  link them, tidy up with ELK auto-layout, undo/redo, multi-select, keyboard shortcuts.
-- **Drive it from the keyboard**: <kbd>Ctrl</kbd>/<kbd>⌘</kbd> <kbd>K</kbd> opens a command
-  palette with every action (run a scenario, add a component, jump to a results tab, export...),
-  and a status bar shows validity, model size, workload, run progress and zoom.
-- **Configure** every component in an inspector generated from the component catalog, with the
-  key settings first and the rest under *Advanced*: replicas, workers, queue limits and
-  timeouts, service-time distributions, cache hit ratio or TTL over a Zipf keyspace, database
-  connections, load-balancing policy, link latency, timeouts and retries. Values that are *your
-  assumptions* carry a "≈" tag.
-- **Describe traffic** in the Traffic tab: requests per second (with presets), a read/write
-  slider, constant / ramp / burst patterns with a live preview, run length, and advanced
-  settings (Poisson or evenly spaced arrivals, warm-up, seed).
-- **Simulate** with a SimPy discrete-event engine running in the background, with real progress,
-  cancellation and limits. Invalid graphs (cycles, unrouted cache misses, unreachable nodes,
-  incompatible links...) are rejected with actionable messages before anything runs.
-- **Read the results**: right on the canvas (status and a utilization meter on every
-  component, ● read / ■ write dots whose density follows the measured calls/s, a verdict card),
-  and in the Insights tab:
-  offered vs. successful throughput, p50/p95/p99 latency, failures and timeouts,
-  per-component utilization, queue depth, queue wait and rejections, and findings such as *"API Servers is the primary bottleneck"*, *"API Servers is
-  saturated as a consequence of PostgreSQL"*, or *"100% of completed work at Service was wasted"*
-  (it finished requests whose clients had already timed out).
-- **Compare** two runs: KPI deltas, the exact input differences, and explanations (*"Successful
-  throughput fell 27% (399 → 292 req/s); API Servers becomes saturated"*).
-- **Save, export and reproduce**: projects persist in PostgreSQL (or SQLite), documents
-  import/export as versioned JSON, and every run stores its input snapshot, seed, engine version
-  and result digest so it can be re-run and verified bit for bit.
+ArchSim has three workspaces around one canvas: **Build → Stress → Decide** (keys 1, 2, 3).
 
-| Insights after a run | Scenario comparison |
+**Build: design with real technologies**
+- A technology library with transparent profiles: relational (PostgreSQL, MySQL, SQL Server,
+  distributed SQL), document (MongoDB replica sets and sharded clusters), wide-column
+  (Cassandra), key-value (DynamoDB-style provisioned throughput), search (Elasticsearch),
+  caches (Redis, Valkey, Memcached, CDN edge, Varnish), message queues (Kafka, RabbitMQ,
+  SQS-style...), gateways (Nginx, HAProxy, Envoy, Kong...), services on VMs, Docker, Kubernetes
+  (HPA autoscaling) or serverless (cold starts, concurrency limits), and third-party APIs
+  (payments, e-mail, identity, LLM inference...). Behaviour comes from the numbers (replicas,
+  shards, replication factor and consistency, partitions, rate limits), never from the name,
+  and every default is marked as an assumption.
+- Each component kind has its own schematic shape; links are right-angle wires.
+- A design review flags single points of failure, missing timeouts, retry amplification along
+  a path, timeout inversions, connection-pool exhaustion and more, with the numbers.
+- Export the design as docker-compose, Kubernetes manifests (Deployments, Services, HPAs,
+  StatefulSets) or Mermaid, as reviewed starting points.
+
+**Stress: traffic, chaos and the flight recorder**
+- Shape the traffic on a timeline (constant, ramp, burst) by dragging it, and drop faults on it:
+  a component outage, a slowdown, extra network latency on a link. One-click chaos experiments
+  ("lose the cache for 15 s", "database 4× slower", "+300 ms on a link", "3× spike").
+- Run and the **flight recorder** replays the run: scrub or play the timeline and the canvas
+  shows each component's utilization, queue and traffic at that second, with heat lanes per
+  component, latency against the SLO, and markers for faults, saturation and SLO breaches.
+- Every experiment gets a verdict against its hypothesis (your SLOs), including what happened
+  inside each fault window.
+
+**Decide: SLOs, cost and capacity**
+- A scorecard per run: SLO checks (p95/p99 latency, availability, throughput), error budget
+  burn-down, monthly cost and cost per million requests from per-component cost assumptions.
+- A trade-off map of every run and scenario (cost vs latency, SLO pass/fail, Pareto frontier).
+- A breaking-point finder: stepped load sweeps that find where latency turns into a hockey
+  stick and the highest load that still meets the SLO.
+- Insights in plain language (bottlenecks, hot shards, throttling, autoscaling lag, consumer
+  lag, wasted work), timeline charts, per-component drill-down, A/B comparison with the exact
+  input differences, run history, the assumptions behind every number, and a Markdown report.
+
+**Everywhere:** a command palette (Ctrl/⌘ K) with every action, an IDE-style status bar,
+keyboard shortcuts, light and dark themes. Projects live in PostgreSQL (or SQLite), documents
+import/export as versioned JSON, and every run stores its input, seed, engine version and
+result digest so it can be re-run and verified bit for bit.
+
+| Build: technology library, design review, technology picker | Decide: scorecard against your SLOs |
 | --- | --- |
-| ![Insights: verdict, KPI tiles with sparklines and findings](docs/images/insights.jpg) | ![Compare: what changed and why, with the input differences](docs/images/compare.jpg) |
-| **Charts over simulated time** | **Projects page** |
-| ![Timeline charts of throughput and latency](docs/images/charts.jpg) | ![Projects page with the hero illustration and steps](docs/images/home.jpg) |
+| ![Build workspace: the design review lists a cache without fallback and a timeout inversion; Orders DB is selected with the PostgreSQL technology picker and read replicas](docs/images/build.jpg) | ![Decide scorecard: meets 2 of 2 objectives, p95 434 ms against 500 ms, availability 99.8%, error budget 45% used, $1,235 per month](docs/images/scorecard.jpg) |
+| **Decide: trade-off map** | **Home** |
+| ![Trade-off map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page with the animated flight-recorder illustration](docs/images/home.jpg) |
 
 ## Quick start
 
@@ -116,18 +124,25 @@ authentication.
 
 ## A five-minute tour
 
-1. Open the starter example. Reads go Clients → Load Balancer → API Servers → Redis; misses
-   continue to PostgreSQL through the cache's **miss** port; writes go to PostgreSQL and then
-   invalidate the cache.
-2. Press **Run**. With 2 API replicas at 400 req/s, nothing is saturated (API about 68% busy,
-   p95 about 89 ms).
-3. Select **API Servers**, set **Replicas** to 1, and run again: the API saturates, its queue
-   fills, about 27% of requests are rejected and p95 rises to about 265 ms.
-4. Open **Scenarios** and press **Run all & compare**, or pick any two runs in **Compare**.
-5. **Save** (Ctrl/⌘ S), reload the page, and use **Runs → Reproduce** to re-simulate a stored
-   run. Identical input and seed give an identical result digest.
+1. On the home page, open **Black Friday on Kubernetes**: Shoppers → Kong gateway → a Go
+   checkout service on Kubernetes (HPA 3→14 pods) → Redis, PostgreSQL with two read replicas,
+   and a payments API. The **design review** (bottom left) already warns that reads fail when
+   the cache is down, because there is no fallback path.
+2. Press **Run in Stress**. The run is recorded and replays automatically: around t = 60 s the
+   checkout service goes red while new pods start, then recovers. Scrub the timeline to any
+   second; the canvas shows that moment. The experiment panel reports whether the hypothesis
+   (p95 ≤ 500 ms, availability ≥ 99.5%) held.
+3. Click a one-click experiment such as **Lose Catalog cache for 15 s** and run again:
+   the verdict flips, and the fault window on the timeline shows exactly when and where it
+   broke.
+4. Press **3** for **Decide**: the scorecard shows the objectives, error budget and a monthly
+   cost estimate. **Run all & compare** puts every scenario on the trade-off map (no
+   autoscaling is cheaper but misses the SLO).
+5. **Breaking point** sweeps the load and finds the highest load that still meets the
+   objectives. **Report** gives you a Markdown write-up; **Ctrl/⌘ K → Export** gives
+   docker-compose, Kubernetes or Mermaid scaffolding.
 
-The numbers above come from the shipped example with seed 42 and are illustrative.
+The numbers come from the shipped examples with seed 42 and are illustrative assumptions.
 
 ## Command line
 

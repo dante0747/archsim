@@ -4,6 +4,9 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { DesignReviewPanel } from "@/components/build/DesignReview";
+import { ExportDialog } from "@/components/build/ExportDialog";
+import { DecideWorkspace } from "@/components/decide/DecideWorkspace";
 import { useEditorActions } from "@/components/editor/actions";
 import { Canvas } from "@/components/editor/Canvas";
 import { CommandPalette } from "@/components/editor/CommandPalette";
@@ -11,15 +14,18 @@ import { Inspector } from "@/components/editor/Inspector";
 import { ComponentRail } from "@/components/editor/Palette";
 import { StatusBar } from "@/components/editor/StatusBar";
 import { TopBar } from "@/components/editor/TopBar";
-import { WorkflowBar } from "@/components/editor/WorkflowBar";
-import { ResultsDrawer } from "@/components/results/ResultsDrawer";
+import { WorkspaceBar } from "@/components/editor/WorkspaceBar";
+import { openDecide } from "@/components/editor/workflow";
+import { ExperimentPanel } from "@/components/stress/ExperimentPanel";
+import { PlaybackClock, TimelineDock } from "@/components/timeline/TimelineDock";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
 import { ApiError, api } from "@/lib/api";
 import { isEditableTarget } from "@/lib/utils";
+import { sectionForDrawerTab, useDecide } from "@/store/decide";
 import { contentKey, useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { useUi } from "@/store/ui";
+import { type Workspace, useUi } from "@/store/ui";
 
 export function EditorApp({ projectId }: { projectId: string }) {
   const [state, setState] = useState<{ kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string }>({
@@ -50,8 +56,8 @@ export function EditorApp({ projectId }: { projectId: string }) {
 
   if (state.kind === "loading") {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-ink-2" role="status">
-        <LoaderCircle className="size-4 animate-spin" /> Loading project…
+      <div className="flex h-full items-center justify-center gap-2 font-mono text-xs text-ink-2" role="status">
+        <LoaderCircle className="size-4 animate-spin" /> loading project…
       </div>
     );
   }
@@ -111,12 +117,53 @@ function useLiveValidation() {
   }, []);
 }
 
+/** Wiring between runs and workspaces: results open in Decide, finished runs replay in Stress. */
+function useWorkspaceWiring() {
+  const mode = useUi((s) => s.mode);
+  const activeRunId = useRuns((s) => s.activeRunId);
+
+  useEffect(
+    () =>
+      useRuns.subscribe((s, prev) => {
+        // Anything that used to open the results drawer now opens the matching Decide section.
+        if (s.drawerOpen && (!prev.drawerOpen || s.drawerTab !== prev.drawerTab)) {
+          useDecide.getState().setSection(sectionForDrawerTab(s.drawerTab));
+          openDecide();
+          useRuns.getState().setDrawerOpen(false);
+        }
+        // A run started from the UI just finished: replay it if the user is watching Stress.
+        if (s.lastFinishedRunId && s.lastFinishedRunId !== prev.lastFinishedRunId && useUi.getState().mode === "stress") {
+          useUi.getState().setPlayhead(0);
+          useUi.getState().setPlaying(true);
+        }
+        // Switching to another run resets the replay.
+        if (s.activeRunId !== prev.activeRunId && s.lastFinishedRunId !== s.activeRunId) {
+          useUi.getState().setPlaying(false);
+          useUi.getState().setPlayhead(null);
+        }
+      }),
+    [],
+  );
+
+  // Visiting Decide with a run counts as having seen its results.
+  useEffect(() => {
+    if (mode === "decide" && activeRunId) useUi.getState().markInsightsSeen(activeRunId);
+    if (mode !== "stress") useUi.getState().setPlaying(false);
+  }, [mode, activeRunId]);
+}
+
+const WORKSPACE_KEYS: Record<string, Workspace> = { "1": "build", "2": "stress", "3": "decide" };
+
 function EditorShell() {
   // Rendered only on the client (after the project loads), so window is available.
-  const [showInspector, setShowInspector] = useState(() => window.innerWidth >= 768);
+  const [showSide, setShowSide] = useState(() => window.innerWidth >= 768);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const mode = useUi((s) => s.mode);
+  const exportOpen = useUi((s) => s.exportOpen);
+  const setExportOpen = useUi((s) => s.setExportOpen);
   const { save, run } = useEditorActions();
   useLiveValidation();
+  useWorkspaceWiring();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -139,7 +186,12 @@ function EditorShell() {
       }
       if (isEditableTarget(e.target) || useUi.getState().paletteOpen) return;
       const ed = useEditor.getState();
-      if (mod && key === "z" && !e.shiftKey) {
+      if (!mod && !e.altKey && WORKSPACE_KEYS[e.key]) {
+        e.preventDefault();
+        const ws = WORKSPACE_KEYS[e.key];
+        if (ws === "decide") openDecide();
+        else useUi.getState().setMode(ws);
+      } else if (mod && key === "z" && !e.shiftKey) {
         e.preventDefault();
         ed.undo();
       } else if ((mod && key === "z" && e.shiftKey) || (mod && key === "y")) {
@@ -175,30 +227,44 @@ function EditorShell() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden" data-workspace={mode}>
       <TopBar
-        showInspector={showInspector}
-        onToggleInspector={() => setShowInspector((v) => !v)}
+        showInspector={showSide}
+        onToggleInspector={() => setShowSide((v) => !v)}
         shortcutsOpen={shortcutsOpen}
         onShortcutsOpenChange={setShortcutsOpen}
       />
-      <WorkflowBar />
+      <WorkspaceBar />
       <div className="relative flex min-h-0 flex-1">
-        <ComponentRail />
+        {mode === "build" && <ComponentRail />}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <Canvas />
+            {mode === "build" && <DesignReviewPanel />}
+            {mode === "stress" && <PlaybackClock />}
+            {mode === "decide" && (
+              <div className="absolute inset-0 z-30 overflow-hidden bg-page">
+                <DecideWorkspace />
+              </div>
+            )}
           </div>
-          <ResultsDrawer />
+          {mode === "stress" && <TimelineDock />}
         </div>
-        {showInspector && (
+        {showSide && mode !== "decide" && (
           <div className="absolute inset-y-0 right-0 z-20 shadow-float lg:static lg:z-auto lg:shadow-none">
-            <Inspector />
+            {mode === "build" ? (
+              <Inspector />
+            ) : (
+              <aside className="flex h-full w-[352px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface" aria-label="Experiment">
+                <ExperimentPanel />
+              </aside>
+            )}
           </div>
         )}
       </div>
       <StatusBar />
       <CommandPalette onShowShortcuts={() => setShortcutsOpen(true)} />
+      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
     </div>
   );
 }

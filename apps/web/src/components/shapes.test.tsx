@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Kind } from "@/lib/theme";
 import { SHAPE_OF, ShapeGlyph, ShapeSvg, type Shape } from "./shapes";
 
-const kinds: Kind[] = ["traffic", "network", "compute", "cache", "database", "other"];
+const kinds: Kind[] = ["traffic", "network", "compute", "cache", "database", "messaging", "external", "other"];
 
 describe("schematic shapes", () => {
   it("gives every kind a distinct shape", () => {
@@ -34,6 +34,13 @@ describe("schematic shapes", () => {
     expect(layers(1)).toBe(1);
     expect(layers(2)).toBe(2);
     expect(layers(8)).toBe(3);
+  });
+
+  it.each(["pipe", "cloud"] as Shape[])("keeps %s finite at glyph size", (shape) => {
+    const { container } = render(<ShapeGlyph shape={shape} />);
+    for (const d of [...container.querySelectorAll("path")].map((p) => p.getAttribute("d") ?? "")) {
+      expect(d).not.toMatch(/NaN|Infinity/);
+    }
   });
 
   it("renders small glyphs as decorative", () => {

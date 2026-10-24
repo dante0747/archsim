@@ -18,20 +18,37 @@ function writeFlag(key: string, v: boolean) {
   }
 }
 
+/** The three workspaces of the editor: design it, stress it, decide. */
+export type Workspace = "build" | "stress" | "decide";
+
 export interface UiState {
+  /** Current workspace. */
+  mode: Workspace;
+  /** Flight recorder: simulated second shown on the canvas (null = whole-run summary). */
+  playhead: number | null;
+  playing: boolean;
+  /** Playback speed in simulated seconds per real second. */
+  speed: number;
   /** Animate measured traffic along links after a run. */
   flow: boolean;
   /** The full component library flyout is open. */
   libraryOpen: boolean;
   /** The command palette (Ctrl/Cmd K) is open. */
   paletteOpen: boolean;
+  /** The export dialog (docker-compose, Kubernetes, Mermaid) is open. */
+  exportOpen: boolean;
   /** Workflow progress the user has seen (drives the step indicator and next-step hint). */
   trafficVisited: boolean;
   insightsSeenFor: string | null;
   dismissedHint: string | null;
   setFlow: (v: boolean) => void;
+  setMode: (m: Workspace) => void;
+  setPlayhead: (t: number | null) => void;
+  setPlaying: (v: boolean) => void;
+  setSpeed: (v: number) => void;
   setLibraryOpen: (v: boolean) => void;
   setPaletteOpen: (v: boolean) => void;
+  setExportOpen: (v: boolean) => void;
   markTrafficVisited: () => void;
   markInsightsSeen: (runId: string) => void;
   dismissHint: (key: string) => void;
@@ -39,9 +56,14 @@ export interface UiState {
 }
 
 export const useUi = create<UiState>()((set) => ({
+  mode: "build",
+  playhead: null,
+  playing: false,
+  speed: 4,
   flow: typeof window === "undefined" ? true : readFlag("archsim-flow", true),
   libraryOpen: false,
   paletteOpen: false,
+  exportOpen: false,
   trafficVisited: false,
   insightsSeenFor: null,
   dismissedHint: null,
@@ -50,11 +72,16 @@ export const useUi = create<UiState>()((set) => ({
     set({ flow });
   },
   setLibraryOpen: (libraryOpen) => set({ libraryOpen }),
+  setMode: (mode) => set({ mode }),
+  setPlayhead: (playhead) => set({ playhead }),
+  setPlaying: (playing) => set({ playing }),
+  setSpeed: (speed) => set({ speed }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  setExportOpen: (exportOpen) => set({ exportOpen }),
   markTrafficVisited: () => set({ trafficVisited: true }),
   markInsightsSeen: (insightsSeenFor) => set({ insightsSeenFor }),
   dismissHint: (dismissedHint) => set({ dismissedHint }),
-  resetForProject: () => set({ trafficVisited: false, insightsSeenFor: null, dismissedHint: null, libraryOpen: false, paletteOpen: false }),
+  resetForProject: () => set({ trafficVisited: false, insightsSeenFor: null, dismissedHint: null, libraryOpen: false, paletteOpen: false, mode: "build", playhead: null, playing: false }),
 }));
 
 export function prefersReducedMotion(): boolean {

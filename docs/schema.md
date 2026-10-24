@@ -73,6 +73,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
 | `workload` | object | See below. Every field has a default. |
 | `scenarios` | array | Max 50. |
+| `objectives` | object | Service-level objectives (see below). Optional; defaults apply. |
 | `layout` | object | `nodes: {id: {x, y}}`, optional `viewport: {x, y, zoom}`. |
 
 ## Nodes
@@ -80,7 +81,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | string | Unique; letters, digits, `_`, `.`, `-`; max 64 chars; starts with a letter or digit. |
-| `type` | string | A registered component type: `traffic_source`, `load_balancer`, `service`, `cache`, `database` (or a plugin). |
+| `type` | string | A registered component type: `traffic_source`, `load_balancer`, `service`, `cache`, `database`, `message_queue`, `external_api` (or a plugin). |
 | `label` | string | Display name, max 120. |
 | `description` | string? | |
 | `config` | object | Validated by the component type. The full list of fields, units, ranges and defaults for each type is returned by `GET /api/v1/components` (`uv run archsim catalog`). |
@@ -126,6 +127,36 @@ Used for service times and latencies, always in milliseconds:
 | `keyCount` | integer 1-1,000,000 | 100,000 | Distinct keys (used by TTL caches). |
 | `keySkew` | number 0-3 | 0.99 | Zipf exponent of key popularity (0 = uniform). |
 | `drainS` | number 0-600? | automatic | Time after arrivals stop for in-flight requests to finish. |
+| `faults` | array (max 20) | `[]` | Faults injected during the run (chaos experiments), see below. |
+
+### Faults
+
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `id` | string | | Unique within the workload. |
+| `kind` | `"outage"` \| `"slowdown"` \| `"latency"` | | |
+| `target` | string | | Node id for `outage`/`slowdown` (not the traffic source); edge id for `latency`. |
+| `startS` | number 0-3600 | | Start, in simulated seconds. Must be inside the run. |
+| `durationS` | number (0, 3600] | | Length of the window. A window that runs past the end of the run is clipped (warning). |
+| `factor` | number 1-100 | 4 | `slowdown`: service/processing times sampled at the target are multiplied by this. |
+| `extraMs` | number 0-60,000 | 200 | `latency`: added to every one-way traversal of the link. |
+| `label` | string? | | |
+
+An `outage` makes the target refuse every call that reaches it inside the window (rejection
+reason `outage`, counted at the target); work already in progress finishes. Faults live in the
+workload so a scenario can carry an experiment: override `faults` with a list.
+
+## Objectives
+
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `latencyP95Ms` | number? | 300 | p95 end-to-end latency target. |
+| `latencyP99Ms` | number? | none | p99 target. |
+| `availability` | number 0-1? | 0.999 | Minimum share of requests that succeed in the measured window. |
+| `minThroughputRps` | number? | none | Minimum successful requests per second. |
+
+Objectives never change the simulation; the UI evaluates runs against them (scorecard, error
+budget, breach markers on the replay timeline, experiment verdicts). `null` disables a target.
 
 ## Scenarios and overrides
 

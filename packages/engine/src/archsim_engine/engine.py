@@ -33,6 +33,8 @@ CancelFn = Callable[[], bool]
 
 _DEFAULT_REGISTRY: ComponentRegistry | None = None
 
+ASYNC_MIN_DRAIN_S = 60.0  # automatic drain when the model has message queues
+
 
 def default_registry() -> ComponentRegistry:
     global _DEFAULT_REGISTRY
@@ -190,12 +192,19 @@ def run_simulation(
     source_cfg = configs[source_node.id]
     assert isinstance(source_cfg, TrafficSourceConfig)
     drain_s = wl.drain_s if wl.drain_s is not None else auto_drain_s(source_cfg)
+    if wl.drain_s is None and any(
+        registry.get(n.type).category == "messaging" for n in resolved.architecture.nodes
+    ):
+        # Async backlogs outlive client deadlines; give consumers time to catch up. The run
+        # still stops as soon as nothing is queued or in flight.
+        drain_s = min(600.0, max(drain_s, ASYNC_MIN_DRAIN_S))
     duration_ms = wl.duration_s * 1000.0
     end_ms = duration_ms + drain_s * 1000.0
     tl = Timeline(end_ms, wl.warmup_s * 1000.0, duration_ms)
 
     env = simpy.Environment()
     ctx = SimContext(env, wl.seed, tl)
+    ctx.set_faults(list(wl.faults))
     for e in resolved.architecture.edges:
         er = EdgeRuntime(e, tl, ctx.rng(f"edge:{e.id}:latency"))
         ctx.edges[e.id] = er

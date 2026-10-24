@@ -10,6 +10,7 @@ import type {
   DocMetadata,
   EdgeConfig,
   NodeConfig,
+  Objectives,
   Scenario,
   Workload,
 } from "./types";
@@ -34,8 +35,16 @@ export interface GraphState {
   edges: ArchEdge[];
   workload: Workload;
   scenarios: Scenario[];
+  objectives: Objectives;
   metadata: DocMetadata;
 }
+
+export const DEFAULT_OBJECTIVES: Objectives = {
+  latencyP95Ms: 300,
+  latencyP99Ms: null,
+  availability: 0.999,
+  minThroughputRps: null,
+};
 
 export const DEFAULT_WORKLOAD: Workload = {
   rps: 100,
@@ -48,6 +57,7 @@ export const DEFAULT_WORKLOAD: Workload = {
   keyCount: 100000,
   keySkew: 0.99,
   drainS: null,
+  faults: [],
 };
 
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
@@ -103,6 +113,7 @@ export function fromDocument(doc: ArchitectureDocument): GraphState & { viewport
     edges,
     workload: { ...DEFAULT_WORKLOAD, ...(doc.workload ?? {}) },
     scenarios: doc.scenarios ?? [],
+    objectives: { ...DEFAULT_OBJECTIVES, ...(doc.objectives ?? {}) },
     metadata: doc.metadata ?? { name: "Untitled architecture" },
     viewport: doc.layout?.viewport ?? null,
   };
@@ -134,6 +145,7 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
     },
     workload: state.workload,
     scenarios: state.scenarios,
+    objectives: state.objectives,
     layout: {
       nodes: Object.fromEntries(
         state.nodes.map((n) => [n.id, { x: round(n.position.x), y: round(n.position.y) }]),

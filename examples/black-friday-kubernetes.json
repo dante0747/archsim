@@ -1,0 +1,378 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Black Friday on Kubernetes",
+    "description": "Checkout on Kubernetes with HPA autoscaling behind a Kong gateway, PostgreSQL with two read replicas, Redis for hot reads and a third-party payments API. Traffic ramps from 300 to 1,500 req/s: watch the autoscaler catch up, payments dominate the tail, and the gateway's rate limit protect everything behind it. All numbers are illustrative assumptions.",
+    "tags": [
+      "kubernetes",
+      "autoscaling",
+      "postgresql",
+      "payments"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "shoppers",
+        "type": "traffic_source",
+        "label": "Shoppers",
+        "description": null,
+        "config": {
+          "timeoutMs": 3000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "gateway",
+        "type": "load_balancer",
+        "label": "API gateway",
+        "description": null,
+        "config": {
+          "technology": "kong",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.8
+          },
+          "maxConnections": 20000,
+          "rateLimitRps": 2000
+        }
+      },
+      {
+        "id": "checkout",
+        "type": "service",
+        "label": "Checkout API",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 16,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 800,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 20
+          },
+          "blockingDownstream": true,
+          "autoscaling": true,
+          "minReplicas": 3,
+          "maxReplicas": 14,
+          "targetUtilization": 0.6,
+          "scaleIntervalS": 15,
+          "startupS": 20
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Catalog cache",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "hitModel": "fixed_ratio",
+          "hitRatio": 0.85,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.1
+          },
+          "concurrency": 1,
+          "queueCapacity": 10000
+        }
+      },
+      {
+        "id": "orders",
+        "type": "database",
+        "label": "Orders DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 60,
+          "readReplicas": 2,
+          "queueCapacity": 500,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 15
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 9,
+            "p95": 35
+          }
+        }
+      },
+      {
+        "id": "payments",
+        "type": "external_api",
+        "label": "Payments API",
+        "description": null,
+        "config": {
+          "technology": "payments",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 180,
+            "p95": 650
+          },
+          "errorRate": 0.005
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "shoppers-gateway",
+        "source": "shoppers",
+        "sourcePort": "out",
+        "target": "gateway",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "gateway-checkout",
+        "source": "gateway",
+        "sourcePort": "out",
+        "target": "checkout",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "checkout-cache",
+        "source": "checkout",
+        "sourcePort": "out",
+        "target": "cache",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 50
+        }
+      },
+      {
+        "id": "checkout-orders",
+        "source": "checkout",
+        "sourcePort": "out",
+        "target": "orders",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 800
+        }
+      },
+      {
+        "id": "cache-miss-orders",
+        "source": "cache",
+        "sourcePort": "miss",
+        "target": "orders",
+        "targetPort": "in",
+        "label": "miss",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 500
+        }
+      },
+      {
+        "id": "checkout-payments",
+        "source": "checkout",
+        "sourcePort": "out",
+        "target": "payments",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 15
+          },
+          "order": 2,
+          "timeoutMs": 2000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 200
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 300,
+    "durationS": 120,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.8,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "ramp",
+      "startRps": 300,
+      "endRps": 1500
+    },
+    "keyCount": 100000,
+    "keySkew": 0.99,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (HPA 3\u219214 pods)",
+      "description": "The document as drawn.",
+      "overrides": []
+    },
+    {
+      "id": "fixed-pods",
+      "name": "No autoscaling (3 fixed pods)",
+      "description": "What the ramp does without the HPA.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "checkout"
+          },
+          "path": "autoscaling",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": "payments-slow",
+      "name": "Payments provider 5\u00d7 slower (60\u201390 s)",
+      "description": "Chaos: the third party degrades at peak.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "payments-slow",
+              "kind": "slowdown",
+              "target": "payments",
+              "startS": 60,
+              "durationS": 30,
+              "factor": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cache-down",
+      "name": "Lose the cache for 20 s",
+      "description": "Chaos: every read falls through to PostgreSQL.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "cache-down",
+              "kind": "outage",
+              "target": "cache",
+              "startS": 70,
+              "durationS": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tight-limit",
+      "name": "Gateway rate limit 900 req/s",
+      "description": "Shed load at the edge instead of queueing it.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "gateway"
+          },
+          "path": "rateLimitRps",
+          "value": 900
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 500,
+    "latencyP99Ms": null,
+    "availability": 0.995,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "shoppers": {
+        "x": 0,
+        "y": 160
+      },
+      "gateway": {
+        "x": 330,
+        "y": 160
+      },
+      "checkout": {
+        "x": 660,
+        "y": 160
+      },
+      "cache": {
+        "x": 1030,
+        "y": 0
+      },
+      "orders": {
+        "x": 1400,
+        "y": 160
+      },
+      "payments": {
+        "x": 1030,
+        "y": 380
+      }
+    },
+    "viewport": null
+  }
+}

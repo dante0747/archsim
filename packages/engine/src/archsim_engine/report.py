@@ -40,7 +40,10 @@ MODEL_NOTES = [
     "Network latency is sampled per link and direction. Bandwidth, packet loss, connection setup "
     "and TLS are not modeled.",
     "Each worker or connection is an independent server. CPU and memory contention, garbage "
-    "collection, noisy neighbours and autoscaling are not modeled.",
+    "collection and noisy neighbours are not modeled. Capacity is fixed unless a service has "
+    "autoscaling on or runs serverless.",
+    "Faults (outages, slowdowns, link latency) apply only inside their time windows; components "
+    "do not fail on their own otherwise (third-party APIs may have an error rate).",
     "Summary statistics exclude the warm-up period. Percentiles come from a log-bucketed "
     "histogram with about 2% resolution.",
     "The same document, scenario, seed and engine version reproduce identical results on the "
@@ -54,6 +57,10 @@ REASON_TEXT = {
     "dependency_timeout": "timed out waiting for a dependency",
     "client_timeout": "client timeout",
     "miss_unrouted": "miss had nowhere to go",
+    "outage": "component was down (injected outage)",
+    "throttled": "throttled (concurrency or provisioned throughput exceeded)",
+    "rate_limited": "rate limited",
+    "upstream_error": "third-party API returned an error",
 }
 
 
@@ -238,11 +245,22 @@ def build_report(
         rt = ctx.components[n.id]
         m = rt.m
         model = registry.get(n.type)
-        slots = m.slots
+        slots: float | int | None = m.slots
         occ = rt.occupancy
         pool_based = occ is m.busy
-        util = occ.window_mean() / slots if slots else None
-        cpu_util = m.cpu.window_mean() / slots if (slots and m.has_cpu_split) else None
+        cap = rt.capacity_gauge()
+        if cap is not None:
+            # time-varying capacity (autoscaling): utilization = busy slot-time / available slot-time
+            slots = _round(cap.window_mean(), 3)
+            util = occ.window_area / cap.window_area if cap.window_area else None
+            cpu_util = (
+                m.cpu.window_area / cap.window_area
+                if (cap.window_area and m.has_cpu_split)
+                else None
+            )
+        else:
+            util = occ.window_mean() / slots if slots else None
+            cpu_util = m.cpu.window_mean() / slots if (slots and m.has_cpu_split) else None
         arrivals_w = m.arrivals.window
         rejected = {r: c.window for r, c in sorted(m.rejected.items())}
         rejected_w = sum(rejected.values())
@@ -307,12 +325,27 @@ def build_report(
             "queueMax": cut(m.queue.max_series()),
             "queueWaitMs": cut(m.queue_wait.series()),
         }
-        if slots:
+        if cap is not None:
+            ts["utilization"] = cut(
+                round_series(
+                    [a / c if c else None for a, c in zip(occ.area, cap.area, strict=True)]
+                )
+            )
+            if m.has_cpu_split:
+                ts["cpuUtilization"] = cut(
+                    round_series(
+                        [a / c if c else None for a, c in zip(m.cpu.area, cap.area, strict=True)]
+                    )
+                )
+        elif slots:
             ts["utilization"] = cut(round_series([a / (slots * tl.bucket_ms) for a in occ.area]))
             if m.has_cpu_split:
                 ts["cpuUtilization"] = cut(
                     round_series([a / (slots * tl.bucket_ms) for a in m.cpu.area])
                 )
+        for name, series in rt.extra_timeseries().items():
+            ts[name] = cut(round_series(series))
+        node_summary.update(rt.extra_summary())
         if hits is not None or misses is not None:
             h_b = m.extra["hits"].buckets if "hits" in m.extra else [0] * tl.n
             m_b = m.extra["misses"].buckets if "misses" in m.extra else [0] * tl.n
@@ -356,6 +389,11 @@ def build_report(
                 "retries": er.retries.window,
                 "timeouts": er.timeouts.window,
                 "failures": er.failures.window,
+                "timeseries": {
+                    "callRps": cut(round_series(er.attempts.rate_series())),
+                    "timeoutRps": cut(round_series(er.timeouts.rate_series())),
+                    "failureRps": cut(round_series(er.failures.rate_series())),
+                },
             }
         )
 

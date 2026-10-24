@@ -9,6 +9,7 @@ import type { ArchitectureDocument } from "@/lib/types";
 import { downloadJson, readJsonFile } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { useUi } from "@/store/ui";
 
 /** Editor-level commands shared by the top bar and keyboard shortcuts. */
 export function useEditorActions() {
@@ -47,6 +48,11 @@ export function useEditorActions() {
     }
     const r = useRuns.getState();
     const scenarioId = s.scenarios.some((x) => x.id === r.selectedScenarioId) ? r.selectedScenarioId : null;
+    // Runs are recorded and replayed in the Stress workspace.
+    const ui = useUi.getState();
+    if (ui.mode === "build") ui.setMode("stress");
+    ui.setPlaying(false);
+    ui.setPlayhead(null);
     await r.startRun(s.toDocument(rf.getViewport()), scenarioId);
   }, [rf]);
 

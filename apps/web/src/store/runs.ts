@@ -5,6 +5,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { ApiError, api } from "@/lib/api";
+import { SWEEP_SCENARIO_PREFIX } from "@/lib/sweep";
 import type { ArchitectureDocument, Comparison, Report, Run } from "@/lib/types";
 
 export type DrawerTab = "overview" | "charts" | "components" | "compare" | "runs" | "assumptions";
@@ -33,6 +34,8 @@ export interface RunsState {
   starting: boolean;
   /** Scenario chosen in the run control (null = the design as drawn). */
   selectedScenarioId: string | null;
+  /** Last run started from the UI that finished successfully (drives replay autoplay). */
+  lastFinishedRunId: string | null;
 
   reset: (projectId: string) => Promise<void>;
   startRun: (doc: ArchitectureDocument, scenarioId: string | null) => Promise<Run | null>;
@@ -106,7 +109,7 @@ export const useRuns = create<RunsState>()((set, get) => {
     if (run.status === "succeeded") {
       if (get().followRunId === run.id) {
         await get().showRun(run.id);
-        set({ followRunId: null });
+        set({ followRunId: null, lastFinishedRunId: run.id });
       }
       if (run.reproducesRunId) {
         const original = get().runs.find((r) => r.id === run.reproducesRunId);
@@ -160,6 +163,7 @@ export const useRuns = create<RunsState>()((set, get) => {
     focusNodeId: null,
     starting: false,
     selectedScenarioId: null,
+    lastFinishedRunId: null,
 
     reset: async (projectId) => {
       set({
@@ -169,6 +173,7 @@ export const useRuns = create<RunsState>()((set, get) => {
         activeRunId: null,
         pending: [],
         followRunId: null,
+        lastFinishedRunId: null,
         compareA: null,
         compareB: null,
         comparison: null,
@@ -178,7 +183,8 @@ export const useRuns = create<RunsState>()((set, get) => {
         const active = runs.filter((r) => r.status === "queued" || r.status === "running").map((r) => r.id);
         set({ runs, pending: active });
         if (active.length) ensurePolling();
-        const latest = runs.find((r) => r.status === "succeeded");
+        // Breaking-point sweep steps are measurements, not designs: never open one by default.
+        const latest = runs.find((r) => r.status === "succeeded" && !(r.scenarioId ?? "").startsWith(SWEEP_SCENARIO_PREFIX));
         if (latest) await get().showRun(latest.id);
       } catch (e) {
         toast.error(`Could not load runs: ${errorMessage(e)}`);

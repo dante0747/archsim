@@ -11,7 +11,8 @@ from pydantic import Field
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.issues import Issue, error
 from archsim_engine.metrics import Gauge
-from archsim_engine.registry import ComponentModel, GraphView, PortSpec, ui
+from archsim_engine.ratelimit import TokenBucket
+from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
     OK,
     EdgeRuntime,
@@ -27,6 +28,13 @@ Candidate = tuple[EdgeRuntime, RuntimeComponent, int]
 
 
 class LoadBalancerConfig(CamelModel):
+    technology: Literal[
+        "generic", "nginx", "haproxy", "envoy", "traefik", "kong", "aws_alb", "api_gateway"
+    ] = Field(
+        default="generic",
+        description="Product or managed service. A label for the design; behaviour comes from the settings below.",
+        json_schema_extra=ui(label="Technology", group="Technology"),
+    )
     policy: Literal["round_robin", "least_connections", "random"] = Field(
         default="round_robin",
         description=(
@@ -47,6 +55,27 @@ class LoadBalancerConfig(CamelModel):
         description="Concurrent requests the balancer accepts; beyond this new requests are rejected.",
         json_schema_extra=ui(label="Max connections", group="Capacity"),
     )
+    rate_limit_rps: float | None = Field(
+        default=None,
+        gt=0,
+        le=1_000_000,
+        description="Requests per second admitted (token bucket); excess requests are rejected (HTTP 429). Empty = no limit.",
+        json_schema_extra=ui(label="Rate limit", unit="req/s", group="Rate limiting"),
+    )
+    rate_limit_burst: float | None = Field(
+        default=None,
+        gt=0,
+        le=10_000_000,
+        description="Bucket size: requests admitted in a burst above the rate. Empty = one second's worth.",
+        json_schema_extra=ui(label="Burst", unit="req", group="Rate limiting"),
+    )
+    cost_per_hour: float = Field(
+        default=0.025,
+        ge=0,
+        le=10_000,
+        description="Price of the balancer per hour, in USD. Illustrative default; use your provider's pricing.",
+        json_schema_extra=ui(label="Cost per hour", unit="$/h", group="Cost", assumption=True),
+    )
 
 
 class LoadBalancerRuntime(RuntimeComponent):
@@ -55,24 +84,33 @@ class LoadBalancerRuntime(RuntimeComponent):
         self.rng = ctx.rng(f"node:{node.id}:lb")
         self.overhead_rng = ctx.rng(f"node:{node.id}:overhead")
         self._candidates: dict[str, list[Candidate]] = {}
+        self._versions: dict[str, tuple[int, ...]] = {}
         self._rr: dict[str, int] = {}
+        self.bucket = (
+            TokenBucket(config.rate_limit_rps, config.rate_limit_burst)
+            if config.rate_limit_rps
+            else None
+        )
 
     @property
     def occupancy(self) -> Gauge:
         return self.m.inflight
 
     def candidates(self, op: str) -> list[Candidate]:
+        """Every routable instance of every target linked for ``op``. Rebuilt when a target's
+        set of instances changes (autoscaling)."""
         c = self._candidates.get(op)
-        if c is None:
+        edges = [e for e in self.out_edges("out") if e.carries(op)]
+        version = tuple(self.ctx.components[e.target_id].instances_version for e in edges)
+        if c is None or self._versions.get(op) != version:
             c = []
-            for e in self.out_edges("out"):
-                if not e.carries(op):
-                    continue
+            for e in edges:
                 target = self.ctx.components[e.target_id]
                 for i in range(target.instance_count()):
                     c.append((e, target, i))
             self._candidates[op] = c
-            self._rr[op] = 0
+            self._versions[op] = version
+            self._rr[op] = self._rr.get(op, 0) % max(1, len(c))
         return c
 
     def pick(self, op: str, avoid: tuple[str, int] | None) -> Candidate:
@@ -111,8 +149,11 @@ class LoadBalancerRuntime(RuntimeComponent):
         if m.inflight.value > cfg.max_connections:
             m.reject("max_connections", env.now)
             return rejected("max_connections", self.id)
+        if self.bucket is not None and not self.bucket.try_take(env.now):
+            m.reject("rate_limited", env.now)
+            return rejected("rate_limited", self.id)
         start = env.now
-        d = cfg.overhead_ms.sample(self.overhead_rng)
+        d = self.sample_time(cfg.overhead_ms, self.overhead_rng)
         if d > 0:
             yield env.timeout(d)
         m.service.record(env.now, d)
@@ -162,11 +203,102 @@ class LoadBalancerModel(ComponentModel):
         ),
     )
     modeled = (
-        "Instance selection per policy across all replicas of linked targets",
+        "Instance selection per policy across all routable replicas of linked targets (follows autoscaling)",
         "Per-link timeout and retries that avoid the failed instance",
         "Connection limit (rejects beyond max connections)",
+        "Optional rate limit (token bucket); excess rejected as rate_limited",
     )
-    not_modeled = ("Health checks and ejection", "TLS handshakes", "Sticky sessions")
+    not_modeled = (
+        "Health checks and ejection",
+        "TLS handshakes",
+        "Sticky sessions",
+        "Per-client or per-route rate limits",
+    )
+    presets = (
+        Preset(
+            id="nginx",
+            name="Nginx",
+            technology="nginx",
+            family="Load balancer",
+            description="Reverse proxy / load balancer with very low per-request overhead.",
+            config={
+                "technology": "nginx",
+                "policy": "round_robin",
+                "overheadMs": {"kind": "constant", "value": 0.2},
+            },
+            tags=("proxy", "l7"),
+        ),
+        Preset(
+            id="haproxy",
+            name="HAProxy",
+            technology="haproxy",
+            family="Load balancer",
+            description="High-performance TCP/HTTP load balancer, least-connections balancing.",
+            config={
+                "technology": "haproxy",
+                "policy": "least_connections",
+                "overheadMs": {"kind": "constant", "value": 0.15},
+            },
+            tags=("proxy", "l7"),
+        ),
+        Preset(
+            id="envoy",
+            name="Envoy",
+            technology="envoy",
+            family="Load balancer",
+            description="Service proxy (also the data plane of most service meshes).",
+            config={
+                "technology": "envoy",
+                "policy": "least_connections",
+                "overheadMs": {"kind": "constant", "value": 0.3},
+            },
+            tags=("proxy", "mesh"),
+        ),
+        Preset(
+            id="kong",
+            name="Kong API gateway",
+            technology="kong",
+            family="API gateway",
+            description="API gateway in front of services, with a global rate limit.",
+            config={
+                "technology": "kong",
+                "overheadMs": {"kind": "lognormal", "median": 1.0, "p95": 3.0},
+                "rateLimitRps": 1000,
+                "rateLimitBurst": 200,
+                "costPerHour": 0.05,
+            },
+            tags=("gateway", "rate-limit"),
+        ),
+        Preset(
+            id="aws-alb",
+            name="ALB-style load balancer",
+            technology="aws_alb",
+            family="Load balancer",
+            description="Managed cloud application load balancer (illustrative numbers, not a vendor benchmark).",
+            config={
+                "technology": "aws_alb",
+                "overheadMs": {"kind": "lognormal", "median": 1.5, "p95": 5.0},
+                "maxConnections": 100000,
+                "costPerHour": 0.0225,
+            },
+            tags=("managed", "l7"),
+        ),
+        Preset(
+            id="api-gateway",
+            name="API-gateway-style (managed)",
+            technology="api_gateway",
+            family="API gateway",
+            description="Managed API gateway: higher overhead per request and an account-level rate limit.",
+            config={
+                "technology": "api_gateway",
+                "overheadMs": {"kind": "lognormal", "median": 6.0, "p95": 20.0},
+                "rateLimitRps": 10000,
+                "rateLimitBurst": 5000,
+                "costPerHour": 0.0,
+            },
+            tags=("managed", "gateway", "rate-limit"),
+        ),
+    )
 
     def capacity_slots(self, config: Any) -> int | None:
         return int(config.max_connections)

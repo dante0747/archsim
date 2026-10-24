@@ -19,6 +19,7 @@ import { ArchEdgeView } from "@/components/editor/ArchEdgeView";
 import { ArchNodeView, NODE_W } from "@/components/editor/ArchNodeView";
 import { RunReportCard } from "@/components/editor/CanvasHud";
 import { CanvasToolbar } from "@/components/editor/CanvasToolbar";
+import { findPreset, parseDndPayload } from "@/components/build/presets";
 import { DND_MIME } from "@/components/editor/Palette";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import type { ArchEdge, ArchNode } from "@/lib/document";
@@ -166,11 +167,15 @@ export function Canvas() {
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
-      const type = e.dataTransfer.getData(DND_MIME);
-      if (!type) return;
+      const raw = e.dataTransfer.getData(DND_MIME);
+      if (!raw) return;
       e.preventDefault();
+      const { type, presetId } = parseDndPayload(raw);
       const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      addNode(type, { x: Math.round(p.x - NODE_W / 2), y: Math.round(p.y - 40) });
+      const pos = { x: Math.round(p.x - NODE_W / 2), y: Math.round(p.y - 40) };
+      const ed = useEditor.getState();
+      const preset = findPreset(ed.catalog, type, presetId);
+      if (!(preset && ed.addPresetNode(type, pos, preset))) addNode(type, pos);
     },
     [rf, addNode],
   );

@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * The guided workflow: Design → Traffic → Simulate → Insights → Compare.
- * Derives step states and one "next step" suggestion from editor/run state, so the UI always
- * tells a newcomer what to do next.
+ * The studio workflow: Build → Stress → Decide. Derives each workspace's progress and one "next
+ * step" suggestion from editor/run state, so the UI always tells a newcomer what to do next.
  */
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
@@ -12,14 +11,14 @@ import { compact } from "@/lib/format";
 import type { Report } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { useUi } from "@/store/ui";
+import { type Workspace, useUi } from "@/store/ui";
 
-export type StepKey = "design" | "traffic" | "simulate" | "insights" | "compare";
-export type StepState = "done" | "current" | "todo";
+export type StepState = "done" | "todo";
 
 export interface Step {
-  key: StepKey;
+  key: Workspace;
   label: string;
+  caption: string;
   hint: string;
   state: StepState;
   busy?: boolean;
@@ -41,14 +40,34 @@ export function verdictOf(report: Report): { title: string; tone: "ok" | "warn" 
   return { title: "Healthy: no component is saturated", tone: "ok" };
 }
 
+/** Open the decision workspace (optionally a results section) and remember the run was seen. */
+export function openDecide() {
+  const ui = useUi.getState();
+  ui.setMode("decide");
+  const id = useRuns.getState().activeRunId;
+  if (id) ui.markInsightsSeen(id);
+}
+
+/** Switch to Stress and replay the active run from the start. */
+export function replayActiveRun() {
+  const ui = useUi.getState();
+  ui.setMode("stress");
+  if (useRuns.getState().activeRunId) {
+    ui.setPlayhead(0);
+    ui.setPlaying(true);
+  }
+}
+
 export function useWorkflow() {
   const rf = useReactFlow();
   const { run } = useEditorActions();
+  const mode = useUi((s) => s.mode);
   const nodeCount = useEditor((s) => s.nodes.length);
   const errorCount = useEditor((s) => s.issues.filter((i) => i.severity === "error").length);
   const firstError = useEditor((s) => s.issues.find((i) => i.severity === "error") ?? null);
   const rps = useEditor((s) => s.workload.rps);
   const durationS = useEditor((s) => s.workload.durationS);
+  const faultCount = useEditor((s) => s.workload.faults?.length ?? 0);
   const scenarioCount = useEditor((s) => s.scenarios.length);
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
   const succeededCount = useRuns((s) => s.runs.filter((r) => r.status === "succeeded").length);
@@ -56,60 +75,43 @@ export function useWorkflow() {
   const report = useRuns((s) => (s.activeRunId ? (s.reports[s.activeRunId] ?? null) : null));
   const hasComparison = useRuns((s) => s.comparison !== null);
   const starting = useRuns((s) => s.starting);
-  const trafficVisited = useUi((s) => s.trafficVisited);
   const insightsSeenFor = useUi((s) => s.insightsSeenFor);
   const dismissedHint = useUi((s) => s.dismissedHint);
 
   const running = !!followRun && (followRun.status === "queued" || followRun.status === "running");
   const hasRun = succeededCount > 0;
-
-  const designDone = nodeCount > 0 && errorCount === 0;
-  const trafficDone = designDone && (trafficVisited || hasRun);
-  const simulateDone = hasRun;
-  const insightsDone = !!activeRunId && insightsSeenFor === activeRunId;
-  const compareDone = hasComparison;
-  const flags = [designDone, trafficDone, simulateDone, insightsDone, compareDone];
-  const firstOpen = flags.findIndex((f) => !f);
-  const state = (i: number): StepState => (flags[i] ? "done" : i === firstOpen ? "current" : "todo");
+  const seen = !!activeRunId && insightsSeenFor === activeRunId;
 
   const steps: Step[] = [
-    { key: "design", label: "Design", hint: "Draw components and link them", state: state(0) },
-    { key: "traffic", label: "Traffic", hint: "How many requests, which mix", state: state(1) },
-    { key: "simulate", label: "Simulate", hint: "Run the discrete-event engine", state: state(2), busy: running },
-    { key: "insights", label: "Insights", hint: "Bottlenecks, latency, queues", state: state(3) },
-    { key: "compare", label: "Compare", hint: "Scenarios side by side", state: state(4) },
+    {
+      key: "build",
+      label: "Build",
+      caption: "design with real tech",
+      hint: "Pick technologies, wire them, set capacity. A design review flags risks as you go.",
+      state: nodeCount > 0 && errorCount === 0 ? "done" : "todo",
+    },
+    {
+      key: "stress",
+      label: "Stress",
+      caption: "traffic · chaos · replay",
+      hint: "Shape traffic, inject faults, run, and replay what happened second by second.",
+      state: hasRun ? "done" : "todo",
+      busy: running,
+    },
+    {
+      key: "decide",
+      label: "Decide",
+      caption: "SLOs · cost · capacity",
+      hint: "Scorecard against your SLOs, monthly cost, trade-offs between options, breaking point.",
+      state: seen || hasComparison ? "done" : "todo",
+    },
   ];
 
-  const goTo = useCallback(
-    (key: StepKey) => {
-      const ed = useEditor.getState();
-      const runs = useRuns.getState();
-      const ui = useUi.getState();
-      switch (key) {
-        case "design":
-          ed.select({});
-          ed.setRightTab("inspect");
-          runs.setDrawerOpen(false);
-          void rf.fitView({ padding: 0.15, maxZoom: 1, duration: 250 });
-          break;
-        case "traffic":
-          ed.setRightTab("workload");
-          ui.markTrafficVisited();
-          break;
-        case "simulate":
-          void run();
-          break;
-        case "insights":
-          runs.openDrawer("overview");
-          if (runs.activeRunId) ui.markInsightsSeen(runs.activeRunId);
-          break;
-        case "compare":
-          runs.openDrawer("compare");
-          break;
-      }
-    },
-    [rf, run],
-  );
+  const goTo = useCallback((key: Workspace) => {
+    const ui = useUi.getState();
+    if (key === "decide") openDecide();
+    else ui.setMode(key);
+  }, []);
 
   let next: NextHint | null = null;
   if (nodeCount === 0) {
@@ -125,25 +127,34 @@ export function useWorkflow() {
     next = {
       key: "running",
       tone: "busy",
-      text: followRun.status === "queued" ? `Queued: ${followRun.label}` : `Simulating ${followRun.label}…`,
+      text: followRun.status === "queued" ? `Queued: ${followRun.label}` : `Recording ${followRun.label}…`,
       progress: followRun.progress,
     };
   } else if (!hasRun) {
-    next = {
-      key: "ready",
-      tone: "info",
-      text: trafficVisited
-        ? `Ready. Simulate ${compact(durationS)} s of traffic at ${compact(rps)} req/s and see where it breaks.`
-        : `Traffic is ${compact(rps)} req/s for ${compact(durationS)} s. Tweak it in the Traffic tab, or run now.`,
-      actionLabel: starting ? undefined : "Run simulation",
-    };
-  } else if (report && activeRunId && insightsSeenFor !== activeRunId && !hasComparison) {
+    next =
+      mode === "stress"
+        ? {
+            key: "ready-stress",
+            tone: "info",
+            text: faultCount
+              ? `${faultCount} fault${faultCount > 1 ? "s" : ""} armed. Run the experiment and watch the system react.`
+              : `Shape traffic or add a fault on the timeline, or just run ${compact(rps)} req/s for ${compact(durationS)} s.`,
+            actionLabel: starting ? undefined : "Run",
+          }
+        : {
+            key: "ready",
+            tone: "info",
+            text: `Design is valid. Stress it: ${compact(rps)} req/s for ${compact(durationS)} s, then replay what happens.`,
+            actionLabel: starting ? undefined : "Run in Stress",
+          };
+  } else if (report && activeRunId && !seen && !hasComparison) {
     const v = verdictOf(report);
-    next = { key: `insights:${activeRunId}`, tone: v.tone === "ok" ? "success" : "critical", text: `Results are in. ${v.title}.`, actionLabel: "Open insights" };
+    next =
+      mode === "build"
+        ? { key: `replay:${activeRunId}`, tone: v.tone === "ok" ? "success" : "critical", text: `Results are in. ${v.title}.`, actionLabel: "Replay" }
+        : { key: `insights:${activeRunId}`, tone: v.tone === "ok" ? "success" : "critical", text: `Recorded. ${v.title}.`, actionLabel: "Open scorecard" };
   } else if (!hasComparison && scenarioCount >= 2) {
-    next = { key: "compare", tone: "info", text: "Try alternatives: run every scenario and compare them side by side.", actionLabel: "Run all & compare" };
-  } else if (!hasComparison && succeededCount >= 2) {
-    next = { key: "compare-runs", tone: "info", text: "You have several runs. Compare two of them to see what changed and why.", actionLabel: "Compare runs" };
+    next = { key: "compare", tone: "info", text: "Try alternatives: run every scenario and compare cost against latency.", actionLabel: "Run all & compare" };
   }
   if (next && next.key === dismissedHint && next.tone !== "busy") next = null;
 
@@ -153,20 +164,21 @@ export function useWorkflow() {
     if (!next) return;
     if (next.key === "empty") {
       ed.addNode("traffic_source", { x: 0, y: 0 });
-      void setTimeout(() => void rf.fitView({ padding: 0.4, maxZoom: 1, duration: 250 }), 30);
+      window.setTimeout(() => void rf.fitView({ padding: 0.4, maxZoom: 1, duration: 250 }), 30);
     } else if (next.key.startsWith("err:")) {
       const err = ed.issues.find((i) => i.severity === "error");
       if (err) ed.select({ nodeId: err.nodeId ?? null, edgeId: err.edgeId ?? null });
-    } else if (next.key === "ready") {
+    } else if (next.key === "ready" || next.key === "ready-stress") {
       void run();
+    } else if (next.key.startsWith("replay:")) {
+      replayActiveRun();
     } else if (next.key.startsWith("insights:")) {
-      goTo("insights");
+      openDecide();
     } else if (next.key === "compare") {
       void runs.startBatch(ed.toDocument(), ed.scenarios.slice(0, 10).map((s) => s.id));
-    } else if (next.key === "compare-runs") {
-      runs.openDrawer("compare");
+      useUi.getState().setMode("decide");
     }
-  }, [next, rf, run, goTo]);
+  }, [next, rf, run]);
 
-  return { steps, goTo, next, doNext, running };
+  return { steps, goTo, next, doNext, running, mode };
 }

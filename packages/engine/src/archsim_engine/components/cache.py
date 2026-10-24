@@ -1,5 +1,8 @@
-"""In-memory cache (e.g. Redis) used cache-aside: hits return immediately, misses continue to
-the data store linked from the ``miss`` port."""
+"""Cache used cache-aside (Redis, Valkey, Memcached, CDN edge, Varnish): hits return
+immediately, misses continue to the data store linked from the ``miss`` port.
+
+The ``technology`` field is a label; presets fill in illustrative defaults (executors, command
+time, hit ratio) for each technology."""
 
 from __future__ import annotations
 
@@ -11,7 +14,7 @@ from pydantic import Field
 
 from archsim_engine.distributions import Distribution, Exponential
 from archsim_engine.issues import Issue, error, warning
-from archsim_engine.registry import ComponentModel, GraphView, PortSpec, ui
+from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
     OK,
     Outcome,
@@ -25,6 +28,14 @@ from archsim_engine.schema import CamelModel, NodeSpec
 
 
 class CacheConfig(CamelModel):
+    technology: Literal["redis", "valkey", "memcached", "cdn", "varnish", "generic"] = Field(
+        default="redis",
+        description=(
+            "Technology label. It does not change behaviour by itself; presets set executors, "
+            "command time and hit ratio to illustrative defaults for that technology."
+        ),
+        json_schema_extra=ui(label="Technology", group="Technology"),
+    )
     hit_model: Literal["fixed_ratio", "ttl_keyspace"] = Field(
         default="fixed_ratio",
         description=(
@@ -92,6 +103,13 @@ class CacheConfig(CamelModel):
         description="Commands waiting longer than this are rejected (ms). Empty = no limit.",
         json_schema_extra=ui(label="Queue timeout", unit="ms", group="Capacity"),
     )
+    cost_per_hour: float = Field(
+        default=0.1,
+        ge=0,
+        le=100_000,
+        description="Price of the cache per hour, used for cost estimates only. Illustrative default.",
+        json_schema_extra=ui(label="Cost per hour", unit="$/h", group="Cost", assumption=True),
+    )
 
     def can_miss(self) -> bool:
         return self.hit_model == "ttl_keyspace" or self.hit_ratio < 1.0
@@ -116,7 +134,7 @@ class CacheRuntime(RuntimeComponent):
         if tok is None:
             return reason or "rejected"
         start = env.now
-        st = self.config.service_time_ms.sample(self.rng)
+        st = self.sample_time(self.config.service_time_ms, self.rng)
         if st > 0:
             yield env.timeout(st)
         self.pool.release(tok)
@@ -168,7 +186,7 @@ class CacheRuntime(RuntimeComponent):
 
 class CacheModel(ComponentModel):
     type = "cache"
-    display_name = "Cache (Redis)"
+    display_name = "Cache"
     category = "storage"
     description = (
         "Cache-aside: reads that hit return from memory; misses continue through the 'miss' port "
@@ -195,7 +213,76 @@ class CacheModel(ComponentModel):
     not_modeled = (
         "Memory limits and eviction (LRU/LFU)",
         "Thundering herd / request coalescing on misses",
-        "Replication and persistence",
+        "Replication, persistence and cluster sharding",
+        "CDN geography (edge-to-user latency belongs on the incoming link)",
+    )
+    presets = (
+        Preset(
+            "redis",
+            "Redis",
+            "redis",
+            "In-memory",
+            "Single Redis node: commands run on one thread, sub-millisecond. Illustrative defaults.",
+            {"technology": "redis", "concurrency": 1, "costPerHour": 0.1},
+            ("in-memory", "key-value"),
+        ),
+        Preset(
+            "valkey",
+            "Valkey",
+            "valkey",
+            "In-memory",
+            "Redis-compatible; multi-threaded I/O lets a few commands proceed in parallel. "
+            "Illustrative defaults.",
+            {"technology": "valkey", "concurrency": 4, "costPerHour": 0.1},
+            ("in-memory", "key-value"),
+        ),
+        Preset(
+            "memcached",
+            "Memcached",
+            "memcached",
+            "In-memory",
+            "Multi-threaded, simple get/set cache. Illustrative defaults.",
+            {
+                "technology": "memcached",
+                "concurrency": 8,
+                "serviceTimeMs": {"kind": "exponential", "mean": 0.04},
+                "costPerHour": 0.09,
+            },
+            ("in-memory", "key-value"),
+        ),
+        Preset(
+            "cdn",
+            "CDN edge cache",
+            "cdn",
+            "Edge cache",
+            "Edge cache in front of the origin: huge parallelism, a few ms per request, most reads "
+            "served at the edge. Put user-to-edge latency on the incoming link. Illustrative "
+            "defaults.",
+            {
+                "technology": "cdn",
+                "concurrency": 1024,
+                "queueCapacity": 100000,
+                "hitRatio": 0.9,
+                "serviceTimeMs": {"kind": "lognormal", "median": 1.5, "p95": 4},
+                "costPerHour": 0.2,
+            },
+            ("edge", "http", "static"),
+        ),
+        Preset(
+            "varnish",
+            "Varnish",
+            "varnish",
+            "HTTP accelerator",
+            "Reverse-proxy HTTP cache in front of the application. Illustrative defaults.",
+            {
+                "technology": "varnish",
+                "concurrency": 256,
+                "hitRatio": 0.85,
+                "serviceTimeMs": {"kind": "lognormal", "median": 0.3, "p95": 1.2},
+                "costPerHour": 0.08,
+            },
+            ("http", "reverse-proxy"),
+        ),
     )
 
     def capacity_slots(self, config: Any) -> int | None:

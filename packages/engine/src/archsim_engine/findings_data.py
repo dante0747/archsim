@@ -1,0 +1,248 @@
+"""Findings about data stores and dependencies (see findings_ext).
+
+* ``hot_shard``         - one shard of a sharded database gets far more than its fair share
+* ``throttling``        - provisioned throughput, rate or concurrency limits rejected requests
+* ``external_errors``   - a third-party API failed calls (and how many client requests it took down)
+* ``external_latency``  - a third-party API accounts for most of the request latency
+* ``read_replicas``     - how much of the read load replicas absorbed
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from archsim_engine.schema import ArchitectureDocument
+
+HOT_SHARD_RATIO = 1.5  # share / fair share above which a shard is called hot
+HOT_SHARD_BUSY_RATIO = 1.25  # ...or this ratio when the hot shard is also at least 85% busy
+HOT_SHARD_BUSY = 0.85
+MIN_SAMPLES = 50
+
+
+def _f(v: Any) -> float:
+    return float(v) if isinstance(v, int | float) else 0.0
+
+
+def _hot_shard(n: dict[str, Any], resolved: ArchitectureDocument) -> dict[str, Any] | None:
+    cfg = n.get("config") or {}
+    shards = int(cfg.get("shards") or 1)
+    if shards < 2:
+        return None
+    s = n["summary"]
+    counters: dict[str, int] = s.get("counters") or {}
+    counts = [int(counters.get(f"shard{i}", 0)) for i in range(shards)]
+    total = sum(counts)
+    if total < MIN_SAMPLES:
+        return None
+    hot = max(range(shards), key=lambda i: counts[i])
+    share = counts[hot] / total
+    fair = 1.0 / shards
+    ratio = share / fair
+    if ratio < HOT_SHARD_BUSY_RATIO:
+        return None
+    per_shard_slots = (1 + int(cfg.get("readReplicas") or 0)) * int(cfg.get("maxConnections") or 1)
+    hold = _f(s.get("meanHoldMs"))
+    rate = _f(s.get("arrivalRps"))
+    est = (rate * share * hold / 1000.0) / per_shard_slots if (hold and rate) else None
+    if ratio < HOT_SHARD_RATIO and (est is None or est < HOT_SHARD_BUSY):
+        return None
+    util = s.get("utilization")
+    wl = resolved.workload
+    label = n["label"]
+    detail = (
+        f"With {shards} shards each should get about {fair:.0%} of requests, but key popularity "
+        f"(Zipf s={wl.key_skew:g} over {wl.key_count:,} keys) sends {share:.0%} to shard {hot}, "
+        f"{ratio:.1f}x its fair share."
+    )
+    if est is not None:
+        detail += f" That shard is an estimated {est:.0%} busy"
+        detail += f" while the whole cluster averages {util:.0%}." if util is not None else "."
+    return {
+        "severity": "critical" if est is not None and est >= 0.95 else "warning",
+        "kind": "hot_shard",
+        "nodeId": n["id"],
+        "title": f"Hot shard: {label} shard {hot} gets {share:.0%} of requests",
+        "detail": detail,
+        "suggestion": (
+            "Pick a partition key with more even popularity, cache the hottest keys in front of the "
+            "database, or split hot keys (for example with a suffix). More shards do not help a "
+            "single hot key."
+        ),
+        "evidence": {
+            "shardShares": [round(c / total, 4) for c in counts],
+            "hotShard": hot,
+            "share": round(share, 4),
+            "fairShare": round(fair, 4),
+            "estimatedHotShardUtilization": round(est, 4) if est is not None else None,
+        },
+    }
+
+
+def _throttling(n: dict[str, Any]) -> dict[str, Any] | None:
+    s = n["summary"]
+    arrivals = int(s.get("arrivals") or 0)
+    if arrivals < MIN_SAMPLES:
+        return None
+    rej: dict[str, int] = s.get("rejected") or {}
+    counters: dict[str, int] = s.get("counters") or {}
+    # databases reject throttled requests; external APIs answer them as failed calls (counters)
+    throttled = int(rej.get("throttled", 0)) + int(counters.get("throttled", 0))
+    limited = int(rej.get("rate_limited", 0)) + int(counters.get("rateLimited", 0))
+    count = throttled + limited
+    share = count / arrivals
+    if share <= 0.01:
+        return None
+    cfg = n.get("config") or {}
+    label = n["label"]
+    if n["type"] == "database":
+        limit = _f(cfg.get("throughputLimitRps"))
+        shards = int(cfg.get("shards") or 1)
+        what = f"the provisioned throughput of {limit:,.0f} ops/s per shard ({shards} shard{'s' if shards > 1 else ''})"
+        suggestion = (
+            "Raise the provisioned throughput (or use on-demand capacity), cache hot reads in "
+            "front of the store, or spread the load over more partitions with an even key."
+        )
+    else:
+        parts = []
+        if limited:
+            parts.append(f"the rate limit of {_f(cfg.get('rateLimitRps')):,.0f} req/s")
+        if throttled:
+            parts.append(
+                f"the concurrency limit of {int(cfg.get('concurrencyLimit') or 0):,} calls in flight"
+            )
+        what = " and ".join(parts) or "the provider's limits"
+        suggestion = (
+            "Stay under the limit: queue or batch the calls, cache responses, retry with "
+            "exponential backoff and jitter, or ask for a higher limit."
+        )
+    return {
+        "severity": "critical" if share > 0.1 else "warning",
+        "kind": "throttling",
+        "nodeId": n["id"],
+        "title": f"{label} throttled {share:.0%} of requests",
+        "detail": f"{count:,} of {arrivals:,} requests ({share:.1%}) were turned away because they exceeded {what}.",
+        "suggestion": suggestion,
+        "evidence": {
+            "throttled": throttled,
+            "rateLimited": limited,
+            "arrivals": arrivals,
+            "share": round(share, 4),
+        },
+    }
+
+
+def _external(n: dict[str, Any], report: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    s = n["summary"]
+    arrivals = int(s.get("arrivals") or 0)
+    if arrivals < MIN_SAMPLES:
+        return out
+    label = n["label"]
+    errors = int((s.get("counters") or {}).get("upstreamErrors", 0))
+    if errors:
+        share = errors / arrivals
+        reached = sum(
+            int(r.get("count") or 0)
+            for r in report["summary"].get("failureBreakdown", [])
+            if r.get("nodeId") == n["id"] and r.get("reason") == "upstream_error"
+        )
+        detail = f"{errors:,} of {arrivals:,} calls ({share:.1%}) failed with provider errors"
+        detail += (
+            f"; {reached:,} client requests failed because of them."
+            if reached
+            else "; none reached the clients."
+        )
+        out.append(
+            {
+                "severity": "warning" if share >= 0.01 or reached else "info",
+                "kind": "external_errors",
+                "nodeId": n["id"],
+                "title": f"{label} failed {share:.1%} of calls",
+                "detail": detail,
+                "suggestion": (
+                    "Retry idempotent calls with exponential backoff and jitter (max attempts on the "
+                    "link), set a timeout, and add a fallback or circuit breaker so provider errors "
+                    "do not fail whole requests."
+                ),
+                "evidence": {
+                    "errors": errors,
+                    "arrivals": arrivals,
+                    "share": round(share, 4),
+                    "reachedClients": reached,
+                },
+            }
+        )
+    hold = _f(s.get("meanHoldMs"))
+    p50 = _f(report["summary"]["latencyMs"].get("p50"))
+    arrived = int(report["summary"].get("arrived") or 0)
+    if hold and p50 and hold >= 0.5 * p50 and arrived and arrivals >= 0.2 * arrived:
+        out.append(
+            {
+                "severity": "info",
+                "kind": "external_latency",
+                "nodeId": n["id"],
+                "title": f"{label} dominates request latency",
+                "detail": (
+                    f"Calls to {label} take {hold:,.0f} ms on average, while the median request takes "
+                    f"{p50:,.0f} ms end to end."
+                ),
+                "suggestion": (
+                    "If the user does not need the result right away, call it asynchronously through "
+                    "a queue; otherwise cache responses and keep its timeout well below the client's."
+                ),
+                "evidence": {"meanCallMs": round(hold, 3), "requestP50Ms": round(p50, 3)},
+            }
+        )
+    return out
+
+
+def _read_replicas(n: dict[str, Any]) -> dict[str, Any] | None:
+    cfg = n.get("config") or {}
+    replicas = int(cfg.get("readReplicas") or 0)
+    if replicas < 1:
+        return None
+    counters: dict[str, int] = n["summary"].get("counters") or {}
+    reads = int(counters.get("reads", 0))
+    writes = int(counters.get("writes", 0))
+    if reads < MIN_SAMPLES:
+        return None
+    replica_reads = int(counters.get("replicaReads", 0))
+    share = replica_reads / reads
+    write_share = writes / (reads + writes) if (reads + writes) else 0.0
+    suggestion = (
+        "Writes are most of the load, so replicas add little: shard the data or make writes cheaper."
+        if write_share > 0.5
+        else "Replica reads may be stale in reality (replication lag is not modeled)."
+    )
+    return {
+        "severity": "info",
+        "kind": "read_replicas",
+        "nodeId": n["id"],
+        "title": f"{n['label']} read replicas served {share:.0%} of reads",
+        "detail": (
+            f"{replicas} replica{'s' if replicas > 1 else ''} per shard took {replica_reads:,} of "
+            f"{reads:,} reads; all {writes:,} writes still went to the primary."
+        ),
+        "suggestion": suggestion,
+        "evidence": {
+            "replicaReads": replica_reads,
+            "reads": reads,
+            "writes": writes,
+            "share": round(share, 4),
+        },
+    }
+
+
+def findings(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for n in report["nodes"]:
+        if n["type"] == "database":
+            for f in (_hot_shard(n, resolved), _read_replicas(n)):
+                if f:
+                    out.append(f)
+        if n["type"] == "external_api":
+            out.extend(_external(n, report))
+        t = _throttling(n)
+        if t:
+            out.append(t)
+    return out

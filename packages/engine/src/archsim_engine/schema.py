@@ -168,6 +168,33 @@ TrafficPattern = Annotated[
 ]
 
 
+class Fault(CamelModel):
+    """A fault injected during the run (chaos experiment).
+
+    * ``outage``   - the target node rejects every request arriving in the window ("outage").
+    * ``slowdown`` - service times sampled at the target node are multiplied by ``factor``.
+    * ``latency``  - each traversal of the target edge gets ``extraMs`` added (one way).
+    """
+
+    id: str = Field(pattern=ID_PATTERN)
+    kind: Literal["outage", "slowdown", "latency"]
+    target: str = Field(
+        min_length=1, max_length=64, description="Node id (outage, slowdown) or edge id (latency)"
+    )
+    start_s: float = Field(ge=0, le=3600, description="When the fault starts (s, simulated time)")
+    duration_s: float = Field(gt=0, le=3600, description="How long the fault lasts (s)")
+    factor: float = Field(
+        default=4.0, ge=1, le=100, description="slowdown: service-time multiplier"
+    )
+    extra_ms: float = Field(
+        default=200.0, ge=0, le=60_000, description="latency: added one-way latency (ms)"
+    )
+    label: str | None = Field(default=None, max_length=120)
+
+    def active(self, t_s: float) -> bool:
+        return self.start_s <= t_s < self.start_s + self.duration_s
+
+
 class Workload(CamelModel):
     """Synthetic traffic driving the (single) traffic source."""
 
@@ -257,6 +284,14 @@ class Workload(CamelModel):
         description="Time after arrivals stop to let in-flight requests finish (s). Empty = automatic.",
         json_schema_extra={"x-ui": {"label": "Drain time", "unit": "s", "group": "Run"}},
     )
+    faults: list[Fault] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Faults injected during the run (outages, slowdowns, network latency)",
+        json_schema_extra={
+            "x-ui": {"label": "Faults", "kind": "faults", "group": "Chaos", "hidden": True}
+        },
+    )
 
     @model_validator(mode="after")
     def _check(self) -> Workload:
@@ -264,6 +299,9 @@ class Workload(CamelModel):
             raise ValueError("warmupS must be shorter than durationS")
         if isinstance(self.pattern, BurstPattern) and self.pattern.start_s >= self.duration_s:
             raise ValueError("burst startS must be within durationS")
+        ids = [f.id for f in self.faults]
+        if len(set(ids)) != len(ids):
+            raise ValueError("fault ids must be unique")
         return self
 
     def rate_at(self, t_s: float) -> float:
@@ -359,6 +397,24 @@ class Metadata(CamelModel):
     tags: list[str] = Field(default_factory=list, max_length=20)
 
 
+class Objectives(CamelModel):
+    """Service-level objectives the design should meet. Not used by the simulation itself; the UI
+    and reports evaluate runs against them (pass/fail, error budget)."""
+
+    latency_p95_ms: float | None = Field(
+        default=300.0, gt=0, le=600_000, description="p95 end-to-end latency target (ms)"
+    )
+    latency_p99_ms: float | None = Field(
+        default=None, gt=0, le=600_000, description="p99 end-to-end latency target (ms)"
+    )
+    availability: float | None = Field(
+        default=0.999, ge=0, le=1, description="Minimum share of requests that succeed"
+    )
+    min_throughput_rps: float | None = Field(
+        default=None, ge=0, le=1_000_000, description="Minimum successful requests/s"
+    )
+
+
 class ArchitectureDocument(CamelModel):
     """Top-level interchange document. Serialize with ``to_json_dict()``."""
 
@@ -368,6 +424,7 @@ class ArchitectureDocument(CamelModel):
     architecture: Architecture = Field(default_factory=Architecture)
     workload: Workload = Field(default_factory=Workload)
     scenarios: list[Scenario] = Field(default_factory=list, max_length=50)
+    objectives: Objectives = Field(default_factory=Objectives)
     layout: Layout = Field(default_factory=Layout)
 
     def to_json_dict(self) -> dict[str, Any]:

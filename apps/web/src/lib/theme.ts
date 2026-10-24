@@ -2,8 +2,9 @@
  * Visual identity of component kinds: each kind has a schematic shape (see components/shapes.tsx),
  * not a color. Colors are reserved for interaction (accent) and results (status).
  */
+import type { ComponentType } from "./types";
 
-export type Kind = "traffic" | "network" | "compute" | "cache" | "database" | "other";
+export type Kind = "traffic" | "network" | "compute" | "cache" | "database" | "messaging" | "external" | "other";
 
 const BY_TYPE: Record<string, Kind> = {
   traffic_source: "traffic",
@@ -11,6 +12,8 @@ const BY_TYPE: Record<string, Kind> = {
   service: "compute",
   cache: "cache",
   database: "database",
+  message_queue: "messaging",
+  external_api: "external",
 };
 
 const BY_CATEGORY: Record<string, Kind> = {
@@ -18,6 +21,8 @@ const BY_CATEGORY: Record<string, Kind> = {
   network: "network",
   compute: "compute",
   storage: "database",
+  messaging: "messaging",
+  external: "external",
 };
 
 export function kindOf(type: string, category?: string): Kind {
@@ -30,6 +35,8 @@ export const KIND_LABEL: Record<Kind, string> = {
   compute: "Compute",
   cache: "Cache",
   database: "Storage",
+  messaging: "Messaging",
+  external: "External",
   other: "Other",
 };
 
@@ -40,8 +47,34 @@ export const KIND_TAG: Record<Kind, string> = {
   compute: "svc",
   cache: "kv",
   database: "db",
+  messaging: "mq",
+  external: "ext",
   other: "box",
 };
+
+/** Families of the technology library, in rail order. */
+export interface Family {
+  key: string;
+  label: string;
+  /** Short rail label. */
+  short: string;
+  kinds: Kind[];
+  blurb: string;
+}
+
+export const FAMILIES: Family[] = [
+  { key: "clients", label: "Clients", short: "Clients", kinds: ["traffic"], blurb: "Who sends the traffic" },
+  { key: "edge", label: "Edge & gateways", short: "Edge", kinds: ["network"], blurb: "Load balancers, proxies, API gateways" },
+  { key: "compute", label: "Compute", short: "Compute", kinds: ["compute"], blurb: "Services on VMs, containers, Kubernetes, serverless" },
+  { key: "data", label: "Data", short: "Data", kinds: ["database"], blurb: "Relational, document, wide-column, key-value, search" },
+  { key: "cache", label: "Cache", short: "Cache", kinds: ["cache"], blurb: "In-memory caches and CDN edges" },
+  { key: "messaging", label: "Messaging", short: "Queues", kinds: ["messaging"], blurb: "Logs, brokers and managed queues" },
+  { key: "external", label: "External", short: "External", kinds: ["external", "other"], blurb: "Third-party APIs and SaaS" },
+];
+
+export function familyOf(kind: Kind): Family {
+  return FAMILIES.find((f) => f.kinds.includes(kind)) ?? FAMILIES[FAMILIES.length - 1];
+}
 
 /** Short names for the component rail. */
 const SHORT: Record<string, string> = {
@@ -50,10 +83,69 @@ const SHORT: Record<string, string> = {
   service: "Service",
   cache: "Cache",
   database: "Database",
+  message_queue: "Queue",
+  external_api: "External",
 };
 
 export function shortName(type: string, displayName: string): string {
   return SHORT[type] ?? displayName.split(/[ /(]/)[0];
+}
+
+const TECH_NAMES: Record<string, string> = {
+  postgresql: "PostgreSQL",
+  mysql: "MySQL",
+  mariadb: "MariaDB",
+  sqlserver: "SQL Server",
+  oracle: "Oracle",
+  cockroachdb: "CockroachDB",
+  yugabytedb: "YugabyteDB",
+  mongodb: "MongoDB",
+  cassandra: "Cassandra",
+  scylladb: "ScyllaDB",
+  dynamodb: "DynamoDB-style",
+  couchbase: "Couchbase",
+  elasticsearch: "Elasticsearch",
+  opensearch: "OpenSearch",
+  redis: "Redis",
+  valkey: "Valkey",
+  memcached: "Memcached",
+  cdn: "CDN edge",
+  varnish: "Varnish",
+  nginx: "Nginx",
+  haproxy: "HAProxy",
+  envoy: "Envoy",
+  traefik: "Traefik",
+  kong: "Kong",
+  aws_alb: "ALB-style",
+  api_gateway: "API gateway",
+  kafka: "Kafka",
+  rabbitmq: "RabbitMQ",
+  sqs: "SQS-style",
+  pubsub: "Pub/Sub-style",
+  nats: "NATS",
+  redis_streams: "Redis Streams",
+  java: "Java",
+  nodejs: "Node.js",
+  go: "Go",
+  python: "Python",
+  dotnet: ".NET",
+  rust: "Rust",
+  php: "PHP",
+  ruby: "Ruby",
+  generic: "Generic",
+};
+
+/**
+ * Display name of a technology value: the name of a preset with that technology if the catalog has
+ * one, else a known name, else the value humanized. null when no technology is set.
+ */
+export function technologyLabel(comp: Pick<ComponentType, "presets"> | undefined, technology: unknown): string | null {
+  if (typeof technology !== "string" || !technology) return null;
+  const known = TECH_NAMES[technology];
+  if (known) return known;
+  const preset = comp?.presets?.find((p) => p.technology === technology);
+  if (preset) return preset.name;
+  return technology.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** Request types are told apart by glyph shape, not color. */

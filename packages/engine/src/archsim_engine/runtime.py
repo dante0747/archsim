@@ -28,7 +28,8 @@ from simpy.resources.resource import Request as SlotRequest
 from archsim_engine.metrics import Counter, Gauge, LatencyHistogram, MeanAccumulator, Timeline
 
 if TYPE_CHECKING:
-    from archsim_engine.schema import EdgeConfig, EdgeSpec, NodeSpec
+    from archsim_engine.distributions import Distribution
+    from archsim_engine.schema import EdgeConfig, EdgeSpec, Fault, NodeSpec
 
 SimGen = Generator[simpy.Event, Any, "Outcome"]
 
@@ -237,6 +238,9 @@ class RuntimeComponent:
         self.id = node.id
         self.config = config
         self.m = NodeMetrics(ctx.tl, slots)
+        # Bumped whenever the set of routable instances changes (autoscaling), so load
+        # balancers know to rebuild their candidate lists.
+        self.instances_version = 0
 
     # -- routing helpers -------------------------------------------------------------
     def out_edges(self, port: str | None = None) -> list[EdgeRuntime]:
@@ -260,6 +264,30 @@ class RuntimeComponent:
         """Gauge whose level / slots is this component's utilization."""
         return self.m.busy
 
+    def capacity_gauge(self) -> Gauge | None:
+        """Time-varying slot count (autoscaling); None when capacity is fixed at ``m.slots``."""
+        return None
+
+    # -- background work and report extras ---------------------------------------------
+    def background_busy(self) -> bool:
+        """True while work not tied to an in-flight call remains (e.g. queued messages)."""
+        return False
+
+    def extra_summary(self) -> dict[str, Any]:
+        """Component-specific summary fields merged into ``nodes[].summary``."""
+        return {}
+
+    def extra_timeseries(self) -> dict[str, list[float | None]]:
+        """Component-specific per-bucket series (full timeline length) for ``nodes[].timeseries``."""
+        return {}
+
+    # -- faults --------------------------------------------------------------------------
+    def sample_time(self, dist: Distribution, rng: random.Random) -> float:
+        """Sample a service/processing time, applying an active ``slowdown`` fault."""
+        v = dist.sample(rng)
+        f = self.ctx.fault("slowdown", self.id, self.env.now)
+        return v * f.factor if f is not None else v
+
     # -- behaviour ---------------------------------------------------------------------
     def handle(self, req: Request) -> SimGen:  # pragma: no cover - abstract
         raise NotImplementedError
@@ -280,12 +308,50 @@ class SimContext:
         self.edges: dict[str, EdgeRuntime] = {}
         self.out_edges: dict[str, list[EdgeRuntime]] = {}
         self.in_transit = 0  # calls currently on the wire or being handled
+        self._faults: dict[tuple[str, str], list[Fault]] = {}
+
+    # -- faults ------------------------------------------------------------------------
+    def set_faults(self, faults: list[Fault]) -> None:
+        """Index faults by (kind, target) for fast lookup on the hot path."""
+        self._faults = {}
+        for f in faults:
+            self._faults.setdefault((f.kind, f.target), []).append(f)
+
+    def fault(self, kind: str, target: str, now_ms: float) -> Fault | None:
+        """The fault of ``kind`` active on ``target`` at ``now_ms``, if any."""
+        lst = self._faults.get((kind, target))
+        if not lst:
+            return None
+        t_s = now_ms / 1000.0
+        for f in lst:
+            if f.active(t_s):
+                return f
+        return None
+
+    def edge_latency(self, edge: EdgeRuntime) -> float:
+        d = edge.latency()
+        f = self.fault("latency", edge.id, self.env.now)
+        return d + f.extra_ms if f is not None else d
+
+    def _outage(self, edge: EdgeRuntime) -> Outcome | None:
+        """Reject a call to a node that is down (connection refused); counted at the callee."""
+        target = edge.target_id
+        if self.fault("outage", target, self.env.now) is None:
+            return None
+        comp = self.components.get(target)
+        if comp is not None:
+            now = self.env.now
+            comp.m.arrive(now)
+            comp.m.reject("outage", now)
+        return rejected("outage", target)
 
     def idle(self) -> bool:
         """True when no request is in flight anywhere (pending timers do not count)."""
         if self.in_transit:
             return False
-        return all(c.m.inflight.value == 0 for c in self.components.values())
+        return all(
+            c.m.inflight.value == 0 and not c.background_busy() for c in self.components.values()
+        )
 
     def rng(self, stream: str) -> random.Random:
         return derive_rng(self.seed, stream)
@@ -307,11 +373,12 @@ class SimContext:
         edge.attempts.inc(env.now)
         if timeout_ms is None:
             self.in_transit += 1
-            d = edge.latency()
+            d = self.edge_latency(edge)
             if d > 0:
                 yield env.timeout(d)
-            outcome = yield from handler(req)
-            d = edge.latency()
+            down = self._outage(edge)
+            outcome = down if down is not None else (yield from handler(req))
+            d = self.edge_latency(edge)
             if d > 0:
                 yield env.timeout(d)
             self.in_transit -= 1
@@ -335,11 +402,12 @@ class SimContext:
     ) -> Generator[simpy.Event, Any, None]:
         env = self.env
         self.in_transit += 1
-        d = edge.latency()
+        d = self.edge_latency(edge)
         if d > 0:
             yield env.timeout(d)
-        outcome = yield from handler(req)
-        d = edge.latency()
+        down = self._outage(edge)
+        outcome = down if down is not None else (yield from handler(req))
+        d = self.edge_latency(edge)
         if d > 0:
             yield env.timeout(d)
         self.in_transit -= 1

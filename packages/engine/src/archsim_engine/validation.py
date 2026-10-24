@@ -130,6 +130,99 @@ def _topological(node_ids: list[str], out: dict[str, list[EdgeSpec]]) -> list[st
     return order
 
 
+def _fault_issues(
+    doc: ArchitectureDocument,
+    node_map: dict[str, NodeSpec],
+    edge_ids: set[str],
+    registry: ComponentRegistry,
+) -> list[Issue]:
+    """Faults must target something that exists, of the right kind, inside the run."""
+    issues: list[Issue] = []
+    duration = doc.workload.duration_s
+    for f in doc.workload.faults:
+        what = f.label or f"{f.kind} fault '{f.id}'"
+        path = f"workload.faults.{f.id}"
+        node = node_map.get(f.target)
+        if f.kind == "latency":
+            if f.target not in edge_ids:
+                if node is not None:
+                    issues.append(
+                        error(
+                            "fault_wrong_target",
+                            f"{what} targets component '{_name(node)}', but latency faults apply to links.",
+                            node_id=node.id,
+                            path=path,
+                            hint="Pick a link as the target, or use an outage/slowdown fault for a component.",
+                        )
+                    )
+                else:
+                    issues.append(
+                        error(
+                            "fault_unknown_target",
+                            f"{what} targets link '{f.target}', which does not exist.",
+                            path=path,
+                            hint="Pick an existing link or delete the fault.",
+                        )
+                    )
+                continue
+        else:
+            if node is None:
+                if f.target in edge_ids:
+                    issues.append(
+                        error(
+                            "fault_wrong_target",
+                            f"{what} targets link '{f.target}', but {f.kind} faults apply to components.",
+                            edge_id=f.target,
+                            path=path,
+                            hint="Pick a component as the target, or use a latency fault for a link.",
+                        )
+                    )
+                else:
+                    issues.append(
+                        error(
+                            "fault_unknown_target",
+                            f"{what} targets component '{f.target}', which does not exist.",
+                            path=path,
+                            hint="Pick an existing component or delete the fault.",
+                        )
+                    )
+                continue
+            if node.type in registry and registry.get(node.type).is_traffic_source:
+                issues.append(
+                    error(
+                        "fault_wrong_target",
+                        f"{what} targets the traffic source '{_name(node)}'; faults apply to the system, not the clients.",
+                        node_id=node.id,
+                        path=path,
+                        hint="Target a component the clients call, or change the workload instead.",
+                    )
+                )
+                continue
+        loc = {"node_id": node.id} if node is not None else {"edge_id": f.target}
+        end = f.start_s + f.duration_s
+        if f.start_s >= duration:
+            issues.append(
+                error(
+                    "fault_outside_run",
+                    f"{what} starts at {f.start_s:g} s, after the run ends ({duration:g} s), so it would never happen.",
+                    path=path,
+                    hint="Move the fault inside the run or make the run longer.",
+                    **loc,
+                )
+            )
+        elif end > duration:
+            issues.append(
+                warning(
+                    "fault_clipped",
+                    f"{what} runs until {end:g} s but arrivals stop at {duration:g} s; only the part inside the run has an effect on new requests.",
+                    path=path,
+                    hint="Shorten the fault or make the run longer.",
+                    **loc,
+                )
+            )
+    return issues
+
+
 def validate_document(doc: ArchitectureDocument, registry: ComponentRegistry) -> ValidationResult:
     issues: list[Issue] = []
     nodes = doc.architecture.nodes
@@ -404,6 +497,9 @@ def validate_document(doc: ArchitectureDocument, registry: ComponentRegistry) ->
         if cfg is None:
             continue
         issues.extend(registry.get(n.type).validate(n, cfg, view))
+
+    # -- faults (chaos experiments) ----------------------------------------------------------------
+    issues.extend(_fault_issues(doc, node_map, seen_edges, registry))
 
     # -- workload ---------------------------------------------------------------------------------
     if doc.workload.peak_rate() == 0:

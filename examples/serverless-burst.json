@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Serverless API under a burst",
+    "description": "An API gateway in front of a Lambda-style function and a DynamoDB-style key-value store with provisioned throughput per shard. A 10\u00d7 burst triggers cold starts, hits the function's concurrency limit and throttles the table.",
+    "tags": [
+      "serverless",
+      "cold-start",
+      "dynamodb",
+      "throttling"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "timeoutMs": 3000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 200
+        }
+      },
+      {
+        "id": "gw",
+        "type": "load_balancer",
+        "label": "API gateway",
+        "description": null,
+        "config": {
+          "technology": "api_gateway",
+          "policy": "round_robin",
+          "overheadMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 8
+          },
+          "maxConnections": 50000
+        }
+      },
+      {
+        "id": "fn",
+        "type": "service",
+        "label": "Function",
+        "description": null,
+        "config": {
+          "technology": "python",
+          "platform": "serverless",
+          "replicas": 1,
+          "workersPerReplica": 1,
+          "queueCapacity": 0,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 25,
+            "p95": 80
+          },
+          "blockingDownstream": true,
+          "concurrencyLimit": 100,
+          "coldStartMs": {
+            "kind": "lognormal",
+            "median": 350,
+            "p95": 1200
+          },
+          "keepWarmS": 300
+        }
+      },
+      {
+        "id": "table",
+        "type": "database",
+        "label": "Sessions table",
+        "description": null,
+        "config": {
+          "technology": "dynamodb",
+          "shards": 4,
+          "maxConnections": 200,
+          "throughputLimitRps": 250,
+          "queueCapacity": 0,
+          "queueTimeoutMs": null,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 10
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 15
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-gw",
+        "source": "clients",
+        "sourcePort": "out",
+        "target": "gw",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "gw-fn",
+        "source": "gw",
+        "sourcePort": "out",
+        "target": "fn",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "fn-table",
+        "source": "fn",
+        "sourcePort": "out",
+        "target": "table",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 100
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 150,
+    "durationS": 90,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.7,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 1500,
+      "startS": 40,
+      "durationS": 15
+    },
+    "keyCount": 100000,
+    "keySkew": 0.8,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (concurrency 100, 4\u00d7250 rps provisioned)",
+      "description": "The document as drawn.",
+      "overrides": []
+    },
+    {
+      "id": "concurrency",
+      "name": "Concurrency limit 1,000",
+      "description": "Raise the function's concurrency limit.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "fn"
+          },
+          "path": "concurrencyLimit",
+          "value": 1000
+        }
+      ]
+    },
+    {
+      "id": "provisioned",
+      "name": "Provisioned throughput \u00d73",
+      "description": "Raise the table's provisioned throughput per shard.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "table"
+          },
+          "path": "throughputLimitRps",
+          "value": 750
+        }
+      ]
+    },
+    {
+      "id": "steady",
+      "name": "No burst",
+      "description": "Same baseline load without the spike.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "constant"
+          }
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 400,
+    "latencyP99Ms": null,
+    "availability": 0.99,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 80
+      },
+      "gw": {
+        "x": 330,
+        "y": 80
+      },
+      "fn": {
+        "x": 660,
+        "y": 80
+      },
+      "table": {
+        "x": 990,
+        "y": 80
+      }
+    },
+    "viewport": null
+  }
+}

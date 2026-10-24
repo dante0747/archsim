@@ -77,7 +77,8 @@
       "notModeled": [
         "Closed-loop users with think time",
         "Client-side connection pools"
-      ]
+      ],
+      "presets": []
     },
     {
       "type": "load_balancer",
@@ -113,6 +114,27 @@
         }
       ],
       "fields": [
+        {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Product or managed service. A label for the design; behaviour comes from the settings below.",
+          "default": "generic",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "generic",
+            "nginx",
+            "haproxy",
+            "envoy",
+            "traefik",
+            "kong",
+            "aws_alb",
+            "api_gateway"
+          ],
+          "group": "Technology"
+        },
         {
           "key": "policy",
           "label": "Balancing policy",
@@ -156,32 +178,205 @@
           "min": 1,
           "max": 1000000,
           "group": "Capacity"
+        },
+        {
+          "key": "rateLimitRps",
+          "label": "Rate limit",
+          "kind": "number",
+          "nullable": true,
+          "description": "Requests per second admitted (token bucket); excess requests are rejected (HTTP 429). Empty = no limit.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1000000,
+          "unit": "req/s",
+          "group": "Rate limiting"
+        },
+        {
+          "key": "rateLimitBurst",
+          "label": "Burst",
+          "kind": "number",
+          "nullable": true,
+          "description": "Bucket size: requests admitted in a burst above the rate. Empty = one second's worth.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 10000000,
+          "unit": "req",
+          "group": "Rate limiting"
+        },
+        {
+          "key": "costPerHour",
+          "label": "Cost per hour",
+          "kind": "number",
+          "nullable": false,
+          "description": "Price of the balancer per hour, in USD. Illustrative default; use your provider's pricing.",
+          "default": 0.025,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 10000,
+          "unit": "$/h",
+          "group": "Cost"
         }
       ],
       "defaultConfig": {
+        "technology": "generic",
         "policy": "round_robin",
         "overheadMs": {
           "kind": "constant",
           "value": 0.2
         },
-        "maxConnections": 10000
+        "maxConnections": 10000,
+        "costPerHour": 0.025
       },
       "modeled": [
-        "Instance selection per policy across all replicas of linked targets",
+        "Instance selection per policy across all routable replicas of linked targets (follows autoscaling)",
         "Per-link timeout and retries that avoid the failed instance",
-        "Connection limit (rejects beyond max connections)"
+        "Connection limit (rejects beyond max connections)",
+        "Optional rate limit (token bucket); excess rejected as rate_limited"
       ],
       "notModeled": [
         "Health checks and ejection",
         "TLS handshakes",
-        "Sticky sessions"
+        "Sticky sessions",
+        "Per-client or per-route rate limits"
+      ],
+      "presets": [
+        {
+          "id": "nginx",
+          "name": "Nginx",
+          "technology": "nginx",
+          "family": "Load balancer",
+          "description": "Reverse proxy / load balancer with very low per-request overhead.",
+          "config": {
+            "technology": "nginx",
+            "policy": "round_robin",
+            "overheadMs": {
+              "kind": "constant",
+              "value": 0.2
+            }
+          },
+          "tags": [
+            "proxy",
+            "l7"
+          ]
+        },
+        {
+          "id": "haproxy",
+          "name": "HAProxy",
+          "technology": "haproxy",
+          "family": "Load balancer",
+          "description": "High-performance TCP/HTTP load balancer, least-connections balancing.",
+          "config": {
+            "technology": "haproxy",
+            "policy": "least_connections",
+            "overheadMs": {
+              "kind": "constant",
+              "value": 0.15
+            }
+          },
+          "tags": [
+            "proxy",
+            "l7"
+          ]
+        },
+        {
+          "id": "envoy",
+          "name": "Envoy",
+          "technology": "envoy",
+          "family": "Load balancer",
+          "description": "Service proxy (also the data plane of most service meshes).",
+          "config": {
+            "technology": "envoy",
+            "policy": "least_connections",
+            "overheadMs": {
+              "kind": "constant",
+              "value": 0.3
+            }
+          },
+          "tags": [
+            "proxy",
+            "mesh"
+          ]
+        },
+        {
+          "id": "kong",
+          "name": "Kong API gateway",
+          "technology": "kong",
+          "family": "API gateway",
+          "description": "API gateway in front of services, with a global rate limit.",
+          "config": {
+            "technology": "kong",
+            "overheadMs": {
+              "kind": "lognormal",
+              "median": 1.0,
+              "p95": 3.0
+            },
+            "rateLimitRps": 1000,
+            "rateLimitBurst": 200,
+            "costPerHour": 0.05
+          },
+          "tags": [
+            "gateway",
+            "rate-limit"
+          ]
+        },
+        {
+          "id": "aws-alb",
+          "name": "ALB-style load balancer",
+          "technology": "aws_alb",
+          "family": "Load balancer",
+          "description": "Managed cloud application load balancer (illustrative numbers, not a vendor benchmark).",
+          "config": {
+            "technology": "aws_alb",
+            "overheadMs": {
+              "kind": "lognormal",
+              "median": 1.5,
+              "p95": 5.0
+            },
+            "maxConnections": 100000,
+            "costPerHour": 0.0225
+          },
+          "tags": [
+            "managed",
+            "l7"
+          ]
+        },
+        {
+          "id": "api-gateway",
+          "name": "API-gateway-style (managed)",
+          "technology": "api_gateway",
+          "family": "API gateway",
+          "description": "Managed API gateway: higher overhead per request and an account-level rate limit.",
+          "config": {
+            "technology": "api_gateway",
+            "overheadMs": {
+              "kind": "lognormal",
+              "median": 6.0,
+              "p95": 20.0
+            },
+            "rateLimitRps": 10000,
+            "rateLimitBurst": 5000,
+            "costPerHour": 0.0
+          },
+          "tags": [
+            "managed",
+            "gateway",
+            "rate-limit"
+          ]
+        }
       ]
     },
     {
       "type": "service",
       "displayName": "Service / API Servers",
       "category": "compute",
-      "description": "Stateless application servers. Each replica has a worker pool and a bounded queue. Outgoing links are called in order for matching request types (e.g. reads to the cache, writes to the database).",
+      "description": "Stateless application servers. Each replica has a worker pool and a bounded queue. Outgoing links are called in order for matching request types (e.g. reads to the cache, writes to the database). Runs on VMs, containers, Kubernetes (optional autoscaling) or as a serverless function.",
       "icon": "server",
       "isTrafficSource": false,
       "ports": [
@@ -212,11 +407,50 @@
       ],
       "fields": [
         {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Runtime or framework. A label for the design; behaviour comes from the settings below.",
+          "default": "generic",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "generic",
+            "java",
+            "nodejs",
+            "go",
+            "python",
+            "dotnet",
+            "rust",
+            "php",
+            "ruby"
+          ],
+          "group": "Technology"
+        },
+        {
+          "key": "platform",
+          "label": "Platform",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Where it runs. VM and Docker behave the same (fixed replicas unless autoscaling is on); Kubernetes usually pairs with autoscaling (HPA); serverless runs one request per instance with cold starts and a concurrency limit.",
+          "default": "vm",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "vm",
+            "docker",
+            "kubernetes",
+            "serverless"
+          ],
+          "group": "Technology"
+        },
+        {
           "key": "replicas",
           "label": "Replicas",
           "kind": "integer",
           "nullable": false,
-          "description": "Number of identical instances. Each has its own workers and queue.",
+          "description": "Number of identical instances. Each has its own workers and queue. With autoscaling: the starting count.",
           "default": 2,
           "assumption": false,
           "headline": true,
@@ -291,9 +525,172 @@
           "assumption": false,
           "headline": false,
           "group": "Performance"
+        },
+        {
+          "key": "autoscaling",
+          "label": "Autoscaling",
+          "kind": "boolean",
+          "nullable": false,
+          "description": "Add and remove replicas to keep utilization near the target (like a Kubernetes Horizontal Pod Autoscaler). Ignored on the serverless platform.",
+          "default": false,
+          "assumption": false,
+          "headline": false,
+          "group": "Autoscaling"
+        },
+        {
+          "key": "minReplicas",
+          "label": "Min replicas",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Fewest replicas autoscaling keeps running.",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 500,
+          "group": "Autoscaling",
+          "visibleWhen": {
+            "autoscaling": true
+          }
+        },
+        {
+          "key": "maxReplicas",
+          "label": "Max replicas",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Most replicas autoscaling may run.",
+          "default": 10,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 500,
+          "group": "Autoscaling",
+          "visibleWhen": {
+            "autoscaling": true
+          }
+        },
+        {
+          "key": "targetUtilization",
+          "label": "Target utilization",
+          "kind": "number",
+          "nullable": false,
+          "description": "Utilization the autoscaler aims for (share of busy workers).",
+          "default": 0.6,
+          "assumption": false,
+          "headline": false,
+          "min": 0.1,
+          "max": 0.95,
+          "group": "Autoscaling",
+          "visibleWhen": {
+            "autoscaling": true
+          },
+          "step": 0.05
+        },
+        {
+          "key": "scaleIntervalS",
+          "label": "Evaluation interval",
+          "kind": "number",
+          "nullable": false,
+          "description": "How often the autoscaler re-evaluates (s). Scale-down waits for 3 consecutive low readings.",
+          "default": 15.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600,
+          "unit": "s",
+          "group": "Autoscaling",
+          "visibleWhen": {
+            "autoscaling": true
+          }
+        },
+        {
+          "key": "startupS",
+          "label": "Replica start-up time",
+          "kind": "number",
+          "nullable": false,
+          "description": "Time from the scale-up decision until a new replica takes traffic (pod scheduling, image pull, start-up, readiness).",
+          "default": 20.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 600,
+          "unit": "s",
+          "group": "Autoscaling",
+          "visibleWhen": {
+            "autoscaling": true
+          }
+        },
+        {
+          "key": "concurrencyLimit",
+          "label": "Concurrency limit",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Most instances (= concurrent requests) the function may run; beyond it requests are throttled.",
+          "default": 1000,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 100000,
+          "group": "Serverless",
+          "visibleWhen": {
+            "platform": "serverless"
+          }
+        },
+        {
+          "key": "coldStartMs",
+          "label": "Cold start",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Extra time for a request that has to start a new instance (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 300.0,
+            "p95": 900.0
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Serverless",
+          "visibleWhen": {
+            "platform": "serverless"
+          }
+        },
+        {
+          "key": "keepWarmS",
+          "label": "Keep warm",
+          "kind": "number",
+          "nullable": false,
+          "description": "Idle time after which an instance is reclaimed (s); the next request needs a cold start.",
+          "default": 300.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 7200,
+          "unit": "s",
+          "group": "Serverless",
+          "visibleWhen": {
+            "platform": "serverless"
+          }
+        },
+        {
+          "key": "costPerHour",
+          "label": "Cost per replica-hour",
+          "kind": "number",
+          "nullable": false,
+          "description": "Price of one replica (or serverless instance) per hour, in USD. Illustrative default; use your provider's pricing.",
+          "default": 0.1,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 10000,
+          "unit": "$/h",
+          "group": "Cost"
         }
       ],
       "defaultConfig": {
+        "technology": "generic",
+        "platform": "vm",
         "replicas": 2,
         "workersPerReplica": 4,
         "queueCapacity": 50,
@@ -303,21 +700,199 @@
           "median": 8.0,
           "p95": 25.0
         },
-        "blockingDownstream": true
+        "blockingDownstream": true,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": {
+          "kind": "lognormal",
+          "median": 300.0,
+          "p95": 900.0
+        },
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
       },
       "modeled": [
         "FIFO queue per replica with a size limit and a wait timeout",
         "Worker pool per replica; service time sampled from the configured distribution",
-        "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O"
+        "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
+        "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
+        "Serverless (platform): one request per instance, cold starts, concurrency limit (throttling), idle reclaim"
       ],
       "notModeled": [
-        "CPU contention between workers, garbage collection pauses, autoscaling",
-        "Parallel fan-out calls (dependencies are called one after another)"
+        "CPU contention between workers, garbage collection pauses",
+        "Parallel fan-out calls (dependencies are called one after another)",
+        "Node/cluster capacity limits for new pods, readiness probe failures",
+        "Serverless memory/CPU sizing and provisioned concurrency"
+      ],
+      "presets": [
+        {
+          "id": "generic-vm",
+          "name": "Generic service (VM)",
+          "technology": "generic",
+          "family": "VM",
+          "description": "Fixed replicas on virtual machines, thread-per-request workers.",
+          "config": {
+            "technology": "generic",
+            "platform": "vm"
+          },
+          "tags": [
+            "vm",
+            "static"
+          ]
+        },
+        {
+          "id": "java-spring-docker",
+          "name": "Java/Spring on Docker",
+          "technology": "java",
+          "family": "Container",
+          "description": "Spring Boot containers with a large blocking thread pool (Tomcat-style).",
+          "config": {
+            "technology": "java",
+            "platform": "docker",
+            "replicas": 2,
+            "workersPerReplica": 200,
+            "queueCapacity": 100,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 12,
+              "p95": 40
+            },
+            "blockingDownstream": true,
+            "costPerHour": 0.17
+          },
+          "tags": [
+            "container",
+            "jvm",
+            "blocking"
+          ]
+        },
+        {
+          "id": "nodejs-docker",
+          "name": "Node.js on Docker",
+          "technology": "nodejs",
+          "family": "Container",
+          "description": "Single-threaded event loop per container: one handler at a time, I/O does not block it.",
+          "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 4,
+            "workersPerReplica": 1,
+            "queueCapacity": 1000,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 4,
+              "p95": 12
+            },
+            "blockingDownstream": false,
+            "costPerHour": 0.05
+          },
+          "tags": [
+            "container",
+            "event-loop",
+            "non-blocking"
+          ]
+        },
+        {
+          "id": "go-k8s-hpa",
+          "name": "Go service on Kubernetes (HPA)",
+          "technology": "go",
+          "family": "Kubernetes",
+          "description": "Go pods behind a Kubernetes Service with a Horizontal Pod Autoscaler.",
+          "config": {
+            "technology": "go",
+            "platform": "kubernetes",
+            "replicas": 2,
+            "workersPerReplica": 64,
+            "queueCapacity": 200,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 5,
+              "p95": 15
+            },
+            "autoscaling": true,
+            "minReplicas": 2,
+            "maxReplicas": 10,
+            "targetUtilization": 0.6,
+            "scaleIntervalS": 15,
+            "startupS": 10,
+            "costPerHour": 0.05
+          },
+          "tags": [
+            "kubernetes",
+            "hpa",
+            "autoscaling"
+          ]
+        },
+        {
+          "id": "python-k8s-hpa",
+          "name": "Python service on Kubernetes (HPA)",
+          "technology": "python",
+          "family": "Kubernetes",
+          "description": "Gunicorn-style worker processes in pods, autoscaled by an HPA.",
+          "config": {
+            "technology": "python",
+            "platform": "kubernetes",
+            "replicas": 2,
+            "workersPerReplica": 4,
+            "queueCapacity": 64,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 15,
+              "p95": 60
+            },
+            "autoscaling": true,
+            "minReplicas": 2,
+            "maxReplicas": 12,
+            "targetUtilization": 0.6,
+            "scaleIntervalS": 15,
+            "startupS": 25,
+            "costPerHour": 0.05
+          },
+          "tags": [
+            "kubernetes",
+            "hpa",
+            "autoscaling"
+          ]
+        },
+        {
+          "id": "serverless-fn",
+          "name": "Serverless function (Lambda-style)",
+          "technology": "nodejs",
+          "family": "Serverless",
+          "description": "Function-as-a-service: an instance per concurrent request, cold starts when scaling out.",
+          "config": {
+            "technology": "nodejs",
+            "platform": "serverless",
+            "concurrencyLimit": 1000,
+            "coldStartMs": {
+              "kind": "lognormal",
+              "median": 300,
+              "p95": 900
+            },
+            "keepWarmS": 300,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 20,
+              "p95": 60
+            },
+            "costPerHour": 0.06
+          },
+          "tags": [
+            "serverless",
+            "faas",
+            "cold-start"
+          ]
+        }
       ]
     },
     {
       "type": "cache",
-      "displayName": "Cache (Redis)",
+      "displayName": "Cache",
       "category": "storage",
       "description": "Cache-aside: reads that hit return from memory; misses continue through the 'miss' port to the data store, then optionally repopulate the cache. Writes invalidate the key.",
       "icon": "zap",
@@ -348,6 +923,25 @@
         }
       ],
       "fields": [
+        {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Technology label. It does not change behaviour by itself; presets set executors, command time and hit ratio to illustrative defaults for that technology.",
+          "default": "redis",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "redis",
+            "valkey",
+            "memcached",
+            "cdn",
+            "varnish",
+            "generic"
+          ],
+          "group": "Technology"
+        },
         {
           "key": "hitModel",
           "label": "Hit model",
@@ -464,9 +1058,24 @@
           "max": 600000,
           "unit": "ms",
           "group": "Capacity"
+        },
+        {
+          "key": "costPerHour",
+          "label": "Cost per hour",
+          "kind": "number",
+          "nullable": false,
+          "description": "Price of the cache per hour, used for cost estimates only. Illustrative default.",
+          "default": 0.1,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 100000,
+          "unit": "$/h",
+          "group": "Cost"
         }
       ],
       "defaultConfig": {
+        "technology": "redis",
         "hitModel": "fixed_ratio",
         "hitRatio": 0.8,
         "ttlSeconds": 60.0,
@@ -476,7 +1085,8 @@
           "mean": 0.05
         },
         "concurrency": 1,
-        "queueCapacity": 10000
+        "queueCapacity": 10000,
+        "costPerHour": 0.1
       },
       "modeled": [
         "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
@@ -486,14 +1096,115 @@
       "notModeled": [
         "Memory limits and eviction (LRU/LFU)",
         "Thundering herd / request coalescing on misses",
-        "Replication and persistence"
+        "Replication, persistence and cluster sharding",
+        "CDN geography (edge-to-user latency belongs on the incoming link)"
+      ],
+      "presets": [
+        {
+          "id": "redis",
+          "name": "Redis",
+          "technology": "redis",
+          "family": "In-memory",
+          "description": "Single Redis node: commands run on one thread, sub-millisecond. Illustrative defaults.",
+          "config": {
+            "technology": "redis",
+            "concurrency": 1,
+            "costPerHour": 0.1
+          },
+          "tags": [
+            "in-memory",
+            "key-value"
+          ]
+        },
+        {
+          "id": "valkey",
+          "name": "Valkey",
+          "technology": "valkey",
+          "family": "In-memory",
+          "description": "Redis-compatible; multi-threaded I/O lets a few commands proceed in parallel. Illustrative defaults.",
+          "config": {
+            "technology": "valkey",
+            "concurrency": 4,
+            "costPerHour": 0.1
+          },
+          "tags": [
+            "in-memory",
+            "key-value"
+          ]
+        },
+        {
+          "id": "memcached",
+          "name": "Memcached",
+          "technology": "memcached",
+          "family": "In-memory",
+          "description": "Multi-threaded, simple get/set cache. Illustrative defaults.",
+          "config": {
+            "technology": "memcached",
+            "concurrency": 8,
+            "serviceTimeMs": {
+              "kind": "exponential",
+              "mean": 0.04
+            },
+            "costPerHour": 0.09
+          },
+          "tags": [
+            "in-memory",
+            "key-value"
+          ]
+        },
+        {
+          "id": "cdn",
+          "name": "CDN edge cache",
+          "technology": "cdn",
+          "family": "Edge cache",
+          "description": "Edge cache in front of the origin: huge parallelism, a few ms per request, most reads served at the edge. Put user-to-edge latency on the incoming link. Illustrative defaults.",
+          "config": {
+            "technology": "cdn",
+            "concurrency": 1024,
+            "queueCapacity": 100000,
+            "hitRatio": 0.9,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 1.5,
+              "p95": 4
+            },
+            "costPerHour": 0.2
+          },
+          "tags": [
+            "edge",
+            "http",
+            "static"
+          ]
+        },
+        {
+          "id": "varnish",
+          "name": "Varnish",
+          "technology": "varnish",
+          "family": "HTTP accelerator",
+          "description": "Reverse-proxy HTTP cache in front of the application. Illustrative defaults.",
+          "config": {
+            "technology": "varnish",
+            "concurrency": 256,
+            "hitRatio": 0.85,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.3,
+              "p95": 1.2
+            },
+            "costPerHour": 0.08
+          },
+          "tags": [
+            "http",
+            "reverse-proxy"
+          ]
+        }
       ]
     },
     {
       "type": "database",
-      "displayName": "Database (PostgreSQL)",
+      "displayName": "Database",
       "category": "storage",
-      "description": "Executes read and write queries on a limited number of connections. Queries wait for a free connection up to the acquire timeout.",
+      "description": "Executes read and write queries on a limited number of connections per instance. Model a single relational primary, a primary with read replicas, a sharded cluster, or a leaderless store with tunable consistency; technology presets fill in illustrative defaults.",
       "icon": "database",
       "isTrafficSource": false,
       "ports": [
@@ -512,11 +1223,39 @@
       ],
       "fields": [
         {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Technology label. It does not change behaviour by itself; presets set the values below to illustrative defaults for that technology.",
+          "default": "postgresql",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "postgresql",
+            "mysql",
+            "mariadb",
+            "sqlserver",
+            "oracle",
+            "cockroachdb",
+            "yugabytedb",
+            "mongodb",
+            "cassandra",
+            "scylladb",
+            "dynamodb",
+            "couchbase",
+            "elasticsearch",
+            "opensearch",
+            "generic"
+          ],
+          "group": "Technology"
+        },
+        {
           "key": "maxConnections",
-          "label": "Max connections",
+          "label": "Max connections per instance",
           "kind": "integer",
           "nullable": false,
-          "description": "Queries executing concurrently (connection pool size / backend workers).",
+          "description": "Queries executing concurrently on one instance (connection pool size / backend workers). Every primary and replica in every shard has its own limit.",
           "default": 10,
           "assumption": false,
           "headline": true,
@@ -525,39 +1264,11 @@
           "group": "Capacity"
         },
         {
-          "key": "queueCapacity",
-          "label": "Wait queue limit",
-          "kind": "integer",
-          "nullable": false,
-          "description": "Queries that may wait for a connection; more are rejected.",
-          "default": 200,
-          "assumption": false,
-          "headline": false,
-          "min": 0,
-          "max": 100000,
-          "group": "Capacity"
-        },
-        {
-          "key": "queueTimeoutMs",
-          "label": "Acquire timeout",
-          "kind": "number",
-          "nullable": true,
-          "description": "Connection acquire timeout (ms). Queries waiting longer are rejected. Empty = no limit.",
-          "default": 1000.0,
-          "assumption": false,
-          "headline": false,
-          "min": 0,
-          "exclusiveMin": true,
-          "max": 600000,
-          "unit": "ms",
-          "group": "Capacity"
-        },
-        {
           "key": "readServiceTimeMs",
           "label": "Read query time",
           "kind": "distribution",
           "nullable": false,
-          "description": "Execution time of a read query (ms).",
+          "description": "Execution time of a read query on one instance (ms).",
           "default": {
             "kind": "lognormal",
             "median": 5.0,
@@ -583,12 +1294,123 @@
           "headline": false,
           "unit": "ms",
           "group": "Performance"
+        },
+        {
+          "key": "readReplicas",
+          "label": "Read replicas",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Read-only copies per shard. Reads are spread round-robin over the primary and its replicas; writes always go to the primary. Replication lag is not modeled.",
+          "default": 0,
+          "assumption": false,
+          "headline": true,
+          "min": 0,
+          "max": 15,
+          "group": "Topology"
+        },
+        {
+          "key": "shards",
+          "label": "Shards (partitions)",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Partitions of the data, each with its own primary (and replicas). Requests are routed by hashing the key, so popular keys concentrate load on one shard.",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 256,
+          "group": "Topology"
+        },
+        {
+          "key": "replicationFactor",
+          "label": "Replication factor",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Copies of each item kept by a leaderless or consensus store (e.g. Cassandra, DynamoDB-style, distributed SQL). Combined with the consistency level it decides how many replica responses an operation waits for.",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 7,
+          "group": "Topology"
+        },
+        {
+          "key": "consistency",
+          "label": "Consistency level",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Replica responses an operation waits for when the replication factor is above 1: one, a majority (quorum) or all. Latency becomes the k-th fastest of the replicas.",
+          "default": "one",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "one",
+            "quorum",
+            "all"
+          ],
+          "group": "Topology"
+        },
+        {
+          "key": "throughputLimitRps",
+          "label": "Throughput limit per shard",
+          "kind": "number",
+          "nullable": true,
+          "description": "Provisioned throughput per shard (operations/s, bursts up to one second's worth). Requests above it are throttled. Empty = no limit.",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1000000,
+          "unit": "ops/s",
+          "group": "Capacity"
+        },
+        {
+          "key": "queueCapacity",
+          "label": "Wait queue limit",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Queries that may wait for a connection on one instance; more are rejected.",
+          "default": 200,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 100000,
+          "group": "Capacity"
+        },
+        {
+          "key": "queueTimeoutMs",
+          "label": "Acquire timeout",
+          "kind": "number",
+          "nullable": true,
+          "description": "Connection acquire timeout (ms). Queries waiting longer are rejected. Empty = no limit.",
+          "default": 1000.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Capacity"
+        },
+        {
+          "key": "costPerHour",
+          "label": "Cost per instance-hour",
+          "kind": "number",
+          "nullable": false,
+          "description": "Price of one instance (primary or replica, per shard) per hour, used for cost estimates only. Illustrative default; use your own price.",
+          "default": 0.35,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 100000,
+          "unit": "$/h",
+          "group": "Cost"
         }
       ],
       "defaultConfig": {
+        "technology": "postgresql",
         "maxConnections": 10,
-        "queueCapacity": 200,
-        "queueTimeoutMs": 1000.0,
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 5.0,
@@ -598,15 +1420,969 @@
           "kind": "lognormal",
           "median": 10.0,
           "p95": 40.0
-        }
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "costPerHour": 0.35
       },
       "modeled": [
-        "Connection limit with a bounded wait queue and acquire timeout",
-        "Separate read/write query time distributions"
+        "Connection limit with a bounded wait queue and acquire timeout, per instance",
+        "Separate read/write query time distributions",
+        "Read replicas: reads round-robin over primary and replicas, writes to the primary",
+        "Key-hash sharding; a skewed (Zipf) keyspace creates hot shards",
+        "Replication factor + consistency level: latency is the k-th fastest of RF replicas",
+        "Provisioned throughput per shard; excess requests are throttled"
       ],
       "notModeled": [
         "Locks, MVCC contention, disk I/O and buffer cache behaviour",
-        "Replication lag, read replicas, query planning"
+        "Replication lag and stale reads; failover and leader election",
+        "Replica load in leaderless writes (an operation holds one connection, not RF)",
+        "Cross-shard queries and transactions, rebalancing, query planning"
+      ],
+      "presets": [
+        {
+          "id": "postgresql",
+          "name": "PostgreSQL",
+          "technology": "postgresql",
+          "family": "Relational",
+          "description": "Single PostgreSQL primary behind an application connection pool. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "postgresql",
+            "maxConnections": 20,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 4,
+              "p95": 15
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 8,
+              "p95": 30
+            },
+            "costPerHour": 0.35
+          },
+          "tags": [
+            "relational",
+            "sql",
+            "acid"
+          ]
+        },
+        {
+          "id": "postgresql-replicas",
+          "name": "PostgreSQL + 2 read replicas",
+          "technology": "postgresql",
+          "family": "Relational",
+          "description": "Primary for writes, two streaming replicas that share the reads. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "postgresql",
+            "maxConnections": 20,
+            "readReplicas": 2,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 4,
+              "p95": 15
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 8,
+              "p95": 30
+            },
+            "costPerHour": 0.35
+          },
+          "tags": [
+            "relational",
+            "sql",
+            "read-scaling"
+          ]
+        },
+        {
+          "id": "mysql",
+          "name": "MySQL",
+          "technology": "mysql",
+          "family": "Relational",
+          "description": "Single MySQL (InnoDB) primary. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "mysql",
+            "maxConnections": 20,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 4,
+              "p95": 16
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 9,
+              "p95": 35
+            },
+            "costPerHour": 0.33
+          },
+          "tags": [
+            "relational",
+            "sql",
+            "acid"
+          ]
+        },
+        {
+          "id": "sqlserver",
+          "name": "SQL Server",
+          "technology": "sqlserver",
+          "family": "Relational",
+          "description": "Single SQL Server instance; the hourly price includes a licence. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "sqlserver",
+            "maxConnections": 30,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 5,
+              "p95": 20
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 10,
+              "p95": 40
+            },
+            "costPerHour": 0.9
+          },
+          "tags": [
+            "relational",
+            "sql",
+            "acid"
+          ]
+        },
+        {
+          "id": "cockroachdb",
+          "name": "CockroachDB-style distributed SQL",
+          "technology": "cockroachdb",
+          "family": "Distributed SQL",
+          "description": "Three ranges/shards, each replicated three times with quorum (Raft) writes: survives a node loss, pays a consensus round trip. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "cockroachdb",
+            "maxConnections": 20,
+            "shards": 3,
+            "replicationFactor": 3,
+            "consistency": "quorum",
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 6,
+              "p95": 25
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 14,
+              "p95": 60
+            },
+            "costPerHour": 0.5
+          },
+          "tags": [
+            "relational",
+            "sql",
+            "distributed",
+            "consensus"
+          ]
+        },
+        {
+          "id": "mongodb-replica-set",
+          "name": "MongoDB replica set",
+          "technology": "mongodb",
+          "family": "Document",
+          "description": "Primary plus two secondaries; reads use secondaries (secondaryPreferred). Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "mongodb",
+            "maxConnections": 50,
+            "readReplicas": 2,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 3,
+              "p95": 12
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 6,
+              "p95": 25
+            },
+            "costPerHour": 0.3
+          },
+          "tags": [
+            "nosql",
+            "document",
+            "read-scaling"
+          ]
+        },
+        {
+          "id": "mongodb-sharded",
+          "name": "MongoDB sharded cluster",
+          "technology": "mongodb",
+          "family": "Document",
+          "description": "Four shards, each a replica set (primary + two secondaries), routed by shard key. A skewed key distribution makes one shard hot. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "mongodb",
+            "maxConnections": 50,
+            "shards": 4,
+            "readReplicas": 2,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 3,
+              "p95": 12
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 6,
+              "p95": 25
+            },
+            "costPerHour": 0.3
+          },
+          "tags": [
+            "nosql",
+            "document",
+            "sharded"
+          ]
+        },
+        {
+          "id": "cassandra",
+          "name": "Cassandra",
+          "technology": "cassandra",
+          "family": "Wide-column",
+          "description": "Six token ranges, replication factor 3, QUORUM reads and writes. LSM storage makes writes cheaper than reads. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "cassandra",
+            "maxConnections": 32,
+            "shards": 6,
+            "replicationFactor": 3,
+            "consistency": "quorum",
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 4,
+              "p95": 18
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 1.5,
+              "p95": 6
+            },
+            "costPerHour": 0.4
+          },
+          "tags": [
+            "nosql",
+            "wide-column",
+            "leaderless"
+          ]
+        },
+        {
+          "id": "dynamodb-style",
+          "name": "DynamoDB-style key-value store",
+          "technology": "dynamodb",
+          "family": "Key-value",
+          "description": "Managed key-value store with four partitions and provisioned throughput per partition; requests above it are throttled. The hourly price stands in for provisioned capacity. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "dynamodb",
+            "maxConnections": 1000,
+            "queueCapacity": 1000,
+            "shards": 4,
+            "throughputLimitRps": 1000,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 3,
+              "p95": 8
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 5,
+              "p95": 12
+            },
+            "costPerHour": 0.5
+          },
+          "tags": [
+            "nosql",
+            "key-value",
+            "managed"
+          ]
+        },
+        {
+          "id": "elasticsearch",
+          "name": "Elasticsearch",
+          "technology": "elasticsearch",
+          "family": "Search",
+          "description": "Three primary shards with one replica each; searches are slower than key lookups and indexing is the expensive write. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "config": {
+            "technology": "elasticsearch",
+            "maxConnections": 16,
+            "shards": 3,
+            "readReplicas": 1,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 15,
+              "p95": 60
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 25,
+              "p95": 120
+            },
+            "costPerHour": 0.45
+          },
+          "tags": [
+            "search",
+            "full-text"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "external_api",
+      "displayName": "External API",
+      "category": "external",
+      "description": "A third-party service you call but do not operate (payments, email, SMS, identity, LLM inference, object storage). Each call takes the provider's response time, may fail, and may be rejected by the provider's rate or concurrency limit.",
+      "icon": "globe",
+      "isTrafficSource": false,
+      "ports": [
+        {
+          "name": "in",
+          "direction": "in",
+          "label": "Calls",
+          "description": "Calls to the third-party service.",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        }
+      ],
+      "fields": [
+        {
+          "key": "technology",
+          "label": "Kind of service",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Kind of provider. A label only; presets set latency, error rate, limits and price to illustrative defaults.",
+          "default": "generic",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "payments",
+            "email",
+            "sms",
+            "identity",
+            "llm",
+            "object_storage",
+            "maps",
+            "generic"
+          ],
+          "group": "Technology"
+        },
+        {
+          "key": "latencyMs",
+          "label": "Response time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Time the provider takes to answer one call, excluding network to it (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 120.0,
+            "p95": 500.0
+          },
+          "assumption": true,
+          "headline": true,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
+          "key": "errorRate",
+          "label": "Error rate",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of calls the provider fails (5xx / errors), after its response time.",
+          "default": 0.001,
+          "assumption": true,
+          "headline": true,
+          "min": 0,
+          "max": 1,
+          "group": "Reliability",
+          "step": 0.001
+        },
+        {
+          "key": "rateLimitRps",
+          "label": "Rate limit",
+          "kind": "number",
+          "nullable": true,
+          "description": "Calls per second the provider accepts (bursts up to one second's worth); more are rejected as rate limited. Empty = no limit.",
+          "default": null,
+          "assumption": true,
+          "headline": true,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1000000,
+          "unit": "req/s",
+          "group": "Limits"
+        },
+        {
+          "key": "concurrencyLimit",
+          "label": "Concurrency limit",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Calls that may be in flight at once; more are rejected as throttled. Empty = no limit.",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 1,
+          "max": 100000,
+          "group": "Limits"
+        },
+        {
+          "key": "costPerMillionRequests",
+          "label": "Cost per million calls",
+          "kind": "number",
+          "nullable": false,
+          "description": "Price per million calls, used for cost estimates only. Illustrative default.",
+          "default": 0.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 10000000,
+          "unit": "$",
+          "group": "Cost"
+        }
+      ],
+      "defaultConfig": {
+        "technology": "generic",
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 120.0,
+          "p95": 500.0
+        },
+        "errorRate": 0.001,
+        "costPerMillionRequests": 0.0
+      },
+      "modeled": [
+        "Response time sampled from the configured distribution",
+        "Random provider errors at the configured rate",
+        "Provider rate limit (token bucket) and concurrency limit; excess calls fail immediately",
+        "Price per million calls for cost estimates"
+      ],
+      "notModeled": [
+        "Provider-side queueing and degradation under your load",
+        "Retry-After headers and provider-side backoff",
+        "Regional outages (use a fault to inject one)"
+      ],
+      "presets": [
+        {
+          "id": "payments-api",
+          "name": "Payments API",
+          "technology": "payments",
+          "family": "SaaS API",
+          "description": "Card payment provider: a few hundred ms per charge, rare errors, per-account rate limit. Usually priced per transaction amount, so no per-call price is set. Numbers are illustrative assumptions, not a provider's published figures.",
+          "config": {
+            "technology": "payments",
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 250,
+              "p95": 900
+            },
+            "errorRate": 0.002,
+            "rateLimitRps": 100,
+            "costPerMillionRequests": 0
+          },
+          "tags": [
+            "payments",
+            "third-party"
+          ]
+        },
+        {
+          "id": "email-api",
+          "name": "Email API",
+          "technology": "email",
+          "family": "SaaS API",
+          "description": "Transactional email sending. Numbers are illustrative assumptions, not a provider's published figures.",
+          "config": {
+            "technology": "email",
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 120,
+              "p95": 400
+            },
+            "errorRate": 0.001,
+            "rateLimitRps": 50,
+            "costPerMillionRequests": 1000
+          },
+          "tags": [
+            "email",
+            "third-party"
+          ]
+        },
+        {
+          "id": "sms-api",
+          "name": "SMS API",
+          "technology": "sms",
+          "family": "SaaS API",
+          "description": "SMS / messaging provider: slower and pricier per call. Numbers are illustrative assumptions, not a provider's published figures.",
+          "config": {
+            "technology": "sms",
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 300,
+              "p95": 1200
+            },
+            "errorRate": 0.005,
+            "rateLimitRps": 30,
+            "costPerMillionRequests": 7500
+          },
+          "tags": [
+            "sms",
+            "third-party"
+          ]
+        },
+        {
+          "id": "identity-provider",
+          "name": "Identity provider",
+          "technology": "identity",
+          "family": "SaaS API",
+          "description": "OAuth/OIDC identity provider for token checks and logins. Usually priced per active user, so no per-call price is set. Numbers are illustrative assumptions, not a provider's published figures.",
+          "config": {
+            "technology": "identity",
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 80,
+              "p95": 250
+            },
+            "errorRate": 0.0005,
+            "rateLimitRps": 200,
+            "costPerMillionRequests": 0
+          },
+          "tags": [
+            "auth",
+            "third-party"
+          ]
+        },
+        {
+          "id": "llm-api",
+          "name": "LLM inference API",
+          "technology": "llm",
+          "family": "SaaS API",
+          "description": "Hosted model inference: seconds per call with a heavy tail, tight rate and concurrency limits, noticeable error rate. Numbers are illustrative assumptions, not a provider's published figures.",
+          "config": {
+            "technology": "llm",
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 1500,
+              "p95": 6000
+            },
+            "errorRate": 0.01,
+            "rateLimitRps": 50,
+            "concurrencyLimit": 100,
+            "costPerMillionRequests": 2000
+          },
+          "tags": [
+            "ai",
+            "llm",
+            "third-party"
+          ]
+        },
+        {
+          "id": "object-storage",
+          "name": "Object storage (S3-compatible)",
+          "technology": "object_storage",
+          "family": "SaaS API",
+          "description": "Object GETs from S3-compatible storage: tens of ms, very high limits. Numbers are illustrative assumptions, not a provider's published figures.",
+          "config": {
+            "technology": "object_storage",
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 25,
+              "p95": 80
+            },
+            "errorRate": 0.0001,
+            "rateLimitRps": 5500,
+            "costPerMillionRequests": 0.4
+          },
+          "tags": [
+            "storage",
+            "blob",
+            "third-party"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "message_queue",
+      "displayName": "Message Queue / Stream",
+      "category": "messaging",
+      "description": "Asynchronous messaging (Kafka, RabbitMQ, SQS-style). Producers get an acknowledgement after publishing; consumers process messages in the background and call the outgoing links. Absorbs spikes as backlog (lag) instead of rejecting requests.",
+      "icon": "inbox",
+      "isTrafficSource": false,
+      "ports": [
+        {
+          "name": "in",
+          "direction": "in",
+          "label": "Publish",
+          "description": "Messages published by producers (the caller gets an ack, not the result).",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        },
+        {
+          "name": "out",
+          "direction": "out",
+          "label": "Consumers",
+          "description": "Downstream calls each consumer makes per message, in order, for matching request types.",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        }
+      ],
+      "fields": [
+        {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Product or managed service. A label for the design; behaviour comes from the settings below.",
+          "default": "generic",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "kafka",
+            "rabbitmq",
+            "sqs",
+            "pubsub",
+            "nats",
+            "redis_streams",
+            "generic"
+          ],
+          "group": "Technology"
+        },
+        {
+          "key": "partitions",
+          "label": "Partitions",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Partitions (Kafka) or shards: at most one consumer works per partition, so effective consumers = min(consumers, partitions). Set it high for brokers without partitions.",
+          "default": 8,
+          "assumption": false,
+          "headline": true,
+          "min": 1,
+          "max": 10000,
+          "group": "Capacity"
+        },
+        {
+          "key": "consumers",
+          "label": "Consumers",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Concurrent consumers processing messages (consumer instances x threads).",
+          "default": 4,
+          "assumption": false,
+          "headline": true,
+          "min": 1,
+          "max": 10000,
+          "group": "Capacity"
+        },
+        {
+          "key": "maxDepth",
+          "label": "Max backlog",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Messages the queue holds; publishes beyond it are rejected (queue_full). Empty = unbounded.",
+          "default": 100000,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 100000000,
+          "unit": "msgs",
+          "group": "Capacity"
+        },
+        {
+          "key": "publishTimeMs",
+          "label": "Publish (ack) time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Time for the broker to acknowledge a publish (ms): what the producer waits.",
+          "default": {
+            "kind": "lognormal",
+            "median": 2.0,
+            "p95": 8.0
+          },
+          "assumption": true,
+          "headline": true,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
+          "key": "consumerTimeMs",
+          "label": "Consumer time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Consumer handling time per message before its downstream calls (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 5.0,
+            "p95": 20.0
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
+          "key": "maxDeliveries",
+          "label": "Max deliveries",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Delivery attempts per message; after the last failure it goes to the dead-letter queue.",
+          "default": 3,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 20,
+          "group": "Reliability"
+        },
+        {
+          "key": "brokers",
+          "label": "Brokers",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Broker nodes in the cluster (used for cost; throughput is set by consumers and partitions).",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 1000,
+          "group": "Cost"
+        },
+        {
+          "key": "costPerHour",
+          "label": "Cost per broker-hour",
+          "kind": "number",
+          "nullable": false,
+          "description": "Price of one broker per hour, in USD. Illustrative default; use your provider's pricing.",
+          "default": 0.15,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 10000,
+          "unit": "$/h",
+          "group": "Cost"
+        }
+      ],
+      "defaultConfig": {
+        "technology": "generic",
+        "partitions": 8,
+        "consumers": 4,
+        "maxDepth": 100000,
+        "publishTimeMs": {
+          "kind": "lognormal",
+          "median": 2.0,
+          "p95": 8.0
+        },
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 5.0,
+          "p95": 20.0
+        },
+        "maxDeliveries": 3,
+        "brokers": 1,
+        "costPerHour": 0.15
+      },
+      "modeled": [
+        "Publish acknowledgement latency and a bounded backlog (rejects when full)",
+        "FIFO consumption by min(consumers, partitions) parallel consumers",
+        "Redelivery of failed messages up to max deliveries, then dead-lettering",
+        "Backlog (lag), consumer utilization and message age"
+      ],
+      "notModeled": [
+        "Per-partition ordering and key-based partition skew",
+        "Broker replication, disk and network throughput limits",
+        "Consumer rebalancing, visibility timeouts and duplicate delivery"
+      ],
+      "presets": [
+        {
+          "id": "kafka",
+          "name": "Kafka",
+          "technology": "kafka",
+          "family": "Log / stream",
+          "description": "Partitioned log: consumer parallelism is capped by partitions; acks=all publish latency.",
+          "config": {
+            "technology": "kafka",
+            "partitions": 12,
+            "consumers": 6,
+            "maxDepth": 10000000,
+            "publishTimeMs": {
+              "kind": "lognormal",
+              "median": 3,
+              "p95": 10
+            },
+            "consumerTimeMs": {
+              "kind": "lognormal",
+              "median": 2,
+              "p95": 8
+            },
+            "maxDeliveries": 3,
+            "brokers": 3,
+            "costPerHour": 0.21
+          },
+          "tags": [
+            "log",
+            "stream",
+            "partitions"
+          ]
+        },
+        {
+          "id": "rabbitmq",
+          "name": "RabbitMQ",
+          "technology": "rabbitmq",
+          "family": "Broker",
+          "description": "Message broker with competing consumers on a queue.",
+          "config": {
+            "technology": "rabbitmq",
+            "partitions": 1000,
+            "consumers": 8,
+            "maxDepth": 1000000,
+            "publishTimeMs": {
+              "kind": "lognormal",
+              "median": 1,
+              "p95": 4
+            },
+            "consumerTimeMs": {
+              "kind": "lognormal",
+              "median": 3,
+              "p95": 12
+            },
+            "maxDeliveries": 5,
+            "brokers": 1,
+            "costPerHour": 0.1
+          },
+          "tags": [
+            "broker",
+            "amqp"
+          ]
+        },
+        {
+          "id": "sqs",
+          "name": "SQS-style queue",
+          "technology": "sqs",
+          "family": "Managed queue",
+          "description": "Managed HTTP queue: slower publishes, effectively unbounded backlog (illustrative numbers).",
+          "config": {
+            "technology": "sqs",
+            "partitions": 10000,
+            "consumers": 10,
+            "maxDepth": null,
+            "publishTimeMs": {
+              "kind": "lognormal",
+              "median": 15,
+              "p95": 40
+            },
+            "consumerTimeMs": {
+              "kind": "lognormal",
+              "median": 5,
+              "p95": 20
+            },
+            "maxDeliveries": 5,
+            "brokers": 1,
+            "costPerHour": 0.0
+          },
+          "tags": [
+            "managed",
+            "queue"
+          ]
+        },
+        {
+          "id": "pubsub",
+          "name": "Pub/Sub-style topic",
+          "technology": "pubsub",
+          "family": "Managed queue",
+          "description": "Managed publish/subscribe with push or pull subscribers (illustrative numbers).",
+          "config": {
+            "technology": "pubsub",
+            "partitions": 10000,
+            "consumers": 10,
+            "maxDepth": null,
+            "publishTimeMs": {
+              "kind": "lognormal",
+              "median": 20,
+              "p95": 60
+            },
+            "consumerTimeMs": {
+              "kind": "lognormal",
+              "median": 5,
+              "p95": 20
+            },
+            "maxDeliveries": 5,
+            "brokers": 1,
+            "costPerHour": 0.0
+          },
+          "tags": [
+            "managed",
+            "pubsub"
+          ]
+        },
+        {
+          "id": "nats",
+          "name": "NATS",
+          "technology": "nats",
+          "family": "Broker",
+          "description": "Lightweight messaging (JetStream for persistence) with very low publish latency.",
+          "config": {
+            "technology": "nats",
+            "partitions": 1000,
+            "consumers": 8,
+            "maxDepth": 1000000,
+            "publishTimeMs": {
+              "kind": "lognormal",
+              "median": 0.5,
+              "p95": 2
+            },
+            "consumerTimeMs": {
+              "kind": "lognormal",
+              "median": 2,
+              "p95": 8
+            },
+            "brokers": 3,
+            "costPerHour": 0.08
+          },
+          "tags": [
+            "broker",
+            "low-latency"
+          ]
+        },
+        {
+          "id": "redis-streams",
+          "name": "Redis Streams",
+          "technology": "redis_streams",
+          "family": "Log / stream",
+          "description": "Append-only stream with consumer groups, in memory.",
+          "config": {
+            "technology": "redis_streams",
+            "partitions": 1000,
+            "consumers": 4,
+            "maxDepth": 1000000,
+            "publishTimeMs": {
+              "kind": "lognormal",
+              "median": 0.5,
+              "p95": 2
+            },
+            "consumerTimeMs": {
+              "kind": "lognormal",
+              "median": 2,
+              "p95": 8
+            },
+            "brokers": 1,
+            "costPerHour": 0.1
+          },
+          "tags": [
+            "stream",
+            "in-memory"
+          ]
+        }
       ]
     }
   ],
@@ -839,6 +2615,22 @@
       "max": 600,
       "unit": "s",
       "group": "Run"
+    },
+    {
+      "key": "faults",
+      "label": "Faults",
+      "kind": "faults",
+      "nullable": false,
+      "description": "Faults injected during the run (outages, slowdowns, network latency)",
+      "default": [],
+      "assumption": false,
+      "headline": false,
+      "options": [
+        "read",
+        "write"
+      ],
+      "group": "Chaos",
+      "hidden": true
     }
   ]
 }

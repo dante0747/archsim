@@ -41,6 +41,7 @@ import { useRouter } from "next/navigation";
 import { Dialog as RDialog } from "radix-ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorActions } from "@/components/editor/actions";
+import { openDecide, replayActiveRun } from "@/components/editor/workflow";
 import { useAddComponent } from "@/components/editor/Palette";
 import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { Kbd } from "@/components/ui/misc";
@@ -49,6 +50,7 @@ import { rankCommands } from "@/lib/commands";
 import { kindOf } from "@/lib/theme";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
+import { type DecideSection, useDecide } from "@/store/decide";
 import { type DrawerTab, useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 
@@ -93,7 +95,19 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       if (tab === "overview" && runs().activeRunId) ui().markInsightsSeen(runs().activeRunId!);
     };
     const i = "size-4";
+    const decide = (section: DecideSection) => () => {
+      useDecide.getState().setSection(section);
+      openDecide();
+    };
     const cmds: (Command | false)[] = [
+      // workspaces
+      { id: "ws-build", group: "Workspace", label: "Build: design the system", shortcut: "1", keywords: "workspace edit design", icon: <LayoutGrid className={i} />, run: () => ui().setMode("build") },
+      { id: "ws-stress", group: "Workspace", label: "Stress: traffic, chaos, replay", shortcut: "2", keywords: "workspace experiment chaos timeline", icon: <Activity className={i} />, run: () => ui().setMode("stress") },
+      { id: "ws-decide", group: "Workspace", label: "Decide: SLOs, cost, capacity", shortcut: "3", keywords: "workspace scorecard analysis", icon: <Gauge className={i} />, run: decide("scorecard") },
+      hasReport && { id: "replay", group: "Workspace", label: "Replay the last run", keywords: "flight recorder playback timeline", icon: <Play className={i} />, run: replayActiveRun },
+      { id: "tradeoffs", group: "Workspace", label: "Trade-off map: cost vs latency", keywords: "pareto scenarios compare cost", icon: <GitCompare className={i} />, run: decide("tradeoffs") },
+      { id: "breaking", group: "Workspace", label: "Find the breaking point", keywords: "capacity sweep load knee max throughput", icon: <Flame className={i} />, run: decide("breaking") },
+      { id: "report", group: "Workspace", label: "Decision report (Markdown)", keywords: "export share document", icon: <BookOpen className={i} />, run: decide("report") },
       // simulate
       running && {
         id: "stop",
@@ -144,6 +158,17 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
         icon: <ShapeGlyph shape={SHAPE_OF[kindOf(c.type, c.category)]} w={22} h={14} />,
         run: () => add(c.type),
       })),
+      ...(catalog?.components ?? []).flatMap((c) =>
+        (c.presets ?? []).map((p) => ({
+          id: `add-${c.type}-${p.id}`,
+          group: "Add technology",
+          label: `Add ${p.name}`,
+          hint: `${p.family} · ${c.displayName}`,
+          keywords: `${p.technology} ${p.tags.join(" ")} ${c.type} ${p.description}`,
+          icon: <ShapeGlyph shape={SHAPE_OF[kindOf(c.type, c.category)]} w={22} h={14} />,
+          run: () => add(c.type, p.id),
+        })),
+      ),
       // go to
       !!firstError && {
         id: "problem",
@@ -229,6 +254,14 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       // project
       { id: "save", group: "Project", label: "Save", shortcut: `${mod} S`, icon: <Save className={i} />, run: () => void save() },
       { id: "export", group: "Project", label: "Export JSON", keywords: "download file", icon: <Download className={i} />, run: exportJson },
+      {
+        id: "export-infra",
+        group: "Project",
+        label: "Export docker-compose · Kubernetes · Mermaid",
+        keywords: "k8s yaml manifests deploy helm diagram",
+        icon: <Download className={i} />,
+        run: () => ui().setExportOpen(true),
+      },
       { id: "import", group: "Project", label: "Import JSON into this project", keywords: "upload file open", icon: <Upload className={i} />, run: onImport },
       { id: "home", group: "Project", label: "Back to projects", keywords: "home list", icon: <ArrowLeft className={i} />, run: () => router.push("/") },
       { id: "theme", group: "Project", label: "Toggle light / dark theme", keywords: "dark mode light mode appearance", icon: <Moon className={i} />, run: toggleTheme },

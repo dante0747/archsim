@@ -198,6 +198,35 @@ class GraphView:
     incoming_types: dict[str, set[str]] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class Preset:
+    """A named technology profile of a component type, e.g. PostgreSQL for ``database``.
+
+    ``config`` holds camelCase config values that differ from the defaults; it is validated
+    against the component's config model by the test suite. Behaviour comes from the config
+    values (replicas, shards, consistency...), never from the technology name alone.
+    """
+
+    id: str
+    name: str
+    technology: str
+    family: str  # e.g. "Relational", "Document", "Kubernetes", "Log / stream"
+    description: str
+    config: dict[str, Any]
+    tags: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "technology": self.technology,
+            "family": self.family,
+            "description": self.description,
+            "config": dict(self.config),
+            "tags": list(self.tags),
+        }
+
+
 class ComponentModel(ABC):
     """Subclass, set the class attributes, implement ``build``; register with a registry."""
 
@@ -211,6 +240,7 @@ class ComponentModel(ABC):
     is_traffic_source: ClassVar[bool] = False
     modeled: ClassVar[tuple[str, ...]] = ()
     not_modeled: ClassVar[tuple[str, ...]] = ()
+    presets: ClassVar[tuple[Preset, ...]] = ()
 
     # -- configuration -------------------------------------------------------------------
     def parse_config(self, raw: dict[str, Any]) -> BaseModel:
@@ -265,6 +295,7 @@ class ComponentModel(ABC):
             "defaultConfig": self.default_config(),
             "modeled": list(self.modeled),
             "notModeled": list(self.not_modeled),
+            "presets": [p.to_dict() for p in self.presets],
         }
 
 

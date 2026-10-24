@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "IoT telemetry on Cassandra",
+    "description": "Write-heavy telemetry ingestion through Envoy into a Go ingest service on Kubernetes and a 6-shard Cassandra ring with replication factor 3. Compare consistency levels ONE, QUORUM and ALL, and what one slow replica does to quorum latency.",
+    "tags": [
+      "cassandra",
+      "consistency",
+      "iot",
+      "kubernetes"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "devices",
+        "type": "traffic_source",
+        "label": "Devices",
+        "description": null,
+        "config": {
+          "timeoutMs": 1000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 250
+        }
+      },
+      {
+        "id": "envoy",
+        "type": "load_balancer",
+        "label": "Envoy",
+        "description": null,
+        "config": {
+          "technology": "envoy",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.2
+          },
+          "maxConnections": 50000
+        }
+      },
+      {
+        "id": "ingest",
+        "type": "service",
+        "label": "Ingest",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 32,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 300,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 5
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "ring",
+        "type": "database",
+        "label": "Telemetry (Cassandra)",
+        "description": null,
+        "config": {
+          "technology": "cassandra",
+          "shards": 6,
+          "replicationFactor": 3,
+          "consistency": "quorum",
+          "maxConnections": 32,
+          "queueCapacity": 500,
+          "queueTimeoutMs": 500,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 18
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 6
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "devices-envoy",
+        "source": "devices",
+        "sourcePort": "out",
+        "target": "envoy",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "envoy-ingest",
+        "source": "envoy",
+        "sourcePort": "out",
+        "target": "ingest",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "ingest-ring",
+        "source": "ingest",
+        "sourcePort": "out",
+        "target": "ring",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 500
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 2500,
+    "durationS": 40,
+    "warmupS": 8,
+    "seed": 42,
+    "readRatio": 0.05,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 1000000,
+    "keySkew": 0.4,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (RF 3, QUORUM)",
+      "description": "The document as drawn.",
+      "overrides": []
+    },
+    {
+      "id": "one",
+      "name": "Consistency ONE",
+      "description": "Fastest replica answers: lower latency, weaker guarantees.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "ring"
+          },
+          "path": "consistency",
+          "value": "one"
+        }
+      ]
+    },
+    {
+      "id": "all",
+      "name": "Consistency ALL",
+      "description": "Every replica must answer: the slowest one sets the latency.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "ring"
+          },
+          "path": "consistency",
+          "value": "all"
+        }
+      ]
+    },
+    {
+      "id": "slow-ring",
+      "name": "Ring 3\u00d7 slower (18\u201332 s)",
+      "description": "Chaos: a compaction storm slows the store.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "slow-ring",
+              "kind": "slowdown",
+              "target": "ring",
+              "startS": 18,
+              "durationS": 14,
+              "factor": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 15,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "devices": {
+        "x": 0,
+        "y": 80
+      },
+      "envoy": {
+        "x": 330,
+        "y": 80
+      },
+      "ingest": {
+        "x": 660,
+        "y": 80
+      },
+      "ring": {
+        "x": 990,
+        "y": 80
+      }
+    },
+    "viewport": null
+  }
+}

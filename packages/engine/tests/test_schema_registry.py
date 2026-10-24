@@ -114,7 +114,7 @@ def test_histogram_percentiles() -> None:
 
 def test_catalog_describes_fields_for_the_ui() -> None:
     cat = {c["type"]: c for c in create_default_registry().catalog()}
-    assert set(cat) == {"traffic_source", "load_balancer", "service", "cache", "database"}
+    assert {"traffic_source", "load_balancer", "service", "cache", "database"} <= set(cat)
     svc = {f["key"]: f for f in cat["service"]["fields"]}
     assert svc["replicas"]["kind"] == "integer" and svc["replicas"]["min"] == 1
     assert svc["serviceTimeMs"]["kind"] == "distribution" and svc["serviceTimeMs"]["assumption"]

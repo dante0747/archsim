@@ -67,6 +67,28 @@ has its own `timeoutMs`, `maxAttempts` and `retryBackoffMs`.
 A failure propagates upward unchanged: if PostgreSQL rejects a query, the API request fails
 with origin "PostgreSQL, queue_timeout", and the client records an error.
 
+## Faults (chaos experiments)
+
+`workload.faults` schedules failures in simulated time. Each fault is active on
+`[startS, startS + durationS)`:
+
+- **outage** (node): a call that reaches the node while the fault is active is refused
+  immediately, as a refused connection would be (rejection reason `outage`, counted in the
+  node's arrivals and rejections). Requests already inside the node finish normally. The caller
+  sees a failed attempt, so its timeout/retry settings and any fallback in the design decide
+  what happens next.
+- **slowdown** (node): every service or processing time the node samples while the fault is
+  active (worker service time, query time, cache lookup, load balancer overhead, external API
+  latency) is multiplied by `factor`. The sample is taken when the work starts.
+- **latency** (edge): each one-way traversal of the link that starts while the fault is
+  active gets `extraMs` added on top of the sampled latency.
+
+Faults never draw random numbers themselves. Slowdowns and latency faults scale values that
+are sampled anyway, so arrivals and every other component keep the same random draws as the
+run without the fault. An outage skips the work it refuses, so later samples at that node
+shift. Runs with faults are as reproducible as any other run (same document and seed, same
+result).
+
 ## Components
 
 ### Worker pools (shared building block)
@@ -102,6 +124,10 @@ request object so work done for an abandoned attempt can be detected.
 - A retry (the chosen link's `maxAttempts` > 1) avoids the instance that just failed when
   another candidate exists.
 - Utilization for a load balancer is concurrent requests / `maxConnections`.
+- **Rate limiting** (`rateLimitRps`, optional `rateLimitBurst`): a token bucket over all
+  requests; requests that find it empty are rejected immediately (`rate_limited`). Gateways
+  such as Kong or an API-gateway-style preset use this to shed load at the edge.
+- When targets autoscale, the candidate list follows the replicas that are currently routable.
 
 ### Service (`service`)
 
@@ -117,6 +143,22 @@ request object so work done for an abandoned attempt can be detected.
 - The report separates **utilization** (worker occupancy, including time blocked on
   dependencies) from **CPU utilization** (time spent in `serviceTimeMs`). A big gap means the
   service is waiting on something else.
+- `platform` is `vm`, `docker`, `kubernetes` or `serverless`. VM and Docker behave the same
+  (the label documents the deployment); Kubernetes and VMs/containers can autoscale;
+  serverless uses its own model.
+- **Autoscaling** (`autoscaling: true`, HPA-like): every `scaleIntervalS` the scaler reads the
+  utilization of the active replicas over the last interval and asks for
+  `ceil(active × utilization / targetUtilization)` replicas, clamped to
+  `[minReplicas, maxReplicas]`. New replicas become routable after `startupS` (pod start).
+  Scale-down waits for three consecutive low readings, stops routing new requests to the
+  newest replica and lets it drain. Utilization is measured against the capacity actually
+  available at each moment; the report adds a `replicas` time series and `scaleUps` /
+  `scaleDowns` counters.
+- **Serverless** (`platform: serverless`): each in-flight request uses one instance. A warm
+  idle instance is reused; otherwise a new instance starts and the request pays
+  `coldStartMs`, as long as fewer than `concurrencyLimit` instances exist; beyond the limit the
+  request is rejected (`throttled`). Instances idle longer than `keepWarmS` are reclaimed. The
+  report adds `replicas` (instances) and `coldStarts`.
 
 ### Cache (`cache`), cache-aside
 
@@ -139,9 +181,54 @@ request object so work done for an abandoned attempt can be detected.
 
 ### Database (`database`)
 
-`maxConnections` concurrent queries, a wait queue (`queueCapacity`) and an acquire timeout
-(`queueTimeoutMs`). Reads take `readServiceTimeMs`, writes `writeServiceTimeMs`. Nothing else
-(locks, I/O, buffer cache) is modeled.
+Each database instance has `maxConnections` concurrent queries, a wait queue
+(`queueCapacity`) and an acquire timeout (`queueTimeoutMs`). Reads take `readServiceTimeMs`,
+writes `writeServiceTimeMs`. The `technology` field (PostgreSQL, MySQL, MongoDB, Cassandra,
+DynamoDB-style, Elasticsearch...) is a label plus preset defaults; behaviour comes from these
+fields:
+
+- `readReplicas`: reads are spread round-robin over the primary and its replicas; writes go
+  to the primary. Replication lag is not modeled (replicas are always current).
+- `shards`: requests are routed to `hash(key) mod shards`, using the workload's Zipf keyspace,
+  so skewed popularity concentrates load on one shard (a hot partition). Each shard has its own
+  primary (and replicas). The report counts arrivals per shard (`shard0`, `shard1`, ...).
+- `replicationFactor` + `consistency` (`one`, `quorum`, `all`): for leaderless stores, an
+  operation holds its connection for the k-th fastest of `replicationFactor` independently
+  sampled times (k = 1, a majority, or all). Contention on the other replicas is not modeled
+  separately.
+- `throughputLimitRps`: provisioned throughput per shard (token bucket); excess requests are
+  rejected immediately (`throttled`).
+
+Locks, MVCC contention, query plans, I/O and buffer caches are not modeled.
+
+### Message queue (`message_queue`)
+
+Kafka, RabbitMQ, SQS-style, Pub/Sub-style, NATS or Redis Streams. A publish takes
+`publishTimeMs` and the **producer's request succeeds once the message is acknowledged**; the
+work continues asynchronously. Messages wait in a backlog (bounded by `maxDepth`; a full queue
+rejects publishes with `queue_full`) until one of `min(consumers, partitions)` consumers picks
+them up, spends `consumerTimeMs` and calls the queue's outgoing links in order (like a
+service's dependencies). A failed delivery is retried up to `maxDeliveries` times, then
+dead-lettered. The run keeps going until the backlog drains or the drain limit is reached.
+The report shows the backlog over time (`lag`), the wait before pickup, message age at
+processing, and `processed` / `failedDeliveries` / `deadLettered` counters. Client latency and
+success do not include background processing.
+
+### Third-party API (`external_api`)
+
+A dependency you do not operate: payments, e-mail, SMS, identity, LLM inference, object
+storage. Each call takes `latencyMs` and fails with probability `errorRate`
+(`upstream_error`). Optional `rateLimitRps` (token bucket, `rate_limited`) and
+`concurrencyLimit` (in-flight cap, `throttled`) model provider quotas. There is no queue: the
+provider either answers or refuses.
+
+### Cost assumptions
+
+`costPerHour` (per instance: replica, database instance, cache node, broker, load balancer)
+and `costPerMillionRequests` (third-party APIs) never affect the simulation. The web app
+turns them into a monthly estimate (730 hours) and a cost per million successful requests,
+using the run's average replica count for autoscaled services and the measured call rate for
+third-party APIs.
 
 ## Validation rules
 
@@ -162,7 +249,14 @@ a stable code, the node or edge involved and a hint. Highlights:
   generating writes when the source link only carries reads; a cache that can miss with no
   `miss` link is an error;
 - warnings (non-blocking): unreachable nodes, links that never carry traffic, a 100%-hit cache
-  with a miss link, a TTL cache that never populates, zero offered load.
+  with a miss link, a TTL cache that never populates, zero offered load;
+- faults: an unknown target (`fault_unknown_target`), the wrong kind of target
+  (`fault_wrong_target`: latency needs a link, outage/slowdown a node other than the traffic
+  source), a window that starts after the run (`fault_outside_run`) are errors; a window that
+  runs past the end is clipped with a warning (`fault_clipped`);
+- technology settings: autoscaling with `minReplicas > maxReplicas` is an error; consistency
+  set without replication, more shards than keys, autoscaling settings on a serverless service,
+  a queue without consumers or with idle consumers are warnings.
 
 ## Measurement window and metric definitions
 
@@ -292,12 +386,16 @@ on graph depth.
 ## What is NOT modeled
 
 - CPU, memory, disk and network bandwidth contention; garbage collection; noisy neighbours.
-- Autoscaling, health checks, instance failures, deployments; failure injection in general.
+- Health checks and automatic failover, deployments and rollouts; faults are the three kinds
+  above (outage, slowdown, link latency), scheduled by you, not random failures.
+- Autoscaling cooldowns and stabilization windows beyond the simple rules above; node
+  provisioning; per-language cold-start differences beyond the configured distribution.
 - Closed-loop users with think time; client connection pools; HTTP keep-alive and TLS setup.
-- Parallel fan-out calls (dependencies are sequential), async messaging, streaming.
-- Database locks, MVCC contention, query plans, replication and read replicas.
+- Parallel fan-out calls (dependencies are sequential), streaming, message ordering and
+  partition rebalancing.
+- Database locks, MVCC contention, query plans, replication lag, rebalancing of shards.
 - Cache memory limits and eviction, request coalescing / thundering herd, replication.
-- Circuit breakers, rate limiters, priority queues, deadline propagation between services.
+- Circuit breakers, priority queues, deadline propagation between services.
 - Multiple traffic sources, regions and cross-region latency.
 - Packet loss, bandwidth limits and payload sizes.
 

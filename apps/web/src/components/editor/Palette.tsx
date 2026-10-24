@@ -1,25 +1,40 @@
 "use client";
 
+/**
+ * Technology library: a rail of families (Clients, Edge, Compute, Data, Cache, Queues, External) and
+ * a searchable flyout of technology presets (PostgreSQL, MongoDB, Kafka, Kubernetes service...).
+ * Drag onto the canvas or click to add.
+ */
 import { useReactFlow } from "@xyflow/react";
 import { Library, Search, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { NODE_W } from "@/components/editor/ArchNodeView";
+import {
+  DND_MIME,
+  dndPayload,
+  familyOfItem,
+  findPreset,
+  type LibraryItem,
+  libraryItems,
+  matchesItem,
+  parseDndPayload,
+} from "@/components/build/presets";
 import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
-import { Input } from "@/components/ui/input";
 import { Kbd, Tip } from "@/components/ui/misc";
-import { KIND_LABEL, kindOf, shortName } from "@/lib/theme";
-import type { ComponentType } from "@/lib/types";
+import { FAMILIES, type Family, kindOf } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 
-export const DND_MIME = "application/x-archsim-component";
+export { DND_MIME, parseDndPayload };
 
-/** Add a component next to the existing ones, in the visible part of the canvas. */
+/** Add a component (optionally from a technology preset) in a free spot of the visible canvas. */
 export function useAddComponent() {
   const rf = useReactFlow();
   const addNode = useEditor((s) => s.addNode);
+  const addPresetNode = useEditor((s) => s.addPresetNode);
   return useCallback(
-    (type: string) => {
+    (type: string, presetId?: string | null) => {
       const el = document.querySelector(".react-flow");
       const rect = el?.getBoundingClientRect();
       const center = rect
@@ -37,67 +52,105 @@ export function useAddComponent() {
           y += 190;
         }
       }
-      addNode(type, { x, y });
+      const preset = findPreset(useEditor.getState().catalog, type, presetId);
+      if (preset) addPresetNode(type, { x, y }, preset);
+      else addNode(type, { x, y });
       window.setTimeout(() => void rf.fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 40);
     },
-    [rf, addNode],
+    [rf, addNode, addPresetNode],
   );
 }
 
-function dragProps(type: string) {
+function dragProps(type: string, presetId?: string | null) {
   return {
     draggable: true,
     onDragStart: (e: React.DragEvent) => {
-      e.dataTransfer.setData(DND_MIME, type);
+      e.dataTransfer.setData(DND_MIME, dndPayload(type, presetId));
       e.dataTransfer.effectAllowed = "move";
     },
   };
 }
 
-/** Slim rail of component shapes: drag onto the canvas or click to add. */
+/** Representative component type of a family (for dragging straight from the rail). */
+function familyType(f: Family, items: LibraryItem[]): string | null {
+  return items.find((i) => !i.preset && f.kinds.includes(kindOf(i.type, i.comp.category)))?.type ?? null;
+}
+
+/** Slim rail of technology families; opens the library at a family, drag adds the generic component. */
 export function ComponentRail() {
   const catalog = useEditor((s) => s.catalog);
-  const add = useAddComponent();
   const libraryOpen = useUi((s) => s.libraryOpen);
   const setLibraryOpen = useUi((s) => s.setLibraryOpen);
+  const [family, setFamily] = useState<string | null>(null);
+  const items = useMemo(() => libraryItems(catalog), [catalog]);
+  const families = FAMILIES.filter((f) => items.some((i) => familyOfItem(i).key === f.key));
+  const counts = (f: Family) => items.filter((i) => familyOfItem(i).key === f.key && i.preset).length;
+
   return (
-    <aside className="relative z-20 flex h-full w-[72px] shrink-0 flex-col items-center gap-0.5 border-r border-line bg-surface py-2.5" aria-label="Components">
+    <aside className="relative z-20 flex h-full w-[72px] shrink-0 flex-col items-center gap-0.5 border-r border-line bg-surface py-2.5" aria-label="Technology library">
       <span className="microlabel mb-1.5 !text-[9px]">add</span>
-      {(catalog?.components ?? []).map((c) => {
-        const kind = kindOf(c.type, c.category);
+      {families.map((f) => {
+        const type = familyType(f, items);
+        const active = libraryOpen && family === f.key;
+        const n = counts(f);
         return (
           <Tip
-            key={c.type}
+            key={f.key}
             side="right"
             content={
               <span className="block max-w-56">
-                <span className="block font-semibold">{c.displayName}</span>
-                <span className="block text-ink-2">{c.description}</span>
-                <span className="mt-1 block text-ink-3">Drag onto the canvas, or click to add.</span>
+                <span className="block font-semibold">{f.label}</span>
+                <span className="block text-ink-2">{f.blurb}</span>
+                <span className="mt-1 block text-ink-3">
+                  Click for {n ? `${n} technologies` : "options"}; drag to add a generic one.
+                </span>
               </span>
             }
           >
             <button
               type="button"
-              {...dragProps(c.type)}
-              onClick={() => add(c.type)}
-              className="group flex w-[62px] cursor-grab flex-col items-center gap-1 rounded-md py-2 transition-colors hover:bg-surface-2 active:cursor-grabbing"
-              aria-label={`Add ${c.displayName}`}
+              {...(type ? dragProps(type) : {})}
+              onClick={() => {
+                if (active) setLibraryOpen(false);
+                else {
+                  setFamily(f.key);
+                  setLibraryOpen(true);
+                }
+              }}
+              aria-expanded={active}
+              className={cn(
+                "group relative flex w-[62px] cursor-pointer flex-col items-center gap-1 rounded-md py-2 transition-colors hover:bg-surface-2",
+                active && "bg-accent-soft",
+              )}
+              aria-label={`${f.label} technologies`}
             >
-              <ShapeGlyph shape={SHAPE_OF[kind]} w={34} h={22} className="text-ink-2 transition-colors group-hover:text-accent" />
-              <span className="w-full truncate text-center font-mono text-[10px] text-ink-2 group-hover:text-ink">
-                {shortName(c.type, c.displayName)}
+              <ShapeGlyph
+                shape={SHAPE_OF[f.kinds[0]]}
+                w={34}
+                h={22}
+                className={cn("transition-colors group-hover:text-accent", active ? "text-accent" : "text-ink-2")}
+              />
+              <span className={cn("w-full truncate text-center font-mono text-[10px] group-hover:text-ink", active ? "text-ink" : "text-ink-2")}>
+                {f.short}
               </span>
+              {n > 0 && (
+                <span className="absolute right-1 top-1 font-mono text-[8.5px] leading-none text-ink-3" aria-hidden>
+                  {n}
+                </span>
+              )}
             </button>
           </Tip>
         );
       })}
       <div className="mt-auto">
-        <Tip side="right" content="Browse all components with descriptions">
+        <Tip side="right" content="Browse and search every technology">
           <button
             type="button"
-            onClick={() => setLibraryOpen(!libraryOpen)}
-            aria-expanded={libraryOpen}
+            onClick={() => {
+              setFamily(null);
+              setLibraryOpen(!libraryOpen || family !== null);
+            }}
+            aria-expanded={libraryOpen && family === null}
             className="flex w-[62px] flex-col items-center gap-1 rounded-md py-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
           >
             <Library className="size-4" />
@@ -105,75 +158,157 @@ export function ComponentRail() {
           </button>
         </Tip>
       </div>
-      {libraryOpen && <ComponentLibrary onClose={() => setLibraryOpen(false)} />}
+      {libraryOpen && <ComponentLibrary family={family} onFamily={setFamily} onClose={() => setLibraryOpen(false)} />}
     </aside>
   );
 }
 
-/** Searchable component library with descriptions (flyout next to the rail). */
-function ComponentLibrary({ onClose }: { onClose: () => void }) {
+/** Searchable technology library (flyout next to the rail). */
+export function ComponentLibrary({
+  family,
+  onFamily,
+  onClose,
+}: {
+  family: string | null;
+  onFamily: (f: string | null) => void;
+  onClose: () => void;
+}) {
   const catalog = useEditor((s) => s.catalog);
   const add = useAddComponent();
   const [q, setQ] = useState("");
-  const groups = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    const items = (catalog?.components ?? []).filter(
-      (c) => !term || `${c.displayName} ${c.description} ${c.type}`.toLowerCase().includes(term),
-    );
-    const byKind = new Map<string, ComponentType[]>();
-    for (const c of items) {
-      const k = kindOf(c.type, c.category);
-      byKind.set(k, [...(byKind.get(k) ?? []), c]);
+  const items = useMemo(() => libraryItems(catalog), [catalog]);
+  const visible = useMemo(
+    () => items.filter((i) => (!family || familyOfItem(i).key === family) && matchesItem(i, q)),
+    [items, family, q],
+  );
+  const sections = useMemo(() => {
+    const out: { family: Family; groups: { name: string; items: LibraryItem[] }[] }[] = [];
+    for (const f of FAMILIES) {
+      const inFamily = visible.filter((i) => familyOfItem(i).key === f.key);
+      if (!inFamily.length) continue;
+      const groups: { name: string; items: LibraryItem[] }[] = [];
+      for (const it of inFamily) {
+        const g = groups.find((x) => x.name === it.group);
+        if (g) g.items.push(it);
+        else groups.push({ name: it.group, items: [it] });
+      }
+      // generic entries last
+      groups.sort((a, b) => Number(a.name === "Generic") - Number(b.name === "Generic"));
+      out.push({ family: f, groups });
     }
-    return [...byKind.entries()];
-  }, [catalog, q]);
+    return out;
+  }, [visible]);
+  const familiesPresent = FAMILIES.filter((f) => items.some((i) => familyOfItem(i).key === f.key));
+  const pick = (it: LibraryItem) => {
+    add(it.type, it.preset?.id ?? null);
+    onClose();
+  };
+
   return (
-    <div className="absolute left-full top-2 ml-2 flex max-h-[calc(100%-16px)] w-80 flex-col rounded-lg border border-line-strong bg-surface shadow-float" role="dialog" aria-label="Component library">
-      <div className="flex items-center gap-2 border-b border-line p-3">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
-          <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search components" aria-label="Search components" className="pl-8" />
+    <div
+      className="absolute left-full top-2 ml-2 flex max-h-[calc(100%-16px)] w-[360px] flex-col rounded-lg border border-line-strong bg-surface shadow-float"
+      role="dialog"
+      aria-label="Technology library"
+    >
+      <div className="border-b border-line p-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && visible[0]) {
+                  e.preventDefault();
+                  pick(visible[0]);
+                } else if (e.key === "Escape") onClose();
+              }}
+              placeholder="postgres, nosql, kafka, k8s, serverless…"
+              aria-label="Search technologies"
+              className="h-8 w-full rounded-md border border-line bg-surface-2 pl-8 pr-2 font-mono text-[12px] text-ink placeholder:text-ink-3 focus-visible:border-accent focus-visible:outline-none"
+            />
+          </div>
+          <button type="button" onClick={onClose} className="rounded-md p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close library">
+            <X className="size-4" />
+          </button>
         </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close library">
-          <X className="size-4" />
-        </button>
+        <div className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label="Families">
+          {[{ key: null as string | null, short: "all" }, ...familiesPresent.map((f) => ({ key: f.key as string | null, short: f.short.toLowerCase() }))].map((f) => (
+            <button
+              key={f.key ?? "all"}
+              type="button"
+              role="tab"
+              aria-selected={family === f.key}
+              onClick={() => onFamily(f.key)}
+              className={cn(
+                "rounded-sm border px-1.5 py-0.5 font-mono text-[10.5px] transition-colors",
+                family === f.key ? "border-accent/50 bg-accent-soft text-ink" : "border-line text-ink-3 hover:border-line-strong hover:text-ink",
+              )}
+            >
+              {f.short}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
-        {groups.map(([kind, items]) => (
-          <section key={kind}>
-            <h3 className="microlabel mb-2">
+        {sections.map(({ family: f, groups }) => (
+          <section key={f.key} aria-label={f.label}>
+            <h3 className="microlabel">
               <span className="mr-1 opacity-60" aria-hidden>
-            {"//"}
-          </span>
-              {KIND_LABEL[kind as ReturnType<typeof kindOf>]}
+                {"//"}
+              </span>
+              {f.label}
             </h3>
-            <ul className="space-y-1.5">
-              {items.map((c) => (
-                <li key={c.type}>
-                  <button
-                    type="button"
-                    {...dragProps(c.type)}
-                    onClick={() => {
-                      add(c.type);
-                      onClose();
-                    }}
-                    className="group flex w-full cursor-grab items-start gap-2.5 rounded-md border border-line p-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-2"
-                  >
-                    <ShapeGlyph shape={SHAPE_OF[kindOf(c.type, c.category)]} w={30} h={20} className="mt-0.5 shrink-0 text-ink-2 group-hover:text-accent" />
-                    <span className="min-w-0">
-                      <span className="block font-mono text-[12px] font-medium text-ink">{c.displayName}</span>
-                      <span className="line-clamp-2 block text-[11.5px] leading-4 text-ink-2">{c.description}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <p className="mb-2 mt-0.5 text-[11px] text-ink-3">{f.blurb}</p>
+            {groups.map((g) => (
+              <div key={g.name} className="mb-2.5">
+                {(groups.length > 1 || g.name !== "Generic") && (
+                  <p className="mb-1 font-mono text-[10px] lowercase text-ink-3">{g.name}</p>
+                )}
+                <ul className="space-y-1">
+                  {g.items.map((it) => (
+                    <li key={it.key}>
+                      <button
+                        type="button"
+                        {...dragProps(it.type, it.preset?.id)}
+                        onClick={() => pick(it)}
+                        title={it.description}
+                        className="group flex w-full cursor-grab items-start gap-2.5 rounded-md border border-line p-2 text-left transition-colors hover:border-line-strong hover:bg-surface-2 active:cursor-grabbing"
+                      >
+                        <ShapeGlyph
+                          shape={SHAPE_OF[kindOf(it.type, it.comp.category)]}
+                          w={30}
+                          h={20}
+                          className="mt-0.5 shrink-0 text-ink-2 group-hover:text-accent"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span className="truncate font-mono text-[12px] font-medium text-ink">{it.name}</span>
+                            <span className="ml-auto shrink-0 rounded-sm border border-line px-1 font-mono text-[9.5px] text-ink-3">
+                              {it.technology}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 line-clamp-2 block text-[11px] leading-4 text-ink-2">{it.description}</span>
+                          {it.tags.length > 0 && (
+                            <span className="mt-0.5 block truncate font-mono text-[9.5px] text-ink-3">
+                              {it.tags.map((t) => `#${t}`).join(" ")}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </section>
         ))}
-        {groups.length === 0 && <p className="text-xs text-ink-3">No component matches “{q}”.</p>}
+        {sections.length === 0 && <p className="px-1 py-6 text-center font-mono text-xs text-ink-3">no technology matches “{q}”</p>}
       </div>
       <p className="border-t border-line p-3 text-[11px] leading-4 text-ink-3">
-        Link components by dragging from a right-side handle to another component. <Kbd>Shift</Kbd>+drag box-selects.
+        Drag onto the canvas or click to add. Preset numbers are editable assumptions, not vendor benchmarks.{" "}
+        <Kbd>Enter</Kbd> adds the first match.
       </p>
     </div>
   );

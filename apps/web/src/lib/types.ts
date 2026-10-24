@@ -43,6 +43,21 @@ export type TrafficPattern =
   | { kind: "ramp"; startRps: number; endRps: number }
   | { kind: "burst"; burstRps: number; startS: number; durationS: number };
 
+/** A fault injected during a run (see docs/product-spec-v2.md). */
+export interface Fault {
+  id: string;
+  kind: "outage" | "slowdown" | "latency";
+  /** node id (outage, slowdown) or edge id (latency) */
+  target: string;
+  startS: number;
+  durationS: number;
+  /** slowdown: service-time multiplier */
+  factor?: number;
+  /** latency: added one-way latency (ms) */
+  extraMs?: number;
+  label?: string | null;
+}
+
 export interface Workload {
   rps: number;
   durationS: number;
@@ -54,6 +69,15 @@ export interface Workload {
   keyCount: number;
   keySkew: number;
   drainS?: number | null;
+  faults?: Fault[];
+}
+
+/** Service-level objectives the design should meet (evaluated by the UI, not the engine). */
+export interface Objectives {
+  latencyP95Ms?: number | null;
+  latencyP99Ms?: number | null;
+  availability?: number | null;
+  minThroughputRps?: number | null;
 }
 
 export interface OverrideTarget {
@@ -87,6 +111,7 @@ export interface ArchitectureDocument {
   architecture: { nodes: NodeSpec[]; edges: EdgeSpec[] };
   workload: Workload;
   scenarios: Scenario[];
+  objectives?: Objectives;
   layout: {
     nodes: Record<string, { x: number; y: number }>;
     viewport?: { x: number; y: number; zoom: number } | null;
@@ -137,6 +162,17 @@ export interface PortSpec {
   maxEdges: number | null;
 }
 
+/** A technology profile of a component type, e.g. PostgreSQL for "database". */
+export interface Preset {
+  id: string;
+  name: string;
+  technology: string;
+  family: string;
+  description: string;
+  config: NodeConfig;
+  tags: string[];
+}
+
 export interface ComponentType {
   type: string;
   displayName: string;
@@ -149,6 +185,7 @@ export interface ComponentType {
   defaultConfig: NodeConfig;
   modeled: string[];
   notModeled: string[];
+  presets?: Preset[];
 }
 
 export interface Catalog {
@@ -366,6 +403,8 @@ export interface EdgeReport {
   retries: number;
   timeouts: number;
   failures: number;
+  /** per-bucket series, e.g. callRps, timeoutRps, failureRps (report 1.1+) */
+  timeseries?: Record<string, Series>;
 }
 
 export interface Finding {

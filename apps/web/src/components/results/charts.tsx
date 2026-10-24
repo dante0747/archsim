@@ -24,7 +24,7 @@ export const SINGLE_SERIES = "var(--accent)";
  * the variables are defined by VIZ_VARS on each chart figure.
  */
 export const PERCENTILE_SERIES = ["var(--viz-ord-1)", "var(--viz-ord-2)", "var(--viz-ord-3)"] as const;
-const VIZ_VARS =
+export const VIZ_VARS =
   "[--viz-ord-1:#86b6ef] [--viz-ord-2:#2a78d6] [--viz-ord-3:#104281] dark:[--viz-ord-1:#1c5cab] dark:[--viz-ord-2:#3987e5] dark:[--viz-ord-3:#86b6ef]";
 
 /** Table header cells: mono, uppercase, muted. */

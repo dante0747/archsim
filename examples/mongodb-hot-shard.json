@@ -1,0 +1,298 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Product catalog on sharded MongoDB",
+    "description": "A read-heavy catalog on a 4-shard MongoDB cluster. Product popularity is skewed (Zipf), so one shard holds the hottest keys and saturates first while the others idle. Compare a higher-cardinality key, more shards, and a Redis cache in front.",
+    "tags": [
+      "mongodb",
+      "sharding",
+      "hot-partition",
+      "nosql"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "users",
+        "type": "traffic_source",
+        "label": "Shoppers",
+        "description": null,
+        "config": {
+          "timeoutMs": 1500,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "edge",
+        "type": "load_balancer",
+        "label": "Nginx",
+        "description": null,
+        "config": {
+          "technology": "nginx",
+          "policy": "round_robin",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.3
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "catalog",
+        "type": "service",
+        "label": "Catalog API",
+        "description": null,
+        "config": {
+          "technology": "nodejs",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 8
+          },
+          "blockingDownstream": false
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Redis",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "hitModel": "fixed_ratio",
+          "hitRatio": 0.0,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.1
+          },
+          "concurrency": 1,
+          "queueCapacity": 10000
+        }
+      },
+      {
+        "id": "products",
+        "type": "database",
+        "label": "Products (MongoDB)",
+        "description": null,
+        "config": {
+          "technology": "mongodb",
+          "shards": 4,
+          "maxConnections": 3,
+          "queueCapacity": 400,
+          "queueTimeoutMs": 500,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 12
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 25
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "users-edge",
+        "source": "users",
+        "sourcePort": "out",
+        "target": "edge",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "edge-catalog",
+        "source": "edge",
+        "sourcePort": "out",
+        "target": "catalog",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "catalog-cache",
+        "source": "catalog",
+        "sourcePort": "out",
+        "target": "cache",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 50
+        }
+      },
+      {
+        "id": "catalog-products",
+        "source": "catalog",
+        "sourcePort": "out",
+        "target": "products",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 800
+        }
+      },
+      {
+        "id": "cache-miss-products",
+        "source": "cache",
+        "sourcePort": "miss",
+        "target": "products",
+        "targetPort": "in",
+        "label": "miss",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 800
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 2000,
+    "durationS": 40,
+    "warmupS": 8,
+    "seed": 42,
+    "readRatio": 0.95,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 50000,
+    "keySkew": 1.2,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (4 shards, skewed keys, no cache hits)",
+      "description": "The document as drawn: the cache is bypassed (0% hits).",
+      "overrides": []
+    },
+    {
+      "id": "uniform",
+      "name": "High-cardinality shard key",
+      "description": "Keys spread evenly across shards (Zipf s = 0.3).",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 0.3
+        }
+      ]
+    },
+    {
+      "id": "eight-shards",
+      "name": "8 shards",
+      "description": "More shards, same skew: the hottest keys still land together.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "products"
+          },
+          "path": "shards",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "id": "cache-front",
+      "name": "Redis in front (90% hits)",
+      "description": "Serve hot products from memory.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "hitRatio",
+          "value": 0.9
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 100,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "users": {
+        "x": 0,
+        "y": 80
+      },
+      "edge": {
+        "x": 330,
+        "y": 80
+      },
+      "catalog": {
+        "x": 660,
+        "y": 80
+      },
+      "cache": {
+        "x": 990,
+        "y": -60
+      },
+      "products": {
+        "x": 1320,
+        "y": 80
+      }
+    },
+    "viewport": null
+  }
+}

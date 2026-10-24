@@ -1,0 +1,368 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Async order pipeline with Kafka",
+    "description": "The API reads from PostgreSQL and publishes orders to Kafka instead of writing synchronously. A fulfillment service consumes the topic, writes to PostgreSQL and sends a confirmation e-mail. Clients get fast acks while consumer lag absorbs bursts. Partitions cap consumer parallelism.",
+    "tags": [
+      "kafka",
+      "async",
+      "postgresql",
+      "docker"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Clients",
+        "description": null,
+        "config": {
+          "timeoutMs": 2000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Orders API",
+        "description": null,
+        "config": {
+          "technology": "nodejs",
+          "platform": "docker",
+          "replicas": 3,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "blockingDownstream": false
+        }
+      },
+      {
+        "id": "orders-topic",
+        "type": "message_queue",
+        "label": "orders topic",
+        "description": null,
+        "config": {
+          "technology": "kafka",
+          "partitions": 6,
+          "consumers": 4,
+          "brokers": 3,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 12
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "maxDeliveries": 3
+        }
+      },
+      {
+        "id": "fulfillment",
+        "type": "service",
+        "label": "Fulfillment",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "docker",
+          "replicas": 2,
+          "workersPerReplica": 8,
+          "queueCapacity": 100,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 12,
+            "p95": 40
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "Orders DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 20,
+          "readReplicas": 1,
+          "queueCapacity": 500,
+          "queueTimeoutMs": 2000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 15
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 40
+          }
+        }
+      },
+      {
+        "id": "email",
+        "type": "external_api",
+        "label": "E-mail API",
+        "description": null,
+        "config": {
+          "technology": "email",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 120,
+            "p95": 400
+          },
+          "errorRate": 0.01
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-api",
+        "source": "clients",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 500
+        }
+      },
+      {
+        "id": "api-orders-topic",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "orders-topic",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 500
+        }
+      },
+      {
+        "id": "orders-topic-fulfillment",
+        "source": "orders-topic",
+        "sourcePort": "out",
+        "target": "fulfillment",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "fulfillment-db",
+        "source": "fulfillment",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 2000
+        }
+      },
+      {
+        "id": "fulfillment-email",
+        "source": "fulfillment",
+        "sourcePort": "out",
+        "target": "email",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 20
+          },
+          "order": 1,
+          "timeoutMs": 3000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 500
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 400,
+    "durationS": 90,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.5,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 1600,
+      "startS": 40,
+      "durationS": 15
+    },
+    "keyCount": 100000,
+    "keySkew": 0.99,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (4 consumers, 6 partitions)",
+      "description": "The document as drawn.",
+      "overrides": []
+    },
+    {
+      "id": "more-consumers",
+      "name": "12 consumers (still 6 partitions)",
+      "description": "More consumers than partitions do not add parallelism.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "orders-topic"
+          },
+          "path": "consumers",
+          "value": 12
+        }
+      ]
+    },
+    {
+      "id": "more-partitions",
+      "name": "12 partitions, 12 consumers",
+      "description": "Scale the topic and the consumer group together.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "orders-topic"
+          },
+          "path": "partitions",
+          "value": 12
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "orders-topic"
+          },
+          "path": "consumers",
+          "value": 12
+        }
+      ]
+    },
+    {
+      "id": "db-slow",
+      "name": "Database 4\u00d7 slower (45\u201375 s)",
+      "description": "Chaos: lag builds while clients still get fast acks.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "db-slow",
+              "kind": "slowdown",
+              "target": "db",
+              "startS": 45,
+              "durationS": 30,
+              "factor": 4
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 150,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 120
+      },
+      "api": {
+        "x": 330,
+        "y": 120
+      },
+      "orders-topic": {
+        "x": 660,
+        "y": 0
+      },
+      "fulfillment": {
+        "x": 990,
+        "y": 0
+      },
+      "db": {
+        "x": 1320,
+        "y": 160
+      },
+      "email": {
+        "x": 1320,
+        "y": -60
+      }
+    },
+    "viewport": null
+  }
+}

@@ -174,48 +174,45 @@ report = run_simulation(document, registry=registry)
 - `self.m.cpu.add(+1/-1, now)` with `self.m.has_cpu_split = True` - report own-work
   utilization separately (as services do).
 
-## Sketch: a message queue
+## Technology presets
 
-A broker that accepts messages quickly and has consumers process them asynchronously.
-This is **not implemented**; it shows how the pieces fit.
+A component type can ship named technology profiles. They appear in the web app's technology
+library, the inspector's technology picker and the command palette:
 
 ```python
-class QueueConfig(CamelModel):
-    consumers: int = Field(default=4, ge=1, le=1024, json_schema_extra=ui(group="Capacity", headline=True))
-    max_backlog: int = Field(default=10_000, ge=0, le=1_000_000, json_schema_extra=ui(group="Capacity"))
-    enqueue_ms: Distribution = Field(default_factory=lambda: Constant(value=1.0),
-                                     json_schema_extra=ui(unit="ms", assumption=True))
+from archsim_engine.registry import Preset
 
-class QueueRuntime(RuntimeComponent):
-    def __init__(self, ctx, node, config):
-        super().__init__(ctx, node, config, config.consumers)
-        self.consumers = WorkerPool(ctx.env, config.consumers, config.max_backlog, None, self.m)
-        self.rng = ctx.rng(f"node:{node.id}:enqueue")
-
-    def handle(self, req):
-        env, m = self.env, self.m
-        m.arrive(env.now)
-        if self.consumers.outstanding >= self.config.consumers + self.config.max_backlog:
-            m.reject("backlog_full", env.now)
-            return rejected("backlog_full", self.id)
-        yield env.timeout(self.config.enqueue_ms.sample(self.rng))
-        env.process(self._consume(req))     # producer is acknowledged now
-        m.depart(env.now, OK, req)
-        return OK
-
-    def _consume(self, req):
-        tok, reason = yield from self.consumers.acquire()
-        if tok is None:
-            return                          # count as a dropped message
-        for edge in self.out_edges("consumers"):
-            yield from self.ctx.call(edge, req, self.id)
-        self.consumers.release(tok)
+class FixedDelayModel(ComponentModel):
+    ...
+    presets = (
+        Preset(
+            id="slow-mainframe",
+            name="Mainframe gateway",
+            technology="generic",
+            family="Legacy",
+            description="Illustrative defaults: 120 ms per call. Calibrate before trusting.",
+            config={"delayMs": 120},
+            tags=("legacy",),
+        ),
+    )
 ```
 
-Open design questions that a real implementation must answer (and test): how consumer work
-is accounted (it happens after the producer's request completed, so it needs its own counters
-rather than `depart`), whether the run's drain waits for the backlog, and how end-to-end
-latency should treat asynchronous work.
+`config` holds the values that differ from the defaults (camelCase, as in documents) and is
+merged over `defaultConfig` when a preset is applied. Keep behaviour in config fields, never
+in the preset name: a preset is a convenient, transparent starting point. The test suite
+validates every preset of every registered model against its config model.
+
+Built-in examples: `database` (PostgreSQL, MongoDB sharded, Cassandra...), `service` (VM,
+Docker, Kubernetes HPA, serverless), `message_queue` (Kafka, RabbitMQ...), `external_api`
+(payments, LLM inference...). Their implementations are good references for asynchronous work
+(`components/message_queue.py`: background consumers with their own counters and a
+`background_busy()` hook so the run drains the backlog) and time-varying capacity
+(`components/service.py`: autoscaling with `instances_version` so load balancers follow
+replica changes).
+
+Faults apply to your component for free if you sample processing times with
+`self.sample_time(dist, rng)` (slowdown faults); outages are enforced before your `handle` is
+called, and link latency faults are applied by `ctx.call`.
 
 ## Testing checklist
 

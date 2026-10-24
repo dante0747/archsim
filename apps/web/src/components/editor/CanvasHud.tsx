@@ -2,11 +2,12 @@
 
 import { X } from "lucide-react";
 import { useState } from "react";
-import { verdictOf } from "@/components/editor/workflow";
+import { openDecide, replayActiveRun, verdictOf } from "@/components/editor/workflow";
 import { compactRate, fmtMs, fmtPct } from "@/lib/format";
 import { NODE_STATUS } from "@/lib/status";
 import { REQ_GLYPH } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { useDecide } from "@/store/decide";
 import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 
@@ -16,10 +17,10 @@ export function RunReportCard() {
   const run = useRuns((s) => s.runs.find((r) => r.id === s.activeRunId) ?? null);
   const overlay = useRuns((s) => s.overlay);
   const drawerOpen = useRuns((s) => s.drawerOpen);
-  const openDrawer = useRuns((s) => s.openDrawer);
-  const markSeen = useUi((s) => s.markInsightsSeen);
+  const mode = useUi((s) => s.mode);
+  const playhead = useUi((s) => s.playhead);
   const [collapsed, setCollapsed] = useState(false);
-  if (!report || !overlay || drawerOpen) return null;
+  if (!report || !overlay || drawerOpen || mode === "decide") return null;
   const v = verdictOf(report);
   const s = report.summary;
   const color = v.tone === "ok" ? NODE_STATUS.ok.color : v.tone === "warn" ? NODE_STATUS.hot.color : NODE_STATUS.saturated.color;
@@ -80,16 +81,27 @@ export function RunReportCard() {
             <span className="text-accent">{REQ_GLYPH.read}</span> read <span className="text-accent">{REQ_GLYPH.write}</span> write
           </li>
         </ul>
-        <button
-          type="button"
-          onClick={() => {
-            openDrawer("overview");
-            if (run) markSeen(run.id);
-          }}
-          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-sm border border-accent/40 py-1.5 text-[11px] font-semibold text-accent hover:bg-accent-soft"
-        >
-          open insights →
-        </button>
+        <div className="mt-2.5 flex gap-1.5">
+          {(mode !== "stress" || playhead === null) && (
+            <button
+              type="button"
+              onClick={replayActiveRun}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-sm border border-line-strong py-1.5 text-[11px] font-semibold text-ink hover:bg-surface-2"
+            >
+              ▶ replay
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              useDecide.getState().setSection("scorecard");
+              openDecide();
+            }}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-sm border border-accent/40 py-1.5 text-[11px] font-semibold text-accent hover:bg-accent-soft"
+          >
+            scorecard →
+          </button>
+        </div>
       </div>
     </div>
   );
