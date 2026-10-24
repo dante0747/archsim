@@ -27,31 +27,31 @@ export const TOUR_STEPS: TourStep[] = [
     anchor: "rail",
     side: "right",
     title: "Add parts",
-    body: "Drag a part onto the canvas: clients, servers, caches, databases, queues. Click a family to pick a real technology such as PostgreSQL, Redis or Kafka.",
+    body: "Find a technology here (PostgreSQL, Redis, Kafka…) and drag it onto the canvas.",
   },
   {
     anchor: "canvas",
     side: "inside",
     title: "Connect and tune",
-    body: "Drag from the small square on a part's right edge to the next part. Click any part to set what it can handle: replicas, workers, response time.",
+    body: "Drag from the dot on a part's right edge to the next part. Click a part to change its settings.",
   },
   {
     anchor: "panel",
     side: "left",
     title: "Set the traffic",
-    body: "Traffic sets how many requests per second hit the system, and for how long. Scenarios keep what-if variants, such as “3 replicas” or “MongoDB instead”.",
+    body: "Choose how many requests per second hit your system.",
   },
   {
     anchor: "simulate",
     side: "bottom",
     title: "Press Simulate",
-    body: "Traffic flows through your design. Parts that struggle turn amber or red, and a card on the canvas names the bottleneck.",
+    body: "Traffic flows through your design. Parts that struggle turn red.",
   },
   {
     anchor: "workspaces",
     side: "bottom",
-    title: "Go deeper when you want",
-    body: "Test: replay any run second by second and break things on purpose. Results: objectives, monthly cost, and the load where it breaks. Keys 1, 2 and 3 switch.",
+    title: "Then test and decide",
+    body: "Test: break things and replay. Results: a clear yes or no, the cost, and where it breaks.",
   },
 ];
 

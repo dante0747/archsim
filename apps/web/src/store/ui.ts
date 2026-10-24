@@ -31,8 +31,6 @@ export interface UiState {
   speed: number;
   /** Animate measured traffic along links after a run. */
   flow: boolean;
-  /** The full component library flyout is open. */
-  libraryOpen: boolean;
   /** The command palette (Ctrl/Cmd K) is open. */
   paletteOpen: boolean;
   /** The export dialog (docker-compose, Kubernetes, Mermaid) is open. */
@@ -48,7 +46,6 @@ export interface UiState {
   setPlayhead: (t: number | null) => void;
   setPlaying: (v: boolean) => void;
   setSpeed: (v: number) => void;
-  setLibraryOpen: (v: boolean) => void;
   setPaletteOpen: (v: boolean) => void;
   setExportOpen: (v: boolean) => void;
   setTourOpen: (v: boolean) => void;
@@ -64,7 +61,6 @@ export const useUi = create<UiState>()((set) => ({
   playing: false,
   speed: 4,
   flow: typeof window === "undefined" ? true : readFlag("archsim-flow", true),
-  libraryOpen: false,
   paletteOpen: false,
   exportOpen: false,
   tourOpen: false,
@@ -75,7 +71,6 @@ export const useUi = create<UiState>()((set) => ({
     writeFlag("archsim-flow", flow);
     set({ flow });
   },
-  setLibraryOpen: (libraryOpen) => set({ libraryOpen }),
   setMode: (mode) => set({ mode }),
   setPlayhead: (playhead) => set({ playhead }),
   setPlaying: (playing) => set({ playing }),
@@ -86,7 +81,7 @@ export const useUi = create<UiState>()((set) => ({
   markTrafficVisited: () => set({ trafficVisited: true }),
   markInsightsSeen: (insightsSeenFor) => set({ insightsSeenFor }),
   dismissHint: (dismissedHint) => set({ dismissedHint }),
-  resetForProject: () => set({ trafficVisited: false, insightsSeenFor: null, dismissedHint: null, libraryOpen: false, paletteOpen: false, mode: "build", playhead: null, playing: false }),
+  resetForProject: () => set({ trafficVisited: false, insightsSeenFor: null, dismissedHint: null, paletteOpen: false, mode: "build", playhead: null, playing: false }),
 }));
 
 export function prefersReducedMotion(): boolean {

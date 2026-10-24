@@ -11,6 +11,7 @@ import {
   Keyboard,
   LayoutGrid,
   LoaderCircle,
+  Moon,
   MoreHorizontal,
   PanelRight,
   Play,
@@ -18,6 +19,7 @@ import {
   Save,
   Search,
   Square,
+  Sun,
   TriangleAlert,
   Undo2,
   Upload,
@@ -39,7 +41,8 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "@/components/ui/overlays";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { toggleTheme, useIsDark } from "@/components/ui/theme-toggle";
+import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -155,12 +158,7 @@ function ProblemsPill() {
   const warnings = issues.filter((i) => i.severity === "warning");
   if (empty) return null; // the empty canvas explains what to do; no red flags yet
   if (!issues.length) {
-    return (
-      <span className="hidden items-center gap-1 px-2 py-1 font-mono text-[10.5px] text-ink-3 lg:flex" aria-live="polite">
-        {validation === "pending" ? <LoaderCircle className="size-3 animate-spin" /> : <Check className="size-3" style={{ color: "var(--status-good)" }} />}
-        {validation === "pending" ? "checking" : "valid"}
-      </span>
-    );
+    return validation === "pending" ? <LoaderCircle className="size-3.5 animate-spin text-ink-3" aria-label="Checking the design" /> : null;
   }
   return (
     <Menu>
@@ -224,65 +222,37 @@ export function TopBar({
   const fileRef = useRef<HTMLInputElement>(null);
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
   const setExportOpen = useUi((s) => s.setExportOpen);
+  const dark = useIsDark();
 
   return (
-    <header className="relative z-30 flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface/85 px-3 backdrop-blur-md">
-      <div className="flex min-w-0 items-center gap-2">
+    <header className="relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-line bg-surface/85 px-3 backdrop-blur-md">
+      <div className="flex min-w-0 items-center gap-1.5">
         <Tip content="All projects">
           <Link href="/" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
             <LogoMark className="size-6" />
           </Link>
         </Tip>
-        <Link href="/" className="hidden text-[13px] text-ink-3 transition-colors hover:text-ink md:inline">
-          projects
-        </Link>
-        <span className="hidden text-ink-3 md:inline" aria-hidden>
-          /
-        </span>
         <input
           value={name}
           onChange={(e) => setMetadata({ name: e.target.value }, "name")}
           aria-label="Project name"
           maxLength={120}
-          style={{ width: `calc(${Math.min(Math.max(name.length, 12), 38)}ch + 14px)` }}
-          className="h-7 min-w-0 max-w-[40vw] rounded-md border border-transparent bg-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em] text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
+          style={{ width: `calc(${Math.min(Math.max(name.length, 12), 32)}ch + 14px)` }}
+          className="h-7 min-w-0 max-w-[28vw] rounded-md border border-transparent bg-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em] text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
         />
-        <span
-          className={cn(
-            "hidden items-center gap-1.5 whitespace-nowrap font-mono text-[10.5px] sm:flex",
-            dirty ? "text-ink-2" : "text-ink-3",
-          )}
-          aria-live="polite"
-        >
-          <span className={cn("size-1.5 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3")} aria-hidden />
-          {saving ? "saving" : dirty ? "unsaved" : "saved"}
-        </span>
+        <Tip content={saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}>
+          <span className={cn("size-1.5 shrink-0 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3/50")} aria-label={saving ? "saving" : dirty ? "unsaved" : "saved"} />
+        </Tip>
       </div>
 
-      <div className="flex-1" />
+      <WorkspaceSwitch />
 
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => setPaletteOpen(true)}
-          aria-label="Open command palette"
-          className="hidden h-8 w-64 items-center gap-2 rounded-md border border-line-strong bg-surface-2/70 px-2.5 text-left text-[12.5px] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink-2 xl:flex"
-        >
-          <Search className="size-3.5 shrink-0" />
-          <span className="flex-1 truncate">run, add, compare…</span>
-          <Kbd>{modKey()} K</Kbd>
-        </button>
-        <Tip content={<>Command palette <Kbd>{modKey()} K</Kbd></>}>
-          <Button variant="ghost" size="icon" onClick={() => setPaletteOpen(true)} aria-label="Open command palette" className="xl:hidden">
-            <Search />
-          </Button>
-        </Tip>
+      <div className="flex items-center justify-end gap-1.5">
         <ProblemsPill />
         <RunControl />
         <Tip content={<>Save <Kbd>Ctrl S</Kbd></>}>
-          <Button onClick={() => void save()} disabled={saving} aria-label="Save" className={cn(!dirty && "text-ink-3")}>
+          <Button variant="ghost" size="icon" onClick={() => void save()} disabled={saving} aria-label="Save" className={cn(dirty && "text-ink")}>
             {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
-            <span className="hidden lg:inline">Save</span>
           </Button>
         </Tip>
         <input
@@ -302,11 +272,10 @@ export function TopBar({
               <MoreHorizontal />
             </Button>
           </MenuTrigger>
-          <MenuContent>
+          <MenuContent align="end" className="w-64">
             <MenuItem onSelect={() => setPaletteOpen(true)}>
-              <Search /> Command palette <Kbd className="ml-auto">{modKey()} K</Kbd>
+              <Search /> Search commands <Kbd className="ml-auto">{modKey()} K</Kbd>
             </MenuItem>
-            <MenuSeparator />
             <MenuItem onSelect={undo} disabled={!canUndo}>
               <Undo2 /> Undo <Kbd className="ml-auto">Ctrl Z</Kbd>
             </MenuItem>
@@ -314,43 +283,39 @@ export function TopBar({
               <Redo2 /> Redo <Kbd className="ml-auto">Ctrl Shift Z</Kbd>
             </MenuItem>
             <MenuItem onSelect={() => void autoLayout()}>
-              <LayoutGrid /> Tidy up layout <Kbd className="ml-auto">Shift L</Kbd>
+              <LayoutGrid /> Tidy up <Kbd className="ml-auto">Shift L</Kbd>
             </MenuItem>
             <MenuSeparator />
-            <MenuItem onSelect={exportJson}>
-              <Download /> Export JSON
+            <MenuItem onSelect={onToggleInspector}>
+              <PanelRight /> {showInspector ? "Hide side panel" : "Show side panel"}
             </MenuItem>
+            <MenuItem onSelect={toggleTheme}>
+              {dark ? <Sun /> : <Moon />} {dark ? "Light theme" : "Dark theme"}
+            </MenuItem>
+            <MenuSeparator />
             <MenuItem onSelect={() => setExportOpen(true)}>
-              <FileCode2 /> Export docker-compose · Kubernetes · Mermaid
+              <FileCode2 /> Export…
+            </MenuItem>
+            <MenuItem onSelect={exportJson}>
+              <Download /> Download JSON
             </MenuItem>
             <MenuItem onSelect={() => fileRef.current?.click()}>
-              <Upload /> Import JSON into this project
+              <Upload /> Import JSON
             </MenuItem>
             <MenuSeparator />
             <MenuItem onSelect={startTour}>
               <CircleHelp /> Take the tour
             </MenuItem>
             <MenuItem onSelect={() => onShortcutsOpenChange(true)}>
-              <Keyboard /> Keyboard shortcuts <Kbd className="ml-auto">?</Kbd>
+              <Keyboard /> Shortcuts <Kbd className="ml-auto">?</Kbd>
             </MenuItem>
             <MenuItem asChild>
               <a href="/api/v1/docs" target="_blank" rel="noreferrer">
-                <BookOpen /> API documentation
+                <BookOpen /> API docs
               </a>
             </MenuItem>
           </MenuContent>
         </Menu>
-        <Tip content="How it works: a 30-second tour">
-          <Button variant="ghost" size="icon" onClick={startTour} aria-label="Take the tour">
-            <CircleHelp />
-          </Button>
-        </Tip>
-        <ThemeToggle />
-        <Tip content={showInspector ? "Hide side panel" : "Show side panel"}>
-          <Button variant="ghost" size="icon" onClick={onToggleInspector} aria-pressed={showInspector} aria-label="Toggle side panel">
-            <PanelRight />
-          </Button>
-        </Tip>
       </div>
 
       <Dialog open={shortcutsOpen} onOpenChange={onShortcutsOpenChange}>

@@ -62,8 +62,6 @@ export function CanvasToolbar() {
   const setOverlay = useRuns((s) => s.setOverlay);
   const flow = useUi((s) => s.flow);
   const setFlow = useUi((s) => s.setFlow);
-  const setLibraryOpen = useUi((s) => s.setLibraryOpen);
-  const libraryOpen = useUi((s) => s.libraryOpen);
   const sep = <span className="mx-1 h-4 w-px bg-line-strong" aria-hidden />;
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
@@ -72,15 +70,6 @@ export function CanvasToolbar() {
         aria-label="Canvas tools"
         className="surface-glass pointer-events-auto flex items-center gap-0.5 rounded-xl p-1"
       >
-        <button
-          type="button"
-          onClick={() => setLibraryOpen(!libraryOpen)}
-          className="flex h-7 items-center gap-1.5 rounded-sm border border-accent/40 bg-accent-soft px-2.5 font-mono text-[11px] font-semibold text-accent hover:border-accent"
-          aria-expanded={libraryOpen}
-        >
-          <Plus className="size-3.5" /> add component
-        </button>
-        {sep}
         <ToolButton label="Undo" shortcut="Ctrl Z" onClick={undo} disabled={!canUndo}>
           <Undo2 />
         </ToolButton>

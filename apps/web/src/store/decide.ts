@@ -9,33 +9,26 @@ import { type SweepConfig, type SweepRow, buildSweepDocument, sweepRow } from "@
 import type { ArchitectureDocument, Report, Run } from "@/lib/types";
 import { type DrawerTab, useRuns } from "@/store/runs";
 
-export type DecideSection =
-  | "scorecard"
-  | "tradeoffs"
-  | "breaking"
-  | "insights"
-  | "timeline"
-  | "components"
-  | "compare"
-  | "history"
-  | "assumptions"
-  | "report";
+/** Results workspace: four places plus the report. */
+export type DecideSection = "answer" | "compare" | "breaking" | "details" | "report";
+export type CompareView = "map" | "pair" | "runs";
+export type DetailsView = "summary" | "time" | "components" | "assumptions";
 
-/** Where a request to "open results" (the old drawer tabs) lands in the Decide workspace. */
-export function sectionForDrawerTab(tab: DrawerTab): DecideSection {
+/** Where a request to "open results" (the old drawer tabs) lands in the Results workspace. */
+export function placeForDrawerTab(tab: DrawerTab): { section: DecideSection; compare?: CompareView; details?: DetailsView } {
   switch (tab) {
     case "overview":
-      return "insights";
+      return { section: "details", details: "summary" };
     case "charts":
-      return "timeline";
+      return { section: "details", details: "time" };
     case "components":
-      return "components";
-    case "compare":
-      return "compare";
-    case "runs":
-      return "history";
+      return { section: "details", details: "components" };
     case "assumptions":
-      return "assumptions";
+      return { section: "details", details: "assumptions" };
+    case "compare":
+      return { section: "compare", compare: "pair" };
+    case "runs":
+      return { section: "compare", compare: "runs" };
   }
 }
 
@@ -70,10 +63,16 @@ const IDLE_SWEEP: SweepState = {
 
 export interface DecideState {
   section: DecideSection;
+  compareView: CompareView;
+  detailsView: DetailsView;
   /** Run shown by the scorecard (null = the run currently on the canvas). */
   scorecardRunId: string | null;
   sweep: SweepState;
   setSection: (s: DecideSection) => void;
+  setCompareView: (v: CompareView) => void;
+  setDetailsView: (v: DetailsView) => void;
+  /** Open the place an old "results drawer" tab maps to. */
+  goToDrawerTab: (tab: DrawerTab) => void;
   setScorecardRunId: (id: string | null) => void;
   startSweep: (doc: ArchitectureDocument, cfg: SweepConfig) => Promise<void>;
   cancelSweep: () => Promise<void>;
@@ -164,10 +163,18 @@ export const useDecide = create<DecideState>()((set, get) => {
   };
 
   return {
-    section: "scorecard",
+    section: "answer",
+    compareView: "map",
+    detailsView: "summary",
     scorecardRunId: null,
     sweep: IDLE_SWEEP,
     setSection: (section) => set({ section }),
+    setCompareView: (compareView) => set({ compareView, section: "compare" }),
+    setDetailsView: (detailsView) => set({ detailsView, section: "details" }),
+    goToDrawerTab: (tab) => {
+      const p = placeForDrawerTab(tab);
+      set({ section: p.section, ...(p.compare ? { compareView: p.compare } : {}), ...(p.details ? { detailsView: p.details } : {}) });
+    },
     setScorecardRunId: (scorecardRunId) => set({ scorecardRunId }),
 
     startSweep: async (doc, cfg) => {

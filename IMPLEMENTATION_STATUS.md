@@ -125,12 +125,22 @@ serves 8 example designs (see below).
   keyboard shortcuts, light and dark schematic themes. Type: Geist Sans and Geist Mono with
   Instrument Serif for display headings (self-hosted at build time by next/font; no runtime
   calls to Google).
-- Onboarding and guidance: one Simulate button (top bar) that never switches workspace; a
-  five-step guided tour (spotlight on the parts rail, canvas, side panel, Simulate and the
-  workspaces) on the first visit and from the ? button; a next-step hint that always names the
-  next action (including "Add API servers", which adds and wires the part behind a lone Clients
-  box); no error flags on an empty canvas; the canvas reframes to keep the whole design in view
-  when panels or workspaces change, until you pan or zoom yourself.
+- Onboarding and guidance: a single top bar (project name, Design · Test · Results switch,
+  Simulate, Save, ⋯ menu); no status bar; one Simulate button that never switches workspace; a
+  five-step guided tour (parts library, canvas, side panel, Simulate, workspaces) on the first
+  visit and from the ⋯ menu; a short next-step hint floating on the canvas (including "Add API
+  servers", which adds and wires the part behind a lone Clients box); no error flags on an
+  empty canvas; the canvas reframes to keep the whole design in view when panels or
+  workspaces change, until you pan or zoom yourself.
+- Parts library: an always-open, collapsible panel with search and logo tiles grouped by
+  family. Logos come from Simple Icons (CC0, bundled at build time; no network at runtime); 21
+  of the 39 built-in presets show a product logo, the rest (generic parts, "-style" managed
+  services, SaaS APIs and a few products Simple Icons does not carry) a family icon.
+  Canvas components show the logo, name, technology and at most two key settings; after a run
+  they show only how busy they were. Link labels appear only when they carry information.
+- Results: four tabs (Answer, Compare, Breaking point, Details) and a Report button; one run
+  picker for all tabs. Answer leads with one yes/no sentence, the failing objective and the
+  bottleneck, the key numbers, what to fix first, objective tiles and monthly cost.
 - Home page: animated replay illustration (scripted, labelled "illustration"), three
   workspaces, a technology wall read from the live catalog, example cards with mini diagrams,
   projects.

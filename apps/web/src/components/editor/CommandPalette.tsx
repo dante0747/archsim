@@ -42,7 +42,7 @@ import { Dialog as RDialog } from "radix-ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorActions } from "@/components/editor/actions";
 import { openDecide, replayActiveRun } from "@/components/editor/workflow";
-import { useAddComponent } from "@/components/editor/Palette";
+import { findParts, useAddComponent } from "@/components/editor/Palette";
 import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { Kbd } from "@/components/ui/misc";
 import { toggleTheme } from "@/components/ui/theme-toggle";
@@ -103,11 +103,11 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       // workspaces
       { id: "ws-build", group: "Workspace", label: "Design: draw the system", shortcut: "1", keywords: "workspace edit build", icon: <LayoutGrid className={i} />, run: () => ui().setMode("build") },
       { id: "ws-stress", group: "Workspace", label: "Test: traffic, failures, replay", shortcut: "2", keywords: "workspace stress experiment chaos fault timeline", icon: <Activity className={i} />, run: () => ui().setMode("stress") },
-      { id: "ws-decide", group: "Workspace", label: "Results: objectives, cost, capacity", shortcut: "3", keywords: "workspace decide scorecard analysis slo", icon: <Gauge className={i} />, run: decide("scorecard") },
+      { id: "ws-decide", group: "Workspace", label: "Results: the answer", shortcut: "3", keywords: "workspace decide scorecard summary verdict slo objectives", icon: <Gauge className={i} />, run: decide("answer") },
       hasReport && { id: "replay", group: "Workspace", label: "Replay the last run", keywords: "flight recorder playback timeline", icon: <Play className={i} />, run: replayActiveRun },
-      { id: "tradeoffs", group: "Workspace", label: "Trade-off map: cost vs latency", keywords: "pareto scenarios compare cost", icon: <GitCompare className={i} />, run: decide("tradeoffs") },
+      { id: "tradeoffs", group: "Workspace", label: "Compare options: cost vs. speed", keywords: "pareto scenarios compare cost tradeoff latency", icon: <GitCompare className={i} />, run: decide("compare") },
       { id: "breaking", group: "Workspace", label: "Find the breaking point", keywords: "capacity sweep load knee max throughput", icon: <Flame className={i} />, run: decide("breaking") },
-      { id: "report", group: "Workspace", label: "Decision report (Markdown)", keywords: "export share document", icon: <BookOpen className={i} />, run: decide("report") },
+      { id: "report", group: "Workspace", label: "Report (Markdown)", keywords: "export share document decision", icon: <BookOpen className={i} />, run: decide("report") },
       // simulate
       running && {
         id: "stop",
@@ -205,10 +205,10 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
         },
       },
       { id: "scenarios", group: "Go to", label: "Scenarios", keywords: "what if", icon: <FlaskConical className={i} />, run: () => ed().setRightTab("scenarios") },
-      { id: "insights", group: "Go to", label: "Insights", hint: "verdict, KPIs, findings", keywords: "results report bottleneck", icon: <Gauge className={i} />, run: drawer("overview") },
-      { id: "charts", group: "Go to", label: "Timeline charts", keywords: "time series graph", icon: <Activity className={i} />, run: drawer("charts") },
-      { id: "components", group: "Go to", label: "Component results", keywords: "per node table", icon: <Boxes className={i} />, run: drawer("components") },
-      { id: "compare", group: "Go to", label: "Compare runs", keywords: "diff a b", icon: <GitCompare className={i} />, run: drawer("compare") },
+      { id: "insights", group: "Go to", label: "Run details", keywords: "results insights findings kpi bottleneck", icon: <Gauge className={i} />, run: drawer("overview") },
+      { id: "charts", group: "Go to", label: "Metrics over time", keywords: "time series graph charts", icon: <Activity className={i} />, run: drawer("charts") },
+      { id: "components", group: "Go to", label: "Per component results", keywords: "per node table components", icon: <Boxes className={i} />, run: drawer("components") },
+      { id: "compare", group: "Go to", label: "Compare two runs", keywords: "diff a b", icon: <GitCompare className={i} />, run: drawer("compare") },
       { id: "history", group: "Go to", label: "Run history", keywords: "runs past", icon: <History className={i} />, run: drawer("runs") },
       { id: "assumptions", group: "Go to", label: "Assumptions", keywords: "inputs measured", icon: <ListChecks className={i} />, run: drawer("assumptions") },
       drawerOpen && { id: "close-drawer", group: "Go to", label: "Close results panel", icon: <PanelBottomClose className={i} />, run: () => runs().setDrawerOpen(false) },
@@ -234,7 +234,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       { id: "fit", group: "Canvas", label: "Fit to screen", keywords: "zoom view center", icon: <Maximize className={i} />, run: () => void rf.fitView({ padding: 0.15, maxZoom: 1, duration: 250 }) },
       { id: "zin", group: "Canvas", label: "Zoom in", icon: <ZoomIn className={i} />, run: () => void rf.zoomIn({ duration: 150 }) },
       { id: "zout", group: "Canvas", label: "Zoom out", icon: <ZoomOut className={i} />, run: () => void rf.zoomOut({ duration: 150 }) },
-      { id: "library", group: "Canvas", label: "Component library", keywords: "browse palette", icon: <Library className={i} />, run: () => ui().setLibraryOpen(true) },
+      { id: "library", group: "Canvas", label: "Search parts", keywords: "library browse palette technology add", icon: <Library className={i} />, run: findParts },
       hasReport && {
         id: "overlay",
         group: "Canvas",

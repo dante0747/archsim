@@ -1,13 +1,12 @@
 "use client";
 
 /**
- * Technology library: a rail of families (Clients, Edge, Compute, Data, Cache, Queues, External) and
- * a searchable flyout of technology presets (PostgreSQL, MongoDB, Kafka, Kubernetes service...).
- * Drag onto the canvas or click to add.
+ * Parts library (Design workspace): a searchable panel of technologies with their logos, grouped
+ * by family (Clients, Edge, Compute, Data, Cache, Queues, External). Drag onto the canvas or click.
  */
 import { useReactFlow } from "@xyflow/react";
-import { Library, Search, X } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NODE_W } from "@/components/editor/ArchNodeView";
 import {
   DND_MIME,
@@ -19,10 +18,9 @@ import {
   matchesItem,
   parseDndPayload,
 } from "@/components/build/presets";
-import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
-import { Kbd, Tip } from "@/components/ui/misc";
-import { FAMILIES, type Family, kindOf } from "@/lib/theme";
-import { cn } from "@/lib/utils";
+import { TechIcon } from "@/components/TechIcon";
+import { Tip } from "@/components/ui/misc";
+import { FAMILIES, kindOf } from "@/lib/theme";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 
@@ -71,245 +69,152 @@ function dragProps(type: string, presetId?: string | null) {
   };
 }
 
-/** Representative component type of a family (for dragging straight from the rail). */
-function familyType(f: Family, items: LibraryItem[]): string | null {
-  return items.find((i) => !i.preset && f.kinds.includes(kindOf(i.type, i.comp.category)))?.type ?? null;
+const FIND_PARTS = "archsim:find-parts";
+
+/** Open the Design workspace with the parts search focused (command palette, shortcuts). */
+export function findParts() {
+  useUi.getState().setMode("build");
+  window.setTimeout(() => window.dispatchEvent(new Event(FIND_PARTS)), 60);
 }
 
-/** Slim rail of technology families; opens the library at a family, drag adds the generic component. */
-export function ComponentRail() {
-  const catalog = useEditor((s) => s.catalog);
-  const libraryOpen = useUi((s) => s.libraryOpen);
-  const setLibraryOpen = useUi((s) => s.setLibraryOpen);
-  const [family, setFamily] = useState<string | null>(null);
-  const items = useMemo(() => libraryItems(catalog), [catalog]);
-  const families = FAMILIES.filter((f) => items.some((i) => familyOfItem(i).key === f.key));
-  const counts = (f: Family) => items.filter((i) => familyOfItem(i).key === f.key && i.preset).length;
+/** Short tile label: "Generic database" reads as "Database", clients stay "Clients". */
+function tileName(it: LibraryItem): string {
+  if (it.preset) return it.preset.name;
+  if (it.comp.isTrafficSource) return "Clients";
+  const base = it.comp.displayName.split(" / ")[0].replace(/ \(.*\)$/, "");
+  return `Any ${base.toLowerCase()}`;
+}
 
+function Tile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
   return (
-    <aside data-tour="rail" className="relative z-20 flex h-full w-[72px] shrink-0 flex-col items-center gap-0.5 border-r border-line bg-surface py-2.5" aria-label="Technology library">
-      <span className="microlabel mb-1.5 !text-[9px]">add parts</span>
-      {families.map((f) => {
-        const type = familyType(f, items);
-        const active = libraryOpen && family === f.key;
-        const n = counts(f);
-        return (
-          <Tip
-            key={f.key}
-            side="right"
-            content={
-              <span className="block max-w-56">
-                <span className="block font-semibold">{f.label}</span>
-                <span className="block text-ink-2">{f.blurb}</span>
-                <span className="mt-1 block text-ink-3">
-                  Click for {n ? `${n} technologies` : "options"}; drag to add a generic one.
-                </span>
-              </span>
-            }
-          >
-            <button
-              type="button"
-              {...(type ? dragProps(type) : {})}
-              onClick={() => {
-                if (active) setLibraryOpen(false);
-                else {
-                  setFamily(f.key);
-                  setLibraryOpen(true);
-                }
-              }}
-              aria-expanded={active}
-              className={cn(
-                "group relative flex w-[62px] cursor-pointer flex-col items-center gap-1 rounded-md py-2 transition-colors hover:bg-surface-2",
-                active && "bg-accent-soft",
-              )}
-              aria-label={`${f.label} technologies`}
-            >
-              <ShapeGlyph
-                shape={SHAPE_OF[f.kinds[0]]}
-                w={34}
-                h={22}
-                className={cn("transition-colors group-hover:text-accent", active ? "text-accent" : "text-ink-2")}
-              />
-              <span className={cn("w-full truncate text-center font-mono text-[10px] group-hover:text-ink", active ? "text-ink" : "text-ink-2")}>
-                {f.short}
-              </span>
-              {n > 0 && (
-                <span className="absolute right-1 top-1 font-mono text-[8.5px] leading-none text-ink-3" aria-hidden>
-                  {n}
-                </span>
-              )}
+    <button
+      type="button"
+      {...dragProps(it.type, it.preset?.id)}
+      onClick={() => onPick(it)}
+      title={`${tileName(it)}: ${it.description}`}
+      className="group flex h-[72px] w-full cursor-grab flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-surface-2/40 px-1.5 text-center transition-colors hover:border-accent/60 hover:bg-surface-2 active:cursor-grabbing"
+    >
+      <TechIcon technology={it.preset ? it.technology : null} kind={kindOf(it.type, it.comp.category)} size={22} />
+      <span className="line-clamp-2 text-[11.5px] leading-[1.2] text-ink-2 group-hover:text-ink">{tileName(it)}</span>
+    </button>
+  );
+}
+
+function readOpen(): boolean {
+  try {
+    return localStorage.getItem("archsim-parts") !== "0";
+  } catch {
+    return true;
+  }
+}
+
+/** Always-visible parts library on the left of the Design workspace (collapsible). */
+export function PartsPanel() {
+  const catalog = useEditor((s) => s.catalog);
+  const add = useAddComponent();
+  const [open, setOpenState] = useState(readOpen);
+  const [q, setQ] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const setOpen = (v: boolean) => {
+    setOpenState(v);
+    try {
+      localStorage.setItem("archsim-parts", v ? "1" : "0");
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  const items = useMemo(() => libraryItems(catalog), [catalog]);
+  const visible = useMemo(() => items.filter((i) => matchesItem(i, q)), [items, q]);
+  const sections = useMemo(
+    () =>
+      FAMILIES.map((f) => ({
+        family: f,
+        // Clients first, then technologies with logos, the generic part last.
+        items: visible.filter((i) => familyOfItem(i).key === f.key).sort((a, b) => Number(!a.preset) - Number(!b.preset)),
+      })).filter((s) => s.items.length),
+    [visible],
+  );
+  const familiesPresent = FAMILIES.filter((f) => items.some((i) => familyOfItem(i).key === f.key));
+  const pick = (it: LibraryItem) => add(it.type, it.preset?.id ?? null);
+
+  useEffect(() => {
+    const onFind = () => {
+      setOpenState(true);
+      window.setTimeout(() => document.getElementById("parts-search")?.focus(), 30);
+    };
+    window.addEventListener(FIND_PARTS, onFind);
+    return () => window.removeEventListener(FIND_PARTS, onFind);
+  }, []);
+
+  if (!open) {
+    return (
+      <aside data-tour="rail" className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1 border-r border-line bg-surface py-2" aria-label="Parts">
+        <Tip side="right" content="Show parts">
+          <button type="button" onClick={() => setOpen(true)} className="mb-1 rounded-md p-2 text-ink-2 hover:bg-surface-2 hover:text-ink" aria-label="Show parts">
+            <PanelLeftOpen className="size-4" />
+          </button>
+        </Tip>
+        {familiesPresent.map((f) => (
+          <Tip key={f.key} side="right" content={f.label}>
+            <button type="button" onClick={() => setOpen(true)} className="rounded-md p-2 hover:bg-surface-2" aria-label={f.label}>
+              <TechIcon kind={f.kinds[0]} size={18} />
             </button>
           </Tip>
-        );
-      })}
-      <div className="mt-auto">
-        <Tip side="right" content="Browse and search every technology">
-          <button
-            type="button"
-            onClick={() => {
-              setFamily(null);
-              setLibraryOpen(!libraryOpen || family !== null);
+        ))}
+      </aside>
+    );
+  }
+
+  return (
+    <aside data-tour="rail" className="flex h-full w-[232px] shrink-0 flex-col border-r border-line bg-surface" aria-label="Parts">
+      <div className="flex items-center gap-1.5 border-b border-line p-2.5">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
+          <input
+            id="parts-search"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              listRef.current?.scrollTo({ top: 0 });
             }}
-            aria-expanded={libraryOpen && family === null}
-            className="flex w-[62px] flex-col items-center gap-1 rounded-md py-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
-          >
-            <Library className="size-4" />
-            <span className="font-mono text-[10px]">library</span>
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && visible[0]) {
+                e.preventDefault();
+                pick(visible[0]);
+              } else if (e.key === "Escape") setQ("");
+            }}
+            placeholder="Search parts"
+            aria-label="Search parts"
+            className="h-8 w-full rounded-md border border-line bg-surface-2/70 pl-8 pr-7 text-[13px] text-ink placeholder:text-ink-3 focus-visible:border-accent focus-visible:outline-none"
+          />
+          {q && (
+            <button type="button" onClick={() => setQ("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-ink-3 hover:text-ink" aria-label="Clear search">
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+        <Tip content="Hide parts">
+          <button type="button" onClick={() => setOpen(false)} className="rounded-md p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Hide parts">
+            <PanelLeftClose className="size-4" />
           </button>
         </Tip>
       </div>
-      {libraryOpen && <ComponentLibrary family={family} onFamily={setFamily} onClose={() => setLibraryOpen(false)} />}
-    </aside>
-  );
-}
-
-/** Searchable technology library (flyout next to the rail). */
-export function ComponentLibrary({
-  family,
-  onFamily,
-  onClose,
-}: {
-  family: string | null;
-  onFamily: (f: string | null) => void;
-  onClose: () => void;
-}) {
-  const catalog = useEditor((s) => s.catalog);
-  const add = useAddComponent();
-  const [q, setQ] = useState("");
-  const items = useMemo(() => libraryItems(catalog), [catalog]);
-  const visible = useMemo(
-    () => items.filter((i) => (!family || familyOfItem(i).key === family) && matchesItem(i, q)),
-    [items, family, q],
-  );
-  const sections = useMemo(() => {
-    const out: { family: Family; groups: { name: string; items: LibraryItem[] }[] }[] = [];
-    for (const f of FAMILIES) {
-      const inFamily = visible.filter((i) => familyOfItem(i).key === f.key);
-      if (!inFamily.length) continue;
-      const groups: { name: string; items: LibraryItem[] }[] = [];
-      for (const it of inFamily) {
-        const g = groups.find((x) => x.name === it.group);
-        if (g) g.items.push(it);
-        else groups.push({ name: it.group, items: [it] });
-      }
-      // generic entries last
-      groups.sort((a, b) => Number(a.name === "Generic") - Number(b.name === "Generic"));
-      out.push({ family: f, groups });
-    }
-    return out;
-  }, [visible]);
-  const familiesPresent = FAMILIES.filter((f) => items.some((i) => familyOfItem(i).key === f.key));
-  const pick = (it: LibraryItem) => {
-    add(it.type, it.preset?.id ?? null);
-    onClose();
-  };
-
-  return (
-    <div
-      className="absolute left-full top-2 ml-2 flex max-h-[calc(100%-16px)] w-[360px] flex-col rounded-lg border border-line-strong bg-surface shadow-float"
-      role="dialog"
-      aria-label="Technology library"
-    >
-      <div className="border-b border-line p-3">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && visible[0]) {
-                  e.preventDefault();
-                  pick(visible[0]);
-                } else if (e.key === "Escape") onClose();
-              }}
-              placeholder="postgres, nosql, kafka, k8s, serverless…"
-              aria-label="Search technologies"
-              className="h-8 w-full rounded-md border border-line bg-surface-2 pl-8 pr-2 font-mono text-[12px] text-ink placeholder:text-ink-3 focus-visible:border-accent focus-visible:outline-none"
-            />
-          </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close library">
-            <X className="size-4" />
-          </button>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label="Families">
-          {[{ key: null as string | null, short: "all" }, ...familiesPresent.map((f) => ({ key: f.key as string | null, short: f.short.toLowerCase() }))].map((f) => (
-            <button
-              key={f.key ?? "all"}
-              type="button"
-              role="tab"
-              aria-selected={family === f.key}
-              onClick={() => onFamily(f.key)}
-              className={cn(
-                "rounded-sm border px-1.5 py-0.5 font-mono text-[10.5px] transition-colors",
-                family === f.key ? "border-accent/50 bg-accent-soft text-ink" : "border-line text-ink-3 hover:border-line-strong hover:text-ink",
-              )}
-            >
-              {f.short}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 space-y-4 overflow-y-auto p-3">
-        {sections.map(({ family: f, groups }) => (
+      <div ref={listRef} className="flex-1 overflow-y-auto px-2.5 pb-3">
+        {sections.map(({ family: f, items: list }) => (
           <section key={f.key} aria-label={f.label}>
-            <h3 className="microlabel">
-              <span className="mr-1 opacity-60" aria-hidden>
-                {"//"}
-              </span>
-              {f.label}
-            </h3>
-            <p className="mb-2 mt-0.5 text-[11px] text-ink-3">{f.blurb}</p>
-            {groups.map((g) => (
-              <div key={g.name} className="mb-2.5">
-                {(groups.length > 1 || g.name !== "Generic") && (
-                  <p className="mb-1 font-mono text-[10px] lowercase text-ink-3">{g.name}</p>
-                )}
-                <ul className="space-y-1">
-                  {g.items.map((it) => (
-                    <li key={it.key}>
-                      <button
-                        type="button"
-                        {...dragProps(it.type, it.preset?.id)}
-                        onClick={() => pick(it)}
-                        title={it.description}
-                        className="group flex w-full cursor-grab items-start gap-2.5 rounded-md border border-line p-2 text-left transition-colors hover:border-line-strong hover:bg-surface-2 active:cursor-grabbing"
-                      >
-                        <ShapeGlyph
-                          shape={SHAPE_OF[kindOf(it.type, it.comp.category)]}
-                          w={30}
-                          h={20}
-                          className="mt-0.5 shrink-0 text-ink-2 group-hover:text-accent"
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-2">
-                            <span className="truncate font-mono text-[12px] font-medium text-ink">{it.name}</span>
-                            <span className="ml-auto shrink-0 rounded-sm border border-line px-1 font-mono text-[9.5px] text-ink-3">
-                              {it.technology}
-                            </span>
-                          </span>
-                          <span className="mt-0.5 line-clamp-2 block text-[11px] leading-4 text-ink-2">{it.description}</span>
-                          {it.tags.length > 0 && (
-                            <span className="mt-0.5 block truncate font-mono text-[9.5px] text-ink-3">
-                              {it.tags.map((t) => `#${t}`).join(" ")}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <h3 className="sticky top-0 z-10 bg-surface pb-1.5 pt-3 text-[12px] font-semibold text-ink">{f.label}</h3>
+            <ul className="grid grid-cols-2 gap-1.5">
+              {list.map((it) => (
+                <li key={it.key}>
+                  <Tile it={it} onPick={pick} />
+                </li>
+              ))}
+            </ul>
           </section>
         ))}
-        {sections.length === 0 && <p className="px-1 py-6 text-center font-mono text-xs text-ink-3">no technology matches “{q}”</p>}
+        {sections.length === 0 && <p className="py-8 text-center text-[13px] text-ink-3">Nothing matches “{q}”</p>}
       </div>
-      <p className="border-t border-line p-3 text-[11px] leading-4 text-ink-3">
-        Drag onto the canvas or click to add. Preset numbers are editable assumptions, not vendor benchmarks.{" "}
-        <Kbd>Enter</Kbd> adds the first match.
-      </p>
-    </div>
+      <p className="border-t border-line px-3 py-2 text-[11.5px] text-ink-3">Drag onto the canvas, or click</p>
+    </aside>
   );
 }

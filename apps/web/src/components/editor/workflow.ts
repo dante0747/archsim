@@ -71,11 +71,9 @@ export function useWorkflow() {
   const rps = useEditor((s) => s.workload.rps);
   const durationS = useEditor((s) => s.workload.durationS);
   const faultCount = useEditor((s) => s.workload.faults?.length ?? 0);
-  const scenarioCount = useEditor((s) => s.scenarios.length);
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
   const succeededCount = useRuns((s) => s.runs.filter((r) => r.status === "succeeded").length);
   const activeRunId = useRuns((s) => s.activeRunId);
-  const report = useRuns((s) => (s.activeRunId ? (s.reports[s.activeRunId] ?? null) : null));
   const hasComparison = useRuns((s) => s.comparison !== null);
   const insightsSeenFor = useUi((s) => s.insightsSeenFor);
   const dismissedHint = useUi((s) => s.dismissedHint);
@@ -89,14 +87,14 @@ export function useWorkflow() {
       key: "build",
       label: "Design",
       caption: "draw your system",
-      hint: "Add parts from the left, connect them, and set what each can handle. A design review flags risks as you go.",
+      hint: "Draw the system",
       state: nodeCount > 0 && errorCount === 0 ? "done" : "todo",
     },
     {
       key: "stress",
       label: "Test",
       caption: "traffic & failures",
-      hint: "Shape the traffic, break things on purpose, and replay any run second by second.",
+      hint: "Traffic, failures, replay",
       state: hasRun ? "done" : "todo",
       busy: running,
     },
@@ -104,7 +102,7 @@ export function useWorkflow() {
       key: "decide",
       label: "Results",
       caption: "goals · cost · limits",
-      hint: "Did it meet its objectives? What does it cost per month? At what load does it break?",
+      hint: "Did it hold up? What does it cost?",
       state: seen || hasComparison ? "done" : "todo",
     },
   ];
@@ -117,26 +115,26 @@ export function useWorkflow() {
 
   let next: NextHint | null = null;
   if (nodeCount === 0) {
-    next = { key: "empty", tone: "info", text: "Start with Clients: they send the traffic. Then add what they call.", actionLabel: "Add Clients" };
+    next = { key: "empty", tone: "info", text: "Start by adding Clients", actionLabel: "Add Clients" };
   } else if (loneClientsId) {
     next = {
       key: `connect-clients:${loneClientsId}`,
       tone: "info",
-      text: "Next: give Clients something to call. Add API servers, or drag from the square on the right edge of Clients to a part.",
+      text: "Connect Clients to a server",
       actionLabel: "Add API servers",
     };
   } else if (errorCount > 0 && firstError) {
     next = {
       key: `err:${firstError.code}:${firstError.nodeId ?? firstError.edgeId ?? ""}`,
       tone: "critical",
-      text: `${errorCount === 1 ? "1 problem" : `${errorCount} problems`} before you can simulate: ${firstError.message}`,
+      text: firstError.message,
       actionLabel: firstError.nodeId || firstError.edgeId ? "Show me" : undefined,
     };
   } else if (running && followRun) {
     next = {
       key: "running",
       tone: "busy",
-      text: followRun.status === "queued" ? `Waiting to start: ${followRun.label}` : `Simulating ${followRun.label}…`,
+      text: followRun.status === "queued" ? "Waiting to start…" : "Simulating…",
       progress: followRun.progress,
     };
   } else if (!hasRun) {
@@ -146,26 +144,18 @@ export function useWorkflow() {
         ? {
             key: "ready-stress",
             tone: "info",
-            text: faultCount
-              ? `${faultCount} failure${faultCount > 1 ? "s" : ""} planned. Press Simulate to see how the system copes.`
-              : `Press Simulate to send ${compact(rps)} req/s for ${compact(durationS)} s. Optional: reshape the traffic or add a failure below.`,
+            text: faultCount ? `${faultCount} failure${faultCount > 1 ? "s" : ""} planned · press Simulate` : `Press Simulate · ${compact(rps)} req/s for ${compact(durationS)} s`,
           }
         : {
             key: "ready",
             tone: "info",
-            text: `Ready. Press Simulate to send ${compact(rps)} req/s through the design for ${compact(durationS)} s.`,
+            text: `Ready · press Simulate`,
           };
-  } else if (report && activeRunId && !seen && !hasComparison) {
-    const v = verdictOf(report);
-    next = { key: `insights:${activeRunId}`, tone: v.tone === "ok" ? "success" : "critical", text: `Done. ${v.title}.`, actionLabel: "See results" };
-  } else if (!hasComparison && scenarioCount >= 2) {
-    next = { key: "compare", tone: "info", text: "Compare options: simulate every scenario and see cost against speed.", actionLabel: "Simulate all" };
   }
   if (next && next.key === dismissedHint && next.tone !== "busy") next = null;
 
   const doNext = useCallback(() => {
     const ed = useEditor.getState();
-    const runs = useRuns.getState();
     if (!next) return;
     if (next.key === "empty") {
       ed.addNode("traffic_source", { x: 0, y: 0 });
@@ -181,9 +171,6 @@ export function useWorkflow() {
       if (err) ed.select({ nodeId: err.nodeId ?? null, edgeId: err.edgeId ?? null });
     } else if (next.key.startsWith("insights:")) {
       openDecide();
-    } else if (next.key === "compare") {
-      void runs.startBatch(ed.toDocument(), ed.scenarios.slice(0, 10).map((s) => s.id));
-      useUi.getState().setMode("decide");
     }
   }, [next, rf]);
 

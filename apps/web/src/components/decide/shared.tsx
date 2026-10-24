@@ -12,11 +12,34 @@ import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 
 export function runLabel(run: Pick<Run, "label" | "scenarioName"> | null | undefined): string {
-  return run?.label ?? run?.scenarioName ?? "Design as drawn";
+  return run?.label ?? run?.scenarioName ?? "Current design";
 }
 
 export function isSweepRun(run: Pick<Run, "scenarioId">): boolean {
   return !!run.scenarioId && run.scenarioId.startsWith(SWEEP_SCENARIO_PREFIX);
+}
+
+/** Small segmented control for views inside a Results tab. */
+export function SubTabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { key: T; label: string }[] }) {
+  return (
+    <div role="tablist" className="flex items-center gap-0.5 rounded-lg border border-line bg-surface p-0.5">
+      {items.map((it) => (
+        <button
+          key={it.key}
+          type="button"
+          role="tab"
+          aria-selected={value === it.key}
+          onClick={() => onChange(it.key)}
+          className={cn(
+            "h-7 rounded-md px-3 text-[12.5px] font-medium transition-colors",
+            value === it.key ? "bg-surface-2 text-ink shadow-panel" : "text-ink-3 hover:text-ink",
+          )}
+        >
+          {it.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** Section page header: mono kicker, title, optional description and actions. */
@@ -40,7 +63,7 @@ export function PageHeader({
           </span>
           {kicker}
         </p>
-        <h2 className="mt-1.5 font-display text-[30px] leading-[1.1] tracking-[-0.015em] text-ink">{title}</h2>
+        <h2 className="mt-1 font-display text-[28px] leading-[1.1] tracking-[-0.015em] text-ink">{title}</h2>
         {description && <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -159,7 +182,7 @@ export function RunPicker({ value, onChange, label = "Run" }: { value: string | 
   if (!runs.length) return null;
   return (
     <label className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
-      {label}
+      {label && <span>{label}</span>}
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}

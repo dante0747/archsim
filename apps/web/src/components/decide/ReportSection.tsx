@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { PageHeader, RunPicker, useDecideRun } from "./shared";
+import { PageHeader, useDecideRun } from "./shared";
 
 /** Inline Markdown: **bold** and `code`. */
 function Inline({ text }: { text: string }) {
@@ -160,7 +160,6 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
   const catalog = useEditor((s) => s.catalog);
   const projectId = useRuns((s) => s.projectId);
   const sweep = useDecide((s) => s.sweep);
-  const setScorecardRunId = useDecide((s) => s.setScorecardRunId);
   const { run, report } = useDecideRun();
   const [view, setView] = useState<"preview" | "markdown">("preview");
 
@@ -193,11 +192,9 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
     <div>
       <PageHeader
         kicker="report"
-        title="Decision report"
-        description="A Markdown summary of the design, the objectives, the selected run, cost and capacity. Paste it into a design doc, an ADR or a pull request."
+        title="Report"
         actions={
           <>
-            <RunPicker value={run?.id ?? null} onChange={(id) => setScorecardRunId(id)} />
             <Button onClick={() => void copy()}>
               <Copy /> Copy
             </Button>

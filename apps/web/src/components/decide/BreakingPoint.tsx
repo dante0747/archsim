@@ -106,12 +106,11 @@ export function BreakingPoint() {
       <PageHeader
         kicker="breaking point"
         title="How much traffic can it take?"
-        description="Runs the design at stepped constant loads (short runs, no faults) and reads the curve: where throughput stops tracking the offered load, where latency climbs, and the highest load that still meets your objectives."
       />
       <div className="space-y-4 p-6">
         <Panel
           title="Sweep"
-          subtitle={`${levels.length} steps · ≈ ${fmtNum(estimate)} simulated requests · each step is saved in History`}
+          subtitle={`${levels.length} steps · ≈ ${fmtNum(estimate)} requests`}
           actions={
             mine && !busy && mine.status !== "idle" ? (
               <Button size="sm" variant="ghost" onClick={clearSweep}>

@@ -5,7 +5,8 @@
  * one-click chaos experiments, the run button and, after a run, the verdict with evidence.
  * Rendered inside the shell's scrolling aside; it brings no width or border of its own.
  */
-import { CircleCheck, CircleHelp, CircleX, Crosshair, FlaskConical, LoaderCircle, Pencil, Play, Plus, Square, TrendingUp, Trash2 } from "lucide-react";
+import { ArrowRight, CircleCheck, CircleHelp, CircleX, Crosshair, FlaskConical, LoaderCircle, Pencil, Play, Plus, Square, TrendingUp, Trash2 } from "lucide-react";
+import { openDecide } from "@/components/editor/workflow";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { NumberInput } from "@/components/editor/FieldControl";
@@ -97,11 +98,7 @@ function HypothesisCard() {
       }
     >
       <div className="rounded-md border border-line bg-surface-2 p-3">
-        <p className="font-mono text-[10.5px] uppercase tracking-wider text-ink-3">must stay true</p>
-        <p className="mt-1 font-mono text-[12.5px] font-semibold leading-5 text-ink">{objectivesSummary(objectives)}</p>
-        <p className="mt-1.5 text-[11px] leading-4 text-ink-3">
-          Checked over the whole run and in every second of each failure.
-        </p>
+        <p className="font-mono text-[12.5px] font-semibold leading-5 text-ink">{objectivesSummary(objectives)}</p>
         {editing && (
           <div className="mt-3 space-y-2.5 border-t border-dashed border-line-strong pt-3">
             <ObjectiveRow id="obj-p95" label="latency p95" unit="ms" fallback={300} value={objectives.latencyP95Ms} validate={pos} onChange={(v) => setObjectives({ latencyP95Ms: v }, "p95")} />
@@ -225,9 +222,7 @@ function FaultList() {
       }
     >
       {faults.length === 0 ? (
-        <p className="rounded-md border border-dashed border-line-strong p-3 text-[11.5px] leading-relaxed text-ink-2">
-          None planned: the run tests normal operation. Add a failure, or pick a quick test below.
-        </p>
+        <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] text-ink-3">No failures planned</p>
       ) : (
         <ul className="space-y-2">
           {faults.map((f) => {
@@ -290,20 +285,15 @@ function PresetList() {
                     setWorkload(p.apply(useEditor.getState().workload), `chaos:${p.id}`);
                     toast.success(`Loaded: ${p.title}`, { description: "Press Simulate to run it. Ctrl Z undoes it." });
                   }}
-                  className="group flex w-full items-start gap-2.5 rounded-md border border-line p-2.5 text-left transition-colors hover:border-accent/50 hover:bg-surface-2"
+                  title={p.description}
+                  className="group flex w-full items-center gap-2.5 rounded-md border border-line px-2.5 py-2 text-left transition-colors hover:border-accent/50 hover:bg-surface-2"
                 >
-                  <span className="mt-0.5">
-                    <PresetIcon p={p} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-mono text-[11.5px] font-semibold text-ink group-hover:text-accent">{p.title}</span>
-                    <span className="mt-0.5 block text-[11px] leading-4 text-ink-2">{p.description}</span>
-                  </span>
+                  <PresetIcon p={p} />
+                  <span className="min-w-0 truncate text-[12.5px] text-ink group-hover:text-accent">{p.title}</span>
                 </button>
               </li>
             ))}
           </ul>
-          <p className="text-[11px] text-ink-3">One failure at a time: picking a test replaces the planned failures.</p>
         </>
       )}
     </Section>
@@ -339,7 +329,14 @@ function VerdictCard({ report }: { report: Report }) {
     setPlayhead(t + report.timeseries.bucketS / 2);
   };
   return (
-    <Section title="Result">
+    <Section
+      title="Result"
+      actions={
+        <button type="button" onClick={openDecide} className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[12px] font-medium text-accent hover:bg-accent-soft">
+          Results <ArrowRight className="size-3.5" />
+        </button>
+      }
+    >
       <div className="overflow-hidden rounded-md border border-line" role="status" aria-live="polite">
         <div className="border-l-2 bg-surface-2 p-3" style={{ borderLeftColor: tone }}>
           <p className="flex items-center gap-2 font-mono text-[12.5px] font-semibold uppercase tracking-wider" style={{ color: tone }}>
@@ -347,7 +344,7 @@ function VerdictCard({ report }: { report: Report }) {
             {v.held === true ? "objectives met" : v.held === false ? "objectives missed" : "not enough data"}
           </p>
           <p className="mt-1.5 text-[12px] leading-5 text-ink">{v.summary}</p>
-          {stale && <p className="mt-1.5 text-[11px] text-ink-3">From the last run. Traffic or failures changed since: simulate again to test them.</p>}
+          {stale && <p className="mt-1.5 text-[11px] text-ink-3">From the last run · plan changed since</p>}
         </div>
         {v.overall.checks.length > 0 && (
           <table className="w-full border-t border-line font-mono text-[11px]">
@@ -461,16 +458,11 @@ function NextRunBar() {
           </Button>
         </div>
       ) : (
-        <div className="flex items-start gap-2.5">
-          <Play className="mt-0.5 size-3.5 shrink-0 fill-current text-accent" aria-hidden />
-          <p className="text-[12px] leading-5 text-ink-2">
-            <span className="font-semibold text-ink">Next run: </span>
-            {faults.length ? `${faults.length} failure${faults.length > 1 ? "s" : ""}` : "normal operation"} · {compact(workload.rps)} req/s · {compact(workload.durationS)} s.
-            <span className="block text-[11px] text-ink-3">
-              Press <span className="font-semibold text-ink-2">Simulate</span> at the top right to run it.
-            </span>
-          </p>
-        </div>
+        <p className="flex items-center gap-2 text-[12.5px] text-ink-2">
+          <Play className="size-3.5 shrink-0 fill-current text-accent" aria-hidden />
+          <span className="font-semibold text-ink">Next run</span>
+          {faults.length ? `${faults.length} failure${faults.length > 1 ? "s" : ""}` : "normal"} · {compact(workload.rps)} req/s · {compact(workload.durationS)} s
+        </p>
       )}
     </div>
   );
@@ -482,17 +474,9 @@ export function ExperimentPanel() {
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 space-y-5 p-4">
-        <header>
-          <p className="microlabel flex items-center gap-1.5">
-            <FlaskConical className="size-3" aria-hidden /> test plan
-          </p>
-          <h2 className="mt-1 font-display text-[26px] leading-[1.1] text-ink">
-            Will it <em className="italic text-ink-2">hold up?</em>
-          </h2>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
-            Say what must stay true, optionally break something, then press Simulate and replay what happened.
-          </p>
-        </header>
+        <h2 className="flex items-center gap-2 font-display text-[24px] leading-none text-ink">
+          <FlaskConical className="size-4 text-ink-3" aria-hidden /> Test plan
+        </h2>
         {report && <VerdictCard report={report} />}
         <HypothesisCard />
         <FaultList />

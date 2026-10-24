@@ -15,7 +15,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { AssumptionTag, FieldGroups } from "@/components/editor/FieldControl";
+import { FieldGroups } from "@/components/editor/FieldControl";
+import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
 import { TechnologyPicker } from "@/components/build/TechnologyPicker";
 import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
@@ -24,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Badge, Section } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/overlays";
-import { describeDistribution } from "@/lib/distributions";
 import { compact, fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { componentOf } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
@@ -45,7 +45,7 @@ export function Inspector() {
     if (rightTab === "workload") markTrafficVisited();
   }, [rightTab, markTrafficVisited]);
   return (
-    <aside data-tour="panel" className="surface-sheen flex h-full w-[352px] shrink-0 flex-col border-l border-line bg-surface" aria-label="Side panel">
+    <aside data-tour="panel" className="surface-sheen flex h-full w-[320px] shrink-0 flex-col border-l border-line bg-surface" aria-label="Side panel">
       <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as RightTab)} className="flex min-h-0 flex-1 flex-col">
         <TabsList className="px-2">
           <TabsTrigger value="inspect">
@@ -130,90 +130,36 @@ export function TrafficCard({ compactCard = false }: { compactCard?: boolean }) 
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border border-line px-3 py-2">
-      <p className="microlabel !text-[9px]">{label}</p>
-      <p className="font-mono text-lg font-semibold text-ink">{value}</p>
-    </div>
-  );
-}
 
 function DesignOverview() {
-  const metadata = useEditor((s) => s.metadata);
-  const nodeCount = useEditor((s) => s.nodes.length);
-  const edgeCount = useEditor((s) => s.edges.length);
-  const scenarioCount = useEditor((s) => s.scenarios.length);
   const kinds: Kind[] = ["traffic", "network", "compute", "cache", "database", "messaging", "external"];
-  const roles: Record<string, string> = {
-    traffic: "generates requests",
-    network: "routes and rate-limits them",
-    compute: "processes them",
-    cache: "serves hot reads",
-    database: "stores the data",
-    messaging: "buffers async work",
-    external: "third-party dependency",
-  };
   return (
-    <div className="space-y-5 p-4">
-      <div>
-        <p className="microlabel">Design</p>
-        <h2 className="mt-1 text-[15px] font-semibold leading-snug text-ink">{metadata.name || "Untitled architecture"}</h2>
-        {metadata.description && <p className="mt-1.5 line-clamp-5 text-xs leading-relaxed text-ink-2">{metadata.description}</p>}
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Stat label="Components" value={nodeCount} />
-        <Stat label="Links" value={edgeCount} />
-        <Stat label="Scenarios" value={scenarioCount} />
-      </div>
+    <div className="space-y-4 p-4">
       <TrafficCard />
       <ProblemsList />
       <details className="group rounded-md border border-line">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12.5px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
           <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
-          How to read the canvas
+          Legend
         </summary>
-        <ul className="space-y-1.5 px-3 pb-3 text-xs text-ink-2">
+        <ul className="space-y-1.5 px-3 pb-3 text-[12px] text-ink-2">
           {kinds.map((k) => (
             <li key={k} className="flex items-center gap-2">
               <ShapeGlyph shape={SHAPE_OF[k]} className="shrink-0 text-ink-2" w={24} h={16} />
-              <span className="font-mono text-[11px] text-ink">{KIND_LABEL[k]}</span>
-              <span className="text-ink-3">
-                — {roles[k]}
-              </span>
+              {KIND_LABEL[k]}
             </li>
           ))}
-          <li className="flex items-center gap-2 pt-1 font-mono text-[11px]">
-            <span className="w-6 text-center text-accent">{REQ_GLYPH.read}</span> read
-            <span className="ml-2 text-accent">{REQ_GLYPH.write}</span> write
-            <span className="text-ink-3">· dots on links show live traffic</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <svg width="24" height="6" className="shrink-0" aria-hidden>
-              <line x1="0" y1="3" x2="24" y2="3" stroke="var(--wire)" strokeWidth="1.5" strokeDasharray="5 3" />
-            </svg>
-            Dashed link = cache-miss path
-          </li>
-          <li className="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[11px]">
-            <span className="w-6" aria-hidden />
+          <li className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-1">
             {(["ok", "warm", "hot", "saturated"] as const).map((st) => (
               <span key={st} className="flex items-center gap-1" title={NODE_STATUS[st].description}>
                 <span className="size-1.5 rounded-full" style={{ background: NODE_STATUS[st].color }} aria-hidden />
                 {NODE_STATUS[st].label.toLowerCase()}
               </span>
             ))}
-            <span className="text-ink-3">· after a run</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <AssumptionTag /> marks values you assume rather than measure
           </li>
         </ul>
       </details>
-      <p className="flex gap-2 rounded-md border border-dashed border-line-strong p-3 text-[11.5px] leading-relaxed text-ink-2">
-        <Info className="mt-0.5 size-3.5 shrink-0 text-ink-3" />
-        Click a part or a link on the canvas to edit it. Press Ctrl K to search every command, or the ? button for a quick
-        tour.
-      </p>
+      <p className="text-[12px] text-ink-3">Click a part to edit it.</p>
     </div>
   );
 }
@@ -248,15 +194,7 @@ export function ProblemsList() {
   const select = useEditor((s) => s.select);
   const empty = useEditor((s) => s.nodes.length === 0);
   const errors = issues.filter((i) => i.severity === "error").length;
-  if (empty) {
-    return (
-      <Section title="Checks">
-        <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] leading-relaxed text-ink-2">
-          Nothing to check yet. Add Clients and what they call, and the design is checked as you go.
-        </p>
-      </Section>
-    );
-  }
+  if (empty) return null;
   return (
     <Section
       title={`Checks${issues.length ? ` · ${issues.length}` : ""}`}
@@ -339,23 +277,22 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
   const nodeIssues = issues.filter((i) => i.nodeId === nodeId);
   return (
     <div className="space-y-5 p-4">
-      <div className="rounded-md border border-line bg-surface-2 p-3">
+      <div>
         <div className="flex items-center gap-3">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-ink-2">
-            <ShapeGlyph shape={SHAPE_OF[kind]} w={34} h={24} layers={typeof node.data.config.replicas === "number" ? node.data.config.replicas : 2} />
-          </span>
+          <TechIcon technology={typeof node.data.config.technology === "string" ? node.data.config.technology : null} kind={kind} size={24} tile />
           <div className="min-w-0 flex-1">
-            <p className="microlabel">{comp?.displayName ?? node.data.type}</p>
             <input
               value={node.data.label}
               maxLength={120}
               aria-label="Component name"
               onChange={(e) => updateNode(nodeId, { label: e.target.value })}
-              className="-ml-1 mt-0.5 h-8 w-full rounded-sm border border-transparent bg-transparent px-1 font-mono text-[14px] font-semibold text-ink hover:border-line focus-visible:border-accent focus-visible:bg-surface focus-visible:outline-none"
+              className="-ml-1 h-8 w-full rounded-md border border-transparent bg-transparent px-1 text-[15px] font-semibold text-ink hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
             />
+            <p className="truncate text-[12px] text-ink-3" title={comp?.description}>
+              {comp?.displayName.split(" / ")[0] ?? node.data.type}
+            </p>
           </div>
         </div>
-        {comp?.description && <p className="mt-2 text-[11.5px] leading-relaxed text-ink-2">{comp.description}</p>}
         <TechnologyPicker nodeId={nodeId} comp={comp} config={node.data.config} />
       </div>
 
@@ -465,11 +402,6 @@ function NodeResults({ nodeId }: { nodeId: string }) {
             </div>
           ))}
         </dl>
-        {s.cpuUtilization != null && s.utilization ? (
-          <p className="border-t border-line px-3.5 py-2 text-[11px] text-ink-2">
-            {fmtPct(s.cpuUtilization / s.utilization, 0)} of busy worker time was its own processing; the rest was waiting on downstream calls.
-          </p>
-        ) : null}
       </div>
       <Button
         size="sm"
@@ -530,10 +462,6 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
           <ArrowRight className="size-3.5 text-ink-3" />
           {chip(tgt?.data.label ?? edge.target, tgt?.data.type, tgtComp?.category)}
         </div>
-        <p className="mt-2 text-[11.5px] leading-relaxed text-ink-2">
-          Requests of the selected types travel this link. Latency is added in each direction
-          {edge.data.config.latencyMs ? ` (${describeDistribution(edge.data.config.latencyMs)})` : ""}.
-        </p>
       </div>
       {edgeIssues.length > 0 && (
         <ul className="rounded-md border border-line p-1">

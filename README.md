@@ -20,14 +20,14 @@ capacity curves. Same document and seed, same result.
 
 ## What you can do
 
-ArchSim has three workspaces around one canvas: **Design → Test → Results** (keys 1, 2, 3), and
-one **Simulate** button (Ctrl/⌘ Enter) that runs the design from wherever you are. Results land
-on the canvas right away; nothing switches workspace behind your back. A 30-second guided tour
-opens on the first visit (and from the **?** button), and a "next step" hint under the top bar
-always says what to do next, for example adding API servers behind a lone Clients box.
+ArchSim has three workspaces around one canvas, switched from the top bar: **Design → Test →
+Results** (keys 1, 2, 3). One **Simulate** button (Ctrl/⌘ Enter) runs the design from wherever
+you are; results land on the canvas right away. A short guided tour opens on the first visit
+(and from the ⋯ menu), and a small hint on the canvas says what to do next, for example adding
+API servers behind a lone Clients box.
 
 **Design: draw it with real technologies**
-- A technology library with transparent profiles: relational (PostgreSQL, MySQL, SQL Server,
+- A parts library on the left with each technology's logo and a search box: relational (PostgreSQL, MySQL, SQL Server,
   distributed SQL), document (MongoDB replica sets and sharded clusters), wide-column
   (Cassandra), key-value (DynamoDB-style provisioned throughput), search (Elasticsearch),
   caches (Redis, Valkey, Memcached, CDN edge, Varnish), message queues (Kafka, RabbitMQ,
@@ -36,7 +36,8 @@ always says what to do next, for example adding API servers behind a lone Client
   (payments, e-mail, identity, LLM inference...). Behaviour comes from the numbers (replicas,
   shards, replication factor and consistency, partitions, rate limits), never from the name,
   and every default is marked as an assumption.
-- Each component kind has its own schematic shape; links are right-angle wires.
+- Each component kind has its own schematic shape and shows its technology logo, its name and
+  one or two key settings; after a run it shows how busy it was. Links are right-angle wires.
 - A design review flags single points of failure, missing timeouts, retry amplification along
   a path, timeout inversions, connection-pool exhaustion and more, with the numbers.
 - Export the design as docker-compose, Kubernetes manifests (Deployments, Services, HPAs,
@@ -52,25 +53,27 @@ always says what to do next, for example adding API servers behind a lone Client
 - Every test gets a result against its objectives (what must stay true), including what
   happened during each failure.
 
-**Results: objectives, cost and capacity**
-- A scorecard per run: SLO checks (p95/p99 latency, availability, throughput), error budget
-  burn-down, monthly cost and cost per million requests from per-component cost assumptions.
-- A trade-off map of every run and scenario (cost vs latency, SLO pass/fail, Pareto frontier).
-- A breaking-point finder: stepped load sweeps that find where latency turns into a hockey
-  stick and the highest load that still meets the SLO.
-- Insights in plain language (bottlenecks, hot shards, throttling, autoscaling lag, consumer
-  lag, wasted work), timeline charts, per-component drill-down, A/B comparison with the exact
-  input differences, run history, the assumptions behind every number, and a Markdown report.
+**Results: four tabs**
+- **Answer**: one sentence ("Yes, it holds up." or "No, it doesn't hold up." with the objective
+  that failed and the bottleneck), the key numbers, what to fix first, objective tiles with
+  editable targets, and monthly cost from per-component cost assumptions.
+- **Compare**: cost against latency for every run and scenario (Pareto frontier, objective
+  line), two runs side by side with the exact input differences, and the run history.
+- **Breaking point**: stepped load sweeps that find where latency turns into a hockey stick
+  and the highest load that still meets the objectives.
+- **Details**: findings in plain language (bottlenecks, hot shards, throttling, autoscaling
+  lag, consumer lag, wasted work), error budget, metrics over time, per-component drill-down
+  and the assumptions behind every number. A Markdown report is one click away.
 
-**Everywhere:** a command palette (Ctrl/⌘ K) with every action, an IDE-style status bar,
-keyboard shortcuts, light and dark themes. Projects live in PostgreSQL (or SQLite), documents
+**Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, light and
+dark themes. Projects live in PostgreSQL (or SQLite), documents
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
 
-| Design: design review with the parts each finding is about | Results: summary against your objectives |
+| Design: parts library with logos, PostgreSQL selected | Results → Answer |
 | --- | --- |
-| ![Design workspace: the design review explains a cache without fallback and a timeout inversion; clicking the cache finding selects Checkout API and the Redis catalog cache and frames them beside the panel](docs/images/build.jpg) | ![Results summary: meets 2 of 2 objectives, p95 434 ms against 500 ms, availability 99.8%, error budget 45% used, $1,235 per month](docs/images/scorecard.jpg) |
-| **Results: cost vs. speed** | **Home** |
+| ![Design workspace: the parts library on the left lists technologies with their logos (Nginx, Envoy, Kong, Node.js, Go, Python...); Orders DB is selected and the side panel shows its PostgreSQL logo, technology menu and key settings](docs/images/build.jpg) | ![Results answer: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,235 per month; two findings worth a look; objective tiles](docs/images/scorecard.jpg) |
+| **Results → Compare** | **Home** |
 | ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page with the animated replay illustration](docs/images/home.jpg) |
 
 ## Quick start

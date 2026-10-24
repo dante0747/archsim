@@ -554,9 +554,7 @@ function AddFaultRow() {
       }
     >
       <p className="pointer-events-none absolute inset-0 flex items-center px-2 font-mono text-[10px] text-ink-3">
-        {faults.length === 0
-          ? "no failures planned · add one to see how the system copes"
-          : "drag to move · drag edges to resize · shift = free · double-click to edit · del removes"}
+        {faults.length === 0 ? "" : "drag to move or resize"}
       </p>
     </Row>
   );

@@ -23,21 +23,19 @@ export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; com
   };
 
   return (
-    <div className="mt-2.5 space-y-1.5 border-t border-dashed border-line-strong pt-2.5">
-      <div className="flex items-center gap-2">
-        <span className="microlabel shrink-0">technology</span>
-        {tech && <span className="truncate rounded-sm border border-line bg-surface px-1.5 font-mono text-[11px] text-ink">{tech}</span>}
-        {current && <span className="truncate font-mono text-[10px] text-ink-3">{current.family.toLowerCase()}</span>}
-      </div>
+    <div className="mt-3 space-y-1">
+      <p className="text-[12px] text-ink-3">
+        Technology{tech ? <span className="ml-1.5 font-medium text-ink">{tech}</span> : null}
+      </p>
       {presets.length > 0 && (
         <select
           value=""
           onChange={(e) => apply(e.target.value)}
           aria-label="Apply a technology preset"
-          className="h-7 w-full cursor-pointer rounded-md border border-line bg-surface px-2 font-mono text-[11px] text-ink-2 hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
+          className="h-8 w-full cursor-pointer rounded-md border border-line bg-surface-2/70 px-2 text-[12.5px] text-ink-2 hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
         >
           <option value="" disabled>
-            {current ? "Switch technology…" : "Apply a technology preset…"}
+            {current ? "Switch technology…" : "Pick a technology…"}
           </option>
           {families.map((f) => (
             <optgroup key={f} label={f}>
@@ -53,8 +51,6 @@ export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; com
           ))}
         </select>
       )}
-      {current && <p className="text-[11px] leading-4 text-ink-2">{current.description}</p>}
-      <p className="text-[10.5px] leading-4 text-ink-3">Preset numbers are assumptions to start from, not vendor benchmarks. Tune them to what you measure.</p>
     </div>
   );
 }

@@ -183,10 +183,7 @@ function EmptyRecording({ height }: { height: number }) {
           <p className="text-[13.5px] font-semibold text-ink">
             {running ? "Recording the run…" : "Press Simulate to record a run"}
           </p>
-          <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-ink-2">
-            Every run is recorded second by second. Replay it here and on the canvas: parts fill up with load, queues build,
-            links carry the traffic of that moment, and failures light up when they hit.
-          </p>
+          <p className="mt-1 text-[12px] text-ink-3">Replay it here, second by second.</p>
           {running && followRun ? (
             <div className="mt-2 flex items-center gap-2 font-mono text-[11px] text-ink-2" role="status">
               <span className="block h-1.5 w-40 overflow-hidden rounded-[1px] bg-surface-3" aria-hidden>
@@ -379,9 +376,7 @@ export function TimelineDock() {
                 )}
               </>
             ) : (
-              <span className="truncate text-[12px] text-ink-2">
-                Showing the whole run · <span className="text-ink-3">press ▶ to replay it second by second</span>
-              </span>
+              <span className="truncate text-[12px] text-ink-3">Press ▶ to replay</span>
             )
           ) : (
             <span className="truncate text-[12px] text-ink-3">Nothing recorded yet</span>
@@ -406,7 +401,7 @@ export function TimelineDock() {
             <TimelineProvider durationS={axisS} plotWidth={plotWidth}>
               <div className="relative pb-2">
                 <Ruler warmupS={report ? report.window.warmupS : workloadWarmupS} scrubbable={!!report} endS={endS} />
-                <SectionRow title="next run" right={<span>drag the traffic line to reshape it</span>} />
+                <SectionRow title="next run" />
                 <div data-no-transport-keys>
                   <ExperimentTracks />
                 </div>

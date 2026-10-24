@@ -1,6 +1,6 @@
 "use client";
 
-import { GitCompareArrows, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { thClass } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { ensureReports, useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { EmptyPanel, PageHeader, StatusMark, niceTicks, runAllScenariosNow, runDesignNow, runLabel, useElementWidth, useSucceededRuns } from "./shared";
+import { EmptyPanel, StatusMark, niceTicks, runAllScenariosNow, runDesignNow, runLabel, useElementWidth, useSucceededRuns } from "./shared";
 
 interface Point {
   runId: string;
@@ -63,7 +63,6 @@ export function TradeoffMap() {
   const reports = useRuns((s) => s.reports);
   const activeRunId = useRuns((s) => s.activeRunId);
   const showRun = useRuns((s) => s.showRun);
-  const starting = useRuns((s) => s.starting);
   const catalog = useEditor((s) => s.catalog);
   const objectives = useEditor((s) => s.objectives);
   const scenarioCount = useEditor((s) => s.scenarios.length);
@@ -103,19 +102,9 @@ export function TradeoffMap() {
   const hasCost = points.some((p) => p.cost > 0);
   const loading = runs.length > points.length && runs.some((r) => !reports[r.id]);
 
+  // Compare (the parent tab) owns the title row and the "Simulate all scenarios" action.
   const header = (
-    <PageHeader
-      kicker="cost vs. speed"
-      title="Cost against latency, for every option you ran"
-      description="Each point is a run. Lower and further left is better. Points on the Pareto frontier are the only sensible choices: every other option costs more for the same or worse latency."
-      actions={
-        scenarioCount > 0 && (
-          <Button onClick={runAllScenariosNow} disabled={starting}>
-            <GitCompareArrows /> Simulate all scenarios
-          </Button>
-        )
-      }
-    />
+    <p className="px-6 pt-3 text-[12.5px] text-ink-3">Each dot is a run. Lower left is better.</p>
   );
 
   if (runs.length === 0) {
@@ -132,7 +121,7 @@ export function TradeoffMap() {
               </Button>
             }
           >
-            Run the design and its scenarios (replicas, technologies, cache settings…). Each run becomes a point on the map.
+            Each run becomes a dot on the map.
           </EmptyPanel>
         </div>
       </div>
@@ -180,13 +169,12 @@ export function TradeoffMap() {
       <div className="space-y-4 p-6">
         {!hasCost && points.length > 0 && (
           <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] text-ink-2">
-            No component has a price, so every option sits at $0. Set <b className="text-ink">Cost per hour</b> on components to spread the map out.
+            No prices set: add <b className="text-ink">Cost per hour</b> on parts to spread the map out.
           </p>
         )}
         {points.length < 2 && !loading && (
           <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] text-ink-2">
-            One option is not a trade-off. {scenarioCount ? "Simulate all scenarios" : "Add scenarios in Design (e.g. 3 replicas, MongoDB instead of PostgreSQL) and simulate them"} to put
-            alternatives on the map.
+            Only one option so far. {scenarioCount ? "Simulate all scenarios" : "Add scenarios in Design and simulate them"} to compare.
           </p>
         )}
 
@@ -366,10 +354,10 @@ export function TradeoffMap() {
                           variant="ghost"
                           onClick={() => {
                             select(p.runId);
-                            setSection("scorecard");
+                            setSection("answer");
                           }}
                         >
-                          Scorecard
+                          Open
                         </Button>
                       </td>
                     </tr>

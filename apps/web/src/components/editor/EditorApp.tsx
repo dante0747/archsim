@@ -12,10 +12,9 @@ import { Canvas } from "@/components/editor/Canvas";
 import { CommandPalette } from "@/components/editor/CommandPalette";
 import { GuidedTour, hasSeenTour } from "@/components/editor/GuidedTour";
 import { Inspector } from "@/components/editor/Inspector";
-import { ComponentRail } from "@/components/editor/Palette";
-import { StatusBar } from "@/components/editor/StatusBar";
+import { PartsPanel } from "@/components/editor/Palette";
 import { TopBar } from "@/components/editor/TopBar";
-import { WorkspaceBar } from "@/components/editor/WorkspaceBar";
+import { NextStepPill } from "@/components/editor/WorkspaceBar";
 import { openDecide } from "@/components/editor/workflow";
 import { ExperimentPanel } from "@/components/stress/ExperimentPanel";
 import { PlaybackClock, TimelineDock } from "@/components/timeline/TimelineDock";
@@ -23,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
 import { ApiError, api } from "@/lib/api";
 import { isEditableTarget } from "@/lib/utils";
-import { sectionForDrawerTab, useDecide } from "@/store/decide";
+import { useDecide } from "@/store/decide";
 import { contentKey, useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 import { type Workspace, useUi } from "@/store/ui";
@@ -128,7 +127,7 @@ function useWorkspaceWiring() {
       useRuns.subscribe((s, prev) => {
         // Anything that used to open the results drawer now opens the matching Decide section.
         if (s.drawerOpen && (!prev.drawerOpen || s.drawerTab !== prev.drawerTab)) {
-          useDecide.getState().setSection(sectionForDrawerTab(s.drawerTab));
+          useDecide.getState().goToDrawerTab(s.drawerTab);
           openDecide();
           useRuns.getState().setDrawerOpen(false);
         }
@@ -242,12 +241,12 @@ function EditorShell() {
         shortcutsOpen={shortcutsOpen}
         onShortcutsOpenChange={setShortcutsOpen}
       />
-      <WorkspaceBar />
       <div className="relative flex min-h-0 flex-1">
-        {mode === "build" && <ComponentRail />}
+        {mode === "build" && <PartsPanel />}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <Canvas />
+            {mode !== "decide" && <NextStepPill />}
             {mode === "build" && <DesignReviewPanel />}
             {mode === "stress" && <PlaybackClock />}
             {mode === "decide" && (
@@ -263,14 +262,13 @@ function EditorShell() {
             {mode === "build" ? (
               <Inspector />
             ) : (
-              <aside className="surface-sheen flex h-full w-[352px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface" aria-label="Experiment">
+              <aside className="surface-sheen flex h-full w-[320px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface" aria-label="Experiment">
                 <ExperimentPanel />
               </aside>
             )}
           </div>
         )}
       </div>
-      <StatusBar />
       <CommandPalette onShowShortcuts={() => setShortcutsOpen(true)} />
       <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
       <GuidedTour />

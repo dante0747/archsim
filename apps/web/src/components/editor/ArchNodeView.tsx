@@ -5,6 +5,7 @@ import { Copy, Trash2 } from "lucide-react";
 import { memo, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { describeValue, isFieldVisible } from "@/components/editor/FieldControl";
 import { SHAPE_HANDLE, SHAPE_OF, SHAPE_PADDING, ShapeSvg } from "@/components/shapes";
+import { TechIcon } from "@/components/TechIcon";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import type { ArchNode } from "@/lib/document";
 import { isDistribution, shortDistribution } from "@/lib/distributions";
@@ -12,14 +13,14 @@ import { compact, compactRate, fmtPct } from "@/lib/format";
 import { componentOf } from "@/lib/graph-rules";
 import { faultsAt, fmtRate, heatColor, runFaults, statusAt } from "@/lib/recorder";
 import { NODE_STATUS } from "@/lib/status";
-import { REQ_GLYPH, kindOf, technologyLabel } from "@/lib/theme";
+import { kindOf, technologyLabel } from "@/lib/theme";
 import type { Fault, NodeReport, NodeStatus, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 
-export const NODE_W = 232;
+export const NODE_W = 212;
 
 /** Size of an element in layout pixels (unaffected by the canvas zoom transform). */
 function useBoxSize(ref: React.RefObject<HTMLDivElement | null>) {
@@ -40,8 +41,8 @@ function useBoxSize(ref: React.RefObject<HTMLDivElement | null>) {
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 leading-[18px]">
-      <dt className="truncate text-[11px] text-ink-3">{k}</dt>
-      <dd className="tabular shrink-0 font-mono text-[11px] text-ink">{v}</dd>
+      <dt className="truncate text-[11.5px] text-ink-3">{k}</dt>
+      <dd className="tabular shrink-0 font-mono text-[11.5px] text-ink">{v}</dd>
     </div>
   );
 }
@@ -140,7 +141,6 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const errorCount = useEditor((s) => s.issues.filter((i) => i.nodeId === id && i.severity === "error").length);
   const warningCount = useEditor((s) => s.issues.filter((i) => i.nodeId === id && i.severity === "warning").length);
   const rps = useEditor((s) => s.workload.rps);
-  const readRatio = useEditor((s) => s.workload.readRatio);
   const patternKind = useEditor((s) => s.workload.pattern.kind);
   const duplicate = useEditor((s) => s.duplicateSelection);
   const remove = useEditor((s) => s.deleteElements);
@@ -169,7 +169,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const replicas = live?.replicas != null ? Math.max(1, Math.round(live.replicas)) : configReplicas;
   const inPorts = comp?.ports.filter((p) => p.direction === "in") ?? [];
   const outPorts = comp?.ports.filter((p) => p.direction === "out") ?? [];
-  const headline = (comp?.fields ?? []).filter((f) => f.headline && isFieldVisible(f, data.config)).slice(0, 3);
+  const headline = (comp?.fields ?? []).filter((f) => f.headline && isFieldVisible(f, data.config)).slice(0, 2);
   const status: NodeStatus | null = live ? live.status : overlay && nodeReport ? nodeReport.status : null;
   const meta = status ? NODE_STATUS[status] : null;
   const s = nodeReport?.summary;
@@ -197,7 +197,8 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const dashed = (outage || errorCount > 0) && !selected;
   const portTop = (i: number, n: number) => `calc(${((i + 1) / (n + 1)) * 100}% + ${hp.dy}px)`;
   const typeName = comp?.displayName.split(" / ")[0].replace(/ \(.*\)$/, "") ?? data.type;
-  const tech = technologyLabel(comp, data.config.technology);
+  const technology = typeof data.config.technology === "string" ? data.config.technology : null;
+  const tech = technologyLabel(comp, technology);
   const level = live?.util != null ? Math.min(1, Math.max(0, live.util)) : null;
   const heat = heatColor(level, dark);
 
@@ -294,13 +295,11 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
       })}
 
       <div className="relative" style={{ padding: `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px` }}>
-        <div className="flex items-start gap-2">
+        <div className="flex items-center gap-2.5">
+          <TechIcon technology={technology} kind={kindOf(data.type, comp?.category)} size={18} tile />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold leading-5 tracking-[-0.01em] text-ink">{data.label}</p>
-            <p className="flex min-w-0 items-baseline gap-1.5 leading-4">
-              {tech && <span className="truncate font-mono text-[10.5px] text-ink-2">{tech}</span>}
-              <span className="microlabel shrink-0 truncate !text-[9.5px]">{typeName}</span>
-            </p>
+            <p className="truncate text-[13.5px] font-semibold leading-5 tracking-[-0.01em] text-ink">{data.label}</p>
+            <p className="truncate text-[11.5px] leading-4 text-ink-3">{tech && tech !== "Generic" ? tech : typeName}</p>
           </div>
           {outage ? (
             <FaultTag fault={outage} />
@@ -317,13 +316,8 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
           ) : null}
         </div>
 
-        <dl className="mt-1.5 border-t border-dashed border-line-strong pt-1.5">
-          {comp?.isTrafficSource && (
-            <>
-              <Row k="load" v={patternKind === "constant" ? `${compact(rps)} req/s` : patternKind} />
-              <Row k="mix" v={`${REQ_GLYPH.read} ${Math.round(readRatio * 100)}%  ${REQ_GLYPH.write} ${Math.round((1 - readRatio) * 100)}%`} />
-            </>
-          )}
+        <dl className="mt-2">
+          {comp?.isTrafficSource && <Row k="Load" v={patternKind === "constant" ? `${compact(rps)} req/s` : patternKind} />}
           {headline.map((f) => (
             <Row
               key={f.key}
@@ -337,48 +331,39 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
         </dl>
 
         {live && meta ? (
-          <div className="mt-1.5 border-t border-dashed border-line-strong pt-1.5 font-mono" aria-label={`State at ${live.t.toFixed(0)} s`}>
-            <div className="mb-1 flex items-center justify-between text-[10.5px]">
-              <span className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-ink">
-                <span className={cn("size-1.5 rounded-full", status === "saturated" && "pulse-soft")} style={{ background: meta.color }} aria-hidden />
-                {meta.label}
-              </span>
-              <span className="tabular text-ink">
-                {live.util != null ? `${fmtPct(live.util, 0)} busy` : `${fmtRate(live.arrival ?? 0)}/s`}
-              </span>
-            </div>
-            {live.util != null && <Meter value={live.util} color={attention ? meta.color : "var(--ink-2)"} />}
-            <p className="tabular mt-1 flex items-center gap-1 truncate text-[10px] text-ink-3">
-              <span className="truncate">
-                {fmtRate(live.arrival ?? 0)}/s · q {live.queue != null ? (live.queue >= 10 ? Math.round(live.queue) : live.queue.toFixed(1)) : "–"}
-                {live.replicas != null ? ` · ×${Math.round(live.replicas)}` : ""}
-                {live.lag != null && live.lag > 0 ? ` · lag ${compact(live.lag)}` : ""}
-                {live.hit != null ? ` · hit ${fmtPct(live.hit, 0)}` : ""}
-              </span>
+          <div className="mt-2 border-t border-line pt-2" aria-label={`State at ${live.t.toFixed(0)} s`}>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px]">
+              {status !== "ok" && (
+                <span className="flex items-center gap-1.5 font-semibold text-ink">
+                  <span className={cn("size-1.5 rounded-full", status === "saturated" && "pulse-soft")} style={{ background: meta.color }} aria-hidden />
+                  {meta.label}
+                </span>
+              )}
               {rejecting && (
-                <span key={bucket} className="pulse-soft ml-auto shrink-0 rounded-sm bg-critical-soft px-1 font-semibold text-danger-ink">
+                <span key={bucket} className="pulse-soft rounded-sm bg-critical-soft px-1 font-mono text-[10.5px] font-semibold text-danger-ink">
                   ✕{fmtRate(live.rejected)}/s
                 </span>
               )}
-            </p>
+              <span className="tabular ml-auto font-mono text-ink-2">
+                {live.util != null ? `${fmtPct(live.util, 0)} busy` : `${fmtRate(live.arrival ?? 0)}/s`}
+              </span>
+            </div>
+            {live.util != null && <Meter value={live.util} color={attention ? meta.color : "var(--ink-3)"} />}
           </div>
         ) : (
           meta &&
           s && (
-            <div className="mt-1.5 border-t border-dashed border-line-strong pt-1.5 font-mono" aria-label="Simulation result for this component">
-              <div className="mb-1 flex items-center justify-between text-[10.5px]">
-                <span className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-ink">
-                  <span className={cn("size-1.5 rounded-full", status === "saturated" && "pulse-soft")} style={{ background: meta.color }} aria-hidden />
-                  {meta.label}
-                </span>
-                <span className="tabular text-ink">{util != null ? `${fmtPct(util, 0)} busy` : `${compactRate(s.arrivalRps ?? 0)}/s`}</span>
+            <div className="mt-2 border-t border-line pt-2" aria-label="Simulation result for this component">
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px]">
+                {status !== "ok" && (
+                  <span className="flex items-center gap-1.5 font-semibold text-ink">
+                    <span className={cn("size-1.5 rounded-full", status === "saturated" && "pulse-soft")} style={{ background: meta.color }} aria-hidden />
+                    {meta.label}
+                  </span>
+                )}
+                <span className="tabular ml-auto font-mono text-ink-2">{util != null ? `${fmtPct(util, 0)} busy` : `${compactRate(s.arrivalRps ?? 0)}/s`}</span>
               </div>
-              {util != null && <Meter value={util} color={attention ? meta.color : "var(--ink-2)"} />}
-              <p className="tabular mt-1 truncate text-[10px] text-ink-3">
-                {compactRate(s.arrivalRps ?? 0)}/s · q {s.meanQueue != null ? s.meanQueue.toFixed(1) : "–"} · pk {compact(s.peakQueue)}
-                {s.rejectedTotal ? ` · ✕${compact(s.rejectedTotal)}` : ""}
-                {s.hitRatio != null ? ` · hit ${fmtPct(s.hitRatio, 0)}` : ""}
-              </p>
+              {util != null && <Meter value={util} color={attention ? meta.color : "var(--ink-3)"} />}
             </div>
           )
         )}

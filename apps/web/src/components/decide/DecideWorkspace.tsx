@@ -1,94 +1,40 @@
 "use client";
 
 /**
- * Decide workspace: the page for choosing between designs. Decision sections (scorecard,
- * trade-offs, breaking point, report) plus the detailed results (insights, timeline, components,
- * compare, history, assumptions). Fills its parent and scrolls internally.
+ * Results workspace: four places in a tab bar (Answer, Compare, Breaking point, Details) plus the
+ * report. The answer comes first; everything else is one click away. Fills its parent and scrolls.
  */
-import {
-  Activity,
-  Boxes,
-  CircleCheck,
-  Crosshair,
-  FileText,
-  Gauge,
-  GitCompareArrows,
-  History,
-  ListChecks,
-  LoaderCircle,
-  ScatterChart,
-  Sparkles,
-} from "lucide-react";
+import { CircleCheck, Crosshair, FileText, Gauge, GitCompareArrows, ListTree, LoaderCircle } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useDesignReview } from "@/components/build/DesignReview";
 import { AssumptionsTab } from "@/components/results/AssumptionsTab";
 import { ChartsTab } from "@/components/results/ChartsTab";
 import { CompareTab } from "@/components/results/CompareTab";
 import { ComponentsTab } from "@/components/results/ComponentsTab";
 import { OverviewTab } from "@/components/results/OverviewTab";
 import { RunsTab } from "@/components/results/RunsTab";
-import { evaluateSlo } from "@/lib/slo";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type DecideSection, sectionForDrawerTab, useDecide } from "@/store/decide";
+import { type CompareView, type DecideSection, type DetailsView, useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 import { BreakingPoint } from "./BreakingPoint";
-import { useDesignReview } from "@/components/build/DesignReview";
 import { ReportSection } from "./ReportSection";
-import { Scorecard } from "./Scorecard";
+import { AnswerPage, ErrorBudgetPanel } from "./Scorecard";
 import { TradeoffMap } from "./TradeoffMap";
-import { PageHeader, runLabel, useDecideRun } from "./shared";
+import { RunPicker, SubTabs, runAllScenariosNow, useDecideRun } from "./shared";
 
-interface NavItem {
-  key: DecideSection;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "the answer",
-    items: [
-      { key: "scorecard", label: "Summary", icon: Gauge },
-      { key: "insights", label: "What happened", icon: Sparkles },
-    ],
-  },
-  {
-    label: "explore",
-    items: [
-      { key: "tradeoffs", label: "Cost vs. speed", icon: ScatterChart },
-      { key: "breaking", label: "Breaking point", icon: Crosshair },
-      { key: "compare", label: "Compare two runs", icon: GitCompareArrows },
-    ],
-  },
-  {
-    label: "details",
-    items: [
-      { key: "timeline", label: "Metrics over time", icon: Activity },
-      { key: "components", label: "Per component", icon: Boxes },
-      { key: "history", label: "Run history", icon: History },
-      { key: "assumptions", label: "Assumptions", icon: ListChecks },
-    ],
-  },
-  { label: "share", items: [{ key: "report", label: "Report", icon: FileText }] },
+const TABS: { key: Exclude<DecideSection, "report">; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "answer", label: "Answer", icon: Gauge },
+  { key: "compare", label: "Compare", icon: GitCompareArrows },
+  { key: "breaking", label: "Breaking point", icon: Crosshair },
+  { key: "details", label: "Details", icon: ListTree },
 ];
 
-const RESULT_PAGES: Partial<Record<DecideSection, { kicker: string; title: string; description: string; body: React.ComponentType }>> = {
-  insights: { kicker: "findings", title: "What happened in the run", description: "Verdict, key numbers and findings for the run shown on the canvas.", body: OverviewTab },
-  timeline: { kicker: "timeline", title: "Metrics over simulated time", description: "Throughput, latency, failures and utilization, second by second.", body: ChartsTab },
-  components: { kicker: "components", title: "Every component, measured", description: "Utilization, queues and waits per component, with drill-down charts.", body: ComponentsTab },
-  compare: { kicker: "compare", title: "Two runs side by side", description: "What changed between two runs and why it matters.", body: CompareTab },
-  history: { kicker: "run history", title: "All runs", description: "Every run keeps its exact input, seed and result digest, so it can be revisited and reproduced.", body: RunsTab },
-  assumptions: { kicker: "assumptions", title: "What the numbers rest on", description: "Values you assumed versus values the simulation derived.", body: AssumptionsTab },
-};
-
-function NavBadge({ section }: { section: DecideSection }) {
-  const runCount = useRuns((s) => s.runs.length);
-  const comparison = useRuns((s) => s.comparison !== null);
+function TabBadge({ section }: { section: DecideSection }) {
   const sweep = useDecide((s) => s.sweep);
   const projectId = useRuns((s) => s.projectId);
-  if (section === "history" && runCount > 0) return <span className="tabular font-mono text-[10px] text-ink-3">{runCount}</span>;
-  if (section === "compare" && comparison) return <span className="size-1.5 rounded-full bg-accent" aria-label="comparison ready" />;
   if (section === "breaking" && sweep.projectId === projectId) {
     if (sweep.status === "starting" || sweep.status === "running") return <LoaderCircle className="size-3 animate-spin text-accent" aria-label="running" />;
     if (sweep.status === "done") return <CircleCheck className="size-3 text-ink-3" aria-label="done" />;
@@ -96,112 +42,148 @@ function NavBadge({ section }: { section: DecideSection }) {
   return null;
 }
 
-/** Compact summary of the run the scorecard shows, at the foot of the nav. */
-function RunFooter() {
-  const objectives = useEditor((s) => s.objectives);
-  const setSection = useDecide((s) => s.setSection);
-  const { run, report } = useDecideRun();
-  if (!run) return <p className="px-3 py-3 text-[11.5px] leading-relaxed text-ink-3">No runs yet. Press Simulate to score the design.</p>;
-  const slo = report ? evaluateSlo(objectives, report) : null;
-  const color = slo?.pass === true ? "var(--status-good)" : slo?.pass === false ? "var(--status-critical)" : "var(--ink-3)";
+function ComparePage() {
+  const view = useDecide((s) => s.compareView);
+  const setView = useDecide((s) => s.setCompareView);
+  const scenarioCount = useEditor((s) => s.scenarios.length);
+  const starting = useRuns((s) => s.starting);
   return (
-    <button type="button" onClick={() => setSection("scorecard")} className="block w-full px-3 py-3 text-left hover:bg-surface-2">
-      <p className="microlabel">showing</p>
-      <p className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-medium text-ink">
-        <span className="size-1.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
-        <span className="truncate">{runLabel(run)}</span>
-      </p>
-      {slo && (
-        <p className="font-mono text-[10.5px] text-ink-3">
-          {slo.total ? `${slo.met}/${slo.total} objectives met` : "no objectives set"} · seed {run.seed}
-        </p>
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
+        <SubTabs<CompareView>
+          value={view}
+          onChange={setView}
+          items={[
+            { key: "map", label: "Cost vs. speed" },
+            { key: "pair", label: "Two runs" },
+            { key: "runs", label: "All runs" },
+          ]}
+        />
+        {scenarioCount > 0 && (
+          <Button size="sm" onClick={runAllScenariosNow} disabled={starting}>
+            <GitCompareArrows /> Simulate all scenarios
+          </Button>
+        )}
+      </div>
+      {view === "map" && <TradeoffMap />}
+      {view === "pair" && <CompareTab />}
+      {view === "runs" && <RunsTab />}
+    </div>
+  );
+}
+
+function DetailsSummary() {
+  const objectives = useEditor((s) => s.objectives);
+  const { report } = useDecideRun();
+  return (
+    <div>
+      <OverviewTab />
+      {report && (
+        <div className="px-4 pb-4">
+          <ErrorBudgetPanel report={report} objectives={objectives} />
+        </div>
       )}
-    </button>
+    </div>
+  );
+}
+
+function DetailsPage() {
+  const view = useDecide((s) => s.detailsView);
+  const setView = useDecide((s) => s.setDetailsView);
+  return (
+    <div>
+      <div className="px-6 pt-5">
+        <SubTabs<DetailsView>
+          value={view}
+          onChange={setView}
+          items={[
+            { key: "summary", label: "Summary" },
+            { key: "time", label: "Over time" },
+            { key: "components", label: "Per component" },
+            { key: "assumptions", label: "Assumptions" },
+          ]}
+        />
+      </div>
+      <div className="px-2 pb-4">
+        {view === "summary" && <DetailsSummary />}
+        {view === "time" && <ChartsTab />}
+        {view === "components" && <ComponentsTab />}
+        {view === "assumptions" && <AssumptionsTab />}
+      </div>
+    </div>
   );
 }
 
 export function DecideWorkspace() {
   const section = useDecide((s) => s.section);
   const setSection = useDecide((s) => s.setSection);
+  const setScorecardRunId = useDecide((s) => s.setScorecardRunId);
+  const showRun = useRuns((s) => s.showRun);
   const markInsightsSeen = useUi((s) => s.markInsightsSeen);
   const activeRunId = useRuns((s) => s.activeRunId);
+  const { run } = useDecideRun();
   const mainRef = useRef<HTMLElement>(null);
   const review = useDesignReview();
 
-  // Requests to "open results" (run history buttons, batch runs finishing) land on the matching section.
+  // Requests to "open results" (run history buttons, batch runs finishing) land on the matching place.
   useEffect(
     () =>
       useRuns.subscribe((s, prev) => {
-        if (s.drawerTab !== prev.drawerTab || (s.drawerOpen && !prev.drawerOpen)) {
-          useDecide.getState().setSection(sectionForDrawerTab(s.drawerTab));
-        }
+        if (s.drawerTab !== prev.drawerTab || (s.drawerOpen && !prev.drawerOpen)) useDecide.getState().goToDrawerTab(s.drawerTab);
       }),
     [],
   );
 
   useEffect(() => {
-    if (section === "insights" && activeRunId) markInsightsSeen(activeRunId);
-  }, [section, activeRunId, markInsightsSeen]);
+    if (activeRunId) markInsightsSeen(activeRunId);
+  }, [activeRunId, markInsightsSeen]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
   }, [section]);
 
-  const page = RESULT_PAGES[section];
+  // One run for every tab: picking it also puts it on the canvas.
+  const pickRun = (id: string) => {
+    setScorecardRunId(id);
+    void showRun(id);
+  };
 
   return (
-    <div className="flex h-full min-h-0 bg-page">
-      <nav className="flex w-52 shrink-0 flex-col border-r border-line bg-surface" aria-label="Results sections">
-        <div className="flex-1 overflow-y-auto py-3">
-          {GROUPS.map((g) => (
-            <div key={g.label} className="mb-3">
-              <p className="microlabel px-4 pb-1">
-                <span className="mr-1 opacity-60" aria-hidden>
-                  {"//"}
-                </span>
-                {g.label}
-              </p>
-              <ul>
-                {g.items.map((it) => {
-                  const active = section === it.key;
-                  return (
-                    <li key={it.key}>
-                      <button
-                        type="button"
-                        onClick={() => setSection(it.key)}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                          "relative flex w-full items-center gap-2.5 px-4 py-1.5 text-left text-[13px] transition-colors",
-                          active ? "bg-surface-2 font-medium text-ink" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
-                        )}
-                      >
-                        {active && <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent" aria-hidden />}
-                        <it.icon className={cn("size-4 shrink-0", active ? "text-accent" : "text-ink-3")} />
-                        <span className="flex-1 truncate">{it.label}</span>
-                        <NavBadge section={it.key} />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+    <div className="flex h-full min-h-0 flex-col bg-page">
+      <div className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-surface px-4" role="tablist" aria-label="Results">
+        {TABS.map((t) => {
+          const active = section === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setSection(t.key)}
+              className={cn(
+                "relative flex h-full items-center gap-2 px-3 text-[13.5px] font-medium transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full",
+                active ? "text-ink after:bg-accent" : "text-ink-3 hover:text-ink after:bg-transparent",
+              )}
+            >
+              <t.icon className={cn("size-4", active ? "text-accent" : "text-ink-3")} />
+              {t.label}
+              <TabBadge section={t.key} />
+            </button>
+          );
+        })}
+        <div className="ml-auto flex items-center gap-2">
+          <RunPicker value={run?.id ?? null} onChange={pickRun} label="" />
+          <Button size="sm" variant={section === "report" ? "soft" : "ghost"} onClick={() => setSection("report")}>
+            <FileText /> Report
+          </Button>
         </div>
-        <div className="border-t border-line">
-          <RunFooter />
-        </div>
-      </nav>
+      </div>
       <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto" aria-label="Results">
-        {section === "scorecard" && <Scorecard />}
-        {section === "tradeoffs" && <TradeoffMap />}
+        {section === "answer" && <AnswerPage />}
+        {section === "compare" && <ComparePage />}
         {section === "breaking" && <BreakingPoint />}
+        {section === "details" && <DetailsPage />}
         {section === "report" && <ReportSection review={review} />}
-        {page && (
-          <div>
-            <PageHeader kicker={page.kicker} title={page.title} description={page.description} />
-            <page.body />
-          </div>
-        )}
       </main>
     </div>
   );

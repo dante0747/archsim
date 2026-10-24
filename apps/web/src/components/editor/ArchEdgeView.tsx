@@ -6,7 +6,6 @@ import type { ArchEdge } from "@/lib/document";
 import { describeDistribution } from "@/lib/distributions";
 import { compact, compactRate } from "@/lib/format";
 import { faultsAt, fmtRate, runFaults } from "@/lib/recorder";
-import { REQ_GLYPH } from "@/lib/theme";
 import type { RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -127,6 +126,7 @@ function ArchEdgeViewImpl({
       {dots.map(({ i, type }) => (
         <Particle key={i} type={type} path={path} dur={dur} begin={-(i * dur) / SLOTS} />
       ))}
+      {(isMiss || showFlow || !!live?.latency || hasError || selected) && (
       <EdgeLabelRenderer>
         <div
           className={cn(
@@ -145,13 +145,8 @@ function ArchEdgeViewImpl({
             .filter(Boolean)
             .join(" · ")}
         >
-          {isMiss ? (
-            <span className="lowercase">miss</span>
-          ) : (
-            <span aria-label={types.join(" and ")} className="tracking-tight">
-              {types.map((t) => REQ_GLYPH[t]).join("")}
-            </span>
-          )}
+          {isMiss && <span className="lowercase">miss</span>}
+          {!isMiss && !showFlow && !live?.latency && <span className="lowercase">{types.join(" + ")}</span>}
           {showFlow && <span className="tabular font-semibold text-ink">{live ? fmtRate(rps) : compactRate(rps)}/s</span>}
           {live?.latency && (
             <span className="font-semibold text-ink" title="Injected network latency">
@@ -165,6 +160,7 @@ function ArchEdgeViewImpl({
           )}
         </div>
       </EdgeLabelRenderer>
+      )}
     </>
   );
 }

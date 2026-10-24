@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Logo } from "@/components/brand";
 import { HeroRecorder } from "@/components/projects/HeroRecorder";
 import { MiniDiagram } from "@/components/projects/MiniDiagram";
-import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
+import { TechIcon } from "@/components/TechIcon";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Empty } from "@/components/ui/misc";
@@ -25,25 +25,19 @@ const WORKSPACES = [
     key: "build",
     n: "01",
     title: "Design",
-    tagline: "draw it with real technologies",
-    text: "PostgreSQL with read replicas, sharded MongoDB, Cassandra quorums, Redis, Kafka, Kubernetes autoscaling, serverless, third-party APIs. A design review flags single points of failure, retry storms and timeout inversions as you draw.",
-    bullets: ["technology library", "design review", "docker-compose · k8s · mermaid export"],
+    text: "Drag in PostgreSQL, Redis, Kafka, Kubernetes services and more, and connect them.",
   },
   {
     key: "stress",
     n: "02",
     title: "Test",
-    tagline: "traffic · failures · replay",
-    text: "Shape traffic on a timeline, plan failures on it (outages, slowdowns, network latency), simulate, then replay the run: every component's utilization, queues and flow, second by second.",
-    bullets: ["traffic timeline", "failure injection", "second-by-second replay"],
+    text: "Send traffic, break things on purpose, and replay what happened second by second.",
   },
   {
     key: "decide",
     n: "03",
     title: "Results",
-    tagline: "objectives · cost · capacity",
-    text: "Score every run against your latency and availability objectives and error budget, see monthly cost and cost per million requests, compare options on a cost-vs-latency map, and find the load where the design breaks.",
-    bullets: ["scorecard", "trade-off map", "breaking-point finder"],
+    text: "Get a clear yes or no, the monthly cost, and the load where it breaks.",
   },
 ];
 
@@ -180,10 +174,8 @@ export function ProjectsHome() {
                 <span className="caret ml-1 inline-block h-[0.7em] w-[3px] translate-y-[0.04em] rounded-full bg-accent" aria-hidden />
               </span>
             </h1>
-            <p className="mt-6 max-w-xl text-[15.5px] leading-[1.65] text-ink-2">
-              Model the stack you actually run, push traffic and failures through it, replay every second of what happened, and
-              decide with objectives, cost and capacity curves. A discrete-event engine moves every single request; results are
-              estimates from the assumptions you enter, so they are reproducible and explainable, not guarantees.
+            <p className="mt-6 max-w-lg text-[17px] leading-[1.55] text-ink-2">
+              Draw your system, send traffic through it, and see where it breaks, before your users do.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               {starter && (
@@ -263,16 +255,8 @@ export function ProjectsHome() {
                 <div className="mb-3 flex items-baseline gap-3">
                   <span className="font-mono text-xs text-accent">{w.n}</span>
                   <span className="font-display text-[28px] leading-none text-ink">{w.title}</span>
-                  <span className="ml-auto text-[11.5px] text-ink-3">{w.tagline}</span>
                 </div>
-                <p className="text-[13px] leading-relaxed text-ink-2">{w.text}</p>
-                <ul className="mt-4 flex flex-wrap gap-1.5">
-                  {w.bullets.map((b) => (
-                    <li key={b} className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10.5px] text-ink-2">
-                      {b}
-                    </li>
-                  ))}
-                </ul>
+                <p className="text-[14px] leading-relaxed text-ink-2">{w.text}</p>
               </li>
             ))}
           </ol>
@@ -324,18 +308,8 @@ export function ProjectsHome() {
                         <ArrowRight className="ml-auto size-4 shrink-0 text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
                       )}
                     </div>
-                    <p className="line-clamp-3 text-[13px] leading-relaxed text-ink-2">{ex.description}</p>
-                    <div className="mt-auto space-y-0.5 pt-1 font-mono text-[11px] text-ink-3">
-                      <p>{meta}</p>
-                      {ex.tags.length > 0 && (
-                        <p className="truncate">
-                          {ex.tags
-                            .slice(0, 3)
-                            .map((t) => `#${t}`)
-                            .join(" ")}
-                        </p>
-                      )}
-                    </div>
+                    <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2" title={ex.description ?? undefined}>{ex.description}</p>
+                    <p className="mt-auto pt-1 font-mono text-[11px] text-ink-3">{meta}</p>
                   </div>
                 </button>
               );
@@ -464,24 +438,21 @@ function TechWall({ catalog }: { catalog: Catalog }) {
           <h2 id="tech-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
             Model the stack you <em className="italic text-ink-2">actually run</em>
           </h2>
-          <p className="mt-2 max-w-2xl text-sm text-ink-2">
-            Each profile is a component with transparent, editable defaults: replicas, shards, consistency, autoscaling, rate
-            limits. Behaviour comes from those numbers, and every default is marked as an assumption.
-          </p>
         </div>
       </div>
       <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line shadow-panel sm:grid-cols-2 lg:grid-cols-3">
         {groups.map(({ f, items: list }) => (
           <div key={f.key} className="surface-sheen bg-surface p-5">
-            <p className="mb-3 flex items-center gap-2">
-              <ShapeGlyph shape={SHAPE_OF[list[0].kind]} w={26} h={17} className="text-ink-2" />
-              <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-ink">{f.label}</span>
-            </p>
-            <ul className="space-y-1">
+            <p className="mb-3 text-[13px] font-semibold text-ink">{f.label}</p>
+            <ul className="flex flex-wrap gap-1.5">
               {list.map((p) => (
-                <li key={`${p.type}-${p.id}`} className="flex items-baseline gap-2" title={p.description}>
-                  <span className="truncate text-[13px] text-ink">{p.name}</span>
-                  <span className="ml-auto shrink-0 font-mono text-[10px] lowercase text-ink-3">{p.family}</span>
+                <li
+                  key={`${p.type}-${p.id}`}
+                  className="flex items-center gap-1.5 rounded-md border border-line bg-surface-2/50 px-2 py-1"
+                  title={p.description}
+                >
+                  <TechIcon technology={p.technology} kind={p.kind} size={14} />
+                  <span className="text-[12.5px] text-ink">{p.name}</span>
                 </li>
               ))}
             </ul>

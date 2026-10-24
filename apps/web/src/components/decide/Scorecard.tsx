@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { EmptyPanel, PageHeader, Panel, RunPicker, StatusMark, runDesignNow, runLabel, useDecideRun } from "./shared";
+import { EmptyPanel, Panel, StatusMark, runDesignNow, useDecideRun } from "./shared";
 
 // ---------------------------------------------------------------------------------------------
 // Objectives
@@ -119,17 +119,16 @@ function ObjectiveTile({ k, check, objectives }: { k: SloKey; check: SloCheck | 
         <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider">
           <Plus className="size-3.5" /> {meta.label}
         </span>
-        <span className="text-[12px]">Set a target: {meta.hint}.</span>
+        <span className="text-[12px]">Add a target</span>
       </button>
     );
   }
   return (
     <div className="flex min-h-36 flex-col rounded-md border border-line bg-surface p-4">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="microlabel">{meta.label}</p>
-          <p className="truncate text-[11px] text-ink-3">{meta.hint}</p>
-        </div>
+        <p className="min-w-0 text-[12.5px] font-medium text-ink-2" title={meta.hint}>
+          {meta.label}
+        </p>
         {check && <StatusMark pass={check.pass} />}
       </div>
       <p className="tabular mt-2 font-mono text-[26px] font-semibold leading-8 tracking-tight text-ink">{check ? formatSloValue(k, check.actual) : "–"}</p>
@@ -141,9 +140,6 @@ function ObjectiveTile({ k, check, objectives }: { k: SloKey; check: SloCheck | 
           <>
             <span className="font-mono text-[11px] text-ink-2">
               target {k === "availability" || k === "throughput" ? "≥" : "≤"} {target == null ? "–" : formatSloValue(k, target)}
-              {k === "availability" && check?.actual != null && (
-                <span className="text-ink-3"> · failures {fmtPct(1 - check.actual, 2)} of ≤ {fmtPct(1 - check.target, 2)}</span>
-              )}
             </span>
             <button type="button" onClick={() => setEditing(true)} className="rounded-sm p-1 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${meta.label} target`}>
               <Pencil className="size-3.5" />
@@ -176,7 +172,7 @@ function burnDown(report: Report, availability: number) {
   return rows;
 }
 
-function ErrorBudgetPanel({ report, objectives }: { report: Report; objectives: Objectives }) {
+export function ErrorBudgetPanel({ report, objectives }: { report: Report; objectives: Objectives }) {
   const budget = errorBudget(objectives, report);
   const rows = useMemo(() => (objectives.availability != null ? burnDown(report, objectives.availability) : []), [report, objectives.availability]);
   if (!budget || objectives.availability == null) {
@@ -265,10 +261,10 @@ function CostPanel({ report }: { report: Report }) {
   const cost = useMemo(() => estimateCost(report.input.architecture.nodes, catalog, report), [report, catalog]);
   const max = Math.max(...cost.byNode.map((c) => c.monthly), 1e-9);
   return (
-    <Panel title="Cost estimate" subtitle="from the cost assumptions on each component">
+    <Panel title="Cost per month">
       {!cost.hasCost ? (
         <p className="text-[12.5px] leading-relaxed text-ink-2">
-          No component has a price yet. Set <b className="text-ink">Cost per hour</b> on components in Design to compare options by cost.
+          No prices set. Add <b className="text-ink">Cost per hour</b> on parts in Design.
         </p>
       ) : (
         <>
@@ -317,41 +313,49 @@ function CostPanel({ report }: { report: Report }) {
 // Page
 // ---------------------------------------------------------------------------------------------
 
-export function Scorecard() {
+const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2, ok: 3 };
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dd className="tabular font-mono text-[22px] font-semibold leading-7 tracking-tight text-ink">{value}</dd>
+      <dt className="text-[12px] text-ink-3">{label}</dt>
+    </div>
+  );
+}
+
+/** Results → Answer: does the design hold up, why, and what to fix first. */
+export function AnswerPage() {
   const objectives = useEditor((s) => s.objectives);
   const catalog = useEditor((s) => s.catalog);
-  const setScorecardRunId = useDecide((s) => s.setScorecardRunId);
-  const setSection = useDecide((s) => s.setSection);
+  const setDetailsView = useDecide((s) => s.setDetailsView);
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
   const running = followRun && (followRun.status === "queued" || followRun.status === "running") ? followRun : null;
   const { run, report } = useDecideRun();
 
   if (!run || !report) {
     return (
-      <div>
-        <PageHeader kicker="summary" title="Does the design meet its objectives?" description="Press Simulate to score the design against its latency, availability and throughput objectives, its error budget and its cost." />
-        <div className="space-y-4 p-6">
-          {running && <RunProgress run={running} />}
-          {!running && (
-            <EmptyPanel
-              icon={<Play />}
-              title={run ? "Loading the run…" : "No results to score yet"}
-              action={
-                !run && (
-                  <Button variant="primary" onClick={runDesignNow}>
-                    <Play className="fill-current" /> Run simulation
-                  </Button>
-                )
-              }
-            >
-              The scorecard compares one run with your objectives. Set targets now; they are saved with the design.
-            </EmptyPanel>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {ORDER.map((k) => (
-              <ObjectiveTile key={k} k={k} check={undefined} objectives={objectives} />
-            ))}
-          </div>
+      <div className="mx-auto max-w-5xl space-y-5 px-6 py-8">
+        {running && <RunProgress run={running} />}
+        {!running && (
+          <EmptyPanel
+            icon={<Play />}
+            title={run ? "Loading the run…" : "No results yet"}
+            action={
+              !run && (
+                <Button variant="primary" onClick={runDesignNow}>
+                  <Play className="fill-current" /> Simulate
+                </Button>
+              )
+            }
+          >
+            Set your targets below, then simulate.
+          </EmptyPanel>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {ORDER.map((k) => (
+            <ObjectiveTile key={k} k={k} check={undefined} objectives={objectives} />
+          ))}
         </div>
       </div>
     );
@@ -364,82 +368,71 @@ export function Scorecard() {
   const tone = slo.pass === true ? "good" : slo.pass === false ? "bad" : "none";
   const VerdictIcon = tone === "good" ? CircleCheck : tone === "bad" ? CircleAlert : CircleDashed;
   const toneColor = tone === "good" ? "var(--status-good)" : tone === "bad" ? "var(--status-critical)" : "var(--ink-3)";
-  const title =
-    slo.total === 0 ? "No objectives set" : slo.pass === true ? `Meets all ${slo.total} objectives` : slo.pass === false ? `Misses ${slo.total - slo.met} of ${slo.total} objectives` : "Not enough data to decide";
-  const findings = report.findings.filter((f) => f.kind !== "healthy");
+  const missed = checks.filter((c) => c.pass === false);
+  const headline =
+    slo.total === 0 ? "No objectives yet" : slo.pass === true ? "Yes, it holds up." : slo.pass === false ? "No, it doesn’t hold up." : "Not enough data yet.";
+  const reason =
+    slo.total === 0
+      ? "Set a latency or availability target below to get a yes or no."
+      : slo.pass === false
+        ? missed.map((c) => `${c.label} ${formatSloValue(c.key, c.actual)} (target ${c.better === "lower" ? "≤" : "≥"} ${formatSloValue(c.key, c.target)})`).join(" · ")
+        : slo.pass === true
+          ? `Meets all ${slo.total} objectives at ${fmtRps(report.summary.offeredRps)}.`
+          : "Try a longer run or more traffic.";
+  const findings = report.findings
+    .filter((f) => f.kind !== "healthy")
+    .sort((a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9));
 
   return (
-    <div>
-      <PageHeader
-        kicker="summary"
-        title="Does the design meet its objectives?"
-        actions={<RunPicker value={run.id} onChange={(id) => setScorecardRunId(id)} />}
-      />
-      <div className="space-y-4 p-6">
-        {running && <RunProgress run={running} />}
+    <div className="mx-auto max-w-5xl space-y-8 px-6 py-8">
+      {running && <RunProgress run={running} />}
 
-        <section className="relative flex flex-wrap items-center justify-between gap-x-8 gap-y-3 overflow-hidden rounded-md border border-line bg-surface px-5 py-4" aria-label="Verdict">
-          <span className="absolute inset-y-0 left-0 w-1" style={{ background: toneColor }} aria-hidden />
-          <div className="flex min-w-0 items-center gap-3">
-            <VerdictIcon className="size-7 shrink-0" style={{ color: toneColor }} aria-hidden />
-            <div className="min-w-0">
-              <p className="microlabel">verdict · {runLabel(run)} · seed {run.seed}</p>
-              <p className="text-xl font-semibold tracking-tight text-ink">{title}</p>
-              <p className="truncate text-[12.5px] text-ink-2">
-                {fmtRps(report.summary.throughputRps)} of {fmtRps(report.summary.offeredRps)} offered
-                {bottleneck ? ` · ${bottleneck.title}` : " · no component saturated"}
-              </p>
-            </div>
+      <section aria-label="Answer">
+        <div className="flex items-start gap-4">
+          <VerdictIcon className="mt-1.5 size-9 shrink-0" style={{ color: toneColor }} aria-hidden />
+          <div className="min-w-0">
+            <h2 className="font-display text-[44px] leading-[1.05] tracking-[-0.02em] text-ink">{headline}</h2>
+            <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{reason}</p>
+            {bottleneck && <p className="mt-1 text-[15px] text-ink">{bottleneck.title}.</p>}
           </div>
-          <dl className="flex shrink-0 gap-6 font-mono">
-            <div>
-              <dt className="microlabel">objectives</dt>
-              <dd className="tabular text-[15px] font-semibold text-ink">
-                {slo.met}/{slo.total}
-              </dd>
-            </div>
-            {cost.hasCost && (
-              <>
-                <div>
-                  <dt className="microlabel">per month</dt>
-                  <dd className="tabular text-[15px] font-semibold text-ink">{formatUsd(cost.monthly)}</dd>
-                </div>
-                <div>
-                  <dt className="microlabel">per 1M req</dt>
-                  <dd className="tabular text-[15px] font-semibold text-ink">{formatUsd(cost.perMillionRequests)}</dd>
-                </div>
-              </>
-            )}
-          </dl>
-        </section>
+        </div>
+        <dl className="mt-6 flex flex-wrap gap-x-12 gap-y-4 border-t border-line pt-5">
+          <Stat label="objectives met" value={`${slo.met}/${slo.total}`} />
+          <Stat label="handled" value={fmtRps(report.summary.throughputRps)} />
+          <Stat label="latency p95" value={formatSloValue("p95", report.summary.latencyMs.p95)} />
+          <Stat label="success" value={fmtPct(report.summary.successRate, report.summary.successRate === 1 ? 0 : 1)} />
+          {cost.hasCost && <Stat label="per month" value={formatUsd(cost.monthly)} />}
+        </dl>
+      </section>
 
+      {findings.length > 0 && (
+        <section aria-label="Fix first">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h3 className="text-[15px] font-semibold text-ink">{slo.pass === false ? "Fix first" : "Worth a look"}</h3>
+            {findings.length > 2 && (
+              <Button size="sm" variant="ghost" onClick={() => setDetailsView("summary")}>
+                All {findings.length} findings <ArrowRight />
+              </Button>
+            )}
+          </div>
+          <ul className={cn("grid gap-2", findings.length > 1 && "lg:grid-cols-2")}>
+            {findings.slice(0, 2).map((f, i) => (
+              <FindingCard key={`${f.kind}-${i}`} f={f} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section aria-label="Objectives">
+        <h3 className="mb-3 text-[15px] font-semibold text-ink">Objectives</h3>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {ORDER.map((k) => (
             <ObjectiveTile key={k} k={k} check={checks.find((c) => c.key === k)} objectives={objectives} />
           ))}
         </div>
+      </section>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          <ErrorBudgetPanel report={report} objectives={objectives} />
-          <CostPanel report={report} />
-        </div>
-
-        <Panel
-          title="What to look at"
-          subtitle={findings.length ? `${findings.length} finding${findings.length > 1 ? "s" : ""} from this run` : "no issues found"}
-          actions={
-            <Button size="sm" variant="ghost" onClick={() => setSection("insights")}>
-              All insights <ArrowRight />
-            </Button>
-          }
-        >
-          <ul className={cn("grid gap-2", findings.length > 1 && "lg:grid-cols-2")}>
-            {(findings.length ? findings.slice(0, 4) : report.findings.slice(0, 1)).map((f, i) => (
-              <FindingCard key={`${f.kind}-${i}`} f={f} />
-            ))}
-          </ul>
-        </Panel>
-      </div>
+      <CostPanel report={report} />
     </div>
   );
 }
