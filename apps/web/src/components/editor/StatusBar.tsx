@@ -36,8 +36,10 @@ export function StatusBar() {
   const running = !!followRun && (followRun.status === "queued" || followRun.status === "running");
   const reads = Math.round(w.readRatio * 100);
 
-  const validity =
-    validation === "pending" ? (
+  const empty = nodeCount === 0;
+  const validity = empty ? (
+    <span className="text-ink-3">empty design</span>
+  ) : validation === "pending" ? (
       <>
         <LoaderCircle className="size-3 animate-spin" /> checking
       </>

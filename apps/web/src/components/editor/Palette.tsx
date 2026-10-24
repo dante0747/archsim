@@ -87,8 +87,8 @@ export function ComponentRail() {
   const counts = (f: Family) => items.filter((i) => familyOfItem(i).key === f.key && i.preset).length;
 
   return (
-    <aside className="relative z-20 flex h-full w-[72px] shrink-0 flex-col items-center gap-0.5 border-r border-line bg-surface py-2.5" aria-label="Technology library">
-      <span className="microlabel mb-1.5 !text-[9px]">add</span>
+    <aside data-tour="rail" className="relative z-20 flex h-full w-[72px] shrink-0 flex-col items-center gap-0.5 border-r border-line bg-surface py-2.5" aria-label="Technology library">
+      <span className="microlabel mb-1.5 !text-[9px]">add parts</span>
       {families.map((f) => {
         const type = familyType(f, items);
         const active = libraryOpen && family === f.key;

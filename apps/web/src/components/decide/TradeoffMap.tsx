@@ -105,13 +105,13 @@ export function TradeoffMap() {
 
   const header = (
     <PageHeader
-      kicker="trade-offs"
+      kicker="cost vs. speed"
       title="Cost against latency, for every option you ran"
       description="Each point is a run. Lower and further left is better. Points on the Pareto frontier are the only sensible choices: every other option costs more for the same or worse latency."
       actions={
         scenarioCount > 0 && (
           <Button onClick={runAllScenariosNow} disabled={starting}>
-            <GitCompareArrows /> Run all scenarios
+            <GitCompareArrows /> Simulate all scenarios
           </Button>
         )
       }
@@ -128,7 +128,7 @@ export function TradeoffMap() {
             title="No runs to compare yet"
             action={
               <Button variant="primary" onClick={scenarioCount ? runAllScenariosNow : runDesignNow}>
-                <Play className="fill-current" /> {scenarioCount ? "Run all scenarios" : "Run simulation"}
+                <Play className="fill-current" /> {scenarioCount ? "Simulate all scenarios" : "Simulate"}
               </Button>
             }
           >
@@ -185,7 +185,7 @@ export function TradeoffMap() {
         )}
         {points.length < 2 && !loading && (
           <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] text-ink-2">
-            One option is not a trade-off. {scenarioCount ? "Run all scenarios" : "Add scenarios in Build (e.g. 3 replicas, MongoDB instead of PostgreSQL) and run them"} to put
+            One option is not a trade-off. {scenarioCount ? "Simulate all scenarios" : "Add scenarios in Design (e.g. 3 replicas, MongoDB instead of PostgreSQL) and simulate them"} to put
             alternatives on the map.
           </p>
         )}

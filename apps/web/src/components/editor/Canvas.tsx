@@ -27,6 +27,7 @@ import { checkConnection } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { useUi } from "@/store/ui";
 
 const nodeTypes = { arch: ArchNodeView };
 const edgeTypes = { arch: ArchEdgeView };
@@ -43,9 +44,9 @@ const defaultEdgeOptions = {
 
 function EmptyState() {
   const steps = [
-    { icon: MousePointerClick, title: "add", text: "Drag a shape from the left rail, or click one. Start with Clients." },
-    { icon: Cable, title: "link", text: "Drag from a square pin on the right of a shape to the next one." },
-    { icon: Play, title: "run", text: "Press Run (Ctrl Enter) and watch queues, latency and bottlenecks." },
+    { icon: MousePointerClick, title: "add", text: "Drag a part from the left onto the canvas. Start with Clients: they send the traffic." },
+    { icon: Cable, title: "connect", text: "Drag from the small square on a part's right edge to the next part." },
+    { icon: Play, title: "simulate", text: "Press Simulate (top right) and watch where the design struggles." },
   ];
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
@@ -54,7 +55,7 @@ function EmptyState() {
           <span className="text-accent">{"//"}</span> empty canvas
         </p>
         <h2 className="mt-2 font-display text-[34px] leading-[1.05] tracking-[-0.015em] text-ink">
-          Sketch a system, then <em className="text-gradient pr-1 italic">stress it</em>
+          Sketch a system, then <em className="text-gradient pr-1 italic">test it</em>
         </h2>
         <ol className="mt-5 grid gap-2 sm:grid-cols-3">
           {steps.map((s, i) => (
@@ -90,6 +91,7 @@ export function Canvas() {
   const activeReport = useRuns((s) => (s.activeRunId ? s.reports[s.activeRunId] : null));
   const activeRunId = useRuns((s) => s.activeRunId);
   const drawerOpen = useRuns((s) => s.drawerOpen);
+  const mode = useUi((s) => s.mode);
   const rf = useReactFlow<ArchNode, ArchEdge>();
   const wrapRef = useRef<HTMLDivElement>(null);
   const dark = useIsDark();
@@ -103,6 +105,31 @@ export function Canvas() {
     didInitialFit.current = true;
     void rf.fitView({ padding: FIT_PAD, maxZoom: 1 });
   }, [nodesInitialized, rf]);
+
+  // Keep the whole design in view: reframe when the workspace changes, and when the canvas is
+  // resized (panels, timeline) until the user pans or zooms it themselves.
+  const userMoved = useRef(false);
+  useEffect(() => {
+    if (!didInitialFit.current) return;
+    userMoved.current = false;
+    const t = setTimeout(() => void rf.fitView({ padding: FIT_PAD, maxZoom: 1, duration: 250 }), 60);
+    return () => clearTimeout(t);
+  }, [mode, rf]);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const ro = new ResizeObserver(() => {
+      if (userMoved.current || !didInitialFit.current) return;
+      if (t) clearTimeout(t);
+      t = setTimeout(() => void rf.fitView({ padding: FIT_PAD, maxZoom: 1 }), 120);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      if (t) clearTimeout(t);
+    };
+  }, [rf]);
 
   useEffect(() => {
     if (firstLayout.current) {
@@ -189,7 +216,7 @@ export function Canvas() {
   };
 
   return (
-    <div ref={wrapRef} className="canvas-atmosphere relative h-full w-full" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+    <div ref={wrapRef} data-tour="canvas" className="canvas-atmosphere relative h-full w-full" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       {/* Shared paint for node bodies: a faint top-down gradient gives shapes a sense of material. */}
       <svg width="0" height="0" className="absolute" aria-hidden>
         <defs>
@@ -209,6 +236,9 @@ export function Canvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd}
+        onMoveStart={(e) => {
+          if (e) userMoved.current = true;
+        }}
         isValidConnection={isValidConnection}
         onNodeClick={() => setRightTab("inspect")}
         onEdgeClick={() => setRightTab("inspect")}

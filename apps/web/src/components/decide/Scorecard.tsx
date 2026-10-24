@@ -268,7 +268,7 @@ function CostPanel({ report }: { report: Report }) {
     <Panel title="Cost estimate" subtitle="from the cost assumptions on each component">
       {!cost.hasCost ? (
         <p className="text-[12.5px] leading-relaxed text-ink-2">
-          No component has a price yet. Set <b className="text-ink">Cost per hour</b> on components in Build to compare options by cost.
+          No component has a price yet. Set <b className="text-ink">Cost per hour</b> on components in Design to compare options by cost.
         </p>
       ) : (
         <>
@@ -329,7 +329,7 @@ export function Scorecard() {
   if (!run || !report) {
     return (
       <div>
-        <PageHeader kicker="scorecard" title="Does the design meet its objectives?" description="Run the design to score it against latency, availability and throughput objectives, its error budget and its cost." />
+        <PageHeader kicker="summary" title="Does the design meet its objectives?" description="Press Simulate to score the design against its latency, availability and throughput objectives, its error budget and its cost." />
         <div className="space-y-4 p-6">
           {running && <RunProgress run={running} />}
           {!running && (
@@ -371,7 +371,7 @@ export function Scorecard() {
   return (
     <div>
       <PageHeader
-        kicker="scorecard"
+        kicker="summary"
         title="Does the design meet its objectives?"
         actions={<RunPicker value={run.id} onChange={(id) => setScorecardRunId(id)} />}
       />

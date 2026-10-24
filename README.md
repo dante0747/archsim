@@ -14,15 +14,19 @@ capacity curves. Same document and seed, same result.
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![The Stress workspace replaying a Black Friday ramp at t = 62 s: the Kubernetes checkout service glows red while the autoscaler catches up, the timeline below shows heat lanes per component (blue to amber to red), latency against the SLO and failures, and the experiment panel reports "Hypothesis held"](docs/images/editor-results.jpg)
+![The Test workspace replaying a Black Friday ramp: the Kubernetes checkout service glows red while the autoscaler catches up, the timeline below shows heat lanes per component (blue to amber to red), latency against the objective and failures, and the test plan panel reports the result](docs/images/editor-results.jpg)
 
-*The flight recorder replaying the Black Friday on Kubernetes template. Captured at 800x500; a demo GIF is still to be recorded.*
+*The Test workspace replaying the Black Friday on Kubernetes template. A demo GIF is still to be recorded.*
 
 ## What you can do
 
-ArchSim has three workspaces around one canvas: **Build → Stress → Decide** (keys 1, 2, 3).
+ArchSim has three workspaces around one canvas: **Design → Test → Results** (keys 1, 2, 3), and
+one **Simulate** button (Ctrl/⌘ Enter) that runs the design from wherever you are. Results land
+on the canvas right away; nothing switches workspace behind your back. A 30-second guided tour
+opens on the first visit (and from the **?** button), and a "next step" hint under the top bar
+always says what to do next, for example adding API servers behind a lone Clients box.
 
-**Build: design with real technologies**
+**Design: draw it with real technologies**
 - A technology library with transparent profiles: relational (PostgreSQL, MySQL, SQL Server,
   distributed SQL), document (MongoDB replica sets and sharded clusters), wide-column
   (Cassandra), key-value (DynamoDB-style provisioned throughput), search (Elasticsearch),
@@ -38,17 +42,17 @@ ArchSim has three workspaces around one canvas: **Build → Stress → Decide** 
 - Export the design as docker-compose, Kubernetes manifests (Deployments, Services, HPAs,
   StatefulSets) or Mermaid, as reviewed starting points.
 
-**Stress: traffic, chaos and the flight recorder**
-- Shape the traffic on a timeline (constant, ramp, burst) by dragging it, and drop faults on it:
-  a component outage, a slowdown, extra network latency on a link. One-click chaos experiments
+**Test: traffic, failures and replay**
+- Shape the traffic on a timeline (constant, ramp, burst) by dragging it, and plan failures on
+  it: a component outage, a slowdown, extra network latency on a link. Quick failure tests
   ("lose the cache for 15 s", "database 4× slower", "+300 ms on a link", "3× spike").
-- Run and the **flight recorder** replays the run: scrub or play the timeline and the canvas
-  shows each component's utilization, queue and traffic at that second, with heat lanes per
-  component, latency against the SLO, and markers for faults, saturation and SLO breaches.
-- Every experiment gets a verdict against its hypothesis (your SLOs), including what happened
-  inside each fault window.
+- Every run is recorded second by second and replays on the timeline and the canvas: each
+  component's utilization, queue and traffic at that second, with heat lanes per component,
+  latency against the objective, and markers for failures, saturation and breaches.
+- Every test gets a result against its objectives (what must stay true), including what
+  happened during each failure.
 
-**Decide: SLOs, cost and capacity**
+**Results: objectives, cost and capacity**
 - A scorecard per run: SLO checks (p95/p99 latency, availability, throughput), error budget
   burn-down, monthly cost and cost per million requests from per-component cost assumptions.
 - A trade-off map of every run and scenario (cost vs latency, SLO pass/fail, Pareto frontier).
@@ -63,11 +67,11 @@ keyboard shortcuts, light and dark themes. Projects live in PostgreSQL (or SQLit
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
 
-| Build: technology library, design review, technology picker | Decide: scorecard against your SLOs |
+| Design: design review with the parts each finding is about | Results: summary against your objectives |
 | --- | --- |
-| ![Build workspace: the design review lists a cache without fallback and a timeout inversion; Orders DB is selected with the PostgreSQL technology picker and read replicas](docs/images/build.jpg) | ![Decide scorecard: meets 2 of 2 objectives, p95 434 ms against 500 ms, availability 99.8%, error budget 45% used, $1,235 per month](docs/images/scorecard.jpg) |
-| **Decide: trade-off map** | **Home** |
-| ![Trade-off map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page with the animated flight-recorder illustration](docs/images/home.jpg) |
+| ![Design workspace: the design review explains a cache without fallback and a timeout inversion; clicking the cache finding selects Checkout API and the Redis catalog cache and frames them beside the panel](docs/images/build.jpg) | ![Results summary: meets 2 of 2 objectives, p95 434 ms against 500 ms, availability 99.8%, error budget 45% used, $1,235 per month](docs/images/scorecard.jpg) |
+| **Results: cost vs. speed** | **Home** |
+| ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page with the animated replay illustration](docs/images/home.jpg) |
 
 ## Quick start
 

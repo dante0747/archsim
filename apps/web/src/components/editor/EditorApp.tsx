@@ -10,6 +10,7 @@ import { DecideWorkspace } from "@/components/decide/DecideWorkspace";
 import { useEditorActions } from "@/components/editor/actions";
 import { Canvas } from "@/components/editor/Canvas";
 import { CommandPalette } from "@/components/editor/CommandPalette";
+import { GuidedTour, hasSeenTour } from "@/components/editor/GuidedTour";
 import { Inspector } from "@/components/editor/Inspector";
 import { ComponentRail } from "@/components/editor/Palette";
 import { StatusBar } from "@/components/editor/StatusBar";
@@ -117,7 +118,7 @@ function useLiveValidation() {
   }, []);
 }
 
-/** Wiring between runs and workspaces: results open in Decide, finished runs replay in Stress. */
+/** Wiring between runs and workspaces: results open in Results (decide), finished runs replay in Test (stress). */
 function useWorkspaceWiring() {
   const mode = useUi((s) => s.mode);
   const activeRunId = useRuns((s) => s.activeRunId);
@@ -216,6 +217,13 @@ function EditorShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [save, run]);
 
+  // First visit on a roomy screen: show the 30-second tour once.
+  useEffect(() => {
+    if (hasSeenTour() || window.innerWidth < 1024) return;
+    const t = window.setTimeout(() => useUi.getState().setTourOpen(true), 700);
+    return () => window.clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (useEditor.getState().dirty) {
@@ -265,6 +273,7 @@ function EditorShell() {
       <StatusBar />
       <CommandPalette onShowShortcuts={() => setShortcutsOpen(true)} />
       <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
+      <GuidedTour />
     </div>
   );
 }

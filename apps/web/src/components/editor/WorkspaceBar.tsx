@@ -16,7 +16,7 @@ export function WorkspaceBar() {
     next?.tone === "critical" ? "var(--status-critical)" : next?.tone === "success" ? "var(--status-good)" : "var(--accent)";
   return (
     <div className="relative z-20 flex h-12 shrink-0 items-stretch gap-4 border-b border-line bg-surface/85 pl-2 pr-3 backdrop-blur-md">
-      <nav role="tablist" aria-label="Workspaces" className="flex shrink-0 items-stretch">
+      <nav role="tablist" aria-label="Workspaces" className="flex shrink-0 items-stretch" data-tour="workspaces">
         {steps.map((s, i) => {
           const active = mode === s.key;
           return (

@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   CircleAlert,
+  CircleHelp,
   Download,
   FileCode2,
   Keyboard,
@@ -24,6 +25,7 @@ import {
 import Link from "next/link";
 import { useRef } from "react";
 import { useEditorActions } from "@/components/editor/actions";
+import { startTour } from "@/components/editor/GuidedTour";
 import { LogoMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Kbd, Tip } from "@/components/ui/misc";
@@ -45,9 +47,9 @@ import { useUi } from "@/store/ui";
 
 export const SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ K  ·  /", "Command palette"],
-  ["1  ·  2  ·  3", "Build · Stress · Decide workspaces"],
+  ["1  ·  2  ·  3", "Design · Test · Results"],
   ["Ctrl/⌘ S", "Save"],
-  ["Ctrl/⌘ Enter", "Run simulation"],
+  ["Ctrl/⌘ Enter", "Simulate"],
   ["Ctrl/⌘ Z", "Undo"],
   ["Ctrl/⌘ Shift Z  ·  Ctrl Y", "Redo"],
   ["Ctrl/⌘ D", "Duplicate selected components"],
@@ -85,20 +87,25 @@ function RunControl() {
       </button>
     );
   }
+  const hasScenarios = scenarios.length > 0;
   return (
-    <div className="flex h-8 items-stretch">
-      <Tip content={<>Run simulation <Kbd>Ctrl Enter</Kbd></>}>
+    <div className="flex h-8 items-stretch" data-tour="simulate">
+      <Tip content={<>Send traffic through {target ? `“${target.name}”` : "the design"} and record what happens <Kbd>Ctrl Enter</Kbd></>}>
         <button
           type="button"
           onClick={() => void run()}
           disabled={starting}
           data-testid="run-button"
-          className="accent-fill flex items-center gap-1.5 rounded-l-md pl-3 pr-3 text-[13px] font-semibold transition-[filter] hover:brightness-[1.08] disabled:opacity-60"
+          className={cn(
+            "accent-fill flex items-center gap-1.5 pl-3 pr-3.5 text-[13px] font-semibold transition-[filter] hover:brightness-[1.08] disabled:opacity-60",
+            hasScenarios ? "rounded-l-md" : "rounded-md",
+          )}
         >
           {starting ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5 fill-current" />}
-          Run
+          Simulate
         </button>
       </Tip>
+      {hasScenarios && (
       <Menu>
         <MenuTrigger asChild>
           <button
@@ -106,7 +113,7 @@ function RunControl() {
             aria-label="Choose what to simulate"
             className="flex max-w-48 items-center gap-1 rounded-r-md border border-l-0 border-line-strong bg-surface px-2.5 text-[12.5px] text-ink-2 shadow-panel transition-colors hover:bg-surface-2 hover:text-ink"
           >
-            <span className="truncate">{target ? target.name : "Design as drawn"}</span>
+            <span className="truncate">{target ? target.name : "Current design"}</span>
             <ChevronDown className="size-3.5 shrink-0" />
           </button>
         </MenuTrigger>
@@ -115,11 +122,12 @@ function RunControl() {
           <MenuItem onSelect={() => selectScenario(null)}>
             <Check className={cn(!target ? "opacity-100" : "opacity-0")} />
             <span>
-              <span className="block">Design as drawn</span>
+              <span className="block">Current design</span>
               <span className="block text-[11px] text-ink-3">Exactly what is on the canvas</span>
             </span>
           </MenuItem>
-          {scenarios.length > 0 && <MenuSeparator />}
+          <MenuSeparator />
+          <MenuLabel>Or a what-if scenario</MenuLabel>
           {scenarios.map((s) => (
             <MenuItem key={s.id} onSelect={() => selectScenario(s.id)}>
               <Check className={cn(target?.id === s.id ? "opacity-100" : "opacity-0")} />
@@ -133,6 +141,7 @@ function RunControl() {
           ))}
         </MenuContent>
       </Menu>
+      )}
     </div>
   );
 }
@@ -141,8 +150,10 @@ function ProblemsPill() {
   const issues = useEditor((s) => s.issues);
   const validation = useEditor((s) => s.validation);
   const select = useEditor((s) => s.select);
+  const empty = useEditor((s) => s.nodes.length === 0);
   const errors = issues.filter((i) => i.severity === "error");
   const warnings = issues.filter((i) => i.severity === "warning");
+  if (empty) return null; // the empty canvas explains what to do; no red flags yet
   if (!issues.length) {
     return (
       <span className="hidden items-center gap-1 px-2 py-1 font-mono text-[10.5px] text-ink-3 lg:flex" aria-live="polite">
@@ -316,6 +327,9 @@ export function TopBar({
               <Upload /> Import JSON into this project
             </MenuItem>
             <MenuSeparator />
+            <MenuItem onSelect={startTour}>
+              <CircleHelp /> Take the tour
+            </MenuItem>
             <MenuItem onSelect={() => onShortcutsOpenChange(true)}>
               <Keyboard /> Keyboard shortcuts <Kbd className="ml-auto">?</Kbd>
             </MenuItem>
@@ -326,6 +340,11 @@ export function TopBar({
             </MenuItem>
           </MenuContent>
         </Menu>
+        <Tip content="How it works: a 30-second tour">
+          <Button variant="ghost" size="icon" onClick={startTour} aria-label="Take the tour">
+            <CircleHelp />
+          </Button>
+        </Tip>
         <ThemeToggle />
         <Tip content={showInspector ? "Hide side panel" : "Show side panel"}>
           <Button variant="ghost" size="icon" onClick={onToggleInspector} aria-pressed={showInspector} aria-label="Toggle side panel">

@@ -8,7 +8,6 @@
 import { CircleCheck, CircleHelp, CircleX, Crosshair, FlaskConical, LoaderCircle, Pencil, Play, Plus, Square, TrendingUp, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useEditorActions } from "@/components/editor/actions";
 import { NumberInput } from "@/components/editor/FieldControl";
 import { PatternEditor } from "@/components/editor/WorkloadPanel";
 import { AddFaultMenu, FaultFields, FaultIcon, removeFault, useFaultContext } from "@/components/stress/faultUi";
@@ -85,7 +84,7 @@ function HypothesisCard() {
   const pos = (v: number) => (v <= 0 ? "Must be > 0" : null);
   return (
     <Section
-      title="Hypothesis"
+      title="Objectives"
       actions={
         <button
           type="button"
@@ -98,10 +97,10 @@ function HypothesisCard() {
       }
     >
       <div className="rounded-md border border-line bg-surface-2 p-3">
-        <p className="font-mono text-[10.5px] uppercase tracking-wider text-ink-3">steady state</p>
+        <p className="font-mono text-[10.5px] uppercase tracking-wider text-ink-3">must stay true</p>
         <p className="mt-1 font-mono text-[12.5px] font-semibold leading-5 text-ink">{objectivesSummary(objectives)}</p>
         <p className="mt-1.5 text-[11px] leading-4 text-ink-3">
-          Holds when these are met over the run and in every second of each fault window.
+          Checked over the whole run and in every second of each failure.
         </p>
         {editing && (
           <div className="mt-3 space-y-2.5 border-t border-dashed border-line-strong pt-3">
@@ -216,7 +215,7 @@ function FaultList() {
   const hasReport = useRuns((s) => s.activeRunId !== null);
   return (
     <Section
-      title={`Faults${faults.length ? ` · ${faults.length}` : ""}`}
+      title={`Failures${faults.length ? ` · ${faults.length}` : ""}`}
       actions={
         <AddFaultMenu align="end">
           <button type="button" className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[10.5px] text-ink-3 hover:bg-surface-2 hover:text-accent">
@@ -227,7 +226,7 @@ function FaultList() {
     >
       {faults.length === 0 ? (
         <p className="rounded-md border border-dashed border-line-strong p-3 text-[11.5px] leading-relaxed text-ink-2">
-          No faults: the run measures the steady state. Add a fault or pick an experiment below.
+          None planned: the run tests normal operation. Add a failure, or pick a quick test below.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -246,8 +245,8 @@ function FaultList() {
                       type="button"
                       onClick={() => setPlayhead(f.startS)}
                       className="shrink-0 rounded-sm p-0.5 text-ink-3 hover:text-accent"
-                      title="Jump the replay to the start of this fault"
-                      aria-label="Jump to fault start"
+                      title="Jump the replay to the start of this failure"
+                      aria-label="Jump to failure start"
                     >
                       <Crosshair className="size-3.5" />
                     </button>
@@ -277,9 +276,9 @@ function PresetList() {
   const setWorkload = useEditor((s) => s.setWorkload);
   const presets = useMemo(() => chaosPresets(nodes, edges, catalog, workload), [nodes, edges, catalog, workload]);
   return (
-    <Section title="One-click experiments">
+    <Section title="Quick failure tests">
       {presets.length === 0 ? (
-        <p className="text-[11.5px] text-ink-3">Add components to get experiment suggestions.</p>
+        <p className="text-[11.5px] text-ink-3">Add components to get test suggestions.</p>
       ) : (
         <>
           <ul className="space-y-1.5">
@@ -289,7 +288,7 @@ function PresetList() {
                   type="button"
                   onClick={() => {
                     setWorkload(p.apply(useEditor.getState().workload), `chaos:${p.id}`);
-                    toast.success(`Experiment loaded: ${p.title}`, { description: "Press Run experiment. Ctrl Z undoes it." });
+                    toast.success(`Loaded: ${p.title}`, { description: "Press Simulate to run it. Ctrl Z undoes it." });
                   }}
                   className="group flex w-full items-start gap-2.5 rounded-md border border-line p-2.5 text-left transition-colors hover:border-accent/50 hover:bg-surface-2"
                 >
@@ -304,7 +303,7 @@ function PresetList() {
               </li>
             ))}
           </ul>
-          <p className="font-mono text-[10.5px] text-ink-3">one variable at a time: an experiment replaces the current faults</p>
+          <p className="text-[11px] text-ink-3">One failure at a time: picking a test replaces the planned failures.</p>
         </>
       )}
     </Section>
@@ -340,15 +339,15 @@ function VerdictCard({ report }: { report: Report }) {
     setPlayhead(t + report.timeseries.bucketS / 2);
   };
   return (
-    <Section title="Verdict">
+    <Section title="Result">
       <div className="overflow-hidden rounded-md border border-line" role="status" aria-live="polite">
         <div className="border-l-2 bg-surface-2 p-3" style={{ borderLeftColor: tone }}>
           <p className="flex items-center gap-2 font-mono text-[12.5px] font-semibold uppercase tracking-wider" style={{ color: tone }}>
             <Icon className="size-4" aria-hidden />
-            {v.held === true ? "hypothesis held" : v.held === false ? "hypothesis violated" : "inconclusive"}
+            {v.held === true ? "objectives met" : v.held === false ? "objectives missed" : "not enough data"}
           </p>
           <p className="mt-1.5 text-[12px] leading-5 text-ink">{v.summary}</p>
-          {stale && <p className="mt-1.5 font-mono text-[10.5px] text-ink-3">for the last run · traffic or faults changed since, run again to test them</p>}
+          {stale && <p className="mt-1.5 text-[11px] text-ink-3">From the last run. Traffic or failures changed since: simulate again to test them.</p>}
         </div>
         {v.overall.checks.length > 0 && (
           <table className="w-full border-t border-line font-mono text-[11px]">
@@ -375,7 +374,7 @@ function VerdictCard({ report }: { report: Report }) {
         )}
         {v.windows.length > 0 && (
           <div className="space-y-2 border-t border-line p-3">
-            <p className="microlabel">inside each fault</p>
+            <p className="microlabel">during each failure</p>
             {v.windows.map((w) => (
               <div key={w.fault.id} className="rounded-sm border border-line p-2">
                 <div className="flex items-center gap-1.5">
@@ -429,10 +428,8 @@ function VerdictCard({ report }: { report: Report }) {
 // Run bar
 // ---------------------------------------------------------------------------------------------
 
-function RunBar() {
-  const { run } = useEditorActions();
+function NextRunBar() {
   const { faults, workload } = useFaultContext();
-  const starting = useRuns((s) => s.starting);
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
   const cancel = useRuns((s) => s.cancel);
   const selectedScenarioId = useRuns((s) => s.selectedScenarioId);
@@ -442,36 +439,39 @@ function RunBar() {
   return (
     <div className="sticky bottom-0 z-10 space-y-2 border-t border-line bg-surface p-3">
       {scenario && (
-        <p className="font-mono text-[10.5px] leading-4 text-ink-3">
-          scenario “{scenario.name}” is applied on top ·{" "}
+        <p className="text-[11px] leading-4 text-ink-3">
+          Scenario “{scenario.name}” is applied on top ·{" "}
           <button type="button" onClick={() => selectScenario(null)} className="underline decoration-dotted hover:text-ink">
-            use the design as drawn
+            use the current design
           </button>
         </p>
       )}
       {running && followRun ? (
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 font-mono text-[11px] text-ink">
-              <LoaderCircle className="size-3.5 animate-spin" /> {followRun.status === "queued" ? "queued" : `simulating ${Math.round(followRun.progress * 100)}%`}
+            <p className="flex items-center gap-1.5 text-[12px] text-ink">
+              <LoaderCircle className="size-3.5 animate-spin" /> {followRun.status === "queued" ? "Waiting to start…" : `Simulating… ${Math.round(followRun.progress * 100)}%`}
             </p>
-            <div className="mt-1 h-1 overflow-hidden rounded-[1px] bg-surface-3" role="progressbar" aria-valuenow={Math.round(followRun.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Experiment progress">
+            <div className="mt-1 h-1 overflow-hidden rounded-[1px] bg-surface-3" role="progressbar" aria-valuenow={Math.round(followRun.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Simulation progress">
               <div className="progress-stripes h-full" style={{ width: `${Math.max(3, followRun.progress * 100)}%` }} />
             </div>
           </div>
-          <Button size="sm" onClick={() => void cancel(followRun.id)} aria-label="Stop the experiment">
+          <Button size="sm" onClick={() => void cancel(followRun.id)} aria-label="Stop the simulation">
             <Square className="fill-current" /> stop
           </Button>
         </div>
       ) : (
-        <Button variant="primary" size="lg" className="w-full font-mono" onClick={() => void run()} disabled={starting}>
-          {starting ? <LoaderCircle className="animate-spin" /> : <Play className="fill-current" />}
-          Run experiment
-        </Button>
+        <div className="flex items-start gap-2.5">
+          <Play className="mt-0.5 size-3.5 shrink-0 fill-current text-accent" aria-hidden />
+          <p className="text-[12px] leading-5 text-ink-2">
+            <span className="font-semibold text-ink">Next run: </span>
+            {faults.length ? `${faults.length} failure${faults.length > 1 ? "s" : ""}` : "normal operation"} · {compact(workload.rps)} req/s · {compact(workload.durationS)} s.
+            <span className="block text-[11px] text-ink-3">
+              Press <span className="font-semibold text-ink-2">Simulate</span> at the top right to run it.
+            </span>
+          </p>
+        </div>
       )}
-      <p className="text-center font-mono text-[10.5px] text-ink-3">
-        {faults.length ? `${faults.length} fault${faults.length > 1 ? "s" : ""}` : "steady state"} · {compact(workload.rps)} req/s · {compact(workload.durationS)} s · seed {workload.seed}
-      </p>
     </div>
   );
 }
@@ -484,13 +484,13 @@ export function ExperimentPanel() {
       <div className="flex-1 space-y-5 p-4">
         <header>
           <p className="microlabel flex items-center gap-1.5">
-            <FlaskConical className="size-3" aria-hidden /> chaos experiment
+            <FlaskConical className="size-3" aria-hidden /> test plan
           </p>
           <h2 className="mt-1 font-display text-[26px] leading-[1.1] text-ink">
-            Break it <em className="italic text-ink-2">on purpose</em>
+            Will it <em className="italic text-ink-2">hold up?</em>
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-ink-2">
-            State what must stay true, inject one fault, run, and replay what happened second by second.
+          <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
+            Say what must stay true, optionally break something, then press Simulate and replay what happened.
           </p>
         </header>
         {report && <VerdictCard report={report} />}
@@ -499,7 +499,7 @@ export function ExperimentPanel() {
         <PresetList />
         <TrafficCard />
       </div>
-      <RunBar />
+      <NextRunBar />
     </div>
   );
 }

@@ -18,7 +18,7 @@ function writeFlag(key: string, v: boolean) {
   }
 }
 
-/** The three workspaces of the editor: design it, stress it, decide. */
+/** The three workspaces of the editor, shown as Design, Test and Results. */
 export type Workspace = "build" | "stress" | "decide";
 
 export interface UiState {
@@ -37,6 +37,8 @@ export interface UiState {
   paletteOpen: boolean;
   /** The export dialog (docker-compose, Kubernetes, Mermaid) is open. */
   exportOpen: boolean;
+  /** The guided tour of the editor is showing. */
+  tourOpen: boolean;
   /** Workflow progress the user has seen (drives the step indicator and next-step hint). */
   trafficVisited: boolean;
   insightsSeenFor: string | null;
@@ -49,6 +51,7 @@ export interface UiState {
   setLibraryOpen: (v: boolean) => void;
   setPaletteOpen: (v: boolean) => void;
   setExportOpen: (v: boolean) => void;
+  setTourOpen: (v: boolean) => void;
   markTrafficVisited: () => void;
   markInsightsSeen: (runId: string) => void;
   dismissHint: (key: string) => void;
@@ -64,6 +67,7 @@ export const useUi = create<UiState>()((set) => ({
   libraryOpen: false,
   paletteOpen: false,
   exportOpen: false,
+  tourOpen: false,
   trafficVisited: false,
   insightsSeenFor: null,
   dismissedHint: null,
@@ -78,6 +82,7 @@ export const useUi = create<UiState>()((set) => ({
   setSpeed: (speed) => set({ speed }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
+  setTourOpen: (tourOpen) => set({ tourOpen }),
   markTrafficVisited: () => set({ trafficVisited: true }),
   markInsightsSeen: (insightsSeenFor) => set({ insightsSeenFor }),
   dismissHint: (dismissedHint) => set({ dismissedHint }),

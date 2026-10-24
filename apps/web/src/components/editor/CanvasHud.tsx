@@ -20,7 +20,7 @@ export function RunReportCard() {
   const mode = useUi((s) => s.mode);
   const playhead = useUi((s) => s.playhead);
   const [collapsed, setCollapsed] = useState(false);
-  if (!report || !overlay || drawerOpen || mode === "decide") return null;
+  if (!report || !overlay || drawerOpen || mode !== "build") return null;
   const v = verdictOf(report);
   const s = report.summary;
   const color = v.tone === "ok" ? NODE_STATUS.ok.color : v.tone === "warn" ? NODE_STATUS.hot.color : NODE_STATUS.saturated.color;
@@ -32,7 +32,7 @@ export function RunReportCard() {
         onClick={() => setCollapsed(false)}
         className="surface-glass absolute right-3 top-3 z-10 flex items-center gap-2 rounded-lg px-2.5 py-1 font-mono text-[11px] text-ink"
       >
-        <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden /> last run
+        <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden /> result
       </button>
     );
   }
@@ -49,9 +49,9 @@ export function RunReportCard() {
       <div className="flex items-center gap-2 border-b border-line px-3 py-1.5 text-[10.5px] text-ink-3">
         <span className="size-1.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
         <span className="truncate">
-          last run · {run?.label ?? "design"} · seed {report.provenance.seed}
+          result · {run?.label ?? "current design"}
         </span>
-        <button type="button" onClick={() => setCollapsed(true)} className="ml-auto rounded-sm p-0.5 hover:text-ink" aria-label="Collapse run card">
+        <button type="button" onClick={() => setCollapsed(true)} className="ml-auto rounded-sm p-0.5 hover:text-ink" aria-label="Collapse the result card">
           <X className="size-3.5" />
         </button>
       </div>
@@ -82,13 +82,13 @@ export function RunReportCard() {
           </li>
         </ul>
         <div className="mt-2.5 flex gap-1.5">
-          {(mode !== "stress" || playhead === null) && (
+          {playhead === null && (
             <button
               type="button"
               onClick={replayActiveRun}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-line-strong bg-surface/60 py-1.5 font-sans text-[12px] font-semibold text-ink hover:bg-surface-2"
             >
-              ▶ replay
+              ▶ Replay
             </button>
           )}
           <button
@@ -99,7 +99,7 @@ export function RunReportCard() {
             }}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft/40 py-1.5 font-sans text-[12px] font-semibold text-accent hover:bg-accent-soft"
           >
-            scorecard →
+            See results →
           </button>
         </div>
       </div>

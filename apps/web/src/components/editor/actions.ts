@@ -48,9 +48,8 @@ export function useEditorActions() {
     }
     const r = useRuns.getState();
     const scenarioId = s.scenarios.some((x) => x.id === r.selectedScenarioId) ? r.selectedScenarioId : null;
-    // Runs are recorded and replayed in the Stress workspace.
+    // Stay where the user is: results land on the canvas; Test replays them on demand.
     const ui = useUi.getState();
-    if (ui.mode === "build") ui.setMode("stress");
     ui.setPlaying(false);
     ui.setPlayhead(null);
     await r.startRun(s.toDocument(rf.getViewport()), scenarioId);

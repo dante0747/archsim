@@ -47,21 +47,26 @@ interface NavItem {
 
 const GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "decide",
+    label: "the answer",
     items: [
-      { key: "scorecard", label: "Scorecard", icon: Gauge },
-      { key: "tradeoffs", label: "Trade-offs", icon: ScatterChart },
-      { key: "breaking", label: "Breaking point", icon: Crosshair },
+      { key: "scorecard", label: "Summary", icon: Gauge },
+      { key: "insights", label: "What happened", icon: Sparkles },
     ],
   },
   {
-    label: "results",
+    label: "explore",
     items: [
-      { key: "insights", label: "Insights", icon: Sparkles },
-      { key: "timeline", label: "Timeline", icon: Activity },
-      { key: "components", label: "Components", icon: Boxes },
-      { key: "compare", label: "Compare", icon: GitCompareArrows },
-      { key: "history", label: "History", icon: History },
+      { key: "tradeoffs", label: "Cost vs. speed", icon: ScatterChart },
+      { key: "breaking", label: "Breaking point", icon: Crosshair },
+      { key: "compare", label: "Compare two runs", icon: GitCompareArrows },
+    ],
+  },
+  {
+    label: "details",
+    items: [
+      { key: "timeline", label: "Metrics over time", icon: Activity },
+      { key: "components", label: "Per component", icon: Boxes },
+      { key: "history", label: "Run history", icon: History },
       { key: "assumptions", label: "Assumptions", icon: ListChecks },
     ],
   },
@@ -69,11 +74,11 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
 ];
 
 const RESULT_PAGES: Partial<Record<DecideSection, { kicker: string; title: string; description: string; body: React.ComponentType }>> = {
-  insights: { kicker: "insights", title: "What happened in the run", description: "Verdict, key numbers and findings for the run shown on the canvas.", body: OverviewTab },
+  insights: { kicker: "findings", title: "What happened in the run", description: "Verdict, key numbers and findings for the run shown on the canvas.", body: OverviewTab },
   timeline: { kicker: "timeline", title: "Metrics over simulated time", description: "Throughput, latency, failures and utilization, second by second.", body: ChartsTab },
   components: { kicker: "components", title: "Every component, measured", description: "Utilization, queues and waits per component, with drill-down charts.", body: ComponentsTab },
   compare: { kicker: "compare", title: "Two runs side by side", description: "What changed between two runs and why it matters.", body: CompareTab },
-  history: { kicker: "history", title: "All runs", description: "Every run keeps its exact input, seed and result digest, so it can be revisited and reproduced.", body: RunsTab },
+  history: { kicker: "run history", title: "All runs", description: "Every run keeps its exact input, seed and result digest, so it can be revisited and reproduced.", body: RunsTab },
   assumptions: { kicker: "assumptions", title: "What the numbers rest on", description: "Values you assumed versus values the simulation derived.", body: AssumptionsTab },
 };
 
@@ -96,12 +101,12 @@ function RunFooter() {
   const objectives = useEditor((s) => s.objectives);
   const setSection = useDecide((s) => s.setSection);
   const { run, report } = useDecideRun();
-  if (!run) return <p className="px-3 py-3 font-mono text-[10.5px] leading-relaxed text-ink-3">No runs yet. Run the design to score it.</p>;
+  if (!run) return <p className="px-3 py-3 text-[11.5px] leading-relaxed text-ink-3">No runs yet. Press Simulate to score the design.</p>;
   const slo = report ? evaluateSlo(objectives, report) : null;
   const color = slo?.pass === true ? "var(--status-good)" : slo?.pass === false ? "var(--status-critical)" : "var(--ink-3)";
   return (
     <button type="button" onClick={() => setSection("scorecard")} className="block w-full px-3 py-3 text-left hover:bg-surface-2">
-      <p className="microlabel">scoring</p>
+      <p className="microlabel">showing</p>
       <p className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-medium text-ink">
         <span className="size-1.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
         <span className="truncate">{runLabel(run)}</span>
@@ -146,7 +151,7 @@ export function DecideWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 bg-page">
-      <nav className="flex w-52 shrink-0 flex-col border-r border-line bg-surface" aria-label="Decide sections">
+      <nav className="flex w-52 shrink-0 flex-col border-r border-line bg-surface" aria-label="Results sections">
         <div className="flex-1 overflow-y-auto py-3">
           {GROUPS.map((g) => (
             <div key={g.label} className="mb-3">
@@ -186,7 +191,7 @@ export function DecideWorkspace() {
           <RunFooter />
         </div>
       </nav>
-      <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto" aria-label="Decide">
+      <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto" aria-label="Results">
         {section === "scorecard" && <Scorecard />}
         {section === "tradeoffs" && <TradeoffMap />}
         {section === "breaking" && <BreakingPoint />}

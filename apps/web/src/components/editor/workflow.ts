@@ -1,12 +1,11 @@
 "use client";
 
 /**
- * The studio workflow: Build → Stress → Decide. Derives each workspace's progress and one "next
+ * The studio workflow: Design → Test → Results (internal keys: build, stress, decide). Derives each workspace's progress and one "next
  * step" suggestion from editor/run state, so the UI always tells a newcomer what to do next.
  */
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
-import { useEditorActions } from "@/components/editor/actions";
 import { compact } from "@/lib/format";
 import type { Report } from "@/lib/types";
 import { useEditor } from "@/store/editor";
@@ -60,9 +59,13 @@ export function replayActiveRun() {
 
 export function useWorkflow() {
   const rf = useReactFlow();
-  const { run } = useEditorActions();
   const mode = useUi((s) => s.mode);
   const nodeCount = useEditor((s) => s.nodes.length);
+  // Clients that call nothing yet: the most common place a new design stalls.
+  const loneClientsId = useEditor((s) => {
+    const src = s.nodes.find((n) => n.data.type === "traffic_source");
+    return src && !s.edges.some((e) => e.source === src.id) ? src.id : null;
+  });
   const errorCount = useEditor((s) => s.issues.filter((i) => i.severity === "error").length);
   const firstError = useEditor((s) => s.issues.find((i) => i.severity === "error") ?? null);
   const rps = useEditor((s) => s.workload.rps);
@@ -74,7 +77,6 @@ export function useWorkflow() {
   const activeRunId = useRuns((s) => s.activeRunId);
   const report = useRuns((s) => (s.activeRunId ? (s.reports[s.activeRunId] ?? null) : null));
   const hasComparison = useRuns((s) => s.comparison !== null);
-  const starting = useRuns((s) => s.starting);
   const insightsSeenFor = useUi((s) => s.insightsSeenFor);
   const dismissedHint = useUi((s) => s.dismissedHint);
 
@@ -85,24 +87,24 @@ export function useWorkflow() {
   const steps: Step[] = [
     {
       key: "build",
-      label: "Build",
-      caption: "design with real tech",
-      hint: "Pick technologies, wire them, set capacity. A design review flags risks as you go.",
+      label: "Design",
+      caption: "draw your system",
+      hint: "Add parts from the left, connect them, and set what each can handle. A design review flags risks as you go.",
       state: nodeCount > 0 && errorCount === 0 ? "done" : "todo",
     },
     {
       key: "stress",
-      label: "Stress",
-      caption: "traffic · chaos · replay",
-      hint: "Shape traffic, inject faults, run, and replay what happened second by second.",
+      label: "Test",
+      caption: "traffic & failures",
+      hint: "Shape the traffic, break things on purpose, and replay any run second by second.",
       state: hasRun ? "done" : "todo",
       busy: running,
     },
     {
       key: "decide",
-      label: "Decide",
-      caption: "SLOs · cost · capacity",
-      hint: "Scorecard against your SLOs, monthly cost, trade-offs between options, breaking point.",
+      label: "Results",
+      caption: "goals · cost · limits",
+      hint: "Did it meet its objectives? What does it cost per month? At what load does it break?",
       state: seen || hasComparison ? "done" : "todo",
     },
   ];
@@ -115,7 +117,14 @@ export function useWorkflow() {
 
   let next: NextHint | null = null;
   if (nodeCount === 0) {
-    next = { key: "empty", tone: "info", text: "Start with Clients: they generate the traffic. Then add what they call.", actionLabel: "Add Clients" };
+    next = { key: "empty", tone: "info", text: "Start with Clients: they send the traffic. Then add what they call.", actionLabel: "Add Clients" };
+  } else if (loneClientsId) {
+    next = {
+      key: `connect-clients:${loneClientsId}`,
+      tone: "info",
+      text: "Next: give Clients something to call. Add API servers, or drag from the square on the right edge of Clients to a part.",
+      actionLabel: "Add API servers",
+    };
   } else if (errorCount > 0 && firstError) {
     next = {
       key: `err:${firstError.code}:${firstError.nodeId ?? firstError.edgeId ?? ""}`,
@@ -127,34 +136,30 @@ export function useWorkflow() {
     next = {
       key: "running",
       tone: "busy",
-      text: followRun.status === "queued" ? `Queued: ${followRun.label}` : `Recording ${followRun.label}…`,
+      text: followRun.status === "queued" ? `Waiting to start: ${followRun.label}` : `Simulating ${followRun.label}…`,
       progress: followRun.progress,
     };
   } else if (!hasRun) {
+    // The run itself lives on the one Simulate button in the top bar; hints only point at it.
     next =
       mode === "stress"
         ? {
             key: "ready-stress",
             tone: "info",
             text: faultCount
-              ? `${faultCount} fault${faultCount > 1 ? "s" : ""} armed. Run the experiment and watch the system react.`
-              : `Shape traffic or add a fault on the timeline, or just run ${compact(rps)} req/s for ${compact(durationS)} s.`,
-            actionLabel: starting ? undefined : "Run",
+              ? `${faultCount} failure${faultCount > 1 ? "s" : ""} planned. Press Simulate to see how the system copes.`
+              : `Press Simulate to send ${compact(rps)} req/s for ${compact(durationS)} s. Optional: reshape the traffic or add a failure below.`,
           }
         : {
             key: "ready",
             tone: "info",
-            text: `Design is valid. Stress it: ${compact(rps)} req/s for ${compact(durationS)} s, then replay what happens.`,
-            actionLabel: starting ? undefined : "Run in Stress",
+            text: `Ready. Press Simulate to send ${compact(rps)} req/s through the design for ${compact(durationS)} s.`,
           };
   } else if (report && activeRunId && !seen && !hasComparison) {
     const v = verdictOf(report);
-    next =
-      mode === "build"
-        ? { key: `replay:${activeRunId}`, tone: v.tone === "ok" ? "success" : "critical", text: `Results are in. ${v.title}.`, actionLabel: "Replay" }
-        : { key: `insights:${activeRunId}`, tone: v.tone === "ok" ? "success" : "critical", text: `Recorded. ${v.title}.`, actionLabel: "Open scorecard" };
+    next = { key: `insights:${activeRunId}`, tone: v.tone === "ok" ? "success" : "critical", text: `Done. ${v.title}.`, actionLabel: "See results" };
   } else if (!hasComparison && scenarioCount >= 2) {
-    next = { key: "compare", tone: "info", text: "Try alternatives: run every scenario and compare cost against latency.", actionLabel: "Run all & compare" };
+    next = { key: "compare", tone: "info", text: "Compare options: simulate every scenario and see cost against speed.", actionLabel: "Simulate all" };
   }
   if (next && next.key === dismissedHint && next.tone !== "busy") next = null;
 
@@ -165,20 +170,22 @@ export function useWorkflow() {
     if (next.key === "empty") {
       ed.addNode("traffic_source", { x: 0, y: 0 });
       window.setTimeout(() => void rf.fitView({ padding: 0.4, maxZoom: 1, duration: 250 }), 30);
+    } else if (next.key.startsWith("connect-clients:")) {
+      const src = ed.nodes.find((n) => n.id === next.key.slice("connect-clients:".length));
+      if (!src) return;
+      const id = ed.addNode("service", { x: src.position.x + 320, y: src.position.y });
+      if (id) useEditor.getState().connect({ source: src.id, target: id, sourceHandle: null, targetHandle: null });
+      window.setTimeout(() => void rf.fitView({ padding: 0.4, maxZoom: 1, duration: 250 }), 30);
     } else if (next.key.startsWith("err:")) {
       const err = ed.issues.find((i) => i.severity === "error");
       if (err) ed.select({ nodeId: err.nodeId ?? null, edgeId: err.edgeId ?? null });
-    } else if (next.key === "ready" || next.key === "ready-stress") {
-      void run();
-    } else if (next.key.startsWith("replay:")) {
-      replayActiveRun();
     } else if (next.key.startsWith("insights:")) {
       openDecide();
     } else if (next.key === "compare") {
       void runs.startBatch(ed.toDocument(), ed.scenarios.slice(0, 10).map((s) => s.id));
       useUi.getState().setMode("decide");
     }
-  }, [next, rf, run]);
+  }, [next, rf]);
 
   return { steps, goTo, next, doNext, running, mode };
 }

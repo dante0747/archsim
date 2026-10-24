@@ -321,15 +321,15 @@ export function experimentVerdict(report: Pick<Report, "timeseries" | "summary" 
   const windows = faults.map((f) => windowEvidence(report, objectives, f));
   const worst = worstMoment(report, objectives);
   if (overall.total === 0) {
-    return { held: null, summary: "No objective set, so there is no hypothesis to test. Add a latency or availability target.", overall, windows, worst };
+    return { held: null, summary: "No objectives set, so there is nothing to check. Add a latency or availability target.", overall, windows, worst };
   }
   const failedWindow = windows.find((w) => w.pass === false);
   const held = overall.pass === false || failedWindow ? false : overall.pass === null && windows.every((w) => w.pass === null) ? null : true;
   let summary: string;
   if (held === null) {
-    summary = "Not enough traffic to judge the hypothesis.";
+    summary = "Not enough traffic to judge.";
   } else if (held) {
-    summary = faults.length ? `Hypothesis held: objectives met overall and during ${faults.length === 1 ? "the fault" : `all ${faults.length} faults`}.` : "Hypothesis held: objectives met for the whole run.";
+    summary = faults.length ? `Objectives met overall and during ${faults.length === 1 ? "the failure" : `all ${faults.length} failures`}.` : "Objectives met for the whole run.";
   } else if (failedWindow) {
     const what = faultLabel(failedWindow.fault, names);
     const detail =
@@ -338,10 +338,10 @@ export function experimentVerdict(report: Pick<Report, "timeseries" | "summary" 
         : failedWindow.worstP95 != null
           ? `p95 reached ${Math.round(failedWindow.worstP95)} ms`
           : `${failedWindow.breached} s breached the objectives`;
-    summary = `Hypothesis violated: ${detail} during ${what} (${fmtWindow(failedWindow.fault)}).`;
+    summary = `Missed: ${detail} during ${what} (${fmtWindow(failedWindow.fault)}).`;
   } else {
     const miss = overall.checks.filter((c) => c.pass === false).map((c) => c.label.toLowerCase());
-    summary = `Hypothesis violated: ${miss.join(" and ")} missed the objective over the run.`;
+    summary = `Missed: ${miss.join(" and ")} fell short of the objective over the run.`;
   }
   return { held, summary, overall, windows, worst };
 }

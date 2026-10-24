@@ -84,7 +84,7 @@ export function CompareTab() {
         {comparing && <LoaderCircle className="size-4 animate-spin text-ink-3" />}
         {scenarios.length >= 2 && (
           <Button size="sm" className="ml-auto" disabled={starting} onClick={() => void startBatch(toDocument(), scenarios.slice(0, 10).map((s) => s.id))}>
-            <ListChecks /> Run all scenarios
+            <ListChecks /> Simulate all scenarios
           </Button>
         )}
       </div>
@@ -93,7 +93,7 @@ export function CompareTab() {
         <Empty icon={<GitCompareArrows />} title="Compare two runs side by side">
           Pick two finished runs above, for example the same design with 1 and 3 API replicas. The comparison diffs the
           exact inputs each run simulated and explains the differences in the results.
-          {done.length < 2 && " You need at least two finished runs; try “Run all scenarios”."}
+          {done.length < 2 && " You need at least two finished runs; try “Simulate all scenarios”."}
         </Empty>
       ) : (
         <>

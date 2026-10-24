@@ -6,7 +6,7 @@ tested on its own.
 ```mermaid
 flowchart LR
   subgraph web["apps/web (Next.js)"]
-    UI["Studio: Build / Stress / Decide<br/>canvas, technology library, flight recorder,<br/>scorecard, trade-offs, exports"]
+    UI["Studio: Design / Test / Results<br/>canvas, technology library, replay timeline,<br/>scorecard, trade-offs, exports"]
     Store["Zustand store<br/>(document, history, runs)"]
     Proxy["/api/v1/* route handler<br/>(proxy to ARCHSIM_API_URL)"]
   end

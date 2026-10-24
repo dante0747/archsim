@@ -11,7 +11,6 @@ import {
   ChevronLast,
   ChevronUp,
   Diamond,
-  LoaderCircle,
   Pause,
   Play,
   StepBack,
@@ -19,7 +18,6 @@ import {
   Sigma,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useEditorActions } from "@/components/editor/actions";
 import { ExperimentTracks } from "@/components/stress/ExperimentTracks";
 import { LANE_H, LaneRow, RecorderLanes, Ruler } from "@/components/timeline/RecorderLanes";
 import { TIMELINE_LABEL_WIDTH, TimelineProvider, useTimeline } from "@/components/timeline/TimelineContext";
@@ -35,24 +33,25 @@ import {
 import { Kbd, Tip } from "@/components/ui/misc";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import { axisDuration, detectEvents, fmtClock, heatLegend, phaseAt, runDuration } from "@/lib/recorder";
-import { cn, modKey } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 
 export { PlaybackClock } from "@/components/timeline/PlaybackClock";
 
-const HEIGHT_KEY = "archsim-recorder-h";
-const DEFAULT_H = 320;
+const HEIGHT_KEY = "archsim-timeline-h";
 const MIN_H = 150;
+/** Leave most of the screen to the canvas: about a third of the window, at most 280 px. */
+const defaultHeight = () => Math.round(Math.min(280, Math.max(MIN_H, window.innerHeight * 0.3)));
 const HEADER_H = 40;
 
 function readHeight(): number {
   try {
     const v = Number(localStorage.getItem(HEIGHT_KEY));
-    return Number.isFinite(v) && v >= MIN_H ? v : DEFAULT_H;
+    return Number.isFinite(v) && v >= MIN_H ? v : defaultHeight();
   } catch {
-    return DEFAULT_H;
+    return defaultHeight();
   }
 }
 
@@ -164,16 +163,14 @@ function PlayheadLine({ endS }: { endS: number }) {
 }
 
 function EmptyRecording({ height }: { height: number }) {
-  const { run } = useEditorActions();
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
-  const starting = useRuns((s) => s.starting);
   const running = !!followRun && (followRun.status === "queued" || followRun.status === "running");
   return (
     <LaneRow
       height={height}
       label={
         <span className="font-mono text-[10.5px] text-ink-3">
-          recording
+          last run
           <span className="mt-1 block text-[9.5px]">none yet</span>
         </span>
       }
@@ -183,13 +180,12 @@ function EmptyRecording({ height }: { height: number }) {
           <span className={cn("size-2.5 rounded-full", running ? "pulse-soft bg-accent" : "bg-ink-3")} aria-hidden />
         </div>
         <div className="min-w-0">
-          <p className="font-mono text-[13px] font-semibold text-ink">
-            {running ? "Recording the flight…" : "Run to record a flight"}
-            {!running && <span className="caret ml-0.5 text-accent">_</span>}
+          <p className="text-[13.5px] font-semibold text-ink">
+            {running ? "Recording the run…" : "Press Simulate to record a run"}
           </p>
           <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-ink-2">
-            Every run is recorded second by second. Replay it here and on the canvas: shapes fill with load, queues stack up,
-            links carry the traffic of that moment, and faults light up when they hit.
+            Every run is recorded second by second. Replay it here and on the canvas: parts fill up with load, queues build,
+            links carry the traffic of that moment, and failures light up when they hit.
           </p>
           {running && followRun ? (
             <div className="mt-2 flex items-center gap-2 font-mono text-[11px] text-ink-2" role="status">
@@ -198,18 +194,7 @@ function EmptyRecording({ height }: { height: number }) {
               </span>
               {followRun.status === "queued" ? "queued" : `${Math.round(followRun.progress * 100)}%`}
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void run()}
-              disabled={starting}
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-sm bg-accent px-2.5 py-1 font-mono text-[11px] font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60"
-            >
-              {starting ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5 fill-current" />}
-              record a run
-              <Kbd className="border-accent-ink/30 bg-transparent text-accent-ink">{modKey()} ↵</Kbd>
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
     </LaneRow>
@@ -296,14 +281,14 @@ export function TimelineDock() {
 
   return (
     <section
-      aria-label="Flight recorder"
+      aria-label="Replay timeline"
       className="relative flex shrink-0 flex-col border-t border-line-strong bg-surface"
       style={{ height: collapsed ? HEADER_H : height }}
     >
       <div
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Resize flight recorder"
+        aria-label="Resize the timeline"
         title="Drag to resize · double-click to collapse"
         className="group absolute inset-x-0 -top-1 z-30 h-2 cursor-ns-resize"
         onPointerDown={onResizeStart}
@@ -316,13 +301,13 @@ export function TimelineDock() {
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="flex items-center gap-1.5 rounded-sm px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 hover:bg-surface-2 hover:text-ink"
           aria-expanded={!collapsed}
-          aria-label={collapsed ? "Expand flight recorder" : "Collapse flight recorder"}
+          aria-label={collapsed ? "Expand the timeline" : "Collapse the timeline"}
         >
           {collapsed ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
           <span className="hidden sm:inline">
-            <span className="opacity-60">{"//"}</span> flight recorder
+            <span className="opacity-60">{"//"}</span> timeline
           </span>
         </button>
 
@@ -394,12 +379,12 @@ export function TimelineDock() {
                 )}
               </>
             ) : (
-              <span className="truncate text-[11px] text-ink-2">
-                whole-run summary · <span className="text-ink-3">press play or click a lane to replay</span>
+              <span className="truncate text-[12px] text-ink-2">
+                Showing the whole run · <span className="text-ink-3">press ▶ to replay it second by second</span>
               </span>
             )
           ) : (
-            <span className="truncate text-[11px] text-ink-3">no recording yet</span>
+            <span className="truncate text-[12px] text-ink-3">Nothing recorded yet</span>
           )}
         </div>
 
@@ -409,7 +394,7 @@ export function TimelineDock() {
               {run?.label ?? "last run"} · seed {report.provenance.seed} · {events.length} events
             </span>
           )}
-          <TransportButton label="Whole-run summary on the canvas" onClick={showSummary} disabled={noRun} pressed={!!report && playhead == null}>
+          <TransportButton label="Show the whole run on the canvas" onClick={showSummary} disabled={noRun} pressed={!!report && playhead == null}>
             <Sigma />
           </TransportButton>
         </div>
@@ -421,18 +406,18 @@ export function TimelineDock() {
             <TimelineProvider durationS={axisS} plotWidth={plotWidth}>
               <div className="relative pb-2">
                 <Ruler warmupS={report ? report.window.warmupS : workloadWarmupS} scrubbable={!!report} endS={endS} />
-                <SectionRow title="experiment" right={<span>what the next run will do · drag to shape</span>} />
+                <SectionRow title="next run" right={<span>drag the traffic line to reshape it</span>} />
                 <div data-no-transport-keys>
                   <ExperimentTracks />
                 </div>
                 {report ? (
                   <>
-                    <SectionRow title="recording" right={<HeatLegend dark={dark} />} />
+                    <SectionRow title="last run" right={<HeatLegend dark={dark} />} />
                     <RecorderLanes report={report} objectives={objectives} events={events} dark={dark} endS={endS} />
                   </>
                 ) : (
                   <>
-                    <SectionRow title="recording" />
+                    <SectionRow title="last run" />
                     <EmptyRecording height={104} />
                   </>
                 )}

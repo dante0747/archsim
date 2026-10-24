@@ -24,25 +24,25 @@ const WORKSPACES = [
   {
     key: "build",
     n: "01",
-    title: "Build",
-    tagline: "design with real technologies",
+    title: "Design",
+    tagline: "draw it with real technologies",
     text: "PostgreSQL with read replicas, sharded MongoDB, Cassandra quorums, Redis, Kafka, Kubernetes autoscaling, serverless, third-party APIs. A design review flags single points of failure, retry storms and timeout inversions as you draw.",
     bullets: ["technology library", "design review", "docker-compose · k8s · mermaid export"],
   },
   {
     key: "stress",
     n: "02",
-    title: "Stress",
-    tagline: "traffic · chaos · flight recorder",
-    text: "Shape traffic on a timeline, drop faults on it (outages, slowdowns, network latency), run, then scrub through the recording: every component's utilization, queues and flow, second by second.",
-    bullets: ["experiment timeline", "fault injection", "replay with heat lanes"],
+    title: "Test",
+    tagline: "traffic · failures · replay",
+    text: "Shape traffic on a timeline, plan failures on it (outages, slowdowns, network latency), simulate, then replay the run: every component's utilization, queues and flow, second by second.",
+    bullets: ["traffic timeline", "failure injection", "second-by-second replay"],
   },
   {
     key: "decide",
     n: "03",
-    title: "Decide",
-    tagline: "SLOs · cost · capacity",
-    text: "Score every run against your SLOs and error budget, see monthly cost and cost per million requests, compare options on a cost-vs-latency map, and find the load where the design breaks.",
+    title: "Results",
+    tagline: "objectives · cost · capacity",
+    text: "Score every run against your latency and availability objectives and error budget, see monthly cost and cost per million requests, compare options on a cost-vs-latency map, and find the load where the design breaks.",
     bullets: ["scorecard", "trade-off map", "breaking-point finder"],
   },
 ];
@@ -182,7 +182,7 @@ export function ProjectsHome() {
             </h1>
             <p className="mt-6 max-w-xl text-[15.5px] leading-[1.65] text-ink-2">
               Model the stack you actually run, push traffic and failures through it, replay every second of what happened, and
-              decide with SLOs, cost and capacity curves. A discrete-event engine moves every single request; results are
+              decide with objectives, cost and capacity curves. A discrete-event engine moves every single request; results are
               estimates from the assumptions you enter, so they are reproducible and explainable, not guarantees.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
@@ -224,7 +224,7 @@ export function ProjectsHome() {
                   <span key={i} className="size-2.5 rounded-full border border-line-strong" />
                 ))}
               </span>
-              <span className="ml-2 truncate font-mono text-[11px] text-ink-2">flight-recorder · cache outage experiment</span>
+              <span className="ml-2 truncate font-mono text-[11px] text-ink-2">replay · cache outage test</span>
               <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[10px] text-ink-3">
                 <span className="size-1.5 rounded-full bg-[var(--status-critical)] pulse-soft" /> rec
               </span>

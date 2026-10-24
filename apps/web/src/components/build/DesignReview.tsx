@@ -7,7 +7,7 @@
  */
 import { useReactFlow } from "@xyflow/react";
 import { ChevronDown, ScanSearch } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { REVIEW_RULES, type ReviewFinding, type ReviewSeverity, countBySeverity, reviewDesign } from "@/lib/review";
 import type { EdgeSpec, NodeSpec } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -61,6 +61,32 @@ export function DesignReviewPanel() {
   const [focused, setFocused] = useState<string | null>(null);
   const rf = useReactFlow();
 
+  // Keep the whole diagram visible beside the open panel (and clear of the result card).
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    const t = window.setTimeout(() => {
+      const wrap = document.querySelector('[data-tour="canvas"]')?.getBoundingClientRect();
+      const nodes = rf.getNodes();
+      if (!wrap || !nodes.length) return;
+      const pad = { top: 32, right: 32, bottom: 84, left: open ? 392 : 32 };
+      const card = document.querySelector("[data-run-card]")?.getBoundingClientRect();
+      if (open && card && card.width > 0) {
+        const b = rf.getNodesBounds(nodes);
+        const zoom = (p: typeof pad) => Math.min((wrap.width - p.left - p.right) / b.width, (wrap.height - p.top - p.bottom) / b.height, 1);
+        const beside = { ...pad, right: Math.round(wrap.right - card.left) + 16 };
+        const below = { ...pad, top: Math.round(card.bottom - wrap.top) + 16 };
+        Object.assign(pad, zoom(below) >= zoom(beside) ? below : beside);
+      }
+      const padding = { top: `${pad.top}px`, right: `${pad.right}px`, bottom: `${pad.bottom}px`, left: `${pad.left}px` } as const;
+      void rf.fitView({ padding, maxZoom: 1, duration: 300 });
+    }, 40);
+    return () => window.clearTimeout(t);
+  }, [open, rf]);
+
   const focus = (f: ReviewFinding) => {
     setFocused(f.id);
     const nodeIds = new Set(f.nodeIds);
@@ -75,7 +101,15 @@ export function DesignReviewPanel() {
       }));
     }
     st.setRightTab("inspect");
-    if (f.nodeIds.length) void rf.fitView({ nodes: f.nodeIds.map((id) => ({ id })), padding: 0.5, maxZoom: 1, duration: 300 });
+    // Frame the finding's components beside the panel, not under it.
+    if (f.nodeIds.length) {
+      void rf.fitView({
+        nodes: f.nodeIds.map((id) => ({ id })),
+        padding: { top: "64px", right: "64px", bottom: "96px", left: "420px" },
+        maxZoom: 1,
+        duration: 300,
+      });
+    }
   };
 
   if (!open) {
@@ -87,7 +121,7 @@ export function DesignReviewPanel() {
         aria-label={`Design review: ${findings.length} finding${findings.length === 1 ? "" : "s"}`}
       >
         <ScanSearch className="size-3.5 shrink-0 text-ink-3" />
-        <span className="text-ink-3">review</span>
+        <span className="text-ink-3">design review</span>
         {findings.length === 0 ? (
           <span className="flex items-center gap-1">
             <span className="size-1.5 rounded-full" style={{ background: "var(--status-good)" }} aria-hidden />

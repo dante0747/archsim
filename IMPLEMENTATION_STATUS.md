@@ -97,7 +97,7 @@ serves 8 example designs (see below).
 **Web** (`apps/web`, 114 tests)
 
 - **Studio with three workspaces around one canvas** (keys 1, 2, 3) and a next-step prompt:
-  - **Build**: technology library (families, search, drag or click to add a preset),
+  - **Design** (internal key `build`): technology library (families, search, drag or click to add a preset),
     technology picker in the inspector (re-applies a preset, undoable), schematic shapes for
     every kind (including a pipe for queues and a cloud for third-party APIs), catalog-driven
     inspector with key/advanced settings, **design review** (single points of failure, cache
@@ -106,24 +106,32 @@ serves 8 example designs (see below).
     connection storms, autoscaling range, queue backlog/consumers, optimistic hit ratios,
     hot-partition risk, consistency ALL, unhandled third-party errors, no edge rate limit,
     long synchronous chains), **export** to docker-compose, Kubernetes manifests and Mermaid.
-  - **Stress**: experiment composer on a timeline (drag the traffic shape; fault blocks you
-    move and resize per target), one-click chaos experiments generated from the design, a
-    verdict against the hypothesis (objectives over the run and inside each fault window), and
-    the **flight recorder**: replay with transport (play/pause, speed 1-16x, step, scrub,
+  - **Test** (internal key `stress`): test plan on a timeline (drag the traffic shape; failure
+    blocks you move and resize per target), quick failure tests generated from the design, a
+    result against the objectives (over the run and inside each failure window), and the
+    **replay timeline**: replay with transport (play/pause, speed 1-16x, step, scrub,
     jump to events), heat lanes per component, throughput/latency/error strips with SLO
     shading, event markers (faults, saturation, SLO breach/recovery, scaling, queue growth,
     timeouts), and the canvas showing each component's state at the playhead (fill level,
     queue, rejections, faults, link flow, replica count) plus a clock overlay. Runs started
-    from the UI replay automatically.
-  - **Decide**: scorecard (objective tiles with inline-editable targets, error budget and
+    from the Test workspace replay automatically; from Design the result lands on the canvas.
+  - **Results** (internal key `decide`): summary scorecard (objective tiles with inline-editable targets, error budget and
     burn-down, monthly cost and cost per 1M requests per component), trade-off map (cost vs.
     p95 for every run, SLO line, Pareto frontier, table), breaking-point finder (stepped load
     sweep, knee, max load within objectives), Markdown decision report (with design-review
     items), plus the existing insights, timeline, components, compare, history and
     assumptions views.
 - Command palette (every action, workspaces, every technology preset), IDE-style status bar,
-  keyboard shortcuts, light and dark schematic themes.
-- Home page: animated flight-recorder illustration (scripted, labelled "illustration"), three
+  keyboard shortcuts, light and dark schematic themes. Type: Geist Sans and Geist Mono with
+  Instrument Serif for display headings (self-hosted at build time by next/font; no runtime
+  calls to Google).
+- Onboarding and guidance: one Simulate button (top bar) that never switches workspace; a
+  five-step guided tour (spotlight on the parts rail, canvas, side panel, Simulate and the
+  workspaces) on the first visit and from the ? button; a next-step hint that always names the
+  next action (including "Add API servers", which adds and wires the part behind a lone Clients
+  box); no error flags on an empty canvas; the canvas reframes to keep the whole design in view
+  when panels or workspaces change, until you pan or zoom yourself.
+- Home page: animated replay illustration (scripted, labelled "illustration"), three
   workspaces, a technology wall read from the live catalog, example cards with mini diagrams,
   projects.
 - Unit tests: document conversion, connection rules, distributions, editor store, workload

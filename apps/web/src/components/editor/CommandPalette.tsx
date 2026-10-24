@@ -101,9 +101,9 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
     };
     const cmds: (Command | false)[] = [
       // workspaces
-      { id: "ws-build", group: "Workspace", label: "Build: design the system", shortcut: "1", keywords: "workspace edit design", icon: <LayoutGrid className={i} />, run: () => ui().setMode("build") },
-      { id: "ws-stress", group: "Workspace", label: "Stress: traffic, chaos, replay", shortcut: "2", keywords: "workspace experiment chaos timeline", icon: <Activity className={i} />, run: () => ui().setMode("stress") },
-      { id: "ws-decide", group: "Workspace", label: "Decide: SLOs, cost, capacity", shortcut: "3", keywords: "workspace scorecard analysis", icon: <Gauge className={i} />, run: decide("scorecard") },
+      { id: "ws-build", group: "Workspace", label: "Design: draw the system", shortcut: "1", keywords: "workspace edit build", icon: <LayoutGrid className={i} />, run: () => ui().setMode("build") },
+      { id: "ws-stress", group: "Workspace", label: "Test: traffic, failures, replay", shortcut: "2", keywords: "workspace stress experiment chaos fault timeline", icon: <Activity className={i} />, run: () => ui().setMode("stress") },
+      { id: "ws-decide", group: "Workspace", label: "Results: objectives, cost, capacity", shortcut: "3", keywords: "workspace decide scorecard analysis slo", icon: <Gauge className={i} />, run: decide("scorecard") },
       hasReport && { id: "replay", group: "Workspace", label: "Replay the last run", keywords: "flight recorder playback timeline", icon: <Play className={i} />, run: replayActiveRun },
       { id: "tradeoffs", group: "Workspace", label: "Trade-off map: cost vs latency", keywords: "pareto scenarios compare cost", icon: <GitCompare className={i} />, run: decide("tradeoffs") },
       { id: "breaking", group: "Workspace", label: "Find the breaking point", keywords: "capacity sweep load knee max throughput", icon: <Flame className={i} />, run: decide("breaking") },
@@ -120,7 +120,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       {
         id: "run",
         group: "Simulate",
-        label: "Run simulation",
+        label: "Simulate",
         hint: target ? target.name : "design as drawn",
         shortcut: `${mod} Enter`,
         keywords: "start simulate go",
@@ -142,7 +142,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       scenarios.length > 0 && {
         id: "run-all",
         group: "Simulate",
-        label: "Run all scenarios and compare",
+        label: "Simulate all scenarios and compare",
         hint: `${Math.min(scenarios.length, 10)} runs`,
         keywords: "batch compare side by side",
         icon: <GitCompare className={i} />,

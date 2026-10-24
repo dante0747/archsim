@@ -523,7 +523,7 @@ function FaultRow({ fault, name, invalid, runS }: { fault: Fault; name: string; 
             <div className="mb-2.5 flex items-center gap-2">
               <FaultIcon kind={fault.kind} />
               <p className="min-w-0 flex-1 truncate font-mono text-[12px] font-semibold text-ink">{faultLabel(fault, ctx.names)}</p>
-              <button type="button" onClick={() => removeFault(fault.id)} className="rounded-sm p-1 text-ink-3 hover:bg-critical-soft hover:text-danger-ink" aria-label="Remove fault">
+              <button type="button" onClick={() => removeFault(fault.id)} className="rounded-sm p-1 text-ink-3 hover:bg-critical-soft hover:text-danger-ink" aria-label="Remove failure">
                 <Trash2 className="size-3.5" />
               </button>
             </div>
@@ -548,14 +548,14 @@ function AddFaultRow() {
             type="button"
             className="flex w-fit items-center gap-1 rounded-sm px-1 py-0.5 font-mono text-[10.5px] text-ink-3 hover:bg-surface-2 hover:text-accent"
           >
-            <Plus className="size-3" /> add fault
+            <Plus className="size-3" /> add failure
           </button>
         </AddFaultMenu>
       }
     >
       <p className="pointer-events-none absolute inset-0 flex items-center px-2 font-mono text-[10px] text-ink-3">
         {faults.length === 0
-          ? "no faults · add one to run a chaos experiment"
+          ? "no failures planned · add one to see how the system copes"
           : "drag to move · drag edges to resize · shift = free · double-click to edit · del removes"}
       </p>
     </Row>
@@ -568,7 +568,7 @@ export function ExperimentTracks() {
   const { durationS: axisS } = useTimeline();
   const runS = Math.min(workload.durationS, axisS);
   return (
-    <div role="group" aria-label="Experiment tracks">
+    <div role="group" aria-label="Next run: traffic and failures">
       <TrafficTrack />
       {faults.map((f) => (
         <FaultRow key={f.id} fault={f} name={faultLabel(f, names)} invalid={!targets[f.kind].some((t) => t.id === f.target)} runS={runS} />
