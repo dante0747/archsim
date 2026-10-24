@@ -195,7 +195,7 @@ export const useRuns = create<RunsState>()((set, get) => {
           runs: upsert(s.runs, run),
           pending: [...s.pending, run.id],
           followRunId: run.id,
-          drawerOpen: true,
+          // keep the canvas visible: results appear on it, and "Open insights" opens the panel
           drawerTab: s.drawerTab === "compare" || s.drawerTab === "runs" ? "overview" : s.drawerTab,
         }));
         ensurePolling();

@@ -106,7 +106,7 @@ export function Section({
   return (
     <section className={cn("space-y-2", className)}>
       <div className="flex min-h-6 items-center justify-between gap-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{title}</h3>
+        <h3 className="microlabel">{title}</h3>
         {actions}
       </div>
       {children}

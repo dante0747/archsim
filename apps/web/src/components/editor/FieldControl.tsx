@@ -30,9 +30,13 @@ export function isFieldVisible(field: FieldDescriptor, values: Record<string, un
 
 export function AssumptionTag() {
   return (
-    <Tip content="An assumption you assert, not a measurement. Calibrate it against real telemetry before trusting absolute numbers.">
-      <span className="cursor-help rounded border border-dashed border-line-strong px-1 text-[10px] font-medium uppercase leading-4 tracking-wide text-ink-3">
-        assumption
+    <Tip content="≈ Assumption: your estimate, not a measurement. Calibrate it against real telemetry before trusting absolute numbers.">
+      <span
+        aria-label="assumption"
+        className="cursor-help rounded-md px-1 font-mono text-[12px] font-bold leading-4 text-accent"
+        style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)" }}
+      >
+        ≈
       </span>
     </Tip>
   );
@@ -163,7 +167,14 @@ export function DistributionEditor({
   unit?: string;
   idPrefix: string;
 }) {
-  const params = Object.keys(value).filter((k) => k !== "kind") as string[];
+  // Fixed order per kind (stored JSON may come back with keys reordered, e.g. by PostgreSQL JSONB).
+  const ORDER: Record<Distribution["kind"], string[]> = {
+    constant: ["value"],
+    exponential: ["mean"],
+    uniform: ["min", "max"],
+    lognormal: ["median", "p95"],
+  };
+  const params = ORDER[value.kind].filter((k) => k in value);
   const paramLabel: Record<string, string> = {
     value: "Value",
     mean: "Mean",
@@ -348,11 +359,15 @@ export function FieldControl({
       );
   }
 
-  const inline = field.kind === "boolean";
+  const isSelectEnum =
+    field.kind === "enum" &&
+    !((field.options ?? []).length <= 3 && (field.options ?? []).reduce((n, o) => n + humanize(o).length, 0) <= 34);
+  const row =
+    field.kind === "boolean" || isSelectEnum || ((field.kind === "integer" || field.kind === "number") && !field.nullable);
   return (
-    <div className={cn(inline ? "flex items-center justify-between gap-3" : "space-y-1.5")}>
-      <div className="flex min-w-0 items-center gap-1.5">
-        <Label id={labelId} htmlFor={field.kind === "enum" ? undefined : id} className="truncate">
+    <div className={cn(row ? "grid grid-cols-[minmax(0,1fr)_136px] items-start gap-3" : "space-y-1.5", field.kind === "boolean" && "items-center [&>*:last-child]:justify-self-end")}>
+      <div className={cn("flex min-w-0 items-center gap-1.5", row && "min-h-8")}>
+        <Label id={labelId} htmlFor={field.kind === "enum" && !isSelectEnum ? undefined : id} className="truncate text-[12.5px] text-ink-2">
           {field.label}
         </Label>
         {field.description && (
@@ -376,17 +391,19 @@ export function FieldGroups({
   onChange,
   idPrefix,
   allowedRequestTypes,
+  flat = false,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
   onChange: (key: string, v: unknown) => void;
   idPrefix: string;
   allowedRequestTypes?: RequestType[];
+  flat?: boolean;
 }) {
   const groups: { name: string; fields: FieldDescriptor[] }[] = [];
   for (const f of fields) {
     if (!isFieldVisible(f, values)) continue;
-    const name = f.group ?? "Settings";
+    const name = flat ? "" : (f.group ?? "Settings");
     let g = groups.find((x) => x.name === name);
     if (!g) groups.push((g = { name, fields: [] }));
     g.fields.push(f);
@@ -394,8 +411,8 @@ export function FieldGroups({
   return (
     <div className="space-y-5">
       {groups.map((g) => (
-        <fieldset key={g.name} className="space-y-3">
-          <legend className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-3">{g.name}</legend>
+        <fieldset key={g.name || "all"} className="space-y-3">
+          {g.name && <legend className="microlabel mb-2">{g.name}</legend>}
           {g.fields.map((f) => (
             <FieldControl
               key={f.key}

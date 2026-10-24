@@ -12,6 +12,12 @@ export function compact(v: number | null | undefined): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v);
 }
 
+/** Compact rate for chips: integers from 100 up, one decimal below. */
+export function compactRate(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return DASH;
+  return compact(v >= 100 ? Math.round(v) : v);
+}
+
 export function fmtRps(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return DASH;
   return `${v >= 100 ? fmtNum(v, 0) : fmtNum(v, 1)} req/s`;

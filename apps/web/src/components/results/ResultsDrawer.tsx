@@ -1,12 +1,13 @@
 "use client";
 
 import { Boxes, ChevronDown, ChevronUp, FileText, GitCompareArrows, History, LayoutDashboard, LineChart } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/overlays";
 import { cn } from "@/lib/utils";
 import { type DrawerTab, useRuns } from "@/store/runs";
+import { useUi } from "@/store/ui";
 import { AssumptionsTab } from "./AssumptionsTab";
 import { ChartsTab } from "./ChartsTab";
 import { CompareTab } from "./CompareTab";
@@ -26,6 +27,11 @@ export function ResultsDrawer() {
   const hasReport = useRuns((s) => s.activeRunId !== null);
   const runCount = useRuns((s) => s.runs.length);
   const dragStart = useRef<{ y: number; h: number } | null>(null);
+  const activeRunId = useRuns((s) => s.activeRunId);
+  const markInsightsSeen = useUi((s) => s.markInsightsSeen);
+  useEffect(() => {
+    if (open && tab === "overview" && activeRunId) markInsightsSeen(activeRunId);
+  }, [open, tab, activeRunId, markInsightsSeen]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     dragStart.current = { y: e.clientY, h: height };
@@ -41,7 +47,7 @@ export function ResultsDrawer() {
 
   return (
     <section
-      className="relative flex shrink-0 flex-col border-t border-line bg-page"
+      className="relative z-10 flex shrink-0 flex-col border-t border-line bg-page"
       style={{ height: open ? height : undefined, maxHeight: open ? "60vh" : undefined }}
       aria-label="Simulation results"
     >
@@ -67,13 +73,13 @@ export function ResultsDrawer() {
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="flex items-center gap-2 border-b border-line bg-surface pl-3 pr-2">
-          <span className="hidden text-xs font-semibold text-ink sm:inline">Results</span>
+          <span className="microlabel hidden sm:inline">Results</span>
           <TabsList className="min-w-0 flex-1 overflow-x-auto border-b-0" onClick={() => !open && setOpen(true)}>
             <TabsTrigger value="overview">
-              <LayoutDashboard /> Overview
+              <LayoutDashboard /> Insights
             </TabsTrigger>
             <TabsTrigger value="charts">
-              <LineChart /> Charts
+              <LineChart /> Timeline
             </TabsTrigger>
             <TabsTrigger value="components">
               <Boxes /> Components
@@ -82,7 +88,7 @@ export function ResultsDrawer() {
               <GitCompareArrows /> Compare
             </TabsTrigger>
             <TabsTrigger value="runs">
-              <History /> Runs{runCount ? ` (${runCount})` : ""}
+              <History /> History{runCount ? ` · ${runCount}` : ""}
             </TabsTrigger>
             <TabsTrigger value="assumptions">
               <FileText /> Assumptions

@@ -38,7 +38,7 @@ describe("FieldControl", () => {
 
   it("marks assumptions", () => {
     wrap(<FieldControl field={field(serviceFields, "serviceTimeMs")} value={{ kind: "lognormal", median: 8, p95: 25 }} onChange={() => {}} idPrefix="t" />);
-    expect(screen.getByText("assumption")).toBeInTheDocument();
+    expect(screen.getByLabelText("assumption")).toBeInTheDocument();
     expect(screen.getByText(/mean 10\.2 ms/)).toBeInTheDocument();
   });
 

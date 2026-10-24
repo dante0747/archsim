@@ -113,7 +113,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   lastHistoryAt: 0,
   issues: [],
   validation: "idle",
-  rightTab: "workload",
+  rightTab: "inspect",
   layoutVersion: 0,
 
   load: (project, catalog) => {
@@ -133,7 +133,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       future: [],
       issues: [],
       validation: "idle",
-      rightTab: "workload",
+      rightTab: "inspect",
     });
   },
 

@@ -16,7 +16,7 @@ export function TabsTrigger({ className, ...props }: React.ComponentProps<typeof
   return (
     <RTabs.Trigger
       className={cn(
-        "-mb-px inline-flex h-9 items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-2.5 text-xs font-medium text-ink-2 hover:text-ink data-[state=active]:border-accent data-[state=active]:text-ink [&_svg]:size-3.5",
+        "relative -mb-px inline-flex h-10 items-center gap-1.5 whitespace-nowrap px-3 text-xs font-medium text-ink-3 transition-colors hover:text-ink data-[state=active]:text-ink [&_svg]:size-3.5 after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:after:[background:var(--brand)]",
         className,
       )}
       {...props}
@@ -43,10 +43,10 @@ export function DialogContent({
 }) {
   return (
     <RDialog.Portal>
-      <RDialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
+      <RDialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
       <RDialog.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-line bg-surface p-5 shadow-2xl",
+          "fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-line bg-surface p-6 shadow-float",
           className,
         )}
       >
@@ -80,7 +80,7 @@ export function MenuContent({ className, ...props }: React.ComponentProps<typeof
       <RMenu.Content
         sideOffset={6}
         align="end"
-        className={cn("z-50 min-w-52 rounded-lg border border-line bg-surface p-1 shadow-xl", className)}
+        className={cn("z-50 min-w-52 rounded-xl border border-line bg-surface p-1 shadow-float", className)}
         {...props}
       />
     </RMenu.Portal>

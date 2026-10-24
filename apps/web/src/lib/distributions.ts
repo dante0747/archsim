@@ -45,6 +45,21 @@ export function describeDistribution(d: Distribution, unit = "ms"): string {
   }
 }
 
+/** Very short form for node cards, e.g. "8 ms (p95 25)". */
+export function shortDistribution(d: Distribution, unit = "ms"): string {
+  const n = (v: number) => fmtNum(v, v < 10 && !Number.isInteger(v) ? 2 : v < 100 && !Number.isInteger(v) ? 1 : 0);
+  switch (d.kind) {
+    case "constant":
+      return `${n(d.value)} ${unit}`;
+    case "exponential":
+      return `~${n(d.mean)} ${unit}`;
+    case "uniform":
+      return `${n(d.min)}–${n(d.max)} ${unit}`;
+    case "lognormal":
+      return `${n(d.median)} ${unit} (p95 ${n(d.p95)})`;
+  }
+}
+
 /** Switch kind while keeping roughly the same mean. */
 export function convertDistribution(d: Distribution, kind: Distribution["kind"]): Distribution {
   const m = Math.max(meanOf(d), 0.001);

@@ -14,27 +14,33 @@ bottleneck, and you can compare alternatives side by side.
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![Editor with simulation results: the canvas shows each component's status and utilization; the results panel shows offered load, throughput, success rate and latency percentiles](docs/images/editor-results.jpg)
+![The editor after simulating the starter with one API replica: the API card glows red as saturated, request dots flow along the links, and the last-run card reads "API Servers is the primary bottleneck" with throughput, p95 latency and success rate](docs/images/editor-results.jpg)
 
-*Captured from the MVP at reduced resolution. A higher-resolution screenshot and a demo GIF
-are still to be recorded (placeholder).*
+*Captured at 800x500. A demo GIF is still to be recorded.*
 
 ## What you can do
 
-- **Design** on an infinite canvas: drag components from a searchable palette, link them,
-  auto-layout with ELK, undo/redo, multi-select, keyboard shortcuts.
-- **Configure** every component in an inspector generated from the component catalog: replicas,
-  workers, queue limits and timeouts, service-time distributions, cache hit ratio or TTL over a
-  Zipf keyspace, database connections, load-balancing policy, link latency, timeouts and retries.
-  Values that are *your assumptions* are labeled as such.
-- **Describe traffic**: requests per second, read/write mix, Poisson or evenly spaced arrivals,
-  constant / ramp / burst patterns, duration, warm-up and a seed.
+- **Follow the steps**: a workflow bar (Design, Traffic, Simulate, Insights, Compare) checks
+  off what you have done and always suggests the next action, so a first-time user is never
+  stuck wondering what to click.
+- **Design** on an infinite blueprint canvas: drag or click components from the rail (or search
+  the library), link them, tidy up with ELK auto-layout, undo/redo, multi-select, keyboard
+  shortcuts. Each kind of component has its own color, so the diagram reads at a glance.
+- **Configure** every component in an inspector generated from the component catalog, with the
+  key settings first and the rest under *Advanced*: replicas, workers, queue limits and
+  timeouts, service-time distributions, cache hit ratio or TTL over a Zipf keyspace, database
+  connections, load-balancing policy, link latency, timeouts and retries. Values that are *your
+  assumptions* carry a "≈" tag.
+- **Describe traffic** in the Traffic tab: requests per second (with presets), a read/write
+  slider, constant / ramp / burst patterns with a live preview, run length, and advanced
+  settings (Poisson or evenly spaced arrivals, warm-up, seed).
 - **Simulate** with a SimPy discrete-event engine running in the background, with real progress,
   cancellation and limits. Invalid graphs (cycles, unrouted cache misses, unreachable nodes,
   incompatible links...) are rejected with actionable messages before anything runs.
-- **Read the results**: offered vs. successful throughput, p50/p95/p99 latency, failures and
-  timeouts, per-component utilization, queue depth, queue wait and rejections, a heat overlay on
-  the canvas, and findings such as *"API Servers is the primary bottleneck"*, *"API Servers is
+- **Read the results**: right on the canvas (status and utilization on every card, request
+  dots whose density follows the measured calls/s, a verdict card), and in the Insights tab:
+  offered vs. successful throughput, p50/p95/p99 latency, failures and timeouts,
+  per-component utilization, queue depth, queue wait and rejections, and findings such as *"API Servers is the primary bottleneck"*, *"API Servers is
   saturated as a consequence of PostgreSQL"*, or *"100% of completed work at Service was wasted"*
   (it finished requests whose clients had already timed out).
 - **Compare** two runs: KPI deltas, the exact input differences, and explanations (*"Successful
@@ -43,9 +49,11 @@ are still to be recorded (placeholder).*
   import/export as versioned JSON, and every run stores its input snapshot, seed, engine version
   and result digest so it can be re-run and verified bit for bit.
 
-| Charts over simulated time | Scenario comparison |
+| Insights after a run | Scenario comparison |
 | --- | --- |
-| ![Charts](docs/images/charts.jpg) | ![Compare](docs/images/compare.jpg) |
+| ![Insights: verdict, KPI tiles with sparklines and findings](docs/images/insights.jpg) | ![Compare: what changed and why, with the input differences](docs/images/compare.jpg) |
+| **Charts over simulated time** | **Projects page** |
+| ![Timeline charts of throughput and latency](docs/images/charts.jpg) | ![Projects page with the hero illustration and steps](docs/images/home.jpg) |
 
 ## Quick start
 

@@ -101,10 +101,13 @@ export function ScenariosPanel() {
 
   return (
     <div className="space-y-4 p-4">
-      <p className="text-xs leading-relaxed text-ink-2">
-        A scenario is a named set of changes applied on top of this design (e.g. 3 replicas, or a 20% hit ratio).
-        Runs record exactly what was simulated, so comparisons stay reproducible.
-      </p>
+      <div>
+        <p className="microlabel">Scenarios</p>
+        <p className="mt-1 text-xs leading-relaxed text-ink-2">
+          Named “what if” changes on top of this design (e.g. 3 replicas, or a 20% hit ratio). Run one, or run all and
+          compare them side by side.
+        </p>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
@@ -134,7 +137,7 @@ export function ScenariosPanel() {
       ) : (
         <ul className="space-y-2">
           {scenarios.map((sc, i) => (
-            <li key={sc.id} className="rounded-lg border border-line p-3">
+            <li key={sc.id} className="rounded-2xl border border-line bg-surface p-3.5 transition-colors hover:border-line-strong">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-ink">{sc.name}</p>
@@ -171,7 +174,7 @@ export function ScenariosPanel() {
                   <li className="text-[11px] text-ink-3">No changes (the design as drawn)</li>
                 ) : (
                   sc.overrides.map((o, k) => (
-                    <li key={k} className="truncate rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-ink-2" title={overrideText(o, labelFor, fieldsFor)}>
+                    <li key={k} className="truncate rounded-md bg-surface-2 px-2 py-1 font-mono text-[10.5px] text-ink-2" title={overrideText(o, labelFor, fieldsFor)}>
                       {overrideText(o, labelFor, fieldsFor)}
                     </li>
                   ))
@@ -294,7 +297,7 @@ function OverrideRow({
   const fields = fieldsFor(key);
   const field = fields.find((f) => f.key === override.path);
   return (
-    <div className="space-y-2 rounded-lg border border-line p-2">
+    <div className="space-y-2 rounded-xl border border-line bg-surface-2/40 p-2.5">
       <div className="flex gap-1.5">
         <NativeSelect
           aria-label="Change target"

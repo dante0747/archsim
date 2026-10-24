@@ -7,8 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { useEditorActions } from "@/components/editor/actions";
 import { Canvas } from "@/components/editor/Canvas";
 import { Inspector } from "@/components/editor/Inspector";
-import { Palette } from "@/components/editor/Palette";
+import { ComponentRail } from "@/components/editor/Palette";
 import { TopBar } from "@/components/editor/TopBar";
+import { WorkflowBar } from "@/components/editor/WorkflowBar";
 import { ResultsDrawer } from "@/components/results/ResultsDrawer";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
@@ -16,6 +17,7 @@ import { ApiError, api } from "@/lib/api";
 import { isEditableTarget } from "@/lib/utils";
 import { contentKey, useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { useUi } from "@/store/ui";
 
 export function EditorApp({ projectId }: { projectId: string }) {
   const [state, setState] = useState<{ kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string }>({
@@ -29,6 +31,7 @@ export function EditorApp({ projectId }: { projectId: string }) {
         const [project, catalog] = await Promise.all([api.getProject(projectId), api.components()]);
         if (cancelled) return;
         useEditor.getState().load(project, catalog);
+        useUi.getState().resetForProject();
         void useRuns.getState().reset(projectId);
         setState({ kind: "ready" });
       } catch (e) {
@@ -101,13 +104,13 @@ function useLiveValidation() {
     return () => {
       unsub();
       if (timer) clearTimeout(timer);
+      lastKey.current = null; // re-validate on remount (React StrictMode mounts effects twice)
     };
   }, []);
 }
 
 function EditorShell() {
   // Rendered only on the client (after the project loads), so window is available.
-  const [showPalette, setShowPalette] = useState(() => window.innerWidth >= 1024);
   const [showInspector, setShowInspector] = useState(() => window.innerWidth >= 768);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const { save, run } = useEditorActions();
@@ -164,19 +167,14 @@ function EditorShell() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar
-        showPalette={showPalette}
         showInspector={showInspector}
-        onTogglePalette={() => setShowPalette((v) => !v)}
         onToggleInspector={() => setShowInspector((v) => !v)}
         shortcutsOpen={shortcutsOpen}
         onShortcutsOpenChange={setShortcutsOpen}
       />
+      <WorkflowBar />
       <div className="relative flex min-h-0 flex-1">
-        {showPalette && (
-          <div className="absolute inset-y-0 left-0 z-20 shadow-xl lg:static lg:z-auto lg:shadow-none">
-            <Palette />
-          </div>
-        )}
+        <ComponentRail />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <Canvas />
@@ -184,7 +182,7 @@ function EditorShell() {
           <ResultsDrawer />
         </div>
         {showInspector && (
-          <div className="absolute inset-y-0 right-0 z-20 shadow-xl lg:static lg:z-auto lg:shadow-none">
+          <div className="absolute inset-y-0 right-0 z-20 shadow-float lg:static lg:z-auto lg:shadow-none">
             <Inspector />
           </div>
         )}

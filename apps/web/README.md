@@ -17,8 +17,10 @@ Layout:
 
 - `src/lib/` - document/graph conversion, connection rules, layout, API client, types
 - `src/store/` - editor state (graph, undo/redo, validation) and runs (polling, reports, compare)
-- `src/components/editor/` - canvas, nodes, edges, palette, inspector, workload and scenarios
-- `src/components/results/` - results drawer: overview, charts, components, compare, runs, assumptions
+- `src/components/editor/` - canvas, nodes, edges, component rail and library, toolbar, workflow
+  bar, inspector, traffic and scenarios
+- `src/components/results/` - results panel: insights, timeline charts, components, compare,
+  history, assumptions
 - `src/test/fixtures/` - catalog and example used by unit tests
   (regenerate with `uv run python scripts/export_web_fixtures.py` from the repo root)
 
