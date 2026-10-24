@@ -17,8 +17,8 @@ import { rateAt } from "@/components/editor/WorkloadPanel";
 import { AddFaultMenu, FaultFields, FaultIcon, removeFault, updateFault, useFaultContext } from "@/components/stress/faultUi";
 import { useTimeline } from "@/components/timeline/TimelineContext";
 import { compact } from "@/lib/format";
-import { FAULT_META, centredWindow, faultLabel, faultParam, fmtWindow } from "@/lib/faults";
-import type { Fault, TrafficPattern, Workload } from "@/lib/types";
+import { FAULT_META, faultLabel, faultParam, fmtWindow } from "@/lib/faults";
+import type { Fault, Workload } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 
@@ -95,19 +95,6 @@ interface TrafficDrag {
   key: string;
 }
 
-const PATTERNS: { kind: TrafficPattern["kind"]; label: string; glyph: string }[] = [
-  { kind: "constant", label: "Constant load", glyph: "—" },
-  { kind: "ramp", label: "Ramp", glyph: "⟋" },
-  { kind: "burst", label: "Burst", glyph: "⊓" },
-];
-
-function switchPattern(w: Workload, kind: TrafficPattern["kind"]): Partial<Workload> {
-  if (kind === w.pattern.kind) return {};
-  if (kind === "constant") return { pattern: { kind } };
-  if (kind === "ramp") return { pattern: { kind, startRps: Math.round(w.rps * 0.25), endRps: Math.max(10, Math.round(w.rps * 2)) } };
-  const win = centredWindow(w, Math.max(1, Math.round(w.durationS / 6)));
-  return { pattern: { kind, burstRps: Math.max(10, Math.round(w.rps * 3)), startS: win.startS, durationS: win.durationS } };
-}
 
 /** Patch the workload for a drag of `kind` by (dx, dy) px. */
 function dragPatch(d: TrafficDrag, dx: number, dy: number, free: boolean, plotWidth: number, axisS: number, plotH: number): Partial<Workload> {
@@ -263,31 +250,13 @@ function TrafficTrack() {
   );
 
   const label = (
-    <>
-      <span className="microlabel">traffic</span>
-      <span className="tabular truncate font-mono text-[12px] font-semibold text-ink">
+    <span className="flex min-w-0 flex-col" title="Drag the line or its handles to reshape the traffic">
+      <span className="text-[12px] text-ink-2">Traffic</span>
+      <span className="tabular truncate font-mono text-[12.5px] font-semibold text-ink">
         {p.kind === "ramp" ? `${compact(p.startRps)}→${compact(p.endRps)}` : compact(w.rps)}
         <span className="ml-1 text-[10px] font-normal text-ink-3">req/s</span>
       </span>
-      <span className="flex gap-0.5" role="radiogroup" aria-label="Traffic shape">
-        {PATTERNS.map((o) => (
-          <button
-            key={o.kind}
-            type="button"
-            role="radio"
-            aria-checked={p.kind === o.kind}
-            title={o.label}
-            onClick={() => setWorkload(switchPattern(w, o.kind), "pattern")}
-            className={cn(
-              "flex h-[18px] w-6 items-center justify-center rounded-sm border font-mono text-[11px] leading-none",
-              p.kind === o.kind ? "border-accent/60 bg-accent-soft text-accent" : "border-line text-ink-3 hover:text-ink",
-            )}
-          >
-            {o.glyph}
-          </button>
-        ))}
-      </span>
-    </>
+    </span>
   );
 
   const bx0 = p.kind === "burst" ? x(Math.min(p.startS, runS)) : 0;

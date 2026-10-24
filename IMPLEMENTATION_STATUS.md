@@ -109,10 +109,11 @@ serves 8 example designs (see below).
   - **Test** (internal key `stress`): test plan on a timeline (drag the traffic shape; failure
     blocks you move and resize per target), quick failure tests generated from the design, a
     result against the objectives (over the run and inside each failure window), and the
-    **replay timeline**: replay with transport (play/pause, speed 1-16x, step, scrub,
-    jump to events), heat lanes per component, throughput/latency/error strips with SLO
-    shading, event markers (faults, saturation, SLO breach/recovery, scaling, queue growth,
-    timeouts), and the canvas showing each component's state at the playhead (fill level,
+    **replay timeline**: a short header (play/pause, time, "Whole run", speed button; step
+    and jump stay on the keyboard), the traffic plan and failure rows, event markers (faults,
+    saturation, SLO breach/recovery, scaling, queue growth, timeouts), latency against the
+    objective and failures; "More detail" (remembered) adds throughput and a heat lane per
+    component. Click or drag any row to scrub, and the canvas shows each component's state at the playhead (fill level,
     queue, rejections, faults, link flow, replica count) plus a clock overlay. Runs started
     from the Test workspace replay automatically; from Design the result lands on the canvas.
   - **Results** (internal key `decide`): summary scorecard (objective tiles with inline-editable targets, error budget and

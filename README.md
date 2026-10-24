@@ -14,7 +14,7 @@ capacity curves. Same document and seed, same result.
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![The Test workspace replaying a Black Friday ramp: the Kubernetes checkout service glows red while the autoscaler catches up, the timeline below shows heat lanes per component (blue to amber to red), latency against the objective and failures, and the test plan panel reports the result](docs/images/editor-results.jpg)
+![The Test workspace replaying a Black Friday ramp: the Kubernetes checkout service glows red while the autoscaler catches up, the timeline below shows the traffic ramp, events, latency against the objective and failures, and the test plan panel reports the result](docs/images/editor-results.jpg)
 
 *The Test workspace replaying the Black Friday on Kubernetes template. A demo GIF is still to be recorded.*
 
@@ -47,9 +47,10 @@ API servers behind a lone Clients box.
 - Shape the traffic on a timeline (constant, ramp, burst) by dragging it, and plan failures on
   it: a component outage, a slowdown, extra network latency on a link. Quick failure tests
   ("lose the cache for 15 s", "database 4× slower", "+300 ms on a link", "3× spike").
-- Every run is recorded second by second and replays on the timeline and the canvas: each
-  component's utilization, queue and traffic at that second, with heat lanes per component,
-  latency against the objective, and markers for failures, saturation and breaches.
+- Every run is recorded second by second and replays on the canvas: each component's
+  utilization, queue and traffic at that second. The timeline below stays short: play, the
+  time, speed, the traffic plan, events, latency against the objective and failures; "More
+  detail" adds throughput and a heat lane per component.
 - Every test gets a result against its objectives (what must stay true), including what
   happened during each failure.
 

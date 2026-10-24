@@ -9,6 +9,7 @@
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  ChevronRight,
   Flame,
   Layers,
   ShieldAlert,
@@ -18,7 +19,6 @@ import {
   ZapOff,
 } from "lucide-react";
 import { memo, useMemo, useState } from "react";
-import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { useTimeline } from "@/components/timeline/TimelineContext";
 import { jumpTo } from "@/components/timeline/playback";
 import { fmtMs, fmtPct } from "@/lib/format";
@@ -30,11 +30,11 @@ import {
   fmtClock,
   fmtRate,
   heatColor,
+  heatLegend,
   runFaults,
   tickStep,
 } from "@/lib/recorder";
 import { sloTimeline } from "@/lib/slo";
-import { kindOf } from "@/lib/theme";
 import type { Fault, NodeReport, Objectives, Report, Series } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -123,7 +123,6 @@ export function Ruler({ warmupS, scrubbable, endS }: { warmupS: number | null; s
       onPointerDown={onPointerDown}
     >
       <div className="flex shrink-0 items-center border-r border-line px-3 font-mono text-[9.5px] uppercase tracking-wider text-ink-3" style={{ width: labelWidth }}>
-        t · seconds
       </div>
       <div className="relative shrink-0" style={{ width: plotWidth }}>
         {warmupS != null && warmupS > 0 && (
@@ -199,9 +198,7 @@ export function EventRow({ events, endS, onHover }: { events: RecorderEvent[]; e
       lane="events"
       height={LANE_H.events}
       label={
-        <span className="flex w-full items-baseline justify-between font-mono text-[10.5px] text-ink-2">
-          events <span className="tabular text-ink-3">{events.length}</span>
-        </span>
+        <span className="text-[12px] text-ink-2">Events</span>
       }
     >
       <div className="absolute inset-x-0 top-1/2 h-px bg-line" aria-hidden />
@@ -255,16 +252,35 @@ function linePath(series: Series, x: (t: number) => number, y: (v: number) => nu
   return d;
 }
 
-function StripLabel({ title, legend, max }: { title: string; legend?: React.ReactNode; max?: string }) {
+function StripLabel({ title, max, hint }: { title: string; max?: string; hint?: string }) {
   return (
-    <span className="flex w-full min-w-0 flex-col justify-center gap-0.5 font-mono leading-none">
-      <span className="flex items-baseline justify-between gap-2 text-[10.5px] text-ink-2">
-        <span className="truncate">{title}</span>
-        {max && <span className="shrink-0 text-[9.5px] tabular-nums text-ink-3">{max}</span>}
-      </span>
-      {legend && <span className="flex items-center gap-2 truncate text-[9.5px] text-ink-3">{legend}</span>}
+    <span className="flex w-full min-w-0 items-baseline justify-between gap-2" title={hint}>
+      <span className="truncate text-[12px] text-ink-2">{title}</span>
+      {max && <span className="shrink-0 font-mono text-[10px] tabular-nums text-ink-3">{max}</span>}
     </span>
   );
+}
+
+function HeatLegend({ dark }: { dark: boolean }) {
+  const stops = heatLegend(dark);
+  return (
+    <span className="flex items-center gap-2 font-mono text-[10px] text-ink-3" aria-label="Heat scale: how busy each part was">
+      {stops.map((st) => (
+        <span key={st.label} className="flex items-center gap-1">
+          <span className={cn("h-2 rounded-[1px]", st.label === "<70%" ? "w-6" : "w-2.5")} style={{ background: st.color }} aria-hidden />
+          {st.label}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function readDetail(): boolean {
+  try {
+    return localStorage.getItem("archsim-timeline-detail") === "1";
+  } catch {
+    return false;
+  }
 }
 
 const ThroughputStrip = memo(function ThroughputStrip({ report, plotWidth, durationS }: { report: Report; plotWidth: number; durationS: number }) {
@@ -510,6 +526,15 @@ export function RecorderLanes({
 }) {
   const { x, t, plotWidth, labelWidth, durationS } = useTimeline();
   const [hover, setHover] = useState<Hover | null>(null);
+  const [detail, setDetailState] = useState(readDetail);
+  const setDetail = (v: boolean) => {
+    setDetailState(v);
+    try {
+      localStorage.setItem("archsim-timeline-detail", v ? "1" : "0");
+    } catch {
+      /* storage unavailable */
+    }
+  };
   const onPointerDown = useScrub(true, endS);
   const faults = runFaults(report);
   const ts = report.timeseries;
@@ -567,46 +592,13 @@ export function RecorderLanes({
         onHover={(c, px) => setHover(c ? { lane: "events", px, y: LANE_H.events, t: c.events[0].t, cluster: c } : null)}
       />
       <LaneRow
-        lane="throughput"
-        height={LANE_H.strip}
-        label={
-          <StripLabel
-            title="throughput"
-            max={`${fmtRate(seriesMax(ts.offeredRps, ts.throughputRps))}/s`}
-            legend={
-              <>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-[2px] w-3 bg-accent" aria-hidden />
-                  ok
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-3 border-t border-dashed border-ink-3" aria-hidden />
-                  offered
-                </span>
-              </>
-            }
-          />
-        }
-      >
-        <ThroughputStrip report={report} plotWidth={plotWidth} durationS={durationS} />
-      </LaneRow>
-      <LaneRow
         lane="latency"
         height={LANE_H.strip}
         label={
           <StripLabel
-            title="latency p95"
+            title="Latency"
             max={fmtMs(seriesMax(ts.latencyP95Ms))}
-            legend={
-              objectives.latencyP95Ms != null ? (
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-3 border-t border-dashed border-critical" aria-hidden />
-                  SLO {fmtMs(objectives.latencyP95Ms)}
-                </span>
-              ) : (
-                "no p95 objective"
-              )
-            }
+            hint={objectives.latencyP95Ms != null ? `p95 per second; dashed line = objective ${fmtMs(objectives.latencyP95Ms)}` : "p95 per second"}
           />
         }
       >
@@ -615,53 +607,61 @@ export function RecorderLanes({
       <LaneRow
         lane="failures"
         height={LANE_H.errors}
-        label={
-          <StripLabel
-            title="failures"
-            legend={
-              <>
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2 rounded-[1px] bg-critical" aria-hidden />
-                  error
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2 rounded-[1px] bg-serious" aria-hidden />
-                  timeout
-                </span>
-              </>
-            }
-          />
-        }
+        label={<StripLabel title="Failures" hint="Errors (red) and client timeouts (orange) per second" />}
       >
         <FailureStrip report={report} plotWidth={plotWidth} durationS={durationS} />
       </LaneRow>
 
-      {report.nodes.map((node) => {
-        const peak = node.summary.peakUtilization ?? seriesMax(node.timeseries?.utilization);
-        const hasUtil = !!node.timeseries?.utilization;
-        return (
+      <div className="flex h-8 items-center border-b border-line" onPointerDown={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={() => setDetail(!detail)}
+          aria-expanded={detail}
+          className="flex h-full shrink-0 items-center gap-1.5 border-r border-line px-3 text-[12px] text-ink-3 hover:text-ink"
+          style={{ width: labelWidth }}
+        >
+          <ChevronRight className={cn("size-3.5 transition-transform", detail && "rotate-90")} aria-hidden />
+          {detail ? "Less detail" : "More detail"}
+        </button>
+        <div className="flex flex-1 items-center justify-end px-3">{detail ? <HeatLegend dark={dark} /> : <span className="text-[11.5px] text-ink-3">throughput and each part</span>}</div>
+      </div>
+
+      {detail && (
+        <>
           <LaneRow
-            key={node.id}
-            lane={`node:${node.id}`}
-            height={LANE_H.heat}
-            label={
-              <span className="flex w-full min-w-0 items-center gap-1.5 font-mono text-[10.5px] text-ink-2">
-                <ShapeGlyph shape={SHAPE_OF[kindOf(node.type, node.category)]} w={18} h={12} className="shrink-0 text-ink-3" layers={2} />
-                <span className="min-w-0 flex-1 truncate" title={node.label || node.id}>
-                  {node.label || node.id}
-                </span>
-                {hasUtil && (
-                  <span className="shrink-0 text-[9.5px] tabular-nums" style={{ color: peak >= 0.95 ? "var(--danger-ink)" : "var(--ink-3)" }}>
-                    {fmtPct(peak, 0)}
-                  </span>
-                )}
-              </span>
-            }
+            lane="throughput"
+            height={LANE_H.strip}
+            label={<StripLabel title="Throughput" max={`${fmtRate(seriesMax(ts.offeredRps, ts.throughputRps))}/s`} hint="Handled (solid) against offered (dashed)" />}
           >
-            <HeatLane node={node} report={report} faults={faults} dark={dark} plotWidth={plotWidth} durationS={durationS} />
+            <ThroughputStrip report={report} plotWidth={plotWidth} durationS={durationS} />
           </LaneRow>
-        );
-      })}
+          {report.nodes.map((node) => {
+            const peak = node.summary.peakUtilization ?? seriesMax(node.timeseries?.utilization);
+            const hasUtil = !!node.timeseries?.utilization;
+            return (
+              <LaneRow
+                key={node.id}
+                lane={`node:${node.id}`}
+                height={LANE_H.heat}
+                label={
+                  <span className="flex w-full min-w-0 items-center gap-1.5 text-[12px] text-ink-2">
+                    <span className="min-w-0 flex-1 truncate" title={node.label || node.id}>
+                      {node.label || node.id}
+                    </span>
+                    {hasUtil && (
+                      <span className="shrink-0 font-mono text-[10px] tabular-nums" style={{ color: peak >= 0.95 ? "var(--danger-ink)" : "var(--ink-3)" }}>
+                        {fmtPct(peak, 0)}
+                      </span>
+                    )}
+                  </span>
+                }
+              >
+                <HeatLane node={node} report={report} faults={faults} dark={dark} plotWidth={plotWidth} durationS={durationS} />
+              </LaneRow>
+            );
+          })}
+        </>
+      )}
 
       {/* Hover crosshair and readout. */}
       {hover && (
