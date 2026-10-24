@@ -39,9 +39,9 @@ function useBoxSize(ref: React.RefObject<HTMLDivElement | null>) {
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 font-mono leading-[18px]">
-      <dt className="truncate text-[10.5px] lowercase text-ink-3">{k}</dt>
-      <dd className="tabular shrink-0 text-[11px] text-ink">{v}</dd>
+    <div className="flex items-baseline justify-between gap-3 leading-[18px]">
+      <dt className="truncate text-[11px] text-ink-3">{k}</dt>
+      <dd className="tabular shrink-0 font-mono text-[11px] text-ink">{v}</dd>
     </div>
   );
 }
@@ -226,12 +226,13 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
 
       {live && live.queue != null && live.queue >= 0.5 && !selected && <QueueBlocks queue={live.queue} left={pad.left} />}
 
-      <svg className="pointer-events-none absolute inset-0 overflow-visible" width={w} height={h} aria-hidden>
+      <svg className="pointer-events-none absolute inset-0 overflow-visible" width={w} height={h} style={{ filter: "var(--node-shadow)" }} aria-hidden>
         <ShapeSvg
           shape={shape}
           w={w}
           h={h}
           layers={replicas}
+          fill="url(#archsim-node-fill)"
           stroke={stroke}
           strokeWidth={selected ? 1.75 : outage ? 1.5 : 1.25}
           outlineStyle={{ filter: glow, strokeDasharray: dashed ? "5 3" : undefined }}
@@ -295,7 +296,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
       <div className="relative" style={{ padding: `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px` }}>
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-mono text-[12.5px] font-semibold leading-5 text-ink">{data.label}</p>
+            <p className="truncate text-[13px] font-semibold leading-5 tracking-[-0.01em] text-ink">{data.label}</p>
             <p className="flex min-w-0 items-baseline gap-1.5 leading-4">
               {tech && <span className="truncate font-mono text-[10.5px] text-ink-2">{tech}</span>}
               <span className="microlabel shrink-0 truncate !text-[9.5px]">{typeName}</span>

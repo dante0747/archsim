@@ -5,36 +5,42 @@
 
 /*
  * ArchSim design tokens — "schematic".
- * Monochrome graphite (dark) or drafting paper (light). Components are line-art shapes, wires are
- * orthogonal, labels are monospace. One accent (cyan) marks interaction and live traffic; status
- * colors (good / warning / serious / critical) appear only on simulation results and always ship
- * with a text label. Request types are told apart by shape (● read, ■ write), not by color.
+ * Ink-tinted graphite (dark) or warm drafting paper (light), translucent hairlines and soft layered
+ * depth. Type: Geist for the interface, Geist Mono for numbers and tags, Instrument Serif for
+ * display headings. Components are line-art shapes on orthogonal wires. One accent (aqua, with a
+ * periwinkle partner used only in gradients) marks interaction and live traffic; status colors
+ * (good / warning / serious / critical) appear only on results and always ship with a text label.
+ * Request types are told apart by shape (● read, ■ write), not by color.
  * Light values first, dark values under .dark.
  */
 :root {
   color-scheme: light;
-  --page: #f3f3f0;
-  --canvas: #f7f7f4;
-  --grid-dot: rgba(21, 23, 27, 0.13);
-  --grid-cross: rgba(21, 23, 27, 0.22);
+  --page: #f5f4f1;
+  --canvas: #f8f7f4;
+  --grid-dot: rgba(28, 30, 38, 0.12);
+  --grid-cross: rgba(28, 30, 38, 0.2);
   --surface: #ffffff;
-  --surface-2: #f2f2ef;
-  --surface-3: #e7e7e3;
-  --glass: rgba(255, 255, 255, 0.9);
-  --ink: #15171b;
-  --ink-2: #4f545d;
-  --ink-3: #858a93;
-  --line: #deded9;
-  --line-strong: #c4c5bf;
-  --wire: #9a9ea6;
+  --surface-2: #f4f3f0;
+  --surface-3: #eae9e5;
+  --glass: rgba(255, 255, 255, 0.78);
+  --ink: #16181d;
+  --ink-2: #50545d;
+  --ink-3: #888c95;
+  --line: rgba(22, 24, 29, 0.09);
+  --line-strong: rgba(22, 24, 29, 0.16);
+  --wire: #a3a6ad;
   --node-fill: #ffffff;
-  --node-stroke: #2a2d33;
+  --node-fill-2: #f7f6f3;
+  --node-stroke: #2d3037;
   --ring: #0b7fa3;
   --accent: #0b7fa3;
+  --accent-2: #4b57d1;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(11, 127, 163, 0.1);
-  --shadow: 0 1px 2px rgba(21, 23, 27, 0.06);
-  --shadow-lg: 0 8px 28px rgba(21, 23, 27, 0.14);
+  --accent-soft: rgba(11, 127, 163, 0.09);
+  --highlight: rgba(255, 255, 255, 0.9);
+  --shadow: 0 1px 2px rgba(22, 24, 29, 0.05), 0 1px 1px rgba(22, 24, 29, 0.03);
+  --shadow-lg: 0 24px 48px -16px rgba(22, 24, 29, 0.22), 0 4px 12px -4px rgba(22, 24, 29, 0.08);
+  --node-shadow: drop-shadow(0 6px 10px rgba(22, 24, 29, 0.07));
 
   /* chart series (validated data-viz palette) */
   --series-1: #2a78d6;
@@ -58,36 +64,40 @@
   --success-ink: #1a7f37;
   --danger-ink: #b3191f;
 
-  --grid: #e4e4df;
-  --axis: #c4c5bf;
-  --muted-axis: #858a93;
-  --warmup-wash: rgba(21, 23, 27, 0.045);
+  --grid: rgba(22, 24, 29, 0.07);
+  --axis: rgba(22, 24, 29, 0.18);
+  --muted-axis: #888c95;
+  --warmup-wash: rgba(22, 24, 29, 0.04);
 }
 
 .dark {
   color-scheme: dark;
-  --page: #0a0b0d;
-  --canvas: #0c0d10;
-  --grid-dot: rgba(255, 255, 255, 0.075);
-  --grid-cross: rgba(255, 255, 255, 0.14);
-  --surface: #111317;
-  --surface-2: #16191e;
-  --surface-3: #1d2027;
-  --glass: rgba(17, 19, 23, 0.9);
-  --ink: #e6e8eb;
-  --ink-2: #a1a7b1;
-  --ink-3: #6b717c;
-  --line: #22262d;
-  --line-strong: #323741;
-  --wire: #4b515c;
-  --node-fill: #111317;
-  --node-stroke: #8d939e;
-  --ring: #5cd5ef;
-  --accent: #5cd5ef;
-  --accent-ink: #04161b;
-  --accent-soft: rgba(92, 213, 239, 0.12);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.6);
+  --page: #08090c;
+  --canvas: #0a0b0f;
+  --grid-dot: rgba(214, 222, 255, 0.075);
+  --grid-cross: rgba(214, 222, 255, 0.13);
+  --surface: #0f1116;
+  --surface-2: #14171d;
+  --surface-3: #1b1f27;
+  --glass: rgba(16, 18, 24, 0.72);
+  --ink: #ecedf1;
+  --ink-2: #a7acb7;
+  --ink-3: #6c7280;
+  --line: rgba(214, 222, 255, 0.075);
+  --line-strong: rgba(214, 222, 255, 0.14);
+  --wire: #464d5a;
+  --node-fill: #12141a;
+  --node-fill-2: #0d0f13;
+  --node-stroke: #8c93a1;
+  --ring: #6ad6f0;
+  --accent: #6ad6f0;
+  --accent-2: #8e9bff;
+  --accent-ink: #03141a;
+  --accent-soft: rgba(106, 214, 240, 0.11);
+  --highlight: rgba(255, 255, 255, 0.05);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 28px 60px -18px rgba(0, 0, 0, 0.75), 0 6px 16px -6px rgba(0, 0, 0, 0.5);
+  --node-shadow: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
 
   --series-1: #3987e5;
   --series-2: #d95926;
@@ -109,10 +119,10 @@
   --success-ink: #56d364;
   --danger-ink: #ff7b72;
 
-  --grid: #1f232a;
-  --axis: #323741;
-  --muted-axis: #79808b;
-  --warmup-wash: rgba(255, 255, 255, 0.04);
+  --grid: rgba(214, 222, 255, 0.06);
+  --axis: rgba(214, 222, 255, 0.14);
+  --muted-axis: #7a808d;
+  --warmup-wash: rgba(214, 222, 255, 0.035);
 }
 
 @theme inline {
@@ -142,10 +152,21 @@
   --color-critical-soft: var(--status-critical-soft);
   --color-success-ink: var(--success-ink);
   --color-danger-ink: var(--danger-ink);
+  --color-accent-2: var(--accent-2);
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --font-display: var(--font-instrument-serif), "Iowan Old Style", Georgia, serif;
   --shadow-panel: var(--shadow);
   --shadow-float: var(--shadow-lg);
+}
+
+/* A slightly rounder, softer geometry than Tailwind's defaults. */
+@theme {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
 }
 
 html,
@@ -158,6 +179,76 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.003em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* In the base layer so Tailwind utilities (tracking-*, font-*) still override these defaults. */
+@layer base {
+  /* Display headings: Instrument Serif, a little tighter, never bold (it has one weight). */
+  .font-display {
+    font-weight: 400;
+    letter-spacing: -0.012em;
+    font-feature-settings: "liga", "kern";
+  }
+
+  /* Mono text: tabular figures so numbers line up. */
+  .font-mono {
+    font-feature-settings: "tnum", "calt";
+  }
+}
+
+/* Floating chrome: translucent, blurred, hairline border, soft depth, faint top highlight. */
+.surface-glass {
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid var(--line-strong);
+  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-lg);
+}
+
+/* Panels and cards: a faint top-down sheen gives surfaces a sense of material. */
+.surface-sheen {
+  background-image: linear-gradient(180deg, var(--highlight), transparent 120px);
+}
+
+/* Primary action: the accent with a whisper of the periwinkle partner and an inner highlight. */
+.accent-fill {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white) 0%, var(--accent) 55%, color-mix(in srgb, var(--accent) 78%, var(--accent-2)) 100%);
+  color: var(--accent-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 6px 16px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* Soft atmospheric light behind the canvas (very low contrast). */
+.canvas-atmosphere {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
+    radial-gradient(900px 500px at 100% 110%, color-mix(in srgb, var(--accent-2) 5%, transparent), transparent 70%),
+    var(--canvas);
+}
+
+/* Gradient text for the occasional display accent word. */
+.text-gradient {
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .tabular {
@@ -169,7 +260,7 @@ body {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
@@ -177,9 +268,18 @@ body {
 /* Drafting-paper grid (home page hero); the canvas draws its own with React Flow. */
 .schematic-grid {
   background-color: var(--canvas);
-  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
-  background-size: 24px 24px;
-  background-position: -12px -12px;
+  background-image:
+    radial-gradient(var(--grid-dot) 1px, transparent 1px),
+    radial-gradient(900px 420px at 82% 8%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%),
+    radial-gradient(720px 380px at 8% 100%, color-mix(in srgb, var(--accent-2) 7%, transparent), transparent 70%);
+  background-size:
+    24px 24px,
+    auto,
+    auto;
+  background-position:
+    -12px -12px,
+    0 0,
+    0 0;
 }
 
 /* Blinking terminal caret. */

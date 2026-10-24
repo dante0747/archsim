@@ -30,7 +30,7 @@ export function RunReportCard() {
       <button
         type="button"
         onClick={() => setCollapsed(false)}
-        className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-md border border-line-strong bg-surface px-2.5 py-1 font-mono text-[11px] text-ink shadow-float"
+        className="surface-glass absolute right-3 top-3 z-10 flex items-center gap-2 rounded-lg px-2.5 py-1 font-mono text-[11px] text-ink"
       >
         <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden /> last run
       </button>
@@ -44,9 +44,9 @@ export function RunReportCard() {
   return (
     <div
       data-run-card
-      className="absolute right-3 top-3 z-10 hidden w-[280px] overflow-hidden rounded-md border border-line-strong bg-surface font-mono shadow-float xl:block"
+      className="surface-glass absolute right-3 top-3 z-10 hidden w-[284px] overflow-hidden rounded-xl font-mono xl:block"
     >
-      <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-2.5 py-1.5 text-[10.5px] text-ink-3">
+      <div className="flex items-center gap-2 border-b border-line px-3 py-1.5 text-[10.5px] text-ink-3">
         <span className="size-1.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
         <span className="truncate">
           last run · {run?.label ?? "design"} · seed {report.provenance.seed}
@@ -55,18 +55,18 @@ export function RunReportCard() {
           <X className="size-3.5" />
         </button>
       </div>
-      <div className="p-2.5">
-        <p className="flex items-start gap-2 text-[12px] font-semibold leading-[18px] text-ink">
+      <div className="p-3">
+        <p className="flex items-start gap-2 font-sans text-[14px] font-semibold leading-[19px] tracking-[-0.01em] text-ink">
           <span className={cn("shrink-0", v.tone === "bad" && "pulse-soft")} style={{ color }} aria-hidden>
             {mark}
           </span>
           {v.title}
         </p>
-        <dl className="mt-2 grid grid-cols-3 divide-x divide-line rounded-sm border border-line">
+        <dl className="mt-2.5 grid grid-cols-3 divide-x divide-line rounded-md border border-line bg-surface-2/50">
           {kpis.map(([k, val]) => (
             <div key={k} className="px-2 py-1.5">
               <dt className="text-[9.5px] uppercase tracking-wider text-ink-3">{k}</dt>
-              <dd className="tabular truncate text-[12px] font-semibold text-ink">{val}</dd>
+              <dd className="tabular truncate text-[13px] font-semibold text-ink">{val}</dd>
             </div>
           ))}
         </dl>
@@ -86,7 +86,7 @@ export function RunReportCard() {
             <button
               type="button"
               onClick={replayActiveRun}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-sm border border-line-strong py-1.5 text-[11px] font-semibold text-ink hover:bg-surface-2"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-line-strong bg-surface/60 py-1.5 font-sans text-[12px] font-semibold text-ink hover:bg-surface-2"
             >
               ▶ replay
             </button>
@@ -97,7 +97,7 @@ export function RunReportCard() {
               useDecide.getState().setSection("scorecard");
               openDecide();
             }}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-sm border border-accent/40 py-1.5 text-[11px] font-semibold text-accent hover:bg-accent-soft"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft/40 py-1.5 font-sans text-[12px] font-semibold text-accent hover:bg-accent-soft"
           >
             scorecard →
           </button>

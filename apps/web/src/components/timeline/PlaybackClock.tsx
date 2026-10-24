@@ -35,7 +35,7 @@ export function PlaybackClock() {
 
   return (
     <div
-      className="pointer-events-none absolute left-3 top-3 z-10 w-[248px] overflow-hidden rounded-md border border-line-strong bg-surface font-mono shadow-float"
+      className="surface-glass pointer-events-none absolute left-3 top-3 z-10 w-[252px] overflow-hidden rounded-xl font-mono"
       role="status"
       aria-label={`Replay at ${fmtClock(playhead)}`}
     >

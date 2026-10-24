@@ -425,7 +425,7 @@ export function CommandPalette({ onShowShortcuts }: { onShowShortcuts: () => voi
         <RDialog.Portal>
           <RDialog.Overlay className="fixed inset-0 z-50 bg-black/45" />
           <RDialog.Content
-            className="fixed left-1/2 top-[12vh] z-50 w-[min(640px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-lg border border-line-strong bg-surface shadow-float"
+            className="surface-glass fixed left-1/2 top-[12vh] z-50 w-[min(640px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-xl"
             aria-describedby={undefined}
           >
             <RDialog.Title className="sr-only">Command palette</RDialog.Title>

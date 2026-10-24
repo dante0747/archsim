@@ -172,13 +172,15 @@ export function ProjectsHome() {
               </span>
               open-source · deterministic · local-first
             </p>
-            <h1 className="text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-[3.1rem]">
+            <h1 className="font-display text-[3.25rem] leading-[0.98] tracking-[-0.02em] text-ink sm:text-[4.5rem]">
               A flight simulator
               <br />
-              for your architecture
-              <span className="caret ml-1.5 inline-block h-[0.82em] w-[0.42em] translate-y-[0.06em] bg-accent" aria-hidden />
+              <span className="whitespace-nowrap">
+                <em className="text-gradient pr-1 italic">for your architecture</em>
+                <span className="caret ml-1 inline-block h-[0.7em] w-[3px] translate-y-[0.04em] rounded-full bg-accent" aria-hidden />
+              </span>
             </h1>
-            <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-ink-2">
+            <p className="mt-6 max-w-xl text-[15.5px] leading-[1.65] text-ink-2">
               Model the stack you actually run, push traffic and failures through it, replay every second of what happened, and
               decide with SLOs, cost and capacity curves. A discrete-event engine moves every single request; results are
               estimates from the assumptions you enter, so they are reproducible and explainable, not guarantees.
@@ -244,19 +246,24 @@ export function ProjectsHome() {
         )}
 
         <section aria-labelledby="ws-heading">
-          <h2 id="ws-heading" className="microlabel mb-4">
-            <span className="mr-1 opacity-60" aria-hidden>
-              {"//"}
-            </span>
-            Three workspaces, one canvas
-          </h2>
-          <ol className="grid gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-3">
+          <div className="mb-6">
+            <p className="microlabel">
+              <span className="mr-1 opacity-60" aria-hidden>
+                {"//"}
+              </span>
+              how it works
+            </p>
+            <h2 id="ws-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
+              Three workspaces, <em className="italic text-ink-2">one canvas</em>
+            </h2>
+          </div>
+          <ol className="grid gap-px overflow-hidden rounded-xl border border-line bg-line shadow-panel lg:grid-cols-3">
             {WORKSPACES.map((w) => (
-              <li key={w.key} className="relative bg-surface p-5">
+              <li key={w.key} className="surface-sheen relative bg-surface p-6">
                 <div className="mb-3 flex items-baseline gap-3">
                   <span className="font-mono text-xs text-accent">{w.n}</span>
-                  <span className="font-mono text-[15px] font-semibold uppercase tracking-[0.16em] text-ink">{w.title}</span>
-                  <span className="ml-auto font-mono text-[10.5px] text-ink-3">{w.tagline}</span>
+                  <span className="font-display text-[28px] leading-none text-ink">{w.title}</span>
+                  <span className="ml-auto text-[11.5px] text-ink-3">{w.tagline}</span>
                 </div>
                 <p className="text-[13px] leading-relaxed text-ink-2">{w.text}</p>
                 <ul className="mt-4 flex flex-wrap gap-1.5">
@@ -276,13 +283,16 @@ export function ProjectsHome() {
         <section aria-labelledby="examples-heading">
           <div className="mb-4 flex items-end justify-between">
             <div>
-              <h2 id="examples-heading" className="microlabel">
+              <p className="microlabel">
                 <span className="mr-1 opacity-60" aria-hidden>
                   {"//"}
                 </span>
-                Start from an example
+                templates
+              </p>
+              <h2 id="examples-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
+                Start from an <em className="italic text-ink-2">example</em>
               </h2>
-              <p className="mt-1 text-sm text-ink-2">Each one comes with scenarios ready to compare.</p>
+              <p className="mt-2 text-sm text-ink-2">Each one comes with scenarios ready to compare.</p>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -300,7 +310,7 @@ export function ProjectsHome() {
                   key={ex.id}
                   onClick={() => void create({ exampleId: ex.id }, ex.id)}
                   disabled={busy !== null}
-                  className="group flex flex-col overflow-hidden rounded-lg border border-line bg-surface text-left transition-colors hover:border-line-strong disabled:opacity-60"
+                  className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface text-left shadow-panel transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-float disabled:opacity-60"
                 >
                   <div className="schematic-grid h-40 border-b border-line p-3">
                     {doc ? <MiniDiagram doc={doc} /> : <div className="h-full animate-pulse rounded-md bg-surface-2/60" />}
@@ -339,14 +349,16 @@ export function ProjectsHome() {
         <section aria-labelledby="projects-heading">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
-              <h2 id="projects-heading" className="microlabel">
+              <p className="microlabel">
                 <span className="mr-1 opacity-60" aria-hidden>
                   {"//"}
                 </span>
-                Your projects
-                {projects && projects.length > 0 ? ` · ${projects.length}` : ""}
+                your projects{projects && projects.length > 0 ? ` · ${projects.length}` : ""}
+              </p>
+              <h2 id="projects-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
+                Pick up where you <em className="italic text-ink-2">left off</em>
               </h2>
-              <p className="mt-1 text-sm text-ink-2">Saved locally in the ArchSim database.</p>
+              <p className="mt-2 text-sm text-ink-2">Saved locally in the ArchSim database.</p>
             </div>
             <Button size="sm" onClick={() => setNewOpen(true)}>
               <Plus /> New project
@@ -365,7 +377,7 @@ export function ProjectsHome() {
               </Empty>
             </div>
           ) : (
-            <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
+            <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-panel">
               {projects.map((p) => (
                 <li key={p.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface-2 text-ink-3">
@@ -443,21 +455,24 @@ function TechWall({ catalog }: { catalog: Catalog }) {
     <section aria-labelledby="tech-heading">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <h2 id="tech-heading" className="microlabel">
+          <p className="microlabel">
             <span className="mr-1 opacity-60" aria-hidden>
               {"//"}
             </span>
             {items.length} technology profiles
+          </p>
+          <h2 id="tech-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
+            Model the stack you <em className="italic text-ink-2">actually run</em>
           </h2>
-          <p className="mt-1 max-w-2xl text-sm text-ink-2">
+          <p className="mt-2 max-w-2xl text-sm text-ink-2">
             Each profile is a component with transparent, editable defaults: replicas, shards, consistency, autoscaling, rate
             limits. Behaviour comes from those numbers, and every default is marked as an assumption.
           </p>
         </div>
       </div>
-      <div className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line shadow-panel sm:grid-cols-2 lg:grid-cols-3">
         {groups.map(({ f, items: list }) => (
-          <div key={f.key} className="bg-surface p-4">
+          <div key={f.key} className="surface-sheen bg-surface p-5">
             <p className="mb-3 flex items-center gap-2">
               <ShapeGlyph shape={SHAPE_OF[list[0].kind]} w={26} h={17} className="text-ink-2" />
               <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-ink">{f.label}</span>

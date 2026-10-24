@@ -53,8 +53,8 @@ function EmptyState() {
         <p className="font-mono text-xs text-ink-3">
           <span className="text-accent">{"//"}</span> empty canvas
         </p>
-        <h2 className="mt-2 font-mono text-xl font-semibold tracking-tight text-ink">
-          Sketch a system, then stress it<span className="caret text-accent">_</span>
+        <h2 className="mt-2 font-display text-[34px] leading-[1.05] tracking-[-0.015em] text-ink">
+          Sketch a system, then <em className="text-gradient pr-1 italic">stress it</em>
         </h2>
         <ol className="mt-5 grid gap-2 sm:grid-cols-3">
           {steps.map((s, i) => (
@@ -189,7 +189,16 @@ export function Canvas() {
   };
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full bg-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+    <div ref={wrapRef} className="canvas-atmosphere relative h-full w-full" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+      {/* Shared paint for node bodies: a faint top-down gradient gives shapes a sense of material. */}
+      <svg width="0" height="0" className="absolute" aria-hidden>
+        <defs>
+          <linearGradient id="archsim-node-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--node-fill)" />
+            <stop offset="100%" stopColor="var(--node-fill-2)" />
+          </linearGradient>
+        </defs>
+      </svg>
       <ReactFlow<ArchNode, ArchEdge>
         nodes={nodes}
         edges={edges}

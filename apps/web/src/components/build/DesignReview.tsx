@@ -83,7 +83,7 @@ export function DesignReviewPanel() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="absolute bottom-3 left-3 z-10 flex h-8 max-w-[240px] items-center gap-2 rounded-md border border-line-strong bg-surface px-2.5 font-mono text-[11px] text-ink-2 shadow-float hover:text-ink"
+        className="surface-glass absolute bottom-3 left-3 z-10 flex h-8 max-w-[240px] items-center gap-2 rounded-lg px-2.5 font-mono text-[11px] text-ink-2 hover:text-ink"
         aria-label={`Design review: ${findings.length} finding${findings.length === 1 ? "" : "s"}`}
       >
         <ScanSearch className="size-3.5 shrink-0 text-ink-3" />
@@ -102,7 +102,7 @@ export function DesignReviewPanel() {
 
   return (
     <section
-      className="absolute bottom-[60px] left-3 z-10 flex max-h-[min(440px,calc(100%-84px))] w-[min(360px,calc(100%-24px))] flex-col overflow-hidden rounded-md border border-line-strong bg-surface shadow-float"
+      className="surface-glass absolute bottom-[60px] left-3 z-10 flex max-h-[min(440px,calc(100%-84px))] w-[min(360px,calc(100%-24px))] flex-col overflow-hidden rounded-xl"
       aria-label="Design review"
     >
       <header className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2 font-mono text-[11px]">

@@ -33,7 +33,7 @@ export function Kbd({ className, ...props }: React.HTMLAttributes<HTMLElement>) 
   return (
     <kbd
       className={cn(
-        "rounded border border-line bg-surface-2 px-1 font-mono text-[10px] leading-4 text-ink-2",
+        "rounded-[5px] border border-b-2 border-line-strong bg-surface-2 px-1 font-mono text-[10px] leading-4 text-ink-2",
         className,
       )}
       {...props}
@@ -58,9 +58,9 @@ export function Switch({
       aria-label={label}
       checked={checked}
       onCheckedChange={onCheckedChange}
-      className="relative h-[18px] w-8 shrink-0 rounded-sm border border-line-strong bg-surface-3 transition-colors data-[state=checked]:border-accent data-[state=checked]:bg-accent"
+      className="relative h-[18px] w-8 shrink-0 rounded-full border border-line-strong bg-surface-3 transition-colors data-[state=checked]:border-transparent data-[state=checked]:bg-accent"
     >
-      <RSwitch.Thumb className="block size-3.5 translate-x-px rounded-[2px] bg-ink-2 transition-transform data-[state=checked]:translate-x-[14px] data-[state=checked]:bg-accent-ink" />
+      <RSwitch.Thumb className="block size-3.5 translate-x-px rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition-transform duration-150 data-[state=checked]:translate-x-[14px]" />
     </RSwitch.Root>
   );
 }
@@ -81,7 +81,7 @@ export function Tip({
         <RTooltip.Content
           side={side}
           sideOffset={6}
-          className="z-50 max-w-xs rounded-md border border-line-strong bg-surface px-2 py-1 text-xs text-ink shadow-float"
+          className="surface-glass z-50 max-w-xs rounded-md px-2 py-1 text-xs leading-relaxed text-ink"
         >
           {content}
         </RTooltip.Content>
@@ -133,7 +133,7 @@ export function Empty({
   return (
     <div className={cn("flex flex-col items-center justify-center gap-2 p-6 text-center", className)}>
       {icon && <div className="text-ink-3 [&_svg]:size-6">{icon}</div>}
-      <p className="text-sm font-medium text-ink">{title}</p>
+      <p className="font-display text-[20px] leading-tight text-ink">{title}</p>
       {children && <div className="max-w-md text-xs leading-relaxed text-ink-2">{children}</div>}
     </div>
   );

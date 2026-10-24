@@ -486,7 +486,9 @@ export function ExperimentPanel() {
           <p className="microlabel flex items-center gap-1.5">
             <FlaskConical className="size-3" aria-hidden /> chaos experiment
           </p>
-          <h2 className="mt-1 text-[15px] font-semibold leading-snug text-ink">Break it on purpose</h2>
+          <h2 className="mt-1 font-display text-[26px] leading-[1.1] text-ink">
+            Break it <em className="italic text-ink-2">on purpose</em>
+          </h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-2">
             State what must stay true, inject one fault, run, and replay what happened second by second.
           </p>

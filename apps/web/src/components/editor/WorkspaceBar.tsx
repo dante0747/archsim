@@ -15,15 +15,15 @@ export function WorkspaceBar() {
   const promptColor =
     next?.tone === "critical" ? "var(--status-critical)" : next?.tone === "success" ? "var(--status-good)" : "var(--accent)";
   return (
-    <div className="relative z-20 flex h-12 shrink-0 items-stretch gap-4 border-b border-line bg-surface pl-1.5 pr-3">
+    <div className="relative z-20 flex h-12 shrink-0 items-stretch gap-4 border-b border-line bg-surface/85 pl-2 pr-3 backdrop-blur-md">
       <nav role="tablist" aria-label="Workspaces" className="flex shrink-0 items-stretch">
         {steps.map((s, i) => {
           const active = mode === s.key;
           return (
             <Fragment key={s.key}>
               {i > 0 && (
-                <span className="flex items-center px-0.5 font-mono text-[11px] text-line-strong" aria-hidden>
-                  →
+                <span className="flex items-center px-0.5 text-[12px] text-ink-3/50" aria-hidden>
+                  ›
                 </span>
               )}
               <Tip
@@ -43,20 +43,20 @@ export function WorkspaceBar() {
                   onClick={() => goTo(s.key)}
                   data-testid={`workspace-${s.key}`}
                   className={cn(
-                    "group relative flex items-center gap-2.5 px-3 transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5",
-                    active ? "text-ink after:bg-accent" : "text-ink-3 hover:text-ink after:bg-transparent",
+                    "group relative my-1.5 flex items-center gap-2.5 rounded-lg px-3 transition-colors after:absolute after:inset-x-3 after:-bottom-1.5 after:h-[2px] after:rounded-full",
+                    active ? "bg-surface-2 text-ink after:bg-accent" : "text-ink-3 hover:bg-surface-2/60 hover:text-ink after:bg-transparent",
                   )}
                 >
                   <span
                     className={cn(
-                      "flex size-5 items-center justify-center rounded-sm border font-mono text-[10px] font-semibold",
+                      "flex size-5 items-center justify-center rounded-full border font-mono text-[10px] font-semibold",
                       active ? "border-accent/60 bg-accent-soft text-accent" : "border-line-strong text-ink-3 group-hover:text-ink-2",
                     )}
                   >
                     {s.busy ? <LoaderCircle className="size-3 animate-spin" /> : i + 1}
                   </span>
                   <span className="flex flex-col items-start leading-none">
-                    <span className="flex items-center gap-1.5 font-mono text-[12px] font-semibold uppercase tracking-[0.16em]">
+                    <span className="flex items-center gap-1.5 text-[13.5px] font-semibold tracking-[-0.01em]">
                       {s.label}
                       {s.state === "done" && (
                         <span className="text-[10px] tracking-normal" style={{ color: "var(--status-good)" }} aria-label="done">
@@ -64,7 +64,7 @@ export function WorkspaceBar() {
                         </span>
                       )}
                     </span>
-                    <span className="mt-1 hidden font-mono text-[9.5px] lowercase tracking-normal text-ink-3 lg:block">{s.caption}</span>
+                    <span className="mt-0.5 hidden text-[11px] font-normal tracking-normal text-ink-3 lg:block">{s.caption}</span>
                   </span>
                 </button>
               </Tip>
@@ -99,7 +99,7 @@ export function WorkspaceBar() {
             <button
               type="button"
               onClick={doNext}
-              className="flex shrink-0 items-center gap-1.5 rounded-sm bg-accent px-2 py-1 font-mono text-[11px] font-semibold lowercase text-accent-ink hover:brightness-110"
+              className="accent-fill flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-semibold transition-[filter] hover:brightness-[1.08]"
             >
               {next.actionLabel}
               <span aria-hidden>↵</span>

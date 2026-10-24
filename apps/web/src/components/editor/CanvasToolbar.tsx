@@ -70,7 +70,7 @@ export function CanvasToolbar() {
       <div
         role="toolbar"
         aria-label="Canvas tools"
-        className="pointer-events-auto flex items-center gap-0.5 rounded-md border border-line-strong bg-surface p-1 shadow-float"
+        className="surface-glass pointer-events-auto flex items-center gap-0.5 rounded-xl p-1"
       >
         <button
           type="button"

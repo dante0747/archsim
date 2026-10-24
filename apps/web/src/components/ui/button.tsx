@@ -4,20 +4,20 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,filter,box-shadow,color] disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-[13px] font-medium tracking-[-0.005em] transition-[background-color,filter,box-shadow,color,border-color] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary: "bg-accent font-semibold text-accent-ink hover:brightness-110",
-        secondary: "border border-line bg-surface text-ink hover:border-line-strong hover:bg-surface-2",
+        primary: "accent-fill font-semibold hover:brightness-[1.08]",
+        secondary: "border border-line-strong bg-surface text-ink shadow-panel hover:bg-surface-2",
         ghost: "text-ink-2 hover:bg-surface-2 hover:text-ink",
-        danger: "border border-line bg-surface text-danger-ink hover:bg-critical-soft",
-        soft: "border border-accent/35 bg-accent-soft text-ink hover:border-accent/60",
+        danger: "border border-line-strong bg-surface text-danger-ink shadow-panel hover:bg-critical-soft",
+        soft: "border border-accent/30 bg-accent-soft text-ink hover:border-accent/55",
       },
       size: {
         sm: "h-7 px-2.5 text-xs",
         md: "h-8 px-3",
-        lg: "h-10 px-4 text-sm",
+        lg: "h-10 rounded-lg px-4 text-sm",
         icon: "size-8",
         "icon-sm": "size-7",
       },
