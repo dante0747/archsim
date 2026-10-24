@@ -1,0 +1,126 @@
+# Contributing to ArchSim
+
+Thanks for helping. ArchSim is an educational, honest architecture simulator: correctness of
+the model and clarity about its assumptions matter more than feature count. Please read
+[`docs/architecture.md`](docs/architecture.md) and
+[`docs/simulation-model.md`](docs/simulation-model.md) before changing behaviour.
+
+By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go
+through [SECURITY.md](SECURITY.md), not public issues.
+
+## Repository layout
+
+```
+packages/engine/   Python package `archsim_engine`: schema, component registry, simulator,
+                   analysis, comparison, CLI (`archsim`). No web dependencies.
+services/api/      Python package `archsim_api`: FastAPI app, SQLAlchemy models, Alembic
+                   migrations, background job runner, CLI (`archsim-api`).
+apps/web/          Next.js 16 + React Flow editor and results UI.
+examples/          Example architecture documents (served by the API, used by tests).
+docs/              Design and reference documentation.
+```
+
+## Development setup
+
+Prerequisites: Python 3.11+ (3.12 recommended), [uv](https://docs.astral.sh/uv/),
+Node.js 24 with npm, and optionally Docker for PostgreSQL.
+
+```bash
+# Python workspace (engine + API + dev tools) into .venv
+uv sync
+
+# Web app
+cd apps/web && npm ci && cd ../..
+
+# Run the API (SQLite file ./archsim.db by default) and the web app in two terminals
+uv run archsim-api serve          # http://127.0.0.1:8000  (OpenAPI docs: /api/v1/docs)
+cd apps/web && npm run dev        # http://localhost:3000
+```
+
+To develop against PostgreSQL instead of SQLite:
+
+```bash
+docker compose up -d postgres
+export ARCHSIM_DATABASE_URL=postgresql+psycopg://archsim:archsim@localhost:5432/archsim
+uv run archsim-api migrate
+uv run archsim-api seed           # optional: one project per example file
+```
+
+The `Makefile` wraps these commands (`make setup`, `make api`, `make web`, `make dev-db`,
+`make test`, ...). On Windows without `make`, run the underlying commands shown in the
+Makefile directly; nothing depends on a POSIX shell.
+
+**Windows path length.** If the checkout lives in a very deep directory, loading compiled
+Python extensions (for example SQLAlchemy's) can fail with "The filename or extension is too
+long". Clone into a short path such as `C:\src\archsim`, or point uv at a short environment
+directory: `set UV_PROJECT_ENVIRONMENT=C:\venvs\archsim` before `uv sync`.
+
+## Checks
+
+Run everything CI runs before opening a pull request:
+
+```bash
+# Python
+uv run ruff check packages services
+uv run ruff format --check packages services
+uv run mypy packages/engine/src services/api/src
+uv run pytest                                   # engine + API tests (SQLite)
+
+# API tests against PostgreSQL (drops all tables in the target database!)
+ARCHSIM_TEST_DATABASE_URL=postgresql+psycopg://archsim:archsim@localhost:5432/archsim_test \
+  uv run pytest services/api/tests
+
+# Web
+cd apps/web
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+`uv run ruff format packages services` fixes formatting. Tests must not depend on wall-clock
+speed beyond generous limits, and simulations in tests should use short durations.
+
+## Pull requests
+
+- Keep each PR focused on one change. Explain *why*, not only *what*.
+- Add or update tests for behaviour changes. Simulation changes need tests that check
+  behaviour (direction and accounting), not just that code runs.
+- Update docs when you change the schema, API, modeling assumptions or the UI workflow.
+- Use clear commit messages in the imperative mood ("Add circuit breaker component").
+- Do not commit secrets, `.env` files, local databases (`*.db`) or generated reports.
+- New dependencies need a reason in the PR description. No telemetry, no paid services.
+- If you change component metadata (fields, ports, defaults), regenerate the web test fixture
+  with `uv run python scripts/export_web_fixtures.py`.
+
+## Changing simulation semantics
+
+Users compare runs and rely on reproducibility, so engine changes are held to a higher bar:
+
+1. Any change that can alter results for the same document and seed (event ordering, RNG
+   stream usage, distributions, metric definitions, analysis thresholds) **must bump
+   `ENGINE_VERSION`** in `packages/engine/src/archsim_engine/version.py`. Every report records
+   the engine version, and comparisons warn when two runs used different versions.
+2. Update the reference benchmark in `packages/engine/tests/test_reference_benchmark.py`
+   if expectations legitimately change, and explain why in the PR. The analytic M/M/c checks
+   must keep passing.
+3. Keep request accounting exact: every request ends in exactly one outcome, and the per-node
+   invariant `arrivals == completed + failedDownstream + rejected + inProgress` must hold.
+4. Update `docs/simulation-model.md` so the documented model matches the code.
+
+Changing the document schema requires bumping `SCHEMA_VERSION`, adding a migration in
+`packages/engine/src/archsim_engine/migrations.py`, and a test that an old document still
+loads. Changing the database schema requires a new Alembic revision in
+`services/api/src/archsim_api/migrations/versions/`; the test suite checks that migrations and
+ORM models agree.
+
+## Adding a component type
+
+New components (message broker, CDN, circuit breaker, ...) are added in the engine only: a
+config model, ports, validation, and runtime behaviour, registered with the component registry.
+The API exposes it and the web UI renders its palette entry and inspector form automatically.
+Follow [`docs/extending-components.md`](docs/extending-components.md).
+
+## Questions
+
+Open a GitHub Discussion or an issue labelled `question`.

@@ -1,0 +1,315 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Cache-aside web API (starter)",
+    "description": "Clients reach two API replicas through a load balancer. Reads check Redis first; cache misses continue to PostgreSQL. Writes go to PostgreSQL and then invalidate the cached key. All performance numbers are illustrative assumptions, not measurements.",
+    "tags": [
+      "starter",
+      "cache-aside",
+      "web"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Clients",
+        "description": "Internet users. Open-loop: they keep sending at the configured rate.",
+        "config": {
+          "timeoutMs": 2000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Load Balancer",
+        "config": {
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.2
+          },
+          "maxConnections": 10000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "API Servers",
+        "description": "Thread-per-request API. Workers stay busy while waiting on Redis/PostgreSQL.",
+        "config": {
+          "replicas": 2,
+          "workersPerReplica": 4,
+          "queueCapacity": 50,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 8,
+            "p95": 25
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Redis Cache",
+        "config": {
+          "hitModel": "fixed_ratio",
+          "hitRatio": 0.8,
+          "ttlSeconds": 60,
+          "populateOnMiss": true,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.05
+          },
+          "concurrency": 1,
+          "queueCapacity": 10000,
+          "queueTimeoutMs": null
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "PostgreSQL",
+        "config": {
+          "maxConnections": 6,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 20
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 40
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-lb",
+        "source": "clients",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": "HTTPS",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 40
+          }
+        }
+      },
+      {
+        "id": "lb-api",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.3
+          }
+        }
+      },
+      {
+        "id": "api-cache",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "cache",
+        "targetPort": "in",
+        "label": "reads + invalidations",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.25
+          },
+          "timeoutMs": 250,
+          "order": 1
+        }
+      },
+      {
+        "id": "cache-db",
+        "source": "cache",
+        "sourcePort": "miss",
+        "target": "db",
+        "targetPort": "in",
+        "label": "cache miss",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          }
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": "writes",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "timeoutMs": 1500,
+          "order": 0
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 400,
+    "durationS": 60,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.9,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 100000,
+    "keySkew": 0.99
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (2 API replicas, 80% hits)",
+      "description": "The document as drawn.",
+      "overrides": []
+    },
+    {
+      "id": "one-api-replica",
+      "name": "1 API replica",
+      "description": "Halve API capacity: the API saturates, queues fill and requests are rejected.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "api"
+          },
+          "path": "replicas",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "three-api-replicas",
+      "name": "3 API replicas",
+      "description": "More headroom: lower API utilization and queueing.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "api"
+          },
+          "path": "replicas",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "id": "cache-hit-20",
+      "name": "Cache hit ratio 20%",
+      "description": "Most reads miss: PostgreSQL load rises sharply, and blocked API workers back up.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "hitRatio",
+          "value": 0.2
+        }
+      ]
+    },
+    {
+      "id": "cache-hit-95",
+      "name": "Cache hit ratio 95%",
+      "description": "Almost all reads served from memory.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "hitRatio",
+          "value": 0.95
+        }
+      ]
+    },
+    {
+      "id": "traffic-burst",
+      "name": "10 s burst to 900 req/s",
+      "description": "Baseline traffic with a burst at t = 30 s.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 900,
+            "startS": 30,
+            "durationS": 10
+          }
+        }
+      ]
+    }
+  ],
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 200
+      },
+      "lb": {
+        "x": 380,
+        "y": 200
+      },
+      "api": {
+        "x": 760,
+        "y": 200
+      },
+      "cache": {
+        "x": 1180,
+        "y": 40
+      },
+      "db": {
+        "x": 1600,
+        "y": 260
+      }
+    }
+  }
+}

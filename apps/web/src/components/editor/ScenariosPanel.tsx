@@ -1,0 +1,351 @@
+"use client";
+
+import { Copy, FlaskConical, ListChecks, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
+import { describeValue, FieldControl } from "@/components/editor/FieldControl";
+import { PatternEditor } from "@/components/editor/WorkloadPanel";
+import { Button } from "@/components/ui/button";
+import { Input, Label, NativeSelect, Textarea } from "@/components/ui/input";
+import { Empty } from "@/components/ui/misc";
+import { getPath, uniqueId } from "@/lib/document";
+import { componentOf } from "@/lib/graph-rules";
+import type { Catalog, FieldDescriptor, Override, Scenario, TrafficPattern } from "@/lib/types";
+import { useEditor } from "@/store/editor";
+import { useRuns } from "@/store/runs";
+
+type TargetKey = string; // "workload" | "node:<id>" | "edge:<id>"
+
+function targetKey(o: Override): TargetKey {
+  return o.target.kind === "workload" ? "workload" : `${o.target.kind}:${o.target.id}`;
+}
+
+function useTargetFields() {
+  const catalog = useEditor((s) => s.catalog);
+  const nodes = useEditor((s) => s.nodes);
+  const edges = useEditor((s) => s.edges);
+  const workload = useEditor((s) => s.workload);
+  const targets: { key: TargetKey; label: string }[] = [
+    { key: "workload", label: "Workload" },
+    ...nodes.map((n) => ({ key: `node:${n.id}`, label: n.data.label })),
+    ...edges.map((e) => {
+      const s = nodes.find((n) => n.id === e.source)?.data.label ?? e.source;
+      const t = nodes.find((n) => n.id === e.target)?.data.label ?? e.target;
+      return { key: `edge:${e.id}`, label: `Link ${s} → ${t}` };
+    }),
+  ];
+  const fieldsFor = (key: TargetKey): FieldDescriptor[] => {
+    if (key === "workload") return catalog?.workloadFields ?? [];
+    const [kind, id] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
+    if (kind === "edge") return catalog?.edgeFields ?? [];
+    const node = nodes.find((n) => n.id === id);
+    return node ? (componentOf(catalog, node.data.type)?.fields ?? []) : [];
+  };
+  const currentValue = (key: TargetKey, field: FieldDescriptor): unknown => {
+    if (key === "workload") return getPath(workload, field.key) ?? field.default;
+    const id = key.slice(key.indexOf(":") + 1);
+    if (key.startsWith("node:")) return getPath(nodes.find((n) => n.id === id)?.data.config, field.key) ?? field.default;
+    return getPath(edges.find((e) => e.id === id)?.data?.config, field.key) ?? field.default;
+  };
+  const labelFor = (key: TargetKey) => targets.find((t) => t.key === key)?.label ?? key;
+  return { targets, fieldsFor, currentValue, labelFor, catalog };
+}
+
+function overrideText(o: Override, labelFor: (k: string) => string, fieldsFor: (k: string) => FieldDescriptor[]): string {
+  const key = targetKey(o);
+  const f = fieldsFor(key).find((x) => x.key === o.path);
+  const value =
+    o.path === "pattern"
+      ? (() => {
+          const p = o.value as TrafficPattern;
+          if (p.kind === "burst") return `burst to ${p.burstRps}/s at ${p.startS}s for ${p.durationS}s`;
+          if (p.kind === "ramp") return `ramp ${p.startRps}→${p.endRps}/s`;
+          return "constant";
+        })()
+      : describeValue(f, o.value);
+  return `${labelFor(key)} · ${f?.label ?? o.path} = ${value}`;
+}
+
+export function ScenariosPanel() {
+  const scenarios = useEditor((s) => s.scenarios);
+  const setScenarios = useEditor((s) => s.setScenarios);
+  const toDocument = useEditor((s) => s.toDocument);
+  const startRun = useRuns((s) => s.startRun);
+  const startBatch = useRuns((s) => s.startBatch);
+  const starting = useRuns((s) => s.starting);
+  const { labelFor, fieldsFor } = useTargetFields();
+  const [editing, setEditing] = useState<Scenario | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  const save = (sc: Scenario) => {
+    const next = scenarios.slice();
+    if (editingIndex === null) next.push(sc);
+    else next[editingIndex] = sc;
+    setScenarios(next);
+    setEditing(null);
+    setEditingIndex(null);
+  };
+
+  if (editing) {
+    return (
+      <ScenarioEditor
+        initial={editing}
+        existingIds={scenarios.filter((_, i) => i !== editingIndex).map((s) => s.id)}
+        onCancel={() => {
+          setEditing(null);
+          setEditingIndex(null);
+        }}
+        onSave={save}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4 p-4">
+      <p className="text-xs leading-relaxed text-ink-2">
+        A scenario is a named set of changes applied on top of this design (e.g. 3 replicas, or a 20% hit ratio).
+        Runs record exactly what was simulated, so comparisons stay reproducible.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => {
+            setEditingIndex(null);
+            setEditing({ id: "", name: "", description: "", overrides: [] });
+          }}
+        >
+          <Plus /> New scenario
+        </Button>
+        {scenarios.length >= 2 && (
+          <Button
+            size="sm"
+            disabled={starting}
+            onClick={() => void startBatch(toDocument(), scenarios.slice(0, 10).map((s) => s.id))}
+            title="Run every scenario, then compare the first two"
+          >
+            <ListChecks /> Run all & compare
+          </Button>
+        )}
+      </div>
+      {scenarios.length === 0 ? (
+        <Empty icon={<FlaskConical />} title="No scenarios yet">
+          Create one to compare alternatives side by side, for example “1 vs 3 API replicas”.
+        </Empty>
+      ) : (
+        <ul className="space-y-2">
+          {scenarios.map((sc, i) => (
+            <li key={sc.id} className="rounded-lg border border-line p-3">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-ink">{sc.name}</p>
+                  {sc.description && <p className="mt-0.5 text-xs text-ink-2">{sc.description}</p>}
+                </div>
+                <div className="flex shrink-0">
+                  <Button variant="ghost" size="icon-sm" disabled={starting} aria-label={`Run ${sc.name}`} title="Run this scenario" onClick={() => void startRun(toDocument(), sc.id)}>
+                    <Play />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" aria-label={`Edit ${sc.name}`} title="Edit" onClick={() => { setEditingIndex(i); setEditing(sc); }}>
+                    <Pencil />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Duplicate ${sc.name}`}
+                    title="Duplicate"
+                    onClick={() =>
+                      setScenarios([
+                        ...scenarios,
+                        { ...structuredClone(sc), id: uniqueId(`${sc.id}-copy`, scenarios.map((s) => s.id)), name: `${sc.name} (copy)` },
+                      ])
+                    }
+                  >
+                    <Copy />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" aria-label={`Delete ${sc.name}`} title="Delete" onClick={() => setScenarios(scenarios.filter((_, k) => k !== i))}>
+                    <Trash2 />
+                  </Button>
+                </div>
+              </div>
+              <ul className="mt-2 space-y-1">
+                {sc.overrides.length === 0 ? (
+                  <li className="text-[11px] text-ink-3">No changes (the design as drawn)</li>
+                ) : (
+                  sc.overrides.map((o, k) => (
+                    <li key={k} className="truncate rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-ink-2" title={overrideText(o, labelFor, fieldsFor)}>
+                      {overrideText(o, labelFor, fieldsFor)}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ScenarioEditor({
+  initial,
+  existingIds,
+  onSave,
+  onCancel,
+}: {
+  initial: Scenario;
+  existingIds: string[];
+  onSave: (s: Scenario) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial.name);
+  const [description, setDescription] = useState(initial.description ?? "");
+  const [overrides, setOverrides] = useState<Override[]>(initial.overrides);
+  const { targets, fieldsFor, currentValue, catalog } = useTargetFields();
+  const workloadDuration = useEditor((s) => s.workload.durationS);
+
+  const addOverride = () => {
+    const key = targets.find((t) => t.key.startsWith("node:"))?.key ?? "workload";
+    const field = fieldsFor(key)[0];
+    if (!field) return;
+    setOverrides([...overrides, makeOverride(key, field, currentValue(key, field))]);
+  };
+
+  const id = initial.id || uniqueId(name || "scenario", existingIds);
+  const valid = name.trim().length > 0;
+
+  return (
+    <form
+      className="space-y-4 p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (valid) onSave({ id, name: name.trim(), description: description.trim() || null, overrides });
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-ink">{initial.id ? "Edit scenario" : "New scenario"}</h3>
+        <Button variant="ghost" size="icon-sm" onClick={onCancel} aria-label="Cancel">
+          <X />
+        </Button>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="sc-name">Name</Label>
+        <Input id="sc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 3 API replicas" maxLength={120} autoFocus />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="sc-desc">Description</Label>
+        <Textarea id="sc-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What question does this answer?" />
+      </div>
+      <div className="space-y-2">
+        <Label>Changes</Label>
+        {overrides.length === 0 && <p className="text-[11px] text-ink-3">No changes: this scenario simulates the design as drawn.</p>}
+        {overrides.map((o, i) => (
+          <OverrideRow
+            key={i}
+            override={o}
+            catalog={catalog}
+            targets={targets}
+            fieldsFor={fieldsFor}
+            currentValue={currentValue}
+            workloadDuration={workloadDuration}
+            onChange={(next) => setOverrides(overrides.map((x, k) => (k === i ? next : x)))}
+            onRemove={() => setOverrides(overrides.filter((_, k) => k !== i))}
+          />
+        ))}
+        <Button size="sm" onClick={addOverride}>
+          <Plus /> Add change
+        </Button>
+      </div>
+      <div className="flex justify-end gap-2 border-t border-line pt-3">
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!valid}>
+          Save scenario
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function makeOverride(key: TargetKey, field: FieldDescriptor, value: unknown): Override {
+  const target =
+    key === "workload"
+      ? { kind: "workload" as const, id: null }
+      : { kind: key.slice(0, key.indexOf(":")) as "node" | "edge", id: key.slice(key.indexOf(":") + 1) };
+  return { target, path: field.key, value: structuredClone(value) };
+}
+
+function OverrideRow({
+  override,
+  targets,
+  fieldsFor,
+  currentValue,
+  workloadDuration,
+  onChange,
+  onRemove,
+}: {
+  override: Override;
+  catalog: Catalog | null;
+  targets: { key: TargetKey; label: string }[];
+  fieldsFor: (k: TargetKey) => FieldDescriptor[];
+  currentValue: (k: TargetKey, f: FieldDescriptor) => unknown;
+  workloadDuration: number;
+  onChange: (o: Override) => void;
+  onRemove: () => void;
+}) {
+  const key = targetKey(override);
+  const fields = fieldsFor(key);
+  const field = fields.find((f) => f.key === override.path);
+  return (
+    <div className="space-y-2 rounded-lg border border-line p-2">
+      <div className="flex gap-1.5">
+        <NativeSelect
+          aria-label="Change target"
+          value={key}
+          onChange={(e) => {
+            const k = e.target.value;
+            const f = fieldsFor(k)[0];
+            if (f) onChange(makeOverride(k, f, currentValue(k, f)));
+          }}
+        >
+          {targets.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </NativeSelect>
+        <Button variant="ghost" size="icon" aria-label="Remove change" onClick={onRemove}>
+          <Trash2 />
+        </Button>
+      </div>
+      <NativeSelect
+        aria-label="Setting to change"
+        value={override.path}
+        onChange={(e) => {
+          const f = fields.find((x) => x.key === e.target.value);
+          if (f) onChange(makeOverride(key, f, currentValue(key, f)));
+        }}
+      >
+        {fields.map((f) => (
+          <option key={f.key} value={f.key}>
+            {f.label}
+            {f.unit ? ` (${f.unit})` : ""}
+          </option>
+        ))}
+      </NativeSelect>
+      {field?.kind === "pattern" ? (
+        <PatternEditor
+          value={override.value as TrafficPattern}
+          durationS={workloadDuration}
+          onChange={(p) => onChange({ ...override, value: p })}
+        />
+      ) : field ? (
+        <FieldControl
+          field={{ ...field, label: "New value" }}
+          value={override.value}
+          onChange={(v) => onChange({ ...override, value: v })}
+          idPrefix={`ov-${key}-${field.key}`}
+        />
+      ) : (
+        <p className="text-[11px] text-danger-ink">Unknown setting “{override.path}”.</p>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,48 @@
+name: Bug report
+description: Something does not work, crashes, or produces results that contradict the documented model.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For security problems, follow SECURITY.md instead of opening an issue.
+        Note: results that differ from your production system are not necessarily bugs; ArchSim simulates
+        the model and assumptions you provide (see docs/simulation-model.md). Results that contradict
+        the documented model, break accounting invariants, or are not reproducible from the same seed are bugs.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Simulation engine, API, Web editor, Results / charts, Import / export, Docs, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include error messages and the run's provenance (engine version, seed, inputDigest) if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Attach the exported .archsim.json document and the scenario id if the problem involves a simulation.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: e.g. engine 0.1.0, commit abc1234
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS, browser, Python and Node versions, SQLite or PostgreSQL, Docker or local

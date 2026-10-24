@@ -1,0 +1,163 @@
+# HTTP API (v1)
+
+Base path: `/api/v1`. JSON uses camelCase. The API is local and single-user: there is no
+authentication (see [SECURITY.md](../SECURITY.md)).
+
+- OpenAPI document: `GET /api/v1/openapi.json`
+- Interactive docs: `GET /api/v1/docs`
+
+## Errors
+
+Domain errors use one shape:
+
+```json
+{
+  "detail": {
+    "message": "Cannot simulate: Redis Cache can miss (hit ratio 80%) but its 'miss' port is not connected, ...",
+    "issues": [
+      {
+        "severity": "error",
+        "code": "cache.miss_unrouted",
+        "message": "Redis Cache can miss (hit ratio 80%) but its 'miss' port is not connected, so missed reads would have nowhere to go.",
+        "nodeId": "cache",
+        "edgeId": null,
+        "path": null,
+        "hint": "Connect the cache's 'miss' port to the database that holds the data."
+      }
+    ]
+  }
+}
+```
+
+| Status | When |
+| --- | --- |
+| 400 | Contradictory request (e.g. both `document` and `exampleId`). |
+| 404 | Unknown project, run or example. |
+| 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs. |
+| 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
+| 422 | Document invalid (with `issues`), run too large, or FastAPI request validation errors (FastAPI's standard `detail` list). |
+
+## Meta
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/health` | `{"status": "ok", "database": "ok"}`. |
+| GET | `/meta` | Engine/schema/report versions, database dialect, run limits. |
+| GET | `/components` | Component catalog: ports, field descriptors (kind, unit, range, group, assumption flag, visibility), defaults, modeled/not-modeled notes; plus `edgeFields` and `workloadFields`. |
+| GET | `/schema/architecture` | JSON Schema of the document. |
+| GET | `/examples` | Bundled example documents (id, name, description, tags, scenario count). |
+| GET | `/examples/{exampleId}` | One example document. |
+| POST | `/validate` | Body `{document, scenarioId?}`. Returns `{valid, issues[]}`; never saves or simulates. |
+
+## Projects
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/projects` | List (most recently updated first) with node and scenario counts. |
+| POST | `/projects` | Create from `{document}`, `{exampleId}`, or blank. Optional `name`, `description`. `201`. |
+| POST | `/projects/import` | Body: a raw document (older schema versions are migrated). Optional `?name=`. `201`. |
+| GET | `/projects/{id}` | Project with its document and `revision`. |
+| PUT | `/projects/{id}` | Body `{name?, description?, document?, expectedRevision?}`. Increments `revision`; `409` if `expectedRevision` is stale. |
+| DELETE | `/projects/{id}` | Deletes the project and its runs. `204`. |
+| POST | `/projects/{id}/duplicate` | Copy as "Name (copy)". `201`. |
+| GET | `/projects/{id}/export` | The document as a download (`Content-Disposition: attachment`). |
+
+Saving accepts documents that are *schema-valid* even if graph validation fails (for example a
+dangling cache miss port), so work in progress can be stored. Simulation requires a fully valid
+document. Schema-invalid documents (unknown keys, out-of-range link settings, wrong
+`schemaVersion`) are rejected with `422`. The project name is authoritative and is copied into
+`document.metadata.name`.
+
+## Runs
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/projects/{id}/runs` | Body `{scenarioId?, label?, document?}`. Validates, then enqueues. `202` with the run. `document` simulates unsaved edits; it is stored with the run. |
+| POST | `/projects/{id}/runs/batch` | Body `{scenarioIds: [..], document?}` (1-10 entries; `null` = base document). Validates all before enqueueing any. `202` with a list. |
+| GET | `/projects/{id}/runs` | Recent runs (newest first, up to `ARCHSIM_RUN_HISTORY_LIMIT`, default 200), without reports. |
+| GET | `/runs/{runId}` | Status, `progress` (0-1), `error`, seed, digests, and a small `summary` once finished. Poll this. |
+| GET | `/runs/{runId}/report` | Full report (`409` unless `succeeded`). See below. |
+| GET | `/runs/{runId}/input` | The exact document submitted for the run (re-importable). |
+| POST | `/runs/{runId}/cancel` | Cancels a queued run immediately, a running one at the next chunk. |
+| POST | `/runs/{runId}/rerun` | Re-simulates the stored input with the same scenario and seed. Response has `reproducesRunId`; compare `resultDigest` values. `202`. |
+| DELETE | `/runs/{runId}` | Cancels if active, then deletes. `204`. |
+
+Run `status`: `queued`, `running`, `succeeded`, `failed`, `cancelled`. A failed run has
+`error.message` and, for document problems, `error.issues`. Runs that were active when the API
+stopped are marked `failed` ("Interrupted") at the next start.
+
+### Report shape
+
+```
+{
+  "reportVersion": "1.0",
+  "window":     { "warmupS", "durationS", "measuredS", "drainS", "simulatedS" },
+  "summary":    { "offeredRps", "throughputRps", "successRate", "latencyMs": {p50, p95, ...},
+                  "latencyByOp", "failureBreakdown": [...], "accounting": {...}, ... },
+  "timeseries": { "bucketS", "t": [...], "offeredRps", "throughputRps", "errorRps",
+                  "timeoutRps", "attemptRps", "latencyP50Ms", "latencyP95Ms", "latencyP99Ms" },
+  "nodes":      [ { "id", "type", "label", "status", "statusReasons", "summary", "accounting",
+                    "timeseries": { "utilization", "queueMean", ... }, "config" } ],
+  "edges":      [ { "id", "source", "target", "callRps", "retries", "timeouts", ... } ],
+  "findings":   [ { "severity", "kind", "nodeId", "title", "detail", "suggestion"?, "evidence" } ],
+  "assumptions":{ "modelNotes", "userInputs", "components", "validationWarnings" },
+  "input":      { resolved document that was simulated },
+  "provenance": { "engineVersion", "schemaVersion", "seed", "scenarioId", "scenarioName",
+                  "overrides", "inputDigest", "resultDigest", "requestsGenerated",
+                  "wallSeconds", "python", "simpy" }
+}
+```
+
+Metric definitions are in [`simulation-model.md`](simulation-model.md#measurement-window-and-metric-definitions).
+
+## Compare
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/compare?a={runId}&b={runId}` | Both runs must have succeeded. Returns `labels`, `provenance`, `inputDiff` (path, label, a, b), `kpis` (value, delta, relative delta, verdict better/worse/same), per-node rows, `bottleneck` for each run, `explanations`, `warnings` (different seeds or engine versions) and both time series. |
+
+## Walkthrough with curl
+
+```bash
+API=http://127.0.0.1:8000/api/v1
+wait_run() {  # poll until the run leaves queued/running
+  while :; do
+    s=$(curl -s "$API/runs/$1" | jq -r .status)
+    [ "$s" = queued ] || [ "$s" = running ] || break
+    sleep 1
+  done
+  echo "$1: $s"
+}
+
+# 1. Create a project from the starter example
+PID=$(curl -s -X POST $API/projects -H 'content-type: application/json'   -d '{"exampleId": "cache-aside-starter"}' | jq -r .id)
+
+# 2. Run two scenarios (returns immediately with status "queued")
+A=$(curl -s -X POST $API/projects/$PID/runs -H 'content-type: application/json'   -d '{"scenarioId": "one-api-replica"}' | jq -r .id)
+B=$(curl -s -X POST $API/projects/$PID/runs -H 'content-type: application/json'   -d '{"scenarioId": "three-api-replicas"}' | jq -r .id)
+
+# 3. Poll until finished
+wait_run $A; wait_run $B
+curl -s $API/runs/$A | jq '{status, summary}'
+
+# 4. Fetch the full report and its findings
+curl -s $API/runs/$A/report | jq '.findings[] | {severity, title}'
+
+# 5. Compare the two runs
+curl -s "$API/compare?a=$A&b=$B" | jq '{inputDiff, explanations}'
+
+# 6. Reproduce run A from its stored input and seed
+R=$(curl -s -X POST $API/runs/$A/rerun | jq -r .id)
+wait_run $R
+curl -s $API/runs/$R | jq -r .resultDigest
+curl -s $API/runs/$A | jq -r .resultDigest      # same value
+
+# 7. Export and re-import
+curl -s $API/projects/$PID/export -o starter.archsim.json
+curl -s -X POST $API/projects/import -H 'content-type: application/json'   --data-binary @starter.archsim.json | jq '{id, name}'
+```
+
+## Stability
+
+Paths are versioned (`/api/v1`). Breaking changes will go to `/api/v2`. Reports carry
+`reportVersion` and documents carry `schemaVersion`.

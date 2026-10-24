@@ -1,0 +1,266 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Retry storm with a TTL cache",
+    "description": "Read-heavy API whose cache hit rate is derived from a TTL over a Zipf-distributed keyspace (including cold start). Clients retry aggressively with a short timeout. A traffic burst shows how retries amplify load on an already saturated system.",
+    "tags": [
+      "retries",
+      "ttl-cache",
+      "burst"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Mobile clients",
+        "config": {
+          "timeoutMs": 400,
+          "maxAttempts": 3,
+          "retryBackoffMs": 50
+        }
+      },
+      {
+        "id": "gw",
+        "type": "load_balancer",
+        "label": "Load Balancer",
+        "config": {
+          "policy": "round_robin",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.3
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Catalog API",
+        "config": {
+          "replicas": 3,
+          "workersPerReplica": 8,
+          "queueCapacity": 200,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 18
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Redis (TTL)",
+        "config": {
+          "hitModel": "ttl_keyspace",
+          "hitRatio": 0.8,
+          "ttlSeconds": 30,
+          "populateOnMiss": true,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.05
+          },
+          "concurrency": 1,
+          "queueCapacity": 10000,
+          "queueTimeoutMs": null
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "PostgreSQL",
+        "config": {
+          "maxConnections": 10,
+          "queueCapacity": 500,
+          "queueTimeoutMs": 2000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 25
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 12,
+            "p95": 45
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-gw",
+        "source": "clients",
+        "target": "gw",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 30,
+            "p95": 90
+          }
+        }
+      },
+      {
+        "id": "gw-api",
+        "source": "gw",
+        "target": "api",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.3
+          }
+        }
+      },
+      {
+        "id": "api-cache",
+        "source": "api",
+        "target": "cache",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.25
+          },
+          "order": 1
+        }
+      },
+      {
+        "id": "cache-db",
+        "source": "cache",
+        "sourcePort": "miss",
+        "target": "db",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          }
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "target": "db",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 900,
+    "durationS": 90,
+    "warmupS": 15,
+    "seed": 11,
+    "readRatio": 0.95,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 2400,
+      "startS": 45,
+      "durationS": 15
+    },
+    "keyCount": 50000,
+    "keySkew": 0.9
+  },
+  "scenarios": [
+    {
+      "id": "burst-with-retries",
+      "name": "Burst, 3 attempts per request",
+      "overrides": []
+    },
+    {
+      "id": "burst-no-retries",
+      "name": "Burst, no retries",
+      "description": "Same burst, but clients do not retry: less amplification.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "clients"
+          },
+          "path": "maxAttempts",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "short-ttl",
+      "name": "TTL 3 s",
+      "description": "Keys expire quickly, so more reads reach PostgreSQL.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "ttlSeconds",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "id": "no-burst",
+      "name": "Steady 900 req/s",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "constant"
+          }
+        }
+      ]
+    }
+  ],
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 200
+      },
+      "gw": {
+        "x": 380,
+        "y": 200
+      },
+      "api": {
+        "x": 760,
+        "y": 200
+      },
+      "cache": {
+        "x": 1180,
+        "y": 40
+      },
+      "db": {
+        "x": 1600,
+        "y": 260
+      }
+    }
+  }
+}

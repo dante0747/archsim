@@ -1,0 +1,380 @@
+"""Versioned architecture document schema (``schemaVersion`` 1.0).
+
+The document deliberately separates four concerns:
+
+* ``architecture`` - topology: typed nodes and routing edges (what exists and how requests flow)
+* ``workload``     - simulation input: traffic shape, duration, seed
+* ``scenarios``    - named, replayable sets of overrides applied on top of the base document
+* ``layout``       - rendering metadata only (positions, viewport); never affects simulation
+
+JSON uses camelCase keys; Python attributes are snake_case.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.alias_generators import to_camel
+
+from archsim_engine.distributions import Constant, Distribution
+from archsim_engine.version import SCHEMA_VERSION
+
+assert SCHEMA_VERSION == "1.0", "update ArchitectureDocument.schema_version and add a migration"
+
+RequestType = Literal["read", "write"]
+REQUEST_TYPES: tuple[RequestType, ...] = ("read", "write")
+
+ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,63}$"
+
+
+class CamelModel(BaseModel):
+    """Base model: camelCase JSON aliases, unknown keys rejected."""
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        extra="forbid",
+    )
+
+
+# --------------------------------------------------------------------------------------
+# Architecture topology
+# --------------------------------------------------------------------------------------
+
+
+class NodeSpec(CamelModel):
+    """A component instance in the architecture graph.
+
+    ``config`` is validated by the component model registered for ``type``; it is kept as a
+    plain mapping here so the document schema does not depend on the component catalog.
+    """
+
+    id: str = Field(pattern=ID_PATTERN, description="Unique node id (letters, digits, _ . -)")
+    type: str = Field(min_length=1, max_length=64, description="Registered component type")
+    label: str = Field(default="", max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class EdgeConfig(CamelModel):
+    """Behaviour of a request crossing a link from a caller to a callee."""
+
+    request_types: list[RequestType] = Field(
+        default_factory=lambda: list(REQUEST_TYPES),
+        min_length=1,
+        description="Request types carried by this link. Used for routing (e.g. reads to cache, writes to DB).",
+        json_schema_extra={"x-ui": {"label": "Request types", "group": "Routing"}},
+    )
+    latency_ms: Distribution = Field(
+        default_factory=lambda: Constant(value=0.5),
+        description="One-way network latency in ms, applied to the request and again to the response.",
+        json_schema_extra={
+            "x-ui": {
+                "label": "Network latency (one way)",
+                "unit": "ms",
+                "group": "Network",
+                "assumption": True,
+            }
+        },
+    )
+    timeout_ms: float | None = Field(
+        default=None,
+        gt=0,
+        le=600_000,
+        description="Per-attempt time the caller waits before giving up (ms). Empty = wait indefinitely.",
+        json_schema_extra={"x-ui": {"label": "Timeout", "unit": "ms", "group": "Reliability"}},
+    )
+    max_attempts: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        description="Total attempts including retries (1 = no retries). Bounded to prevent retry storms from running away.",
+        json_schema_extra={"x-ui": {"label": "Max attempts", "group": "Reliability"}},
+    )
+    retry_backoff_ms: float = Field(
+        default=50.0,
+        ge=0,
+        le=60_000,
+        description="Base backoff before a retry (ms); doubles on each further retry.",
+        json_schema_extra={
+            "x-ui": {"label": "Retry backoff", "unit": "ms", "group": "Reliability"}
+        },
+    )
+    order: int = Field(
+        default=0,
+        ge=0,
+        le=1000,
+        description="Call order when a service calls several dependencies for the same request (lower first).",
+        json_schema_extra={"x-ui": {"label": "Call order", "group": "Routing"}},
+    )
+
+    @field_validator("request_types")
+    @classmethod
+    def _unique_types(cls, v: list[RequestType]) -> list[RequestType]:
+        if len(set(v)) != len(v):
+            raise ValueError("request types must be unique")
+        return sorted(v)
+
+
+class EdgeSpec(CamelModel):
+    """A directed routing/network link from ``source.sourcePort`` to ``target.targetPort``."""
+
+    id: str = Field(pattern=ID_PATTERN)
+    source: str
+    source_port: str = "out"
+    target: str
+    target_port: str = "in"
+    label: str | None = Field(default=None, max_length=120)
+    config: EdgeConfig = Field(default_factory=EdgeConfig)
+
+
+class Architecture(CamelModel):
+    nodes: list[NodeSpec] = Field(default_factory=list, max_length=200)
+    edges: list[EdgeSpec] = Field(default_factory=list, max_length=1000)
+
+
+# --------------------------------------------------------------------------------------
+# Workload
+# --------------------------------------------------------------------------------------
+
+
+class ConstantPattern(CamelModel):
+    """Steady offered load at ``workload.rps``."""
+
+    kind: Literal["constant"] = "constant"
+
+
+class RampPattern(CamelModel):
+    """Offered load ramps linearly from ``startRps`` to ``endRps`` over the run."""
+
+    kind: Literal["ramp"] = "ramp"
+    start_rps: float = Field(ge=0, le=100_000)
+    end_rps: float = Field(ge=0, le=100_000)
+
+
+class BurstPattern(CamelModel):
+    """Baseline ``workload.rps`` with one burst at ``burstRps`` for ``durationS`` seconds."""
+
+    kind: Literal["burst"] = "burst"
+    burst_rps: float = Field(ge=0, le=100_000)
+    start_s: float = Field(ge=0, le=3600)
+    duration_s: float = Field(gt=0, le=3600)
+
+
+TrafficPattern = Annotated[
+    ConstantPattern | RampPattern | BurstPattern,
+    Field(discriminator="kind"),
+]
+
+
+class Workload(CamelModel):
+    """Synthetic traffic driving the (single) traffic source."""
+
+    rps: float = Field(
+        default=100.0,
+        ge=0,
+        le=100_000,
+        description="Baseline offered load (requests/s)",
+        json_schema_extra={
+            "x-ui": {
+                "label": "Baseline load",
+                "unit": "req/s",
+                "group": "Traffic",
+                "assumption": True,
+            }
+        },
+    )
+    duration_s: float = Field(
+        default=60.0,
+        gt=0,
+        le=3600,
+        description="Arrival window length (s)",
+        json_schema_extra={"x-ui": {"label": "Duration", "unit": "s", "group": "Run"}},
+    )
+    warmup_s: float = Field(
+        default=10.0,
+        ge=0,
+        le=3600,
+        description="Initial period excluded from summary statistics (s)",
+        json_schema_extra={"x-ui": {"label": "Warm-up", "unit": "s", "group": "Run"}},
+    )
+    seed: int = Field(
+        default=42,
+        ge=0,
+        le=2**32 - 1,
+        description="Random seed for reproducibility",
+        json_schema_extra={"x-ui": {"label": "Seed", "group": "Run"}},
+    )
+    read_ratio: float = Field(
+        default=0.9,
+        ge=0,
+        le=1,
+        description="Fraction of requests that are reads",
+        json_schema_extra={
+            "x-ui": {"label": "Read ratio", "group": "Traffic", "assumption": True, "step": 0.05}
+        },
+    )
+    arrival_process: Literal["poisson", "deterministic"] = Field(
+        default="poisson",
+        description="poisson: random (exponential) inter-arrivals; deterministic: evenly spaced",
+        json_schema_extra={"x-ui": {"label": "Arrival process", "group": "Traffic"}},
+    )
+    pattern: TrafficPattern = Field(
+        default_factory=ConstantPattern,
+        description="Shape of the offered load over time",
+        json_schema_extra={
+            "x-ui": {"label": "Traffic pattern", "kind": "pattern", "group": "Traffic"}
+        },
+    )
+    key_count: int = Field(
+        default=100_000,
+        ge=1,
+        le=1_000_000,
+        description="Number of distinct keys requests touch (used by TTL cache models)",
+        json_schema_extra={
+            "x-ui": {"label": "Distinct keys", "group": "Keyspace", "assumption": True}
+        },
+    )
+    key_skew: float = Field(
+        default=0.99,
+        ge=0,
+        le=3,
+        description="Zipf exponent of key popularity (0 = uniform, ~1 = typical web skew)",
+        json_schema_extra={
+            "x-ui": {
+                "label": "Key skew (Zipf s)",
+                "group": "Keyspace",
+                "assumption": True,
+                "step": 0.05,
+            }
+        },
+    )
+    drain_s: float | None = Field(
+        default=None,
+        ge=0,
+        le=600,
+        description="Time after arrivals stop to let in-flight requests finish (s). Empty = automatic.",
+        json_schema_extra={"x-ui": {"label": "Drain time", "unit": "s", "group": "Run"}},
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> Workload:
+        if self.warmup_s >= self.duration_s:
+            raise ValueError("warmupS must be shorter than durationS")
+        if isinstance(self.pattern, BurstPattern) and self.pattern.start_s >= self.duration_s:
+            raise ValueError("burst startS must be within durationS")
+        return self
+
+    def rate_at(self, t_s: float) -> float:
+        """Offered rate (requests/s) at simulated time ``t_s`` seconds."""
+        p = self.pattern
+        if isinstance(p, RampPattern):
+            frac = min(max(t_s / self.duration_s, 0.0), 1.0)
+            return p.start_rps + (p.end_rps - p.start_rps) * frac
+        if isinstance(p, BurstPattern) and p.start_s <= t_s < p.start_s + p.duration_s:
+            return p.burst_rps
+        return self.rps
+
+    def peak_rate(self) -> float:
+        p = self.pattern
+        if isinstance(p, RampPattern):
+            return max(p.start_rps, p.end_rps)
+        if isinstance(p, BurstPattern):
+            return max(self.rps, p.burst_rps)
+        return self.rps
+
+    def expected_arrivals(self) -> float:
+        """Expected number of arrivals over the whole arrival window."""
+        p = self.pattern
+        if isinstance(p, RampPattern):
+            return (p.start_rps + p.end_rps) / 2.0 * self.duration_s
+        if isinstance(p, BurstPattern):
+            burst = max(0.0, min(p.duration_s, self.duration_s - p.start_s))
+            return self.rps * (self.duration_s - burst) + p.burst_rps * burst
+        return self.rps * self.duration_s
+
+
+# --------------------------------------------------------------------------------------
+# Scenarios
+# --------------------------------------------------------------------------------------
+
+
+class OverrideTarget(CamelModel):
+    kind: Literal["node", "edge", "workload"]
+    id: str | None = Field(default=None, description="Node or edge id; omitted for workload")
+
+    @model_validator(mode="after")
+    def _check(self) -> OverrideTarget:
+        if self.kind != "workload" and not self.id:
+            raise ValueError(f"override target of kind '{self.kind}' requires an id")
+        return self
+
+
+class Override(CamelModel):
+    """Set one value. ``path`` is a dotted path inside the node/edge ``config`` or the workload,
+    e.g. ``replicas``, ``serviceTimeMs.median``, ``pattern.burstRps``."""
+
+    target: OverrideTarget
+    path: str = Field(min_length=1, max_length=200, pattern=r"^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$")
+    value: Any
+
+
+class Scenario(CamelModel):
+    id: str = Field(pattern=ID_PATTERN)
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    overrides: list[Override] = Field(default_factory=list, max_length=100)
+
+
+# --------------------------------------------------------------------------------------
+# Layout (rendering only)
+# --------------------------------------------------------------------------------------
+
+
+class Position(CamelModel):
+    x: float = 0.0
+    y: float = 0.0
+
+
+class Viewport(CamelModel):
+    x: float = 0.0
+    y: float = 0.0
+    zoom: float = 1.0
+
+
+class Layout(CamelModel):
+    nodes: dict[str, Position] = Field(default_factory=dict)
+    viewport: Viewport | None = None
+
+
+# --------------------------------------------------------------------------------------
+# Document
+# --------------------------------------------------------------------------------------
+
+
+class Metadata(CamelModel):
+    name: str = Field(default="Untitled architecture", min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=4000)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+
+
+class ArchitectureDocument(CamelModel):
+    """Top-level interchange document. Serialize with ``to_json_dict()``."""
+
+    schema_version: Literal["1.0"] = "1.0"
+    kind: Literal["archsim.architecture"] = "archsim.architecture"
+    metadata: Metadata = Field(default_factory=Metadata)
+    architecture: Architecture = Field(default_factory=Architecture)
+    workload: Workload = Field(default_factory=Workload)
+    scenarios: list[Scenario] = Field(default_factory=list, max_length=50)
+    layout: Layout = Field(default_factory=Layout)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return self.model_dump(mode="json", by_alias=True)
+
+    def node(self, node_id: str) -> NodeSpec | None:
+        return next((n for n in self.architecture.nodes if n.id == node_id), None)
+
+    def scenario(self, scenario_id: str) -> Scenario | None:
+        return next((s for s in self.scenarios if s.id == scenario_id), None)

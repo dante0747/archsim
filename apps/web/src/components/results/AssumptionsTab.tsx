@@ -1,0 +1,109 @@
+"use client";
+
+import { Badge, Section } from "@/components/ui/misc";
+import { useEditor } from "@/store/editor";
+import { useActiveReport } from "@/store/runs";
+
+const GENERAL_NOTES = [
+  "ArchSim runs a synthetic discrete-event simulation of the model you drew. It is offline: nothing is measured from a real system.",
+  "Every performance input (service times, hit ratios, latencies, traffic) is an assumption you assert. Results inherit their accuracy.",
+  "Without calibration against real telemetry, treat absolute numbers as rough. Comparisons between scenarios under the same assumptions are more trustworthy.",
+  "Not modeled: CPU/memory contention, garbage collection, autoscaling, network bandwidth and packet loss, locks and disk I/O, cache eviction, failures of machines or regions.",
+];
+
+export function AssumptionsTab() {
+  const report = useActiveReport();
+  const catalog = useEditor((s) => s.catalog);
+  const types = report
+    ? Object.entries(report.assumptions.components)
+    : (catalog?.components ?? []).map((c) => [c.type, { modeled: c.modeled, notModeled: c.notModeled }] as const);
+  const name = (t: string) => catalog?.components.find((c) => c.type === t)?.displayName ?? t;
+  return (
+    <div className="grid gap-6 p-4 xl:grid-cols-2">
+      <div className="space-y-6">
+        <Section title="Read this before trusting a number">
+          <ul className="list-disc space-y-1.5 pl-5 text-xs leading-relaxed text-ink-2">
+            {(report?.assumptions.modelNotes ?? GENERAL_NOTES).map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </Section>
+        <Section
+          title={
+            <span className="flex items-center gap-1.5">
+              Your assumptions <Badge>inputs</Badge>
+            </span>
+          }
+        >
+          {report ? (
+            <div className="max-h-80 overflow-auto rounded-lg border border-line bg-surface">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-surface text-left text-ink-3">
+                  <tr>
+                    <th className="px-3 py-1.5 font-medium">Where</th>
+                    <th className="px-2 py-1.5 font-medium">Assumption</th>
+                    <th className="px-3 py-1.5 font-medium">Value used</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {report.assumptions.userInputs.map((u, i) => (
+                    <tr key={i}>
+                      <td className="px-3 py-1.5 text-ink">{u.label}</td>
+                      <td className="px-2 py-1.5 text-ink-2">{u.fieldLabel}</td>
+                      <td className="tabular px-3 py-1.5 text-ink">{u.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs text-ink-2">
+              Fields tagged <b>assumption</b> in the inspector are your estimates. After a run, this table lists the exact
+              values that run used.
+            </p>
+          )}
+          <p className="text-[11px] text-ink-3">
+            Simulation-derived values (utilization, queueing, latency, throughput) are shown in the other tabs and labeled
+            as such. Calibration from Prometheus metrics is on the roadmap, not implemented.
+          </p>
+        </Section>
+        {report && report.assumptions.validationWarnings.length > 0 && (
+          <Section title="Warnings at run time">
+            <ul className="list-disc space-y-1 pl-5 text-xs text-ink-2">
+              {report.assumptions.validationWarnings.map((w, i) => (
+                <li key={i}>{w.message}</li>
+              ))}
+            </ul>
+          </Section>
+        )}
+      </div>
+      <Section title="What each component model includes">
+        <div className="space-y-3">
+          {types.map(([t, m]) => (
+            <div key={t} className="rounded-lg border border-line bg-surface p-3 text-xs">
+              <p className="mb-1.5 font-medium text-ink">{name(t)}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Modeled</p>
+                  <ul className="list-disc space-y-0.5 pl-4 text-ink-2">
+                    {m.modeled.map((x) => (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Not modeled</p>
+                  <ul className="list-disc space-y-0.5 pl-4 text-ink-2">
+                    {m.notModeled.map((x) => (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}

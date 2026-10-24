@@ -1,0 +1,135 @@
+import { Switch as RSwitch, Tooltip as RTooltip } from "radix-ui";
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+export type Tone = "neutral" | "accent" | "good" | "warning" | "serious" | "critical";
+
+export function Badge({
+  className,
+  tone = "neutral",
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement> & { tone?: Tone }) {
+  const tones: Record<Tone, string> = {
+    neutral: "bg-surface-2 text-ink-2 border-line",
+    accent: "bg-accent-soft text-ink border-transparent",
+    good: "bg-good-soft text-ink border-transparent",
+    warning: "bg-warning-soft text-ink border-transparent",
+    serious: "bg-serious-soft text-ink border-transparent",
+    critical: "bg-critical-soft text-ink border-transparent",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded border px-1.5 py-px text-[11px] font-medium leading-4",
+        tones[tone],
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Kbd({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
+  return (
+    <kbd
+      className={cn(
+        "rounded border border-line bg-surface-2 px-1 font-mono text-[10px] leading-4 text-ink-2",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Switch({
+  checked,
+  onCheckedChange,
+  id,
+  label,
+}: {
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  id?: string;
+  label?: string;
+}) {
+  return (
+    <RSwitch.Root
+      id={id}
+      aria-label={label}
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      className="relative h-5 w-9 shrink-0 rounded-full border border-line-strong bg-surface-3 transition-colors data-[state=checked]:border-accent data-[state=checked]:bg-accent"
+    >
+      <RSwitch.Thumb className="block size-4 translate-x-px rounded-full bg-surface shadow transition-transform data-[state=checked]:translate-x-[17px]" />
+    </RSwitch.Root>
+  );
+}
+
+export function Tip({
+  content,
+  children,
+  side = "bottom",
+}: {
+  content: React.ReactNode;
+  children: React.ReactElement;
+  side?: "top" | "bottom" | "left" | "right";
+}) {
+  return (
+    <RTooltip.Root delayDuration={300}>
+      <RTooltip.Trigger asChild>{children}</RTooltip.Trigger>
+      <RTooltip.Portal>
+        <RTooltip.Content
+          side={side}
+          sideOffset={6}
+          className="z-50 max-w-xs rounded-md border border-line bg-surface px-2 py-1 text-xs text-ink shadow-lg"
+        >
+          {content}
+        </RTooltip.Content>
+      </RTooltip.Portal>
+    </RTooltip.Root>
+  );
+}
+
+export const TooltipProvider = RTooltip.Provider;
+
+export function Section({
+  title,
+  children,
+  actions,
+  className,
+}: {
+  title: React.ReactNode;
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("space-y-2", className)}>
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{title}</h3>
+        {actions}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function Empty({
+  icon,
+  title,
+  children,
+  className,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col items-center justify-center gap-2 p-6 text-center", className)}>
+      {icon && <div className="text-ink-3 [&_svg]:size-6">{icon}</div>}
+      <p className="text-sm font-medium text-ink">{title}</p>
+      {children && <div className="max-w-md text-xs leading-relaxed text-ink-2">{children}</div>}
+    </div>
+  );
+}

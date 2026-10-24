@@ -1,0 +1,27 @@
+name: Feature request
+description: Propose a component, metric, UI improvement or integration.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to understand or design that ArchSim does not support today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should ArchSim do? For new components, describe the behaviour you want modeled and what you would deliberately leave out.
+    validations:
+      required: true
+  - type: textarea
+    id: modeling
+    attributes:
+      label: Modeling assumptions
+      description: Which parameters would users enter, which would be derived, and how could the behaviour be validated (e.g. against queueing theory or published measurements)?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

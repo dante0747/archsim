@@ -1,0 +1,844 @@
+{
+  "components": [
+    {
+      "type": "traffic_source",
+      "displayName": "Clients / Traffic",
+      "category": "traffic",
+      "description": "Generates the workload (RPS, read/write mix, traffic pattern) and measures what users experience: end-to-end latency, errors and client timeouts.",
+      "icon": "users",
+      "isTrafficSource": true,
+      "ports": [
+        {
+          "name": "out",
+          "direction": "out",
+          "label": "Requests",
+          "description": "Sends every generated request to one entry point (usually a load balancer).",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 1,
+          "maxEdges": 1
+        }
+      ],
+      "fields": [
+        {
+          "key": "timeoutMs",
+          "label": "Client timeout",
+          "kind": "number",
+          "nullable": false,
+          "description": "How long a client waits for a response per attempt before giving up (ms).",
+          "default": 3000.0,
+          "assumption": false,
+          "headline": true,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        },
+        {
+          "key": "maxAttempts",
+          "label": "Max attempts",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Total attempts per user request including retries (1 = no retries). Retries add load.",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 5,
+          "group": "Client behaviour"
+        },
+        {
+          "key": "retryBackoffMs",
+          "label": "Retry backoff",
+          "kind": "number",
+          "nullable": false,
+          "description": "Delay before the first retry (ms); doubles for each further retry.",
+          "default": 100.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 60000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        }
+      ],
+      "defaultConfig": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0
+      },
+      "modeled": [
+        "Open-loop arrivals: clients do not slow down when the system is slow",
+        "Per-attempt client timeout and bounded retries with exponential backoff"
+      ],
+      "notModeled": [
+        "Closed-loop users with think time",
+        "Client-side connection pools"
+      ]
+    },
+    {
+      "type": "load_balancer",
+      "displayName": "Load Balancer",
+      "category": "network",
+      "description": "Spreads requests across the replicas of its targets (round-robin, least-connections or random). Links can filter by request type, e.g. to route reads and writes differently.",
+      "icon": "split",
+      "isTrafficSource": false,
+      "ports": [
+        {
+          "name": "in",
+          "direction": "in",
+          "label": "Requests",
+          "description": "Incoming requests.",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        },
+        {
+          "name": "out",
+          "direction": "out",
+          "label": "Targets",
+          "description": "Instances to balance across. A retry (link max attempts > 1) avoids the instance that just failed.",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 1,
+          "maxEdges": null
+        }
+      ],
+      "fields": [
+        {
+          "key": "policy",
+          "label": "Balancing policy",
+          "kind": "enum",
+          "nullable": false,
+          "description": "How a target instance is chosen. Instances are the replicas of every linked target that carries the request type.",
+          "default": "round_robin",
+          "assumption": false,
+          "headline": true,
+          "options": [
+            "round_robin",
+            "least_connections",
+            "random"
+          ],
+          "group": "Routing"
+        },
+        {
+          "key": "overheadMs",
+          "label": "Overhead",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Processing overhead added per request by the balancer itself (ms).",
+          "default": {
+            "kind": "constant",
+            "value": 0.2
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
+          "key": "maxConnections",
+          "label": "Max connections",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Concurrent requests the balancer accepts; beyond this new requests are rejected.",
+          "default": 10000,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 1000000,
+          "group": "Capacity"
+        }
+      ],
+      "defaultConfig": {
+        "policy": "round_robin",
+        "overheadMs": {
+          "kind": "constant",
+          "value": 0.2
+        },
+        "maxConnections": 10000
+      },
+      "modeled": [
+        "Instance selection per policy across all replicas of linked targets",
+        "Per-link timeout and retries that avoid the failed instance",
+        "Connection limit (rejects beyond max connections)"
+      ],
+      "notModeled": [
+        "Health checks and ejection",
+        "TLS handshakes",
+        "Sticky sessions"
+      ]
+    },
+    {
+      "type": "service",
+      "displayName": "Service / API Servers",
+      "category": "compute",
+      "description": "Stateless application servers. Each replica has a worker pool and a bounded queue. Outgoing links are called in order for matching request types (e.g. reads to the cache, writes to the database).",
+      "icon": "server",
+      "isTrafficSource": false,
+      "ports": [
+        {
+          "name": "in",
+          "direction": "in",
+          "label": "Requests",
+          "description": "Incoming requests.",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        },
+        {
+          "name": "out",
+          "direction": "out",
+          "label": "Dependencies",
+          "description": "Downstream calls made while handling a request. Each link's request types decide which requests use it.",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        }
+      ],
+      "fields": [
+        {
+          "key": "replicas",
+          "label": "Replicas",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Number of identical instances. Each has its own workers and queue.",
+          "default": 2,
+          "assumption": false,
+          "headline": true,
+          "min": 1,
+          "max": 500,
+          "group": "Capacity"
+        },
+        {
+          "key": "workersPerReplica",
+          "label": "Workers per replica",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Requests one replica processes concurrently (threads/worker processes).",
+          "default": 4,
+          "assumption": false,
+          "headline": true,
+          "min": 1,
+          "max": 4096,
+          "group": "Capacity"
+        },
+        {
+          "key": "queueCapacity",
+          "label": "Queue limit per replica",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Requests that may wait for a free worker per replica; more are rejected (HTTP 503).",
+          "default": 50,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 100000,
+          "group": "Capacity"
+        },
+        {
+          "key": "queueTimeoutMs",
+          "label": "Queue timeout",
+          "kind": "number",
+          "nullable": true,
+          "description": "Requests waiting longer than this for a worker are rejected (ms). Empty = no limit.",
+          "default": 1000.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Capacity"
+        },
+        {
+          "key": "serviceTimeMs",
+          "label": "Service time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Handler time per request on a worker, excluding downstream calls (ms). This is an assumption unless calibrated from telemetry.",
+          "default": {
+            "kind": "lognormal",
+            "median": 8.0,
+            "p95": 25.0
+          },
+          "assumption": true,
+          "headline": true,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
+          "key": "blockingDownstream",
+          "label": "Workers block on downstream calls",
+          "kind": "boolean",
+          "nullable": false,
+          "description": "On: a worker stays occupied while waiting for downstream calls (thread-per-request). Off: the worker is released during downstream I/O (async/event-loop servers).",
+          "default": true,
+          "assumption": false,
+          "headline": false,
+          "group": "Performance"
+        }
+      ],
+      "defaultConfig": {
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 8.0,
+          "p95": 25.0
+        },
+        "blockingDownstream": true
+      },
+      "modeled": [
+        "FIFO queue per replica with a size limit and a wait timeout",
+        "Worker pool per replica; service time sampled from the configured distribution",
+        "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O"
+      ],
+      "notModeled": [
+        "CPU contention between workers, garbage collection pauses, autoscaling",
+        "Parallel fan-out calls (dependencies are called one after another)"
+      ]
+    },
+    {
+      "type": "cache",
+      "displayName": "Cache (Redis)",
+      "category": "storage",
+      "description": "Cache-aside: reads that hit return from memory; misses continue through the 'miss' port to the data store, then optionally repopulate the cache. Writes invalidate the key.",
+      "icon": "zap",
+      "isTrafficSource": false,
+      "ports": [
+        {
+          "name": "in",
+          "direction": "in",
+          "label": "Commands",
+          "description": "Reads (lookups) and writes (invalidations).",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        },
+        {
+          "name": "miss",
+          "direction": "out",
+          "label": "Miss",
+          "description": "Where reads go when the key is not cached (usually the database).",
+          "requestTypes": [
+            "read"
+          ],
+          "minEdges": 0,
+          "maxEdges": 1
+        }
+      ],
+      "fields": [
+        {
+          "key": "hitModel",
+          "label": "Hit model",
+          "kind": "enum",
+          "nullable": false,
+          "description": "fixed_ratio: each read hits with the given probability (simplest assumption). ttl_keyspace: reads pick keys from the workload's Zipf keyspace; a key hits if it was filled less than TTL seconds ago (derives hit rate, including cold start).",
+          "default": "fixed_ratio",
+          "assumption": false,
+          "headline": true,
+          "options": [
+            "fixed_ratio",
+            "ttl_keyspace"
+          ],
+          "group": "Cache behaviour"
+        },
+        {
+          "key": "hitRatio",
+          "label": "Hit ratio",
+          "kind": "number",
+          "nullable": false,
+          "description": "Probability a read is served from the cache (fixed_ratio model).",
+          "default": 0.8,
+          "assumption": true,
+          "headline": true,
+          "min": 0,
+          "max": 1,
+          "group": "Cache behaviour",
+          "visibleWhen": {
+            "hitModel": "fixed_ratio"
+          },
+          "step": 0.05
+        },
+        {
+          "key": "ttlSeconds",
+          "label": "TTL",
+          "kind": "number",
+          "nullable": false,
+          "description": "Time a filled key stays valid (ttl_keyspace model). Capacity is unbounded (no eviction).",
+          "default": 60.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 86400,
+          "unit": "s",
+          "group": "Cache behaviour",
+          "visibleWhen": {
+            "hitModel": "ttl_keyspace"
+          }
+        },
+        {
+          "key": "populateOnMiss",
+          "label": "Populate on miss",
+          "kind": "boolean",
+          "nullable": false,
+          "description": "After a miss is served by the data store, write the value back (one extra cache operation).",
+          "default": true,
+          "assumption": false,
+          "headline": false,
+          "group": "Cache behaviour"
+        },
+        {
+          "key": "serviceTimeMs",
+          "label": "Command time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Time to execute one cache command, excluding network (ms).",
+          "default": {
+            "kind": "exponential",
+            "mean": 0.05
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
+          "key": "concurrency",
+          "label": "Command executors",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Commands executed in parallel (Redis executes commands on a single thread).",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 1024,
+          "group": "Capacity"
+        },
+        {
+          "key": "queueCapacity",
+          "label": "Queue limit",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Commands that may wait for an executor; more are rejected.",
+          "default": 10000,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 100000,
+          "group": "Capacity"
+        },
+        {
+          "key": "queueTimeoutMs",
+          "label": "Queue timeout",
+          "kind": "number",
+          "nullable": true,
+          "description": "Commands waiting longer than this are rejected (ms). Empty = no limit.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Capacity"
+        }
+      ],
+      "defaultConfig": {
+        "hitModel": "fixed_ratio",
+        "hitRatio": 0.8,
+        "ttlSeconds": 60.0,
+        "populateOnMiss": true,
+        "serviceTimeMs": {
+          "kind": "exponential",
+          "mean": 0.05
+        },
+        "concurrency": 1,
+        "queueCapacity": 10000
+      },
+      "modeled": [
+        "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
+        "Single-threaded command execution with a queue",
+        "Miss path latency added to the caller; repopulation cost"
+      ],
+      "notModeled": [
+        "Memory limits and eviction (LRU/LFU)",
+        "Thundering herd / request coalescing on misses",
+        "Replication and persistence"
+      ]
+    },
+    {
+      "type": "database",
+      "displayName": "Database (PostgreSQL)",
+      "category": "storage",
+      "description": "Executes read and write queries on a limited number of connections. Queries wait for a free connection up to the acquire timeout.",
+      "icon": "database",
+      "isTrafficSource": false,
+      "ports": [
+        {
+          "name": "in",
+          "direction": "in",
+          "label": "Queries",
+          "description": "Read and write queries.",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 0,
+          "maxEdges": null
+        }
+      ],
+      "fields": [
+        {
+          "key": "maxConnections",
+          "label": "Max connections",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Queries executing concurrently (connection pool size / backend workers).",
+          "default": 10,
+          "assumption": false,
+          "headline": true,
+          "min": 1,
+          "max": 10000,
+          "group": "Capacity"
+        },
+        {
+          "key": "queueCapacity",
+          "label": "Wait queue limit",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Queries that may wait for a connection; more are rejected.",
+          "default": 200,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 100000,
+          "group": "Capacity"
+        },
+        {
+          "key": "queueTimeoutMs",
+          "label": "Acquire timeout",
+          "kind": "number",
+          "nullable": true,
+          "description": "Connection acquire timeout (ms). Queries waiting longer are rejected. Empty = no limit.",
+          "default": 1000.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Capacity"
+        },
+        {
+          "key": "readServiceTimeMs",
+          "label": "Read query time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Execution time of a read query (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 5.0,
+            "p95": 20.0
+          },
+          "assumption": true,
+          "headline": true,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
+          "key": "writeServiceTimeMs",
+          "label": "Write query time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Execution time of a write query including commit (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 10.0,
+            "p95": 40.0
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Performance"
+        }
+      ],
+      "defaultConfig": {
+        "maxConnections": 10,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "readServiceTimeMs": {
+          "kind": "lognormal",
+          "median": 5.0,
+          "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+          "kind": "lognormal",
+          "median": 10.0,
+          "p95": 40.0
+        }
+      },
+      "modeled": [
+        "Connection limit with a bounded wait queue and acquire timeout",
+        "Separate read/write query time distributions"
+      ],
+      "notModeled": [
+        "Locks, MVCC contention, disk I/O and buffer cache behaviour",
+        "Replication lag, read replicas, query planning"
+      ]
+    }
+  ],
+  "edgeFields": [
+    {
+      "key": "requestTypes",
+      "label": "Request types",
+      "kind": "requestTypes",
+      "nullable": false,
+      "description": "Request types carried by this link. Used for routing (e.g. reads to cache, writes to DB).",
+      "default": [
+        "read",
+        "write"
+      ],
+      "assumption": false,
+      "headline": false,
+      "options": [
+        "read",
+        "write"
+      ],
+      "group": "Routing"
+    },
+    {
+      "key": "latencyMs",
+      "label": "Network latency (one way)",
+      "kind": "distribution",
+      "nullable": false,
+      "description": "One-way network latency in ms, applied to the request and again to the response.",
+      "default": {
+        "kind": "constant",
+        "value": 0.5
+      },
+      "assumption": true,
+      "headline": false,
+      "unit": "ms",
+      "group": "Network"
+    },
+    {
+      "key": "timeoutMs",
+      "label": "Timeout",
+      "kind": "number",
+      "nullable": true,
+      "description": "Per-attempt time the caller waits before giving up (ms). Empty = wait indefinitely.",
+      "default": null,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "exclusiveMin": true,
+      "max": 600000,
+      "unit": "ms",
+      "group": "Reliability"
+    },
+    {
+      "key": "maxAttempts",
+      "label": "Max attempts",
+      "kind": "integer",
+      "nullable": false,
+      "description": "Total attempts including retries (1 = no retries). Bounded to prevent retry storms from running away.",
+      "default": 1,
+      "assumption": false,
+      "headline": false,
+      "min": 1,
+      "max": 5,
+      "group": "Reliability"
+    },
+    {
+      "key": "retryBackoffMs",
+      "label": "Retry backoff",
+      "kind": "number",
+      "nullable": false,
+      "description": "Base backoff before a retry (ms); doubles on each further retry.",
+      "default": 50.0,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "max": 60000,
+      "unit": "ms",
+      "group": "Reliability"
+    },
+    {
+      "key": "order",
+      "label": "Call order",
+      "kind": "integer",
+      "nullable": false,
+      "description": "Call order when a service calls several dependencies for the same request (lower first).",
+      "default": 0,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "max": 1000,
+      "group": "Routing"
+    }
+  ],
+  "workloadFields": [
+    {
+      "key": "rps",
+      "label": "Baseline load",
+      "kind": "number",
+      "nullable": false,
+      "description": "Baseline offered load (requests/s)",
+      "default": 100.0,
+      "assumption": true,
+      "headline": false,
+      "min": 0,
+      "max": 100000,
+      "unit": "req/s",
+      "group": "Traffic"
+    },
+    {
+      "key": "durationS",
+      "label": "Duration",
+      "kind": "number",
+      "nullable": false,
+      "description": "Arrival window length (s)",
+      "default": 60.0,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "exclusiveMin": true,
+      "max": 3600,
+      "unit": "s",
+      "group": "Run"
+    },
+    {
+      "key": "warmupS",
+      "label": "Warm-up",
+      "kind": "number",
+      "nullable": false,
+      "description": "Initial period excluded from summary statistics (s)",
+      "default": 10.0,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "max": 3600,
+      "unit": "s",
+      "group": "Run"
+    },
+    {
+      "key": "seed",
+      "label": "Seed",
+      "kind": "integer",
+      "nullable": false,
+      "description": "Random seed for reproducibility",
+      "default": 42,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "max": 4294967295,
+      "group": "Run"
+    },
+    {
+      "key": "readRatio",
+      "label": "Read ratio",
+      "kind": "number",
+      "nullable": false,
+      "description": "Fraction of requests that are reads",
+      "default": 0.9,
+      "assumption": true,
+      "headline": false,
+      "min": 0,
+      "max": 1,
+      "group": "Traffic",
+      "step": 0.05
+    },
+    {
+      "key": "arrivalProcess",
+      "label": "Arrival process",
+      "kind": "enum",
+      "nullable": false,
+      "description": "poisson: random (exponential) inter-arrivals; deterministic: evenly spaced",
+      "default": "poisson",
+      "assumption": false,
+      "headline": false,
+      "options": [
+        "poisson",
+        "deterministic"
+      ],
+      "group": "Traffic"
+    },
+    {
+      "key": "pattern",
+      "label": "Traffic pattern",
+      "kind": "pattern",
+      "nullable": false,
+      "description": "Shape of the offered load over time",
+      "default": {
+        "kind": "constant"
+      },
+      "assumption": false,
+      "headline": false,
+      "group": "Traffic"
+    },
+    {
+      "key": "keyCount",
+      "label": "Distinct keys",
+      "kind": "integer",
+      "nullable": false,
+      "description": "Number of distinct keys requests touch (used by TTL cache models)",
+      "default": 100000,
+      "assumption": true,
+      "headline": false,
+      "min": 1,
+      "max": 1000000,
+      "group": "Keyspace"
+    },
+    {
+      "key": "keySkew",
+      "label": "Key skew (Zipf s)",
+      "kind": "number",
+      "nullable": false,
+      "description": "Zipf exponent of key popularity (0 = uniform, ~1 = typical web skew)",
+      "default": 0.99,
+      "assumption": true,
+      "headline": false,
+      "min": 0,
+      "max": 3,
+      "group": "Keyspace",
+      "step": 0.05
+    },
+    {
+      "key": "drainS",
+      "label": "Drain time",
+      "kind": "number",
+      "nullable": true,
+      "description": "Time after arrivals stop to let in-flight requests finish (s). Empty = automatic.",
+      "default": null,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "max": 600,
+      "unit": "s",
+      "group": "Run"
+    }
+  ]
+}

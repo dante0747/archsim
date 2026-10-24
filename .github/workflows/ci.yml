@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.12"
+
+jobs:
+  python:
+    name: Python (engine + API, SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check packages services
+      - name: Format
+        run: uv run ruff format --check packages services
+      - name: Type check
+        run: uv run mypy packages/engine/src services/api/src
+      - name: Tests
+        run: uv run pytest
+
+  api-postgres:
+    name: API tests on PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: archsim
+          POSTGRES_PASSWORD: archsim
+          POSTGRES_DB: archsim_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U archsim -d archsim_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ARCHSIM_TEST_DATABASE_URL: postgresql+psycopg://archsim:archsim@localhost:5432/archsim_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run pytest services/api/tests
+
+  web:
+    name: Web (lint, types, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # build first: it generates next-env.d.ts and route types that tsc needs
+      - run: npm run build
+      - run: npm run typecheck

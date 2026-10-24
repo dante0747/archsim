@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Queueing lab: one service under load",
+    "description": "A single service with 4 workers and exponential 10 ms service time (an M/M/4 queue, capacity 400 req/s). Compare the scenarios to see latency explode near saturation, and how a queue timeout sheds load instead of wasting work on requests whose clients already gave up.",
+    "tags": [
+      "education",
+      "queueing-theory"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Clients",
+        "config": {
+          "timeoutMs": 1000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "svc",
+        "type": "service",
+        "label": "Service (4 workers)",
+        "config": {
+          "replicas": 1,
+          "workersPerReplica": 4,
+          "queueCapacity": 100000,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 10
+          },
+          "blockingDownstream": true
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-svc",
+        "source": "clients",
+        "sourcePort": "out",
+        "target": "svc",
+        "targetPort": "in",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 1
+          }
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 200,
+    "durationS": 120,
+    "warmupS": 15,
+    "seed": 7,
+    "readRatio": 1.0,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "load-50",
+      "name": "50% load (200 req/s)",
+      "overrides": []
+    },
+    {
+      "id": "load-90",
+      "name": "90% load (360 req/s)",
+      "description": "Close to saturation: utilization rises linearly, waiting time does not.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "rps",
+          "value": 360
+        }
+      ]
+    },
+    {
+      "id": "load-110",
+      "name": "110% load, unbounded queue",
+      "description": "Over capacity with an unbounded queue: the queue grows forever, clients time out, and the service keeps working on abandoned requests.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "rps",
+          "value": 440
+        }
+      ]
+    },
+    {
+      "id": "load-110-shed",
+      "name": "110% load, queue timeout 200 ms",
+      "description": "Same overload, but requests that wait more than 200 ms are rejected immediately, so capacity goes to requests that can still succeed.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "rps",
+          "value": 440
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "svc"
+          },
+          "path": "queueTimeoutMs",
+          "value": 200
+        }
+      ]
+    }
+  ],
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 100
+      },
+      "svc": {
+        "x": 400,
+        "y": 100
+      }
+    }
+  }
+}
