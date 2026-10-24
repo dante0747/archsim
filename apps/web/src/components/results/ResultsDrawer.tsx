@@ -64,7 +64,7 @@ export function ResultsDrawer() {
             if (e.key === "ArrowUp") setHeight(height + 40);
             if (e.key === "ArrowDown") setHeight(height - 40);
           }}
-          className="absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize hover:bg-accent/30"
+          className="absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize hover:bg-accent/25 focus-visible:bg-accent/25"
         />
       )}
       <Tabs
@@ -88,16 +88,17 @@ export function ResultsDrawer() {
               <GitCompareArrows /> Compare
             </TabsTrigger>
             <TabsTrigger value="runs">
-              <History /> History{runCount ? ` · ${runCount}` : ""}
+              <History /> History
+              {runCount > 0 && <span className="tabular text-ink-3">[{runCount}]</span>}
             </TabsTrigger>
             <TabsTrigger value="assumptions">
               <FileText /> Assumptions
             </TabsTrigger>
           </TabsList>
           {hasReport && (
-            <label className="hidden shrink-0 items-center gap-2 text-[11px] text-ink-2 md:flex">
+            <label className="hidden shrink-0 items-center gap-2 font-mono text-[10.5px] text-ink-2 md:flex">
               <Switch checked={overlay} onCheckedChange={setOverlay} label="Show results on canvas" />
-              Show on canvas
+              show on canvas
             </label>
           )}
           <Button

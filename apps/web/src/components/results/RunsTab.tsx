@@ -7,6 +7,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/compo
 import { fmtMs, fmtPct, fmtRelativeTime, fmtRps, shortDigest } from "@/lib/format";
 import type { Run } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { thClass } from "./charts";
 import { useRuns } from "@/store/runs";
 
 function StatusIcon({ run }: { run: Run }) {
@@ -45,17 +46,17 @@ export function RunsTab() {
   return (
     <div className="overflow-x-auto p-4">
       <table className="tabular w-full min-w-[820px] text-xs">
-        <thead className="text-left text-ink-3">
+        <thead className="text-left">
           <tr className="border-b border-line">
-            <th className="px-2 py-2 font-medium" aria-label="Status" />
-            <th className="px-2 py-2 font-medium">Run</th>
-            <th className="px-2 py-2 font-medium">When</th>
-            <th className="px-2 py-2 text-right font-medium">Seed</th>
-            <th className="px-2 py-2 text-right font-medium">Throughput</th>
-            <th className="px-2 py-2 text-right font-medium">Success</th>
-            <th className="px-2 py-2 text-right font-medium">p95</th>
-            <th className="px-2 py-2 font-medium">Bottleneck</th>
-            <th className="px-2 py-2 font-medium">Result digest</th>
+            <th className={cn(thClass, "px-2 py-2")} aria-label="Status" />
+            <th className={cn(thClass, "px-2 py-2")}>Run</th>
+            <th className={cn(thClass, "px-2 py-2")}>When</th>
+            <th className={cn(thClass, "px-2 py-2 text-right")}>Seed</th>
+            <th className={cn(thClass, "px-2 py-2 text-right")}>Throughput</th>
+            <th className={cn(thClass, "px-2 py-2 text-right")}>Success</th>
+            <th className={cn(thClass, "px-2 py-2 text-right")}>p95</th>
+            <th className={cn(thClass, "px-2 py-2")}>Bottleneck</th>
+            <th className={cn(thClass, "px-2 py-2")}>Result digest</th>
             <th className="px-2 py-2" aria-label="Actions" />
           </tr>
         </thead>
@@ -70,16 +71,16 @@ export function RunsTab() {
                 <td className="max-w-56 px-2 py-1.5">
                   <p className="truncate font-medium text-ink">{r.label}</p>
                   {r.status === "failed" && r.error && <p className="truncate text-danger-ink" title={r.error.message}>{r.error.message}</p>}
-                  {active && <p className="text-ink-3">{r.status} · {Math.round(r.progress * 100)}%</p>}
+                  {active && <p className="font-mono text-[10.5px] text-ink-3">{r.status} · {Math.round(r.progress * 100)}%</p>}
                   {(r.id === compareA || r.id === compareB) && (
-                    <p className="text-ink-3">comparing as {r.id === compareA ? "A" : "B"}</p>
+                    <p className="font-mono text-[10.5px] text-ink-3">comparing as {r.id === compareA ? "A" : "B"}</p>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-2 py-1.5 text-ink-2">{fmtRelativeTime(r.createdAt)}</td>
-                <td className="px-2 py-1.5 text-right text-ink-2">{r.seed}</td>
-                <td className="px-2 py-1.5 text-right text-ink">{fmtRps(r.summary?.throughputRps)}</td>
-                <td className="px-2 py-1.5 text-right text-ink">{fmtPct(r.summary?.successRate)}</td>
-                <td className="px-2 py-1.5 text-right text-ink">{fmtMs(r.summary?.p95)}</td>
+                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-[11px] text-ink-2">{fmtRelativeTime(r.createdAt)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink-2">{r.seed}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtRps(r.summary?.throughputRps)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtPct(r.summary?.successRate)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtMs(r.summary?.p95)}</td>
                 <td className="max-w-48 truncate px-2 py-1.5 text-ink-2" title={r.summary?.bottleneck ?? ""}>
                   {r.summary ? (r.summary.bottleneck ?? "none") : "–"}
                 </td>

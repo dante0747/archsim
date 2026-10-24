@@ -56,22 +56,28 @@ listed under "Implemented" is a stub or a mock.
 - Tests cover the full lifecycle, persistence across app restarts, reproducibility of reruns,
   unsaved-document runs, comparison, limits, cancellation, and a seed above 2^31.
 
-**Web** (`apps/web`, 33 tests)
+**Web** (`apps/web`, 45 tests)
 
-- Visual design: a dark "blueprint" theme (navy grid canvas, cyan-violet-pink accent) and a
-  light theme. Each component kind has its own color (traffic, network, compute, cache,
-  storage), reads and writes have their own colors, and status colors (OK, warm, hot,
-  saturated) are reserved for results. Chart colors were checked for contrast on both themes.
-- Projects page: hero with an illustration, "how it works", example cards with a live
-  mini-diagram of each example, blank project, import JSON, duplicate, export, delete.
+- Visual design ("schematic"): monochrome graphite (dark) and drafting-paper (light) themes
+  with monospace labels (JetBrains Mono) and one cyan accent for interaction and live traffic.
+  Each component kind has a line-art shape (parallelogram clients, hexagon load balancer,
+  stacked boxes per service replica, memory-chip cache, cylinder database), links are
+  orthogonal wires with square pins, and reads/writes are told apart by glyph (● / ■). Status
+  colors (OK, warm, hot, saturated) appear only on results. Chart colors were re-checked with
+  the data-viz validator on the new surfaces; latency percentiles use a single-hue ramp.
+- Projects page: hero with a schematic illustration, "how it works", example cards with a
+  mini-diagram of each example drawn with the same shapes, blank project, import JSON,
+  duplicate, export, delete.
 - Guided workflow bar under the top bar (Design, Traffic, Simulate, Insights, Compare) that
   checks off steps and always suggests one next action (fix the first problem, run, open the
   insights, run all scenarios and compare).
-- Editor: React Flow canvas with a component rail (drag or click to add) and a searchable
-  component library; floating toolbar (add, undo/redo, tidy up, zoom, results overlay, live
-  flow); node cards with kind color, key settings and, after a run, status, utilization and
-  calls/s; links animate request dots scaled by measured calls/s; a "last run" card with the
-  verdict and KPIs that the canvas reframes around. Instant connection checks with
+- Editor: React Flow canvas with a rail of component shapes (drag or click to add) and a
+  searchable component library; floating toolbar (add, undo/redo, tidy up, zoom, results
+  overlay, live flow); shaped nodes with key settings and, after a run, status, a utilization
+  meter and calls/s; links animate request dots scaled by measured calls/s; a terminal-style
+  "last run" card with the verdict and KPIs that the canvas reframes around; a command palette
+  (Ctrl/⌘ K or /) listing every available action; an IDE-style status bar (validity, size,
+  workload, run progress, zoom). Instant connection checks with
   explanations, server-side live validation with a problems menu, ELK auto-layout, undo/redo
   with coalescing, multi-select, duplicate, delete, keyboard shortcuts, unsaved-changes guard.
 - Side panel with Overview (design summary, traffic, checks, how to read the canvas),
@@ -85,8 +91,8 @@ listed under "Implemented" is a stub or a mock.
   drill-down charts), Compare (explanations, input diff, KPI and component tables, overlay
   charts), History, and Assumptions vs. simulation-derived values.
 - Unit tests: document conversion, connection rules, distributions, editor store (undo/redo,
-  coalescing, add/connect/delete), workload math, form controls, theme helpers and the run
-  verdict. A Python test keeps the web catalog fixture in sync with the registry.
+  coalescing, add/connect/delete), workload math, form controls, theme helpers, the run
+  verdict, the schematic shapes and command-palette ranking. A Python test keeps the web catalog fixture in sync with the registry.
 
 **Repository**: AGPL-3.0 license, README, CONTRIBUTING, Code of Conduct, SECURITY, docs
 (plan, architecture, simulation model, schema, API, extension guide, roadmap), issue/PR

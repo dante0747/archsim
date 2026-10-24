@@ -14,6 +14,7 @@ import {
   Play,
   Redo2,
   Save,
+  Search,
   Square,
   TriangleAlert,
   Undo2,
@@ -36,11 +37,13 @@ import {
   MenuTrigger,
 } from "@/components/ui/overlays";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { cn } from "@/lib/utils";
+import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { useUi } from "@/store/ui";
 
 export const SHORTCUTS: [string, string][] = [
+  ["Ctrl/⌘ K  ·  /", "Command palette"],
   ["Ctrl/⌘ S", "Save"],
   ["Ctrl/⌘ Enter", "Run simulation"],
   ["Ctrl/⌘ Z", "Undo"],
@@ -70,27 +73,27 @@ function RunControl() {
       <button
         type="button"
         onClick={() => void cancel(followRun.id)}
-        className="relative flex h-9 min-w-40 items-center gap-2 overflow-hidden rounded-xl border border-line bg-surface px-3 text-xs font-semibold text-ink shadow-panel"
+        className="relative flex h-8 min-w-40 items-center gap-2 overflow-hidden rounded-md border border-line-strong bg-surface px-2.5 font-mono text-[11px] font-semibold text-ink"
         aria-label="Stop simulation"
       >
-        <span className="progress-shimmer absolute inset-y-0 left-0 opacity-25" style={{ width: `${followRun.progress * 100}%` }} aria-hidden />
-        <Square className="relative size-3.5 fill-current" />
-        <span className="relative">{followRun.status === "queued" ? "Queued…" : "Simulating"}</span>
-        <span className="tabular relative ml-auto font-mono">{Math.round(followRun.progress * 100)}%</span>
+        <span className="progress-stripes absolute bottom-0 left-0 h-[3px]" style={{ width: `${Math.max(4, followRun.progress * 100)}%` }} aria-hidden />
+        <Square className="size-3 fill-current" />
+        <span>{followRun.status === "queued" ? "queued…" : "simulating"}</span>
+        <span className="tabular ml-auto">{Math.round(followRun.progress * 100)}%</span>
       </button>
     );
   }
   return (
-    <div className="flex h-9 items-stretch rounded-xl shadow-[0_8px_24px_-10px_color-mix(in_srgb,var(--accent)_70%,transparent)]">
+    <div className="flex h-8 items-stretch">
       <Tip content={<>Run simulation <Kbd>Ctrl Enter</Kbd></>}>
         <button
           type="button"
           onClick={() => void run()}
           disabled={starting}
           data-testid="run-button"
-          className="brand-bg flex items-center gap-1.5 rounded-l-xl pl-3.5 pr-3 text-sm font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-l-md bg-accent pl-3 pr-3 font-mono text-[12px] font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60"
         >
-          {starting ? <LoaderCircle className="size-4 animate-spin" /> : <Play className="size-4 fill-current" />}
+          {starting ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5 fill-current" />}
           Run
         </button>
       </Tip>
@@ -99,7 +102,7 @@ function RunControl() {
           <button
             type="button"
             aria-label="Choose what to simulate"
-            className="flex max-w-48 items-center gap-1 rounded-r-xl border-l border-black/15 bg-[color-mix(in_srgb,var(--accent)_22%,var(--surface))] px-2.5 text-xs font-medium text-ink hover:brightness-110"
+            className="flex max-w-48 items-center gap-1 rounded-r-md border border-l-0 border-line-strong bg-surface-2 px-2 font-mono text-[11px] text-ink hover:bg-surface-3"
           >
             <span className="truncate">{target ? target.name : "Design as drawn"}</span>
             <ChevronDown className="size-3.5 shrink-0" />
@@ -140,7 +143,7 @@ function ProblemsPill() {
   const warnings = issues.filter((i) => i.severity === "warning");
   if (!issues.length) {
     return (
-      <span className="hidden items-center gap-1 rounded-full px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-ink-3 lg:flex" aria-live="polite">
+      <span className="hidden items-center gap-1 px-2 py-1 font-mono text-[10.5px] text-ink-3 lg:flex" aria-live="polite">
         {validation === "pending" ? <LoaderCircle className="size-3 animate-spin" /> : <Check className="size-3" style={{ color: "var(--status-good)" }} />}
         {validation === "pending" ? "checking" : "valid"}
       </span>
@@ -152,8 +155,8 @@ function ProblemsPill() {
         <button
           type="button"
           className={cn(
-            "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-ink",
-            errors.length ? "bg-critical-soft" : "bg-warning-soft",
+            "flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[11px] text-ink",
+            errors.length ? "border-critical/50 bg-critical-soft" : "border-warning/50 bg-warning-soft",
           )}
         >
           {errors.length ? (
@@ -206,17 +209,18 @@ export function TopBar({
   const autoLayout = useEditor((s) => s.autoLayout);
   const { save, exportJson, importJson } = useEditorActions();
   const fileRef = useRef<HTMLInputElement>(null);
+  const setPaletteOpen = useUi((s) => s.setPaletteOpen);
 
   return (
-    <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-3">
+    <header className="relative z-30 flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-3">
       <div className="flex min-w-0 items-center gap-2">
         <Tip content="All projects">
-          <Link href="/" aria-label="Back to projects" className="rounded-lg p-1 hover:bg-surface-2">
-            <LogoMark className="size-7" />
+          <Link href="/" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
+            <LogoMark className="size-6" />
           </Link>
         </Tip>
-        <Link href="/" className="hidden text-xs text-ink-3 hover:text-ink md:inline">
-          Projects
+        <Link href="/" className="hidden font-mono text-[11px] text-ink-3 hover:text-ink md:inline">
+          projects
         </Link>
         <span className="hidden text-ink-3 md:inline" aria-hidden>
           /
@@ -226,16 +230,17 @@ export function TopBar({
           onChange={(e) => setMetadata({ name: e.target.value }, "name")}
           aria-label="Project name"
           maxLength={120}
-          className="h-8 w-36 min-w-0 rounded-lg border border-transparent bg-transparent px-1.5 text-sm font-semibold text-ink hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none sm:w-56"
+          style={{ width: `calc(${Math.min(Math.max(name.length, 12), 38)}ch + 14px)` }}
+          className="h-7 min-w-0 max-w-[40vw] rounded-sm border border-transparent bg-transparent px-1.5 font-mono text-[13px] font-semibold text-ink hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
         />
         <span
           className={cn(
-            "hidden items-center gap-1 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider sm:flex",
+            "hidden items-center gap-1.5 whitespace-nowrap font-mono text-[10.5px] sm:flex",
             dirty ? "text-ink-2" : "text-ink-3",
           )}
           aria-live="polite"
         >
-          <span className={cn("size-1.5 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-good")} aria-hidden />
+          <span className={cn("size-1.5 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3")} aria-hidden />
           {saving ? "saving" : dirty ? "unsaved" : "saved"}
         </span>
       </div>
@@ -243,10 +248,25 @@ export function TopBar({
       <div className="flex-1" />
 
       <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          aria-label="Open command palette"
+          className="hidden h-8 w-60 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 text-left font-mono text-[11px] text-ink-3 transition-colors hover:border-line-strong hover:text-ink-2 xl:flex"
+        >
+          <Search className="size-3.5 shrink-0" />
+          <span className="flex-1 truncate">run, add, compare…</span>
+          <Kbd>{modKey()} K</Kbd>
+        </button>
+        <Tip content={<>Command palette <Kbd>{modKey()} K</Kbd></>}>
+          <Button variant="ghost" size="icon" onClick={() => setPaletteOpen(true)} aria-label="Open command palette" className="xl:hidden">
+            <Search />
+          </Button>
+        </Tip>
         <ProblemsPill />
         <RunControl />
         <Tip content={<>Save <Kbd>Ctrl S</Kbd></>}>
-          <Button onClick={() => void save()} disabled={saving} aria-label="Save" className={cn("h-9", !dirty && "text-ink-3")}>
+          <Button onClick={() => void save()} disabled={saving} aria-label="Save" className={cn("font-mono text-[12px]", !dirty && "text-ink-3")}>
             {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
             <span className="hidden lg:inline">Save</span>
           </Button>
@@ -264,11 +284,15 @@ export function TopBar({
         />
         <Menu>
           <MenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="More actions" className="size-9">
+            <Button variant="ghost" size="icon" aria-label="More actions">
               <MoreHorizontal />
             </Button>
           </MenuTrigger>
           <MenuContent>
+            <MenuItem onSelect={() => setPaletteOpen(true)}>
+              <Search /> Command palette <Kbd className="ml-auto">{modKey()} K</Kbd>
+            </MenuItem>
+            <MenuSeparator />
             <MenuItem onSelect={undo} disabled={!canUndo}>
               <Undo2 /> Undo <Kbd className="ml-auto">Ctrl Z</Kbd>
             </MenuItem>
@@ -298,7 +322,7 @@ export function TopBar({
         </Menu>
         <ThemeToggle />
         <Tip content={showInspector ? "Hide side panel" : "Show side panel"}>
-          <Button variant="ghost" size="icon" onClick={onToggleInspector} aria-pressed={showInspector} aria-label="Toggle side panel" className="size-9">
+          <Button variant="ghost" size="icon" onClick={onToggleInspector} aria-pressed={showInspector} aria-label="Toggle side panel">
             <PanelRight />
           </Button>
         </Tip>

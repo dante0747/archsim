@@ -18,7 +18,8 @@ Layout:
 - `src/lib/` - document/graph conversion, connection rules, layout, API client, types
 - `src/store/` - editor state (graph, undo/redo, validation) and runs (polling, reports, compare)
 - `src/components/editor/` - canvas, nodes, edges, component rail and library, toolbar, workflow
-  bar, inspector, traffic and scenarios
+  bar, command palette, status bar, inspector, traffic and scenarios
+- `src/components/shapes.tsx` - the schematic shape of each component kind (nodes, rail, previews)
 - `src/components/results/` - results panel: insights, timeline charts, components, compare,
   history, assumptions
 - `src/test/fixtures/` - catalog and example used by unit tests

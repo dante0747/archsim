@@ -6,8 +6,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useEditorActions } from "@/components/editor/actions";
 import { Canvas } from "@/components/editor/Canvas";
+import { CommandPalette } from "@/components/editor/CommandPalette";
 import { Inspector } from "@/components/editor/Inspector";
 import { ComponentRail } from "@/components/editor/Palette";
+import { StatusBar } from "@/components/editor/StatusBar";
 import { TopBar } from "@/components/editor/TopBar";
 import { WorkflowBar } from "@/components/editor/WorkflowBar";
 import { ResultsDrawer } from "@/components/results/ResultsDrawer";
@@ -120,6 +122,11 @@ function EditorShell() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
+      if (mod && key === "k") {
+        e.preventDefault();
+        useUi.getState().setPaletteOpen(!useUi.getState().paletteOpen);
+        return;
+      }
       if (mod && key === "s") {
         e.preventDefault();
         void save();
@@ -130,7 +137,7 @@ function EditorShell() {
         void run();
         return;
       }
-      if (isEditableTarget(e.target)) return;
+      if (isEditableTarget(e.target) || useUi.getState().paletteOpen) return;
       const ed = useEditor.getState();
       if (mod && key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -146,6 +153,9 @@ function EditorShell() {
         void ed.autoLayout();
       } else if (e.key === "?") {
         setShortcutsOpen(true);
+      } else if (e.key === "/" && !mod) {
+        e.preventDefault();
+        useUi.getState().setPaletteOpen(true);
       } else if (e.key === "Escape") {
         ed.select({});
       }
@@ -187,6 +197,8 @@ function EditorShell() {
           </div>
         )}
       </div>
+      <StatusBar />
+      <CommandPalette onShowShortcuts={() => setShortcutsOpen(true)} />
     </div>
   );
 }

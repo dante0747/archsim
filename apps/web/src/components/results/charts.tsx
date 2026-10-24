@@ -13,6 +13,22 @@ import {
 } from "recharts";
 import { compact } from "@/lib/format";
 import type { Series } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+/** A lone series wears the accent (4.6:1 on the light surface, 10.8:1 on the dark one). */
+export const SINGLE_SERIES = "var(--accent)";
+
+/**
+ * Ordinal ramp for p50 → p95 → p99: one hue (the data-viz blue ramp), monotone lightness, the most
+ * extreme percentile most salient. Validated with `validate_palette.js --ordinal` on both surfaces;
+ * the variables are defined by VIZ_VARS on each chart figure.
+ */
+export const PERCENTILE_SERIES = ["var(--viz-ord-1)", "var(--viz-ord-2)", "var(--viz-ord-3)"] as const;
+const VIZ_VARS =
+  "[--viz-ord-1:#86b6ef] [--viz-ord-2:#2a78d6] [--viz-ord-3:#104281] dark:[--viz-ord-1:#1c5cab] dark:[--viz-ord-2:#3987e5] dark:[--viz-ord-3:#86b6ef]";
+
+/** Table header cells: mono, uppercase, muted. */
+export const thClass = "font-mono text-[10px] font-normal uppercase tracking-[0.08em] text-ink-3";
 
 export interface SeriesDef {
   key: string;
@@ -46,8 +62,8 @@ function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-line bg-surface px-2 py-1.5 text-xs shadow-lg">
-      <p className="mb-1 font-medium text-ink">t = {label}s</p>
+    <div className="rounded-md border border-line-strong bg-surface px-2 py-1.5 font-mono text-[11px] shadow-float">
+      <p className="mb-1 text-ink-3">t = {label}s</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="flex items-center gap-2 text-ink-2">
           <span className="inline-block h-0.5 w-3 rounded" style={{ background: p.color }} aria-hidden />
@@ -64,7 +80,7 @@ export function Legend({ series }: { series: Pick<SeriesDef, "key" | "label" | "
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Legend">
       {series.map((s) => (
-        <li key={s.key} className="flex items-center gap-1.5 text-[11px] text-ink-2">
+        <li key={s.key} className="flex items-center gap-1.5 font-mono text-[10.5px] text-ink-2">
           <span className="inline-block h-0.5 w-3.5 rounded" style={{ background: s.color }} aria-hidden />
           {s.label}
         </li>
@@ -89,13 +105,13 @@ export function TimeSeriesChart({
     for (const s of series) row[s.key] = s.values[i] ?? null;
     return row;
   });
-  const tickStyle = { fill: "var(--muted-axis)", fontSize: 11 };
+  const tickStyle = { fill: "var(--muted-axis)", fontSize: 10.5, fontFamily: "var(--font-mono)" };
   return (
-    <figure className="min-w-0 rounded-lg border border-line bg-surface p-3">
+    <figure className={cn("min-w-0 rounded-md border border-line bg-surface p-3", VIZ_VARS)}>
       <figcaption className="mb-2 space-y-1">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-xs font-semibold text-ink">{title}</span>
-          {subtitle && <span className="truncate text-[11px] text-ink-3">{subtitle}</span>}
+          {subtitle && <span className="truncate font-mono text-[10.5px] text-ink-3">{subtitle}</span>}
         </div>
         <Legend series={series} />
       </figcaption>
@@ -111,14 +127,14 @@ export function TimeSeriesChart({
                 fillOpacity={1}
                 strokeOpacity={0}
                 ifOverflow="hidden"
-                label={{ value: "warm-up", position: "insideTopLeft", fill: "var(--ink-3)", fontSize: 10 }}
+                label={{ value: "warm-up", position: "insideTopLeft", fill: "var(--ink-3)", fontSize: 10, fontFamily: "var(--font-mono)" }}
               />
             )}
             {durationS != null && t.length > 0 && t[t.length - 1] > durationS && (
               <ReferenceLine
                 x={durationS}
                 stroke="var(--line-strong)"
-                label={{ value: "arrivals stop", position: "insideTopRight", fill: "var(--ink-3)", fontSize: 10 }}
+                label={{ value: "arrivals stop", position: "insideTopRight", fill: "var(--ink-3)", fontSize: 10, fontFamily: "var(--font-mono)" }}
               />
             )}
             <XAxis

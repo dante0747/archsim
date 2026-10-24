@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";
 import { Section } from "@/components/ui/misc";
 import { compact, fmtNum } from "@/lib/format";
-import { REQ_COLOR } from "@/lib/theme";
+import { REQ_GLYPH } from "@/lib/theme";
 import type { FieldDescriptor, TrafficPattern, Workload } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -54,7 +54,7 @@ export function PatternEditor({
   const nonNeg = (v: number) => (v < 0 ? "Must be ≥ 0" : v > 100000 ? "Must be ≤ 100,000" : null);
   return (
     <div className="space-y-2">
-      <div role="radiogroup" aria-label="Traffic pattern" className="flex rounded-xl border border-line bg-surface-2 p-0.5">
+      <div role="radiogroup" aria-label="Traffic pattern" className="flex rounded-md border border-line bg-surface-2 p-0.5">
         {kinds.map((k) => (
           <button
             key={k}
@@ -63,8 +63,8 @@ export function PatternEditor({
             aria-checked={value.kind === k}
             onClick={() => set(k)}
             className={cn(
-              "h-7 flex-1 rounded-lg px-2 text-xs font-medium capitalize",
-              value.kind === k ? "bg-surface text-ink shadow-panel" : "text-ink-2 hover:text-ink",
+              "h-7 flex-1 rounded-sm px-2 font-mono text-[11px] lowercase",
+              value.kind === k ? "bg-surface text-ink ring-1 ring-line-strong" : "text-ink-3 hover:text-ink",
             )}
           >
             {k}
@@ -110,7 +110,6 @@ export function PatternEditor({
 }
 
 function LoadPreview({ w }: { w: Workload }) {
-  const gid = useId().replace(/:/g, "");
   const W = 300;
   const H = 84;
   const points = useMemo(() => {
@@ -128,27 +127,16 @@ function LoadPreview({ w }: { w: Workload }) {
   const line = points.map(([t, r], i) => `${i ? "L" : "M"}${x(t).toFixed(1)},${y(r).toFixed(1)}`).join(" ");
   const warm = x(Math.min(w.warmupS, w.durationS));
   return (
-    <figure className="rounded-2xl border border-line bg-surface-2 p-3">
+    <figure className="rounded-md border border-line bg-surface-2 p-3">
       <figcaption className="mb-1 flex justify-between">
         <span className="microlabel">Offered load · input</span>
         <span className="tabular font-mono text-[11px] text-ink-2">peak {fmtNum(max)} req/s</span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className="h-[84px] w-full" role="img" aria-label="Offered load over the run">
-        <defs>
-          <linearGradient id={`g${gid}`} x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="var(--cyan)" />
-            <stop offset="55%" stopColor="var(--accent)" />
-            <stop offset="100%" stopColor="var(--pink)" />
-          </linearGradient>
-          <linearGradient id={`f${gid}`} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
         <rect x={0} y={0} width={warm} height={H} fill="var(--warmup-wash)" />
         <line x1={0} x2={W} y1={H - 6} y2={H - 6} stroke="var(--axis)" strokeWidth={1} />
-        <path d={`${line} L${W},${H - 6} L0,${H - 6} Z`} fill={`url(#f${gid})`} />
-        <path d={line} fill="none" stroke={`url(#g${gid})`} strokeWidth={2.2} strokeLinejoin="round" />
+        <path d={`${line} L${W},${H - 6} L0,${H - 6} Z`} fill="var(--accent)" fillOpacity={0.1} />
+        <path d={line} fill="none" stroke="var(--accent)" strokeWidth={1.75} strokeLinejoin="round" />
       </svg>
       <div className="flex justify-between font-mono text-[10px] text-ink-3">
         <span>0 s{w.warmupS > 0 ? ` · warm-up ${fmtNum(w.warmupS)} s (excluded)` : ""}</span>
@@ -194,7 +182,7 @@ export function WorkloadPanel() {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-line p-3.5" style={{ background: "var(--brand-soft)" }}>
+      <section className="rounded-md border border-line bg-surface-2 p-3.5">
         <div className="flex items-center gap-1.5">
           <Label htmlFor={rpsId} className="microlabel">
             {ramp ? "Baseline (unused by ramp)" : "Requests per second"}
@@ -218,7 +206,7 @@ export function WorkloadPanel() {
               type="button"
               onClick={() => setWorkload({ rps: p }, "rps")}
               className={cn(
-                "rounded-full border px-2 py-0.5 font-mono text-[11px] transition-colors",
+                "rounded-sm border px-2 py-0.5 font-mono text-[11px] transition-colors",
                 workload.rps === p ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-2 hover:border-line-strong hover:text-ink",
               )}
             >
@@ -247,13 +235,17 @@ export function WorkloadPanel() {
             aria-valuetext={`${reads}% reads, ${100 - reads}% writes`}
             className="w-full accent-[var(--accent)]"
           />
-          <div className="flex h-2 overflow-hidden rounded-full" aria-hidden>
-            <span style={{ width: `${reads}%`, background: REQ_COLOR.read }} />
-            <span style={{ width: `${100 - reads}%`, background: REQ_COLOR.write }} />
+          <div className="flex h-1.5 gap-px overflow-hidden rounded-[1px]" aria-hidden>
+            <span style={{ width: `${reads}%`, background: "var(--ink-2)" }} />
+            <span style={{ width: `${100 - reads}%`, background: "var(--line-strong)" }} />
           </div>
-          <div className="flex justify-between font-mono text-[11px]">
-            <span style={{ color: REQ_COLOR.read }}>{reads}% reads</span>
-            <span style={{ color: REQ_COLOR.write }}>{100 - reads}% writes</span>
+          <div className="flex justify-between font-mono text-[11px] text-ink-2">
+            <span>
+              {REQ_GLYPH.read} {reads}% reads
+            </span>
+            <span>
+              {REQ_GLYPH.write} {100 - reads}% writes
+            </span>
           </div>
         </div>
       </Section>
@@ -276,7 +268,7 @@ export function WorkloadPanel() {
         </div>
       </Section>
 
-      <details className="group rounded-2xl border border-line">
+      <details className="group rounded-md border border-line">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-xs font-medium text-ink-2 hover:text-ink">
           <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
           Advanced: arrivals, seed, keyspace

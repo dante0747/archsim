@@ -3,10 +3,11 @@
 import { useReactFlow } from "@xyflow/react";
 import { Library, Search, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { KindTile } from "@/components/editor/icons";
+import { NODE_W } from "@/components/editor/ArchNodeView";
+import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { Input } from "@/components/ui/input";
 import { Kbd, Tip } from "@/components/ui/misc";
-import { KIND_LABEL, kindColor, kindOf, shortName } from "@/lib/theme";
+import { KIND_LABEL, kindOf, shortName } from "@/lib/theme";
 import type { ComponentType } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
@@ -27,12 +28,12 @@ export function useAddComponent() {
       const p = rf.screenToFlowPosition(center);
       const taken = useEditor.getState().nodes.map((n) => n.position);
       const isFree = (x: number, y: number) => taken.every((q) => Math.abs(q.x - x) > 250 || Math.abs(q.y - y) > 150);
-      let x = Math.round(p.x - 118);
+      let x = Math.round(p.x - NODE_W / 2);
       let y = Math.round(p.y - 60);
       for (let i = 0; i < 40 && !isFree(x, y); i++) {
         x += 320;
         if (i % 4 === 3) {
-          x = Math.round(p.x - 118);
+          x = Math.round(p.x - NODE_W / 2);
           y += 190;
         }
       }
@@ -53,15 +54,15 @@ function dragProps(type: string) {
   };
 }
 
-/** Slim, colorful rail of component types: drag onto the canvas or click to add. */
+/** Slim rail of component shapes: drag onto the canvas or click to add. */
 export function ComponentRail() {
   const catalog = useEditor((s) => s.catalog);
   const add = useAddComponent();
   const libraryOpen = useUi((s) => s.libraryOpen);
   const setLibraryOpen = useUi((s) => s.setLibraryOpen);
   return (
-    <aside className="relative z-20 flex h-full w-[78px] shrink-0 flex-col items-center gap-1 border-r border-line bg-surface py-3" aria-label="Components">
-      <span className="microlabel mb-1 !text-[9px]">Add</span>
+    <aside className="relative z-20 flex h-full w-[72px] shrink-0 flex-col items-center gap-0.5 border-r border-line bg-surface py-2.5" aria-label="Components">
+      <span className="microlabel mb-1.5 !text-[9px]">add</span>
       {(catalog?.components ?? []).map((c) => {
         const kind = kindOf(c.type, c.category);
         return (
@@ -80,11 +81,11 @@ export function ComponentRail() {
               type="button"
               {...dragProps(c.type)}
               onClick={() => add(c.type)}
-              className="group flex w-[66px] cursor-grab flex-col items-center gap-1 rounded-xl py-1.5 transition-colors hover:bg-surface-2 active:cursor-grabbing"
+              className="group flex w-[62px] cursor-grab flex-col items-center gap-1 rounded-md py-2 transition-colors hover:bg-surface-2 active:cursor-grabbing"
               aria-label={`Add ${c.displayName}`}
             >
-              <KindTile kind={kind} icon={c.icon} className="transition-transform group-hover:scale-105" />
-              <span className="w-full truncate text-center text-[10.5px] font-medium text-ink-2 group-hover:text-ink">
+              <ShapeGlyph shape={SHAPE_OF[kind]} w={34} h={22} className="text-ink-2 transition-colors group-hover:text-accent" />
+              <span className="w-full truncate text-center font-mono text-[10px] text-ink-2 group-hover:text-ink">
                 {shortName(c.type, c.displayName)}
               </span>
             </button>
@@ -97,10 +98,10 @@ export function ComponentRail() {
             type="button"
             onClick={() => setLibraryOpen(!libraryOpen)}
             aria-expanded={libraryOpen}
-            className="flex w-[66px] flex-col items-center gap-1 rounded-xl py-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
+            className="flex w-[62px] flex-col items-center gap-1 rounded-md py-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
           >
             <Library className="size-4" />
-            <span className="text-[10px]">Library</span>
+            <span className="font-mono text-[10px]">library</span>
           </button>
         </Tip>
       </div>
@@ -127,20 +128,23 @@ function ComponentLibrary({ onClose }: { onClose: () => void }) {
     return [...byKind.entries()];
   }, [catalog, q]);
   return (
-    <div className="absolute left-full top-2 ml-2 flex max-h-[calc(100%-16px)] w-80 flex-col rounded-2xl border border-line bg-surface shadow-float" role="dialog" aria-label="Component library">
+    <div className="absolute left-full top-2 ml-2 flex max-h-[calc(100%-16px)] w-80 flex-col rounded-lg border border-line-strong bg-surface shadow-float" role="dialog" aria-label="Component library">
       <div className="flex items-center gap-2 border-b border-line p-3">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
           <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search components" aria-label="Search components" className="pl-8" />
         </div>
-        <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close library">
+        <button type="button" onClick={onClose} className="rounded-md p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close library">
           <X className="size-4" />
         </button>
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
         {groups.map(([kind, items]) => (
           <section key={kind}>
-            <h3 className="microlabel mb-2" style={{ color: kindColor(kind as ReturnType<typeof kindOf>) }}>
+            <h3 className="microlabel mb-2">
+              <span className="mr-1 opacity-60" aria-hidden>
+            {"//"}
+          </span>
               {KIND_LABEL[kind as ReturnType<typeof kindOf>]}
             </h3>
             <ul className="space-y-1.5">
@@ -153,11 +157,11 @@ function ComponentLibrary({ onClose }: { onClose: () => void }) {
                       add(c.type);
                       onClose();
                     }}
-                    className="flex w-full cursor-grab items-start gap-2.5 rounded-xl border border-line p-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-2"
+                    className="group flex w-full cursor-grab items-start gap-2.5 rounded-md border border-line p-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-2"
                   >
-                    <KindTile kind={kindOf(c.type, c.category)} icon={c.icon} size="sm" />
+                    <ShapeGlyph shape={SHAPE_OF[kindOf(c.type, c.category)]} w={30} h={20} className="mt-0.5 shrink-0 text-ink-2 group-hover:text-accent" />
                     <span className="min-w-0">
-                      <span className="block text-[13px] font-medium text-ink">{c.displayName}</span>
+                      <span className="block font-mono text-[12px] font-medium text-ink">{c.displayName}</span>
                       <span className="line-clamp-2 block text-[11.5px] leading-4 text-ink-2">{c.description}</span>
                     </span>
                   </button>

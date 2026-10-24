@@ -14,7 +14,7 @@ bottleneck, and you can compare alternatives side by side.
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![The editor after simulating the starter with one API replica: the API card glows red as saturated, request dots flow along the links, and the last-run card reads "API Servers is the primary bottleneck" with throughput, p95 latency and success rate](docs/images/editor-results.jpg)
+![The editor after simulating the starter with one API replica: components are drawn as schematic shapes (parallelogram clients, hexagon load balancer, stacked API servers, memory-chip cache, cylinder database), the saturated API is outlined in red, and the last-run card reads "API Servers is the primary bottleneck" with throughput, p95 latency and success rate](docs/images/editor-results.jpg)
 
 *Captured at 800x500. A demo GIF is still to be recorded.*
 
@@ -23,9 +23,14 @@ bottleneck, and you can compare alternatives side by side.
 - **Follow the steps**: a workflow bar (Design, Traffic, Simulate, Insights, Compare) checks
   off what you have done and always suggests the next action, so a first-time user is never
   stuck wondering what to click.
-- **Design** on an infinite blueprint canvas: drag or click components from the rail (or search
-  the library), link them, tidy up with ELK auto-layout, undo/redo, multi-select, keyboard
-  shortcuts. Each kind of component has its own color, so the diagram reads at a glance.
+- **Design** on a schematic canvas: each kind of component has its own shape (clients are a
+  parallelogram, load balancers a hexagon, services stacked boxes with one layer per replica,
+  caches a memory chip, databases a cylinder), links are right-angle wires, and color is kept
+  for what needs attention. Drag or click components from the rail (or search the library),
+  link them, tidy up with ELK auto-layout, undo/redo, multi-select, keyboard shortcuts.
+- **Drive it from the keyboard**: <kbd>Ctrl</kbd>/<kbd>⌘</kbd> <kbd>K</kbd> opens a command
+  palette with every action (run a scenario, add a component, jump to a results tab, export...),
+  and a status bar shows validity, model size, workload, run progress and zoom.
 - **Configure** every component in an inspector generated from the component catalog, with the
   key settings first and the rest under *Advanced*: replicas, workers, queue limits and
   timeouts, service-time distributions, cache hit ratio or TTL over a Zipf keyspace, database
@@ -37,8 +42,9 @@ bottleneck, and you can compare alternatives side by side.
 - **Simulate** with a SimPy discrete-event engine running in the background, with real progress,
   cancellation and limits. Invalid graphs (cycles, unrouted cache misses, unreachable nodes,
   incompatible links...) are rejected with actionable messages before anything runs.
-- **Read the results**: right on the canvas (status and utilization on every card, request
-  dots whose density follows the measured calls/s, a verdict card), and in the Insights tab:
+- **Read the results**: right on the canvas (status and a utilization meter on every
+  component, ● read / ■ write dots whose density follows the measured calls/s, a verdict card),
+  and in the Insights tab:
   offered vs. successful throughput, p50/p95/p99 latency, failures and timeouts,
   per-component utilization, queue depth, queue wait and rejections, and findings such as *"API Servers is the primary bottleneck"*, *"API Servers is
   saturated as a consequence of PostgreSQL"*, or *"100% of completed work at Service was wasted"*

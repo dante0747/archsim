@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-/** The ArchSim mark: one request fanning out to two services, on the brand gradient. */
+/** The ArchSim mark: one node fanning out to two, drawn as a tiny schematic. */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <span className={cn("brand-bg inline-flex size-7 items-center justify-center rounded-lg shadow-panel", className)} aria-hidden>
-      <svg viewBox="0 0 24 24" className="size-[70%]" fill="none">
-        <path d="M7 12h4.5M11.5 12c2 0 2.2-5 5-5M11.5 12c2 0 2.2 5 5 5" stroke="var(--accent-ink)" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="5.5" cy="12" r="2.4" fill="var(--accent-ink)" />
-        <circle cx="18.5" cy="7" r="2.2" fill="var(--accent-ink)" />
-        <circle cx="18.5" cy="17" r="2.2" fill="var(--accent-ink)" />
+    <span
+      className={cn("inline-flex size-7 items-center justify-center rounded-md border border-line-strong bg-surface text-ink", className)}
+      aria-hidden
+    >
+      <svg viewBox="0 0 24 24" className="size-[78%]" fill="none">
+        <rect x="2.5" y="9.5" width="5" height="5" rx="1" fill="var(--accent)" />
+        <path
+          d="M7.5 12h3.5M11 12V8.2a1.2 1.2 0 0 1 1.2-1.2H15M11 12v3.8a1.2 1.2 0 0 0 1.2 1.2H15"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+        <rect x="15" y="4.6" width="6.2" height="4.8" rx="1" stroke="currentColor" strokeWidth="1.4" />
+        <rect x="15" y="14.6" width="6.2" height="4.8" rx="1" stroke="currentColor" strokeWidth="1.4" />
       </svg>
     </span>
   );
@@ -20,7 +28,10 @@ export function Logo({ className }: { className?: string }) {
     <Link href="/" className={cn("flex items-center gap-2 text-ink", className)} aria-label="ArchSim home">
       <LogoMark />
       <span className="font-mono text-sm font-semibold tracking-tight">
-        arch<span className="brand-text">sim</span>
+        archsim
+        <span className="caret text-accent" aria-hidden>
+          _
+        </span>
       </span>
     </Link>
   );

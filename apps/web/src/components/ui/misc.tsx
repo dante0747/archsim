@@ -20,7 +20,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded border px-1.5 py-px text-[11px] font-medium leading-4",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-sm border px-1.5 py-px text-[11px] font-medium leading-4",
         tones[tone],
         className,
       )}
@@ -58,9 +58,9 @@ export function Switch({
       aria-label={label}
       checked={checked}
       onCheckedChange={onCheckedChange}
-      className="relative h-5 w-9 shrink-0 rounded-full border border-line-strong bg-surface-3 transition-colors data-[state=checked]:border-accent data-[state=checked]:bg-accent"
+      className="relative h-[18px] w-8 shrink-0 rounded-sm border border-line-strong bg-surface-3 transition-colors data-[state=checked]:border-accent data-[state=checked]:bg-accent"
     >
-      <RSwitch.Thumb className="block size-4 translate-x-px rounded-full bg-surface shadow transition-transform data-[state=checked]:translate-x-[17px]" />
+      <RSwitch.Thumb className="block size-3.5 translate-x-px rounded-[2px] bg-ink-2 transition-transform data-[state=checked]:translate-x-[14px] data-[state=checked]:bg-accent-ink" />
     </RSwitch.Root>
   );
 }
@@ -81,7 +81,7 @@ export function Tip({
         <RTooltip.Content
           side={side}
           sideOffset={6}
-          className="z-50 max-w-xs rounded-md border border-line bg-surface px-2 py-1 text-xs text-ink shadow-lg"
+          className="z-50 max-w-xs rounded-md border border-line-strong bg-surface px-2 py-1 text-xs text-ink shadow-float"
         >
           {content}
         </RTooltip.Content>
@@ -106,7 +106,12 @@ export function Section({
   return (
     <section className={cn("space-y-2", className)}>
       <div className="flex min-h-6 items-center justify-between gap-2">
-        <h3 className="microlabel">{title}</h3>
+        <h3 className="microlabel">
+          <span className="mr-1 opacity-60" aria-hidden>
+            {"//"}
+          </span>
+          {title}
+        </h3>
         {actions}
       </div>
       {children}

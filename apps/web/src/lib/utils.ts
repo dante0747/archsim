@@ -24,3 +24,8 @@ export function isEditableTarget(t: EventTarget | null): boolean {
   const tag = t.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable;
 }
+
+/** Label of the primary modifier key on this platform, for shortcut hints. */
+export function modKey(): string {
+  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
+}

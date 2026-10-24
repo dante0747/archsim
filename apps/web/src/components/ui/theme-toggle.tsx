@@ -18,17 +18,20 @@ export function useIsDark(): boolean {
   );
 }
 
+/** Flip between the light and dark theme and remember the choice. */
+export function toggleTheme() {
+  const next = !document.documentElement.classList.contains("dark");
+  document.documentElement.classList.toggle("dark", next);
+  try {
+    localStorage.setItem("archsim-theme", next ? "dark" : "light");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export function ThemeToggle() {
   const dark = useIsDark();
-  const toggle = () => {
-    const next = !dark;
-    document.documentElement.classList.toggle("dark", next);
-    try {
-      localStorage.setItem("archsim-theme", next ? "dark" : "light");
-    } catch {
-      /* storage unavailable */
-    }
-  };
+  const toggle = toggleTheme;
   return (
     <Button
       variant="ghost"

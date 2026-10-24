@@ -137,7 +137,7 @@ export function ScenariosPanel() {
       ) : (
         <ul className="space-y-2">
           {scenarios.map((sc, i) => (
-            <li key={sc.id} className="rounded-2xl border border-line bg-surface p-3.5 transition-colors hover:border-line-strong">
+            <li key={sc.id} className="rounded-md border border-line bg-surface p-3 transition-colors hover:border-line-strong">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-ink">{sc.name}</p>
@@ -297,7 +297,7 @@ function OverrideRow({
   const fields = fieldsFor(key);
   const field = fields.find((f) => f.key === override.path);
   return (
-    <div className="space-y-2 rounded-xl border border-line bg-surface-2/40 p-2.5">
+    <div className="space-y-2 rounded-md border border-line bg-surface-2/40 p-2.5">
       <div className="flex gap-1.5">
         <NativeSelect
           aria-label="Change target"

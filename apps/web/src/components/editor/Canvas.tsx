@@ -16,15 +16,14 @@ import { ArrowRight, Cable, MousePointerClick, Play } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { ArchEdgeView } from "@/components/editor/ArchEdgeView";
-import { ArchNodeView } from "@/components/editor/ArchNodeView";
+import { ArchNodeView, NODE_W } from "@/components/editor/ArchNodeView";
 import { RunReportCard } from "@/components/editor/CanvasHud";
 import { CanvasToolbar } from "@/components/editor/CanvasToolbar";
 import { DND_MIME } from "@/components/editor/Palette";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import type { ArchEdge, ArchNode } from "@/lib/document";
-import { checkConnection, componentOf } from "@/lib/graph-rules";
+import { checkConnection } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
-import { kindColor, kindOf } from "@/lib/theme";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 
@@ -38,36 +37,39 @@ const FIT_PAD = px(BASE_PAD);
 
 const defaultEdgeOptions = {
   type: "arch",
-  markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: "var(--ink-3)" },
+  markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: "var(--wire)" },
 };
 
 function EmptyState() {
   const steps = [
-    { icon: MousePointerClick, title: "Add components", text: "Drag from the left rail, or click one. Start with Clients." },
-    { icon: Cable, title: "Link them", text: "Drag from a right-side handle to the next component." },
-    { icon: Play, title: "Simulate", text: "Press Run and watch queues, latency and bottlenecks." },
+    { icon: MousePointerClick, title: "add", text: "Drag a shape from the left rail, or click one. Start with Clients." },
+    { icon: Cable, title: "link", text: "Drag from a square pin on the right of a shape to the next one." },
+    { icon: Play, title: "run", text: "Press Run (Ctrl Enter) and watch queues, latency and bottlenecks." },
   ];
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-      <div className="max-w-xl text-center">
-        <p className="microlabel mb-2">Empty canvas</p>
-        <h2 className="text-2xl font-semibold tracking-tight text-ink">
-          Sketch a system, then <span className="brand-text">stress it</span>.
+      <div className="max-w-xl">
+        <p className="font-mono text-xs text-ink-3">
+          <span className="text-accent">{"//"}</span> empty canvas
+        </p>
+        <h2 className="mt-2 font-mono text-xl font-semibold tracking-tight text-ink">
+          Sketch a system, then stress it<span className="caret text-accent">_</span>
         </h2>
-        <ol className="mt-6 grid gap-3 sm:grid-cols-3">
+        <ol className="mt-5 grid gap-2 sm:grid-cols-3">
           {steps.map((s, i) => (
-            <li key={s.title} className="rounded-2xl border border-line bg-glass p-4 text-left shadow-panel backdrop-blur">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="brand-bg flex size-6 items-center justify-center rounded-lg font-mono text-[11px] font-bold text-accent-ink">{i + 1}</span>
-                <s.icon className="size-4 text-ink-3" aria-hidden />
+            <li key={s.title} className="rounded-md border border-line bg-surface p-3">
+              <div className="mb-1.5 flex items-center gap-2 font-mono text-[11px] text-ink-3">
+                <span className="text-accent">{String(i + 1).padStart(2, "0")}</span>
+                <span className="uppercase tracking-wider text-ink">{s.title}</span>
+                <s.icon className="ml-auto size-3.5" aria-hidden />
               </div>
-              <p className="text-sm font-semibold text-ink">{s.title}</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-ink-2">{s.text}</p>
+              <p className="text-xs leading-relaxed text-ink-2">{s.text}</p>
             </li>
           ))}
         </ol>
-        <p className="mt-4 flex items-center justify-center gap-1 text-xs text-ink-3">
-          Or open an example from the projects page <ArrowRight className="size-3" />
+        <p className="mt-3 flex items-center gap-1 font-mono text-[11px] text-ink-3">
+          or press <kbd className="rounded-sm border border-line px-1">Ctrl K</kbd> for commands, or open an example from the projects page
+          <ArrowRight className="size-3" />
         </p>
       </div>
     </div>
@@ -77,7 +79,6 @@ function EmptyState() {
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);
   const edges = useEditor((s) => s.edges);
-  const catalog = useEditor((s) => s.catalog);
   const onNodesChange = useEditor((s) => s.onNodesChange);
   const onEdgesChange = useEditor((s) => s.onEdgesChange);
   const connect = useEditor((s) => s.connect);
@@ -169,7 +170,7 @@ export function Canvas() {
       if (!type) return;
       e.preventDefault();
       const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      addNode(type, { x: Math.round(p.x - 118), y: Math.round(p.y - 40) });
+      addNode(type, { x: Math.round(p.x - NODE_W / 2), y: Math.round(p.y - 40) });
     },
     [rf, addNode],
   );
@@ -179,7 +180,7 @@ export function Canvas() {
       const nr = activeReport.nodes.find((x) => x.id === n.id);
       if (nr) return NODE_STATUS[nr.status].color;
     }
-    return kindColor(kindOf(n.data.type, componentOf(catalog, n.data.type)?.category));
+    return n.selected ? "var(--accent)" : "var(--node-stroke)";
   };
 
   return (
@@ -208,8 +209,8 @@ export function Canvas() {
         proOptions={{ hideAttribution: false }}
         aria-label="Architecture canvas"
       >
-        <Background id="minor" variant={BackgroundVariant.Lines} gap={24} lineWidth={1} color="var(--grid-minor)" />
-        <Background id="major" variant={BackgroundVariant.Lines} gap={120} lineWidth={1} color="var(--grid-major)" />
+        <Background id="dots" variant={BackgroundVariant.Dots} gap={24} size={1.1} color="var(--grid-dot)" />
+        <Background id="cross" variant={BackgroundVariant.Cross} gap={120} size={9} lineWidth={1} color="var(--grid-cross)" />
         {nodes.length > 8 && (
         <MiniMap
           pannable

@@ -39,8 +39,8 @@ function ToolButton({
         aria-label={label}
         aria-pressed={active}
         className={cn(
-          "flex size-8 items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:pointer-events-none disabled:opacity-35 [&_svg]:size-4",
-          active && "bg-accent-soft text-ink",
+          "flex size-7 items-center justify-center rounded-sm text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:pointer-events-none disabled:opacity-35 [&_svg]:size-4",
+          active && "bg-accent-soft text-accent",
         )}
       >
         {children}
@@ -64,21 +64,21 @@ export function CanvasToolbar() {
   const setFlow = useUi((s) => s.setFlow);
   const setLibraryOpen = useUi((s) => s.setLibraryOpen);
   const libraryOpen = useUi((s) => s.libraryOpen);
-  const sep = <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />;
+  const sep = <span className="mx-1 h-4 w-px bg-line-strong" aria-hidden />;
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
       <div
         role="toolbar"
         aria-label="Canvas tools"
-        className="pointer-events-auto flex items-center gap-0.5 rounded-2xl border border-line bg-glass p-1 shadow-float backdrop-blur"
+        className="pointer-events-auto flex items-center gap-0.5 rounded-md border border-line-strong bg-surface p-1 shadow-float"
       >
         <button
           type="button"
           onClick={() => setLibraryOpen(!libraryOpen)}
-          className="brand-bg flex h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-accent-ink hover:brightness-110"
+          className="flex h-7 items-center gap-1.5 rounded-sm border border-accent/40 bg-accent-soft px-2.5 font-mono text-[11px] font-semibold text-accent hover:border-accent"
           aria-expanded={libraryOpen}
         >
-          <Plus className="size-4" /> Add component
+          <Plus className="size-3.5" /> add component
         </button>
         {sep}
         <ToolButton label="Undo" shortcut="Ctrl Z" onClick={undo} disabled={!canUndo}>

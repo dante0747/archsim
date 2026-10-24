@@ -1,6 +1,8 @@
 "use client";
 
 import { Badge, Section } from "@/components/ui/misc";
+import { cn } from "@/lib/utils";
+import { thClass } from "./charts";
 import { useEditor } from "@/store/editor";
 import { useActiveReport } from "@/store/runs";
 
@@ -31,18 +33,18 @@ export function AssumptionsTab() {
         <Section
           title={
             <span className="flex items-center gap-1.5">
-              Your assumptions <Badge>inputs</Badge>
+              Your assumptions <Badge className="font-mono normal-case tracking-normal">inputs</Badge>
             </span>
           }
         >
           {report ? (
-            <div className="max-h-80 overflow-auto rounded-lg border border-line bg-surface">
+            <div className="max-h-80 overflow-auto rounded-md border border-line bg-surface">
               <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-surface text-left text-ink-3">
-                  <tr>
-                    <th className="px-3 py-1.5 font-medium">Where</th>
-                    <th className="px-2 py-1.5 font-medium">Assumption</th>
-                    <th className="px-3 py-1.5 font-medium">Value used</th>
+                <thead className="sticky top-0 bg-surface text-left">
+                  <tr className="border-b border-line">
+                    <th className={cn(thClass, "px-3 py-1.5")}>Where</th>
+                    <th className={cn(thClass, "px-2 py-1.5")}>Assumption</th>
+                    <th className={cn(thClass, "px-3 py-1.5")}>Value used</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -50,7 +52,7 @@ export function AssumptionsTab() {
                     <tr key={i}>
                       <td className="px-3 py-1.5 text-ink">{u.label}</td>
                       <td className="px-2 py-1.5 text-ink-2">{u.fieldLabel}</td>
-                      <td className="tabular px-3 py-1.5 text-ink">{u.value}</td>
+                      <td className="tabular px-3 py-1.5 font-mono text-[11px] text-ink">{u.value}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -58,7 +60,7 @@ export function AssumptionsTab() {
             </div>
           ) : (
             <p className="text-xs text-ink-2">
-              Fields tagged <b>assumption</b> in the inspector are your estimates. After a run, this table lists the exact
+              Fields tagged <b className="font-mono">≈</b> (assumption) in the inspector are your estimates. After a run, this table lists the exact
               values that run used.
             </p>
           )}
@@ -80,11 +82,11 @@ export function AssumptionsTab() {
       <Section title="What each component model includes">
         <div className="space-y-3">
           {types.map(([t, m]) => (
-            <div key={t} className="rounded-lg border border-line bg-surface p-3 text-xs">
+            <div key={t} className="rounded-md border border-line bg-surface p-3 text-xs">
               <p className="mb-1.5 font-medium text-ink">{name(t)}</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Modeled</p>
+                  <p className="microlabel mb-1">Modeled</p>
                   <ul className="list-disc space-y-0.5 pl-4 text-ink-2">
                     {m.modeled.map((x) => (
                       <li key={x}>{x}</li>
@@ -92,7 +94,7 @@ export function AssumptionsTab() {
                   </ul>
                 </div>
                 <div>
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Not modeled</p>
+                  <p className="microlabel mb-1">Not modeled</p>
                   <ul className="list-disc space-y-0.5 pl-4 text-ink-2">
                     {m.notModeled.map((x) => (
                       <li key={x}>{x}</li>

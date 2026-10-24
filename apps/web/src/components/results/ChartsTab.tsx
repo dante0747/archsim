@@ -7,7 +7,8 @@ import { fmtMs, fmtNum, fmtRps } from "@/lib/format";
 import { SERIES } from "@/lib/status";
 import type { NodeReport, Report } from "@/lib/types";
 import { useActiveReport } from "@/store/runs";
-import { fmtAxisCount, fmtAxisMs, fmtAxisPct, fmtAxisRps, type SeriesDef, TimeSeriesChart } from "./charts";
+import { cn } from "@/lib/utils";
+import { fmtAxisCount, fmtAxisMs, fmtAxisPct, fmtAxisRps, PERCENTILE_SERIES, type SeriesDef, thClass, TimeSeriesChart } from "./charts";
 
 /** Components shown in per-component charts: busiest first, capped at the 8 categorical slots. */
 export function chartNodes(report: Report): NodeReport[] {
@@ -57,9 +58,9 @@ export function ChartsTab() {
         subtitle="by completion time"
         format={fmtAxisMs}
         series={[
-          { key: "p50", label: "p50", color: SERIES[0], values: ts.latencyP50Ms },
-          { key: "p95", label: "p95", color: SERIES[1], values: ts.latencyP95Ms },
-          { key: "p99", label: "p99", color: SERIES[2], values: ts.latencyP99Ms },
+          { key: "p50", label: "p50", color: PERCENTILE_SERIES[0], values: ts.latencyP50Ms },
+          { key: "p95", label: "p95", color: PERCENTILE_SERIES[1], values: ts.latencyP95Ms },
+          { key: "p99", label: "p99", color: PERCENTILE_SERIES[2], values: ts.latencyP99Ms },
         ]}
       />
       <TimeSeriesChart
@@ -105,20 +106,20 @@ export function ChartsTab() {
 function DataTableToggle({ report }: { report: Report }) {
   const ts = report.timeseries;
   return (
-    <details className="rounded-lg border border-line bg-surface p-3 lg:col-span-2 2xl:col-span-3">
-      <summary className="cursor-pointer text-xs font-medium text-ink">Table view of the time series</summary>
+    <details className="rounded-md border border-line bg-surface p-3 lg:col-span-2 2xl:col-span-3">
+      <summary className="cursor-pointer font-mono text-[11px] text-ink-2 hover:text-ink">table view of the time series</summary>
       <div className="mt-2 max-h-64 overflow-auto">
-        <table className="tabular w-full text-xs">
-          <thead className="sticky top-0 bg-surface text-left text-ink-3">
+        <table className="tabular w-full font-mono text-[11px]">
+          <thead className="sticky top-0 bg-surface text-left">
             <tr>
-              <th className="py-1 pr-3 font-medium">t (s)</th>
-              <th className="py-1 pr-3 text-right font-medium">Offered</th>
-              <th className="py-1 pr-3 text-right font-medium">Successful</th>
-              <th className="py-1 pr-3 text-right font-medium">Failed</th>
-              <th className="py-1 pr-3 text-right font-medium">Timeouts</th>
-              <th className="py-1 pr-3 text-right font-medium">p50</th>
-              <th className="py-1 pr-3 text-right font-medium">p95</th>
-              <th className="py-1 text-right font-medium">p99</th>
+              <th className={cn(thClass, "py-1 pr-3")}>t (s)</th>
+              <th className={cn(thClass, "py-1 pr-3 text-right")}>Offered</th>
+              <th className={cn(thClass, "py-1 pr-3 text-right")}>Successful</th>
+              <th className={cn(thClass, "py-1 pr-3 text-right")}>Failed</th>
+              <th className={cn(thClass, "py-1 pr-3 text-right")}>Timeouts</th>
+              <th className={cn(thClass, "py-1 pr-3 text-right")}>p50</th>
+              <th className={cn(thClass, "py-1 pr-3 text-right")}>p95</th>
+              <th className={cn(thClass, "py-1 text-right")}>p99</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -136,7 +137,7 @@ function DataTableToggle({ report }: { report: Report }) {
             ))}
           </tbody>
         </table>
-        <p className="mt-1 text-[11px] text-ink-3">Grey rows are inside the warm-up period (excluded from summary statistics).</p>
+        <p className="mt-1 font-sans text-[11px] text-ink-3">Grey rows are inside the warm-up period (excluded from summary statistics).</p>
       </div>
     </details>
   );

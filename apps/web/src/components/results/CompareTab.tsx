@@ -9,7 +9,8 @@ import { NODE_STATUS, SERIES } from "@/lib/status";
 import type { ComparisonKpi } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { fmtAxisMs, fmtAxisRps, TimeSeriesChart } from "./charts";
+import { cn } from "@/lib/utils";
+import { fmtAxisMs, fmtAxisRps, thClass, TimeSeriesChart } from "./charts";
 
 function fmtKpi(v: number | null, unit: string): string {
   if (unit === "ratio") return fmtPct(v);
@@ -28,19 +29,19 @@ function fmtValue(v: unknown): string {
 function Verdict({ k }: { k: ComparisonKpi }) {
   if (k.verdict === "better")
     return (
-      <span className="inline-flex items-center gap-1 text-success-ink">
+      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-success-ink">
         <TrendingUp className="size-3.5" /> better
       </span>
     );
   if (k.verdict === "worse")
     return (
-      <span className="inline-flex items-center gap-1 text-danger-ink">
+      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-danger-ink">
         <TrendingDown className="size-3.5" /> worse
       </span>
     );
-  if (k.verdict === "changed") return <span className="text-ink-2">changed</span>;
+  if (k.verdict === "changed") return <span className="font-mono text-[11px] text-ink-2">changed</span>;
   return (
-    <span className="inline-flex items-center gap-1 text-ink-3">
+    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-ink-3">
       <Minus className="size-3.5" /> {k.verdict === "same" ? "same" : "n/a"}
     </span>
   );
@@ -73,12 +74,12 @@ export function CompareTab() {
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge>A</Badge>
+        <Badge className="font-mono">A</Badge>
         {picker(compareA, (v) => void setCompare(v, compareB), "Run A")}
         <Button variant="ghost" size="icon" aria-label="Swap A and B" onClick={() => void setCompare(compareB, compareA)}>
           <ArrowLeftRight />
         </Button>
-        <Badge>B</Badge>
+        <Badge className="font-mono">B</Badge>
         {picker(compareB, (v) => void setCompare(compareA, v), "Run B")}
         {comparing && <LoaderCircle className="size-4 animate-spin text-ink-3" />}
         {scenarios.length >= 2 && (
@@ -98,7 +99,7 @@ export function CompareTab() {
         <>
           <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
             <Section title="What changed and why it matters">
-              <ul className="space-y-1.5 rounded-lg border border-line bg-surface p-3 text-sm text-ink">
+              <ul className="space-y-1.5 rounded-md border border-line bg-surface p-3 text-sm text-ink">
                 {comparison.explanations.map((e, i) => (
                   <li key={i} className="flex gap-2">
                     <ArrowRight className="mt-1 size-3.5 shrink-0 text-ink-3" />
@@ -107,7 +108,7 @@ export function CompareTab() {
                 ))}
               </ul>
               {comparison.warnings.map((w, i) => (
-                <p key={i} className="flex items-start gap-2 rounded-lg bg-warning-soft p-2 text-xs text-ink">
+                <p key={i} className="flex items-start gap-2 rounded-md bg-warning-soft p-2 text-xs text-ink">
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" style={{ color: "var(--status-serious)" }} /> {w}
                 </p>
               ))}
@@ -116,13 +117,13 @@ export function CompareTab() {
               {comparison.inputDiff.length === 0 ? (
                 <p className="text-xs text-ink-2">Both runs simulated identical inputs.</p>
               ) : (
-                <div className="max-h-52 overflow-auto rounded-lg border border-line bg-surface">
+                <div className="max-h-52 overflow-auto rounded-md border border-line bg-surface">
                   <table className="tabular w-full text-xs">
-                    <thead className="sticky top-0 bg-surface text-left text-ink-3">
-                      <tr>
-                        <th className="px-3 py-1.5 font-medium">Setting</th>
-                        <th className="px-2 py-1.5 font-medium">A</th>
-                        <th className="px-3 py-1.5 font-medium">B</th>
+                    <thead className="sticky top-0 bg-surface text-left">
+                      <tr className="border-b border-line">
+                        <th className={cn(thClass, "px-3 py-1.5")}>Setting</th>
+                        <th className={cn(thClass, "px-2 py-1.5")}>A</th>
+                        <th className={cn(thClass, "px-3 py-1.5")}>B</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line">
@@ -131,8 +132,8 @@ export function CompareTab() {
                           <td className="px-3 py-1.5 text-ink" title={d.path}>
                             {d.label}
                           </td>
-                          <td className="px-2 py-1.5 text-ink-2">{fmtValue(d.a)}</td>
-                          <td className="px-3 py-1.5 font-medium text-ink">{fmtValue(d.b)}</td>
+                          <td className="px-2 py-1.5 font-mono text-[11px] text-ink-2">{fmtValue(d.a)}</td>
+                          <td className="px-3 py-1.5 font-mono text-[11px] font-medium text-ink">{fmtValue(d.b)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -144,24 +145,24 @@ export function CompareTab() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Section title="Key metrics (after warm-up)">
-              <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+              <div className="overflow-x-auto rounded-md border border-line bg-surface">
                 <table className="tabular w-full text-xs">
-                  <thead className="text-left text-ink-3">
+                  <thead className="text-left">
                     <tr className="border-b border-line">
-                      <th className="px-3 py-1.5 font-medium">Metric</th>
-                      <th className="px-2 py-1.5 text-right font-medium">A: {comparison.labels.a}</th>
-                      <th className="px-2 py-1.5 text-right font-medium">B: {comparison.labels.b}</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Change</th>
-                      <th className="px-3 py-1.5 font-medium">B vs A</th>
+                      <th className={cn(thClass, "px-3 py-1.5")}>Metric</th>
+                      <th className={cn(thClass, "px-2 py-1.5 text-right normal-case")}>A: {comparison.labels.a}</th>
+                      <th className={cn(thClass, "px-2 py-1.5 text-right normal-case")}>B: {comparison.labels.b}</th>
+                      <th className={cn(thClass, "px-2 py-1.5 text-right")}>Change</th>
+                      <th className={cn(thClass, "px-3 py-1.5")}>B vs A</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
                     {comparison.kpis.map((k) => (
                       <tr key={k.key}>
                         <td className="px-3 py-1.5 text-ink">{k.label}</td>
-                        <td className="px-2 py-1.5 text-right text-ink-2">{fmtKpi(k.a, k.unit)}</td>
-                        <td className="px-2 py-1.5 text-right text-ink">{fmtKpi(k.b, k.unit)}</td>
-                        <td className="px-2 py-1.5 text-right text-ink-2">
+                        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink-2">{fmtKpi(k.a, k.unit)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtKpi(k.b, k.unit)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink-2">
                           {k.relativeDelta == null ? "–" : `${k.relativeDelta > 0 ? "+" : ""}${fmtPct(k.relativeDelta, 0)}`}
                         </td>
                         <td className="px-3 py-1.5">
@@ -174,15 +175,15 @@ export function CompareTab() {
               </div>
             </Section>
             <Section title="Components">
-              <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+              <div className="overflow-x-auto rounded-md border border-line bg-surface">
                 <table className="tabular w-full text-xs">
-                  <thead className="text-left text-ink-3">
+                  <thead className="text-left">
                     <tr className="border-b border-line">
-                      <th className="px-3 py-1.5 font-medium">Component</th>
-                      <th className="px-2 py-1.5 font-medium">Status A → B</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Utilization</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Arrivals</th>
-                      <th className="px-3 py-1.5 text-right font-medium">Rejected</th>
+                      <th className={cn(thClass, "px-3 py-1.5")}>Component</th>
+                      <th className={cn(thClass, "px-2 py-1.5")}>Status A → B</th>
+                      <th className={cn(thClass, "px-2 py-1.5 text-right")}>Utilization</th>
+                      <th className={cn(thClass, "px-2 py-1.5 text-right")}>Arrivals</th>
+                      <th className={cn(thClass, "px-3 py-1.5 text-right")}>Rejected</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -191,16 +192,16 @@ export function CompareTab() {
                       .map((n) => (
                         <tr key={n.id}>
                           <td className="px-3 py-1.5 text-ink">{n.label}</td>
-                          <td className="px-2 py-1.5 text-ink-2">
+                          <td className="px-2 py-1.5 font-mono text-[11px] text-ink-2">
                             {n.statusA ? NODE_STATUS[n.statusA].label : "–"} → {n.statusB ? NODE_STATUS[n.statusB].label : "–"}
                           </td>
-                          <td className="px-2 py-1.5 text-right text-ink">
+                          <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">
                             {fmtPct(n.a?.utilization ?? null, 0)} → {fmtPct(n.b?.utilization ?? null, 0)}
                           </td>
-                          <td className="px-2 py-1.5 text-right text-ink">
+                          <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">
                             {fmtNum(n.a?.arrivalRps ?? null, 0)} → {fmtNum(n.b?.arrivalRps ?? null, 0)}
                           </td>
-                          <td className="px-3 py-1.5 text-right text-ink">
+                          <td className="px-3 py-1.5 text-right font-mono text-[11px] text-ink">
                             {fmtNum(n.a?.rejectedTotal ?? null)} → {fmtNum(n.b?.rejectedTotal ?? null)}
                           </td>
                         </tr>
