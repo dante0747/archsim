@@ -1,10 +1,8 @@
 "use client";
 
-import { ArrowRight, Boxes, Copy, FileJson, LoaderCircle, MoreHorizontal, Play, Plus, Trash2, Upload } from "lucide-react";
+import { ArrowRight, LoaderCircle, Play, Plus, Upload } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useRef, useState } from "react";
 import { Logo, LogoMark } from "@/components/brand";
 import { FeatureBento } from "@/components/landing/FeatureBento";
 import { HeroDemo } from "@/components/landing/HeroDemo";
@@ -12,37 +10,24 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Reveal } from "@/components/landing/Reveal";
 import { TechMarquee } from "@/components/landing/TechMarquee";
 import { MiniDiagram } from "@/components/projects/MiniDiagram";
+import { type CreateBody, useProjectActions } from "@/components/projects/actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
-import { Empty } from "@/components/ui/misc";
-import { Dialog, DialogContent, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/overlays";
+import { Dialog, DialogContent } from "@/components/ui/overlays";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { ApiError, api } from "@/lib/api";
-import { fmtRelativeTime } from "@/lib/format";
+import { api } from "@/lib/api";
 import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
-import { cn, readJsonFile } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function ProjectsHome() {
-  const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [examples, setExamples] = useState<ExampleSummary[]>([]);
   const [exampleDocs, setExampleDocs] = useState<Record<string, ArchitectureDocument>>({});
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      setProjects(await api.listProjects());
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setProjects([]);
-    }
-  }, []);
+  const { busy, create, importFile } = useProjectActions();
 
   useEffect(() => {
     let alive = true;
@@ -69,61 +54,9 @@ export function ProjectsHome() {
     };
   }, []);
 
-  const create = async (body: Parameters<typeof api.createProject>[0], key: string) => {
-    setBusy(key);
-    try {
-      const p = await api.createProject(body);
-      router.push(`/projects/${p.id}`);
-    } catch (e) {
-      toast.error("Could not create project", {
-        description: e instanceof Error ? e.message : String(e),
-      });
-      setBusy(null);
-    }
-  };
-
-  const onImport = async (file: File) => {
-    setBusy("import");
-    try {
-      const doc = await readJsonFile(file);
-      const p = await api.importProject(doc);
-      toast.success(`Imported “${p.name}”`);
-      router.push(`/projects/${p.id}`);
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : e instanceof SyntaxError ? "The file is not valid JSON." : String(e);
-      toast.error("Import failed", { description: msg });
-      setBusy(null);
-    }
-  };
-
-  const remove = async (p: ProjectSummary) => {
-    if (!window.confirm(`Delete “${p.name}” and all its simulation runs? This cannot be undone.`)) return;
-    try {
-      await api.deleteProject(p.id);
-      toast.success("Project deleted");
-      void refresh();
-    } catch (e) {
-      toast.error("Delete failed", {
-        description: e instanceof Error ? e.message : String(e),
-      });
-    }
-  };
-
-  const duplicate = async (p: ProjectSummary) => {
-    try {
-      await api.duplicateProject(p.id);
-      void refresh();
-    } catch (e) {
-      toast.error("Duplicate failed", {
-        description: e instanceof Error ? e.message : String(e),
-      });
-    }
-  };
-
   const starter = examples.find((e) => e.id === "cache-aside-starter") ?? examples[0];
   const recent = projects ? [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : [];
   const latest = recent[0] ?? null;
-  const shownProjects = showAll ? recent : recent.slice(0, 6);
   const presetCount = catalog ? catalog.components.reduce((n, c) => n + (c.presets?.length ?? 0), 0) : null;
   const clientTypes = catalog ? catalog.components.filter((c) => c.isTrafficSource).length : null;
   const startStarter = () => starter && void create({ exampleId: starter.id }, starter.id);
@@ -132,7 +65,7 @@ export function ProjectsHome() {
     ["#how", "How it works"],
     ["#features", "Features"],
     ["#templates", "Templates"],
-    ["#projects", projects && projects.length > 0 ? `Your projects · ${projects.length}` : "Your projects"],
+    ["/projects", projects && projects.length > 0 ? `Your projects · ${projects.length}` : "Your projects"],
   ];
 
   return (
@@ -174,7 +107,7 @@ export function ProjectsHome() {
           <h1 className="mt-7 font-display text-[44px] font-semibold leading-[0.98] tracking-[-0.05em] text-ink sm:text-[64px] lg:text-[80px]">
             Crash-test your architecture
             <br />
-            <span className="text-accent">before your users do.</span>
+            <span className="text-gradient">before your users do.</span>
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-[17px] leading-[1.6] text-ink-2 sm:text-lg">
             ArchSim is a flight simulator for distributed systems. Draw your stack with real technologies, throw traffic and failures at it, and get a
@@ -196,7 +129,7 @@ export function ProjectsHome() {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void onImport(f);
+                if (f) void importFile(f);
                 e.target.value = "";
               }}
             />
@@ -216,9 +149,9 @@ export function ProjectsHome() {
           </p>
         </div>
 
-        {/* product shot on a blueprint sheet */}
+        {/* product shot on a console band */}
         <div className="relative mt-14 sm:mt-20">
-          <div className="blueprint-sheet absolute inset-x-0 bottom-0 top-[30%]" aria-hidden />
+          <div className="hero-band absolute inset-x-0 bottom-0 top-[30%]" aria-hidden />
           <div className="relative mx-auto max-w-6xl px-4 pb-14 sm:px-6 sm:pb-20">
             <Reveal>
               <figure className="overflow-hidden rounded-2xl border border-line bg-surface shadow-float">
@@ -372,99 +305,14 @@ export function ProjectsHome() {
           </div>
         </section>
 
-        {/* -------------------------------------------------------- projects */}
-        <section id="projects" aria-labelledby="projects-heading" className="scroll-mt-16 py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-[13px] font-semibold text-accent">Your projects{projects && projects.length > 0 ? ` · ${projects.length}` : ""}</p>
-                <h2 id="projects-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
-                  Pick up where you left off
-                </h2>
-                <p className="mt-3 text-[15px] text-ink-2">Saved in your local ArchSim database.</p>
-              </div>
-              <Button size="lg" onClick={() => setNewOpen(true)}>
-                <Plus /> New project
-              </Button>
-            </div>
-            {projects === null ? (
-              <div className="space-y-2">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-2" />
-                ))}
-              </div>
-            ) : projects.length === 0 ? (
-              <div className="rounded-2xl bg-surface-2/60">
-                <Empty icon={<Boxes />} title="No projects yet">
-                  Open a template above to explore a working architecture, or create a blank project and drag in parts.
-                </Empty>
-              </div>
-            ) : (
-              <>
-              <ul className="grid gap-3 md:grid-cols-2">
-                {shownProjects.map((p) => (
-                  <li key={p.id} className="group flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-line-strong">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                      <FileJson className="size-5" />
-                    </span>
-                    <Link href={`/projects/${p.id}`} className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold text-ink">{p.name}</p>
-                      <p className="truncate text-[13px] text-ink-3">
-                        {p.nodeCount} parts · {p.scenarioCount} scenarios · edited {fmtRelativeTime(p.updatedAt)}
-                      </p>
-                    </Link>
-                    <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-                      <Link href={`/projects/${p.id}`}>
-                        Open <ArrowRight />
-                      </Link>
-                    </Button>
-                    <Menu>
-                      <MenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${p.name}`}>
-                          <MoreHorizontal />
-                        </Button>
-                      </MenuTrigger>
-                      <MenuContent>
-                        <MenuItem onSelect={() => router.push(`/projects/${p.id}`)}>
-                          <ArrowRight /> Open
-                        </MenuItem>
-                        <MenuItem onSelect={() => void duplicate(p)}>
-                          <Copy /> Duplicate
-                        </MenuItem>
-                        <MenuItem asChild>
-                          <a href={`/api/v1/projects/${p.id}/export`} download>
-                            <FileJson /> Export JSON
-                          </a>
-                        </MenuItem>
-                        <MenuSeparator />
-                        <MenuItem className="text-danger-ink" onSelect={() => void remove(p)}>
-                          <Trash2 /> Delete
-                        </MenuItem>
-                      </MenuContent>
-                    </Menu>
-                  </li>
-                ))}
-              </ul>
-              {recent.length > 6 && (
-                <div className="mt-4 flex justify-center">
-                  <Button variant="ghost" onClick={() => setShowAll((v) => !v)}>
-                    {showAll ? "Show the six most recent" : `Show all ${recent.length} projects`}
-                  </Button>
-                </div>
-              )}
-              </>
-            )}
-          </div>
-        </section>
-
         {/* ------------------------------------------------------ final call */}
         <section className="px-4 pb-20 sm:px-6">
           <Reveal className="mx-auto max-w-7xl">
-            <div className="blueprint-sheet relative overflow-hidden rounded-3xl px-6 py-16 text-center sm:px-12 sm:py-20">
-              <h2 className="relative font-display text-[36px] font-semibold leading-[1.02] tracking-[-0.045em] text-[var(--sheet-ink)] sm:text-[56px]">
+            <div className="hero-band relative overflow-hidden rounded-3xl px-6 py-16 text-center sm:px-12 sm:py-20">
+              <h2 className="relative font-display text-[36px] font-semibold leading-[1.02] tracking-[-0.045em] text-band-ink sm:text-[56px]">
                 Ready to break something?
               </h2>
-              <p className="relative mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-[var(--sheet-ink)] opacity-85">
+              <p className="relative mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-band-ink opacity-80">
                 Open the starter example and press Simulate. Your first answer is seconds away.
               </p>
               <div className="relative mt-8 flex flex-wrap justify-center gap-3">
@@ -473,7 +321,7 @@ export function ProjectsHome() {
                     type="button"
                     onClick={startStarter}
                     disabled={busy !== null}
-                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--sheet-ink)] px-6 text-[15px] font-semibold text-[var(--sheet)] transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+                    className="accent-fill inline-flex h-12 items-center gap-2 rounded-xl px-6 text-[15px] font-semibold transition-transform hover:-translate-y-0.5 disabled:opacity-60"
                   >
                     <Play className="size-[18px] fill-current" /> Open the starter example
                   </button>
@@ -481,7 +329,7 @@ export function ProjectsHome() {
                 <button
                   type="button"
                   onClick={() => setNewOpen(true)}
-                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-[var(--sheet-ink)]/40 px-6 text-[15px] font-semibold text-[var(--sheet-ink)] transition-colors hover:bg-[var(--sheet-ink)]/10"
+                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-band-ink/30 px-6 text-[15px] font-semibold text-band-ink transition-colors hover:bg-band-ink/10"
                 >
                   <Plus className="size-[18px]" /> Start blank
                 </button>
@@ -508,7 +356,7 @@ export function ProjectsHome() {
   );
 }
 
-function NewProjectDialog({
+export function NewProjectDialog({
   open,
   onOpenChange,
   examples,
@@ -519,7 +367,7 @@ function NewProjectDialog({
   onOpenChange: (o: boolean) => void;
   examples: ExampleSummary[];
   busy: string | null;
-  onCreate: (body: Parameters<typeof api.createProject>[0], key: string) => void;
+  onCreate: (body: CreateBody, key: string) => void;
 }) {
   const [name, setName] = useState("");
   const [choice, setChoice] = useState<string>("blank");

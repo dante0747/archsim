@@ -226,7 +226,7 @@ export function TopBar({
     <header className="island relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 !overflow-visible border-b border-line px-3">
       <div className="flex min-w-0 items-center gap-1.5">
         <Tip content="All projects">
-          <Link href="/" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
+          <Link href="/projects" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
             <LogoMark className="size-6" />
           </Link>
         </Tip>

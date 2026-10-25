@@ -276,15 +276,15 @@ export function detectEvents(report: Report, objectives: Objectives): RecorderEv
 // ---------------------------------------------------------------------------------------------
 
 /*
- * Utilization heat: neutral at 0, a one-hue violet ramp for magnitude below 70%, then the reserved
+ * Utilization heat: neutral at 0, a one-hue blue ramp for magnitude below 70%, then the reserved
  * status colors for warm (>=70%), hot (>=85%) and saturated (>=95%), the same thresholds as the
- * component status, so a lane and a node always agree. Violet keeps the ramp clear of both theme
- * accents, the blueprint-blue canvas and the status hues. Both ramps pass the dataviz ordinal
- * checks (monotone lightness, visible gaps, single hue): light on #fffdf8 (low end 2.37:1), dark
- * on #0c1829 (low end 2.70:1).
+ * component status, so a lane and a node always agree. Ramp stops come from the validated
+ * sequential palette (dataviz skill): light 250/350/450/550 on #ffffff, dark 600/500/350/250 on
+ * #111317 (the graphite node fill is within a step of it); both pass the ordinal checks
+ * (monotone lightness, visible gaps, low end clears 2:1).
  */
-const RAMP_LIGHT = ["#a99cf0", "#8b78e6", "#6a55d4", "#4c39b0"];
-const RAMP_DARK = ["#5a49c4", "#7a69df", "#9f92ef", "#c6bdf8"];
+const RAMP_LIGHT = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab"];
+const RAMP_DARK = ["#184f95", "#256abf", "#5598e7", "#86b6ef"];
 
 export const HEAT_THRESHOLDS = { warm: 0.7, hot: 0.85, saturated: 0.95 } as const;
 

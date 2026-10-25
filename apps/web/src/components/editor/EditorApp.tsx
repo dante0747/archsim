@@ -67,7 +67,7 @@ export function EditorApp({ projectId }: { projectId: string }) {
         <p className="text-sm font-medium text-ink">Could not open the project</p>
         <p className="max-w-md text-sm text-ink-2">{state.message}</p>
         <Button asChild>
-          <Link href="/">Back to projects</Link>
+          <Link href="/projects">Back to projects</Link>
         </Button>
       </div>
     );

@@ -134,17 +134,17 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const rejecting = !!live && (live.rejected ?? 0) > 0;
   const broken = !!outage || errorCount > 0;
 
-  // Flat card: a hairline border that turns accent when selected and status-coloured when it
+  // Flat card: a hairline border that turns blue when selected and status-coloured when it
   // needs attention; no shadows or glows.
   const border = selected
-    ? "var(--accent)"
+    ? "var(--select)"
     : broken
       ? "var(--status-critical)"
       : alarm && meta
         ? meta.color
         : "var(--node-stroke)";
   const ring = selected
-    ? "0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)"
+    ? "0 0 0 3px color-mix(in srgb, var(--select) 24%, transparent)"
     : status === "saturated" && meta
       ? `0 0 0 3px color-mix(in srgb, ${meta.color} 18%, transparent)`
       : undefined;

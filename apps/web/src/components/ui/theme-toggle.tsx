@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Two themes, Blueprint (dark) and Drafting paper (light), plus "Match system", which follows the
- * operating system and is the default. Dark sets the `dark` class on <html> (Tailwind's dark
+ * The Ops console look in two themes, dark (graphite) and light, plus "Match system", which follows
+ * the operating system and is the default. Dark sets the `dark` class on <html> (Tailwind's dark
  * variant and the dark tokens). The choice is stored in this browser only.
  */
 import { Check, Moon, Sun } from "lucide-react";
@@ -20,8 +20,8 @@ export interface ThemeOption {
 }
 
 export const THEMES: ThemeOption[] = [
-  { id: "dark", label: "Blueprint", hint: "Dark" },
-  { id: "light", label: "Drafting paper", hint: "Light" },
+  { id: "dark", label: "Dark", hint: "Graphite console" },
+  { id: "light", label: "Light", hint: "Bright console" },
   { id: "system", label: "Match system", hint: "Follows your device" },
 ];
 
@@ -110,18 +110,14 @@ function Swatch({ id }: { id: ThemeId }) {
   if (id === "system") {
     return (
       <span className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong" aria-hidden>
-        <span className="h-full w-1/2 bg-[#f7f4ec]" />
-        <span className="h-full w-1/2 bg-[#0a1d38]" />
+        <span className="h-full w-1/2 bg-[#f3f4f6]" />
+        <span className="h-full w-1/2 bg-[#0b0c10]" />
       </span>
     );
   }
-  const [bg, line, card, accent] = id === "dark" ? ["#0a1d38", "rgba(110,175,255,0.35)", "#0c1a2e", "#3dd6ff"] : ["#f7f4ec", "rgba(37,99,190,0.3)", "#fffdf8", "#1f5fd6"];
+  const [bg, line, card, accent] = id === "dark" ? ["#0b0c10", "rgba(204,214,235,0.25)", "#1c1f25", "#ff7a1a"] : ["#f3f4f6", "rgba(31,35,41,0.2)", "#ffffff", "#dc4c0c"];
   return (
-    <span
-      className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong"
-      style={{ background: bg, backgroundImage: `linear-gradient(${line} 1px, transparent 1px), linear-gradient(90deg, ${line} 1px, transparent 1px)`, backgroundSize: "6px 6px" }}
-      aria-hidden
-    >
+    <span className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong" style={{ background: bg }} aria-hidden>
       <span className="absolute inset-y-1 left-1 w-3.5 rounded-[3px] border" style={{ background: card, borderColor: line }} />
       <span className="absolute right-1 top-1/2 size-1.5 -translate-y-1/2 rounded-full" style={{ background: accent }} />
     </span>

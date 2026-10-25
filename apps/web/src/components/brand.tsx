@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils";
 export function LogoMark({ className }: { className?: string }) {
   return (
     <span
-      className={cn("inline-flex size-7 items-center justify-center rounded-md border border-line-strong bg-surface text-ink", className)}
+      className={cn("brand-tile inline-flex size-7 items-center justify-center rounded-md", className)}
       aria-hidden
     >
       <svg viewBox="0 0 24 24" className="size-[78%]" fill="none">
-        <rect x="2.5" y="9.5" width="5" height="5" rx="1" fill="var(--accent)" />
+        <rect x="2.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" />
         <path
           d="M7.5 12h3.5M11 12V8.2a1.2 1.2 0 0 1 1.2-1.2H15M11 12v3.8a1.2 1.2 0 0 0 1.2 1.2H15"
           stroke="currentColor"
