@@ -322,6 +322,16 @@ templates, Dependabot, CI workflow, Docker Compose, Dockerfiles, `.env.example`,
 
 ## Verified manually
 
+CI on GitHub, on 2026-10-25, in the private repository `dante0747/archsim`: the first run
+(commit `e4febe3`) passed all three jobs: Python engine + API on SQLite (ruff, format check,
+mypy, pytest; 5 min), API tests on PostgreSQL 16 (37 s), and web lint, types, tests and
+production build (2 min). It warned that `actions/checkout@v4`, `astral-sh/setup-uv@v6` and
+`actions/setup-node@v4` target the deprecated Node.js 20; the workflow now uses v7 of all
+three (Node.js 24), the versions Dependabot proposed, whose CI runs passed with the same
+inputs. Dependabot's npm, uv and GitHub Actions update jobs all ran (uv found nothing to
+update). Its web dependency group (PR #4, seven updates including TypeScript 7.0) fails lint
+because typescript-eslint does not support TypeScript 7 yet, so it stays open.
+
 v2, on 2026-10-24, in the desktop app's browser pane (Chromium) at 1440x900 in dark and light
 themes, against the API run locally (SQLite) and against the rebuilt Docker stack
 (PostgreSQL 16, engine 0.2.0): home page; Black Friday template end to end (Build with design
@@ -418,8 +428,6 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Not verified yet
 
-- **CI on GitHub**: the workflow has not run (the repository has not been pushed); action
-  versions and the Dependabot `uv` ecosystem are untested.
 - **Browsers other than Chromium**, very large graphs (replay smoothness above ~50 nodes),
   touch devices, and screen readers beyond basic labels; no automated accessibility audit.
 
@@ -473,7 +481,8 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. Push to GitHub and run CI (including the PostgreSQL job); fix anything it surfaces.
+1. Take Dependabot's web dependency group (PR #4) once typescript-eslint supports
+   TypeScript 7, or hold TypeScript below 7 until then.
 2. Add a Playwright end-to-end test of the main journey (open example, edit, run, compare,
    save, reload).
 3. Move simulations to a process pool or a Redis/RQ worker (the `JobRunner` protocol is the
