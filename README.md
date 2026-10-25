@@ -65,8 +65,9 @@ API servers behind a lone Clients box.
   or two key settings, and after a run a thin bar that shows how busy it was. Links are rounded
   wires that attach on any of the four sides: drag from a dot on any side of one part to any side
   of another, in either direction. Traffic moves along them while a run replays.
-- An "Ops console" look in dark and light: graphite panels, signal-orange actions, the last
-  run's verdict in the top bar (see [docs/ui-redesign.md](docs/ui-redesign.md)).
+- An "Ops console" look: graphite panels with signal-orange actions in dark, and a standard,
+  calm light theme (white panels on soft grey, one blue for actions) in light; the last run's
+  verdict sits in the top bar (see [docs/ui-redesign.md](docs/ui-redesign.md)).
 - Click a part to edit it: its technology, a one-line last-run status, at most three key
   settings (response-time distributions as a one-line summary you click to edit), and "More
   settings" for everything else, notes and what the model covers.
@@ -121,7 +122,10 @@ API servers behind a lone Clients box.
 
 **Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and the
 Ops console theme in dark and light (the sun/moon button at the top right picks one or follows
-the system). Your saved projects are on their own page (`/projects`). Projects live in
+the system). Templates have their own gallery (`/templates`): each card draws the design with
+its technology logos and flowing traffic, says what you will see happen, its level and key
+numbers, with category filters, search and a featured template. Your saved projects are on their
+own page (`/projects`). Projects live in
 PostgreSQL (or SQLite), documents
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
@@ -130,11 +134,11 @@ result digest so it can be re-run and verified bit for bit.
 | --- | --- |
 | ![The Dashboard workspace in the dark Ops console theme: overview stat panels (947 req/s, p95 434 ms with a warning against the 500 ms objective, 0.24% errors, 99.8% success, 77% max saturation on Checkout API, $1,240 a month), traffic and retry panels, end-to-end latency, time in component and queue wait per component; a crosshair at 48 s shows the same moment on every panel](docs/images/dashboard.jpg) | ![Calculations for the Orders DB (PostgreSQL): formula cards for arrival rate, capacity from slots, utilization, Little's law, the M/M/c queueing model, the hottest row's lock (22% busy), group commit and replica replay capacity (158 writes/s against 192 writes/s per shard), each with this run's numbers filled in](docs/images/calculations.jpg) |
 | **Results → Details → Request traces** | **Design: how PostgreSQL behaves** |
-| ![A traced 216 ms write on a waterfall: network legs, time in the API gateway and Checkout API, the Orders DB query and its write-ahead log flush (hovered: at 42.7 ms for 0.85 ms), then a slow third-party payment call](docs/images/traces.jpg) | ![Design workspace in the light theme: the whole Black Friday diagram on the canvas with Orders DB selected; the side panel shows "How PostgreSQL behaves" with row locks, MVCC reads, group commit and asynchronous replicas, each with a Docs link](docs/images/build.jpg) |
+| ![A traced 216 ms write on a waterfall: network legs, time in the API gateway and Checkout API, the Orders DB query and its write-ahead log flush (hovered: at 42.7 ms for 0.85 ms), then a slow third-party payment call](docs/images/traces.jpg) | ![Design workspace in the standard light theme: the whole Black Friday diagram on the canvas with Orders DB selected; the side panel shows "How PostgreSQL behaves" with row locks, MVCC reads, group commit and asynchronous replicas, each with a Docs link](docs/images/build.jpg) |
 | **Results → Answer** | **Home** |
-| ![Results answer in the light theme: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,240 per month; worth a look: the main cause of failed requests, and "Orders DB replicas lag up to 18.9 s behind the primary" with 3,158 of 8,363 replica reads stale](docs/images/scorecard.jpg) | ![Landing page in the dark theme: "Crash-test your architecture before your users do." with the second line in an orange gradient, above a live product shot of the Black Friday design](docs/images/home.jpg) |
-| **Results → Compare** | |
-| ![Cost vs. speed map in the dark theme: monthly cost against p95 for every scenario run, the p95 objective line and the Pareto frontier, with a table of options](docs/images/tradeoffs.jpg) | |
+| ![Results answer in the standard light theme: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,240 per month; worth a look: the main cause of failed requests, and "Orders DB replicas lag up to 18.9 s behind the primary" with 3,158 of 8,363 replica reads stale](docs/images/scorecard.jpg) | ![Landing page in the dark theme: "Crash-test your architecture before your users do." with the second line in an orange gradient, above a live product shot of the Black Friday design](docs/images/home.jpg) |
+| **Results → Compare** | **Templates gallery** |
+| ![Cost vs. speed map in the dark theme: monthly cost against p95 for every scenario run, the p95 objective line and the Pareto frontier, with a table of options](docs/images/tradeoffs.jpg) | ![The templates gallery in the dark theme: counts (8 templates, 35 scenarios, 16 technologies), category filters and search, and the featured Black Friday on Kubernetes template drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) with traffic flowing along the links, beside its description, "Built with" list, key numbers and a Use this template button](docs/images/templates.jpg) |
 
 ## Quick start
 

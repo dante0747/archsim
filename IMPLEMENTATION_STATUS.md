@@ -126,9 +126,13 @@ serves 8 example designs (see below).
     assumptions views.
 - Command palette (every action, workspaces, every technology preset, "Theme: …" commands),
   keyboard shortcuts. "Ops console" look (chosen by the user from four rendered directions on
-  2026-10-25): graphite panels on a near-black page (dark) or white panels on cool grey
-  (light), signal orange with an orange-to-amber gradient for primary actions and the brand,
-  blue for focus and selection, Grafana-style threshold colours for status, tighter corners.
+  2026-10-25). Dark: graphite panels on a near-black page, signal orange with an
+  orange-to-amber gradient for primary actions and hero type, blue for focus and selection,
+  Grafana-style threshold colours for status, tighter corners. Light (made "more standard" at
+  the user's request the same day): a GitHub-style palette, white panels on a soft grey page,
+  quiet grey borders, one blue (#0969da) for actions, links, focus and selection, no glow, a
+  blue-to-violet hero highlight and soft blue feature bands; the orange gradient remains on
+  the logo only.
   The sun/moon button offers Dark, Light or Match system (the default, which follows the system
   live). Each theme is a set of CSS tokens; the choice is stored in this browser's localStorage
   only and applied before first paint; older saved values (retired palettes) open in Dark.
@@ -186,6 +190,13 @@ serves 8 example designs (see below).
   describes every series (label, unit, how it is calculated, thresholds). 36 unit tests.
 - Saved projects moved off the home page to `/projects` (search, open, duplicate, export,
   delete); the nav link and "Back to projects" go there.
+- Templates gallery at `/templates` (the landing page shows three of them and links there): a
+  hero with counts (templates, scenarios, technologies), category filters (Starter, Scale,
+  Data, Async, Serverless, Resilience, Learn) and search, a full-width featured template, and
+  cards whose preview draws the design as logo tiles on graph paper with traffic flowing along
+  the links in the category's colour, plus the category, level, a one-line "what you'll see",
+  the description and parts / scenarios / peak load. Parts without a technology show the
+  engine's default (PostgreSQL, Redis). Hovering lifts the card and offers "Use template".
 - Flat redesign (2026-10-25, see docs/ui-redesign.md for the critique and the DOs and DON'Ts):
   solid surfaces in three tonal steps, hairlines instead of boxes, no gradients, glows, glass or
   aurora, shadows only on menus and dialogs; panels docked edge to edge; one typeface (Geist;
@@ -199,8 +210,8 @@ serves 8 example designs (see below).
   cache outage drawn with the editor's part cards: moving traffic, autoscaling, saturation,
   verdict and timeline) on a dark console band, key numbers read from the catalog, a drifting
   marquee of every technology logo, "How it works" with three small animated vignettes, a feature
-  grid of nine tiles (including the dashboard and the calculations), templates, a closing call
-  to action and a footer; saved projects are on their own page. Sections fade up as they enter the view; all motion stops for
+  grid of nine tiles (including the dashboard and the calculations), three template cards with
+  a link to the gallery, a closing call to action and a footer; saved projects are on their own page. Sections fade up as they enter the view; all motion stops for
   reduced motion. Fixed on the way: the global `p { text-wrap }` rule sat outside Tailwind's
   layers and overrode `truncate` on every paragraph (long names wrapped instead of ending in
   "..."); it now lives in the base layer. Fonts are self-hosted at build time by next/font (no runtime calls

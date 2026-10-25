@@ -110,12 +110,12 @@ function Swatch({ id }: { id: ThemeId }) {
   if (id === "system") {
     return (
       <span className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong" aria-hidden>
-        <span className="h-full w-1/2 bg-[#f3f4f6]" />
+        <span className="h-full w-1/2 bg-[#f6f8fa]" />
         <span className="h-full w-1/2 bg-[#0b0c10]" />
       </span>
     );
   }
-  const [bg, line, card, accent] = id === "dark" ? ["#0b0c10", "rgba(204,214,235,0.25)", "#1c1f25", "#ff7a1a"] : ["#f3f4f6", "rgba(31,35,41,0.2)", "#ffffff", "#dc4c0c"];
+  const [bg, line, card, accent] = id === "dark" ? ["#0b0c10", "rgba(204,214,235,0.25)", "#1c1f25", "#ff7a1a"] : ["#f6f8fa", "rgba(31,35,40,0.2)", "#ffffff", "#0969da"];
   return (
     <span className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong" style={{ background: bg }} aria-hidden>
       <span className="absolute inset-y-1 left-1 w-3.5 rounded-[3px] border" style={{ background: card, borderColor: line }} />

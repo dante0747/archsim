@@ -80,8 +80,9 @@ motion is used to show traffic and state changes, never as decoration.
   user picked it from four rendered directions, the "Ops console" look: graphite panels,
   signal-orange actions with a brand gradient and a glow on the primary button, blue
   selection, Grafana-style thresholds. The user found the calm, flat versions boring, so the
-  "no gradients or glow" rule now has two deliberate exceptions: the primary action and the
-  brand.)
+  "no gradients or glow" rule now has two deliberate exceptions in dark: the primary action
+  and the brand. The light theme was then made standard and calm, GitHub-style, with a solid
+  blue primary action and no glow, because the orange-on-white version tired the eyes.)
 - Type: Geist only, the short scale above, tabular figures for numbers; monospace kept for code.
 - Shell: docked top bar and side panels with hairlines, no gutters; the run summary moves into the
   top bar.

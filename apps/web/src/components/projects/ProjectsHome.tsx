@@ -9,7 +9,8 @@ import { HeroDemo } from "@/components/landing/HeroDemo";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Reveal } from "@/components/landing/Reveal";
 import { TechMarquee } from "@/components/landing/TechMarquee";
-import { MiniDiagram } from "@/components/projects/MiniDiagram";
+import { TemplateCard } from "@/components/templates/TemplateCard";
+import { orderTemplates } from "@/components/templates/templates-meta";
 import { type CreateBody, useProjectActions } from "@/components/projects/actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -64,7 +65,7 @@ export function ProjectsHome() {
   const nav = [
     ["#how", "How it works"],
     ["#features", "Features"],
-    ["#templates", "Templates"],
+    ["/templates", "Templates"],
     ["/projects", projects && projects.length > 0 ? `Your projects · ${projects.length}` : "Your projects"],
   ];
 
@@ -268,42 +269,31 @@ export function ProjectsHome() {
                 <p className="mt-3 text-[17px] text-ink-2">Each one comes with scenarios ready to compare. Open it, press Simulate.</p>
               </div>
             </Reveal>
-            <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {examples.map((ex, i) => {
-                const doc = exampleDocs[ex.id];
-                const meta = [doc ? `${doc.architecture.nodes.length} parts` : null, doc ? `${doc.architecture.edges.length} links` : null, `${ex.scenarioCount} scenarios`]
-                  .filter(Boolean)
-                  .join(" · ");
-                return (
-                  <Reveal key={ex.id} delay={(i % 3) * 70}>
-                    <button
-                      onClick={() => void create({ exampleId: ex.id }, ex.id)}
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {orderTemplates(examples)
+                .slice(0, 3)
+                .map((ex, i) => (
+                  <Reveal key={ex.id} delay={i * 70}>
+                    <TemplateCard
+                      example={ex}
+                      doc={exampleDocs[ex.id]}
+                      busy={busy === ex.id}
                       disabled={busy !== null}
-                      className="group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface text-left transition-[border-color,transform] duration-200 hover:-translate-y-1 hover:border-accent/60 disabled:opacity-60"
-                    >
-                      <div className="schematic-grid h-44 border-b border-line p-3">
-                        {doc ? <MiniDiagram doc={doc} /> : <div className="h-full animate-pulse rounded-lg bg-surface-2/60" />}
-                      </div>
-                      <div className="flex flex-1 flex-col gap-2 p-5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base font-semibold tracking-[-0.01em] text-ink">{ex.name}</span>
-                          {busy === ex.id ? (
-                            <LoaderCircle className="ml-auto size-4 shrink-0 animate-spin text-ink-3" />
-                          ) : (
-                            <ArrowRight className="ml-auto size-4 shrink-0 text-ink-3 transition-transform group-hover:translate-x-1 group-hover:text-accent" />
-                          )}
-                        </div>
-                        <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2" title={ex.description ?? undefined}>
-                          {ex.description}
-                        </p>
-                        <p className="mt-auto pt-1 text-xs text-ink-3">{meta}</p>
-                      </div>
-                    </button>
+                      onOpen={() => void create({ exampleId: ex.id }, ex.id)}
+                    />
                   </Reveal>
-                );
-              })}
-              {examples.length === 0 && !error && [0, 1, 2].map((i) => <div key={i} className="h-80 animate-pulse rounded-2xl bg-surface-2" />)}
+                ))}
+              {examples.length === 0 && !error && [0, 1, 2].map((i) => <div key={i} className="h-[24rem] animate-pulse rounded-2xl bg-surface-2" />)}
             </div>
+            {examples.length > 3 && (
+              <div className="mt-8 flex justify-center">
+                <Button size="lg" asChild>
+                  <Link href="/templates">
+                    Browse all {examples.length} templates <ArrowRight />
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         </section>
 

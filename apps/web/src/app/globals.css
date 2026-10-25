@@ -6,60 +6,65 @@
 /*
  * ArchSim design tokens: "Ops console", a monitoring-console look in the spirit of Grafana.
  *
- *   Dark (default feel, under .dark): graphite panels on a near-black page, crisp hairlines,
- *   signal orange for actions and the brand, blue for focus and selection, threshold colours
- *   (green, yellow, orange, red) for status.
- *   Light (the values below): white panels on cool grey, the same roles.
+ *   Dark (under .dark): graphite panels on a near-black page, crisp hairlines, signal orange
+ *   with an orange-to-amber gradient for primary actions and hero type, blue for focus and
+ *   selection, threshold colours (green, yellow, orange, red) for status.
+ *   Light (the values below): a standard, calm light theme in the style of GitHub's: white
+ *   panels on a soft grey page, quiet grey borders, one blue for actions, links, focus and
+ *   selection, no glow. The orange gradient stays on the logo only.
  *
- * Roles: --accent (signal orange) is for primary actions, links and the brand; --select (blue)
- * marks focus and selection so "selected" never reads as a warning; status colours appear on
- * results with a text label. --brand-a/--brand-b form the orange-to-amber gradient used on the
- * logo, the primary button and hero type. Floating things get shadows; primary actions glow.
+ * Roles: --accent is for links and accents; --primary-fill / --primary-ink paint the primary
+ * button; --select marks focus and selection; --hero-text fills the hero's highlighted words;
+ * status colours appear on results with a text label; --band* are the home page's feature
+ * bands. Floating things get shadows.
  * Type: Geist for everything; numbers use tabular figures; Geist Mono for code (font-code).
  */
 :root {
   color-scheme: light;
-  --page: #f3f4f6;
-  --canvas: #f7f8fa;
-  --grid-minor: rgba(31, 35, 41, 0.05);
-  --grid-major: rgba(31, 35, 41, 0.1);
+  --page: #f6f8fa;
+  --canvas: #ffffff;
+  --grid-minor: rgba(31, 35, 40, 0.035);
+  --grid-major: rgba(31, 35, 40, 0.07);
   --surface: #ffffff;
-  --surface-2: #f3f4f6;
-  --surface-3: #e7e9ee;
+  --surface-2: #f6f8fa;
+  --surface-3: #eaeef2;
   --glass: #ffffff;
-  --ink: #1d2128;
-  --ink-2: #4b5260;
-  --ink-3: #697181;
-  --line: rgba(31, 35, 41, 0.1);
-  --line-strong: rgba(31, 35, 41, 0.17);
-  --wire: #9aa1ad;
+  --ink: #1f2328;
+  --ink-2: #59636e;
+  --ink-3: #6e7781;
+  --line: rgba(31, 35, 40, 0.12);
+  --line-strong: rgba(31, 35, 40, 0.2);
+  --wire: #8c959f;
   --node-fill: #ffffff;
   --node-fill-2: #ffffff;
-  --node-stroke: #d7dae1;
-  --ring: #3d71d9;
-  --select: #3d71d9;
-  --accent: #dc4c0c;
-  --accent-2: #3d71d9;
-  --accent-3: #b88700;
+  --node-stroke: #d1d9e0;
+  --ring: #0969da;
+  --select: #0969da;
+  --accent: #0969da;
+  --accent-2: #8250df;
+  --accent-3: #9a6700;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(220, 76, 12, 0.09);
+  --accent-soft: rgba(9, 105, 218, 0.08);
   --brand-a: #f05a28;
   --brand-b: #f59e0b;
-  --glow: 0 6px 20px -6px rgba(240, 90, 40, 0.55);
+  --primary-fill: #0969da;
+  --primary-ink: #ffffff;
+  --hero-text: linear-gradient(100deg, #0969da, #8250df);
+  --glow: 0 0 0 3px rgba(9, 105, 218, 0.18);
   --highlight: transparent;
   --shadow: none;
-  --shadow-lg: 0 16px 40px -12px rgba(16, 20, 28, 0.22), 0 2px 6px -2px rgba(16, 20, 28, 0.08);
+  --shadow-lg: 0 8px 24px rgba(66, 74, 83, 0.12), 0 1px 3px rgba(31, 35, 40, 0.08);
   --node-shadow: none;
-  --tour-shade: rgba(16, 20, 28, 0.45);
+  --tour-shade: rgba(31, 35, 40, 0.4);
 
   /* component families: icon-chip tints */
-  --fam-traffic: #0f9f8f;
-  --fam-network: #3d71d9;
-  --fam-compute: #7c4dff;
-  --fam-cache: #db2777;
-  --fam-database: #b7791f;
-  --fam-messaging: #8b45d6;
-  --fam-external: #6b7280;
+  --fam-traffic: #0f8a7e;
+  --fam-network: #0969da;
+  --fam-compute: #8250df;
+  --fam-cache: #bf3989;
+  --fam-database: #9a6700;
+  --fam-messaging: #6639ba;
+  --fam-external: #6e7781;
 
   /* chart series (validated data-viz palette) */
   --series-1: #2a78d6;
@@ -72,26 +77,28 @@
   --series-8: #e34948;
 
   /* status: thresholds, always paired with a label */
-  --status-good: #1f8a3b;
-  --status-warning: #b88700;
-  --status-serious: #e0610e;
-  --status-critical: #d6243c;
-  --status-good-soft: #e3f3e6;
-  --status-warning-soft: #fbf1d6;
-  --status-serious-soft: #fde7d6;
-  --status-critical-soft: #fbe0e3;
-  --success-ink: #17692c;
-  --danger-ink: #a8122a;
+  --status-good: #1a7f37;
+  --status-warning: #9a6700;
+  --status-serious: #bc4c00;
+  --status-critical: #cf222e;
+  --status-good-soft: #dafbe1;
+  --status-warning-soft: #fff8c5;
+  --status-serious-soft: #fff1e5;
+  --status-critical-soft: #ffebe9;
+  --success-ink: #116329;
+  --danger-ink: #a40e26;
 
-  --grid: rgba(31, 35, 41, 0.07);
-  --axis: rgba(31, 35, 41, 0.16);
-  --muted-axis: #697181;
-  --warmup-wash: rgba(31, 35, 41, 0.04);
+  --grid: rgba(31, 35, 40, 0.08);
+  --axis: rgba(31, 35, 40, 0.16);
+  --muted-axis: #6e7781;
+  --warmup-wash: rgba(31, 35, 40, 0.035);
 
-  /* the dark console bands on the home page (dark in both themes) */
-  --band: #101217;
-  --band-ink: #f1f3f7;
-  --band-line: rgba(204, 214, 235, 0.06);
+  /* home page feature bands: a soft blue wash in light */
+  --band: #eef4fb;
+  --band-ink: #1f2328;
+  --band-line: rgba(9, 105, 218, 0.05);
+  --band-glow-1: rgba(9, 105, 218, 0.12);
+  --band-glow-2: rgba(130, 80, 223, 0.08);
 }
 
 /* Ops console (dark). */
@@ -123,6 +130,9 @@
   --accent-soft: rgba(255, 122, 26, 0.13);
   --brand-a: #ff6a1a;
   --brand-b: #ffb020;
+  --primary-fill: linear-gradient(135deg, #ff6a1a, #ffb020);
+  --primary-ink: #1a0c00;
+  --hero-text: linear-gradient(100deg, #ff6a1a, #ffb020);
   --glow: 0 0 0 1px rgba(255, 138, 40, 0.35), 0 8px 26px -6px rgba(255, 110, 20, 0.55);
   --highlight: transparent;
   --shadow: none;
@@ -161,6 +171,8 @@
   --band: #101217;
   --band-ink: #f1f3f7;
   --band-line: rgba(204, 214, 235, 0.06);
+  --band-glow-1: rgba(255, 110, 26, 0.24);
+  --band-glow-2: rgba(110, 159, 255, 0.14);
 }
 
 @theme inline {
@@ -275,10 +287,10 @@ body {
   background-image: none;
 }
 
-/* Primary action: the brand gradient, glowing on hover. */
+/* Primary action: the orange gradient in dark, solid blue in light; a glow or ring on hover. */
 .accent-fill {
-  background: linear-gradient(135deg, var(--brand-a), var(--brand-b));
-  color: #1a0c00;
+  background: var(--primary-fill);
+  color: var(--primary-ink);
   transition:
     box-shadow 160ms ease,
     filter 160ms ease;
@@ -288,9 +300,9 @@ body {
   box-shadow: var(--glow);
 }
 
-/* Hero words in the brand gradient. */
+/* Hero words: orange gradient in dark, blue to violet in light. */
 .text-gradient {
-  background: linear-gradient(100deg, var(--brand-a), var(--brand-b));
+  background: var(--hero-text);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -327,12 +339,12 @@ body {
   color: var(--ink-3);
 }
 
-/* A console band: near-black with a faint grid and an orange glow from above (home page). */
+/* A feature band: near-black with an orange glow in dark, a soft blue wash in light. */
 .hero-band {
   background-color: var(--band);
   background-image:
-    radial-gradient(55% 70% at 50% 0%, rgba(255, 110, 26, 0.24), transparent 70%),
-    radial-gradient(40% 50% at 85% 100%, rgba(110, 159, 255, 0.14), transparent 70%),
+    radial-gradient(55% 70% at 50% 0%, var(--band-glow-1), transparent 70%),
+    radial-gradient(40% 50% at 85% 100%, var(--band-glow-2), transparent 70%),
     linear-gradient(var(--band-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--band-line) 1px, transparent 1px);
   background-size:
