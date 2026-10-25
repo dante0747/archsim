@@ -5,10 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Logo } from "@/components/brand";
-import { HeroRecorder } from "@/components/projects/HeroRecorder";
+import { Logo, LogoMark } from "@/components/brand";
+import { FeatureBento } from "@/components/landing/FeatureBento";
+import { HeroDemo } from "@/components/landing/HeroDemo";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Reveal } from "@/components/landing/Reveal";
+import { TechMarquee } from "@/components/landing/TechMarquee";
 import { MiniDiagram } from "@/components/projects/MiniDiagram";
-import { TechIcon } from "@/components/TechIcon";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Empty } from "@/components/ui/misc";
@@ -16,30 +19,8 @@ import { Dialog, DialogContent, Menu, MenuContent, MenuItem, MenuSeparator, Menu
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ApiError, api } from "@/lib/api";
 import { fmtRelativeTime } from "@/lib/format";
-import { FAMILIES, familyOf, kindOf } from "@/lib/theme";
 import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
 import { cn, readJsonFile } from "@/lib/utils";
-
-const WORKSPACES = [
-  {
-    key: "build",
-    n: "01",
-    title: "Design",
-    text: "Drag in PostgreSQL, Redis, Kafka, Kubernetes services and more, and connect them.",
-  },
-  {
-    key: "stress",
-    n: "02",
-    title: "Test",
-    text: "Send traffic, break things on purpose, and replay what happened second by second.",
-  },
-  {
-    key: "decide",
-    n: "03",
-    title: "Results",
-    text: "Get a clear yes or no, the monthly cost, and the load where it breaks.",
-  },
-];
 
 export function ProjectsHome() {
   const router = useRouter();
@@ -50,6 +31,7 @@ export function ProjectsHome() {
   const [error, setError] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -139,312 +121,391 @@ export function ProjectsHome() {
   };
 
   const starter = examples.find((e) => e.id === "cache-aside-starter") ?? examples[0];
+  const recent = projects ? [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : [];
+  const latest = recent[0] ?? null;
+  const shownProjects = showAll ? recent : recent.slice(0, 6);
+  const presetCount = catalog ? catalog.components.reduce((n, c) => n + (c.presets?.length ?? 0), 0) : null;
+  const clientTypes = catalog ? catalog.components.filter((c) => c.isTrafficSource).length : null;
+  const startStarter = () => starter && void create({ exampleId: starter.id }, starter.id);
+
+  const nav = [
+    ["#how", "How it works"],
+    ["#features", "Features"],
+    ["#templates", "Templates"],
+    ["#projects", projects && projects.length > 0 ? `Your projects · ${projects.length}` : "Your projects"],
+  ];
 
   return (
-    <div className="min-h-full bg-page">
-      <header className="sticky top-0 z-30 border-b border-line bg-page/85 backdrop-blur">
-        <div className="mx-auto flex h-12 max-w-7xl items-center gap-3 px-4">
+    <div className="min-h-full overflow-x-clip bg-page">
+      <header className="sticky top-0 z-30 border-b border-line bg-page">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
           <Logo />
-          <span className="microlabel hidden sm:inline">Architecture simulator</span>
-          <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="sm" asChild className="font-mono text-xs">
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Sections">
+            {nav.map(([href, label]) => (
+              <a key={href} href={href} className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
               <a href="/api/v1/docs" target="_blank" rel="noreferrer">
-                API
+                API docs
               </a>
             </Button>
             <ThemeToggle />
+            {starter && (
+              <Button variant="primary" size="md" onClick={startStarter} disabled={busy !== null} className="hidden sm:inline-flex">
+                Try it now <ArrowRight />
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
-      <section className="schematic-grid relative overflow-hidden border-b border-line">
-        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 lg:grid-cols-[0.85fr_1.15fr]">
-          <div>
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface/60 px-3 py-1 text-xs font-medium text-ink-2 backdrop-blur">
-              <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-              Open source · runs on your machine · no account
-            </p>
-            <h1 className="font-display text-[3.4rem] font-extrabold leading-[0.95] tracking-[-0.045em] text-ink sm:text-[4.8rem]">
-              A flight simulator
-              <br />
-              <span className="whitespace-nowrap">
-                <span className="text-gradient">for your architecture</span>
-                <span className="caret ml-1 inline-block h-[0.7em] w-[3px] translate-y-[0.04em] rounded-full bg-accent" aria-hidden />
-              </span>
-            </h1>
-            <p className="mt-6 max-w-lg text-[17px] leading-[1.55] text-ink-2">
-              Draw your system, send traffic through it, and see where it breaks, before your users do.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-2">
-              {starter && (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={() => void create({ exampleId: starter.id }, starter.id)}
-                  disabled={busy !== null}
-                >
-                  {busy === starter.id ? <LoaderCircle className="animate-spin" /> : <Play className="fill-current" />} Open the starter
-                  example
-                </Button>
-              )}
-              <Button size="lg" onClick={() => setNewOpen(true)}>
-                <Plus /> New project
+      {/* ---------------------------------------------------------------- hero */}
+      <section className="relative">
+        <div className="schematic-grid absolute inset-0 opacity-70" aria-hidden />
+        <div className="relative mx-auto max-w-6xl px-4 pt-16 text-center sm:px-6 sm:pt-24">
+          <p className="pop-in mx-auto inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3 text-[13px] text-ink-2">
+            <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-[var(--accent-ink)]">New</span>
+            Mobile, web and API clients · CPU and memory specs
+          </p>
+          <h1 className="mt-7 font-display text-[44px] font-semibold leading-[0.98] tracking-[-0.05em] text-ink sm:text-[64px] lg:text-[80px]">
+            Crash-test your architecture
+            <br />
+            <span className="text-accent">before your users do.</span>
+          </h1>
+          <p className="mx-auto mt-7 max-w-2xl text-[17px] leading-[1.6] text-ink-2 sm:text-lg">
+            ArchSim is a flight simulator for distributed systems. Draw your stack with real technologies, throw traffic and failures at it, and get a
+            straight yes or no, with the monthly bill.
+          </p>
+          <div className="mt-9 flex flex-wrap justify-center gap-3">
+            {starter && (
+              <Button variant="primary" size="xl" onClick={startStarter} disabled={busy !== null}>
+                {busy === starter.id ? <LoaderCircle className="animate-spin" /> : <Play className="fill-current" />} Open the starter example
               </Button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void onImport(f);
-                  e.target.value = "";
-                }}
-              />
-              <Button size="lg" variant="ghost" onClick={() => fileRef.current?.click()} disabled={busy !== null}>
-                {busy === "import" ? <LoaderCircle className="animate-spin" /> : <Upload />} Import JSON
-              </Button>
-            </div>
+            )}
+            <Button size="xl" onClick={() => setNewOpen(true)}>
+              <Plus /> New project
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onImport(f);
+                e.target.value = "";
+              }}
+            />
+            <Button size="xl" variant="ghost" onClick={() => fileRef.current?.click()} disabled={busy !== null}>
+              {busy === "import" ? <LoaderCircle className="animate-spin" /> : <Upload />} Import JSON
+            </Button>
           </div>
-          <figure className="overflow-hidden rounded-2xl border border-line bg-surface" aria-hidden>
-            <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
-              <span className="flex gap-1.5">
-                {[0, 1, 2].map((i) => (
-                  <span key={i} className="size-2.5 rounded-full border border-line-strong" />
-                ))}
-              </span>
-              <span className="ml-2 truncate font-mono text-xs text-ink-2">replay · cache outage test</span>
-              <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-ink-3">
-                <span className="size-1.5 rounded-full bg-[var(--status-critical)] pulse-soft" /> rec
-              </span>
-              <span className="microlabel shrink-0">Illustration</span>
-            </div>
-            <div className="schematic-grid px-4 pb-3 pt-5">
-              <HeroRecorder />
-            </div>
-          </figure>
+          <p className="mt-5 text-[13px] text-ink-3">
+            {latest ? (
+              <Link href={`/projects/${latest.id}`} className="group inline-flex items-center gap-1 text-ink-2 hover:text-ink">
+                Continue <span className="font-medium text-ink">{latest.name}</span>
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            ) : (
+              "Open source · runs on your machine · no account, no telemetry"
+            )}
+          </p>
+        </div>
+
+        {/* product shot on a solid colour band */}
+        <div className="relative mt-14 sm:mt-20">
+          <div className="absolute inset-x-0 bottom-0 top-[30%] bg-accent" aria-hidden />
+          <div className="relative mx-auto max-w-6xl px-4 pb-14 sm:px-6 sm:pb-20">
+            <Reveal>
+              <figure className="overflow-hidden rounded-2xl border border-line bg-surface shadow-float">
+                <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
+                  <LogoMark className="size-6" />
+                  <span className="hidden truncate text-[13px] font-semibold text-ink sm:inline">Black Friday on Kubernetes</span>
+                  <div className="mx-auto flex items-center gap-0.5 rounded-lg bg-surface-2 p-0.5 text-[12px] font-medium">
+                    {["Design", "Test", "Results"].map((w) => (
+                      <span key={w} className={cn("rounded-md px-2.5 py-1", w === "Test" ? "bg-surface text-ink" : "text-ink-3")}>
+                        {w}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="hidden items-center gap-1.5 rounded-md bg-accent px-2.5 py-1 text-[12px] font-semibold text-[var(--accent-ink)] sm:inline-flex">
+                    <Play className="size-3 fill-current" /> Simulate
+                  </span>
+                </div>
+                <HeroDemo />
+              </figure>
+            </Reveal>
+          </div>
         </div>
       </section>
 
-      <main className="mx-auto max-w-7xl space-y-14 px-4 py-12">
+      <main>
         {error && (
-          <div role="alert" className="rounded-lg border border-line bg-critical-soft p-4 text-sm text-ink">
-            <p className="font-medium">Cannot reach the ArchSim API</p>
-            <p className="mt-1 text-ink-2">{error}</p>
+          <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6">
+            <div role="alert" className="rounded-xl bg-critical-soft p-4 text-sm text-ink">
+              <p className="font-medium">Cannot reach the ArchSim API</p>
+              <p className="mt-1 text-ink-2">{error}</p>
+            </div>
           </div>
         )}
 
-        <section aria-labelledby="ws-heading">
-          <div className="mb-6">
-            <p className="microlabel">
-              How it works
-            </p>
-            <h2 id="ws-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
-              Three workspaces, <span className="text-ink-3">one canvas</span>
-            </h2>
-          </div>
-          <ol className="grid gap-px overflow-hidden rounded-xl border border-line bg-line shadow-panel lg:grid-cols-3">
-            {WORKSPACES.map((w) => (
-              <li key={w.key} className="surface-sheen relative bg-surface p-6">
-                <div className="mb-3 flex items-baseline gap-3">
-                  <span className="font-mono text-xs text-accent">{w.n}</span>
-                  <span className="font-display text-[28px] leading-none text-ink">{w.title}</span>
+        {/* ---------------------------------------------------------- numbers */}
+        <section aria-label="At a glance" className="border-b border-line">
+          <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-px px-4 py-12 sm:px-6 lg:grid-cols-4">
+            {[
+              [presetCount ?? "…", "technology profiles", "PostgreSQL to Kafka to serverless"],
+              [examples.length || "…", "ready-made templates", "each with scenarios to compare"],
+              [clientTypes ?? "…", "kinds of clients", "mobile, web, API consumers, generic"],
+              ["0", "bytes leave your machine", "local, open source, no account"],
+            ].map(([n, label, sub], i) => (
+              <Reveal key={label as string} delay={i * 70}>
+                <div className="px-2 py-3">
+                  <dd className="tabular font-display text-[44px] font-semibold leading-none tracking-[-0.04em] text-ink">{n}</dd>
+                  <dt className="mt-2 text-[15px] font-medium text-ink">{label}</dt>
+                  <p className="mt-0.5 text-[13px] text-ink-3">{sub}</p>
                 </div>
-                <p className="text-[14px] leading-relaxed text-ink-2">{w.text}</p>
-              </li>
+              </Reveal>
             ))}
-          </ol>
+          </dl>
         </section>
 
-        {catalog && <TechWall catalog={catalog} />}
-
-        <section aria-labelledby="examples-heading">
-          <div className="mb-4 flex items-end justify-between">
-            <div>
-              <p className="microlabel">
-                Templates
-              </p>
-              <h2 id="examples-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
-                Start from an <span className="text-ink-3">example</span>
+        {/* ------------------------------------------------------- tech wall */}
+        {catalog && (
+          <section aria-labelledby="tech-heading" className="py-20">
+            <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+              <p className="text-[13px] font-semibold text-accent">Real technologies</p>
+              <h2 id="tech-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
+                Model the stack you actually run
               </h2>
-              <p className="mt-2 text-sm text-ink-2">Each one comes with scenarios ready to compare.</p>
+              <p className="mt-4 text-[17px] leading-relaxed text-ink-2">
+                Pick a technology and get sensible starting numbers. Behaviour always comes from the settings, never from the logo.
+              </p>
+            </Reveal>
+            <div className="mt-12">
+              <TechMarquee catalog={catalog} />
             </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {examples.map((ex) => {
-              const doc = exampleDocs[ex.id];
-              const meta = [
-                doc ? `${doc.architecture.nodes.length} nodes` : null,
-                doc ? `${doc.architecture.edges.length} links` : null,
-                `${ex.scenarioCount} scenarios`,
-              ]
-                .filter(Boolean)
-                .join(" · ");
-              return (
-                <button
-                  key={ex.id}
-                  onClick={() => void create({ exampleId: ex.id }, ex.id)}
-                  disabled={busy !== null}
-                  className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface text-left shadow-panel transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-float disabled:opacity-60"
-                >
-                  <div className="schematic-grid h-40 border-b border-line p-3">
-                    {doc ? <MiniDiagram doc={doc} /> : <div className="h-full animate-pulse rounded-md bg-surface-2/60" />}
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2 p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[15px] font-semibold text-ink">{ex.name}</span>
-                      {busy === ex.id ? (
-                        <LoaderCircle className="ml-auto size-4 shrink-0 animate-spin text-ink-3" />
-                      ) : (
-                        <ArrowRight className="ml-auto size-4 shrink-0 text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
-                      )}
-                    </div>
-                    <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2" title={ex.description ?? undefined}>{ex.description}</p>
-                    <p className="mt-auto pt-1 font-mono text-xs text-ink-3">{meta}</p>
-                  </div>
-                </button>
-              );
-            })}
-            {examples.length === 0 &&
-              !error &&
-              [0, 1, 2].map((i) => <div key={i} className="h-72 animate-pulse rounded-lg bg-surface-2" />)}
+          </section>
+        )}
+
+        {/* ---------------------------------------------------- how it works */}
+        <section id="how" aria-labelledby="how-heading" className="scroll-mt-16 border-t border-line bg-surface-2/40 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <Reveal className="max-w-2xl">
+              <p className="text-[13px] font-semibold text-accent">How it works</p>
+              <h2 id="how-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
+                Sketch it. Shake it. Ship the one that holds.
+              </h2>
+            </Reveal>
+            <div className="mt-12">
+              <HowItWorks />
+            </div>
           </div>
         </section>
 
-        <section aria-labelledby="projects-heading">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="microlabel">
-                Your projects{projects && projects.length > 0 ? ` · ${projects.length}` : ""}
-              </p>
-              <h2 id="projects-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
-                Pick up where you <span className="text-ink-3">left off</span>
+        {/* -------------------------------------------------------- features */}
+        <section id="features" aria-labelledby="features-heading" className="scroll-mt-16 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <Reveal className="max-w-2xl">
+              <p className="text-[13px] font-semibold text-accent">Features</p>
+              <h2 id="features-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
+                Everything a design review argues about, measured
               </h2>
-              <p className="mt-2 text-sm text-ink-2">Saved locally in the ArchSim database.</p>
+            </Reveal>
+            <div className="mt-12">
+              <FeatureBento />
             </div>
-            <Button size="sm" onClick={() => setNewOpen(true)}>
-              <Plus /> New project
-            </Button>
           </div>
-          {projects === null ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-16 animate-pulse rounded-lg bg-surface-2" />
-              ))}
+        </section>
+
+        {/* ------------------------------------------------------- templates */}
+        <section id="templates" aria-labelledby="examples-heading" className="scroll-mt-16 border-t border-line bg-surface-2/40 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <Reveal className="flex flex-wrap items-end justify-between gap-4">
+              <div className="max-w-2xl">
+                <p className="text-[13px] font-semibold text-accent">Templates</p>
+                <h2 id="examples-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
+                  Start from a working system
+                </h2>
+                <p className="mt-3 text-[17px] text-ink-2">Each one comes with scenarios ready to compare. Open it, press Simulate.</p>
+              </div>
+            </Reveal>
+            <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {examples.map((ex, i) => {
+                const doc = exampleDocs[ex.id];
+                const meta = [doc ? `${doc.architecture.nodes.length} parts` : null, doc ? `${doc.architecture.edges.length} links` : null, `${ex.scenarioCount} scenarios`]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <Reveal key={ex.id} delay={(i % 3) * 70}>
+                    <button
+                      onClick={() => void create({ exampleId: ex.id }, ex.id)}
+                      disabled={busy !== null}
+                      className="group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface text-left transition-[border-color,transform] duration-200 hover:-translate-y-1 hover:border-accent/60 disabled:opacity-60"
+                    >
+                      <div className="schematic-grid h-44 border-b border-line p-3">
+                        {doc ? <MiniDiagram doc={doc} /> : <div className="h-full animate-pulse rounded-lg bg-surface-2/60" />}
+                      </div>
+                      <div className="flex flex-1 flex-col gap-2 p-5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-semibold tracking-[-0.01em] text-ink">{ex.name}</span>
+                          {busy === ex.id ? (
+                            <LoaderCircle className="ml-auto size-4 shrink-0 animate-spin text-ink-3" />
+                          ) : (
+                            <ArrowRight className="ml-auto size-4 shrink-0 text-ink-3 transition-transform group-hover:translate-x-1 group-hover:text-accent" />
+                          )}
+                        </div>
+                        <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2" title={ex.description ?? undefined}>
+                          {ex.description}
+                        </p>
+                        <p className="mt-auto pt-1 text-xs text-ink-3">{meta}</p>
+                      </div>
+                    </button>
+                  </Reveal>
+                );
+              })}
+              {examples.length === 0 && !error && [0, 1, 2].map((i) => <div key={i} className="h-80 animate-pulse rounded-2xl bg-surface-2" />)}
             </div>
-          ) : projects.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-line-strong bg-surface">
-              <Empty icon={<Boxes />} title="No projects yet">
-                Open an example above to explore a working architecture, or create a blank project and add components from the rail.
-              </Empty>
+          </div>
+        </section>
+
+        {/* -------------------------------------------------------- projects */}
+        <section id="projects" aria-labelledby="projects-heading" className="scroll-mt-16 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-[13px] font-semibold text-accent">Your projects{projects && projects.length > 0 ? ` · ${projects.length}` : ""}</p>
+                <h2 id="projects-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
+                  Pick up where you left off
+                </h2>
+                <p className="mt-3 text-[15px] text-ink-2">Saved in your local ArchSim database.</p>
+              </div>
+              <Button size="lg" onClick={() => setNewOpen(true)}>
+                <Plus /> New project
+              </Button>
             </div>
-          ) : (
-            <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-panel">
-              {projects.map((p) => (
-                <li key={p.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface-2 text-ink-3">
-                    <FileJson className="size-4" />
-                  </span>
-                  <Link href={`/projects/${p.id}`} className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-ink">{p.name}</p>
-                    <p className="truncate font-mono text-xs text-ink-3">
-                      {p.nodeCount} components · {p.scenarioCount} scenarios · rev {p.revision} · {fmtRelativeTime(p.updatedAt)}
-                    </p>
-                  </Link>
-                  <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-                    <Link href={`/projects/${p.id}`}>
-                      Open <ArrowRight />
+            {projects === null ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-2" />
+                ))}
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="rounded-2xl bg-surface-2/60">
+                <Empty icon={<Boxes />} title="No projects yet">
+                  Open a template above to explore a working architecture, or create a blank project and drag in parts.
+                </Empty>
+              </div>
+            ) : (
+              <>
+              <ul className="grid gap-3 md:grid-cols-2">
+                {shownProjects.map((p) => (
+                  <li key={p.id} className="group flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-line-strong">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                      <FileJson className="size-5" />
+                    </span>
+                    <Link href={`/projects/${p.id}`} className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-semibold text-ink">{p.name}</p>
+                      <p className="truncate text-[13px] text-ink-3">
+                        {p.nodeCount} parts · {p.scenarioCount} scenarios · edited {fmtRelativeTime(p.updatedAt)}
+                      </p>
                     </Link>
+                    <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+                      <Link href={`/projects/${p.id}`}>
+                        Open <ArrowRight />
+                      </Link>
+                    </Button>
+                    <Menu>
+                      <MenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${p.name}`}>
+                          <MoreHorizontal />
+                        </Button>
+                      </MenuTrigger>
+                      <MenuContent>
+                        <MenuItem onSelect={() => router.push(`/projects/${p.id}`)}>
+                          <ArrowRight /> Open
+                        </MenuItem>
+                        <MenuItem onSelect={() => void duplicate(p)}>
+                          <Copy /> Duplicate
+                        </MenuItem>
+                        <MenuItem asChild>
+                          <a href={`/api/v1/projects/${p.id}/export`} download>
+                            <FileJson /> Export JSON
+                          </a>
+                        </MenuItem>
+                        <MenuSeparator />
+                        <MenuItem className="text-danger-ink" onSelect={() => void remove(p)}>
+                          <Trash2 /> Delete
+                        </MenuItem>
+                      </MenuContent>
+                    </Menu>
+                  </li>
+                ))}
+              </ul>
+              {recent.length > 6 && (
+                <div className="mt-4 flex justify-center">
+                  <Button variant="ghost" onClick={() => setShowAll((v) => !v)}>
+                    {showAll ? "Show the six most recent" : `Show all ${recent.length} projects`}
                   </Button>
-                  <Menu>
-                    <MenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${p.name}`}>
-                        <MoreHorizontal />
-                      </Button>
-                    </MenuTrigger>
-                    <MenuContent>
-                      <MenuItem onSelect={() => router.push(`/projects/${p.id}`)}>
-                        <ArrowRight /> Open
-                      </MenuItem>
-                      <MenuItem onSelect={() => void duplicate(p)}>
-                        <Copy /> Duplicate
-                      </MenuItem>
-                      <MenuItem asChild>
-                        <a href={`/api/v1/projects/${p.id}/export`} download>
-                          <FileJson /> Export JSON
-                        </a>
-                      </MenuItem>
-                      <MenuSeparator />
-                      <MenuItem className="text-danger-ink" onSelect={() => void remove(p)}>
-                        <Trash2 /> Delete
-                      </MenuItem>
-                    </MenuContent>
-                  </Menu>
-                </li>
-              ))}
-            </ul>
-          )}
+                </div>
+              )}
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* ------------------------------------------------------ final call */}
+        <section className="px-4 pb-20 sm:px-6">
+          <Reveal className="mx-auto max-w-7xl">
+            <div className="relative overflow-hidden rounded-3xl bg-accent px-6 py-16 text-center sm:px-12 sm:py-20">
+              <div className="schematic-grid absolute inset-0 opacity-25 mix-blend-overlay" aria-hidden />
+              <h2 className="relative font-display text-[36px] font-semibold leading-[1.02] tracking-[-0.045em] text-[var(--accent-ink)] sm:text-[56px]">
+                Ready to break something?
+              </h2>
+              <p className="relative mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-[var(--accent-ink)] opacity-85">
+                Open the starter example and press Simulate. Your first answer is seconds away.
+              </p>
+              <div className="relative mt-8 flex flex-wrap justify-center gap-3">
+                {starter && (
+                  <button
+                    type="button"
+                    onClick={startStarter}
+                    disabled={busy !== null}
+                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--accent-ink)] px-6 text-[15px] font-semibold text-accent transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+                  >
+                    <Play className="size-[18px] fill-current" /> Open the starter example
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setNewOpen(true)}
+                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-[var(--accent-ink)]/40 px-6 text-[15px] font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-ink)]/10"
+                >
+                  <Plus className="size-[18px]" /> Start blank
+                </button>
+              </div>
+            </div>
+          </Reveal>
         </section>
       </main>
 
       <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-6 font-mono text-xs text-ink-3">
-          <span>archsim · AGPL-3.0</span>
-          <span>·</span>
-          <span>estimates from your assumptions; calibrate before trusting absolute numbers</span>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-8 text-[13px] text-ink-3 sm:px-6">
+          <Logo />
+          <span>AGPL-3.0 · open source</span>
+          <span>Runs on your machine · no account, no telemetry</span>
+          <a href="/api/v1/docs" target="_blank" rel="noreferrer" className="hover:text-ink">
+            API docs
+          </a>
+          <span className="sm:ml-auto">Estimates from your assumptions; calibrate before trusting absolute numbers.</span>
         </div>
       </footer>
 
-      <NewProjectDialog
-        open={newOpen}
-        onOpenChange={setNewOpen}
-        examples={examples}
-        busy={busy}
-        onCreate={(body, key) => void create(body, key)}
-      />
+      <NewProjectDialog open={newOpen} onOpenChange={setNewOpen} examples={examples} busy={busy} onCreate={(body, key) => void create(body, key)} />
     </div>
-  );
-}
-
-/** Every technology profile the engine ships, grouped by family (read from the live catalog). */
-function TechWall({ catalog }: { catalog: Catalog }) {
-  const items = catalog.components.flatMap((c) =>
-    (c.presets ?? []).map((p) => ({ ...p, kind: kindOf(c.type, c.category), type: c.displayName })),
-  );
-  if (items.length === 0) return null;
-  const groups = FAMILIES.map((f) => ({ f, items: items.filter((i) => familyOf(i.kind).key === f.key) })).filter((g) => g.items.length);
-  return (
-    <section aria-labelledby="tech-heading">
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <p className="microlabel">
-            {items.length} technology profiles
-          </p>
-          <h2 id="tech-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
-            Model the stack you <span className="text-ink-3">actually run</span>
-          </h2>
-        </div>
-      </div>
-      <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line shadow-panel sm:grid-cols-2 lg:grid-cols-3">
-        {groups.map(({ f, items: list }) => (
-          <div key={f.key} className="surface-sheen bg-surface p-5">
-            <p className="mb-3 text-[13px] font-semibold text-ink">{f.label}</p>
-            <ul className="flex flex-wrap gap-1.5">
-              {list.map((p) => (
-                <li
-                  key={`${p.type}-${p.id}`}
-                  className="flex items-center gap-1.5 rounded-md border border-line bg-surface-2/50 px-2 py-1"
-                  title={p.description}
-                >
-                  <TechIcon technology={p.technology} kind={p.kind} size={14} />
-                  <span className="text-[13px] text-ink">{p.name}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 

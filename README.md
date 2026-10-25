@@ -97,7 +97,7 @@ result digest so it can be re-run and verified bit for bit.
 | --- | --- |
 | ![Design workspace in the flat look: a one-column parts library with logos and short descriptions on the left, uniform part cards on the canvas, the last run's verdict (healthy, 949 req/s, 370 ms) in the top bar; Checkout API is selected and the side panel shows its Go logo, last-run status (warm, 70% busy), key settings and the resources block](docs/images/build.jpg) | ![Results answer: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 949 req/s handled, p95 370 ms, 100% success, $1,278 per month; two findings worth a look with Show on canvas links; objective tiles](docs/images/scorecard.jpg) |
 | **Results → Compare** | **Home** |
-| ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page: "A flight simulator for your architecture" with the replay illustration](docs/images/home.jpg) |
+| ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Landing page: "Crash-test your architecture before your users do." above a live product shot replaying a cache outage on a solid colour band](docs/images/home.jpg) |
 
 ## Quick start
 

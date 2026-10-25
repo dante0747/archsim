@@ -138,7 +138,16 @@ serves 8 example designs (see below).
   library with logos and descriptions; uniform part cards with a utilisation bar and the status
   shown only when it needs attention; the last run's verdict, throughput and p95 in the top bar
   instead of a card over the diagram; flatter inspector, Results and home page; short entrance
-  animations for new results. Fonts are self-hosted at build time by next/font (no runtime calls
+  animations for new results.
+- Landing page (the home page): a large headline, a live product shot (a scripted replay of a
+  cache outage drawn with the editor's part cards: moving traffic, autoscaling, saturation,
+  verdict and timeline) on a solid accent band, key numbers read from the catalog, a drifting
+  marquee of every technology logo, "How it works" with three small animated vignettes, a feature
+  grid of seven tiles, templates, the six most recent projects (with "Show all"), a closing
+  call to action and a footer. Sections fade up as they enter the view; all motion stops for
+  reduced motion. Fixed on the way: the global `p { text-wrap }` rule sat outside Tailwind's
+  layers and overrode `truncate` on every paragraph (long names wrapped instead of ending in
+  "..."); it now lives in the base layer. Fonts are self-hosted at build time by next/font (no runtime calls
   to Google).
 - Client groups (engine 0.3.0, report 1.2): besides the generic Clients part there are Mobile
   app, Web browser and API consumers parts, each with its own defaults (timeout, retries,

@@ -350,18 +350,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1,
-h2,
-h3 {
-  text-wrap: balance;
-}
-
-p {
-  text-wrap: pretty;
-}
-
-/* In the base layer so Tailwind utilities (tracking-*, font-*) still override these defaults. */
+/* In the base layer so Tailwind utilities (truncate, whitespace-*, tracking-*, font-*) still
+   override these defaults; unlayered, `text-wrap` would beat `truncate` on every paragraph. */
 @layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
   /* Display headings: Geist, semibold and tight. */
   .font-display {
     font-weight: 650;
@@ -381,7 +382,7 @@ p {
   }
 }
 
-/* Menus, popovers, dialogs: solid surface, hairline, one soft shadow. */
+/* Menus, popovers and dialogs: solid surface, hairline, one soft shadow. */
 .surface-glass {
   background: var(--surface);
   border: 1px solid var(--line-strong);
@@ -577,6 +578,45 @@ p {
 
 .pop-in {
   animation: archsim-pop 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Landing page motion: a drifting logo marquee, a link drawing itself, a sweeping playhead. */
+@keyframes archsim-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-host:hover > div {
+  animation-play-state: paused;
+}
+
+@keyframes archsim-draw {
+  0% {
+    stroke-dashoffset: 120;
+  }
+  45%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.draw-loop {
+  stroke-dasharray: 120;
+  animation: archsim-draw 3.4s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+@keyframes archsim-sweep {
+  from {
+    left: 0%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+.sweep {
+  animation: archsim-sweep 6s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
