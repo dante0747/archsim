@@ -1,13 +1,13 @@
 # Implementation status
 
-State as of 2026-10-24 (engine 0.2.0, schema 1.0, report 1.1). This file separates what is
+State as of 2026-10-26 (engine 0.6.0, schema 1.0, report 1.6). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
 
-**Engine** (`packages/engine`, 104 tests)
+**Engine** (`packages/engine`, 157 tests)
 
 v2 additions:
 
@@ -80,8 +80,8 @@ MVP features:
   accounting invariants, Little's law, **M/M/1 and M/M/4 against Erlang C**, and a directional
   reference benchmark on the starter example.
 
-**API** (`services/api`, 16 tests). The catalog now carries technology presets and the API
-serves 8 example designs (see below).
+**API** (`services/api`, 18 tests). The catalog now carries technology presets and the API
+serves 10 example designs (see below).
 
 - FastAPI v1: health, meta, component catalog, examples, JSON Schema, validate; projects CRUD
   with optimistic concurrency (revision), duplicate, import (with migration) and export; runs
@@ -94,7 +94,7 @@ serves 8 example designs (see below).
 - Tests cover the full lifecycle, persistence across app restarts, reproducibility of reruns,
   unsaved-document runs, comparison, limits, cancellation, and a seed above 2^31.
 
-**Web** (`apps/web`, 114 tests)
+**Web** (`apps/web`, 213 tests)
 
 - **Studio with three workspaces around one canvas** (keys 1, 2, 3) and a next-step prompt:
   - **Design** (internal key `build`): technology library (families, search, drag or click to add a preset),

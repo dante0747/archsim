@@ -24,7 +24,7 @@ export function TemplatesGallery() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<TemplateCategory | "All">("All");
   const [newOpen, setNewOpen] = useState(false);
-  const { busy, create } = useProjectActions();
+  const { busy, create, openTemplate } = useProjectActions();
 
   useEffect(() => {
     let alive = true;
@@ -112,7 +112,7 @@ export function TemplatesGallery() {
             {[
               [all.length || "…", "templates"],
               [scenarios || "…", "scenarios to compare"],
-              [technologies || "…", "technologies"],
+              [technologies || "…", "technologies used"],
             ].map(([n, label]) => (
               <div key={label as string}>
                 <dd className="tabular font-display text-[34px] font-semibold leading-none tracking-[-0.04em] text-band-ink">{n}</dd>
@@ -180,7 +180,7 @@ export function TemplatesGallery() {
                   busy={busy === featured.id}
                   disabled={busy !== null}
                   spotlight
-                  onOpen={() => void create({ exampleId: featured.id }, featured.id)}
+                  onOpen={() => void openTemplate(featured.id)}
                 />
               </Reveal>
             )}
@@ -191,7 +191,7 @@ export function TemplatesGallery() {
                   doc={docs[ex.id]}
                   busy={busy === ex.id}
                   disabled={busy !== null}
-                  onOpen={() => void create({ exampleId: ex.id }, ex.id)}
+                  onOpen={() => void openTemplate(ex.id)}
                 />
               </Reveal>
             ))}

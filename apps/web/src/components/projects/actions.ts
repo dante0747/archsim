@@ -25,6 +25,9 @@ export function useProjectActions(onChanged?: () => void) {
     }
   };
 
+  /** Open a template: reuses the copy made last time unless it has been saved since. */
+  const openTemplate = (exampleId: string) => create({ exampleId, reuseUnedited: true }, exampleId);
+
   const importFile = async (file: File) => {
     setBusy("import");
     try {
@@ -59,5 +62,5 @@ export function useProjectActions(onChanged?: () => void) {
     }
   };
 
-  return { busy, create, importFile, remove, duplicate };
+  return { busy, create, openTemplate, importFile, remove, duplicate };
 }

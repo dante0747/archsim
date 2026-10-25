@@ -215,16 +215,16 @@ authentication.
    checkout service on Kubernetes (HPA 3→14 pods) → Redis, PostgreSQL with two read replicas,
    and a payments API. The **design review** (bottom left) already warns that reads fail when
    the cache is down, because there is no fallback path.
-2. Press **Run in Stress**. The run is recorded and replays automatically: around t = 60 s the
-   checkout service goes red while new pods start, then recovers. Scrub the timeline to any
-   second; the canvas shows that moment. The experiment panel reports whether the hypothesis
-   (p95 ≤ 500 ms, availability ≥ 99.5%) held.
-3. Click a one-click experiment such as **Lose Catalog cache for 15 s** and run again:
-   the verdict flips, and the fault window on the timeline shows exactly when and where it
-   broke.
-4. Press **3** for **Decide**: the scorecard shows the objectives, error budget and a monthly
-   cost estimate. **Run all & compare** puts every scenario on the trade-off map (no
-   autoscaling is cheaper but misses the SLO).
+2. Press **2** for **Test**, then **Simulate** (Ctrl/⌘ Enter). The run is recorded and replays
+   automatically: around t = 60 s the checkout service goes red while new pods start, then
+   recovers. Scrub the timeline to any second; the canvas shows that moment. The **Test plan**
+   panel reports whether what must stay true (p95 ≤ 500 ms, availability ≥ 99.5%) held.
+3. In the Test plan, **Add failure** offers quick tests such as **Lose Catalog cache for 15 s**.
+   Pick one and simulate again: the verdict flips, and the failure's block on the timeline shows
+   exactly when and where it broke.
+4. Press **3** for **Results**. **Answer** gives the verdict, the objectives and a monthly cost
+   estimate; **Compare → Simulate all scenarios** puts every scenario on the cost-against-latency
+   map (no autoscaling is cheaper but misses the objective).
 5. **Breaking point** sweeps the load and finds the highest load that still meets the
    objectives. **Report** gives you a Markdown write-up; **Ctrl/⌘ K → Export** gives
    docker-compose, Kubernetes or Mermaid scaffolding.
@@ -244,7 +244,7 @@ uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-
 ## Tests and checks
 
 ```bash
-uv run pytest                                   # engine + API (82 tests)
+uv run pytest                                   # engine + API
 uv run ruff check packages services && uv run ruff format --check packages services
 uv run mypy packages/engine/src services/api/src
 cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
@@ -285,11 +285,15 @@ consumers) sharing one workload; load balancers, services (with autoscaling and 
 caches, databases, message queues and external APIs; synchronous acyclic call graphs;
 open-loop synthetic workloads; scheduled faults (outage, slowdown, link latency); local
 single-user operation; optional CPU, memory and storage specs (CPU contention, memory limits,
-database buffer cache, LRU cache eviction). Not modeled: garbage collection, OOM kills,
-network bandwidth and packet loss, locks and write I/O, random failures. There is no
+database buffer cache, LRU cache eviction); the technology behaviours listed above (row locks,
+write-ahead-log flushes, GC pauses, cold starts and so on). Not modeled: OOM kills and
+restarts, disk and network bandwidth, packet loss, deadlocks and range locks, random failures
+(faults are scheduled), parallel fan-out calls, regions. The full list is in
+[docs/simulation-model.md](docs/simulation-model.md#what-is-not-modeled). There is no
 authentication; do not expose the API publicly.
-Prometheus calibration, Grafana integration and an agent/MCP API are on the roadmap, not
-implemented. Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+Prometheus calibration, Grafana integration and a server-side MCP API are on the roadmap, not
+implemented; AI agents in the browser can already use the [WebMCP tools](docs/agents.md).
+Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 ## Troubleshooting
 

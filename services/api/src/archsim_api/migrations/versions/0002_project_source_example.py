@@ -1,0 +1,26 @@
+"""Remember which example a project was created from.
+
+Revision ID: 0002
+Revises: 0001
+Create Date: 2026-10-25
+"""
+
+from __future__ import annotations
+
+import sqlalchemy as sa
+from alembic import op
+
+revision = "0002"
+down_revision = "0001"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.add_column("projects", sa.Column("source_example", sa.String(100), nullable=True))
+    op.create_index("ix_projects_source_example", "projects", ["source_example"])
+
+
+def downgrade() -> None:
+    op.drop_index("ix_projects_source_example", table_name="projects")
+    op.drop_column("projects", "source_example")

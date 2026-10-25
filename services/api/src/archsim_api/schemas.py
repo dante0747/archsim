@@ -73,6 +73,13 @@ class ProjectCreate(ApiModel):
     description: str | None = Field(default=None, max_length=4000)
     document: dict[str, Any] | None = None
     example_id: str | None = Field(default=None, max_length=100)
+    reuse_unedited: bool = Field(
+        default=False,
+        description=(
+            "With exampleId and no name: return the most recent copy of that example that was "
+            "never saved (revision 1, status 200) instead of creating another one."
+        ),
+    )
 
 
 class ProjectUpdate(ApiModel):

@@ -70,7 +70,11 @@ def get_project_or_404(session: Session, project_id: str) -> Project:
 
 
 def _create(
-    session: Session, document: dict[str, Any], name: str | None, description: str | None
+    session: Session,
+    document: dict[str, Any],
+    name: str | None,
+    description: str | None,
+    source_example: str | None = None,
 ) -> Project:
     doc = _normalize(document, name)
     p = Project(
@@ -78,6 +82,7 @@ def _create(
         description=description if description is not None else doc["metadata"].get("description"),
         document=doc,
         schema_version=doc["schemaVersion"],
+        source_example=source_example,
     )
     session.add(p)
     session.commit()
@@ -90,13 +95,22 @@ def list_projects(session: Session = Depends(get_session)) -> list[dict[str, Any
     return [_summary(p) for p in rows]
 
 
-@router.post("", response_model=ProjectOut, status_code=201)
+@router.post(
+    "",
+    response_model=ProjectOut,
+    status_code=201,
+    responses={200: {"description": "An unedited copy of the example was reused."}},
+)
 def create_project(
     body: ProjectCreate,
+    response: Response,
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings_dep),
 ) -> ProjectOut:
-    """Create a project from a document, an example (``exampleId``) or blank."""
+    """Create a project from a document, an example (``exampleId``) or blank.
+
+    With ``reuseUnedited`` (and an example, no name), opening the same template twice returns
+    the copy made the first time as long as it was never saved, instead of a duplicate."""
     if body.document is not None and body.example_id is not None:
         raise HTTPException(
             400, detail={"message": "Pass either document or exampleId, not both", "issues": []}
@@ -107,10 +121,23 @@ def create_project(
             raise HTTPException(
                 404, detail={"message": f"Unknown example '{body.example_id}'", "issues": []}
             )
+        if body.reuse_unedited and body.name is None:
+            existing = session.execute(
+                select(Project)
+                .where(Project.source_example == body.example_id, Project.revision == 1)
+                .order_by(Project.updated_at.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            # A copy of an older version of the template is not reused: open the current one.
+            if existing is not None and existing.document == _normalize(copy.deepcopy(ex)):
+                response.status_code = 200
+                return _out(existing)
         document = copy.deepcopy(ex)
     else:
         document = copy.deepcopy(body.document or BLANK_DOCUMENT)
-    return _out(_create(session, document, body.name, body.description))
+    # A project the user named is theirs, not a copy that opening the template may hand back.
+    source = body.example_id if body.name is None else None
+    return _out(_create(session, document, body.name, body.description, source))
 
 
 @router.post("/import", response_model=ProjectOut, status_code=201)

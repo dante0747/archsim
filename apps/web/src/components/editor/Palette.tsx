@@ -20,6 +20,7 @@ import {
 } from "@/components/build/presets";
 import { TechIcon } from "@/components/TechIcon";
 import { Tip } from "@/components/ui/misc";
+import { freeSpot } from "@/lib/placement";
 import { FAMILIES, kindOf } from "@/lib/theme";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
@@ -39,20 +40,10 @@ export function useAddComponent() {
         ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
         : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       const p = rf.screenToFlowPosition(center);
-      const taken = useEditor.getState().nodes.map((n) => n.position);
-      const isFree = (x: number, y: number) => taken.every((q) => Math.abs(q.x - x) > 250 || Math.abs(q.y - y) > 150);
-      let x = Math.round(p.x - NODE_W / 2);
-      let y = Math.round(p.y - 60);
-      for (let i = 0; i < 40 && !isFree(x, y); i++) {
-        x += 320;
-        if (i % 4 === 3) {
-          x = Math.round(p.x - NODE_W / 2);
-          y += 190;
-        }
-      }
+      const pos = freeSpot(useEditor.getState().nodes, { x: p.x - NODE_W / 2, y: p.y - 60 });
       const preset = findPreset(useEditor.getState().catalog, type, presetId);
-      if (preset) addPresetNode(type, { x, y }, preset);
-      else addNode(type, { x, y });
+      if (preset) addPresetNode(type, pos, preset);
+      else addNode(type, pos);
       window.setTimeout(() => void rf.fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 40);
     },
     [rf, addNode, addPresetNode],

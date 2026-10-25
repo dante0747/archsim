@@ -28,7 +28,7 @@ export function ProjectsHome() {
   const [error, setError] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { busy, create, importFile } = useProjectActions();
+  const { busy, create, openTemplate, importFile } = useProjectActions();
 
   useEffect(() => {
     let alive = true;
@@ -60,7 +60,7 @@ export function ProjectsHome() {
   const latest = recent[0] ?? null;
   const presetCount = catalog ? catalog.components.reduce((n, c) => n + (c.presets?.length ?? 0), 0) : null;
   const clientTypes = catalog ? catalog.components.filter((c) => c.isTrafficSource).length : null;
-  const startStarter = () => starter && void create({ exampleId: starter.id }, starter.id);
+  const startStarter = () => starter && void openTemplate(starter.id);
 
   const nav = [
     ["#how", "How it works"],
@@ -279,7 +279,7 @@ export function ProjectsHome() {
                       doc={exampleDocs[ex.id]}
                       busy={busy === ex.id}
                       disabled={busy !== null}
-                      onOpen={() => void create({ exampleId: ex.id }, ex.id)}
+                      onOpen={() => void openTemplate(ex.id)}
                     />
                   </Reveal>
                 ))}

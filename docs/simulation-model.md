@@ -368,8 +368,10 @@ Whole cores above one give parallelism, a fraction keeps total capacity (2.5 vCP
 executors at 1.25x). With as many whole cores as handlers nothing waits and results are the
 same as without the spec. Reports add `cpuCoreUtilization` (busy executors / executors in the
 window), `memoryPeakGiB` (services), `bufferHitRatio` (databases) and `capacityKeys` /
-`keysCached` plus an `evictions` counter (caches). Not modelled: garbage collection, OOM kills
-and restarts (memory is a refusal limit), page-cache dynamics, write I/O, network bandwidth.
+`keysCached` plus an `evictions` counter (caches). Not modelled: memory pressure driving garbage
+collection (GC pauses come from the technology profile, see above, not from the memory spec),
+OOM kills and restarts (memory is a refusal limit), page-cache dynamics, disk write bandwidth,
+network bandwidth.
 **Auto-sizing (web app).** In the web app an empty spec is *Auto*: the part gets the size it
 needs for the design's own peak load (`apps/web/src/lib/sizing.ts`), shown greyed with an
 "auto" tag on the canvas and in the inspector (with how it was worked out), and filled into
@@ -612,7 +614,8 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
   cache replicas.
 - Circuit breakers other than Envoy-style request limits on a load balancer, priority queues,
   deadline propagation between services.
-- Multiple traffic sources, regions and cross-region latency.
+- Independent workloads per client part (several client parts share one workload by their
+  traffic shares), regions and cross-region latency.
 - Packet loss, bandwidth limits and payload sizes.
 
 If one of these dominates your system, the estimates will be off in ways the model cannot

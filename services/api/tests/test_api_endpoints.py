@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import time
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -77,6 +78,45 @@ def test_create_from_example_and_blank(client: TestClient) -> None:
     blank = client.post(f"{API}/projects", json={"name": "Blank"}).json()
     assert blank["nodeCount"] == 0 and blank["name"] == "Blank"
     assert client.post(f"{API}/projects", json={"exampleId": "nope"}).status_code == 404
+
+
+def test_opening_a_template_twice_reuses_the_unedited_copy(client: TestClient) -> None:
+    body = {"exampleId": "queueing-lab", "reuseUnedited": True}
+    first = client.post(f"{API}/projects", json=body)
+    assert first.status_code == 201
+    again = client.post(f"{API}/projects", json=body)
+    assert again.status_code == 200 and again.json()["id"] == first.json()["id"]
+    # Without the flag it is an explicit new project.
+    plain = client.post(f"{API}/projects", json={"exampleId": "queueing-lab"})
+    assert plain.status_code == 201 and plain.json()["id"] != first.json()["id"]
+    # A project the user named is theirs: never handed back as "the template".
+    named = client.post(f"{API}/projects", json={**body, "name": "Mine"})
+    assert named.status_code == 201 and named.json()["name"] == "Mine"
+    # Once a copy is saved it belongs to the user too; the template opens an unedited copy.
+    for p in (first.json(), plain.json()):
+        saved = client.put(f"{API}/projects/{p['id']}", json={"document": p["document"]})
+        assert saved.json()["revision"] == 2
+    fresh = client.post(f"{API}/projects", json=body)
+    assert fresh.status_code == 201
+    assert fresh.json()["id"] not in {first.json()["id"], plain.json()["id"], named.json()["id"]}
+    # A duplicate is the user's own project, not a copy of the template.
+    dup = client.post(f"{API}/projects/{fresh.json()['id']}/duplicate").json()
+    client.delete(f"{API}/projects/{fresh.json()['id']}")
+    assert client.post(f"{API}/projects", json=body).json()["id"] != dup["id"]
+
+
+def test_health_reports_503_when_the_database_is_down(client: TestClient, tmp_path: Path) -> None:
+    db = client.app.state.db  # type: ignore[attr-defined]
+    real_engine = db.engine
+    db.engine = create_engine(f"sqlite:///{(tmp_path / 'missing' / 'x.db').as_posix()}")
+    try:
+        res = client.get(f"{API}/health")
+    finally:
+        db.engine.dispose()
+        db.engine = real_engine
+    assert res.status_code == 503
+    assert res.json() == {"status": "degraded", "database": "unavailable"}
+    assert client.get(f"{API}/health").status_code == 200
 
 
 def test_work_in_progress_graphs_can_be_saved_but_not_simulated(client: TestClient) -> None:

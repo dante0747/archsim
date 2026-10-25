@@ -1,8 +1,8 @@
 # Roadmap and extension seams
 
-**Nothing on this page is implemented.** These are directions the design leaves room for,
-with the seam in the current code that each would build on. Priorities are open for
-discussion in issues.
+These are directions the design leaves room for, with the seam in the current code that each
+would build on. Where part of an item has shipped, its section says so; everything else on
+this page is not implemented. Priorities are open for discussion in issues.
 
 ## 1. Calibration from telemetry (Prometheus)
 
@@ -62,16 +62,20 @@ agents; it needs authentication before it is exposed beyond localhost.
 
 ## 4. More component types
 
-Each is a new `ComponentModel` (see [`extending-components.md`](extending-components.md)):
+Each is a new `ComponentModel` (see [`extending-components.md`](extending-components.md)).
 
-- **Message broker / queue** with asynchronous consumers (needs accounting for work that
-  outlives the producer's request, see the sketch in the extension guide).
-- **CDN / edge cache**, **object storage** (throughput-limited, size-dependent latency).
-- **API gateway** with rate limiting and authentication cost.
+Shipped: message queues with asynchronous consumers (Kafka, RabbitMQ, SQS-style and others), a
+CDN edge cache, an API gateway rate limit (token bucket on the load balancer), object storage as
+an external API (latency and limits only), and scheduled failures (outage, slowdown, link
+latency). Still open:
+
+- **Object storage** with throughput limits and size-dependent latency.
+- **API gateway** authentication cost.
 - **Service discovery / DNS** latency and caching.
-- **Circuit breaker** and **rate limiter** as link or component behaviour.
+- **Circuit breaker** as link or component behaviour (today only Envoy-style request limits).
 - **Regions and zones** with cross-region latency.
-- **Failure injection**: instance crashes, latency spikes, partitions, scheduled within a run.
+- **Failure injection** beyond the three scheduled kinds: instance crashes, partitions, random
+  failures.
 - Parallel fan-out calls from a service.
 
 ## 5. Nested architectures (subsystems)

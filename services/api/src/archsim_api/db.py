@@ -60,6 +60,9 @@ class Project(Base):
     document: Mapped[dict[str, Any]] = mapped_column(JSONType)
     schema_version: Mapped[str] = mapped_column(String(16))
     revision: Mapped[int] = mapped_column(Integer, default=1)
+    # The example a project was created from, so opening that template again can reuse an
+    # unedited copy instead of piling up duplicates.
+    source_example: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

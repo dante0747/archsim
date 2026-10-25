@@ -8,6 +8,7 @@
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { compact } from "@/lib/format";
+import { freeSpot, STEP_X } from "@/lib/placement";
 import { isClientType } from "@/lib/theme";
 import type { Report } from "@/lib/types";
 import { useEditor } from "@/store/editor";
@@ -172,7 +173,7 @@ export function useWorkflow() {
     } else if (next.key.startsWith("connect-clients:")) {
       const src = ed.nodes.find((n) => n.id === next.key.slice("connect-clients:".length));
       if (!src) return;
-      const id = ed.addNode("service", { x: src.position.x + 320, y: src.position.y });
+      const id = ed.addNode("service", freeSpot(ed.nodes, { x: src.position.x + STEP_X, y: src.position.y }));
       if (id) useEditor.getState().connect({ source: src.id, target: id, sourceHandle: null, targetHandle: null });
       window.setTimeout(() => void rf.fitView({ padding: 0.4, maxZoom: 1, duration: 250 }), 30);
     } else if (next.key.startsWith("err:")) {

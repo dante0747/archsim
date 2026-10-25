@@ -5,6 +5,7 @@
  */
 import { api } from "@/lib/api";
 import { estimateCost } from "@/lib/cost";
+import { freeSpot } from "@/lib/placement";
 import { reviewDesign } from "@/lib/review";
 import { autoSizes } from "@/lib/sizing";
 import { evaluateSlo } from "@/lib/slo";
@@ -135,8 +136,7 @@ function placeFor(near?: string): { x: number; y: number } {
     x = Math.max(...nodes.map((n) => n.position.x)) + 300;
     y = Math.round(nodes.reduce((sum, n) => sum + n.position.y, 0) / nodes.length);
   }
-  while (nodes.some((n) => Math.abs(n.position.x - x) < 200 && Math.abs(n.position.y - y) < 140)) y += 180;
-  return { x, y };
+  return freeSpot(nodes, { x, y });
 }
 
 const STRING = { type: "string" };

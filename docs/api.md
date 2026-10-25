@@ -41,7 +41,7 @@ Domain errors use one shape:
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/health` | `{"status": "ok", "database": "ok"}`. |
+| GET | `/health` | `200 {"status": "ok", "database": "ok"}`; `503 {"status": "degraded", "database": "unavailable"}` when the database cannot be reached, so health checks take the instance out of service. |
 | GET | `/meta` | Engine/schema/report versions, database dialect, run limits. |
 | GET | `/components` | Component catalog: ports, field descriptors (kind, unit, range, group, assumption flag, visibility), defaults, modeled/not-modeled notes; plus `edgeFields` and `workloadFields`. |
 | GET | `/schema/architecture` | JSON Schema of the document. |
@@ -54,7 +54,7 @@ Domain errors use one shape:
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/projects` | List (most recently updated first) with node and scenario counts. |
-| POST | `/projects` | Create from `{document}`, `{exampleId}`, or blank. Optional `name`, `description`. `201`. |
+| POST | `/projects` | Create from `{document}`, `{exampleId}`, or blank. Optional `name`, `description`. `201`. With `{exampleId, reuseUnedited: true}` and no `name`, returns the most recent copy of that example that was never saved and still matches it (`200`) instead of creating another; the web app opens templates this way. |
 | POST | `/projects/import` | Body: a raw document (older schema versions are migrated). Optional `?name=`. `201`. |
 | GET | `/projects/{id}` | Project with its document and `revision`. |
 | PUT | `/projects/{id}` | Body `{name?, description?, document?, expectedRevision?}`. Increments `revision`; `409` if `expectedRevision` is stale. |

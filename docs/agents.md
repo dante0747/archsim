@@ -24,7 +24,7 @@ On every page:
 | Tool | What it does |
 | --- | --- |
 | `list_templates` | Ready-made designs with their ids, descriptions and scenario counts (read only). |
-| `open_template` | Creates a project from a template and opens it in the editor. |
+| `open_template` | Opens a template in the editor: the user's unedited copy of it if there is one, else a new project from it. |
 | `new_project` | Creates an empty project and opens it. |
 | `list_projects` | Saved projects with ids, sizes and update times (read only). |
 | `open_project` | Opens a saved project. |

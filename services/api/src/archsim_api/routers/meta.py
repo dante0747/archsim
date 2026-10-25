@@ -6,6 +6,7 @@ import copy
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from archsim_api.config import Settings
@@ -29,15 +30,16 @@ from archsim_engine.schema import EdgeConfig, Workload
 router = APIRouter(tags=["meta"])
 
 
-@router.get("/health")
-def health(db: Database = Depends(get_db)) -> dict[str, str]:
+@router.get("/health", responses={503: {"description": "The database is unreachable."}})
+def health(db: Database = Depends(get_db)) -> JSONResponse:
+    """200 when the API can reach its database, 503 otherwise, so load balancers and container
+    health checks take the instance out of service."""
     try:
         with db.engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        status = "ok"
-    except Exception:  # pragma: no cover - depends on infrastructure
-        status = "unavailable"
-    return {"status": "ok" if status == "ok" else "degraded", "database": status}
+    except Exception:
+        return JSONResponse({"status": "degraded", "database": "unavailable"}, status_code=503)
+    return JSONResponse({"status": "ok", "database": "ok"})
 
 
 @router.get("/meta", response_model=MetaOut)

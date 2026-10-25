@@ -20,10 +20,11 @@ export function appTools(navigate: (path: string) => void): AgentTool[] {
     {
       name: "open_template",
       title: "Open a template",
-      description: "Create a new project from a template and open it in the editor, where the design tools (get_design, add_part, simulate...) become available.",
+      description:
+        "Open a template in the editor (reusing the user's unedited copy of it, else creating one), where the design tools (get_design, add_part, simulate...) become available.",
       inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
       execute: async (input) => {
-        const p = await api.createProject({ exampleId: String(input.id) });
+        const p = await api.createProject({ exampleId: String(input.id), reuseUnedited: true });
         navigate(`/projects/${p.id}`);
         return { projectId: p.id, name: p.name, summary: `opened the "${p.name}" template` };
       },

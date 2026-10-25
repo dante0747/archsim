@@ -7,7 +7,7 @@ long-term-support branches yet.
 
 | Version          | Supported |
 | ---------------- | --------- |
-| `main` (0.1.x)   | yes       |
+| `main` (0.6.x)   | yes       |
 | anything older   | no        |
 
 ## Reporting a vulnerability
