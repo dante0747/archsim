@@ -125,16 +125,67 @@ serves 8 example designs (see below).
     items), plus the existing insights, timeline, components, compare, history and
     assumptions views.
 - Command palette (every action, workspaces, every technology preset, "Theme: …" commands),
-  keyboard shortcuts. Two themes, both drawn like engineering drawings: Blueprint (dark: navy
-  panels around a blueprint-blue canvas with graph-paper lines, a signal-cyan accent) and
-  Drafting paper (light: warm paper, navy ink, blue grid lines, an ultramarine accent). The
-  sun/moon button in the editor top bar and on the home page offers Blueprint, Drafting paper
-  or Match system (the default, which also follows the system when it changes). Each theme is
-  a set of CSS tokens (surfaces, ink, accent, one hue per component family, chart grid); the
-  choice is stored in this browser's localStorage only and applied before first paint. A choice
-  saved by an older version (one of the retired dark palettes) opens in Blueprint. Utilisation
-  heat uses a violet ramp below 70% so it stays clear of both accents, the blue canvas and the
-  status colours.
+  keyboard shortcuts. "Ops console" look (chosen by the user from four rendered directions on
+  2026-10-25): graphite panels on a near-black page (dark) or white panels on cool grey
+  (light), signal orange with an orange-to-amber gradient for primary actions and the brand,
+  blue for focus and selection, Grafana-style threshold colours for status, tighter corners.
+  The sun/moon button offers Dark, Light or Match system (the default, which follows the system
+  live). Each theme is a set of CSS tokens; the choice is stored in this browser's localStorage
+  only and applied before first paint; older saved values (retired palettes) open in Dark.
+  Utilisation heat uses the validated blue ramp below 70%.
+- Technology behaviour (engine 0.5.0, report 1.5; `archsim_engine/technology.py`): the selected
+  technology switches on mechanisms that make each product behave like the real one, each a
+  config setting in a "Technology behaviour" group whose default `auto` takes the technology's
+  value. Databases: row/document locks on writes (writes to a hot key queue while holding
+  their connection), readers waiting for writers (SQL Server), group commit on a log flush,
+  asynchronous replicas that replay writes on a limited number of workers (PostgreSQL 1, MySQL
+  4, MongoDB 16) with replication lag and stale-read counting, majority / all-replica write
+  acknowledgements (MongoDB, Elasticsearch), read routing (MongoDB reads the primary by
+  default), WiredTiger tickets (128), scatter-gather reads (every Elasticsearch search; a share
+  of MongoDB reads when sharded), SSTable read amplification (Cassandra, Scylla), DynamoDB
+  capacity units with per-partition limits (3,000 RCU / 1,000 WCU), table limits, on-demand
+  starting capacity and 300 s burst. Caches: single-threaded command execution per shard
+  (Redis, Valkey), cluster shards, allkeys-LRU or noeviction (out-of-memory refusals), RDB fork
+  stalls. Queues: key-hashed ordered partitions with one consumer each (Kafka), acks=all and
+  linger, memory-alarm flow control that blocks publishers (RabbitMQ), visibility timeout /
+  ack deadline redelivery (SQS, Pub/Sub), SQS FIFO publish limit, at-most-once drops (core
+  NATS). Load balancers: technology upstream timeouts returning 504 (nginx 60 s, Envoy 15 s,
+  API Gateway 29 s, ALB and Kong 60 s) and Envoy circuit breakers (503 past 1,024 in-flight
+  requests per target). Services: Node.js event loops (CPU work queues for one thread per
+  process), stop-the-world GC pauses by runtime, JIT warm-up of replicas started during the run
+  and of new serverless instances, runtime-specific serverless cold starts and a scale-out rate
+  (1,000 per 10 s). Every documented default and link was checked against the vendor docs on
+  2026-10-25 (one research pass; corrections applied: Elasticsearch 9 search queue size, Go
+  pause figure, Redis fork figure, MongoDB ticket wording, moved doc URLs). GC pause sizes and
+  frequencies, JIT warm-up factors, per-runtime cold starts, replay cost and log flush times
+  are illustrative and labelled so. The catalog lists each technology's traits and auto
+  defaults; the inspector shows "How <technology> behaves" with doc links and "Auto: on for
+  PostgreSQL"-style hints. New findings: `replication_lag` and `lock_contention`. Switching a
+  part to another technology preset now resets settings the previous preset set (they used to
+  linger). Covered by 24 tests in `test_technology.py`; all earlier engine tests pass
+  unchanged apart from the report version.
+- Calculations (report 1.5, `archsim_engine/explain.py`): every node carries `explain`
+  formulas with the run's values substituted (arrival rate, capacity, utilization, Little's
+  law, the M/M/c wait via Erlang C, and component-specific ones) and the report adds system
+  formulas plus a latency breakdown (mean time per component excluding downstream calls). A
+  test checks the M/M/4 prediction against the simulated wait (within 30%) and Little's law.
+  Shown in Results → Details → Calculations, under the selected part in Design ("How it's
+  calculated"), and in the dashboard's panel info popovers.
+- Request traces (report 1.5): every n-th request (about 1,200 per run, by request number, no
+  random draws) records spans for network legs, time in each component, waits, work, log
+  flushes, replica acks, GC pauses, cold starts, forks and cache hits/misses; the report keeps
+  about 30 (spread, slowest, median, failures). Results → Details → Request traces shows a
+  list and a waterfall. Traces are deterministic (same digest and traces on re-run). Engine
+  speed is unchanged by the bookkeeping (the starter runs as fast as on engine 0.4.0).
+- Dashboard (4th workspace, key 4): Grafana-style rows (overview stat panels with sparklines
+  and thresholds, traffic, latency, saturation, errors with a failure table, one row per
+  component with its technology signals), synced crosshair, table legends (click to isolate),
+  drag-to-zoom and range presets, warm-up/failure/event annotations, fullscreen and Inspect
+  data (table + CSV) per panel, Show on canvas, component filter, Group by kind, and Replay at
+  1x/4x/10x sharing the Test workspace's playhead. A metric registry (`lib/metrics-catalog.ts`)
+  describes every series (label, unit, how it is calculated, thresholds). 36 unit tests.
+- Saved projects moved off the home page to `/projects` (search, open, duplicate, export,
+  delete); the nav link and "Back to projects" go there.
 - Flat redesign (2026-10-25, see docs/ui-redesign.md for the critique and the DOs and DON'Ts):
   solid surfaces in three tonal steps, hairlines instead of boxes, no gradients, glows, glass or
   aurora, shadows only on menus and dialogs; panels docked edge to edge; one typeface (Geist;
@@ -146,10 +197,10 @@ serves 8 example designs (see below).
   animations for new results.
 - Landing page (the home page): a large headline, a live product shot (a scripted replay of a
   cache outage drawn with the editor's part cards: moving traffic, autoscaling, saturation,
-  verdict and timeline) on a solid accent band, key numbers read from the catalog, a drifting
+  verdict and timeline) on a dark console band, key numbers read from the catalog, a drifting
   marquee of every technology logo, "How it works" with three small animated vignettes, a feature
-  grid of seven tiles, templates, the six most recent projects (with "Show all"), a closing
-  call to action and a footer. Sections fade up as they enter the view; all motion stops for
+  grid of nine tiles (including the dashboard and the calculations), templates, a closing call
+  to action and a footer; saved projects are on their own page. Sections fade up as they enter the view; all motion stops for
   reduced motion. Fixed on the way: the global `p { text-wrap }` rule sat outside Tailwind's
   layers and overrode `truncate` on every paragraph (long names wrapped instead of ending in
   "..."); it now lives in the base layer. Fonts are self-hosted at build time by next/font (no runtime calls
@@ -274,11 +325,22 @@ part cards, top-bar run status, inspector), Test (live replay at 4x), Results (a
 speed after simulating all five scenarios) in Midnight, and the editor in Light. The README
 screenshots were retaken from this build.
 
-Blueprint and Drafting paper themes, on 2026-10-25, against the dev server and the Docker API:
-home page (hero, blueprint-sheet bands, demo, templates, projects, closing call) in both themes,
-the editor's Design, Test and Results after a run in both, switching from the top-bar menu, the
-saved choice applied on reload, and an old saved value ("nord") opening in Blueprint. The README screenshots were retaken
-from the rebuilt Docker stack, three in Blueprint and two in Drafting paper.
+Blueprint and Drafting paper themes, on 2026-10-25 (since replaced by Ops console): home page
+and editor in both themes, switching, reload, legacy values.
+
+Technology behaviour, calculations, traces and dashboard, on 2026-10-25, against the dev server
+and the Docker API rebuilt with engine 0.5.0: simulated the Black Friday template; the
+dashboard's rows, per-component panels (including GC pauses and time in component), crosshair
+and annotations; Results → Details → Calculations (system formulas, latency breakdown: the
+payments API takes 54% of a typical request; Orders DB shows row locks, group commit and a
+replica replay capacity of 158 writes/s against 192 writes/s per shard, so its replicas lag)
+and Request traces (a write's query, log flush and slow payment call on the waterfall); the
+inspector's "How PostgreSQL behaves" panel and Auto hints. Fixed on the way: a duplicated
+"λ =" in a formula, third-party calls had no span. The dashboard helper also checked every row,
+drag-zoom, replay, fullscreen, Inspect data and Show on canvas in both themes; replay frame
+rate in a visible window was not measured (the pane was hidden). The README screenshots were retaken from the
+rebuilt Docker stack (eight images, dark and light, now including the dashboard, calculations
+and traces).
 
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links
@@ -313,11 +375,19 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - Client groups share one workload (one read/write mix and pattern); a group cannot have its
   own read ratio or traffic pattern yet. Synchronous, acyclic call graphs; dependencies are
   called sequentially (no parallel fan-out); no closed-loop users.
-- Not modeled: GC, OOM kills and restarts, bandwidth and packet loss, locks and write I/O,
-  page-cache dynamics (the buffer cache is a fixed hit share), cache memory for the fixed-ratio
-  model, replication lag, health checks and failover, circuit breakers; faults are scheduled
-  (outage, slowdown, link latency), not random. CPU and memory only matter where their specs
-  are set; resource sizes in presets and prices are illustrative.
+- Not modeled: OOM kills and restarts, bandwidth and packet loss, deadlocks and range locks,
+  vacuum/compaction/checkpoints, page-cache dynamics (the buffer cache is a fixed hit share),
+  cache memory for the fixed-ratio model, health checks and failover, consumer group
+  rebalancing, DynamoDB adaptive capacity; circuit breakers only as Envoy-style request limits
+  on a load balancer; faults are scheduled (outage, slowdown, link latency), not random. CPU and
+  memory only matter where their specs are set; resource sizes in presets and prices are
+  illustrative.
+- Technology behaviour uses documented defaults where vendors publish them; GC pauses, JIT
+  warm-up, per-runtime cold starts, replica replay cost and log flush times are illustrative
+  typical values (labelled in the UI), not measurements. Row locks follow the workload's Zipf
+  keyspace, so write contention depends on the key skew you assume.
+- Dashboard replay redraws panels about every 60 ms; smoothness with very large designs was
+  not measured in a visible window.
 - Technology presets are illustrative starting points, not vendor benchmarks; costs are
   assumptions you should replace with your own prices.
 - The breaking-point sweep uses short steps: autoscaled services start each step at their
@@ -343,8 +413,8 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - No authentication or multi-user support; bind to localhost only.
 - README screenshots are 800x500 captures; a demo GIF has not been recorded.
 - The UI was checked by hand in one browser engine (Chromium in the desktop app) at 1280x800
-  and 1440x900, in Blueprint and Drafting paper. There are no automated visual or end-to-end
-  tests yet.
+  and 1440x900, in the Ops console dark and light themes. There are no automated visual or
+  end-to-end tests yet.
 - The canvas layout is usable at tablet widths, but the editor is designed for desktop
   screens.
 
@@ -359,5 +429,8 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
    parallel fan-out calls.
 5. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-6. Prometheus calibration of service-time distributions and arrival rates, Grafana export,
-   and an agent/MCP surface on top of the validated run API (see [docs/roadmap.md](docs/roadmap.md)).
+6. Prometheus calibration of service-time distributions and arrival rates, export of the
+   dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
+   [docs/roadmap.md](docs/roadmap.md)).
+7. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
+   group rebalancing, adaptive capacity, per-key hot-row splitting.

@@ -190,6 +190,67 @@ export interface ComponentType {
   presets?: Preset[];
   /** Link settings suggested for links drawn from this component (e.g. a mobile network's latency). */
   linkDefaults?: Partial<EdgeConfig>;
+  /** Behaviour each technology brings (engine 0.5+), keyed by technology id. */
+  technologyTraits?: Record<string, TechTrait[]>;
+  /** "Auto" settings resolved per technology: field key -> technology -> value (engine 0.5+). */
+  technologyDefaults?: Record<string, Record<string, unknown>>;
+}
+
+/** One behaviour a technology brings, with the vendor documentation it comes from. */
+export interface TechTrait {
+  id: string;
+  title: string;
+  detail: string;
+  source: string | null;
+}
+
+/** A calculation behind a number: the formula, this run's numbers in it, and the result. */
+export interface ExplainEntry {
+  id: string;
+  title: string;
+  formula: string;
+  substituted: string;
+  result: number | null;
+  unit: string;
+  note: string | null;
+  source: string | null;
+  /** Time series key the calculation explains, when there is one. */
+  metric: string | null;
+}
+
+export interface TraceSpan {
+  nodeId: string | null;
+  label: string | null;
+  edgeId: string | null;
+  /** network, handle, queue, service, execute, lock, commit, replication, gc, cold_start, ... */
+  kind: string;
+  startMs: number;
+  endMs: number;
+  depth: number;
+  detail: string | null;
+}
+
+/** One sampled request, step by step (report 1.5+). */
+export interface TraceRecord {
+  id: number;
+  op: RequestType;
+  client: string;
+  startS: number;
+  durationMs: number;
+  status: "ok" | "error" | "timeout";
+  reason: string | null;
+  failedAt: string | null;
+  attempts: number;
+  /** Why it was kept: slowest, median, failed, sample. */
+  tags: string[];
+  spans: TraceSpan[];
+}
+
+export interface LatencyShare {
+  nodeId: string | null;
+  label: string;
+  meanMs: number;
+  share: number;
 }
 
 export interface Catalog {
@@ -403,6 +464,19 @@ export interface NodeReportSummary {
   /** Caches with memory (TTL model): keys that fit, and keys held at the end. */
   capacityKeys?: number;
   keysCached?: number;
+  /** Time a call spends in this component, incl. its downstream calls (report 1.5+). */
+  latencyMs?: LatencySummary;
+  /** Technology behaviour figures (report 1.5+, when relevant). */
+  meanLockWaitMs?: number;
+  meanCommitWaitMs?: number;
+  meanTicketWaitMs?: number;
+  meanReplicaAckMs?: number;
+  commitsPerFlush?: number | null;
+  maxReplicationLagMs?: number | null;
+  partitions?: number;
+  gcPauses?: number;
+  executorsPerShard?: number;
+  [extra: string]: unknown;
 }
 
 export interface NodeReport {
@@ -423,6 +497,10 @@ export interface NodeReport {
   };
   timeseries: Record<string, Series>;
   config: NodeConfig;
+  /** The calculations behind this node's numbers (report 1.5+). */
+  explain?: ExplainEntry[];
+  /** Technology traits in effect for this node (report 1.5+). */
+  behaviour?: TechTrait[];
 }
 
 export interface EdgeReport {
@@ -493,6 +571,10 @@ export interface Report {
     metadata: { name: string };
   };
   provenance: Provenance;
+  /** A sample of individual requests, step by step (report 1.5+). */
+  traces?: TraceRecord[];
+  /** System-level calculations and where a request's time goes (report 1.5+). */
+  explain?: { system: ExplainEntry[]; latencyBreakdown: LatencyShare[] };
 }
 
 export interface ComparisonKpi {

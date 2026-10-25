@@ -14,14 +14,14 @@ capacity curves. Same document and seed, same result.
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![The Test workspace in the Blueprint theme, paused at 100 s of a Black Friday ramp: the checkout service has scaled to six replicas and runs warm, link labels show live request rates on the graph-paper canvas, the timeline below shows the traffic ramp, events, latency and failures, and the test plan panel reports that the design held up](docs/images/editor-results.jpg)
+![The Test workspace in the dark Ops console theme, paused at 101.6 s of a Black Friday ramp: Checkout API has scaled out and runs warm, link labels show live request rates, the timeline below shows the traffic ramp, events, latency and failures, and the test plan panel reports that the design held up](docs/images/editor-results.jpg)
 
 *The Test workspace replaying the Black Friday on Kubernetes template. A demo GIF is still to be recorded.*
 
 ## What you can do
 
-ArchSim has three workspaces around one canvas, switched from the top bar: **Design → Test →
-Results** (keys 1, 2, 3). One **Simulate** button (Ctrl/⌘ Enter) runs the design from wherever
+ArchSim has four workspaces around one canvas, switched from the top bar: **Design → Test →
+Results**, plus a **Dashboard** (keys 1, 2, 3, 4). One **Simulate** button (Ctrl/⌘ Enter) runs the design from wherever
 you are; results land on the canvas right away. A short guided tour opens on the first visit
 (and from the ⋯ menu), and a small hint on the canvas says what to do next, for example adding
 API servers behind a lone Clients box.
@@ -44,15 +44,29 @@ API servers behind a lone Clients box.
   caches (Redis, Valkey, Memcached, CDN edge, Varnish), message queues (Kafka, RabbitMQ,
   SQS-style...), gateways (Nginx, HAProxy, Envoy, Kong...), services on VMs, Docker, Kubernetes
   (HPA autoscaling) or serverless (cold starts, concurrency limits), and third-party APIs
-  (payments, e-mail, identity, LLM inference...). Behaviour comes from the numbers (replicas,
-  shards, replication factor and consistency, partitions, rate limits), never from the name,
-  and every default is marked as an assumption.
+  (payments, e-mail, identity, LLM inference...).
+- **Each technology behaves like the real one.** PostgreSQL locks rows, makes commits wait for
+  its write-ahead log (sharing flushes between concurrent commits) and replays writes on
+  replicas with a single worker, so heavy writes make replicas lag and serve stale reads.
+  MySQL replays on four workers; SQL Server's reads wait for writers; MongoDB waits for a
+  majority of its replica set, reads from the primary and caps concurrency with 128 tickets;
+  DynamoDB meters capacity units and throttles a hot key at 1,000 writes per second per
+  partition; Elasticsearch sends every search to every shard. Redis runs commands on one thread
+  per shard and stalls while forking for snapshots; Kafka keeps each key in order on one
+  partition and one consumer; RabbitMQ blocks publishers at its memory watermark; SQS delivers
+  slow messages twice after the visibility timeout; Envoy answers 503 past 1,024 requests per
+  target and nginx gives up after 60 s; Node.js runs CPU work on one event loop; JVMs pause for
+  garbage collection and start slow until the JIT warms up; Lambda cold starts depend on the
+  runtime and scale-out is rate limited. The inspector shows how the selected technology
+  behaves, each behaviour links to the vendor's documentation, and every one is a setting
+  (Auto by default) that you can override. Typical numbers that vendors don't document are
+  marked illustrative.
 - Every part is the same flat card: its technology logo on a chip tinted by family, its name, one
   or two key settings, and after a run a thin bar that shows how busy it was. Links are rounded
   wires that attach on any of the four sides: drag from a dot on any side of one part to any side
   of another, in either direction. Traffic moves along them while a run replays.
-- A flat, quiet interface (see [docs/ui-redesign.md](docs/ui-redesign.md)): docked panels, one
-  typeface, colour only where it means something, the last run's verdict in the top bar.
+- An "Ops console" look in dark and light: graphite panels, signal-orange actions, the last
+  run's verdict in the top bar (see [docs/ui-redesign.md](docs/ui-redesign.md)).
 - Click a part to edit it: its technology, a one-line last-run status, at most three key
   settings (response-time distributions as a one-line summary you click to edit), and "More
   settings" for everything else, notes and what the model covers.
@@ -82,24 +96,45 @@ API servers behind a lone Clients box.
   line), two runs side by side with the exact input differences, and the run history.
 - **Breaking point**: stepped load sweeps that find where latency turns into a hockey stick
   and the highest load that still meets the objectives.
-- **Details**: findings in plain language (bottlenecks, hot shards, throttling, autoscaling
-  lag, consumer lag, wasted work), error budget, metrics over time, per-component drill-down
-  and the assumptions behind every number. A Markdown report is one click away.
+- **Details**: findings in plain language (bottlenecks, hot shards, hot rows, replica lag,
+  throttling, autoscaling lag, consumer lag, wasted work), error budget, metrics over time,
+  per-component drill-down, **Calculations** and **Request traces**, and the assumptions behind
+  every number. A Markdown report is one click away.
+  - **Calculations** shows the maths behind the numbers: each formula written out, again with
+    the run's own values, and the result, next to what the simulation measured (utilization,
+    Little's law, the M/M/c queueing prediction, the hottest row's lock, group commit, replica
+    replay capacity, DynamoDB partitions, event-loop capacity...), plus where a typical
+    request's time goes. The same formulas fold out under the selected part in Design.
+  - **Request traces** follows about thirty sampled requests (evenly spread, the slowest, the
+    median, failures) through every hop, wait, lock, log flush and GC pause on a waterfall.
 
-**Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and a
-dark and a light theme drawn like engineering drawings: Blueprint (navy panels around a
-blueprint-blue canvas with graph-paper lines and a cyan accent) and Drafting paper (warm paper,
-navy ink, blue grid lines, an ultramarine accent). The sun/moon button at the top right picks one
-or follows the system. Projects live in
+**Dashboard: a Grafana-style view of every run**
+- Rows of panels for the overview (throughput, p95 against the objective, error and success
+  rate, the most saturated part, monthly cost), traffic, latency, saturation and errors, then
+  one row per component with its own signals: replication lag, lock and commit waits, consumed
+  capacity units, evictions, partition lag, redeliveries, GC pauses, event-loop lag, warming
+  replicas, 504s and 503s.
+- A crosshair synced across every panel, table legends you can click to isolate a series,
+  drag-to-zoom on any chart, warm-up and failure windows as annotations, fullscreen and
+  "Inspect data" (table and CSV) per panel, and Replay at 1x/4x/10x that draws the run live,
+  shared with the Test workspace. Each panel's info popover says how its value is calculated.
+
+**Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and the
+Ops console theme in dark and light (the sun/moon button at the top right picks one or follows
+the system). Your saved projects are on their own page (`/projects`). Projects live in
 PostgreSQL (or SQLite), documents
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
 
-| Design: parts library with logos, a selected part | Results → Answer |
+| Dashboard (Grafana-style, synced crosshair) | Results → Details → Calculations |
 | --- | --- |
-| ![Design workspace in the Drafting paper theme: a one-column parts library with logos on the left, part cards on a graph-paper canvas, the last run's verdict (healthy, 947 req/s, 434 ms) in the top bar; Checkout API is selected and the side panel shows its Go logo, last-run status (warm, 76% busy), key settings and the resources block](docs/images/build.jpg) | ![Results answer in the Drafting paper theme: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,235 per month; two findings worth a look with Show on canvas links; objective tiles](docs/images/scorecard.jpg) |
-| **Results → Compare** | **Home** |
-| ![Cost vs. speed map in the Blueprint theme: monthly cost against p95 for five scenarios, the p95 objective line, the Pareto frontier and a table of options](docs/images/tradeoffs.jpg) | ![Landing page in the Blueprint theme: "Crash-test your architecture before your users do." above a live product shot replaying a cache outage on a blueprint sheet](docs/images/home.jpg) |
+| ![The Dashboard workspace in the dark Ops console theme: overview stat panels (947 req/s, p95 434 ms with a warning against the 500 ms objective, 0.24% errors, 99.8% success, 77% max saturation on Checkout API, $1,240 a month), traffic and retry panels, end-to-end latency, time in component and queue wait per component; a crosshair at 48 s shows the same moment on every panel](docs/images/dashboard.jpg) | ![Calculations for the Orders DB (PostgreSQL): formula cards for arrival rate, capacity from slots, utilization, Little's law, the M/M/c queueing model, the hottest row's lock (22% busy), group commit and replica replay capacity (158 writes/s against 192 writes/s per shard), each with this run's numbers filled in](docs/images/calculations.jpg) |
+| **Results → Details → Request traces** | **Design: how PostgreSQL behaves** |
+| ![A traced 216 ms write on a waterfall: network legs, time in the API gateway and Checkout API, the Orders DB query and its write-ahead log flush (hovered: at 42.7 ms for 0.85 ms), then a slow third-party payment call](docs/images/traces.jpg) | ![Design workspace in the light theme: the whole Black Friday diagram on the canvas with Orders DB selected; the side panel shows "How PostgreSQL behaves" with row locks, MVCC reads, group commit and asynchronous replicas, each with a Docs link](docs/images/build.jpg) |
+| **Results → Answer** | **Home** |
+| ![Results answer in the light theme: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,240 per month; worth a look: the main cause of failed requests, and "Orders DB replicas lag up to 18.9 s behind the primary" with 3,158 of 8,363 replica reads stale](docs/images/scorecard.jpg) | ![Landing page in the dark theme: "Crash-test your architecture before your users do." with the second line in an orange gradient, above a live product shot of the Black Friday design](docs/images/home.jpg) |
+| **Results → Compare** | |
+| ![Cost vs. speed map in the dark theme: monthly cost against p95 for every scenario run, the p95 objective line and the Pareto frontier, with a table of options](docs/images/tradeoffs.jpg) | |
 
 ## Quick start
 

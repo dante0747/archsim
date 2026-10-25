@@ -15,11 +15,14 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { CLIENT_BLOCK_FIELDS, ClientBlock } from "@/components/editor/ClientBlock";
-import { FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
+import { type AutoHint, FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
 import { RESOURCE_FIELDS, ResourceBlock } from "@/components/editor/ResourceBlock";
 import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
 import { TechnologyPicker } from "@/components/build/TechnologyPicker";
+import { openDecide } from "@/components/editor/workflow";
+import { FormulaCard } from "@/components/explain/FormulaCard";
+import { TechTraits } from "@/components/explain/TechTraits";
 import { WorkloadPanel } from "@/components/editor/WorkloadPanel";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -29,9 +32,10 @@ import { compact, fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { edgeSourcePort, edgeTargetPort } from "@/lib/document";
 import { componentOf } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
-import { KIND_LABEL, REQ_GLYPH, kindOf, type Kind } from "@/lib/theme";
-import type { FieldDescriptor, Issue, RequestType } from "@/lib/types";
+import { KIND_LABEL, REQ_GLYPH, kindOf, technologyLabel, type Kind } from "@/lib/theme";
+import type { ComponentType, FieldDescriptor, Issue, NodeConfig, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useDecide } from "@/store/decide";
 import { type RightTab, useEditor } from "@/store/editor";
 import { useActiveReport, useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
@@ -234,12 +238,14 @@ function SettingsBlocks({
   allowedRequestTypes,
   extraAdvanced,
   between,
+  autoValues,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
   onChange: (key: string, v: unknown) => void;
   idPrefix: string;
   allowedRequestTypes?: RequestType[];
+  autoValues?: Record<string, AutoHint>;
   extraAdvanced?: React.ReactNode;
   /** Shown between the key settings and "More settings" (e.g. resources). */
   between?: React.ReactNode;
@@ -253,7 +259,7 @@ function SettingsBlocks({
       {key.length > 0 && (
         <section aria-label="Settings" className="space-y-3">
           <h3 className="text-[13px] font-semibold text-ink">Settings</h3>
-          <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} flat />
+          <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} autoValues={autoValues} flat />
         </section>
       )}
       {between}
@@ -265,7 +271,14 @@ function SettingsBlocks({
             {restCount > 0 && <span className="text-ink-3">{restCount}</span>}
           </summary>
           <div className="space-y-5 border-t border-line px-3.5 py-4">
-            <FieldGroups fields={rest} values={values} onChange={onChange} idPrefix={`${idPrefix}-adv`} allowedRequestTypes={allowedRequestTypes} />
+            <FieldGroups
+              fields={rest}
+              values={values}
+              onChange={onChange}
+              idPrefix={`${idPrefix}-adv`}
+              allowedRequestTypes={allowedRequestTypes}
+              autoValues={autoValues}
+            />
             {extraAdvanced}
           </div>
         </details>
@@ -367,6 +380,8 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
         {!comp?.isTrafficSource && <TechnologyPicker nodeId={nodeId} comp={comp} config={node.data.config} />}
       </div>
 
+      {comp && <TechnologyBehaviour comp={comp} config={node.data.config} />}
+
       {nodeIssues.length > 0 && (
         <ul className="rounded-xl bg-surface-2/60 p-1">
           {nodeIssues.map((i, k) => (
@@ -386,6 +401,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
           values={node.data.config}
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
           idPrefix={`node-${nodeId}`}
+          autoValues={autoHints(comp, node.data.config)}
           between={<ResourceBlock nodeId={nodeId} comp={comp} config={node.data.config} />}
           extraAdvanced={
             <div className="space-y-3">
@@ -401,6 +417,74 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
         <p className="text-xs text-danger-ink">Unknown component type “{node.data.type}”.</p>
       )}
     </div>
+  );
+}
+
+/** The technology defaults behind this node's "auto" and empty settings. */
+function autoHints(comp: ComponentType, config: NodeConfig): Record<string, AutoHint> | undefined {
+  const tech = typeof config.technology === "string" ? config.technology : null;
+  const defaults = comp.technologyDefaults;
+  if (!tech || !defaults) return undefined;
+  const source = technologyLabel(comp, tech) ?? tech;
+  const out: Record<string, AutoHint> = {};
+  for (const [key, byTech] of Object.entries(defaults)) {
+    if (tech in byTech) out[key] = { value: byTech[tech], source };
+  }
+  return out;
+}
+
+/** What the selected technology does differently, with the documentation each behaviour comes from. */
+function TechnologyBehaviour({ comp, config }: { comp: ComponentType; config: NodeConfig }) {
+  const tech = typeof config.technology === "string" ? config.technology : null;
+  const traits = (tech && comp.technologyTraits?.[tech]) || [];
+  if (!traits.length) return null;
+  const name = technologyLabel(comp, tech) ?? tech;
+  return (
+    <details className="group/tech rounded-xl bg-surface-2/60">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[13px] font-medium text-ink [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-3.5 text-ink-3 transition-transform group-open/tech:rotate-90" />
+        <span className="min-w-0 flex-1 truncate">How {name} behaves</span>
+        <span className="text-xs text-ink-3">{traits.length}</span>
+      </summary>
+      <div className="border-t border-line px-3 py-3">
+        <p className="mb-2.5 text-xs leading-relaxed text-ink-3">
+          The simulation does this because you picked {name}. Each one is a setting under More settings, Technology behaviour; set it to override.
+        </p>
+        <TechTraits traits={traits} dense />
+      </div>
+    </details>
+  );
+}
+
+/** The last run's calculations for this node, folded; the full set lives in Results. */
+function NodeCalculations({ nodeId }: { nodeId: string }) {
+  const report = useActiveReport();
+  const setDetailsView = useDecide((s) => s.setDetailsView);
+  const entries = report?.nodes.find((n) => n.id === nodeId)?.explain ?? [];
+  if (!entries.length) return null;
+  return (
+    <details className="group/calc border-t border-line">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-3.5 transition-transform group-open/calc:rotate-90" />
+        How it&apos;s calculated
+        <span className="text-ink-3">{entries.length}</span>
+      </summary>
+      <div className="space-y-2 px-3 pb-3">
+        {entries.slice(0, 4).map((e) => (
+          <FormulaCard key={e.id} entry={e} compact />
+        ))}
+        <button
+          type="button"
+          onClick={() => {
+            setDetailsView("calculations");
+            openDecide();
+          }}
+          className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+        >
+          All calculations and notes <ArrowRight className="size-3.5" />
+        </button>
+      </div>
+    </details>
   );
 }
 
@@ -435,6 +519,12 @@ function NodeResults({ nodeId }: { nodeId: string }) {
     s.bufferHitRatio != null && `buffer cache ${fmtPct(s.bufferHitRatio, 0)} of reads`,
     s.capacityKeys != null && `${fmtNum(s.keysCached ?? 0)} of ${fmtNum(s.capacityKeys)} keys held`,
     (s.counters?.evictions ?? 0) > 0 && `${fmtNum(s.counters.evictions)} evictions`,
+    s.meanLockWaitMs != null && s.meanLockWaitMs >= 0.05 && `row locks ${fmtMs(s.meanLockWaitMs)} per write`,
+    s.maxReplicationLagMs != null && s.maxReplicationLagMs >= 1 && `replica lag up to ${fmtMs(s.maxReplicationLagMs)}`,
+    (s.counters?.staleReads ?? 0) > 0 && `${fmtNum(s.counters.staleReads)} stale reads`,
+    (s.rejected?.throttled ?? 0) > 0 && `${fmtNum(s.rejected.throttled)} throttled`,
+    (s.gcPauses ?? 0) > 0 && `${fmtNum(s.gcPauses)} GC pauses`,
+    (s.counters?.redeliveries ?? 0) > 0 && `${fmtNum(s.counters.redeliveries)} redelivered`,
   ].filter((x): x is string => typeof x === "string");
   return (
     <section aria-label="Last run" className="overflow-hidden rounded-xl bg-surface-2/60">
@@ -466,6 +556,7 @@ function NodeResults({ nodeId }: { nodeId: string }) {
       {resourceStats.length > 0 && (
         <p className="px-3 pb-2.5 text-xs text-ink-2">{resourceStats.join(" · ")}</p>
       )}
+      <NodeCalculations nodeId={nodeId} />
     </section>
   );
 }

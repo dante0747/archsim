@@ -7,6 +7,11 @@ Three runtimes share one config:
   pod start-up delay;
 * serverless functions: one request per instance, cold starts, a concurrency limit and idle
   reclaim.
+
+The runtime technology changes behaviour (see ``archsim_engine.technology``): Node.js runs each
+process on one event loop (CPU work queues for it, I/O does not hold it); JVM and .NET instances
+start slow while the JIT warms up; garbage-collected runtimes pause for stop-the-world
+collections; serverless cold starts depend on the runtime and scale-out is rate limited.
 """
 
 from __future__ import annotations
@@ -28,8 +33,10 @@ from archsim_engine.components.resources import (
     memory_field,
 )
 from archsim_engine.distributions import Distribution, LogNormal
+from archsim_engine.explain import formula, num
 from archsim_engine.issues import Issue, error, warning
 from archsim_engine.metrics import Gauge
+from archsim_engine.ratelimit import TokenBucket
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
     OK,
@@ -40,11 +47,14 @@ from archsim_engine.runtime import (
     SimContext,
     WorkerPool,
     rejected,
+    span,
 )
 from archsim_engine.schema import CamelModel, NodeSpec
+from archsim_engine.technology import SERVERLESS_TRAITS, SERVICE_PROFILES, Profile, resolve
 
 AUTOSCALE = {"autoscaling": True}
 SERVERLESS = {"platform": "serverless"}
+BEHAVIOUR = "Technology behaviour"
 
 
 def _count_series(g: Gauge, t_end: float | None) -> list[float | None]:
@@ -63,7 +73,10 @@ class ServiceConfig(CamelModel):
         "generic", "java", "nodejs", "go", "python", "dotnet", "rust", "php", "ruby"
     ] = Field(
         default="generic",
-        description="Runtime or framework. A label for the design; behaviour comes from the settings below.",
+        description=(
+            "Runtime or framework. It sets the concurrency model (event loop for Node.js), GC "
+            "pauses, JIT warm-up and serverless cold starts, shown under Technology behaviour."
+        ),
         json_schema_extra=ui(label="Technology", group="Technology"),
     )
     platform: Literal["vm", "docker", "kubernetes", "serverless"] = Field(
@@ -86,7 +99,10 @@ class ServiceConfig(CamelModel):
         default=4,
         ge=1,
         le=4096,
-        description="Requests one replica processes concurrently (threads/worker processes).",
+        description=(
+            "Requests one replica processes concurrently (threads/worker processes). Event-loop "
+            "runtimes (Node.js) use the processes per replica instead."
+        ),
         json_schema_extra=ui(label="Workers per replica", group="Capacity", headline=True),
     )
     queue_capacity: int = Field(
@@ -212,9 +228,13 @@ class ServiceConfig(CamelModel):
             label="Concurrency limit", group="Serverless", visible_when=SERVERLESS
         ),
     )
-    cold_start_ms: Distribution = Field(
-        default_factory=lambda: LogNormal(median=300.0, p95=900.0),
-        description="Extra time for a request that has to start a new instance (ms).",
+    cold_start_ms: Distribution | None = Field(
+        default=None,
+        description=(
+            "Extra time for a request that has to start a new instance (ms). Empty = the "
+            "runtime's typical cold start (Java about 1.2 s, Node.js and Python about 250 ms, Go "
+            "about 100 ms; illustrative)."
+        ),
         json_schema_extra=ui(
             label="Cold start",
             unit="ms",
@@ -222,6 +242,70 @@ class ServiceConfig(CamelModel):
             visible_when=SERVERLESS,
             assumption=True,
         ),
+    )
+    scale_out_rate: int = Field(
+        default=1000,
+        ge=1,
+        le=100_000,
+        description="New instances the platform may start per 10 seconds (AWS Lambda: 1,000); requests that would need more are throttled.",
+        json_schema_extra=ui(
+            label="Scale-out rate per 10 s", group="Serverless", visible_when=SERVERLESS
+        ),
+    )
+    # -- technology behaviour ---------------------------------------------------------------
+    runtime_model: Literal["auto", "thread_pool", "event_loop"] = Field(
+        default="auto",
+        description=(
+            "thread_pool: each worker handles one request at a time. event_loop: each process "
+            "runs every request's CPU work on one thread, one piece at a time, and waits for "
+            "I/O without blocking (Node.js). Auto follows the technology."
+        ),
+        json_schema_extra=ui(label="Concurrency model", group=BEHAVIOUR),
+    )
+    processes_per_replica: int = Field(
+        default=1,
+        ge=1,
+        le=256,
+        description="Event-loop processes per replica (Node.js cluster mode, PM2, uvicorn workers).",
+        json_schema_extra=ui(label="Event-loop processes per replica", group=BEHAVIOUR),
+    )
+    gc_pause_ms: float | None = Field(
+        default=None,
+        ge=0,
+        le=10_000,
+        description=(
+            "Median stop-the-world pause per garbage collection (ms); every request on the "
+            "replica stalls meanwhile. Empty = runtime default (Java about 12, .NET 6, Node.js "
+            "2, Go 0.1, Rust 0; illustrative)."
+        ),
+        json_schema_extra=ui(label="GC pause", unit="ms", group=BEHAVIOUR, assumption=True),
+    )
+    gc_every_requests: int | None = Field(
+        default=None,
+        ge=1,
+        le=10_000_000,
+        description="Requests a replica serves between collections (allocation pressure). Empty = runtime default.",
+        json_schema_extra=ui(label="Requests between GCs", group=BEHAVIOUR, assumption=True),
+    )
+    warmup_factor: float | None = Field(
+        default=None,
+        ge=1,
+        le=20,
+        description=(
+            "How much slower a freshly started instance runs before the JIT has optimised it "
+            "(applies to replicas started during the run and to serverless instances). Empty = "
+            "runtime default (Java 2.5x, .NET 1.5x, others 1x; illustrative)."
+        ),
+        json_schema_extra=ui(
+            label="JIT warm-up slowdown", group=BEHAVIOUR, assumption=True, step=0.1
+        ),
+    )
+    warmup_s: float | None = Field(
+        default=None,
+        ge=0,
+        le=3600,
+        description="Time for a new instance to reach full speed (s), fading linearly. Empty = runtime default.",
+        json_schema_extra=ui(label="JIT warm-up time", unit="s", group=BEHAVIOUR, assumption=True),
     )
     keep_warm_s: float = Field(
         default=300.0,
@@ -251,6 +335,39 @@ class ServiceConfig(CamelModel):
             raise ValueError("min replicas must not exceed max replicas")
         return self
 
+    def profile(self) -> Profile:
+        return SERVICE_PROFILES.get(self.technology, SERVICE_PROFILES["generic"])
+
+    def setting(self, key: str, fallback: Any = None) -> Any:
+        return resolve(getattr(self, key, None), self.profile(), key, fallback)
+
+    def event_loop(self) -> bool:
+        return self.setting("runtime_model", "thread_pool") == "event_loop"
+
+    def slots_per_replica(self) -> int:
+        """Concurrent handlers per replica: event loops, or workers."""
+        return self.processes_per_replica if self.event_loop() else self.workers_per_replica
+
+    def blocks(self) -> bool:
+        """Whether a handler stays occupied during downstream calls."""
+        return False if self.event_loop() else self.blocking_downstream
+
+    def cold_start(self) -> Distribution:
+        if self.cold_start_ms is not None:
+            return self.cold_start_ms
+        v = self.profile().values.get("cold_start_ms", {"median": 300, "p95": 900})
+        return LogNormal(median=v["median"], p95=v["p95"])
+
+    def gc(self) -> tuple[float, int] | None:
+        pause = float(self.setting("gc_pause_ms", 0.0) or 0.0)
+        every = int(self.setting("gc_every_requests", 0) or 0)
+        return (pause, every) if pause > 0 and every > 0 else None
+
+    def warmup(self) -> tuple[float, float] | None:
+        f = float(self.setting("warmup_factor", 1.0) or 1.0)
+        w = float(self.setting("warmup_s", 0.0) or 0.0)
+        return (f, w * 1000.0) if f > 1.0 and w > 0 else None
+
     def memory_slots(self) -> int | None:
         """Requests one replica can hold within its memory, or None when memory is not set."""
         if self.memory_gib is None:
@@ -266,27 +383,92 @@ class ServiceRuntime(RuntimeComponent):
         self, ctx: SimContext, node: NodeSpec, config: ServiceConfig, initial: int | None = None
     ) -> None:
         n = initial if initial is not None else config.replicas
-        super().__init__(ctx, node, config, n * config.workers_per_replica)
+        self.per_replica = config.slots_per_replica()
+        super().__init__(ctx, node, config, n * self.per_replica)
         self.m.has_cpu_split = True
         self.core_busy = Gauge(ctx.tl) if config.cpu_cores is not None else None
         self.mem_slots = config.memory_slots()
         self.peak_load = 0
+        self.blocking = config.blocks()
+        self.gc_cfg = config.gc()
+        self.warm_cfg = config.warmup()
         self.pools = [self._new_pool() for _ in range(n)]
         self.cores = [self._new_cores() for _ in range(n)]
         self.load = [0] * n
+        self.born = [0.0] * n  # replicas present at the start are warm
+        self.served = [0] * n
+        self.pause = [[0.0, -1.0, -1.0] for _ in range(n)]  # [paused_until, start, end]
+        self.gc_ms = [0.0] * ctx.tl.n
+        self.warming = Gauge(ctx.tl)
         self.rr = 0
         self.rng = ctx.rng(f"node:{node.id}:service")
+        self.gc_rng = ctx.rng(f"node:{node.id}:gc")
         self._deps: dict[str, list[EdgeRuntime]] = {}
 
     def _new_pool(self) -> WorkerPool:
         cfg: ServiceConfig = self.config
         return WorkerPool(
-            self.ctx.env, cfg.workers_per_replica, cfg.queue_capacity, cfg.queue_timeout_ms, self.m
+            self.ctx.env, self.per_replica, cfg.queue_capacity, cfg.queue_timeout_ms, self.m
         )
 
     def _new_cores(self) -> Cores:
         cfg: ServiceConfig = self.config
-        return Cores(self.ctx.env, cfg.cpu_cores, cfg.workers_per_replica, self.core_busy)
+        return Cores(self.ctx.env, cfg.cpu_cores, self.per_replica, self.core_busy)
+
+    def _add_replica_state(self, now: float) -> None:
+        self.load.append(0)
+        self.born.append(now)
+        self.served.append(0)
+        self.pause.append([0.0, -1.0, -1.0])
+        if self.warm_cfg is not None:
+            self.warming.add(1, now)
+            self.env.process(self._warm_done(self.warm_cfg[1]))
+
+    def _warm_done(self, after_ms: float) -> Generator[simpy.Event, Any, None]:
+        yield self.env.timeout(after_ms)
+        self.warming.add(-1, self.env.now)
+
+    def _warm_factor(self, index: int, now: float) -> float:
+        w = self.warm_cfg
+        born = self.born[index]
+        if w is None or born <= 0:
+            return 1.0
+        f, dur = w
+        left = 1.0 - (now - born) / dur
+        return 1.0 + (f - 1.0) * left if left > 0 else 1.0
+
+    def _cpu(self, req: Request, index: int, work: float) -> Generator[simpy.Event, Any, None]:
+        """CPU work on replica ``index``, stalled by stop-the-world GC pauses."""
+        env = self.env
+        p = self.pause[index]
+        if p[0] > env.now:
+            t0 = env.now
+            yield env.timeout(p[0] - env.now)
+            span(req, self.id, "gc", t0, env.now, "stop-the-world garbage collection")
+        t0 = env.now
+        yield from self.cores[index].run(work)
+        if t0 < p[1] < env.now:
+            # a collection started while this work ran: it lost the pause's duration
+            extra = p[2] - p[1]
+            t1 = env.now
+            yield env.timeout(extra)
+            span(req, self.id, "gc", t1, env.now, "stop-the-world garbage collection")
+
+    def _after_request(self, index: int) -> None:
+        g = self.gc_cfg
+        if g is None:
+            return
+        self.served[index] += 1
+        if self.served[index] % g[1]:
+            return
+        now = self.env.now
+        median = g[0]
+        pause = LogNormal(median=median, p95=median * 2.5).sample(self.gc_rng)
+        p = self.pause[index]
+        start = max(now, p[0])
+        p[0], p[1], p[2] = start + pause, start, start + pause
+        self.m.count("gcPauses", now)
+        self.gc_ms[self.ctx.tl.index(now)] += pause / max(1, self.instance_count())
 
     def deps_for(self, op: str) -> list[EdgeRuntime]:
         d = self._deps.get(op)
@@ -306,6 +488,7 @@ class ServiceRuntime(RuntimeComponent):
 
     def finalize(self, t_end: float) -> None:
         super().finalize(t_end)
+        self.warming.finalize(t_end)
         if self.core_busy is not None:
             self.core_busy.finalize(t_end)
 
@@ -330,6 +513,82 @@ class ServiceRuntime(RuntimeComponent):
         if self.mem_slots is not None:
             peak_mb = cfg.memory_baseline_mb + self.peak_load * cfg.memory_per_request_mb
             out["memoryPeakGiB"] = round(min(peak_mb / 1024.0, cfg.memory_gib or 0.0), 3)
+        if self.gc_cfg is not None:
+            out["gcPauses"] = self.m.extra["gcPauses"].window if "gcPauses" in self.m.extra else 0
+        return out
+
+    def extra_timeseries(self) -> dict[str, list[float | None]]:
+        out: dict[str, list[float | None]] = {"inflightMean": list(self.m.inflight.mean_series())}
+        bucket_s = self.ctx.tl.bucket_ms / 1000.0
+        if self.gc_cfg is not None:
+            out["gcPauseMs"] = [v / bucket_s for v in self.gc_ms]
+        if self.warm_cfg is not None:
+            out["warmingReplicas"] = list(self.warming.mean_series())
+        if self.config.event_loop():
+            out["eventLoopLagMs"] = self.m.queue_wait.series()
+        return out
+
+    def behaviour(self) -> list[dict[str, Any]]:
+        cfg: ServiceConfig = self.config
+        active = {
+            "event_loop": cfg.event_loop(),
+            "gc_pauses": self.gc_cfg is not None,
+            "v8_gc": self.gc_cfg is not None,
+            "jit_warmup": self.warm_cfg is not None,
+            "tiered_compilation": self.warm_cfg is not None,
+            "thread_per_request": not cfg.event_loop(),
+        }
+        return [t.to_dict() for t in cfg.profile().traits if active.get(t.id, True)]
+
+    def explain(self, summary: dict[str, Any]) -> list[dict[str, Any]]:
+        cfg: ServiceConfig = self.config
+        out: list[dict[str, Any]] = []
+        svc = summary.get("meanServiceMs")
+        if cfg.event_loop() and svc:
+            loops = self.per_replica * self.replicas_mean()
+            out.append(
+                formula(
+                    "event_loop",
+                    "Event-loop capacity",
+                    "capacity = replicas × processes × 1000 ÷ CPU time per request",
+                    f"{num(self.replicas_mean())} × {self.per_replica} × 1000 ÷ {num(svc, 2)} ms",
+                    loops * 1000.0 / svc,
+                    "req/s",
+                    note="Only the CPU part of a request occupies the loop; time waiting on downstream calls does not count.",
+                    metric="eventLoopLagMs",
+                )
+            )
+        if self.gc_cfg is not None:
+            pause, every = self.gc_cfg
+            lam = summary.get("arrivalRps") or 0.0
+            per_replica = lam / max(1.0, self.replicas_mean())
+            share = per_replica / every * pause * 1.2 / 1000.0
+            out.append(
+                formula(
+                    "gc_share",
+                    "Time lost to GC pauses",
+                    "paused share ≈ (requests/s per replica ÷ requests per GC) × mean pause ÷ 1000",
+                    f"({num(per_replica, 2)} ÷ {every:,}) × {num(pause * 1.2, 2)} ms ÷ 1000",
+                    share,
+                    "",
+                    note="During a pause every request on that replica stalls, which shows up in the latency tail more than in the mean.",
+                    metric="gcPauseMs",
+                )
+            )
+        if self.warm_cfg is not None:
+            f, dur = self.warm_cfg
+            out.append(
+                formula(
+                    "warmup",
+                    "JIT warm-up",
+                    "slowdown(t) = 1 + (factor − 1) × max(0, 1 − age ÷ warm-up time)",
+                    f"factor {num(f, 2)}, warm-up {num(dur / 1000.0)} s",
+                    f,
+                    "x",
+                    note="Applies to replicas started during the run (autoscaling) and to new serverless instances; it makes scale-out slower to help.",
+                    metric="warmingReplicas",
+                )
+            )
         return out
 
     def instance_load(self, index: int) -> int:
@@ -351,25 +610,29 @@ class ServiceRuntime(RuntimeComponent):
         m.arrive(env.now)
         if self.mem_slots is not None and self.load[index] >= self.mem_slots:
             m.reject("out_of_memory", env.now)
+            span(req, self.id, "rejected", env.now, env.now, "out of memory")
             return rejected("out_of_memory", self.id)
         self.load[index] += 1
         if self.load[index] > self.peak_load:
             self.peak_load = self.load[index]
         pool = self.pools[index]
-        tok, reason = yield from pool.acquire()
+        tok, reason = yield from pool.acquire(req, self.id)
         if tok is None:
             self.load[index] -= 1
             m.reject(reason or "rejected", env.now)
+            span(req, self.id, "rejected", env.now, env.now, reason)
             return rejected(reason or "rejected", self.id)
         start = env.now
-        st = self.sample_time(cfg.service_time_ms, self.rng)
+        st = self.sample_time(cfg.service_time_ms, self.rng) * self._warm_factor(index, start)
         m.cpu.add(1, start)
-        yield from self.cores[index].run(st)
+        yield from self._cpu(req, index, st)
         m.cpu.add(-1, env.now)
         m.service.record(env.now, st)
+        span(req, self.id, "service", start, env.now, None)
+        self._after_request(index)
         outcome: Outcome = OK
         deps = self.deps_for(req.op)
-        if cfg.blocking_downstream:
+        if self.blocking:
             for e in deps:
                 outcome = yield from self.ctx.call(e, req, self.id)
                 if not outcome.ok:
@@ -405,7 +668,7 @@ class AutoscalingServiceRuntime(ServiceRuntime):
         self.starting = 0
         self.capacity = Gauge(tl)  # routable worker slots
         self.active = Gauge(tl)  # routable replicas
-        self.capacity.add(initial * config.workers_per_replica, 0.0)
+        self.capacity.add(initial * self.per_replica, 0.0)
         self.active.add(initial, 0.0)
         self._low_readings = 0
         self._busy_seen = 0.0
@@ -478,9 +741,9 @@ class AutoscalingServiceRuntime(ServiceRuntime):
         self.starting -= 1
         self.pools.append(self._new_pool())
         self.cores.append(self._new_cores())
-        self.load.append(0)
+        self._add_replica_state(now)
         self.routable.append(len(self.pools) - 1)
-        self.capacity.add(cfg.workers_per_replica, now)
+        self.capacity.add(self.per_replica, now)
         self.active.add(1, now)
         self.instances_version += 1
 
@@ -488,7 +751,7 @@ class AutoscalingServiceRuntime(ServiceRuntime):
         if len(self.routable) <= 1:
             return
         self.routable.pop()  # newest first; it keeps draining requests it already accepted
-        self.capacity.add(-self.config.workers_per_replica, now)
+        self.capacity.add(-self.per_replica, now)
         self.active.add(-1, now)
         self.instances_version += 1
 
@@ -499,7 +762,7 @@ class AutoscalingServiceRuntime(ServiceRuntime):
         self._t_end = t_end
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
-        return {"replicas": _count_series(self.active, self._t_end)}
+        return {**super().extra_timeseries(), "replicas": _count_series(self.active, self._t_end)}
 
     def replicas_mean(self) -> float:
         return self.active.window_mean()
@@ -521,13 +784,17 @@ class ServerlessRuntime(RuntimeComponent):
         self.m.has_cpu_split = True
         self.rng = ctx.rng(f"node:{node.id}:service")
         self.cold_rng = ctx.rng(f"node:{node.id}:cold")
-        self.idle: deque[float] = deque()  # release times of warm idle instances, oldest first
+        # warm idle instances, oldest release first: (release time, start time)
+        self.idle: deque[tuple[float, float]] = deque()
         self.alive = 0
         self.instances = Gauge(ctx.tl)
         self.keep_warm_ms = config.keep_warm_s * 1000.0
         self._deps: dict[str, list[EdgeRuntime]] = {}
         self._t_end: float | None = None
         self.cold_starts = 0
+        self.cold_dist = config.cold_start()
+        self.warm_cfg = config.warmup()
+        self.scale_bucket = TokenBucket(config.scale_out_rate / 10.0, float(config.scale_out_rate))
         ctx.env.process(self._reaper())
 
     def deps_for(self, op: str) -> list[EdgeRuntime]:
@@ -542,7 +809,7 @@ class ServerlessRuntime(RuntimeComponent):
 
     def _reclaim(self, now: float) -> None:
         n = 0
-        while self.idle and now - self.idle[0] > self.keep_warm_ms:
+        while self.idle and now - self.idle[0][0] > self.keep_warm_ms:
             self.idle.popleft()
             n += 1
         if n:
@@ -563,24 +830,31 @@ class ServerlessRuntime(RuntimeComponent):
         m.arrive(now)
         self._reclaim(now)
         cold = False
+        born = 0.0
         if self.idle:
-            self.idle.pop()  # most recently used instance is the warmest
-        elif self.alive < cfg.concurrency_limit:
+            _, born = self.idle.pop()  # most recently used instance is the warmest
+        elif self.alive < cfg.concurrency_limit and self.scale_bucket.try_take(now):
             self.alive += 1
             self.instances.add(1, now)
             cold = True
+            born = now
         else:
             m.reject("throttled", now)
+            span(req, self.id, "rejected", now, now, "throttled: concurrency or scale-out rate")
             return rejected("throttled", self.id)
         start = now
         m.busy.add(1, start)
         if cold:
             self.cold_starts += 1
             m.count("coldStarts", now)
-            c = cfg.cold_start_ms.sample(self.cold_rng)
+            c = self.cold_dist.sample(self.cold_rng)
             if c > 0:
                 yield env.timeout(c)
+            span(req, self.id, "cold_start", start, env.now, "starting a new instance")
         st = self.sample_time(cfg.service_time_ms, self.rng)
+        w = self.warm_cfg
+        if w is not None and born > 0 and env.now - born < w[1]:
+            st *= 1.0 + (w[0] - 1.0) * (1.0 - (env.now - born) / w[1])
         m.cpu.add(1, env.now)
         # one request per instance: only a fractional vCPU (below 1) slows the CPU work
         cpu_ms = st / cfg.cpu_cores if cfg.cpu_cores is not None and cfg.cpu_cores < 1 else st
@@ -596,7 +870,7 @@ class ServerlessRuntime(RuntimeComponent):
         end = env.now
         m.busy.add(-1, end)
         m.hold.record(end, end - start)
-        self.idle.append(end)
+        self.idle.append((end, born))
         m.depart(end, outcome, req)
         return outcome
 
@@ -606,7 +880,41 @@ class ServerlessRuntime(RuntimeComponent):
         self._t_end = t_end
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
-        return {"replicas": _count_series(self.instances, self._t_end)}
+        out: dict[str, list[float | None]] = {
+            "replicas": _count_series(self.instances, self._t_end)
+        }
+        if "coldStarts" in self.m.extra:
+            out["coldStartRps"] = list(self.m.extra["coldStarts"].rate_series())
+        return out
+
+    def behaviour(self) -> list[dict[str, Any]]:
+        cfg: ServiceConfig = self.config
+        traits = [t.to_dict() for t in SERVERLESS_TRAITS]
+        if self.warm_cfg is not None:
+            traits += [
+                t.to_dict()
+                for t in cfg.profile().traits
+                if t.id in ("jit_warmup", "tiered_compilation")
+            ]
+        return traits
+
+    def explain(self, summary: dict[str, Any]) -> list[dict[str, Any]]:
+        cfg: ServiceConfig = self.config
+        lam = summary.get("arrivalRps") or 0.0
+        hold = summary.get("meanHoldMs") or 0.0
+        need = lam * hold / 1000.0
+        return [
+            formula(
+                "concurrency",
+                "Instances needed",
+                "concurrent instances = arrival rate × time per request (Little's law)",
+                f"{num(lam, 2)} req/s × {num(hold, 2)} ms ÷ 1000",
+                need,
+                "instances",
+                note=f"Limit {cfg.concurrency_limit:,}; new instances at most {cfg.scale_out_rate:,} per 10 s, each paying a cold start of about {num(self.cold_dist.expected())} ms.",
+                metric="replicas",
+            )
+        ]
 
     def extra_summary(self) -> dict[str, Any]:
         return {
@@ -633,6 +941,7 @@ class ServiceModel(ComponentModel):
     )
     icon = "server"
     config_model = ServiceConfig
+    technology_profiles = SERVICE_PROFILES
     ports = (
         PortSpec("in", "in", "Requests", "Incoming requests."),
         PortSpec(
@@ -645,14 +954,15 @@ class ServiceModel(ComponentModel):
     modeled = (
         "FIFO queue per replica with a size limit and a wait timeout",
         "Worker pool per replica; service time sampled from the configured distribution",
+        "Technology behaviour: event loops (Node.js), stop-the-world GC pauses, JIT warm-up of new instances, runtime-specific serverless cold starts",
         "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
         "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
-        "Serverless (platform): one request per instance, cold starts, concurrency limit (throttling), idle reclaim",
+        "Serverless (platform): one request per instance, cold starts, concurrency limit and scale-out rate (throttling), idle reclaim",
         "CPU cores (when set): service time needs a core; with fewer cores than workers, work queues for a core",
         "Memory (when set): requests held by a replica use memory; past the limit new requests are refused",
     )
     not_modeled = (
-        "Garbage collection pauses; OOM kills and restarts (memory is a refusal limit instead)",
+        "OOM kills and restarts (memory is a refusal limit instead); concurrent GC CPU overhead",
         "Parallel fan-out calls (dependencies are called one after another)",
         "Node/cluster capacity limits for new pods, readiness probe failures",
         "Serverless memory-to-CPU scaling (set CPU directly) and provisioned concurrency",
@@ -694,7 +1004,7 @@ class ServiceModel(ComponentModel):
             name="Node.js on Docker",
             technology="nodejs",
             family="Container",
-            description="Single-threaded event loop per container: one handler at a time, I/O does not block it.",
+            description="One event loop per container: every request's CPU work queues for that single thread, while I/O waits don't hold it.",
             config={
                 "cpuCores": 1,
                 "memoryGib": 1,
@@ -777,7 +1087,6 @@ class ServiceModel(ComponentModel):
                 "technology": "nodejs",
                 "platform": "serverless",
                 "concurrencyLimit": 1000,
-                "coldStartMs": _lognormal(300, 900),
                 "keepWarmS": 300,
                 "serviceTimeMs": _lognormal(20, 60),
                 "costPerHour": 0.06,
@@ -790,8 +1099,8 @@ class ServiceModel(ComponentModel):
         if config.platform == "serverless":
             return int(config.concurrency_limit)
         if config.autoscaling:
-            return int(config.max_replicas * config.workers_per_replica)
-        return int(config.replicas * config.workers_per_replica)
+            return int(config.max_replicas * config.slots_per_replica())
+        return int(config.replicas * config.slots_per_replica())
 
     def validate(self, node: NodeSpec, config: Any, view: GraphView) -> list[Issue]:
         issues: list[Issue] = []

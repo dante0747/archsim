@@ -148,6 +148,13 @@ SDKs.
   requests; requests that find it empty are rejected immediately (`rate_limited`). Gateways
   such as Kong or an API-gateway-style preset use this to shed load at the edge.
 - When targets autoscale, the candidate list follows the replicas that are currently routable.
+- **Upstream timeout** (`upstreamTimeoutMs`, auto: nginx 60 s, Envoy 15 s, API Gateway 29 s,
+  ALB and Kong 60 s, none for HAProxy, Traefik and generic): the balancer stops waiting for a
+  target after it (or the link's timeout, if shorter) and answers 504 (`gateway_timeout`); the
+  target keeps working on the abandoned request.
+- **Circuit breakers** (`circuitBreakerMaxRequests`, auto: Envoy 1,024): when a target already
+  has that many requests in flight from the balancer, new ones get 503 at once
+  (`circuit_open`).
 
 ### Service (`service`)
 
@@ -176,63 +183,111 @@ SDKs.
   `scaleDowns` counters.
 - **Serverless** (`platform: serverless`): each in-flight request uses one instance. A warm
   idle instance is reused; otherwise a new instance starts and the request pays
-  `coldStartMs`, as long as fewer than `concurrencyLimit` instances exist; beyond the limit the
-  request is rejected (`throttled`). Instances idle longer than `keepWarmS` are reclaimed. The
-  report adds `replicas` (instances) and `coldStarts`.
+  `coldStartMs` (empty: the runtime's typical cold start), as long as fewer than
+  `concurrencyLimit` instances exist and the scale-out rate allows it (`scaleOutRate` new
+  instances per 10 s, AWS Lambda's 1,000 by default); otherwise the request is rejected
+  (`throttled`). Instances idle longer than `keepWarmS` are reclaimed. The report adds
+  `replicas` (instances), `coldStarts` and `coldStartRps`.
+- **Runtime behaviour** (by `technology`, settings with auto defaults):
+  - `runtimeModel: event_loop` (Node.js): each replica runs `processesPerReplica` event loops;
+    the CPU part of every request queues for a loop (`eventLoopLagMs`) and downstream calls
+    never hold it. `thread_pool` (everything else) gives each worker one request.
+  - Garbage collection: every `gcEveryRequests` requests a replica pauses all its CPU work for
+    a lognormal pause around `gcPauseMs` (Java about 12 ms, .NET 6, Node.js 2, Go 0.1, Rust
+    none; illustrative). CPU work running when a pause starts is delayed by the pause.
+  - JIT warm-up: replicas started during the run (autoscaling) and new serverless instances run
+    `warmupFactor` times slower at first, fading linearly over `warmupS` (Java 2.5x over 45 s,
+    .NET 1.5x over 20 s; illustrative).
 
 ### Cache (`cache`), cache-aside
 
-- Every command (lookup, invalidation, repopulation) runs on a pool of `concurrency`
-  executors (default 1, like Redis) taking `serviceTimeMs`, with its own queue.
+- Every command (lookup, invalidation, repopulation) runs on a pool of executors per shard
+  taking `serviceTimeMs`, with its own queue. **Redis and Valkey execute commands on one thread
+  per shard** whatever `concurrency` or the CPU says (`singleThreaded`, auto); Memcached, CDN
+  and Varnish run `concurrency` executors in parallel (Memcached's default is 4 threads).
+- `shards` (Redis Cluster, Memcached servers): keys hash to a shard; each shard has its own
+  executors, queue and memory, so a hot key loads one shard.
 - **Writes** perform one command and invalidate the key (TTL model). They never use the
   `miss` port. In the starter example the API writes to PostgreSQL first and then invalidates.
 - **Reads** perform one lookup command and decide hit or miss:
   - `fixed_ratio`: hit with probability `hitRatio` (the simplest assumption);
   - `ttl_keyspace`: hit if the request's key was filled less than `ttlSeconds` ago. The hit
     rate is *derived* from TTL, keyspace size and skew, and it includes **cold start** (the
-    cache starts empty, so early buckets show lower hit rates). Capacity is unbounded; there is
-    no eviction.
+    cache starts empty, so early buckets show lower hit rates). With memory set, each shard
+    holds 80% of its memory / `itemSizeKb` keys: `allkeys_lru` evicts the least recently used
+    key, `noeviction` (Redis's own default) refuses new keys with an out-of-memory error, so
+    missed reads stay uncached.
 - **Misses** continue through the `miss` port (reads only, at most one link) to the data
   store. The miss path's latency counts toward the caller's request. The cache executor is
   *not* held while the data store works.
 - If `populateOnMiss` is on and the miss succeeded, one more command writes the value back
   (and, in the TTL model, sets the key's expiry). If that command is rejected the read still
   succeeds; the key just is not cached.
+- `persistence: rdb`: every `snapshotIntervalS` the process forks; the fork blocks the command
+  thread for `forkMsPerGib` x the data held (Redis measures about 10-13 ms per GB on modern
+  hardware).
 
 ### Database (`database`)
 
 Each database instance has `maxConnections` concurrent queries, a wait queue
 (`queueCapacity`) and an acquire timeout (`queueTimeoutMs`). Reads take `readServiceTimeMs`,
-writes `writeServiceTimeMs`. The `technology` field (PostgreSQL, MySQL, MongoDB, Cassandra,
-DynamoDB-style, Elasticsearch...) is a label plus preset defaults; behaviour comes from these
-fields:
+writes `writeServiceTimeMs` (before the log flush and replica acknowledgements). Topology:
 
-- `readReplicas`: reads are spread round-robin over the primary and its replicas; writes go
-  to the primary. Replication lag is not modeled (replicas are always current).
+- `readReplicas`: copies per shard that replay the primary's writes. Writes go to the primary;
+  `readFrom` decides which instances serve reads (all round-robin, the primary only, or the
+  replicas only).
 - `shards`: requests are routed to `hash(key) mod shards`, using the workload's Zipf keyspace,
   so skewed popularity concentrates load on one shard (a hot partition). Each shard has its own
   primary (and replicas). The report counts arrivals per shard (`shard0`, `shard1`, ...).
-- `replicationFactor` + `consistency` (`one`, `quorum`, `all`): for leaderless stores, an
-  operation holds its connection for the k-th fastest of `replicationFactor` independently
-  sampled times (k = 1, a majority, or all). Contention on the other replicas is not modeled
-  separately.
+- `replicationFactor` + `consistency` (`one`, `quorum`, `all`): for leaderless and consensus
+  stores, an operation holds its connection for the k-th fastest of `replicationFactor`
+  independently sampled times (k = 1, a majority, or all).
 - `throughputLimitRps`: provisioned throughput per shard (token bucket); excess requests are
   rejected immediately (`throttled`).
 
-Locks, MVCC contention, query plans, I/O and buffer caches are not modeled.
+**Technology behaviour.** The `technology` decides the mechanisms below; each is a setting in
+the "Technology behaviour" group whose default `auto` takes the technology's value (see
+`archsim_engine/technology.py`, which lists every default with its documentation link):
+
+| Mechanism | What happens | On by default for |
+| --- | --- | --- |
+| `rowLocks` | A write locks its key; a second write to it waits (holding its connection) until the first commits. | relational databases, MongoDB, distributed SQL |
+| `readsWaitForWrites` | A read of a locked key waits for the writer (no MVCC). | SQL Server (READ COMMITTED without RCSI) |
+| `commitFlush` | Each write waits for a write-ahead log flush (`commitFlushMs`); commits arriving during a flush share the next one (group commit). | relational databases, MongoDB |
+| `replication: async` | Replicas replay each committed write after `replicationDelayMs`, on `replicaApplyWorkers` workers at `replicaApplyFactor` x the write time. Replay that falls behind is replication lag; a replica read of a key whose latest write it has not replayed counts as stale. | PostgreSQL (1 worker), MySQL (4), Oracle, SQL Server |
+| `replication: majority` / `all` | The write also waits until a majority of the copies (or all replicas) have replayed it, plus the acknowledgement's network trip. | MongoDB (majority), Elasticsearch (all) |
+| `readTickets` / `writeTickets` | At most N operations of each kind execute at once per instance, beyond the connection limit. | MongoDB (128 each) |
+| `scatterReads` | That share of reads goes to every shard and finishes with the slowest; `routerOverheadMs` is added. | Elasticsearch (every search) |
+| `sstablesPerRead` | A buffer-cache miss costs that many disk reads. | Cassandra (2), Scylla (1.5) |
+| `capacityUnits` | Reads cost ⌈item / 4 KB⌉ read units (half for eventually consistent reads), writes ⌈item / 1 KB⌉ write units. Each partition serves at most 3,000 read and 1,000 write units per second; the table at most its provisioned units (plus 300 s of banked burst) or, on demand, 12,000 / 4,000. Partitions = max(⌈RCU / 3000 + WCU / 1000⌉, ⌈size / 10 GB⌉). | DynamoDB |
 
 ### Message queue (`message_queue`)
 
 Kafka, RabbitMQ, SQS-style, Pub/Sub-style, NATS or Redis Streams. A publish takes
 `publishTimeMs` and the **producer's request succeeds once the message is acknowledged**; the
 work continues asynchronously. Messages wait in a backlog (bounded by `maxDepth`; a full queue
-rejects publishes with `queue_full`) until one of `min(consumers, partitions)` consumers picks
-them up, spends `consumerTimeMs` and calls the queue's outgoing links in order (like a
-service's dependencies). A failed delivery is retried up to `maxDeliveries` times, then
-dead-lettered. The run keeps going until the backlog drains or the drain limit is reached.
-The report shows the backlog over time (`lag`), the wait before pickup, message age at
-processing, and `processed` / `failedDeliveries` / `deadLettered` counters. Client latency and
-success do not include background processing.
+rejects publishes with `queue_full`) until a consumer picks them up, spends `consumerTimeMs`
+and calls the queue's outgoing links in order (like a service's dependencies). A failed
+delivery is retried up to `maxDeliveries` times, then dead-lettered. The run keeps going until
+the backlog drains or the drain limit is reached. Client latency and success do not include
+background processing.
+
+Technology behaviour (settings with `auto` defaults):
+
+- `partitioning`: `key` (Kafka) hashes each message's key to one of `partitions` ordered
+  partitions; consumer i owns partitions p with p mod c = i (c = min(consumers, partitions))
+  and processes them one message at a time, so a hot key backs up its partition while other
+  consumers idle (`partitionLagMax`). `none` is one shared FIFO with competing consumers.
+- `acks: all` adds `replicationMs` to every publish; `lingerMs` adds a uniform share of the
+  producer's batching delay (Kafka 4.0: 5 ms).
+- `flowControl` (RabbitMQ): once the backlog uses `memoryHighWatermark` of `memoryGib` (at
+  `messageSizeKb` per message), publishers block until it falls below 90% of that: they wait
+  instead of failing (`publishBlockedMs`).
+- `visibilityTimeoutS` (SQS 30 s, Pub/Sub 10 s): a message still being processed when it runs
+  out becomes visible again and another consumer processes it too (`redeliveries`).
+- `fifo` (SQS): publishes above `fifoLimitRps` (300) are throttled.
+- `delivery: at_most_once` (core NATS): a full backlog drops the message silently; the
+  publisher still gets its acknowledgement (`dropped`).
 
 ### Third-party API (`external_api`)
 
@@ -446,19 +501,46 @@ queue capacities up to 100,000 per pool, at most 5 attempts per call and 600 s o
 Execution speed is roughly 5,000-10,000 simulated requests per second on a laptop, depending
 on graph depth.
 
+## Calculations behind the numbers (`explain`)
+
+Every node in the report carries `explain`: formulas written out symbolically, again with the
+run's own numbers substituted, and the result. Generic entries come from queueing theory
+(arrival rate, capacity from slots, utilization ρ = λ·H / (1000·c), Little's law, and the M/M/c
+waiting time through the Erlang C formula); components add their own (buffer cache hit ratio,
+the hottest row's lock, group commit, replica replay capacity, DynamoDB partitions and unit
+costs, fan-out, single-threaded command capacity, effective consumers, event-loop capacity, GC
+time, JIT warm-up, serverless instances needed). The predictions are the textbook models; the
+simulation does not use them, so the two can be compared. `report.explain` adds system
+formulas (throughput, success rate, retry amplification) and `latencyBreakdown`: the mean time
+a successful request spends in each component, excluding its downstream calls, on the network
+and backing off.
+
+## Request traces
+
+Every n-th request (about 1,200 per run, chosen by request number so no random numbers are
+drawn) records spans: each network leg, the time in each component, and inside it the waits
+(worker or connection queue, tickets, row locks, publisher blocking, backlog) and work
+(processing, query, log flush, replica acknowledgements, GC pauses, cold starts, snapshot
+forks), plus markers for cache hits and misses, stale reads, rejections and timeouts. The
+report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8 failures
+(`report.traces`), each span relative to the request's start with its call depth.
+
 ## What is NOT modeled
 
-- CPU, memory, disk and network bandwidth contention; garbage collection; noisy neighbours.
+- Disk and network bandwidth contention; concurrent GC CPU overhead; noisy neighbours.
 - Health checks and automatic failover, deployments and rollouts; faults are the three kinds
   above (outage, slowdown, link latency), scheduled by you, not random failures.
 - Autoscaling cooldowns and stabilization windows beyond the simple rules above; node
-  provisioning; per-language cold-start differences beyond the configured distribution.
+  provisioning.
 - Closed-loop users with think time; client connection pools; HTTP keep-alive and TLS setup.
-- Parallel fan-out calls (dependencies are sequential), streaming, message ordering and
-  partition rebalancing.
-- Database locks, MVCC contention, query plans, replication lag, rebalancing of shards.
-- Cache memory limits and eviction, request coalescing / thundering herd, replication.
-- Circuit breakers, priority queues, deadline propagation between services.
+- Parallel fan-out calls between services (dependencies are sequential; database scatter
+  reads are the exception), streaming, consumer group rebalancing.
+- Deadlocks, range (gap) locks, lock escalation, vacuum and compaction, query plans,
+  rebalancing of shards, adaptive capacity.
+- Cache eviction policies other than LRU and noeviction, request coalescing / thundering herd,
+  cache replicas.
+- Circuit breakers other than Envoy-style request limits on a load balancer, priority queues,
+  deadline propagation between services.
 - Multiple traffic sources, regions and cross-region latency.
 - Packet loss, bandwidth limits and payload sizes.
 

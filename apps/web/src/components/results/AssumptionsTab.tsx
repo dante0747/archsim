@@ -10,7 +10,7 @@ const GENERAL_NOTES = [
   "ArchSim runs a synthetic discrete-event simulation of the model you drew. It is offline: nothing is measured from a real system.",
   "Every performance input (service times, hit ratios, latencies, traffic) is an assumption you assert. Results inherit their accuracy.",
   "Without calibration against real telemetry, treat absolute numbers as rough. Comparisons between scenarios under the same assumptions are more trustworthy.",
-  "Not modeled: CPU/memory contention, garbage collection, autoscaling, network bandwidth and packet loss, locks and disk I/O, cache eviction, failures of machines or regions.",
+  "Components behave like their technology (locks, group commit, replica lag, event loops, GC pauses, partitions...), with documented defaults where they exist. Not modeled: network bandwidth and packet loss, failures of machines or regions, noisy neighbours.",
 ];
 
 export function AssumptionsTab() {

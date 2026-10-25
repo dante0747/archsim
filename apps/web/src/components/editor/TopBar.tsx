@@ -49,7 +49,7 @@ import { useUi } from "@/store/ui";
 
 export const SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ K  ·  /", "Command palette"],
-  ["1  ·  2  ·  3", "Design · Test · Results"],
+  ["1  ·  2  ·  3  ·  4", "Design · Test · Results · Dashboard"],
   ["Ctrl/⌘ S", "Save"],
   ["Ctrl/⌘ Enter", "Simulate"],
   ["Ctrl/⌘ Z", "Undo"],

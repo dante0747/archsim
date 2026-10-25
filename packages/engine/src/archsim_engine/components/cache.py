@@ -1,8 +1,10 @@
 """Cache used cache-aside (Redis, Valkey, Memcached, CDN edge, Varnish): hits return
 immediately, misses continue to the data store linked from the ``miss`` port.
 
-The ``technology`` field is a label; presets fill in illustrative defaults (executors, command
-time, hit ratio) for each technology."""
+The technology sets behaviour (see ``archsim_engine.technology``): Redis and Valkey execute
+commands on one thread per shard however many cores they have, evict by policy (noeviction makes
+writes fail when memory is full) and stall while forking for snapshots; Memcached runs worker
+threads in parallel. Settings in the "Technology behaviour" group default to *auto*."""
 
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ from archsim_engine.components.resources import (
     memory_field,
 )
 from archsim_engine.distributions import Distribution, Exponential
+from archsim_engine.explain import formula, num, pct
 from archsim_engine.issues import Issue, error, warning
 from archsim_engine.metrics import Gauge
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
@@ -34,16 +37,21 @@ from archsim_engine.runtime import (
     SimContext,
     WorkerPool,
     rejected,
+    span,
 )
 from archsim_engine.schema import CamelModel, NodeSpec
+from archsim_engine.technology import CACHE_PROFILES, Profile, resolve
+
+BEHAVIOUR = "Technology behaviour"
 
 
 class CacheConfig(CamelModel):
     technology: Literal["redis", "valkey", "memcached", "cdn", "varnish", "generic"] = Field(
         default="redis",
         description=(
-            "Technology label. It does not change behaviour by itself; presets set executors, "
-            "command time and hit ratio to illustrative defaults for that technology."
+            "The cache product. It sets how commands execute (one thread for Redis and Valkey, "
+            "worker threads for Memcached) and the eviction behaviour, shown under Technology "
+            "behaviour. Presets also fill in typical numbers."
         ),
         json_schema_extra=ui(label="Technology", group="Technology"),
     )
@@ -97,8 +105,68 @@ class CacheConfig(CamelModel):
         default=1,
         ge=1,
         le=1024,
-        description="Commands executed in parallel (Redis executes commands on a single thread).",
+        description=(
+            "Commands executed in parallel per shard (Memcached threads, CDN or Varnish "
+            "parallelism). Ignored when commands run single-threaded (Redis, Valkey)."
+        ),
         json_schema_extra=ui(label="Command executors", group="Capacity"),
+    )
+    shards: int = Field(
+        default=1,
+        ge=1,
+        le=1000,
+        description=(
+            "Cache nodes the keys are split across (Redis Cluster shards, Memcached servers). "
+            "Each has its own executors and memory; keys hash to a shard, so a hot key loads one."
+        ),
+        json_schema_extra=ui(label="Shards (cluster nodes)", group="Capacity"),
+    )
+    single_threaded: Literal["auto", "on", "off"] = Field(
+        default="auto",
+        description="Execute commands one at a time per shard, whatever the cores. Auto: on for Redis and Valkey.",
+        json_schema_extra=ui(label="Single-threaded commands", group=BEHAVIOUR),
+    )
+    eviction_policy: Literal["auto", "allkeys_lru", "noeviction"] = Field(
+        default="auto",
+        description=(
+            "When memory is full (TTL model with memory set): allkeys_lru evicts the least "
+            "recently used key; noeviction (Redis's own default) refuses new keys with an "
+            "out-of-memory error, so missed reads cannot be cached. Auto: allkeys_lru."
+        ),
+        json_schema_extra=ui(label="Eviction policy", group=BEHAVIOUR),
+    )
+    persistence: Literal["auto", "none", "rdb"] = Field(
+        default="auto",
+        description=(
+            "rdb: snapshot to disk every interval; forking the process blocks commands for "
+            "about the fork time per GiB of data. Auto: none (cache use)."
+        ),
+        json_schema_extra=ui(label="Persistence", group=BEHAVIOUR),
+    )
+    snapshot_interval_s: float = Field(
+        default=60.0,
+        gt=0,
+        le=86_400,
+        description="Time between RDB snapshots (s).",
+        json_schema_extra=ui(
+            label="Snapshot interval",
+            unit="s",
+            group=BEHAVIOUR,
+            visible_when={"persistence": "rdb"},
+        ),
+    )
+    fork_ms_per_gib: float = Field(
+        default=10.0,
+        ge=0,
+        le=10_000,
+        description="Command stall per GiB of data while forking for a snapshot (ms). Typical Linux hosts: around 10; some virtual machines much more.",
+        json_schema_extra=ui(
+            label="Fork stall per GiB",
+            unit="ms",
+            group=BEHAVIOUR,
+            assumption=True,
+            visible_when={"persistence": "rdb"},
+        ),
     )
     queue_capacity: int = Field(
         default=10_000,
@@ -139,6 +207,16 @@ class CacheConfig(CamelModel):
     def can_miss(self) -> bool:
         return self.hit_model == "ttl_keyspace" or self.hit_ratio < 1.0
 
+    def profile(self) -> Profile:
+        return CACHE_PROFILES.get(self.technology, CACHE_PROFILES["generic"])
+
+    def setting(self, key: str, fallback: Any = None) -> Any:
+        return resolve(getattr(self, key, None), self.profile(), key, fallback)
+
+    def executors(self) -> int:
+        """Commands one shard executes at once."""
+        return 1 if self.setting("single_threaded", "off") == "on" else self.concurrency
+
     def capacity_keys(self) -> int | None:
         """Keys that fit in 80% of memory, or None when memory is not set."""
         if self.memory_gib is None:
@@ -146,52 +224,130 @@ class CacheConfig(CamelModel):
         return max(1, math.floor(0.8 * self.memory_gib * 1024 * 1024 / self.item_size_kb))
 
 
+class CacheShard:
+    __slots__ = ("capacity", "cores", "expiry", "paused_until", "pool")
+
+    def __init__(self, pool: WorkerPool, cores: Cores, capacity: int | None, lru: bool) -> None:
+        self.pool = pool
+        self.cores = cores
+        self.capacity = capacity
+        self.expiry: dict[int, float] = OrderedDict() if lru else {}
+        self.paused_until = 0.0
+
+
 class CacheRuntime(RuntimeComponent):
     def __init__(self, ctx: SimContext, node: NodeSpec, config: CacheConfig) -> None:
-        super().__init__(ctx, node, config, config.concurrency)
-        self.pool = WorkerPool(
-            ctx.env, config.concurrency, config.queue_capacity, config.queue_timeout_ms, self.m
-        )
+        self.execs = config.executors()
+        super().__init__(ctx, node, config, self.execs * config.shards)
+        env = ctx.env
         self.rng = ctx.rng(f"node:{node.id}:service")
         self.hit_rng = ctx.rng(f"node:{node.id}:hits")
         self.ttl_ms = config.ttl_seconds * 1000.0
         self.ttl_mode = config.hit_model == "ttl_keyspace"
-        # With memory set the TTL keyspace is bounded: least recently used keys are evicted.
-        self.capacity = config.capacity_keys() if self.ttl_mode else None
-        self.expiry: dict[int, float] = OrderedDict() if self.capacity is not None else {}
+        self.policy = config.setting("eviction_policy", "allkeys_lru")
+        self.persistence = config.setting("persistence", "none")
+        # With memory set the TTL keyspace is bounded per shard.
+        capacity = config.capacity_keys() if self.ttl_mode else None
         self.core_busy = Gauge(ctx.tl) if config.cpu_cores is not None else None
-        self.cores = Cores(ctx.env, config.cpu_cores, config.concurrency, self.core_busy)
+        self.shards = [
+            CacheShard(
+                WorkerPool(env, self.execs, config.queue_capacity, config.queue_timeout_ms, self.m),
+                Cores(env, config.cpu_cores, self.execs, self.core_busy),
+                capacity,
+                capacity is not None,
+            )
+            for _ in range(config.shards)
+        ]
+        self.capacity = capacity * config.shards if capacity is not None else None
+        self.mem_used: list[float | None] = [None] * ctx.tl.n
+        self.fork_stall = [0.0] * ctx.tl.n
+        if self.capacity is not None:
+            env.process(self._memory_sampler())
+        if self.persistence == "rdb":
+            for sh in self.shards:
+                env.process(self._snapshots(sh))
 
-    def _command(self) -> Generator[simpy.Event, Any, str | None]:
+    def _shard(self, key: int) -> CacheShard:
+        n = len(self.shards)
+        if n == 1:
+            return self.shards[0]
+        return self.shards[(((key + 1) * 2654435761) & 0xFFFFFFFF) % n]
+
+    def _command(
+        self, sh: CacheShard, req: Request | None = None
+    ) -> Generator[simpy.Event, Any, str | None]:
         """Execute one cache command on an executor. Returns a rejection reason or None."""
         env = self.env
-        tok, reason = yield from self.pool.acquire()
+        tok, reason = yield from sh.pool.acquire(req, self.id)
         if tok is None:
             return reason or "rejected"
         start = env.now
+        if sh.paused_until > env.now:
+            t0 = env.now
+            yield env.timeout(sh.paused_until - env.now)
+            if req is not None:
+                span(req, self.id, "fork", t0, env.now, "snapshot fork blocked the command thread")
         st = self.sample_time(self.config.service_time_ms, self.rng)
-        yield from self.cores.run(st)
-        self.pool.release(tok)
+        yield from sh.cores.run(st)
+        sh.pool.release(tok)
         self.m.service.record(env.now, st)
         self.m.hold.record(env.now, env.now - start)
         return None
 
-    def _is_hit(self, req: Request) -> bool:
+    def _is_hit(self, sh: CacheShard, req: Request) -> bool:
         if self.ttl_mode:
-            exp = self.expiry.get(req.key)
+            exp = sh.expiry.get(req.key)
             hit = exp is not None and exp > self.env.now
-            if hit and self.capacity is not None:
-                self.expiry.move_to_end(req.key)  # type: ignore[attr-defined]
+            if hit and sh.capacity is not None:
+                sh.expiry.move_to_end(req.key)  # type: ignore[attr-defined]
             return hit
         return self.hit_rng.random() < self.config.hit_ratio
 
-    def _fill(self, key: int) -> None:
-        self.expiry[key] = self.env.now + self.ttl_ms
-        if self.capacity is not None:
-            self.expiry.move_to_end(key)  # type: ignore[attr-defined]
-            while len(self.expiry) > self.capacity:
-                self.expiry.popitem(last=False)  # type: ignore[call-arg]
-                self.m.count("evictions", self.env.now)
+    def _fill(self, sh: CacheShard, key: int) -> bool:
+        """Cache ``key``. False when memory is full and the policy refuses new keys."""
+        now = self.env.now
+        full = sh.capacity is not None and key not in sh.expiry and len(sh.expiry) >= sh.capacity
+        if full and self.policy == "noeviction":
+            # drop expired keys first (Redis reclaims them); refuse if still full
+            expired = [k for k, e in list(sh.expiry.items())[:64] if e <= now]
+            for k in expired:
+                sh.expiry.pop(k, None)
+            if len(sh.expiry) >= (sh.capacity or 0):
+                self.m.count("oomErrors", now)
+                return False
+        sh.expiry[key] = now + self.ttl_ms
+        if sh.capacity is not None:
+            sh.expiry.move_to_end(key)  # type: ignore[attr-defined]
+            while len(sh.expiry) > sh.capacity:
+                sh.expiry.popitem(last=False)  # type: ignore[call-arg]
+                self.m.count("evictions", now)
+        return True
+
+    def _memory_sampler(self) -> Generator[simpy.Event, Any, None]:
+        tl = self.ctx.tl
+        step = max(50.0, tl.bucket_ms / 4.0)
+        while True:
+            i = tl.index(self.env.now)
+            used = sum(len(sh.expiry) for sh in self.shards) / (self.capacity or 1)
+            prev = self.mem_used[i]
+            self.mem_used[i] = used if prev is None else max(prev, used)
+            yield self.env.timeout(step)
+
+    def _snapshots(self, sh: CacheShard) -> Generator[simpy.Event, Any, None]:
+        cfg: CacheConfig = self.config
+        env = self.env
+        interval = cfg.snapshot_interval_s * 1000.0
+        while True:
+            yield env.timeout(interval)
+            if self.ttl_mode:
+                gib = len(sh.expiry) * cfg.item_size_kb / (1024 * 1024)
+            else:
+                gib = 0.8 * (cfg.memory_gib or 0.0)
+            stall = cfg.fork_ms_per_gib * gib
+            if stall > 0:
+                sh.paused_until = max(sh.paused_until, env.now + stall)
+                self.m.count("forks", env.now)
+                self.fork_stall[self.ctx.tl.index(env.now)] += stall
 
     def finalize(self, t_end: float) -> None:
         super().finalize(t_end)
@@ -204,37 +360,117 @@ class CacheRuntime(RuntimeComponent):
         cores = self.config.cpu_cores
         if cores is None or not service_ms:
             return {}
-        return {"cpu": cores * 1000.0 / service_ms}
+        usable = min(cores, float(self.execs)) * len(self.shards)
+        return {"cpu": usable * 1000.0 / service_ms}
+
+    def extra_timeseries(self) -> dict[str, list[float | None]]:
+        out: dict[str, list[float | None]] = {}
+        if "evictions" in self.m.extra:
+            out["evictionRps"] = list(self.m.extra["evictions"].rate_series())
+        if self.capacity is not None:
+            out["memoryUsedRatio"] = list(self.mem_used)
+        if self.persistence == "rdb":
+            out["forkPauseMs"] = list(self.fork_stall)
+        return out
 
     def extra_summary(self) -> dict[str, Any]:
         out: dict[str, Any] = {}
         if self.core_busy is not None:
-            out["cpuCoreUtilization"] = core_utilization(self.core_busy, self.cores.n)
+            out["cpuCoreUtilization"] = core_utilization(
+                self.core_busy, self.shards[0].cores.n * len(self.shards)
+            )
         if self.capacity is not None:
             out["capacityKeys"] = self.capacity
-            out["keysCached"] = len(self.expiry)
+            out["keysCached"] = sum(len(sh.expiry) for sh in self.shards)
+        out["executorsPerShard"] = self.execs
+        return out
+
+    def behaviour(self) -> list[dict[str, Any]]:
+        cfg: CacheConfig = self.config
+        active = {
+            "single_thread": self.execs == 1 and cfg.setting("single_threaded") == "on",
+            "eviction": self.ttl_mode and cfg.memory_gib is not None,
+            "fork_stall": self.persistence == "rdb",
+        }
+        return [t.to_dict() for t in cfg.profile().traits if active.get(t.id, True)]
+
+    def explain(self, summary: dict[str, Any]) -> list[dict[str, Any]]:
+        cfg: CacheConfig = self.config
+        out: list[dict[str, Any]] = []
+        svc = cfg.service_time_ms.expected()
+        cap = self.execs * len(self.shards) * 1000.0 / svc if svc else None
+        out.append(
+            formula(
+                "command_capacity",
+                "Command capacity",
+                "capacity = shards × executors per shard × 1000 ÷ command time",
+                f"{len(self.shards)} × {self.execs} × 1000 ÷ {num(svc, 3)} ms",
+                cap,
+                "commands/s",
+                note=(
+                    "Redis and Valkey run commands on one thread per shard: adding cores does "
+                    "not raise this, adding shards does."
+                    if cfg.setting("single_threaded") == "on"
+                    else None
+                ),
+                metric="utilization",
+            )
+        )
+        hits = summary.get("counters", {}).get("hits", 0)
+        misses = summary.get("counters", {}).get("misses", 0)
+        if hits + misses:
+            out.append(
+                formula(
+                    "hit_ratio",
+                    "Hit ratio",
+                    "hit ratio = hits ÷ (hits + misses)",
+                    f"{hits:,} ÷ ({hits:,} + {misses:,})",
+                    hits / (hits + misses),
+                    "",
+                    note=(
+                        f"Each miss also costs a read on the data store behind the cache "
+                        f"({pct(misses / (hits + misses))} of reads)."
+                    ),
+                    metric="hitRatio",
+                )
+            )
+        if self.capacity is not None:
+            out.append(
+                formula(
+                    "key_capacity",
+                    "Keys that fit",
+                    "keys = shards × 80% of memory ÷ item size",
+                    f"{len(self.shards)} × 0.8 × {num(cfg.memory_gib)} GiB ÷ {num(cfg.item_size_kb)} KiB",
+                    float(self.capacity),
+                    "keys",
+                    metric="memoryUsedRatio",
+                )
+            )
         return out
 
     def handle(self, req: Request) -> Generator[simpy.Event, Any, Outcome]:
         env = self.env
         m = self.m
         m.arrive(env.now)
-        reason = yield from self._command()
+        sh = self._shard(req.key)
+        reason = yield from self._command(sh, req)
         if reason is not None:
             m.reject(reason, env.now)
             return rejected(reason, self.id)
         if req.op == "write":
             # cache-aside write path: invalidate the key
             if self.ttl_mode:
-                self.expiry.pop(req.key, None)
+                sh.expiry.pop(req.key, None)
             m.count("invalidations", env.now)
             m.depart(env.now, OK, req)
             return OK
-        if self._is_hit(req):
+        if self._is_hit(sh, req):
             m.count("hits", env.now)
+            span(req, self.id, "hit", env.now, env.now, "served from the cache")
             m.depart(env.now, OK, req)
             return OK
         m.count("misses", env.now)
+        span(req, self.id, "miss", env.now, env.now, "not cached: asking the data store")
         miss_edges = self.out_edges("miss")
         if not miss_edges:  # prevented by validation; kept for safety
             outcome = rejected("miss_unrouted", self.id)
@@ -242,11 +478,9 @@ class CacheRuntime(RuntimeComponent):
             return outcome
         outcome = yield from self.ctx.call(miss_edges[0], req, self.id)
         if outcome.ok and self.config.populate_on_miss:
-            r = yield from self._command()
-            if r is None:
+            r = yield from self._command(sh, req)
+            if r is None and (not self.ttl_mode or self._fill(sh, req.key)):
                 m.count("populates", env.now)
-                if self.ttl_mode:
-                    self._fill(req.key)
         m.depart(env.now, outcome, req)
         return outcome
 
@@ -261,6 +495,7 @@ class CacheModel(ComponentModel):
     )
     icon = "zap"
     config_model = CacheConfig
+    technology_profiles = CACHE_PROFILES
     ports = (
         PortSpec("in", "in", "Commands", "Reads (lookups) and writes (invalidations)."),
         PortSpec(
@@ -274,15 +509,17 @@ class CacheModel(ComponentModel):
     )
     modeled = (
         "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
-        "Single-threaded command execution with a queue",
+        "Technology behaviour: single-threaded commands (Redis, Valkey) or worker threads (Memcached)",
+        "Cluster shards: keys hash to a shard with its own executors and memory",
         "Miss path latency added to the caller; repopulation cost",
-        "Memory (when set, TTL model): key capacity from memory and item size, LRU eviction",
+        "Memory (when set, TTL model): key capacity per shard, LRU eviction or noeviction out-of-memory errors",
+        "RDB snapshots (when on): fork stalls block commands for a time proportional to the data",
         "CPU cores (when set): commands queue for a core when executors outnumber cores",
     )
     not_modeled = (
         "LFU and other eviction policies; memory for the fixed-ratio model (checked, not simulated)",
         "Thundering herd / request coalescing on misses",
-        "Replication, persistence and cluster sharding",
+        "Replicas and failover; copy-on-write memory growth during snapshots",
         "CDN geography (edge-to-user latency belongs on the incoming link)",
     )
     presets = (
@@ -291,7 +528,8 @@ class CacheModel(ComponentModel):
             "Redis",
             "redis",
             "In-memory",
-            "Single Redis node: commands run on one thread, sub-millisecond. Illustrative defaults.",
+            "Single Redis node: commands run on one thread, sub-millisecond; extra cores do "
+            "not add command throughput. Illustrative defaults.",
             {
                 "cpuCores": 2,
                 "memoryGib": 6.4,
@@ -306,13 +544,14 @@ class CacheModel(ComponentModel):
             "Valkey",
             "valkey",
             "In-memory",
-            "Redis-compatible; multi-threaded I/O lets a few commands proceed in parallel. "
-            "Illustrative defaults.",
+            "Redis-compatible; I/O threads take socket work off the command thread, so each "
+            "command is shorter, but commands still run one at a time. Illustrative defaults.",
             {
                 "cpuCores": 2,
                 "memoryGib": 6.4,
                 "technology": "valkey",
-                "concurrency": 4,
+                "concurrency": 1,
+                "serviceTimeMs": {"kind": "exponential", "mean": 0.035},
                 "costPerHour": 0.1,
             },
             ("in-memory", "key-value"),
@@ -322,12 +561,13 @@ class CacheModel(ComponentModel):
             "Memcached",
             "memcached",
             "In-memory",
-            "Multi-threaded, simple get/set cache. Illustrative defaults.",
+            "Multi-threaded get/set cache with its default 4 worker threads. Illustrative "
+            "defaults.",
             {
                 "cpuCores": 2,
                 "memoryGib": 6.4,
                 "technology": "memcached",
-                "concurrency": 8,
+                "concurrency": 4,
                 "serviceTimeMs": {"kind": "exponential", "mean": 0.04},
                 "costPerHour": 0.09,
             },
@@ -371,10 +611,10 @@ class CacheModel(ComponentModel):
     )
 
     def capacity_slots(self, config: Any) -> int | None:
-        return int(config.concurrency)
+        return int(config.executors() * config.shards)
 
     def uses_keys(self, config: Any) -> bool:
-        return bool(config.hit_model == "ttl_keyspace")
+        return bool(config.hit_model == "ttl_keyspace" or config.shards > 1)
 
     def emitted_types(
         self, port: str, incoming: set[str], config: Any, view: GraphView
@@ -428,6 +668,17 @@ class CacheModel(ComponentModel):
                         hint="Add memory, or use the TTL model to simulate eviction.",
                     )
                 )
+        if config.concurrency > 1 and config.setting("single_threaded") == "on":
+            issues.append(
+                warning(
+                    "cache.single_threaded",
+                    f"{name} is {config.technology}, which executes commands on one thread, so "
+                    f"its {config.concurrency} command executors count as 1 per shard.",
+                    node_id=node.id,
+                    path="concurrency",
+                    hint="Add shards (cluster nodes) to run more commands in parallel.",
+                )
+            )
         if config.hit_model == "ttl_keyspace" and not config.populate_on_miss:
             issues.append(
                 warning(

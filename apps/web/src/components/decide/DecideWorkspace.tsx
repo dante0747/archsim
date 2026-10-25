@@ -8,9 +8,11 @@ import { CircleCheck, Crosshair, FileText, Gauge, GitCompareArrows, ListTree, Lo
 import { useEffect, useRef } from "react";
 import { useDesignReview } from "@/components/build/DesignReview";
 import { AssumptionsTab } from "@/components/results/AssumptionsTab";
+import { CalculationsTab } from "@/components/results/CalculationsTab";
 import { ChartsTab } from "@/components/results/ChartsTab";
 import { CompareTab } from "@/components/results/CompareTab";
 import { ComponentsTab } from "@/components/results/ComponentsTab";
+import { TracesTab } from "@/components/results/TracesTab";
 import { OverviewTab } from "@/components/results/OverviewTab";
 import { RunsTab } from "@/components/results/RunsTab";
 import { Button } from "@/components/ui/button";
@@ -100,6 +102,8 @@ function DetailsPage() {
             { key: "summary", label: "Summary" },
             { key: "time", label: "Over time" },
             { key: "components", label: "Per component" },
+            { key: "calculations", label: "Calculations" },
+            { key: "traces", label: "Request traces" },
             { key: "assumptions", label: "Assumptions" },
           ]}
         />
@@ -108,6 +112,8 @@ function DetailsPage() {
         {view === "summary" && <DetailsSummary />}
         {view === "time" && <ChartsTab />}
         {view === "components" && <ComponentsTab />}
+        {view === "calculations" && <CalculationsTab />}
+        {view === "traces" && <TracesTab />}
         {view === "assumptions" && <AssumptionsTab />}
       </div>
     </div>

@@ -27,6 +27,7 @@ from pydantic import BaseModel, ValidationError
 
 from archsim_engine.issues import Issue, error
 from archsim_engine.schema import REQUEST_TYPES, RequestType
+from archsim_engine.technology import Profile, defaults_catalog, traits_catalog
 
 if TYPE_CHECKING:
     from archsim_engine.runtime import RuntimeComponent, SimContext
@@ -151,7 +152,8 @@ def describe_fields(model: type[BaseModel]) -> list[dict[str, Any]]:
         key = info.alias or name
         kind, nullable, options = _field_kind(info.annotation)
         extra = info.json_schema_extra if isinstance(info.json_schema_extra, dict) else {}
-        meta: dict[str, Any] = dict(extra.get("x-ui", {}))
+        raw_ui = extra.get("x-ui", {})
+        meta: dict[str, Any] = dict(raw_ui) if isinstance(raw_ui, dict) else {}
         if "kind" in meta:
             kind = meta.pop("kind")
         desc: dict[str, Any] = {
@@ -204,7 +206,8 @@ class Preset:
 
     ``config`` holds camelCase config values that differ from the defaults; it is validated
     against the component's config model by the test suite. Behaviour comes from the config
-    values (replicas, shards, consistency...), never from the technology name alone.
+    values: the technology field resolves the "auto" behaviour settings through the component's
+    ``technology_profiles``, and presets add typical numbers (replicas, shards, sizes...).
     """
 
     id: str
@@ -244,6 +247,8 @@ class ComponentModel(ABC):
     # Link settings (camelCase, a partial EdgeConfig) suggested for links drawn from this
     # component, e.g. the network latency of a mobile client. Applied by the editor; editable.
     link_defaults: ClassVar[dict[str, Any]] = {}
+    # Behaviour per technology (see archsim_engine.technology), for the catalog and inspector.
+    technology_profiles: ClassVar[dict[str, Profile]] = {}
 
     # -- configuration -------------------------------------------------------------------
     def parse_config(self, raw: dict[str, Any]) -> BaseModel:
@@ -300,6 +305,8 @@ class ComponentModel(ABC):
             "notModeled": list(self.not_modeled),
             "presets": [p.to_dict() for p in self.presets],
             "linkDefaults": dict(self.link_defaults),
+            "technologyTraits": traits_catalog(self.technology_profiles),
+            "technologyDefaults": defaults_catalog(self.technology_profiles),
         }
 
 

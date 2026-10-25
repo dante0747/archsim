@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { DesignReviewPanel } from "@/components/build/DesignReview";
 import { ExportDialog } from "@/components/build/ExportDialog";
+import { Dashboard } from "@/components/dashboard/Dashboard";
 import { DecideWorkspace } from "@/components/decide/DecideWorkspace";
 import { useEditorActions } from "@/components/editor/actions";
 import { Canvas } from "@/components/editor/Canvas";
@@ -148,11 +149,12 @@ function useWorkspaceWiring() {
   // Visiting Decide with a run counts as having seen its results.
   useEffect(() => {
     if (mode === "decide" && activeRunId) useUi.getState().markInsightsSeen(activeRunId);
-    if (mode !== "stress") useUi.getState().setPlaying(false);
+    // Test and Dashboard share the replay; elsewhere it stops.
+    if (mode !== "stress" && mode !== "dashboard") useUi.getState().setPlaying(false);
   }, [mode, activeRunId]);
 }
 
-const WORKSPACE_KEYS: Record<string, Workspace> = { "1": "build", "2": "stress", "3": "decide" };
+const WORKSPACE_KEYS: Record<string, Workspace> = { "1": "build", "2": "stress", "3": "decide", "4": "dashboard" };
 
 function EditorShell() {
   // Rendered only on the client (after the project loads), so window is available.
@@ -246,7 +248,7 @@ function EditorShell() {
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <Canvas />
-            {mode !== "decide" && <NextStepPill />}
+            {mode !== "decide" && mode !== "dashboard" && <NextStepPill />}
             {mode === "build" && <DesignReviewPanel />}
             {mode === "stress" && <PlaybackClock />}
             {mode === "decide" && (
@@ -254,10 +256,15 @@ function EditorShell() {
                 <DecideWorkspace />
               </div>
             )}
+            {mode === "dashboard" && (
+              <div className="absolute inset-0 z-30 overflow-hidden bg-page">
+                <Dashboard />
+              </div>
+            )}
           </div>
           {mode === "stress" && <TimelineDock />}
         </div>
-        {showSide && mode !== "decide" && (
+        {showSide && mode !== "decide" && mode !== "dashboard" && (
           <div className="absolute inset-y-0 right-0 z-20 shadow-float lg:static lg:z-auto lg:shadow-none">
             {mode === "build" ? (
               <Inspector />

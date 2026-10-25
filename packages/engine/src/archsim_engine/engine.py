@@ -34,6 +34,7 @@ CancelFn = Callable[[], bool]
 _DEFAULT_REGISTRY: ComponentRegistry | None = None
 
 ASYNC_MIN_DRAIN_S = 60.0  # automatic drain when the model has message queues
+TRACE_TARGET = 1200  # traced requests per run (sampled evenly); the report keeps ~40 of them
 
 
 def default_registry() -> ComponentRegistry:
@@ -144,6 +145,8 @@ def _arrivals(
     duration = wl.duration_s * 1000.0
     poisson = wl.arrival_process == "poisson"
     steady = isinstance(wl.pattern, ConstantPattern)
+    # Every n-th request carries a trace: deterministic, draws no random numbers.
+    trace_every = max(1, int(wl.expected_arrivals() // TRACE_TARGET))
     rid = 0
     t = 0.0
     while True:
@@ -170,6 +173,8 @@ def _arrivals(
         key = keys.sample() if keys is not None else 0
         now = env.now
         req = Request(rid, op, key, now, tl.window_start <= now < tl.window_end)
+        if rid % trace_every == 0:
+            req.trace = []
         if pick_rng is None:
             src = sources[0]
         else:
@@ -216,6 +221,7 @@ def run_simulation(
 
     env = simpy.Environment()
     ctx = SimContext(env, wl.seed, tl)
+    ctx.shared["workload"] = wl
     ctx.set_faults(list(wl.faults))
     for e in resolved.architecture.edges:
         er = EdgeRuntime(e, tl, ctx.rng(f"edge:{e.id}:latency"))

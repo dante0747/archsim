@@ -239,7 +239,10 @@ class BucketedHistograms:
         self.hists: list[LatencyHistogram | None] = [None] * tl.n
 
     def record(self, t: float, v: float) -> None:
-        i = self.tl.index(t)
+        tl = self.tl
+        i = int(t // tl.bucket_ms)
+        if i >= tl.n:
+            i = tl.n - 1
         h = self.hists[i]
         if h is None:
             h = self.hists[i] = LatencyHistogram()
@@ -247,6 +250,17 @@ class BucketedHistograms:
 
     def percentile_series(self, p: float) -> list[float | None]:
         return [_round(h.percentile(p)) if h else None for h in self.hists]
+
+    def window(self) -> LatencyHistogram:
+        """Merged histogram of the buckets inside the measurement window."""
+        tl = self.tl
+        out = LatencyHistogram()
+        i0 = math.ceil(tl.window_start / tl.bucket_ms)
+        i1 = max(i0 + 1, math.floor(tl.window_end / tl.bucket_ms))
+        for h in self.hists[i0:i1]:
+            if h is not None:
+                out.merge(h)
+        return out
 
 
 class MeanAccumulator:

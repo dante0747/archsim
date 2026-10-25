@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * The studio workflow: Design → Test → Results (internal keys: build, stress, decide). Derives each workspace's progress and one "next
+ * The studio workflow: Design → Test → Results, plus the Dashboard (internal keys: build, stress,
+ * decide, dashboard). Derives each workspace's progress and one "next
  * step" suggestion from editor/run state, so the UI always tells a newcomer what to do next.
  */
 import { useReactFlow } from "@xyflow/react";
@@ -105,6 +106,13 @@ export function useWorkflow() {
       caption: "goals · cost · limits",
       hint: "Did it hold up? What does it cost?",
       state: seen || hasComparison ? "done" : "todo",
+    },
+    {
+      key: "dashboard",
+      label: "Dashboard",
+      caption: "every metric over time",
+      hint: "Watch every metric over time",
+      state: "todo",
     },
   ];
 

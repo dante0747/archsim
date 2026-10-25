@@ -12,7 +12,7 @@ import { type DrawerTab, useRuns } from "@/store/runs";
 /** Results workspace: four places plus the report. */
 export type DecideSection = "answer" | "compare" | "breaking" | "details" | "report";
 export type CompareView = "map" | "pair" | "runs";
-export type DetailsView = "summary" | "time" | "components" | "assumptions";
+export type DetailsView = "summary" | "time" | "components" | "calculations" | "traces" | "assumptions";
 
 /** Where a request to "open results" (the old drawer tabs) lands in the Results workspace. */
 export function placeForDrawerTab(tab: DrawerTab): { section: DecideSection; compare?: CompareView; details?: DetailsView } {

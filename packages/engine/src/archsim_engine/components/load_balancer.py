@@ -1,4 +1,9 @@
-"""Layer-7 load balancer distributing requests across downstream instances."""
+"""Layer-7 load balancer distributing requests across downstream instances.
+
+The technology adds its real defaults (see ``archsim_engine.technology``): an upstream timeout
+after which the proxy answers 504 (nginx 60 s, Envoy 15 s, API Gateway 29 s...) and, for Envoy,
+circuit breakers that answer 503 at once when a target already has 1,024 requests in flight.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +15,8 @@ from pydantic import Field
 
 from archsim_engine.components.resources import INFO_ONLY, cpu_field, memory_field
 from archsim_engine.distributions import Constant, Distribution
-from archsim_engine.issues import Issue, error
+from archsim_engine.explain import formula, num
+from archsim_engine.issues import Issue, error, warning
 from archsim_engine.metrics import Gauge
 from archsim_engine.ratelimit import TokenBucket
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
@@ -22,8 +28,12 @@ from archsim_engine.runtime import (
     RuntimeComponent,
     SimContext,
     rejected,
+    span,
 )
 from archsim_engine.schema import CamelModel, NodeSpec
+from archsim_engine.technology import LB_PROFILES, Profile, resolve
+
+BEHAVIOUR = "Technology behaviour"
 
 Candidate = tuple[EdgeRuntime, RuntimeComponent, int]
 
@@ -33,7 +43,10 @@ class LoadBalancerConfig(CamelModel):
         "generic", "nginx", "haproxy", "envoy", "traefik", "kong", "aws_alb", "api_gateway"
     ] = Field(
         default="generic",
-        description="Product or managed service. A label for the design; behaviour comes from the settings below.",
+        description=(
+            "Product or managed service. It sets the upstream timeout and circuit breakers shown "
+            "under Technology behaviour; presets also fill in typical numbers."
+        ),
         json_schema_extra=ui(label="Technology", group="Technology"),
     )
     policy: Literal["round_robin", "least_connections", "random"] = Field(
@@ -70,6 +83,27 @@ class LoadBalancerConfig(CamelModel):
         description="Bucket size: requests admitted in a burst above the rate. Empty = one second's worth.",
         json_schema_extra=ui(label="Burst", unit="req", group="Rate limiting"),
     )
+    upstream_timeout_ms: float | None = Field(
+        default=None,
+        gt=0,
+        le=3_600_000,
+        description=(
+            "How long the balancer waits for a target's response before answering 504 itself, "
+            "unless the link has a shorter timeout. Empty = the technology's default (nginx "
+            "60 s, Envoy 15 s, API Gateway 29 s, ALB 60 s; none for HAProxy and generic)."
+        ),
+        json_schema_extra=ui(label="Upstream timeout", unit="ms", group=BEHAVIOUR),
+    )
+    circuit_breaker_max_requests: int | None = Field(
+        default=None,
+        ge=1,
+        le=1_000_000,
+        description=(
+            "Requests in flight to one target (upstream cluster) before new ones get 503 "
+            "immediately (Envoy circuit breakers, 1,024 by default). Empty = technology default."
+        ),
+        json_schema_extra=ui(label="Circuit breaker: max requests per target", group=BEHAVIOUR),
+    )
     cpu_cores: float | None = cpu_field("instance", INFO_ONLY)
     memory_gib: float | None = memory_field("instance", INFO_ONLY)
     cost_per_hour: float = Field(
@@ -81,9 +115,27 @@ class LoadBalancerConfig(CamelModel):
     )
 
 
+def _profile(config: LoadBalancerConfig) -> Profile:
+    return LB_PROFILES.get(config.technology, LB_PROFILES["generic"])
+
+
+def upstream_timeout(config: LoadBalancerConfig) -> float | None:
+    return resolve(config.upstream_timeout_ms, _profile(config), "upstream_timeout_ms", None)
+
+
+def breaker_limit(config: LoadBalancerConfig) -> int | None:
+    v = resolve(
+        config.circuit_breaker_max_requests, _profile(config), "circuit_breaker_max_requests", None
+    )
+    return int(v) if v else None
+
+
 class LoadBalancerRuntime(RuntimeComponent):
     def __init__(self, ctx: SimContext, node: NodeSpec, config: LoadBalancerConfig) -> None:
         super().__init__(ctx, node, config, config.max_connections)
+        self.upstream_timeout = upstream_timeout(config)
+        self.breaker = breaker_limit(config)
+        self.active: dict[str, int] = {}  # requests in flight per target node
         self.rng = ctx.rng(f"node:{node.id}:lb")
         self.overhead_rng = ctx.rng(f"node:{node.id}:overhead")
         self._candidates: dict[str, list[Candidate]] = {}
@@ -165,13 +217,32 @@ class LoadBalancerRuntime(RuntimeComponent):
         attempt = 0
         while True:
             edge, target, index = self.pick(req.op, avoid)
+            tid = edge.target_id
+            if self.breaker is not None and self.active.get(tid, 0) >= self.breaker:
+                m.count("circuitOpen", env.now)
+                span(req, self.id, "rejected", env.now, env.now, "circuit breaker overflow (503)")
+                outcome = rejected("circuit_open", self.id)
+                attempt += 1
+                if attempt >= edge.cfg.max_attempts:
+                    break
+                avoid = (edge.id, index)
+                continue
 
             def handler(r: Request, _t: RuntimeComponent = target, _i: int = index) -> Any:
                 return _t.handle_on(r, _i)
 
-            outcome = yield from self.ctx.call_once(
-                edge, req, handler, edge.cfg.timeout_ms, self.id
-            )
+            timeout = edge.cfg.timeout_ms
+            reason = "dependency_timeout"
+            if self.upstream_timeout is not None and (
+                timeout is None or self.upstream_timeout < timeout
+            ):
+                timeout = self.upstream_timeout
+                reason = "gateway_timeout"
+            self.active[tid] = self.active.get(tid, 0) + 1
+            outcome = yield from self.ctx.call_once(edge, req, handler, timeout, self.id, reason)
+            self.active[tid] -= 1
+            if outcome.reason == "gateway_timeout":
+                m.count("upstreamTimeouts", env.now)
             attempt += 1
             if outcome.ok or attempt >= edge.cfg.max_attempts:
                 break
@@ -184,6 +255,68 @@ class LoadBalancerRuntime(RuntimeComponent):
         m.depart(env.now, outcome, req)
         return outcome
 
+    def extra_timeseries(self) -> dict[str, list[float | None]]:
+        out: dict[str, list[float | None]] = {"inflightMean": list(self.m.inflight.mean_series())}
+        if "rate_limited" in self.m.rejected:
+            out["rateLimitedRps"] = list(self.m.rejected["rate_limited"].rate_series())
+        if "upstreamTimeouts" in self.m.extra:
+            out["upstreamTimeoutRps"] = list(self.m.extra["upstreamTimeouts"].rate_series())
+        if "circuitOpen" in self.m.extra:
+            out["circuitOpenRps"] = list(self.m.extra["circuitOpen"].rate_series())
+        return out
+
+    def behaviour(self) -> list[dict[str, Any]]:
+        cfg: LoadBalancerConfig = self.config
+        active = {
+            "circuit_breakers": self.breaker is not None,
+            "account_throttle": self.bucket is not None,
+        }
+        return [t.to_dict() for t in _profile(cfg).traits if active.get(t.id, True)]
+
+    def explain(self, summary: dict[str, Any]) -> list[dict[str, Any]]:
+        cfg: LoadBalancerConfig = self.config
+        out: list[dict[str, Any]] = []
+        if self.upstream_timeout is not None:
+            out.append(
+                formula(
+                    "upstream_timeout",
+                    "Upstream timeout",
+                    "effective timeout = min(link timeout, balancer's upstream timeout)",
+                    f"upstream timeout {num(self.upstream_timeout / 1000.0)} s ({cfg.technology})",
+                    self.upstream_timeout,
+                    "ms",
+                    note="A target slower than this gets a 504 from the balancer, while the target keeps working on the abandoned request.",
+                    metric="upstreamTimeoutRps",
+                )
+            )
+        if self.bucket is not None and cfg.rate_limit_rps:
+            burst = cfg.rate_limit_burst or cfg.rate_limit_rps
+            out.append(
+                formula(
+                    "rate_limit",
+                    "Rate limit (token bucket)",
+                    "admitted ≤ rate × time + burst",
+                    f"{num(cfg.rate_limit_rps)} req/s, burst {num(burst)}",
+                    cfg.rate_limit_rps,
+                    "req/s",
+                    note="Requests that find the bucket empty get 429.",
+                    metric="rateLimitedRps",
+                )
+            )
+        if self.breaker is not None:
+            out.append(
+                formula(
+                    "circuit_breaker",
+                    "Circuit breaker",
+                    "503 when requests in flight to a target ≥ max requests",
+                    f"max {self.breaker:,} per target",
+                    float(self.breaker),
+                    "requests",
+                    note="By Little's law a target reaches it when arrival rate × its response time ≥ the limit.",
+                )
+            )
+        return out
+
 
 class LoadBalancerModel(ComponentModel):
     type = "load_balancer"
@@ -195,6 +328,7 @@ class LoadBalancerModel(ComponentModel):
     )
     icon = "split"
     config_model = LoadBalancerConfig
+    technology_profiles = LB_PROFILES
     ports = (
         PortSpec("in", "in", "Requests", "Incoming requests."),
         PortSpec(
@@ -208,6 +342,7 @@ class LoadBalancerModel(ComponentModel):
     modeled = (
         "Instance selection per policy across all routable replicas of linked targets (follows autoscaling)",
         "Per-link timeout and retries that avoid the failed instance",
+        "Technology defaults: upstream timeout (504) and Envoy circuit breakers (503)",
         "Connection limit (rejects beyond max connections)",
         "Optional rate limit (token bucket); excess rejected as rate_limited",
     )
@@ -223,12 +358,16 @@ class LoadBalancerModel(ComponentModel):
             name="Nginx",
             technology="nginx",
             family="Load balancer",
-            description="Reverse proxy / load balancer with very low per-request overhead.",
+            description=(
+                "Reverse proxy with very low per-request overhead: 2 workers x 1,024 connections, "
+                "two per proxied request, so 1,024 requests at once; 60 s upstream timeout."
+            ),
             config={
                 "cpuCores": 2,
                 "memoryGib": 2,
                 "technology": "nginx",
                 "policy": "round_robin",
+                "maxConnections": 1024,
                 "overheadMs": {"kind": "constant", "value": 0.2},
             },
             tags=("proxy", "l7"),
@@ -253,7 +392,7 @@ class LoadBalancerModel(ComponentModel):
             name="Envoy",
             technology="envoy",
             family="Load balancer",
-            description="Service proxy (also the data plane of most service meshes).",
+            description="Service proxy (also the data plane of most service meshes): circuit breakers at 1,024 requests per target, 15 s route timeout.",
             config={
                 "cpuCores": 2,
                 "memoryGib": 2,
@@ -319,6 +458,21 @@ class LoadBalancerModel(ComponentModel):
         outs = view.out_edges.get(node.id, [])
         if not outs:
             return issues  # arity error reported generically
+        up = upstream_timeout(config)
+        if up is not None:
+            for e in outs:
+                if e.config.timeout_ms is not None and e.config.timeout_ms > up:
+                    issues.append(
+                        warning(
+                            "lb.timeout_above_upstream",
+                            f"Link '{e.id}' allows {e.config.timeout_ms:g} ms but "
+                            f"{node.label or node.id} gives up after {up:g} ms (its upstream "
+                            "timeout), so the longer link timeout never applies.",
+                            node_id=node.id,
+                            edge_id=e.id,
+                            path="upstreamTimeoutMs",
+                        )
+                    )
         for op in sorted(view.incoming_types.get(node.id, set())):
             if not any(op in e.config.request_types for e in outs):
                 issues.append(

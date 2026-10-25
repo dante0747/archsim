@@ -18,7 +18,7 @@ from pydantic import Field
 from archsim_engine.issues import Issue, error, warning
 from archsim_engine.metrics import BucketedHistograms, Counter, LatencyHistogram, Timeline
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, ui
-from archsim_engine.runtime import OK, Outcome, Request, RuntimeComponent, SimContext
+from archsim_engine.runtime import OK, Outcome, Request, RuntimeComponent, SimContext, span
 from archsim_engine.schema import CamelModel, NodeSpec
 
 
@@ -230,7 +230,7 @@ class TrafficSourceRuntime(RuntimeComponent):
             self.client.attempts.inc(env.now)
             self.group.attempts.inc(env.now)
             # each attempt is its own request object so abandoned work can be attributed
-            att = Request(req.id, req.op, req.key, req.created_at, req.measured)
+            att = Request(req.id, req.op, req.key, req.created_at, req.measured, trace=req.trace)
             outcome = yield from ctx.call_once(
                 edge, att, handler, cfg.timeout_ms, self.id, timeout_reason="client_timeout"
             )
@@ -242,10 +242,34 @@ class TrafficSourceRuntime(RuntimeComponent):
                 edge.retries.inc(env.now)
                 backoff = cfg.retry_backoff_ms * (2**attempt)
                 if backoff > 0:
+                    t0 = env.now
                     yield env.timeout(backoff)
-        self.client.record(req, outcome, env.now)
-        self.group.record(req, outcome, env.now)
-        self.m.depart(env.now, outcome)
+                    span(att, self.id, "backoff", t0, env.now, f"retry {attempt + 2} after backoff")
+        now = env.now
+        self.client.record(req, outcome, now)
+        self.group.record(req, outcome, now)
+        self.m.depart(now, outcome)
+        if req.trace is not None:
+            status = (
+                "ok"
+                if outcome.ok
+                else ("timeout" if outcome.reason == "client_timeout" else "error")
+            )
+            ctx.traces.append(
+                {
+                    "id": req.id,
+                    "op": req.op,
+                    "client": self.id,
+                    "start": req.created_at,
+                    "end": now,
+                    "status": status,
+                    "reason": None if outcome.ok else outcome.reason,
+                    "failedAt": None if outcome.ok else outcome.node_id,
+                    "measured": req.measured,
+                    "attempts": attempt + 1,
+                    "spans": req.trace,
+                }
+            )
 
 
 class TrafficSourceModel(ComponentModel):

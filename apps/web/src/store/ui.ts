@@ -18,8 +18,8 @@ function writeFlag(key: string, v: boolean) {
   }
 }
 
-/** The three workspaces of the editor, shown as Design, Test and Results. */
-export type Workspace = "build" | "stress" | "decide";
+/** The workspaces of the editor, shown as Design, Test, Results and Dashboard. */
+export type Workspace = "build" | "stress" | "decide" | "dashboard";
 
 export interface UiState {
   /** Current workspace. */

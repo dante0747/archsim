@@ -25,7 +25,14 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 import simpy
 from simpy.resources.resource import Request as SlotRequest
 
-from archsim_engine.metrics import Counter, Gauge, LatencyHistogram, MeanAccumulator, Timeline
+from archsim_engine.metrics import (
+    BucketedHistograms,
+    Counter,
+    Gauge,
+    LatencyHistogram,
+    MeanAccumulator,
+    Timeline,
+)
 
 if TYPE_CHECKING:
     from archsim_engine.distributions import Distribution
@@ -55,6 +62,10 @@ def rejected(reason: str, node_id: str) -> Outcome:
     return Outcome(False, "rejected", reason, node_id)
 
 
+# A recorded step of a traced request: (node_id, edge_id, kind, start_ms, end_ms, depth, detail).
+Span = tuple[str | None, str | None, str, float, float, int, str | None]
+
+
 @dataclass(slots=True)
 class Request:
     id: int
@@ -63,6 +74,10 @@ class Request:
     created_at: float  # ms
     measured: bool  # arrived inside the measurement window
     abandoned: bool = False  # the client stopped waiting for this attempt
+    # Sampled requests carry a span list (shared by all attempts and hops of one user request);
+    # ``depth`` is the call depth of the hop currently handling it.
+    trace: list[Span] | None = None
+    depth: int = 0
 
 
 def derive_rng(seed: int, stream: str) -> random.Random:
@@ -95,7 +110,10 @@ class NodeMetrics:
         self.queue_wait_hist = LatencyHistogram()
         self.hold = MeanAccumulator(tl)
         self.service = MeanAccumulator(tl)
+        # time from a call reaching this component to its answer (incl. downstream calls)
+        self.residence = BucketedHistograms(tl)
         self.extra: dict[str, Counter] = {}
+        self.means: dict[str, MeanAccumulator] = {}
         self.has_cpu_split = False
 
     def arrive(self, t: float) -> None:
@@ -123,6 +141,13 @@ class NodeMetrics:
         if c is None:
             c = self.extra[name] = Counter(self.tl)
         c.inc(t, n)
+
+    def mean(self, name: str, t: float, v: float) -> None:
+        """Record a sample of a named per-bucket mean (e.g. lock wait), reported as a series."""
+        acc = self.means.get(name)
+        if acc is None:
+            acc = self.means[name] = MeanAccumulator(self.tl)
+        acc.record(t, v)
 
     def rejected_total(self) -> int:
         return sum(c.total for c in self.rejected.values())
@@ -155,7 +180,9 @@ class WorkerPool:
     def outstanding(self) -> int:
         return self.resource.count + len(self.resource.queue)
 
-    def acquire(self) -> Generator[simpy.Event, Any, tuple[SlotRequest | None, str | None]]:
+    def acquire(
+        self, req: Request | None = None, node_id: str | None = None
+    ) -> Generator[simpy.Event, Any, tuple[SlotRequest | None, str | None]]:
         res = self.resource
         env = self.env
         m = self.m
@@ -172,6 +199,8 @@ class WorkerPool:
                 yield tok | env.timeout(self.queue_timeout)
             now = env.now
             m.queue.add(-1, now)
+            if req is not None and req.trace is not None:
+                span(req, node_id, "queue", enq, now)
             if not tok.triggered:
                 tok.cancel()
                 return None, "queue_timeout"
@@ -226,6 +255,25 @@ class EdgeRuntime:
 
 
 Handler = Callable[[Request], SimGen]
+
+MAX_SPANS = 400
+
+
+def span(
+    req: Request,
+    node_id: str | None,
+    kind: str,
+    start: float,
+    end: float,
+    detail: str | None = None,
+    edge_id: str | None = None,
+    depth: int | None = None,
+) -> None:
+    """Record a step of a traced request (no-op for requests that are not traced)."""
+    tr = req.trace
+    if tr is not None and len(tr) < MAX_SPANS:
+        d = req.depth if depth is None else depth
+        tr.append((node_id, edge_id, kind, start, end, d, detail))
 
 
 class RuntimeComponent:
@@ -291,6 +339,14 @@ class RuntimeComponent:
         """Component-specific per-bucket series (full timeline length) for ``nodes[].timeseries``."""
         return {}
 
+    def explain(self, summary: dict[str, Any]) -> list[dict[str, Any]]:
+        """Component-specific calculations behind the numbers (see ``explain.formula``)."""
+        return []
+
+    def behaviour(self) -> list[dict[str, Any]]:
+        """Technology traits in effect for this node, with the settings they resolved to."""
+        return []
+
     # -- faults --------------------------------------------------------------------------
     def sample_time(self, dist: Distribution, rng: random.Random) -> float:
         """Sample a service/processing time, applying an active ``slowdown`` fault."""
@@ -321,6 +377,8 @@ class SimContext:
         self._faults: dict[tuple[str, str], list[Fault]] = {}
         # Objects several components of one run share (e.g. the end-to-end client metrics).
         self.shared: dict[str, Any] = {}
+        # Finished traced requests (sampled at arrival; see engine._arrivals).
+        self.traces: list[dict[str, Any]] = []
 
     # -- faults ------------------------------------------------------------------------
     def set_faults(self, faults: list[Fault]) -> None:
@@ -385,14 +443,24 @@ class SimContext:
         edge.attempts.inc(env.now)
         if timeout_ms is None:
             self.in_transit += 1
+            depth = req.depth
+            t0 = env.now
             d = self.edge_latency(edge)
             if d > 0:
                 yield env.timeout(d)
             down = self._outage(edge)
-            outcome = down if down is not None else (yield from handler(req))
+            t1 = env.now
+            if down is None:
+                req.depth = depth + 1
+                outcome = yield from handler(req)
+                req.depth = depth
+            else:
+                outcome = down
+            t2 = env.now
             d = self.edge_latency(edge)
             if d > 0:
                 yield env.timeout(d)
+            self._after_hop(edge, req, outcome, depth, t0, t1, t2, down is not None)
             self.in_transit -= 1
             if not outcome.ok:
                 edge.failures.inc(env.now)
@@ -407,6 +475,16 @@ class SimContext:
                 edge.failures.inc(env.now)
             return result
         edge.timeouts.inc(env.now)
+        if req.trace is not None:
+            span(
+                req,
+                caller_id,
+                "timeout",
+                env.now,
+                env.now,
+                f"gave up after {timeout_ms:g} ms",
+                edge.id,
+            )
         return Outcome(False, "timeout", timeout_reason, caller_id, edge.id)
 
     def _deliver(
@@ -414,16 +492,56 @@ class SimContext:
     ) -> Generator[simpy.Event, Any, None]:
         env = self.env
         self.in_transit += 1
+        depth = req.depth
+        t0 = env.now
         d = self.edge_latency(edge)
         if d > 0:
             yield env.timeout(d)
         down = self._outage(edge)
-        outcome = down if down is not None else (yield from handler(req))
+        t1 = env.now
+        if down is None:
+            req.depth = depth + 1
+            outcome = yield from handler(req)
+            req.depth = depth
+        else:
+            outcome = down
+        t2 = env.now
         d = self.edge_latency(edge)
         if d > 0:
             yield env.timeout(d)
+        self._after_hop(edge, req, outcome, depth, t0, t1, t2, down is not None)
         self.in_transit -= 1
         done.succeed(outcome)
+
+    def _after_hop(
+        self,
+        edge: EdgeRuntime,
+        req: Request,
+        outcome: Outcome,
+        depth: int,
+        t0: float,
+        t1: float,
+        t2: float,
+        down: bool,
+    ) -> None:
+        """Bookkeeping after one hop (request leg t0-t1, handling t1-t2, response leg t2-now):
+        the callee's residence time and, for traced requests, the spans."""
+        if not down:
+            target = self.components.get(edge.target_id)
+            if target is not None:
+                target.m.residence.record(t2, t2 - t1)
+        if req.trace is None:
+            return
+        now = self.env.now
+        if t1 > t0:
+            span(req, None, "network", t0, t1, None, edge.id, depth)
+        if down:
+            span(req, edge.target_id, "rejected", t1, t1, "outage", None, depth + 1)
+        else:
+            detail = None if outcome.ok else (outcome.reason or outcome.status)
+            span(req, edge.target_id, "handle", t1, t2, detail, None, depth + 1)
+        if now > t2:
+            span(req, None, "network", t2, now, None, edge.id, depth)
 
     def call(
         self,

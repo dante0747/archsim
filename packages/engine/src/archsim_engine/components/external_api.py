@@ -20,7 +20,15 @@ from pydantic import Field
 from archsim_engine.distributions import Distribution, LogNormal
 from archsim_engine.ratelimit import TokenBucket
 from archsim_engine.registry import ComponentModel, PortSpec, Preset, ui
-from archsim_engine.runtime import OK, Outcome, Request, RuntimeComponent, SimContext, rejected
+from archsim_engine.runtime import (
+    OK,
+    Outcome,
+    Request,
+    RuntimeComponent,
+    SimContext,
+    rejected,
+    span,
+)
 from archsim_engine.schema import CamelModel, NodeSpec
 
 
@@ -109,9 +117,11 @@ class ExternalApiRuntime(RuntimeComponent):
         self.active += 1
         start = env.now
         m.busy.add(1, start)
+        t0 = env.now
         d = self.sample_time(cfg.latency_ms, self.rng)
         if d > 0:
             yield env.timeout(d)
+        span(req, self.id, "external", t0, env.now, "third-party call")
         m.busy.add(-1, env.now)
         self.active -= 1
         m.service.record(env.now, d)

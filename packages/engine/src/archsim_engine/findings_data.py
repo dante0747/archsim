@@ -5,6 +5,8 @@
 * ``external_errors``   - a third-party API failed calls (and how many client requests it took down)
 * ``external_latency``  - a third-party API accounts for most of the request latency
 * ``read_replicas``     - how much of the read load replicas absorbed
+* ``replication_lag``   - replicas fell behind the primary (stale reads)
+* ``lock_contention``   - writes queued for row/document locks on hot keys
 """
 
 from __future__ import annotations
@@ -212,7 +214,7 @@ def _read_replicas(n: dict[str, Any]) -> dict[str, Any] | None:
     suggestion = (
         "Writes are most of the load, so replicas add little: shard the data or make writes cheaper."
         if write_share > 0.5
-        else "Replica reads may be stale in reality (replication lag is not modeled)."
+        else "Replica reads can be stale while replicas replay the primary's writes (see replication lag)."
     )
     return {
         "severity": "info",
@@ -233,11 +235,92 @@ def _read_replicas(n: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+LAG_WARN_MS = 1000.0  # replica lag above which reads are noticeably stale
+LOCK_WARN_SHARE = 0.25  # mean lock wait as a share of the write's own time
+
+
+def _replication_lag(n: dict[str, Any]) -> dict[str, Any] | None:
+    s = n["summary"]
+    lag = s.get("maxReplicationLagMs")
+    if not isinstance(lag, int | float) or lag < LAG_WARN_MS:
+        return None
+    counters: dict[str, int] = s.get("counters") or {}
+    stale = int(counters.get("staleReads", 0))
+    replica_reads = int(counters.get("replicaReads", 0))
+    writes = int(counters.get("writes", 0))
+    cfg = n.get("config") or {}
+    label = n["label"]
+    detail = (
+        f"Replicas replay the primary's writes; they fell up to {lag / 1000:.1f} s behind. "
+        f"{writes:,} writes in the window had to be replayed"
+    )
+    detail += (
+        f", and {stale:,} of {replica_reads:,} replica reads returned stale data."
+        if replica_reads
+        else "."
+    )
+    workers = cfg.get("replicaApplyWorkers")
+    return {
+        "severity": "warning",
+        "kind": "replication_lag",
+        "nodeId": n["id"],
+        "title": f"{label} replicas lag up to {lag / 1000:.1f} s behind the primary",
+        "detail": detail,
+        "suggestion": (
+            "Writes outpace replay. Make writes cheaper, shard the writes, use a database with "
+            "parallel replay"
+            + (" (or raise replica apply workers)" if workers is None else "")
+            + ", or read your own writes from the primary."
+        ),
+        "evidence": {
+            "maxLagMs": lag,
+            "staleReads": stale,
+            "replicaReads": replica_reads,
+            "writes": writes,
+        },
+    }
+
+
+def _lock_contention(n: dict[str, Any], resolved: ArchitectureDocument) -> dict[str, Any] | None:
+    s = n["summary"]
+    wait = s.get("meanLockWaitMs")
+    svc = _f(s.get("meanServiceMs"))
+    counters: dict[str, int] = s.get("counters") or {}
+    waits = int(counters.get("lockWaits", 0))
+    writes = int(counters.get("writes", 0))
+    if not isinstance(wait, int | float) or writes < MIN_SAMPLES or wait <= 0:
+        return None
+    if svc and wait < LOCK_WARN_SHARE * svc:
+        return None
+    wl = resolved.workload
+    return {
+        "severity": "warning" if wait >= svc else "info",
+        "kind": "lock_contention",
+        "nodeId": n["id"],
+        "title": f"Writes to {n['label']} wait {wait:.1f} ms on average for row locks",
+        "detail": (
+            f"{waits:,} of {writes:,} writes found their row locked by another write. Key "
+            f"popularity (Zipf s={wl.key_skew:g} over {wl.key_count:,} keys) concentrates writes "
+            "on a few hot rows, and a waiting write holds its connection."
+        ),
+        "suggestion": (
+            "Spread hot rows (shard counters, append instead of update), shorten transactions, or "
+            "batch updates to the hottest keys."
+        ),
+        "evidence": {"meanLockWaitMs": wait, "lockWaits": waits, "writes": writes},
+    }
+
+
 def findings(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for n in report["nodes"]:
         if n["type"] == "database":
-            for f in (_hot_shard(n, resolved), _read_replicas(n)):
+            for f in (
+                _hot_shard(n, resolved),
+                _read_replicas(n),
+                _replication_lag(n),
+                _lock_contention(n, resolved),
+            ):
                 if f:
                     out.append(f)
         if n["type"] == "external_api":

@@ -24,6 +24,21 @@ export function humanize(option: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** What an "auto" setting resolves to for the selected technology, e.g. 1 for PostgreSQL. */
+export interface AutoHint {
+  value: unknown;
+  /** The technology it comes from, e.g. "PostgreSQL". */
+  source: string;
+}
+
+export function describeAuto(field: Pick<FieldDescriptor, "unit">, value: unknown): string {
+  if (value === null || value === undefined) return "none";
+  if (typeof value === "number") return `${fmtNum(value, Number.isInteger(value) ? 0 : 2)}${field.unit ? ` ${field.unit}` : ""}`;
+  if (typeof value === "string") return humanize(value).toLowerCase();
+  if (isDistribution(value)) return describeDistribution(value, field.unit ?? "ms");
+  return String(value);
+}
+
 export function isFieldVisible(field: FieldDescriptor, values: Record<string, unknown>): boolean {
   if (!field.visibleWhen) return true;
   return Object.entries(field.visibleWhen).every(([k, v]) => values[k] === v);
@@ -299,12 +314,15 @@ export function FieldControl({
   onChange,
   idPrefix,
   allowedRequestTypes = ["read", "write"],
+  auto,
 }: {
   field: FieldDescriptor;
   value: unknown;
   onChange: (v: unknown) => void;
   idPrefix: string;
   allowedRequestTypes?: RequestType[];
+  /** The technology default an empty / "auto" value stands for. */
+  auto?: AutoHint;
 }) {
   const uid = useId();
   const id = `${idPrefix}-${field.key}-${uid}`;
@@ -326,11 +344,12 @@ export function FieldControl({
           className="flex-1"
         />
       );
+      const emptyLabel = auto ? "Auto" : nullLabel(field);
       control = field.nullable ? (
         <div className="flex items-start gap-2">
           {isNull ? (
-            <div className="flex h-8 flex-1 items-center rounded-md border border-dashed border-line px-2 text-xs text-ink-3">
-              {nullLabel(field)}
+            <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-dashed border-line px-2 text-xs text-ink-3">
+              {auto ? `${describeAuto(field, auto.value)} (${auto.source})` : nullLabel(field)}
             </div>
           ) : (
             numberEl
@@ -339,11 +358,13 @@ export function FieldControl({
             <input
               type="checkbox"
               className="accent-[var(--accent)]"
-              aria-label={`${field.label}: ${nullLabel(field)}`}
+              aria-label={`${field.label}: ${emptyLabel}`}
               checked={isNull}
-              onChange={(e) => onChange(e.target.checked ? null : fallbackValue(field))}
+              onChange={(e) =>
+                onChange(e.target.checked ? null : typeof auto?.value === "number" ? auto.value : fallbackValue(field))
+              }
             />
-            {nullLabel(field)}
+            {emptyLabel}
           </label>
         </div>
       ) : (
@@ -372,13 +393,50 @@ export function FieldControl({
     case "boolean":
       control = <Switch id={id} checked={Boolean(value)} onCheckedChange={onChange} label={field.label} />;
       break;
-    case "distribution":
-      control = isDistribution(value) ? (
-        <CompactDistribution value={value} onChange={onChange} unit={field.unit ?? "ms"} idPrefix={id} />
-      ) : (
-        <p className="text-xs text-danger-ink">Invalid distribution value</p>
+    case "distribution": {
+      const autoDist = auto && isDistribution(auto.value) ? auto.value : null;
+      const toggle = field.nullable && (
+        <label className="flex h-8 shrink-0 items-center gap-1.5 text-xs text-ink-2">
+          <input
+            type="checkbox"
+            className="accent-[var(--accent)]"
+            aria-label={`${field.label}: ${auto ? "Auto" : "None"}`}
+            checked={isNull}
+            onChange={(e) =>
+              onChange(
+                e.target.checked
+                  ? null
+                  : (autoDist ?? (isDistribution(field.default) ? field.default : { kind: "lognormal", median: 300, p95: 900 })),
+              )
+            }
+          />
+          {auto ? "Auto" : "None"}
+        </label>
       );
+      control =
+        isNull && field.nullable ? (
+          <div className="flex items-start gap-2">
+            <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-dashed border-line px-2 text-xs text-ink-3">
+              {auto ? `${describeAuto(field, auto.value)} (${auto.source})` : "None"}
+            </div>
+            {toggle}
+          </div>
+        ) : isDistribution(value) ? (
+          field.nullable ? (
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <CompactDistribution value={value} onChange={onChange} unit={field.unit ?? "ms"} idPrefix={id} />
+              </div>
+              {toggle}
+            </div>
+          ) : (
+            <CompactDistribution value={value} onChange={onChange} unit={field.unit ?? "ms"} idPrefix={id} />
+          )
+        ) : (
+          <p className="text-xs text-danger-ink">Invalid distribution value</p>
+        );
       break;
+    }
     case "requestTypes":
       control = (
         <RequestTypesEditor
@@ -415,6 +473,11 @@ export function FieldControl({
         {field.assumption && <AssumptionTag />}
       </div>
       {control}
+      {auto && value === "auto" && (
+        <p className={cn("text-[11px] text-ink-3", row && "col-span-2 -mt-2 text-right")}>
+          Auto: {describeAuto(field, auto.value)} for {auto.source}
+        </p>
+      )}
     </div>
   );
 }
@@ -427,6 +490,7 @@ export function FieldGroups({
   idPrefix,
   allowedRequestTypes,
   flat = false,
+  autoValues,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
@@ -434,6 +498,8 @@ export function FieldGroups({
   idPrefix: string;
   allowedRequestTypes?: RequestType[];
   flat?: boolean;
+  /** Technology defaults behind "auto" or empty settings, by field key. */
+  autoValues?: Record<string, AutoHint>;
 }) {
   const groups: { name: string; fields: FieldDescriptor[] }[] = [];
   for (const f of fields) {
@@ -456,6 +522,7 @@ export function FieldGroups({
               onChange={(v) => onChange(f.key, v)}
               idPrefix={idPrefix}
               allowedRequestTypes={allowedRequestTypes}
+              auto={autoValues?.[f.key]}
             />
           ))}
         </fieldset>

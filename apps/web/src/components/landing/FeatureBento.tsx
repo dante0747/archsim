@@ -190,10 +190,87 @@ function ReproVisual() {
   );
 }
 
+function DashboardVisual() {
+  const lines = [
+    { pts: "0,30 12,28 24,26 36,18 48,20 60,12 72,14 84,8 96,10", color: "var(--series-1)" },
+    { pts: "0,34 12,33 24,31 36,30 48,27 60,26 72,24 84,22 96,21", color: "var(--series-3)" },
+    { pts: "0,36 12,36 24,35 36,30 48,22 60,28 72,34 84,35 96,36", color: "var(--series-2)" },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <div className="col-span-1 rounded-md border border-line bg-surface-2 p-2.5">
+        <div className="flex items-center justify-between text-[10px] text-ink-3">
+          p95 latency
+          <span className="inline-flex items-center gap-1 font-semibold text-[var(--status-critical)]">
+            <span className="live-dot size-1.5" /> LIVE
+          </span>
+        </div>
+        <div className="tabular mt-1 text-xl font-semibold text-ink">212 ms</div>
+        <svg viewBox="0 0 96 20" className="mt-1 h-5 w-full" aria-hidden>
+          <polyline fill="none" stroke="var(--accent)" strokeWidth={1.5} points="0,16 12,15 24,14 36,9 48,11 60,5 72,7 84,3 96,6" />
+        </svg>
+      </div>
+      <div className="col-span-2 rounded-md border border-line bg-surface-2 p-2.5">
+        <div className="text-[10px] text-ink-3">Utilization by component</div>
+        <svg viewBox="0 0 96 40" preserveAspectRatio="none" className="mt-1 h-16 w-full" aria-hidden>
+          <rect x={0} y={0} width={96} height={6} fill="var(--status-critical)" opacity={0.08} />
+          <line x1={0} x2={96} y1={6} y2={6} stroke="var(--status-critical)" strokeDasharray="2 2" strokeWidth={0.5} />
+          {lines.map((l) => (
+            <polyline key={l.color} fill="none" stroke={l.color} strokeWidth={1.4} points={l.pts} vectorEffect="non-scaling-stroke" />
+          ))}
+          <line x1={60} x2={60} y1={0} y2={40} stroke="var(--ink-3)" strokeWidth={0.5} />
+        </svg>
+      </div>
+      {["Replication lag", "Lock wait", "Event-loop lag"].map((t, i) => (
+        <div key={t} className="rounded-md border border-line bg-surface-2 px-2.5 py-2">
+          <div className="text-[10px] text-ink-3">{t}</div>
+          <div className="tabular text-sm font-semibold text-ink">{["840 ms", "3.1 ms", "12 ms"][i]}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MathsVisual() {
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-line bg-surface-2 p-2.5">
+        <div className="flex items-baseline justify-between">
+          <span className="text-[12px] font-semibold text-ink">Utilization</span>
+          <span className="tabular text-sm font-semibold text-ink">73%</span>
+        </div>
+        <p className="mt-1 font-code text-[11px] text-ink-2">ρ = λ × hold ÷ (1000 × slots)</p>
+        <p className="font-code text-[11px] text-ink-3">= 438 × 6.7 ÷ (1000 × 4)</p>
+      </div>
+      <div className="space-y-1 rounded-md border border-line bg-surface-2 p-2.5">
+        {[
+          ["Network", 0, 18, "var(--ink-3)"],
+          ["Waiting for a lock", 18, 30, "var(--series-4)"],
+          ["Query", 48, 30, "var(--series-1)"],
+          ["Log flush", 78, 14, "var(--series-7)"],
+        ].map(([label, x, w, c]) => (
+          <div key={label as string} className="grid grid-cols-[96px_1fr] items-center gap-2 text-[10px] text-ink-3">
+            <span className="truncate">{label}</span>
+            <span className="relative h-2.5">
+              <span className="absolute inset-y-0 rounded-sm" style={{ left: `${x}%`, width: `${w}%`, background: c as string }} />
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function FeatureBento() {
   const span = (n: 2 | 3 | 4) => cn(n === 2 && "lg:col-span-2", n === 3 && "lg:col-span-3", n === 4 && "lg:col-span-4");
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <Tile className={span(4)} title="Watch it like production" text="A Grafana-style dashboard for every run: throughput, latency, saturation and every technology's own signals, replayed live with a synced crosshair.">
+        <DashboardVisual />
+      </Tile>
+      <Tile className={span(2)} delay={80} title="Show your working" text="Every number comes with its formula and this run's values, and sampled requests show each hop, wait and lock they hit.">
+        <MathsVisual />
+      </Tile>
       <Tile className={span(4)} title="Break things on purpose" text="Schedule outages, slowdowns and network latency, then watch every part heat up and recover, second by second.">
         <FaultsVisual />
       </Tile>

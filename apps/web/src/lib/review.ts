@@ -48,7 +48,8 @@ export const REVIEW_RULES: Record<string, string> = {
 
 const SEV_ORDER: Record<ReviewSeverity, number> = { high: 0, medium: 1, low: 2 };
 const MANAGED_LB = new Set(["aws_alb", "api_gateway"]);
-const MANAGED_MQ = new Set(["aws_sqs", "google_pubsub"]);
+// Engine technology ids (the old aws_sqs / google_pubsub spellings never matched).
+const MANAGED_MQ = new Set(["sqs", "pubsub", "aws_sqs", "google_pubsub"]);
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString("en-US");
 const fmtMs = (n: number) => `${fmtInt(n)} ms`;

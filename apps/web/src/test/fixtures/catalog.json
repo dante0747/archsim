@@ -95,7 +95,9 @@
         "Client-side connection pools"
       ],
       "presets": [],
-      "linkDefaults": {}
+      "linkDefaults": {},
+      "technologyTraits": {},
+      "technologyDefaults": {}
     },
     {
       "type": "mobile_app",
@@ -220,7 +222,9 @@
           "median": 35.0,
           "p95": 120.0
         }
-      }
+      },
+      "technologyTraits": {},
+      "technologyDefaults": {}
     },
     {
       "type": "web_client",
@@ -346,7 +350,9 @@
           "median": 15.0,
           "p95": 45.0
         }
-      }
+      },
+      "technologyTraits": {},
+      "technologyDefaults": {}
     },
     {
       "type": "api_consumer",
@@ -469,7 +475,9 @@
           "median": 10.0,
           "p95": 30.0
         }
-      }
+      },
+      "technologyTraits": {},
+      "technologyDefaults": {}
     },
     {
       "type": "load_balancer",
@@ -510,7 +518,7 @@
           "label": "Technology",
           "kind": "enum",
           "nullable": false,
-          "description": "Product or managed service. A label for the design; behaviour comes from the settings below.",
+          "description": "Product or managed service. It sets the upstream timeout and circuit breakers shown under Technology behaviour; presets also fill in typical numbers.",
           "default": "generic",
           "assumption": false,
           "headline": false,
@@ -601,6 +609,34 @@
           "group": "Rate limiting"
         },
         {
+          "key": "upstreamTimeoutMs",
+          "label": "Upstream timeout",
+          "kind": "number",
+          "nullable": true,
+          "description": "How long the balancer waits for a target's response before answering 504 itself, unless the link has a shorter timeout. Empty = the technology's default (nginx 60 s, Envoy 15 s, API Gateway 29 s, ALB 60 s; none for HAProxy and generic).",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 3600000,
+          "unit": "ms",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "circuitBreakerMaxRequests",
+          "label": "Circuit breaker: max requests per target",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Requests in flight to one target (upstream cluster) before new ones get 503 immediately (Envoy circuit breakers, 1,024 by default). Empty = technology default.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 1000000,
+          "group": "Technology behaviour"
+        },
+        {
           "key": "cpuCores",
           "label": "CPU",
           "kind": "number",
@@ -660,6 +696,7 @@
       "modeled": [
         "Instance selection per policy across all routable replicas of linked targets (follows autoscaling)",
         "Per-link timeout and retries that avoid the failed instance",
+        "Technology defaults: upstream timeout (504) and Envoy circuit breakers (503)",
         "Connection limit (rejects beyond max connections)",
         "Optional rate limit (token bucket); excess rejected as rate_limited"
       ],
@@ -675,12 +712,13 @@
           "name": "Nginx",
           "technology": "nginx",
           "family": "Load balancer",
-          "description": "Reverse proxy / load balancer with very low per-request overhead.",
+          "description": "Reverse proxy with very low per-request overhead: 2 workers x 1,024 connections, two per proxied request, so 1,024 requests at once; 60 s upstream timeout.",
           "config": {
             "cpuCores": 2,
             "memoryGib": 2,
             "technology": "nginx",
             "policy": "round_robin",
+            "maxConnections": 1024,
             "overheadMs": {
               "kind": "constant",
               "value": 0.2
@@ -717,7 +755,7 @@
           "name": "Envoy",
           "technology": "envoy",
           "family": "Load balancer",
-          "description": "Service proxy (also the data plane of most service meshes).",
+          "description": "Service proxy (also the data plane of most service meshes): circuit breakers at 1,024 requests per target, 15 s route timeout.",
           "config": {
             "cpuCores": 2,
             "memoryGib": 2,
@@ -802,7 +840,82 @@
           ]
         }
       ],
-      "linkDefaults": {}
+      "linkDefaults": {},
+      "technologyTraits": {
+        "nginx": [
+          {
+            "id": "proxy_read_timeout",
+            "title": "Upstream read timeout 60 s",
+            "detail": "nginx gives up on an upstream response after proxy_read_timeout (60 s by default) and returns 504.",
+            "source": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout"
+          },
+          {
+            "id": "two_connections",
+            "title": "Two connections per proxied request",
+            "detail": "worker_connections counts every connection, including those to upstream servers, so each proxied request uses two and a worker serves half as many requests (the preset sizes it that way).",
+            "source": "https://nginx.org/en/docs/ngx_core_module.html#worker_connections"
+          }
+        ],
+        "envoy": [
+          {
+            "id": "circuit_breakers",
+            "title": "Circuit breakers (1,024 requests)",
+            "detail": "Each upstream cluster allows 1,024 concurrent requests by default; beyond that Envoy answers 503 at once instead of queueing.",
+            "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto"
+          },
+          {
+            "id": "route_timeout",
+            "title": "Route timeout 15 s",
+            "detail": "A route waits 15 s for the upstream response by default, then returns 504.",
+            "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+          }
+        ],
+        "aws_alb": [
+          {
+            "id": "idle_timeout",
+            "title": "Idle timeout 60 s",
+            "detail": "The load balancer closes a connection idle for 60 s (default), which ends a slow upstream response with 504.",
+            "source": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html"
+          }
+        ],
+        "api_gateway": [
+          {
+            "id": "integration_timeout",
+            "title": "Integration timeout 29 s",
+            "detail": "The gateway waits at most 29 s for the backend by default, then returns 504 (regional and private REST APIs can request more).",
+            "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html"
+          },
+          {
+            "id": "account_throttle",
+            "title": "Account throttle",
+            "detail": "10,000 requests per second with a 5,000 burst per account and Region by default (token bucket; lower in some newer Regions); excess gets 429. The preset sets these.",
+            "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html"
+          }
+        ],
+        "kong": [
+          {
+            "id": "service_timeouts",
+            "title": "Upstream timeouts 60 s",
+            "detail": "A Kong service waits 60 s (read_timeout) for the upstream by default.",
+            "source": "https://developer.konghq.com/gateway/entities/service/"
+          }
+        ]
+      },
+      "technologyDefaults": {
+        "upstreamTimeoutMs": {
+          "nginx": 60000.0,
+          "envoy": 15000.0,
+          "aws_alb": 60000.0,
+          "api_gateway": 29000.0,
+          "kong": 60000.0,
+          "haproxy": null,
+          "traefik": null,
+          "generic": null
+        },
+        "circuitBreakerMaxRequests": {
+          "envoy": 1024
+        }
+      }
     },
     {
       "type": "service",
@@ -843,7 +956,7 @@
           "label": "Technology",
           "kind": "enum",
           "nullable": false,
-          "description": "Runtime or framework. A label for the design; behaviour comes from the settings below.",
+          "description": "Runtime or framework. It sets the concurrency model (event loop for Node.js), GC pauses, JIT warm-up and serverless cold starts, shown under Technology behaviour.",
           "default": "generic",
           "assumption": false,
           "headline": false,
@@ -895,7 +1008,7 @@
           "label": "Workers per replica",
           "kind": "integer",
           "nullable": false,
-          "description": "Requests one replica processes concurrently (threads/worker processes).",
+          "description": "Requests one replica processes concurrently (threads/worker processes). Event-loop runtimes (Node.js) use the processes per replica instead.",
           "default": 4,
           "assumption": false,
           "headline": true,
@@ -1134,13 +1247,9 @@
           "key": "coldStartMs",
           "label": "Cold start",
           "kind": "distribution",
-          "nullable": false,
-          "description": "Extra time for a request that has to start a new instance (ms).",
-          "default": {
-            "kind": "lognormal",
-            "median": 300.0,
-            "p95": 900.0
-          },
+          "nullable": true,
+          "description": "Extra time for a request that has to start a new instance (ms). Empty = the runtime's typical cold start (Java about 1.2 s, Node.js and Python about 250 ms, Go about 100 ms; illustrative).",
+          "default": null,
           "assumption": true,
           "headline": false,
           "unit": "ms",
@@ -1148,6 +1257,106 @@
           "visibleWhen": {
             "platform": "serverless"
           }
+        },
+        {
+          "key": "scaleOutRate",
+          "label": "Scale-out rate per 10 s",
+          "kind": "integer",
+          "nullable": false,
+          "description": "New instances the platform may start per 10 seconds (AWS Lambda: 1,000); requests that would need more are throttled.",
+          "default": 1000,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 100000,
+          "group": "Serverless",
+          "visibleWhen": {
+            "platform": "serverless"
+          }
+        },
+        {
+          "key": "runtimeModel",
+          "label": "Concurrency model",
+          "kind": "enum",
+          "nullable": false,
+          "description": "thread_pool: each worker handles one request at a time. event_loop: each process runs every request's CPU work on one thread, one piece at a time, and waits for I/O without blocking (Node.js). Auto follows the technology.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "thread_pool",
+            "event_loop"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "processesPerReplica",
+          "label": "Event-loop processes per replica",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Event-loop processes per replica (Node.js cluster mode, PM2, uvicorn workers).",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 256,
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "gcPauseMs",
+          "label": "GC pause",
+          "kind": "number",
+          "nullable": true,
+          "description": "Median stop-the-world pause per garbage collection (ms); every request on the replica stalls meanwhile. Empty = runtime default (Java about 12, .NET 6, Node.js 2, Go 0.1, Rust 0; illustrative).",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 10000,
+          "unit": "ms",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "gcEveryRequests",
+          "label": "Requests between GCs",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Requests a replica serves between collections (allocation pressure). Empty = runtime default.",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 1,
+          "max": 10000000,
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "warmupFactor",
+          "label": "JIT warm-up slowdown",
+          "kind": "number",
+          "nullable": true,
+          "description": "How much slower a freshly started instance runs before the JIT has optimised it (applies to replicas started during the run and to serverless instances). Empty = runtime default (Java 2.5x, .NET 1.5x, others 1x; illustrative).",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 1,
+          "max": 20,
+          "group": "Technology behaviour",
+          "step": 0.1
+        },
+        {
+          "key": "warmupS",
+          "label": "JIT warm-up time",
+          "kind": "number",
+          "nullable": true,
+          "description": "Time for a new instance to reach full speed (s), fading linearly. Empty = runtime default.",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 3600,
+          "unit": "s",
+          "group": "Technology behaviour"
         },
         {
           "key": "keepWarmS",
@@ -1203,25 +1412,24 @@
         "scaleIntervalS": 15.0,
         "startupS": 20.0,
         "concurrencyLimit": 1000,
-        "coldStartMs": {
-          "kind": "lognormal",
-          "median": 300.0,
-          "p95": 900.0
-        },
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
         "keepWarmS": 300.0,
         "costPerHour": 0.1
       },
       "modeled": [
         "FIFO queue per replica with a size limit and a wait timeout",
         "Worker pool per replica; service time sampled from the configured distribution",
+        "Technology behaviour: event loops (Node.js), stop-the-world GC pauses, JIT warm-up of new instances, runtime-specific serverless cold starts",
         "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
         "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
-        "Serverless (platform): one request per instance, cold starts, concurrency limit (throttling), idle reclaim",
+        "Serverless (platform): one request per instance, cold starts, concurrency limit and scale-out rate (throttling), idle reclaim",
         "CPU cores (when set): service time needs a core; with fewer cores than workers, work queues for a core",
         "Memory (when set): requests held by a replica use memory; past the limit new requests are refused"
       ],
       "notModeled": [
-        "Garbage collection pauses; OOM kills and restarts (memory is a refusal limit instead)",
+        "OOM kills and restarts (memory is a refusal limit instead); concurrent GC CPU overhead",
         "Parallel fan-out calls (dependencies are called one after another)",
         "Node/cluster capacity limits for new pods, readiness probe failures",
         "Serverless memory-to-CPU scaling (set CPU directly) and provisioned concurrency"
@@ -1279,7 +1487,7 @@
           "name": "Node.js on Docker",
           "technology": "nodejs",
           "family": "Container",
-          "description": "Single-threaded event loop per container: one handler at a time, I/O does not block it.",
+          "description": "One event loop per container: every request's CPU work queues for that single thread, while I/O waits don't hold it.",
           "config": {
             "cpuCores": 1,
             "memoryGib": 1,
@@ -1386,11 +1594,6 @@
             "technology": "nodejs",
             "platform": "serverless",
             "concurrencyLimit": 1000,
-            "coldStartMs": {
-              "kind": "lognormal",
-              "median": 300,
-              "p95": 900
-            },
             "keepWarmS": 300,
             "serviceTimeMs": {
               "kind": "lognormal",
@@ -1406,7 +1609,190 @@
           ]
         }
       ],
-      "linkDefaults": {}
+      "linkDefaults": {},
+      "technologyTraits": {
+        "nodejs": [
+          {
+            "id": "event_loop",
+            "title": "Single-threaded event loop",
+            "detail": "JavaScript runs on one thread per process: CPU work of every request queues for that one loop (event-loop lag), while I/O waits don't hold it. Add processes per replica (cluster mode) to use more cores.",
+            "source": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop"
+          },
+          {
+            "id": "v8_gc",
+            "title": "Short GC pauses",
+            "detail": "V8's scavenger pauses the loop for a couple of milliseconds now and then (illustrative).",
+            "source": "https://v8.dev/blog/trash-talk"
+          }
+        ],
+        "java": [
+          {
+            "id": "thread_per_request",
+            "title": "Thread per request",
+            "detail": "Spring MVC on Tomcat serves each request on a pool thread (200 by default) that stays busy during downstream calls.",
+            "source": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
+          },
+          {
+            "id": "gc_pauses",
+            "title": "Stop-the-world GC pauses",
+            "detail": "The garbage collector (G1 by default) pauses all application threads for a few milliseconds when the young generation fills up, more often under load (pause and frequency are illustrative).",
+            "source": "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html"
+          },
+          {
+            "id": "jit_warmup",
+            "title": "JIT warm-up",
+            "detail": "A new instance starts with interpreted or lightly optimised code and runs slower until the JIT has compiled the hot paths (factor and duration are illustrative).",
+            "source": "https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html"
+          }
+        ],
+        "dotnet": [
+          {
+            "id": "tiered_compilation",
+            "title": "Tiered compilation warm-up",
+            "detail": "Methods start unoptimised and are recompiled once hot, so a fresh instance is slower at first (factor and duration are illustrative).",
+            "source": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation"
+          },
+          {
+            "id": "gc_pauses",
+            "title": "GC pauses",
+            "detail": "Gen0 collections pause managed threads briefly (illustrative).",
+            "source": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals"
+          }
+        ],
+        "go": [
+          {
+            "id": "goroutines",
+            "title": "Goroutines on every core",
+            "detail": "Requests run as goroutines scheduled across all cores; the concurrent GC's stop-the-world pauses are usually under 100 microseconds.",
+            "source": "https://go.dev/doc/go1.8"
+          }
+        ],
+        "rust": [
+          {
+            "id": "no_gc",
+            "title": "No garbage collector",
+            "detail": "Memory is freed deterministically: no GC pauses and no JIT warm-up.",
+            "source": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+          }
+        ],
+        "python": [
+          {
+            "id": "worker_processes",
+            "title": "Worker processes",
+            "detail": "Gunicorn-style sync workers handle one request each; each process is held to one core by the GIL (the docs suggest 2 x cores + 1 workers).",
+            "source": "https://gunicorn.org/design/"
+          }
+        ],
+        "php": [
+          {
+            "id": "process_per_request",
+            "title": "Process per request (PHP-FPM)",
+            "detail": "Each request takes a PHP-FPM child; pm.max_children (5 in the shipped www.conf) caps concurrency and memory is freed when the request ends.",
+            "source": "https://www.php.net/manual/en/install.fpm.configuration.php"
+          }
+        ]
+      },
+      "technologyDefaults": {
+        "runtimeModel": {
+          "nodejs": "event_loop",
+          "java": "thread_pool",
+          "dotnet": "thread_pool",
+          "go": "thread_pool",
+          "rust": "thread_pool",
+          "python": "thread_pool",
+          "php": "thread_pool",
+          "ruby": "thread_pool",
+          "generic": "thread_pool"
+        },
+        "gcPauseMs": {
+          "nodejs": 2.0,
+          "java": 12.0,
+          "dotnet": 6.0,
+          "go": 0.1,
+          "rust": 0.0,
+          "python": 1.0,
+          "php": 0.0,
+          "ruby": 3.0,
+          "generic": 0.0
+        },
+        "gcEveryRequests": {
+          "nodejs": 1500,
+          "java": 2000,
+          "dotnet": 2000,
+          "go": 1000,
+          "python": 2000,
+          "ruby": 1500
+        },
+        "warmupFactor": {
+          "nodejs": 1.0,
+          "java": 2.5,
+          "dotnet": 1.5,
+          "go": 1.0,
+          "rust": 1.0,
+          "python": 1.0,
+          "php": 1.0,
+          "ruby": 1.0,
+          "generic": 1.0
+        },
+        "warmupS": {
+          "nodejs": 0.0,
+          "java": 45.0,
+          "dotnet": 20.0,
+          "go": 0.0,
+          "rust": 0.0,
+          "python": 0.0,
+          "php": 0.0,
+          "ruby": 0.0,
+          "generic": 0.0
+        },
+        "coldStartMs": {
+          "nodejs": {
+            "kind": "lognormal",
+            "median": 250,
+            "p95": 700
+          },
+          "java": {
+            "kind": "lognormal",
+            "median": 1200,
+            "p95": 3500
+          },
+          "dotnet": {
+            "kind": "lognormal",
+            "median": 600,
+            "p95": 1500
+          },
+          "go": {
+            "kind": "lognormal",
+            "median": 100,
+            "p95": 300
+          },
+          "rust": {
+            "kind": "lognormal",
+            "median": 60,
+            "p95": 200
+          },
+          "python": {
+            "kind": "lognormal",
+            "median": 250,
+            "p95": 700
+          },
+          "php": {
+            "kind": "lognormal",
+            "median": 300,
+            "p95": 900
+          },
+          "ruby": {
+            "kind": "lognormal",
+            "median": 300,
+            "p95": 900
+          },
+          "generic": {
+            "kind": "lognormal",
+            "median": 300,
+            "p95": 900
+          }
+        }
+      }
     },
     {
       "type": "cache",
@@ -1446,7 +1832,7 @@
           "label": "Technology",
           "kind": "enum",
           "nullable": false,
-          "description": "Technology label. It does not change behaviour by itself; presets set executors, command time and hit ratio to illustrative defaults for that technology.",
+          "description": "The cache product. It sets how commands execute (one thread for Redis and Valkey, worker threads for Memcached) and the eviction behaviour, shown under Technology behaviour. Presets also fill in typical numbers.",
           "default": "redis",
           "assumption": false,
           "headline": false,
@@ -1541,13 +1927,109 @@
           "label": "Command executors",
           "kind": "integer",
           "nullable": false,
-          "description": "Commands executed in parallel (Redis executes commands on a single thread).",
+          "description": "Commands executed in parallel per shard (Memcached threads, CDN or Varnish parallelism). Ignored when commands run single-threaded (Redis, Valkey).",
           "default": 1,
           "assumption": false,
           "headline": false,
           "min": 1,
           "max": 1024,
           "group": "Capacity"
+        },
+        {
+          "key": "shards",
+          "label": "Shards (cluster nodes)",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Cache nodes the keys are split across (Redis Cluster shards, Memcached servers). Each has its own executors and memory; keys hash to a shard, so a hot key loads one.",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 1000,
+          "group": "Capacity"
+        },
+        {
+          "key": "singleThreaded",
+          "label": "Single-threaded commands",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Execute commands one at a time per shard, whatever the cores. Auto: on for Redis and Valkey.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "evictionPolicy",
+          "label": "Eviction policy",
+          "kind": "enum",
+          "nullable": false,
+          "description": "When memory is full (TTL model with memory set): allkeys_lru evicts the least recently used key; noeviction (Redis's own default) refuses new keys with an out-of-memory error, so missed reads cannot be cached. Auto: allkeys_lru.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "allkeys_lru",
+            "noeviction"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "persistence",
+          "label": "Persistence",
+          "kind": "enum",
+          "nullable": false,
+          "description": "rdb: snapshot to disk every interval; forking the process blocks commands for about the fork time per GiB of data. Auto: none (cache use).",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "none",
+            "rdb"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "snapshotIntervalS",
+          "label": "Snapshot interval",
+          "kind": "number",
+          "nullable": false,
+          "description": "Time between RDB snapshots (s).",
+          "default": 60.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 86400,
+          "unit": "s",
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "persistence": "rdb"
+          }
+        },
+        {
+          "key": "forkMsPerGib",
+          "label": "Fork stall per GiB",
+          "kind": "number",
+          "nullable": false,
+          "description": "Command stall per GiB of data while forking for a snapshot (ms). Typical Linux hosts: around 10; some virtual machines much more.",
+          "default": 10.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 10000,
+          "unit": "ms",
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "persistence": "rdb"
+          }
         },
         {
           "key": "queueCapacity",
@@ -1650,21 +2132,29 @@
           "mean": 0.05
         },
         "concurrency": 1,
+        "shards": 1,
+        "singleThreaded": "auto",
+        "evictionPolicy": "auto",
+        "persistence": "auto",
+        "snapshotIntervalS": 60.0,
+        "forkMsPerGib": 10.0,
         "queueCapacity": 10000,
         "itemSizeKb": 1.0,
         "costPerHour": 0.1
       },
       "modeled": [
         "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
-        "Single-threaded command execution with a queue",
+        "Technology behaviour: single-threaded commands (Redis, Valkey) or worker threads (Memcached)",
+        "Cluster shards: keys hash to a shard with its own executors and memory",
         "Miss path latency added to the caller; repopulation cost",
-        "Memory (when set, TTL model): key capacity from memory and item size, LRU eviction",
+        "Memory (when set, TTL model): key capacity per shard, LRU eviction or noeviction out-of-memory errors",
+        "RDB snapshots (when on): fork stalls block commands for a time proportional to the data",
         "CPU cores (when set): commands queue for a core when executors outnumber cores"
       ],
       "notModeled": [
         "LFU and other eviction policies; memory for the fixed-ratio model (checked, not simulated)",
         "Thundering herd / request coalescing on misses",
-        "Replication, persistence and cluster sharding",
+        "Replicas and failover; copy-on-write memory growth during snapshots",
         "CDN geography (edge-to-user latency belongs on the incoming link)"
       ],
       "presets": [
@@ -1673,7 +2163,7 @@
           "name": "Redis",
           "technology": "redis",
           "family": "In-memory",
-          "description": "Single Redis node: commands run on one thread, sub-millisecond. Illustrative defaults.",
+          "description": "Single Redis node: commands run on one thread, sub-millisecond; extra cores do not add command throughput. Illustrative defaults.",
           "config": {
             "cpuCores": 2,
             "memoryGib": 6.4,
@@ -1691,12 +2181,16 @@
           "name": "Valkey",
           "technology": "valkey",
           "family": "In-memory",
-          "description": "Redis-compatible; multi-threaded I/O lets a few commands proceed in parallel. Illustrative defaults.",
+          "description": "Redis-compatible; I/O threads take socket work off the command thread, so each command is shorter, but commands still run one at a time. Illustrative defaults.",
           "config": {
             "cpuCores": 2,
             "memoryGib": 6.4,
             "technology": "valkey",
-            "concurrency": 4,
+            "concurrency": 1,
+            "serviceTimeMs": {
+              "kind": "exponential",
+              "mean": 0.035
+            },
             "costPerHour": 0.1
           },
           "tags": [
@@ -1709,12 +2203,12 @@
           "name": "Memcached",
           "technology": "memcached",
           "family": "In-memory",
-          "description": "Multi-threaded, simple get/set cache. Illustrative defaults.",
+          "description": "Multi-threaded get/set cache with its default 4 worker threads. Illustrative defaults.",
           "config": {
             "cpuCores": 2,
             "memoryGib": 6.4,
             "technology": "memcached",
-            "concurrency": 8,
+            "concurrency": 4,
             "serviceTimeMs": {
               "kind": "exponential",
               "mean": 0.04
@@ -1775,13 +2269,86 @@
           ]
         }
       ],
-      "linkDefaults": {}
+      "linkDefaults": {},
+      "technologyTraits": {
+        "redis": [
+          {
+            "id": "single_thread",
+            "title": "One thread executes commands",
+            "detail": "Commands run one at a time on a single thread per node, however many cores it has; scale out with cluster shards (keys are split across 16,384 hash slots).",
+            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+          },
+          {
+            "id": "eviction",
+            "title": "Eviction policy",
+            "detail": "With allkeys-lru the least recently used keys make room for new ones; with noeviction (Redis's own default) writes fail with an out-of-memory error once memory is full.",
+            "source": "https://redis.io/docs/latest/develop/reference/eviction/"
+          },
+          {
+            "id": "fork_stall",
+            "title": "Snapshot fork stalls",
+            "detail": "With RDB snapshots on, each snapshot forks the process; the fork blocks the command thread for about 10-13 ms per GB of data on modern hardware (Redis's own measurements), far more on some older virtual machines.",
+            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+          }
+        ],
+        "valkey": [
+          {
+            "id": "single_thread",
+            "title": "One thread executes commands",
+            "detail": "Valkey offloads socket I/O to I/O threads, which shortens each command, but commands still execute one at a time per node; scale out with cluster shards.",
+            "source": "https://valkey.io/blog/unlock-one-million-rps/"
+          },
+          {
+            "id": "eviction",
+            "title": "Eviction policy",
+            "detail": "With allkeys-lru the least recently used keys make room for new ones; with noeviction (Redis's own default) writes fail with an out-of-memory error once memory is full.",
+            "source": "https://redis.io/docs/latest/develop/reference/eviction/"
+          },
+          {
+            "id": "fork_stall",
+            "title": "Snapshot fork stalls",
+            "detail": "With RDB snapshots on, each snapshot forks the process; the fork blocks the command thread for about 10-13 ms per GB of data on modern hardware (Redis's own measurements), far more on some older virtual machines.",
+            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+          }
+        ],
+        "memcached": [
+          {
+            "id": "threads",
+            "title": "Multi-threaded",
+            "detail": "Worker threads (4 by default) execute requests in parallel; memory is managed in slabs with LRU eviction and nothing is persisted.",
+            "source": "https://docs.memcached.org/serverguide/configuring/"
+          }
+        ]
+      },
+      "technologyDefaults": {
+        "singleThreaded": {
+          "redis": "on",
+          "valkey": "on",
+          "memcached": "off",
+          "cdn": "off",
+          "varnish": "off",
+          "generic": "off"
+        },
+        "evictionPolicy": {
+          "redis": "allkeys_lru",
+          "valkey": "allkeys_lru",
+          "memcached": "allkeys_lru",
+          "cdn": "allkeys_lru",
+          "varnish": "allkeys_lru",
+          "generic": "allkeys_lru"
+        },
+        "persistence": {
+          "redis": "none",
+          "valkey": "none",
+          "memcached": "none"
+        }
+      }
     },
     {
       "type": "database",
       "displayName": "Database",
       "category": "storage",
-      "description": "Executes read and write queries on a limited number of connections per instance. Model a single relational primary, a primary with read replicas, a sharded cluster, or a leaderless store with tunable consistency; technology presets fill in illustrative defaults.",
+      "description": "Executes read and write queries on a limited number of connections per instance, and behaves like the technology you pick: row locks and group commit for relational databases, majority writes for MongoDB, capacity units for DynamoDB, fan-out searches for Elasticsearch, replicas that lag.",
       "icon": "database",
       "isTrafficSource": false,
       "ports": [
@@ -1804,7 +2371,7 @@
           "label": "Technology",
           "kind": "enum",
           "nullable": false,
-          "description": "Technology label. It does not change behaviour by itself; presets set the values below to illustrative defaults for that technology.",
+          "description": "The database product. It sets how the database behaves (locks, commit, replication, read routing, partition limits...), shown under Technology behaviour, where every setting can be overridden. Presets also fill in typical numbers.",
           "default": "postgresql",
           "assumption": false,
           "headline": false,
@@ -1837,7 +2404,7 @@
           "assumption": false,
           "headline": true,
           "min": 1,
-          "max": 10000,
+          "max": 100000,
           "group": "Capacity"
         },
         {
@@ -1861,7 +2428,7 @@
           "label": "Write query time",
           "kind": "distribution",
           "nullable": false,
-          "description": "Execution time of a write query including commit (ms).",
+          "description": "Execution time of a write on one instance, before the log flush and replica acknowledgements (ms).",
           "default": {
             "kind": "lognormal",
             "median": 10.0,
@@ -1877,7 +2444,7 @@
           "label": "Read replicas",
           "kind": "integer",
           "nullable": false,
-          "description": "Read-only copies per shard. Reads are spread round-robin over the primary and its replicas; writes always go to the primary. Replication lag is not modeled.",
+          "description": "Copies per shard that replay the primary's writes (replicas, secondaries). Writes always go to the primary; which instances serve reads depends on 'Reads served by'.",
           "default": 0,
           "assumption": false,
           "headline": true,
@@ -1890,7 +2457,7 @@
           "label": "Shards (partitions)",
           "kind": "integer",
           "nullable": false,
-          "description": "Partitions of the data, each with its own primary (and replicas). Requests are routed by hashing the key, so popular keys concentrate load on one shard.",
+          "description": "Partitions of the data, each with its own primary (and replicas). Requests are routed by hashing the key, so popular keys concentrate load on one shard. DynamoDB-style capacity units derive the partition count instead.",
           "default": 1,
           "assumption": false,
           "headline": false,
@@ -1903,7 +2470,7 @@
           "label": "Replication factor",
           "kind": "integer",
           "nullable": false,
-          "description": "Copies of each item kept by a leaderless or consensus store (e.g. Cassandra, DynamoDB-style, distributed SQL). Combined with the consistency level it decides how many replica responses an operation waits for.",
+          "description": "Copies of each item kept by a leaderless or consensus store (e.g. Cassandra, distributed SQL). Combined with the consistency level it decides how many replica responses an operation waits for.",
           "default": 1,
           "assumption": false,
           "headline": false,
@@ -1969,6 +2536,322 @@
           "max": 600000,
           "unit": "ms",
           "group": "Capacity"
+        },
+        {
+          "key": "rowLocks",
+          "label": "Row locks on writes",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Writes to the same key (row or document) take a lock: a second write waits until the first commits, holding its connection meanwhile. Auto: on for relational databases and MongoDB, off for Cassandra, DynamoDB and search engines.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "readsWaitForWrites",
+          "label": "Reads wait for writers",
+          "kind": "enum",
+          "nullable": false,
+          "description": "A read of a key that is being written waits for the writer's lock (SQL Server's default READ COMMITTED). Auto: on for SQL Server; MVCC databases read the last committed version instead.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "commitFlush",
+          "label": "Commits wait for the log flush",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Each write waits for the write-ahead log (or journal) to reach disk. Commits that arrive during a flush share the next one (group commit). Auto: on for relational databases and MongoDB.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "commitFlushMs",
+          "label": "Log flush time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Time of one log flush (fsync) on the storage (ms). Network block storage is slower than local NVMe.",
+          "default": {
+            "kind": "lognormal",
+            "median": 1.0,
+            "p95": 3.0
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "replication",
+          "label": "Replica writes",
+          "kind": "enum",
+          "nullable": false,
+          "description": "How writes reach the replicas. async: the primary commits, replicas replay later (replication lag, stale reads). majority: the write also waits until a majority of the copies have it (MongoDB's default write concern). all: it waits for every replica (Elasticsearch). none: replicas only serve reads.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "async",
+            "majority",
+            "all",
+            "none"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "replicaApplyWorkers",
+          "label": "Replica apply workers",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Workers a replica uses to replay writes. Empty = the technology's default (PostgreSQL 1, MySQL 4, MongoDB 16).",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 256,
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "replicaApplyFactor",
+          "label": "Replay cost vs. write time",
+          "kind": "number",
+          "nullable": false,
+          "description": "Replaying a write on a replica costs this share of the write's execution time.",
+          "default": 0.5,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 5,
+          "group": "Technology behaviour",
+          "step": 0.05
+        },
+        {
+          "key": "replicationDelayMs",
+          "label": "Replication network delay",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Network delay shipping a write (and an acknowledgement) between primary and replicas (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 0.5,
+            "p95": 2.0
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "readFrom",
+          "label": "Reads served by",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Which instances serve reads: all (round-robin over primary and replicas), the primary only (MongoDB's default read preference) or the replicas only (secondaryPreferred). Auto follows the technology.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "all",
+            "primary",
+            "replicas"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "readTickets",
+          "label": "Concurrent reads (tickets)",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Read operations one instance runs at once, beyond the connection limit (MongoDB WiredTiger: 128). Empty = the technology's default (none for most).",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 100000,
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "writeTickets",
+          "label": "Concurrent writes (tickets)",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Write operations one instance runs at once (MongoDB WiredTiger: 128). Empty = technology default.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 100000,
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "scatterReads",
+          "label": "Reads sent to every shard",
+          "kind": "number",
+          "nullable": true,
+          "description": "Share of reads that do not target one shard and go to every shard, waiting for the slowest (searches; MongoDB queries without the shard key). Empty = technology default (Elasticsearch: every search).",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 1,
+          "group": "Technology behaviour",
+          "step": 0.05
+        },
+        {
+          "key": "routerOverheadMs",
+          "label": "Router / coordinator time",
+          "kind": "number",
+          "nullable": true,
+          "description": "Routing or merging time added per operation when sharded or scattering (mongos, Elasticsearch coordinating node) (ms). Empty = technology default.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 1000,
+          "unit": "ms",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "sstablesPerRead",
+          "label": "SSTables per cold read",
+          "kind": "number",
+          "nullable": true,
+          "description": "Log-structured stores (Cassandra, Scylla): disk reads a buffer-cache miss costs, because a row can be spread over several SSTables. Empty = technology default.",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 1,
+          "max": 50,
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "capacityUnits",
+          "label": "Capacity units and partition limits",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Meter reads and writes in capacity units with per-partition limits (3,000 read and 1,000 write units per second each), DynamoDB-style. Auto: on for DynamoDB.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "capacityMode",
+          "label": "Capacity mode",
+          "kind": "enum",
+          "nullable": false,
+          "description": "On-demand: the table serves up to 12,000 read and 4,000 write units per second from the start. Provisioned: the units below, plus up to 300 s of banked burst.",
+          "default": "on_demand",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "on_demand",
+            "provisioned"
+          ],
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "technology": "dynamodb"
+          }
+        },
+        {
+          "key": "readCapacityUnits",
+          "label": "Read capacity units",
+          "kind": "number",
+          "nullable": false,
+          "description": "Provisioned read capacity units per second for the table.",
+          "default": 1000.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 10000000,
+          "unit": "RCU",
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "technology": "dynamodb"
+          }
+        },
+        {
+          "key": "writeCapacityUnits",
+          "label": "Write capacity units",
+          "kind": "number",
+          "nullable": false,
+          "description": "Provisioned write capacity units per second for the table.",
+          "default": 500.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 10000000,
+          "unit": "WCU",
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "technology": "dynamodb"
+          }
+        },
+        {
+          "key": "itemSizeKb",
+          "label": "Item size",
+          "kind": "number",
+          "nullable": false,
+          "description": "Average item size (KB): a read costs one unit per 4 KB, a write one per 1 KB.",
+          "default": 1.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 400,
+          "unit": "KB",
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "technology": "dynamodb"
+          }
+        },
+        {
+          "key": "consistentReads",
+          "label": "Read consistency",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Eventually consistent reads cost half a unit (the default); strongly consistent reads a full unit.",
+          "default": "eventual",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "eventual",
+            "strong"
+          ],
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "technology": "dynamodb"
+          }
         },
         {
           "key": "cpuCores",
@@ -2067,7 +2950,7 @@
           "label": "Data size",
           "kind": "number",
           "nullable": true,
-          "description": "Total data stored (GiB), across all shards. Used to check storage.",
+          "description": "Total data stored (GiB), across all shards. Used to check storage (and DynamoDB partitions).",
           "default": null,
           "assumption": true,
           "headline": false,
@@ -2111,6 +2994,28 @@
         "consistency": "one",
         "queueCapacity": 200,
         "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+          "kind": "lognormal",
+          "median": 1.0,
+          "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+          "kind": "lognormal",
+          "median": 0.5,
+          "p95": 2.0
+        },
+        "readFrom": "auto",
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
         "cpuShare": 0.5,
         "diskReadMs": {
           "kind": "lognormal",
@@ -2121,20 +3026,20 @@
       },
       "modeled": [
         "Connection limit with a bounded wait queue and acquire timeout, per instance",
-        "Separate read/write query time distributions",
-        "Read replicas: reads round-robin over primary and replicas, writes to the primary",
-        "Key-hash sharding; a skewed (Zipf) keyspace creates hot shards",
+        "Technology behaviour: row/document locks, group commit, replica replay with lag and stale reads, majority or all-replica write acknowledgements, read routing, concurrency tickets",
+        "Key-hash sharding; a skewed (Zipf) keyspace creates hot shards and hot rows",
+        "Scatter-gather reads across every shard (searches, queries without the shard key)",
+        "Capacity units with per-partition limits and burst capacity (DynamoDB-style)",
         "Replication factor + consistency level: latency is the k-th fastest of RF replicas",
-        "Provisioned throughput per shard; excess requests are throttled",
-        "CPU cores (when set): the CPU share of each query needs a core; queries queue for cores",
-        "Buffer cache (memory and working set set): reads of data that does not fit pay a disk read",
+        "CPU cores (when set): the CPU share of each query (and of replica replay) needs a core",
+        "Buffer cache (memory and working set set): cold reads pay disk reads (several SSTables for LSM stores)",
         "Storage (with a data size): checked per instance"
       ],
       "notModeled": [
-        "Locks, MVCC contention, write I/O and checkpoints, eviction dynamics of the buffer cache",
-        "Replication lag and stale reads; failover and leader election",
-        "Replica load in leaderless writes (an operation holds one connection, not RF)",
-        "Cross-shard queries and transactions, rebalancing, query planning"
+        "Deadlocks, lock escalation and range (gap) locks; vacuum, checkpoints and compaction",
+        "Failover and leader election",
+        "Query planning, cross-shard transactions and rebalancing",
+        "Adaptive capacity moving throughput between DynamoDB partitions"
       ],
       "presets": [
         {
@@ -2142,7 +3047,7 @@
           "name": "PostgreSQL",
           "technology": "postgresql",
           "family": "Relational",
-          "description": "Single PostgreSQL primary behind an application connection pool. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Single PostgreSQL primary behind an application connection pool: row locks, group commit on the write-ahead log. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 16,
@@ -2156,8 +3061,8 @@
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 8,
-              "p95": 30
+              "median": 7,
+              "p95": 28
             },
             "costPerHour": 0.35
           },
@@ -2172,7 +3077,7 @@
           "name": "PostgreSQL + 2 read replicas",
           "technology": "postgresql",
           "family": "Relational",
-          "description": "Primary for writes, two streaming replicas that share the reads. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Primary for writes, two streaming replicas that share the reads and replay the write-ahead log on one worker each (lag under heavy writes). Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 16,
@@ -2187,8 +3092,8 @@
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 8,
-              "p95": 30
+              "median": 7,
+              "p95": 28
             },
             "costPerHour": 0.35
           },
@@ -2203,7 +3108,7 @@
           "name": "MySQL",
           "technology": "mysql",
           "family": "Relational",
-          "description": "Single MySQL (InnoDB) primary. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Single MySQL (InnoDB) primary: row locks, binary log group commit. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 16,
@@ -2217,8 +3122,8 @@
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 9,
-              "p95": 35
+              "median": 8,
+              "p95": 32
             },
             "costPerHour": 0.33
           },
@@ -2233,7 +3138,7 @@
           "name": "SQL Server",
           "technology": "sqlserver",
           "family": "Relational",
-          "description": "Single SQL Server instance; the hourly price includes a licence. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Single SQL Server instance with the default READ COMMITTED locking: reads of a row being written wait. The hourly price includes a licence. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 32,
@@ -2247,8 +3152,8 @@
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 10,
-              "p95": 40
+              "median": 9,
+              "p95": 36
             },
             "costPerHour": 0.9
           },
@@ -2263,7 +3168,7 @@
           "name": "CockroachDB-style distributed SQL",
           "technology": "cockroachdb",
           "family": "Distributed SQL",
-          "description": "Three ranges/shards, each replicated three times with quorum (Raft) writes: survives a node loss, pays a consensus round trip. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Three ranges/shards, each replicated three times with quorum (Raft) writes: survives a node loss, pays a consensus round trip. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 16,
@@ -2280,8 +3185,8 @@
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 14,
-              "p95": 60
+              "median": 13,
+              "p95": 55
             },
             "costPerHour": 0.5
           },
@@ -2297,14 +3202,16 @@
           "name": "MongoDB replica set",
           "technology": "mongodb",
           "family": "Document",
-          "description": "Primary plus two secondaries; reads use secondaries (secondaryPreferred). Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Primary plus two secondaries. Writes wait for a majority (the default write concern); reads use the secondaries (secondaryPreferred). Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 16,
             "storageGib": 250,
             "technology": "mongodb",
-            "maxConnections": 50,
+            "maxConnections": 500,
+            "queueCapacity": 1000,
             "readReplicas": 2,
+            "readFrom": "replicas",
             "readServiceTimeMs": {
               "kind": "lognormal",
               "median": 3,
@@ -2312,8 +3219,8 @@
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 6,
-              "p95": 25
+              "median": 5,
+              "p95": 20
             },
             "costPerHour": 0.3
           },
@@ -2328,15 +3235,17 @@
           "name": "MongoDB sharded cluster",
           "technology": "mongodb",
           "family": "Document",
-          "description": "Four shards, each a replica set (primary + two secondaries), routed by shard key. A skewed key distribution makes one shard hot. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Four shards, each a replica set, behind mongos. Operations with the shard key go to one shard; 10% of reads lack it and are broadcast to all four. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 16,
             "storageGib": 250,
             "technology": "mongodb",
-            "maxConnections": 50,
+            "maxConnections": 500,
+            "queueCapacity": 1000,
             "shards": 4,
             "readReplicas": 2,
+            "scatterReads": 0.1,
             "readServiceTimeMs": {
               "kind": "lognormal",
               "median": 3,
@@ -2344,8 +3253,8 @@
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 6,
-              "p95": 25
+              "median": 5,
+              "p95": 20
             },
             "costPerHour": 0.3
           },
@@ -2360,7 +3269,7 @@
           "name": "Cassandra",
           "technology": "cassandra",
           "family": "Wide-column",
-          "description": "Six token ranges, replication factor 3, QUORUM reads and writes. LSM storage makes writes cheaper than reads. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Six token ranges, replication factor 3, QUORUM reads and writes. LSM storage makes writes cheaper than reads. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 8,
             "memoryGib": 32,
@@ -2393,13 +3302,12 @@
           "name": "DynamoDB-style key-value store",
           "technology": "dynamodb",
           "family": "Key-value",
-          "description": "Managed key-value store with four partitions and provisioned throughput per partition; requests above it are throttled. The hourly price stands in for provisioned capacity. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Managed key-value table in on-demand mode: capacity units with per-partition limits, so a hot key is throttled. The hourly price stands in for the request charges. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "technology": "dynamodb",
-            "maxConnections": 1000,
+            "maxConnections": 5000,
             "queueCapacity": 1000,
-            "shards": 4,
-            "throughputLimitRps": 1000,
+            "capacityMode": "on_demand",
             "readServiceTimeMs": {
               "kind": "lognormal",
               "median": 3,
@@ -2423,24 +3331,25 @@
           "name": "Elasticsearch",
           "technology": "elasticsearch",
           "family": "Search",
-          "description": "Three primary shards with one replica each; searches are slower than key lookups and indexing is the expensive write. Defaults are illustrative assumptions, not vendor benchmarks.",
+          "description": "Three primary shards with one replica each. Every search hits all three shards; the search thread pool (7 threads for 4 cores) and its 1,000-request queue (Elasticsearch 8 defaults) reject the excess with 429. Numbers are illustrative assumptions, not vendor benchmarks.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 32,
             "storageGib": 500,
             "technology": "elasticsearch",
-            "maxConnections": 16,
+            "maxConnections": 7,
+            "queueCapacity": 1000,
             "shards": 3,
             "readReplicas": 1,
             "readServiceTimeMs": {
               "kind": "lognormal",
-              "median": 15,
-              "p95": 60
+              "median": 12,
+              "p95": 50
             },
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 25,
-              "p95": 120
+              "median": 20,
+              "p95": 100
             },
             "costPerHour": 0.45
           },
@@ -2450,7 +3359,403 @@
           ]
         }
       ],
-      "linkDefaults": {}
+      "linkDefaults": {},
+      "technologyTraits": {
+        "postgresql": [
+          {
+            "id": "row_locks",
+            "title": "Row locks on writes",
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+          },
+          {
+            "id": "mvcc_reads",
+            "title": "Readers never wait for writers",
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
+          },
+          {
+            "id": "group_commit",
+            "title": "Commits wait for the log flush (group commit)",
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
+          },
+          {
+            "id": "async_replicas",
+            "title": "Asynchronous replicas with lag",
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+          }
+        ],
+        "mysql": [
+          {
+            "id": "row_locks",
+            "title": "Row locks on writes",
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+          },
+          {
+            "id": "mvcc_reads",
+            "title": "Readers never wait for writers",
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
+          },
+          {
+            "id": "group_commit",
+            "title": "Commits wait for the log flush (group commit)",
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
+          },
+          {
+            "id": "async_replicas",
+            "title": "Asynchronous replicas with lag",
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+          },
+          {
+            "id": "parallel_replica",
+            "title": "Multithreaded replica apply",
+            "detail": "MySQL 8.0.27+ replicas apply transactions on 4 worker threads by default (replica_parallel_workers), so lag builds later than in PostgreSQL.",
+            "source": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-replica.html#sysvar_replica_parallel_workers"
+          }
+        ],
+        "mariadb": [
+          {
+            "id": "row_locks",
+            "title": "Row locks on writes",
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+          },
+          {
+            "id": "mvcc_reads",
+            "title": "Readers never wait for writers",
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
+          },
+          {
+            "id": "group_commit",
+            "title": "Commits wait for the log flush (group commit)",
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
+          },
+          {
+            "id": "async_replicas",
+            "title": "Asynchronous replicas with lag",
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+          }
+        ],
+        "oracle": [
+          {
+            "id": "row_locks",
+            "title": "Row locks on writes",
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+          },
+          {
+            "id": "mvcc_reads",
+            "title": "Readers never wait for writers",
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
+          },
+          {
+            "id": "group_commit",
+            "title": "Commits wait for the log flush (group commit)",
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
+          },
+          {
+            "id": "async_replicas",
+            "title": "Asynchronous replicas with lag",
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+          }
+        ],
+        "sqlserver": [
+          {
+            "id": "row_locks",
+            "title": "Row locks on writes",
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+          },
+          {
+            "id": "locking_reads",
+            "title": "Readers wait for writers",
+            "detail": "Under the default READ COMMITTED isolation (without read committed snapshot) a read of a row that is being written waits for the writer's exclusive lock.",
+            "source": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide"
+          },
+          {
+            "id": "group_commit",
+            "title": "Commits wait for the log flush (group commit)",
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
+          },
+          {
+            "id": "async_replicas",
+            "title": "Asynchronous replicas with lag",
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+          }
+        ],
+        "cockroachdb": [
+          {
+            "id": "row_locks",
+            "title": "Row locks on writes",
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+          },
+          {
+            "id": "raft",
+            "title": "Consensus writes (Raft)",
+            "detail": "Every write is replicated to a majority of the range's replicas (3 by default) before it commits: set the replication factor and quorum consistency to see the cost.",
+            "source": "https://docs.cockroachlabs.com/docs/stable/architecture/replication-layer"
+          },
+          {
+            "id": "group_commit",
+            "title": "Commits wait for the log flush (group commit)",
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
+          }
+        ],
+        "yugabytedb": [
+          {
+            "id": "row_locks",
+            "title": "Row locks on writes",
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+          },
+          {
+            "id": "group_commit",
+            "title": "Commits wait for the log flush (group commit)",
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
+          }
+        ],
+        "mongodb": [
+          {
+            "id": "document_locks",
+            "title": "Document-level concurrency",
+            "detail": "WiredTiger lets writes to different documents run in parallel; two writes to the same document conflict and one waits.",
+            "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
+          },
+          {
+            "id": "tickets",
+            "title": "Concurrent transaction tickets",
+            "detail": "Each node runs at most 128 read and 128 write storage-engine transactions at once (since 7.0 MongoDB adjusts the limit dynamically, never above 128); more queue inside the server even when connections are free.",
+            "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
+          },
+          {
+            "id": "majority_writes",
+            "title": "Write concern \"majority\" by default",
+            "detail": "A write is acknowledged only after a majority of the replica set has it (the implicit default for replica sets without arbiters), so every write waits for the fastest secondary; slow or lagging secondaries slow writes down.",
+            "source": "https://www.mongodb.com/docs/manual/reference/write-concern/"
+          },
+          {
+            "id": "primary_reads",
+            "title": "Reads go to the primary by default",
+            "detail": "The default read preference is primary: secondaries only serve reads when you choose secondaryPreferred (read from replicas).",
+            "source": "https://www.mongodb.com/docs/manual/core/read-preference/"
+          },
+          {
+            "id": "mongos",
+            "title": "Router hop and broadcast queries when sharded",
+            "detail": "With shards, mongos routes each operation; queries without the shard key are sent to every shard and wait for the slowest.",
+            "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/"
+          }
+        ],
+        "cassandra": [
+          {
+            "id": "lsm_writes",
+            "title": "Cheap writes (log-structured storage)",
+            "detail": "Writes append to the commit log and an in-memory table: no read before write, no row locks, and the commit log syncs periodically rather than per write.",
+            "source": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
+          },
+          {
+            "id": "read_amplification",
+            "title": "Reads merge several SSTables",
+            "detail": "A read that misses memory may touch more than one SSTable on disk (2 on average here, illustrative), so cold reads cost more than writes.",
+            "source": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
+          }
+        ],
+        "dynamodb": [
+          {
+            "id": "partition_limits",
+            "title": "Per-partition throughput limits",
+            "detail": "Each partition serves at most 3,000 read units and 1,000 write units per second. Keys hash to partitions, so a hot key is throttled even when the table has capacity left.",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"
+          },
+          {
+            "id": "capacity_units",
+            "title": "Capacity units",
+            "detail": "A strongly consistent read of up to 4 KB costs 1 read unit (eventually consistent: half); a write of up to 1 KB costs 1 write unit. Requests beyond the table's capacity are throttled.",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html"
+          },
+          {
+            "id": "burst",
+            "title": "Burst capacity",
+            "detail": "Provisioned tables bank up to 300 seconds of unused capacity and spend it on spikes (here the bank starts full).",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/burst-adaptive-capacity.html"
+          }
+        ],
+        "elasticsearch": [
+          {
+            "id": "fan_out",
+            "title": "Every search hits every shard",
+            "detail": "A search runs on one copy of each shard and the coordinating node merges the results, so search latency follows the slowest shard and each search costs one query per shard.",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+          },
+          {
+            "id": "sync_replicas",
+            "title": "Index writes wait for replicas",
+            "detail": "An indexing operation is acknowledged after the primary and its in-sync replicas have it.",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+          },
+          {
+            "id": "thread_pools",
+            "title": "Bounded thread pools (HTTP 429)",
+            "detail": "Searches run on a fixed pool of (cores x 3 / 2) + 1 threads with a bounded queue (1,000 in 8.x, 1,000 per thread since 9.0); past it the node rejects with 429. The preset sizes connections and queue that way.",
+            "source": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings"
+          }
+        ],
+        "opensearch": [
+          {
+            "id": "fan_out",
+            "title": "Every search hits every shard",
+            "detail": "A search runs on one copy of each shard and the coordinating node merges the results, so search latency follows the slowest shard and each search costs one query per shard.",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+          },
+          {
+            "id": "sync_replicas",
+            "title": "Index writes wait for replicas",
+            "detail": "An indexing operation is acknowledged after the primary and its in-sync replicas have it.",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+          },
+          {
+            "id": "thread_pools",
+            "title": "Bounded thread pools (HTTP 429)",
+            "detail": "Searches run on a fixed pool of (cores x 3 / 2) + 1 threads with a bounded queue (1,000 in 8.x, 1,000 per thread since 9.0); past it the node rejects with 429. The preset sizes connections and queue that way.",
+            "source": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings"
+          }
+        ]
+      },
+      "technologyDefaults": {
+        "rowLocks": {
+          "postgresql": "on",
+          "mysql": "on",
+          "mariadb": "on",
+          "oracle": "on",
+          "sqlserver": "on",
+          "cockroachdb": "on",
+          "yugabytedb": "on",
+          "mongodb": "on",
+          "couchbase": "off",
+          "cassandra": "off",
+          "scylladb": "off",
+          "dynamodb": "off",
+          "elasticsearch": "off",
+          "opensearch": "off",
+          "generic": "off"
+        },
+        "readsWaitForWrites": {
+          "postgresql": "off",
+          "mysql": "off",
+          "mariadb": "off",
+          "oracle": "off",
+          "sqlserver": "on",
+          "cockroachdb": "off",
+          "yugabytedb": "off",
+          "mongodb": "off",
+          "generic": "off"
+        },
+        "commitFlush": {
+          "postgresql": "on",
+          "mysql": "on",
+          "mariadb": "on",
+          "oracle": "on",
+          "sqlserver": "on",
+          "cockroachdb": "on",
+          "yugabytedb": "on",
+          "mongodb": "on",
+          "couchbase": "off",
+          "cassandra": "off",
+          "scylladb": "off",
+          "dynamodb": "off",
+          "elasticsearch": "off",
+          "opensearch": "off",
+          "generic": "off"
+        },
+        "replication": {
+          "postgresql": "async",
+          "mysql": "async",
+          "mariadb": "async",
+          "oracle": "async",
+          "sqlserver": "async",
+          "cockroachdb": "async",
+          "yugabytedb": "async",
+          "mongodb": "majority",
+          "couchbase": "async",
+          "cassandra": "none",
+          "scylladb": "none",
+          "dynamodb": "none",
+          "elasticsearch": "all",
+          "opensearch": "all",
+          "generic": "none"
+        },
+        "replicaApplyWorkers": {
+          "postgresql": 1,
+          "mysql": 4,
+          "mariadb": 4,
+          "oracle": 4,
+          "sqlserver": 4,
+          "cockroachdb": 4,
+          "yugabytedb": 4,
+          "mongodb": 16,
+          "couchbase": 4,
+          "elasticsearch": 4,
+          "opensearch": 4
+        },
+        "readFrom": {
+          "postgresql": "all",
+          "mysql": "all",
+          "mariadb": "all",
+          "oracle": "all",
+          "sqlserver": "all",
+          "cockroachdb": "all",
+          "yugabytedb": "all",
+          "mongodb": "primary",
+          "couchbase": "primary",
+          "cassandra": "all",
+          "scylladb": "all",
+          "dynamodb": "all",
+          "elasticsearch": "all",
+          "opensearch": "all",
+          "generic": "all"
+        },
+        "readTickets": {
+          "mongodb": 128
+        },
+        "writeTickets": {
+          "mongodb": 128
+        },
+        "routerOverheadMs": {
+          "mongodb": 0.5
+        },
+        "sstablesPerRead": {
+          "cassandra": 2.0,
+          "scylladb": 1.5
+        },
+        "capacityUnits": {
+          "dynamodb": "on"
+        },
+        "scatterReads": {
+          "elasticsearch": 1.0,
+          "opensearch": 1.0
+        },
+        "coordinatorMs": {
+          "elasticsearch": 1.0,
+          "opensearch": 1.0
+        }
+      }
     },
     {
       "type": "external_api",
@@ -2726,13 +4031,15 @@
           ]
         }
       ],
-      "linkDefaults": {}
+      "linkDefaults": {},
+      "technologyTraits": {},
+      "technologyDefaults": {}
     },
     {
       "type": "message_queue",
       "displayName": "Message Queue / Stream",
       "category": "messaging",
-      "description": "Asynchronous messaging (Kafka, RabbitMQ, SQS-style). Producers get an acknowledgement after publishing; consumers process messages in the background and call the outgoing links. Absorbs spikes as backlog (lag) instead of rejecting requests.",
+      "description": "Asynchronous messaging (Kafka, RabbitMQ, SQS-style). Producers get an acknowledgement after publishing; consumers process messages in the background and call the outgoing links. Absorbs spikes as backlog (lag) instead of rejecting requests, and behaves like the technology you pick.",
       "icon": "inbox",
       "isTrafficSource": false,
       "ports": [
@@ -2767,7 +4074,7 @@
           "label": "Technology",
           "kind": "enum",
           "nullable": false,
-          "description": "Product or managed service. A label for the design; behaviour comes from the settings below.",
+          "description": "The broker or managed service. It sets how messages are partitioned, acknowledged and redelivered, shown under Technology behaviour. Presets also fill in typical numbers.",
           "default": "generic",
           "assumption": false,
           "headline": false,
@@ -2813,7 +4120,7 @@
           "label": "Max backlog",
           "kind": "integer",
           "nullable": true,
-          "description": "Messages the queue holds; publishes beyond it are rejected (queue_full). Empty = unbounded.",
+          "description": "Messages the queue holds; publishes beyond it are rejected (queue_full), or dropped silently with at-most-once delivery. Empty = unbounded.",
           "default": 100000,
           "assumption": false,
           "headline": false,
@@ -2827,7 +4134,7 @@
           "label": "Publish (ack) time",
           "kind": "distribution",
           "nullable": false,
-          "description": "Time for the broker to acknowledge a publish (ms): what the producer waits.",
+          "description": "Time for the broker to accept a publish (ms), before any replication wait or batching.",
           "default": {
             "kind": "lognormal",
             "median": 2.0,
@@ -2868,6 +4175,178 @@
           "group": "Reliability"
         },
         {
+          "key": "partitioning",
+          "label": "Partitioning",
+          "kind": "enum",
+          "nullable": false,
+          "description": "key: messages with the same key go to the same partition and are consumed in order by its one consumer (Kafka). round_robin: spread evenly, still one consumer per partition. none: one shared queue with competing consumers (RabbitMQ, SQS).",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "key",
+            "round_robin",
+            "none"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "acks",
+          "label": "Publish acknowledgement",
+          "kind": "enum",
+          "nullable": false,
+          "description": "all: the publish waits until the replicas have the message (Kafka acks=all, the default since 3.0).",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "leader",
+            "all"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "replicationMs",
+          "label": "Replication wait",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Extra publish time waiting for replicas when acks = all (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 2.0,
+            "p95": 8.0
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "lingerMs",
+          "label": "Batching linger",
+          "kind": "number",
+          "nullable": true,
+          "description": "The producer holds each message up to this long to batch it (Kafka linger.ms); a publish waits a uniform share of it. Empty = technology default.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 10000,
+          "unit": "ms",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "delivery",
+          "label": "Delivery guarantee",
+          "kind": "enum",
+          "nullable": false,
+          "description": "at_least_once: a full backlog rejects publishes. at_most_once (core NATS): the overflow is dropped silently and the publisher still gets an ack.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "at_least_once",
+            "at_most_once"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "visibilityTimeoutS",
+          "label": "Visibility timeout",
+          "kind": "number",
+          "nullable": true,
+          "description": "A message being processed longer than this is delivered again to another consumer (SQS visibility timeout, Pub/Sub ack deadline). Empty = technology default (SQS 30 s, Pub/Sub 10 s, none for brokers with consumer acks).",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 43200,
+          "unit": "s",
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "fifo",
+          "label": "FIFO queue",
+          "kind": "boolean",
+          "nullable": false,
+          "description": "FIFO queue (SQS): ordered, exactly-once, and limited to the publish rate below.",
+          "default": false,
+          "assumption": false,
+          "headline": false,
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "technology": "sqs"
+          }
+        },
+        {
+          "key": "fifoLimitRps",
+          "label": "FIFO publish limit",
+          "kind": "number",
+          "nullable": false,
+          "description": "Publishes per second a FIFO queue accepts (SQS: 300 without batching, 3,000 with); the excess is throttled.",
+          "default": 300.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1000000,
+          "unit": "msg/s",
+          "group": "Technology behaviour",
+          "visibleWhen": {
+            "technology": "sqs"
+          }
+        },
+        {
+          "key": "flowControl",
+          "label": "Memory alarm blocks publishers",
+          "kind": "enum",
+          "nullable": false,
+          "description": "Block publishers while queued messages use more memory than the high watermark (RabbitMQ memory alarm). Needs memory set. Auto: on for RabbitMQ.",
+          "default": "auto",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "group": "Technology behaviour"
+        },
+        {
+          "key": "memoryHighWatermark",
+          "label": "Memory high watermark",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of the broker's memory queued messages may use before publishers are blocked.",
+          "default": 0.6,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1,
+          "group": "Technology behaviour",
+          "step": 0.05
+        },
+        {
+          "key": "messageSizeKb",
+          "label": "Message size",
+          "kind": "number",
+          "nullable": false,
+          "description": "Average message size in memory, with overhead (KiB). Used by the memory alarm.",
+          "default": 1.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1048576,
+          "unit": "KiB",
+          "group": "Technology behaviour"
+        },
+        {
           "key": "brokers",
           "label": "Brokers",
           "kind": "integer",
@@ -2901,7 +4380,7 @@
           "label": "Memory",
           "kind": "number",
           "nullable": true,
-          "description": "Memory per broker (GiB). Empty = not modelled. Shown on the design and used for price estimates; it does not change the simulation.",
+          "description": "Memory per broker (GiB). Empty = not modelled. Used by the memory alarm (RabbitMQ); otherwise shown on the design and priced.",
           "default": null,
           "assumption": false,
           "headline": false,
@@ -2958,19 +4437,36 @@
           "p95": 20.0
         },
         "maxDeliveries": 3,
+        "partitioning": "auto",
+        "acks": "auto",
+        "replicationMs": {
+          "kind": "lognormal",
+          "median": 2.0,
+          "p95": 8.0
+        },
+        "delivery": "auto",
+        "fifo": false,
+        "fifoLimitRps": 300.0,
+        "flowControl": "auto",
+        "memoryHighWatermark": 0.6,
+        "messageSizeKb": 1.0,
         "brokers": 1,
         "costPerHour": 0.15
       },
       "modeled": [
-        "Publish acknowledgement latency and a bounded backlog (rejects when full)",
-        "FIFO consumption by min(consumers, partitions) parallel consumers",
+        "Publish acknowledgement latency (plus replication wait and batching linger) and a bounded backlog",
+        "Partitioned logs: key-hashed ordered partitions, one consumer each (hot partitions lag)",
+        "Shared queues: competing consumers, FIFO",
         "Redelivery of failed messages up to max deliveries, then dead-lettering",
+        "Visibility timeouts / ack deadlines: slow processing is delivered again (duplicates)",
+        "Memory alarm flow control: publishers block past the high watermark",
+        "At-most-once delivery: overflow dropped silently; FIFO publish rate limits",
         "Backlog (lag), consumer utilization and message age"
       ],
       "notModeled": [
-        "Per-partition ordering and key-based partition skew",
-        "Broker replication, disk and network throughput limits",
-        "Consumer rebalancing, visibility timeouts and duplicate delivery"
+        "Broker disk and network throughput limits",
+        "Consumer group rebalancing pauses",
+        "Exactly-once transactions"
       ],
       "presets": [
         {
@@ -2978,7 +4474,7 @@
           "name": "Kafka",
           "technology": "kafka",
           "family": "Log / stream",
-          "description": "Partitioned log: consumer parallelism is capped by partitions; acks=all publish latency.",
+          "description": "Partitioned log: messages hash by key to 12 ordered partitions, one consumer each; acks=all and 5 ms linger on publish.",
           "config": {
             "cpuCores": 4,
             "memoryGib": 16,
@@ -2989,8 +4485,8 @@
             "maxDepth": 10000000,
             "publishTimeMs": {
               "kind": "lognormal",
-              "median": 3,
-              "p95": 10
+              "median": 1,
+              "p95": 4
             },
             "consumerTimeMs": {
               "kind": "lognormal",
@@ -3012,7 +4508,7 @@
           "name": "RabbitMQ",
           "technology": "rabbitmq",
           "family": "Broker",
-          "description": "Message broker with competing consumers on a queue.",
+          "description": "Message broker with competing consumers on a queue; past the memory high watermark it blocks publishers.",
           "config": {
             "cpuCores": 2,
             "memoryGib": 8,
@@ -3020,7 +4516,7 @@
             "technology": "rabbitmq",
             "partitions": 1000,
             "consumers": 8,
-            "maxDepth": 1000000,
+            "maxDepth": 10000000,
             "publishTimeMs": {
               "kind": "lognormal",
               "median": 1,
@@ -3032,6 +4528,7 @@
               "p95": 12
             },
             "maxDeliveries": 5,
+            "messageSizeKb": 4,
             "brokers": 1,
             "costPerHour": 0.1
           },
@@ -3045,7 +4542,7 @@
           "name": "SQS-style queue",
           "technology": "sqs",
           "family": "Managed queue",
-          "description": "Managed HTTP queue: slower publishes, effectively unbounded backlog (illustrative numbers).",
+          "description": "Managed HTTP queue: slower publishes, unbounded backlog, 30 s visibility timeout (slow processing gets delivered twice).",
           "config": {
             "technology": "sqs",
             "partitions": 10000,
@@ -3075,7 +4572,7 @@
           "name": "Pub/Sub-style topic",
           "technology": "pubsub",
           "family": "Managed queue",
-          "description": "Managed publish/subscribe with push or pull subscribers (illustrative numbers).",
+          "description": "Managed publish/subscribe with a 10 s ack deadline (illustrative numbers).",
           "config": {
             "technology": "pubsub",
             "partitions": 10000,
@@ -3102,10 +4599,10 @@
         },
         {
           "id": "nats",
-          "name": "NATS",
+          "name": "NATS JetStream",
           "technology": "nats",
           "family": "Broker",
-          "description": "Lightweight messaging (JetStream for persistence) with very low publish latency.",
+          "description": "Lightweight messaging with JetStream persistence (at-least-once); switch delivery to at-most-once for core NATS.",
           "config": {
             "cpuCores": 2,
             "memoryGib": 4,
@@ -3164,7 +4661,119 @@
           ]
         }
       ],
-      "linkDefaults": {}
+      "linkDefaults": {},
+      "technologyTraits": {
+        "kafka": [
+          {
+            "id": "partitions",
+            "title": "Ordered partitions, one consumer each",
+            "detail": "Messages with the same key land on the same partition and are processed in order by the one consumer that owns it. A skewed key makes one partition, and its consumer, fall behind while others idle.",
+            "source": "https://kafka.apache.org/documentation/#intro_concepts_and_terms"
+          },
+          {
+            "id": "acks_all",
+            "title": "acks=all",
+            "detail": "The producer's acknowledgement waits until the in-sync replicas have the message (the default since Kafka 3.0).",
+            "source": "https://kafka.apache.org/documentation/#producerconfigs_acks"
+          },
+          {
+            "id": "linger",
+            "title": "Batching (linger.ms)",
+            "detail": "The producer holds a message up to linger.ms to batch it with others (5 ms by default in Kafka 4.0).",
+            "source": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms"
+          }
+        ],
+        "rabbitmq": [
+          {
+            "id": "memory_alarm",
+            "title": "Memory alarm blocks publishers",
+            "detail": "When queued messages use more memory than the high watermark, the broker blocks publishing connections until consumers catch up: producers slow down instead of getting errors. Needs memory and message size set.",
+            "source": "https://www.rabbitmq.com/docs/memory"
+          }
+        ],
+        "sqs": [
+          {
+            "id": "visibility_timeout",
+            "title": "Visibility timeout (30 s)",
+            "detail": "A received message is hidden for the visibility timeout. If processing takes longer, the message becomes visible again and another consumer processes it too: duplicate work.",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"
+          },
+          {
+            "id": "fifo_limit",
+            "title": "FIFO throughput limit",
+            "detail": "FIFO queues accept about 300 publishes per second without batching; standard queues are effectively unlimited.",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html"
+          }
+        ],
+        "pubsub": [
+          {
+            "id": "ack_deadline",
+            "title": "Ack deadline (10 s)",
+            "detail": "A message not acknowledged within the ack deadline is delivered again.",
+            "source": "https://docs.cloud.google.com/pubsub/docs/subscription-properties"
+          }
+        ],
+        "nats": [
+          {
+            "id": "core_vs_jetstream",
+            "title": "Core NATS drops, JetStream persists",
+            "detail": "Core NATS is at-most-once: a slow consumer's overflow is dropped and the publisher never knows. Choose at-least-once for JetStream.",
+            "source": "https://docs.nats.io/nats-concepts/core-nats"
+          }
+        ]
+      },
+      "technologyDefaults": {
+        "partitioning": {
+          "kafka": "key",
+          "rabbitmq": "none",
+          "sqs": "none",
+          "pubsub": "none",
+          "nats": "none",
+          "redis_streams": "none",
+          "generic": "none"
+        },
+        "acks": {
+          "kafka": "all",
+          "rabbitmq": "leader",
+          "sqs": "leader",
+          "pubsub": "leader",
+          "nats": "leader",
+          "redis_streams": "leader",
+          "generic": "leader"
+        },
+        "lingerMs": {
+          "kafka": 5.0,
+          "rabbitmq": 0.0,
+          "sqs": 0.0,
+          "pubsub": 0.0,
+          "nats": 0.0,
+          "redis_streams": 0.0,
+          "generic": 0.0
+        },
+        "delivery": {
+          "kafka": "at_least_once",
+          "rabbitmq": "at_least_once",
+          "sqs": "at_least_once",
+          "pubsub": "at_least_once",
+          "nats": "at_least_once"
+        },
+        "visibilityTimeoutS": {
+          "kafka": null,
+          "rabbitmq": null,
+          "sqs": 30.0,
+          "pubsub": 10.0,
+          "nats": null
+        },
+        "flowControl": {
+          "kafka": "off",
+          "rabbitmq": "on",
+          "sqs": "off",
+          "pubsub": "off",
+          "nats": "off",
+          "redis_streams": "off",
+          "generic": "off"
+        }
+      }
     }
   ],
   "edgeFields": [

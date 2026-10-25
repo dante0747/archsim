@@ -51,7 +51,10 @@ def test_layout_records_link_sides_without_affecting_the_model() -> None:
     raw["layout"]["edges"] = {first_edge: {"sourceSide": "bottom", "targetSide": "top"}}
     parsed = load_document(raw)
     assert parsed.layout.edges[first_edge].source_side == "bottom"
-    assert parsed.to_json_dict()["layout"]["edges"][first_edge] == {"sourceSide": "bottom", "targetSide": "top"}
+    assert parsed.to_json_dict()["layout"]["edges"][first_edge] == {
+        "sourceSide": "bottom",
+        "targetSide": "top",
+    }
     assert prepare_run(raw).resolved.architecture == prepare_run(plain).resolved.architecture
     raw["layout"]["edges"] = {first_edge: {"sourceSide": "diagonal"}}
     with pytest.raises(ValidationError):

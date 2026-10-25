@@ -93,7 +93,36 @@ export function patchNodeConfig(nodeId: string, patch: Record<string, unknown>):
   }));
 }
 
-/** Apply a preset's config to an existing node as one undoable step. */
+/**
+ * The config of a node switched to ``preset``: the preset's values, with every setting another
+ * preset of this component sets, and every technology-behaviour setting, put back to its default
+ * first, so nothing lingers from the previous technology (e.g. MongoDB's "read from replicas"
+ * after switching to PostgreSQL). Settings no preset touches keep the user's values.
+ */
+export function switchToPreset(config: Record<string, unknown>, comp: ComponentType | undefined, preset: Preset): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...config };
+  if (comp) {
+    const keys = new Set<string>();
+    for (const p of comp.presets ?? []) for (const k of Object.keys(p.config)) keys.add(k);
+    for (const f of comp.fields) if (f.group === "Technology behaviour") keys.add(f.key);
+    for (const k of keys) {
+      if (k in preset.config) continue;
+      if (k in comp.defaultConfig) out[k] = structuredClone(comp.defaultConfig[k]);
+      else delete out[k];
+    }
+  }
+  return { ...out, ...structuredClone(preset.config) };
+}
+
+/** Apply a preset to an existing node as one undoable step. */
 export function applyPresetToNode(nodeId: string, preset: Preset): void {
-  patchNodeConfig(nodeId, preset.config);
+  const st = useEditor.getState();
+  const node = st.nodes.find((n) => n.id === nodeId);
+  if (!node) return;
+  const comp = st.catalog?.components.find((c) => c.type === node.data.type);
+  st.pushHistory();
+  useEditor.setState((s) => ({
+    nodes: s.nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config: switchToPreset(n.data.config, comp, preset) } } : n)),
+    dirty: true,
+  }));
 }

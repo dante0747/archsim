@@ -102,7 +102,7 @@ export function ProjectsHome() {
         <div className="relative mx-auto max-w-6xl px-4 pt-16 text-center sm:px-6 sm:pt-24">
           <p className="pop-in mx-auto inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3 text-[13px] text-ink-2">
             <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-[var(--accent-ink)]">New</span>
-            Mobile, web and API clients · CPU and memory specs
+            Live dashboard · real technology behaviour · the maths behind every number
           </p>
           <h1 className="mt-7 font-display text-[44px] font-semibold leading-[0.98] tracking-[-0.05em] text-ink sm:text-[64px] lg:text-[80px]">
             Crash-test your architecture
@@ -215,7 +215,9 @@ export function ProjectsHome() {
                 Model the stack you actually run
               </h2>
               <p className="mt-4 text-[17px] leading-relaxed text-ink-2">
-                Pick a technology and get sensible starting numbers. Behaviour always comes from the settings, never from the logo.
+                Pick a technology and it behaves like the real thing: PostgreSQL locks rows and waits for its log, MongoDB waits for a majority, Redis runs
+                commands on one thread, Kafka keeps keys in order on one partition. Every behaviour links to the vendor&apos;s documentation and can be
+                overridden.
               </p>
             </Reveal>
             <div className="mt-12">
