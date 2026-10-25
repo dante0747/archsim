@@ -102,13 +102,29 @@ def test_source_requires_exactly_one_link() -> None:
     assert "port.too_many_links" in codes(d2)
 
 
-def test_exactly_one_traffic_source() -> None:
+def test_at_least_one_client_and_several_allowed() -> None:
     assert "graph.no_source" in codes(doc([node("api", "service")], []))
     d = doc(
-        [node("c1", "traffic_source"), node("c2", "traffic_source"), node("api", "service")],
-        [edge("1", "c1", "api"), edge("2", "c2", "api")],
+        [
+            node("c1", "traffic_source"),
+            node("mobile", "mobile_app", technology="ios"),
+            node("web", "web_client"),
+            node("partners", "api_consumer", trafficShare=5),
+            node("api", "service"),
+        ],
+        [
+            edge("1", "c1", "api"),
+            edge("2", "mobile", "api"),
+            edge("3", "web", "api"),
+            edge("4", "partners", "api"),
+        ],
     )
-    assert "graph.multiple_sources" in codes(d)
+    assert codes(d) == set()
+    bad = doc(
+        [node("c", "mobile_app", technology="symbian"), node("a", "service")],
+        [edge("1", "c", "a")],
+    )
+    assert "node.config_invalid" in codes(bad)
 
 
 def test_unknown_type_and_dangling_edge() -> None:

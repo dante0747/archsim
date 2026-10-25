@@ -2,6 +2,7 @@
 
 import { CircleAlert, CircleCheck, Info, LoaderCircle, Play, RotateCcw, TriangleAlert } from "lucide-react";
 import { verdictOf } from "@/components/editor/workflow";
+import { TechIcon } from "@/components/TechIcon";
 import { Button } from "@/components/ui/button";
 import { Badge, Empty, Section, Tip } from "@/components/ui/misc";
 import { fmtMs, fmtNum, fmtPct, fmtRps, shortDigest } from "@/lib/format";
@@ -282,6 +283,7 @@ export function OverviewTab() {
               </table>
             </div>
           </Section>
+          {(s.clients?.length ?? 0) > 1 && <ClientsTable report={report} />}
           {s.failureBreakdown.length > 0 && (
             <Section title="Where requests failed">
               <ul className="space-y-1 rounded-md border border-line bg-surface p-3 text-xs">
@@ -301,5 +303,47 @@ export function OverviewTab() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** What each client part experienced: mobile users can see a different system than partners. */
+function ClientsTable({ report }: { report: Report }) {
+  const clients = report.summary.clients ?? [];
+  return (
+    <Section title="By client">
+      <div className="overflow-hidden rounded-md border border-line bg-surface">
+        <table className="tabular w-full font-mono text-[11.5px]">
+          <thead>
+            <tr className="border-b border-line text-left">
+              <th className={cn(thClass, "px-3 py-1.5")}>client</th>
+              <th className={cn(thClass, "px-2 py-1.5 text-right")}>share</th>
+              <th className={cn(thClass, "px-2 py-1.5 text-right")}>success</th>
+              <th className={cn(thClass, "px-2 py-1.5 text-right")}>p50</th>
+              <th className={cn(thClass, "px-3 py-1.5 text-right")}>p95</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {clients.map((c) => {
+              const node = report.nodes.find((n) => n.id === c.nodeId);
+              const tech = typeof node?.config.technology === "string" ? node.config.technology : null;
+              return (
+                <tr key={c.nodeId}>
+                  <td className="px-3 py-1.5 text-ink">
+                    <span className="flex items-center gap-1.5">
+                      <TechIcon technology={tech} kind="traffic" size={13} />
+                      <span className="truncate">{c.label}</span>
+                    </span>
+                  </td>
+                  <td className="px-2 py-1.5 text-right text-ink-2">{fmtPct(c.share, 0)}</td>
+                  <td className="px-2 py-1.5 text-right text-ink">{fmtPct(c.successRate, 1)}</td>
+                  <td className="px-2 py-1.5 text-right text-ink">{fmtMs(c.latencyMs.p50)}</td>
+                  <td className="px-3 py-1.5 text-right text-ink">{fmtMs(c.latencyMs.p95)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Section>
   );
 }

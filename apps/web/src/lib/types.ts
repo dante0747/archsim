@@ -188,6 +188,8 @@ export interface ComponentType {
   modeled: string[];
   notModeled: string[];
   presets?: Preset[];
+  /** Link settings suggested for links drawn from this component (e.g. a mobile network's latency). */
+  linkDefaults?: Partial<EdgeConfig>;
 }
 
 export interface Catalog {
@@ -302,6 +304,22 @@ export interface FailureRow {
   share: number | null;
 }
 
+export interface ClientGroupReport {
+  nodeId: string;
+  label: string;
+  type: string | null;
+  /** Fraction of the workload this group sends (0-1). */
+  share: number | null;
+  arrived: number;
+  succeeded: number;
+  failed: number;
+  timedOut: number;
+  offeredRps: number | null;
+  successRate: number | null;
+  retryAmplification: number | null;
+  latencyMs: LatencySummary;
+}
+
 export interface ReportSummary {
   arrived: number;
   succeeded: number;
@@ -320,6 +338,8 @@ export interface ReportSummary {
   latencyMs: LatencySummary;
   latencyByOp: Record<RequestType, LatencySummary>;
   failureBreakdown: FailureRow[];
+  /** What each client group experienced (one entry per client part). Missing in reports before 1.2. */
+  clients?: ClientGroupReport[];
   accounting: {
     warmup: CohortCounts;
     measured: CohortCounts;

@@ -27,6 +27,12 @@ you are; results land on the canvas right away. A short guided tour opens on the
 API servers behind a lone Clients box.
 
 **Design: draw it with real technologies**
+- Clients as separate parts: **Mobile app** (iOS, Android, React Native, Flutter), **Web
+  browser** (React, Next.js, Vue, Angular, Svelte) and **API consumers** (REST / OpenAPI,
+  GraphQL), alongside the generic Clients box. Each has its own timeouts, retries and network
+  latency on its link, and a traffic share: put all three in front of one gateway and the
+  workload is split between them (50 / 35 / 15 by default). Results show success and latency
+  per client.
 - A parts library on the left with each technology's logo and a search box: relational (PostgreSQL, MySQL, SQL Server,
   distributed SQL), document (MongoDB replica sets and sharded clusters), wide-column
   (Cassandra), key-value (DynamoDB-style provisioned throughput), search (Elasticsearch),
@@ -209,11 +215,13 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 
 ## Scope and limitations
 
-Supported today: one traffic source per design; five component types (traffic source, load
-balancer, service, cache, database); synchronous acyclic call graphs; open-loop synthetic
-workloads; local single-user operation. Not modeled: CPU/memory contention, garbage
-collection, autoscaling, network bandwidth and packet loss, locks and disk I/O, cache eviction,
-failures and failure injection. There is no authentication; do not expose the API publicly.
+Supported today: several client groups per design (Clients, mobile app, web browser, API
+consumers) sharing one workload; load balancers, services (with autoscaling and serverless),
+caches, databases, message queues and external APIs; synchronous acyclic call graphs;
+open-loop synthetic workloads; scheduled faults (outage, slowdown, link latency); local
+single-user operation. Not modeled: CPU/memory contention, garbage collection, network
+bandwidth and packet loss, locks and disk I/O, cache eviction, random failures. There is no
+authentication; do not expose the API publicly.
 Prometheus calibration, Grafana integration and an agent/MCP API are on the roadmap, not
 implemented. Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 

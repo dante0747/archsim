@@ -79,6 +79,16 @@ describe("editor store", () => {
     expect(edge.data?.config.requestTypes).toEqual(["read", "write"]);
   });
 
+  it("links from a client part start with its network latency", () => {
+    const mobile = useEditor.getState().addNode("mobile_app", { x: 0, y: 400 })!;
+    expect(useEditor.getState().connect({ source: mobile, target: "lb", sourceHandle: "s-right", targetHandle: "s-left" }).ok).toBe(true);
+    const edge = useEditor.getState().edges.find((e) => e.source === mobile)!;
+    expect(edge.data?.config.latencyMs).toEqual({ kind: "lognormal", median: 35, p95: 120 });
+    // other links keep the plain default
+    const plain = useEditor.getState().edges.find((e) => e.id === "lb-api")!;
+    expect(plain.data?.config.latencyMs).not.toEqual(edge.data?.config.latencyMs);
+  });
+
   it("deleting a node removes its links", () => {
     useEditor.getState().deleteElements(["cache"], []);
     const s = useEditor.getState();

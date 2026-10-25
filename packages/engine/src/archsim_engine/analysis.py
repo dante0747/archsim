@@ -53,7 +53,7 @@ def _queue_growing(series: list[float | None], i0: int, i1: int) -> bool:
 
 def classify(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
     s = node["summary"]
-    if node["type"] == "traffic_source":
+    if node["category"] == "traffic":  # client groups
         return "ok", []
     if not s["arrivals"]:
         return "idle", ["received no requests"]
@@ -266,7 +266,8 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
         top = summary["failureBreakdown"][0]
         where = top["nodeLabel"] or "the system"
         if top["reason"] == "client_timeout":
-            src = next((n for n in resolved.architecture.nodes if n.type == "traffic_source"), None)
+            # The client group that gave up (several groups can have different timeouts).
+            src = next((n for n in resolved.architecture.nodes if n.id == top["nodeId"]), None)
             tmo = src.config.get("timeoutMs") if src else None
             text = (
                 f"{top['count']:,} requests exceeded the {tmo:g} ms client timeout"
@@ -308,7 +309,12 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
     for n in nodes:
         s = n["summary"]
         wasted = s["counters"].get("wasted", 0)
-        if n["type"] in ("load_balancer", "traffic_source") or not wasted or not s["completed"]:
+        if (
+            n["type"] == "load_balancer"
+            or n["category"] == "traffic"
+            or not wasted
+            or not s["completed"]
+        ):
             continue
         share = wasted / s["completed"]
         if share >= 0.01:

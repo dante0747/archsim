@@ -126,7 +126,8 @@ def _arrivals(
     env: simpy.Environment,
     wl: Workload,
     ctx: SimContext,
-    source: TrafficSourceRuntime,
+    sources: list[TrafficSourceRuntime],
+    shares: list[float],
     tl: Timeline,
     keys: ZipfSampler | None,
 ) -> Generator[simpy.Event, Any, None]:
@@ -136,6 +137,10 @@ def _arrivals(
     arr_rng = ctx.rng("arrivals")
     thin_rng = ctx.rng("arrivals:thinning")
     mix_rng = ctx.rng("mix")
+    # Several client groups split one arrival stream by share. A single group draws nothing
+    # extra, so single-client runs are unchanged.
+    pick_rng = ctx.rng("clients") if len(sources) > 1 else None
+    cum = list(accumulate(shares))
     duration = wl.duration_s * 1000.0
     poisson = wl.arrival_process == "poisson"
     steady = isinstance(wl.pattern, ConstantPattern)
@@ -165,7 +170,11 @@ def _arrivals(
         key = keys.sample() if keys is not None else 0
         now = env.now
         req = Request(rid, op, key, now, tl.window_start <= now < tl.window_end)
-        env.process(source.submit(req))
+        if pick_rng is None:
+            src = sources[0]
+        else:
+            src = sources[min(bisect_left(cum, pick_rng.random() * cum[-1]), len(sources) - 1)]
+        env.process(src.submit(req))
 
 
 def run_simulation(
@@ -186,12 +195,15 @@ def run_simulation(
     configs = prep.validation.configs
     wl = resolved.workload
 
-    source_node = next(
+    source_nodes = [
         n for n in resolved.architecture.nodes if registry.get(n.type).is_traffic_source
-    )
-    source_cfg = configs[source_node.id]
-    assert isinstance(source_cfg, TrafficSourceConfig)
-    drain_s = wl.drain_s if wl.drain_s is not None else auto_drain_s(source_cfg)
+    ]
+    source_cfgs: list[TrafficSourceConfig] = []
+    for n in source_nodes:
+        cfg = configs[n.id]
+        assert isinstance(cfg, TrafficSourceConfig)
+        source_cfgs.append(cfg)
+    drain_s = wl.drain_s if wl.drain_s is not None else max(map(auto_drain_s, source_cfgs))
     if wl.drain_s is None and any(
         registry.get(n.type).category == "messaging" for n in resolved.architecture.nodes
     ):
@@ -214,10 +226,14 @@ def run_simulation(
         model = registry.get(n.type)
         ctx.components[n.id] = model.build(ctx, n, configs[n.id])
         needs_keys = needs_keys or model.uses_keys(configs[n.id])
-    source = ctx.components[source_node.id]
-    assert isinstance(source, TrafficSourceRuntime)
+    sources: list[TrafficSourceRuntime] = []
+    for n in source_nodes:
+        rt = ctx.components[n.id]
+        assert isinstance(rt, TrafficSourceRuntime)
+        sources.append(rt)
+    shares = [c.traffic_share for c in source_cfgs]
     keys = ZipfSampler(wl.key_count, wl.key_skew, ctx.rng("keys")) if needs_keys else None
-    env.process(_arrivals(env, wl, ctx, source, tl, keys))
+    env.process(_arrivals(env, wl, ctx, sources, shares, tl, keys))
 
     step = end_ms / max(1, limits.progress_chunks)
     t = 0.0
@@ -243,7 +259,8 @@ def run_simulation(
         prep=prep,
         registry=registry,
         ctx=ctx,
-        source=source,
+        sources=sources,
+        shares=shares,
         tl=tl,
         t_final=t_final,
         drain_s=drain_s,

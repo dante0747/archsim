@@ -6,7 +6,9 @@
  * that the simulation reproduces it exactly (behaviour always comes from the numbers).
  */
 import {
+  AppWindow,
   Archive,
+  Braces,
   Cloud,
   CreditCard,
   Database,
@@ -19,6 +21,7 @@ import {
   Network,
   Router,
   Server,
+  Smartphone,
   Sparkles,
   SquareFunction,
   Users,
@@ -26,32 +29,43 @@ import {
 } from "lucide-react";
 import {
   type SimpleIcon,
+  siAndroid,
+  siAngular,
   siApachecassandra,
   siApachekafka,
+  siApple,
   siCockroachlabs,
   siCouchbase,
   siDotnet,
   siElasticsearch,
   siEnvoyproxy,
+  siFlutter,
   siGo,
+  siGooglepubsub,
+  siGraphql,
   siKong,
   siMariadb,
   siMongodb,
   siMysql,
   siNatsdotio,
+  siNextdotjs,
   siNginx,
   siNodedotjs,
+  siOpenapiinitiative,
   siOpenjdk,
   siOpensearch,
   siPhp,
   siPostgresql,
   siPython,
   siRabbitmq,
+  siReact,
   siRedis,
   siRuby,
   siRust,
   siScylladb,
+  siSvelte,
   siTraefikproxy,
+  siVuedotjs,
 } from "simple-icons";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import { KIND_COLOR, type Kind } from "@/lib/theme";
@@ -77,6 +91,7 @@ const BRANDS: Record<string, SimpleIcon> = {
   kafka: siApachekafka,
   rabbitmq: siRabbitmq,
   nats: siNatsdotio,
+  pubsub: siGooglepubsub,
   java: siOpenjdk,
   nodejs: siNodedotjs,
   go: siGo,
@@ -85,6 +100,18 @@ const BRANDS: Record<string, SimpleIcon> = {
   rust: siRust,
   php: siPhp,
   ruby: siRuby,
+  // client groups
+  ios: siApple,
+  android: siAndroid,
+  react_native: siReact,
+  flutter: siFlutter,
+  react: siReact,
+  nextjs: siNextdotjs,
+  vue: siVuedotjs,
+  angular: siAngular,
+  svelte: siSvelte,
+  rest: siOpenapiinitiative,
+  graphql: siGraphql,
 };
 
 /** Technologies without a logo (generic or "-style" managed services) get a plain icon. */
@@ -98,7 +125,6 @@ const GENERIC: Record<string, LucideIcon> = {
   sqlserver: Database,
   dynamodb: Database,
   sqs: Layers,
-  pubsub: Layers,
   payments: CreditCard,
   email: Mail,
   sms: MessageSquare,
@@ -106,6 +132,9 @@ const GENERIC: Record<string, LucideIcon> = {
   llm: Sparkles,
   object_storage: Archive,
   serverless: SquareFunction,
+  mobile: Smartphone,
+  browser: AppWindow,
+  api_client: Braces,
 };
 
 const BY_KIND: Record<Kind, LucideIcon> = {

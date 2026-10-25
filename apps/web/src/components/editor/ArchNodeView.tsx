@@ -11,6 +11,7 @@ import { type ArchNode, SIDES, type Side, sideHandle } from "@/lib/document";
 import { isDistribution, shortDistribution } from "@/lib/distributions";
 import { compact, compactRate, fmtPct } from "@/lib/format";
 import { componentOf } from "@/lib/graph-rules";
+import { clientFraction, clientShares } from "@/lib/clients";
 import { faultsAt, fmtRate, heatColor, runFaults, statusAt } from "@/lib/recorder";
 import { NODE_STATUS } from "@/lib/status";
 import { KIND_COLOR, kindOf, technologyLabel } from "@/lib/theme";
@@ -144,6 +145,9 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const warningCount = useEditor((s) => s.issues.filter((i) => i.nodeId === id && i.severity === "warning").length);
   const rps = useEditor((s) => s.workload.rps);
   const patternKind = useEditor((s) => s.workload.pattern.kind);
+  // With several client parts each sends its share of the workload.
+  const clientCount = useEditor((s) => (comp?.isTrafficSource ? clientShares(s.nodes, s.catalog).length : 0));
+  const fraction = useEditor((s) => (comp?.isTrafficSource ? clientFraction(s.nodes, s.catalog, id) : null));
   const duplicate = useEditor((s) => s.duplicateSelection);
   const remove = useEditor((s) => s.deleteElements);
   const overlay = useRuns((s) => s.overlay);
@@ -283,7 +287,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
 
       <div className="relative" style={{ padding: `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px` }}>
         <div className="flex items-center gap-2.5">
-          <TechIcon technology={technology} kind={kindOf(data.type, comp?.category)} size={18} tile />
+          <TechIcon technology={technology} kind={kindOf(data.type, comp?.category)} size={26} tile className="rounded-xl" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13.5px] font-semibold leading-5 tracking-[-0.01em] text-ink">{data.label}</p>
             <p className="truncate text-[11.5px] leading-4 text-ink-3">{tech && tech !== "Generic" ? tech : typeName}</p>
@@ -304,7 +308,18 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
         </div>
 
         <dl className="mt-2">
-          {comp?.isTrafficSource && <Row k="Load" v={patternKind === "constant" ? `${compact(rps)} req/s` : patternKind} />}
+          {comp?.isTrafficSource && (
+            <Row
+              k="Load"
+              v={
+                clientCount > 1 && fraction != null
+                  ? `${Math.round(fraction * 100)}%${patternKind === "constant" ? ` · ${compact(rps * fraction)} req/s` : ""}`
+                  : patternKind === "constant"
+                    ? `${compact(rps)} req/s`
+                    : patternKind
+              }
+            />
+          )}
           {headline.map((f) => (
             <Row
               key={f.key}

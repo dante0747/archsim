@@ -134,6 +134,17 @@ serves 8 example designs (see below).
   motion. Type: Bricolage Grotesque for display headings, Geist Sans and Geist Mono
   for the interface and numbers (self-hosted at build time by next/font; no runtime calls to
   Google).
+- Client groups (engine 0.3.0, report 1.2): besides the generic Clients part there are Mobile
+  app, Web browser and API consumers parts, each with its own defaults (timeout, retries,
+  backoff, traffic share) and a technology label with its logo (iOS, Android, React Native,
+  Flutter; React, Next.js, Vue, Angular, Svelte; REST / OpenAPI, GraphQL). A design can have
+  several client groups: each arrival goes to one group in proportion to its traffic share.
+  Links drawn from a client start with that client's typical network latency (catalog
+  `linkDefaults`, editable). The inspector shows a "Built with" logo picker, the share and the
+  split between client parts; canvas parts show their share; Results and the Markdown report
+  add a per-client table (`summary.clients`). Single-client designs give the same simulation
+  results as before (no extra random draws). The network and SDK defaults are assumptions.
+- Canvas parts show their technology logo larger (26 px in a 40 px tile).
 - Links attach on any of the four sides of a component: drag from any side to any side, in
   either direction (if only the reverse direction is valid, the link is drawn that way). The
   chosen sides are saved in `layout.edges` (rendering only; simulation input and digests are
@@ -198,6 +209,14 @@ Dracula, switching from the top bar, the home page and the command palette, and 
 theme being applied on reload. Bug found and fixed: the theme button crashed the home page
 (its tooltip needed a provider only the editor had); a unit test now covers it.
 
+Client groups, on 2026-10-25, against the rebuilt Docker stack (engine 0.3.0): added Mobile
+app, Web browser and API consumers to the starter next to its Clients part, checked the parts
+panel, the "Built with" logo picker and share split in the inspector, the share on each canvas
+part, linked all three to the load balancer, ran it and read the "By client" table (mobile p50
+94 ms against 48 ms for the starter's clients, from the mobile link latency). Bug found and
+fixed: a part's content box covered its connection points, so the left and right points of
+slanted parts (clients) could not be grabbed; the points now sit above the content.
+
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links
 by dragging handles (and a refused self-link with its message); live validation messages;
@@ -228,8 +247,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Known limitations
 
-- One traffic source per design; synchronous, acyclic call graphs; dependencies are called
-  sequentially (no parallel fan-out); no closed-loop users.
+- Client groups share one workload (one read/write mix and pattern); a group cannot have its
+  own read ratio or traffic pattern yet. Synchronous, acyclic call graphs; dependencies are
+  called sequentially (no parallel fan-out); no closed-loop users.
 - Not modeled: CPU/memory contention, GC, bandwidth and packet loss, locks and disk I/O, cache
   eviction (TTL cache has unbounded capacity), replication lag, health checks and failover,
   circuit breakers; faults are scheduled (outage, slowdown, link latency), not random.

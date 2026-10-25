@@ -309,6 +309,8 @@ class SimContext:
         self.out_edges: dict[str, list[EdgeRuntime]] = {}
         self.in_transit = 0  # calls currently on the wire or being handled
         self._faults: dict[tuple[str, str], list[Fault]] = {}
+        # Objects several components of one run share (e.g. the end-to-end client metrics).
+        self.shared: dict[str, Any] = {}
 
     # -- faults ------------------------------------------------------------------------
     def set_faults(self, faults: list[Fault]) -> None:

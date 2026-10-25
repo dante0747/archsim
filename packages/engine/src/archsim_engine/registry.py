@@ -241,6 +241,9 @@ class ComponentModel(ABC):
     modeled: ClassVar[tuple[str, ...]] = ()
     not_modeled: ClassVar[tuple[str, ...]] = ()
     presets: ClassVar[tuple[Preset, ...]] = ()
+    # Link settings (camelCase, a partial EdgeConfig) suggested for links drawn from this
+    # component, e.g. the network latency of a mobile client. Applied by the editor; editable.
+    link_defaults: ClassVar[dict[str, Any]] = {}
 
     # -- configuration -------------------------------------------------------------------
     def parse_config(self, raw: dict[str, Any]) -> BaseModel:
@@ -296,6 +299,7 @@ class ComponentModel(ABC):
             "modeled": list(self.modeled),
             "notModeled": list(self.not_modeled),
             "presets": [p.to_dict() for p in self.presets],
+            "linkDefaults": dict(self.link_defaults),
         }
 
 

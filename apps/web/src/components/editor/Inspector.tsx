@@ -14,6 +14,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { CLIENT_BLOCK_FIELDS, ClientBlock } from "@/components/editor/ClientBlock";
 import { FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
 import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
@@ -373,10 +374,11 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
       <NodeResults nodeId={nodeId} />
 
       {comp?.isTrafficSource && <TrafficCard />}
+      {comp?.isTrafficSource && <ClientBlock nodeId={nodeId} comp={comp} config={node.data.config} />}
 
       {comp ? (
         <SettingsBlocks
-          fields={comp.fields}
+          fields={comp.isTrafficSource ? comp.fields.filter((f) => !CLIENT_BLOCK_FIELDS.includes(f.key)) : comp.fields}
           values={node.data.config}
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
           idPrefix={`node-${nodeId}`}

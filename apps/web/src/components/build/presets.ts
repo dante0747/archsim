@@ -62,7 +62,8 @@ export function libraryItems(catalog: Catalog | null): LibraryItem[] {
       technology: typeof comp.defaultConfig.technology === "string" ? comp.defaultConfig.technology : "custom",
       group: "Generic",
       description: comp.description,
-      tags: [],
+      // Client parts are found by what they are built with ("ios", "react", "graphql").
+      tags: comp.isTrafficSource ? (comp.fields.find((f) => f.key === "technology")?.options ?? []).map((o) => o.replace(/_/g, " ")) : [],
     });
   }
   return out;

@@ -104,13 +104,33 @@ arrive ─┬─ all slots busy and queue full ───────────
 
 `queueCapacity` = 0 means no waiting at all. `queueTimeoutMs` empty means wait indefinitely.
 
-### Traffic source (`traffic_source`)
+### Client groups (`traffic_source`, `mobile_app`, `web_client`, `api_consumer`)
 
-Submits each generated request to its single outgoing link. Each attempt waits at most
-`timeoutMs` (the timeout is **per attempt**, not a total deadline). On failure it retries up
-to `maxAttempts` with exponential backoff. It records the end-to-end outcome: success, error
-(any rejection or dependency timeout downstream) or client timeout. Each attempt is a separate
-request object so work done for an abandoned attempt can be detected.
+A client group submits each request it is given to its single outgoing link. Each attempt waits
+at most `timeoutMs` (the timeout is **per attempt**, not a total deadline). On failure it
+retries up to `maxAttempts` with exponential backoff. It records the end-to-end outcome:
+success, error (any rejection or dependency timeout downstream) or client timeout. Each attempt
+is a separate request object so work done for an abandoned attempt can be detected.
+
+A design can have several client groups. The workload generates one arrival stream; each
+arrival goes to one client group, picked at random in proportion to `trafficShare` (a relative
+weight, so 60 / 30 / 10 means 60%, 30% and 10%). A design with a single client group draws no
+extra random numbers, so its results are the same as before client groups existed (apart from
+the engine version and the new `summary.clients` entry). The four types share this behaviour
+and differ only in defaults and labels:
+
+| Type | Shown as | Timeout | Attempts | Backoff | Share | Link latency (one way, suggested) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `traffic_source` | Clients | 3 s | 1 | 100 ms | 100 | link default (0.5 ms) |
+| `mobile_app` | Mobile app | 10 s | 2 | 500 ms | 50 | lognormal p50 35 ms / p95 120 ms |
+| `web_client` | Web browser | 15 s | 1 | 100 ms | 35 | lognormal p50 15 ms / p95 45 ms |
+| `api_consumer` | API consumers | 5 s | 3 | 200 ms | 15 | lognormal p50 10 ms / p95 30 ms |
+
+The link latency is a suggestion the editor copies onto a new link drawn from that client
+(`linkDefaults` in the catalog); it is an ordinary, editable link setting, not hidden
+behaviour. `technology` on the three new types (iOS, Android, React, Next.js, GraphQL...) is a
+label and logo only. All these numbers are assumptions, not measurements of real networks or
+SDKs.
 
 ### Load balancer (`load_balancer`)
 
@@ -240,9 +260,9 @@ a stable code, the node or edge involved and a hint. Highlights:
 - links must start at an output port and end at an input port; request types must be allowed
   by both ports (for example the cache `miss` port only emits reads); no self-loops or
   duplicate links;
-- port arity (the traffic source needs exactly one link; a load balancer at least one; the
+- port arity (each client group needs exactly one link; a load balancer at least one; the
   cache miss port at most one);
-- exactly one traffic source;
+- at least one client group;
 - **no cycles** (synchronous calls would recurse forever), reported with the loop path;
 - **request-type routing**: request types are propagated from the source through the graph;
   a load balancer receiving writes with no link carrying writes is an error; so is a workload
@@ -278,6 +298,7 @@ Client-side (end-to-end) summary:
 | `latencyMs` (`mean`, `p50`, `p90`, `p95`, `p99`, `max`) | End-to-end latency of **successful** measured-cohort requests, including retries and backoff. Failed and timed-out requests are counted in the rates, not in latency. |
 | `retryAmplification` | Client attempts / client requests inside the window. |
 | `failureBreakdown` | Failures of the measured cohort grouped by (status, reason, origin node, link). |
+| `clients` | One entry per client group: `share` (fraction of the workload), the measured cohort's `arrived` / `succeeded` / `failed` / `timedOut`, `offeredRps`, `successRate`, `retryAmplification` and `latencyMs`. The fields above are the totals across groups. |
 
 Per-node summary (events counted by the time they happen inside the window):
 

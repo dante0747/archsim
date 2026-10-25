@@ -63,12 +63,28 @@
           "max": 60000,
           "unit": "ms",
           "group": "Client behaviour"
+        },
+        {
+          "key": "trafficShare",
+          "label": "Traffic share",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of the workload this client group sends (%). With several client groups the shares are relative: each sends its share divided by the sum of all shares, so 60 / 30 / 10 means 60%, 30% and 10%. A single client group sends everything.",
+          "default": 100.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 100,
+          "unit": "%",
+          "group": "Traffic"
         }
       ],
       "defaultConfig": {
         "timeoutMs": 3000.0,
         "maxAttempts": 1,
-        "retryBackoffMs": 100.0
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
       },
       "modeled": [
         "Open-loop arrivals: clients do not slow down when the system is slow",
@@ -78,7 +94,382 @@
         "Closed-loop users with think time",
         "Client-side connection pools"
       ],
-      "presets": []
+      "presets": [],
+      "linkDefaults": {}
+    },
+    {
+      "type": "mobile_app",
+      "displayName": "Mobile app",
+      "category": "traffic",
+      "description": "Users on phones (iOS, Android, cross-platform). Sends its share of the workload over a slower, more variable mobile network, waits longer and retries once by default.",
+      "icon": "smartphone",
+      "isTrafficSource": true,
+      "ports": [
+        {
+          "name": "out",
+          "direction": "out",
+          "label": "Requests",
+          "description": "Sends every generated request to one entry point (usually a load balancer).",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 1,
+          "maxEdges": 1
+        }
+      ],
+      "fields": [
+        {
+          "key": "timeoutMs",
+          "label": "Client timeout",
+          "kind": "number",
+          "nullable": false,
+          "description": "How long a client waits for a response per attempt before giving up (ms).",
+          "default": 10000.0,
+          "assumption": false,
+          "headline": true,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        },
+        {
+          "key": "maxAttempts",
+          "label": "Max attempts",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Total attempts per user request including retries (1 = no retries). Retries add load.",
+          "default": 2,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 5,
+          "group": "Client behaviour"
+        },
+        {
+          "key": "retryBackoffMs",
+          "label": "Retry backoff",
+          "kind": "number",
+          "nullable": false,
+          "description": "Delay before the first retry (ms); doubles for each further retry.",
+          "default": 500.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 60000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        },
+        {
+          "key": "trafficShare",
+          "label": "Traffic share",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of the workload this client group sends (%). With several client groups the shares are relative: each sends its share divided by the sum of all shares, so 60 / 30 / 10 means 60%, 30% and 10%. A single client group sends everything.",
+          "default": 50.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 100,
+          "unit": "%",
+          "group": "Traffic"
+        },
+        {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "What the client is built with. A label and logo for the design; behaviour comes from the settings.",
+          "default": "mobile",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "mobile",
+            "ios",
+            "android",
+            "react_native",
+            "flutter"
+          ],
+          "group": "Technology"
+        }
+      ],
+      "defaultConfig": {
+        "timeoutMs": 10000.0,
+        "maxAttempts": 2,
+        "retryBackoffMs": 500.0,
+        "trafficShare": 50.0,
+        "technology": "mobile"
+      },
+      "modeled": [
+        "Open-loop arrivals: clients do not slow down when the system is slow",
+        "Per-attempt client timeout and bounded retries with exponential backoff",
+        "Its share of the workload, split from the same arrivals as the other client groups",
+        "Mobile network delay as the latency of its link (default p50 35 ms / p95 120 ms one way)"
+      ],
+      "notModeled": [
+        "Closed-loop users with think time",
+        "Client-side connection pools",
+        "Offline queues, background sync and app-store release lag"
+      ],
+      "presets": [],
+      "linkDefaults": {
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 35.0,
+          "p95": 120.0
+        }
+      }
+    },
+    {
+      "type": "web_client",
+      "displayName": "Web browser",
+      "category": "traffic",
+      "description": "Users in a web browser (single-page app or server-rendered site). Sends its share of the workload over a broadband network and does not retry by default.",
+      "icon": "app-window",
+      "isTrafficSource": true,
+      "ports": [
+        {
+          "name": "out",
+          "direction": "out",
+          "label": "Requests",
+          "description": "Sends every generated request to one entry point (usually a load balancer).",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 1,
+          "maxEdges": 1
+        }
+      ],
+      "fields": [
+        {
+          "key": "timeoutMs",
+          "label": "Client timeout",
+          "kind": "number",
+          "nullable": false,
+          "description": "How long a client waits for a response per attempt before giving up (ms).",
+          "default": 15000.0,
+          "assumption": false,
+          "headline": true,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        },
+        {
+          "key": "maxAttempts",
+          "label": "Max attempts",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Total attempts per user request including retries (1 = no retries). Retries add load.",
+          "default": 1,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 5,
+          "group": "Client behaviour"
+        },
+        {
+          "key": "retryBackoffMs",
+          "label": "Retry backoff",
+          "kind": "number",
+          "nullable": false,
+          "description": "Delay before the first retry (ms); doubles for each further retry.",
+          "default": 100.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 60000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        },
+        {
+          "key": "trafficShare",
+          "label": "Traffic share",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of the workload this client group sends (%). With several client groups the shares are relative: each sends its share divided by the sum of all shares, so 60 / 30 / 10 means 60%, 30% and 10%. A single client group sends everything.",
+          "default": 35.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 100,
+          "unit": "%",
+          "group": "Traffic"
+        },
+        {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "What the client is built with. A label and logo for the design; behaviour comes from the settings.",
+          "default": "browser",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "browser",
+            "react",
+            "nextjs",
+            "vue",
+            "angular",
+            "svelte"
+          ],
+          "group": "Technology"
+        }
+      ],
+      "defaultConfig": {
+        "timeoutMs": 15000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 35.0,
+        "technology": "browser"
+      },
+      "modeled": [
+        "Open-loop arrivals: clients do not slow down when the system is slow",
+        "Per-attempt client timeout and bounded retries with exponential backoff",
+        "Its share of the workload, split from the same arrivals as the other client groups",
+        "Home or office network delay as the latency of its link (default p50 15 ms / p95 45 ms one way)"
+      ],
+      "notModeled": [
+        "Closed-loop users with think time",
+        "Client-side connection pools",
+        "Static assets, browser caching and CDN hits (model a CDN as a cache in front if needed)"
+      ],
+      "presets": [],
+      "linkDefaults": {
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 15.0,
+          "p95": 45.0
+        }
+      }
+    },
+    {
+      "type": "api_consumer",
+      "displayName": "API consumers",
+      "category": "traffic",
+      "description": "Partners and other systems calling your public API endpoints (REST, GraphQL). Sends its share of the workload server to server, with a short timeout and SDK-style retries.",
+      "icon": "braces",
+      "isTrafficSource": true,
+      "ports": [
+        {
+          "name": "out",
+          "direction": "out",
+          "label": "Requests",
+          "description": "Sends every generated request to one entry point (usually a load balancer).",
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "minEdges": 1,
+          "maxEdges": 1
+        }
+      ],
+      "fields": [
+        {
+          "key": "timeoutMs",
+          "label": "Client timeout",
+          "kind": "number",
+          "nullable": false,
+          "description": "How long a client waits for a response per attempt before giving up (ms).",
+          "default": 5000.0,
+          "assumption": false,
+          "headline": true,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 600000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        },
+        {
+          "key": "maxAttempts",
+          "label": "Max attempts",
+          "kind": "integer",
+          "nullable": false,
+          "description": "Total attempts per user request including retries (1 = no retries). Retries add load.",
+          "default": 3,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 5,
+          "group": "Client behaviour"
+        },
+        {
+          "key": "retryBackoffMs",
+          "label": "Retry backoff",
+          "kind": "number",
+          "nullable": false,
+          "description": "Delay before the first retry (ms); doubles for each further retry.",
+          "default": 200.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 60000,
+          "unit": "ms",
+          "group": "Client behaviour"
+        },
+        {
+          "key": "trafficShare",
+          "label": "Traffic share",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of the workload this client group sends (%). With several client groups the shares are relative: each sends its share divided by the sum of all shares, so 60 / 30 / 10 means 60%, 30% and 10%. A single client group sends everything.",
+          "default": 15.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 100,
+          "unit": "%",
+          "group": "Traffic"
+        },
+        {
+          "key": "technology",
+          "label": "Technology",
+          "kind": "enum",
+          "nullable": false,
+          "description": "What the client is built with. A label and logo for the design; behaviour comes from the settings.",
+          "default": "api_client",
+          "assumption": false,
+          "headline": false,
+          "options": [
+            "api_client",
+            "rest",
+            "graphql"
+          ],
+          "group": "Technology"
+        }
+      ],
+      "defaultConfig": {
+        "timeoutMs": 5000.0,
+        "maxAttempts": 3,
+        "retryBackoffMs": 200.0,
+        "trafficShare": 15.0,
+        "technology": "api_client"
+      },
+      "modeled": [
+        "Open-loop arrivals: clients do not slow down when the system is slow",
+        "Per-attempt client timeout and bounded retries with exponential backoff",
+        "Its share of the workload, split from the same arrivals as the other client groups",
+        "Server-to-server internet delay as the latency of its link (default p50 10 ms / p95 30 ms one way)"
+      ],
+      "notModeled": [
+        "Closed-loop users with think time",
+        "Client-side connection pools",
+        "Per-consumer API keys and quotas (put a rate-limited gateway in front to model them)"
+      ],
+      "presets": [],
+      "linkDefaults": {
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 10.0,
+          "p95": 30.0
+        }
+      }
     },
     {
       "type": "load_balancer",
@@ -370,7 +761,8 @@
             "rate-limit"
           ]
         }
-      ]
+      ],
+      "linkDefaults": {}
     },
     {
       "type": "service",
@@ -888,7 +1280,8 @@
             "cold-start"
           ]
         }
-      ]
+      ],
+      "linkDefaults": {}
     },
     {
       "type": "cache",
@@ -1198,7 +1591,8 @@
             "reverse-proxy"
           ]
         }
-      ]
+      ],
+      "linkDefaults": {}
     },
     {
       "type": "database",
@@ -1729,7 +2123,8 @@
             "full-text"
           ]
         }
-      ]
+      ],
+      "linkDefaults": {}
     },
     {
       "type": "external_api",
@@ -2004,7 +2399,8 @@
             "third-party"
           ]
         }
-      ]
+      ],
+      "linkDefaults": {}
     },
     {
       "type": "message_queue",
@@ -2383,7 +2779,8 @@
             "in-memory"
           ]
         }
-      ]
+      ],
+      "linkDefaults": {}
     }
   ],
   "edgeFields": [

@@ -7,6 +7,7 @@
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { compact } from "@/lib/format";
+import { isClientType } from "@/lib/theme";
 import type { Report } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -63,8 +64,8 @@ export function useWorkflow() {
   const nodeCount = useEditor((s) => s.nodes.length);
   // Clients that call nothing yet: the most common place a new design stalls.
   const loneClientsId = useEditor((s) => {
-    const src = s.nodes.find((n) => n.data.type === "traffic_source");
-    return src && !s.edges.some((e) => e.source === src.id) ? src.id : null;
+    const src = s.nodes.find((n) => isClientType(n.data.type, s.catalog) && !s.edges.some((e) => e.source === n.id));
+    return src ? src.id : null;
   });
   const errorCount = useEditor((s) => s.issues.filter((i) => i.severity === "error").length);
   const firstError = useEditor((s) => s.issues.find((i) => i.severity === "error") ?? null);

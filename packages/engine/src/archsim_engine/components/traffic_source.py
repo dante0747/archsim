@@ -1,10 +1,16 @@
-"""Traffic source: the clients. Generates requests from the workload and measures end-to-end
-latency, success, errors and client timeouts."""
+"""Client groups: the traffic sources. Each generates its share of the workload and measures
+end-to-end latency, success, errors and client timeouts.
+
+``traffic_source`` is the generic client group. ``mobile_app``, ``web_client`` and
+``api_consumer`` are the same model with their own defaults (timeouts, retries, share of traffic,
+network latency on their link) and a technology label. A design may have several client groups;
+the workload is split between them by their traffic share.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Generator
-from typing import Any
+from typing import Any, ClassVar, Literal
 
 import simpy
 from pydantic import Field
@@ -16,9 +22,9 @@ from archsim_engine.runtime import OK, Outcome, Request, RuntimeComponent, SimCo
 from archsim_engine.schema import CamelModel, NodeSpec
 
 
-class TrafficSourceConfig(CamelModel):
-    timeout_ms: float = Field(
-        default=3000.0,
+def _timeout(default: float) -> Any:
+    return Field(
+        default=default,
         gt=0,
         le=600_000,
         description="How long a client waits for a response per attempt before giving up (ms).",
@@ -26,20 +32,83 @@ class TrafficSourceConfig(CamelModel):
             label="Client timeout", unit="ms", group="Client behaviour", headline=True
         ),
     )
-    max_attempts: int = Field(
-        default=1,
+
+
+def _attempts(default: int) -> Any:
+    return Field(
+        default=default,
         ge=1,
         le=5,
         description="Total attempts per user request including retries (1 = no retries). Retries add load.",
         json_schema_extra=ui(label="Max attempts", group="Client behaviour"),
     )
-    retry_backoff_ms: float = Field(
-        default=100.0,
+
+
+def _backoff(default: float) -> Any:
+    return Field(
+        default=default,
         ge=0,
         le=60_000,
         description="Delay before the first retry (ms); doubles for each further retry.",
         json_schema_extra=ui(label="Retry backoff", unit="ms", group="Client behaviour"),
     )
+
+
+def _share(default: float) -> Any:
+    return Field(
+        default=default,
+        gt=0,
+        le=100,
+        description=(
+            "Share of the workload this client group sends (%). With several client groups the "
+            "shares are relative: each sends its share divided by the sum of all shares, so "
+            "60 / 30 / 10 means 60%, 30% and 10%. A single client group sends everything."
+        ),
+        json_schema_extra=ui(label="Traffic share", unit="%", group="Traffic"),
+    )
+
+
+def _technology(default: str) -> Any:
+    return Field(
+        default=default,
+        description="What the client is built with. A label and logo for the design; behaviour comes from the settings.",
+        json_schema_extra=ui(label="Technology", group="Technology"),
+    )
+
+
+class TrafficSourceConfig(CamelModel):
+    timeout_ms: float = _timeout(3000.0)
+    max_attempts: int = _attempts(1)
+    retry_backoff_ms: float = _backoff(100.0)
+    traffic_share: float = _share(100.0)
+
+
+class MobileAppConfig(TrafficSourceConfig):
+    technology: Literal["mobile", "ios", "android", "react_native", "flutter"] = _technology(
+        "mobile"
+    )
+    timeout_ms: float = _timeout(10_000.0)
+    max_attempts: int = _attempts(2)
+    retry_backoff_ms: float = _backoff(500.0)
+    traffic_share: float = _share(50.0)
+
+
+class WebClientConfig(TrafficSourceConfig):
+    technology: Literal["browser", "react", "nextjs", "vue", "angular", "svelte"] = _technology(
+        "browser"
+    )
+    timeout_ms: float = _timeout(15_000.0)
+    max_attempts: int = _attempts(1)
+    retry_backoff_ms: float = _backoff(100.0)
+    traffic_share: float = _share(35.0)
+
+
+class ApiConsumerConfig(TrafficSourceConfig):
+    technology: Literal["api_client", "rest", "graphql"] = _technology("api_client")
+    timeout_ms: float = _timeout(5000.0)
+    max_attempts: int = _attempts(3)
+    retry_backoff_ms: float = _backoff(200.0)
+    traffic_share: float = _share(15.0)
 
 
 class Cohort:
@@ -106,10 +175,38 @@ class ClientMetrics:
             self.failures[key] = self.failures.get(key, 0) + 1
 
 
+class ClientGroup:
+    """What one client group experienced, for the per-client breakdown of the report."""
+
+    def __init__(self, tl: Timeline) -> None:
+        self.offered = Counter(tl)
+        self.attempts = Counter(tl)
+        self.measured = Cohort()
+        self.latency = LatencyHistogram()
+
+    def record(self, req: Request, outcome: Outcome, now: float) -> None:
+        if not req.measured:
+            return
+        c = self.measured
+        if outcome.ok:
+            c.succeeded += 1
+            self.latency.record(now - req.created_at)
+        elif outcome.reason == "client_timeout":
+            c.timeouts += 1
+        else:
+            c.errors += 1
+
+
 class TrafficSourceRuntime(RuntimeComponent):
     def __init__(self, ctx: SimContext, node: NodeSpec, config: TrafficSourceConfig) -> None:
         super().__init__(ctx, node, config, None)
-        self.client = ClientMetrics(ctx.tl)
+        # End-to-end metrics are shared by every client group of the run; each group also keeps
+        # its own breakdown.
+        client = ctx.shared.get("client")
+        if client is None:
+            client = ctx.shared["client"] = ClientMetrics(ctx.tl)
+        self.client: ClientMetrics = client
+        self.group = ClientGroup(ctx.tl)
 
     def handle(self, req: Request) -> Generator[simpy.Event, Any, Outcome]:  # pragma: no cover
         raise RuntimeError("a traffic source cannot be the target of a call")
@@ -123,11 +220,15 @@ class TrafficSourceRuntime(RuntimeComponent):
         self.m.arrive(env.now)
         self.client.offered.inc(env.now)
         self.client.cohort(req).arrived += 1
+        self.group.offered.inc(env.now)
+        if req.measured:
+            self.group.measured.arrived += 1
         edge = self.out_edges("out")[0]
         handler = ctx.handler_for(edge)
         outcome: Outcome = OK
         for attempt in range(cfg.max_attempts):
             self.client.attempts.inc(env.now)
+            self.group.attempts.inc(env.now)
             # each attempt is its own request object so abandoned work can be attributed
             att = Request(req.id, req.op, req.key, req.created_at, req.measured)
             outcome = yield from ctx.call_once(
@@ -143,6 +244,7 @@ class TrafficSourceRuntime(RuntimeComponent):
                 if backoff > 0:
                     yield env.timeout(backoff)
         self.client.record(req, outcome, env.now)
+        self.group.record(req, outcome, env.now)
         self.m.depart(env.now, outcome)
 
 
@@ -167,11 +269,14 @@ class TrafficSourceModel(ComponentModel):
         ),
     )
     is_traffic_source = True
-    modeled = (
+    modeled: ClassVar[tuple[str, ...]] = (
         "Open-loop arrivals: clients do not slow down when the system is slow",
         "Per-attempt client timeout and bounded retries with exponential backoff",
     )
-    not_modeled = ("Closed-loop users with think time", "Client-side connection pools")
+    not_modeled: ClassVar[tuple[str, ...]] = (
+        "Closed-loop users with think time",
+        "Client-side connection pools",
+    )
 
     def emitted_types(
         self, port: str, incoming: set[str], config: Any, view: GraphView
@@ -215,3 +320,66 @@ class TrafficSourceModel(ComponentModel):
 
     def build(self, ctx: SimContext, node: NodeSpec, config: Any) -> RuntimeComponent:
         return TrafficSourceRuntime(ctx, node, config)
+
+
+class MobileAppModel(TrafficSourceModel):
+    type = "mobile_app"
+    display_name = "Mobile app"
+    description = (
+        "Users on phones (iOS, Android, cross-platform). Sends its share of the workload over a "
+        "slower, more variable mobile network, waits longer and retries once by default."
+    )
+    icon = "smartphone"
+    config_model = MobileAppConfig
+    link_defaults = {"latencyMs": {"kind": "lognormal", "median": 35.0, "p95": 120.0}}
+    modeled = (
+        *TrafficSourceModel.modeled,
+        "Its share of the workload, split from the same arrivals as the other client groups",
+        "Mobile network delay as the latency of its link (default p50 35 ms / p95 120 ms one way)",
+    )
+    not_modeled = (
+        *TrafficSourceModel.not_modeled,
+        "Offline queues, background sync and app-store release lag",
+    )
+
+
+class WebClientModel(TrafficSourceModel):
+    type = "web_client"
+    display_name = "Web browser"
+    description = (
+        "Users in a web browser (single-page app or server-rendered site). Sends its share of the "
+        "workload over a broadband network and does not retry by default."
+    )
+    icon = "app-window"
+    config_model = WebClientConfig
+    link_defaults = {"latencyMs": {"kind": "lognormal", "median": 15.0, "p95": 45.0}}
+    modeled = (
+        *TrafficSourceModel.modeled,
+        "Its share of the workload, split from the same arrivals as the other client groups",
+        "Home or office network delay as the latency of its link (default p50 15 ms / p95 45 ms one way)",
+    )
+    not_modeled = (
+        *TrafficSourceModel.not_modeled,
+        "Static assets, browser caching and CDN hits (model a CDN as a cache in front if needed)",
+    )
+
+
+class ApiConsumerModel(TrafficSourceModel):
+    type = "api_consumer"
+    display_name = "API consumers"
+    description = (
+        "Partners and other systems calling your public API endpoints (REST, GraphQL). Sends its "
+        "share of the workload server to server, with a short timeout and SDK-style retries."
+    )
+    icon = "braces"
+    config_model = ApiConsumerConfig
+    link_defaults = {"latencyMs": {"kind": "lognormal", "median": 10.0, "p95": 30.0}}
+    modeled = (
+        *TrafficSourceModel.modeled,
+        "Its share of the workload, split from the same arrivals as the other client groups",
+        "Server-to-server internet delay as the latency of its link (default p50 10 ms / p95 30 ms one way)",
+    )
+    not_modeled = (
+        *TrafficSourceModel.not_modeled,
+        "Per-consumer API keys and quotas (put a rate-limited gateway in front to model them)",
+    )

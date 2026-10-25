@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from archsim_engine.components.traffic_source import TrafficSourceRuntime
     from archsim_engine.engine import PreparedRun
     from archsim_engine.runtime import SimContext
+    from archsim_engine.schema import ArchitectureDocument
 
 MODEL_NOTES = [
     "Results come from a synthetic discrete-event simulation of the model you drew, driven by "
@@ -142,12 +143,46 @@ def _sum_series(series_list: list[list[float]], n: int) -> list[float]:
     return out
 
 
+def _client_groups(
+    sources: list[TrafficSourceRuntime],
+    shares: list[float],
+    labels: dict[str, str],
+    resolved: ArchitectureDocument,
+    window_s: float,
+) -> list[dict[str, Any]]:
+    """What each client group experienced in the measurement window."""
+    types = {n.id: n.type for n in resolved.architecture.nodes}
+    total_share = sum(shares) or 1.0
+    out = []
+    for src, share in zip(sources, shares, strict=True):
+        g = src.group
+        m = g.measured
+        out.append(
+            {
+                "nodeId": src.id,
+                "label": labels.get(src.id, src.id),
+                "type": types.get(src.id),
+                "share": _round(share / total_share),
+                "arrived": m.arrived,
+                "succeeded": m.succeeded,
+                "failed": m.errors,
+                "timedOut": m.timeouts,
+                "offeredRps": _round(m.arrived / window_s if window_s else 0.0),
+                "successRate": _round(safe_ratio(m.succeeded, m.arrived)),
+                "retryAmplification": _round(safe_ratio(g.attempts.window, g.offered.window)),
+                "latencyMs": g.latency.summary(),
+            }
+        )
+    return out
+
+
 def build_report(
     *,
     prep: PreparedRun,
     registry: ComponentRegistry,
     ctx: SimContext,
-    source: TrafficSourceRuntime,
+    sources: list[TrafficSourceRuntime],
+    shares: list[float],
     tl: Timeline,
     t_final: float,
     drain_s: float,
@@ -165,7 +200,7 @@ def build_report(
         return series[:n_used]
 
     # -- client / end-to-end ---------------------------------------------------------------------
-    client = source.client
+    client = sources[0].client  # shared by every client group
     measured = client.cohorts["measured"]
     warm = client.cohorts["warmup"]
     total = {
@@ -177,7 +212,7 @@ def build_report(
         and client.succeeded.total == total["succeeded"]
         and client.errors.total == total["failed"]
         and client.timeouts.total == total["timedOut"]
-        and source.m.inflight.value == total["outstanding"]
+        and sum(src.m.inflight.value for src in sources) == total["outstanding"]
         and total["outstanding"] >= 0
     )
     labels = {n.id: n.label or n.id for n in resolved.architecture.nodes}
@@ -217,6 +252,7 @@ def build_report(
         "latencyMs": client.latency.summary(),
         "latencyByOp": {op: h.summary() for op, h in client.latency_by_op.items()},
         "failureBreakdown": failures,
+        "clients": _client_groups(sources, shares, labels, resolved, window_s),
         "accounting": {
             "warmup": warm.to_dict(),
             "measured": measured.to_dict(),

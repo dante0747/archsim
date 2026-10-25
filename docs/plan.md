@@ -43,7 +43,8 @@ and reload, and reproduce any result from its stored seed and input.
 - **Units:** all latencies and service times are in milliseconds; workload durations in
   seconds; rates in requests per second.
 - **One traffic source** per document. The workload drives it. Multiple client groups are a
-  documented limitation.
+  documented limitation. (Lifted in engine 0.3.0: several client groups split the workload by
+  their traffic share; see docs/simulation-model.md.)
 - **Open-loop arrivals** (Poisson by default, or evenly spaced), with constant, ramp or burst
   patterns.
 - **Synchronous, acyclic call graphs.** Cycles are rejected. A service calls its dependencies

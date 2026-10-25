@@ -2,12 +2,15 @@
  * Visual identity of component kinds: each kind has a schematic shape (see components/shapes.tsx),
  * not a color. Colors are reserved for interaction (accent) and results (status).
  */
-import type { ComponentType } from "./types";
+import type { Catalog, ComponentType } from "./types";
 
 export type Kind = "traffic" | "network" | "compute" | "cache" | "database" | "messaging" | "external" | "other";
 
 const BY_TYPE: Record<string, Kind> = {
   traffic_source: "traffic",
+  mobile_app: "traffic",
+  web_client: "traffic",
+  api_consumer: "traffic",
   load_balancer: "network",
   service: "compute",
   cache: "cache",
@@ -39,6 +42,12 @@ export const KIND_COLOR: Record<Kind, string> = {
 
 export function kindOf(type: string, category?: string): Kind {
   return BY_TYPE[type] ?? (category ? BY_CATEGORY[category] : undefined) ?? "other";
+}
+
+/** True for client parts (Clients, Mobile app, Web browser, API consumers, or a plugin's client). */
+export function isClientType(type: string, catalog?: Catalog | null): boolean {
+  const c = catalog?.components.find((x) => x.type === type);
+  return c?.isTrafficSource ?? kindOf(type, c?.category) === "traffic";
 }
 
 export const KIND_LABEL: Record<Kind, string> = {
@@ -91,6 +100,9 @@ export function familyOf(kind: Kind): Family {
 /** Short names for the component rail. */
 const SHORT: Record<string, string> = {
   traffic_source: "Clients",
+  mobile_app: "Mobile",
+  web_client: "Browser",
+  api_consumer: "API users",
   load_balancer: "Balancer",
   service: "Service",
   cache: "Cache",
@@ -144,6 +156,21 @@ const TECH_NAMES: Record<string, string> = {
   rust: "Rust",
   php: "PHP",
   ruby: "Ruby",
+  // client groups
+  mobile: "Mobile app",
+  ios: "iOS",
+  android: "Android",
+  react_native: "React Native",
+  flutter: "Flutter",
+  browser: "Web browser",
+  react: "React",
+  nextjs: "Next.js",
+  vue: "Vue",
+  angular: "Angular",
+  svelte: "Svelte",
+  api_client: "API client",
+  rest: "REST / OpenAPI",
+  graphql: "GraphQL",
   generic: "Generic",
 };
 

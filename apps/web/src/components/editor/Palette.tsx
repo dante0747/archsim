@@ -77,10 +77,10 @@ export function findParts() {
   window.setTimeout(() => window.dispatchEvent(new Event(FIND_PARTS)), 60);
 }
 
-/** Short tile label: "Generic database" reads as "Database", clients stay "Clients". */
+/** Short tile label: "Generic database" reads as "Any database"; client parts use their own names. */
 function tileName(it: LibraryItem): string {
   if (it.preset) return it.preset.name;
-  if (it.comp.isTrafficSource) return "Clients";
+  if (it.comp.isTrafficSource) return it.type === "traffic_source" ? "Clients" : it.comp.displayName;
   const base = it.comp.displayName.split(" / ")[0].replace(/ \(.*\)$/, "");
   return `Any ${base.toLowerCase()}`;
 }
@@ -94,7 +94,7 @@ function Tile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => vo
       title={`${tileName(it)}: ${it.description}`}
       className="group flex h-[72px] w-full cursor-grab flex-col items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2/40 px-1.5 text-center transition-all hover:-translate-y-px hover:border-accent/60 hover:bg-surface-2 hover:shadow-[0_6px_18px_-8px_var(--accent)] active:cursor-grabbing"
     >
-      <TechIcon technology={it.preset ? it.technology : null} kind={kindOf(it.type, it.comp.category)} size={22} />
+      <TechIcon technology={it.preset || it.comp.isTrafficSource ? it.technology : null} kind={kindOf(it.type, it.comp.category)} size={22} />
       <span className="line-clamp-2 text-[11.5px] leading-[1.2] text-ink-2 group-hover:text-ink">{tileName(it)}</span>
     </button>
   );

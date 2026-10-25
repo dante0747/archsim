@@ -32,7 +32,7 @@ export function ComponentsTab() {
       </Empty>
     );
   }
-  const rows = report.nodes.filter((n) => n.type !== "traffic_source");
+  const rows = report.nodes.filter((n) => n.category !== "traffic");
   const focused = rows.find((n) => n.id === focusNodeId) ?? rows[0];
   return (
     <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">

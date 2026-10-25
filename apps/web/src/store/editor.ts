@@ -103,6 +103,12 @@ function snapshot(s: GraphState): GraphState {
   };
 }
 
+/** Links from a client start with that client's typical network (e.g. a mobile network's latency). */
+function linkDefaultsFrom(s: Pick<EditorState, "catalog" | "nodes">, sourceId: string): Partial<EdgeConfig> {
+  const type = s.nodes.find((n) => n.id === sourceId)?.data.type;
+  return structuredClone(componentOf(s.catalog, type ?? "")?.linkDefaults ?? {});
+}
+
 export const useEditor = create<EditorState>()((set, get) => ({
   projectId: null,
   revision: 0,
@@ -241,7 +247,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       sourceHandle: sideOf(conn.sourceHandle) ? conn.sourceHandle : sideHandle("right"),
       targetHandle: sideOf(conn.targetHandle) ? conn.targetHandle : sideHandle("left"),
       data: {
-        config: defaultEdgeConfig(s.catalog, check.requestTypes),
+        config: { ...defaultEdgeConfig(s.catalog, check.requestTypes), ...linkDefaultsFrom(s, conn.source) },
         label: null,
         sourcePort: check.sourcePort.name,
         targetPort: check.targetPort.name,

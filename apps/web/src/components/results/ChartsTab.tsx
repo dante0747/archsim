@@ -13,7 +13,7 @@ import { fmtAxisCount, fmtAxisMs, fmtAxisPct, fmtAxisRps, PERCENTILE_SERIES, typ
 /** Components shown in per-component charts: busiest first, capped at the 8 categorical slots. */
 export function chartNodes(report: Report): NodeReport[] {
   return report.nodes
-    .filter((n) => n.type !== "traffic_source" && n.timeseries.utilization)
+    .filter((n) => n.category !== "traffic" && n.timeseries.utilization)
     .sort((a, b) => (b.summary.utilization ?? 0) - (a.summary.utilization ?? 0))
     .slice(0, 8);
 }
@@ -23,7 +23,7 @@ export function ChartsTab() {
   const colorById = useMemo(() => {
     // Color follows the entity (stable by document order), never its rank.
     const m = new Map<string, string>();
-    report?.nodes.filter((n) => n.type !== "traffic_source").forEach((n, i) => m.set(n.id, SERIES[i % SERIES.length]));
+    report?.nodes.filter((n) => n.category !== "traffic").forEach((n, i) => m.set(n.id, SERIES[i % SERIES.length]));
     return m;
   }, [report]);
   if (!report) {

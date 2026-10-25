@@ -180,6 +180,17 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
       ),
       "",
     );
+    if ((s.clients?.length ?? 0) > 1) {
+      lines.push(
+        "By client:",
+        "",
+        table(
+          ["Client", "Share", "Success rate", "Latency p50 / p95"],
+          (s.clients ?? []).map((c) => [c.label, pct(c.share), pct(c.successRate), `${ms(c.latencyMs.p50)} / ${ms(c.latencyMs.p95)}`]),
+        ),
+        "",
+      );
+    }
     const budget = errorBudget(objectives, report);
     if (budget) {
       const used = budget.consumed == null ? "–" : Number.isFinite(budget.consumed) ? `${Math.round(budget.consumed * 100)}%` : "exhausted";

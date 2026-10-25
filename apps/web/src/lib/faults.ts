@@ -8,6 +8,7 @@
  *   latency  - each traversal of an edge gets `extraMs` added (one way)
  */
 import { evaluateSlo, sloTimeline, type SloResult } from "./slo";
+import { isClientType } from "./theme";
 import type { Catalog, Fault, Objectives, Report, Workload } from "./types";
 
 export type FaultKind = Fault["kind"];
@@ -137,16 +138,11 @@ export function fmtWindow(f: Pick<Fault, "startS" | "durationS">): string {
   return `${s(f.startS)}–${s(round1(f.startS + f.durationS))} s`;
 }
 
-function isTrafficSource(type: string, catalog: Catalog | null): boolean {
-  const c = catalog?.components.find((x) => x.type === type);
-  return c ? c.isTrafficSource : type === "traffic_source";
-}
-
 /** Valid fault targets per kind: any non-source node for outage/slowdown; any link for latency. */
 export function faultTargets(nodes: NodeLike[], edges: EdgeLike[], catalog: Catalog | null): Record<FaultKind, FaultTarget[]> {
   const names = targetNames(nodes, edges);
   const nodeTargets = nodes
-    .filter((n) => !isTrafficSource(n.data.type, catalog))
+    .filter((n) => !isClientType(n.data.type, catalog))
     .map((n) => ({ id: n.id, label: names[n.id], type: n.data.type }));
   const edgeTargets = edges.map((e) => ({ id: e.id, label: names[e.id], type: "edge" }));
   return { outage: nodeTargets, slowdown: nodeTargets, latency: edgeTargets };

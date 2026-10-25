@@ -6,6 +6,7 @@ import { NativeSelect } from "@/components/ui/input";
 import { Badge, Empty, Section } from "@/components/ui/misc";
 import { fmtMs, fmtNum, fmtPct, fmtRelativeTime, fmtRps } from "@/lib/format";
 import { NODE_STATUS, SERIES } from "@/lib/status";
+import { isClientType } from "@/lib/theme";
 import type { ComparisonKpi } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -57,6 +58,7 @@ export function CompareTab() {
   const startBatch = useRuns((s) => s.startBatch);
   const starting = useRuns((s) => s.starting);
   const scenarios = useEditor((s) => s.scenarios);
+  const catalog = useEditor((s) => s.catalog);
   const toDocument = useEditor((s) => s.toDocument);
   const done = runs.filter((r) => r.status === "succeeded");
 
@@ -188,7 +190,7 @@ export function CompareTab() {
                   </thead>
                   <tbody className="divide-y divide-line">
                     {comparison.nodes
-                      .filter((n) => n.type !== "traffic_source")
+                      .filter((n) => !isClientType(n.type, catalog))
                       .map((n) => (
                         <tr key={n.id}>
                           <td className="px-3 py-1.5 text-ink">{n.label}</td>

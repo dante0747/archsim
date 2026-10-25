@@ -500,6 +500,8 @@ p {
   border-color: var(--accent);
   background: var(--surface);
   opacity: 0;
+  /* Above the part's content box, which otherwise covers inset handles (slanted shapes). */
+  z-index: 2;
   transition:
     opacity 140ms ease,
     transform 120ms ease,

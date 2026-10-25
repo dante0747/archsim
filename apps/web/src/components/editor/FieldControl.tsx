@@ -13,6 +13,7 @@ import {
   validateDistribution,
 } from "@/lib/distributions";
 import { fmtNum } from "@/lib/format";
+import { technologyLabel } from "@/lib/theme";
 import type { Distribution, FieldDescriptor, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -352,7 +353,8 @@ export function FieldControl({
     }
     case "enum": {
       const options = field.options ?? [];
-      const totalLen = options.reduce((n, o) => n + humanize(o).length, 0);
+      const label = (o: string) => (field.key === "technology" ? (technologyLabel(undefined, o) ?? humanize(o)) : humanize(o));
+      const totalLen = options.reduce((n, o) => n + label(o).length, 0);
       control =
         options.length <= 3 && totalLen <= 34 ? (
           <Segmented value={String(value)} options={options} onChange={onChange} labelledBy={labelId} />
@@ -360,7 +362,7 @@ export function FieldControl({
           <NativeSelect id={id} value={String(value)} onChange={(e) => onChange(e.target.value)}>
             {options.map((o) => (
               <option key={o} value={o}>
-                {humanize(o)}
+                {label(o)}
               </option>
             ))}
           </NativeSelect>

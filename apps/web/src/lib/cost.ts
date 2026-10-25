@@ -6,6 +6,7 @@
  * These are planning estimates built from your assumptions, not quotes: every price is a config
  * value marked as an assumption in the inspector.
  */
+import { isClientType } from "./theme";
 import type { Catalog, NodeReport, NodeSpec, Report } from "./types";
 
 export const HOURS_PER_MONTH = 730;
@@ -62,9 +63,8 @@ export function instancesOf(
   nodeReport?: Pick<NodeReport, "timeseries"> | null,
 ): { count: number; basis: string } {
   const get = (k: string) => num(configValue(node, catalog, k));
+  if (isClientType(node.type, catalog)) return { count: 0, basis: "not billed" };
   switch (node.type) {
-    case "traffic_source":
-      return { count: 0, basis: "not billed" };
     case "external_api":
       return { count: 0, basis: "per call" };
     case "service": {
@@ -108,7 +108,7 @@ export function estimateCost(nodes: NodeSpec[], catalog: Catalog | null, report?
   let anyPrice = false;
   let missingExternalRate = false;
   for (const n of nodes) {
-    if (n.type === "traffic_source") continue;
+    if (isClientType(n.type, catalog)) continue;
     const nr = report?.nodes.find((x) => x.id === n.id) ?? null;
     const technology = (configValue(n, catalog, "technology") as string | undefined) ?? null;
     const label = n.label || n.id;

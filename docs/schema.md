@@ -81,7 +81,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | string | Unique; letters, digits, `_`, `.`, `-`; max 64 chars; starts with a letter or digit. |
-| `type` | string | A registered component type: `traffic_source`, `load_balancer`, `service`, `cache`, `database`, `message_queue`, `external_api` (or a plugin). |
+| `type` | string | A registered component type: client groups `traffic_source`, `mobile_app`, `web_client` and `api_consumer`; `load_balancer`, `service`, `cache`, `database`, `message_queue`, `external_api` (or a plugin). A design needs at least one client group; several split the workload by their `trafficShare`. |
 | `label` | string | Display name, max 120. |
 | `description` | string? | |
 | `config` | object | Validated by the component type. The full list of fields, units, ranges and defaults for each type is returned by `GET /api/v1/components` (`uv run archsim catalog`). |

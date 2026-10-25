@@ -409,21 +409,15 @@ def validate_document(doc: ArchitectureDocument, registry: ComponentRegistry) ->
 
     # -- traffic source -------------------------------------------------------------------------
     sources = [n for n in nodes if n.type in registry and registry.get(n.type).is_traffic_source]
+    # Several client groups (e.g. mobile app, web browser, API consumers) share the workload by
+    # their traffic share.
     if not sources:
         issues.append(
             error(
                 "graph.no_source",
-                "There is no traffic source, so nothing generates load.",
-                hint="Drag a 'Clients / Traffic' component onto the canvas and connect it.",
-            )
-        )
-    elif len(sources) > 1:
-        issues.append(
-            error(
-                "graph.multiple_sources",
-                f"Found {len(sources)} traffic sources; this version supports exactly one.",
-                node_id=sources[1].id,
-                hint="Remove the extra traffic sources (model client groups as one source for now).",
+                "There is no client, so nothing generates load.",
+                hint="Drag a client (Clients, Mobile app, Web browser or API consumers) onto the "
+                "canvas and connect it.",
             )
         )
 
