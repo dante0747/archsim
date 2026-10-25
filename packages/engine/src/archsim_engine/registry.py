@@ -76,6 +76,7 @@ def ui(
     visible_when: dict[str, Any] | None = None,
     step: float | None = None,
     kind: str | None = None,
+    ref_type: str | None = None,
 ) -> dict[str, Any]:
     """Metadata attached to a config field via ``json_schema_extra``.
 
@@ -94,6 +95,7 @@ def ui(
                 "visibleWhen": visible_when,
                 "step": step,
                 "kind": kind,
+                "refType": ref_type,
             }.items()
             if v is not None
         }

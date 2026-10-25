@@ -72,6 +72,7 @@ REASON_TEXT = {
     "out_of_memory": "ran out of memory (request refused)",
     "gateway_timeout": "the gateway gave up waiting for its target (504)",
     "circuit_open": "circuit breaker open: too many requests in flight to the target (503)",
+    "no_ready_pods": "no ready pod to serve it: its pods were Pending or starting (503)",
 }
 
 TRACE_KEEP = {"slowest": 8, "failed": 8, "sample": 18}

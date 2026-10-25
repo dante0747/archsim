@@ -1,0 +1,392 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Shared node pool: a greedy neighbour",
+    "description": "Search and Checkout share a fixed pool of four nodes. Search's HPA targets only 30% CPU, so when traffic spikes it asks for far more pods than it needs and takes every free slot first. Checkout's new pods stay Pending, its two pods fall behind and about a quarter of checkouts time out. A normal target, a cap on Search or more nodes give Checkout room; the cluster autoscaler helps only once its nodes arrive.",
+    "tags": [
+      "kubernetes",
+      "node-pool",
+      "noisy-neighbour",
+      "hpa",
+      "pods"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Shoppers",
+        "description": null,
+        "config": {
+          "timeoutMs": 3000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "ingress",
+        "type": "load_balancer",
+        "label": "Ingress",
+        "description": null,
+        "config": {
+          "technology": "envoy",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "search",
+        "type": "service",
+        "label": "Search",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 8,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 1000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 16,
+            "p95": 50
+          },
+          "blockingDownstream": true,
+          "cpuCores": 1,
+          "memoryGib": 2,
+          "autoscaling": true,
+          "minReplicas": 3,
+          "maxReplicas": 20,
+          "targetUtilization": 0.3,
+          "scaleIntervalS": 15,
+          "startupS": 20
+        }
+      },
+      {
+        "id": "checkout",
+        "type": "service",
+        "label": "Checkout",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 2,
+          "workersPerReplica": 8,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 800,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 16,
+            "p95": 50
+          },
+          "blockingDownstream": true,
+          "cpuCores": 1,
+          "memoryGib": 1,
+          "autoscaling": true,
+          "minReplicas": 2,
+          "maxReplicas": 12,
+          "targetUtilization": 0.6,
+          "scaleIntervalS": 15,
+          "startupS": 8
+        }
+      },
+      {
+        "id": "index",
+        "type": "database",
+        "label": "Search index",
+        "description": null,
+        "config": {
+          "technology": "elasticsearch",
+          "shards": 6,
+          "maxConnections": 400,
+          "queueCapacity": 2000,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 20
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 12,
+            "p95": 40
+          }
+        }
+      },
+      {
+        "id": "orders",
+        "type": "database",
+        "label": "Orders DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 100,
+          "readReplicas": 0,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 8,
+            "p95": 25
+          }
+        }
+      },
+      {
+        "id": "k8s",
+        "type": "kubernetes_cluster",
+        "label": "shared-pool",
+        "description": null,
+        "config": {
+          "technology": "kubernetes",
+          "nodes": 4,
+          "nodeVcpu": 4,
+          "nodeMemoryGib": 16,
+          "clusterAutoscaler": false,
+          "minNodes": 4,
+          "maxNodes": 10,
+          "nodeProvisionS": 90,
+          "imagePullS": 8,
+          "costPerHour": 0.19
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-ingress",
+        "source": "clients",
+        "sourcePort": "out",
+        "target": "ingress",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "ingress-search",
+        "source": "ingress",
+        "sourcePort": "out",
+        "target": "search",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "ingress-checkout",
+        "source": "ingress",
+        "sourcePort": "out",
+        "target": "checkout",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "search-index",
+        "source": "search",
+        "sourcePort": "out",
+        "target": "index",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "checkout-orders",
+        "source": "checkout",
+        "sourcePort": "out",
+        "target": "orders",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 100,
+    "durationS": 300,
+    "warmupS": 20,
+    "seed": 42,
+    "readRatio": 0.7,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 450,
+      "startS": 40,
+      "durationS": 230
+    },
+    "keyCount": 100000,
+    "keySkew": 0.5,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (Search targets 30% CPU, 4 fixed nodes)",
+      "description": "The document as drawn.",
+      "overrides": []
+    },
+    {
+      "id": "search-target",
+      "name": "Search targets 60% CPU",
+      "description": "Give Search a normal HPA target, so it asks only for the pods it needs.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "targetUtilization",
+          "value": 0.6
+        }
+      ]
+    },
+    {
+      "id": "cap-search",
+      "name": "Cap Search at 8 pods",
+      "description": "Limit the neighbour's maximum pods, so it cannot take the whole pool.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "maxReplicas",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "id": "more-nodes",
+      "name": "Twice the nodes (8)",
+      "description": "A bigger pool, same greedy target.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "nodes",
+          "value": 8
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "minNodes",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "id": "autoscaler",
+      "name": "Cluster autoscaler on (up to 10 nodes)",
+      "description": "Add nodes for Pending pods, about 90 s each.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "clusterAutoscaler",
+          "value": true
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 300,
+    "latencyP99Ms": null,
+    "availability": 0.99,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 160
+      },
+      "ingress": {
+        "x": 330,
+        "y": 160
+      },
+      "search": {
+        "x": 660,
+        "y": 40
+      },
+      "checkout": {
+        "x": 660,
+        "y": 300
+      },
+      "index": {
+        "x": 990,
+        "y": 40
+      },
+      "orders": {
+        "x": 990,
+        "y": 300
+      },
+      "k8s": {
+        "x": 660,
+        "y": 540
+      }
+    },
+    "viewport": null
+  }
+}

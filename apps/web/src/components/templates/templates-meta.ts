@@ -3,11 +3,12 @@ import { peakRps } from "@/lib/load";
 import { kindOf, type Kind } from "@/lib/theme";
 import type { ArchitectureDocument, ExampleSummary } from "@/lib/types";
 
-export type TemplateCategory = "Starter" | "Scale" | "Data" | "Async" | "Serverless" | "Resilience" | "Learn";
+export type TemplateCategory = "Starter" | "Scale" | "Kubernetes" | "Data" | "Async" | "Serverless" | "Resilience" | "Learn";
 
 export const CATEGORY_COLOR: Record<TemplateCategory, string> = {
   Starter: "var(--fam-traffic)",
   Scale: "var(--fam-compute)",
+  Kubernetes: "var(--series-1)",
   Data: "var(--fam-database)",
   Async: "var(--fam-messaging)",
   Serverless: "var(--fam-network)",
@@ -57,6 +58,16 @@ const META: Record<string, TemplateMeta> = {
     category: "Resilience",
     level: "Advanced",
     insight: "Aggressive retries turn a traffic burst into a storm.",
+  },
+  "kubernetes-pods-pending": {
+    category: "Kubernetes",
+    level: "Intermediate",
+    insight: "The HPA asks for pods in seconds; a new node takes two minutes.",
+  },
+  "kubernetes-shared-pool": {
+    category: "Kubernetes",
+    level: "Advanced",
+    insight: "One service's scale-out takes the room another one needed.",
   },
   "serverless-burst": {
     category: "Serverless",

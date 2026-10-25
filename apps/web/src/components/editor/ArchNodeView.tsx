@@ -4,6 +4,7 @@ import { Handle, type NodeProps, NodeToolbar, Position } from "@xyflow/react";
 import { Copy, Cpu, HardDrive, MemoryStick, Trash2 } from "lucide-react";
 import { memo, useMemo } from "react";
 import { describeValue, isFieldVisible } from "@/components/editor/FieldControl";
+import { ClusterNodes, PodStrip } from "@/components/editor/KubernetesViews";
 import { TechIcon } from "@/components/TechIcon";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import { type ArchNode, SIDES, type Side, sideHandle } from "@/lib/document";
@@ -13,6 +14,7 @@ import { componentOf } from "@/lib/graph-rules";
 import { clientFraction, clientShares } from "@/lib/clients";
 import { faultsAt, fmtRate, heatColor, runFaults, statusAt } from "@/lib/recorder";
 import { NODE_STATUS } from "@/lib/status";
+import { CLUSTER_TYPE, type ClusterPlan, clusterIdsOf, clusterOf, isOnKubernetes, membersOf, planCluster, spreadPods, startingPods } from "@/lib/kubernetes";
 import { kindOf, technologyLabel } from "@/lib/theme";
 import type { Fault, NodeReport, NodeStatus, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -112,6 +114,17 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   // Quantized to the bucket so nodes re-render once per simulated bucket, not on every frame.
   const bucket = useUi((s) => (s.playhead == null ? -1 : Math.floor(s.playhead / bucketS + 1e-9)));
   const dark = useIsDark();
+  // Kubernetes: where the starting pods land (the cluster's plan), as a string so the card only
+  // re-renders when the plan changes, not on every edit elsewhere.
+  const isCluster = data.type === CLUSTER_TYPE;
+  const onK8s = isOnKubernetes(data.type, data.config);
+  const planJson = useEditor((s) => {
+    if (!isCluster && !onK8s) return "";
+    const clusterId = isCluster ? id : clusterOf({ id, data }, clusterIdsOf(s.nodes));
+    const cluster = clusterId ? s.nodes.find((n) => n.id === clusterId) : null;
+    return cluster ? JSON.stringify(planCluster(cluster.data.config, membersOf(s.nodes, cluster.id))) : "";
+  });
+  const plan = useMemo(() => (planJson ? (JSON.parse(planJson) as ClusterPlan) : null), [planJson]);
 
   const liveOn = overlay && !!report && !!nodeReport && bucket >= 0 && bucket < nBuckets;
   const live = useMemo(
@@ -123,7 +136,46 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const configReplicas = typeof data.config.replicas === "number" ? data.config.replicas : 1;
   const replicas = live?.replicas != null ? Math.max(1, Math.round(live.replicas)) : configReplicas;
   const headline = (comp?.fields ?? []).filter((f) => f.headline && isFieldVisible(f, data.config)).slice(0, 2);
-  const status: NodeStatus | null = live ? live.status : overlay && nodeReport ? nodeReport.status : null;
+  const tsAt = (k: string): number | null => (live && nodeReport ? (nodeReport.timeseries?.[k]?.[bucket] ?? null) : null);
+  let status: NodeStatus | null = live ? live.status : overlay && nodeReport ? nodeReport.status : null;
+  let clusterView: React.ReactNode = null;
+  let podView: React.ReactNode = null;
+  if (isCluster) {
+    const liveNodes = tsAt("nodes");
+    if (live && liveNodes != null) {
+      const n = Math.round(liveNodes);
+      const pending = tsAt("podsPending") ?? 0;
+      const cpuRatio = tsAt("cpuRequestedRatio");
+      status = pending >= 0.5 ? "hot" : (cpuRatio ?? 0) >= 0.85 ? "warm" : "ok";
+      clusterView = (
+        <ClusterNodes
+          podsPerNode={spreadPods(Math.round(tsAt("podsRunning") ?? 0), n)}
+          provisioning={tsAt("nodesProvisioning") ?? 0}
+          pending={pending}
+          cpuRatio={cpuRatio}
+          estimated
+        />
+      );
+    } else if (plan) {
+      clusterView = (
+        <ClusterNodes
+          podsPerNode={plan.podsPerNode}
+          provisioning={0}
+          pending={plan.pending}
+          cpuRatio={plan.cpuAllocatable > 0 ? plan.cpuRequested / plan.cpuAllocatable : null}
+          estimated={false}
+        />
+      );
+    }
+  } else if (onK8s) {
+    const ready = tsAt("podsReady");
+    if (live && ready != null) {
+      podView = <PodStrip ready={ready} starting={tsAt("podsStarting") ?? 0} pending={tsAt("podsPending") ?? 0} />;
+    } else {
+      const pending = plan?.pendingBy[id] ?? 0;
+      podView = <PodStrip ready={Math.max(0, startingPods(data.config) - pending)} starting={0} pending={pending} />;
+    }
+  }
   const meta = status ? NODE_STATUS[status] : null;
   const s = nodeReport?.summary;
   const util = live ? live.util : (s?.utilization ?? null);
@@ -198,7 +250,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
       {live && live.queue != null && live.queue >= 0.5 && !selected && <QueueBlocks queue={live.queue} left={12} />}
 
       {/* Attach points on all four sides: drag from any of them to another part (either way). */}
-      {SIDES.map((side) => (
+      {comp?.ports.length !== 0 && SIDES.map((side) => (
         <Handle key={side} id={sideHandle(side)} type="source" position={SIDE_POSITION[side]} className="arch-handle" title="Drag to another part to connect" />
       ))}
 
@@ -229,7 +281,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
             <span className="rounded-full bg-warning-soft px-1.5 text-[11px] font-semibold leading-5 text-ink" title={`${warningCount} warning(s)`}>
               {warningCount}!
             </span>
-          ) : replicas > 1 ? (
+          ) : replicas > 1 && !onK8s ? (
             <span className="tabular rounded-full bg-surface-2 px-1.5 text-[11px] font-semibold leading-5 text-ink-2" title={`${replicas} replicas`}>
               ×{replicas}
             </span>
@@ -243,6 +295,8 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
               <span className="tabular shrink-0 font-medium text-ink">{f.v}</span>
             </div>
           ))}
+          {podView}
+          {clusterView}
           {(cpu != null || mem != null || disk != null) && (
             <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5 text-xs text-ink-2" aria-label="Resources">
               {cpu != null && (
@@ -265,7 +319,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
               )}
             </p>
           )}
-          {meta && (live || s) && (status !== "ok" || rejecting) && (
+          {meta && (live || s) && (status !== "ok" || rejecting) && !isCluster && (
             <div className="flex items-center gap-1.5 pt-1 text-xs" aria-label={live ? `State at ${live.t.toFixed(0)} s` : "Simulation result for this component"}>
               <span className={cn("size-2 rounded-full", status === "saturated" && "pulse-soft")} style={{ background: meta.color }} aria-hidden />
               <span className="font-medium text-ink">{meta.label}</span>

@@ -168,9 +168,11 @@ class LoadBalancerRuntime(RuntimeComponent):
             self._rr[op] = self._rr.get(op, 0) % max(1, len(c))
         return c
 
-    def pick(self, op: str, avoid: tuple[str, int] | None) -> Candidate:
+    def pick(self, op: str, avoid: tuple[str, int] | None) -> Candidate | None:
         cands = self.candidates(op)
         n = len(cands)
+        if n == 0:
+            return None  # every target is scaled to zero ready instances (e.g. Pending pods)
         policy = self.config.policy
         if policy == "random":
             idx = self.rng.randrange(n)
@@ -216,7 +218,20 @@ class LoadBalancerRuntime(RuntimeComponent):
         avoid: tuple[str, int] | None = None
         attempt = 0
         while True:
-            edge, target, index = self.pick(req.op, avoid)
+            picked = self.pick(req.op, avoid)
+            if picked is None:
+                m.count("noReadyTargets", env.now)
+                span(
+                    req,
+                    self.id,
+                    "rejected",
+                    env.now,
+                    env.now,
+                    "no ready instance behind the balancer (503)",
+                )
+                outcome = rejected("no_ready_pods", self.id)
+                break
+            edge, target, index = picked
             tid = edge.target_id
             if self.breaker is not None and self.active.get(tid, 0) >= self.breaker:
                 m.count("circuitOpen", env.now)

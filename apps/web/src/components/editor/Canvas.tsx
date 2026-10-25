@@ -13,6 +13,7 @@ import {
   ReactFlow,
   useNodesInitialized,
   useReactFlow,
+  ViewportPortal,
 } from "@xyflow/react";
 import { ArrowRight, Cable, MousePointerClick, Play } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
@@ -25,6 +26,7 @@ import { DND_MIME } from "@/components/editor/Palette";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import type { ArchEdge, ArchNode } from "@/lib/document";
 import { checkConnection } from "@/lib/graph-rules";
+import { CLUSTER_TYPE, membersOf } from "@/lib/kubernetes";
 import { NODE_STATUS } from "@/lib/status";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -45,6 +47,66 @@ const defaultEdgeOptions = {
 
 function reversed<T extends { source: string | null; target: string | null; sourceHandle?: string | null; targetHandle?: string | null }>(c: T): T {
   return { ...c, source: c.target, target: c.source, sourceHandle: c.targetHandle ?? null, targetHandle: c.sourceHandle ?? null };
+}
+
+interface Frame {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const FRAME_PAD = 22;
+
+/** A dashed outline around each Kubernetes cluster and the services whose pods it runs. */
+function ClusterFrames() {
+  // Serialized so the frames re-render only when the geometry changes.
+  const json = useEditor((s) => {
+    const frames: Frame[] = [];
+    for (const c of s.nodes) {
+      if (c.data.type !== CLUSTER_TYPE) continue;
+      const group = [c, ...membersOf(s.nodes, c.id).map((m) => s.nodes.find((n) => n.id === m.id)!)];
+      if (group.length < 2) continue;
+      let [x0, y0, x1, y1] = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+      for (const n of group) {
+        const w = n.measured?.width ?? NODE_W;
+        const h = n.measured?.height ?? 120;
+        x0 = Math.min(x0, n.position.x);
+        y0 = Math.min(y0, n.position.y);
+        x1 = Math.max(x1, n.position.x + w);
+        y1 = Math.max(y1, n.position.y + h);
+      }
+      frames.push({ id: c.id, label: c.data.label, x: x0 - FRAME_PAD, y: y0 - FRAME_PAD - 18, w: x1 - x0 + 2 * FRAME_PAD, h: y1 - y0 + 2 * FRAME_PAD + 18 });
+    }
+    return JSON.stringify(frames);
+  });
+  const frames = JSON.parse(json) as Frame[];
+  if (frames.length === 0) return null;
+  return (
+    <ViewportPortal>
+      {frames.map((f) => (
+        <div
+          key={f.id}
+          className="pointer-events-none absolute left-0 top-0 rounded-2xl border-[1.5px] border-dashed"
+          style={{
+            transform: `translate(${f.x}px, ${f.y}px)`,
+            width: f.w,
+            height: f.h,
+            zIndex: -1,
+            borderColor: "color-mix(in srgb, var(--fam-compute) 55%, transparent)",
+            background: "color-mix(in srgb, var(--fam-compute) 4%, transparent)",
+          }}
+          aria-hidden
+        >
+          <span className="absolute left-3 top-1.5 text-[11px] font-medium tracking-wide text-ink-3">
+            {f.label} · Kubernetes
+          </span>
+        </div>
+      ))}
+    </ViewportPortal>
+  );
 }
 
 function EmptyState() {
@@ -264,6 +326,7 @@ export function Canvas() {
         {/* Graph paper: a fine line every 24 px and a stronger one every 120 px. */}
         <Background id="minor" variant={BackgroundVariant.Lines} gap={24} lineWidth={1} color="var(--grid-minor)" />
         <Background id="major" variant={BackgroundVariant.Lines} gap={120} lineWidth={1} color="var(--grid-major)" />
+        <ClusterFrames />
         {nodes.length > 8 && (
         <MiniMap
           pannable

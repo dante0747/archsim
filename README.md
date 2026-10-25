@@ -4,7 +4,7 @@
 
 ArchSim is an open-source, local-first studio for designing distributed systems and testing them
 before you build them. Model the stack you actually run (PostgreSQL with read replicas, sharded
-MongoDB, Cassandra quorums, Redis, Kafka, Kubernetes autoscaling, serverless functions,
+MongoDB, Cassandra quorums, Redis, Kafka, Kubernetes clusters and pods, serverless functions,
 third-party APIs), push traffic and failures through it with a discrete-event engine that moves
 every single request, replay what happened second by second, and decide with SLOs, cost and
 capacity curves. Same document and seed, same result.
@@ -43,7 +43,8 @@ API servers behind a lone Clients box.
   (Cassandra), key-value (DynamoDB-style provisioned throughput), search (Elasticsearch),
   caches (Redis, Valkey, Memcached, CDN edge, Varnish), message queues (Kafka, RabbitMQ,
   SQS-style...), gateways (Nginx, HAProxy, Envoy, Kong...), services on VMs, Docker, Kubernetes
-  (HPA autoscaling) or serverless (cold starts, concurrency limits), and third-party APIs
+  (HPA autoscaling, pods on a cluster's nodes) or serverless (cold starts, concurrency limits),
+  Kubernetes clusters (EKS-, GKE- and AKS-style, k3s), and third-party APIs
   (payments, e-mail, identity, LLM inference...).
 - **Each technology behaves like the real one.** PostgreSQL locks rows, makes commits wait for
   its write-ahead log (sharing flushes between concurrent commits) and replays writes on
@@ -57,7 +58,11 @@ API servers behind a lone Clients box.
   slow messages twice after the visibility timeout; Envoy answers 503 past 1,024 requests per
   target and nginx gives up after 60 s; Node.js runs CPU work on one event loop; JVMs pause for
   garbage collection and start slow until the JIT warms up; Lambda cold starts depend on the
-  runtime and scale-out is rate limited. The inspector shows how the selected technology
+  runtime and scale-out is rate limited. On a Kubernetes cluster every replica is a pod placed
+  by its CPU and memory requests: when the nodes are full new pods wait as Pending until the
+  cluster autoscaler's node is ready minutes later, then pull their image and start. The
+  canvas draws each service's pods (ready, starting, Pending) and the cluster's nodes, live
+  during replay. The inspector shows how the selected technology
   behaves, each behaviour links to the vendor's documentation, and every one is a setting
   (Auto by default) that you can override. Typical numbers that vendors don't document are
   marked illustrative.

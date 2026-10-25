@@ -222,6 +222,10 @@ def run_simulation(
     env = simpy.Environment()
     ctx = SimContext(env, wl.seed, tl)
     ctx.shared["workload"] = wl
+    # Kubernetes clusters, so services on the Kubernetes platform can find theirs at build time
+    ctx.shared["clusters"] = [
+        n.id for n in resolved.architecture.nodes if n.type == "kubernetes_cluster"
+    ]
     ctx.set_faults(list(wl.faults))
     for e in resolved.architecture.edges:
         er = EdgeRuntime(e, tl, ctx.rng(f"edge:{e.id}:latency"))

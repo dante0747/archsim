@@ -197,6 +197,34 @@ serves 8 example designs (see below).
   the links in the category's colour, plus the category, level, a one-line "what you'll see",
   the description and parts / scenarios / peak load. Parts without a technology show the
   engine's default (PostgreSQL, Redis). Hovering lifts the card and offers "Use template".
+- Kubernetes clusters and pods (engine 0.6.0, report 1.6, 2026-10-25): a `kubernetes_cluster`
+  part (presets Kubernetes, EKS-, GKE-, AKS-style, k3s; illustrative sizes and provisioning
+  times) with nodes, allocatable CPU and memory, a scheduler that binds each pod to the least
+  allocated node that fits its requests, Pending pods, the cluster autoscaler (scan interval,
+  provisioning delay, min/max nodes, removal of empty nodes) and image pulls. Services on the
+  Kubernetes platform run their replicas as pods on it (`cluster` picks one of several);
+  starting pods that do not fit start Pending; a load balancer with no ready pod behind it
+  answers `no_ready_pods`. With a CPU size the HPA now scales on the higher of CPU use and
+  busy workers (like the Kubernetes HPA's CPU target); scaling down deletes Pending pods first. Validation (pod bigger than a node,
+  pods that start Pending, missing or ambiguous cluster), a `pods_pending` finding, cluster
+  status from its pods, calculations (allocatable per node, time to new capacity, pods per
+  node) and documentation links. 9 engine tests (scheduling, Pending, node adds after the
+  delay, no autoscaler, headroom, shared pool starving a service into 503s, several
+  clusters, Pending pods deleted on scale-down, determinism).
+- Kubernetes in the web app: cluster logos (Kubernetes, k3s, OpenShift), a "Cluster" select
+  in the inspector for services on Kubernetes (`nodeRef` fields), pod squares on Kubernetes
+  service cards (ready, starting, Pending; where the starting pods land in the design, the
+  recorded state during replay), a node view on the cluster card (pods per node, nodes being
+  added, Pending pods, CPU requested), a dashed frame around each cluster and its services,
+  dashboard panels (Pods, Nodes, Requested of allocatable) and replay events (node added or
+  removed, pods Pending), node and pod numbers in the cluster's inspector and dashboard row
+  header, cost per node with member services at no extra cost, and exports that deploy the
+  workloads but not the cluster part itself. Two
+  templates in a new Kubernetes category: "Kubernetes spike: pods wait for nodes" (baseline
+  78% success, 94% with five nodes up front, 90% with 40 s nodes, 66% without the cluster
+  autoscaler) and "Shared node pool: a greedy neighbour" (Search's 30% HPA target leaves
+  Checkout at two pods and 74% of checkouts succeed; a normal target 97%, a cap on Search or
+  twice the nodes 96%). Unit tests for membership, placement and pricing.
 - Flat redesign (2026-10-25, see docs/ui-redesign.md for the critique and the DOs and DON'Ts):
   solid surfaces in three tonal steps, hairlines instead of boxes, no gradients, glows, glass or
   aurora, shadows only on menus and dialogs; panels docked edge to edge; one typeface (Geist;
@@ -352,6 +380,20 @@ drag-zoom, replay, fullscreen, Inspect data and Show on canvas in both themes; r
 rate in a visible window was not measured (the pane was hidden). The README screenshots were retaken from the
 rebuilt Docker stack (eight images, dark and light, now including the dashboard, calculations
 and traces).
+
+Kubernetes, on 2026-10-25, against the rebuilt Docker stack, in the browser pane at about
+800x450 in light and dark: the templates gallery's Kubernetes filter and both templates; the
+dashed cluster frame (it follows a dragged cluster card); pod squares and the node view in the
+design (3 pods, "42% CPU requested") and during replay of the spike template at 90 s (6 ready,
+4 Pending, 2 nodes being added); the inspector's Cluster select ("Auto (prod)") and "How
+Kubernetes behaves"; the dashboard's Pods panel on the API and the cluster row (Pods, Nodes,
+Requested of allocatable: 12 running, 12 Pending at peak, 83% CPU requested). Fixed on the
+way: the frame wrapped the Ingress in the shared-pool layout, "Any kubernetes cluster" lost
+its capital, the cluster row showed empty request panels and "0 req/s" numbers, Pending pods
+were never deleted when the HPA scaled down, and the longest Pending wait ignored pods that
+never got a node. On the final rebuild the cluster's inspector shows 4 nodes at peak, 12
+Pending at peak, a 256 s longest wait and 80% of node CPU requested for the shared pool. Not
+checked: a wide desktop window.
 
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links

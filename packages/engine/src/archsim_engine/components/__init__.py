@@ -5,6 +5,7 @@ from __future__ import annotations
 from archsim_engine.components.cache import CacheConfig, CacheModel
 from archsim_engine.components.database import DatabaseConfig, DatabaseModel
 from archsim_engine.components.external_api import ExternalApiConfig, ExternalApiModel
+from archsim_engine.components.kubernetes import ClusterConfig, KubernetesClusterModel
 from archsim_engine.components.load_balancer import LoadBalancerConfig, LoadBalancerModel
 from archsim_engine.components.message_queue import MessageQueueConfig, MessageQueueModel
 from archsim_engine.components.service import ServiceConfig, ServiceModel
@@ -28,6 +29,7 @@ BUILTIN_MODELS: tuple[type[ComponentModel], ...] = (
     DatabaseModel,
     ExternalApiModel,
     MessageQueueModel,
+    KubernetesClusterModel,
 )
 
 
@@ -43,10 +45,12 @@ __all__ = [
     "ApiConsumerModel",
     "CacheConfig",
     "CacheModel",
+    "ClusterConfig",
     "DatabaseConfig",
     "DatabaseModel",
     "ExternalApiConfig",
     "ExternalApiModel",
+    "KubernetesClusterModel",
     "LoadBalancerConfig",
     "LoadBalancerModel",
     "MessageQueueConfig",

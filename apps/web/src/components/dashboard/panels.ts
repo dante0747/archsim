@@ -597,10 +597,15 @@ function groupTitle(gid: string, defs: MetricDef[]): string {
   return panelGroup(gid as PanelGroupId).title;
 }
 
+const OFF_PATH = new Set(["kubernetes_cluster"]);
+
 /** Panels for one component, chosen from the series it reports. */
 export function componentPanels(node: NodeReport): TimeSeriesSpec[] {
   const ts = node.timeseries ?? {};
-  const keys = Object.keys(ts).filter((k) => hasData(ts[k]));
+  let keys = Object.keys(ts).filter((k) => hasData(ts[k]));
+  // Parts off the request path (a Kubernetes cluster) only get their own signals, not empty
+  // request, queue and latency panels.
+  if (OFF_PATH.has(node.type)) keys = keys.filter((k) => metricDef(k, "node").emittedBy?.includes(node.type));
   const groups = new Map<string, MetricDef[]>();
   for (const k of keys) {
     const def = metricDef(k, "node");

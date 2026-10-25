@@ -89,7 +89,8 @@ export function slug(text: string): string {
 }
 
 export function deployNodes(doc: ArchitectureDocument, catalog?: Catalog | null): DeployNode[] {
-  return doc.architecture.nodes.map((node) => {
+  // A Kubernetes cluster part is where workloads run, not a workload: nothing to deploy for it.
+  return doc.architecture.nodes.filter((node) => node.type !== "kubernetes_cluster").map((node) => {
     const comp = catalog?.components.find((c) => c.type === node.type);
     const cfg: NodeConfig = { ...(comp?.defaultConfig ?? {}), ...(node.config ?? {}) };
     const kind = kindOf(node.type, comp?.category);

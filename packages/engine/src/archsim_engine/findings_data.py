@@ -311,9 +311,56 @@ def _lock_contention(n: dict[str, Any], resolved: ArchitectureDocument) -> dict[
     }
 
 
+def _pending_pods(n: dict[str, Any]) -> dict[str, Any] | None:
+    s = n["summary"]
+    peak = int(s.get("podsPendingPeak") or 0)
+    if peak <= 0:
+        return None
+    adds = int((s.get("counters") or {}).get("nodeAdds", 0))
+    cfg = n.get("config") or {}
+    longest = s.get("maxPendingS") or 0.0
+    end = int(s.get("podsPendingEnd") or 0)
+    detail = (
+        f"Up to {peak} pod(s) waited for a node with room for their requests, the longest "
+        f"{longest:.0f} s. "
+    )
+    if cfg.get("clusterAutoscaler"):
+        detail += (
+            f"The cluster autoscaler added {adds} node(s), each ready about "
+            f"{float(cfg.get('nodeProvisionS') or 0):.0f} s after it was asked for"
+        )
+        detail += f"; {end} pod(s) were still Pending at the end." if end else "."
+    else:
+        detail += (
+            "The cluster autoscaler is off, so Pending pods wait until other pods are removed."
+        )
+    return {
+        "severity": "warning" if end or longest >= 30 else "info",
+        "kind": "pods_pending",
+        "nodeId": n["id"],
+        "title": f"Pods waited up to {longest:.0f} s for room on {n['label']}",
+        "detail": detail,
+        "suggestion": (
+            "Keep headroom (more nodes, or a lower HPA target), use faster-provisioning nodes or "
+            "smaller pod requests, or raise the maximum node count."
+        ),
+        "evidence": {
+            "podsPendingPeak": peak,
+            "maxPendingS": longest,
+            "nodeAdds": adds,
+            "podsPendingEnd": end,
+        },
+    }
+
+
 def findings(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for n in report["nodes"]:
+        if n["type"] == "kubernetes_cluster":
+            f = _pending_pods(n)
+            if f:
+                out.append(f)
+            continue
         if n["type"] == "database":
             for f in (
                 _hot_shard(n, resolved),

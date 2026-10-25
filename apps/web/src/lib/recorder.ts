@@ -120,7 +120,10 @@ export type RecorderEventKind =
   | "scale_up"
   | "scale_down"
   | "queue_growth"
-  | "timeouts";
+  | "timeouts"
+  | "node_added"
+  | "node_removed"
+  | "pods_pending";
 
 export type EventSeverity = "critical" | "warning" | "info" | "ok";
 
@@ -234,6 +237,44 @@ export function detectEvents(report: Report, objectives: Objectives): RecorderEv
           });
         }
         prev = cur;
+      }
+    }
+
+    // Kubernetes clusters: nodes added or removed, and pods starting to wait for room.
+    const nodes = ts.nodes;
+    if (nodes && ts.podsRunning) {
+      let prev: number | null = null;
+      for (let i = 0; i < nodes.length; i++) {
+        const v = nodes[i];
+        if (v == null) continue;
+        const cur = Math.round(v);
+        if (prev != null && cur !== prev) {
+          const up = cur > prev;
+          events.push({
+            t: i * b,
+            kind: up ? "node_added" : "node_removed",
+            label: `${name}: ${up ? "node added" : "node removed"} ${prev} → ${cur}`,
+            nodeId: node.id,
+            severity: "info",
+          });
+        }
+        prev = cur;
+      }
+      const pending = ts.podsPending;
+      if (pending) {
+        let armed = true;
+        let count = 0;
+        for (let i = 0; i < pending.length && count < 3; i++) {
+          const p = pending[i];
+          if (p == null) continue;
+          if (armed && p >= 0.5) {
+            events.push({ t: i * b, kind: "pods_pending", label: `Pods Pending on ${name} (${Math.max(1, Math.round(p))} waiting for a node)`, nodeId: node.id, severity: "warning" });
+            armed = false;
+            count++;
+          } else if (!armed && p < 0.5) {
+            armed = true;
+          }
+        }
       }
     }
   }

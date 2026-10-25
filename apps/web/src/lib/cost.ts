@@ -10,6 +10,7 @@
  * These are planning estimates built from your assumptions, not quotes: every price is a config
  * value marked as an assumption in the inspector.
  */
+import { CLUSTER_TYPE, clusterOf } from "./kubernetes";
 import { isClientType } from "./theme";
 import type { Catalog, NodeReport, NodeSpec, Report } from "./types";
 
@@ -40,7 +41,11 @@ export function hourlyPrice(node: Pick<NodeSpec, "type" | "config">, catalog: Ca
   const fallback = num(catalog?.components.find((c) => c.type === node.type)?.defaultConfig?.costPerHour);
   const own = num(cfg.costPerHour);
   if (own != null && own !== fallback) return { price: own, source: "set" };
-  const size = sizePricePerHour(num(cfg.cpuCores), num(cfg.memoryGib), num(cfg.storageGib));
+  // A Kubernetes cluster is billed per node, at the node's size.
+  const size =
+    node.type === CLUSTER_TYPE
+      ? sizePricePerHour(num(configValue(node, catalog, "nodeVcpu")), num(configValue(node, catalog, "nodeMemoryGib")))
+      : sizePricePerHour(num(cfg.cpuCores), num(cfg.memoryGib), num(cfg.storageGib));
   if (size != null) return { price: size, source: "size" };
   const price = own ?? fallback;
   return price != null ? { price, source: "default" } : { price: null, source: null };
@@ -117,6 +122,13 @@ export function instancesOf(
       const count = shards * perShard;
       return { count, basis: shards > 1 ? `${plural(shards, "shard")} × ${plural(perShard, "node")}` : plural(perShard, "node") };
     }
+    case CLUSTER_TYPE: {
+      const series = nodeReport?.timeseries?.nodes;
+      const avg = series ? mean(series) : null;
+      if (avg != null) return { count: avg, basis: `avg ${plural(Math.round(avg * 10) / 10, "node")}` };
+      const n = Math.max(0, get("nodes") ?? 3);
+      return { count: n, basis: plural(n, "node") };
+    }
     case "message_queue": {
       const b = Math.max(1, get("brokers") ?? 1);
       return { count: b, basis: plural(b, "broker") };
@@ -144,8 +156,27 @@ export function estimateCost(nodes: NodeSpec[], catalog: Catalog | null, report?
   let anyPrice = false;
   let missingExternalRate = false;
   let sizePriced = false;
+  const clusterIds = nodes.filter((n) => n.type === CLUSTER_TYPE).map((n) => n.id);
   for (const n of nodes) {
     if (isClientType(n.type, catalog)) continue;
+    // Pods of a service on Kubernetes run on the cluster's nodes, which carry the price.
+    const onCluster = clusterOf({ id: n.id, data: { type: n.type, label: n.label ?? n.id, config: n.config ?? {} } }, clusterIds);
+    if (onCluster) {
+      const cluster = nodes.find((x) => x.id === onCluster);
+      byNode.push({
+        id: n.id,
+        label: n.label || n.id,
+        type: n.type,
+        technology: (configValue(n, catalog, "technology") as string | undefined) ?? null,
+        instances: 0,
+        unitPrice: null,
+        priceSource: null,
+        unit: "hour",
+        monthly: 0,
+        basis: `runs on ${cluster?.label || onCluster}`,
+      });
+      continue;
+    }
     const nr = report?.nodes.find((x) => x.id === n.id) ?? null;
     const technology = (configValue(n, catalog, "technology") as string | undefined) ?? null;
     const label = n.label || n.id;

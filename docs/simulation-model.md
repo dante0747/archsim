@@ -172,9 +172,13 @@ SDKs.
   service is waiting on something else.
 - `platform` is `vm`, `docker`, `kubernetes` or `serverless`. VM and Docker behave the same
   (the label documents the deployment); Kubernetes and VMs/containers can autoscale;
-  serverless uses its own model.
+  serverless uses its own model. A Kubernetes service whose design has a Kubernetes cluster
+  part runs its replicas as pods on that cluster's nodes (see below); `cluster` names the
+  cluster when there are several.
 - **Autoscaling** (`autoscaling: true`, HPA-like): every `scaleIntervalS` the scaler reads the
-  utilization of the active replicas over the last interval and asks for
+  utilization of the active replicas over the last interval (the share of busy workers, or,
+  when the replica has a CPU size, the share of its CPU in use, whichever is higher, like the
+  Kubernetes HPA's CPU target) and asks for
   `ceil(active × utilization / targetUtilization)` replicas, clamped to
   `[minReplicas, maxReplicas]`. New replicas become routable after `startupS` (pod start).
   Scale-down waits for three consecutive low readings, stops routing new requests to the
@@ -296,6 +300,47 @@ storage. Each call takes `latencyMs` and fails with probability `errorRate`
 (`upstream_error`). Optional `rateLimitRps` (token bucket, `rate_limited`) and
 `concurrencyLimit` (in-flight cap, `throttled`) model provider quotas. There is no queue: the
 provider either answers or refuses.
+
+### Kubernetes cluster (`kubernetes_cluster`)
+
+A node pool for the services on the Kubernetes platform. It has no links: services join it
+through their platform (and `cluster` when the design has more than one cluster), and it is
+judged by its pods, not by requests.
+
+- **Nodes**: `nodes` nodes of `nodeVcpu` vCPU and `nodeMemoryGib` GiB; `allocatableShare`
+  (90% by default) of each is allocatable to pods, the rest is reserved for the system.
+- **Pods**: every replica of a member service is a pod that requests the service's CPU and
+  memory size (`cpuCores`, `memoryGib`), or the cluster's `defaultCpuRequest` /
+  `defaultMemoryRequestGib` when the service has none. The scheduler binds a pod to the node
+  with the most free CPU that fits both requests (LeastAllocated spreading). A pod that fits
+  nowhere waits as **Pending** in a first-come queue and is bound as soon as a node has room.
+- **Start**: the starting replicas are bound at t = 0 and ready at once if they fit; the rest
+  start Pending. A pod bound later pulls the service's image (`imagePullS`, only on a node's
+  first pod of that service) and then starts (`startupS`) before it serves.
+- **Cluster autoscaler** (`clusterAutoscaler`): every `scanIntervalS` it looks at the Pending
+  pods, works out how many nodes they need (first-fit bin packing into empty nodes) and asks
+  for that many more, within `maxNodes`. Each node is ready `nodeProvisionS` later. A node
+  empty for `scaleDownUnneededS` is removed, down to `minNodes`.
+- **HPA and pods together**: the service's autoscaler asks for replicas as usual; each new
+  replica is a pod that can wait Pending, then pull and start. Time from a spike to new
+  capacity is roughly scan interval + node provisioning + image pull + start-up when the
+  nodes are full. When the autoscaler wants fewer pods than it has asked for, it first
+  deletes the service's Pending pods (newest first, after the same three low readings), as a
+  ReplicaSet scaled down deletes unscheduled pods first; ready pods scale down as usual after
+  that. A load balancer whose targets have no ready pod answers `no_ready_pods` (503).
+- **Report**: the cluster adds `nodes`, `nodesProvisioning`, `podsRunning`, `podsPending`,
+  `cpuRequestedRatio` and `memoryRequestedRatio` series, peaks and end values in its summary
+  (`nodesPeak`, `podsPendingPeak`, `podsPendingEnd`, `maxPendingS`, which also counts pods
+  deleted or still waiting...) and `nodeAdds` / `nodeRemovals` / `podsCancelled` counters;
+  member services add `podsReady`, `podsStarting` and `podsPending`. The cluster's status is saturated with pods still Pending at the end, hot
+  when pods waited, warm when 85% or more of the CPU is requested. A `pods_pending` finding
+  reports the longest wait and what the cluster autoscaler did.
+- **Validation**: a pod bigger than a node is an error (`kubernetes.pod_too_big`); starting
+  pods that do not fit, a node count outside the autoscaler's range, a cluster with no
+  services, a missing or ambiguous `cluster` on a service are warnings.
+- **Cost**: the cluster is billed per node (`costPerHour`, or the node size at the
+  illustrative rates; the average node count when a run exists); member services cost nothing
+  extra ("runs on" the cluster).
 
 ### Cost assumptions
 
@@ -527,11 +572,15 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
 
 ## What is NOT modeled
 
-- Disk and network bandwidth contention; concurrent GC CPU overhead; noisy neighbours.
+- Disk and network bandwidth contention; concurrent GC CPU overhead; CPU interference between
+  pods on one node (a pod's CPU is its own once scheduled).
 - Health checks and automatic failover, deployments and rollouts; faults are the three kinds
   above (outage, slowdown, link latency), scheduled by you, not random failures.
 - Autoscaling cooldowns and stabilization windows beyond the simple rules above; node
-  provisioning.
+  provisioning outside Kubernetes clusters.
+- Kubernetes: pod priority and preemption, affinity and anti-affinity, taints and
+  tolerations, topology spread, several node pools per cluster, node failures and drains,
+  rolling deployments, CPU limits and throttling (requests only), ResourceQuotas.
 - Closed-loop users with think time; client connection pools; HTTP keep-alive and TLS setup.
 - Parallel fan-out calls between services (dependencies are sequential; database scatter
   reads are the exception), streaming, consumer group rebalancing.

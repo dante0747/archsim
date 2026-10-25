@@ -503,11 +503,23 @@ function NodeResults({ nodeId }: { nodeId: string }) {
   if (!report || !nr) return null;
   const s = nr.summary;
   const meta = NODE_STATUS[nr.status];
-  const stats: [string, string][] = [
-    ["busy", s.utilization != null ? fmtPct(s.utilization, 0) : fmtRps(s.arrivalRps)],
-    ["wait p95", fmtMs(s.p95QueueWaitMs)],
-    s.hitRatio != null ? ["hit ratio", fmtPct(s.hitRatio, 0)] : ["rejected", fmtNum(s.rejectedTotal)],
-  ];
+  const n = (k: string): number | null => {
+    const v = (s as unknown as Record<string, unknown>)[k];
+    return typeof v === "number" ? v : null;
+  };
+  const isCluster = nr.type === "kubernetes_cluster";
+  // A Kubernetes cluster takes no requests: its numbers are nodes and pods.
+  const stats: [string, string][] = isCluster
+    ? [
+        ["nodes at peak", fmtNum(n("nodesPeak") ?? 0)],
+        ["Pending at peak", fmtNum(n("podsPendingPeak") ?? 0)],
+        ["longest wait", `${fmtNum(Math.round(n("maxPendingS") ?? 0))} s`],
+      ]
+    : [
+        ["busy", s.utilization != null ? fmtPct(s.utilization, 0) : fmtRps(s.arrivalRps)],
+        ["wait p95", fmtMs(s.p95QueueWaitMs)],
+        s.hitRatio != null ? ["hit ratio", fmtPct(s.hitRatio, 0)] : ["rejected", fmtNum(s.rejectedTotal)],
+      ];
   // Resource specs (when set): how hard the CPU, memory, buffer cache and key space were used.
   const cfg = nr.config;
   const resourceStats = [
@@ -525,6 +537,10 @@ function NodeResults({ nodeId }: { nodeId: string }) {
     (s.rejected?.throttled ?? 0) > 0 && `${fmtNum(s.rejected.throttled)} throttled`,
     (s.gcPauses ?? 0) > 0 && `${fmtNum(s.gcPauses)} GC pauses`,
     (s.counters?.redeliveries ?? 0) > 0 && `${fmtNum(s.counters.redeliveries)} redelivered`,
+    isCluster && n("cpuRequestedRatio") != null && `${fmtPct(n("cpuRequestedRatio") as number, 0)} of node CPU requested`,
+    isCluster && (s.counters?.nodeAdds ?? 0) > 0 && `${fmtNum(s.counters.nodeAdds)} node(s) added`,
+    isCluster && (n("podsPendingEnd") ?? 0) > 0 && `${fmtNum(n("podsPendingEnd") as number)} still Pending at the end`,
+    !isCluster && (n("podsPendingPeak") ?? 0) > 0 && `up to ${fmtNum(n("podsPendingPeak") as number)} pods Pending`,
   ].filter((x): x is string => typeof x === "string");
   return (
     <section aria-label="Last run" className="overflow-hidden rounded-xl bg-surface-2/60">

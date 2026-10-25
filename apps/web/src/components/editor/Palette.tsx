@@ -82,8 +82,14 @@ function tileName(it: LibraryItem): string {
   if (it.preset) return it.preset.name;
   if (it.comp.isTrafficSource) return it.type === "traffic_source" ? "Clients" : it.comp.displayName;
   const base = it.comp.displayName.split(" / ")[0].replace(/ \(.*\)$/, "");
-  return `Any ${base.toLowerCase()}`;
+  return `Any ${base
+    .split(" ")
+    .map((w) => (PROPER_NOUNS.has(w) ? w : w.toLowerCase()))
+    .join(" ")}`;
 }
+
+/** Names that keep their capital in "Any …" labels. */
+const PROPER_NOUNS = new Set(["Kubernetes"]);
 
 const CLIENT_SUB: Record<string, string> = {
   traffic_source: "Generic users or callers",

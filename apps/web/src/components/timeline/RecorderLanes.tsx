@@ -10,6 +10,9 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   ChevronRight,
+  Hourglass,
+  ServerOff,
+  ServerPlus,
   Flame,
   Layers,
   ShieldAlert,
@@ -163,6 +166,9 @@ const EVENT_ICON: Record<RecorderEventKind, React.ComponentType<{ className?: st
   scale_down: ArrowDownToLine,
   queue_growth: Layers,
   timeouts: Timer,
+  node_added: ServerPlus,
+  node_removed: ServerOff,
+  pods_pending: Hourglass,
 };
 
 export const SEVERITY_COLOR: Record<RecorderEvent["severity"], string> = {

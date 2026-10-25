@@ -266,7 +266,14 @@ function NodeSummary({ node, typeName }: { node: NodeReport; typeName?: string }
         {st.label}
       </span>
       {s?.utilization != null && <span className="tabular hidden shrink-0 text-ink-3 md:inline">{formatValue(s.utilization, "ratio")} busy</span>}
-      {s?.arrivalRps != null && <span className="tabular hidden shrink-0 text-ink-3 md:inline">{formatCompact(s.arrivalRps, "req/s")} in</span>}
+      {s?.arrivalRps != null && node.type !== "kubernetes_cluster" && (
+        <span className="tabular hidden shrink-0 text-ink-3 md:inline">{formatCompact(s.arrivalRps, "req/s")} in</span>
+      )}
+      {node.type === "kubernetes_cluster" && typeof s?.nodesPeak === "number" && (
+        <span className="tabular hidden shrink-0 text-ink-3 md:inline">
+          up to {s.nodesPeak} nodes · {typeof s.podsPendingPeak === "number" ? s.podsPendingPeak : 0} Pending at peak
+        </span>
+      )}
     </div>
   );
 }

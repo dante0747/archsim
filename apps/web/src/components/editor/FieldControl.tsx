@@ -16,6 +16,7 @@ import { fmtNum } from "@/lib/format";
 import { technologyLabel } from "@/lib/theme";
 import type { Distribution, FieldDescriptor, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useEditor } from "@/store/editor";
 
 export function humanize(option: string): string {
   const special: Record<string, string> = { ttl_keyspace: "TTL keyspace", fixed_ratio: "Fixed ratio" };
@@ -308,6 +309,26 @@ function RequestTypesEditor({
   );
 }
 
+/** A select of the design's parts of one type; empty means "the only one, if there is exactly one". */
+function NodeRefSelect({ id, refType, value, onChange }: { id: string; refType: string; value: unknown; onChange: (v: unknown) => void }) {
+  // Serialized so the select only re-renders when the list of parts changes.
+  const options = useEditor((s) => JSON.stringify(s.nodes.filter((n) => n.data.type === refType).map((n) => [n.id, n.data.label])));
+  const list = JSON.parse(options) as [string, string][];
+  const current = typeof value === "string" ? value : "";
+  const missing = current !== "" && !list.some(([nid]) => nid === current);
+  return (
+    <NativeSelect id={id} value={current} onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}>
+      <option value="">{list.length === 1 ? `Auto (${list[0][1]})` : list.length === 0 ? "None in the design" : "Choose one"}</option>
+      {list.map(([nid, label]) => (
+        <option key={nid} value={nid}>
+          {label}
+        </option>
+      ))}
+      {missing && <option value={current}>{current} (missing)</option>}
+    </NativeSelect>
+  );
+}
+
 export function FieldControl({
   field,
   value,
@@ -446,6 +467,9 @@ export function FieldControl({
         />
       );
       break;
+    case "nodeRef":
+      control = <NodeRefSelect id={id} refType={field.refType ?? ""} value={value} onChange={onChange} />;
+      break;
     default:
       control = (
         <Input id={id} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />
@@ -456,7 +480,7 @@ export function FieldControl({
     field.kind === "enum" &&
     !((field.options ?? []).length <= 3 && (field.options ?? []).reduce((n, o) => n + humanize(o).length, 0) <= 34);
   const row =
-    field.kind === "boolean" || isSelectEnum || ((field.kind === "integer" || field.kind === "number") && !field.nullable);
+    field.kind === "boolean" || isSelectEnum || field.kind === "nodeRef" || ((field.kind === "integer" || field.kind === "number") && !field.nullable);
   return (
     <div className={cn(row ? "grid grid-cols-[minmax(0,1fr)_136px] items-start gap-3" : "space-y-1.5", field.kind === "boolean" && "items-center [&>*:last-child]:justify-self-end")}>
       <div className={cn("flex min-w-0 items-center gap-1.5", row && "min-h-8")}>

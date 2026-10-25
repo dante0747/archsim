@@ -133,7 +133,9 @@ export type FieldKind =
   | "requestTypes"
   | "pattern"
   | "string"
-  | "object";
+  | "object"
+  /** Points at another part of the design (e.g. a service's Kubernetes cluster); see refType. */
+  | "nodeRef";
 
 export interface FieldDescriptor {
   key: string;
@@ -152,6 +154,8 @@ export interface FieldDescriptor {
   group?: string;
   visibleWhen?: Record<string, unknown>;
   step?: number;
+  /** For nodeRef fields: the component type the value must name. */
+  refType?: string;
 }
 
 export interface PortSpec {

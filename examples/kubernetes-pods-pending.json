@@ -1,0 +1,348 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Kubernetes spike: pods wait for nodes",
+    "description": "A Java API on a Kubernetes cluster with the horizontal pod autoscaler and the cluster autoscaler. A spike makes the HPA ask for more pods within seconds, but the two nodes are full: new pods wait as Pending until a node is provisioned (about 2 minutes), pull their image and start. Until then the pods that fit queue and refuse requests.",
+    "tags": [
+      "kubernetes",
+      "hpa",
+      "cluster-autoscaler",
+      "pods"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Shoppers",
+        "description": null,
+        "config": {
+          "timeoutMs": 3000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "ingress",
+        "type": "load_balancer",
+        "label": "Ingress",
+        "description": null,
+        "config": {
+          "technology": "nginx",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.6
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Catalog API",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 16,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 800,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 8,
+            "p95": 25
+          },
+          "blockingDownstream": true,
+          "cpuCores": 0.5,
+          "memoryGib": 1,
+          "autoscaling": true,
+          "minReplicas": 3,
+          "maxReplicas": 24,
+          "targetUtilization": 0.6,
+          "scaleIntervalS": 15,
+          "startupS": 12
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Product cache",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "hitModel": "fixed_ratio",
+          "hitRatio": 0.9,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.1
+          },
+          "concurrency": 1,
+          "queueCapacity": 10000
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "Products DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 120,
+          "readReplicas": 2,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 8,
+            "p95": 25
+          }
+        }
+      },
+      {
+        "id": "k8s",
+        "type": "kubernetes_cluster",
+        "label": "prod",
+        "description": null,
+        "config": {
+          "technology": "kubernetes",
+          "nodes": 2,
+          "nodeVcpu": 2,
+          "nodeMemoryGib": 8,
+          "clusterAutoscaler": true,
+          "minNodes": 2,
+          "maxNodes": 10,
+          "nodeProvisionS": 120,
+          "imagePullS": 10,
+          "costPerHour": 0.096
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-ingress",
+        "source": "clients",
+        "sourcePort": "out",
+        "target": "ingress",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "ingress-api",
+        "source": "ingress",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "api-cache",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "cache",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 100
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "cache-db",
+        "source": "cache",
+        "sourcePort": "miss",
+        "target": "db",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 120,
+    "durationS": 300,
+    "warmupS": 20,
+    "seed": 42,
+    "readRatio": 0.9,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 450,
+      "startS": 40,
+      "durationS": 220
+    },
+    "keyCount": 100000,
+    "keySkew": 0.9,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (2 nodes, 2 min per new node)",
+      "description": "The document as drawn.",
+      "overrides": []
+    },
+    {
+      "id": "headroom",
+      "name": "Headroom: 5 nodes up front",
+      "description": "Keep enough nodes running for the spike, so new pods schedule at once.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "nodes",
+          "value": 5
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "minNodes",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "id": "fast-nodes",
+      "name": "Fast node provisioning (40 s)",
+      "description": "Nodes that are ready in 40 s, as with a fast provisioner and a pre-pulled image.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "nodeProvisionS",
+          "value": 40
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "imagePullS",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "no-ca",
+      "name": "No cluster autoscaler",
+      "description": "The HPA still asks for pods, but nothing adds nodes: what fits is what you get.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "k8s"
+          },
+          "path": "clusterAutoscaler",
+          "value": false
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 250,
+    "latencyP99Ms": null,
+    "availability": 0.99,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 120
+      },
+      "ingress": {
+        "x": 330,
+        "y": 120
+      },
+      "api": {
+        "x": 660,
+        "y": 120
+      },
+      "cache": {
+        "x": 990,
+        "y": 40
+      },
+      "db": {
+        "x": 1320,
+        "y": 40
+      },
+      "k8s": {
+        "x": 660,
+        "y": 400
+      }
+    },
+    "viewport": null
+  }
+}

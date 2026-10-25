@@ -241,3 +241,22 @@ describe("overview stats", () => {
     expect(statReadout(s, { ...view, playhead: 1 })).toMatchObject({ value: 0.5, owner: "Db" });
   });
 });
+
+describe("Kubernetes panels", () => {
+  const s = (v: number) => Array.from({ length: N }, () => v);
+  it("gives a cluster only its own panels and services on it a Pods panel", () => {
+    const cluster = fixtureNode("k8s", "kubernetes_cluster", "compute", {
+      arrivalRps: s(0),
+      queueMean: s(0),
+      nodes: s(3),
+      nodesProvisioning: s(1),
+      podsRunning: s(8),
+      podsPending: s(2),
+      cpuRequestedRatio: s(0.9),
+      memoryRequestedRatio: s(0.4),
+    });
+    expect(groupsOf(componentPanels(cluster))).toEqual(["pods", "clusterNodes", "requested"]);
+    const api = fixtureNode("api", "service", "compute", { arrivalRps: s(100), podsReady: s(4), podsStarting: s(1), podsPending: s(2) });
+    expect(groupsOf(componentPanels(api))).toEqual(["requests", "pods"]);
+  });
+});

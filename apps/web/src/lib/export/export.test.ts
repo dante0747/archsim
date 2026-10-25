@@ -161,3 +161,18 @@ describe("toMermaid", () => {
     expect(toMermaid(d2, catalog)).toContain('my_db_1[("Say #quot;hi#quot;');
   });
 });
+
+describe("Kubernetes cluster parts in exports", () => {
+  const withCluster: ArchitectureDocument = {
+    ...doc,
+    architecture: {
+      ...doc.architecture,
+      nodes: [...doc.architecture.nodes, { id: "prod-pool", type: "kubernetes_cluster", label: "prod", config: { technology: "eks", nodes: 3 } }],
+    },
+  };
+  it("deploys the workloads, not the cluster they run on", () => {
+    expect(toKubernetes(withCluster, catalog)).not.toContain("name: prod-pool");
+    expect(toDockerCompose(withCluster, catalog)).not.toContain("prod-pool");
+    expect(toKubernetes(withCluster, catalog)).toContain("name: api");
+  });
+});

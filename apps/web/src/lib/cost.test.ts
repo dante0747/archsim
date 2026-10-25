@@ -123,3 +123,32 @@ describe("hourlyPrice", () => {
     expect(c.notes.some((n) => n.includes("priced from their size"))).toBe(true);
   });
 });
+
+describe("Kubernetes clusters", () => {
+  const k8sCatalog = {
+    ...catalog,
+    components: [...catalog.components, { type: "kubernetes_cluster", defaultConfig: { nodes: 3, nodeVcpu: 4, nodeMemoryGib: 16, costPerHour: 0.19 } }],
+  } as unknown as Catalog;
+
+  it("bills the cluster per node and the services on it nothing extra", () => {
+    const nodes = [
+      node("k8s", "kubernetes_cluster", { nodes: 4, costPerHour: 0.5 }),
+      node("api", "service", { platform: "kubernetes", replicas: 6 }),
+      node("vm", "service", { replicas: 1, costPerHour: 0.2 }),
+    ];
+    const est = estimateCost(nodes, k8sCatalog);
+    const by = Object.fromEntries(est.byNode.map((x) => [x.id, x]));
+    expect(by.k8s.monthly).toBeCloseTo(4 * 0.5 * HOURS_PER_MONTH);
+    expect(by.api.monthly).toBe(0);
+    expect(by.api.basis).toBe("runs on k8s");
+    expect(by.vm.monthly).toBeCloseTo(0.2 * HOURS_PER_MONTH);
+  });
+
+  it("prices a cluster without its own price from the node size, and averages nodes in a run", () => {
+    expect(hourlyPrice(node("k8s", "kubernetes_cluster", { nodeVcpu: 8, nodeMemoryGib: 32 }), k8sCatalog)).toEqual({
+      price: sizePricePerHour(8, 32),
+      source: "size",
+    });
+    expect(instancesOf(node("k8s", "kubernetes_cluster", { nodes: 2 }), k8sCatalog, { timeseries: { nodes: [2, 4, 6] } })).toEqual({ count: 4, basis: "avg 4 nodes" });
+  });
+});

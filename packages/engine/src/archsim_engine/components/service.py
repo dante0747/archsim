@@ -191,7 +191,10 @@ class ServiceConfig(CamelModel):
         default=0.6,
         ge=0.1,
         le=0.95,
-        description="Utilization the autoscaler aims for (share of busy workers).",
+        description=(
+            "Utilization the autoscaler aims for: the share of busy workers, or of the CPU size when "
+            "the replica has one (whichever is higher), like the Kubernetes HPA's CPU target."
+        ),
         json_schema_extra=ui(
             label="Target utilization", group="Autoscaling", visible_when=AUTOSCALE, step=0.05
         ),
@@ -241,6 +244,20 @@ class ServiceConfig(CamelModel):
             group="Serverless",
             visible_when=SERVERLESS,
             assumption=True,
+        ),
+    )
+    cluster: str | None = Field(
+        default=None,
+        description=(
+            "The Kubernetes cluster (a cluster part in this design) whose nodes run this service's "
+            "pods. Empty = the only cluster in the design, if there is exactly one."
+        ),
+        json_schema_extra=ui(
+            label="Cluster",
+            group="Technology",
+            kind="nodeRef",
+            ref_type="kubernetes_cluster",
+            visible_when={"platform": "kubernetes"},
         ),
     )
     scale_out_rate: int = Field(
@@ -660,8 +677,18 @@ class AutoscalingServiceRuntime(ServiceRuntime):
     removed replica stops receiving requests and drains what it already has.
     """
 
-    def __init__(self, ctx: SimContext, node: NodeSpec, config: ServiceConfig) -> None:
-        initial = min(max(config.replicas, config.min_replicas), config.max_replicas)
+    def __init__(
+        self,
+        ctx: SimContext,
+        node: NodeSpec,
+        config: ServiceConfig,
+        cluster_id: str | None = None,
+        autoscale: bool = True,
+    ) -> None:
+        if autoscale:
+            initial = min(max(config.replicas, config.min_replicas), config.max_replicas)
+        else:
+            initial = config.replicas
         super().__init__(ctx, node, config, initial)
         tl = ctx.tl
         self.routable: list[int] = list(range(initial))
@@ -672,24 +699,101 @@ class AutoscalingServiceRuntime(ServiceRuntime):
         self.active.add(initial, 0.0)
         self._low_readings = 0
         self._busy_seen = 0.0
+        self._core_seen = 0.0
+        self._pending_n = 0  # this service's pods waiting for a node
         self._cap_seen = 0.0
         self._t_end: float | None = None
-        ctx.env.process(self._autoscaler())
+        # Kubernetes: each replica is a pod placed on a node of the cluster
+        self.cluster_id = cluster_id
+        self.cluster: Any = None
+        self.pod_node: dict[int, Any] = {}
+        self.pods_pending = Gauge(tl)
+        self.pods_starting = Gauge(tl)
+        if autoscale:
+            ctx.env.process(self._autoscaler())
+        if cluster_id is not None:
+            ctx.env.process(self._place_initial())
 
     # -- routing over routable replicas -------------------------------------------------
     def instance_count(self) -> int:
         return len(self.routable)
 
     def instance_load(self, index: int) -> int:
+        if not self.routable:
+            return 0
         return self.load[self.routable[index % len(self.routable)]]
 
     def handle(self, req: Request) -> Generator[simpy.Event, Any, Outcome]:
+        if not self.routable:
+            return self._no_pods(req)
         i = self.rr % len(self.routable)
         self.rr = i + 1
         return self._serve(req, self.routable[i])
 
     def handle_on(self, req: Request, index: int) -> Generator[simpy.Event, Any, Outcome]:
+        if not self.routable:
+            return self._no_pods(req)
         return self._serve(req, self.routable[index % len(self.routable)])
+
+    def _no_pods(self, req: Request) -> Generator[simpy.Event, Any, Outcome]:
+        now = self.env.now
+        self.m.arrive(now)
+        self.m.reject("no_ready_pods", now)
+        span(req, self.id, "rejected", now, now, "no ready pod (503)")
+        return rejected("no_ready_pods", self.id)
+        yield  # pragma: no cover - makes this a generator
+
+    # -- pods ----------------------------------------------------------------------------------
+    def _pod_request(self) -> tuple[float, float]:
+        from archsim_engine.components.kubernetes import pod_request
+
+        return pod_request(self.config, self.cluster.config)
+
+    def _place_initial(self) -> Generator[simpy.Event, Any, None]:
+        """Bind the starting pods; those that do not fit wait Pending, then pull and start."""
+        env = self.env
+        assert self.cluster_id is not None
+        self.cluster = self.ctx.components[self.cluster_id]
+        cpu, mem = self._pod_request()
+        now = env.now
+        for i in list(self.routable):
+            ev = self.cluster.request_pod(self.id, cpu, mem)
+            if ev.triggered:
+                self.pod_node[i] = ev.value
+                self.cluster.mark_image(ev.value, self.id)  # running before the simulation started
+                continue
+            self.routable.remove(i)
+            self.capacity.add(-self.per_replica, now)
+            self.active.add(-1, now)
+            self.instances_version += 1
+            self.starting += 1
+            env.process(self._await_pod(i, ev))
+        yield env.timeout(0)
+
+    def _await_pod(self, index: int, ev: simpy.Event) -> Generator[simpy.Event, Any, None]:
+        """A starting pod that was Pending: bind, pull, start, then take traffic."""
+        env = self.env
+        cfg: ServiceConfig = self.config
+        self.pods_pending.add(1, env.now)
+        self._pending_n += 1
+        node = yield ev
+        self._pending_n -= 1
+        self.pods_pending.add(-1, env.now)
+        if node is None:  # deleted while Pending (scaled down)
+            self.starting -= 1
+            return
+        self.pods_starting.add(1, env.now)
+        delay = self.cluster.pull_ms(node, self.id) + cfg.startup_s * 1000.0
+        if delay > 0:
+            yield env.timeout(delay)
+        now = env.now
+        self.pods_starting.add(-1, now)
+        self.pod_node[index] = node
+        self.starting -= 1
+        self.routable.append(index)
+        self.capacity.add(self.per_replica, now)
+        self.active.add(1, now)
+        self.instances_version += 1
 
     def capacity_gauge(self) -> Gauge | None:
         return self.capacity
@@ -712,6 +816,14 @@ class AutoscalingServiceRuntime(ServiceRuntime):
             d_busy, d_cap = busy - self._busy_seen, cap - self._cap_seen
             self._busy_seen, self._cap_seen = busy, cap
             util = d_busy / d_cap if d_cap > 0 else 0.0
+            if self.core_busy is not None and self.cores:
+                # with a CPU size, CPU use counts too (the HPA's CPU target): busy CPU executors
+                # over the executors of the replicas that were up
+                core = self._integral(self.core_busy, now)
+                d_core, self._core_seen = core - self._core_seen, core
+                executors = d_cap * self.cores[0].n / max(1, self.per_replica)
+                if executors > 0:
+                    util = max(util, d_core / executors)
             active = len(self.routable)
             desired = math.ceil(active * util / cfg.target_utilization - 1e-9) if util > 0 else 0
             desired = min(max(desired, cfg.min_replicas), cfg.max_replicas)
@@ -723,6 +835,12 @@ class AutoscalingServiceRuntime(ServiceRuntime):
                 for _ in range(add):
                     self.starting += 1
                     env.process(self._start_replica())
+            elif self._pending_n > 0 and desired < planned and self.cluster is not None:
+                # scaling down deletes the Pending pods first, after the same three low readings
+                self._low_readings += 1
+                if self._low_readings >= 3:
+                    self._low_readings = 0
+                    self.cluster.cancel_pending(self.id, min(self._pending_n, planned - desired))
             elif desired < active and self.starting == 0:
                 self._low_readings += 1
                 if self._low_readings >= 3:
@@ -734,15 +852,35 @@ class AutoscalingServiceRuntime(ServiceRuntime):
                 self._low_readings = 0
 
     def _start_replica(self) -> Generator[simpy.Event, Any, None]:
+        env = self.env
         cfg: ServiceConfig = self.config
-        if cfg.startup_s > 0:
-            yield self.env.timeout(cfg.startup_s * 1000.0)
-        now = self.env.now
+        node = None
+        if self.cluster is not None:
+            # a new pod: Pending until a node has room, then image pull and start-up
+            cpu, mem = self._pod_request()
+            self.pods_pending.add(1, env.now)
+            self._pending_n += 1
+            node = yield self.cluster.request_pod(self.id, cpu, mem)
+            self._pending_n -= 1
+            self.pods_pending.add(-1, env.now)
+            if node is None:  # deleted while Pending (scaled down)
+                self.starting -= 1
+                return
+            self.pods_starting.add(1, env.now)
+            delay = self.cluster.pull_ms(node, self.id) + cfg.startup_s * 1000.0
+            if delay > 0:
+                yield env.timeout(delay)
+            self.pods_starting.add(-1, env.now)
+        elif cfg.startup_s > 0:
+            yield env.timeout(cfg.startup_s * 1000.0)
+        now = env.now
         self.starting -= 1
         self.pools.append(self._new_pool())
         self.cores.append(self._new_cores())
         self._add_replica_state(now)
         self.routable.append(len(self.pools) - 1)
+        if node is not None:
+            self.pod_node[len(self.pools) - 1] = node
         self.capacity.add(self.per_replica, now)
         self.active.add(1, now)
         self.instances_version += 1
@@ -750,7 +888,11 @@ class AutoscalingServiceRuntime(ServiceRuntime):
     def _retire_replica(self, now: float) -> None:
         if len(self.routable) <= 1:
             return
-        self.routable.pop()  # newest first; it keeps draining requests it already accepted
+        index = self.routable.pop()  # newest first; it keeps draining requests it already accepted
+        node = self.pod_node.pop(index, None)
+        if node is not None and self.cluster is not None:
+            cpu, mem = self._pod_request()
+            self.cluster.release_pod(node, cpu, mem)
         self.capacity.add(-self.per_replica, now)
         self.active.add(-1, now)
         self.instances_version += 1
@@ -759,21 +901,54 @@ class AutoscalingServiceRuntime(ServiceRuntime):
         super().finalize(t_end)
         self.capacity.finalize(t_end)
         self.active.finalize(t_end)
+        self.pods_pending.finalize(t_end)
+        self.pods_starting.finalize(t_end)
         self._t_end = t_end
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
-        return {**super().extra_timeseries(), "replicas": _count_series(self.active, self._t_end)}
+        out = {**super().extra_timeseries(), "replicas": _count_series(self.active, self._t_end)}
+        if self.cluster_id is not None:
+            out["podsReady"] = out["replicas"]
+            out["podsStarting"] = _count_series(self.pods_starting, self._t_end)
+            out["podsPending"] = _count_series(self.pods_pending, self._t_end)
+        return out
 
     def replicas_mean(self) -> float:
         return self.active.window_mean()
 
+    def explain(self, summary: dict[str, Any]) -> list[dict[str, Any]]:
+        out = super().explain(summary)
+        if self.cluster is None:
+            return out
+        cpu, mem = self._pod_request()
+        alloc_cpu, alloc_mem = self.cluster.alloc_cpu, self.cluster.alloc_mem
+        per_node = min(math.floor(alloc_cpu / cpu + 1e-9), math.floor(alloc_mem / mem + 1e-9))
+        out.append(
+            formula(
+                "pods_per_node",
+                "Pods per node",
+                "pods per node = min(⌊allocatable CPU ÷ CPU request⌋, ⌊allocatable memory ÷ memory request⌋)",
+                f"min(⌊{num(alloc_cpu, 2)} ÷ {num(cpu, 2)}⌋, ⌊{num(alloc_mem, 2)} ÷ {num(mem, 2)}⌋)",
+                float(per_node),
+                "pods",
+                note="Counts this service alone; pods of other services on the same nodes take their share.",
+                source="https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                metric="podsPending",
+            )
+        )
+        return out
+
     def extra_summary(self) -> dict[str, Any]:
-        return {
+        out = {
             **super().extra_summary(),
             "replicasMean": round(self.active.window_mean(), 3),
             "replicasPeak": max(self.active.maxes) if self.active.maxes else len(self.routable),
             "replicasEnd": len(self.routable),
         }
+        if self.cluster_id is not None:
+            out["cluster"] = self.cluster_id
+            out["podsPendingPeak"] = max(self.pods_pending.maxes) if self.pods_pending.maxes else 0
+        return out
 
 
 class ServerlessRuntime(RuntimeComponent):
@@ -1105,6 +1280,36 @@ class ServiceModel(ComponentModel):
     def validate(self, node: NodeSpec, config: Any, view: GraphView) -> list[Issue]:
         issues: list[Issue] = []
         name = node.label or node.id
+        clusters = [n.id for n in view.nodes.values() if n.type == "kubernetes_cluster"]
+        if config.cluster and config.cluster not in clusters:
+            issues.append(
+                error(
+                    "service.cluster_missing",
+                    f"{name} runs on cluster '{config.cluster}', which is not a Kubernetes cluster in this design.",
+                    node_id=node.id,
+                    path="cluster",
+                    hint="Pick one of the design's clusters, or clear the setting.",
+                )
+            )
+        elif config.cluster and config.platform != "kubernetes":
+            issues.append(
+                warning(
+                    "service.cluster_ignored",
+                    f"{name} names a cluster but runs on {config.platform}, so the cluster is ignored.",
+                    node_id=node.id,
+                    path="cluster",
+                )
+            )
+        elif config.platform == "kubernetes" and not config.cluster and len(clusters) > 1:
+            issues.append(
+                warning(
+                    "service.cluster_ambiguous",
+                    f"{name} runs on Kubernetes but the design has {len(clusters)} clusters; pick one, "
+                    "or its pods are not scheduled on any of them.",
+                    node_id=node.id,
+                    path="cluster",
+                )
+            )
         if config.platform == "serverless" and config.autoscaling:
             issues.append(
                 warning(
@@ -1176,8 +1381,15 @@ class ServiceModel(ComponentModel):
         return issues
 
     def build(self, ctx: SimContext, node: NodeSpec, config: Any) -> RuntimeComponent:
+        from archsim_engine.components.kubernetes import cluster_for
+
         if config.platform == "serverless":
             return ServerlessRuntime(ctx, node, config)
+        cluster = cluster_for(config, ctx.shared.get("clusters", []))
+        if cluster is not None:
+            return AutoscalingServiceRuntime(
+                ctx, node, config, cluster_id=cluster, autoscale=config.autoscaling
+            )
         if config.autoscaling:
             return AutoscalingServiceRuntime(ctx, node, config)
         return ServiceRuntime(ctx, node, config)

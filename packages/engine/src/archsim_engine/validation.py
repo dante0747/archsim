@@ -464,7 +464,9 @@ def validate_document(doc: ArchitectureDocument, registry: ComponentRegistry) ->
                     reached.add(e.target)
         view.incoming_types = incoming
         for n in nodes:
-            if n.id not in reached:
+            # parts without ports (a Kubernetes cluster) are not on the request path
+            off_path = n.type in registry and not registry.get(n.type).ports
+            if n.id not in reached and not off_path:
                 issues.append(
                     warning(
                         "node.unreachable",

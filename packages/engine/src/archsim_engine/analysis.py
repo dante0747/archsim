@@ -55,6 +55,13 @@ def classify(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
     s = node["summary"]
     if node["category"] == "traffic":  # client groups
         return "ok", []
+    if node["type"] == "kubernetes_cluster":  # not on the request path: judged by its pods
+        if s.get("podsPendingEnd"):
+            return "saturated", [f"{s['podsPendingEnd']} pod(s) still Pending at the end"]
+        if s.get("podsPendingPeak"):
+            return "hot", [f"up to {s['podsPendingPeak']} pod(s) waited for a node"]
+        req = s.get("cpuRequestedRatio") or 0.0
+        return ("warm", [f"{req:.0%} of node CPU requested"]) if req >= 0.85 else ("ok", [])
     if not s["arrivals"]:
         return "idle", ["received no requests"]
     util = s["utilization"] or 0.0
@@ -135,7 +142,12 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
         )
         return findings
 
-    candidates = [n for n in nodes if n["status"] in ("saturated", "hot")]
+    # the cluster is not on the request path; its own finding (pods_pending) covers it
+    candidates = [
+        n
+        for n in nodes
+        if n["status"] in ("saturated", "hot") and n["type"] != "kubernetes_cluster"
+    ]
     roots: list[dict[str, Any]] = []
     symptoms: list[tuple[dict[str, Any], dict[str, Any], float]] = []
     for n in candidates:
