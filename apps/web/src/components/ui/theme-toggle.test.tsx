@@ -16,18 +16,25 @@ describe("themes", () => {
     expect(screen.getByRole("button", { name: "Choose a theme" })).toBeTruthy();
   });
 
-  it("applies and remembers a dark theme, and the toggle returns to it", () => {
-    applyTheme("nord");
+  it("applies and remembers dark and light, and the toggle flips between them", () => {
+    applyTheme("dark");
     expect(root().classList.contains("dark")).toBe(true);
-    expect(root().dataset.theme).toBe("nord");
-    expect(localStorage.getItem("archsim-theme")).toBe("nord");
+    expect(localStorage.getItem("archsim-theme")).toBe("dark");
 
     toggleTheme();
     expect(root().classList.contains("dark")).toBe(false);
-    expect(root().dataset.theme).toBeUndefined();
     expect(localStorage.getItem("archsim-theme")).toBe("light");
 
     toggleTheme();
-    expect(root().dataset.theme).toBe("nord");
+    expect(root().classList.contains("dark")).toBe(true);
+  });
+
+  it("follows the system when asked and clears the retired palette attribute", () => {
+    root().dataset.theme = "nord";
+    applyTheme("system");
+    expect(localStorage.getItem("archsim-theme")).toBe("system");
+    expect(root().dataset.theme).toBeUndefined();
+    // jsdom has no matchMedia, so "system" resolves to light here.
+    expect(root().classList.contains("dark")).toBe(false);
   });
 });

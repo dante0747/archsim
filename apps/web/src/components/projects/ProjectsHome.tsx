@@ -216,9 +216,9 @@ export function ProjectsHome() {
           </p>
         </div>
 
-        {/* product shot on a solid colour band */}
+        {/* product shot on a blueprint sheet */}
         <div className="relative mt-14 sm:mt-20">
-          <div className="absolute inset-x-0 bottom-0 top-[30%] bg-accent" aria-hidden />
+          <div className="blueprint-sheet absolute inset-x-0 bottom-0 top-[30%]" aria-hidden />
           <div className="relative mx-auto max-w-6xl px-4 pb-14 sm:px-6 sm:pb-20">
             <Reveal>
               <figure className="overflow-hidden rounded-2xl border border-line bg-surface shadow-float">
@@ -460,12 +460,11 @@ export function ProjectsHome() {
         {/* ------------------------------------------------------ final call */}
         <section className="px-4 pb-20 sm:px-6">
           <Reveal className="mx-auto max-w-7xl">
-            <div className="relative overflow-hidden rounded-3xl bg-accent px-6 py-16 text-center sm:px-12 sm:py-20">
-              <div className="schematic-grid absolute inset-0 opacity-25 mix-blend-overlay" aria-hidden />
-              <h2 className="relative font-display text-[36px] font-semibold leading-[1.02] tracking-[-0.045em] text-[var(--accent-ink)] sm:text-[56px]">
+            <div className="blueprint-sheet relative overflow-hidden rounded-3xl px-6 py-16 text-center sm:px-12 sm:py-20">
+              <h2 className="relative font-display text-[36px] font-semibold leading-[1.02] tracking-[-0.045em] text-[var(--sheet-ink)] sm:text-[56px]">
                 Ready to break something?
               </h2>
-              <p className="relative mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-[var(--accent-ink)] opacity-85">
+              <p className="relative mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-[var(--sheet-ink)] opacity-85">
                 Open the starter example and press Simulate. Your first answer is seconds away.
               </p>
               <div className="relative mt-8 flex flex-wrap justify-center gap-3">
@@ -474,7 +473,7 @@ export function ProjectsHome() {
                     type="button"
                     onClick={startStarter}
                     disabled={busy !== null}
-                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--accent-ink)] px-6 text-[15px] font-semibold text-accent transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--sheet-ink)] px-6 text-[15px] font-semibold text-[var(--sheet)] transition-transform hover:-translate-y-0.5 disabled:opacity-60"
                   >
                     <Play className="size-[18px] fill-current" /> Open the starter example
                   </button>
@@ -482,7 +481,7 @@ export function ProjectsHome() {
                 <button
                   type="button"
                   onClick={() => setNewOpen(true)}
-                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-[var(--accent-ink)]/40 px-6 text-[15px] font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-ink)]/10"
+                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-[var(--sheet-ink)]/40 px-6 text-[15px] font-semibold text-[var(--sheet-ink)] transition-colors hover:bg-[var(--sheet-ink)]/10"
                 >
                   <Plus className="size-[18px]" /> Start blank
                 </button>

@@ -1,134 +1,162 @@
 "use client";
 
 /**
- * Themes: one light theme and five dark ones (Midnight, Tokyo Night, Dracula, Nord, GitHub Dark).
- * A dark theme sets the `dark` class (Tailwind's dark variant and the base dark tokens) plus
- * `data-theme` for its palette. The choice is stored in this browser only.
+ * Two themes, Blueprint (dark) and Drafting paper (light), plus "Match system", which follows the
+ * operating system and is the default. Dark sets the `dark` class on <html> (Tailwind's dark
+ * variant and the dark tokens). The choice is stored in this browser only.
  */
-import { Check, Palette } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { Check, Moon, Sun } from "lucide-react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Button } from "./button";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "./overlays";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "./overlays";
 import { Tip, TooltipProvider } from "./misc";
 
-export type ThemeId = "midnight" | "tokyo" | "dracula" | "nord" | "github" | "light";
+export type ThemeId = "dark" | "light" | "system";
 
 export interface ThemeOption {
   id: ThemeId;
   label: string;
-  dark: boolean;
-  /** Background, card and two accents, for the swatch. */
-  swatch: [string, string, string, string];
+  hint: string;
 }
 
 export const THEMES: ThemeOption[] = [
-  { id: "midnight", label: "Midnight", dark: true, swatch: ["#121522", "#242a40", "#7c6cff", "#ff5f8f"] },
-  { id: "tokyo", label: "Tokyo Night", dark: true, swatch: ["#1a1b26", "#24283b", "#7aa2f7", "#bb9af7"] },
-  { id: "dracula", label: "Dracula", dark: true, swatch: ["#21222c", "#44475a", "#bd93f9", "#ff79c6"] },
-  { id: "nord", label: "Nord", dark: true, swatch: ["#2e3440", "#434c5e", "#88c0d0", "#a3be8c"] },
-  { id: "github", label: "GitHub Dark", dark: true, swatch: ["#0d1117", "#1c2128", "#2f81f7", "#3fb950"] },
-  { id: "light", label: "Light", dark: false, swatch: ["#f7f6fc", "#ffffff", "#6a45ff", "#0aa5c8"] },
+  { id: "dark", label: "Blueprint", hint: "Dark" },
+  { id: "light", label: "Drafting paper", hint: "Light" },
+  { id: "system", label: "Match system", hint: "Follows your device" },
 ];
 
 const STORE_KEY = "archsim-theme";
-const LAST_DARK_KEY = "archsim-dark-theme";
-const DEFAULT_DARK: ThemeId = "midnight";
+const listeners = new Set<() => void>();
+const emit = () => listeners.forEach((cb) => cb());
 
-function subscribe(cb: () => void) {
+function systemDark(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+/** The stored choice. Anything else (nothing stored, or a value from an older version) maps here. */
+function readPreference(): ThemeId {
+  try {
+    const stored = localStorage.getItem(STORE_KEY);
+    if (stored === "light" || stored === "system") return stored;
+    if (stored) return "dark"; // "dark" and the retired dark palettes (midnight, tokyo, ...)
+  } catch {
+    /* storage unavailable */
+  }
+  return "system";
+}
+
+function setDarkClass(dark: boolean) {
+  const el = document.documentElement;
+  el.classList.toggle("dark", dark);
+  delete el.dataset.theme; // left over from the retired palettes
+}
+
+function subscribeClass(cb: () => void) {
   const obs = new MutationObserver(cb);
-  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   return () => obs.disconnect();
 }
 
-function readTheme(): ThemeId {
-  const el = document.documentElement;
-  if (!el.classList.contains("dark")) return "light";
-  const id = el.dataset.theme as ThemeId | undefined;
-  return THEMES.some((t) => t.id === id && t.dark) ? (id as ThemeId) : DEFAULT_DARK;
+function subscribePreference(cb: () => void) {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 export function useIsDark(): boolean {
   return useSyncExternalStore(
-    subscribe,
+    subscribeClass,
     () => document.documentElement.classList.contains("dark"),
     () => false,
   );
 }
 
 export function useTheme(): ThemeId {
-  return useSyncExternalStore(subscribe, readTheme, () => DEFAULT_DARK);
+  return useSyncExternalStore(subscribePreference, readPreference, () => "system");
 }
 
-/** Switch theme and remember it. */
+/** Switch theme and remember the choice. */
 export function applyTheme(id: ThemeId) {
-  const theme = THEMES.find((t) => t.id === id) ?? THEMES[0];
-  const el = document.documentElement;
-  el.classList.toggle("dark", theme.dark);
-  if (theme.dark) el.dataset.theme = theme.id;
-  else delete el.dataset.theme;
+  setDarkClass(id === "system" ? systemDark() : id === "dark");
   try {
-    localStorage.setItem(STORE_KEY, theme.id);
-    if (theme.dark) localStorage.setItem(LAST_DARK_KEY, theme.id);
+    localStorage.setItem(STORE_KEY, id);
   } catch {
     /* storage unavailable */
   }
+  emit();
 }
 
-/** Flip between light and the last dark theme used. */
+/** Flip between dark and light (an explicit choice, no longer following the system). */
 export function toggleTheme() {
-  if (document.documentElement.classList.contains("dark")) {
-    applyTheme("light");
-    return;
-  }
-  let last: ThemeId = DEFAULT_DARK;
-  try {
-    const stored = localStorage.getItem(LAST_DARK_KEY) as ThemeId | null;
-    if (stored && THEMES.some((t) => t.id === stored && t.dark)) last = stored;
-  } catch {
-    /* storage unavailable */
-  }
-  applyTheme(last);
+  applyTheme(document.documentElement.classList.contains("dark") ? "light" : "dark");
 }
 
-function Swatch({ colors }: { colors: ThemeOption["swatch"] }) {
-  const [bg, card, a, b] = colors;
+/** While the choice is "Match system", follow the operating system when it changes. */
+function useFollowSystem() {
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      if (readPreference() === "system") setDarkClass(mq.matches);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+}
+
+/** A tiny preview of each theme: page, card, accent. */
+function Swatch({ id }: { id: ThemeId }) {
+  if (id === "system") {
+    return (
+      <span className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong" aria-hidden>
+        <span className="h-full w-1/2 bg-[#f7f4ec]" />
+        <span className="h-full w-1/2 bg-[#0a1d38]" />
+      </span>
+    );
+  }
+  const [bg, line, card, accent] = id === "dark" ? ["#0a1d38", "rgba(110,175,255,0.35)", "#0c1a2e", "#3dd6ff"] : ["#f7f4ec", "rgba(37,99,190,0.3)", "#fffdf8", "#1f5fd6"];
   return (
-    <span className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong" style={{ background: bg }} aria-hidden>
-      <span className="absolute inset-y-1 left-1 w-3.5 rounded-sm" style={{ background: card }} />
-      <span className="absolute right-1 top-1 size-1.5 rounded-full" style={{ background: a }} />
-      <span className="absolute bottom-1 right-1 size-1.5 rounded-full" style={{ background: b }} />
+    <span
+      className="relative inline-flex h-5 w-8 shrink-0 overflow-hidden rounded-md border border-line-strong"
+      style={{ background: bg, backgroundImage: `linear-gradient(${line} 1px, transparent 1px), linear-gradient(90deg, ${line} 1px, transparent 1px)`, backgroundSize: "6px 6px" }}
+      aria-hidden
+    >
+      <span className="absolute inset-y-1 left-1 w-3.5 rounded-[3px] border" style={{ background: card, borderColor: line }} />
+      <span className="absolute right-1 top-1/2 size-1.5 -translate-y-1/2 rounded-full" style={{ background: accent }} />
     </span>
   );
 }
 
 /**
- * Theme picker: a palette button that lists the themes with small previews. It brings its own
+ * Theme picker: a sun or moon button with the two themes and "Match system". It brings its own
  * tooltip provider so it also works on pages without one (the projects home).
  */
 export function ThemeMenu({ align = "end" }: { align?: "start" | "end" }) {
   const current = useTheme();
-  const item = (t: ThemeOption) => (
-    <MenuItem key={t.id} onSelect={() => applyTheme(t.id)}>
-      <Swatch colors={t.swatch} />
-      <span className="flex-1">{t.label}</span>
-      {current === t.id && <Check className="text-accent" />}
-    </MenuItem>
-  );
+  const dark = useIsDark();
+  useFollowSystem();
   return (
     <TooltipProvider>
       <Menu>
         <Tip content="Theme">
           <MenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Choose a theme">
-              <Palette />
+              {dark ? <Moon /> : <Sun />}
             </Button>
           </MenuTrigger>
         </Tip>
-        <MenuContent align={align} className="w-56">
-          <MenuLabel>Dark</MenuLabel>
-          {THEMES.filter((t) => t.dark).map(item)}
-          <MenuSeparator />
-          {THEMES.filter((t) => !t.dark).map(item)}
+        <MenuContent align={align} className="w-60">
+          {THEMES.map((t) => (
+            <MenuItem key={t.id} onSelect={() => applyTheme(t.id)}>
+              <Swatch id={t.id} />
+              <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                <span>{t.label}</span>
+                <span className="text-xs text-ink-3">{t.hint}</span>
+              </span>
+              {current === t.id && <Check className="text-accent" />}
+            </MenuItem>
+          ))}
         </MenuContent>
       </Menu>
     </TooltipProvider>

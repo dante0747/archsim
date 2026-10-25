@@ -4,52 +4,56 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * ArchSim design tokens: a flat system (see docs/ui-redesign.md). Solid surfaces in three tonal
- * steps, hairlines instead of boxes, one accent per theme for action, selection and focus. Each
- * component family has a tint used only on its icon chip; status colours appear only on results,
- * always with a text label. Shadows exist only for things that float (menus, dialogs).
+ * ArchSim design tokens: a flat system (see docs/ui-redesign.md) with two themes that share one
+ * idea, the engineer's drawing:
  *
- * Themes: Light (the base values below) and five dark themes: Midnight (navy slate, the default
- * dark), Tokyo Night, Dracula, Nord and GitHub Dark, picked from the theme menu.
+ *   Drafting paper (light, the values below): warm paper, navy ink, blue engineering-grid lines
+ *   and an ultramarine accent.
+ *   Blueprint (dark, under .dark): navy panels around a deep blueprint-blue canvas with
+ *   graph-paper lines and a signal-cyan accent.
+ *
+ * Accents stay clear of the status hues (green, amber, orange, red) so "selected" never reads as
+ * "failing". Each component family has a tint used only on its icon chip; status colours appear
+ * only on results, always with a text label. Shadows exist only for things that float.
  * Type: Geist for everything; numbers use tabular figures; Geist Mono only for code (font-code).
  */
 :root {
   color-scheme: light;
-  --page: #f4f5f8;
-  --canvas: #f4f5f8;
-  --grid-dot: rgba(15, 23, 42, 0.11);
-  --grid-cross: rgba(15, 23, 42, 0.16);
-  --surface: #ffffff;
-  --surface-2: #f3f4f7;
-  --surface-3: #e8eaf0;
-  --glass: #ffffff;
-  --ink: #0f1729;
-  --ink-2: #485267;
-  --ink-3: #697387;
-  --line: rgba(15, 23, 42, 0.08);
-  --line-strong: rgba(15, 23, 42, 0.14);
-  --wire: #a6aec0;
-  --node-fill: #ffffff;
-  --node-fill-2: #ffffff;
-  --node-stroke: #d5dae4;
-  --ring: #4f46e5;
-  --accent: #4f46e5;
-  --accent-2: #0ea5e9;
-  --accent-3: #ec4899;
+  --page: #f3efe6;
+  --canvas: #f7f4ec;
+  --grid-minor: rgba(37, 99, 190, 0.08);
+  --grid-major: rgba(37, 99, 190, 0.16);
+  --surface: #fffdf8;
+  --surface-2: #f1ece1;
+  --surface-3: #e5dfd2;
+  --glass: #fffdf8;
+  --ink: #13223a;
+  --ink-2: #4a5468;
+  --ink-3: #6d7385;
+  --line: rgba(19, 34, 58, 0.1);
+  --line-strong: rgba(19, 34, 58, 0.17);
+  --wire: #8b96aa;
+  --node-fill: #fffdf8;
+  --node-fill-2: #fffdf8;
+  --node-stroke: #d6cebd;
+  --ring: #1f5fd6;
+  --accent: #1f5fd6;
+  --accent-2: #0e9cb8;
+  --accent-3: #d6246e;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(79, 70, 229, 0.09);
+  --accent-soft: rgba(31, 95, 214, 0.1);
   --highlight: transparent;
   --shadow: none;
-  --shadow-lg: 0 14px 36px -10px rgba(15, 23, 42, 0.2), 0 2px 6px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 40px -12px rgba(19, 34, 58, 0.22), 0 2px 6px -2px rgba(19, 34, 58, 0.08);
   --node-shadow: none;
-  --tour-shade: rgba(15, 23, 42, 0.45);
+  --tour-shade: rgba(19, 34, 58, 0.45);
 
   /* component families: icon-chip tints */
-  --fam-traffic: #059669;
-  --fam-network: #0891b2;
-  --fam-compute: #2563eb;
+  --fam-traffic: #0d9488;
+  --fam-network: #0284c7;
+  --fam-compute: #4f46e5;
   --fam-cache: #db2777;
-  --fam-database: #d97706;
+  --fam-database: #c27803;
   --fam-messaging: #7c3aed;
   --fam-external: #64748b;
 
@@ -64,61 +68,67 @@
   --series-8: #e34948;
 
   /* status: reserved for results, always paired with a label */
-  --status-good: #16a34a;
-  --status-warning: #ca8a04;
-  --status-serious: #ea580c;
-  --status-critical: #dc2626;
-  --status-good-soft: #e8f6ed;
-  --status-warning-soft: #fbf3dc;
-  --status-serious-soft: #fdeee3;
-  --status-critical-soft: #fde8e8;
-  --success-ink: #15803d;
-  --danger-ink: #b91c1c;
+  --status-good: #15803d;
+  --status-warning: #b7791f;
+  --status-serious: #dd6b20;
+  --status-critical: #c53030;
+  --status-good-soft: #e3f1e4;
+  --status-warning-soft: #f7ecd2;
+  --status-serious-soft: #f9e4d3;
+  --status-critical-soft: #f8dfdc;
+  --success-ink: #166534;
+  --danger-ink: #a51d1d;
 
-  --grid: rgba(15, 23, 42, 0.07);
-  --axis: rgba(15, 23, 42, 0.16);
-  --muted-axis: #697387;
-  --warmup-wash: rgba(15, 23, 42, 0.04);
+  --grid: rgba(19, 34, 58, 0.07);
+  --axis: rgba(19, 34, 58, 0.16);
+  --muted-axis: #6d7385;
+  --warmup-wash: rgba(19, 34, 58, 0.04);
+
+  /* blueprint sheet: the deep-blue bands on the home page */
+  --sheet: #1b4fb4;
+  --sheet-ink: #ffffff;
+  --sheet-line: rgba(255, 255, 255, 0.09);
+  --sheet-line-strong: rgba(255, 255, 255, 0.18);
 }
 
-/* Dark themes. Midnight is the base; the others override surfaces, ink and accents. */
+/* Blueprint (dark). */
 .dark {
   color-scheme: dark;
-  --page: #121521;
-  --canvas: #0e111b;
-  --grid-dot: rgba(148, 163, 184, 0.1);
-  --grid-cross: rgba(148, 163, 184, 0.16);
-  --surface: #161a26;
-  --surface-2: #1d2231;
-  --surface-3: #272d3e;
-  --glass: #161a26;
-  --ink: #eef0f7;
-  --ink-2: #a7aec2;
-  --ink-3: #7f879b;
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.12);
-  --wire: #4a5266;
-  --node-fill: #181c29;
-  --node-fill-2: #181c29;
-  --node-stroke: #2b3142;
-  --ring: #7c6cff;
-  --accent: #7c6cff;
-  --accent-2: #38bdf8;
-  --accent-3: #f472b6;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(124, 108, 255, 0.16);
+  --page: #08111f;
+  --canvas: #0a1d38;
+  --grid-minor: rgba(110, 175, 255, 0.07);
+  --grid-major: rgba(110, 175, 255, 0.15);
+  --surface: #0c1829;
+  --surface-2: #122238;
+  --surface-3: #1a2e4a;
+  --glass: #0c1829;
+  --ink: #e9f2ff;
+  --ink-2: #a2b6d2;
+  --ink-3: #7088a8;
+  --line: rgba(140, 185, 255, 0.1);
+  --line-strong: rgba(140, 185, 255, 0.18);
+  --wire: #557aa6;
+  --node-fill: #0c1a2e;
+  --node-fill-2: #0c1a2e;
+  --node-stroke: rgba(140, 185, 255, 0.24);
+  --ring: #3dd6ff;
+  --accent: #3dd6ff;
+  --accent-2: #8fa9ff;
+  --accent-3: #ff7ab6;
+  --accent-ink: #03121f;
+  --accent-soft: rgba(61, 214, 255, 0.14);
   --highlight: transparent;
   --shadow: none;
-  --shadow-lg: 0 18px 44px -12px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 20px 48px -14px rgba(0, 6, 16, 0.75), 0 2px 8px rgba(0, 6, 16, 0.35);
   --node-shadow: none;
-  --tour-shade: rgba(4, 6, 12, 0.62);
-  --fam-traffic: #34d399;
-  --fam-network: #22d3ee;
-  --fam-compute: #60a5fa;
-  --fam-cache: #f472b6;
-  --fam-database: #fbbf24;
-  --fam-messaging: #a78bfa;
-  --fam-external: #94a3b8;
+  --tour-shade: rgba(2, 8, 18, 0.66);
+  --fam-traffic: #5eead4;
+  --fam-network: #7dd3fc;
+  --fam-compute: #a5b4fc;
+  --fam-cache: #f9a8d4;
+  --fam-database: #fcd34d;
+  --fam-messaging: #d8b4fe;
+  --fam-external: #a3b4cc;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
@@ -131,160 +141,20 @@
   --status-warning: #facc15;
   --status-serious: #fb923c;
   --status-critical: #f87171;
-  --status-good-soft: #10261a;
-  --status-warning-soft: #2a2410;
-  --status-serious-soft: #2c1b10;
-  --status-critical-soft: #2e1416;
+  --status-good-soft: #0f2a22;
+  --status-warning-soft: #2a2610;
+  --status-serious-soft: #2e1d12;
+  --status-critical-soft: #301618;
   --success-ink: #4ade80;
   --danger-ink: #fca5a5;
-  --grid: rgba(148, 163, 184, 0.07);
-  --axis: rgba(148, 163, 184, 0.15);
-  --muted-axis: #7f879b;
-  --warmup-wash: rgba(148, 163, 184, 0.045);
-}
-
-.dark[data-theme="tokyo"] {
-  --page: #16161e;
-  --canvas: #13141c;
-  --surface: #1a1b26;
-  --surface-2: #1f2335;
-  --surface-3: #292e42;
-  --glass: #1a1b26;
-  --ink: #c0caf5;
-  --ink-2: #a9b1d6;
-  --ink-3: #7a82ab;
-  --line: rgba(192, 202, 245, 0.07);
-  --line-strong: rgba(192, 202, 245, 0.13);
-  --wire: #3b4261;
-  --node-fill: #1d1f2d;
-  --node-fill-2: #1d1f2d;
-  --node-stroke: #2e3350;
-  --ring: #7aa2f7;
-  --accent: #7aa2f7;
-  --accent-2: #7dcfff;
-  --accent-3: #bb9af7;
-  --accent-ink: #16161e;
-  --accent-soft: rgba(122, 162, 247, 0.15);
-  --grid-dot: rgba(192, 202, 245, 0.08);
-  --grid-cross: rgba(192, 202, 245, 0.14);
-  --grid: rgba(192, 202, 245, 0.06);
-  --axis: rgba(192, 202, 245, 0.14);
-  --muted-axis: #737aa2;
-  --fam-traffic: #9ece6a;
-  --fam-network: #73daca;
-  --fam-compute: #7aa2f7;
-  --fam-cache: #f7768e;
-  --fam-database: #e0af68;
-  --fam-messaging: #bb9af7;
-  --fam-external: #7982b0;
-}
-
-.dark[data-theme="dracula"] {
-  --page: #1e1f29;
-  --canvas: #1b1c25;
-  --surface: #232430;
-  --surface-2: #282a36;
-  --surface-3: #343746;
-  --glass: #232430;
-  --ink: #f8f8f2;
-  --ink-2: #c9cbd8;
-  --ink-3: #8a94c0;
-  --line: rgba(248, 248, 242, 0.07);
-  --line-strong: rgba(248, 248, 242, 0.13);
-  --wire: #4d5066;
-  --node-fill: #262835;
-  --node-fill-2: #262835;
-  --node-stroke: #3a3d51;
-  --ring: #bd93f9;
-  --accent: #bd93f9;
-  --accent-2: #8be9fd;
-  --accent-3: #ff79c6;
-  --accent-ink: #1e1f29;
-  --accent-soft: rgba(189, 147, 249, 0.16);
-  --grid-dot: rgba(248, 248, 242, 0.07);
-  --grid-cross: rgba(248, 248, 242, 0.13);
-  --grid: rgba(248, 248, 242, 0.06);
-  --axis: rgba(248, 248, 242, 0.14);
-  --muted-axis: #8590bd;
-  --fam-traffic: #50fa7b;
-  --fam-network: #8be9fd;
-  --fam-compute: #bd93f9;
-  --fam-cache: #ff79c6;
-  --fam-database: #ffb86c;
-  --fam-messaging: #f1fa8c;
-  --fam-external: #8590bd;
-}
-
-.dark[data-theme="nord"] {
-  --page: #2b303b;
-  --canvas: #272c36;
-  --surface: #2e3440;
-  --surface-2: #353c4a;
-  --surface-3: #3f4757;
-  --glass: #2e3440;
-  --ink: #eceff4;
-  --ink-2: #d8dee9;
-  --ink-3: #a1aabb;
-  --line: rgba(216, 222, 233, 0.08);
-  --line-strong: rgba(216, 222, 233, 0.15);
-  --wire: #5b6579;
-  --node-fill: #323946;
-  --node-fill-2: #323946;
-  --node-stroke: #434c5e;
-  --ring: #88c0d0;
-  --accent: #88c0d0;
-  --accent-2: #81a1c1;
-  --accent-3: #b48ead;
-  --accent-ink: #2e3440;
-  --accent-soft: rgba(136, 192, 208, 0.16);
-  --grid-dot: rgba(216, 222, 233, 0.08);
-  --grid-cross: rgba(216, 222, 233, 0.14);
-  --grid: rgba(216, 222, 233, 0.06);
-  --axis: rgba(216, 222, 233, 0.15);
-  --muted-axis: #9aa3b5;
-  --fam-traffic: #a3be8c;
-  --fam-network: #8fbcbb;
-  --fam-compute: #81a1c1;
-  --fam-cache: #b48ead;
-  --fam-database: #ebcb8b;
-  --fam-messaging: #d08770;
-  --fam-external: #9aa3b5;
-}
-
-.dark[data-theme="github"] {
-  --page: #010409;
-  --canvas: #010409;
-  --surface: #0d1117;
-  --surface-2: #161b22;
-  --surface-3: #21262d;
-  --glass: #0d1117;
-  --ink: #e6edf3;
-  --ink-2: #adbac7;
-  --ink-3: #848d97;
-  --line: #21262d;
-  --line-strong: #30363d;
-  --wire: #3d444d;
-  --node-fill: #0d1117;
-  --node-fill-2: #0d1117;
-  --node-stroke: #30363d;
-  --ring: #2f81f7;
-  --accent: #2f81f7;
-  --accent-2: #58a6ff;
-  --accent-3: #a371f7;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(47, 129, 247, 0.15);
-  --grid-dot: rgba(230, 237, 243, 0.07);
-  --grid-cross: rgba(230, 237, 243, 0.12);
-  --grid: rgba(230, 237, 243, 0.06);
-  --axis: rgba(230, 237, 243, 0.14);
-  --muted-axis: #7d8590;
-  --fam-traffic: #3fb950;
-  --fam-network: #39c5cf;
-  --fam-compute: #58a6ff;
-  --fam-cache: #f778ba;
-  --fam-database: #d29922;
-  --fam-messaging: #a371f7;
-  --fam-external: #8b949e;
+  --grid: rgba(140, 185, 255, 0.08);
+  --axis: rgba(140, 185, 255, 0.17);
+  --muted-axis: #7088a8;
+  --warmup-wash: rgba(140, 185, 255, 0.05);
+  --sheet: #10396e;
+  --sheet-ink: #eef6ff;
+  --sheet-line: rgba(170, 210, 255, 0.1);
+  --sheet-line-strong: rgba(170, 210, 255, 0.2);
 }
 
 @theme inline {
@@ -417,12 +287,37 @@ body {
   color: var(--ink-3);
 }
 
-/* Dot grid (home page illustration); the canvas draws its own with React Flow. */
+/* A blueprint sheet: deep blue with white graph-paper lines (home page bands). */
+.blueprint-sheet {
+  background-color: var(--sheet);
+  background-image:
+    linear-gradient(var(--sheet-line-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sheet-line-strong) 1px, transparent 1px),
+    linear-gradient(var(--sheet-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sheet-line) 1px, transparent 1px);
+  background-size:
+    120px 120px,
+    120px 120px,
+    24px 24px,
+    24px 24px;
+  background-position: -1px -1px;
+}
+
+/* Graph paper: fine lines every 24 px, a stronger line every 120 px (the canvas draws the same
+   pattern with React Flow). */
 .schematic-grid {
   background-color: var(--canvas);
-  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
-  background-size: 22px 22px;
-  background-position: -11px -11px;
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size:
+    120px 120px,
+    120px 120px,
+    24px 24px,
+    24px 24px;
+  background-position: -1px -1px;
 }
 
 /* Blinking caret. */

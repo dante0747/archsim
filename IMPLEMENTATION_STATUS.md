@@ -125,11 +125,16 @@ serves 8 example designs (see below).
     items), plus the existing insights, timeline, components, compare, history and
     assumptions views.
 - Command palette (every action, workspaces, every technology preset, "Theme: …" commands),
-  keyboard shortcuts. Theme picker (palette button in the editor top bar and on the home
-  page): five dark themes, Midnight (navy slate dashboard look, the default), Tokyo Night,
-  Dracula, Nord and GitHub Dark, plus a lavender light theme. Each theme is a set of CSS
-  tokens (surfaces, ink, accents, one hue per component family, chart grid); the choice is
-  stored in this browser's localStorage only and applied before first paint.
+  keyboard shortcuts. Two themes, both drawn like engineering drawings: Blueprint (dark: navy
+  panels around a blueprint-blue canvas with graph-paper lines, a signal-cyan accent) and
+  Drafting paper (light: warm paper, navy ink, blue grid lines, an ultramarine accent). The
+  sun/moon button in the editor top bar and on the home page offers Blueprint, Drafting paper
+  or Match system (the default, which also follows the system when it changes). Each theme is
+  a set of CSS tokens (surfaces, ink, accent, one hue per component family, chart grid); the
+  choice is stored in this browser's localStorage only and applied before first paint. A choice
+  saved by an older version (one of the retired dark palettes) opens in Blueprint. Utilisation
+  heat uses a violet ramp below 70% so it stays clear of both accents, the blue canvas and the
+  status colours.
 - Flat redesign (2026-10-25, see docs/ui-redesign.md for the critique and the DOs and DON'Ts):
   solid surfaces in three tonal steps, hairlines instead of boxes, no gradients, glows, glass or
   aurora, shadows only on menus and dialogs; panels docked edge to edge; one typeface (Geist;
@@ -269,6 +274,12 @@ part cards, top-bar run status, inspector), Test (live replay at 4x), Results (a
 speed after simulating all five scenarios) in Midnight, and the editor in Light. The README
 screenshots were retaken from this build.
 
+Blueprint and Drafting paper themes, on 2026-10-25, against the dev server and the Docker API:
+home page (hero, blueprint-sheet bands, demo, templates, projects, closing call) in both themes,
+the editor's Design, Test and Results after a run in both, switching from the top-bar menu, the
+saved choice applied on reload, and an old saved value ("nord") opening in Blueprint. The README screenshots were retaken
+from the rebuilt Docker stack, three in Blueprint and two in Drafting paper.
+
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links
 by dragging handles (and a refused self-link with its message); live validation messages;
@@ -332,8 +343,7 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - No authentication or multi-user support; bind to localhost only.
 - README screenshots are 800x500 captures; a demo GIF has not been recorded.
 - The UI was checked by hand in one browser engine (Chromium in the desktop app) at 1280x800
-  and 1440x900, mostly in Midnight and Light; Tokyo Night, Dracula, Nord and GitHub Dark were
-  only spot-checked on the editor and home page. There are no automated visual or end-to-end
+  and 1440x900, in Blueprint and Drafting paper. There are no automated visual or end-to-end
   tests yet.
 - The canvas layout is usable at tablet widths, but the editor is designed for desktop
   screens.

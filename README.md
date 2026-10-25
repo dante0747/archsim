@@ -14,7 +14,7 @@ capacity curves. Same document and seed, same result.
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![The Test workspace replaying a Black Friday ramp at 100 s: the checkout service has scaled to seven replicas and runs warm, link labels show live request rates, the timeline below shows the traffic ramp, events, latency and failures, and the test plan panel reports that the design held up](docs/images/editor-results.jpg)
+![The Test workspace in the Blueprint theme, paused at 100 s of a Black Friday ramp: the checkout service has scaled to six replicas and runs warm, link labels show live request rates on the graph-paper canvas, the timeline below shows the traffic ramp, events, latency and failures, and the test plan panel reports that the design held up](docs/images/editor-results.jpg)
 
 *The Test workspace replaying the Black Friday on Kubernetes template. A demo GIF is still to be recorded.*
 
@@ -87,17 +87,19 @@ API servers behind a lone Clients box.
   and the assumptions behind every number. A Markdown report is one click away.
 
 **Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and a
-theme picker (the palette button at the top right) with five dark themes (Midnight, the
-default, plus Tokyo Night, Dracula, Nord and GitHub Dark) and a light one. Projects live in
+dark and a light theme drawn like engineering drawings: Blueprint (navy panels around a
+blueprint-blue canvas with graph-paper lines and a cyan accent) and Drafting paper (warm paper,
+navy ink, blue grid lines, an ultramarine accent). The sun/moon button at the top right picks one
+or follows the system. Projects live in
 PostgreSQL (or SQLite), documents
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
 
 | Design: parts library with logos, a selected part | Results → Answer |
 | --- | --- |
-| ![Design workspace in the flat look: a one-column parts library with logos and short descriptions on the left, uniform part cards on the canvas, the last run's verdict (healthy, 949 req/s, 370 ms) in the top bar; Checkout API is selected and the side panel shows its Go logo, last-run status (warm, 70% busy), key settings and the resources block](docs/images/build.jpg) | ![Results answer: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 949 req/s handled, p95 370 ms, 100% success, $1,278 per month; two findings worth a look with Show on canvas links; objective tiles](docs/images/scorecard.jpg) |
+| ![Design workspace in the Drafting paper theme: a one-column parts library with logos on the left, part cards on a graph-paper canvas, the last run's verdict (healthy, 947 req/s, 434 ms) in the top bar; Checkout API is selected and the side panel shows its Go logo, last-run status (warm, 76% busy), key settings and the resources block](docs/images/build.jpg) | ![Results answer in the Drafting paper theme: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,235 per month; two findings worth a look with Show on canvas links; objective tiles](docs/images/scorecard.jpg) |
 | **Results → Compare** | **Home** |
-| ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Landing page: "Crash-test your architecture before your users do." above a live product shot replaying a cache outage on a solid colour band](docs/images/home.jpg) |
+| ![Cost vs. speed map in the Blueprint theme: monthly cost against p95 for five scenarios, the p95 objective line, the Pareto frontier and a table of options](docs/images/tradeoffs.jpg) | ![Landing page in the Blueprint theme: "Crash-test your architecture before your users do." above a live product shot replaying a cache outage on a blueprint sheet](docs/images/home.jpg) |
 
 ## Quick start
 

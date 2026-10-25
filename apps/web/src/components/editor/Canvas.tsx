@@ -261,8 +261,9 @@ export function Canvas() {
         proOptions={{ hideAttribution: false }}
         aria-label="Architecture canvas"
       >
-        <Background id="dots" variant={BackgroundVariant.Dots} gap={24} size={1.1} color="var(--grid-dot)" />
-        <Background id="cross" variant={BackgroundVariant.Cross} gap={120} size={9} lineWidth={1} color="var(--grid-cross)" />
+        {/* Graph paper: a fine line every 24 px and a stronger one every 120 px. */}
+        <Background id="minor" variant={BackgroundVariant.Lines} gap={24} lineWidth={1} color="var(--grid-minor)" />
+        <Background id="major" variant={BackgroundVariant.Lines} gap={120} lineWidth={1} color="var(--grid-major)" />
         {nodes.length > 8 && (
         <MiniMap
           pannable

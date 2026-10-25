@@ -269,7 +269,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       ...THEMES.map((t) => ({
         id: `theme-${t.id}`,
         group: "Project",
-        label: `Theme: ${t.label}`,
+        label: t.id === "system" ? "Theme: Match system" : `Theme: ${t.label} (${t.hint.toLowerCase()})`,
         keywords: "appearance colours colors palette dark light",
         icon: <Palette className={i} />,
         run: () => applyTheme(t.id),
