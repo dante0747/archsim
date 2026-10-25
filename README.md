@@ -38,6 +38,9 @@ API servers behind a lone Clients box.
   and every default is marked as an assumption.
 - Each component kind has its own schematic shape and shows its technology logo, its name and
   one or two key settings; after a run it shows how busy it was. Links are right-angle wires.
+- Click a part to edit it: its technology, a one-line last-run status, at most three key
+  settings (response-time distributions as a one-line summary you click to edit), and "More
+  settings" for everything else, notes and what the model covers.
 - A design review flags single points of failure, missing timeouts, retry amplification along
   a path, timeout inversions, connection-pool exhaustion and more, with the numbers.
 - Export the design as docker-compose, Kubernetes manifests (Deployments, Services, HPAs,
@@ -73,9 +76,9 @@ dark themes. Projects live in PostgreSQL (or SQLite), documents
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
 
-| Design: parts library with logos, PostgreSQL selected | Results → Answer |
+| Design: parts library with logos, a selected part | Results → Answer |
 | --- | --- |
-| ![Design workspace: the parts library on the left lists technologies with their logos (Nginx, Envoy, Kong, Node.js, Go, Python...); Orders DB is selected and the side panel shows its PostgreSQL logo, technology menu and key settings](docs/images/build.jpg) | ![Results answer: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,235 per month; two findings worth a look; objective tiles](docs/images/scorecard.jpg) |
+| ![Design workspace: the parts library on the left lists technologies with their logos (Nginx, Envoy, Kong, Node.js, Go, Python...); Checkout API is selected and the side panel shows its Go logo, technology menu, last-run status (warm, 76% busy), three settings and a collapsed More settings](docs/images/build.jpg) | ![Results answer: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,235 per month; two findings worth a look; objective tiles](docs/images/scorecard.jpg) |
 | **Results → Compare** | **Home** |
 | ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page with the animated replay illustration](docs/images/home.jpg) |
 

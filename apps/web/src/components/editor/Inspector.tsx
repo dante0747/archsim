@@ -8,14 +8,13 @@ import {
   CircleCheck,
   Copy,
   FlaskConical,
-  Info,
   LayoutDashboard,
   SlidersHorizontal,
   Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { FieldGroups } from "@/components/editor/FieldControl";
+import { FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
 import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
 import { TechnologyPicker } from "@/components/build/TechnologyPicker";
@@ -23,7 +22,7 @@ import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { WorkloadPanel } from "@/components/editor/WorkloadPanel";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import { Badge, Section } from "@/components/ui/misc";
+import { Badge, Section, Tip } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/overlays";
 import { compact, fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { componentOf } from "@/lib/graph-rules";
@@ -222,6 +221,9 @@ export function ProblemsList() {
 // Node
 // ---------------------------------------------------------------------------------------------
 
+/** How many headline settings show before the rest fold into "More settings". */
+const KEY_LIMIT = 3;
+
 function SettingsBlocks({
   fields,
   values,
@@ -237,21 +239,24 @@ function SettingsBlocks({
   allowedRequestTypes?: RequestType[];
   extraAdvanced?: React.ReactNode;
 }) {
-  const key = fields.filter((f) => f.headline);
-  const rest = fields.filter((f) => !f.headline);
+  const headline = fields.filter((f) => f.headline && isFieldVisible(f, values));
+  const key = headline.slice(0, KEY_LIMIT);
+  const rest = fields.filter((f) => !key.includes(f));
+  const restCount = rest.filter((f) => isFieldVisible(f, values)).length;
   return (
     <>
       {key.length > 0 && (
-        <Section title="Key settings">
+        <section aria-label="Settings" className="space-y-3">
+          <h3 className="text-[13px] font-semibold text-ink">Settings</h3>
           <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} flat />
-        </Section>
+        </section>
       )}
-      {(rest.length > 0 || extraAdvanced) && (
-        <details className="group rounded-md border border-line" open={key.length === 0}>
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 font-mono text-[11px] uppercase tracking-wider text-ink-2 hover:text-ink">
+      {(restCount > 0 || extraAdvanced) && (
+        <details className="group rounded-lg border border-line" open={key.length === 0}>
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12.5px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
             <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
-            Advanced settings
-            <span className="font-mono text-[10px] text-ink-3">{rest.length}</span>
+            More settings
+            {restCount > 0 && <span className="text-ink-3">{restCount}</span>}
           </summary>
           <div className="space-y-5 border-t border-line px-3.5 py-4">
             <FieldGroups fields={rest} values={values} onChange={onChange} idPrefix={`${idPrefix}-adv`} allowedRequestTypes={allowedRequestTypes} />
@@ -260,6 +265,58 @@ function SettingsBlocks({
         </details>
       )}
     </>
+  );
+}
+
+/** What the component model covers, folded inside "More settings". */
+function ModelScope({ modeled, notModeled }: { modeled: string[]; notModeled: string[] }) {
+  if (!modeled.length && !notModeled.length) return null;
+  return (
+    <details className="group/scope text-[12px]">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-ink-3 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-3.5 transition-transform group-open/scope:rotate-90" /> About this model
+      </summary>
+      <div className="mt-2 grid gap-3 text-ink-2">
+        {modeled.length > 0 && (
+          <div>
+            <p className="mb-1 font-medium text-ink">Modeled</p>
+            <ul className="list-disc space-y-1 pl-4">
+              {modeled.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {notModeled.length > 0 && (
+          <div>
+            <p className="mb-1 font-medium text-ink">Not modeled</p>
+            <ul className="list-disc space-y-1 pl-4">
+              {notModeled.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function IconAction({ label, onClick, danger, children }: { label: string; onClick: () => void; danger?: boolean; children: React.ReactNode }) {
+  return (
+    <Tip content={label}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        className={cn(
+          "rounded-md p-1.5 text-ink-3 transition-colors [&_svg]:size-4",
+          danger ? "hover:bg-critical-soft hover:text-danger-ink" : "hover:bg-surface-2 hover:text-ink",
+        )}
+      >
+        {children}
+      </button>
+    </Tip>
   );
 }
 
@@ -292,8 +349,16 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
               {comp?.displayName.split(" / ")[0] ?? node.data.type}
             </p>
           </div>
+          <div className="flex shrink-0 items-center">
+            <IconAction label="Duplicate (Ctrl D)" onClick={duplicate}>
+              <Copy />
+            </IconAction>
+            <IconAction label="Delete (Del)" onClick={() => deleteElements([nodeId], [])} danger>
+              <Trash2 />
+            </IconAction>
+          </div>
         </div>
-        <TechnologyPicker nodeId={nodeId} comp={comp} config={node.data.config} />
+        {!comp?.isTrafficSource && <TechnologyPicker nodeId={nodeId} comp={comp} config={node.data.config} />}
       </div>
 
       {nodeIssues.length > 0 && (
@@ -304,6 +369,8 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
         </ul>
       )}
 
+      <NodeResults nodeId={nodeId} />
+
       {comp?.isTrafficSource && <TrafficCard />}
 
       {comp ? (
@@ -313,57 +380,23 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
           idPrefix={`node-${nodeId}`}
           extraAdvanced={
-            <div className="space-y-1.5">
-              <Label htmlFor="node-desc">Notes</Label>
-              <Textarea id="node-desc" rows={2} value={node.data.description ?? ""} placeholder="Optional description" onChange={(e) => updateNode(nodeId, { description: e.target.value || null })} />
-              <p className="font-mono text-[10px] text-ink-3">id {node.id}</p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="node-desc">Notes</Label>
+                <Textarea id="node-desc" rows={2} value={node.data.description ?? ""} placeholder="Optional" onChange={(e) => updateNode(nodeId, { description: e.target.value || null })} />
+              </div>
+              <ModelScope modeled={comp.modeled} notModeled={comp.notModeled} />
             </div>
           }
         />
       ) : (
         <p className="text-xs text-danger-ink">Unknown component type “{node.data.type}”.</p>
       )}
-
-      <NodeResults nodeId={nodeId} />
-
-      {comp && (comp.modeled.length > 0 || comp.notModeled.length > 0) && (
-        <details className="group rounded-md border border-line text-xs">
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 font-medium text-ink-2 hover:text-ink">
-            <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" /> What this model does and doesn&apos;t include
-          </summary>
-          <div className="grid gap-3 border-t border-line px-3.5 py-3 text-ink-2">
-            <div>
-              <p className="microlabel mb-1">Modeled</p>
-              <ul className="list-disc space-y-1 pl-4">
-                {comp.modeled.map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="microlabel mb-1">Not modeled</p>
-              <ul className="list-disc space-y-1 pl-4">
-                {comp.notModeled.map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </details>
-      )}
-
-      <div className="flex gap-2">
-        <Button size="sm" onClick={duplicate}>
-          <Copy /> Duplicate
-        </Button>
-        <Button variant="danger" size="sm" onClick={() => deleteElements([nodeId], [])}>
-          <Trash2 /> Delete
-        </Button>
-      </div>
     </div>
   );
 }
 
+/** After a run: one status line and three numbers; charts are one click away. */
 function NodeResults({ nodeId }: { nodeId: string }) {
   const report = useActiveReport();
   const openDrawer = useRuns((s) => s.openDrawer);
@@ -372,48 +405,39 @@ function NodeResults({ nodeId }: { nodeId: string }) {
   if (!report || !nr) return null;
   const s = nr.summary;
   const meta = NODE_STATUS[nr.status];
-  const tiles: [string, string][] = [
-    ["Arrivals", fmtRps(s.arrivalRps)],
-    ["Busy avg/peak", `${fmtPct(s.utilization, 0)} / ${fmtPct(s.peakUtilization, 0)}`],
-    ["Queue avg/peak", `${fmtNum(s.meanQueue, 1)} / ${fmtNum(s.peakQueue)}`],
-    ["Wait p95", fmtMs(s.p95QueueWaitMs)],
-    ["Rejected", `${fmtNum(s.rejectedTotal)}`],
-    s.hitRatio != null ? ["Hit ratio", fmtPct(s.hitRatio)] : ["Capacity est.", fmtRps(s.capacityRps)],
+  const stats: [string, string][] = [
+    ["busy", s.utilization != null ? fmtPct(s.utilization, 0) : fmtRps(s.arrivalRps)],
+    ["wait p95", fmtMs(s.p95QueueWaitMs)],
+    s.hitRatio != null ? ["hit ratio", fmtPct(s.hitRatio, 0)] : ["rejected", fmtNum(s.rejectedTotal)],
   ];
   return (
-    <Section
-      title={
-        <span className="flex items-center gap-1.5">
-          Measured in last run
+    <section aria-label="Last run" className="overflow-hidden rounded-lg border border-line">
+      <div className="flex items-center gap-2 border-l-2 px-3 py-2" style={{ borderLeftColor: meta.color }}>
+        <span className="size-1.5 shrink-0 rounded-full" style={{ background: meta.color }} aria-hidden />
+        <span className="text-[13px] font-semibold text-ink">{meta.label}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-ink-3" title={nr.statusReasons.join(", ") || meta.description}>
+          in the last run
         </span>
-      }
-    >
-      <div className="overflow-hidden rounded-md border border-line">
-        <div className="flex items-center gap-2 border-l-2 bg-surface-2 px-3 py-2.5" style={{ borderLeftColor: meta.color }}>
-          <span className="size-1.5 rounded-full" style={{ background: meta.color }} aria-hidden />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink">{meta.label}</span>
-          <span className="truncate text-[11px] text-ink-2">{nr.statusReasons.join(", ") || meta.description}</span>
-        </div>
-        <dl className="grid grid-cols-2 gap-px bg-line">
-          {tiles.map(([k, v]) => (
-            <div key={k} className="bg-surface px-3 py-2">
-              <dt className="microlabel !text-[9px]">{k}</dt>
-              <dd className="tabular font-mono text-[12.5px] font-semibold text-ink">{v}</dd>
-            </div>
-          ))}
-        </dl>
+        <button
+          type="button"
+          onClick={() => {
+            focusNode(nodeId);
+            openDrawer("components");
+          }}
+          className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent hover:underline"
+        >
+          Charts <ArrowRight className="size-3.5" />
+        </button>
       </div>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => {
-          focusNode(nodeId);
-          openDrawer("components");
-        }}
-      >
-        Charts for this component <ArrowRight />
-      </Button>
-    </Section>
+      <dl className="grid grid-cols-3 border-t border-line">
+        {stats.map(([k, v]) => (
+          <div key={k} className="px-3 py-2">
+            <dd className="tabular font-mono text-[13px] font-semibold text-ink">{v}</dd>
+            <dt className="text-[11px] text-ink-3">{k}</dt>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -456,7 +480,12 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
   return (
     <div className="space-y-5 p-4">
       <div className="rounded-md border border-line bg-surface-2 p-3">
-        <p className="microlabel">{sp && sp.name !== "out" ? `${sp.label} link` : "Link"}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-[12px] text-ink-3">{sp && sp.name !== "out" ? `${sp.label} link` : "Link"}</p>
+          <IconAction label="Delete link (Del)" onClick={() => deleteElements([], [edgeId])} danger>
+            <Trash2 />
+          </IconAction>
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {chip(src?.data.label ?? edge.source, src?.data.type, srcComp?.category)}
           <ArrowRight className="size-3.5 text-ink-3" />
@@ -469,12 +498,6 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
             <IssueRow key={k} issue={i} />
           ))}
         </ul>
-      )}
-      {fromSource && (
-        <p className="flex gap-2 rounded-md border border-dashed border-line-strong p-3 text-[11.5px] leading-relaxed text-ink-2">
-          <Info className="mt-0.5 size-3.5 shrink-0 text-ink-3" />
-          Client timeout and retries are set on the Clients component.
-        </p>
       )}
       <SettingsBlocks
         fields={fields}
@@ -508,9 +531,6 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
           </dl>
         </Section>
       )}
-      <Button variant="danger" size="sm" onClick={() => deleteElements([], [edgeId])}>
-        <Trash2 /> Delete link
-      </Button>
     </div>
   );
 }

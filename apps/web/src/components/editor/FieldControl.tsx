@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { ChevronDown, Info } from "lucide-react";
 import { useId, useState } from "react";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
 import { Switch, Tip } from "@/components/ui/misc";
@@ -188,6 +188,7 @@ export function DistributionEditor({
     <div className="space-y-2 rounded-md border border-line bg-surface-2/50 p-2">
       <NativeSelect
         aria-label="Distribution shape"
+        title={DISTRIBUTION_KINDS.find((k) => k.kind === value.kind)?.help}
         value={value.kind}
         onChange={(e) => onChange(convertDistribution(value, e.target.value as Distribution["kind"]))}
       >
@@ -197,7 +198,6 @@ export function DistributionEditor({
           </option>
         ))}
       </NativeSelect>
-      <p className="text-[11px] text-ink-3">{DISTRIBUTION_KINDS.find((k) => k.kind === value.kind)?.help}</p>
       <div className={cn("grid gap-2", params.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
         {params.map((p) => (
           <div key={p} className="space-y-1">
@@ -217,6 +217,39 @@ export function DistributionEditor({
       <p className={cn("text-[11px]", err ? "text-danger-ink" : "text-ink-3")}>
         {err ?? `≈ mean ${fmtNum(meanOf(value), meanOf(value) < 10 ? 2 : 1)} ${unit}`}
       </p>
+    </div>
+  );
+}
+
+/** One-line summary of a distribution ("p50 8 / p95 25 ms · mean 10.2 ms"); click to edit it. */
+function CompactDistribution({
+  value,
+  onChange,
+  unit,
+  idPrefix,
+}: {
+  value: Distribution;
+  onChange: (d: Distribution) => void;
+  unit: string;
+  idPrefix: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const mean = meanOf(value);
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex h-8 w-full items-center gap-2 rounded-md border border-line bg-surface-2/50 px-2.5 text-left text-[12.5px] text-ink hover:border-line-strong"
+      >
+        <span className="tabular min-w-0 flex-1 truncate font-mono">
+          {describeDistribution(value, unit)}
+          <span className="text-ink-3"> · mean {fmtNum(mean, mean < 10 ? 2 : 1)} {unit}</span>
+        </span>
+        <ChevronDown className={cn("size-3.5 shrink-0 text-ink-3 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <DistributionEditor value={value} onChange={onChange} unit={unit} idPrefix={idPrefix} />}
     </div>
   );
 }
@@ -339,7 +372,7 @@ export function FieldControl({
       break;
     case "distribution":
       control = isDistribution(value) ? (
-        <DistributionEditor value={value} onChange={onChange} unit={field.unit ?? "ms"} idPrefix={id} />
+        <CompactDistribution value={value} onChange={onChange} unit={field.unit ?? "ms"} idPrefix={id} />
       ) : (
         <p className="text-xs text-danger-ink">Invalid distribution value</p>
       );

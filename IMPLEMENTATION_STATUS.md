@@ -140,7 +140,10 @@ serves 8 example designs (see below).
   of the 39 built-in presets show a product logo, the rest (generic parts, "-style" managed
   services, SaaS APIs and a few products Simple Icons does not carry) a family icon.
   Canvas components show the logo, name, technology and at most two key settings; after a run
-  they show only how busy they were. Link labels appear only when they carry information.
+  they show only how busy they were. The selected-part panel shows the logo, name, Duplicate and
+  Delete icons, the technology menu, a one-line last-run status with three numbers, at most
+  three key settings (distributions as a one-line summary that expands to the editor) and
+  "More settings" (the rest, notes, and what the model does and does not include). Link labels appear only when they carry information.
 - Results: four tabs (Answer, Compare, Breaking point, Details) and a Report button; one run
   picker for all tabs. Answer leads with one yes/no sentence, the failing objective and the
   bottleneck, the key numbers, what to fix first, objective tiles and monthly cost.
