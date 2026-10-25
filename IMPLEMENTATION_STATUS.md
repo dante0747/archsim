@@ -106,9 +106,11 @@ serves 8 example designs (see below).
     connection storms, autoscaling range, queue backlog/consumers, optimistic hit ratios,
     hot-partition risk, consistency ALL, unhandled third-party errors, no edge rate limit,
     long synchronous chains), **export** to docker-compose, Kubernetes manifests and Mermaid.
-  - **Test** (internal key `stress`): test plan on a timeline (drag the traffic shape; failure
-    blocks you move and resize per target), quick failure tests generated from the design, a
-    result against the objectives (over the run and inside each failure window), and the
+  - **Test** (internal key `stress`): a Test plan panel with the last result (held or not,
+    each objective, each failure window, a replay link to the worst moment) and one plan card
+    (Traffic, Must stay true, Failures; each row edits inline); quick failure tests generated
+    from the design sit at the top of the "Add failure" menu, above custom failures per part
+    or link. On the timeline you drag the traffic shape and move and resize failure blocks. The
     **replay timeline**: a short header (play/pause, time, "Whole run", speed button; step
     and jump stay on the keyboard), the traffic plan and failure rows, event markers (faults,
     saturation, SLO breach/recovery, scaling, queue growth, timeouts), latency against the

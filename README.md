@@ -44,9 +44,11 @@ API servers behind a lone Clients box.
   StatefulSets) or Mermaid, as reviewed starting points.
 
 **Test: traffic, failures and replay**
-- Shape the traffic on a timeline (constant, ramp, burst) by dragging it, and plan failures on
-  it: a component outage, a slowdown, extra network latency on a link. Quick failure tests
-  ("lose the cache for 15 s", "database 4× slower", "+300 ms on a link", "3× spike").
+- The Test plan panel holds the last result and one plan card with three rows: Traffic,
+  Must stay true (your objectives) and Failures. "Add failure" offers quick tests generated
+  from the design ("lose the cache for 15 s", "database 4× slower", "+300 ms on a link", "3×
+  spike") and custom outages, slowdowns and link latency. You can also drag the traffic line
+  and the failure blocks on the timeline.
 - Every run is recorded second by second and replays on the canvas: each component's
   utilization, queue and traffic at that second. The timeline below stays short: play, the
   time, speed, the traffic plan, events, latency against the objective and failures; "More

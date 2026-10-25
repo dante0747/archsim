@@ -1,7 +1,8 @@
 "use client";
 
 /** Shared pieces of the experiment composer: fault icons, editable fields and graph context. */
-import { Ban, Snail, Timer } from "lucide-react";
+import { Ban, Snail, Timer, TrendingUp } from "lucide-react";
+import { toast } from "sonner";
 import { useMemo } from "react";
 import { NumberInput } from "@/components/editor/FieldControl";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
@@ -11,8 +12,10 @@ import {
   DEFAULT_FACTOR,
   FAULT_KINDS,
   FAULT_META,
+  type ChaosPreset,
   type FaultKind,
   type FaultTarget,
+  chaosPresets,
   clampFault,
   faultTargets,
   newFault,
@@ -185,27 +188,52 @@ export function FaultFields({
   );
 }
 
-/** Menu listing valid targets per fault kind; picking one adds a fault with a default window. */
+export function PresetIcon({ p }: { p: ChaosPreset }) {
+  if (p.kind === "spike") return <TrendingUp className="size-3.5 shrink-0 text-accent" aria-hidden />;
+  return <FaultIcon kind={p.kind} />;
+}
+
+/**
+ * "Add failure" menu: ready-made quick tests first (each replaces the planned failures, one
+ * variable at a time), then a custom failure on any part or link.
+ */
 export function AddFaultMenu({ children, align = "start" }: { children: React.ReactElement; align?: "start" | "end" }) {
-  const { faults, targets, workload } = useFaultContext();
+  const { faults, targets, workload, nodes, edges, catalog } = useFaultContext();
+  const presets = useMemo(() => chaosPresets(nodes, edges, catalog, workload), [nodes, edges, catalog, workload]);
   const add = (kind: FaultKind, target: string) => {
     const f = newFault(kind, target, workload);
     setFaults([...faults, f], `fault-add:${f.id}`);
+  };
+  const quick = (p: ChaosPreset) => {
+    useEditor.getState().setWorkload(p.apply(useEditor.getState().workload), `chaos:${p.id}`);
+    toast.success(p.title, { description: "Planned. Press Simulate to run it." });
   };
   const kinds = FAULT_KINDS.filter((k) => targets[k].length > 0);
   return (
     <Menu>
       <MenuTrigger asChild>{children}</MenuTrigger>
-      <MenuContent align={align} className="max-h-80 w-72 overflow-y-auto">
+      <MenuContent align={align} className="max-h-96 w-80 overflow-y-auto">
         {kinds.length === 0 && <MenuItem disabled>Add components to the design first</MenuItem>}
+        {presets.length > 0 && (
+          <>
+            <MenuLabel>Quick tests</MenuLabel>
+            {presets.map((p) => (
+              <MenuItem key={p.id} onSelect={() => quick(p)} title={p.description}>
+                <PresetIcon p={p} />
+                <span className="truncate">{p.title}</span>
+              </MenuItem>
+            ))}
+            <MenuSeparator />
+          </>
+        )}
         {kinds.map((k, i) => (
           <div key={k}>
             {i > 0 && <MenuSeparator />}
             <MenuLabel className="flex items-center gap-1.5">
-              <FaultIcon kind={k} className="size-3" /> {FAULT_META[k].label}
+              <FaultIcon kind={k} className="size-3" /> {FAULT_META[k].label} on…
             </MenuLabel>
             {targets[k].map((t) => (
-              <MenuItem key={`${k}-${t.id}`} onSelect={() => add(k, t.id)} className="font-mono text-xs">
+              <MenuItem key={`${k}-${t.id}`} onSelect={() => add(k, t.id)}>
                 {t.label}
               </MenuItem>
             ))}
