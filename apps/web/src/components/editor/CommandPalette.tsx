@@ -25,6 +25,7 @@ import {
   ListChecks,
   Maximize,
   Moon,
+  Palette,
   PanelBottomClose,
   Play,
   Redo2,
@@ -45,7 +46,7 @@ import { openDecide, replayActiveRun } from "@/components/editor/workflow";
 import { findParts, useAddComponent } from "@/components/editor/Palette";
 import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { Kbd } from "@/components/ui/misc";
-import { toggleTheme } from "@/components/ui/theme-toggle";
+import { THEMES, applyTheme, toggleTheme } from "@/components/ui/theme-toggle";
 import { rankCommands } from "@/lib/commands";
 import { kindOf } from "@/lib/theme";
 import { cn, modKey } from "@/lib/utils";
@@ -265,6 +266,14 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
       { id: "import", group: "Project", label: "Import JSON into this project", keywords: "upload file open", icon: <Upload className={i} />, run: onImport },
       { id: "home", group: "Project", label: "Back to projects", keywords: "home list", icon: <ArrowLeft className={i} />, run: () => router.push("/") },
       { id: "theme", group: "Project", label: "Toggle light / dark theme", keywords: "dark mode light mode appearance", icon: <Moon className={i} />, run: toggleTheme },
+      ...THEMES.map((t) => ({
+        id: `theme-${t.id}`,
+        group: "Project",
+        label: `Theme: ${t.label}`,
+        keywords: "appearance colours colors palette dark light",
+        icon: <Palette className={i} />,
+        run: () => applyTheme(t.id),
+      })),
       { id: "keys", group: "Project", label: "Keyboard shortcuts", shortcut: "?", keywords: "help hotkeys", icon: <Keyboard className={i} />, run: onShowShortcuts },
       {
         id: "api",

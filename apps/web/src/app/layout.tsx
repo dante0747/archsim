@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 // Applies the saved (or system) theme before first paint to avoid a flash.
-const themeScript = `(function(){try{var t=localStorage.getItem('archsim-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
+const themeScript = `(function(){try{var t=localStorage.getItem('archsim-theme');if(t==='dark')t='midnight';var ids=['midnight','tokyo','dracula','nord','github'];var d=t?t!=='light':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d){var e=document.documentElement;e.classList.add('dark');e.setAttribute('data-theme',ids.indexOf(t)>=0?t:'midnight');}}catch(e){}})();`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

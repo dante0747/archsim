@@ -73,8 +73,10 @@ API servers behind a lone Clients box.
   lag, consumer lag, wasted work), error budget, metrics over time, per-component drill-down
   and the assumptions behind every number. A Markdown report is one click away.
 
-**Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, light and
-dark themes. Projects live in PostgreSQL (or SQLite), documents
+**Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and a
+theme picker (the palette button at the top right) with five dark themes (Midnight, the
+default, plus Tokyo Night, Dracula, Nord and GitHub Dark) and a light one. Projects live in
+PostgreSQL (or SQLite), documents
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
 

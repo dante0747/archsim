@@ -4,8 +4,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * ArchSim design tokens — "night shift".
- * Violet-tinted ink (dark) or cool lavender paper (light). Type: Bricolage Grotesque for display
+ * ArchSim design tokens. One light theme (cool lavender paper) and five dark themes: Midnight
+ * (navy slate, the default), Tokyo Night, Dracula, Nord and GitHub Dark, picked from the theme
+ * menu and stored per browser. Type: Bricolage Grotesque for display
  * headings, Geist for the interface, Geist Mono for numbers. One electric accent (violet, with a
  * cyan partner and a pink spark used only in gradients) marks interaction and live traffic. Each
  * component family has its own hue (clients, edge, compute, cache, data, queues, external) so a
@@ -80,45 +81,44 @@
   --warmup-wash: rgba(50, 30, 110, 0.045);
 }
 
+/* Dark themes. Midnight is the base; the others override surfaces, ink and accents. */
 .dark {
   color-scheme: dark;
-  --page: #05040a;
-  --canvas: #0a0813;
-  --grid-dot: rgba(190, 170, 255, 0.09);
-  --grid-cross: rgba(190, 170, 255, 0.16);
-  --surface: #100d1b;
-  --surface-2: #171327;
-  --surface-3: #211c36;
-  --glass: rgba(20, 16, 34, 0.74);
-  --ink: #f2f0ff;
-  --ink-2: #b6afd3;
-  --ink-3: #7b7499;
-  --line: rgba(190, 170, 255, 0.09);
-  --line-strong: rgba(190, 170, 255, 0.17);
-  --wire: #4b4468;
-  --node-fill: #151129;
-  --node-fill-2: #0e0b1c;
-  --node-stroke: #9087b9;
-  --ring: #9d84ff;
-  --accent: #9d84ff;
-  --accent-2: #2fd4f0;
-  --accent-3: #ff6fb5;
-  --accent-ink: #0c0619;
-  --accent-soft: rgba(157, 132, 255, 0.15);
-  --highlight: rgba(255, 255, 255, 0.06);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 28px 60px -18px rgba(0, 0, 0, 0.8), 0 6px 16px -6px rgba(0, 0, 0, 0.55);
-  --node-shadow: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.5));
-  --tour-shade: rgba(3, 2, 8, 0.66);
-
-  --fam-traffic: #34d399;
-  --fam-network: #2dd4bf;
-  --fam-compute: #60a5fa;
-  --fam-cache: #f472b6;
-  --fam-database: #fbbf24;
+  --page: #121522;
+  --canvas: #161a29;
+  --grid-dot: rgba(160, 172, 230, 0.09);
+  --grid-cross: rgba(160, 172, 230, 0.16);
+  --surface: #1d2234;
+  --surface-2: #242a40;
+  --surface-3: #2c334c;
+  --glass: rgba(29, 34, 52, 0.8);
+  --ink: #f4f6ff;
+  --ink-2: #aab1cc;
+  --ink-3: #737b99;
+  --line: rgba(255, 255, 255, 0.065);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --wire: #48516f;
+  --node-fill: #1f2438;
+  --node-fill-2: #191d2e;
+  --node-stroke: #8b94b6;
+  --ring: #7c6cff;
+  --accent: #7c6cff;
+  --accent-2: #4d9bff;
+  --accent-3: #ff5f8f;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(124, 108, 255, 0.17);
+  --highlight: rgba(255, 255, 255, 0.045);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 28px 60px -18px rgba(0, 0, 0, 0.7), 0 6px 16px -6px rgba(0, 0, 0, 0.45);
+  --node-shadow: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4));
+  --tour-shade: rgba(6, 8, 16, 0.62);
+  --fam-traffic: #2ed3a6;
+  --fam-network: #3ec7f5;
+  --fam-compute: #4d8dff;
+  --fam-cache: #ff5f8f;
+  --fam-database: #ffa63e;
   --fam-messaging: #a78bfa;
-  --fam-external: #94a3b8;
-
+  --fam-external: #8b94b6;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
@@ -127,7 +127,6 @@
   --series-6: #008300;
   --series-7: #9085e9;
   --series-8: #e66767;
-
   --status-good: #3fb950;
   --status-warning: #d29922;
   --status-serious: #e07b39;
@@ -138,11 +137,154 @@
   --status-critical-soft: #2f1416;
   --success-ink: #56d364;
   --danger-ink: #ff7b72;
+  --grid: rgba(160, 172, 230, 0.07);
+  --axis: rgba(160, 172, 230, 0.15);
+  --muted-axis: #7f88a8;
+  --warmup-wash: rgba(160, 172, 230, 0.045);
+}
 
-  --grid: rgba(190, 170, 255, 0.07);
-  --axis: rgba(190, 170, 255, 0.15);
-  --muted-axis: #7f789c;
-  --warmup-wash: rgba(190, 170, 255, 0.04);
+.dark[data-theme="tokyo"] {
+  --page: #16161e;
+  --canvas: #1a1b26;
+  --surface: #1f2335;
+  --surface-2: #24283b;
+  --surface-3: #2f344d;
+  --glass: rgba(31, 35, 53, 0.82);
+  --ink: #c0caf5;
+  --ink-2: #a9b1d6;
+  --ink-3: #737aa2;
+  --line: rgba(192, 202, 245, 0.07);
+  --line-strong: rgba(192, 202, 245, 0.13);
+  --wire: #3b4261;
+  --node-fill: #1f2335;
+  --node-fill-2: #1a1b26;
+  --node-stroke: #7982b0;
+  --ring: #7aa2f7;
+  --accent: #7aa2f7;
+  --accent-2: #7dcfff;
+  --accent-3: #bb9af7;
+  --accent-ink: #16161e;
+  --accent-soft: rgba(122, 162, 247, 0.15);
+  --grid-dot: rgba(192, 202, 245, 0.08);
+  --grid-cross: rgba(192, 202, 245, 0.14);
+  --grid: rgba(192, 202, 245, 0.06);
+  --axis: rgba(192, 202, 245, 0.14);
+  --muted-axis: #737aa2;
+  --fam-traffic: #9ece6a;
+  --fam-network: #73daca;
+  --fam-compute: #7aa2f7;
+  --fam-cache: #f7768e;
+  --fam-database: #e0af68;
+  --fam-messaging: #bb9af7;
+  --fam-external: #7982b0;
+}
+
+.dark[data-theme="dracula"] {
+  --page: #1e1f29;
+  --canvas: #21222c;
+  --surface: #282a36;
+  --surface-2: #30323f;
+  --surface-3: #44475a;
+  --glass: rgba(40, 42, 54, 0.84);
+  --ink: #f8f8f2;
+  --ink-2: #c9cbd8;
+  --ink-3: #8590bd;
+  --line: rgba(248, 248, 242, 0.07);
+  --line-strong: rgba(248, 248, 242, 0.13);
+  --wire: #4d5066;
+  --node-fill: #282a36;
+  --node-fill-2: #232430;
+  --node-stroke: #9aa3c8;
+  --ring: #bd93f9;
+  --accent: #bd93f9;
+  --accent-2: #8be9fd;
+  --accent-3: #ff79c6;
+  --accent-ink: #1e1f29;
+  --accent-soft: rgba(189, 147, 249, 0.16);
+  --grid-dot: rgba(248, 248, 242, 0.07);
+  --grid-cross: rgba(248, 248, 242, 0.13);
+  --grid: rgba(248, 248, 242, 0.06);
+  --axis: rgba(248, 248, 242, 0.14);
+  --muted-axis: #8590bd;
+  --fam-traffic: #50fa7b;
+  --fam-network: #8be9fd;
+  --fam-compute: #bd93f9;
+  --fam-cache: #ff79c6;
+  --fam-database: #ffb86c;
+  --fam-messaging: #f1fa8c;
+  --fam-external: #8590bd;
+}
+
+.dark[data-theme="nord"] {
+  --page: #262b35;
+  --canvas: #2e3440;
+  --surface: #3b4252;
+  --surface-2: #434c5e;
+  --surface-3: #4c566a;
+  --glass: rgba(59, 66, 82, 0.86);
+  --ink: #eceff4;
+  --ink-2: #d8dee9;
+  --ink-3: #9aa3b5;
+  --line: rgba(216, 222, 233, 0.08);
+  --line-strong: rgba(216, 222, 233, 0.15);
+  --wire: #5b6579;
+  --node-fill: #3b4252;
+  --node-fill-2: #353c4a;
+  --node-stroke: #a3acbd;
+  --ring: #88c0d0;
+  --accent: #88c0d0;
+  --accent-2: #81a1c1;
+  --accent-3: #b48ead;
+  --accent-ink: #2e3440;
+  --accent-soft: rgba(136, 192, 208, 0.16);
+  --grid-dot: rgba(216, 222, 233, 0.08);
+  --grid-cross: rgba(216, 222, 233, 0.14);
+  --grid: rgba(216, 222, 233, 0.06);
+  --axis: rgba(216, 222, 233, 0.15);
+  --muted-axis: #9aa3b5;
+  --fam-traffic: #a3be8c;
+  --fam-network: #8fbcbb;
+  --fam-compute: #81a1c1;
+  --fam-cache: #b48ead;
+  --fam-database: #ebcb8b;
+  --fam-messaging: #d08770;
+  --fam-external: #9aa3b5;
+}
+
+.dark[data-theme="github"] {
+  --page: #010409;
+  --canvas: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c2128;
+  --surface-3: #262c36;
+  --glass: rgba(22, 27, 34, 0.86);
+  --ink: #e6edf3;
+  --ink-2: #adbac7;
+  --ink-3: #7d8590;
+  --line: #21262d;
+  --line-strong: #30363d;
+  --wire: #3d444d;
+  --node-fill: #161b22;
+  --node-fill-2: #0d1117;
+  --node-stroke: #8b949e;
+  --ring: #2f81f7;
+  --accent: #2f81f7;
+  --accent-2: #58a6ff;
+  --accent-3: #a371f7;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(47, 129, 247, 0.15);
+  --grid-dot: rgba(230, 237, 243, 0.07);
+  --grid-cross: rgba(230, 237, 243, 0.12);
+  --grid: rgba(230, 237, 243, 0.06);
+  --axis: rgba(230, 237, 243, 0.14);
+  --muted-axis: #7d8590;
+  --fam-traffic: #3fb950;
+  --fam-network: #39c5cf;
+  --fam-compute: #58a6ff;
+  --fam-cache: #f778ba;
+  --fam-database: #d29922;
+  --fam-messaging: #a371f7;
+  --fam-external: #8b949e;
 }
 
 @theme inline {

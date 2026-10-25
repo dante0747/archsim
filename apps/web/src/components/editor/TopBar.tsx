@@ -11,7 +11,6 @@ import {
   Keyboard,
   LayoutGrid,
   LoaderCircle,
-  Moon,
   MoreHorizontal,
   PanelRight,
   Play,
@@ -19,7 +18,6 @@ import {
   Save,
   Search,
   Square,
-  Sun,
   TriangleAlert,
   Undo2,
   Upload,
@@ -41,7 +39,7 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "@/components/ui/overlays";
-import { toggleTheme, useIsDark } from "@/components/ui/theme-toggle";
+import { ThemeMenu } from "@/components/ui/theme-toggle";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -222,7 +220,6 @@ export function TopBar({
   const fileRef = useRef<HTMLInputElement>(null);
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
   const setExportOpen = useUi((s) => s.setExportOpen);
-  const dark = useIsDark();
 
   return (
     <header className="island relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 !overflow-visible px-2.5">
@@ -266,6 +263,7 @@ export function TopBar({
             e.target.value = "";
           }}
         />
+        <ThemeMenu />
         <Menu>
           <MenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="More actions">
@@ -288,9 +286,6 @@ export function TopBar({
             <MenuSeparator />
             <MenuItem onSelect={onToggleInspector}>
               <PanelRight /> {showInspector ? "Hide side panel" : "Show side panel"}
-            </MenuItem>
-            <MenuItem onSelect={toggleTheme}>
-              {dark ? <Sun /> : <Moon />} {dark ? "Light theme" : "Dark theme"}
             </MenuItem>
             <MenuSeparator />
             <MenuItem onSelect={() => setExportOpen(true)}>

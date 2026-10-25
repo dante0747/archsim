@@ -124,11 +124,14 @@ serves 8 example designs (see below).
     sweep, knee, max load within objectives), Markdown decision report (with design-review
     items), plus the existing insights, timeline, components, compare, history and
     assumptions views.
-- Command palette (every action, workspaces, every technology preset), keyboard shortcuts,
-  light and dark themes ("night shift": violet-tinted darks or lavender light, an electric
-  violet accent with cyan and pink in gradients, one hue per component family, floating
-  rounded panels around the canvas, a drifting aurora behind the home hero that stops for
-  reduced motion). Type: Bricolage Grotesque for display headings, Geist Sans and Geist Mono
+- Command palette (every action, workspaces, every technology preset, "Theme: …" commands),
+  keyboard shortcuts. Theme picker (palette button in the editor top bar and on the home
+  page): five dark themes, Midnight (navy slate dashboard look, the default), Tokyo Night,
+  Dracula, Nord and GitHub Dark, plus a lavender light theme. Each theme is a set of CSS
+  tokens (surfaces, ink, accents, one hue per component family, chart grid); the choice is
+  stored in this browser's localStorage only and applied before first paint. Floating rounded
+  panels around the canvas and a drifting aurora behind the home hero that stops for reduced
+  motion. Type: Bricolage Grotesque for display headings, Geist Sans and Geist Mono
   for the interface and numbers (self-hosted at build time by next/font; no runtime calls to
   Google).
 - Links attach on any of the four sides of a component: drag from any side to any side, in
@@ -190,6 +193,11 @@ palette (including adding presets). Bugs found this way were fixed: command rank
 render loop in the breaking-point page, sweep runs opening as the default run, a `.gitignore`
 rule that hid `components/build/` from git and from Tailwind, the theme script warning.
 
+Themes, on 2026-10-25, same setup: the editor in all six themes, the home page in Midnight and
+Dracula, switching from the top bar, the home page and the command palette, and the saved
+theme being applied on reload. Bug found and fixed: the theme button crashed the home page
+(its tooltip needed a provider only the editor had); a unit test now covers it.
+
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links
 by dragging handles (and a refused self-link with its message); live validation messages;
@@ -250,7 +258,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - No authentication or multi-user support; bind to localhost only.
 - README screenshots are 800x500 captures; a demo GIF has not been recorded.
 - The UI was checked by hand in one browser engine (Chromium in the desktop app) at 1280x800
-  and 1440x900, in both themes; there are no automated visual or end-to-end tests yet.
+  and 1440x900, mostly in Midnight and Light; Tokyo Night, Dracula, Nord and GitHub Dark were
+  only spot-checked on the editor and home page. There are no automated visual or end-to-end
+  tests yet.
 - The canvas layout is usable at tablet widths, but the editor is designed for desktop
   screens.
 
