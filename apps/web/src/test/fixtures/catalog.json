@@ -601,6 +601,38 @@
           "group": "Rate limiting"
         },
         {
+          "key": "cpuCores",
+          "label": "CPU",
+          "kind": "number",
+          "nullable": true,
+          "description": "vCPU per instance. Empty = not modelled. Shown on the design and used for price estimates; it does not change the simulation.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 512,
+          "unit": "vCPU",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "memoryGib",
+          "label": "Memory",
+          "kind": "number",
+          "nullable": true,
+          "description": "Memory per instance (GiB). Empty = not modelled. Shown on the design and used for price estimates; it does not change the simulation.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 24576,
+          "unit": "GiB",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
           "key": "costPerHour",
           "label": "Cost per hour",
           "kind": "number",
@@ -645,6 +677,8 @@
           "family": "Load balancer",
           "description": "Reverse proxy / load balancer with very low per-request overhead.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 2,
             "technology": "nginx",
             "policy": "round_robin",
             "overheadMs": {
@@ -664,6 +698,8 @@
           "family": "Load balancer",
           "description": "High-performance TCP/HTTP load balancer, least-connections balancing.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 2,
             "technology": "haproxy",
             "policy": "least_connections",
             "overheadMs": {
@@ -683,6 +719,8 @@
           "family": "Load balancer",
           "description": "Service proxy (also the data plane of most service meshes).",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 2,
             "technology": "envoy",
             "policy": "least_connections",
             "overheadMs": {
@@ -702,6 +740,8 @@
           "family": "API gateway",
           "description": "API gateway in front of services, with a global rate limit.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 4,
             "technology": "kong",
             "overheadMs": {
               "kind": "lognormal",
@@ -919,6 +959,67 @@
           "group": "Performance"
         },
         {
+          "key": "cpuCores",
+          "label": "CPU",
+          "kind": "number",
+          "nullable": true,
+          "description": "vCPU per replica. Empty = not modelled. When set, CPU work waits for a free core while more handlers than cores want the CPU (CPU contention); below 1 (e.g. 0.5) CPU work runs proportionally slower. Service time is treated as CPU work. Serverless: one request per instance, so only values below 1 matter.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 512,
+          "unit": "vCPU",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "memoryGib",
+          "label": "Memory",
+          "kind": "number",
+          "nullable": true,
+          "description": "Memory per replica (GiB). Empty = not modelled. When set, every request a replica holds (queued, running or waiting on downstream calls) uses memory; a request that would exceed it is refused (out of memory).",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 24576,
+          "unit": "GiB",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "memoryPerRequestMb",
+          "label": "Memory per request",
+          "kind": "number",
+          "nullable": false,
+          "description": "Memory one in-flight request uses (MiB). Only used when memory is set.",
+          "default": 2.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 65536,
+          "unit": "MiB",
+          "group": "Resources"
+        },
+        {
+          "key": "memoryBaselineMb",
+          "label": "Memory at idle",
+          "kind": "number",
+          "nullable": false,
+          "description": "Memory a replica uses before any request (runtime, heap, caches) (MiB). Only used when memory is set.",
+          "default": 256.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 1048576,
+          "unit": "MiB",
+          "group": "Resources"
+        },
+        {
           "key": "autoscaling",
           "label": "Autoscaling",
           "kind": "boolean",
@@ -1093,6 +1194,8 @@
           "p95": 25.0
         },
         "blockingDownstream": true,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
         "autoscaling": false,
         "minReplicas": 1,
         "maxReplicas": 10,
@@ -1113,10 +1216,12 @@
         "Worker pool per replica; service time sampled from the configured distribution",
         "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
         "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
-        "Serverless (platform): one request per instance, cold starts, concurrency limit (throttling), idle reclaim"
+        "Serverless (platform): one request per instance, cold starts, concurrency limit (throttling), idle reclaim",
+        "CPU cores (when set): service time needs a core; with fewer cores than workers, work queues for a core",
+        "Memory (when set): requests held by a replica use memory; past the limit new requests are refused"
       ],
       "notModeled": [
-        "CPU contention between workers, garbage collection pauses",
+        "Garbage collection pauses; OOM kills and restarts (memory is a refusal limit instead)",
         "Parallel fan-out calls (dependencies are called one after another)",
         "Node/cluster capacity limits for new pods, readiness probe failures",
         "Serverless memory/CPU sizing and provisioned concurrency"
@@ -1129,6 +1234,8 @@
           "family": "VM",
           "description": "Fixed replicas on virtual machines, thread-per-request workers.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 4,
             "technology": "generic",
             "platform": "vm"
           },
@@ -1144,6 +1251,10 @@
           "family": "Container",
           "description": "Spring Boot containers with a large blocking thread pool (Tomcat-style).",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 4,
+            "memoryPerRequestMb": 1,
+            "memoryBaselineMb": 768,
             "technology": "java",
             "platform": "docker",
             "replicas": 2,
@@ -1170,6 +1281,10 @@
           "family": "Container",
           "description": "Single-threaded event loop per container: one handler at a time, I/O does not block it.",
           "config": {
+            "cpuCores": 1,
+            "memoryGib": 1,
+            "memoryPerRequestMb": 0.5,
+            "memoryBaselineMb": 128,
             "technology": "nodejs",
             "platform": "docker",
             "replicas": 4,
@@ -1196,6 +1311,10 @@
           "family": "Kubernetes",
           "description": "Go pods behind a Kubernetes Service with a Horizontal Pod Autoscaler.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 1,
+            "memoryPerRequestMb": 0.25,
+            "memoryBaselineMb": 64,
             "technology": "go",
             "platform": "kubernetes",
             "replicas": 2,
@@ -1227,6 +1346,10 @@
           "family": "Kubernetes",
           "description": "Gunicorn-style worker processes in pods, autoscaled by an HPA.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 2,
+            "memoryPerRequestMb": 4,
+            "memoryBaselineMb": 512,
             "technology": "python",
             "platform": "kubernetes",
             "replicas": 2,
@@ -1258,6 +1381,8 @@
           "family": "Serverless",
           "description": "Function-as-a-service: an instance per concurrent request, cold starts when scaling out.",
           "config": {
+            "cpuCores": 1,
+            "memoryGib": 1.75,
             "technology": "nodejs",
             "platform": "serverless",
             "concurrencyLimit": 1000,
@@ -1453,6 +1578,53 @@
           "group": "Capacity"
         },
         {
+          "key": "cpuCores",
+          "label": "CPU",
+          "kind": "number",
+          "nullable": true,
+          "description": "vCPU per cache node. Empty = not modelled. When set, CPU work waits for a free core while more handlers than cores want the CPU (CPU contention); below 1 (e.g. 0.5) CPU work runs proportionally slower.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 512,
+          "unit": "vCPU",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "memoryGib",
+          "label": "Memory",
+          "kind": "number",
+          "nullable": true,
+          "description": "Memory per cache node (GiB). Empty = not modelled. 80% of it holds keys. TTL model: when it is full the least recently used key is evicted. Fixed hit ratio: checked against the workload's keyspace.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 24576,
+          "unit": "GiB",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "itemSizeKb",
+          "label": "Item size",
+          "kind": "number",
+          "nullable": false,
+          "description": "Average size of one cached key and value, with overhead (KiB). Only used when memory is set.",
+          "default": 1.0,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1048576,
+          "unit": "KiB",
+          "group": "Resources"
+        },
+        {
           "key": "costPerHour",
           "label": "Cost per hour",
           "kind": "number",
@@ -1479,15 +1651,18 @@
         },
         "concurrency": 1,
         "queueCapacity": 10000,
+        "itemSizeKb": 1.0,
         "costPerHour": 0.1
       },
       "modeled": [
         "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
         "Single-threaded command execution with a queue",
-        "Miss path latency added to the caller; repopulation cost"
+        "Miss path latency added to the caller; repopulation cost",
+        "Memory (when set, TTL model): key capacity from memory and item size, LRU eviction",
+        "CPU cores (when set): commands queue for a core when executors outnumber cores"
       ],
       "notModeled": [
-        "Memory limits and eviction (LRU/LFU)",
+        "LFU and other eviction policies; memory for the fixed-ratio model (checked, not simulated)",
         "Thundering herd / request coalescing on misses",
         "Replication, persistence and cluster sharding",
         "CDN geography (edge-to-user latency belongs on the incoming link)"
@@ -1500,6 +1675,8 @@
           "family": "In-memory",
           "description": "Single Redis node: commands run on one thread, sub-millisecond. Illustrative defaults.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 6.4,
             "technology": "redis",
             "concurrency": 1,
             "costPerHour": 0.1
@@ -1516,6 +1693,8 @@
           "family": "In-memory",
           "description": "Redis-compatible; multi-threaded I/O lets a few commands proceed in parallel. Illustrative defaults.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 6.4,
             "technology": "valkey",
             "concurrency": 4,
             "costPerHour": 0.1
@@ -1532,6 +1711,8 @@
           "family": "In-memory",
           "description": "Multi-threaded, simple get/set cache. Illustrative defaults.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 6.4,
             "technology": "memcached",
             "concurrency": 8,
             "serviceTimeMs": {
@@ -1576,6 +1757,8 @@
           "family": "HTTP accelerator",
           "description": "Reverse-proxy HTTP cache in front of the application. Illustrative defaults.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 8,
             "technology": "varnish",
             "concurrency": 256,
             "hitRatio": 0.85,
@@ -1788,6 +1971,113 @@
           "group": "Capacity"
         },
         {
+          "key": "cpuCores",
+          "label": "CPU",
+          "kind": "number",
+          "nullable": true,
+          "description": "vCPU per instance. Empty = not modelled. When set, CPU work waits for a free core while more handlers than cores want the CPU (CPU contention); below 1 (e.g. 0.5) CPU work runs proportionally slower. Only the CPU share of each query needs a core.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 512,
+          "unit": "vCPU",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "cpuShare",
+          "label": "CPU share of query time",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of query time that needs a CPU core; the rest is I/O, locks and network. Only used when CPU is set.",
+          "default": 0.5,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "max": 1,
+          "group": "Resources",
+          "step": 0.05
+        },
+        {
+          "key": "memoryGib",
+          "label": "Memory",
+          "kind": "number",
+          "nullable": true,
+          "description": "Memory per instance (GiB). Empty = not modelled. With a working set, 75% of it is buffer cache: reads of data that does not fit go to disk.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 24576,
+          "unit": "GiB",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "workingSetGib",
+          "label": "Hot working set",
+          "kind": "number",
+          "nullable": true,
+          "description": "Size of the data that is read often (GiB), across all shards. With memory set, the share of reads served from memory is min(1, 75% of memory / working set per shard).",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 10000000,
+          "unit": "GiB",
+          "group": "Resources"
+        },
+        {
+          "key": "diskReadMs",
+          "label": "Disk read time",
+          "kind": "distribution",
+          "nullable": false,
+          "description": "Extra time of a read that misses the buffer cache and goes to disk (ms).",
+          "default": {
+            "kind": "lognormal",
+            "median": 1.0,
+            "p95": 4.0
+          },
+          "assumption": true,
+          "headline": false,
+          "unit": "ms",
+          "group": "Resources"
+        },
+        {
+          "key": "storageGib",
+          "label": "Storage",
+          "kind": "number",
+          "nullable": true,
+          "description": "Disk per instance (GiB). Empty = not modelled. Checked against the data size: each instance stores its shard's data.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1000000,
+          "unit": "GiB",
+          "group": "Resources"
+        },
+        {
+          "key": "dataSizeGib",
+          "label": "Data size",
+          "kind": "number",
+          "nullable": true,
+          "description": "Total data stored (GiB), across all shards. Used to check storage.",
+          "default": null,
+          "assumption": true,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 100000000,
+          "unit": "GiB",
+          "group": "Resources"
+        },
+        {
           "key": "costPerHour",
           "label": "Cost per instance-hour",
           "kind": "number",
@@ -1821,6 +2111,12 @@
         "consistency": "one",
         "queueCapacity": 200,
         "queueTimeoutMs": 1000.0,
+        "cpuShare": 0.5,
+        "diskReadMs": {
+          "kind": "lognormal",
+          "median": 1.0,
+          "p95": 4.0
+        },
         "costPerHour": 0.35
       },
       "modeled": [
@@ -1829,10 +2125,13 @@
         "Read replicas: reads round-robin over primary and replicas, writes to the primary",
         "Key-hash sharding; a skewed (Zipf) keyspace creates hot shards",
         "Replication factor + consistency level: latency is the k-th fastest of RF replicas",
-        "Provisioned throughput per shard; excess requests are throttled"
+        "Provisioned throughput per shard; excess requests are throttled",
+        "CPU cores (when set): the CPU share of each query needs a core; queries queue for cores",
+        "Buffer cache (memory and working set set): reads of data that does not fit pay a disk read",
+        "Storage (with a data size): checked per instance"
       ],
       "notModeled": [
-        "Locks, MVCC contention, disk I/O and buffer cache behaviour",
+        "Locks, MVCC contention, write I/O and checkpoints, eviction dynamics of the buffer cache",
         "Replication lag and stale reads; failover and leader election",
         "Replica load in leaderless writes (an operation holds one connection, not RF)",
         "Cross-shard queries and transactions, rebalancing, query planning"
@@ -1845,6 +2144,9 @@
           "family": "Relational",
           "description": "Single PostgreSQL primary behind an application connection pool. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 16,
+            "storageGib": 200,
             "technology": "postgresql",
             "maxConnections": 20,
             "readServiceTimeMs": {
@@ -1872,6 +2174,9 @@
           "family": "Relational",
           "description": "Primary for writes, two streaming replicas that share the reads. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 16,
+            "storageGib": 200,
             "technology": "postgresql",
             "maxConnections": 20,
             "readReplicas": 2,
@@ -1900,6 +2205,9 @@
           "family": "Relational",
           "description": "Single MySQL (InnoDB) primary. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 16,
+            "storageGib": 200,
             "technology": "mysql",
             "maxConnections": 20,
             "readServiceTimeMs": {
@@ -1927,6 +2235,9 @@
           "family": "Relational",
           "description": "Single SQL Server instance; the hourly price includes a licence. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 32,
+            "storageGib": 250,
             "technology": "sqlserver",
             "maxConnections": 30,
             "readServiceTimeMs": {
@@ -1954,6 +2265,9 @@
           "family": "Distributed SQL",
           "description": "Three ranges/shards, each replicated three times with quorum (Raft) writes: survives a node loss, pays a consensus round trip. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 16,
+            "storageGib": 300,
             "technology": "cockroachdb",
             "maxConnections": 20,
             "shards": 3,
@@ -1985,6 +2299,9 @@
           "family": "Document",
           "description": "Primary plus two secondaries; reads use secondaries (secondaryPreferred). Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 16,
+            "storageGib": 250,
             "technology": "mongodb",
             "maxConnections": 50,
             "readReplicas": 2,
@@ -2013,6 +2330,9 @@
           "family": "Document",
           "description": "Four shards, each a replica set (primary + two secondaries), routed by shard key. A skewed key distribution makes one shard hot. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 16,
+            "storageGib": 250,
             "technology": "mongodb",
             "maxConnections": 50,
             "shards": 4,
@@ -2042,6 +2362,9 @@
           "family": "Wide-column",
           "description": "Six token ranges, replication factor 3, QUORUM reads and writes. LSM storage makes writes cheaper than reads. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 8,
+            "memoryGib": 32,
+            "storageGib": 1000,
             "technology": "cassandra",
             "maxConnections": 32,
             "shards": 6,
@@ -2102,6 +2425,9 @@
           "family": "Search",
           "description": "Three primary shards with one replica each; searches are slower than key lookups and indexing is the expensive write. Defaults are illustrative assumptions, not vendor benchmarks.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 32,
+            "storageGib": 500,
             "technology": "elasticsearch",
             "maxConnections": 16,
             "shards": 3,
@@ -2555,6 +2881,53 @@
           "group": "Cost"
         },
         {
+          "key": "cpuCores",
+          "label": "CPU",
+          "kind": "number",
+          "nullable": true,
+          "description": "vCPU per broker. Empty = not modelled. Shown on the design and used for price estimates; it does not change the simulation.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 512,
+          "unit": "vCPU",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "memoryGib",
+          "label": "Memory",
+          "kind": "number",
+          "nullable": true,
+          "description": "Memory per broker (GiB). Empty = not modelled. Shown on the design and used for price estimates; it does not change the simulation.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 24576,
+          "unit": "GiB",
+          "group": "Resources",
+          "step": 0.5
+        },
+        {
+          "key": "storageGib",
+          "label": "Storage",
+          "kind": "number",
+          "nullable": true,
+          "description": "Disk per broker (GiB). Empty = not modelled. Shown on the design and used for price estimates; it does not change the simulation.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1000000,
+          "unit": "GiB",
+          "group": "Resources"
+        },
+        {
           "key": "costPerHour",
           "label": "Cost per broker-hour",
           "kind": "number",
@@ -2607,6 +2980,9 @@
           "family": "Log / stream",
           "description": "Partitioned log: consumer parallelism is capped by partitions; acks=all publish latency.",
           "config": {
+            "cpuCores": 4,
+            "memoryGib": 16,
+            "storageGib": 1000,
             "technology": "kafka",
             "partitions": 12,
             "consumers": 6,
@@ -2638,6 +3014,9 @@
           "family": "Broker",
           "description": "Message broker with competing consumers on a queue.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 8,
+            "storageGib": 200,
             "technology": "rabbitmq",
             "partitions": 1000,
             "consumers": 8,
@@ -2728,6 +3107,9 @@
           "family": "Broker",
           "description": "Lightweight messaging (JetStream for persistence) with very low publish latency.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 4,
+            "storageGib": 100,
             "technology": "nats",
             "partitions": 1000,
             "consumers": 8,
@@ -2757,6 +3139,8 @@
           "family": "Log / stream",
           "description": "Append-only stream with consumer groups, in memory.",
           "config": {
+            "cpuCores": 2,
+            "memoryGib": 6.4,
             "technology": "redis_streams",
             "partitions": 1000,
             "consumers": 4,

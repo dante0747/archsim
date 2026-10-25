@@ -10,6 +10,22 @@ import { isClientType } from "./theme";
 import type { Catalog, NodeReport, NodeSpec, Report } from "./types";
 
 export const HOURS_PER_MONTH = 730;
+
+/**
+ * Illustrative on-demand prices for sizing hints, roughly a large cloud's general-purpose VMs
+ * (2 vCPU / 8 GiB ≈ $0.10 per hour) and block storage. Not a quote: use your provider's prices.
+ */
+export const PRICE_PER_VCPU_HOUR = 0.037;
+export const PRICE_PER_GIB_HOUR = 0.0028;
+export const PRICE_PER_STORAGE_GIB_MONTH = 0.08;
+
+/** Hourly price of one instance of this size, or null when CPU and memory are both unset. */
+export function sizePricePerHour(cpu: number | null | undefined, memoryGib: number | null | undefined, storageGib?: number | null): number | null {
+  if (cpu == null && memoryGib == null) return null;
+  const compute = (cpu ?? 0) * PRICE_PER_VCPU_HOUR + (memoryGib ?? 0) * PRICE_PER_GIB_HOUR;
+  const disk = ((storageGib ?? 0) * PRICE_PER_STORAGE_GIB_MONTH) / 730;
+  return Math.round((compute + disk) * 10000) / 10000;
+}
 export const SECONDS_PER_MONTH = HOURS_PER_MONTH * 3600;
 
 export interface NodeCost {

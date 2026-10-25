@@ -62,6 +62,7 @@ REASON_TEXT = {
     "throttled": "throttled (concurrency or provisioned throughput exceeded)",
     "rate_limited": "rate limited",
     "upstream_error": "third-party API returned an error",
+    "out_of_memory": "ran out of memory (request refused)",
 }
 
 

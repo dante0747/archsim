@@ -250,6 +250,29 @@ turns them into a monthly estimate (730 hours) and a cost per million successful
 using the run's average replica count for autoscaled services and the measured call rate for
 third-party APIs.
 
+### Resource specs (CPU, memory, storage)
+
+Services, databases, caches, load balancers and message queues can carry `cpuCores`,
+`memoryGib` and (databases, queues) `storageGib` per instance (per replica, per database
+instance, per cache node, per broker). Every spec is optional: left empty it is not modelled
+and the component behaves exactly as before. Set, it has these effects:
+
+| Component | CPU cores | Memory | Storage |
+| --- | --- | --- | --- |
+| Service | `serviceTimeMs` is CPU work: at most `floor(cpuCores)` handlers per replica run it at once, the rest wait for a core; below 1 core the work runs `1 / cpuCores` times slower. Serverless: only a fraction below 1 matters (one request per instance). | Each request a replica holds (queued, running, or waiting on downstream calls) uses `memoryPerRequestMb` on top of `memoryBaselineMb`; a request that would exceed `memoryGib` is refused (`out_of_memory`). | - |
+| Database | `cpuShare` of each query's time needs a core (the rest is I/O, locks, network); queries queue for cores per instance. | With `workingSetGib`: 75% of memory is buffer cache; reads are served from memory with probability `min(1, 0.75 x memoryGib / (workingSetGib / shards))`, the others add `diskReadMs`. | Checked against `dataSizeGib / shards` per instance (error when it does not fit, warning above 85%). |
+| Cache | Command execution queues for cores when `concurrency` exceeds them. | TTL model: 80% of memory holds keys of `itemSizeKb`; when full, the least recently used key is evicted. Fixed ratio: a warning when the workload's keyspace does not fit. | - |
+| Load balancer, message queue | Shown and priced only. | Shown and priced only. | Shown and priced only (queues). |
+
+Whole cores above one give parallelism, a fraction keeps total capacity (2.5 vCPU = two
+executors at 1.25x). With as many whole cores as handlers nothing waits and results are the
+same as without the spec. Reports add `cpuCoreUtilization` (busy executors / executors in the
+window), `memoryPeakGiB` (services), `bufferHitRatio` (databases) and `capacityKeys` /
+`keysCached` plus an `evictions` counter (caches). Not modelled: garbage collection, OOM kills
+and restarts (memory is a refusal limit), page-cache dynamics, write I/O, network bandwidth.
+The web app suggests an illustrative on-demand price for a size ($0.037 per vCPU-hour, $0.0028
+per GiB-hour, $0.08 per GiB-month of storage); it is never applied unless you choose it.
+
 ## Validation rules
 
 Documents are validated before simulation (`validation.py`); errors block the run and carry

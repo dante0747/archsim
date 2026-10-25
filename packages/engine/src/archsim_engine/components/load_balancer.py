@@ -8,6 +8,7 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field
 
+from archsim_engine.components.resources import INFO_ONLY, cpu_field, memory_field
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.issues import Issue, error
 from archsim_engine.metrics import Gauge
@@ -69,6 +70,8 @@ class LoadBalancerConfig(CamelModel):
         description="Bucket size: requests admitted in a burst above the rate. Empty = one second's worth.",
         json_schema_extra=ui(label="Burst", unit="req", group="Rate limiting"),
     )
+    cpu_cores: float | None = cpu_field("instance", INFO_ONLY)
+    memory_gib: float | None = memory_field("instance", INFO_ONLY)
     cost_per_hour: float = Field(
         default=0.025,
         ge=0,
@@ -222,6 +225,8 @@ class LoadBalancerModel(ComponentModel):
             family="Load balancer",
             description="Reverse proxy / load balancer with very low per-request overhead.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 2,
                 "technology": "nginx",
                 "policy": "round_robin",
                 "overheadMs": {"kind": "constant", "value": 0.2},
@@ -235,6 +240,8 @@ class LoadBalancerModel(ComponentModel):
             family="Load balancer",
             description="High-performance TCP/HTTP load balancer, least-connections balancing.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 2,
                 "technology": "haproxy",
                 "policy": "least_connections",
                 "overheadMs": {"kind": "constant", "value": 0.15},
@@ -248,6 +255,8 @@ class LoadBalancerModel(ComponentModel):
             family="Load balancer",
             description="Service proxy (also the data plane of most service meshes).",
             config={
+                "cpuCores": 2,
+                "memoryGib": 2,
                 "technology": "envoy",
                 "policy": "least_connections",
                 "overheadMs": {"kind": "constant", "value": 0.3},
@@ -261,6 +270,8 @@ class LoadBalancerModel(ComponentModel):
             family="API gateway",
             description="API gateway in front of services, with a global rate limit.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 4,
                 "technology": "kong",
                 "overheadMs": {"kind": "lognormal", "median": 1.0, "p95": 3.0},
                 "rateLimitRps": 1000,

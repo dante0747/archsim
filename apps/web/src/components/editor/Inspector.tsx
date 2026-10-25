@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo } from "react";
 import { CLIENT_BLOCK_FIELDS, ClientBlock } from "@/components/editor/ClientBlock";
 import { FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
+import { RESOURCE_FIELDS, ResourceBlock } from "@/components/editor/ResourceBlock";
 import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
 import { TechnologyPicker } from "@/components/build/TechnologyPicker";
@@ -233,6 +234,7 @@ function SettingsBlocks({
   idPrefix,
   allowedRequestTypes,
   extraAdvanced,
+  between,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
@@ -240,6 +242,8 @@ function SettingsBlocks({
   idPrefix: string;
   allowedRequestTypes?: RequestType[];
   extraAdvanced?: React.ReactNode;
+  /** Shown between the key settings and "More settings" (e.g. resources). */
+  between?: React.ReactNode;
 }) {
   const headline = fields.filter((f) => f.headline && isFieldVisible(f, values));
   const key = headline.slice(0, KEY_LIMIT);
@@ -253,6 +257,7 @@ function SettingsBlocks({
           <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} flat />
         </section>
       )}
+      {between}
       {(restCount > 0 || extraAdvanced) && (
         <details className="group rounded-lg border border-line" open={key.length === 0}>
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12.5px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
@@ -378,10 +383,11 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
 
       {comp ? (
         <SettingsBlocks
-          fields={comp.isTrafficSource ? comp.fields.filter((f) => !CLIENT_BLOCK_FIELDS.includes(f.key)) : comp.fields}
+          fields={comp.fields.filter((f) => !RESOURCE_FIELDS.includes(f.key) && !(comp.isTrafficSource && CLIENT_BLOCK_FIELDS.includes(f.key)))}
           values={node.data.config}
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
           idPrefix={`node-${nodeId}`}
+          between={<ResourceBlock nodeId={nodeId} comp={comp} config={node.data.config} />}
           extraAdvanced={
             <div className="space-y-3">
               <div className="space-y-1.5">
@@ -399,6 +405,12 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
   );
 }
 
+/** Memory for people: MiB below 1 GiB, otherwise GiB with at most one decimal. */
+function fmtGiB(v: number): string {
+  if (!Number.isFinite(v)) return "–";
+  return v < 1 ? `${Math.round(v * 1024)} MiB` : `${+v.toFixed(1)} GiB`;
+}
+
 /** After a run: one status line and three numbers; charts are one click away. */
 function NodeResults({ nodeId }: { nodeId: string }) {
   const report = useActiveReport();
@@ -413,6 +425,16 @@ function NodeResults({ nodeId }: { nodeId: string }) {
     ["wait p95", fmtMs(s.p95QueueWaitMs)],
     s.hitRatio != null ? ["hit ratio", fmtPct(s.hitRatio, 0)] : ["rejected", fmtNum(s.rejectedTotal)],
   ];
+  // Resource specs (when set): how hard the CPU, memory, buffer cache and key space were used.
+  const cfg = nr.config;
+  const resourceStats = [
+    s.cpuCoreUtilization != null && `CPU ${fmtPct(s.cpuCoreUtilization, 0)} busy`,
+    s.memoryPeakGiB != null && `memory peak ${fmtGiB(s.memoryPeakGiB)} of ${fmtGiB(Number(cfg.memoryGib))}`,
+    (s.rejected?.out_of_memory ?? 0) > 0 && `${fmtNum(s.rejected.out_of_memory)} refused (memory)`,
+    s.bufferHitRatio != null && `buffer cache ${fmtPct(s.bufferHitRatio, 0)} of reads`,
+    s.capacityKeys != null && `${fmtNum(s.keysCached ?? 0)} of ${fmtNum(s.capacityKeys)} keys held`,
+    (s.counters?.evictions ?? 0) > 0 && `${fmtNum(s.counters.evictions)} evictions`,
+  ].filter((x): x is string => typeof x === "string");
   return (
     <section aria-label="Last run" className="overflow-hidden rounded-lg border border-line">
       <div className="flex items-center gap-2 border-l-2 px-3 py-2" style={{ borderLeftColor: meta.color }}>
@@ -440,6 +462,9 @@ function NodeResults({ nodeId }: { nodeId: string }) {
           </div>
         ))}
       </dl>
+      {resourceStats.length > 0 && (
+        <p className="border-t border-line px-3 py-1.5 font-mono text-[11px] text-ink-2">{resourceStats.join(" · ")}</p>
+      )}
     </section>
   );
 }

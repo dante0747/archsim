@@ -21,6 +21,7 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field
 
+from archsim_engine.components.resources import INFO_ONLY, cpu_field, memory_field, storage_field
 from archsim_engine.distributions import Distribution, LogNormal
 from archsim_engine.issues import Issue, warning
 from archsim_engine.metrics import LatencyHistogram, MeanAccumulator
@@ -101,6 +102,9 @@ class MessageQueueConfig(CamelModel):
         description="Broker nodes in the cluster (used for cost; throughput is set by consumers and partitions).",
         json_schema_extra=ui(label="Brokers", group="Cost"),
     )
+    cpu_cores: float | None = cpu_field("broker", INFO_ONLY)
+    memory_gib: float | None = memory_field("broker", INFO_ONLY)
+    storage_gib: float | None = storage_field("broker", INFO_ONLY)
     cost_per_hour: float = Field(
         default=0.15,
         ge=0,
@@ -283,6 +287,9 @@ class MessageQueueModel(ComponentModel):
             family="Log / stream",
             description="Partitioned log: consumer parallelism is capped by partitions; acks=all publish latency.",
             config={
+                "cpuCores": 4,
+                "memoryGib": 16,
+                "storageGib": 1000,
                 "technology": "kafka",
                 "partitions": 12,
                 "consumers": 6,
@@ -302,6 +309,9 @@ class MessageQueueModel(ComponentModel):
             family="Broker",
             description="Message broker with competing consumers on a queue.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 8,
+                "storageGib": 200,
                 "technology": "rabbitmq",
                 "partitions": 1000,
                 "consumers": 8,
@@ -359,6 +369,9 @@ class MessageQueueModel(ComponentModel):
             family="Broker",
             description="Lightweight messaging (JetStream for persistence) with very low publish latency.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 4,
+                "storageGib": 100,
                 "technology": "nats",
                 "partitions": 1000,
                 "consumers": 8,
@@ -377,6 +390,8 @@ class MessageQueueModel(ComponentModel):
             family="Log / stream",
             description="Append-only stream with consumer groups, in memory.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 6.4,
                 "technology": "redis_streams",
                 "partitions": 1000,
                 "consumers": 4,

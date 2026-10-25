@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOURS_PER_MONTH, SECONDS_PER_MONTH, estimateCost, formatUsd, instancesOf, paretoFrontier } from "./cost";
+import { HOURS_PER_MONTH, SECONDS_PER_MONTH, estimateCost, formatUsd, instancesOf, paretoFrontier, sizePricePerHour } from "./cost";
 import type { Catalog, NodeSpec, Report } from "./types";
 
 const catalog = {
@@ -96,5 +96,13 @@ describe("paretoFrontier", () => {
     ];
     expect(paretoFrontier(pts).map((p) => p.id)).toEqual(["a", "b", "d"]);
     expect(paretoFrontier([])).toEqual([]);
+  });
+});
+
+describe("sizePricePerHour", () => {
+  it("prices a size from vCPU, memory and storage, or nothing when unset", () => {
+    expect(sizePricePerHour(2, 8)).toBeCloseTo(0.0964, 4);
+    expect(sizePricePerHour(4, 16, 730)).toBeCloseTo(4 * 0.037 + 16 * 0.0028 + 0.08, 4);
+    expect(sizePricePerHour(null, null, 100)).toBeNull();
   });
 });

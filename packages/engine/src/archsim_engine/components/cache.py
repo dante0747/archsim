@@ -6,14 +6,25 @@ time, hit ratio) for each technology."""
 
 from __future__ import annotations
 
+import math
+from collections import OrderedDict
 from collections.abc import Generator
 from typing import Any, Literal
 
 import simpy
 from pydantic import Field
 
+from archsim_engine.components.resources import (
+    CPU_CONTENTION,
+    RESOURCES,
+    Cores,
+    core_utilization,
+    cpu_field,
+    memory_field,
+)
 from archsim_engine.distributions import Distribution, Exponential
 from archsim_engine.issues import Issue, error, warning
+from archsim_engine.metrics import Gauge
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
     OK,
@@ -103,6 +114,20 @@ class CacheConfig(CamelModel):
         description="Commands waiting longer than this are rejected (ms). Empty = no limit.",
         json_schema_extra=ui(label="Queue timeout", unit="ms", group="Capacity"),
     )
+    # -- resources -------------------------------------------------------------------------
+    cpu_cores: float | None = cpu_field("cache node", CPU_CONTENTION)
+    memory_gib: float | None = memory_field(
+        "cache node",
+        "80% of it holds keys. TTL model: when it is full the least recently used key is evicted. "
+        "Fixed hit ratio: checked against the workload's keyspace.",
+    )
+    item_size_kb: float = Field(
+        default=1.0,
+        gt=0,
+        le=1_048_576,
+        description="Average size of one cached key and value, with overhead (KiB). Only used when memory is set.",
+        json_schema_extra=ui(label="Item size", unit="KiB", group=RESOURCES, assumption=True),
+    )
     cost_per_hour: float = Field(
         default=0.1,
         ge=0,
@@ -114,6 +139,12 @@ class CacheConfig(CamelModel):
     def can_miss(self) -> bool:
         return self.hit_model == "ttl_keyspace" or self.hit_ratio < 1.0
 
+    def capacity_keys(self) -> int | None:
+        """Keys that fit in 80% of memory, or None when memory is not set."""
+        if self.memory_gib is None:
+            return None
+        return max(1, math.floor(0.8 * self.memory_gib * 1024 * 1024 / self.item_size_kb))
+
 
 class CacheRuntime(RuntimeComponent):
     def __init__(self, ctx: SimContext, node: NodeSpec, config: CacheConfig) -> None:
@@ -123,9 +154,13 @@ class CacheRuntime(RuntimeComponent):
         )
         self.rng = ctx.rng(f"node:{node.id}:service")
         self.hit_rng = ctx.rng(f"node:{node.id}:hits")
-        self.expiry: dict[int, float] = {}
         self.ttl_ms = config.ttl_seconds * 1000.0
         self.ttl_mode = config.hit_model == "ttl_keyspace"
+        # With memory set the TTL keyspace is bounded: least recently used keys are evicted.
+        self.capacity = config.capacity_keys() if self.ttl_mode else None
+        self.expiry: dict[int, float] = OrderedDict() if self.capacity is not None else {}
+        self.core_busy = Gauge(ctx.tl) if config.cpu_cores is not None else None
+        self.cores = Cores(ctx.env, config.cpu_cores, config.concurrency, self.core_busy)
 
     def _command(self) -> Generator[simpy.Event, Any, str | None]:
         """Execute one cache command on an executor. Returns a rejection reason or None."""
@@ -135,8 +170,7 @@ class CacheRuntime(RuntimeComponent):
             return reason or "rejected"
         start = env.now
         st = self.sample_time(self.config.service_time_ms, self.rng)
-        if st > 0:
-            yield env.timeout(st)
+        yield from self.cores.run(st)
         self.pool.release(tok)
         self.m.service.record(env.now, st)
         self.m.hold.record(env.now, env.now - start)
@@ -145,8 +179,33 @@ class CacheRuntime(RuntimeComponent):
     def _is_hit(self, req: Request) -> bool:
         if self.ttl_mode:
             exp = self.expiry.get(req.key)
-            return exp is not None and exp > self.env.now
+            hit = exp is not None and exp > self.env.now
+            if hit and self.capacity is not None:
+                self.expiry.move_to_end(req.key)  # type: ignore[attr-defined]
+            return hit
         return self.hit_rng.random() < self.config.hit_ratio
+
+    def _fill(self, key: int) -> None:
+        self.expiry[key] = self.env.now + self.ttl_ms
+        if self.capacity is not None:
+            self.expiry.move_to_end(key)  # type: ignore[attr-defined]
+            while len(self.expiry) > self.capacity:
+                self.expiry.popitem(last=False)  # type: ignore[call-arg]
+                self.m.count("evictions", self.env.now)
+
+    def finalize(self, t_end: float) -> None:
+        super().finalize(t_end)
+        if self.core_busy is not None:
+            self.core_busy.finalize(t_end)
+
+    def extra_summary(self) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        if self.core_busy is not None:
+            out["cpuCoreUtilization"] = core_utilization(self.core_busy, self.cores.n)
+        if self.capacity is not None:
+            out["capacityKeys"] = self.capacity
+            out["keysCached"] = len(self.expiry)
+        return out
 
     def handle(self, req: Request) -> Generator[simpy.Event, Any, Outcome]:
         env = self.env
@@ -179,7 +238,7 @@ class CacheRuntime(RuntimeComponent):
             if r is None:
                 m.count("populates", env.now)
                 if self.ttl_mode:
-                    self.expiry[req.key] = env.now + self.ttl_ms
+                    self._fill(req.key)
         m.depart(env.now, outcome, req)
         return outcome
 
@@ -209,9 +268,11 @@ class CacheModel(ComponentModel):
         "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
         "Single-threaded command execution with a queue",
         "Miss path latency added to the caller; repopulation cost",
+        "Memory (when set, TTL model): key capacity from memory and item size, LRU eviction",
+        "CPU cores (when set): commands queue for a core when executors outnumber cores",
     )
     not_modeled = (
-        "Memory limits and eviction (LRU/LFU)",
+        "LFU and other eviction policies; memory for the fixed-ratio model (checked, not simulated)",
         "Thundering herd / request coalescing on misses",
         "Replication, persistence and cluster sharding",
         "CDN geography (edge-to-user latency belongs on the incoming link)",
@@ -223,7 +284,13 @@ class CacheModel(ComponentModel):
             "redis",
             "In-memory",
             "Single Redis node: commands run on one thread, sub-millisecond. Illustrative defaults.",
-            {"technology": "redis", "concurrency": 1, "costPerHour": 0.1},
+            {
+                "cpuCores": 2,
+                "memoryGib": 6.4,
+                "technology": "redis",
+                "concurrency": 1,
+                "costPerHour": 0.1,
+            },
             ("in-memory", "key-value"),
         ),
         Preset(
@@ -233,7 +300,13 @@ class CacheModel(ComponentModel):
             "In-memory",
             "Redis-compatible; multi-threaded I/O lets a few commands proceed in parallel. "
             "Illustrative defaults.",
-            {"technology": "valkey", "concurrency": 4, "costPerHour": 0.1},
+            {
+                "cpuCores": 2,
+                "memoryGib": 6.4,
+                "technology": "valkey",
+                "concurrency": 4,
+                "costPerHour": 0.1,
+            },
             ("in-memory", "key-value"),
         ),
         Preset(
@@ -243,6 +316,8 @@ class CacheModel(ComponentModel):
             "In-memory",
             "Multi-threaded, simple get/set cache. Illustrative defaults.",
             {
+                "cpuCores": 2,
+                "memoryGib": 6.4,
                 "technology": "memcached",
                 "concurrency": 8,
                 "serviceTimeMs": {"kind": "exponential", "mean": 0.04},
@@ -275,6 +350,8 @@ class CacheModel(ComponentModel):
             "HTTP accelerator",
             "Reverse-proxy HTTP cache in front of the application. Illustrative defaults.",
             {
+                "cpuCores": 2,
+                "memoryGib": 8,
                 "technology": "varnish",
                 "concurrency": 256,
                 "hitRatio": 0.85,
@@ -327,6 +404,22 @@ class CacheModel(ComponentModel):
                     edge_id=miss_edges[0].id,
                 )
             )
+        cap = config.capacity_keys()
+        if cap is not None and config.hit_model == "fixed_ratio":
+            keys = view.workload.key_count
+            if keys > cap:
+                need = keys * config.item_size_kb / (1024 * 1024) / 0.8
+                issues.append(
+                    warning(
+                        "cache.keyspace_exceeds_memory",
+                        f"{name} holds about {cap:,} keys in {config.memory_gib:g} GiB but the "
+                        f"workload uses {keys:,}; the {config.hit_ratio:.0%} hit ratio may be "
+                        f"optimistic (all keys need about {need:,.1f} GiB).",
+                        node_id=node.id,
+                        path="memoryGib",
+                        hint="Add memory, or use the TTL model to simulate eviction.",
+                    )
+                )
         if config.hit_model == "ttl_keyspace" and not config.populate_on_miss:
             issues.append(
                 warning(

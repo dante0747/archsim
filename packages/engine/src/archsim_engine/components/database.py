@@ -26,8 +26,18 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field
 
+from archsim_engine.components.resources import (
+    CPU_CONTENTION,
+    RESOURCES,
+    Cores,
+    core_utilization,
+    cpu_field,
+    memory_field,
+    storage_field,
+)
 from archsim_engine.distributions import Distribution, LogNormal
-from archsim_engine.issues import Issue, warning
+from archsim_engine.issues import Issue, error, warning
+from archsim_engine.metrics import Gauge
 from archsim_engine.ratelimit import TokenBucket
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
@@ -158,6 +168,51 @@ class DatabaseConfig(CamelModel):
         description="Connection acquire timeout (ms). Queries waiting longer are rejected. Empty = no limit.",
         json_schema_extra=ui(label="Acquire timeout", unit="ms", group="Capacity"),
     )
+    # -- resources (per instance: each shard's primary and each replica) ------------------
+    cpu_cores: float | None = cpu_field(
+        "instance", CPU_CONTENTION + " Only the CPU share of each query needs a core."
+    )
+    cpu_share: float = Field(
+        default=0.5,
+        ge=0,
+        le=1,
+        description=(
+            "Share of query time that needs a CPU core; the rest is I/O, locks and network. Only "
+            "used when CPU is set."
+        ),
+        json_schema_extra=ui(
+            label="CPU share of query time", group=RESOURCES, assumption=True, step=0.05
+        ),
+    )
+    memory_gib: float | None = memory_field(
+        "instance",
+        "With a working set, 75% of it is buffer cache: reads of data that does not fit go to disk.",
+    )
+    working_set_gib: float | None = Field(
+        default=None,
+        gt=0,
+        le=10_000_000,
+        description=(
+            "Size of the data that is read often (GiB), across all shards. With memory set, the "
+            "share of reads served from memory is min(1, 75% of memory / working set per shard)."
+        ),
+        json_schema_extra=ui(label="Hot working set", unit="GiB", group=RESOURCES, assumption=True),
+    )
+    disk_read_ms: Distribution = Field(
+        default_factory=lambda: LogNormal(median=1.0, p95=4.0),
+        description="Extra time of a read that misses the buffer cache and goes to disk (ms).",
+        json_schema_extra=ui(label="Disk read time", unit="ms", group=RESOURCES, assumption=True),
+    )
+    storage_gib: float | None = storage_field(
+        "instance", "Checked against the data size: each instance stores its shard's data."
+    )
+    data_size_gib: float | None = Field(
+        default=None,
+        gt=0,
+        le=100_000_000,
+        description="Total data stored (GiB), across all shards. Used to check storage.",
+        json_schema_extra=ui(label="Data size", unit="GiB", group=RESOURCES, assumption=True),
+    )
     cost_per_hour: float = Field(
         default=0.35,
         ge=0,
@@ -174,6 +229,13 @@ class DatabaseConfig(CamelModel):
     def instances(self) -> int:
         """Instances that are paid for: per shard, the larger of replicas+1 and the RF."""
         return self.shards * max(1 + self.read_replicas, self.replication_factor)
+
+    def buffer_hit_ratio(self) -> float | None:
+        """Share of reads served from memory, or None when memory or working set is not set."""
+        if self.memory_gib is None or self.working_set_gib is None:
+            return None
+        per_shard = self.working_set_gib / self.shards
+        return min(1.0, 0.75 * self.memory_gib / per_shard)
 
     def wait_for(self) -> int:
         """Replica responses an operation waits for (k of RF)."""
@@ -207,6 +269,16 @@ class DatabaseRuntime(RuntimeComponent):
             ]
             for _ in range(config.shards)
         ]
+        self.core_busy = Gauge(ctx.tl) if config.cpu_cores is not None else None
+        self.cores = [
+            [
+                Cores(ctx.env, config.cpu_cores, config.max_connections, self.core_busy)
+                for _ in range(per_shard)
+            ]
+            for _ in range(config.shards)
+        ]
+        self.hit = config.buffer_hit_ratio()
+        self.buffer_rng = ctx.rng(f"node:{node.id}:buffer")
         self.rr = [0] * config.shards
         self.buckets = (
             [TokenBucket(config.throughput_limit_rps) for _ in range(config.shards)]
@@ -248,8 +320,25 @@ class DatabaseRuntime(RuntimeComponent):
         start = env.now
         dist = cfg.read_service_time_ms if req.op == "read" else cfg.write_service_time_ms
         st = self._op_time(dist)
-        if st > 0:
-            yield env.timeout(st)
+        if cfg.cpu_cores is None:
+            if st > 0:
+                yield env.timeout(st)
+        else:
+            cpu = st * cfg.cpu_share
+            yield from self.cores[s][index].run(cpu)
+            if st - cpu > 0:
+                yield env.timeout(st - cpu)
+        # a read whose data is not in the buffer cache goes to disk (draws only when it can miss)
+        if (
+            self.hit is not None
+            and self.hit < 1.0
+            and req.op == "read"
+            and self.buffer_rng.random() >= self.hit
+        ):
+            m.count("diskReads", env.now)
+            d = cfg.disk_read_ms.sample(self.buffer_rng)
+            if d > 0:
+                yield env.timeout(d)
         pool.release(tok)
         m.service.record(env.now, st)
         m.hold.record(env.now, env.now - start)
@@ -258,6 +347,23 @@ class DatabaseRuntime(RuntimeComponent):
             m.count("replicaReads", env.now)
         m.depart(env.now, OK, req)
         return OK
+
+    def finalize(self, t_end: float) -> None:
+        super().finalize(t_end)
+        if self.core_busy is not None:
+            self.core_busy.finalize(t_end)
+
+    def extra_summary(self) -> dict[str, Any]:
+        cfg: DatabaseConfig = self.config
+        out: dict[str, Any] = {}
+        if self.core_busy is not None:
+            instances = cfg.shards * (1 + cfg.read_replicas)
+            out["cpuCoreUtilization"] = core_utilization(
+                self.core_busy, self.cores[0][0].n * instances
+            )
+        if self.hit is not None:
+            out["bufferHitRatio"] = round(self.hit, 4)
+        return out
 
 
 def _lognormal(median: float, p95: float) -> dict[str, Any]:
@@ -287,9 +393,12 @@ class DatabaseModel(ComponentModel):
         "Key-hash sharding; a skewed (Zipf) keyspace creates hot shards",
         "Replication factor + consistency level: latency is the k-th fastest of RF replicas",
         "Provisioned throughput per shard; excess requests are throttled",
+        "CPU cores (when set): the CPU share of each query needs a core; queries queue for cores",
+        "Buffer cache (memory and working set set): reads of data that does not fit pay a disk read",
+        "Storage (with a data size): checked per instance",
     )
     not_modeled = (
-        "Locks, MVCC contention, disk I/O and buffer cache behaviour",
+        "Locks, MVCC contention, write I/O and checkpoints, eviction dynamics of the buffer cache",
         "Replication lag and stale reads; failover and leader election",
         "Replica load in leaderless writes (an operation holds one connection, not RF)",
         "Cross-shard queries and transactions, rebalancing, query planning",
@@ -302,6 +411,9 @@ class DatabaseModel(ComponentModel):
             "Relational",
             "Single PostgreSQL primary behind an application connection pool. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 16,
+                "storageGib": 200,
                 "technology": "postgresql",
                 "maxConnections": 20,
                 "readServiceTimeMs": _lognormal(4, 15),
@@ -317,6 +429,9 @@ class DatabaseModel(ComponentModel):
             "Relational",
             "Primary for writes, two streaming replicas that share the reads. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 16,
+                "storageGib": 200,
                 "technology": "postgresql",
                 "maxConnections": 20,
                 "readReplicas": 2,
@@ -333,6 +448,9 @@ class DatabaseModel(ComponentModel):
             "Relational",
             "Single MySQL (InnoDB) primary. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 16,
+                "storageGib": 200,
                 "technology": "mysql",
                 "maxConnections": 20,
                 "readServiceTimeMs": _lognormal(4, 16),
@@ -348,6 +466,9 @@ class DatabaseModel(ComponentModel):
             "Relational",
             "Single SQL Server instance; the hourly price includes a licence. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 32,
+                "storageGib": 250,
                 "technology": "sqlserver",
                 "maxConnections": 30,
                 "readServiceTimeMs": _lognormal(5, 20),
@@ -364,6 +485,9 @@ class DatabaseModel(ComponentModel):
             "Three ranges/shards, each replicated three times with quorum (Raft) writes: survives a "
             "node loss, pays a consensus round trip. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 16,
+                "storageGib": 300,
                 "technology": "cockroachdb",
                 "maxConnections": 20,
                 "shards": 3,
@@ -383,6 +507,9 @@ class DatabaseModel(ComponentModel):
             "Primary plus two secondaries; reads use secondaries (secondaryPreferred). "
             + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 16,
+                "storageGib": 250,
                 "technology": "mongodb",
                 "maxConnections": 50,
                 "readReplicas": 2,
@@ -400,6 +527,9 @@ class DatabaseModel(ComponentModel):
             "Four shards, each a replica set (primary + two secondaries), routed by shard key. A "
             "skewed key distribution makes one shard hot. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 16,
+                "storageGib": 250,
                 "technology": "mongodb",
                 "maxConnections": 50,
                 "shards": 4,
@@ -418,6 +548,9 @@ class DatabaseModel(ComponentModel):
             "Six token ranges, replication factor 3, QUORUM reads and writes. LSM storage makes "
             "writes cheaper than reads. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 8,
+                "memoryGib": 32,
+                "storageGib": 1000,
                 "technology": "cassandra",
                 "maxConnections": 32,
                 "shards": 6,
@@ -457,6 +590,9 @@ class DatabaseModel(ComponentModel):
             "Three primary shards with one replica each; searches are slower than key lookups and "
             "indexing is the expensive write. " + _ILLUSTRATIVE,
             {
+                "cpuCores": 4,
+                "memoryGib": 32,
+                "storageGib": 500,
                 "technology": "elasticsearch",
                 "maxConnections": 16,
                 "shards": 3,
@@ -487,6 +623,41 @@ class DatabaseModel(ComponentModel):
                     node_id=node.id,
                     path="consistency",
                     hint="Raise the replication factor (e.g. 3) or set consistency to 'one'.",
+                )
+            )
+        if config.data_size_gib is not None and config.storage_gib is not None:
+            per = config.data_size_gib / config.shards
+            if per > config.storage_gib:
+                issues.append(
+                    error(
+                        "database.storage_full",
+                        f"{name} stores about {per:,.0f} GiB per instance ({config.data_size_gib:,.0f} "
+                        f"GiB over {config.shards} shard(s)) but has {config.storage_gib:,.0f} GiB of "
+                        "storage.",
+                        node_id=node.id,
+                        path="storageGib",
+                        hint="Add storage, add shards, or lower the data size.",
+                    )
+                )
+            elif per > 0.85 * config.storage_gib:
+                issues.append(
+                    warning(
+                        "database.storage_nearly_full",
+                        f"{name} would use {per / config.storage_gib:.0%} of its storage per "
+                        "instance; leave room for growth, indexes and compaction.",
+                        node_id=node.id,
+                        path="storageGib",
+                    )
+                )
+        if config.working_set_gib is not None and config.memory_gib is None:
+            issues.append(
+                warning(
+                    "database.working_set_without_memory",
+                    f"{name} has a hot working set but no memory, so the buffer cache is not "
+                    "modelled.",
+                    node_id=node.id,
+                    path="memoryGib",
+                    hint="Set the memory per instance.",
                 )
             )
         if config.shards > view.workload.key_count:

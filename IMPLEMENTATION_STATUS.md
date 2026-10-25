@@ -145,6 +145,16 @@ serves 8 example designs (see below).
   add a per-client table (`summary.clients`). Single-client designs give the same simulation
   results as before (no extra random draws). The network and SDK defaults are assumptions.
 - Canvas parts show their technology logo larger (26 px in a 40 px tile).
+- Resource specs (engine 0.4.0, report 1.3): optional CPU cores, memory and storage per
+  instance on services, databases, caches, load balancers and message queues. Effects when set:
+  CPU contention (services, databases via a CPU share of query time, caches), a memory
+  refusal limit on service replicas (`out_of_memory`), a database buffer cache against a hot
+  working set (misses pay a disk read), LRU eviction for TTL caches, storage checks against the
+  data size; load balancers and queues are display and price only. Unset specs change nothing
+  (all earlier tests pass unchanged). Technology presets carry illustrative sizes. The
+  inspector has a Resources block (inputs, common sizes, illustrative price, "Use as cost"),
+  canvas parts show "2 vCPU · 8 GiB · 200 GiB", and the last-run panel shows CPU busy, memory
+  peak, buffer cache share and evictions.
 - Links attach on any of the four sides of a component: drag from any side to any side, in
   either direction (if only the reverse direction is valid, the link is drawn that way). The
   chosen sides are saved in `layout.edges` (rendering only; simulation input and digests are
@@ -217,6 +227,12 @@ part, linked all three to the load balancer, ran it and read the "By client" tab
 fixed: a part's content box covered its connection points, so the left and right points of
 slanted parts (clients) could not be grabbed; the points now sit above the content.
 
+Resource specs, on 2026-10-25, same stack (engine 0.4.0): set the starter's API servers to
+1 vCPU / 2 GiB with a size chip, checked the Resources block (inputs, sizes, price hint) and the
+spec line on the canvas part, ran it: throughput fell to about 196 req/s (2 replicas x 1 core /
+10 ms of CPU work), the API servers were flagged as the bottleneck and the last-run panel showed
+"CPU 100% busy". Bug found and fixed: memory below 1 GiB showed as "0 GiB" (now MiB).
+
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links
 by dragging handles (and a refused self-link with its message); live validation messages;
@@ -250,9 +266,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - Client groups share one workload (one read/write mix and pattern); a group cannot have its
   own read ratio or traffic pattern yet. Synchronous, acyclic call graphs; dependencies are
   called sequentially (no parallel fan-out); no closed-loop users.
-- Not modeled: CPU/memory contention, GC, bandwidth and packet loss, locks and disk I/O, cache
-  eviction (TTL cache has unbounded capacity), replication lag, health checks and failover,
-  circuit breakers; faults are scheduled (outage, slowdown, link latency), not random.
+- Not modeled: GC, OOM kills and restarts, bandwidth and packet loss, locks and write I/O,
+  page-cache dynamics (the buffer cache is a fixed hit share), cache memory for the fixed-ratio
+  model, replication lag, health checks and failover, circuit breakers; faults are scheduled
+  (outage, slowdown, link latency), not random. CPU and memory only matter where their specs
+  are set; resource sizes in presets and prices are illustrative.
 - Technology presets are illustrative starting points, not vendor benchmarks; costs are
   assumptions you should replace with your own prices.
 - The breaking-point sweep uses short steps: autoscaled services start each step at their

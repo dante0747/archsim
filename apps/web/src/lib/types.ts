@@ -390,6 +390,15 @@ export interface NodeReportSummary {
   serviceOnlyCapacityRps: number | null;
   hitRatio: number | null;
   counters: Record<string, number>;
+  /** Resource specs (report 1.3+, only when set): share of CPU cores busy in the window. */
+  cpuCoreUtilization?: number | null;
+  /** Services with memory set: highest memory one replica used. */
+  memoryPeakGiB?: number;
+  /** Databases with memory and a working set: share of reads served from memory. */
+  bufferHitRatio?: number;
+  /** Caches with memory (TTL model): keys that fit, and keys held at the end. */
+  capacityKeys?: number;
+  keysCached?: number;
 }
 
 export interface NodeReport {

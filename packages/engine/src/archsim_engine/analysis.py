@@ -64,9 +64,15 @@ def classify(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
         # Producers still get their acks: a saturated consumer group shows up as consumer lag
         # (see the queue_lag finding), not as a bottleneck on the client's request path.
         return "hot", [f"consumers {util:.0%} busy"] + (["backlog kept growing"] if growing else [])
+    # CPU cores (when set): handlers waiting for a core keep their worker busy, so a CPU-bound
+    # component also shows high utilization; the reason says why.
+    cpu = s.get("cpuCoreUtilization")
+    cpu_reason = [f"CPU {cpu:.0%} busy"] if cpu is not None and cpu >= 0.85 else []
     reasons = []
     if util >= 0.95:
         reasons.append(f"utilization {util:.0%}")
+    if cpu is not None and cpu >= 0.95:
+        reasons.extend(cpu_reason)
     if rej >= 0.01:
         reasons.append(f"{rej:.1%} of requests rejected")
     if growing:
@@ -74,7 +80,9 @@ def classify(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
     if reasons:
         return "saturated", reasons
     if util >= 0.85:
-        return "hot", [f"utilization {util:.0%}"]
+        return "hot", [f"utilization {util:.0%}", *cpu_reason]
+    if cpu is not None and cpu >= 0.85:
+        return "hot", cpu_reason
     if util >= 0.70:
         return "warm", [f"utilization {util:.0%}"]
     return "ok", []

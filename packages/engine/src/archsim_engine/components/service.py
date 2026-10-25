@@ -19,6 +19,14 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field, model_validator
 
+from archsim_engine.components.resources import (
+    CPU_CONTENTION,
+    RESOURCES,
+    Cores,
+    core_utilization,
+    cpu_field,
+    memory_field,
+)
 from archsim_engine.distributions import Distribution, LogNormal
 from archsim_engine.issues import Issue, error, warning
 from archsim_engine.metrics import Gauge
@@ -112,6 +120,33 @@ class ServiceConfig(CamelModel):
             "Off: the worker is released during downstream I/O (async/event-loop servers)."
         ),
         json_schema_extra=ui(label="Workers block on downstream calls", group="Performance"),
+    )
+    # -- resources ------------------------------------------------------------------------
+    cpu_cores: float | None = cpu_field(
+        "replica",
+        CPU_CONTENTION + " Service time is treated as CPU work. Serverless: one request per "
+        "instance, so only values below 1 matter.",
+    )
+    memory_gib: float | None = memory_field(
+        "replica",
+        "When set, every request a replica holds (queued, running or waiting on downstream calls) "
+        "uses memory; a request that would exceed it is refused (out of memory).",
+    )
+    memory_per_request_mb: float = Field(
+        default=2.0,
+        gt=0,
+        le=65_536,
+        description="Memory one in-flight request uses (MiB). Only used when memory is set.",
+        json_schema_extra=ui(
+            label="Memory per request", unit="MiB", group=RESOURCES, assumption=True
+        ),
+    )
+    memory_baseline_mb: float = Field(
+        default=256.0,
+        ge=0,
+        le=1_048_576,
+        description="Memory a replica uses before any request (runtime, heap, caches) (MiB). Only used when memory is set.",
+        json_schema_extra=ui(label="Memory at idle", unit="MiB", group=RESOURCES, assumption=True),
     )
     # -- autoscaling (HPA-like) -----------------------------------------------------------
     autoscaling: bool = Field(
@@ -216,6 +251,13 @@ class ServiceConfig(CamelModel):
             raise ValueError("min replicas must not exceed max replicas")
         return self
 
+    def memory_slots(self) -> int | None:
+        """Requests one replica can hold within its memory, or None when memory is not set."""
+        if self.memory_gib is None:
+            return None
+        free = self.memory_gib * 1024.0 - self.memory_baseline_mb
+        return max(0, math.floor(free / self.memory_per_request_mb + 1e-9))
+
 
 class ServiceRuntime(RuntimeComponent):
     """Fixed number of replicas; each replica is a worker pool with its own queue."""
@@ -226,7 +268,11 @@ class ServiceRuntime(RuntimeComponent):
         n = initial if initial is not None else config.replicas
         super().__init__(ctx, node, config, n * config.workers_per_replica)
         self.m.has_cpu_split = True
+        self.core_busy = Gauge(ctx.tl) if config.cpu_cores is not None else None
+        self.mem_slots = config.memory_slots()
+        self.peak_load = 0
         self.pools = [self._new_pool() for _ in range(n)]
+        self.cores = [self._new_cores() for _ in range(n)]
         self.load = [0] * n
         self.rr = 0
         self.rng = ctx.rng(f"node:{node.id}:service")
@@ -237,6 +283,10 @@ class ServiceRuntime(RuntimeComponent):
         return WorkerPool(
             self.ctx.env, cfg.workers_per_replica, cfg.queue_capacity, cfg.queue_timeout_ms, self.m
         )
+
+    def _new_cores(self) -> Cores:
+        cfg: ServiceConfig = self.config
+        return Cores(self.ctx.env, cfg.cpu_cores, cfg.workers_per_replica, self.core_busy)
 
     def deps_for(self, op: str) -> list[EdgeRuntime]:
         d = self._deps.get(op)
@@ -250,6 +300,25 @@ class ServiceRuntime(RuntimeComponent):
 
     def instance_count(self) -> int:
         return len(self.pools)
+
+    def replicas_mean(self) -> float:
+        return float(len(self.pools))
+
+    def finalize(self, t_end: float) -> None:
+        super().finalize(t_end)
+        if self.core_busy is not None:
+            self.core_busy.finalize(t_end)
+
+    def extra_summary(self) -> dict[str, Any]:
+        cfg: ServiceConfig = self.config
+        out: dict[str, Any] = {}
+        if self.core_busy is not None:
+            n = self.cores[0].n if self.cores else 1
+            out["cpuCoreUtilization"] = core_utilization(self.core_busy, n * self.replicas_mean())
+        if self.mem_slots is not None:
+            peak_mb = cfg.memory_baseline_mb + self.peak_load * cfg.memory_per_request_mb
+            out["memoryPeakGiB"] = round(min(peak_mb / 1024.0, cfg.memory_gib or 0.0), 3)
+        return out
 
     def instance_load(self, index: int) -> int:
         return self.load[index]
@@ -268,7 +337,12 @@ class ServiceRuntime(RuntimeComponent):
         m = self.m
         cfg: ServiceConfig = self.config
         m.arrive(env.now)
+        if self.mem_slots is not None and self.load[index] >= self.mem_slots:
+            m.reject("out_of_memory", env.now)
+            return rejected("out_of_memory", self.id)
         self.load[index] += 1
+        if self.load[index] > self.peak_load:
+            self.peak_load = self.load[index]
         pool = self.pools[index]
         tok, reason = yield from pool.acquire()
         if tok is None:
@@ -278,8 +352,7 @@ class ServiceRuntime(RuntimeComponent):
         start = env.now
         st = self.sample_time(cfg.service_time_ms, self.rng)
         m.cpu.add(1, start)
-        if st > 0:
-            yield env.timeout(st)
+        yield from self.cores[index].run(st)
         m.cpu.add(-1, env.now)
         m.service.record(env.now, st)
         outcome: Outcome = OK
@@ -392,6 +465,7 @@ class AutoscalingServiceRuntime(ServiceRuntime):
         now = self.env.now
         self.starting -= 1
         self.pools.append(self._new_pool())
+        self.cores.append(self._new_cores())
         self.load.append(0)
         self.routable.append(len(self.pools) - 1)
         self.capacity.add(cfg.workers_per_replica, now)
@@ -415,8 +489,12 @@ class AutoscalingServiceRuntime(ServiceRuntime):
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         return {"replicas": _count_series(self.active, self._t_end)}
 
+    def replicas_mean(self) -> float:
+        return self.active.window_mean()
+
     def extra_summary(self) -> dict[str, Any]:
         return {
+            **super().extra_summary(),
             "replicasMean": round(self.active.window_mean(), 3),
             "replicasPeak": max(self.active.maxes) if self.active.maxes else len(self.routable),
             "replicasEnd": len(self.routable),
@@ -492,8 +570,10 @@ class ServerlessRuntime(RuntimeComponent):
                 yield env.timeout(c)
         st = self.sample_time(cfg.service_time_ms, self.rng)
         m.cpu.add(1, env.now)
-        if st > 0:
-            yield env.timeout(st)
+        # one request per instance: only a fractional vCPU (below 1) slows the CPU work
+        cpu_ms = st / cfg.cpu_cores if cfg.cpu_cores is not None and cfg.cpu_cores < 1 else st
+        if cpu_ms > 0:
+            yield env.timeout(cpu_ms)
         m.cpu.add(-1, env.now)
         m.service.record(env.now, st)
         outcome: Outcome = OK
@@ -556,9 +636,11 @@ class ServiceModel(ComponentModel):
         "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
         "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
         "Serverless (platform): one request per instance, cold starts, concurrency limit (throttling), idle reclaim",
+        "CPU cores (when set): service time needs a core; with fewer cores than workers, work queues for a core",
+        "Memory (when set): requests held by a replica use memory; past the limit new requests are refused",
     )
     not_modeled = (
-        "CPU contention between workers, garbage collection pauses",
+        "Garbage collection pauses; OOM kills and restarts (memory is a refusal limit instead)",
         "Parallel fan-out calls (dependencies are called one after another)",
         "Node/cluster capacity limits for new pods, readiness probe failures",
         "Serverless memory/CPU sizing and provisioned concurrency",
@@ -570,7 +652,7 @@ class ServiceModel(ComponentModel):
             technology="generic",
             family="VM",
             description="Fixed replicas on virtual machines, thread-per-request workers.",
-            config={"technology": "generic", "platform": "vm"},
+            config={"cpuCores": 2, "memoryGib": 4, "technology": "generic", "platform": "vm"},
             tags=("vm", "static"),
         ),
         Preset(
@@ -580,6 +662,10 @@ class ServiceModel(ComponentModel):
             family="Container",
             description="Spring Boot containers with a large blocking thread pool (Tomcat-style).",
             config={
+                "cpuCores": 2,
+                "memoryGib": 4,
+                "memoryPerRequestMb": 1,
+                "memoryBaselineMb": 768,
                 "technology": "java",
                 "platform": "docker",
                 "replicas": 2,
@@ -598,6 +684,10 @@ class ServiceModel(ComponentModel):
             family="Container",
             description="Single-threaded event loop per container: one handler at a time, I/O does not block it.",
             config={
+                "cpuCores": 1,
+                "memoryGib": 1,
+                "memoryPerRequestMb": 0.5,
+                "memoryBaselineMb": 128,
                 "technology": "nodejs",
                 "platform": "docker",
                 "replicas": 4,
@@ -616,6 +706,10 @@ class ServiceModel(ComponentModel):
             family="Kubernetes",
             description="Go pods behind a Kubernetes Service with a Horizontal Pod Autoscaler.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 1,
+                "memoryPerRequestMb": 0.25,
+                "memoryBaselineMb": 64,
                 "technology": "go",
                 "platform": "kubernetes",
                 "replicas": 2,
@@ -639,6 +733,10 @@ class ServiceModel(ComponentModel):
             family="Kubernetes",
             description="Gunicorn-style worker processes in pods, autoscaled by an HPA.",
             config={
+                "cpuCores": 2,
+                "memoryGib": 2,
+                "memoryPerRequestMb": 4,
+                "memoryBaselineMb": 512,
                 "technology": "python",
                 "platform": "kubernetes",
                 "replicas": 2,
@@ -662,6 +760,8 @@ class ServiceModel(ComponentModel):
             family="Serverless",
             description="Function-as-a-service: an instance per concurrent request, cold starts when scaling out.",
             config={
+                "cpuCores": 1,
+                "memoryGib": 1.75,
                 "technology": "nodejs",
                 "platform": "serverless",
                 "concurrencyLimit": 1000,
@@ -715,6 +815,43 @@ class ServiceModel(ComponentModel):
                     node_id=node.id,
                 )
             )
+        slots = config.memory_slots()
+        if slots is not None:
+            if slots < 1:
+                issues.append(
+                    error(
+                        "service.memory_too_small",
+                        f"{name} has {config.memory_gib:g} GiB per replica, less than it needs at "
+                        f"idle plus one request ({config.memory_baseline_mb:g} + "
+                        f"{config.memory_per_request_mb:g} MiB).",
+                        node_id=node.id,
+                        hint="Give it more memory, or lower the memory at idle or per request.",
+                    )
+                )
+            elif config.platform != "serverless":
+                held = config.workers_per_replica + config.queue_capacity
+                if slots < config.workers_per_replica:
+                    issues.append(
+                        warning(
+                            "service.memory_below_workers",
+                            f"{name} can hold only {slots} requests per replica in "
+                            f"{config.memory_gib:g} GiB, fewer than its "
+                            f"{config.workers_per_replica} workers; the rest are refused as out "
+                            "of memory.",
+                            node_id=node.id,
+                            hint="Add memory or lower the workers per replica.",
+                        )
+                    )
+                elif slots < held and config.blocking_downstream:
+                    issues.append(
+                        warning(
+                            "service.memory_below_queue",
+                            f"{name} can hold {slots} requests per replica in "
+                            f"{config.memory_gib:g} GiB but its workers and queue take up to "
+                            f"{held}; under load requests are refused as out of memory.",
+                            node_id=node.id,
+                        )
+                    )
         return issues
 
     def build(self, ctx: SimContext, node: NodeSpec, config: Any) -> RuntimeComponent:

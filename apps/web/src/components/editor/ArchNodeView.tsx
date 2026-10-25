@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, type NodeProps, NodeToolbar, Position } from "@xyflow/react";
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, Cpu, HardDrive, MemoryStick, Trash2 } from "lucide-react";
 import { memo, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { describeValue, isFieldVisible } from "@/components/editor/FieldControl";
 import { SHAPE_HANDLE, SHAPE_OF, SHAPE_PADDING, ShapeSvg } from "@/components/shapes";
@@ -202,6 +202,8 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const typeName = comp?.displayName.split(" / ")[0].replace(/ \(.*\)$/, "") ?? data.type;
   const technology = typeof data.config.technology === "string" ? data.config.technology : null;
   const tech = technologyLabel(comp, technology);
+  const spec = (k: string) => (typeof data.config[k] === "number" ? (data.config[k] as number) : null);
+  const [cpu, mem, disk] = [spec("cpuCores"), spec("memoryGib"), spec("storageGib")];
   const level = live?.util != null ? Math.min(1, Math.max(0, live.util)) : null;
   const heat = heatColor(level, dark);
 
@@ -307,6 +309,28 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
           ) : null}
         </div>
 
+        {(cpu != null || mem != null || disk != null) && (
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[10.5px] text-ink-2" aria-label="Resources">
+            {cpu != null && (
+              <span className="inline-flex items-center gap-1">
+                <Cpu className="size-3 text-ink-3" aria-hidden />
+                {cpu} vCPU
+              </span>
+            )}
+            {mem != null && (
+              <span className="inline-flex items-center gap-1">
+                <MemoryStick className="size-3 text-ink-3" aria-hidden />
+                {mem} GiB
+              </span>
+            )}
+            {disk != null && (
+              <span className="inline-flex items-center gap-1">
+                <HardDrive className="size-3 text-ink-3" aria-hidden />
+                {disk >= 1000 ? `${+(disk / 1000).toFixed(1)} TB` : `${disk} GiB`}
+              </span>
+            )}
+          </p>
+        )}
         <dl className="mt-2">
           {comp?.isTrafficSource && (
             <Row

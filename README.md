@@ -27,6 +27,11 @@ you are; results land on the canvas right away. A short guided tour opens on the
 API servers behind a lone Clients box.
 
 **Design: draw it with real technologies**
+- Resource specs on every part: CPU cores, memory and (databases, queues) storage per
+  instance, with one-click common sizes and an illustrative price. They change the run where
+  it is defensible: fewer cores than workers makes CPU work queue, a service refuses requests
+  past its memory, a database whose hot working set does not fit in memory sends reads to
+  disk, a cache evicts least recently used keys. Left empty, nothing changes.
 - Clients as separate parts: **Mobile app** (iOS, Android, React Native, Flutter), **Web
   browser** (React, Next.js, Vue, Angular, Svelte) and **API consumers** (REST / OpenAPI,
   GraphQL), alongside the generic Clients box. Each has its own timeouts, retries and network
@@ -219,8 +224,9 @@ Supported today: several client groups per design (Clients, mobile app, web brow
 consumers) sharing one workload; load balancers, services (with autoscaling and serverless),
 caches, databases, message queues and external APIs; synchronous acyclic call graphs;
 open-loop synthetic workloads; scheduled faults (outage, slowdown, link latency); local
-single-user operation. Not modeled: CPU/memory contention, garbage collection, network
-bandwidth and packet loss, locks and disk I/O, cache eviction, random failures. There is no
+single-user operation; optional CPU, memory and storage specs (CPU contention, memory limits,
+database buffer cache, LRU cache eviction). Not modeled: garbage collection, OOM kills,
+network bandwidth and packet loss, locks and write I/O, random failures. There is no
 authentication; do not expose the API publicly.
 Prometheus calibration, Grafana integration and an agent/MCP API are on the roadmap, not
 implemented. Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).

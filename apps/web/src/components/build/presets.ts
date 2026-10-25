@@ -82,15 +82,18 @@ export function matchesItem(item: LibraryItem, query: string): boolean {
   return words.every((w) => hay.includes(w));
 }
 
-/** Apply a preset's config to an existing node as one undoable step. */
-export function applyPresetToNode(nodeId: string, preset: Preset): void {
+/** Merge several config values into a node as one undoable step. */
+export function patchNodeConfig(nodeId: string, patch: Record<string, unknown>): void {
   const st = useEditor.getState();
   if (!st.nodes.some((n) => n.id === nodeId)) return;
   st.pushHistory();
   useEditor.setState((s) => ({
-    nodes: s.nodes.map((n) =>
-      n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...structuredClone(preset.config) } } } : n,
-    ),
+    nodes: s.nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...structuredClone(patch) } } } : n)),
     dirty: true,
   }));
+}
+
+/** Apply a preset's config to an existing node as one undoable step. */
+export function applyPresetToNode(nodeId: string, preset: Preset): void {
+  patchNodeConfig(nodeId, preset.config);
 }
