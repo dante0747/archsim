@@ -87,7 +87,11 @@ export function ComponentsTab() {
                     {fmtNum(s.rejectedTotal)}
                     {s.rejectedTotal ? <span className="text-ink-3"> ({fmtPct(s.rejectionRate)})</span> : null}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-[11px] text-ink-2">{fmtRps(s.capacityRps)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-[11px] text-ink-2" title={s.capacityLimit && s.capacityLimit !== "slots" ? `Limited by ${s.capacityLimit === "cpu" ? "CPU cores" : "memory"}` : undefined}>
+                    {fmtRps(s.capacityRps)}
+                    {s.capacityLimit === "cpu" && <span className="ml-1 text-[10px] text-ink-3">CPU</span>}
+                    {s.capacityLimit === "memory" && <span className="ml-1 text-[10px] text-ink-3">mem</span>}
+                  </td>
                 </tr>
               );
             })}

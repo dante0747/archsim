@@ -167,3 +167,28 @@ def test_cache_fixed_ratio_warns_when_keyspace_does_not_fit() -> None:
     d["architecture"]["nodes"][1]["config"]["hitModel"] = "fixed_ratio"
     d["architecture"]["nodes"][1]["config"]["hitRatio"] = 0.9
     assert "cache.keyspace_exceeds_memory" in codes(d, "warning")
+
+
+def test_capacity_figures_follow_cpu_and_memory() -> None:
+    plain = node_by_id(run_simulation(svc_doc(300)), "svc")["summary"]
+    assert plain["capacityLimit"] == "slots" and plain["cpuCapacityRps"] is None
+    assert plain["serviceOnlyCapacityRps"] == pytest.approx(800, rel=0.01)
+
+    r = run_simulation(svc_doc(300, cpuCores=2))
+    s = node_by_id(r, "svc")["summary"]
+    # 2 cores / 10 ms of CPU work = 200 req/s, below 8 workers / 10 ms = 800 req/s
+    assert s["capacityLimit"] == "cpu"
+    assert s["cpuCapacityRps"] == pytest.approx(200, rel=0.01)
+    assert s["capacityRps"] == pytest.approx(200, rel=0.01)
+    assert s["serviceOnlyCapacityRps"] == pytest.approx(200, rel=0.01)
+    finding = next(f for f in r["findings"] if f.get("nodeId") == "svc")
+    assert "CPU cores" in finding["detail"] and "CPU cores" in finding["suggestion"]
+
+    mem = svc_doc(2000, memoryGib=1, memoryBaselineMb=1000, memoryPerRequestMb=4)
+    s = node_by_id(run_simulation(mem), "svc")["summary"]
+    assert s["capacityLimit"] == "memory"  # 6 requests fit, fewer than the 8 workers
+
+
+def test_database_cpu_capacity_uses_the_cpu_share() -> None:
+    s = node_by_id(run_simulation(db_doc(cpuCores=1, cpuShare=0.5)), "db")["summary"]
+    assert s["cpuCapacityRps"] == pytest.approx(1000 / (5 * 0.5), rel=0.01)

@@ -277,6 +277,16 @@ class RuntimeComponent:
         """Component-specific summary fields merged into ``nodes[].summary``."""
         return {}
 
+    def resource_capacity(
+        self, hold_ms: float | None, service_ms: float | None
+    ) -> dict[str, float]:
+        """Throughput ceilings (req/s) set by resource specs, e.g. ``{"cpu": 196.0}``.
+
+        Empty when no spec limits the component. ``service_ms`` is the mean service time,
+        ``hold_ms`` the mean time a request holds its slot (both over the window).
+        """
+        return {}
+
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         """Component-specific per-bucket series (full timeline length) for ``nodes[].timeseries``."""
         return {}

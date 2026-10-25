@@ -97,7 +97,8 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
   const storage = num("storageGib");
   const price = sizePricePerHour(cpu, mem, storage);
   const hasCost = comp.fields.some((f) => f.key === "costPerHour");
-  const cost = typeof config.costPerHour === "number" ? config.costPerHour : (comp.defaultConfig.costPerHour as number | undefined);
+  // The cost estimate uses a price set on the part; without one, this size's price.
+  const ownPrice = typeof config.costPerHour === "number" && config.costPerHour !== comp.defaultConfig.costPerHour ? config.costPerHour : null;
   const anySet = cpu != null || mem != null || storage != null;
 
   return (
@@ -144,10 +145,18 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
           <span>
             About <span className="font-semibold text-ink">{formatUsd(price)}/h</span> for this size
             <span className="text-ink-3"> (illustrative on-demand price)</span>
+            {hasCost &&
+              (ownPrice == null ? (
+                <span className="text-ink-3">; the cost estimate uses it.</span>
+              ) : ownPrice === price ? (
+                <span className="text-ink-3">; used as its cost.</span>
+              ) : (
+                <span className="text-ink-3">; the cost estimate uses your price of {formatUsd(ownPrice)}/h.</span>
+              ))}
           </span>
-          {hasCost && cost !== price && (
-            <button type="button" onClick={() => setNodeConfig(nodeId, "costPerHour", price)} className="font-medium text-accent hover:underline">
-              Use as cost
+          {hasCost && ownPrice != null && ownPrice !== price && (
+            <button type="button" onClick={() => setNodeConfig(nodeId, "costPerHour", null)} className="font-medium text-accent hover:underline">
+              Use size price
             </button>
           )}
         </p>

@@ -126,3 +126,33 @@ describe("reviewDesign", () => {
     expect(new Set(fs.map((f) => f.id)).size).toBe(fs.length);
   });
 });
+
+describe("reviewDesign with resource specs", () => {
+  const svc = { cpuCores: 1, serviceTimeMs: { kind: "constant", value: 20 } };
+  const at = (rps: number) => ({ ...DEFAULT_WORKLOAD, rps });
+
+  it("checks CPU at the peak only where cores are set", () => {
+    // 3 replicas x 1 core / 20 ms = 150 req/s
+    const { nodes, edges } = baseDesign(svc);
+    const over = find(reviewDesign(nodes, edges, catalog, at(400)), "cpu-capacity");
+    expect(over).toHaveLength(1);
+    expect(over[0]).toMatchObject({ severity: "high", title: "API needs more CPU at peak", nodeIds: ["api"] });
+    expect(over[0].detail).toContain("about 150 req/s");
+    expect(find(reviewDesign(nodes, edges, catalog, at(130)), "cpu-capacity")[0]?.severity).toBe("medium");
+    expect(find(reviewDesign(nodes, edges, catalog, at(50)), "cpu-capacity")).toHaveLength(0);
+    const plain = baseDesign({ serviceTimeMs: svc.serviceTimeMs });
+    expect(find(reviewDesign(plain.nodes, plain.edges, catalog, at(400)), "cpu-capacity")).toHaveLength(0);
+  });
+
+  it("flags a database working set that does not fit and a small TTL cache", () => {
+    const { nodes, edges } = baseDesign();
+    const db = nodes.find((n) => n.id === "db")!;
+    db.config = { ...db.config, memoryGib: 8, workingSetGib: 64 };
+    const cache = nodes.find((n) => n.id === "cache")!;
+    cache.config = { hitModel: "ttl_keyspace", memoryGib: 0.01, itemSizeKb: 1 };
+    const fs = reviewDesign(nodes, edges, catalog, DEFAULT_WORKLOAD);
+    expect(find(fs, "buffer-cache")[0]).toMatchObject({ severity: "medium", nodeIds: ["db"] });
+    expect(find(fs, "buffer-cache")[0].detail).toContain("91% of reads go to disk");
+    expect(find(fs, "cache-capacity")[0].title).toBe("Redis holds 8,388 of 100,000 keys");
+  });
+});

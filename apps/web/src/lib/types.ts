@@ -390,6 +390,10 @@ export interface NodeReportSummary {
   serviceOnlyCapacityRps: number | null;
   hitRatio: number | null;
   counters: Record<string, number>;
+  /** Which ceiling sets capacityRps (report 1.4+): worker/connection slots, CPU cores or memory. */
+  capacityLimit?: "slots" | "cpu" | "memory" | null;
+  /** CPU ceiling from the CPU spec (report 1.4+, only when set), req/s. */
+  cpuCapacityRps?: number | null;
   /** Resource specs (report 1.3+, only when set): share of CPU cores busy in the window. */
   cpuCoreUtilization?: number | null;
   /** Services with memory set: highest memory one replica used. */

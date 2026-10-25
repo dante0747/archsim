@@ -429,6 +429,8 @@ function NodeResults({ nodeId }: { nodeId: string }) {
   const cfg = nr.config;
   const resourceStats = [
     s.cpuCoreUtilization != null && `CPU ${fmtPct(s.cpuCoreUtilization, 0)} busy`,
+    s.capacityLimit === "cpu" && s.capacityRps != null && `CPU caps it at ${fmtRps(s.capacityRps)}`,
+    s.capacityLimit === "memory" && s.capacityRps != null && `memory caps it at ${fmtRps(s.capacityRps)}`,
     s.memoryPeakGiB != null && `memory peak ${fmtGiB(s.memoryPeakGiB)} of ${fmtGiB(Number(cfg.memoryGib))}`,
     (s.rejected?.out_of_memory ?? 0) > 0 && `${fmtNum(s.rejected.out_of_memory)} refused (memory)`,
     s.bufferHitRatio != null && `buffer cache ${fmtPct(s.bufferHitRatio, 0)} of reads`,

@@ -6,5 +6,5 @@ ENGINE_VERSION = "0.4.0"
 SCHEMA_VERSION = "1.0"
 """Current version of the architecture document schema."""
 
-REPORT_VERSION = "1.3"
+REPORT_VERSION = "1.4"
 """Version of the simulation report format."""

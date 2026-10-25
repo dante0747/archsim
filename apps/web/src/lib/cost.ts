@@ -3,6 +3,10 @@
  * (`costPerHour` per instance; `costPerMillionRequests` for third-party APIs), and the cost per
  * million successful requests at the throughput a run achieved.
  *
+ * Price per instance-hour: the price you set on the part; without one, the part's size (CPU,
+ * memory, storage) at illustrative on-demand rates; without a size, the catalog default. A price
+ * equal to the catalog default counts as not set (saved runs store every default).
+ *
  * These are planning estimates built from your assumptions, not quotes: every price is a config
  * value marked as an assumption in the inspector.
  */
@@ -28,6 +32,20 @@ export function sizePricePerHour(cpu: number | null | undefined, memoryGib: numb
 }
 export const SECONDS_PER_MONTH = HOURS_PER_MONTH * 3600;
 
+export type PriceSource = "set" | "size" | "default";
+
+/** Price of one instance-hour and where it came from (see the module note). */
+export function hourlyPrice(node: Pick<NodeSpec, "type" | "config">, catalog: Catalog | null): { price: number | null; source: PriceSource | null } {
+  const cfg = node.config ?? {};
+  const fallback = num(catalog?.components.find((c) => c.type === node.type)?.defaultConfig?.costPerHour);
+  const own = num(cfg.costPerHour);
+  if (own != null && own !== fallback) return { price: own, source: "set" };
+  const size = sizePricePerHour(num(cfg.cpuCores), num(cfg.memoryGib), num(cfg.storageGib));
+  if (size != null) return { price: size, source: "size" };
+  const price = own ?? fallback;
+  return price != null ? { price, source: "default" } : { price: null, source: null };
+}
+
 export interface NodeCost {
   id: string;
   label: string;
@@ -37,6 +55,8 @@ export interface NodeCost {
   instances: number;
   /** $/instance-hour, or $/million calls when `unit` is "million". null = no price set. */
   unitPrice: number | null;
+  /** Where an hourly price came from: set on the part, its size, or the catalog default. */
+  priceSource: PriceSource | null;
   unit: "hour" | "million";
   monthly: number;
   /** Plain-language basis, e.g. "2 shards × 3 nodes". */
@@ -123,6 +143,7 @@ export function estimateCost(nodes: NodeSpec[], catalog: Catalog | null, report?
   const byNode: NodeCost[] = [];
   let anyPrice = false;
   let missingExternalRate = false;
+  let sizePriced = false;
   for (const n of nodes) {
     if (isClientType(n.type, catalog)) continue;
     const nr = report?.nodes.find((x) => x.id === n.id) ?? null;
@@ -141,14 +162,16 @@ export function estimateCost(nodes: NodeSpec[], catalog: Catalog | null, report?
         technology,
         instances: 0,
         unitPrice: price,
+        priceSource: price != null ? (num(n.config?.costPerMillionRequests) != null ? "set" : "default") : null,
         unit: "million",
         monthly,
         basis: rate != null ? `${Math.round(rate).toLocaleString("en-US")} calls/s` : "per call",
       });
       continue;
     }
-    const price = num(configValue(n, catalog, "costPerHour"));
+    const { price, source } = hourlyPrice(n, catalog);
     if (price != null) anyPrice = true;
+    if (source === "size") sizePriced = true;
     const { count, basis } = instancesOf(n, catalog, nr);
     byNode.push({
       id: n.id,
@@ -157,6 +180,7 @@ export function estimateCost(nodes: NodeSpec[], catalog: Catalog | null, report?
       technology,
       instances: count,
       unitPrice: price,
+      priceSource: source,
       unit: "hour",
       monthly: price != null ? price * count * HOURS_PER_MONTH : 0,
       basis,
@@ -167,6 +191,11 @@ export function estimateCost(nodes: NodeSpec[], catalog: Catalog | null, report?
   const thr = report?.summary.throughputRps ?? null;
   const perMillionRequests = thr && thr > 0 ? monthly / ((thr * SECONDS_PER_MONTH) / 1e6) : null;
   if (!anyPrice) notes.push("No component has a price yet: set Cost per hour on components to estimate cost.");
+  if (sizePriced) {
+    notes.push(
+      `Parts without a set price are priced from their size at illustrative on-demand rates ($${PRICE_PER_VCPU_HOUR} per vCPU-hour, $${PRICE_PER_GIB_HOUR} per GiB-hour, $${PRICE_PER_STORAGE_GIB_MONTH} per GiB-month of storage).`,
+    );
+  }
   if (missingExternalRate) notes.push("Third-party APIs are priced per call: run a simulation to price them at the measured call rate.");
   if (byNode.some((x) => x.unit === "million" && x.monthly > 0) || perMillionRequests != null) {
     notes.push(`Per-call prices and cost per request assume the run's traffic rate continues for ${HOURS_PER_MONTH} hours a month.`);

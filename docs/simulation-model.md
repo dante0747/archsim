@@ -270,8 +270,25 @@ same as without the spec. Reports add `cpuCoreUtilization` (busy executors / exe
 window), `memoryPeakGiB` (services), `bufferHitRatio` (databases) and `capacityKeys` /
 `keysCached` plus an `evictions` counter (caches). Not modelled: garbage collection, OOM kills
 and restarts (memory is a refusal limit), page-cache dynamics, write I/O, network bandwidth.
-The web app suggests an illustrative on-demand price for a size ($0.037 per vCPU-hour, $0.0028
-per GiB-hour, $0.08 per GiB-month of storage); it is never applied unless you choose it.
+Specs also feed the calculations around a run:
+
+- **Capacity figures**: `capacityRps` is the lowest ceiling of the slots (`slots / meanHoldMs`),
+  the CPU (`cpuCores x instances / CPU ms per request`) and, for services, the memory (requests
+  that fit x replicas / `meanHoldMs`); `capacityLimit` says which (`slots`, `cpu`, `memory`) and
+  bottleneck findings name it. `serviceOnlyCapacityRps` also respects the CPU ceiling.
+- **Cost estimate (web)**: a part's price per instance-hour is the price set on it; without one,
+  its size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per
+  GiB-month of storage); without a size, the catalog default. A price equal to the catalog
+  default counts as not set (saved runs store every default). The cost table marks size-priced
+  parts.
+- **Design review (web, before a run)**: a static estimate of the peak load at each part (peak
+  rate split by read/write mix and client share, spread over load-balancer targets by replicas,
+  cache misses at the fixed hit ratio) is compared with its CPU: high when the CPU would be over
+  100% busy, medium above 80%. It also flags a database working set that does not fit in memory
+  and a TTL cache smaller than the keyspace.
+- **Exports (web)**: Kubernetes containers get `resources.requests` = `limits` from CPU and memory
+  and StatefulSet volumes the storage size; Docker Compose gets `deploy.resources` limits and
+  reservations. Parts without specs keep the previous placeholders.
 
 ## Validation rules
 
@@ -335,8 +352,10 @@ Per-node summary (events counted by the time they happen inside the window):
 | `meanQueue`, `peakQueue`, `meanInSystem` | Time-weighted queue length, peak queue, and mean requests at the node (queued + executing + waiting on dependencies). |
 | `meanQueueWaitMs`, `p95QueueWaitMs`, `p99QueueWaitMs` | Waiting time of requests that were granted a slot. |
 | `meanHoldMs`, `meanServiceMs` | Mean slot holding time and mean sampled service time. |
-| `capacityRps` | `slots / meanHoldMs`: the rate the node could sustain at the observed holding time (derived, not assumed). |
-| `serviceOnlyCapacityRps` | `slots / meanServiceMs`: the ceiling if dependencies were instant. |
+| `capacityRps` | The lowest of `slots / meanHoldMs` (the rate at the observed holding time) and any CPU or memory ceiling from resource specs (derived, not assumed). |
+| `capacityLimit` | Which ceiling sets `capacityRps`: `slots`, `cpu` or `memory`. |
+| `cpuCapacityRps` | CPU ceiling from the CPU spec: cores x instances / CPU ms per request (null when CPU is not set). |
+| `serviceOnlyCapacityRps` | `slots / meanServiceMs`, capped by the CPU ceiling: the limit if dependencies were instant. |
 | `hitRatio`, `counters` | Cache hits/misses/invalidations/populates; database reads/writes; `wasted`. |
 
 **Time series** use fixed buckets chosen so the arrival window has at most 90 buckets (and

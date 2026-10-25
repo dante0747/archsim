@@ -353,6 +353,15 @@ class DatabaseRuntime(RuntimeComponent):
         if self.core_busy is not None:
             self.core_busy.finalize(t_end)
 
+    def resource_capacity(
+        self, hold_ms: float | None, service_ms: float | None
+    ) -> dict[str, float]:
+        cfg: DatabaseConfig = self.config
+        if cfg.cpu_cores is None or not service_ms or cfg.cpu_share <= 0:
+            return {}
+        instances = cfg.shards * (1 + cfg.read_replicas)
+        return {"cpu": cfg.cpu_cores * instances * 1000.0 / (service_ms * cfg.cpu_share)}
+
     def extra_summary(self) -> dict[str, Any]:
         cfg: DatabaseConfig = self.config
         out: dict[str, Any] = {}

@@ -198,6 +198,14 @@ class CacheRuntime(RuntimeComponent):
         if self.core_busy is not None:
             self.core_busy.finalize(t_end)
 
+    def resource_capacity(
+        self, hold_ms: float | None, service_ms: float | None
+    ) -> dict[str, float]:
+        cores = self.config.cpu_cores
+        if cores is None or not service_ms:
+            return {}
+        return {"cpu": cores * 1000.0 / service_ms}
+
     def extra_summary(self) -> dict[str, Any]:
         out: dict[str, Any] = {}
         if self.core_busy is not None:

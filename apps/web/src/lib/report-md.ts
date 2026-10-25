@@ -230,7 +230,11 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
         cost.byNode.map((c) => [
           c.label,
           c.basis,
-          c.unitPrice == null ? "not set" : c.unit === "hour" ? `${formatUsd(c.unitPrice)}/instance-hour` : `${formatUsd(c.unitPrice)}/million calls`,
+          c.unitPrice == null
+            ? "not set"
+            : c.unit === "hour"
+              ? `${formatUsd(c.unitPrice)}/instance-hour${c.priceSource === "size" ? " (from size)" : ""}`
+              : `${formatUsd(c.unitPrice)}/million calls`,
           formatUsd(c.monthly),
         ]),
       ),

@@ -183,12 +183,29 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
             parts.append(
                 f"{s['rejectedTotal']:,} requests ({(s['rejectionRate'] or 0):.1%}) were rejected ({reasons})."
             )
-        if s["capacityRps"]:
+        limit = s.get("capacityLimit")
+        if s["capacityRps"] and limit == "cpu":
+            parts.append(
+                f"Its CPU cores can do about {_fmt_rps(s['capacityRps'])} at "
+                f"{s['meanServiceMs']:.1f} ms of work per request; it received "
+                f"{_fmt_rps(s['arrivalRps'])}."
+            )
+        elif s["capacityRps"] and limit == "memory":
+            parts.append(
+                f"Its memory holds too few requests: about {_fmt_rps(s['capacityRps'])} at the "
+                f"observed {s['meanHoldMs']:.1f} ms per request; it received "
+                f"{_fmt_rps(s['arrivalRps'])}."
+            )
+        elif s["capacityRps"]:
             parts.append(
                 f"At the observed {s['meanHoldMs']:.1f} ms per request it can sustain about "
                 f"{_fmt_rps(s['capacityRps'])}; it received {_fmt_rps(s['arrivalRps'])}."
             )
         suggestion = SUGGESTION.get(n["type"], "Increase this component's capacity.")
+        if limit == "cpu":
+            suggestion = "Give it more CPU cores (or more replicas/instances), or reduce the CPU work per request."
+        elif limit == "memory":
+            suggestion = "Give each replica more memory, or lower the memory each request needs."
         cpu = s["cpuUtilization"]
         if cpu is not None and util and cpu / util < 0.7:
             parts.append(

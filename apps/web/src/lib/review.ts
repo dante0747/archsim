@@ -3,6 +3,8 @@
  * flags resilience risks reviewers look for (single points of failure, missing timeouts, stacked
  * retries, timeout inversion, pool exhaustion, unbounded queues...) with concrete numbers.
  */
+import { isDistribution, meanOf } from "./distributions";
+import { estimateLoad, peakRps } from "./load";
 import { type Kind, kindOf } from "./theme";
 import type { Catalog, EdgeSpec, NodeConfig, NodeSpec, Workload } from "./types";
 
@@ -39,6 +41,9 @@ export const REVIEW_RULES: Record<string, string> = {
   "external-errors": "Unhandled third-party errors",
   "edge-rate-limit": "No rate limit at the edge",
   "deep-chain": "Long synchronous chain",
+  "cpu-capacity": "CPU capacity at peak",
+  "buffer-cache": "Working set larger than memory",
+  "cache-capacity": "Cache smaller than its keyspace",
 };
 
 const SEV_ORDER: Record<ReviewSeverity, number> = { high: 0, medium: 1, low: 2 };
@@ -519,6 +524,93 @@ export function reviewDesign(nodes: NodeSpec[], edges: EdgeSpec[], catalog: Cata
       nodeIds: [e.source, e.target, budget.via.target],
       edgeIds: [e.id, budget.via.id],
     });
+  }
+
+  // -- resource specs (only where set): CPU at the peak load, memory against the data -----------
+  const loads = estimateLoad(nodes, edges, catalog, workload);
+  const peak = peakRps(workload);
+  const msOf = (v: unknown) => (isDistribution(v) ? meanOf(v) : null);
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  for (const n of nodes) {
+    const cfg = c.cfg.get(n.id)!;
+    const name = label(c, n.id);
+    const cores = num(cfg.cpuCores);
+    const l = loads.get(n.id);
+    if (cores != null && l && l.read + l.write > 0) {
+      // CPU work per second at the peak, in cores, on the busiest instance
+      let busy: { util: number; what: string } | null = null;
+      if (n.type === "service" && cfg.platform !== "serverless") {
+        const ms = msOf(cfg.serviceTimeMs);
+        const replicas = cfg.autoscaling === true ? Math.max(num(cfg.maxReplicas) ?? 1, num(cfg.replicas) ?? 1) : Math.max(1, num(cfg.replicas) ?? 1);
+        if (ms) {
+          const cap = (cores * replicas * 1000) / ms;
+          busy = { util: (l.read + l.write) / cap, what: `${cores} vCPU × ${replicas} replica${replicas === 1 ? "" : "s"} at ${ms.toFixed(1)} ms of CPU work per request handle about ${fmtInt(cap)} req/s` };
+        }
+      } else if (n.type === "database") {
+        const read = msOf(cfg.readServiceTimeMs) ?? 0;
+        const write = msOf(cfg.writeServiceTimeMs) ?? 0;
+        const share = num(cfg.cpuShare) ?? 0.5;
+        const shards = Math.max(1, num(cfg.shards) ?? 1);
+        const copies = 1 + Math.max(0, num(cfg.readReplicas) ?? 0);
+        // the primary of each shard takes its share of reads plus every write
+        const primaryCores = ((l.read / copies) * read + l.write * write) * share / 1000 / shards;
+        busy = { util: primaryCores / cores, what: `each primary needs about ${primaryCores.toFixed(1)} of its ${cores} vCPU (${pct(share)} of ${read.toFixed(1)} ms reads and ${write.toFixed(1)} ms writes)` };
+      } else if (n.type === "cache") {
+        const ms = msOf(cfg.serviceTimeMs);
+        if (ms) {
+          const need = ((l.read + l.write) * ms) / 1000;
+          busy = { util: need / cores, what: `commands need about ${need.toFixed(1)} of its ${cores} vCPU` };
+        }
+      }
+      if (busy && busy.util >= 0.8) {
+        const over = busy.util >= 1;
+        add({
+          severity: over ? "high" : "medium",
+          rule: "cpu-capacity",
+          title: over ? `${name} needs more CPU at peak` : `${name} has little CPU headroom`,
+          detail: `At the ${fmtInt(peak)} req/s peak about ${fmtInt(l.read + l.write)} req/s reach ${name}; ${busy.what}, so its CPU would be ${pct(busy.util)} busy${over ? " and requests queue for a core" : ""}. This is a static estimate (first attempts, fixed hit ratios); a run measures it.`,
+          suggestion: "Give it more CPU cores or replicas, or reduce the CPU work per request.",
+          nodeIds: [n.id],
+          edgeIds: [],
+        });
+      }
+    }
+    if (n.type === "database") {
+      const mem = num(cfg.memoryGib);
+      const ws = num(cfg.workingSetGib);
+      if (mem != null && ws != null) {
+        const shards = Math.max(1, num(cfg.shards) ?? 1);
+        const hit = Math.min(1, (0.75 * mem) / (ws / shards));
+        if (hit < 0.9) {
+          add({
+            severity: hit < 0.5 ? "medium" : "low",
+            rule: "buffer-cache",
+            title: `${name}'s hot data does not fit in memory`,
+            detail: `75% of ${mem} GiB is buffer cache for about ${+(ws / shards).toFixed(1)} GiB of hot data per instance, so about ${pct(1 - hit)} of reads go to disk.`,
+            suggestion: "Give each instance more memory, shard the data, or cache the hottest reads in front.",
+            nodeIds: [n.id],
+            edgeIds: [],
+          });
+        }
+      }
+    }
+    if (n.type === "cache" && (cfg.hitModel ?? "fixed_ratio") === "ttl_keyspace") {
+      const mem = num(cfg.memoryGib);
+      if (mem != null) {
+        const keys = Math.max(1, Math.floor((0.8 * mem * 1024 * 1024) / (num(cfg.itemSizeKb) ?? 1)));
+        if (keys < workload.keyCount) {
+          add({
+            severity: "low",
+            rule: "cache-capacity",
+            title: `${name} holds ${fmtInt(keys)} of ${fmtInt(workload.keyCount)} keys`,
+            detail: `80% of ${mem} GiB fits about ${fmtInt(keys)} items of ${num(cfg.itemSizeKb) ?? 1} KiB; the least recently used keys are evicted, so expect a lower hit ratio than with unbounded memory.`,
+            suggestion: "Add memory if the hit ratio matters, or shorten what you cache.",
+            nodeIds: [n.id],
+            edgeIds: [],
+          });
+        }
+      }
+    }
   }
 
   // -- rate limit at the edge ------------------------------------------------------------------

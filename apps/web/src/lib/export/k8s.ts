@@ -1,7 +1,7 @@
 /** Kubernetes manifests (multi-document YAML) generated from an architecture document. */
 import type { ArchitectureDocument, Catalog } from "@/lib/types";
 import { dependencyUrl } from "./compose";
-import { HEADER, deployNodes, num, serviceReplicas, slug, storeInstances, type DeployNode } from "./tech";
+import { HEADER, deployNodes, k8sResources, k8sStorage, num, serviceReplicas, slug, specsOf, storeInstances, type DeployNode } from "./tech";
 import { comments, toYaml, type YamlValue } from "./yaml";
 
 const APP_PORT = 8080;
@@ -66,7 +66,8 @@ export function toKubernetes(doc: ArchitectureDocument, catalog?: Catalog | null
         ports: [{ containerPort: APP_PORT }],
         env: envOf(n, deps),
         readinessProbe: { httpGet: { path: "/healthz", port: APP_PORT }, periodSeconds: 5 },
-        resources: { requests: { cpu: "500m", memory: "512Mi" }, limits: { memory: "1Gi" } },
+        // the part's resource specs; placeholders when none are set
+        resources: k8sResources(cfg) ?? { requests: { cpu: "500m", memory: "512Mi" }, limits: { memory: "1Gi" } },
       };
       if (cfg.platform === "serverless") {
         docs.push({
@@ -127,6 +128,7 @@ export function toKubernetes(doc: ArchitectureDocument, catalog?: Catalog | null
       ports: [{ containerPort: tech.port }],
       env: envOf(n, kind === "network" ? deps : []),
       args: tech.command ? [...tech.command] : undefined,
+      resources: k8sResources(cfg),
     };
 
     if (kind === "database" || kind === "messaging") {
@@ -150,7 +152,7 @@ export function toKubernetes(doc: ArchitectureDocument, catalog?: Catalog | null
           volumeClaimTemplates: [
             {
               metadata: { name: "data" },
-              spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: "10Gi" } } },
+              spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: k8sStorage(specsOf(cfg).storageGib ?? 10) } } },
             },
           ],
         },

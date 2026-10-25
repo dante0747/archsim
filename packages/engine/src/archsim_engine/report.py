@@ -303,6 +303,22 @@ def build_report(
         rejected_w = sum(rejected.values())
         hold = m.hold.window_mean()
         svc = m.service.window_mean()
+        # Capacity: the lowest of the slot ceiling (workers/connections over the observed holding
+        # time) and any ceiling set by resource specs (CPU cores, memory).
+        limits = rt.resource_capacity(hold, svc)
+        ceilings: dict[str, float] = dict(limits)
+        if pool_based and slots and hold:
+            ceilings["slots"] = slots * 1000.0 / hold
+        cap_by = min(ceilings, key=lambda k: ceilings[k]) if ceilings else None
+        if cap_by == "slots":
+            # At saturation the slot ceiling reflects time spent waiting for a core (or memory);
+            # a resource ceiling within 3% of it is the root cause, so name that instead.
+            near = [k for k in limits if limits[k] <= ceilings["slots"] * 1.03]
+            if near:
+                cap_by = min(near, key=lambda k: limits[k])
+        only: list[float] = [v for k, v in limits.items() if k == "cpu"]
+        if pool_based and slots and svc:
+            only.append(slots * 1000.0 / svc)
         counters = {name: c.window for name, c in sorted(m.extra.items())}
         hits, misses = counters.get("hits"), counters.get("misses")
         hit_ratio = (
@@ -329,12 +345,10 @@ def build_report(
             "p99QueueWaitMs": _round(m.queue_wait_hist.percentile(99)),
             "meanHoldMs": _round(hold),
             "meanServiceMs": _round(svc),
-            "capacityRps": _round(slots * 1000.0 / hold)
-            if (pool_based and slots and hold)
-            else None,
-            "serviceOnlyCapacityRps": _round(slots * 1000.0 / svc)
-            if (pool_based and slots and svc)
-            else None,
+            "capacityRps": _round(ceilings[cap_by]) if cap_by else None,
+            "capacityLimit": cap_by,
+            "cpuCapacityRps": _round(limits["cpu"]) if "cpu" in limits else None,
+            "serviceOnlyCapacityRps": _round(min(only)) if only else None,
             "hitRatio": _round(hit_ratio),
             "counters": counters,
         }

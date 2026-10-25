@@ -282,7 +282,14 @@ function CostPanel({ report }: { report: Report }) {
             {cost.byNode.map((c) => (
               <li key={c.id}>
                 <div className="flex items-baseline justify-between gap-2 text-[12px]">
-                  <span className="min-w-0 truncate text-ink">{c.label}</span>
+                  <span className="min-w-0 truncate text-ink">
+                    {c.label}
+                    {c.priceSource === "size" && (
+                      <span className="ml-1.5 font-mono text-[10px] text-ink-3" title="No price set: priced from its CPU, memory and storage at illustrative on-demand rates">
+                        from size
+                      </span>
+                    )}
+                  </span>
                   <span className="tabular shrink-0 font-mono text-ink">{c.unitPrice == null ? "not set" : formatUsd(c.monthly)}</span>
                 </div>
                 <div className="mt-1 flex items-center gap-2">

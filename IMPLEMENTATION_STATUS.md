@@ -155,6 +155,13 @@ serves 8 example designs (see below).
   inspector has a Resources block (inputs, common sizes, illustrative price, "Use as cost"),
   canvas parts show "2 vCPU · 8 GiB · 200 GiB", and the last-run panel shows CPU busy, memory
   peak, buffer cache share and evictions.
+- Specs in the calculations (report 1.4): capacity figures take the lowest of the slot, CPU and
+  memory ceilings and say which (findings and the Components table name it); the cost estimate
+  prices parts without a set price from their size (marked "from size"); the design review
+  compares a static peak-load estimate with each part's CPU (and flags hot data larger than a
+  database's memory, TTL caches smaller than the keyspace); Kubernetes exports set container
+  requests/limits and volume sizes, Compose exports set deploy resource limits and reservations.
+  The static load estimate ignores retries and TTL-cache misses (no estimate below a TTL cache).
 - Links attach on any of the four sides of a component: drag from any side to any side, in
   either direction (if only the reverse direction is valid, the link is drawn that way). The
   chosen sides are saved in `layout.edges` (rendering only; simulation input and digests are
@@ -232,6 +239,15 @@ Resource specs, on 2026-10-25, same stack (engine 0.4.0): set the starter's API 
 spec line on the canvas part, ran it: throughput fell to about 196 req/s (2 replicas x 1 core /
 10 ms of CPU work), the API servers were flagged as the bottleneck and the last-run panel showed
 "CPU 100% busy". Bug found and fixed: memory below 1 GiB showed as "0 GiB" (now MiB).
+
+Specs in the calculations, on 2026-10-25, same setup (report 1.4): the design review flagged
+"API Servers needs more CPU at peak" before running; after the run the finding said "Its CPU
+cores can do about 196 req/s", the last-run panel "CPU caps it at 196 req/s", the cost table
+priced the API servers "from size" ($62.20 instead of the $146 placeholder), and the Kubernetes
+export set cpu "1" / memory "2Gi" requests and limits. Bugs found and fixed: at saturation the
+slot and CPU ceilings tie and the finding named the slots (a resource ceiling within 3% now
+wins); saved runs store every default, so a default price looked "set" (a price equal to the
+catalog default now counts as not set).
 
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links

@@ -45,9 +45,12 @@ describe("ResourceBlock", () => {
     useEditor.getState().setNodeConfig("db", "memoryGib", 8);
     show("db");
     expect(screen.getByLabelText(/Storage/)).toBeTruthy();
-    expect(screen.getByText(/for this size/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Use as cost" }));
-    expect(node("db").data.config.costPerHour).toBeCloseTo(0.0964, 4);
+    expect(screen.getByText(/the cost estimate uses it/)).toBeTruthy();
+    cleanup();
+    useEditor.getState().setNodeConfig("db", "costPerHour", 0.5);
+    show("db");
+    fireEvent.click(screen.getByRole("button", { name: "Use size price" }));
+    expect(node("db").data.config.costPerHour).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(node("db").data.config).toMatchObject({ cpuCores: null, memoryGib: null, storageGib: null });
   });

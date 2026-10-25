@@ -1,6 +1,6 @@
 /** docker-compose.yml scaffolding generated from an architecture document. */
 import type { ArchitectureDocument, Catalog } from "@/lib/types";
-import { HEADER, deployNodes, num, serviceReplicas, slug, storeInstances, type DeployNode } from "./tech";
+import { HEADER, composeResources, deployNodes, num, serviceReplicas, slug, specsOf, storeInstances, type DeployNode } from "./tech";
 import { comments, toYaml, type YamlValue } from "./yaml";
 
 function upperEnv(name: string): string {
@@ -66,7 +66,7 @@ export function toDockerCompose(doc: ArchitectureDocument, catalog?: Catalog | n
 
     if (kind === "compute") {
       svc.image = `your-org/${name}:latest`;
-      svc.deploy = { replicas: serviceReplicas(cfg) };
+      svc.deploy = { replicas: serviceReplicas(cfg), resources: composeResources(cfg) };
       if (cfg.autoscaling === true) labels["archsim.autoscaling"] = `${num(cfg.minReplicas, 1)}-${num(cfg.maxReplicas, 1)} replicas at ${Math.round(num(cfg.targetUtilization, 0.6) * 100)}% utilization`;
       if (cfg.platform) labels["archsim.platform"] = String(cfg.platform);
       if (typeof cfg.technology === "string" && cfg.technology !== "generic") labels["archsim.runtime"] = cfg.technology;
@@ -83,8 +83,12 @@ export function toDockerCompose(doc: ArchitectureDocument, catalog?: Catalog | n
         svc.ports = [`${lbPort++}:${tech.port}`];
         if (num(cfg.rateLimitRps, 0) > 0) labels["archsim.rate-limit"] = `${num(cfg.rateLimitRps, 0)} req/s (configure in the proxy)`;
       }
+      const res = composeResources(cfg);
+      if (res) svc.deploy = { resources: res };
       if (kind === "database" || kind === "messaging") {
         svc.volumes = [`${name}-data:${tech.dataPath ?? "/data"}`];
+        const storage = specsOf(cfg).storageGib;
+        if (storage != null) labels["archsim.storage"] = `${storage} GiB per instance (size the volume to match)`;
         const inst = storeInstances(cfg);
         if (inst > 1) labels["archsim.topology"] = `${inst} instances modelled (shards ${num(cfg.shards, 1)}, read replicas ${num(cfg.readReplicas, 0)}, RF ${num(cfg.replicationFactor, 1)}); configure replication/sharding separately`;
         if (kind === "messaging") {

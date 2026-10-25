@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOURS_PER_MONTH, SECONDS_PER_MONTH, estimateCost, formatUsd, instancesOf, paretoFrontier, sizePricePerHour } from "./cost";
+import { HOURS_PER_MONTH, SECONDS_PER_MONTH, estimateCost, formatUsd, instancesOf, hourlyPrice, paretoFrontier, sizePricePerHour } from "./cost";
 import type { Catalog, NodeSpec, Report } from "./types";
 
 const catalog = {
@@ -104,5 +104,22 @@ describe("sizePricePerHour", () => {
     expect(sizePricePerHour(2, 8)).toBeCloseTo(0.0964, 4);
     expect(sizePricePerHour(4, 16, 730)).toBeCloseTo(4 * 0.037 + 16 * 0.0028 + 0.08, 4);
     expect(sizePricePerHour(null, null, 100)).toBeNull();
+  });
+});
+
+describe("hourlyPrice", () => {
+  it("uses a set price, else the size, else the catalog default", () => {
+    expect(hourlyPrice(node("api", "service", { costPerHour: 0.2, cpuCores: 2, memoryGib: 8 }), catalog)).toEqual({ price: 0.2, source: "set" });
+    expect(hourlyPrice(node("api", "service", { cpuCores: 2, memoryGib: 8 }), catalog)).toEqual({ price: 0.0964, source: "size" });
+    expect(hourlyPrice(node("api", "service"), catalog)).toEqual({ price: 0.1, source: "default" });
+    // saved runs store every default: a price equal to the default counts as not set
+    expect(hourlyPrice(node("api", "service", { costPerHour: 0.1, cpuCores: 2, memoryGib: 8 }), catalog)).toEqual({ price: 0.0964, source: "size" });
+  });
+
+  it("feeds the estimate and says when sizes were used", () => {
+    const c = estimateCost([node("db", "database", { cpuCores: 4, memoryGib: 16, storageGib: 730 })], catalog);
+    expect(c.byNode[0].priceSource).toBe("size");
+    expect(c.byNode[0].monthly).toBeCloseTo((4 * 0.037 + 16 * 0.0028 + 0.08) * HOURS_PER_MONTH, 4);
+    expect(c.notes.some((n) => n.includes("priced from their size"))).toBe(true);
   });
 });

@@ -309,6 +309,18 @@ class ServiceRuntime(RuntimeComponent):
         if self.core_busy is not None:
             self.core_busy.finalize(t_end)
 
+    def resource_capacity(
+        self, hold_ms: float | None, service_ms: float | None
+    ) -> dict[str, float]:
+        cfg: ServiceConfig = self.config
+        out: dict[str, float] = {}
+        replicas = self.replicas_mean()
+        if cfg.cpu_cores is not None and service_ms:
+            out["cpu"] = cfg.cpu_cores * replicas * 1000.0 / service_ms
+        if self.mem_slots is not None and self.mem_slots < cfg.workers_per_replica and hold_ms:
+            out["memory"] = self.mem_slots * replicas * 1000.0 / hold_ms
+        return out
+
     def extra_summary(self) -> dict[str, Any]:
         cfg: ServiceConfig = self.config
         out: dict[str, Any] = {}
@@ -643,7 +655,7 @@ class ServiceModel(ComponentModel):
         "Garbage collection pauses; OOM kills and restarts (memory is a refusal limit instead)",
         "Parallel fan-out calls (dependencies are called one after another)",
         "Node/cluster capacity limits for new pods, readiness probe failures",
-        "Serverless memory/CPU sizing and provisioned concurrency",
+        "Serverless memory-to-CPU scaling (set CPU directly) and provisioned concurrency",
     )
     presets = (
         Preset(

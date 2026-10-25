@@ -112,6 +112,36 @@ describe("toKubernetes", () => {
   });
 });
 
+describe("resource specs in exports", () => {
+  const sized: ArchitectureDocument = structuredClone(doc);
+  const set = (id: string, cfg: Record<string, unknown>) => {
+    const n = sized.architecture.nodes.find((x) => x.id === id)!;
+    n.config = { ...n.config, ...cfg };
+  };
+  set("api", { cpuCores: 0.5, memoryGib: 1.5 });
+  set("db", { cpuCores: 4, memoryGib: 16, storageGib: 199.5 });
+  set("cache", { cpuCores: 2, memoryGib: 6.4 });
+
+  it("writes Kubernetes requests and limits and the volume size from the specs", () => {
+    const out = toKubernetes(sized, catalog);
+    expect(out).toMatch(/name: api\n(?:.*\n)*?\s+resources:\n\s+requests:\n\s+cpu: "500m"\n\s+memory: "1536Mi"\n\s+limits:\n\s+cpu: "500m"\n\s+memory: "1536Mi"/);
+    expect(out).toContain('storage: "200Gi"');
+    expect(out).toContain('memory: "16Gi"');
+    expect(out).toContain('memory: "6554Mi"');
+    // parts without specs keep the placeholder
+    expect(toKubernetes(doc, catalog)).toContain('cpu: "500m"');
+    expect(out).not.toMatch(/undefined|NaN/);
+  });
+
+  it("writes Compose limits and reservations, and notes storage", () => {
+    const out = toDockerCompose(sized, catalog);
+    expect(out).toMatch(/api:\n(?:.*\n)*?\s+resources:\n\s+limits:\n\s+cpus: "0.5"\n\s+memory: "1536M"\n\s+reservations:/);
+    expect(out).toContain('memory: "16G"');
+    expect(out).toMatch(/archsim\.storage: "?199\.5 GiB per instance/);
+    expect(toDockerCompose(doc, catalog)).not.toContain("reservations");
+  });
+});
+
 describe("toMermaid", () => {
   const out = toMermaid(doc, catalog);
   it("draws kinds with matching shapes and labels edges", () => {
