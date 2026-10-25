@@ -225,7 +225,7 @@ export function Canvas() {
   };
 
   return (
-    <div ref={wrapRef} data-tour="canvas" className="canvas-atmosphere relative h-full w-full" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+    <div ref={wrapRef} data-tour="canvas" className="relative h-full w-full bg-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       {/* Shared paint for node bodies: a faint top-down gradient gives shapes a sense of material. */}
       <svg width="0" height="0" className="absolute" aria-hidden>
         <defs>
