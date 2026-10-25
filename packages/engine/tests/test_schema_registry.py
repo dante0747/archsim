@@ -44,6 +44,20 @@ def test_every_example_is_valid_and_round_trips(path: Any) -> None:
         prepare_run(raw, sc.id)
 
 
+def test_layout_records_link_sides_without_affecting_the_model() -> None:
+    plain = load_example("cache-aside-starter.json")
+    raw = json.loads(json.dumps(plain))
+    first_edge = raw["architecture"]["edges"][0]["id"]
+    raw["layout"]["edges"] = {first_edge: {"sourceSide": "bottom", "targetSide": "top"}}
+    parsed = load_document(raw)
+    assert parsed.layout.edges[first_edge].source_side == "bottom"
+    assert parsed.to_json_dict()["layout"]["edges"][first_edge] == {"sourceSide": "bottom", "targetSide": "top"}
+    assert prepare_run(raw).resolved.architecture == prepare_run(plain).resolved.architecture
+    raw["layout"]["edges"] = {first_edge: {"sourceSide": "diagonal"}}
+    with pytest.raises(ValidationError):
+        ArchitectureDocument.model_validate(raw)
+
+
 def test_json_schema_is_exported() -> None:
     schema = document_json_schema()
     assert schema["properties"]["schemaVersion"]["const"] == "1.0"

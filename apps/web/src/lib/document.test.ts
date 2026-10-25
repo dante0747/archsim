@@ -1,12 +1,40 @@
 import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import starterJson from "@/test/fixtures/starter.json";
-import { defaultEdgeConfig, fromDocument, getPath, setPath, slugify, toDocument, uniqueId } from "./document";
+import { defaultEdgeConfig, edgeSourcePort, fromDocument, getPath, setPath, sideHandle, sideOf, slugify, toDocument, uniqueId } from "./document";
 import { convertDistribution, describeDistribution, isDistribution, meanOf, validateDistribution } from "./distributions";
 import type { ArchitectureDocument, Catalog } from "./types";
 
 const starter = starterJson as unknown as ArchitectureDocument;
 const catalog = catalogJson as unknown as Catalog;
+
+describe("link sides", () => {
+  it("defaults to right → left and keeps documents unchanged", () => {
+    const g = fromDocument(starter);
+    expect(g.edges.every((e) => e.sourceHandle === sideHandle("right") && e.targetHandle === sideHandle("left"))).toBe(true);
+    expect(toDocument(g).layout.edges).toBeUndefined();
+  });
+
+  it("saves non-default sides in the layout and reads them back, ports untouched", () => {
+    const g = fromDocument(starter);
+    const first = g.edges[0];
+    g.edges[0] = { ...first, sourceHandle: sideHandle("bottom"), targetHandle: sideHandle("top") };
+    const doc = toDocument(g);
+    expect(doc.layout.edges).toEqual({ [first.id]: { sourceSide: "bottom", targetSide: "top" } });
+    expect(doc.architecture.edges[0].sourcePort).toBe(starter.architecture.edges[0].sourcePort);
+    const again = fromDocument(doc);
+    expect(sideOf(again.edges[0].sourceHandle)).toBe("bottom");
+    expect(sideOf(again.edges[0].targetHandle)).toBe("top");
+    expect(edgeSourcePort(again.edges[0])).toBe(starter.architecture.edges[0].sourcePort);
+  });
+
+  it("tells side handles from port names", () => {
+    expect(sideOf("s-left")).toBe("left");
+    expect(sideOf("miss")).toBeNull();
+    expect(edgeSourcePort({ sourceHandle: "s-top", data: undefined })).toBe("out");
+    expect(edgeSourcePort({ sourceHandle: "miss", data: undefined })).toBe("miss");
+  });
+});
 
 describe("document conversion", () => {
   it("round-trips topology, workload and scenarios unchanged", () => {

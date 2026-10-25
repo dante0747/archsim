@@ -124,10 +124,17 @@ serves 8 example designs (see below).
     sweep, knee, max load within objectives), Markdown decision report (with design-review
     items), plus the existing insights, timeline, components, compare, history and
     assumptions views.
-- Command palette (every action, workspaces, every technology preset), IDE-style status bar,
-  keyboard shortcuts, light and dark schematic themes. Type: Geist Sans and Geist Mono with
-  Instrument Serif for display headings (self-hosted at build time by next/font; no runtime
-  calls to Google).
+- Command palette (every action, workspaces, every technology preset), keyboard shortcuts,
+  light and dark themes ("night shift": violet-tinted darks or lavender light, an electric
+  violet accent with cyan and pink in gradients, one hue per component family, floating
+  rounded panels around the canvas, a drifting aurora behind the home hero that stops for
+  reduced motion). Type: Bricolage Grotesque for display headings, Geist Sans and Geist Mono
+  for the interface and numbers (self-hosted at build time by next/font; no runtime calls to
+  Google).
+- Links attach on any of the four sides of a component: drag from any side to any side, in
+  either direction (if only the reverse direction is valid, the link is drawn that way). The
+  chosen sides are saved in `layout.edges` (rendering only; simulation input and digests are
+  unchanged), and documents without it default to right → left.
 - Onboarding and guidance: a single top bar (project name, Design · Test · Results switch,
   Simulate, Save, ⋯ menu); no status bar; one Simulate button that never switches workspace; a
   five-step guided tour (parts library, canvas, side panel, Simulate, workspaces) on the first

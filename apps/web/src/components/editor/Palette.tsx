@@ -20,7 +20,7 @@ import {
 } from "@/components/build/presets";
 import { TechIcon } from "@/components/TechIcon";
 import { Tip } from "@/components/ui/misc";
-import { FAMILIES, kindOf } from "@/lib/theme";
+import { FAMILIES, KIND_COLOR, kindOf } from "@/lib/theme";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 
@@ -92,7 +92,7 @@ function Tile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => vo
       {...dragProps(it.type, it.preset?.id)}
       onClick={() => onPick(it)}
       title={`${tileName(it)}: ${it.description}`}
-      className="group flex h-[72px] w-full cursor-grab flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-surface-2/40 px-1.5 text-center transition-colors hover:border-accent/60 hover:bg-surface-2 active:cursor-grabbing"
+      className="group flex h-[72px] w-full cursor-grab flex-col items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2/40 px-1.5 text-center transition-all hover:-translate-y-px hover:border-accent/60 hover:bg-surface-2 hover:shadow-[0_6px_18px_-8px_var(--accent)] active:cursor-grabbing"
     >
       <TechIcon technology={it.preset ? it.technology : null} kind={kindOf(it.type, it.comp.category)} size={22} />
       <span className="line-clamp-2 text-[11.5px] leading-[1.2] text-ink-2 group-hover:text-ink">{tileName(it)}</span>
@@ -148,7 +148,7 @@ export function PartsPanel() {
 
   if (!open) {
     return (
-      <aside data-tour="rail" className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1 border-r border-line bg-surface py-2" aria-label="Parts">
+      <aside data-tour="rail" className="island flex h-full w-[52px] shrink-0 flex-col items-center gap-1 py-2" aria-label="Parts">
         <Tip side="right" content="Show parts">
           <button type="button" onClick={() => setOpen(true)} className="mb-1 rounded-md p-2 text-ink-2 hover:bg-surface-2 hover:text-ink" aria-label="Show parts">
             <PanelLeftOpen className="size-4" />
@@ -166,7 +166,7 @@ export function PartsPanel() {
   }
 
   return (
-    <aside data-tour="rail" className="flex h-full w-[232px] shrink-0 flex-col border-r border-line bg-surface" aria-label="Parts">
+    <aside data-tour="rail" className="island flex h-full w-[232px] shrink-0 flex-col" aria-label="Parts">
       <div className="flex items-center gap-1.5 border-b border-line p-2.5">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
@@ -202,7 +202,10 @@ export function PartsPanel() {
       <div ref={listRef} className="flex-1 overflow-y-auto px-2.5 pb-3">
         {sections.map(({ family: f, items: list }) => (
           <section key={f.key} aria-label={f.label}>
-            <h3 className="sticky top-0 z-10 bg-surface pb-1.5 pt-3 text-[12px] font-semibold text-ink">{f.label}</h3>
+            <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-surface pb-1.5 pt-3 text-[12px] font-semibold text-ink">
+              <span className="size-2 rounded-full" style={{ background: KIND_COLOR[f.kinds[0]], boxShadow: `0 0 8px ${KIND_COLOR[f.kinds[0]]}` }} aria-hidden />
+              {f.label}
+            </h3>
             <ul className="grid grid-cols-2 gap-1.5">
               {list.map((it) => (
                 <li key={it.key}>

@@ -4,6 +4,8 @@ import {
   Background,
   BackgroundVariant,
   type Connection,
+  ConnectionLineType,
+  ConnectionMode,
   type FinalConnectionState,
   type IsValidConnection,
   MarkerType,
@@ -42,10 +44,14 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: "var(--wire)" },
 };
 
+function reversed<T extends { source: string | null; target: string | null; sourceHandle?: string | null; targetHandle?: string | null }>(c: T): T {
+  return { ...c, source: c.target, target: c.source, sourceHandle: c.targetHandle ?? null, targetHandle: c.sourceHandle ?? null };
+}
+
 function EmptyState() {
   const steps = [
     { icon: MousePointerClick, title: "add", text: "Drag a part from the left onto the canvas. Start with Clients: they send the traffic." },
-    { icon: Cable, title: "connect", text: "Drag from the small square on a part's right edge to the next part." },
+    { icon: Cable, title: "connect", text: "Drag from a dot on any side of a part to another part." },
     { icon: Play, title: "simulate", text: "Press Simulate (top right) and watch where the design struggles." },
   ];
   return (
@@ -54,8 +60,8 @@ function EmptyState() {
         <p className="font-mono text-xs text-ink-3">
           <span className="text-accent">{"//"}</span> empty canvas
         </p>
-        <h2 className="mt-2 font-display text-[34px] leading-[1.05] tracking-[-0.015em] text-ink">
-          Sketch a system, then <em className="text-gradient pr-1 italic">test it</em>
+        <h2 className="mt-2 font-display text-[34px] leading-[1.05] tracking-[-0.035em] text-ink">
+          Sketch a system, then <span className="text-gradient">test it</span>
         </h2>
         <ol className="mt-5 grid gap-2 sm:grid-cols-3">
           {steps.map((s, i) => (
@@ -168,14 +174,17 @@ export function Canvas() {
     return () => clearTimeout(t);
   }, [activeRunId, hasReport, overlay, drawerOpen, rf]);
 
+  // Links can start on either part: if A → B is not allowed but B → A is, draw B → A.
   const isValidConnection: IsValidConnection<ArchEdge> = useCallback((c) => {
     const s = useEditor.getState();
-    return checkConnection(c, s.nodes, s.edges, s.catalog).ok;
+    return checkConnection(c, s.nodes, s.edges, s.catalog).ok || checkConnection(reversed(c), s.nodes, s.edges, s.catalog).ok;
   }, []);
 
   const onConnect = useCallback(
     (c: Connection) => {
-      const res = connect(c);
+      const s = useEditor.getState();
+      const forward = checkConnection(c, s.nodes, s.edges, s.catalog);
+      const res = forward.ok || !checkConnection(reversed(c), s.nodes, s.edges, s.catalog).ok ? connect(c) : connect(reversed(c));
       if (!res.ok) toast.error("Cannot link these components", { description: res.reason });
     },
     [connect],
@@ -189,7 +198,7 @@ export function Canvas() {
       ? { source: state.fromNode.id, sourceHandle: state.fromHandle?.id ?? null, target: state.toNode.id, targetHandle: state.toHandle?.id ?? null }
       : { source: state.toNode.id, sourceHandle: state.toHandle?.id ?? null, target: state.fromNode.id, targetHandle: state.fromHandle?.id ?? null };
     const check = checkConnection(conn, s.nodes, s.edges, s.catalog);
-    if (!check.ok) toast.error("Cannot link these components", { description: check.reason });
+    if (!check.ok && !checkConnection(reversed(conn), s.nodes, s.edges, s.catalog).ok) toast.error("Cannot link these components", { description: check.reason });
   }, []);
 
   const onDrop = useCallback(
@@ -240,6 +249,8 @@ export function Canvas() {
           if (e) userMoved.current = true;
         }}
         isValidConnection={isValidConnection}
+        connectionMode={ConnectionMode.Loose}
+        connectionLineType={ConnectionLineType.SmoothStep}
         onNodeClick={() => setRightTab("inspect")}
         onEdgeClick={() => setRightTab("inspect")}
         deleteKeyCode={["Backspace", "Delete"]}

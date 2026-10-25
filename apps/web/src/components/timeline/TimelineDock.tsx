@@ -210,7 +210,7 @@ export function TimelineDock() {
   return (
     <section
       aria-label="Replay timeline"
-      className="relative flex shrink-0 flex-col border-t border-line-strong bg-surface"
+      className="island relative flex shrink-0 flex-col !overflow-visible"
       style={{ height: collapsed ? HEADER_H : height }}
     >
       <div

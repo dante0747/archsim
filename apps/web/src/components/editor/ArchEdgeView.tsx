@@ -71,7 +71,7 @@ function ArchEdgeViewImpl({
   const nBuckets = report?.timeseries.t.length ?? 0;
   const bucket = useUi((s) => (s.playhead == null ? -1 : Math.floor(s.playhead / bucketS + 1e-9)));
   const cfg = data?.config;
-  const isMiss = sourceHandleId === "miss";
+  const isMiss = (data?.sourcePort ?? sourceHandleId) === "miss";
   const showFlow = overlay && !!edgeReport;
   const liveOn = showFlow && !!report && bucket >= 0 && bucket < nBuckets;
 

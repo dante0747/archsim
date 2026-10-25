@@ -3,7 +3,7 @@
  * The server remains the source of truth (POST /validate); these rules only give immediate
  * feedback while drawing links.
  */
-import type { ArchEdge, ArchNode } from "./document";
+import { type ArchEdge, type ArchNode, edgeSourcePort, edgeTargetPort, sideOf } from "./document";
 import type { Catalog, ComponentType, PortSpec, RequestType } from "./types";
 
 export type ConnectionCheck =
@@ -58,7 +58,10 @@ export function checkConnection(
   const tt = componentOf(catalog, tn.data.type);
   if (!st || !tt) return { ok: false, reason: "Unknown component type." };
 
-  const sp = st.ports.find((p) => p.direction === "out" && p.name === (conn.sourceHandle ?? "out"));
+  // A side handle ("s-top") means "this component's output"; a port name picks that port.
+  const outPorts = st.ports.filter((p) => p.direction === "out");
+  const wantOut = sideOf(conn.sourceHandle) ? null : (conn.sourceHandle ?? null);
+  const sp = wantOut ? outPorts.find((p) => p.name === wantOut) : outPorts[0];
   if (!sp) return { ok: false, reason: `${sn.data.label} (${st.displayName}) cannot send requests.` };
   const inPorts = tt.ports.filter((p) => p.direction === "in");
   if (inPorts.length === 0) {
@@ -67,14 +70,15 @@ export function checkConnection(
       reason: `${tn.data.label} (${tt.displayName}) cannot receive requests; it only generates them.`,
     };
   }
-  const tp = inPorts.find((p) => p.name === (conn.targetHandle ?? inPorts[0].name)) ?? inPorts[0];
+  const wantIn = sideOf(conn.targetHandle) ? null : (conn.targetHandle ?? null);
+  const tp = inPorts.find((p) => p.name === (wantIn ?? inPorts[0].name)) ?? inPorts[0];
 
   const common = sp.requestTypes.filter((t) => tp.requestTypes.includes(t));
   if (common.length === 0) {
     return { ok: false, reason: `'${sp.label}' emits ${sp.requestTypes.join("/")} but ${tn.data.label} does not accept them.` };
   }
   if (sp.maxEdges != null) {
-    const used = edges.filter((e) => e.source === source && (e.sourceHandle ?? "out") === sp.name).length;
+    const used = edges.filter((e) => e.source === source && edgeSourcePort(e) === sp.name).length;
     if (used >= sp.maxEdges) {
       return {
         ok: false,
@@ -89,8 +93,8 @@ export function checkConnection(
       (e) =>
         e.source === source &&
         e.target === target &&
-        (e.sourceHandle ?? "out") === sp.name &&
-        (e.targetHandle ?? "in") === tp.name,
+        edgeSourcePort(e) === sp.name &&
+        edgeTargetPort(e) === tp.name,
     )
   ) {
     return { ok: false, reason: `${sn.data.label} is already linked to ${tn.data.label}. Edit that link's request types instead.` };

@@ -158,19 +158,18 @@ export function ProjectsHome() {
       </header>
 
       <section className="schematic-grid relative overflow-hidden border-b border-line">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 lg:grid-cols-[0.85fr_1.15fr]">
+        <div className="aurora" aria-hidden />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
-            <p className="microlabel mb-5">
-              <span className="mr-1 opacity-60" aria-hidden>
-                {"//"}
-              </span>
-              open-source · deterministic · local-first
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface/60 px-3 py-1 text-[12px] font-medium text-ink-2 backdrop-blur">
+              <span className="size-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" aria-hidden />
+              Open source · runs on your machine · no account
             </p>
-            <h1 className="font-display text-[3.25rem] leading-[0.98] tracking-[-0.02em] text-ink sm:text-[4.5rem]">
+            <h1 className="font-display text-[3.4rem] font-extrabold leading-[0.95] tracking-[-0.045em] text-ink sm:text-[4.8rem]">
               A flight simulator
               <br />
               <span className="whitespace-nowrap">
-                <em className="text-gradient pr-1 italic">for your architecture</em>
+                <span className="text-gradient">for your architecture</span>
                 <span className="caret ml-1 inline-block h-[0.7em] w-[3px] translate-y-[0.04em] rounded-full bg-accent" aria-hidden />
               </span>
             </h1>
@@ -207,9 +206,8 @@ export function ProjectsHome() {
                 {busy === "import" ? <LoaderCircle className="animate-spin" /> : <Upload />} Import JSON
               </Button>
             </div>
-            <p className="mt-5 font-mono text-[11px] text-ink-3">runs locally · same seed, same result · no account · no telemetry</p>
           </div>
-          <figure className="overflow-hidden rounded-lg border border-line-strong bg-surface shadow-float" aria-hidden>
+          <figure className="overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-[0_30px_80px_-30px_var(--accent)]" aria-hidden>
             <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
               <span className="flex gap-1.5">
                 {[0, 1, 2].map((i) => (
@@ -245,8 +243,8 @@ export function ProjectsHome() {
               </span>
               how it works
             </p>
-            <h2 id="ws-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
-              Three workspaces, <em className="italic text-ink-2">one canvas</em>
+            <h2 id="ws-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
+              Three workspaces, <span className="text-ink-3">one canvas</span>
             </h2>
           </div>
           <ol className="grid gap-px overflow-hidden rounded-xl border border-line bg-line shadow-panel lg:grid-cols-3">
@@ -273,8 +271,8 @@ export function ProjectsHome() {
                 </span>
                 templates
               </p>
-              <h2 id="examples-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
-                Start from an <em className="italic text-ink-2">example</em>
+              <h2 id="examples-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
+                Start from an <span className="text-ink-3">example</span>
               </h2>
               <p className="mt-2 text-sm text-ink-2">Each one comes with scenarios ready to compare.</p>
             </div>
@@ -329,8 +327,8 @@ export function ProjectsHome() {
                 </span>
                 your projects{projects && projects.length > 0 ? ` · ${projects.length}` : ""}
               </p>
-              <h2 id="projects-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
-                Pick up where you <em className="italic text-ink-2">left off</em>
+              <h2 id="projects-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
+                Pick up where you <span className="text-ink-3">left off</span>
               </h2>
               <p className="mt-2 text-sm text-ink-2">Saved locally in the ArchSim database.</p>
             </div>
@@ -435,8 +433,8 @@ function TechWall({ catalog }: { catalog: Catalog }) {
             </span>
             {items.length} technology profiles
           </p>
-          <h2 id="tech-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.015em] text-ink">
-            Model the stack you <em className="italic text-ink-2">actually run</em>
+          <h2 id="tech-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
+            Model the stack you <span className="text-ink-3">actually run</span>
           </h2>
         </div>
       </div>

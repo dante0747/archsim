@@ -4,44 +4,53 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * ArchSim design tokens — "schematic".
- * Ink-tinted graphite (dark) or warm drafting paper (light), translucent hairlines and soft layered
- * depth. Type: Geist for the interface, Geist Mono for numbers and tags, Instrument Serif for
- * display headings. Components are line-art shapes on orthogonal wires. One accent (aqua, with a
- * periwinkle partner used only in gradients) marks interaction and live traffic; status colors
- * (good / warning / serious / critical) appear only on results and always ship with a text label.
- * Request types are told apart by shape (● read, ■ write), not by color.
- * Light values first, dark values under .dark.
+ * ArchSim design tokens — "night shift".
+ * Violet-tinted ink (dark) or cool lavender paper (light). Type: Bricolage Grotesque for display
+ * headings, Geist for the interface, Geist Mono for numbers. One electric accent (violet, with a
+ * cyan partner and a pink spark used only in gradients) marks interaction and live traffic. Each
+ * component family has its own hue (clients, edge, compute, cache, data, queues, external) so a
+ * diagram reads at a glance. Status colors (good / warning / serious / critical) appear only on
+ * results and always ship with a text label. Light values first, dark values under .dark.
  */
 :root {
   color-scheme: light;
-  --page: #f5f4f1;
-  --canvas: #f8f7f4;
-  --grid-dot: rgba(28, 30, 38, 0.12);
-  --grid-cross: rgba(28, 30, 38, 0.2);
+  --page: #eeecf6;
+  --canvas: #f7f6fc;
+  --grid-dot: rgba(60, 40, 140, 0.13);
+  --grid-cross: rgba(60, 40, 140, 0.2);
   --surface: #ffffff;
-  --surface-2: #f4f3f0;
-  --surface-3: #eae9e5;
-  --glass: rgba(255, 255, 255, 0.78);
-  --ink: #16181d;
-  --ink-2: #50545d;
-  --ink-3: #888c95;
-  --line: rgba(22, 24, 29, 0.09);
-  --line-strong: rgba(22, 24, 29, 0.16);
-  --wire: #a3a6ad;
+  --surface-2: #f3f1fa;
+  --surface-3: #e8e5f4;
+  --glass: rgba(255, 255, 255, 0.8);
+  --ink: #15121f;
+  --ink-2: #514b66;
+  --ink-3: #8a84a3;
+  --line: rgba(50, 30, 110, 0.09);
+  --line-strong: rgba(50, 30, 110, 0.16);
+  --wire: #a7a1bf;
   --node-fill: #ffffff;
-  --node-fill-2: #f7f6f3;
-  --node-stroke: #2d3037;
-  --ring: #0b7fa3;
-  --accent: #0b7fa3;
-  --accent-2: #4b57d1;
+  --node-fill-2: #f6f4fd;
+  --node-stroke: #3a3550;
+  --ring: #6a45ff;
+  --accent: #6a45ff;
+  --accent-2: #0aa5c8;
+  --accent-3: #e2489b;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(11, 127, 163, 0.09);
+  --accent-soft: rgba(106, 69, 255, 0.1);
   --highlight: rgba(255, 255, 255, 0.9);
-  --shadow: 0 1px 2px rgba(22, 24, 29, 0.05), 0 1px 1px rgba(22, 24, 29, 0.03);
-  --shadow-lg: 0 24px 48px -16px rgba(22, 24, 29, 0.22), 0 4px 12px -4px rgba(22, 24, 29, 0.08);
-  --node-shadow: drop-shadow(0 6px 10px rgba(22, 24, 29, 0.07));
-  --tour-shade: rgba(22, 24, 29, 0.42);
+  --shadow: 0 1px 2px rgba(30, 20, 70, 0.06), 0 1px 1px rgba(30, 20, 70, 0.03);
+  --shadow-lg: 0 24px 48px -16px rgba(40, 20, 100, 0.25), 0 4px 12px -4px rgba(40, 20, 100, 0.08);
+  --node-shadow: drop-shadow(0 6px 12px rgba(50, 30, 120, 0.1));
+  --tour-shade: rgba(20, 14, 40, 0.42);
+
+  /* component families */
+  --fam-traffic: #0f9f6e;
+  --fam-network: #0d9488;
+  --fam-compute: #2f6fe4;
+  --fam-cache: #db2777;
+  --fam-database: #d97706;
+  --fam-messaging: #7c3aed;
+  --fam-external: #64748b;
 
   /* chart series (validated data-viz palette) */
   --series-1: #2a78d6;
@@ -65,41 +74,50 @@
   --success-ink: #1a7f37;
   --danger-ink: #b3191f;
 
-  --grid: rgba(22, 24, 29, 0.07);
-  --axis: rgba(22, 24, 29, 0.18);
-  --muted-axis: #888c95;
-  --warmup-wash: rgba(22, 24, 29, 0.04);
+  --grid: rgba(50, 30, 110, 0.07);
+  --axis: rgba(50, 30, 110, 0.18);
+  --muted-axis: #8a84a3;
+  --warmup-wash: rgba(50, 30, 110, 0.045);
 }
 
 .dark {
   color-scheme: dark;
-  --page: #08090c;
-  --canvas: #0a0b0f;
-  --grid-dot: rgba(214, 222, 255, 0.075);
-  --grid-cross: rgba(214, 222, 255, 0.13);
-  --surface: #0f1116;
-  --surface-2: #14171d;
-  --surface-3: #1b1f27;
-  --glass: rgba(16, 18, 24, 0.72);
-  --ink: #ecedf1;
-  --ink-2: #a7acb7;
-  --ink-3: #6c7280;
-  --line: rgba(214, 222, 255, 0.075);
-  --line-strong: rgba(214, 222, 255, 0.14);
-  --wire: #464d5a;
-  --node-fill: #12141a;
-  --node-fill-2: #0d0f13;
-  --node-stroke: #8c93a1;
-  --ring: #6ad6f0;
-  --accent: #6ad6f0;
-  --accent-2: #8e9bff;
-  --accent-ink: #03141a;
-  --accent-soft: rgba(106, 214, 240, 0.11);
-  --highlight: rgba(255, 255, 255, 0.05);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.12);
-  --shadow-lg: 0 28px 60px -18px rgba(0, 0, 0, 0.75), 0 6px 16px -6px rgba(0, 0, 0, 0.5);
-  --node-shadow: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
-  --tour-shade: rgba(2, 3, 6, 0.62);
+  --page: #05040a;
+  --canvas: #0a0813;
+  --grid-dot: rgba(190, 170, 255, 0.09);
+  --grid-cross: rgba(190, 170, 255, 0.16);
+  --surface: #100d1b;
+  --surface-2: #171327;
+  --surface-3: #211c36;
+  --glass: rgba(20, 16, 34, 0.74);
+  --ink: #f2f0ff;
+  --ink-2: #b6afd3;
+  --ink-3: #7b7499;
+  --line: rgba(190, 170, 255, 0.09);
+  --line-strong: rgba(190, 170, 255, 0.17);
+  --wire: #4b4468;
+  --node-fill: #151129;
+  --node-fill-2: #0e0b1c;
+  --node-stroke: #9087b9;
+  --ring: #9d84ff;
+  --accent: #9d84ff;
+  --accent-2: #2fd4f0;
+  --accent-3: #ff6fb5;
+  --accent-ink: #0c0619;
+  --accent-soft: rgba(157, 132, 255, 0.15);
+  --highlight: rgba(255, 255, 255, 0.06);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 28px 60px -18px rgba(0, 0, 0, 0.8), 0 6px 16px -6px rgba(0, 0, 0, 0.55);
+  --node-shadow: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.5));
+  --tour-shade: rgba(3, 2, 8, 0.66);
+
+  --fam-traffic: #34d399;
+  --fam-network: #2dd4bf;
+  --fam-compute: #60a5fa;
+  --fam-cache: #f472b6;
+  --fam-database: #fbbf24;
+  --fam-messaging: #a78bfa;
+  --fam-external: #94a3b8;
 
   --series-1: #3987e5;
   --series-2: #d95926;
@@ -121,10 +139,10 @@
   --success-ink: #56d364;
   --danger-ink: #ff7b72;
 
-  --grid: rgba(214, 222, 255, 0.06);
-  --axis: rgba(214, 222, 255, 0.14);
-  --muted-axis: #7a808d;
-  --warmup-wash: rgba(214, 222, 255, 0.035);
+  --grid: rgba(190, 170, 255, 0.07);
+  --axis: rgba(190, 170, 255, 0.15);
+  --muted-axis: #7f789c;
+  --warmup-wash: rgba(190, 170, 255, 0.04);
 }
 
 @theme inline {
@@ -157,7 +175,8 @@
   --color-accent-2: var(--accent-2);
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
-  --font-display: var(--font-instrument-serif), "Iowan Old Style", Georgia, serif;
+  --font-display: var(--font-bricolage), var(--font-geist-sans), system-ui, sans-serif;
+  --color-accent-3: var(--accent-3);
   --shadow-panel: var(--shadow);
   --shadow-float: var(--shadow-lg);
 }
@@ -200,10 +219,10 @@ p {
 
 /* In the base layer so Tailwind utilities (tracking-*, font-*) still override these defaults. */
 @layer base {
-  /* Display headings: Instrument Serif, a little tighter, never bold (it has one weight). */
+  /* Display headings: Bricolage Grotesque, heavy and tight. */
   .font-display {
-    font-weight: 400;
-    letter-spacing: -0.012em;
+    font-weight: 700;
+    letter-spacing: -0.035em;
     font-feature-settings: "liga", "kern";
   }
 
@@ -227,27 +246,28 @@ p {
   background-image: linear-gradient(180deg, var(--highlight), transparent 120px);
 }
 
-/* Primary action: the accent with a whisper of the periwinkle partner and an inner highlight. */
+/* Primary action: an electric violet-to-cyan gradient with a soft glow. */
 .accent-fill {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white) 0%, var(--accent) 55%, color-mix(in srgb, var(--accent) 78%, var(--accent-2)) 100%);
+  background: linear-gradient(120deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 55%, var(--accent-2)) 60%, var(--accent-2) 130%);
   color: var(--accent-ink);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
     0 1px 2px rgba(0, 0, 0, 0.25),
-    0 6px 16px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+    0 8px 22px -8px color-mix(in srgb, var(--accent) 75%, transparent);
 }
 
 /* Soft atmospheric light behind the canvas (very low contrast). */
 .canvas-atmosphere {
   background:
-    radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
-    radial-gradient(900px 500px at 100% 110%, color-mix(in srgb, var(--accent-2) 5%, transparent), transparent 70%),
+    radial-gradient(900px 520px at 0% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+    radial-gradient(800px 480px at 100% 100%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 70%),
+    radial-gradient(600px 360px at 85% 5%, color-mix(in srgb, var(--accent-3) 4%, transparent), transparent 70%),
     var(--canvas);
 }
 
 /* Gradient text for the occasional display accent word. */
 .text-gradient {
-  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 100%);
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-3) 55%, var(--accent-2) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -338,31 +358,35 @@ p {
 
 /* Square "pins" instead of round handles. */
 .react-flow__handle {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   min-width: 0;
   min-height: 0;
-  border-radius: 1px;
-  border-width: 1.25px;
-  transition:
-    transform 120ms ease,
-    background-color 120ms ease,
-    border-color 120ms ease;
-}
-
-.react-flow__node:hover .react-flow__handle {
-  transform: translate(-50%, -50%) scale(1.25);
-}
-
-.react-flow__node:hover .react-flow__handle-right {
-  transform: translate(50%, -50%) scale(1.25);
-}
-
-.react-flow__handle.connectingfrom,
-.react-flow__handle.valid,
-.react-flow__handle:hover {
-  background: var(--accent);
+  border-radius: 999px;
+  border-width: 1.5px;
   border-color: var(--accent);
+  background: var(--surface);
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    transform 120ms ease,
+    background-color 120ms ease;
+}
+
+/* Attach points appear on hover, on the selected part, and on every part while linking. */
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle,
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectingto,
+.react-flow:has(.react-flow__connectionline) .react-flow__handle {
+  opacity: 1;
+}
+
+.react-flow__handle:hover,
+.react-flow__handle.connectingfrom,
+.react-flow__handle.valid {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .react-flow__minimap {
@@ -411,4 +435,67 @@ p {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Aurora: slow drifting colour behind the home hero (still for reduced motion). */
+@keyframes archsim-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.aurora {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 620px;
+  pointer-events: none;
+  filter: blur(70px);
+  opacity: 0.55;
+}
+
+.aurora::before,
+.aurora::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  animation: archsim-drift 18s ease-in-out infinite;
+}
+
+.aurora::before {
+  left: 8%;
+  top: 10%;
+  width: 46%;
+  height: 70%;
+  background: radial-gradient(closest-side, var(--accent), transparent);
+}
+
+.aurora::after {
+  right: 4%;
+  top: 0;
+  width: 42%;
+  height: 64%;
+  background: radial-gradient(closest-side, var(--accent-2), transparent);
+  animation-delay: -9s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before,
+  .aurora::after {
+    animation: none;
+  }
+}
+
+/* Floating panels around the canvas. */
+.island {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow);
+  overflow: hidden;
 }

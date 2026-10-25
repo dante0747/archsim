@@ -7,13 +7,13 @@ import { describeValue, isFieldVisible } from "@/components/editor/FieldControl"
 import { SHAPE_HANDLE, SHAPE_OF, SHAPE_PADDING, ShapeSvg } from "@/components/shapes";
 import { TechIcon } from "@/components/TechIcon";
 import { useIsDark } from "@/components/ui/theme-toggle";
-import type { ArchNode } from "@/lib/document";
+import { type ArchNode, SIDES, type Side, sideHandle } from "@/lib/document";
 import { isDistribution, shortDistribution } from "@/lib/distributions";
 import { compact, compactRate, fmtPct } from "@/lib/format";
 import { componentOf } from "@/lib/graph-rules";
 import { faultsAt, fmtRate, heatColor, runFaults, statusAt } from "@/lib/recorder";
 import { NODE_STATUS } from "@/lib/status";
-import { kindOf, technologyLabel } from "@/lib/theme";
+import { KIND_COLOR, kindOf, technologyLabel } from "@/lib/theme";
 import type { Fault, NodeReport, NodeStatus, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -21,6 +21,8 @@ import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 
 export const NODE_W = 212;
+
+const SIDE_POSITION: Record<Side, Position> = { top: Position.Top, right: Position.Right, bottom: Position.Bottom, left: Position.Left };
 
 /** Size of an element in layout pixels (unaffected by the canvas zoom transform). */
 function useBoxSize(ref: React.RefObject<HTMLDivElement | null>) {
@@ -167,8 +169,6 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const hp = SHAPE_HANDLE[shape];
   const configReplicas = typeof data.config.replicas === "number" ? data.config.replicas : 1;
   const replicas = live?.replicas != null ? Math.max(1, Math.round(live.replicas)) : configReplicas;
-  const inPorts = comp?.ports.filter((p) => p.direction === "in") ?? [];
-  const outPorts = comp?.ports.filter((p) => p.direction === "out") ?? [];
   const headline = (comp?.fields ?? []).filter((f) => f.headline && isFieldVisible(f, data.config)).slice(0, 2);
   const status: NodeStatus | null = live ? live.status : overlay && nodeReport ? nodeReport.status : null;
   const meta = status ? NODE_STATUS[status] : null;
@@ -188,14 +188,13 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
         ? "var(--status-critical)"
         : alarm && meta
           ? meta.color
-          : "var(--node-stroke)";
+          : `color-mix(in srgb, ${KIND_COLOR[kindOf(data.type, comp?.category)]} 62%, var(--node-stroke))`;
   const glow = selected
     ? "drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 45%, transparent))"
     : status === "saturated" && meta
       ? `drop-shadow(0 0 7px color-mix(in srgb, ${meta.color} 55%, transparent))`
       : undefined;
   const dashed = (outage || errorCount > 0) && !selected;
-  const portTop = (i: number, n: number) => `calc(${((i + 1) / (n + 1)) * 100}% + ${hp.dy}px)`;
   const typeName = comp?.displayName.split(" / ")[0].replace(/ \(.*\)$/, "") ?? data.type;
   const technology = typeof data.config.technology === "string" ? data.config.technology : null;
   const tech = technologyLabel(comp, technology);
@@ -261,38 +260,26 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
         )}
       </svg>
 
-      {inPorts.map((p, i) => (
+      {/* Attach points on all four sides: drag from any of them to another part (either way). */}
+      {SIDES.map((side) => (
         <Handle
-          key={p.name}
-          id={p.name}
-          type="target"
-          position={Position.Left}
-          style={{ top: portTop(i, inPorts.length), left: hp.left }}
-          title={`${p.label}: ${p.description}`}
+          key={side}
+          id={sideHandle(side)}
+          type="source"
+          position={SIDE_POSITION[side]}
+          className="arch-handle"
+          style={
+            side === "left"
+              ? { top: `calc(50% + ${hp.dy}px)`, left: hp.left }
+              : side === "right"
+                ? { top: `calc(50% + ${hp.dy}px)`, right: hp.right }
+                : side === "top"
+                  ? { left: "50%", top: 0 }
+                  : { left: "50%", bottom: 0 }
+          }
+          title="Drag to another part to connect"
         />
       ))}
-      {outPorts.map((p, i) => {
-        const top = portTop(i, outPorts.length);
-        return (
-          <div key={p.name}>
-            <Handle
-              id={p.name}
-              type="source"
-              position={Position.Right}
-              style={{ top, right: hp.right }}
-              title={`${p.label}: ${p.description} — drag to link`}
-            />
-            {p.name !== "out" && (
-              <span
-                className="pointer-events-none absolute -right-1.5 translate-x-full -translate-y-[135%] font-mono text-[9.5px] lowercase text-ink-3"
-                style={{ top }}
-              >
-                {p.label}
-              </span>
-            )}
-          </div>
-        );
-      })}
 
       <div className="relative" style={{ padding: `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px` }}>
         <div className="flex items-center gap-2.5">

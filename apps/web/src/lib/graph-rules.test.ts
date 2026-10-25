@@ -12,6 +12,16 @@ const check = (source: string, target: string, sourceHandle = "out", targetHandl
   checkConnection({ source, target, sourceHandle, targetHandle }, nodes, edges, catalog);
 
 describe("connection rules", () => {
+  it("resolves side handles to the component's ports", () => {
+    const withoutApiDb = edges.filter((e) => e.id !== "api-db");
+    const res = checkConnection({ source: "api", target: "db", sourceHandle: "s-bottom", targetHandle: "s-top" }, nodes, withoutApiDb, catalog);
+    expect(res.ok && [res.sourcePort.name, res.targetPort.name]).toEqual(["out", "in"]);
+    const miss = checkConnection({ source: "cache", target: "db", sourceHandle: "s-left", targetHandle: "s-right" }, nodes, edges.filter((e) => e.id !== "cache-db"), catalog);
+    expect(miss.ok && miss.sourcePort.name).toBe("miss");
+    // An existing link is still found whatever sides it is drawn on.
+    expect(checkConnection({ source: "api", target: "db", sourceHandle: "s-top", targetHandle: "s-bottom" }, nodes, edges, catalog)).toMatchObject({ ok: false });
+  });
+
   it("accepts a valid new link with compatible request types", () => {
     const withoutApiDb = edges.filter((e) => e.id !== "api-db");
     const res = checkConnection({ source: "api", target: "db", sourceHandle: "out", targetHandle: "in" }, nodes, withoutApiDb, catalog);

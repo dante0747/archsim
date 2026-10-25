@@ -8,6 +8,7 @@
 import { useReactFlow } from "@xyflow/react";
 import { ChevronDown, ScanSearch } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { edgeSourcePort, edgeTargetPort } from "@/lib/document";
 import { REVIEW_RULES, type ReviewFinding, type ReviewSeverity, countBySeverity, reviewDesign } from "@/lib/review";
 import type { EdgeSpec, NodeSpec } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -30,9 +31,9 @@ export function useDesignReview(): ReviewFinding[] {
     const es: EdgeSpec[] = edges.map((e) => ({
       id: e.id,
       source: e.source,
-      sourcePort: e.sourceHandle ?? "out",
+      sourcePort: edgeSourcePort(e),
       target: e.target,
-      targetPort: e.targetHandle ?? "in",
+      targetPort: edgeTargetPort(e),
       config: e.data?.config ?? { requestTypes: ["read", "write"], latencyMs: { kind: "constant", value: 0.5 } },
     }));
     return reviewDesign(ns, es, catalog, workload);

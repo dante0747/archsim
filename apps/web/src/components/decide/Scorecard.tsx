@@ -391,7 +391,7 @@ export function AnswerPage() {
         <div className="flex items-start gap-4">
           <VerdictIcon className="mt-1.5 size-9 shrink-0" style={{ color: toneColor }} aria-hidden />
           <div className="min-w-0">
-            <h2 className="font-display text-[44px] leading-[1.05] tracking-[-0.02em] text-ink">{headline}</h2>
+            <h2 className="font-display text-[46px] leading-[1.02] tracking-[-0.035em] text-ink">{headline}</h2>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{reason}</p>
             {bottleneck && <p className="mt-1 text-[15px] text-ink">{bottleneck.title}.</p>}
           </div>

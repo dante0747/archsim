@@ -225,7 +225,7 @@ export function TopBar({
   const dark = useIsDark();
 
   return (
-    <header className="relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-line bg-surface/85 px-3 backdrop-blur-md">
+    <header className="island relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 !overflow-visible px-2.5">
       <div className="flex min-w-0 items-center gap-1.5">
         <Tip content="All projects">
           <Link href="/" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">

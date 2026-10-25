@@ -381,8 +381,19 @@ class Viewport(CamelModel):
     zoom: float = 1.0
 
 
+EdgeSide = Literal["top", "right", "bottom", "left"]
+
+
+class EdgeLayout(CamelModel):
+    """Which side of each component a link attaches to on the canvas (rendering only)."""
+
+    source_side: EdgeSide | None = None
+    target_side: EdgeSide | None = None
+
+
 class Layout(CamelModel):
     nodes: dict[str, Position] = Field(default_factory=dict)
+    edges: dict[str, EdgeLayout] = Field(default_factory=dict)
     viewport: Viewport | None = None
 
 

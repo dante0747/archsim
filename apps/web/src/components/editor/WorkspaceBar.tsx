@@ -35,7 +35,7 @@ export function WorkspaceSwitch() {
               data-testid={`workspace-${s.key}`}
               className={cn(
                 "flex h-7 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors",
-                active ? "bg-surface text-ink shadow-panel" : "text-ink-3 hover:text-ink",
+                active ? "bg-surface text-ink shadow-[0_0_0_1px_var(--line-strong),0_4px_14px_-6px_var(--accent)]" : "text-ink-3 hover:text-ink",
               )}
             >
               {s.busy ? (

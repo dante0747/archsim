@@ -36,8 +36,10 @@ API servers behind a lone Clients box.
   (payments, e-mail, identity, LLM inference...). Behaviour comes from the numbers (replicas,
   shards, replication factor and consistency, partitions, rate limits), never from the name,
   and every default is marked as an assumption.
-- Each component kind has its own schematic shape and shows its technology logo, its name and
-  one or two key settings; after a run it shows how busy it was. Links are right-angle wires.
+- Each component kind has its own schematic shape and family colour and shows its technology
+  logo, its name and one or two key settings; after a run it shows how busy it was. Links are
+  right-angle wires that attach on any of the four sides: drag from a dot on any side of one
+  part to any side of another, in either direction.
 - Click a part to edit it: its technology, a one-line last-run status, at most three key
   settings (response-time distributions as a one-line summary you click to edit), and "More
   settings" for everything else, notes and what the model covers.

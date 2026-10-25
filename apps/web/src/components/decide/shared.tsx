@@ -63,7 +63,7 @@ export function PageHeader({
           </span>
           {kicker}
         </p>
-        <h2 className="mt-1 font-display text-[28px] leading-[1.1] tracking-[-0.015em] text-ink">{title}</h2>
+        <h2 className="mt-1 font-display text-[28px] leading-[1.1] tracking-[-0.035em] text-ink">{title}</h2>
         {description && <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

@@ -25,10 +25,33 @@ export interface ArchNodeData extends Record<string, unknown> {
 export interface ArchEdgeData extends Record<string, unknown> {
   config: EdgeConfig;
   label?: string | null;
+  /** Port names on the components (what the simulation uses); handles only say which side. */
+  sourcePort?: string;
+  targetPort?: string;
 }
 
 export type ArchNode = Node<ArchNodeData, "arch">;
 export type ArchEdge = Edge<ArchEdgeData, "arch">;
+
+/** Components can be linked from any of their four sides. */
+export type Side = "top" | "right" | "bottom" | "left";
+export const SIDES: Side[] = ["top", "right", "bottom", "left"];
+export const sideHandle = (side: Side): string => `s-${side}`;
+
+/** The side a handle id names ("s-top"), or null for a plain port name ("out", "miss"). */
+export function sideOf(handle: string | null | undefined): Side | null {
+  if (!handle || !handle.startsWith("s-")) return null;
+  const side = handle.slice(2) as Side;
+  return SIDES.includes(side) ? side : null;
+}
+
+/** The port a link leaves from / arrives at, whatever side it is drawn on. */
+export function edgeSourcePort(e: Pick<ArchEdge, "sourceHandle" | "data">): string {
+  return e.data?.sourcePort ?? (sideOf(e.sourceHandle) ? "out" : (e.sourceHandle ?? "out"));
+}
+export function edgeTargetPort(e: Pick<ArchEdge, "targetHandle" | "data">): string {
+  return e.data?.targetPort ?? (sideOf(e.targetHandle) ? "in" : (e.targetHandle ?? "in"));
+}
 
 export interface GraphState {
   nodes: ArchNode[];
@@ -99,14 +122,15 @@ export function fromDocument(doc: ArchitectureDocument): GraphState & { viewport
       config: n.config ?? {},
     },
   }));
+  const sides = doc.layout?.edges ?? {};
   const edges: ArchEdge[] = doc.architecture.edges.map((e) => ({
     id: e.id,
     type: "arch",
     source: e.source,
     target: e.target,
-    sourceHandle: e.sourcePort ?? "out",
-    targetHandle: e.targetPort ?? "in",
-    data: { config: e.config, label: e.label ?? null },
+    sourceHandle: sideHandle(sides[e.id]?.sourceSide ?? "right"),
+    targetHandle: sideHandle(sides[e.id]?.targetSide ?? "left"),
+    data: { config: e.config, label: e.label ?? null, sourcePort: e.sourcePort ?? "out", targetPort: e.targetPort ?? "in" },
   }));
   return {
     nodes,
@@ -136,9 +160,9 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
       edges: state.edges.map((e) => ({
         id: e.id,
         source: e.source,
-        sourcePort: e.sourceHandle ?? "out",
+        sourcePort: edgeSourcePort(e),
         target: e.target,
-        targetPort: e.targetHandle ?? "in",
+        targetPort: edgeTargetPort(e),
         label: e.data?.label ?? null,
         config: e.data?.config ?? defaultEdgeConfigFallback(),
       })),
@@ -150,9 +174,21 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
       nodes: Object.fromEntries(
         state.nodes.map((n) => [n.id, { x: round(n.position.x), y: round(n.position.y) }]),
       ),
+      ...edgeSides(state.edges),
       viewport: viewport ? { x: round(viewport.x), y: round(viewport.y), zoom: viewport.zoom } : null,
     },
   };
+}
+
+/** Only links drawn on non-default sides are recorded, so plain documents stay unchanged. */
+function edgeSides(edges: ArchEdge[]): { edges?: NonNullable<ArchitectureDocument["layout"]["edges"]> } {
+  const out: NonNullable<ArchitectureDocument["layout"]["edges"]> = {};
+  for (const e of edges) {
+    const s = sideOf(e.sourceHandle) ?? "right";
+    const t = sideOf(e.targetHandle) ?? "left";
+    if (s !== "right" || t !== "left") out[e.id] = { sourceSide: s, targetSide: t };
+  }
+  return Object.keys(out).length ? { edges: out } : {};
 }
 
 function defaultEdgeConfigFallback(): EdgeConfig {

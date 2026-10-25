@@ -74,7 +74,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 | `workload` | object | See below. Every field has a default. |
 | `scenarios` | array | Max 50. |
 | `objectives` | object | Service-level objectives (see below). Optional; defaults apply. |
-| `layout` | object | `nodes: {id: {x, y}}`, optional `viewport: {x, y, zoom}`. |
+| `layout` | object | `nodes: {id: {x, y}}`, optional `edges: {id: {sourceSide, targetSide}}` (each `top`, `right`, `bottom` or `left`; where a link attaches on the canvas) and optional `viewport: {x, y, zoom}`. Rendering only. |
 
 ## Nodes
 

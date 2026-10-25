@@ -25,6 +25,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { Badge, Section, Tip } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/overlays";
 import { compact, fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
+import { edgeSourcePort, edgeTargetPort } from "@/lib/document";
 import { componentOf } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
 import { KIND_LABEL, REQ_GLYPH, kindOf, type Kind } from "@/lib/theme";
@@ -44,7 +45,7 @@ export function Inspector() {
     if (rightTab === "workload") markTrafficVisited();
   }, [rightTab, markTrafficVisited]);
   return (
-    <aside data-tour="panel" className="surface-sheen flex h-full w-[320px] shrink-0 flex-col border-l border-line bg-surface" aria-label="Side panel">
+    <aside data-tour="panel" className="island surface-sheen flex h-full w-[320px] shrink-0 flex-col" aria-label="Side panel">
       <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as RightTab)} className="flex min-h-0 flex-1 flex-col">
         <TabsList className="px-2">
           <TabsTrigger value="inspect">
@@ -459,8 +460,8 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
   const tgt = nodes.find((n) => n.id === edge.target);
   const srcComp = src ? componentOf(catalog, src.data.type) : undefined;
   const tgtComp = tgt ? componentOf(catalog, tgt.data.type) : undefined;
-  const sp = srcComp?.ports.find((p) => p.name === (edge.sourceHandle ?? "out"));
-  const tp = tgtComp?.ports.find((p) => p.name === (edge.targetHandle ?? "in"));
+  const sp = srcComp?.ports.find((p) => p.name === edgeSourcePort(edge));
+  const tp = tgtComp?.ports.find((p) => p.name === edgeTargetPort(edge));
   const allowed = (sp?.requestTypes ?? ["read", "write"]).filter((t) => (tp?.requestTypes ?? ["read", "write"]).includes(t)) as RequestType[];
   const fromSource = srcComp?.isTrafficSource;
   const fields = (catalog?.edgeFields ?? [])

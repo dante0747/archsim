@@ -20,6 +20,8 @@ import {
   defaultEdgeConfig,
   fromDocument,
   setPath,
+  sideHandle,
+  sideOf,
   toDocument,
   uniqueId,
 } from "@/lib/document";
@@ -236,9 +238,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
       type: "arch",
       source: conn.source,
       target: conn.target,
-      sourceHandle: check.sourcePort.name,
-      targetHandle: check.targetPort.name,
-      data: { config: defaultEdgeConfig(s.catalog, check.requestTypes), label: null },
+      sourceHandle: sideOf(conn.sourceHandle) ? conn.sourceHandle : sideHandle("right"),
+      targetHandle: sideOf(conn.targetHandle) ? conn.targetHandle : sideHandle("left"),
+      data: {
+        config: defaultEdgeConfig(s.catalog, check.requestTypes),
+        label: null,
+        sourcePort: check.sourcePort.name,
+        targetPort: check.targetPort.name,
+      },
     };
     set((st) => ({ edges: [...st.edges, edge], dirty: true }));
     return { ok: true };

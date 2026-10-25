@@ -54,7 +54,7 @@ import {
   siTraefikproxy,
 } from "simple-icons";
 import { useIsDark } from "@/components/ui/theme-toggle";
-import type { Kind } from "@/lib/theme";
+import { KIND_COLOR, type Kind } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const BRANDS: Record<string, SimpleIcon> = {
@@ -164,13 +164,18 @@ export function TechIcon({
       </svg>
     );
   } else {
-    icon = <Generic className="shrink-0 text-ink-2" style={{ width: size, height: size }} strokeWidth={1.75} aria-label={title} aria-hidden={!title} />;
+    icon = <Generic className="shrink-0" style={{ width: size, height: size, color: KIND_COLOR[kind] }} strokeWidth={1.9} aria-label={title} aria-hidden={!title} />;
   }
   if (!tile) return <span className={cn("inline-flex", className)}>{icon}</span>;
   return (
     <span
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-lg border border-line bg-surface", className)}
-      style={{ width: size + 14, height: size + 14 }}
+      className={cn("inline-flex shrink-0 items-center justify-center rounded-lg border", className)}
+      style={{
+        width: size + 14,
+        height: size + 14,
+        background: `color-mix(in srgb, ${KIND_COLOR[kind]} 13%, var(--surface))`,
+        borderColor: `color-mix(in srgb, ${KIND_COLOR[kind]} 35%, transparent)`,
+      }}
     >
       {icon}
     </span>

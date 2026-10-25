@@ -114,6 +114,8 @@ export interface ArchitectureDocument {
   objectives?: Objectives;
   layout: {
     nodes: Record<string, { x: number; y: number }>;
+    /** Where each link attaches on the canvas (rendering only). */
+    edges?: Record<string, { sourceSide?: "top" | "right" | "bottom" | "left" | null; targetSide?: "top" | "right" | "bottom" | "left" | null }>;
     viewport?: { x: number; y: number; zoom: number } | null;
   };
 }

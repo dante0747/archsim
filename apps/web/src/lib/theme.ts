@@ -25,6 +25,18 @@ const BY_CATEGORY: Record<string, Kind> = {
   external: "external",
 };
 
+/** Each component family has its own hue (CSS variables, light and dark). */
+export const KIND_COLOR: Record<Kind, string> = {
+  traffic: "var(--fam-traffic)",
+  network: "var(--fam-network)",
+  compute: "var(--fam-compute)",
+  cache: "var(--fam-cache)",
+  database: "var(--fam-database)",
+  messaging: "var(--fam-messaging)",
+  external: "var(--fam-external)",
+  other: "var(--fam-external)",
+};
+
 export function kindOf(type: string, category?: string): Kind {
   return BY_TYPE[type] ?? (category ? BY_CATEGORY[category] : undefined) ?? "other";
 }
