@@ -2,17 +2,20 @@
 
 /**
  * Resource specs of a part (CPU cores, memory, storage per instance): three compact inputs, common
- * sizes as one-click chips, and an illustrative price for the size. Empty means "not modelled".
+ * sizes as one-click chips, and an illustrative price for the size. An empty spec is "Auto": the
+ * size the part needs for the design's peak load (lib/sizing.ts), used in runs, prices and exports.
  */
-import { Cpu, HardDrive, type LucideIcon, MemoryStick } from "lucide-react";
+import { ChevronRight, Cpu, HardDrive, type LucideIcon, MemoryStick, Sparkles } from "lucide-react";
 import { useId, useState } from "react";
 import { patchNodeConfig } from "@/components/build/presets";
 import { validateNumber } from "@/components/editor/FieldControl";
 import { Input } from "@/components/ui/input";
 import { formatUsd, sizePricePerHour } from "@/lib/cost";
+import { fmt, SPEC_KEYS, TARGET_CPU } from "@/lib/sizing";
 import type { ComponentType, FieldDescriptor, NodeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
+import { useAutoSize } from "@/store/sizes";
 
 /** Fields this block shows itself (the inspector leaves them out of the settings list). */
 export const RESOURCE_FIELDS = ["cpuCores", "memoryGib", "storageGib"];
@@ -45,8 +48,18 @@ const SIZES: [number, number][] = [
 const ICON: Record<string, LucideIcon> = { cpuCores: Cpu, memoryGib: MemoryStick, storageGib: HardDrive };
 const NAME: Record<string, string> = { cpuCores: "CPU", memoryGib: "Memory", storageGib: "Storage" };
 
-/** Number input where an empty box means "not set" (null). */
-function SpecInput({ field, value, onCommit }: { field: FieldDescriptor; value: number | null; onCommit: (v: number | null) => void }) {
+/** Number input where an empty box means "auto" (null): it shows the auto size instead. */
+function SpecInput({
+  field,
+  value,
+  auto,
+  onCommit,
+}: {
+  field: FieldDescriptor;
+  value: number | null;
+  auto: number | null;
+  onCommit: (v: number | null) => void;
+}) {
   const [draft, setDraft] = useState<string | null>(null);
   const text = draft ?? (value == null ? "" : String(value));
   const error = draft === null || draft.trim() === "" ? null : validateNumber(field, Number(draft));
@@ -64,9 +77,10 @@ function SpecInput({ field, value, onCommit }: { field: FieldDescriptor; value: 
           inputMode="decimal"
           step={field.step ?? "any"}
           value={text}
-          placeholder="not set"
+          placeholder={auto != null ? String(auto) : "not set"}
           aria-invalid={error ? true : undefined}
-          className="tabular pr-10 placeholder:text-ink-3/70"
+          aria-describedby={auto != null && value == null ? `${id}-auto` : undefined}
+          className={cn("tabular pr-10", auto != null ? "placeholder:text-ink-2" : "placeholder:text-ink-3/70")}
           onFocus={() => setDraft(value == null ? "" : String(value))}
           onBlur={() => setDraft(null)}
           onChange={(e) => {
@@ -78,6 +92,11 @@ function SpecInput({ field, value, onCommit }: { field: FieldDescriptor; value: 
         />
         <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-ink-3">{field.unit}</span>
       </div>
+      {auto != null && value == null && (
+        <p id={`${id}-auto`} className="flex items-center gap-1 text-[11px] text-accent">
+          <Sparkles className="size-3" aria-hidden /> auto
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-xs text-danger-ink">
           {error}
@@ -89,13 +108,17 @@ function SpecInput({ field, value, onCommit }: { field: FieldDescriptor; value: 
 
 export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: ComponentType; config: NodeConfig }) {
   const setNodeConfig = useEditor((s) => s.setNodeConfig);
+  const size = useAutoSize(nodeId);
   const fields = RESOURCE_FIELDS.map((k) => comp.fields.find((f) => f.key === k)).filter((f): f is FieldDescriptor => !!f);
   if (!fields.length) return null;
   const num = (k: string) => (typeof config[k] === "number" ? (config[k] as number) : null);
   const cpu = num("cpuCores");
   const mem = num("memoryGib");
   const storage = num("storageGib");
-  const price = sizePricePerHour(cpu, mem, storage);
+  const autoOf = (k: string): number | null => (size && (SPEC_KEYS as readonly string[]).includes(k) ? (size[k as (typeof SPEC_KEYS)[number]] ?? null) : null);
+  // the size a run uses: what is set, else the auto size
+  const price = sizePricePerHour(cpu ?? autoOf("cpuCores"), mem ?? autoOf("memoryGib"), storage ?? autoOf("storageGib"));
+  const autoUsed = fields.filter((f) => num(f.key) == null && autoOf(f.key) != null);
   const hasCost = comp.fields.some((f) => f.key === "costPerHour");
   // The cost estimate uses a price set on the part; without one, this size's price.
   const ownPrice = typeof config.costPerHour === "number" && config.costPerHour !== comp.defaultConfig.costPerHour ? config.costPerHour : null;
@@ -109,7 +132,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
       </div>
       <div className={cn("grid gap-2", fields.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
         {fields.map((f) => (
-          <SpecInput key={f.key} field={f} value={num(f.key)} onCommit={(v) => setNodeConfig(nodeId, f.key, v)} />
+          <SpecInput key={f.key} field={f} value={num(f.key)} auto={autoOf(f.key)} onCommit={(v) => setNodeConfig(nodeId, f.key, v)} />
         ))}
       </div>
       <div className="flex flex-wrap gap-1" role="group" aria-label="Common sizes">
@@ -135,8 +158,9 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
             type="button"
             onClick={() => patchNodeConfig(nodeId, Object.fromEntries(fields.map((f) => [f.key, null])))}
             className="rounded-md px-1.5 py-0.5 text-xs text-ink-3 hover:text-ink"
+            title="Clear the values you set and use the auto size"
           >
-            Clear
+            {size && !size.skipped ? "Back to auto" : "Clear"}
           </button>
         )}
       </div>
@@ -160,6 +184,28 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
             </button>
           )}
         </p>
+      )}
+      {size?.skipped && <p className="text-xs text-ink-3">{size.skipped} Nothing is filled in automatically.</p>}
+      {autoUsed.length > 0 && size && (
+        <details className="group rounded-lg bg-accent-soft/40 px-2.5 py-2 text-xs text-ink-2">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
+            <span>
+              <span className="font-medium text-ink">Auto-sized</span> for about {fmt(size.peakRps)} req/s at peak ({Math.round(TARGET_CPU * 100)}% CPU target). Type
+              a value to set your own.
+            </span>
+          </summary>
+          <ul className="mt-1.5 space-y-1 pl-5">
+            {autoUsed.map((f) => (
+              <li key={f.key}>
+                <span className="font-medium text-ink">
+                  {NAME[f.key] ?? f.label} {autoOf(f.key)} {f.unit}
+                </span>
+                : {size.why[f.key as (typeof SPEC_KEYS)[number]]}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
       <p className="text-xs leading-relaxed text-ink-3">{EFFECT[comp.type] ?? INFO_ONLY}</p>
     </section>

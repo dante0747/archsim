@@ -40,7 +40,7 @@ describe("ResourceBlock", () => {
     expect(node("api").data.config.cpuCores).toBeUndefined();
   });
 
-  it("shows storage for databases, a price, and clears back to unset", () => {
+  it("shows storage for databases, a price, and goes back to auto", () => {
     useEditor.getState().setNodeConfig("db", "cpuCores", 2);
     useEditor.getState().setNodeConfig("db", "memoryGib", 8);
     show("db");
@@ -51,11 +51,22 @@ describe("ResourceBlock", () => {
     show("db");
     fireEvent.click(screen.getByRole("button", { name: "Use size price" }));
     expect(node("db").data.config.costPerHour).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to auto" }));
     expect(node("db").data.config).toMatchObject({ cpuCores: null, memoryGib: null, storageGib: null });
   });
 
-  it("an empty box means not set", () => {
+  it("shows the auto size in empty boxes, with how it was worked out", () => {
+    show("api");
+    const cpu = screen.getByLabelText(/CPU/) as HTMLInputElement;
+    expect(cpu.value).toBe("");
+    expect(Number(cpu.placeholder)).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("auto").length).toBeGreaterThan(0);
+    expect(screen.getByText("Auto-sized")).toBeTruthy();
+    expect(screen.getByText(/req\/s per replica at peak/)).toBeTruthy();
+    expect(screen.getByText(/for this size/)).toBeTruthy(); // priced at the auto size
+  });
+
+  it("an empty box means auto", () => {
     useEditor.getState().setNodeConfig("api", "cpuCores", 2);
     show("api");
     fireEvent.change(screen.getByLabelText(/CPU/), { target: { value: "" } });

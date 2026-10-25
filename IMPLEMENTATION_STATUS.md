@@ -211,6 +211,21 @@ serves 8 example designs (see below).
   node) and documentation links. 9 engine tests (scheduling, Pending, node adds after the
   delay, no autoscaler, headroom, shared pool starving a service into 503s, several
   clusters, Pending pods deleted on scale-down, determinism).
+- Auto-sizing (web, 2026-10-26): an empty CPU, memory or storage spec is "Auto": the part
+  gets the size it needs for the design's peak load (lib/sizing.ts: CPU at a 60% target,
+  memory for what the engine's memory model needs plus 25%, storage under 70% full; rules in
+  docs/simulation-model.md), shown on the canvas and in the inspector with how it was worked
+  out, and filled in for runs, sweeps, batch runs, prices and exports. Typed values win; "Back
+  to auto" clears them. The engine is unchanged. Effect on the templates, every scenario run
+  with and without auto sizes: seven of ten are unchanged (Kafka, both Kubernetes, MongoDB,
+  queueing lab, retry storm, serverless). Black Friday's checkout is now CPU-bound while the
+  autoscaler catches up during the ramp (baseline success 99.8% to 98.8%, p50 16 to 41 ms).
+  Scenarios that add work run on the design's sizes: the cache-aside starter's "20% hit
+  ratio" overloads a database sized for the normal ratio (100% to 73% success), Cassandra's
+  consistency ALL raises p95 from 16 to 48 ms and its slow-ring fault drops success to 93%.
+  Elasticsearch-style scatter reads are counted on every shard. 6 sizing tests.
+- Light theme toned down (2026-10-26, "too white"): a slate-grey page and canvas, off-white
+  panels and white cards that stand out on the canvas, slightly stronger borders.
 - Kubernetes in the web app: cluster logos (Kubernetes, k3s, OpenShift), a "Cluster" select
   in the inspector for services on Kubernetes (`nodeRef` fields), pod squares on Kubernetes
   service cards (ready, starting, Pending; where the starting pods land in the design, the

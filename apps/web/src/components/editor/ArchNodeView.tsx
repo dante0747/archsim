@@ -20,6 +20,7 @@ import type { Fault, NodeReport, NodeStatus, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { editorSizes } from "@/store/sizes";
 import { useUi } from "@/store/ui";
 
 export const NODE_W = 212;
@@ -125,6 +126,11 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
     return cluster ? JSON.stringify(planCluster(cluster.data.config, membersOf(s.nodes, cluster.id))) : "";
   });
   const plan = useMemo(() => (planJson ? (JSON.parse(planJson) as ClusterPlan) : null), [planJson]);
+  // Auto sizes fill the specs a part leaves empty (as a string so moving parts does not re-render).
+  const autoKey = useEditor((s) => {
+    const z = editorSizes(s).get(id);
+    return z ? `${z.cpuCores ?? ""}|${z.memoryGib ?? ""}|${z.storageGib ?? ""}` : "||";
+  });
 
   const liveOn = overlay && !!report && !!nodeReport && bucket >= 0 && bucket < nBuckets;
   const live = useMemo(
@@ -204,7 +210,10 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const technology = typeof data.config.technology === "string" ? data.config.technology : null;
   const tech = technologyLabel(comp, technology);
   const spec = (k: string) => (typeof data.config[k] === "number" ? (data.config[k] as number) : null);
-  const [cpu, mem, disk] = [spec("cpuCores"), spec("memoryGib"), spec("storageGib")];
+  const autos = autoKey.split("|").map((v) => (v === "" ? null : Number(v)));
+  const [setCpu, setMem, setDisk] = [spec("cpuCores"), spec("memoryGib"), spec("storageGib")];
+  const [cpu, mem, disk] = [setCpu ?? autos[0], setMem ?? autos[1], setDisk ?? autos[2]];
+  const isAuto = [setCpu == null && autos[0] != null, setMem == null && autos[1] != null, setDisk == null && autos[2] != null];
   const level = util != null ? Math.min(1, Math.max(0, util)) : null;
   const barColor = attention && meta ? meta.color : heatColor(level, dark);
   const facts: { k: string; v: string }[] = [];
@@ -298,25 +307,30 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
           {podView}
           {clusterView}
           {(cpu != null || mem != null || disk != null) && (
-            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5 text-xs text-ink-2" aria-label="Resources">
+            <p
+              className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5 text-xs text-ink-2"
+              aria-label={isAuto.some(Boolean) ? "Resources (auto-sized for the peak load)" : "Resources"}
+              title={isAuto.some(Boolean) ? "Auto-sized for the design's peak load; set your own in the inspector" : undefined}
+            >
               {cpu != null && (
-                <span className="inline-flex items-center gap-1">
+                <span className={cn("inline-flex items-center gap-1", isAuto[0] && "text-ink-3")}>
                   <Cpu className="size-3.5 text-ink-3" aria-hidden />
                   {cpu} vCPU
                 </span>
               )}
               {mem != null && (
-                <span className="inline-flex items-center gap-1">
+                <span className={cn("inline-flex items-center gap-1", isAuto[1] && "text-ink-3")}>
                   <MemoryStick className="size-3.5 text-ink-3" aria-hidden />
                   {mem} GiB
                 </span>
               )}
               {disk != null && (
-                <span className="inline-flex items-center gap-1">
+                <span className={cn("inline-flex items-center gap-1", isAuto[2] && "text-ink-3")}>
                   <HardDrive className="size-3.5 text-ink-3" aria-hidden />
                   {disk >= 1000 ? `${+(disk / 1000).toFixed(1)} TB` : `${disk} GiB`}
                 </span>
               )}
+              {isAuto.some(Boolean) && <span className="text-[11px] font-medium text-accent">auto</span>}
             </p>
           )}
           {meta && (live || s) && (status !== "ok" || rejecting) && !isCluster && (

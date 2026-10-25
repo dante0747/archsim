@@ -31,7 +31,10 @@ API servers behind a lone Clients box.
   instance, with one-click common sizes and an illustrative price. They change the run where
   it is defensible: fewer cores than workers makes CPU work queue, a service refuses requests
   past its memory, a database whose hot working set does not fit in memory sends reads to
-  disk, a cache evicts least recently used keys. Left empty, nothing changes.
+  disk, a cache evicts least recently used keys. Left empty they are **auto-sized**: each part
+  gets the CPU, memory and storage it needs for the design's peak load (CPU at a 60% target,
+  memory for the requests, buffer cache or keys it holds, storage under 70% full), shown with
+  how it was worked out and used in runs, prices and exports until you type your own.
 - Clients as separate parts: **Mobile app** (iOS, Android, React Native, Flutter), **Web
   browser** (React, Next.js, Vue, Angular, Svelte) and **API consumers** (REST / OpenAPI,
   GraphQL), alongside the generic Clients box. Each has its own timeouts, retries and network
@@ -71,7 +74,8 @@ API servers behind a lone Clients box.
   wires that attach on any of the four sides: drag from a dot on any side of one part to any side
   of another, in either direction. Traffic moves along them while a run replays.
 - An "Ops console" look: graphite panels with signal-orange actions in dark, and a standard,
-  calm light theme (white panels on soft grey, one blue for actions) in light; the last run's
+  calm light theme (off-white panels and white cards on a slate-grey canvas, one blue for
+  actions) in light; the last run's
   verdict sits in the top bar (see [docs/ui-redesign.md](docs/ui-redesign.md)).
 - Click a part to edit it: its technology, a one-line last-run status, at most three key
   settings (response-time distributions as a one-line summary you click to edit), and "More

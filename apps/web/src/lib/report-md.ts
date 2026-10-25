@@ -4,6 +4,7 @@
  */
 import { estimateCost, formatUsd } from "./cost";
 import { isDistribution, shortDistribution } from "./distributions";
+import { applyAutoSizes } from "./sizing";
 import { errorBudget, evaluateSlo, formatSloValue } from "./slo";
 import type { SweepAnalysis } from "./sweep";
 import { technologyLabel } from "./theme";
@@ -82,7 +83,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
 
   // ---- verdict --------------------------------------------------------------------------
   const slo = report ? evaluateSlo(objectives, report) : null;
-  const cost = estimateCost(report ? report.input.architecture.nodes : doc.architecture.nodes, catalog, report ?? null);
+  const cost = estimateCost(report ? report.input.architecture.nodes : applyAutoSizes(doc, catalog).architecture.nodes, catalog, report ?? null);
   lines.push("## Summary", "");
   if (report && slo) {
     const verdict =

@@ -7,7 +7,7 @@ import { create } from "zustand";
 import { ApiError, api } from "@/lib/api";
 import { type SweepConfig, type SweepRow, buildSweepDocument, sweepRow } from "@/lib/sweep";
 import type { ArchitectureDocument, Report, Run } from "@/lib/types";
-import { type DrawerTab, useRuns } from "@/store/runs";
+import { type DrawerTab, runDocument, useRuns } from "@/store/runs";
 
 /** Results workspace: four places plus the report. */
 export type DecideSection = "answer" | "compare" | "breaking" | "details" | "report";
@@ -181,7 +181,8 @@ export const useDecide = create<DecideState>()((set, get) => {
       const projectId = useRuns.getState().projectId;
       if (!projectId) return;
       if (sweepTimer) clearTimeout(sweepTimer);
-      const { document, scenarioIds, levels } = buildSweepDocument(doc, cfg);
+      // sized for the design's own peak: the sweep pushes the same machines harder
+      const { document, scenarioIds, levels } = buildSweepDocument(runDocument(doc), cfg);
       set({
         sweep: {
           ...IDLE_SWEEP,

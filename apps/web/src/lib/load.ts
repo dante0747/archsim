@@ -35,8 +35,17 @@ function weight(cfg: NodeConfig, type: string): number {
   return Math.max(1, cfg.autoscaling === true ? Math.max(num(cfg.maxReplicas) ?? replicas, replicas) : replicas);
 }
 
-/** Peak load per node id; `null` when it cannot be estimated statically. */
-export function estimateLoad(nodes: NodeSpec[], edges: EdgeSpec[], catalog: Catalog | null, workload: Workload): Map<string, NodeLoad | null> {
+/**
+ * Peak load per node id; `null` when it cannot be estimated statically. `ttlMissShare` assumes a
+ * miss share for TTL caches instead of giving up (sizing uses 1: every read may miss).
+ */
+export function estimateLoad(
+  nodes: NodeSpec[],
+  edges: EdgeSpec[],
+  catalog: Catalog | null,
+  workload: Workload,
+  opts: { ttlMissShare?: number } = {},
+): Map<string, NodeLoad | null> {
   const cfg = new Map<string, NodeConfig>();
   for (const n of nodes) {
     const comp = catalog?.components.find((c) => c.type === n.type);
@@ -88,6 +97,7 @@ export function estimateLoad(nodes: NodeSpec[], edges: EdgeSpec[], catalog: Cata
       } else if (kind === "cache") {
         if (e.sourcePort !== "miss") sent = { read: 0, write: 0 };
         else if ((c.hitModel ?? "fixed_ratio") === "fixed_ratio") sent = { read: carries("read") ? l.read * (1 - (num(c.hitRatio) ?? 0)) : 0, write: 0 };
+        else if (opts.ttlMissShare != null) sent = { read: carries("read") ? l.read * opts.ttlMissShare : 0, write: 0 };
         else sent = null; // TTL misses depend on the run
       } else {
         // clients and services send each request type to every link that carries it

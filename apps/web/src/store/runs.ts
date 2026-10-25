@@ -5,8 +5,15 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { ApiError, api } from "@/lib/api";
+import { applyAutoSizes } from "@/lib/sizing";
 import { SWEEP_SCENARIO_PREFIX } from "@/lib/sweep";
 import type { ArchitectureDocument, Comparison, Report, Run } from "@/lib/types";
+import { useEditor } from "@/store/editor";
+
+/** What a run simulates: the design with empty CPU, memory and storage auto-sized. */
+export function runDocument(doc: ArchitectureDocument): ArchitectureDocument {
+  return applyAutoSizes(doc, useEditor.getState().catalog);
+}
 
 export type DrawerTab = "overview" | "charts" | "components" | "compare" | "runs" | "assumptions";
 
@@ -196,7 +203,7 @@ export const useRuns = create<RunsState>()((set, get) => {
       if (!projectId) return null;
       set({ starting: true });
       try {
-        const run = await api.createRun(projectId, { document: doc, scenarioId });
+        const run = await api.createRun(projectId, { document: runDocument(doc), scenarioId });
         set((s) => ({
           runs: upsert(s.runs, run),
           pending: [...s.pending, run.id],
@@ -219,7 +226,7 @@ export const useRuns = create<RunsState>()((set, get) => {
       if (!projectId) return;
       set({ starting: true });
       try {
-        const runs = await api.batchRuns(projectId, scenarioIds, doc);
+        const runs = await api.batchRuns(projectId, scenarioIds, runDocument(doc));
         set((s) => ({
           runs: runs.reduce(upsert, s.runs),
           pending: [...s.pending, ...runs.map((r) => r.id)],

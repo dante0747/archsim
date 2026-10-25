@@ -370,6 +370,28 @@ same as without the spec. Reports add `cpuCoreUtilization` (busy executors / exe
 window), `memoryPeakGiB` (services), `bufferHitRatio` (databases) and `capacityKeys` /
 `keysCached` plus an `evictions` counter (caches). Not modelled: garbage collection, OOM kills
 and restarts (memory is a refusal limit), page-cache dynamics, write I/O, network bandwidth.
+**Auto-sizing (web app).** In the web app an empty spec is *Auto*: the part gets the size it
+needs for the design's own peak load (`apps/web/src/lib/sizing.ts`), shown greyed with an
+"auto" tag on the canvas and in the inspector (with how it was worked out), and filled into
+the document whenever the design is simulated, priced or exported. A typed value replaces it;
+"Back to auto" clears it. The engine, the API and the CLI are unchanged: there an empty spec is
+still not modelled. The rules follow the effects in the table above:
+
+| Part | CPU | Memory | Storage |
+| --- | --- | --- | --- |
+| Service | peak req/s per replica (at full scale when autoscaling) x mean `serviceTimeMs` / 60%, never more than its workers (event loops for Node.js) can use; serverless: 1 vCPU | `memoryBaselineMb` + (workers + `queueCapacity`) x `memoryPerRequestMb`, +25%, at most 64 GiB | - |
+| Database | the busiest primary's CPU work (its share of reads, every scattered read for Elasticsearch-style search, every write; RF and consistency for rings) x `cpuShare` / 60% | hot working set per instance / 0.75 (the buffer cache share); without one, 4 GiB per vCPU (illustrative) | data per instance (`dataSizeGib`, else keys x item size) kept under 70% full, at least 10 GiB |
+| Cache | commands per node x `serviceTimeMs` / 60%, never more than its `concurrency` | keyspace x item size per node / 0.8, +25% | - |
+| Load balancer | 5,000 req/s per vCPU (illustrative) | 1 GiB per vCPU (illustrative) | - |
+| Message queue | 10,000 messages/s per broker vCPU (illustrative) | 2 GiB per vCPU (illustrative) | Kafka and Redis Streams: 7 days at the base rate, 3 copies; others: an hour of peak publishes |
+
+CPU is rounded up to 1, 2, 4, 8... vCPU (at least 1, since below one core the engine slows
+every request), memory to 0.5, 1, 2, 4... GiB, storage to 10, 20, 50, 100... GiB. Peak load
+comes from the static estimate below (a TTL cache counts every read as a possible miss).
+Managed services (ALB- and API-gateway-style, CDN, DynamoDB-, SQS- and Pub/Sub-style) are not
+sized. Sizes come from the design as drawn: scenarios run on the same sizes, so a scenario with
+more traffic, fewer cache hits or a slowdown shows what those machines do.
+
 Specs also feed the calculations around a run:
 
 - **Capacity figures**: `capacityRps` is the lowest ceiling of the slots (`slots / meanHoldMs`),

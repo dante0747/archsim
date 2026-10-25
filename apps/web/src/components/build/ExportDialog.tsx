@@ -11,6 +11,7 @@ import { slugify } from "@/lib/document";
 import { toDockerCompose } from "@/lib/export/compose";
 import { toKubernetes } from "@/lib/export/k8s";
 import { toMermaid } from "@/lib/export/mermaid";
+import { applyAutoSizes } from "@/lib/sizing";
 import { useEditor } from "@/store/editor";
 
 type Format = "compose" | "k8s" | "mermaid";
@@ -53,7 +54,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const outputs = useMemo(() => {
     if (!open) return null;
     const st = useEditor.getState();
-    const doc = st.toDocument();
+    const doc = applyAutoSizes(st.toDocument(), st.catalog);
     return { compose: toDockerCompose(doc, st.catalog), k8s: toKubernetes(doc, st.catalog), mermaid: toMermaid(doc, st.catalog) };
   }, [open]);
   const base = slugify(name || "architecture");
