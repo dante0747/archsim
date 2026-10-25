@@ -55,8 +55,10 @@ Constraints that any such surface must keep:
 - **Actionable errors.** Validation issues already carry stable codes, node/edge ids and hints,
   which is what a tool-using model needs to fix a document.
 
-A thin MCP server wrapping the HTTP API (list catalog, validate, run, poll, compare) is the
-likely first step; it needs authentication before it is exposed beyond localhost.
+Done (2026-10-26): WebMCP tools in the web app, for agents in the browser
+([agents.md](agents.md)); simulation results carry the run id and result digest. Still open: a
+thin MCP server wrapping the HTTP API (list catalog, validate, run, poll, compare) for desktop
+agents; it needs authentication before it is exposed beyond localhost.
 
 ## 4. More component types
 

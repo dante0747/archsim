@@ -4,6 +4,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { EditorAgentTools } from "@/components/agent/AgentTools";
 import { DesignReviewPanel } from "@/components/build/DesignReview";
 import { ExportDialog } from "@/components/build/ExportDialog";
 import { Dashboard } from "@/components/dashboard/Dashboard";
@@ -279,6 +280,7 @@ function EditorShell() {
       <CommandPalette onShowShortcuts={() => setShortcutsOpen(true)} />
       <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
       <GuidedTour />
+      <EditorAgentTools />
     </div>
   );
 }

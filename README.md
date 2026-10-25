@@ -129,6 +129,13 @@ API servers behind a lone Clients box.
   "Inspect data" (table and CSV) per panel, and Replay at 1x/4x/10x that draws the run live,
   shared with the Test workspace. Each panel's info popover says how its value is calculated.
 
+**AI agents (WebMCP):** the app registers [WebMCP](https://webmachinelearning.github.io/webmcp/)
+tools, so an agent in your browser can open a template, read the design, add and connect parts,
+set traffic and objectives, run the design review, simulate and read the verdict, without
+clicking. Every agent edit shows on the canvas, is announced in a toast and can be undone. WebMCP
+is an experimental draft standard; see [docs/agents.md](docs/agents.md) for the tools and
+browser support.
+
 **Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and the
 Ops console theme in dark and light (the sun/moon button at the top right picks one or follows
 the system). Templates have their own gallery (`/templates`): each card draws the design with
@@ -267,6 +274,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)
+- [AI agents: the WebMCP tools](docs/agents.md)
 - [Roadmap: calibration, Grafana, AI/MCP, more components](docs/roadmap.md)
 - [Implementation status](IMPLEMENTATION_STATUS.md)
 

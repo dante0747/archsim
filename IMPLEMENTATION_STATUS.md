@@ -211,6 +211,22 @@ serves 8 example designs (see below).
   node) and documentation links. 9 engine tests (scheduling, Pending, node adds after the
   delay, no autoscaler, headroom, shared pool starving a service into 503s, several
   clusters, Pending pods deleted on scale-down, determinism).
+- AI agents through WebMCP (web, 2026-10-26): the app registers WebMCP tools with the
+  browser's model context (`document.modelContext` from the draft, or `navigator.modelContext`
+  from Chrome's early preview and polyfills; unregistered by aborting a signal or with
+  `unregisterTool`; looked for again for 5 s in case a polyfill loads late). On every page:
+  list_templates, open_template, new_project, list_projects, open_project. In the editor:
+  get_design, list_part_types, add_part, connect_parts, update_part, update_link, remove,
+  set_traffic, set_objectives, review_design, simulate (waits for the result), get_results,
+  tidy_layout, undo, save_design. Results are JSON (MCP-style text content); mistakes come back
+  as errors that list the valid choices. Edits use the editor's store actions (undoable) and show
+  a toast; read-only tools carry `readOnlyHint`, saving `consequentialHint`. 9 unit tests (the
+  adapter in both API shapes, the tools on a loaded design). Checked in the browser with a
+  stand-in model context: the 5 app tools registered after load, opening a template registered
+  the 15 editor tools, and an agent session added a PostgreSQL audit database, raised traffic to
+  800 req/s, simulated (65% success, API servers the bottleneck), set 4 API replicas, tidied
+  and simulated again (100%, both objectives met), with toasts for each step. Not tested with a
+  real browser agent: none was available here (WebMCP is behind a flag in Chrome).
 - Auto-sizing (web, 2026-10-26): an empty CPU, memory or storage spec is "Auto": the part
   gets the size it needs for the design's peak load (lib/sizing.ts: CPU at a 60% target,
   memory for what the engine's memory model needs plus 25%, storage under 70% full; rules in
