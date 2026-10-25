@@ -1,12 +1,13 @@
 "use client";
 
-import { Copy, FlaskConical, ListChecks, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { Copy, FlaskConical, ListChecks, MoreHorizontal, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { describeValue, FieldControl } from "@/components/editor/FieldControl";
 import { PatternEditor } from "@/components/editor/WorkloadPanel";
 import { Button } from "@/components/ui/button";
-import { Input, Label, NativeSelect, Textarea } from "@/components/ui/input";
-import { Empty } from "@/components/ui/misc";
+import { Input, Label, NativeSelect } from "@/components/ui/input";
+import { Empty, Tip } from "@/components/ui/misc";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/overlays";
 import { getPath, uniqueId } from "@/lib/document";
 import { componentOf } from "@/lib/graph-rules";
 import type { Catalog, FieldDescriptor, Override, Scenario, TrafficPattern } from "@/lib/types";
@@ -25,12 +26,12 @@ function useTargetFields() {
   const edges = useEditor((s) => s.edges);
   const workload = useEditor((s) => s.workload);
   const targets: { key: TargetKey; label: string }[] = [
-    { key: "workload", label: "Workload" },
+    { key: "workload", label: "Traffic" },
     ...nodes.map((n) => ({ key: `node:${n.id}`, label: n.data.label })),
     ...edges.map((e) => {
       const s = nodes.find((n) => n.id === e.source)?.data.label ?? e.source;
       const t = nodes.find((n) => n.id === e.target)?.data.label ?? e.target;
-      return { key: `edge:${e.id}`, label: `Link ${s} → ${t}` };
+      return { key: `edge:${e.id}`, label: `${s} → ${t}` };
     }),
   ];
   const fieldsFor = (key: TargetKey): FieldDescriptor[] => {
@@ -99,89 +100,79 @@ export function ScenariosPanel() {
     );
   }
 
+  const edit = (i: number) => {
+    setEditingIndex(i);
+    setEditing(scenarios[i]);
+  };
+  const duplicate = (sc: Scenario) =>
+    setScenarios([...scenarios, { ...structuredClone(sc), id: uniqueId(`${sc.id}-copy`, scenarios.map((x) => x.id)), name: `${sc.name} (copy)` }]);
+
   return (
-    <div className="space-y-4 p-4">
-      <div>
-        <p className="microlabel">Scenarios</p>
-        <p className="mt-1 text-xs leading-relaxed text-ink-2">
-          Named “what if” changes on top of this design (e.g. 3 replicas, or a 20% hit ratio). Run one, or run all and
-          compare them side by side.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="primary"
-          onClick={() => {
-            setEditingIndex(null);
-            setEditing({ id: "", name: "", description: "", overrides: [] });
-          }}
-        >
-          <Plus /> New scenario
-        </Button>
-        {scenarios.length >= 2 && (
+    <div className="space-y-3 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-ink" title="Named what-if changes on top of this design, to simulate and compare.">
+          Scenarios
+        </h3>
+        <div className="flex gap-1.5">
+          {scenarios.length >= 2 && (
+            <Button size="sm" disabled={starting} onClick={() => void startBatch(toDocument(), scenarios.slice(0, 10).map((x) => x.id))} title="Simulate every scenario, then compare them in Results">
+              <ListChecks /> Simulate all
+            </Button>
+          )}
           <Button
             size="sm"
-            disabled={starting}
-            onClick={() => void startBatch(toDocument(), scenarios.slice(0, 10).map((s) => s.id))}
-            title="Run every scenario, then compare the first two"
+            variant="primary"
+            onClick={() => {
+              setEditingIndex(null);
+              setEditing({ id: "", name: "", description: "", overrides: [] });
+            }}
           >
-            <ListChecks /> Run all & compare
+            <Plus /> New
           </Button>
-        )}
+        </div>
       </div>
       {scenarios.length === 0 ? (
         <Empty icon={<FlaskConical />} title="No scenarios yet">
-          Create one to compare alternatives side by side, for example “1 vs 3 API replicas”.
+          Try “3 replicas” or “MongoDB instead”, then compare.
         </Empty>
       ) : (
-        <ul className="space-y-2">
-          {scenarios.map((sc, i) => (
-            <li key={sc.id} className="rounded-md border border-line bg-surface p-3 transition-colors hover:border-line-strong">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-ink">{sc.name}</p>
-                  {sc.description && <p className="mt-0.5 text-xs text-ink-2">{sc.description}</p>}
-                </div>
-                <div className="flex shrink-0">
-                  <Button variant="ghost" size="icon-sm" disabled={starting} aria-label={`Run ${sc.name}`} title="Run this scenario" onClick={() => void startRun(toDocument(), sc.id)}>
+        <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+          {scenarios.map((sc, i) => {
+            const n = sc.overrides.length;
+            const details = [sc.description, ...sc.overrides.map((o) => overrideText(o, labelFor, fieldsFor))].filter(Boolean).join("\n");
+            return (
+              <li key={sc.id} className="flex items-center gap-1 py-1.5 pl-3 pr-1.5">
+                <button type="button" onClick={() => edit(i)} className="min-w-0 flex-1 py-0.5 text-left" title={details || undefined}>
+                  <span className="block truncate text-[13px] font-medium text-ink">{sc.name}</span>
+                  <span className="block text-[11.5px] text-ink-3">{n === 0 ? "No changes" : `${n} change${n > 1 ? "s" : ""}`}</span>
+                </button>
+                <Tip content="Simulate this scenario">
+                  <Button variant="ghost" size="icon-sm" disabled={starting} aria-label={`Simulate ${sc.name}`} onClick={() => void startRun(toDocument(), sc.id)}>
                     <Play />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label={`Edit ${sc.name}`} title="Edit" onClick={() => { setEditingIndex(i); setEditing(sc); }}>
-                    <Pencil />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Duplicate ${sc.name}`}
-                    title="Duplicate"
-                    onClick={() =>
-                      setScenarios([
-                        ...scenarios,
-                        { ...structuredClone(sc), id: uniqueId(`${sc.id}-copy`, scenarios.map((s) => s.id)), name: `${sc.name} (copy)` },
-                      ])
-                    }
-                  >
-                    <Copy />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label={`Delete ${sc.name}`} title="Delete" onClick={() => setScenarios(scenarios.filter((_, k) => k !== i))}>
-                    <Trash2 />
-                  </Button>
-                </div>
-              </div>
-              <ul className="mt-2 space-y-1">
-                {sc.overrides.length === 0 ? (
-                  <li className="text-[11px] text-ink-3">No changes (the design as drawn)</li>
-                ) : (
-                  sc.overrides.map((o, k) => (
-                    <li key={k} className="truncate rounded-md bg-surface-2 px-2 py-1 font-mono text-[10.5px] text-ink-2" title={overrideText(o, labelFor, fieldsFor)}>
-                      {overrideText(o, labelFor, fieldsFor)}
-                    </li>
-                  ))
-                )}
-              </ul>
-            </li>
-          ))}
+                </Tip>
+                <Menu>
+                  <MenuTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" aria-label={`More actions for ${sc.name}`}>
+                      <MoreHorizontal />
+                    </Button>
+                  </MenuTrigger>
+                  <MenuContent align="end">
+                    <MenuItem onSelect={() => edit(i)}>
+                      <Pencil /> Edit
+                    </MenuItem>
+                    <MenuItem onSelect={() => duplicate(sc)}>
+                      <Copy /> Duplicate
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem onSelect={() => setScenarios(scenarios.filter((_, k) => k !== i))}>
+                      <Trash2 /> Delete
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -234,12 +225,12 @@ function ScenarioEditor({
         <Input id="sc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 3 API replicas" maxLength={120} autoFocus />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="sc-desc">Description</Label>
-        <Textarea id="sc-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What question does this answer?" />
+        <Label htmlFor="sc-desc">Note</Label>
+        <Input id="sc-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" maxLength={240} />
       </div>
       <div className="space-y-2">
         <Label>Changes</Label>
-        {overrides.length === 0 && <p className="text-[11px] text-ink-3">No changes: this scenario simulates the design as drawn.</p>}
+        {overrides.length === 0 && <p className="text-[12px] text-ink-3">None yet</p>}
         {overrides.map((o, i) => (
           <OverrideRow
             key={i}
@@ -260,7 +251,7 @@ function ScenarioEditor({
       <div className="flex justify-end gap-2 border-t border-line pt-3">
         <Button onClick={onCancel}>Cancel</Button>
         <Button type="submit" variant="primary" disabled={!valid}>
-          Save scenario
+          Save
         </Button>
       </div>
     </form>

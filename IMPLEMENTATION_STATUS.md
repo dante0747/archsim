@@ -143,7 +143,11 @@ serves 8 example designs (see below).
   they show only how busy they were. The selected-part panel shows the logo, name, Duplicate and
   Delete icons, the technology menu, a one-line last-run status with three numbers, at most
   three key settings (distributions as a one-line summary that expands to the editor) and
-  "More settings" (the rest, notes, and what the model does and does not include). Link labels appear only when they carry information.
+  "More settings" (the rest, notes, and what the model does and does not include). The
+  Traffic tab leads with the shape (Steady, Ramp, Burst) and only the inputs that shape needs,
+  a small preview, a reads/writes slider and run length with warm-up; arrivals, seed, drain
+  and keyspace sit under "More settings". The Scenarios tab is a compact list (name, number
+  of changes, simulate, a menu with edit, duplicate and delete); click a row to edit it. Link labels appear only when they carry information.
 - Results: four tabs (Answer, Compare, Breaking point, Details) and a Report button; one run
   picker for all tabs. Answer leads with one yes/no sentence, the failing objective and the
   bottleneck, the key numbers, what to fix first, objective tiles and monthly cost.
