@@ -71,10 +71,10 @@ function PlanRow({
     <div className="px-3 py-2.5">
       <button type="button" onClick={onToggle} aria-expanded={open} className="group flex w-full items-start gap-2 text-left">
         <span className="min-w-0 flex-1">
-          <span className="block text-[12px] text-ink-3">{label}</span>
+          <span className="block text-xs text-ink-3">{label}</span>
           <span className="block text-[13px] font-medium leading-5 text-ink">{value}</span>
         </span>
-        <span className="mt-0.5 flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-ink-3 group-hover:bg-surface-2 group-hover:text-ink">
+        <span className="mt-0.5 flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-ink-3 group-hover:bg-surface-2 group-hover:text-ink">
           {open ? <ChevronDown className="size-3.5 rotate-180" /> : <Pencil className="size-3.5" />}
           {open ? "Done" : "Edit"}
         </span>
@@ -138,7 +138,7 @@ function ObjectiveRow({
   const on = value != null;
   return (
     <div className="grid grid-cols-[1fr_auto] items-center gap-x-2.5 gap-y-1">
-      <Label htmlFor={id} className="text-[12.5px] text-ink-2">
+      <Label htmlFor={id} className="text-[13px] text-ink-2">
         {label}
       </Label>
       <Switch checked={on} onCheckedChange={(v) => onChange(v ? fallback : null)} label={`Use ${label} objective`} />
@@ -193,9 +193,9 @@ function FailuresRow() {
   return (
     <div className="px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] text-ink-3">Failures</span>
+        <span className="text-xs text-ink-3">Failures</span>
         <AddFaultMenu align="end">
-          <button type="button" className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-accent hover:bg-accent-soft">
+          <button type="button" className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-accent hover:bg-accent-soft">
             <Plus className="size-3.5" /> Add failure
           </button>
         </AddFaultMenu>
@@ -220,12 +220,12 @@ function FailuresRow() {
                   >
                     {faultLabel(f, names)}
                   </button>
-                  <span className="tabular shrink-0 font-mono text-[11px] text-ink-3">{fmtWindow(f)}</span>
+                  <span className="tabular shrink-0 font-mono text-xs text-ink-3">{fmtWindow(f)}</span>
                   <button type="button" onClick={() => removeFault(f.id)} className="shrink-0 rounded p-0.5 text-ink-3 hover:text-danger-ink" aria-label={`Remove ${faultLabel(f, names)}`}>
                     <X className="size-3.5" />
                   </button>
                 </div>
-                {invalid && <p className="px-2 pb-2 text-[11.5px] text-danger-ink">This part is no longer in the design.</p>}
+                {invalid && <p className="px-2 pb-2 text-xs text-danger-ink">This part is no longer in the design.</p>}
                 {open && (
                   <div className="border-t border-line p-2.5">
                     <FaultFields fault={f} targets={targets} durationS={workload.durationS} idPrefix={`panel-${f.id}`} />
@@ -293,7 +293,7 @@ function ResultCard({ report }: { report: Report }) {
     <section aria-label="Result" role="status" aria-live="polite">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-[13px] font-semibold text-ink">Result</h3>
-        <button type="button" onClick={openDecide} className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-accent hover:bg-accent-soft">
+        <button type="button" onClick={openDecide} className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-accent hover:bg-accent-soft">
           Results <ArrowRight className="size-3.5" />
         </button>
       </div>
@@ -302,14 +302,14 @@ function ResultCard({ report }: { report: Report }) {
           <Icon className="mt-0.5 size-4 shrink-0" style={{ color: tone }} aria-hidden />
           <div className="min-w-0">
             <p className="text-[14px] font-semibold text-ink">{v.held === true ? "Held up" : v.held === false ? "Didn’t hold up" : "Not enough data"}</p>
-            {v.held !== true && <p className="mt-0.5 text-[12.5px] leading-5 text-ink-2">{v.summary}</p>}
-            {stale && <p className="mt-0.5 text-[11.5px] text-ink-3">From the last run · the plan changed since</p>}
+            {v.held !== true && <p className="mt-0.5 text-[13px] leading-5 text-ink-2">{v.summary}</p>}
+            {stale && <p className="mt-0.5 text-xs text-ink-3">From the last run · the plan changed since</p>}
           </div>
         </div>
         {v.overall.checks.length > 0 && (
           <ul className="border-t border-line px-3 py-1.5">
             {v.overall.checks.map((c) => (
-              <li key={c.key} className="flex items-center gap-2 py-1 text-[12.5px]">
+              <li key={c.key} className="flex items-center gap-2 py-1 text-[13px]">
                 <span className="min-w-0 flex-1 text-ink-2">{c.label}</span>
                 <span className="tabular font-mono font-semibold text-ink">{formatSloValue(c.key, c.actual)}</span>
                 <span className="w-4 text-right" aria-label={c.pass ? "met" : c.pass === false ? "missed" : "no data"} style={{ color: c.pass ? "var(--status-good)" : c.pass === false ? "var(--status-critical)" : "var(--ink-3)" }}>
@@ -322,12 +322,12 @@ function ResultCard({ report }: { report: Report }) {
         {v.windows.length > 0 && (
           <ul className="border-t border-line px-3 py-1.5">
             {v.windows.map((w) => (
-              <li key={w.fault.id} className="flex items-center gap-2 py-1 text-[12.5px]">
+              <li key={w.fault.id} className="flex items-center gap-2 py-1 text-[13px]">
                 <FaultIcon kind={w.fault.kind} className="size-3" />
                 <button type="button" onClick={() => jump(w.fault.startS)} className="min-w-0 flex-1 truncate text-left text-ink-2 hover:text-accent" title="Replay from the start of this failure">
                   {faultLabel(w.fault, names)}
                 </button>
-                <span className="text-[12px]" style={{ color: w.pass ? "var(--status-good)" : w.pass === false ? "var(--status-critical)" : "var(--ink-3)" }}>
+                <span className="text-xs" style={{ color: w.pass ? "var(--status-good)" : w.pass === false ? "var(--status-critical)" : "var(--ink-3)" }}>
                   {w.pass ? "held" : w.pass === false ? `breached ${w.breached} s` : "no data"}
                 </span>
               </li>
@@ -338,7 +338,7 @@ function ResultCard({ report }: { report: Report }) {
           <button
             type="button"
             onClick={() => jump(v.worst!.t)}
-            className="flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left text-[12px] text-ink-3 hover:bg-surface-2 hover:text-ink"
+            className="flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left text-xs text-ink-3 hover:bg-surface-2 hover:text-ink"
           >
             <Crosshair className="size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">
@@ -367,7 +367,7 @@ function NextRunBar() {
   return (
     <div className="sticky bottom-0 z-10 space-y-2 border-t border-line bg-surface p-3">
       {scenario && (
-        <p className="text-[11.5px] leading-4 text-ink-3">
+        <p className="text-xs leading-4 text-ink-3">
           Scenario “{scenario.name}” is applied ·{" "}
           <button type="button" onClick={() => selectScenario(null)} className="underline decoration-dotted hover:text-ink">
             use the current design
@@ -377,7 +377,7 @@ function NextRunBar() {
       {running && followRun ? (
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[12.5px] text-ink">
+            <p className="flex items-center gap-1.5 text-[13px] text-ink">
               <LoaderCircle className="size-3.5 animate-spin" /> {followRun.status === "queued" ? "Waiting to start…" : `Simulating… ${Math.round(followRun.progress * 100)}%`}
             </p>
             <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-valuenow={Math.round(followRun.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Simulation progress">
@@ -389,7 +389,7 @@ function NextRunBar() {
           </Button>
         </div>
       ) : (
-        <p className="flex items-center gap-2 text-[12.5px] text-ink-2">
+        <p className="flex items-center gap-2 text-[13px] text-ink-2">
           <Play className="size-3.5 shrink-0 fill-current text-accent" aria-hidden />
           <span className="font-semibold text-ink">Next run</span>
           {faults.length ? `${faults.length} failure${faults.length > 1 ? "s" : ""}` : "no failures"} · {compact(workload.rps)} req/s · {compact(workload.durationS)} s

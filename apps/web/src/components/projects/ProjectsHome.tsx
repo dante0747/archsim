@@ -145,9 +145,9 @@ export function ProjectsHome() {
       <header className="sticky top-0 z-30 border-b border-line bg-page/85 backdrop-blur">
         <div className="mx-auto flex h-12 max-w-7xl items-center gap-3 px-4">
           <Logo />
-          <span className="microlabel hidden sm:inline">architecture simulator</span>
+          <span className="microlabel hidden sm:inline">Architecture simulator</span>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="sm" asChild className="font-mono text-[11px]">
+            <Button variant="ghost" size="sm" asChild className="font-mono text-xs">
               <a href="/api/v1/docs" target="_blank" rel="noreferrer">
                 API
               </a>
@@ -158,11 +158,10 @@ export function ProjectsHome() {
       </header>
 
       <section className="schematic-grid relative overflow-hidden border-b border-line">
-        <div className="aurora" aria-hidden />
         <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface/60 px-3 py-1 text-[12px] font-medium text-ink-2 backdrop-blur">
-              <span className="size-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" aria-hidden />
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface/60 px-3 py-1 text-xs font-medium text-ink-2 backdrop-blur">
+              <span className="size-1.5 rounded-full bg-accent" aria-hidden />
               Open source · runs on your machine · no account
             </p>
             <h1 className="font-display text-[3.4rem] font-extrabold leading-[0.95] tracking-[-0.045em] text-ink sm:text-[4.8rem]">
@@ -207,18 +206,18 @@ export function ProjectsHome() {
               </Button>
             </div>
           </div>
-          <figure className="overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-[0_30px_80px_-30px_var(--accent)]" aria-hidden>
+          <figure className="overflow-hidden rounded-2xl border border-line bg-surface" aria-hidden>
             <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
               <span className="flex gap-1.5">
                 {[0, 1, 2].map((i) => (
                   <span key={i} className="size-2.5 rounded-full border border-line-strong" />
                 ))}
               </span>
-              <span className="ml-2 truncate font-mono text-[11px] text-ink-2">replay · cache outage test</span>
-              <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[10px] text-ink-3">
+              <span className="ml-2 truncate font-mono text-xs text-ink-2">replay · cache outage test</span>
+              <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-ink-3">
                 <span className="size-1.5 rounded-full bg-[var(--status-critical)] pulse-soft" /> rec
               </span>
-              <span className="microlabel shrink-0">illustration</span>
+              <span className="microlabel shrink-0">Illustration</span>
             </div>
             <div className="schematic-grid px-4 pb-3 pt-5">
               <HeroRecorder />
@@ -238,10 +237,7 @@ export function ProjectsHome() {
         <section aria-labelledby="ws-heading">
           <div className="mb-6">
             <p className="microlabel">
-              <span className="mr-1 opacity-60" aria-hidden>
-                {"//"}
-              </span>
-              how it works
+              How it works
             </p>
             <h2 id="ws-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
               Three workspaces, <span className="text-ink-3">one canvas</span>
@@ -266,10 +262,7 @@ export function ProjectsHome() {
           <div className="mb-4 flex items-end justify-between">
             <div>
               <p className="microlabel">
-                <span className="mr-1 opacity-60" aria-hidden>
-                  {"//"}
-                </span>
-                templates
+                Templates
               </p>
               <h2 id="examples-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
                 Start from an <span className="text-ink-3">example</span>
@@ -307,7 +300,7 @@ export function ProjectsHome() {
                       )}
                     </div>
                     <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2" title={ex.description ?? undefined}>{ex.description}</p>
-                    <p className="mt-auto pt-1 font-mono text-[11px] text-ink-3">{meta}</p>
+                    <p className="mt-auto pt-1 font-mono text-xs text-ink-3">{meta}</p>
                   </div>
                 </button>
               );
@@ -322,10 +315,7 @@ export function ProjectsHome() {
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <p className="microlabel">
-                <span className="mr-1 opacity-60" aria-hidden>
-                  {"//"}
-                </span>
-                your projects{projects && projects.length > 0 ? ` · ${projects.length}` : ""}
+                Your projects{projects && projects.length > 0 ? ` · ${projects.length}` : ""}
               </p>
               <h2 id="projects-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
                 Pick up where you <span className="text-ink-3">left off</span>
@@ -357,7 +347,7 @@ export function ProjectsHome() {
                   </span>
                   <Link href={`/projects/${p.id}`} className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-ink">{p.name}</p>
-                    <p className="truncate font-mono text-[11px] text-ink-3">
+                    <p className="truncate font-mono text-xs text-ink-3">
                       {p.nodeCount} components · {p.scenarioCount} scenarios · rev {p.revision} · {fmtRelativeTime(p.updatedAt)}
                     </p>
                   </Link>
@@ -398,7 +388,7 @@ export function ProjectsHome() {
       </main>
 
       <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-6 font-mono text-[11px] text-ink-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-6 font-mono text-xs text-ink-3">
           <span>archsim · AGPL-3.0</span>
           <span>·</span>
           <span>estimates from your assumptions; calibrate before trusting absolute numbers</span>
@@ -428,9 +418,6 @@ function TechWall({ catalog }: { catalog: Catalog }) {
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <p className="microlabel">
-            <span className="mr-1 opacity-60" aria-hidden>
-              {"//"}
-            </span>
             {items.length} technology profiles
           </p>
           <h2 id="tech-heading" className="mt-1.5 font-display text-[2.4rem] leading-[1.05] tracking-[-0.035em] text-ink">
@@ -450,7 +437,7 @@ function TechWall({ catalog }: { catalog: Catalog }) {
                   title={p.description}
                 >
                   <TechIcon technology={p.technology} kind={p.kind} size={14} />
-                  <span className="text-[12.5px] text-ink">{p.name}</span>
+                  <span className="text-[13px] text-ink">{p.name}</span>
                 </li>
               ))}
             </ul>

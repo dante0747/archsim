@@ -14,7 +14,7 @@ capacity curves. Same document and seed, same result.
 > comparisons between scenarios more than any single absolute value. See
 > [docs/simulation-model.md](docs/simulation-model.md).
 
-![The Test workspace replaying a Black Friday ramp: the Kubernetes checkout service glows red while the autoscaler catches up, the timeline below shows the traffic ramp, events, latency against the objective and failures, and the test plan panel reports the result](docs/images/editor-results.jpg)
+![The Test workspace replaying a Black Friday ramp at 100 s: the checkout service has scaled to seven replicas and runs warm, link labels show live request rates, the timeline below shows the traffic ramp, events, latency and failures, and the test plan panel reports that the design held up](docs/images/editor-results.jpg)
 
 *The Test workspace replaying the Black Friday on Kubernetes template. A demo GIF is still to be recorded.*
 
@@ -47,10 +47,12 @@ API servers behind a lone Clients box.
   (payments, e-mail, identity, LLM inference...). Behaviour comes from the numbers (replicas,
   shards, replication factor and consistency, partitions, rate limits), never from the name,
   and every default is marked as an assumption.
-- Each component kind has its own schematic shape and family colour and shows its technology
-  logo, its name and one or two key settings; after a run it shows how busy it was. Links are
-  right-angle wires that attach on any of the four sides: drag from a dot on any side of one
-  part to any side of another, in either direction.
+- Every part is the same flat card: its technology logo on a chip tinted by family, its name, one
+  or two key settings, and after a run a thin bar that shows how busy it was. Links are rounded
+  wires that attach on any of the four sides: drag from a dot on any side of one part to any side
+  of another, in either direction. Traffic moves along them while a run replays.
+- A flat, quiet interface (see [docs/ui-redesign.md](docs/ui-redesign.md)): docked panels, one
+  typeface, colour only where it means something, the last run's verdict in the top bar.
 - Click a part to edit it: its technology, a one-line last-run status, at most three key
   settings (response-time distributions as a one-line summary you click to edit), and "More
   settings" for everything else, notes and what the model covers.
@@ -93,9 +95,9 @@ result digest so it can be re-run and verified bit for bit.
 
 | Design: parts library with logos, a selected part | Results → Answer |
 | --- | --- |
-| ![Design workspace: the parts library on the left lists technologies with their logos (Nginx, Envoy, Kong, Node.js, Go, Python...); Checkout API is selected and the side panel shows its Go logo, technology menu, last-run status (warm, 76% busy), three settings and a collapsed More settings](docs/images/build.jpg) | ![Results answer: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 947 req/s handled, p95 434 ms, 99.8% success, $1,235 per month; two findings worth a look; objective tiles](docs/images/scorecard.jpg) |
+| ![Design workspace in the flat look: a one-column parts library with logos and short descriptions on the left, uniform part cards on the canvas, the last run's verdict (healthy, 949 req/s, 370 ms) in the top bar; Checkout API is selected and the side panel shows its Go logo, last-run status (warm, 70% busy), key settings and the resources block](docs/images/build.jpg) | ![Results answer: "Yes, it holds up." Meets all 2 objectives at 950 req/s; 949 req/s handled, p95 370 ms, 100% success, $1,278 per month; two findings worth a look with Show on canvas links; objective tiles](docs/images/scorecard.jpg) |
 | **Results → Compare** | **Home** |
-| ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page with the animated replay illustration](docs/images/home.jpg) |
+| ![Cost vs. speed map: monthly cost against p95 for five scenarios, the SLO line, and the Pareto frontier](docs/images/tradeoffs.jpg) | ![Home page: "A flight simulator for your architecture" with the replay illustration](docs/images/home.jpg) |
 
 ## Quick start
 

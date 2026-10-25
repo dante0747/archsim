@@ -69,16 +69,16 @@ function TargetEditor({ k, value, onDone }: { k: SloKey; value: number | null; o
         }}
         aria-label={`${meta.label} target`}
         aria-invalid={!!error}
-        className="h-7 w-24 rounded-sm border border-line bg-surface-2 px-2 font-mono text-[12px] text-ink focus-visible:border-accent focus-visible:outline-none aria-[invalid=true]:border-critical"
+        className="h-7 w-24 rounded-sm border border-line bg-surface-2 px-2 font-mono text-xs text-ink focus-visible:border-accent focus-visible:outline-none aria-[invalid=true]:border-critical"
       />
-      <span className="font-mono text-[11px] text-ink-3">{meta.unit}</span>
+      <span className="font-mono text-xs text-ink-3">{meta.unit}</span>
       <button type="button" onClick={commit} disabled={!!error} className="rounded-sm p-1 text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-40" aria-label="Save target">
         <Check className="size-3.5" />
       </button>
       <button type="button" onClick={onDone} className="rounded-sm p-1 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Cancel">
         <X className="size-3.5" />
       </button>
-      {error && <span className="font-mono text-[10.5px] text-danger-ink">{error}</span>}
+      {error && <span className="font-mono text-[11px] text-danger-ink">{error}</span>}
     </div>
   );
 }
@@ -114,19 +114,19 @@ function ObjectiveTile({ k, check, objectives }: { k: SloKey; check: SloCheck | 
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="flex min-h-36 flex-col items-start justify-center gap-1 rounded-md border border-dashed border-line-strong p-4 text-left text-ink-3 transition-colors hover:border-accent hover:text-ink"
+        className="group flex min-h-36 flex-col items-start justify-center gap-1 rounded-xl bg-surface-2/60 p-4 text-left transition-colors hover:bg-surface-2"
       >
-        <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider">
-          <Plus className="size-3.5" /> {meta.label}
+        <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-2 group-hover:text-ink">
+          <Plus className="size-4 text-accent" /> {meta.label}
         </span>
-        <span className="text-[12px]">Add a target</span>
+        <span className="text-xs text-ink-3">Add a target</span>
       </button>
     );
   }
   return (
     <div className="flex min-h-36 flex-col rounded-md border border-line bg-surface p-4">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 text-[12.5px] font-medium text-ink-2" title={meta.hint}>
+        <p className="min-w-0 text-[13px] font-medium text-ink-2" title={meta.hint}>
           {meta.label}
         </p>
         {check && <StatusMark pass={check.pass} />}
@@ -138,7 +138,7 @@ function ObjectiveTile({ k, check, objectives }: { k: SloKey; check: SloCheck | 
           <TargetEditor k={k} value={target} onDone={() => setEditing(false)} />
         ) : (
           <>
-            <span className="font-mono text-[11px] text-ink-2">
+            <span className="font-mono text-xs text-ink-2">
               target {k === "availability" || k === "throughput" ? "≥" : "≤"} {target == null ? "–" : formatSloValue(k, target)}
             </span>
             <button type="button" onClick={() => setEditing(true)} className="rounded-sm p-1 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${meta.label} target`}>
@@ -178,7 +178,7 @@ export function ErrorBudgetPanel({ report, objectives }: { report: Report; objec
   if (!budget || objectives.availability == null) {
     return (
       <Panel title="Error budget">
-        <p className="text-[12.5px] text-ink-2">Set an availability objective to see how much failure the design can afford.</p>
+        <p className="text-[13px] text-ink-2">Set an availability objective to see how much failure the design can afford.</p>
       </Panel>
     );
   }
@@ -197,7 +197,7 @@ export function ErrorBudgetPanel({ report, objectives }: { report: Report; objec
           <p className="tabular font-mono text-[26px] font-semibold leading-8 tracking-tight text-ink">
             {!Number.isFinite(consumed) ? "exhausted" : over ? `${consumed.toFixed(1)}× over` : `${Math.round(consumed * 100)}% used`}
           </p>
-          <p className="font-mono text-[11px] text-ink-3">
+          <p className="font-mono text-xs text-ink-3">
             {fmtNum(budget.failed)} failed · {fmtNum(Math.floor(budget.allowed))} allowed
           </p>
         </div>
@@ -205,7 +205,7 @@ export function ErrorBudgetPanel({ report, objectives }: { report: Report; objec
           <div className="relative h-2.5 rounded-[2px] bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(consumed, 1) * 100)} aria-label="Error budget used">
             <div className="absolute inset-y-0 left-0 rounded-[2px]" style={{ width: `${Math.min(Number.isFinite(consumed) ? consumed : 1, 1) * 100}%`, background: color }} />
           </div>
-          <div className="mt-1 flex justify-between font-mono text-[10px] text-ink-3">
+          <div className="mt-1 flex justify-between font-mono text-[11px] text-ink-3">
             <span>0%</span>
             <span>budget</span>
             <span>100%</span>
@@ -228,7 +228,7 @@ export function ErrorBudgetPanel({ report, objectives }: { report: Report; objec
                   cursor={{ stroke: "var(--line-strong)" }}
                   content={({ active, payload, label }) =>
                     active && payload?.length ? (
-                      <div className="rounded-md border border-line-strong bg-surface px-2 py-1.5 font-mono text-[11px] shadow-float">
+                      <div className="rounded-md border border-line-strong bg-surface px-2 py-1.5 font-mono text-xs shadow-float">
                         <p className="mb-1 text-ink-3">by t = {label}s</p>
                         {payload.map((p) => (
                           <p key={String(p.dataKey)} className="flex items-center gap-2 text-ink-2">
@@ -263,7 +263,7 @@ function CostPanel({ report }: { report: Report }) {
   return (
     <Panel title="Cost per month">
       {!cost.hasCost ? (
-        <p className="text-[12.5px] leading-relaxed text-ink-2">
+        <p className="text-[13px] leading-relaxed text-ink-2">
           No prices set. Add <b className="text-ink">Cost per hour</b> on parts in Design.
         </p>
       ) : (
@@ -271,21 +271,21 @@ function CostPanel({ report }: { report: Report }) {
           <div className="flex items-end justify-between gap-3">
             <div>
               <p className="tabular font-mono text-[26px] font-semibold leading-8 tracking-tight text-ink">{formatUsd(cost.monthly)}</p>
-              <p className="font-mono text-[11px] text-ink-3">per month · 730 h</p>
+              <p className="font-mono text-xs text-ink-3">per month · 730 h</p>
             </div>
             <div className="text-right">
               <p className="tabular font-mono text-[15px] font-semibold text-ink">{formatUsd(cost.perMillionRequests)}</p>
-              <p className="font-mono text-[11px] text-ink-3">per 1M successful req</p>
+              <p className="font-mono text-xs text-ink-3">per 1M successful req</p>
             </div>
           </div>
           <ul className="mt-4 space-y-2.5" aria-label="Cost by component">
             {cost.byNode.map((c) => (
               <li key={c.id}>
-                <div className="flex items-baseline justify-between gap-2 text-[12px]">
+                <div className="flex items-baseline justify-between gap-2 text-xs">
                   <span className="min-w-0 truncate text-ink">
                     {c.label}
                     {c.priceSource === "size" && (
-                      <span className="ml-1.5 font-mono text-[10px] text-ink-3" title="No price set: priced from its CPU, memory and storage at illustrative on-demand rates">
+                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="No price set: priced from its CPU, memory and storage at illustrative on-demand rates">
                         from size
                       </span>
                     )}
@@ -296,7 +296,7 @@ function CostPanel({ report }: { report: Report }) {
                   <div className="h-1.5 flex-1 rounded-[2px] bg-surface-3" aria-hidden>
                     <div className="h-full rounded-[2px]" style={{ width: `${(c.monthly / max) * 100}%`, background: SINGLE_SERIES }} />
                   </div>
-                  <span className="w-28 shrink-0 truncate text-right font-mono text-[10px] text-ink-3">{c.basis}</span>
+                  <span className="w-28 shrink-0 truncate text-right font-mono text-[11px] text-ink-3">{c.basis}</span>
                 </div>
               </li>
             ))}
@@ -306,7 +306,7 @@ function CostPanel({ report }: { report: Report }) {
       {cost.notes.length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-line pt-2.5">
           {cost.notes.map((n) => (
-            <li key={n} className="text-[11px] leading-relaxed text-ink-3">
+            <li key={n} className="text-xs leading-relaxed text-ink-3">
               ≈ {n}
             </li>
           ))}
@@ -326,7 +326,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dd className="tabular font-mono text-[22px] font-semibold leading-7 tracking-tight text-ink">{value}</dd>
-      <dt className="text-[12px] text-ink-3">{label}</dt>
+      <dt className="text-xs text-ink-3">{label}</dt>
     </div>
   );
 }
@@ -395,7 +395,7 @@ export function AnswerPage() {
       {running && <RunProgress run={running} />}
 
       <section aria-label="Answer">
-        <div className="flex items-start gap-4">
+        <div key={report.provenance.resultDigest} className="pop-in flex items-start gap-4">
           <VerdictIcon className="mt-1.5 size-9 shrink-0" style={{ color: toneColor }} aria-hidden />
           <div className="min-w-0">
             <h2 className="font-display text-[46px] leading-[1.02] tracking-[-0.035em] text-ink">{headline}</h2>

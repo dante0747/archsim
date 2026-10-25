@@ -14,7 +14,7 @@ import { fmtAxisCount, fmtAxisMs, fmtAxisPct, fmtAxisRps, SINGLE_SERIES, thClass
 export function StatusPill({ status }: { status: NodeReport["status"] }) {
   const meta = NODE_STATUS[status];
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] text-ink">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-ink">
       <span className="size-1.5 rounded-full" style={{ background: meta.color }} aria-hidden />
       {meta.label}
     </span>
@@ -69,28 +69,28 @@ export function ComponentsTab() {
                 >
                   <td className="px-3 py-2 font-medium text-ink">
                     {n.label}
-                    {s.hitRatio != null && <span className="ml-1.5 font-mono text-[10.5px] font-normal text-ink-3">hit {fmtPct(s.hitRatio, 0)}</span>}
+                    {s.hitRatio != null && <span className="ml-1.5 font-mono text-[11px] font-normal text-ink-3">hit {fmtPct(s.hitRatio, 0)}</span>}
                   </td>
                   <td className="px-2 py-2">
                     <StatusPill status={n.status} />
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-[11px] text-ink">{fmtRps(s.arrivalRps)}</td>
-                  <td className="px-2 py-2 text-right font-mono text-[11px] text-ink">
+                  <td className="px-2 py-2 text-right font-mono text-xs text-ink">{fmtRps(s.arrivalRps)}</td>
+                  <td className="px-2 py-2 text-right font-mono text-xs text-ink">
                     {fmtPct(s.utilization, 0)} / {fmtPct(s.peakUtilization, 0)}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-[11px] text-ink-2">{fmtPct(own, 0)}</td>
-                  <td className="px-2 py-2 text-right font-mono text-[11px] text-ink">
+                  <td className="px-2 py-2 text-right font-mono text-xs text-ink-2">{fmtPct(own, 0)}</td>
+                  <td className="px-2 py-2 text-right font-mono text-xs text-ink">
                     {fmtNum(s.meanQueue, 1)} / {fmtNum(s.peakQueue)}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-[11px] text-ink">{fmtMs(s.p95QueueWaitMs)}</td>
-                  <td className="px-2 py-2 text-right font-mono text-[11px] text-ink">
+                  <td className="px-2 py-2 text-right font-mono text-xs text-ink">{fmtMs(s.p95QueueWaitMs)}</td>
+                  <td className="px-2 py-2 text-right font-mono text-xs text-ink">
                     {fmtNum(s.rejectedTotal)}
                     {s.rejectedTotal ? <span className="text-ink-3"> ({fmtPct(s.rejectionRate)})</span> : null}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-[11px] text-ink-2" title={s.capacityLimit && s.capacityLimit !== "slots" ? `Limited by ${s.capacityLimit === "cpu" ? "CPU cores" : "memory"}` : undefined}>
+                  <td className="px-3 py-2 text-right font-mono text-xs text-ink-2" title={s.capacityLimit && s.capacityLimit !== "slots" ? `Limited by ${s.capacityLimit === "cpu" ? "CPU cores" : "memory"}` : undefined}>
                     {fmtRps(s.capacityRps)}
-                    {s.capacityLimit === "cpu" && <span className="ml-1 text-[10px] text-ink-3">CPU</span>}
-                    {s.capacityLimit === "memory" && <span className="ml-1 text-[10px] text-ink-3">mem</span>}
+                    {s.capacityLimit === "cpu" && <span className="ml-1 text-[11px] text-ink-3">CPU</span>}
+                    {s.capacityLimit === "memory" && <span className="ml-1 text-[11px] text-ink-3">mem</span>}
                   </td>
                 </tr>
               );
@@ -113,7 +113,7 @@ function NodeDetail({ report, node }: { report: Report; node: NodeReport }) {
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold text-ink">{node.label}</h3>
         <StatusPill status={node.status} />
-        {reasons && <span className="font-mono text-[10.5px] text-ink-3">({reasons})</span>}
+        {reasons && <span className="font-mono text-[11px] text-ink-3">({reasons})</span>}
         <Button size="sm" variant="ghost" className="ml-auto" onClick={() => select({ nodeId: node.id })}>
           <Crosshair /> Select on canvas
         </Button>

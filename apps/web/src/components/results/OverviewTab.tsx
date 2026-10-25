@@ -53,7 +53,7 @@ function Kpi({
     <div className="min-w-0 bg-surface px-3 py-2.5">
       <p className="microlabel truncate">{label}</p>
       <p className={cn("tabular truncate font-mono font-semibold tracking-tight text-ink", big ? "text-xl leading-8" : "text-[15px] leading-6")}>{value}</p>
-      {hint && <p className="truncate font-mono text-[10.5px] text-ink-3">{hint}</p>}
+      {hint && <p className="truncate font-mono text-[11px] text-ink-3">{hint}</p>}
       {spark && (
         <div className="mt-1.5">
           <Sparkline values={spark} color={sparkColor} from={sparkFrom} />
@@ -83,15 +83,15 @@ export function FindingCard({ f }: { f: Finding }) {
           <span className="sr-only">{meta.label}:</span>
           <p className="text-[13px] font-semibold text-ink">{f.title}</p>
           {f.nodeId && (
-            <button type="button" className="font-mono text-[10px] uppercase tracking-wider text-accent hover:underline" onClick={() => select({ nodeId: f.nodeId })}>
-              locate
+            <button type="button" className="text-xs font-medium text-accent hover:underline" onClick={() => select({ nodeId: f.nodeId })}>
+              Show on canvas
             </button>
           )}
         </div>
         <p className="text-xs leading-relaxed text-ink-2">{f.detail}</p>
         {f.suggestion && (
           <p className="rounded-sm border-l border-accent bg-surface-2 px-2.5 py-1.5 text-xs leading-relaxed text-ink">
-            <span className="mr-1.5 font-mono text-[10.5px] text-accent">try →</span>
+            <span className="mr-1.5 font-mono text-[11px] text-accent">try →</span>
             {f.suggestion}
           </p>
         )}
@@ -108,7 +108,7 @@ export function RunProgress({ run }: { run: Run }) {
         <p className="text-sm font-medium text-ink">
           {run.status === "queued" ? "Queued" : "Simulating"}: {run.label}
         </p>
-        <p className="font-mono text-[10.5px] text-ink-3">
+        <p className="font-mono text-[11px] text-ink-3">
           Progress follows the engine&apos;s simulated clock ({Math.round(run.progress * 100)}% of simulated time).
         </p>
         <div className="mt-1.5 h-1 overflow-hidden rounded-sm bg-surface-3">
@@ -123,7 +123,7 @@ export function ProvenanceBar({ report, run }: { report: Report; run: Run | unde
   const rerun = useRuns((s) => s.rerun);
   const p = report.provenance;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-2">
+    <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-ink-2">
       <Badge tone="accent" className="font-mono">
         simulation-derived
       </Badge>
@@ -191,7 +191,7 @@ export function OverviewTab() {
         <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: vColor }} aria-hidden />
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <p className="microlabel">Verdict · {run?.label ?? report.provenance.scenarioName ?? "Design as drawn"}</p>
-          <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-ink-2">
+          <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-2">
             <span className={cn("size-2 rounded-full", v.tone !== "ok" && "pulse-soft")} style={{ background: vColor }} aria-hidden />
             {VERDICT_WORD[v.tone]}
           </span>
@@ -223,7 +223,7 @@ export function OverviewTab() {
         <Kpi label="Client timeouts" value={fmtNum(s.timedOut)} hint={fmtPct(s.timeoutRate)} />
         <Kpi label="Attempts / request" value={s.retryAmplification == null ? "–" : `${fmtNum(s.retryAmplification, 2)}×`} hint="1.00× = no retries" />
       </div>
-      <p className="font-mono text-[10.5px] text-ink-3">Sparklines: success-rate cell shows failed req/s; all exclude warm-up.</p>
+      <p className="font-mono text-[11px] text-ink-3">Sparklines: success-rate cell shows failed req/s; all exclude warm-up.</p>
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <Section title="What the simulation found">
@@ -236,7 +236,7 @@ export function OverviewTab() {
         <div className="space-y-4">
           <Section title="Request accounting · after warm-up">
             <div className="rounded-md border border-line bg-surface p-3 text-xs">
-              <p className="tabular font-mono text-[11.5px] text-ink">
+              <p className="tabular font-mono text-xs text-ink">
                 {fmtNum(acc.measured.arrived)} = {fmtNum(acc.measured.succeeded)} ok + {fmtNum(acc.measured.failed)} failed + {fmtNum(acc.measured.timedOut)} timed out + {fmtNum(acc.measured.outstanding)} open
               </p>
               <p className="mt-1.5 flex items-center gap-1.5 text-ink-2">
@@ -251,7 +251,7 @@ export function OverviewTab() {
           </Section>
           <Section title="Latency by request type">
             <div className="overflow-hidden rounded-md border border-line bg-surface">
-              <table className="tabular w-full font-mono text-[11.5px]">
+              <table className="tabular w-full font-mono text-xs">
                 <thead>
                   <tr className="border-b border-line text-left">
                     <th className={cn(thClass, "px-3 py-1.5")}>type</th>
@@ -312,7 +312,7 @@ function ClientsTable({ report }: { report: Report }) {
   return (
     <Section title="By client">
       <div className="overflow-hidden rounded-md border border-line bg-surface">
-        <table className="tabular w-full font-mono text-[11.5px]">
+        <table className="tabular w-full font-mono text-xs">
           <thead>
             <tr className="border-b border-line text-left">
               <th className={cn(thClass, "px-3 py-1.5")}>client</th>

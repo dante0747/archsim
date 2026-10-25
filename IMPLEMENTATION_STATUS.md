@@ -98,8 +98,8 @@ serves 8 example designs (see below).
 
 - **Studio with three workspaces around one canvas** (keys 1, 2, 3) and a next-step prompt:
   - **Design** (internal key `build`): technology library (families, search, drag or click to add a preset),
-    technology picker in the inspector (re-applies a preset, undoable), schematic shapes for
-    every kind (including a pipe for queues and a cloud for third-party APIs), catalog-driven
+    technology picker in the inspector (re-applies a preset, undoable), uniform flat part cards
+    (logo on a family-tinted chip; the kind shapes survive only in tests), catalog-driven
     inspector with key/advanced settings, **design review** (single points of failure, cache
     without fallback, missing timeouts, retry amplification with the math, retries without
     backoff, timeout inversion, unbounded waits, connection-pool exhaustion, serverless
@@ -129,11 +129,17 @@ serves 8 example designs (see below).
   page): five dark themes, Midnight (navy slate dashboard look, the default), Tokyo Night,
   Dracula, Nord and GitHub Dark, plus a lavender light theme. Each theme is a set of CSS
   tokens (surfaces, ink, accents, one hue per component family, chart grid); the choice is
-  stored in this browser's localStorage only and applied before first paint. Floating rounded
-  panels around the canvas and a drifting aurora behind the home hero that stops for reduced
-  motion. Type: Bricolage Grotesque for display headings, Geist Sans and Geist Mono
-  for the interface and numbers (self-hosted at build time by next/font; no runtime calls to
-  Google).
+  stored in this browser's localStorage only and applied before first paint.
+- Flat redesign (2026-10-25, see docs/ui-redesign.md for the critique and the DOs and DON'Ts):
+  solid surfaces in three tonal steps, hairlines instead of boxes, no gradients, glows, glass or
+  aurora, shadows only on menus and dialogs; panels docked edge to edge; one typeface (Geist;
+  numbers in tabular figures, Geist Mono only for code and YAML) on a short type scale with no
+  text below 11 px; sentence-case labels (no uppercase or `//` prefixes); a one-column parts
+  library with logos and descriptions; uniform part cards with a utilisation bar and the status
+  shown only when it needs attention; the last run's verdict, throughput and p95 in the top bar
+  instead of a card over the diagram; flatter inspector, Results and home page; short entrance
+  animations for new results. Fonts are self-hosted at build time by next/font (no runtime calls
+  to Google).
 - Client groups (engine 0.3.0, report 1.2): besides the generic Clients part there are Mobile
   app, Web browser and API consumers parts, each with its own defaults (timeout, retries,
   backoff, traffic share) and a technology label with its logo (iOS, Android, React Native,
@@ -248,6 +254,11 @@ export set cpu "1" / memory "2Gi" requests and limits. Bugs found and fixed: at 
 slot and CPU ceilings tie and the finding named the slots (a resource ceiling within 3% now
 wins); saved runs store every default, so a default price looked "set" (a price equal to the
 catalog default now counts as not set).
+
+Flat redesign, on 2026-10-25, against the rebuilt Docker stack: home page, Design (parts library,
+part cards, top-bar run status, inspector), Test (live replay at 4x), Results (answer, cost vs.
+speed after simulating all five scenarios) in Midnight, and the editor in Light. The README
+screenshots were retaken from this build.
 
 MVP, on Windows 11 with Python 3.12, Node 24, SQLite, in the desktop app's browser pane:
 creating a project from an example and from a blank canvas; adding components; drawing links

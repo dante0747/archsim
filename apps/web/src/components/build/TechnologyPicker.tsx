@@ -24,7 +24,7 @@ export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; com
 
   return (
     <div className="mt-3 space-y-1">
-      <p className="text-[12px] text-ink-3">
+      <p className="text-xs text-ink-3">
         Technology{tech ? <span className="ml-1.5 font-medium text-ink">{tech}</span> : null}
       </p>
       {presets.length > 0 && (
@@ -32,7 +32,7 @@ export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; com
           value=""
           onChange={(e) => apply(e.target.value)}
           aria-label="Apply a technology preset"
-          className="h-8 w-full cursor-pointer rounded-md border border-line bg-surface-2/70 px-2 text-[12.5px] text-ink-2 hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
+          className="h-8 w-full cursor-pointer rounded-md border border-line bg-surface-2/70 px-2 text-[13px] text-ink-2 hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
         >
           <option value="" disabled>
             {current ? "Switch technology…" : "Pick a technology…"}

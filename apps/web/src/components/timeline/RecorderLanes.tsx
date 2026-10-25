@@ -122,22 +122,22 @@ export function Ruler({ warmupS, scrubbable, endS }: { warmupS: number | null; s
       style={{ height: LANE_H.ruler }}
       onPointerDown={onPointerDown}
     >
-      <div className="flex shrink-0 items-center border-r border-line px-3 font-mono text-[9.5px] uppercase tracking-wider text-ink-3" style={{ width: labelWidth }}>
+      <div className="flex shrink-0 items-center border-r border-line px-3 font-mono text-[11px] text-ink-3" style={{ width: labelWidth }}>
       </div>
       <div className="relative shrink-0" style={{ width: plotWidth }}>
         {warmupS != null && warmupS > 0 && (
           <div
-            className="absolute inset-y-0 left-0 flex items-center justify-center overflow-hidden font-mono text-[9px] uppercase tracking-wider text-ink-3"
+            className="absolute inset-y-0 left-0 flex items-center justify-center overflow-hidden font-mono text-[11px] text-ink-3"
             style={{ width: x(warmupS), background: "var(--warmup-wash)" }}
           >
-            {x(warmupS) > 56 ? "warm-up" : ""}
+            {x(warmupS) > 56 ? "Warm-up" : ""}
           </div>
         )}
         {ticks.map((v) => (
           <div key={v} className="absolute bottom-0 top-0" style={{ left: x(v) }}>
             <div className="absolute bottom-0 h-1.5 w-px bg-line-strong" />
             <span
-              className="absolute top-1 -translate-x-1/2 font-mono text-[9.5px] tabular-nums text-ink-3"
+              className="absolute top-1 -translate-x-1/2 font-mono text-[11px] tabular-nums text-ink-3"
               style={{ transform: v === 0 ? "translateX(2px)" : v >= durationS - 1e-6 ? "translateX(calc(-100% - 2px))" : undefined }}
             >
               {v < 120 ? `${v}` : `${Math.floor(v / 60)}:${String(Math.round(v % 60)).padStart(2, "0")}`}
@@ -198,7 +198,7 @@ export function EventRow({ events, endS, onHover }: { events: RecorderEvent[]; e
       lane="events"
       height={LANE_H.events}
       label={
-        <span className="text-[12px] text-ink-2">Events</span>
+        <span className="text-xs text-ink-2">Events</span>
       }
     >
       <div className="absolute inset-x-0 top-1/2 h-px bg-line" aria-hidden />
@@ -221,7 +221,7 @@ export function EventRow({ events, endS, onHover }: { events: RecorderEvent[]; e
           >
             <Icon className="size-3" style={{ color: SEVERITY_COLOR[lead.severity] }} />
             {c.events.length > 1 && (
-              <span className="absolute -right-1.5 -top-1.5 rounded-sm bg-ink px-[3px] font-mono text-[8.5px] font-bold leading-[11px] text-surface">
+              <span className="absolute -right-1.5 -top-1.5 rounded-sm bg-ink px-[3px] font-mono text-[11px] font-bold leading-[11px] text-surface">
                 {c.events.length}
               </span>
             )}
@@ -255,8 +255,8 @@ function linePath(series: Series, x: (t: number) => number, y: (v: number) => nu
 function StripLabel({ title, max, hint }: { title: string; max?: string; hint?: string }) {
   return (
     <span className="flex w-full min-w-0 items-baseline justify-between gap-2" title={hint}>
-      <span className="truncate text-[12px] text-ink-2">{title}</span>
-      {max && <span className="shrink-0 font-mono text-[10px] tabular-nums text-ink-3">{max}</span>}
+      <span className="truncate text-xs text-ink-2">{title}</span>
+      {max && <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-3">{max}</span>}
     </span>
   );
 }
@@ -264,7 +264,7 @@ function StripLabel({ title, max, hint }: { title: string; max?: string; hint?: 
 function HeatLegend({ dark }: { dark: boolean }) {
   const stops = heatLegend(dark);
   return (
-    <span className="flex items-center gap-2 font-mono text-[10px] text-ink-3" aria-label="Heat scale: how busy each part was">
+    <span className="flex items-center gap-2 font-mono text-[11px] text-ink-3" aria-label="Heat scale: how busy each part was">
       {stops.map((st) => (
         <span key={st.label} className="flex items-center gap-1">
           <span className={cn("h-2 rounded-[1px]", st.label === "<70%" ? "w-6" : "w-2.5")} style={{ background: st.color }} aria-hidden />
@@ -352,7 +352,7 @@ const FailureStrip = memo(function FailureStrip({ report, plotWidth, durationS }
   const gap = cw > 4 ? 1 : 0;
   if (max <= 0) {
     return (
-      <div className="absolute inset-0 flex items-center pl-2 font-mono text-[9.5px] text-ink-3">
+      <div className="absolute inset-0 flex items-center pl-2 font-mono text-[11px] text-ink-3">
         <span className="mr-2 h-px flex-1 bg-line" aria-hidden />
         no failed requests
         <span className="ml-2 h-px w-6 bg-line" aria-hidden />
@@ -617,13 +617,13 @@ export function RecorderLanes({
           type="button"
           onClick={() => setDetail(!detail)}
           aria-expanded={detail}
-          className="flex h-full shrink-0 items-center gap-1.5 border-r border-line px-3 text-[12px] text-ink-3 hover:text-ink"
+          className="flex h-full shrink-0 items-center gap-1.5 border-r border-line px-3 text-xs text-ink-3 hover:text-ink"
           style={{ width: labelWidth }}
         >
           <ChevronRight className={cn("size-3.5 transition-transform", detail && "rotate-90")} aria-hidden />
           {detail ? "Less detail" : "More detail"}
         </button>
-        <div className="flex flex-1 items-center justify-end px-3">{detail ? <HeatLegend dark={dark} /> : <span className="text-[11.5px] text-ink-3">throughput and each part</span>}</div>
+        <div className="flex flex-1 items-center justify-end px-3">{detail ? <HeatLegend dark={dark} /> : <span className="text-xs text-ink-3">throughput and each part</span>}</div>
       </div>
 
       {detail && (
@@ -644,12 +644,12 @@ export function RecorderLanes({
                 lane={`node:${node.id}`}
                 height={LANE_H.heat}
                 label={
-                  <span className="flex w-full min-w-0 items-center gap-1.5 text-[12px] text-ink-2">
+                  <span className="flex w-full min-w-0 items-center gap-1.5 text-xs text-ink-2">
                     <span className="min-w-0 flex-1 truncate" title={node.label || node.id}>
                       {node.label || node.id}
                     </span>
                     {hasUtil && (
-                      <span className="shrink-0 font-mono text-[10px] tabular-nums" style={{ color: peak >= 0.95 ? "var(--danger-ink)" : "var(--ink-3)" }}>
+                      <span className="shrink-0 font-mono text-[11px] tabular-nums" style={{ color: peak >= 0.95 ? "var(--danger-ink)" : "var(--ink-3)" }}>
                         {fmtPct(peak, 0)}
                       </span>
                     )}
@@ -676,13 +676,13 @@ export function RecorderLanes({
           {lines.length > 0 && (
             <div
               role="status"
-              className="pointer-events-none absolute z-30 max-w-72 rounded-sm border border-line-strong bg-surface px-2 py-1.5 font-mono text-[10.5px] leading-[15px] text-ink shadow-float"
+              className="pointer-events-none absolute z-30 max-w-72 rounded-sm border border-line-strong bg-surface px-2 py-1.5 font-mono text-[11px] leading-[15px] text-ink shadow-float"
               style={{
                 left: Math.min(labelWidth + hover.px + 12, labelWidth + plotWidth - 200),
                 top: Math.max(4, hover.y + (hover.cluster ? 4 : -8)),
               }}
             >
-              <div className="mb-0.5 text-[9.5px] text-ink-3">t {fmtClock(hover.t)}</div>
+              <div className="mb-0.5 text-[11px] text-ink-3">t {fmtClock(hover.t)}</div>
               {lines.map((l, k) => (
                 <div key={k} className={cn("whitespace-nowrap", k === 0 && hover.lane.startsWith("node:") && "font-semibold")}>
                   {l}

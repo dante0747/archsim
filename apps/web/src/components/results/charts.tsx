@@ -28,7 +28,7 @@ export const VIZ_VARS =
   "[--viz-ord-1:#86b6ef] [--viz-ord-2:#2a78d6] [--viz-ord-3:#104281] dark:[--viz-ord-1:#1c5cab] dark:[--viz-ord-2:#3987e5] dark:[--viz-ord-3:#86b6ef]";
 
 /** Table header cells: mono, uppercase, muted. */
-export const thClass = "font-mono text-[10px] font-normal uppercase tracking-[0.08em] text-ink-3";
+export const thClass = "font-mono text-[11px] font-normal text-ink-3";
 
 export interface SeriesDef {
   key: string;
@@ -62,7 +62,7 @@ function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-line-strong bg-surface px-2 py-1.5 font-mono text-[11px] shadow-float">
+    <div className="rounded-md border border-line-strong bg-surface px-2 py-1.5 font-mono text-xs shadow-float">
       <p className="mb-1 text-ink-3">t = {label}s</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="flex items-center gap-2 text-ink-2">
@@ -80,7 +80,7 @@ export function Legend({ series }: { series: Pick<SeriesDef, "key" | "label" | "
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Legend">
       {series.map((s) => (
-        <li key={s.key} className="flex items-center gap-1.5 font-mono text-[10.5px] text-ink-2">
+        <li key={s.key} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-2">
           <span className="inline-block h-0.5 w-3.5 rounded" style={{ background: s.color }} aria-hidden />
           {s.label}
         </li>
@@ -111,7 +111,7 @@ export function TimeSeriesChart({
       <figcaption className="mb-2 space-y-1">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-xs font-semibold text-ink">{title}</span>
-          {subtitle && <span className="truncate font-mono text-[10.5px] text-ink-3">{subtitle}</span>}
+          {subtitle && <span className="truncate font-mono text-[11px] text-ink-3">{subtitle}</span>}
         </div>
         <Legend series={series} />
       </figcaption>
@@ -127,7 +127,7 @@ export function TimeSeriesChart({
                 fillOpacity={1}
                 strokeOpacity={0}
                 ifOverflow="hidden"
-                label={{ value: "warm-up", position: "insideTopLeft", fill: "var(--ink-3)", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                label={{ value: "Warm-up", position: "insideTopLeft", fill: "var(--ink-3)", fontSize: 11 }}
               />
             )}
             {durationS != null && t.length > 0 && t[t.length - 1] > durationS && (

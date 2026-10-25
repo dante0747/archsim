@@ -71,7 +71,7 @@ function Readout({ x, y, text }: { x: number; y: number; text: string }) {
   const left = clamp(x, 40, plotWidth - 40);
   return (
     <div
-      className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-sm border border-line-strong bg-surface px-1.5 py-0.5 font-mono text-[10.5px] text-ink shadow-float"
+      className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-sm border border-line-strong bg-surface px-1.5 py-0.5 font-mono text-[11px] text-ink shadow-float"
       style={{ left, top: Math.max(y - 6, 14) }}
       role="status"
     >
@@ -251,10 +251,10 @@ function TrafficTrack() {
 
   const label = (
     <span className="flex min-w-0 flex-col" title="Drag the line or its handles to reshape the traffic">
-      <span className="text-[12px] text-ink-2">Traffic</span>
-      <span className="tabular truncate font-mono text-[12.5px] font-semibold text-ink">
+      <span className="text-xs text-ink-2">Traffic</span>
+      <span className="tabular truncate font-mono text-[13px] font-semibold text-ink">
         {p.kind === "ramp" ? `${compact(p.startRps)}→${compact(p.endRps)}` : compact(w.rps)}
-        <span className="ml-1 text-[10px] font-normal text-ink-3">req/s</span>
+        <span className="ml-1 text-[11px] font-normal text-ink-3">req/s</span>
       </span>
     </span>
   );
@@ -268,7 +268,7 @@ function TrafficTrack() {
           {w.warmupS > 0 && (
             <g>
               <rect x={0} y={0} width={x(Math.min(w.warmupS, runS))} height={TRAFFIC_H} fill="var(--warmup-wash)" />
-              <text x={4} y={10} className="fill-ink-3 font-mono text-[9px]">
+              <text x={4} y={10} className="fill-ink-3 font-mono text-[11px]">
                 warm-up
               </text>
             </g>
@@ -276,7 +276,7 @@ function TrafficTrack() {
           {runS < axisS && (
             <g>
               <rect x={x(runS)} y={0} width={plotWidth - x(runS)} height={TRAFFIC_H} fill="var(--warmup-wash)" />
-              <text x={x(runS) + 4} y={10} className="fill-ink-3 font-mono text-[9px]">
+              <text x={x(runS) + 4} y={10} className="fill-ink-3 font-mono text-[11px]">
                 drain
               </text>
             </g>
@@ -293,7 +293,7 @@ function TrafficTrack() {
           ))}
           <line x1={0} x2={plotWidth} y1={y(0)} y2={y(0)} stroke="var(--axis)" strokeWidth={1} />
           <line x1={0} x2={plotWidth} y1={y(yMax / 2)} y2={y(yMax / 2)} stroke="var(--grid)" strokeDasharray="2 4" strokeWidth={1} />
-          <text x={plotWidth - 4} y={PAD_T - 3} textAnchor="end" className="fill-ink-3 font-mono text-[9px]">
+          <text x={plotWidth - 4} y={PAD_T - 3} textAnchor="end" className="fill-ink-3 font-mono text-[11px]">
             {compact(yMax)}/s
           </text>
           <path d={area} fill="var(--accent)" fillOpacity={0.09} />
@@ -431,7 +431,7 @@ function FaultRow({ fault, name, invalid, runS }: { fault: Fault; name: string; 
   const label = (
     <div className="group flex min-w-0 items-center gap-1.5">
       <FaultIcon kind={fault.kind} />
-      <span className={cn("min-w-0 flex-1 truncate font-mono text-[10.5px]", invalid ? "text-danger-ink" : "text-ink-2")} title={invalid ? `Target ${fault.target} no longer exists` : name}>
+      <span className={cn("min-w-0 flex-1 truncate font-mono text-[11px]", invalid ? "text-danger-ink" : "text-ink-2")} title={invalid ? `Target ${fault.target} no longer exists` : name}>
         {fault.label || name}
       </span>
       <button
@@ -471,7 +471,7 @@ function FaultRow({ fault, name, invalid, runS }: { fault: Fault; name: string; 
           >
             <div className="absolute inset-y-0 left-0 z-10 cursor-ew-resize" style={{ width: EDGE_PX }} {...handlers("start")} />
             <div
-              className="flex h-full min-w-0 flex-1 cursor-grab items-center gap-1 px-2 font-mono text-[10px] text-ink active:cursor-grabbing"
+              className="flex h-full min-w-0 flex-1 cursor-grab items-center gap-1 px-2 font-mono text-[11px] text-ink active:cursor-grabbing"
               {...handlers("move")}
             >
               <span className="truncate font-semibold">{faultParam(fault)}</span>
@@ -491,13 +491,13 @@ function FaultRow({ fault, name, invalid, runS }: { fault: Fault; name: string; 
           >
             <div className="mb-2.5 flex items-center gap-2">
               <FaultIcon kind={fault.kind} />
-              <p className="min-w-0 flex-1 truncate font-mono text-[12px] font-semibold text-ink">{faultLabel(fault, ctx.names)}</p>
+              <p className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-ink">{faultLabel(fault, ctx.names)}</p>
               <button type="button" onClick={() => removeFault(fault.id)} className="rounded-sm p-1 text-ink-3 hover:bg-critical-soft hover:text-danger-ink" aria-label="Remove failure">
                 <Trash2 className="size-3.5" />
               </button>
             </div>
             <FaultFields fault={fault} targets={ctx.targets} durationS={ctx.workload.durationS} idPrefix={`track-${fault.id}`} />
-            <p className="mt-2.5 text-[11px] leading-4 text-ink-3">{meta.description}</p>
+            <p className="mt-2.5 text-xs leading-4 text-ink-3">{meta.description}</p>
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
@@ -515,14 +515,14 @@ function AddFaultRow() {
         <AddFaultMenu>
           <button
             type="button"
-            className="flex w-fit items-center gap-1 rounded-sm px-1 py-0.5 font-mono text-[10.5px] text-ink-3 hover:bg-surface-2 hover:text-accent"
+            className="flex w-fit items-center gap-1 rounded-sm px-1 py-0.5 font-mono text-[11px] text-ink-3 hover:bg-surface-2 hover:text-accent"
           >
             <Plus className="size-3" /> add failure
           </button>
         </AddFaultMenu>
       }
     >
-      <p className="pointer-events-none absolute inset-0 flex items-center px-2 font-mono text-[10px] text-ink-3">
+      <p className="pointer-events-none absolute inset-0 flex items-center px-2 font-mono text-[11px] text-ink-3">
         {faults.length === 0 ? "" : "drag to move or resize"}
       </p>
     </Row>

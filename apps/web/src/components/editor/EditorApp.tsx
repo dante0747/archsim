@@ -234,17 +234,17 @@ function EditorShell() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col gap-2 overflow-hidden bg-page p-2" data-workspace={mode}>
+    <div className="flex h-full flex-col overflow-hidden bg-page" data-workspace={mode}>
       <TopBar
         showInspector={showSide}
         onToggleInspector={() => setShowSide((v) => !v)}
         shortcutsOpen={shortcutsOpen}
         onShortcutsOpenChange={setShortcutsOpen}
       />
-      <div className="relative flex min-h-0 flex-1 gap-2">
+      <div className="relative flex min-h-0 flex-1">
         {mode === "build" && <PartsPanel />}
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-[14px] border border-line">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             <Canvas />
             {mode !== "decide" && <NextStepPill />}
             {mode === "build" && <DesignReviewPanel />}
@@ -262,7 +262,7 @@ function EditorShell() {
             {mode === "build" ? (
               <Inspector />
             ) : (
-              <aside className="island surface-sheen flex h-full w-[320px] shrink-0 flex-col overflow-y-auto" aria-label="Experiment">
+              <aside className="island flex h-full w-[320px] shrink-0 flex-col overflow-y-auto border-l border-line" aria-label="Experiment">
                 <ExperimentPanel />
               </aside>
             )}

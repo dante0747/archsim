@@ -96,7 +96,7 @@ export function ResultsDrawer() {
             </TabsTrigger>
           </TabsList>
           {hasReport && (
-            <label className="hidden shrink-0 items-center gap-2 font-mono text-[10.5px] text-ink-2 md:flex">
+            <label className="hidden shrink-0 items-center gap-2 font-mono text-[11px] text-ink-2 md:flex">
               <Switch checked={overlay} onCheckedChange={setOverlay} label="Show results on canvas" />
               show on canvas
             </label>

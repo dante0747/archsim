@@ -30,19 +30,19 @@ function fmtValue(v: unknown): string {
 function Verdict({ k }: { k: ComparisonKpi }) {
   if (k.verdict === "better")
     return (
-      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-success-ink">
+      <span className="inline-flex items-center gap-1 font-mono text-xs text-success-ink">
         <TrendingUp className="size-3.5" /> better
       </span>
     );
   if (k.verdict === "worse")
     return (
-      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-danger-ink">
+      <span className="inline-flex items-center gap-1 font-mono text-xs text-danger-ink">
         <TrendingDown className="size-3.5" /> worse
       </span>
     );
-  if (k.verdict === "changed") return <span className="font-mono text-[11px] text-ink-2">changed</span>;
+  if (k.verdict === "changed") return <span className="font-mono text-xs text-ink-2">changed</span>;
   return (
-    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-ink-3">
+    <span className="inline-flex items-center gap-1 font-mono text-xs text-ink-3">
       <Minus className="size-3.5" /> {k.verdict === "same" ? "same" : "n/a"}
     </span>
   );
@@ -134,8 +134,8 @@ export function CompareTab() {
                           <td className="px-3 py-1.5 text-ink" title={d.path}>
                             {d.label}
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-[11px] text-ink-2">{fmtValue(d.a)}</td>
-                          <td className="px-3 py-1.5 font-mono text-[11px] font-medium text-ink">{fmtValue(d.b)}</td>
+                          <td className="px-2 py-1.5 font-mono text-xs text-ink-2">{fmtValue(d.a)}</td>
+                          <td className="px-3 py-1.5 font-mono text-xs font-medium text-ink">{fmtValue(d.b)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -162,9 +162,9 @@ export function CompareTab() {
                     {comparison.kpis.map((k) => (
                       <tr key={k.key}>
                         <td className="px-3 py-1.5 text-ink">{k.label}</td>
-                        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink-2">{fmtKpi(k.a, k.unit)}</td>
-                        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtKpi(k.b, k.unit)}</td>
-                        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink-2">
+                        <td className="px-2 py-1.5 text-right font-mono text-xs text-ink-2">{fmtKpi(k.a, k.unit)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-xs text-ink">{fmtKpi(k.b, k.unit)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-xs text-ink-2">
                           {k.relativeDelta == null ? "–" : `${k.relativeDelta > 0 ? "+" : ""}${fmtPct(k.relativeDelta, 0)}`}
                         </td>
                         <td className="px-3 py-1.5">
@@ -194,16 +194,16 @@ export function CompareTab() {
                       .map((n) => (
                         <tr key={n.id}>
                           <td className="px-3 py-1.5 text-ink">{n.label}</td>
-                          <td className="px-2 py-1.5 font-mono text-[11px] text-ink-2">
+                          <td className="px-2 py-1.5 font-mono text-xs text-ink-2">
                             {n.statusA ? NODE_STATUS[n.statusA].label : "–"} → {n.statusB ? NODE_STATUS[n.statusB].label : "–"}
                           </td>
-                          <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">
+                          <td className="px-2 py-1.5 text-right font-mono text-xs text-ink">
                             {fmtPct(n.a?.utilization ?? null, 0)} → {fmtPct(n.b?.utilization ?? null, 0)}
                           </td>
-                          <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">
+                          <td className="px-2 py-1.5 text-right font-mono text-xs text-ink">
                             {fmtNum(n.a?.arrivalRps ?? null, 0)} → {fmtNum(n.b?.arrivalRps ?? null, 0)}
                           </td>
-                          <td className="px-3 py-1.5 text-right font-mono text-[11px] text-ink">
+                          <td className="px-3 py-1.5 text-right font-mono text-xs text-ink">
                             {fmtNum(n.a?.rejectedTotal ?? null)} → {fmtNum(n.b?.rejectedTotal ?? null)}
                           </td>
                         </tr>

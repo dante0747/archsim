@@ -107,9 +107,9 @@ function DataTableToggle({ report }: { report: Report }) {
   const ts = report.timeseries;
   return (
     <details className="rounded-md border border-line bg-surface p-3 lg:col-span-2 2xl:col-span-3">
-      <summary className="cursor-pointer font-mono text-[11px] text-ink-2 hover:text-ink">table view of the time series</summary>
+      <summary className="cursor-pointer font-mono text-xs text-ink-2 hover:text-ink">table view of the time series</summary>
       <div className="mt-2 max-h-64 overflow-auto">
-        <table className="tabular w-full font-mono text-[11px]">
+        <table className="tabular w-full font-mono text-xs">
           <thead className="sticky top-0 bg-surface text-left">
             <tr>
               <th className={cn(thClass, "py-1 pr-3")}>t (s)</th>
@@ -137,7 +137,7 @@ function DataTableToggle({ report }: { report: Report }) {
             ))}
           </tbody>
         </table>
-        <p className="mt-1 font-sans text-[11px] text-ink-3">Grey rows are inside the warm-up period (excluded from summary statistics).</p>
+        <p className="mt-1 font-sans text-xs text-ink-3">Grey rows are inside the warm-up period (excluded from summary statistics).</p>
       </div>
     </details>
   );

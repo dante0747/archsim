@@ -19,7 +19,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { ArchEdgeView } from "@/components/editor/ArchEdgeView";
 import { ArchNodeView, NODE_W } from "@/components/editor/ArchNodeView";
-import { RunReportCard } from "@/components/editor/CanvasHud";
 import { CanvasToolbar } from "@/components/editor/CanvasToolbar";
 import { findPreset, parseDndPayload } from "@/components/build/presets";
 import { DND_MIME } from "@/components/editor/Palette";
@@ -57,25 +56,23 @@ function EmptyState() {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
       <div className="max-w-xl">
-        <p className="font-mono text-xs text-ink-3">
-          <span className="text-accent">{"//"}</span> empty canvas
-        </p>
+        <p className="text-[13px] font-medium text-accent">Empty canvas</p>
         <h2 className="mt-2 font-display text-[34px] leading-[1.05] tracking-[-0.035em] text-ink">
           Sketch a system, then <span className="text-gradient">test it</span>
         </h2>
         <ol className="mt-5 grid gap-2 sm:grid-cols-3">
           {steps.map((s, i) => (
             <li key={s.title} className="rounded-md border border-line bg-surface p-3">
-              <div className="mb-1.5 flex items-center gap-2 font-mono text-[11px] text-ink-3">
+              <div className="mb-1.5 flex items-center gap-2 font-mono text-xs text-ink-3">
                 <span className="text-accent">{String(i + 1).padStart(2, "0")}</span>
-                <span className="uppercase tracking-wider text-ink">{s.title}</span>
+                <span className="uppercase text-ink">{s.title}</span>
                 <s.icon className="ml-auto size-3.5" aria-hidden />
               </div>
               <p className="text-xs leading-relaxed text-ink-2">{s.text}</p>
             </li>
           ))}
         </ol>
-        <p className="mt-3 flex items-center gap-1 font-mono text-[11px] text-ink-3">
+        <p className="mt-3 flex items-center gap-1 font-mono text-xs text-ink-3">
           or press <kbd className="rounded-sm border border-line px-1">Ctrl K</kbd> for commands, or open an example from the projects page
           <ArrowRight className="size-3" />
         </p>
@@ -279,7 +276,7 @@ export function Canvas() {
         />
         )}
       </ReactFlow>
-      {nodes.length === 0 ? <EmptyState /> : <RunReportCard />}
+      {nodes.length === 0 && <EmptyState />}
       <CanvasToolbar />
     </div>
   );

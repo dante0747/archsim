@@ -34,7 +34,7 @@ export function AssumptionTag() {
     <Tip content="≈ Assumption: your estimate, not a measurement. Calibrate it against real telemetry before trusting absolute numbers.">
       <span
         aria-label="assumption"
-        className="cursor-help rounded-md px-1 font-mono text-[12px] font-bold leading-4 text-accent"
+        className="cursor-help rounded-md px-1 font-mono text-xs font-bold leading-4 text-accent"
         style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)" }}
       >
         ≈
@@ -117,7 +117,7 @@ export function NumberInput({
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-1 text-[11px] text-danger-ink">
+        <p role="alert" className="mt-1 text-xs text-danger-ink">
           {error}
         </p>
       )}
@@ -202,7 +202,7 @@ export function DistributionEditor({
       <div className={cn("grid gap-2", params.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
         {params.map((p) => (
           <div key={p} className="space-y-1">
-            <Label htmlFor={`${idPrefix}-${p}`} className="text-[11px] text-ink-3">
+            <Label htmlFor={`${idPrefix}-${p}`} className="text-xs text-ink-3">
               {paramLabel[p] ?? p}
             </Label>
             <NumberInput
@@ -215,7 +215,7 @@ export function DistributionEditor({
           </div>
         ))}
       </div>
-      <p className={cn("text-[11px]", err ? "text-danger-ink" : "text-ink-3")}>
+      <p className={cn("text-xs", err ? "text-danger-ink" : "text-ink-3")}>
         {err ?? `≈ mean ${fmtNum(meanOf(value), meanOf(value) < 10 ? 2 : 1)} ${unit}`}
       </p>
     </div>
@@ -242,7 +242,7 @@ function CompactDistribution({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex h-8 w-full items-center gap-2 rounded-md border border-line bg-surface-2/50 px-2.5 text-left text-[12.5px] text-ink hover:border-line-strong"
+        className="flex h-8 w-full items-center gap-2 rounded-md border border-line bg-surface-2/50 px-2.5 text-left text-[13px] text-ink hover:border-line-strong"
       >
         <span className="tabular min-w-0 flex-1 truncate font-mono">
           {describeDistribution(value, unit)}
@@ -335,7 +335,7 @@ export function FieldControl({
           ) : (
             numberEl
           )}
-          <label className="flex h-8 shrink-0 items-center gap-1.5 text-[11px] text-ink-2">
+          <label className="flex h-8 shrink-0 items-center gap-1.5 text-xs text-ink-2">
             <input
               type="checkbox"
               className="accent-[var(--accent)]"
@@ -402,7 +402,7 @@ export function FieldControl({
   return (
     <div className={cn(row ? "grid grid-cols-[minmax(0,1fr)_136px] items-start gap-3" : "space-y-1.5", field.kind === "boolean" && "items-center [&>*:last-child]:justify-self-end")}>
       <div className={cn("flex min-w-0 items-center gap-1.5", row && "min-h-8")}>
-        <Label id={labelId} htmlFor={field.kind === "enum" && !isSelectEnum ? undefined : id} className="truncate text-[12.5px] text-ink-2">
+        <Label id={labelId} htmlFor={field.kind === "enum" && !isSelectEnum ? undefined : id} className="truncate text-[13px] text-ink-2">
           {field.label}
         </Label>
         {field.description && (

@@ -34,7 +34,7 @@ function CodeView({ text }: { text: string }) {
   const lines = text.replace(/\n$/, "").split("\n");
   return (
     <div className="max-h-[52vh] overflow-auto rounded-md border border-line bg-surface-2">
-      <pre className="grid min-w-max grid-cols-[auto_1fr] font-mono text-[11.5px] leading-[18px]">
+      <pre className="grid min-w-max grid-cols-[auto_1fr] font-code text-xs leading-[18px]">
         {lines.map((l, i) => (
           <code key={i} className="contents">
             <span className="select-none border-r border-line px-2.5 text-right text-ink-3">{i + 1}</span>
@@ -76,10 +76,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <RDialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(920px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-line-strong bg-surface p-5 shadow-float">
           <div className="mb-3">
             <p className="microlabel">
-              <span className="mr-1 opacity-60" aria-hidden>
-                {"//"}
-              </span>
-              export
+              Export
             </p>
             <RDialog.Title className="mt-1 font-mono text-[15px] font-semibold text-ink">From model to infrastructure</RDialog.Title>
             <RDialog.Description className="mt-1 text-xs leading-relaxed text-ink-2">
@@ -98,7 +95,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             {FORMATS.map((f) => (
               <TabsContent key={f.key} value={f.key} className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
                 <div className="flex items-center gap-2">
-                  <p className="min-w-0 flex-1 text-[11.5px] text-ink-2">{f.blurb}</p>
+                  <p className="min-w-0 flex-1 text-xs text-ink-2">{f.blurb}</p>
                   <Button size="sm" onClick={() => void copy(f.key)} disabled={!outputs}>
                     {copied === f.key ? <Check /> : <Copy />}
                     {copied === f.key ? "Copied" : "Copy"}

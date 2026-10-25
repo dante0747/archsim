@@ -79,7 +79,7 @@ export function FaultFields({
     <div className="grid grid-cols-2 gap-x-2.5 gap-y-2">
       <div className="space-y-1">
         <Label htmlFor={`${idPrefix}-kind`} className="microlabel">
-          kind
+          Kind
         </Label>
         <NativeSelect
           id={`${idPrefix}-kind`}
@@ -124,13 +124,13 @@ export function FaultFields({
       </div>
       <div className="space-y-1">
         <Label htmlFor={`${idPrefix}-start`} className="microlabel">
-          starts at
+          Starts at
         </Label>
         <NumberInput id={`${idPrefix}-start`} value={fault.startS} unit="s" step={1} validate={pos} onCommit={(v) => updateFault(fault.id, { startS: v })} />
       </div>
       <div className="space-y-1">
         <Label htmlFor={`${idPrefix}-dur`} className="microlabel">
-          lasts
+          Lasts
         </Label>
         <NumberInput
           id={`${idPrefix}-dur`}
@@ -144,7 +144,7 @@ export function FaultFields({
       {fault.kind === "slowdown" && (
         <div className="space-y-1">
           <Label htmlFor={`${idPrefix}-factor`} className="microlabel">
-            slower by
+            Slower by
           </Label>
           <NumberInput
             id={`${idPrefix}-factor`}
@@ -159,7 +159,7 @@ export function FaultFields({
       {fault.kind === "latency" && (
         <div className="space-y-1">
           <Label htmlFor={`${idPrefix}-extra`} className="microlabel">
-            added latency
+            Added latency
           </Label>
           <NumberInput
             id={`${idPrefix}-extra`}
@@ -173,7 +173,7 @@ export function FaultFields({
       )}
       <div className={cn("space-y-1", fault.kind === "outage" && "col-span-2")}>
         <Label htmlFor={`${idPrefix}-label`} className="microlabel">
-          label
+          Label
         </Label>
         <Input
           id={`${idPrefix}-label`}

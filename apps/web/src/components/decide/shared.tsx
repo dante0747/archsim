@@ -31,7 +31,7 @@ export function SubTabs<T extends string>({ value, onChange, items }: { value: T
           aria-selected={value === it.key}
           onClick={() => onChange(it.key)}
           className={cn(
-            "h-7 rounded-md px-3 text-[12.5px] font-medium transition-colors",
+            "h-7 rounded-md px-3 text-[13px] font-medium transition-colors",
             value === it.key ? "bg-surface-2 text-ink shadow-panel" : "text-ink-3 hover:text-ink",
           )}
         >
@@ -58,9 +58,6 @@ export function PageHeader({
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-line px-6 pb-4 pt-5">
       <div className="min-w-0 max-w-3xl">
         <p className="microlabel">
-          <span className="mr-1 opacity-60" aria-hidden>
-            {"//"}
-          </span>
           {kicker}
         </p>
         <h2 className="mt-1 font-display text-[28px] leading-[1.1] tracking-[-0.035em] text-ink">{title}</h2>
@@ -91,8 +88,8 @@ export function Panel({
     <section className={cn("flex min-w-0 flex-col rounded-md border border-line bg-surface", className)}>
       <div className="flex min-h-10 items-center justify-between gap-3 border-b border-line px-4 py-2">
         <div className="min-w-0">
-          <h3 className="truncate font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink">{title}</h3>
-          {subtitle && <p className="truncate font-mono text-[10.5px] text-ink-3">{subtitle}</p>}
+          <h3 className="truncate font-mono text-xs font-semibold text-ink">{title}</h3>
+          {subtitle && <p className="truncate font-mono text-[11px] text-ink-3">{subtitle}</p>}
         </div>
         {actions}
       </div>
@@ -119,7 +116,7 @@ export function EmptyPanel({
     <div className={cn("flex flex-col items-start gap-2 rounded-md border border-dashed border-line-strong p-6", className)}>
       {icon && <div className="text-ink-3 [&_svg]:size-5">{icon}</div>}
       <p className="text-sm font-semibold text-ink">{title}</p>
-      {children && <div className="max-w-xl text-[12.5px] leading-relaxed text-ink-2">{children}</div>}
+      {children && <div className="max-w-xl text-[13px] leading-relaxed text-ink-2">{children}</div>}
       {action && <div className="mt-1">{action}</div>}
     </div>
   );
@@ -130,10 +127,10 @@ export function StatusMark({ pass, className }: { pass: boolean | null; classNam
   const Icon = pass === true ? CircleCheck : pass === false ? CircleAlert : CircleDashed;
   const color = pass === true ? "var(--status-good)" : pass === false ? "var(--status-critical)" : "var(--ink-3)";
   return (
-    <span className={cn("inline-flex items-center gap-1 font-mono text-[10.5px] font-semibold uppercase tracking-wider", className)}>
+    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", className)}>
       <Icon className="size-3.5" style={{ color }} aria-hidden />
       <span className={pass === false ? "text-danger-ink" : pass === true ? "text-success-ink" : "text-ink-3"}>
-        {pass === true ? "pass" : pass === false ? "fail" : "no data"}
+        {pass === true ? "Pass" : pass === false ? "Fail" : "No data"}
       </span>
     </span>
   );
@@ -181,12 +178,12 @@ export function RunPicker({ value, onChange, label = "Run" }: { value: string | 
   const runs = useSucceededRuns();
   if (!runs.length) return null;
   return (
-    <label className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
+    <label className="flex items-center gap-2 font-mono text-xs text-ink-3">
       {label && <span>{label}</span>}
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 max-w-72 rounded-md border border-line bg-surface-2 px-2 font-mono text-[11.5px] text-ink hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
+        className="h-8 max-w-72 rounded-md border border-line bg-surface-2 px-2 font-mono text-xs text-ink hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
       >
         {runs.map((r) => (
           <option key={r.id} value={r.id}>
@@ -239,7 +236,7 @@ export function LoadTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-line-strong bg-surface px-2 py-1.5 font-mono text-[11px] shadow-float">
+    <div className="rounded-md border border-line-strong bg-surface px-2 py-1.5 font-mono text-xs shadow-float">
       <p className="mb-1 text-ink-3">offered {label?.toLocaleString("en-US")} req/s</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="flex items-center gap-2 text-ink-2">

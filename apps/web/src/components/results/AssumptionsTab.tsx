@@ -52,7 +52,7 @@ export function AssumptionsTab() {
                     <tr key={i}>
                       <td className="px-3 py-1.5 text-ink">{u.label}</td>
                       <td className="px-2 py-1.5 text-ink-2">{u.fieldLabel}</td>
-                      <td className="tabular px-3 py-1.5 font-mono text-[11px] text-ink">{u.value}</td>
+                      <td className="tabular px-3 py-1.5 font-mono text-xs text-ink">{u.value}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -64,7 +64,7 @@ export function AssumptionsTab() {
               values that run used.
             </p>
           )}
-          <p className="text-[11px] text-ink-3">
+          <p className="text-xs text-ink-3">
             Simulation-derived values (utilization, queueing, latency, throughput) are shown in the other tabs and labeled
             as such. Calibration from Prometheus metrics is on the roadmap, not implemented.
           </p>

@@ -4,50 +4,50 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * ArchSim design tokens. One light theme (cool lavender paper) and five dark themes: Midnight
- * (navy slate, the default), Tokyo Night, Dracula, Nord and GitHub Dark, picked from the theme
- * menu and stored per browser. Type: Bricolage Grotesque for display
- * headings, Geist for the interface, Geist Mono for numbers. One electric accent (violet, with a
- * cyan partner and a pink spark used only in gradients) marks interaction and live traffic. Each
- * component family has its own hue (clients, edge, compute, cache, data, queues, external) so a
- * diagram reads at a glance. Status colors (good / warning / serious / critical) appear only on
- * results and always ship with a text label. Light values first, dark values under .dark.
+ * ArchSim design tokens: a flat system (see docs/ui-redesign.md). Solid surfaces in three tonal
+ * steps, hairlines instead of boxes, one accent per theme for action, selection and focus. Each
+ * component family has a tint used only on its icon chip; status colours appear only on results,
+ * always with a text label. Shadows exist only for things that float (menus, dialogs).
+ *
+ * Themes: Light (the base values below) and five dark themes: Midnight (navy slate, the default
+ * dark), Tokyo Night, Dracula, Nord and GitHub Dark, picked from the theme menu.
+ * Type: Geist for everything; numbers use tabular figures; Geist Mono only for code (font-code).
  */
 :root {
   color-scheme: light;
-  --page: #eeecf6;
-  --canvas: #f7f6fc;
-  --grid-dot: rgba(60, 40, 140, 0.13);
-  --grid-cross: rgba(60, 40, 140, 0.2);
+  --page: #f4f5f8;
+  --canvas: #f4f5f8;
+  --grid-dot: rgba(15, 23, 42, 0.11);
+  --grid-cross: rgba(15, 23, 42, 0.16);
   --surface: #ffffff;
-  --surface-2: #f3f1fa;
-  --surface-3: #e8e5f4;
-  --glass: rgba(255, 255, 255, 0.8);
-  --ink: #15121f;
-  --ink-2: #514b66;
-  --ink-3: #8a84a3;
-  --line: rgba(50, 30, 110, 0.09);
-  --line-strong: rgba(50, 30, 110, 0.16);
-  --wire: #a7a1bf;
+  --surface-2: #f3f4f7;
+  --surface-3: #e8eaf0;
+  --glass: #ffffff;
+  --ink: #0f1729;
+  --ink-2: #485267;
+  --ink-3: #697387;
+  --line: rgba(15, 23, 42, 0.08);
+  --line-strong: rgba(15, 23, 42, 0.14);
+  --wire: #a6aec0;
   --node-fill: #ffffff;
-  --node-fill-2: #f6f4fd;
-  --node-stroke: #3a3550;
-  --ring: #6a45ff;
-  --accent: #6a45ff;
-  --accent-2: #0aa5c8;
-  --accent-3: #e2489b;
+  --node-fill-2: #ffffff;
+  --node-stroke: #d5dae4;
+  --ring: #4f46e5;
+  --accent: #4f46e5;
+  --accent-2: #0ea5e9;
+  --accent-3: #ec4899;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(106, 69, 255, 0.1);
-  --highlight: rgba(255, 255, 255, 0.9);
-  --shadow: 0 1px 2px rgba(30, 20, 70, 0.06), 0 1px 1px rgba(30, 20, 70, 0.03);
-  --shadow-lg: 0 24px 48px -16px rgba(40, 20, 100, 0.25), 0 4px 12px -4px rgba(40, 20, 100, 0.08);
-  --node-shadow: drop-shadow(0 6px 12px rgba(50, 30, 120, 0.1));
-  --tour-shade: rgba(20, 14, 40, 0.42);
+  --accent-soft: rgba(79, 70, 229, 0.09);
+  --highlight: transparent;
+  --shadow: none;
+  --shadow-lg: 0 14px 36px -10px rgba(15, 23, 42, 0.2), 0 2px 6px -2px rgba(15, 23, 42, 0.08);
+  --node-shadow: none;
+  --tour-shade: rgba(15, 23, 42, 0.45);
 
-  /* component families */
-  --fam-traffic: #0f9f6e;
-  --fam-network: #0d9488;
-  --fam-compute: #2f6fe4;
+  /* component families: icon-chip tints */
+  --fam-traffic: #059669;
+  --fam-network: #0891b2;
+  --fam-compute: #2563eb;
   --fam-cache: #db2777;
   --fam-database: #d97706;
   --fam-messaging: #7c3aed;
@@ -64,61 +64,61 @@
   --series-8: #e34948;
 
   /* status: reserved for results, always paired with a label */
-  --status-good: #1a7f37;
-  --status-warning: #b07800;
-  --status-serious: #c4530a;
-  --status-critical: #cf222e;
-  --status-good-soft: #e6f4ea;
-  --status-warning-soft: #fbf1d9;
-  --status-serious-soft: #fbe7da;
-  --status-critical-soft: #fbe3e4;
-  --success-ink: #1a7f37;
-  --danger-ink: #b3191f;
+  --status-good: #16a34a;
+  --status-warning: #ca8a04;
+  --status-serious: #ea580c;
+  --status-critical: #dc2626;
+  --status-good-soft: #e8f6ed;
+  --status-warning-soft: #fbf3dc;
+  --status-serious-soft: #fdeee3;
+  --status-critical-soft: #fde8e8;
+  --success-ink: #15803d;
+  --danger-ink: #b91c1c;
 
-  --grid: rgba(50, 30, 110, 0.07);
-  --axis: rgba(50, 30, 110, 0.18);
-  --muted-axis: #8a84a3;
-  --warmup-wash: rgba(50, 30, 110, 0.045);
+  --grid: rgba(15, 23, 42, 0.07);
+  --axis: rgba(15, 23, 42, 0.16);
+  --muted-axis: #697387;
+  --warmup-wash: rgba(15, 23, 42, 0.04);
 }
 
 /* Dark themes. Midnight is the base; the others override surfaces, ink and accents. */
 .dark {
   color-scheme: dark;
-  --page: #121522;
-  --canvas: #161a29;
-  --grid-dot: rgba(160, 172, 230, 0.09);
-  --grid-cross: rgba(160, 172, 230, 0.16);
-  --surface: #1d2234;
-  --surface-2: #242a40;
-  --surface-3: #2c334c;
-  --glass: rgba(29, 34, 52, 0.8);
-  --ink: #f4f6ff;
-  --ink-2: #aab1cc;
-  --ink-3: #737b99;
-  --line: rgba(255, 255, 255, 0.065);
+  --page: #121521;
+  --canvas: #0e111b;
+  --grid-dot: rgba(148, 163, 184, 0.1);
+  --grid-cross: rgba(148, 163, 184, 0.16);
+  --surface: #161a26;
+  --surface-2: #1d2231;
+  --surface-3: #272d3e;
+  --glass: #161a26;
+  --ink: #eef0f7;
+  --ink-2: #a7aec2;
+  --ink-3: #7f879b;
+  --line: rgba(255, 255, 255, 0.07);
   --line-strong: rgba(255, 255, 255, 0.12);
-  --wire: #48516f;
-  --node-fill: #1f2438;
-  --node-fill-2: #191d2e;
-  --node-stroke: #8b94b6;
+  --wire: #4a5266;
+  --node-fill: #181c29;
+  --node-fill-2: #181c29;
+  --node-stroke: #2b3142;
   --ring: #7c6cff;
   --accent: #7c6cff;
-  --accent-2: #4d9bff;
-  --accent-3: #ff5f8f;
+  --accent-2: #38bdf8;
+  --accent-3: #f472b6;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(124, 108, 255, 0.17);
-  --highlight: rgba(255, 255, 255, 0.045);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 28px 60px -18px rgba(0, 0, 0, 0.7), 0 6px 16px -6px rgba(0, 0, 0, 0.45);
-  --node-shadow: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4));
-  --tour-shade: rgba(6, 8, 16, 0.62);
-  --fam-traffic: #2ed3a6;
-  --fam-network: #3ec7f5;
-  --fam-compute: #4d8dff;
-  --fam-cache: #ff5f8f;
-  --fam-database: #ffa63e;
+  --accent-soft: rgba(124, 108, 255, 0.16);
+  --highlight: transparent;
+  --shadow: none;
+  --shadow-lg: 0 18px 44px -12px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --node-shadow: none;
+  --tour-shade: rgba(4, 6, 12, 0.62);
+  --fam-traffic: #34d399;
+  --fam-network: #22d3ee;
+  --fam-compute: #60a5fa;
+  --fam-cache: #f472b6;
+  --fam-database: #fbbf24;
   --fam-messaging: #a78bfa;
-  --fam-external: #8b94b6;
+  --fam-external: #94a3b8;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
@@ -127,38 +127,38 @@
   --series-6: #008300;
   --series-7: #9085e9;
   --series-8: #e66767;
-  --status-good: #3fb950;
-  --status-warning: #d29922;
-  --status-serious: #e07b39;
-  --status-critical: #f85149;
-  --status-good-soft: #12261a;
-  --status-warning-soft: #2a2110;
-  --status-serious-soft: #2c1a10;
-  --status-critical-soft: #2f1416;
-  --success-ink: #56d364;
-  --danger-ink: #ff7b72;
-  --grid: rgba(160, 172, 230, 0.07);
-  --axis: rgba(160, 172, 230, 0.15);
-  --muted-axis: #7f88a8;
-  --warmup-wash: rgba(160, 172, 230, 0.045);
+  --status-good: #4ade80;
+  --status-warning: #facc15;
+  --status-serious: #fb923c;
+  --status-critical: #f87171;
+  --status-good-soft: #10261a;
+  --status-warning-soft: #2a2410;
+  --status-serious-soft: #2c1b10;
+  --status-critical-soft: #2e1416;
+  --success-ink: #4ade80;
+  --danger-ink: #fca5a5;
+  --grid: rgba(148, 163, 184, 0.07);
+  --axis: rgba(148, 163, 184, 0.15);
+  --muted-axis: #7f879b;
+  --warmup-wash: rgba(148, 163, 184, 0.045);
 }
 
 .dark[data-theme="tokyo"] {
   --page: #16161e;
-  --canvas: #1a1b26;
-  --surface: #1f2335;
-  --surface-2: #24283b;
-  --surface-3: #2f344d;
-  --glass: rgba(31, 35, 53, 0.82);
+  --canvas: #13141c;
+  --surface: #1a1b26;
+  --surface-2: #1f2335;
+  --surface-3: #292e42;
+  --glass: #1a1b26;
   --ink: #c0caf5;
   --ink-2: #a9b1d6;
-  --ink-3: #737aa2;
+  --ink-3: #7a82ab;
   --line: rgba(192, 202, 245, 0.07);
   --line-strong: rgba(192, 202, 245, 0.13);
   --wire: #3b4261;
-  --node-fill: #1f2335;
-  --node-fill-2: #1a1b26;
-  --node-stroke: #7982b0;
+  --node-fill: #1d1f2d;
+  --node-fill-2: #1d1f2d;
+  --node-stroke: #2e3350;
   --ring: #7aa2f7;
   --accent: #7aa2f7;
   --accent-2: #7dcfff;
@@ -181,20 +181,20 @@
 
 .dark[data-theme="dracula"] {
   --page: #1e1f29;
-  --canvas: #21222c;
-  --surface: #282a36;
-  --surface-2: #30323f;
-  --surface-3: #44475a;
-  --glass: rgba(40, 42, 54, 0.84);
+  --canvas: #1b1c25;
+  --surface: #232430;
+  --surface-2: #282a36;
+  --surface-3: #343746;
+  --glass: #232430;
   --ink: #f8f8f2;
   --ink-2: #c9cbd8;
-  --ink-3: #8590bd;
+  --ink-3: #8a94c0;
   --line: rgba(248, 248, 242, 0.07);
   --line-strong: rgba(248, 248, 242, 0.13);
   --wire: #4d5066;
-  --node-fill: #282a36;
-  --node-fill-2: #232430;
-  --node-stroke: #9aa3c8;
+  --node-fill: #262835;
+  --node-fill-2: #262835;
+  --node-stroke: #3a3d51;
   --ring: #bd93f9;
   --accent: #bd93f9;
   --accent-2: #8be9fd;
@@ -216,21 +216,21 @@
 }
 
 .dark[data-theme="nord"] {
-  --page: #262b35;
-  --canvas: #2e3440;
-  --surface: #3b4252;
-  --surface-2: #434c5e;
-  --surface-3: #4c566a;
-  --glass: rgba(59, 66, 82, 0.86);
+  --page: #2b303b;
+  --canvas: #272c36;
+  --surface: #2e3440;
+  --surface-2: #353c4a;
+  --surface-3: #3f4757;
+  --glass: #2e3440;
   --ink: #eceff4;
   --ink-2: #d8dee9;
-  --ink-3: #9aa3b5;
+  --ink-3: #a1aabb;
   --line: rgba(216, 222, 233, 0.08);
   --line-strong: rgba(216, 222, 233, 0.15);
   --wire: #5b6579;
-  --node-fill: #3b4252;
-  --node-fill-2: #353c4a;
-  --node-stroke: #a3acbd;
+  --node-fill: #323946;
+  --node-fill-2: #323946;
+  --node-stroke: #434c5e;
   --ring: #88c0d0;
   --accent: #88c0d0;
   --accent-2: #81a1c1;
@@ -253,20 +253,20 @@
 
 .dark[data-theme="github"] {
   --page: #010409;
-  --canvas: #0d1117;
-  --surface: #161b22;
-  --surface-2: #1c2128;
-  --surface-3: #262c36;
-  --glass: rgba(22, 27, 34, 0.86);
+  --canvas: #010409;
+  --surface: #0d1117;
+  --surface-2: #161b22;
+  --surface-3: #21262d;
+  --glass: #0d1117;
   --ink: #e6edf3;
   --ink-2: #adbac7;
-  --ink-3: #7d8590;
+  --ink-3: #848d97;
   --line: #21262d;
   --line-strong: #30363d;
   --wire: #3d444d;
-  --node-fill: #161b22;
+  --node-fill: #0d1117;
   --node-fill-2: #0d1117;
-  --node-stroke: #8b949e;
+  --node-stroke: #30363d;
   --ring: #2f81f7;
   --accent: #2f81f7;
   --accent-2: #58a6ff;
@@ -315,21 +315,22 @@
   --color-success-ink: var(--success-ink);
   --color-danger-ink: var(--danger-ink);
   --color-accent-2: var(--accent-2);
-  --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
-  --font-display: var(--font-bricolage), var(--font-geist-sans), system-ui, sans-serif;
   --color-accent-3: var(--accent-3);
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* "font-mono" in the UI means tabular numbers, not a typewriter face (see .font-mono below). */
+  --font-mono: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --font-display: var(--font-geist-sans), system-ui, sans-serif;
   --shadow-panel: var(--shadow);
   --shadow-float: var(--shadow-lg);
 }
 
-/* A slightly rounder, softer geometry than Tailwind's defaults. */
 @theme {
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 }
 
 html,
@@ -343,7 +344,7 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
-  letter-spacing: -0.003em;
+  letter-spacing: -0.006em;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -361,83 +362,69 @@ p {
 
 /* In the base layer so Tailwind utilities (tracking-*, font-*) still override these defaults. */
 @layer base {
-  /* Display headings: Bricolage Grotesque, heavy and tight. */
+  /* Display headings: Geist, semibold and tight. */
   .font-display {
-    font-weight: 700;
-    letter-spacing: -0.035em;
-    font-feature-settings: "liga", "kern";
+    font-weight: 650;
+    letter-spacing: -0.03em;
   }
 
-  /* Mono text: tabular figures so numbers line up. */
-  .font-mono {
-    font-feature-settings: "tnum", "calt";
+  /* Numbers line up (tabular figures) without switching to a monospace face. */
+  .font-mono,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Real code: YAML, JSON, IDs. */
+  .font-code {
+    font-family: var(--font-code);
+    font-feature-settings: "calt";
   }
 }
 
-/* Floating chrome: translucent, blurred, hairline border, soft depth, faint top highlight. */
+/* Menus, popovers, dialogs: solid surface, hairline, one soft shadow. */
 .surface-glass {
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  background: var(--surface);
   border: 1px solid var(--line-strong);
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-lg);
+  box-shadow: var(--shadow-lg);
 }
 
-/* Panels and cards: a faint top-down sheen gives surfaces a sense of material. */
+/* Kept for compatibility: surfaces are flat now. */
 .surface-sheen {
-  background-image: linear-gradient(180deg, var(--highlight), transparent 120px);
+  background-image: none;
 }
 
-/* Primary action: an electric violet-to-cyan gradient with a soft glow. */
+/* Primary action: solid accent. */
 .accent-fill {
-  background: linear-gradient(120deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 55%, var(--accent-2)) 60%, var(--accent-2) 130%);
+  background: var(--accent);
   color: var(--accent-ink);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 1px 2px rgba(0, 0, 0, 0.25),
-    0 8px 22px -8px color-mix(in srgb, var(--accent) 75%, transparent);
+  transition: background-color 120ms ease;
 }
 
-/* Gradient text for the occasional display accent word. */
+.accent-fill:hover {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+}
+
+/* The occasional accent word: plain accent colour, no gradient. */
 .text-gradient {
-  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-3) 55%, var(--accent-2) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
 }
 
-.tabular {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Small uppercase mono label: the instrument-panel voice of the UI. */
+/* Small label: quiet, sentence case. */
 .microlabel {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--ink-3);
 }
 
-/* Drafting-paper grid (home page hero); the canvas draws its own with React Flow. */
+/* Dot grid (home page illustration); the canvas draws its own with React Flow. */
 .schematic-grid {
   background-color: var(--canvas);
-  background-image:
-    radial-gradient(var(--grid-dot) 1px, transparent 1px),
-    radial-gradient(900px 420px at 82% 8%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%),
-    radial-gradient(720px 380px at 8% 100%, color-mix(in srgb, var(--accent-2) 7%, transparent), transparent 70%);
-  background-size:
-    24px 24px,
-    auto,
-    auto;
-  background-position:
-    -12px -12px,
-    0 0,
-    0 0;
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: -11px -11px;
 }
 
-/* Blinking terminal caret. */
+/* Blinking caret. */
 @keyframes archsim-blink {
   0%,
   49% {
@@ -454,12 +441,12 @@ p {
 }
 
 :focus-visible {
-  outline: 1.5px solid var(--ring);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 /* Scrollbars that do not shout. */
@@ -474,33 +461,33 @@ p {
   --xy-edge-stroke: var(--wire);
   --xy-edge-stroke-selected: var(--accent);
   --xy-connectionline-stroke: var(--accent);
-  --xy-connectionline-stroke-width: 1.5;
+  --xy-connectionline-stroke-width: 2;
   --xy-handle-background-color: var(--node-fill);
   --xy-handle-border-color: var(--node-stroke);
   --xy-selection-background-color: color-mix(in srgb, var(--accent) 7%, transparent);
-  --xy-selection-border: 1px dashed var(--accent);
+  --xy-selection-border: 1px solid var(--accent);
   --xy-minimap-background-color: var(--surface);
   --xy-minimap-mask-background-color: color-mix(in srgb, var(--canvas) 70%, transparent);
   --xy-attribution-background-color: transparent;
 }
 
 .react-flow__attribution {
-  opacity: 0.45;
-  font-family: var(--font-mono);
+  opacity: 0.35;
+  font-size: 10px;
 }
 
-/* Square "pins" instead of round handles. */
+/* Round attach points on every side, shown on hover, selection and while linking. */
 .react-flow__handle {
   width: 10px;
   height: 10px;
   min-width: 0;
   min-height: 0;
   border-radius: 999px;
-  border-width: 1.5px;
+  border-width: 2px;
   border-color: var(--accent);
   background: var(--surface);
   opacity: 0;
-  /* Above the part's content box, which otherwise covers inset handles (slanted shapes). */
+  /* Above the part's content box, which otherwise covers the handles. */
   z-index: 2;
   transition:
     opacity 140ms ease,
@@ -508,7 +495,6 @@ p {
     background-color 120ms ease;
 }
 
-/* Attach points appear on hover, on the selected part, and on every part while linking. */
 .react-flow__node:hover .react-flow__handle,
 .react-flow__node.selected .react-flow__handle,
 .react-flow__handle.connectingfrom,
@@ -521,13 +507,25 @@ p {
 .react-flow__handle.connectingfrom,
 .react-flow__handle.valid {
   background: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
+  transform: scale(1.25);
 }
 
 .react-flow__minimap {
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
+}
+
+/* Traffic in motion: dashes travel along a link while a run is in progress or replaying. */
+@keyframes archsim-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.edge-flow {
+  stroke-dasharray: 6 14;
+  animation: archsim-flow 0.9s linear infinite;
 }
 
 @keyframes archsim-pulse {
@@ -544,7 +542,7 @@ p {
   animation: archsim-pulse 1.6s ease-in-out infinite;
 }
 
-/* Indeterminate-looking stripes for running progress bars. */
+/* Running progress bars. */
 @keyframes archsim-stripes {
   from {
     background-position: 0 0;
@@ -565,6 +563,22 @@ p {
   animation: archsim-stripes 0.8s linear infinite;
 }
 
+/* A short, satisfying pop for things that just appeared (results, badges). */
+@keyframes archsim-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pop-in {
+  animation: archsim-pop 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
@@ -572,65 +586,13 @@ p {
   }
 }
 
-/* Aurora: slow drifting colour behind the home hero (still for reduced motion). */
-@keyframes archsim-drift {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(4%, -3%, 0) scale(1.08);
-  }
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
+/* Retired decorations, kept as no-ops so older markup renders flat. */
 .aurora {
-  position: absolute;
-  inset: -20% -10% auto -10%;
-  height: 620px;
-  pointer-events: none;
-  filter: blur(70px);
-  opacity: 0.55;
+  display: none;
 }
 
-.aurora::before,
-.aurora::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  animation: archsim-drift 18s ease-in-out infinite;
-}
-
-.aurora::before {
-  left: 8%;
-  top: 10%;
-  width: 46%;
-  height: 70%;
-  background: radial-gradient(closest-side, var(--accent), transparent);
-}
-
-.aurora::after {
-  right: 4%;
-  top: 0;
-  width: 42%;
-  height: 64%;
-  background: radial-gradient(closest-side, var(--accent-2), transparent);
-  animation-delay: -9s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .aurora::before,
-  .aurora::after {
-    animation: none;
-  }
-}
-
-/* Floating panels around the canvas. */
+/* Docked panels: a plain surface; each panel draws the one hairline it needs. */
 .island {
-  border: 1px solid var(--line);
-  border-radius: 14px;
   background: var(--surface);
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow);
   overflow: hidden;
 }

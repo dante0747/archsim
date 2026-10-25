@@ -104,7 +104,7 @@ export function TradeoffMap() {
 
   // Compare (the parent tab) owns the title row and the "Simulate all scenarios" action.
   const header = (
-    <p className="px-6 pt-3 text-[12.5px] text-ink-3">Each dot is a run. Lower left is better.</p>
+    <p className="px-6 pt-3 text-[13px] text-ink-3">Each dot is a run. Lower left is better.</p>
   );
 
   if (runs.length === 0) {
@@ -156,7 +156,7 @@ export function TradeoffMap() {
       labelY.set(p.runId, y);
     }
   }
-  const tick = "font-mono text-[10.5px]";
+  const tick = "font-mono text-[11px]";
 
   const select = (id: string) => {
     void showRun(id);
@@ -168,18 +168,18 @@ export function TradeoffMap() {
       {header}
       <div className="space-y-4 p-6">
         {!hasCost && points.length > 0 && (
-          <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] text-ink-2">
+          <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-xs text-ink-2">
             No prices set: add <b className="text-ink">Cost per hour</b> on parts to spread the map out.
           </p>
         )}
         {points.length < 2 && !loading && (
-          <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] text-ink-2">
+          <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-xs text-ink-2">
             Only one option so far. {scenarioCount ? "Simulate all scenarios" : "Add scenarios in Design and simulate them"} to compare.
           </p>
         )}
 
         <figure className="rounded-md border border-line bg-surface p-4">
-          <figcaption className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10.5px] text-ink-2" aria-label="Legend">
+          <figcaption className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-ink-2" aria-label="Legend">
             <span className="flex items-center gap-1.5">
               <svg width="12" height="12" aria-hidden>
                 <circle cx="6" cy="6" r="4.5" fill="var(--accent)" />
@@ -226,16 +226,16 @@ export function TradeoffMap() {
                 </text>
               ))}
               <line x1={M.left} x2={M.left + iw} y1={M.top + ih} y2={M.top + ih} stroke="var(--axis)" />
-              <text x={M.left + iw / 2} y={H - 6} textAnchor="middle" className="font-mono text-[10.5px]" fill="var(--ink-3)">
+              <text x={M.left + iw / 2} y={H - 6} textAnchor="middle" className="font-mono text-[11px]" fill="var(--ink-3)">
                 monthly cost →
               </text>
-              <text transform={`translate(14 ${M.top + ih / 2}) rotate(-90)`} textAnchor="middle" className="font-mono text-[10.5px]" fill="var(--ink-3)">
+              <text transform={`translate(14 ${M.top + ih / 2}) rotate(-90)`} textAnchor="middle" className="font-mono text-[11px]" fill="var(--ink-3)">
                 latency p95 →
               </text>
               {slo != null && slo <= ys.max && (
                 <g>
                   <line x1={M.left} x2={M.left + iw} y1={sy(slo)} y2={sy(slo)} stroke="var(--status-critical)" strokeWidth={1.5} strokeDasharray="5 4" />
-                  <text x={M.left + iw} y={sy(slo) - 6} textAnchor="end" className="font-mono text-[10.5px]" fill="var(--ink-2)">
+                  <text x={M.left + iw} y={sy(slo) - 6} textAnchor="end" className="font-mono text-[11px]" fill="var(--ink-2)">
                     misses p95 objective ↑
                   </text>
                 </g>
@@ -261,7 +261,7 @@ export function TradeoffMap() {
                         {Math.abs((labelY.get(p.runId) ?? y) - y) > 3 && (
                           <path d={`M${x + 5},${y} L${x + 9},${labelY.get(p.runId) ?? y}`} stroke="var(--line-strong)" strokeWidth={1} fill="none" />
                         )}
-                        <text x={x + 11} y={labelY.get(p.runId) ?? y} dy="0.32em" className="font-mono text-[10.5px]" fill="var(--ink-2)">
+                        <text x={x + 11} y={labelY.get(p.runId) ?? y} dy="0.32em" className="font-mono text-[11px]" fill="var(--ink-2)">
                           {p.label.length > 26 ? `${p.label.slice(0, 25)}…` : p.label}
                         </text>
                       </>
@@ -284,14 +284,14 @@ export function TradeoffMap() {
             </svg>
             {hovered && (
               <div
-                className="pointer-events-none absolute z-10 w-56 rounded-md border border-line-strong bg-surface px-2.5 py-2 font-mono text-[11px] shadow-float"
+                className="pointer-events-none absolute z-10 w-56 rounded-md border border-line-strong bg-surface px-2.5 py-2 font-mono text-xs shadow-float"
                 style={{
                   left: Math.min(Math.max(sx(hovered.cost) + 14, 0), width - 230),
                   top: Math.max(sy(hovered.p95) - 96, 0),
                 }}
                 role="status"
               >
-                <p className="mb-1 truncate text-[11.5px] font-semibold text-ink">{hovered.label}</p>
+                <p className="mb-1 truncate text-xs font-semibold text-ink">{hovered.label}</p>
                 <p className="flex justify-between text-ink-2">
                   cost <span className="tabular text-ink">{formatUsd(hovered.cost)}/mo</span>
                 </p>
@@ -303,7 +303,7 @@ export function TradeoffMap() {
                 </p>
                 <p className="mt-1 flex items-center justify-between border-t border-line pt-1">
                   <StatusMark pass={hovered.pass} />
-                  {hovered.frontier && <span className="text-accent">frontier</span>}
+                  {hovered.frontier && <span className="text-accent">Frontier</span>}
                 </p>
               </div>
             )}
@@ -338,8 +338,8 @@ export function TradeoffMap() {
                         <button type="button" onClick={() => select(p.runId)} className="text-left text-ink hover:underline">
                           {p.label}
                         </button>
-                        {p.frontier && <span className="ml-2 font-mono text-[10px] uppercase tracking-wider text-accent">frontier</span>}
-                        <span className="ml-2 font-mono text-[10.5px] text-ink-3">seed {p.seed}</span>
+                        {p.frontier && <span className="ml-2 font-mono text-[11px] text-accent">Frontier</span>}
+                        <span className="ml-2 font-mono text-[11px] text-ink-3">seed {p.seed}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-ink">{formatUsd(p.cost)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink-2">{formatUsd(p.perMillion)}</td>

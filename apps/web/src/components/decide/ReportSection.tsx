@@ -24,7 +24,7 @@ function Inline({ text }: { text: string }) {
             {p.slice(2, -2)}
           </strong>
         ) : p.startsWith("`") && p.endsWith("`") ? (
-          <code key={i} className="rounded-sm bg-surface-2 px-1 font-mono text-[0.92em]">
+          <code key={i} className="rounded-sm bg-surface-2 px-1 font-code text-[0.92em]">
             {p.slice(1, -1)}
           </code>
         ) : (
@@ -63,11 +63,11 @@ function MarkdownPreview({ md }: { md: string }) {
       const [head, ...body] = rows;
       blocks.push(
         <div key={`t${i}`} className="my-3 overflow-x-auto">
-          <table className="tabular w-full text-[12px]">
+          <table className="tabular w-full text-xs">
             <thead>
               <tr className="border-b border-line-strong text-left">
                 {head.map((h, k) => (
-                  <th key={k} className="px-2 py-1.5 font-mono text-[10px] font-normal uppercase tracking-[0.08em] text-ink-3">
+                  <th key={k} className="px-2 py-1.5 font-mono text-[11px] font-normal text-ink-3">
                     <Inline text={h} />
                   </th>
                 ))}
@@ -112,7 +112,7 @@ function MarkdownPreview({ md }: { md: string }) {
     }
     if (line.startsWith("> ")) {
       blocks.push(
-        <p key={`q${i}`} className="my-1 border-l-2 border-line-strong pl-3 text-[12px] leading-relaxed text-ink-3">
+        <p key={`q${i}`} className="my-1 border-l-2 border-line-strong pl-3 text-xs leading-relaxed text-ink-3">
           <Inline text={line.slice(2)} />
         </p>,
       );
@@ -128,7 +128,7 @@ function MarkdownPreview({ md }: { md: string }) {
             {h[2]}
           </h1>
         ) : level === 2 ? (
-          <h2 key={`h${i}`} className="mb-1 mt-6 border-b border-line pb-1 font-mono text-[12px] font-semibold uppercase tracking-[0.08em] text-ink">
+          <h2 key={`h${i}`} className="mb-1 mt-6 border-b border-line pb-1 font-mono text-xs font-semibold text-ink">
             {h[2]}
           </h2>
         ) : (
@@ -207,7 +207,7 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
       <div className="p-6">
         <div className="mx-auto max-w-4xl rounded-md border border-line bg-surface">
           <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
-            <span className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
+            <span className="flex items-center gap-2 font-mono text-xs text-ink-3">
               <FileText className="size-3.5" /> {fileName}
             </span>
             <div role="tablist" aria-label="Report view" className="flex rounded-md border border-line bg-surface-2 p-0.5">
@@ -218,7 +218,7 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
                   role="tab"
                   aria-selected={view === v}
                   onClick={() => setView(v)}
-                  className={cn("h-6 rounded-sm px-2 font-mono text-[11px]", view === v ? "bg-surface text-ink ring-1 ring-line-strong" : "text-ink-3 hover:text-ink")}
+                  className={cn("h-6 rounded-sm px-2 font-mono text-xs", view === v ? "bg-surface text-ink ring-1 ring-line-strong" : "text-ink-3 hover:text-ink")}
                 >
                   {v}
                 </button>
@@ -229,7 +229,7 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
             {view === "preview" ? (
               <MarkdownPreview md={md} />
             ) : (
-              <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-ink-2">{md}</pre>
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words font-code text-xs leading-relaxed text-ink-2">{md}</pre>
             )}
           </div>
         </div>

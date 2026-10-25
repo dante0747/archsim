@@ -20,7 +20,6 @@ import { RESOURCE_FIELDS, ResourceBlock } from "@/components/editor/ResourceBloc
 import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
 import { TechnologyPicker } from "@/components/build/TechnologyPicker";
-import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
 import { WorkloadPanel } from "@/components/editor/WorkloadPanel";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -47,7 +46,7 @@ export function Inspector() {
     if (rightTab === "workload") markTrafficVisited();
   }, [rightTab, markTrafficVisited]);
   return (
-    <aside data-tour="panel" className="island surface-sheen flex h-full w-[320px] shrink-0 flex-col" aria-label="Side panel">
+    <aside data-tour="panel" className="island flex h-full w-[320px] shrink-0 flex-col border-l border-line" aria-label="Side panel">
       <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as RightTab)} className="flex min-h-0 flex-1 flex-col">
         <TabsList className="px-2">
           <TabsTrigger value="inspect">
@@ -105,11 +104,11 @@ export function TrafficCard({ compactCard = false }: { compactCard?: boolean }) 
     <button
       type="button"
       onClick={() => setRightTab("workload")}
-      className="group w-full rounded-md border border-line bg-surface-2 p-3 text-left transition-colors hover:border-line-strong"
+      className="group w-full rounded-xl bg-surface-2 p-3.5 text-left transition-colors hover:bg-surface-3"
     >
       <div className="flex items-center justify-between">
         <span className="microlabel">Traffic</span>
-        <span className="flex items-center gap-0.5 text-[11px] text-ink-2 group-hover:text-ink">
+        <span className="flex items-center gap-0.5 text-xs text-ink-2 group-hover:text-ink">
           Edit <ChevronRight className="size-3.5" />
         </span>
       </div>
@@ -123,7 +122,7 @@ export function TrafficCard({ compactCard = false }: { compactCard?: boolean }) 
             <span style={{ width: `${w.readRatio * 100}%`, background: "var(--ink-2)" }} />
             <span style={{ width: `${(1 - w.readRatio) * 100}%`, background: "var(--line-strong)" }} />
           </div>
-          <p className="mt-1.5 font-mono text-[11px] text-ink-2">
+          <p className="mt-1.5 font-mono text-xs text-ink-2">
             {REQ_GLYPH.read} {Math.round(w.readRatio * 100)}% · {REQ_GLYPH.write} {Math.round((1 - w.readRatio) * 100)}% · {pattern} · {compact(w.durationS)} s
           </p>
         </>
@@ -139,15 +138,15 @@ function DesignOverview() {
     <div className="space-y-4 p-4">
       <TrafficCard />
       <ProblemsList />
-      <details className="group rounded-md border border-line">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12.5px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+      <details className="group rounded-xl bg-surface-2/60">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
           <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
           Legend
         </summary>
-        <ul className="space-y-1.5 px-3 pb-3 text-[12px] text-ink-2">
+        <ul className="space-y-1.5 px-3 pb-3 text-xs text-ink-2">
           {kinds.map((k) => (
             <li key={k} className="flex items-center gap-2">
-              <ShapeGlyph shape={SHAPE_OF[k]} className="shrink-0 text-ink-2" w={24} h={16} />
+              <TechIcon kind={k} size={16} tile />
               {KIND_LABEL[k]}
             </li>
           ))}
@@ -161,7 +160,7 @@ function DesignOverview() {
           </li>
         </ul>
       </details>
-      <p className="text-[12px] text-ink-3">Click a part to edit it.</p>
+      <p className="text-xs text-ink-3">Click a part to edit it.</p>
     </div>
   );
 }
@@ -183,7 +182,7 @@ export function IssueRow({ issue, onSelect }: { issue: Issue; onSelect?: () => v
         />
         <span className="min-w-0">
           <span className="block text-xs text-ink">{issue.message}</span>
-          {issue.hint && <span className="mt-0.5 block text-[11px] text-ink-3">{issue.hint}</span>}
+          {issue.hint && <span className="mt-0.5 block text-xs text-ink-3">{issue.hint}</span>}
         </span>
       </button>
     </li>
@@ -200,15 +199,15 @@ export function ProblemsList() {
   return (
     <Section
       title={`Checks${issues.length ? ` · ${issues.length}` : ""}`}
-      actions={validation === "pending" ? <span className="font-mono text-[10px] text-ink-3">checking…</span> : null}
+      actions={validation === "pending" ? <span className="font-mono text-[11px] text-ink-3">checking…</span> : null}
     >
       {issues.length === 0 ? (
-        <p className="flex items-center gap-2 rounded-md border border-line px-3 py-2 font-mono text-[11.5px] text-ink">
+        <p className="flex items-center gap-2 rounded-xl bg-surface-2/60 px-3 py-2.5 text-[13px] text-ink">
           <CircleCheck className="size-4" style={{ color: "var(--status-good)" }} /> valid model · ready to simulate
         </p>
       ) : (
-        <div className="rounded-md border border-line">
-          {errors > 0 && <p className="border-b border-line px-3 py-2 text-[11.5px] text-ink-2">Fix errors before simulating. Warnings do not block a run.</p>}
+        <div className="rounded-xl bg-surface-2/60">
+          {errors > 0 && <p className="border-b border-line px-3 py-2 text-xs text-ink-2">Fix errors before simulating. Warnings do not block a run.</p>}
           <ul className="p-1">
             {issues.map((i, k) => (
               <IssueRow key={`${i.code}-${k}`} issue={i} onSelect={i.nodeId || i.edgeId ? () => select({ nodeId: i.nodeId, edgeId: i.edgeId }) : undefined} />
@@ -259,8 +258,8 @@ function SettingsBlocks({
       )}
       {between}
       {(restCount > 0 || extraAdvanced) && (
-        <details className="group rounded-lg border border-line" open={key.length === 0}>
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12.5px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <details className="group rounded-xl bg-surface-2/60" open={key.length === 0}>
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[13px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
             <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
             More settings
             {restCount > 0 && <span className="text-ink-3">{restCount}</span>}
@@ -279,7 +278,7 @@ function SettingsBlocks({
 function ModelScope({ modeled, notModeled }: { modeled: string[]; notModeled: string[] }) {
   if (!modeled.length && !notModeled.length) return null;
   return (
-    <details className="group/scope text-[12px]">
+    <details className="group/scope text-xs">
       <summary className="flex cursor-pointer list-none items-center gap-1.5 text-ink-3 hover:text-ink [&::-webkit-details-marker]:hidden">
         <ChevronRight className="size-3.5 transition-transform group-open/scope:rotate-90" /> About this model
       </summary>
@@ -352,7 +351,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
               onChange={(e) => updateNode(nodeId, { label: e.target.value })}
               className="-ml-1 h-8 w-full rounded-md border border-transparent bg-transparent px-1 text-[15px] font-semibold text-ink hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
             />
-            <p className="truncate text-[12px] text-ink-3" title={comp?.description}>
+            <p className="truncate text-xs text-ink-3" title={comp?.description}>
               {comp?.displayName.split(" / ")[0] ?? node.data.type}
             </p>
           </div>
@@ -369,7 +368,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
       </div>
 
       {nodeIssues.length > 0 && (
-        <ul className="rounded-md border border-line p-1">
+        <ul className="rounded-xl bg-surface-2/60 p-1">
           {nodeIssues.map((i, k) => (
             <IssueRow key={k} issue={i} />
           ))}
@@ -438,11 +437,11 @@ function NodeResults({ nodeId }: { nodeId: string }) {
     (s.counters?.evictions ?? 0) > 0 && `${fmtNum(s.counters.evictions)} evictions`,
   ].filter((x): x is string => typeof x === "string");
   return (
-    <section aria-label="Last run" className="overflow-hidden rounded-lg border border-line">
-      <div className="flex items-center gap-2 border-l-2 px-3 py-2" style={{ borderLeftColor: meta.color }}>
-        <span className="size-1.5 shrink-0 rounded-full" style={{ background: meta.color }} aria-hidden />
+    <section aria-label="Last run" className="overflow-hidden rounded-xl bg-surface-2/60">
+      <div className="flex items-center gap-2 px-3 pt-2.5">
+        <span className="size-2 shrink-0 rounded-full" style={{ background: meta.color }} aria-hidden />
         <span className="text-[13px] font-semibold text-ink">{meta.label}</span>
-        <span className="min-w-0 flex-1 truncate text-[12px] text-ink-3" title={nr.statusReasons.join(", ") || meta.description}>
+        <span className="min-w-0 flex-1 truncate text-xs text-ink-3" title={nr.statusReasons.join(", ") || meta.description}>
           in the last run
         </span>
         <button
@@ -451,21 +450,21 @@ function NodeResults({ nodeId }: { nodeId: string }) {
             focusNode(nodeId);
             openDrawer("components");
           }}
-          className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent hover:underline"
+          className="flex shrink-0 items-center gap-1 text-xs font-medium text-accent hover:underline"
         >
           Charts <ArrowRight className="size-3.5" />
         </button>
       </div>
-      <dl className="grid grid-cols-3 border-t border-line">
+      <dl className="grid grid-cols-3">
         {stats.map(([k, v]) => (
           <div key={k} className="px-3 py-2">
             <dd className="tabular font-mono text-[13px] font-semibold text-ink">{v}</dd>
-            <dt className="text-[11px] text-ink-3">{k}</dt>
+            <dt className="text-xs text-ink-3">{k}</dt>
           </div>
         ))}
       </dl>
       {resourceStats.length > 0 && (
-        <p className="border-t border-line px-3 py-1.5 font-mono text-[11px] text-ink-2">{resourceStats.join(" · ")}</p>
+        <p className="px-3 pb-2.5 text-xs text-ink-2">{resourceStats.join(" · ")}</p>
       )}
     </section>
   );
@@ -501,17 +500,17 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
   const chip = (label: string, type: string | undefined, category: string | undefined) => {
     const k = kindOf(type ?? "", category);
     return (
-      <span className="inline-flex max-w-[140px] items-center gap-1.5 truncate rounded-sm border border-line bg-surface px-1.5 py-1 font-mono text-[11px] text-ink">
-        <ShapeGlyph shape={SHAPE_OF[k]} w={18} h={12} className="shrink-0 text-ink-2" />
+      <span className="inline-flex max-w-[140px] items-center gap-1.5 truncate rounded-md bg-surface-2 px-1.5 py-1 text-xs font-medium text-ink">
+        <TechIcon kind={k} size={14} />
         <span className="truncate">{label}</span>
       </span>
     );
   };
   return (
     <div className="space-y-5 p-4">
-      <div className="rounded-md border border-line bg-surface-2 p-3">
+      <div className="rounded-xl bg-surface-2 p-3">
         <div className="flex items-center justify-between">
-          <p className="text-[12px] text-ink-3">{sp && sp.name !== "out" ? `${sp.label} link` : "Link"}</p>
+          <p className="text-xs text-ink-3">{sp && sp.name !== "out" ? `${sp.label} link` : "Link"}</p>
           <IconAction label="Delete link (Del)" onClick={() => deleteElements([], [edgeId])} danger>
             <Trash2 />
           </IconAction>
@@ -523,7 +522,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
         </div>
       </div>
       {edgeIssues.length > 0 && (
-        <ul className="rounded-md border border-line p-1">
+        <ul className="rounded-xl bg-surface-2/60 p-1">
           {edgeIssues.map((i, k) => (
             <IssueRow key={k} issue={i} />
           ))}
@@ -554,8 +553,8 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
               ] as [string, string][]
             ).map(([k, v]) => (
               <div key={k} className="bg-surface px-3 py-2">
-                <dt className="microlabel !text-[9px]">{k}</dt>
-                <dd className={cn("tabular font-mono text-[12.5px] font-semibold text-ink")}>{v}</dd>
+                <dt className="microlabel !text-[11px]">{k}</dt>
+                <dd className={cn("tabular font-mono text-[13px] font-semibold text-ink")}>{v}</dd>
               </div>
             ))}
           </dl>

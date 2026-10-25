@@ -96,7 +96,7 @@ function PlayheadLine({ endS }: { endS: number }) {
   return (
     <div className="pointer-events-none absolute inset-y-0 z-20" style={{ left }} aria-hidden>
       <div className="absolute inset-y-0 -left-px w-[2px] bg-accent shadow-[0_0_8px_var(--accent)]" />
-      <div className="absolute left-0 top-0 -translate-x-1/2 rounded-sm bg-accent px-1 font-mono text-[9.5px] font-semibold leading-[14px] tabular-nums text-accent-ink">
+      <div className="absolute left-0 top-0 -translate-x-1/2 rounded-sm bg-accent px-1 font-mono text-[11px] font-semibold leading-[14px] tabular-nums text-accent-ink">
         {playhead.toFixed(1)}
       </div>
     </div>
@@ -110,7 +110,7 @@ function EmptyRecording({ height }: { height: number }) {
     <LaneRow
       height={height}
       label={
-        <span className="text-[12px] text-ink-3">Last run</span>
+        <span className="text-xs text-ink-3">Last run</span>
       }
     >
       <div className="flex h-full items-center gap-5 px-6">
@@ -120,7 +120,7 @@ function EmptyRecording({ height }: { height: number }) {
         <div className="min-w-0">
           <p className="text-[13px] text-ink-2">{running ? "Recording the run…" : "Press Simulate to record a run"}</p>
           {running && followRun ? (
-            <div className="mt-2 flex items-center gap-2 font-mono text-[11px] text-ink-2" role="status">
+            <div className="mt-2 flex items-center gap-2 font-mono text-xs text-ink-2" role="status">
               <span className="block h-1.5 w-40 overflow-hidden rounded-[1px] bg-surface-3" aria-hidden>
                 <span className="progress-stripes block h-full" style={{ width: `${Math.max(4, followRun.progress * 100)}%` }} />
               </span>
@@ -210,7 +210,7 @@ export function TimelineDock() {
   return (
     <section
       aria-label="Replay timeline"
-      className="island relative flex shrink-0 flex-col !overflow-visible"
+      className="island relative flex shrink-0 flex-col !overflow-visible border-t border-line"
       style={{ height: collapsed ? HEADER_H : height }}
     >
       <div
@@ -229,7 +229,7 @@ export function TimelineDock() {
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+          className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Expand the timeline" : "Collapse the timeline"}
         >
@@ -245,16 +245,16 @@ export function TimelineDock() {
           {report && playhead != null ? (
             <>
               <span className="tabular font-mono text-[14px] font-semibold text-ink">{playhead.toFixed(1)} s</span>
-              <span className="font-mono text-[11px] text-ink-3">/ {fmtClock(endS)}</span>
+              <span className="font-mono text-xs text-ink-3">/ {fmtClock(endS)}</span>
             </>
           ) : (
-            <span className="truncate text-[12.5px] text-ink-3">{report ? "Press play to replay the run" : "Nothing recorded yet"}</span>
+            <span className="truncate text-[13px] text-ink-3">{report ? "Press play to replay the run" : "Nothing recorded yet"}</span>
           )}
         </div>
 
         <div className="ml-auto flex items-center gap-1">
           {report && playhead != null && (
-            <button type="button" onClick={showSummary} className="rounded-md px-2 py-1 text-[12.5px] text-ink-3 hover:bg-surface-2 hover:text-ink">
+            <button type="button" onClick={showSummary} className="rounded-md px-2 py-1 text-[13px] text-ink-3 hover:bg-surface-2 hover:text-ink">
               Whole run
             </button>
           )}
@@ -263,7 +263,7 @@ export function TimelineDock() {
               type="button"
               onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed as (typeof SPEEDS)[number]) + 1) % SPEEDS.length])}
               disabled={noRun}
-              className="h-7 min-w-9 rounded-md border border-line px-2 font-mono text-[11.5px] text-ink-2 hover:border-line-strong hover:text-ink disabled:opacity-40"
+              className="h-7 min-w-9 rounded-md border border-line px-2 font-mono text-xs text-ink-2 hover:border-line-strong hover:text-ink disabled:opacity-40"
               aria-label={`Playback speed ${speed}×, click to change`}
             >
               {speed}×

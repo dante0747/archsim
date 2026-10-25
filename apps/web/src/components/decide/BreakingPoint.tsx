@@ -44,9 +44,9 @@ function NumberField({
           step={step}
           disabled={disabled}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-8 w-24 rounded-md border border-line bg-surface-2 px-2 font-mono text-[12px] text-ink hover:border-line-strong focus-visible:border-accent focus-visible:outline-none disabled:opacity-50"
+          className="h-8 w-24 rounded-md border border-line bg-surface-2 px-2 font-mono text-xs text-ink hover:border-line-strong focus-visible:border-accent focus-visible:outline-none disabled:opacity-50"
         />
-        <span className="font-mono text-[11px] text-ink-3">{unit}</span>
+        <span className="font-mono text-xs text-ink-3">{unit}</span>
       </span>
     </label>
   );
@@ -147,7 +147,7 @@ export function BreakingPoint() {
                 <li
                   key={`${l}-${i}`}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[11px]",
+                    "flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-xs",
                     state === "done" ? "border-line-strong text-ink" : state === "failed" ? "border-critical/60 text-danger-ink" : "border-line text-ink-3",
                   )}
                 >
@@ -164,15 +164,15 @@ export function BreakingPoint() {
               <div className="progress-stripes h-full transition-[width]" style={{ width: `${Math.max(4, (mine.finished / Math.max(1, mine.levels.length)) * 100)}%` }} />
             </div>
           )}
-          {mine?.error && <p className="mt-2 font-mono text-[11px] text-danger-ink">{mine.error}</p>}
-          {invalid && !busy && <p className="mt-2 font-mono text-[11px] text-danger-ink">Check the range: To must be above From, and warm-up shorter than each step.</p>}
+          {mine?.error && <p className="mt-2 font-mono text-xs text-danger-ink">{mine.error}</p>}
+          {invalid && !busy && <p className="mt-2 font-mono text-xs text-danger-ink">Check the range: To must be above From, and warm-up shorter than each step.</p>}
         </Panel>
 
         {analysis && rows.length > 0 && (
           <>
             <section className="relative overflow-hidden rounded-md border border-line bg-surface px-5 py-4" aria-label="Result">
               <span className="absolute inset-y-0 left-0 w-1" style={{ background: best ? "var(--accent)" : "var(--status-critical)" }} aria-hidden />
-              <p className="microlabel">result{busy ? " so far" : ""}</p>
+              <p className="microlabel">Result{busy ? " so far" : ""}</p>
               <p className="mt-1 text-lg font-semibold tracking-tight text-ink">{analysis.verdict}</p>
               <dl className="mt-3 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
                 {(
@@ -261,8 +261,8 @@ export function BreakingPoint() {
                     <tr key={r.rps} className={cn("border-b border-line last:border-0", knee === r && "bg-serious-soft", best === r && "bg-accent-soft")}>
                       <td className="px-3 py-2 font-mono text-ink">
                         {fmtRps(r.rps)}
-                        {knee === r && <span className="ml-2 text-[10px] uppercase tracking-wider text-ink-2">knee</span>}
-                        {best === r && <span className="ml-2 text-[10px] uppercase tracking-wider text-accent">max ok</span>}
+                        {knee === r && <span className="ml-2 text-[11px] text-ink-2">Knee</span>}
+                        {best === r && <span className="ml-2 text-[11px] text-accent">Max OK</span>}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-ink">{fmtRps(r.throughput)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink-2">{r.throughput != null && r.offered ? fmtPct(r.throughput / r.offered, 0) : "–"}</td>
@@ -283,8 +283,8 @@ export function BreakingPoint() {
         )}
 
         {autoscaled.length > 0 && (
-          <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12px] leading-relaxed text-ink-2">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-ink">Autoscaling: </span>
+          <p className="rounded-md border border-dashed border-line-strong px-3 py-2 text-xs leading-relaxed text-ink-2">
+            <span className="font-mono text-xs text-ink">Autoscaling: </span>
             {autoscaled.join(", ")} {autoscaled.length > 1 ? "scale" : "scales"} during a run. Each step starts at the configured
             replica count, so short steps measure capacity before the scaler reacts. Use steps longer than the scale interval plus
             start-up time to include scale-out.
@@ -292,7 +292,7 @@ export function BreakingPoint() {
         )}
 
         {(!mine || mine.status === "idle") && (
-          <p className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
+          <p className="flex items-center gap-2 font-mono text-xs text-ink-3">
             <Play className="size-3.5" /> Starts {levels.length} short runs from {fmtNum(levels[0])} to {fmtNum(levels[levels.length - 1])} req/s. Faults and traffic
             shape are ignored so the curve measures steady-state capacity.
           </p>

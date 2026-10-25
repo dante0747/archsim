@@ -67,7 +67,7 @@ export function PatternEditor({
             title={k.hint}
             onClick={() => set(k.kind)}
             className={cn(
-              "h-7 flex-1 rounded-md px-2 text-[12.5px] font-medium transition-colors",
+              "h-7 flex-1 rounded-md px-2 text-[13px] font-medium transition-colors",
               value.kind === k.kind ? "bg-surface text-ink shadow-panel" : "text-ink-3 hover:text-ink",
             )}
           >
@@ -78,11 +78,11 @@ export function PatternEditor({
       {value.kind === "ramp" && (
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label className="text-[12px] text-ink-3">From</Label>
+            <Label className="text-xs text-ink-3">From</Label>
             <NumberInput value={value.startRps} unit="req/s" validate={nonNeg} onCommit={(v) => onChange({ ...value, startRps: v })} ariaLabel="Ramp start rate" />
           </div>
           <div className="space-y-1">
-            <Label className="text-[12px] text-ink-3">To</Label>
+            <Label className="text-xs text-ink-3">To</Label>
             <NumberInput value={value.endRps} unit="req/s" validate={nonNeg} onCommit={(v) => onChange({ ...value, endRps: v })} ariaLabel="Ramp end rate" />
           </div>
         </div>
@@ -90,11 +90,11 @@ export function PatternEditor({
       {value.kind === "burst" && (
         <div className="grid grid-cols-3 gap-2">
           <div className="space-y-1">
-            <Label className="text-[12px] text-ink-3">Spike to</Label>
+            <Label className="text-xs text-ink-3">Spike to</Label>
             <NumberInput value={value.burstRps} unit="/s" validate={nonNeg} onCommit={(v) => onChange({ ...value, burstRps: v })} ariaLabel="Burst rate" />
           </div>
           <div className="space-y-1">
-            <Label className="text-[12px] text-ink-3">At</Label>
+            <Label className="text-xs text-ink-3">At</Label>
             <NumberInput
               value={value.startS}
               unit="s"
@@ -104,7 +104,7 @@ export function PatternEditor({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-[12px] text-ink-3">For</Label>
+            <Label className="text-xs text-ink-3">For</Label>
             <NumberInput value={value.durationS} unit="s" validate={(v) => (v <= 0 ? "Must be > 0" : null)} onCommit={(v) => onChange({ ...value, durationS: v })} ariaLabel="Burst duration" />
           </div>
         </div>
@@ -135,7 +135,7 @@ function LoadPreview({ w }: { w: Workload }) {
       className="relative rounded-md border border-line bg-surface-2/60 px-2 pb-1 pt-2"
       title={w.warmupS > 0 ? `Shaded: ${fmtNum(w.warmupS)} s warm-up, not measured` : undefined}
     >
-      <span className="tabular absolute right-2 top-1.5 font-mono text-[10.5px] text-ink-3">peak {fmtNum(max)}/s</span>
+      <span className="tabular absolute right-2 top-1.5 font-mono text-[11px] text-ink-3">peak {fmtNum(max)}/s</span>
       <svg viewBox={`0 0 ${W} ${H}`} className="h-14 w-full" role="img" aria-label="Load over the run">
         <rect x={0} y={0} width={warm} height={H} fill="var(--warmup-wash)" />
         <line x1={0} x2={W} y1={H - 4} y2={H - 4} stroke="var(--axis)" strokeWidth={1} />
@@ -185,7 +185,7 @@ export function WorkloadPanel() {
         <PatternEditor value={workload.pattern} durationS={workload.durationS} onChange={(pattern) => setWorkload({ pattern }, "pattern")} />
         {kind !== "ramp" && (
           <div>
-            <Label htmlFor={rpsId} className="text-[12px] text-ink-3">
+            <Label htmlFor={rpsId} className="text-xs text-ink-3">
               {kind === "burst" ? "Normal rate" : "Requests per second"}
             </Label>
             <div className="mt-1 flex items-center gap-2">
@@ -205,7 +205,7 @@ export function WorkloadPanel() {
                   type="button"
                   onClick={() => setWorkload({ rps: p }, "rps")}
                   className={cn(
-                    "rounded-md border px-2 py-0.5 font-mono text-[11.5px] transition-colors",
+                    "rounded-md border px-2 py-0.5 font-mono text-xs transition-colors",
                     workload.rps === p ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-2 hover:border-line-strong hover:text-ink",
                   )}
                 >
@@ -220,8 +220,8 @@ export function WorkloadPanel() {
 
       <section aria-label="Reads and writes" className="space-y-1.5">
         <div className="flex items-baseline justify-between">
-          <span className="text-[12px] text-ink-3">Reads / writes</span>
-          <span className="tabular font-mono text-[12.5px] text-ink">
+          <span className="text-xs text-ink-3">Reads / writes</span>
+          <span className="tabular font-mono text-[13px] text-ink">
             {reads}% / {100 - reads}%
           </span>
         </div>
@@ -240,7 +240,7 @@ export function WorkloadPanel() {
 
       <section aria-label="Run length" className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label htmlFor="wl-dur" className="text-[12px] text-ink-3">
+          <Label htmlFor="wl-dur" className="text-xs text-ink-3">
             Run length
           </Label>
           <NumberInput
@@ -252,7 +252,7 @@ export function WorkloadPanel() {
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="wl-warm" className="text-[12px] text-ink-3" title="The first seconds are not measured, so start-up does not skew the results.">
+          <Label htmlFor="wl-warm" className="text-xs text-ink-3" title="The first seconds are not measured, so start-up does not skew the results.">
             Warm-up
           </Label>
           <NumberInput
@@ -265,13 +265,13 @@ export function WorkloadPanel() {
         </div>
       </section>
       {estimate > MAX_REQUESTS && (
-        <p className="text-[12px] text-danger-ink">
+        <p className="text-xs text-danger-ink">
           About {fmtNum(estimate)} requests: above the default limit of {fmtNum(MAX_REQUESTS)}.
         </p>
       )}
 
       <details className="group rounded-lg border border-line">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12.5px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[13px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
           <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
           More settings
         </summary>

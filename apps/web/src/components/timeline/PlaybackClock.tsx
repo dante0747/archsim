@@ -39,19 +39,19 @@ export function PlaybackClock() {
       role="status"
       aria-label={`Replay at ${fmtClock(playhead)}`}
     >
-      <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-2.5 py-1 text-[10px] uppercase tracking-wider text-ink-3">
+      <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-2.5 py-1 text-[11px] text-ink-3">
         <span className={cn("size-1.5 rounded-full", playing ? "pulse-soft bg-accent" : "bg-ink-3")} aria-hidden />
         <span className="text-ink-2">{playing ? `replay ×${speed}` : "paused"}</span>
         <span className="ml-auto truncate normal-case tracking-normal">{run?.label ?? "last run"}</span>
       </div>
       <div className="px-2.5 pb-2 pt-1.5">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[10px] text-ink-3">t =</span>
+          <span className="text-[11px] text-ink-3">t =</span>
           <span className="tabular text-[24px] font-semibold leading-7 tracking-tight text-ink">{playhead.toFixed(1)}</span>
-          <span className="text-[11px] text-ink-3">s / {fmtClock(end)}</span>
+          <span className="text-xs text-ink-3">s / {fmtClock(end)}</span>
           <span
             className={cn(
-              "ml-auto rounded-sm border px-1 text-[9px] font-semibold uppercase leading-4 tracking-wider",
+              "ml-auto rounded-sm border px-1 text-[11px] font-semibold leading-4",
               phase === "measured" ? "border-accent/40 text-accent" : "border-line-strong text-ink-3",
             )}
           >
@@ -63,16 +63,16 @@ export function PlaybackClock() {
         </div>
         <dl className="mt-2 grid grid-cols-3 divide-x divide-line rounded-sm border border-line">
           <div className="px-1.5 py-1">
-            <dt className="text-[9px] uppercase tracking-wider text-ink-3">thru</dt>
-            <dd className="tabular truncate text-[11.5px] font-semibold text-ink">{fmtRate(thr)}/s</dd>
+            <dt className="text-[11px] text-ink-3">Rate</dt>
+            <dd className="tabular truncate text-xs font-semibold text-ink">{fmtRate(thr)}/s</dd>
           </div>
           <div className="px-1.5 py-1">
-            <dt className="text-[9px] uppercase tracking-wider text-ink-3">p95</dt>
-            <dd className={cn("tabular truncate text-[11.5px] font-semibold", p95Bad ? "text-danger-ink" : "text-ink")}>{fmtMs(p95)}</dd>
+            <dt className="text-[11px] text-ink-3">p95</dt>
+            <dd className={cn("tabular truncate text-xs font-semibold", p95Bad ? "text-danger-ink" : "text-ink")}>{fmtMs(p95)}</dd>
           </div>
           <div className="px-1.5 py-1">
-            <dt className="text-[9px] uppercase tracking-wider text-ink-3">fail</dt>
-            <dd className={cn("tabular truncate text-[11.5px] font-semibold", errShare && errShare >= 0.01 ? "text-danger-ink" : "text-ink")}>
+            <dt className="text-[11px] text-ink-3">Failed</dt>
+            <dd className={cn("tabular truncate text-xs font-semibold", errShare && errShare >= 0.01 ? "text-danger-ink" : "text-ink")}>
               {errShare == null ? "–" : `${(errShare * 100).toFixed(errShare >= 0.1 ? 0 : 1)}%`}
             </dd>
           </div>
@@ -83,11 +83,11 @@ export function PlaybackClock() {
               <li
                 key={f.id}
                 className={cn(
-                  "flex items-center gap-1.5 truncate rounded-sm border px-1.5 py-0.5 text-[10px]",
+                  "flex items-center gap-1.5 truncate rounded-sm border px-1.5 py-0.5 text-[11px]",
                   f.kind === "outage" ? "border-critical bg-critical-soft text-danger-ink" : "border-serious bg-serious-soft text-ink",
                 )}
               >
-                <span className="font-bold uppercase tracking-wider">{f.kind === "outage" ? "outage" : f.kind === "slowdown" ? "slow" : "latency"}</span>
+                <span className="font-bold">{f.kind === "outage" ? "Outage" : f.kind === "slowdown" ? "Slow" : "Latency"}</span>
                 <span className="truncate">{faultLabel(report, f)}</span>
               </li>
             ))}

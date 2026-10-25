@@ -5,7 +5,7 @@
  * design losing its cache. Loops while visible; a still frame when reduced motion is preferred.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SHAPE_OF, ShapeSvg } from "@/components/shapes";
+import { ShapeSvg } from "@/components/shapes";
 import { useIsDark } from "@/components/ui/theme-toggle";
 import { heatColor } from "@/lib/recorder";
 import type { Kind } from "@/lib/theme";
@@ -142,7 +142,7 @@ export function HeroRecorder() {
           const down = n.id === "cache" && f.down;
           const hot = u >= 0.85;
           const stroke = down ? "var(--status-critical)" : hot ? heat(u) : "var(--node-stroke)";
-          const shape = SHAPE_OF[n.kind];
+          const shape = "card" as const;
           const mid = `hero-mask-${n.id}`;
           return (
             <g key={n.id} transform={`translate(${n.x},${n.y})`}>
@@ -221,7 +221,7 @@ export function HeroRecorder() {
         <rect x={x(t) - 3} y={0} width={6} height={4} fill="var(--accent)" />
       </svg>
 
-      <p className="mt-2 truncate font-mono text-[11px] text-ink-2" aria-hidden>
+      <p className="mt-2 truncate font-mono text-xs text-ink-2" aria-hidden>
         <span className="text-accent">❯</span> {caption(t)}
         <span className="ml-3 text-ink-3">
           p95 {Math.round(f.p95)} ms · ok {(f.success * 100).toFixed(1)}%

@@ -161,7 +161,7 @@ export function DecideWorkspace() {
               aria-selected={active}
               onClick={() => setSection(t.key)}
               className={cn(
-                "relative flex h-full items-center gap-2 px-3 text-[13.5px] font-medium transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full",
+                "relative flex h-full items-center gap-2 px-3 text-sm font-medium transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full",
                 active ? "text-ink after:bg-accent" : "text-ink-3 hover:text-ink after:bg-transparent",
               )}
             >

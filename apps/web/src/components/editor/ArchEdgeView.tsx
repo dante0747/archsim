@@ -59,8 +59,8 @@ function ArchEdgeViewImpl({
     targetY,
     sourcePosition,
     targetPosition,
-    borderRadius: 6,
-    offset: 18,
+    borderRadius: 12,
+    offset: 24,
   });
   const hasError = useEditor((s) => s.issues.some((i) => i.edgeId === id && i.severity === "error"));
   const overlay = useRuns((s) => s.overlay);
@@ -130,7 +130,7 @@ function ArchEdgeViewImpl({
       <EdgeLabelRenderer>
         <div
           className={cn(
-            "nodrag nopan pointer-events-auto absolute flex items-center gap-1.5 rounded-sm border bg-surface px-1.5 font-mono text-[10px] leading-[16px] text-ink-2",
+            "nodrag nopan pointer-events-auto absolute flex items-center gap-1.5 rounded-full border bg-surface px-2 text-[11px] font-medium leading-5 text-ink-2",
             selected ? "border-accent" : hasError ? "border-critical" : live?.latency ? "border-serious" : "border-line-strong",
           )}
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}

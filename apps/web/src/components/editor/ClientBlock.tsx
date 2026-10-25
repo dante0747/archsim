@@ -32,7 +32,7 @@ export function ClientBlock({ nodeId, comp, config }: { nodeId: string; comp: Co
     <section aria-label="Client" className="space-y-4">
       {techField && (techField.options?.length ?? 0) > 1 && (
         <div className="space-y-1.5">
-          <p id={`${nodeId}-tech`} className="text-[12px] text-ink-3">
+          <p id={`${nodeId}-tech`} className="text-xs text-ink-3">
             Built with
           </p>
           <div role="radiogroup" aria-labelledby={`${nodeId}-tech`} className="flex flex-wrap gap-1.5">
@@ -46,7 +46,7 @@ export function ClientBlock({ nodeId, comp, config }: { nodeId: string; comp: Co
                   aria-checked={on}
                   onClick={() => setNodeConfig(nodeId, "technology", o)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[12px] transition-colors",
+                    "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition-colors",
                     on ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-2 hover:border-line-strong hover:text-ink",
                   )}
                 >
@@ -69,13 +69,13 @@ export function ClientBlock({ nodeId, comp, config }: { nodeId: string; comp: Co
                   <span key={s.id} style={{ width: `${s.fraction * 100}%`, background: s.id === nodeId ? "var(--fam-traffic)" : "var(--line-strong)" }} />
                 ))}
               </div>
-              <p className="text-[12px] text-ink-2">
+              <p className="text-xs text-ink-2">
                 Sends <span className="font-semibold text-ink">{Math.round(mine * 100)}%</span> of the traffic
                 {steady ? ` · about ${compact(workload.rps * mine)} req/s` : ""}. Shares are relative across the {shares.length} client parts.
               </p>
             </div>
           ) : (
-            <p className="text-[12px] text-ink-3">The only client part, so it sends all the traffic. Add a mobile app, browser or API consumers to split it.</p>
+            <p className="text-xs text-ink-3">The only client part, so it sends all the traffic. Add a mobile app, browser or API consumers to split it.</p>
           )}
         </div>
       )}

@@ -82,7 +82,7 @@ export function NextStepPill() {
           <button
             type="button"
             onClick={doNext}
-            className="accent-fill flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-[12.5px] font-semibold hover:brightness-[1.08]"
+            className="accent-fill flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-[13px] font-semibold hover:brightness-[1.08]"
           >
             {next.actionLabel} <ArrowRight className="size-3.5" />
           </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useSyncExternalStore } from "react";
-import { SHAPE_HANDLE, SHAPE_OF, SHAPE_PADDING, ShapeSvg } from "@/components/shapes";
+import { SHAPE_HANDLE, SHAPE_PADDING, ShapeSvg } from "@/components/shapes";
 import { KIND_TAG, type Kind, kindOf } from "@/lib/theme";
 import type { ArchitectureDocument, RequestType } from "@/lib/types";
 
@@ -130,7 +130,7 @@ export function SchematicDiagram({
   const reduced = useReducedMotion();
   const moving = animate && !reduced;
   if (nodes.length === 0) {
-    return <div className="flex h-full items-center justify-center font-mono text-[11px] text-ink-3">empty canvas</div>;
+    return <div className="flex h-full items-center justify-center font-mono text-xs text-ink-3">empty canvas</div>;
   }
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -148,7 +148,7 @@ export function SchematicDiagram({
   const arrow = `arrow-${uid}`;
 
   const anchor = (n: DiagramNode, side: "in" | "out"): Pt => {
-    const hd = SHAPE_HANDLE[SHAPE_OF[n.kind]];
+    const hd = SHAPE_HANDLE.card;
     return side === "out"
       ? { x: n.x + nodeW - hd.right * unit, y: n.y + nodeH / 2 + hd.dy * unit }
       : { x: n.x + hd.left * unit, y: n.y + nodeH / 2 + hd.dy * unit };
@@ -216,7 +216,7 @@ export function SchematicDiagram({
       })}
 
       {nodes.map((n) => {
-        const shape = SHAPE_OF[n.kind];
+        const shape = "card" as const;
         const p = SHAPE_PADDING[shape];
         const left = p.left * unit;
         const right = nodeW - p.right * unit;

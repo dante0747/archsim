@@ -44,7 +44,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorActions } from "@/components/editor/actions";
 import { openDecide, replayActiveRun } from "@/components/editor/workflow";
 import { findParts, useAddComponent } from "@/components/editor/Palette";
-import { SHAPE_OF, ShapeGlyph } from "@/components/shapes";
+import { TechIcon } from "@/components/TechIcon";
 import { Kbd } from "@/components/ui/misc";
 import { THEMES, applyTheme, toggleTheme } from "@/components/ui/theme-toggle";
 import { rankCommands } from "@/lib/commands";
@@ -156,7 +156,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
         label: `Add ${c.displayName}`,
         hint: c.description,
         keywords: `${c.type} new insert ${c.category}`,
-        icon: <ShapeGlyph shape={SHAPE_OF[kindOf(c.type, c.category)]} w={22} h={14} />,
+        icon: <TechIcon kind={kindOf(c.type, c.category)} size={16} />,
         run: () => add(c.type),
       })),
       ...(catalog?.components ?? []).flatMap((c) =>
@@ -166,7 +166,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
           label: `Add ${p.name}`,
           hint: `${p.family} · ${c.displayName}`,
           keywords: `${p.technology} ${p.tags.join(" ")} ${c.type} ${p.description}`,
-          icon: <ShapeGlyph shape={SHAPE_OF[kindOf(c.type, c.category)]} w={22} h={14} />,
+          icon: <TechIcon kind={kindOf(c.type, c.category)} size={16} />,
           run: () => add(c.type, p.id),
         })),
       ),
@@ -375,9 +375,6 @@ function PaletteBody({ onShowShortcuts, onImport }: { onShowShortcuts: () => voi
             <div key={c.id}>
               {header && (
                 <p className="microlabel px-2.5 pb-1 pt-2.5">
-                  <span className="mr-1 opacity-60" aria-hidden>
-            {"//"}
-          </span>
                   {c.group}
                 </p>
               )}
@@ -402,7 +399,7 @@ function PaletteBody({ onShowShortcuts, onImport }: { onShowShortcuts: () => voi
           );
         })}
       </div>
-      <div className="flex items-center gap-3 border-t border-line px-3 py-1.5 font-mono text-[10.5px] text-ink-3">
+      <div className="flex items-center gap-3 border-t border-line px-3 py-1.5 font-mono text-[11px] text-ink-3">
         <span>↑↓ navigate</span>
         <span>↵ run</span>
         <span>esc close</span>

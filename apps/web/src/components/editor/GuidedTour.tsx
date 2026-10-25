@@ -180,7 +180,7 @@ function TourOverlay({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center gap-2">
           <span className="microlabel">
-            step {i + 1} of {TOUR_STEPS.length}
+            Step {i + 1} of {TOUR_STEPS.length}
           </span>
           <button type="button" onClick={onClose} className="ml-auto rounded-md p-1 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close the tour">
             <X className="size-3.5" />

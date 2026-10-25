@@ -8,12 +8,12 @@
  *   messaging → horizontal pipe with segment rings (a log / stream)
  *   external → cloud outline (a dependency you do not run)
  *   other    → box with a cut corner
- * The same geometry draws canvas nodes, rail glyphs and the home-page previews; `unit` scales the
- * decorations (slants, pins, ellipses) for small sizes.
+ * `card` is the flat rounded rectangle every part uses on the canvas and in previews since the flat
+ * redesign; the kind shapes remain for small glyphs and tests. `unit` scales decorations.
  */
 import type { Kind } from "@/lib/theme";
 
-export type Shape = "parallelogram" | "hexagon" | "stack" | "chip" | "cylinder" | "pipe" | "cloud" | "notch";
+export type Shape = "card" | "parallelogram" | "hexagon" | "stack" | "chip" | "cylinder" | "pipe" | "cloud" | "notch";
 
 export const SHAPE_OF: Record<Kind, Shape> = {
   traffic: "parallelogram",
@@ -30,6 +30,7 @@ const BASE = { slant: 14, point: 16, layer: 5, pin: 5, pinStep: 16, ry: 8, notch
 
 /** Padding (px at unit 1) that keeps node content inside each outline. */
 export const SHAPE_PADDING: Record<Shape, { left: number; right: number; top: number; bottom: number }> = {
+  card: { left: 12, right: 12, top: 10, bottom: 10 },
   parallelogram: { left: 24, right: 24, top: 10, bottom: 10 },
   hexagon: { left: 24, right: 24, top: 10, bottom: 10 },
   stack: { left: 12, right: 12 + 2 * BASE.layer, top: 10 + 2 * BASE.layer, bottom: 10 },
@@ -45,6 +46,7 @@ export const SHAPE_PADDING: Record<Shape, { left: number; right: number; top: nu
  * `left`/`right` are insets from each side, `dy` shifts handles from the vertical centre.
  */
 export const SHAPE_HANDLE: Record<Shape, { left: number; right: number; dy: number }> = {
+  card: { left: 0, right: 0, dy: 0 },
   parallelogram: { left: BASE.slant / 2, right: BASE.slant / 2, dy: 0 },
   hexagon: { left: 0, right: 0, dy: 0 },
   stack: { left: 0, right: 2 * BASE.layer, dy: BASE.layer },
@@ -86,6 +88,10 @@ export function ShapeSvg({
   const u = (k: keyof typeof BASE) => BASE[k] * unit;
   const common = { stroke, strokeWidth, fill, strokeLinejoin: "round" as const };
   switch (shape) {
+    case "card": {
+      const r = 10 * unit;
+      return <rect x={s} y={s} width={w - 2 * s} height={h - 2 * s} rx={r} {...common} style={outlineStyle} />;
+    }
     case "parallelogram": {
       const k = u("slant");
       return <path d={`M${k},${s} L${w - s},${s} L${w - k},${h - s} L${s},${h - s} Z`} {...common} style={outlineStyle} />;

@@ -144,7 +144,7 @@ export function ScenariosPanel() {
               <li key={sc.id} className="flex items-center gap-1 py-1.5 pl-3 pr-1.5">
                 <button type="button" onClick={() => edit(i)} className="min-w-0 flex-1 py-0.5 text-left" title={details || undefined}>
                   <span className="block truncate text-[13px] font-medium text-ink">{sc.name}</span>
-                  <span className="block text-[11.5px] text-ink-3">{n === 0 ? "No changes" : `${n} change${n > 1 ? "s" : ""}`}</span>
+                  <span className="block text-xs text-ink-3">{n === 0 ? "No changes" : `${n} change${n > 1 ? "s" : ""}`}</span>
                 </button>
                 <Tip content="Simulate this scenario">
                   <Button variant="ghost" size="icon-sm" disabled={starting} aria-label={`Simulate ${sc.name}`} onClick={() => void startRun(toDocument(), sc.id)}>
@@ -230,7 +230,7 @@ function ScenarioEditor({
       </div>
       <div className="space-y-2">
         <Label>Changes</Label>
-        {overrides.length === 0 && <p className="text-[12px] text-ink-3">None yet</p>}
+        {overrides.length === 0 && <p className="text-xs text-ink-3">None yet</p>}
         {overrides.map((o, i) => (
           <OverrideRow
             key={i}
@@ -338,7 +338,7 @@ function OverrideRow({
           idPrefix={`ov-${key}-${field.key}`}
         />
       ) : (
-        <p className="text-[11px] text-danger-ink">Unknown setting “{override.path}”.</p>
+        <p className="text-xs text-danger-ink">Unknown setting “{override.path}”.</p>
       )}
     </div>
   );

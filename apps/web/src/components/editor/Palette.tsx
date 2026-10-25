@@ -5,7 +5,7 @@
  * by family (Clients, Edge, Compute, Data, Cache, Queues, External). Drag onto the canvas or click.
  */
 import { useReactFlow } from "@xyflow/react";
-import { PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Plus, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NODE_W } from "@/components/editor/ArchNodeView";
 import {
@@ -20,7 +20,7 @@ import {
 } from "@/components/build/presets";
 import { TechIcon } from "@/components/TechIcon";
 import { Tip } from "@/components/ui/misc";
-import { FAMILIES, KIND_COLOR, kindOf } from "@/lib/theme";
+import { FAMILIES, kindOf } from "@/lib/theme";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 
@@ -85,17 +85,35 @@ function tileName(it: LibraryItem): string {
   return `Any ${base.toLowerCase()}`;
 }
 
-function Tile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
+const CLIENT_SUB: Record<string, string> = {
+  traffic_source: "Generic users or callers",
+  mobile_app: "iOS, Android, cross-platform",
+  web_client: "Single-page app or website",
+  api_consumer: "Partners calling your API",
+};
+
+/** One-line description under a part's name in the library. */
+function rowSub(it: LibraryItem): string {
+  if (it.comp.isTrafficSource) return CLIENT_SUB[it.type] ?? "Clients";
+  if (it.preset) return it.group;
+  return "Any technology, set it up yourself";
+}
+
+function PartRow({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
   return (
     <button
       type="button"
       {...dragProps(it.type, it.preset?.id)}
       onClick={() => onPick(it)}
       title={`${tileName(it)}: ${it.description}`}
-      className="group flex h-[72px] w-full cursor-grab flex-col items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2/40 px-1.5 text-center transition-all hover:-translate-y-px hover:border-accent/60 hover:bg-surface-2 hover:shadow-[0_6px_18px_-8px_var(--accent)] active:cursor-grabbing"
+      className="group flex w-full cursor-grab items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-2 active:cursor-grabbing"
     >
-      <TechIcon technology={it.preset || it.comp.isTrafficSource ? it.technology : null} kind={kindOf(it.type, it.comp.category)} size={22} />
-      <span className="line-clamp-2 text-[11.5px] leading-[1.2] text-ink-2 group-hover:text-ink">{tileName(it)}</span>
+      <TechIcon technology={it.preset || it.comp.isTrafficSource ? it.technology : null} kind={kindOf(it.type, it.comp.category)} size={18} tile className="rounded-lg" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium leading-5 text-ink">{tileName(it)}</span>
+        <span className="block truncate text-xs leading-4 text-ink-3">{rowSub(it)}</span>
+      </span>
+      <Plus className="size-4 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
     </button>
   );
 }
@@ -148,7 +166,7 @@ export function PartsPanel() {
 
   if (!open) {
     return (
-      <aside data-tour="rail" className="island flex h-full w-[52px] shrink-0 flex-col items-center gap-1 py-2" aria-label="Parts">
+      <aside data-tour="rail" className="island flex h-full w-[52px] shrink-0 flex-col items-center gap-1 border-r border-line py-2" aria-label="Parts">
         <Tip side="right" content="Show parts">
           <button type="button" onClick={() => setOpen(true)} className="mb-1 rounded-md p-2 text-ink-2 hover:bg-surface-2 hover:text-ink" aria-label="Show parts">
             <PanelLeftOpen className="size-4" />
@@ -166,8 +184,8 @@ export function PartsPanel() {
   }
 
   return (
-    <aside data-tour="rail" className="island flex h-full w-[232px] shrink-0 flex-col" aria-label="Parts">
-      <div className="flex items-center gap-1.5 border-b border-line p-2.5">
+    <aside data-tour="rail" className="island flex h-full w-[264px] shrink-0 flex-col border-r border-line" aria-label="Parts">
+      <div className="flex items-center gap-1.5 p-2.5 pb-1">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
           <input
@@ -185,7 +203,7 @@ export function PartsPanel() {
             }}
             placeholder="Search parts"
             aria-label="Search parts"
-            className="h-8 w-full rounded-md border border-line bg-surface-2/70 pl-8 pr-7 text-[13px] text-ink placeholder:text-ink-3 focus-visible:border-accent focus-visible:outline-none"
+            className="h-9 w-full rounded-lg border border-transparent bg-surface-2 pl-8 pr-7 text-[13px] text-ink placeholder:text-ink-3 focus-visible:border-accent focus-visible:bg-surface focus-visible:outline-none"
           />
           {q && (
             <button type="button" onClick={() => setQ("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-ink-3 hover:text-ink" aria-label="Clear search">
@@ -199,17 +217,17 @@ export function PartsPanel() {
           </button>
         </Tip>
       </div>
-      <div ref={listRef} className="flex-1 overflow-y-auto px-2.5 pb-3">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-2 pb-3">
         {sections.map(({ family: f, items: list }) => (
           <section key={f.key} aria-label={f.label}>
-            <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-surface pb-1.5 pt-3 text-[12px] font-semibold text-ink">
-              <span className="size-2 rounded-full" style={{ background: KIND_COLOR[f.kinds[0]], boxShadow: `0 0 8px ${KIND_COLOR[f.kinds[0]]}` }} aria-hidden />
+            <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-surface px-2 pb-1 pt-4 text-xs font-semibold text-ink-3">
               {f.label}
+              <span className="font-normal">{list.length}</span>
             </h3>
-            <ul className="grid grid-cols-2 gap-1.5">
+            <ul className="space-y-px">
               {list.map((it) => (
                 <li key={it.key}>
-                  <Tile it={it} onPick={pick} />
+                  <PartRow it={it} onPick={pick} />
                 </li>
               ))}
             </ul>
@@ -217,7 +235,7 @@ export function PartsPanel() {
         ))}
         {sections.length === 0 && <p className="py-8 text-center text-[13px] text-ink-3">Nothing matches “{q}”</p>}
       </div>
-      <p className="border-t border-line px-3 py-2 text-[11.5px] text-ink-3">Drag onto the canvas, or click</p>
+      <p className="border-t border-line px-3 py-2 text-xs text-ink-3">Drag onto the canvas, or click</p>
     </aside>
   );
 }

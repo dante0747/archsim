@@ -71,20 +71,20 @@ export function RunsTab() {
                 <td className="max-w-56 px-2 py-1.5">
                   <p className="truncate font-medium text-ink">{r.label}</p>
                   {r.status === "failed" && r.error && <p className="truncate text-danger-ink" title={r.error.message}>{r.error.message}</p>}
-                  {active && <p className="font-mono text-[10.5px] text-ink-3">{r.status} · {Math.round(r.progress * 100)}%</p>}
+                  {active && <p className="font-mono text-[11px] text-ink-3">{r.status} · {Math.round(r.progress * 100)}%</p>}
                   {(r.id === compareA || r.id === compareB) && (
-                    <p className="font-mono text-[10.5px] text-ink-3">comparing as {r.id === compareA ? "A" : "B"}</p>
+                    <p className="font-mono text-[11px] text-ink-3">comparing as {r.id === compareA ? "A" : "B"}</p>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-[11px] text-ink-2">{fmtRelativeTime(r.createdAt)}</td>
-                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink-2">{r.seed}</td>
-                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtRps(r.summary?.throughputRps)}</td>
-                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtPct(r.summary?.successRate)}</td>
-                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-ink">{fmtMs(r.summary?.p95)}</td>
+                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs text-ink-2">{fmtRelativeTime(r.createdAt)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-xs text-ink-2">{r.seed}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-xs text-ink">{fmtRps(r.summary?.throughputRps)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-xs text-ink">{fmtPct(r.summary?.successRate)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-xs text-ink">{fmtMs(r.summary?.p95)}</td>
                 <td className="max-w-48 truncate px-2 py-1.5 text-ink-2" title={r.summary?.bottleneck ?? ""}>
                   {r.summary ? (r.summary.bottleneck ?? "none") : "–"}
                 </td>
-                <td className="px-2 py-1.5 font-mono text-[11px] text-ink-3" title={r.resultDigest ?? ""}>
+                <td className="px-2 py-1.5 font-mono text-xs text-ink-3" title={r.resultDigest ?? ""}>
                   {shortDigest(r.resultDigest)}
                 </td>
                 <td className="px-2 py-1.5 text-right">

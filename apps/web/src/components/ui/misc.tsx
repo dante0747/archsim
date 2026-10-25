@@ -20,7 +20,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-sm border px-1.5 py-px text-[11px] font-medium leading-4",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-sm border px-1.5 py-px text-xs font-medium leading-4",
         tones[tone],
         className,
       )}
@@ -33,7 +33,7 @@ export function Kbd({ className, ...props }: React.HTMLAttributes<HTMLElement>) 
   return (
     <kbd
       className={cn(
-        "rounded-[5px] border border-b-2 border-line-strong bg-surface-2 px-1 font-mono text-[10px] leading-4 text-ink-2",
+        "rounded-[5px] border border-b-2 border-line-strong bg-surface-2 px-1 font-mono text-[11px] leading-4 text-ink-2",
         className,
       )}
       {...props}
@@ -107,9 +107,6 @@ export function Section({
     <section className={cn("space-y-2", className)}>
       <div className="flex min-h-6 items-center justify-between gap-2">
         <h3 className="microlabel">
-          <span className="mr-1 opacity-60" aria-hidden>
-            {"//"}
-          </span>
           {title}
         </h3>
         {actions}

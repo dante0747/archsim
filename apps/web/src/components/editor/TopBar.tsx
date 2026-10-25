@@ -40,6 +40,7 @@ import {
   MenuTrigger,
 } from "@/components/ui/overlays";
 import { ThemeMenu } from "@/components/ui/theme-toggle";
+import { RunStatusChip } from "@/components/editor/CanvasHud";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -78,7 +79,7 @@ function RunControl() {
       <button
         type="button"
         onClick={() => void cancel(followRun.id)}
-        className="relative flex h-8 min-w-40 items-center gap-2 overflow-hidden rounded-md border border-line-strong bg-surface px-2.5 text-[12.5px] font-semibold text-ink shadow-panel"
+        className="relative flex h-8 min-w-40 items-center gap-2 overflow-hidden rounded-md border border-line-strong bg-surface px-2.5 text-[13px] font-semibold text-ink shadow-panel"
         aria-label="Stop simulation"
       >
         <span className="progress-stripes absolute bottom-0 left-0 h-[3px]" style={{ width: `${Math.max(4, followRun.progress * 100)}%` }} aria-hidden />
@@ -112,7 +113,7 @@ function RunControl() {
           <button
             type="button"
             aria-label="Choose what to simulate"
-            className="flex max-w-48 items-center gap-1 rounded-r-md border border-l-0 border-line-strong bg-surface px-2.5 text-[12.5px] text-ink-2 shadow-panel transition-colors hover:bg-surface-2 hover:text-ink"
+            className="flex max-w-48 items-center gap-1 rounded-r-md border border-l-0 border-line-strong bg-surface px-2.5 text-[13px] text-ink-2 shadow-panel transition-colors hover:bg-surface-2 hover:text-ink"
           >
             <span className="truncate">{target ? target.name : "Current design"}</span>
             <ChevronDown className="size-3.5 shrink-0" />
@@ -124,7 +125,7 @@ function RunControl() {
             <Check className={cn(!target ? "opacity-100" : "opacity-0")} />
             <span>
               <span className="block">Current design</span>
-              <span className="block text-[11px] text-ink-3">Exactly what is on the canvas</span>
+              <span className="block text-xs text-ink-3">Exactly what is on the canvas</span>
             </span>
           </MenuItem>
           <MenuSeparator />
@@ -134,7 +135,7 @@ function RunControl() {
               <Check className={cn(target?.id === s.id ? "opacity-100" : "opacity-0")} />
               <span className="min-w-0">
                 <span className="block truncate">{s.name}</span>
-                <span className="block truncate text-[11px] text-ink-3">
+                <span className="block truncate text-xs text-ink-3">
                   {s.overrides.length === 0 ? "No changes" : `${s.overrides.length} change${s.overrides.length > 1 ? "s" : ""} to the design`}
                 </span>
               </span>
@@ -164,7 +165,7 @@ function ProblemsPill() {
         <button
           type="button"
           className={cn(
-            "flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[11px] text-ink",
+            "flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-xs text-ink",
             errors.length ? "border-critical/50 bg-critical-soft" : "border-warning/50 bg-warning-soft",
           )}
         >
@@ -222,7 +223,7 @@ export function TopBar({
   const setExportOpen = useUi((s) => s.setExportOpen);
 
   return (
-    <header className="island relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 !overflow-visible px-2.5">
+    <header className="island relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 !overflow-visible border-b border-line px-3">
       <div className="flex min-w-0 items-center gap-1.5">
         <Tip content="All projects">
           <Link href="/" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
@@ -240,6 +241,7 @@ export function TopBar({
         <Tip content={saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}>
           <span className={cn("size-1.5 shrink-0 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3/50")} aria-label={saving ? "saving" : dirty ? "unsaved" : "saved"} />
         </Tip>
+        <RunStatusChip />
       </div>
 
       <WorkspaceSwitch />

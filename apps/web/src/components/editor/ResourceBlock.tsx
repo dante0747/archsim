@@ -54,7 +54,7 @@ function SpecInput({ field, value, onCommit }: { field: FieldDescriptor; value: 
   const id = `spec-${field.key}-${useId()}`;
   return (
     <div className="min-w-0 space-y-1">
-      <label htmlFor={id} className="flex items-center gap-1 text-[11.5px] text-ink-3">
+      <label htmlFor={id} className="flex items-center gap-1 text-xs text-ink-3">
         <Icon className="size-3.5" aria-hidden /> {NAME[field.key] ?? field.label}
       </label>
       <div className="relative">
@@ -76,10 +76,10 @@ function SpecInput({ field, value, onCommit }: { field: FieldDescriptor; value: 
             else if (!validateNumber(field, Number(raw))) onCommit(Number(raw));
           }}
         />
-        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-ink-3">{field.unit}</span>
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-ink-3">{field.unit}</span>
       </div>
       {error && (
-        <p role="alert" className="text-[11px] text-danger-ink">
+        <p role="alert" className="text-xs text-danger-ink">
           {error}
         </p>
       )}
@@ -105,7 +105,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
     <section aria-label="Resources" className="space-y-2.5">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-[13px] font-semibold text-ink">Resources</h3>
-        <span className="text-[11.5px] text-ink-3">{PER[comp.type] ?? "per instance"}</span>
+        <span className="text-xs text-ink-3">{PER[comp.type] ?? "per instance"}</span>
       </div>
       <div className={cn("grid gap-2", fields.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
         {fields.map((f) => (
@@ -122,7 +122,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
               aria-pressed={on}
               onClick={() => patchNodeConfig(nodeId, { cpuCores: c, memoryGib: m })}
               className={cn(
-                "rounded-md border px-1.5 py-0.5 font-mono text-[11px] transition-colors",
+                "rounded-md border px-1.5 py-0.5 font-mono text-xs transition-colors",
                 on ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-2 hover:border-line-strong hover:text-ink",
               )}
             >
@@ -134,14 +134,14 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
           <button
             type="button"
             onClick={() => patchNodeConfig(nodeId, Object.fromEntries(fields.map((f) => [f.key, null])))}
-            className="rounded-md px-1.5 py-0.5 text-[11px] text-ink-3 hover:text-ink"
+            className="rounded-md px-1.5 py-0.5 text-xs text-ink-3 hover:text-ink"
           >
             Clear
           </button>
         )}
       </div>
       {price != null && (
-        <p className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-ink-2">
+        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-2">
           <span>
             About <span className="font-semibold text-ink">{formatUsd(price)}/h</span> for this size
             <span className="text-ink-3"> (illustrative on-demand price)</span>
@@ -161,7 +161,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
           )}
         </p>
       )}
-      <p className="text-[11.5px] leading-relaxed text-ink-3">{EFFECT[comp.type] ?? INFO_ONLY}</p>
+      <p className="text-xs leading-relaxed text-ink-3">{EFFECT[comp.type] ?? INFO_ONLY}</p>
     </section>
   );
 }
