@@ -3,6 +3,7 @@
  * objectives, what it costs, and what to look at. Meant to be pasted into a design doc or PR.
  */
 import { formatUsd } from "./cost";
+import { replayVerdict } from "./document";
 import { isDistribution, shortDistribution } from "./distributions";
 import { errorBudget, evaluateSlo, formatSloValue } from "./slo";
 import type { SweepAnalysis } from "./sweep";
@@ -271,11 +272,9 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   }
   const calibration = report?.assumptions.calibration ?? doc.calibration ?? null;
   if (calibration) {
-    const e2e = calibration.replay.find((r) => r.scope === "end_to_end" && r.metric === "p95" && r.error != null);
+    const verdict = replayVerdict(calibration);
     lines.push(
-      `Calibrated ${calibration.at} from ${calibration.source}${calibration.timeRange ? ` (${calibration.timeRange})` : ""}: ${calibration.inputs} inputs${
-        e2e?.error != null ? `; the model reproduces the observed p95 within ${Math.round(Math.abs(e2e.error) * 100)}%` : ""
-      }.`,
+      `Calibrated ${calibration.at} from ${calibration.source}${calibration.timeRange ? ` (${calibration.timeRange})` : ""}: ${calibration.inputs} inputs.${verdict ? ` ${verdict}` : ""}`,
       "",
     );
     const measured = (report?.assumptions.userInputs ?? []).filter((u) => u.provenance?.kind === "measured");

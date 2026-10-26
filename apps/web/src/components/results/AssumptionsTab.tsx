@@ -3,6 +3,7 @@
 import { ProvenanceTag } from "@/components/editor/FieldControl";
 import { Badge, Section } from "@/components/ui/misc";
 import { TierBadge, useTierNote } from "@/components/ui/TierBadge";
+import { replayVerdict } from "@/lib/document";
 import { technologyLabel } from "@/lib/theme";
 import type { CalibrationRecord, TechnologyTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ function TechnologiesSection({ technologies, fromRun }: { technologies: Technolo
 /** Where the inputs came from, and how well the last calibration replays what was observed. */
 function CalibrationSection({ record, counts }: { record: CalibrationRecord | null; counts?: Record<string, number> }) {
   if (!record && !counts) return null;
-  const e2e = record?.replay.find((r) => r.scope === "end_to_end" && r.metric === "p95" && r.error != null);
+  const verdict = replayVerdict(record);
   return (
     <Section title="Where the inputs came from">
       {counts && (
@@ -74,8 +75,7 @@ function CalibrationSection({ record, counts }: { record: CalibrationRecord | nu
         <p className="text-xs leading-relaxed text-ink-2">
           Calibrated {record.at.replace("T", " ").replace("Z", " UTC")} from {record.source}
           {record.timeRange ? ` (${record.timeRange})` : ""}: {record.inputs} input{record.inputs === 1 ? "" : "s"}.
-          {e2e?.error != null &&
-            ` The model reproduces the observed p95 within ${Math.round(Math.abs(e2e.error) * 100)}% (${e2e.error > 0 ? "over" : "under"}).`}
+          {verdict && ` ${verdict}`}
         </p>
       ) : (
         <p className="text-xs text-ink-3">Not calibrated yet: Ctrl/⌘ K → Calibrate from telemetry.</p>

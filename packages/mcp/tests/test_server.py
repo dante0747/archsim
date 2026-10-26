@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -128,3 +129,19 @@ def test_an_agent_can_list_simulate_explain_and_export_over_stdio() -> None:
         out["imported"]["report"]["guessed"]
         and out["imported"]["document"]["architecture"]["nodes"]
     )
+
+
+def test_calibrate_reports_a_replay_past_the_limits(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    from archsim_engine.engine import SimulationLimits
+    from archsim_mcp import server
+
+    monkeypatch.setattr(server, "LIMITS", SimulationLimits(max_requests=1000))
+    with pytest.raises(ToolError, match="replay run hit a limit"):
+        server.calibrate(
+            STARTER,
+            "prometheus",
+            mapping_path=str(FIXTURES / "starter-mapping.yaml"),
+            recorded_path=str(FIXTURES / "starter-prometheus.json"),
+        )

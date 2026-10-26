@@ -489,6 +489,15 @@ class InputProvenance(CamelModel):
     )
     fitted_at: str | None = Field(default=None, max_length=40)
     note: str | None = Field(default=None, max_length=500)
+    value: Any = Field(
+        default=None,
+        description=(
+            "The value calibration set (JSON, as stored at the path). The input counts as "
+            "measured only while its current value still equals this; a scenario, sweep or edit "
+            "that changes it makes it assumed again. Records without it (written by earlier "
+            "builds) are taken at their word."
+        ),
+    )
 
 
 class ReplayCheck(CamelModel):

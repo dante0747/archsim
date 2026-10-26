@@ -2,9 +2,10 @@
 
 ``calibrate_prometheus`` sets each mapped input from Prometheus (histograms fitted to
 distributions, gauges, hit ratios, link latency, the arrival rate as a ``trace`` pattern),
-records each one's provenance (source, query, time range, fit error, when), then simulates the
-calibrated design and compares it with the observed latency and throughput (``replay``). The
-result is a new document; the input is not changed.
+records each one's provenance (source, query, time range, fit error, when, and the value set),
+then simulates the calibrated design and compares it with the observed latency and throughput
+(``replay``). The result is a new document; the input is not changed. The run's duration and
+warm-up are never changed: an observed traffic curve is fitted into the run's duration.
 """
 
 from __future__ import annotations
@@ -29,13 +30,13 @@ from archsim_engine.calibration.prometheus import (
     reduce,
     summed,
 )
-from archsim_engine.provenance import edge_path, node_path, workload_path
+from archsim_engine.engine import SimulationLimits
+from archsim_engine.provenance import edge_path, node_path, stamp_values, workload_path
 from archsim_engine.registry import ComponentRegistry, describe_fields
 from archsim_engine.scenarios import load_document
 
 Json = dict[str, Any]
 MAX_TRACE_POINTS = 300
-REALTIME_LIMIT_S = 3600.0
 
 
 @dataclass
@@ -74,7 +75,9 @@ class Outcome:
 
 
 def parse_time(text: str) -> float:
-    return datetime.fromisoformat(text.strip().replace("Z", "+00:00")).timestamp()
+    """ISO 8601; a time without an offset is UTC (never the local time of the machine)."""
+    t = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
+    return (t if t.tzinfo is not None else t.replace(tzinfo=UTC)).timestamp()
 
 
 def parse_range(text: str, step: float = 60) -> Range:
@@ -117,7 +120,10 @@ def calibrate_prometheus(
     registry: ComponentRegistry,
     time_range: Range | None = None,
     replay: bool = True,
+    limits: SimulationLimits | None = None,
 ) -> Outcome:
+    """Calibrate ``document`` from Prometheus through ``mapping``. ``limits`` bound the replay
+    run (``SimulationLimitError`` when it would exceed them)."""
     given = time_range or mapping.range
     recorded: Range | None = getattr(client, "recorded_range", None)
     notes: list[str] = []
@@ -165,6 +171,7 @@ def calibrate_prometheus(
                 query = src.histogram
                 fit = fit_histogram(histogram(q(query), src.unit), src.fit)
                 value = fit.distribution
+                out.notes.extend(f"{node_id}.{key}: {n}" for n in fit.notes)
             elif isinstance(src, GaugeSource):
                 query = src.gauge
                 value = reduce(q(query), src.reduce)
@@ -177,12 +184,24 @@ def calibrate_prometheus(
                 query = f"{src.ratio['hits']} / ({src.ratio['hits']} + {src.ratio['misses']})"
                 hits = reduce(q(src.ratio["hits"]), "mean")
                 misses = reduce(q(src.ratio["misses"]), "mean")
-                value = round(hits / (hits + misses), 6) if hits + misses > 0 else before
+                if not hits + misses > 0:
+                    out.notes.append(
+                        f"{node_id}: no hits or misses in the range, so no hit ratio was "
+                        f"measured; {key} unchanged"
+                    )
+                    continue
+                value = round(hits / (hits + misses), 6)
             else:  # pragma: no cover - the mapping model admits nothing else
                 continue
             node["config"][key] = value
             path = node_path(node_id, key)
-            note = f"{fit.count:,.0f} observations per range step on average" if fit else None
+            note = (
+                " ".join([f"{fit.count:,.0f} observations per range step on average.", *fit.notes])[
+                    :500
+                ]
+                if fit
+                else None
+            )
             prov[path] = _provenance(client.source, query, rng, fit.error if fit else None, note)
             out.changes.append(
                 Change(
@@ -250,6 +269,7 @@ def calibrate_prometheus(
                 )
             )
             if rate_src.trace:
+                previous = (wl.get("pattern") or {}).get("kind", "constant")
                 pattern, note = _trace(pts, start, end, wl)
                 wl["pattern"] = pattern
                 prov[workload_path("pattern")] = _provenance(
@@ -259,7 +279,7 @@ def calibrate_prometheus(
                     Change(
                         workload_path("pattern"),
                         "Workload: traffic pattern",
-                        "previous pattern",
+                        previous,
                         "trace",
                         None,
                         rate_src.rate,
@@ -267,8 +287,9 @@ def calibrate_prometheus(
                 )
                 out.notes.append(note)
 
+    stamp_values(load_document(doc).to_json_dict(), prov)  # also: the document is still valid
     doc["provenance"] = {**(doc.get("provenance") or {}), **prov}
-    load_document(doc)  # the calibrated document must still be valid
+    load_document(doc)
     record: Json = {
         "at": now_iso(),
         "source": client.source,
@@ -278,7 +299,7 @@ def calibrate_prometheus(
         "notes": out.notes[:50],
     }
     if replay and mapping.replay is not None:
-        checks, digest = replay_check(doc, mapping.replay, lambda query: q(query), registry)
+        checks, digest = replay_check(doc, mapping.replay, lambda query: q(query), registry, limits)
         record["replay"] = checks
         record["replayDigest"] = digest
     doc["calibration"] = record
@@ -287,20 +308,28 @@ def calibrate_prometheus(
     return out
 
 
+def _span_text(seconds: float) -> str:
+    if seconds >= 7200:
+        return f"{seconds / 3600:.1f} h"
+    if seconds >= 120:
+        return f"{seconds / 60:.0f} min"
+    return f"{seconds:.0f} s"
+
+
 def _trace(pts: list[tuple[float, float]], start: float, end: float, wl: Json) -> tuple[Json, str]:
-    """The observed rate as a ``trace`` pattern: in real time when the range fits in an hour
-    (the run then lasts as long as the range), else compressed into the run's duration."""
+    """The observed rate as a ``trace`` pattern fitted into the run's existing duration: the
+    curve keeps its shape and is compressed (or stretched) in time. The run's duration and
+    warm-up are not changed, so calibrating never makes later runs longer."""
     span = end - start
-    if span <= REALTIME_LIMIT_S:
-        duration = max(span, 2.0)
-        wl["durationS"] = round(duration, 3)
-        wl["warmupS"] = min(float(wl.get("warmupS", 0)), round(duration / 10, 3))
-        scale = 1.0
-        note = f"observed rate replayed in real time ({span:.0f} s)"
+    duration = float(wl.get("durationS") or 60)
+    scale = duration / span
+    seen = f"observed rate over {_span_text(span)}"
+    if math.isclose(scale, 1.0, rel_tol=1e-6):
+        note = f"{seen} replayed in real time in the {duration:g} s run"
+    elif scale < 1:
+        note = f"{seen} compressed into the {duration:g} s run ({1 / scale:,.1f}x faster)"
     else:
-        duration = float(wl.get("durationS") or 60)
-        scale = duration / span
-        note = f"observed rate over {span / 3600:.1f} h compressed into the {duration:.0f} s run ({1 / scale:,.0f}x faster)"
+        note = f"{seen} stretched over the {duration:g} s run ({scale:,.1f}x slower)"
     raw = [((t - start) * scale, min(max(v, 0.0), 100_000.0)) for t, v in pts if start <= t <= end]
     if len(raw) > MAX_TRACE_POINTS:
         size = math.ceil(len(raw) / MAX_TRACE_POINTS)
@@ -321,12 +350,16 @@ def _trace(pts: list[tuple[float, float]], start: float, end: float, wl: Json) -
 
 
 def replay_check(
-    doc: Json, replay: Any, query: Any, registry: ComponentRegistry
+    doc: Json,
+    replay: Any,
+    query: Any,
+    registry: ComponentRegistry,
+    limits: SimulationLimits | None = None,
 ) -> tuple[list[Json], str]:
     """Simulate the calibrated design and compare it with what was observed."""
     from archsim_engine import run_simulation
 
-    report = run_simulation(doc, registry=registry)
+    report = run_simulation(doc, registry=registry, limits=limits)
     checks: list[Json] = []
 
     def compare(
@@ -390,16 +423,25 @@ def _check(
 
 
 def replay_summary(record: Json | None) -> str | None:
-    """One line for people: how well the model reproduces what was observed."""
+    """One line for people: how well the model reproduces what was observed, with the end-to-end
+    p95 and always the worst of all replay checks (a good p95 can hide a bad p99 or part)."""
     if not record or not record.get("replay"):
         return None
-    e2e = [
-        c
-        for c in record["replay"]
-        if c["scope"] == "end_to_end" and c["metric"] == "p95" and c["error"] is not None
-    ]
-    if not e2e:
+    checks = [c for c in record["replay"] if c.get("error") is not None]
+    if not checks:
         return None
-    err = e2e[0]["error"]
     rng = record.get("timeRange") or "the observed range"
-    return f"This model reproduces the observed p95 ({rng}) within {abs(err) * 100:.0f}% ({'over' if err > 0 else 'under'})."
+    worst = max(checks, key=lambda c: abs(c["error"]))
+    metric = "throughput" if worst["metric"] == "throughputRps" else worst["metric"]
+    worst_text = (
+        f"the largest of {len(checks)} replay errors is {worst['error']:+.0%} "
+        f"({worst['label']} {metric})"
+    )
+    e2e = next((c for c in checks if c["scope"] == "end_to_end" and c["metric"] == "p95"), None)
+    if e2e is None:
+        return f"Replay of {rng}: {worst_text}."
+    err = e2e["error"]
+    return (
+        f"This model reproduces the observed p95 ({rng}) within {abs(err) * 100:.0f}% "
+        f"({'over' if err > 0 else 'under'}); {worst_text}."
+    )

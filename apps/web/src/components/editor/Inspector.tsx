@@ -30,7 +30,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { Badge, Section, Tip } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/overlays";
 import { compact, fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
-import { edgeSourcePort, edgeTargetPort } from "@/lib/document";
+import { edgeSourcePort, edgeTargetPort, stillMeasured } from "@/lib/document";
 import { componentOf } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
 import { defaultSource } from "@/lib/tier";
@@ -408,7 +408,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
 
       {comp ? (
         <SettingsBlocks
-          provenance={provenanceUnder(extras, `nodes/${nodeId}/`)}
+          provenance={provenanceUnder(extras, `nodes/${nodeId}/`, node.data.config)}
           fields={comp.fields.filter((f) => !RESOURCE_FIELDS.includes(f.key) && !(comp.isTrafficSource && CLIENT_BLOCK_FIELDS.includes(f.key)))}
           values={node.data.config}
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
@@ -432,11 +432,18 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
   );
 }
 
-/** The provenance entries under ``prefix`` (nodes/<id>/ or edges/<id>/), keyed by field. */
-function provenanceUnder(extras: DocExtras | undefined, prefix: string): Record<string, InputProvenance> | undefined {
+/** The provenance entries under ``prefix`` (nodes/<id>/ or edges/<id>/), keyed by field. A
+ * measured entry whose value has changed since (an edit made outside the editor: CLI, MCP, API)
+ * is left out, so the badge never marks a value that was not measured. */
+function provenanceUnder(extras: DocExtras | undefined, prefix: string, values: Record<string, unknown>): Record<string, InputProvenance> | undefined {
   if (!extras) return undefined;
   const out: Record<string, InputProvenance> = {};
-  for (const [k, v] of Object.entries(extras.provenance)) if (k.startsWith(prefix)) out[k.slice(prefix.length)] = v;
+  for (const [k, v] of Object.entries(extras.provenance)) {
+    if (!k.startsWith(prefix)) continue;
+    const key = k.slice(prefix.length);
+    if (v.kind === "measured" && !stillMeasured(v, values[key])) continue;
+    out[key] = v;
+  }
   return out;
 }
 
@@ -657,7 +664,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
         </ul>
       )}
       <SettingsBlocks
-        provenance={provenanceUnder(extras, `edges/${edgeId}/`)}
+        provenance={provenanceUnder(extras, `edges/${edgeId}/`, edge.data.config as unknown as Record<string, unknown>)}
         fields={fields}
         values={edge.data.config as unknown as Record<string, unknown>}
         onChange={(key, v) => setEdgeConfig(edgeId, key, v)}

@@ -57,6 +57,8 @@ export interface InputProvenance {
   fitError?: number | null;
   fittedAt?: string | null;
   note?: string | null;
+  /** The value calibration set (schema 1.2): the input is measured only while it still has it. */
+  value?: unknown;
 }
 
 /** One observed-against-simulated comparison of a calibration's replay. */

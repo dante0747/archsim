@@ -169,6 +169,7 @@ export interface CalibrateResult {
   changes: { path: string; label: string; before: unknown; after: unknown; fitError: number | null; query: string | null }[];
   notes: string[];
   calibration: CalibrationRecord | null;
-  /** "This model reproduces the observed p95 … within N%", when a replay ran. */
+  /** "This model reproduces the observed p95 … within N%; the largest of M replay errors is …",
+   * when a replay ran. */
   summary: string | null;
 }
