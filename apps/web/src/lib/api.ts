@@ -2,6 +2,7 @@
 import type {
   Analysis,
   ArchitectureDocument,
+  CalibrationRecord,
   Catalog,
   Comparison,
   ExampleSummary,
@@ -64,6 +65,8 @@ export const api = {
   components: () => request<Catalog>("/components"),
   examples: () => request<ExampleSummary[]>("/examples"),
   example: (id: string) => request<ArchitectureDocument>(`/examples/${encodeURIComponent(id)}`),
+  /** Set inputs from telemetry (Prometheus or OpenTelemetry) and replay; returns a new document. */
+  calibrate: (body: CalibrateRequest) => request<CalibrateResult>("/calibrate", { method: "POST", body: json(body) }),
   /** Auto sizes, cost estimate and design review, computed by the engine (no simulation). */
   analyze: (document: ArchitectureDocument, scenarioId?: string | null) =>
     request<Analysis>("/analyze", { method: "POST", body: json({ document, scenarioId: scenarioId ?? null }) }),
@@ -110,3 +113,22 @@ export const api = {
   compare: (a: string, b: string) =>
     request<Comparison>(`/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`),
 };
+
+export interface CalibrateRequest {
+  document: ArchitectureDocument;
+  source: "prometheus" | "otlp";
+  mapping?: string | null;
+  prometheusUrl?: string | null;
+  recorded?: Record<string, unknown> | null;
+  range?: string | null;
+  traces?: Record<string, unknown> | null;
+}
+
+export interface CalibrateResult {
+  document: ArchitectureDocument;
+  changes: { path: string; label: string; before: unknown; after: unknown; fitError: number | null; query: string | null }[];
+  notes: string[];
+  calibration: CalibrationRecord | null;
+  /** "This model reproduces the observed p95 … within N%", when a replay ran. */
+  summary: string | null;
+}

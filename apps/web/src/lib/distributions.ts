@@ -12,7 +12,18 @@ export function isDistribution(v: unknown): v is Distribution {
   if (typeof v !== "object" || v === null || !("kind" in v)) return false;
   const kind = (v as { kind: unknown }).kind;
   if (kind === "constant") return "value" in v; // a constant traffic pattern has no value
+  if (kind === "empirical") return Array.isArray((v as { quantiles?: unknown }).quantiles);
   return kind === "exponential" || kind === "uniform" || kind === "lognormal";
+}
+
+/** Value at quantile ``q`` of a measured quantile table (linear between points). */
+export function empiricalQuantile(points: [number, number][], q: number): number {
+  for (let i = 1; i < points.length; i++) {
+    const [p0, v0] = points[i - 1];
+    const [p1, v1] = points[i];
+    if (q <= p1) return p1 > p0 ? v0 + ((v1 - v0) * (q - p0)) / (p1 - p0) : v1;
+  }
+  return points[points.length - 1]?.[1] ?? 0;
 }
 
 export function meanOf(d: Distribution): number {
@@ -28,6 +39,15 @@ export function meanOf(d: Distribution): number {
       const sigma = Math.log(d.p95 / d.median) / 1.6448536269514722;
       return Math.exp(mu + (sigma * sigma) / 2);
     }
+    case "empirical": {
+      let total = 0;
+      for (let i = 1; i < d.quantiles.length; i++) {
+        const [p0, v0] = d.quantiles[i - 1];
+        const [p1, v1] = d.quantiles[i];
+        total += ((p1 - p0) * (v0 + v1)) / 2;
+      }
+      return total;
+    }
   }
 }
 
@@ -42,6 +62,8 @@ export function describeDistribution(d: Distribution, unit = "ms"): string {
       return `${n(d.min)}–${n(d.max)} ${unit}`;
     case "lognormal":
       return `p50 ${n(d.median)} / p95 ${n(d.p95)} ${unit}`;
+    case "empirical":
+      return `measured p50 ${n(empiricalQuantile(d.quantiles, 0.5))} / p95 ${n(empiricalQuantile(d.quantiles, 0.95))} ${unit}`;
   }
 }
 
@@ -57,6 +79,8 @@ export function shortDistribution(d: Distribution, unit = "ms"): string {
       return `${n(d.min)}–${n(d.max)} ${unit}`;
     case "lognormal":
       return `${n(d.median)} ${unit} (p95 ${n(d.p95)})`;
+    case "empirical":
+      return `${n(empiricalQuantile(d.quantiles, 0.5))} ${unit} (p95 ${n(empiricalQuantile(d.quantiles, 0.95))})`;
   }
 }
 
@@ -72,11 +96,16 @@ export function convertDistribution(d: Distribution, kind: Distribution["kind"])
     case "uniform":
       return { kind, min: r(m * 0.5), max: r(m * 1.5) };
     case "lognormal":
-      return { kind, median: r(m * 0.8), p95: r(m * 2.4) };
+      return d.kind === "empirical"
+        ? { kind, median: r(empiricalQuantile(d.quantiles, 0.5)), p95: r(Math.max(empiricalQuantile(d.quantiles, 0.95), empiricalQuantile(d.quantiles, 0.5))) }
+        : { kind, median: r(m * 0.8), p95: r(m * 2.4) };
+    case "empirical":
+      return d; // measured tables come from calibration, not from the editor
   }
 }
 
 export function validateDistribution(d: Distribution): string | null {
+  if (d.kind === "empirical") return d.quantiles.length >= 2 ? null : "a measured table needs at least 2 points";
   const vals = Object.entries(d).filter(([k]) => k !== "kind");
   for (const [k, v] of vals) {
     if (typeof v !== "number" || !Number.isFinite(v)) return `${k} must be a number`;

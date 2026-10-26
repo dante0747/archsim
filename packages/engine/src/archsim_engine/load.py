@@ -15,6 +15,7 @@ keys and every node config expanded with its defaults.
 
 from __future__ import annotations
 
+import itertools
 import math
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -80,6 +81,9 @@ def mean_ms(d: Any) -> float:
     if kind == "lognormal":
         sigma = math.log(float(d["p95"]) / float(d["median"])) / 1.6448536269514722
         return math.exp(math.log(float(d["median"])) + sigma * sigma / 2)
+    if kind == "empirical":
+        q = [(float(p), float(v)) for p, v in d.get("quantiles") or []]
+        return sum((p1 - p0) * (v0 + v1) / 2 for (p0, v0), (p1, v1) in itertools.pairwise(q))
     return 0.0
 
 
@@ -125,6 +129,14 @@ def peak_rps(workload: Json) -> float:
         return max(float(p["startRps"]), float(p["endRps"]))
     if p.get("kind") == "burst":
         return max(rps, float(p["burstRps"]))
+    if p.get("kind") == "trace":
+        # same as Workload.peak_rate: the highest point inside the run, or the rate at its end
+        from archsim_engine.schema import TracePattern
+
+        trace = TracePattern.model_validate(p)
+        duration = float(workload.get("durationS") or 0)
+        inside = [r for t, r in trace.points if t <= duration]
+        return max([*inside, trace.rate(duration)])
     return rps
 
 

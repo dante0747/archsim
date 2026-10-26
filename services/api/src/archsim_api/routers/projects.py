@@ -15,12 +15,12 @@ from archsim_api.config import Settings
 from archsim_api.db import Project, utcnow
 from archsim_api.deps import examples, get_session, get_settings_dep, raise_issues
 from archsim_api.schemas import ProjectCreate, ProjectOut, ProjectSummaryOut, ProjectUpdate
-from archsim_engine import DocumentInvalidError, load_document
+from archsim_engine import SCHEMA_VERSION, DocumentInvalidError, load_document
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 BLANK_DOCUMENT: dict[str, Any] = {
-    "schemaVersion": "1.0",
+    "schemaVersion": SCHEMA_VERSION,
     "kind": "archsim.architecture",
     "metadata": {"name": "Untitled architecture"},
     "architecture": {"nodes": [], "edges": []},

@@ -63,7 +63,7 @@ def test_layout_records_link_sides_without_affecting_the_model() -> None:
 
 def test_json_schema_is_exported() -> None:
     schema = document_json_schema()
-    assert schema["properties"]["schemaVersion"]["const"] == "1.0"
+    assert schema["properties"]["schemaVersion"]["const"] == "1.1"
     assert "workload" in schema["properties"]
 
 
@@ -97,7 +97,7 @@ def test_workload_rates() -> None:
 
 def test_migration_chain_and_errors() -> None:
     table = {"0.9": ("1.0", lambda d: {**d, "migrated": True})}
-    out, notes = migrate_document({"schemaVersion": "0.9"}, migrations=table)
+    out, notes = migrate_document({"schemaVersion": "0.9"}, target="1.0", migrations=table)
     assert out["schemaVersion"] == "1.0" and out["migrated"] and notes
     with pytest.raises(MigrationError, match="newer"):
         migrate_document({"schemaVersion": "2.0"})

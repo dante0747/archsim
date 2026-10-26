@@ -24,6 +24,7 @@ import {
   sideOf,
   toDocument,
   uniqueId,
+  withoutProvenance,
 } from "@/lib/document";
 import { checkConnection, componentOf } from "@/lib/graph-rules";
 import { layoutGraph } from "@/lib/layout";
@@ -104,6 +105,7 @@ function snapshot(s: GraphState): GraphState {
     scenarios: s.scenarios,
     objectives: s.objectives,
     metadata: s.metadata,
+    extras: s.extras,
   };
 }
 
@@ -149,6 +151,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       scenarios: g.scenarios,
       objectives: g.objectives,
       metadata: { ...g.metadata, name: project.name },
+      extras: g.extras,
       initialViewport: g.viewport,
       dirty: false,
       past: [],
@@ -170,6 +173,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       scenarios: g.scenarios,
       objectives: g.objectives,
       metadata: { ...g.metadata, name: s.metadata.name },
+      extras: g.extras,
       dirty: true,
       layoutVersion: s.layoutVersion + 1,
     }));
@@ -320,6 +324,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       nodes: st.nodes.map((n) =>
         n.id === id ? { ...n, data: { ...n.data, config: setPath(n.data.config, key, value) } } : n,
       ),
+      extras: withoutProvenance(st.extras, [`nodes/${id}/${key.split(".")[0]}`]),
       dirty: true,
     }));
   },
@@ -338,6 +343,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
             }
           : e,
       ),
+      extras: withoutProvenance(st.extras, [`edges/${id}/${String(key).split(".")[0]}`]),
       dirty: true,
     }));
   },
@@ -358,6 +364,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set((st) => ({
       nodes: st.nodes.filter((n) => !ns.has(n.id)),
       edges: st.edges.filter((e) => !es.has(e.id) && !ns.has(e.source) && !ns.has(e.target)),
+      extras: withoutProvenance(st.extras, [], [...nodeIds.map((id) => `nodes/${id}/`), ...edgeIds.map((id) => `edges/${id}/`)]),
       dirty: true,
     }));
   },
@@ -409,7 +416,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   setWorkload: (patch, key) => {
     get().pushHistory(key ? `workload:${key}` : undefined);
-    set((st) => ({ workload: { ...st.workload, ...patch }, dirty: true }));
+    set((st) => ({
+      workload: { ...st.workload, ...patch },
+      extras: withoutProvenance(st.extras, Object.keys(patch).map((k) => `workload/${k}`)),
+      dirty: true,
+    }));
   },
 
   setScenarios: (scenarios, key) => {

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { EditorAgentTools } from "@/components/agent/AgentTools";
 import { ChaosPads } from "@/components/editor/ChaosPads";
 import { DesignReviewPanel } from "@/components/build/DesignReview";
+import { CalibrateDialog } from "@/components/build/CalibrateDialog";
 import { ExportDialog } from "@/components/build/ExportDialog";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { DecideWorkspace } from "@/components/decide/DecideWorkspace";
@@ -168,6 +169,8 @@ function EditorShell() {
   const mode = useUi((s) => s.mode);
   const exportOpen = useUi((s) => s.exportOpen);
   const setExportOpen = useUi((s) => s.setExportOpen);
+  const calibrateOpen = useUi((s) => s.calibrateOpen);
+  const setCalibrateOpen = useUi((s) => s.setCalibrateOpen);
   const { save, run } = useEditorActions();
   useLiveValidation();
   useWorkspaceWiring();
@@ -289,6 +292,7 @@ function EditorShell() {
       </div>
       <CommandPalette onShowShortcuts={() => setShortcutsOpen(true)} />
       <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
+      <CalibrateDialog open={calibrateOpen} onOpenChange={setCalibrateOpen} />
       <GuidedTour />
       <EditorAgentTools />
     </div>

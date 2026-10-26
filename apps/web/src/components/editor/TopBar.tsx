@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import { Gauge,
   BookOpen,
   Check,
   ChevronDown,
@@ -224,6 +224,7 @@ export function TopBar({
   const fileRef = useRef<HTMLInputElement>(null);
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
   const setExportOpen = useUi((s) => s.setExportOpen);
+  const setCalibrateOpen = useUi((s) => s.setCalibrateOpen);
 
   return (
     <header className="island relative z-30 flex h-[60px] shrink-0 items-center gap-3 !overflow-visible border-b border-line px-3">
@@ -305,6 +306,9 @@ export function TopBar({
             <MenuSeparator />
             <MenuItem onSelect={() => setExportOpen(true)}>
               <FileCode2 /> Export…
+            </MenuItem>
+            <MenuItem onSelect={() => setCalibrateOpen(true)}>
+              <Gauge /> Calibrate from telemetry…
             </MenuItem>
             <MenuItem onSelect={exportJson}>
               <Download /> Download JSON

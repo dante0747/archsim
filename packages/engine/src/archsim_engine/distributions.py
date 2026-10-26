@@ -6,8 +6,10 @@ All values are in **milliseconds**. Distributions are sampled with an explicit
 
 from __future__ import annotations
 
+import itertools
 import math
 import random
+from bisect import bisect_right
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -125,8 +127,55 @@ class LogNormal(_Dist):
         return f"lognormal, p50 {self.median:g} ms / p95 {self.p95:g} ms"
 
 
+class Empirical(_Dist):
+    """A measured distribution: a quantile table, linear between its points.
+
+    ``quantiles`` holds ``[p, ms]`` pairs: ``p`` rises strictly from 0 to 1 (both ends included)
+    and the values never fall, e.g. read off a latency histogram's buckets. Sampling draws ``u``
+    from the seeded RNG and interpolates, so runs stay reproducible.
+    """
+
+    kind: Literal["empirical"] = "empirical"
+    quantiles: list[tuple[float, float]] = Field(min_length=2, max_length=200)
+
+    @model_validator(mode="after")
+    def _check(self) -> Empirical:
+        ps = [p for p, _ in self.quantiles]
+        vs = [v for _, v in self.quantiles]
+        if ps[0] != 0.0 or ps[-1] != 1.0:
+            raise ValueError("empirical quantiles must start at p = 0 and end at p = 1")
+        if any(b <= a for a, b in itertools.pairwise(ps)):
+            raise ValueError("empirical quantile probabilities must rise strictly")
+        if any(b < a for a, b in itertools.pairwise(vs)):
+            raise ValueError("empirical quantile values must not fall")
+        if vs[0] < 0 or vs[-1] > MAX_SAMPLE_MS:
+            raise ValueError(f"empirical values must be between 0 and {MAX_SAMPLE_MS:g} ms")
+        return self
+
+    def quantile(self, q: float) -> float:
+        ps = [p for p, _ in self.quantiles]
+        i = min(max(bisect_right(ps, q) - 1, 0), len(ps) - 2)
+        (p0, v0), (p1, v1) = self.quantiles[i], self.quantiles[i + 1]
+        return v0 + (v1 - v0) * (q - p0) / (p1 - p0)
+
+    def sample(self, rng: random.Random) -> float:
+        return min(self.quantile(rng.random()), MAX_SAMPLE_MS)
+
+    def expected(self) -> float:
+        return sum(
+            (p1 - p0) * (v0 + v1) / 2
+            for (p0, v0), (p1, v1) in zip(self.quantiles, self.quantiles[1:], strict=False)
+        )
+
+    def describe(self) -> str:
+        return (
+            f"empirical, p50 {self.quantile(0.5):.4g} ms / p95 {self.quantile(0.95):.4g} ms "
+            f"({len(self.quantiles)} points)"
+        )
+
+
 Distribution = Annotated[
-    Constant | Exponential | Uniform | LogNormal,
+    Constant | Exponential | Uniform | LogNormal | Empirical,
     Field(discriminator="kind"),
 ]
 """A service-time or latency distribution in milliseconds (tagged by ``kind``)."""

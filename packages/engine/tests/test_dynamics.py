@@ -13,6 +13,7 @@ from archsim_engine import (
     ArchitectureDocument,
     DocumentInvalidError,
     default_registry,
+    load_document,
     run_simulation,
     validate_document,
 )
@@ -37,7 +38,7 @@ def mean_of(values: list[Any], idx: range) -> float:
 
 
 def issues_of(d: dict[str, Any]) -> list[dict[str, Any]]:
-    parsed = ArchitectureDocument.model_validate(d)
+    parsed = load_document(d)  # migrates 1.0 documents
     return [i.to_dict() for i in validate_document(parsed, default_registry()).issues]
 
 
@@ -404,7 +405,7 @@ def test_rate_limit_rejects_above_the_limit() -> None:
 
 def test_edge_timeseries_and_report_version(starter: dict[str, Any]) -> None:
     r = run_simulation(short(starter))
-    assert r["reportVersion"] == REPORT_VERSION == "1.8"
+    assert r["reportVersion"] == REPORT_VERSION == "1.9"
     n = len(r["timeseries"]["t"])
     for e in r["edges"]:
         ts = e["timeseries"]

@@ -1,0 +1,22 @@
+# Calibration mapping for examples/cache-aside-starter.json against the generated fixture
+# starter-prometheus.json (scripts/make_calibration_fixture.py). Real deployments use their own
+# metric names; see docs/calibration.md.
+range: {start: "2026-10-01T00:00:00Z", end: "2026-10-01T00:02:00Z", step: 5}
+nodes:
+  api:
+    serviceTimeMs: {histogram: 'sum by (le) (rate(http_server_handler_duration_seconds_bucket{job="api"}[1m]))', unit: s}
+  cache:
+    hitRatio:
+      ratio: {hits: 'sum(rate(redis_keyspace_hits_total[1m]))', misses: 'sum(rate(redis_keyspace_misses_total[1m]))'}
+  db:
+    readServiceTimeMs: {histogram: 'sum by (le) (rate(pg_query_duration_seconds_bucket{job="postgres",op="read"}[1m]))', unit: s}
+    writeServiceTimeMs: {histogram: 'sum by (le) (rate(pg_query_duration_seconds_bucket{job="postgres",op="write"}[1m]))', unit: s}
+edges:
+  api-db:
+    latencyMs: {client: 'sum by (le) (rate(db_client_duration_seconds_bucket{job="api"}[1m]))', server: 'sum by (le) (rate(pg_query_duration_seconds_bucket{job="postgres",op="read"}[1m]))', unit: s}
+workload:
+  rps: {rate: 'sum(rate(http_requests_total{job="lb"}[1m]))', trace: true}
+replay:
+  endToEnd: {histogram: 'sum by (le) (rate(client_request_duration_seconds_bucket[1m]))', unit: s, throughput: 'sum(rate(http_requests_total{job="lb",code=~"2.."}[1m]))'}
+  components:
+    db: {histogram: 'sum by (le) (rate(pg_query_duration_seconds_bucket{job="postgres"}[1m]))', unit: s}

@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-10-26 (engine 0.7.0, schema 1.0, report 1.8). This file separates what is
+State as of 2026-10-26 (engine 0.8.0, schema 1.1, report 1.9). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
@@ -309,6 +309,36 @@ serves 10 example designs (see below).
   note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
   report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
   counts on the landing are computed from the catalog.
+- Calibration from telemetry (engine 0.8.0, schema 1.1, report 1.9, 2026-10-26; Phase 3 of
+  docs/prompts/how-to-win.md). Schema 1.1 adds `provenance` (per input: illustrative, assumed or
+  measured, with source, query, time range, fit error and when) and a `calibration` record;
+  1.0 documents migrate on load, newer ones are refused. New `empirical` distribution (a
+  quantile table) and `trace` traffic pattern (rate points, linear between them).
+  `archsim calibrate prometheus` reads histogram, gauge and ratio queries named in a YAML
+  mapping (no metric names are guessed), fits service times (lognormal by default, empirical on
+  request; fit error = largest relative error at p50/p75/p90/p95/p99), sets hit ratios, link
+  latency (client minus server) and traffic (mean rate or a trace), then replays the observed
+  traffic and compares p50/p95/p99 and throughput end to end and per part. `--record` saves the
+  responses and the range they cover; `--recorded` replays them offline, and a recording answers
+  for its own range (a different range is noted, not used). `archsim calibrate otlp` reads OTLP
+  JSON traces: a service's own time (server span minus its outgoing calls), database client
+  span times by operation, and the call graph (reported, not drawn). API `POST /calibrate`;
+  the web app has a Calibrate dialog (Prometheus URL or recording, or a trace file; a table of
+  before/measured/fit error and the replay check; nothing changes until Apply) and a
+  "measured" tag on each calibrated input whose tooltip shows source, range, fit error and
+  query; reports count inputs by provenance. Fixtures are generated from known distributions
+  (`scripts/make_calibration_fixture.py`, `scripts/make_otlp_fixture.py`), not recorded from a
+  live system: the starter calibrates back to the truth (api p50 6.00 / p95 18.6 ms against
+  6 / 18) and replays the observed end-to-end p95 within 5%. 12 engine tests, 2 API tests,
+  5 web tests. Checked in the browser (dev server against this branch's API): the dialog with
+  the recorded fixture, the result table and replay check, Apply, and the measured tag and its
+  tooltip on the API part. Bug found this way and fixed: a recording did not store its range,
+  so the dialog's default "last day" range was cited as the measured window. Not verified:
+  against a live Prometheus or a real OpenTelemetry export (no live system here); the OTLP tab
+  in the browser (API-tested only). Choices made without the owner: an explicit mapping file
+  rather than metric-name discovery (names vary; guessing would claim more than was measured);
+  lognormal as the default fit; a trace replays in real time when its range fits in an hour,
+  else compressed into the run.
 - Auto-sizing (2026-10-26; computed in the web app until engine 0.7.0, see above): an empty
   CPU, memory or storage spec is "Auto": the part gets the size it needs for the design's peak
   load (now archsim_engine/sizing.py: CPU at a 60% target,
@@ -572,6 +602,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   on a load balancer; faults are scheduled (outage, slowdown, link latency), not random. CPU and
   memory only matter where their specs are set; resource sizes in presets and prices are
   illustrative.
+- Calibration fits one time range at a time (peaks and quiet periods blend unless you pick
+  the range), needs a hand-written mapping and reads OTLP as JSON only (not protobuf);
+  histogram buckets limit how precise the fitted quantiles are. See [docs/calibration.md](docs/calibration.md).
 - Only a core set of technologies is ArchSim's focus, and none is validated against
   measurements yet (Phase 2 of docs/prompts/how-to-win.md); the others are marked
   experimental. docs/assumptions.md lists every illustrative number.
@@ -629,7 +662,7 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
    parallel fan-out calls.
 6. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-7. Prometheus calibration of service-time distributions and arrival rates, export of the
+7. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
    dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
    [docs/roadmap.md](docs/roadmap.md)).
 8. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer

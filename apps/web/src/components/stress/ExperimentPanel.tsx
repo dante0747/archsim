@@ -43,7 +43,9 @@ function trafficSummary(w: Workload): string {
       ? `${compact(w.rps)} req/s`
       : p.kind === "ramp"
         ? `${compact(p.startRps)} → ${compact(p.endRps)} req/s`
-        : `${compact(w.rps)} req/s, burst to ${compact(p.burstRps)}`;
+        : p.kind === "trace"
+          ? `${compact(w.rps)} req/s on average, replayed traffic`
+          : `${compact(w.rps)} req/s, burst to ${compact(p.burstRps)}`;
   return `${shape} · ${compact(w.durationS)} s`;
 }
 

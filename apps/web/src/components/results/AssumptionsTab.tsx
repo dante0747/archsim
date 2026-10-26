@@ -1,9 +1,10 @@
 "use client";
 
+import { ProvenanceTag } from "@/components/editor/FieldControl";
 import { Badge, Section } from "@/components/ui/misc";
 import { TierBadge, useTierNote } from "@/components/ui/TierBadge";
 import { technologyLabel } from "@/lib/theme";
-import type { TechnologyTier } from "@/lib/types";
+import type { CalibrationRecord, TechnologyTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { thClass } from "./charts";
 import { useEditor } from "@/store/editor";
@@ -57,6 +58,32 @@ function TechnologiesSection({ technologies, fromRun }: { technologies: Technolo
   );
 }
 
+/** Where the inputs came from, and how well the last calibration replays what was observed. */
+function CalibrationSection({ record, counts }: { record: CalibrationRecord | null; counts?: Record<string, number> }) {
+  if (!record && !counts) return null;
+  const e2e = record?.replay.find((r) => r.scope === "end_to_end" && r.metric === "p95" && r.error != null);
+  return (
+    <Section title="Where the inputs came from">
+      {counts && (
+        <p className="text-xs leading-relaxed text-ink-2">
+          {counts.measured ?? 0} measured from telemetry, {counts.assumed ?? 0} assumed (typed in), {counts.illustrative ?? 0} illustrative (ArchSim defaults
+          and presets).
+        </p>
+      )}
+      {record ? (
+        <p className="text-xs leading-relaxed text-ink-2">
+          Calibrated {record.at.replace("T", " ").replace("Z", " UTC")} from {record.source}
+          {record.timeRange ? ` (${record.timeRange})` : ""}: {record.inputs} input{record.inputs === 1 ? "" : "s"}.
+          {e2e?.error != null &&
+            ` The model reproduces the observed p95 within ${Math.round(Math.abs(e2e.error) * 100)}% (${e2e.error > 0 ? "over" : "under"}).`}
+        </p>
+      ) : (
+        <p className="text-xs text-ink-3">Not calibrated yet: Ctrl/⌘ K → Calibrate from telemetry.</p>
+      )}
+    </Section>
+  );
+}
+
 export function AssumptionsTab() {
   const report = useActiveReport();
   const catalog = useEditor((s) => s.catalog);
@@ -77,6 +104,7 @@ export function AssumptionsTab() {
           </ul>
         </Section>
         <TechnologiesSection technologies={runTechs ?? (report ? [] : (analysis?.technologies ?? []))} fromRun={!!runTechs} />
+        <CalibrationSection record={report ? (report.assumptions.calibration ?? null) : (analysis?.calibration ?? null)} counts={report?.assumptions.provenanceCounts ?? analysis?.provenanceCounts} />
         <Section
           title={
             <span className="flex items-center gap-1.5">
@@ -91,7 +119,8 @@ export function AssumptionsTab() {
                   <tr className="border-b border-line">
                     <th className={cn(thClass, "px-3 py-1.5")}>Where</th>
                     <th className={cn(thClass, "px-2 py-1.5")}>Assumption</th>
-                    <th className={cn(thClass, "px-3 py-1.5")}>Value used</th>
+                    <th className={cn(thClass, "px-2 py-1.5")}>Value used</th>
+                    <th className={cn(thClass, "px-3 py-1.5")}>Basis</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -99,7 +128,10 @@ export function AssumptionsTab() {
                     <tr key={i}>
                       <td className="px-3 py-1.5 text-ink">{u.label}</td>
                       <td className="px-2 py-1.5 text-ink-2">{u.fieldLabel}</td>
-                      <td className="tabular px-3 py-1.5 font-mono text-xs text-ink">{u.value}</td>
+                      <td className="tabular px-2 py-1.5 font-mono text-xs text-ink">{u.value}</td>
+                      <td className="px-3 py-1.5 text-ink-2">
+                        {u.provenance?.kind === "measured" ? <ProvenanceTag provenance={u.provenance} /> : (u.provenance?.kind ?? "–")}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

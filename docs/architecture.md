@@ -57,6 +57,8 @@ Pure Python, depends only on SimPy and Pydantic. It owns:
 | `review.py` | Design review: the architecture linter (single points of failure, timeouts, retries...). |
 | `analyze.py` | `analyze_document`: sizes, cost, review and technology tiers of a design without simulating. |
 | `technology.py` | Technology profiles: "auto" defaults, traits with documentation links, tier (core or experimental). |
+| `provenance.py` | Where every input came from: measured (with source and fit), assumed or illustrative. |
+| `calibration/` | Calibration from Prometheus (`prometheus.py`, `mapping.py`, `apply.py`) and OpenTelemetry (`otlp.py`), fitting (`fit.py`) and the replay check. |
 | `assumptions.py` | Renders docs/assumptions.md: every default, preset number and constant, documented or illustrative. |
 | `compare.py` | Two-report comparison with input diff and explanations. |
 | `cli.py` | The `archsim` command: `validate`, `run`, `analyze`, `compare`, `catalog`, `schema`. |

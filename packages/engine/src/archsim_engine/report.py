@@ -17,14 +17,14 @@ import platform
 from typing import TYPE_CHECKING, Any
 
 import simpy
-from pydantic import BaseModel
 
 from archsim_engine.analysis import analyze
 from archsim_engine.cost import estimate_cost
 from archsim_engine.distributions import Constant, Exponential, LogNormal, Uniform
 from archsim_engine.explain import formula, generic, num, pct
 from archsim_engine.metrics import Timeline, _round, round_series, safe_ratio
-from archsim_engine.registry import ComponentRegistry, describe_fields
+from archsim_engine.provenance import input_provenance, provenance_counts
+from archsim_engine.registry import ComponentRegistry
 from archsim_engine.review import review_design
 from archsim_engine.scenarios import simulation_input
 from archsim_engine.sizing import sizing_summary
@@ -208,60 +208,8 @@ def _tier_notes(technologies: list[dict[str, Any]]) -> list[str]:
 
 
 def _user_assumptions(prep: PreparedRun, registry: ComponentRegistry) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    resolved = prep.resolved
-    for n in resolved.architecture.nodes:
-        model = registry.get(n.type)
-        cfg: BaseModel = prep.validation.configs[n.id]
-        for fd in describe_fields(model.config_model):
-            if not fd["assumption"]:
-                continue
-            vis = fd.get("visibleWhen")
-            if vis and any(n.config.get(k) != v for k, v in vis.items()):
-                continue
-            attr = next(
-                name
-                for name, info in type(cfg).model_fields.items()
-                if (info.alias or name) == fd["key"]
-            )
-            value = getattr(cfg, attr)
-            text = _describe_value(value)
-            if fd.get("unit") and not isinstance(value, BaseModel):
-                text = f"{text} {fd['unit']}"
-            out.append(
-                {
-                    "scope": "node",
-                    "id": n.id,
-                    "label": n.label or n.id,
-                    "field": fd["key"],
-                    "fieldLabel": fd["label"],
-                    "value": text,
-                }
-            )
-    for e in resolved.architecture.edges:
-        out.append(
-            {
-                "scope": "edge",
-                "id": e.id,
-                "label": f"{e.source} → {e.target}",
-                "field": "latencyMs",
-                "fieldLabel": "Network latency (one way)",
-                "value": e.config.latency_ms.describe(),
-            }
-        )
-    wl = resolved.workload
-    out.append(
-        {
-            "scope": "workload",
-            "id": None,
-            "label": "Workload",
-            "field": "arrivalProcess",
-            "fieldLabel": "Traffic",
-            "value": f"{wl.arrival_process} arrivals, {wl.rps:g} req/s baseline, "
-            f"{wl.read_ratio:.0%} reads, pattern {wl.pattern.kind}",
-        }
-    )
-    return out
+    """Every performance input of what was simulated, with where it came from."""
+    return input_provenance(prep.resolved, registry)
 
 
 def _sum_series(series_list: list[list[float]], n: int) -> list[float]:
@@ -657,10 +605,17 @@ def build_report(
     report["explain"] = {"system": sys_explain, "latencyBreakdown": breakdown}
     input_snapshot = simulation_input(resolved)
     technologies = registry.technology_tiers(input_snapshot["architecture"]["nodes"])
+    user_inputs = _user_assumptions(prep, registry)
     report["assumptions"] = {
         "modelNotes": MODEL_NOTES + _tier_notes(technologies),
         "technologies": technologies,
-        "userInputs": _user_assumptions(prep, registry),
+        "userInputs": user_inputs,
+        "provenanceCounts": provenance_counts(user_inputs),
+        "calibration": (
+            resolved.calibration.model_dump(mode="json", by_alias=True)
+            if resolved.calibration
+            else None
+        ),
         "components": {
             t: {
                 "modeled": list(registry.get(t).modeled),

@@ -79,6 +79,11 @@ API servers behind a lone Clients box.
   in the parts library, the inspector, reports and exports: its behaviour rests on
   documentation and illustrative numbers. No technology is validated against measurements yet;
   that is the next step.
+- **Calibrate from your telemetry.** Prometheus metrics (with a mapping file) or an
+  OpenTelemetry trace export set service times, hit ratios, link latency and the traffic curve;
+  each input is marked measured with its source, query, time range and fit error, and the
+  calibrated model replays what was observed ("reproduces the observed p95 within 5%"). Ctrl/⌘ K
+  → Calibrate from telemetry, or `archsim calibrate`. See [docs/calibration.md](docs/calibration.md).
 - Every part is the same card: its technology logo on a solid tile in its family's colour, its
   name, one or two key settings, and after a run a 12-segment level meter (green, then yellow,
   then red, like an audio meter) that shows how busy it was. Links are rounded
@@ -253,6 +258,9 @@ uv run archsim validate examples/cache-aside-starter.json
 uv run archsim analyze examples/cache-aside-starter.json
 uv run archsim run examples/cache-aside-starter.json --scenario one-api-replica --out report.json
 uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
+uv run archsim calibrate prometheus examples/cache-aside-starter.json \
+  --map packages/engine/tests/fixtures/calibration/starter-mapping.yaml \
+  --recorded packages/engine/tests/fixtures/calibration/starter-prometheus.json -o calibrated.json
 ```
 
 `analyze` prints the auto sizes, the cost estimate, the design review and each part's
@@ -292,6 +300,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Architecture](docs/architecture.md)
 - [Simulation model: what is and isn't modeled](docs/simulation-model.md)
 - [Assumptions: every default, documented or illustrative](docs/assumptions.md) (generated)
+- [Calibrating from Prometheus and OpenTelemetry](docs/calibration.md)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)

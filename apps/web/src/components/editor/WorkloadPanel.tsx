@@ -10,8 +10,21 @@ import type { FieldDescriptor, TrafficPattern, Workload } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 
+/** Rate of a replayed trace at ``t`` seconds: linear between points, flat after the last. */
+export function traceRate(points: [number, number][], t: number): number {
+  if (!points.length) return 0;
+  if (t >= points[points.length - 1][0]) return points[points.length - 1][1];
+  for (let i = 1; i < points.length; i++) {
+    const [t0, r0] = points[i - 1];
+    const [t1, r1] = points[i];
+    if (t <= t1) return r0 + ((r1 - r0) * (t - t0)) / (t1 - t0);
+  }
+  return points[points.length - 1][1];
+}
+
 export function rateAt(w: Workload, t: number): number {
   const p = w.pattern;
+  if (p.kind === "trace") return traceRate(p.points, t);
   if (p.kind === "ramp") {
     const frac = Math.min(Math.max(t / w.durationS, 0), 1);
     return p.startRps + (p.endRps - p.startRps) * frac;
@@ -22,6 +35,12 @@ export function rateAt(w: Workload, t: number): number {
 
 export function expectedArrivals(w: Workload): number {
   const p = w.pattern;
+  if (p.kind === "trace") {
+    let total = 0;
+    const steps = 200;
+    for (let i = 0; i < steps; i++) total += traceRate(p.points, ((i + 0.5) / steps) * w.durationS) * (w.durationS / steps);
+    return total;
+  }
   if (p.kind === "ramp") return ((p.startRps + p.endRps) / 2) * w.durationS;
   if (p.kind === "burst") {
     const burst = Math.max(0, Math.min(p.durationS, w.durationS - p.startS));
@@ -57,6 +76,12 @@ export function PatternEditor({
   const nonNeg = (v: number) => (v < 0 ? "Must be ≥ 0" : v > 100000 ? "Must be ≤ 100,000" : null);
   return (
     <div className="space-y-2.5">
+      {value.kind === "trace" && (
+        <p className="rounded-lg bg-good-soft px-2.5 py-2 text-xs leading-relaxed text-ink-2">
+          <b className="font-medium text-ink">Replayed traffic</b>: {value.points.length} points
+          {value.source ? `, ${value.source}` : ""}. Pick a shape to replace it.
+        </p>
+      )}
       <div role="radiogroup" aria-label="Traffic pattern" className="flex rounded-lg border border-line bg-surface-2/70 p-0.5">
         {SHAPES.map((k) => (
           <button

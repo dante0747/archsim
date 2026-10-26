@@ -14,7 +14,7 @@ import {
 } from "@/lib/distributions";
 import { fmtNum } from "@/lib/format";
 import { technologyLabel } from "@/lib/theme";
-import type { Distribution, FieldDescriptor, RequestType } from "@/lib/types";
+import type { Distribution, FieldDescriptor, InputProvenance, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 
@@ -50,6 +50,34 @@ export function describeAuto(field: Pick<FieldDescriptor, "unit">, value: unknow
 export function isFieldVisible(field: FieldDescriptor, values: Record<string, unknown>): boolean {
   if (!field.visibleWhen) return true;
   return Object.entries(field.visibleWhen).every(([k, v]) => values[k] === v);
+}
+
+/** "measured" on a setting fitted from telemetry: where from, which query, when, how well it fits. */
+export function ProvenanceTag({ provenance }: { provenance: InputProvenance }) {
+  if (provenance.kind !== "measured") return null;
+  const fit = provenance.fitError != null ? `Fit error ${Math.round(provenance.fitError * 100)}% at the checked quantiles` : null;
+  return (
+    <Tip
+      content={
+        <span className="block space-y-1">
+          <span className="block font-medium">Measured</span>
+          {provenance.source && <span className="block">{provenance.source}</span>}
+          {provenance.timeRange && <span className="block">{provenance.timeRange}</span>}
+          {fit && <span className="block">{fit}</span>}
+          {provenance.note && <span className="block">{provenance.note}</span>}
+          {provenance.query && <span className="block break-all font-mono text-[11px] text-ink-2">{provenance.query}</span>}
+        </span>
+      }
+    >
+      <span
+        tabIndex={0}
+        aria-label={`measured${provenance.source ? `: ${provenance.source}` : ""}`}
+        className="cursor-help whitespace-nowrap rounded-full bg-good-soft px-1.5 text-[10.5px] font-medium leading-4 text-ink-2 focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        measured
+      </span>
+    </Tip>
+  );
 }
 
 export function AssumptionTag() {
@@ -197,6 +225,7 @@ export function DistributionEditor({
     exponential: ["mean"],
     uniform: ["min", "max"],
     lognormal: ["median", "p95"],
+    empirical: [],
   };
   const params = ORDER[value.kind].filter((k) => k in value);
   const paramLabel: Record<string, string> = {
@@ -216,12 +245,18 @@ export function DistributionEditor({
         value={value.kind}
         onChange={(e) => onChange(convertDistribution(value, e.target.value as Distribution["kind"]))}
       >
+        {value.kind === "empirical" && <option value="empirical">Measured (quantile table)</option>}
         {DISTRIBUTION_KINDS.map((k) => (
           <option key={k.kind} value={k.kind}>
             {k.label}
           </option>
         ))}
       </NativeSelect>
+      {value.kind === "empirical" && (
+        <p className="text-xs leading-relaxed text-ink-3">
+          {value.quantiles.length} points fitted from telemetry. Pick a shape to replace it with your own numbers (the log-normal keeps its p50 and p95).
+        </p>
+      )}
       <div className={cn("grid gap-2", params.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
         {params.map((p) => (
           <div key={p} className="space-y-1">
@@ -343,6 +378,7 @@ export function FieldControl({
   idPrefix,
   allowedRequestTypes = ["read", "write"],
   auto,
+  provenance,
 }: {
   field: FieldDescriptor;
   value: unknown;
@@ -351,6 +387,8 @@ export function FieldControl({
   allowedRequestTypes?: RequestType[];
   /** The technology default an empty / "auto" value stands for. */
   auto?: AutoHint;
+  /** Where the value came from, when it was measured. */
+  provenance?: InputProvenance;
 }) {
   const uid = useId();
   const id = `${idPrefix}-${field.key}-${uid}`;
@@ -501,7 +539,7 @@ export function FieldControl({
             </button>
           </Tip>
         )}
-        {field.assumption && <AssumptionTag />}
+        {provenance?.kind === "measured" ? <ProvenanceTag provenance={provenance} /> : field.assumption && <AssumptionTag />}
       </div>
       {control}
       {auto && value === "auto" && (
@@ -529,6 +567,7 @@ export function FieldGroups({
   allowedRequestTypes,
   flat = false,
   autoValues,
+  provenance,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
@@ -538,6 +577,8 @@ export function FieldGroups({
   flat?: boolean;
   /** Technology defaults behind "auto" or empty settings, by field key. */
   autoValues?: Record<string, AutoHint>;
+  /** Where values came from, by field key (measured ones get a badge). */
+  provenance?: Record<string, InputProvenance>;
 }) {
   const groups: { name: string; fields: FieldDescriptor[] }[] = [];
   for (const f of fields) {
@@ -561,6 +602,7 @@ export function FieldGroups({
               idPrefix={idPrefix}
               allowedRequestTypes={allowedRequestTypes}
               auto={autoValues?.[f.key]}
+              provenance={provenance?.[f.key]}
             />
           ))}
         </fieldset>

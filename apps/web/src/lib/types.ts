@@ -6,7 +6,9 @@ export type Distribution =
   | { kind: "constant"; value: number }
   | { kind: "exponential"; mean: number }
   | { kind: "uniform"; min: number; max: number }
-  | { kind: "lognormal"; median: number; p95: number };
+  | { kind: "lognormal"; median: number; p95: number }
+  /** Measured: a quantile table [p, ms], p from 0 to 1, linear between points (schema 1.1). */
+  | { kind: "empirical"; quantiles: [number, number][] };
 
 export type ConfigValue = unknown;
 export type NodeConfig = Record<string, ConfigValue>;
@@ -41,7 +43,54 @@ export interface EdgeSpec {
 export type TrafficPattern =
   | { kind: "constant" }
   | { kind: "ramp"; startRps: number; endRps: number }
-  | { kind: "burst"; burstRps: number; startS: number; durationS: number };
+  | { kind: "burst"; burstRps: number; startS: number; durationS: number }
+  /** A replayed rate curve, e.g. observed traffic: [t seconds, req/s] points (schema 1.1). */
+  | { kind: "trace"; points: [number, number][]; source?: string | null };
+
+/** Where one numeric input came from (schema 1.1). */
+export interface InputProvenance {
+  kind: "measured" | "assumed" | "illustrative";
+  source?: string | null;
+  query?: string | null;
+  timeRange?: string | null;
+  /** Largest relative error of the fit at the checked quantiles. */
+  fitError?: number | null;
+  fittedAt?: string | null;
+  note?: string | null;
+}
+
+/** One observed-against-simulated comparison of a calibration's replay. */
+export interface ReplayCheck {
+  scope: "end_to_end" | "component";
+  id: string | null;
+  label: string;
+  metric: "p50" | "p95" | "p99" | "throughputRps";
+  observed: number;
+  simulated: number | null;
+  error: number | null;
+}
+
+/** The last calibration from telemetry and how well the model replays it (schema 1.1). */
+export interface CalibrationRecord {
+  at: string;
+  source: string;
+  timeRange?: string | null;
+  inputs: number;
+  replay: ReplayCheck[];
+  replayDigest?: string | null;
+  notes: string[];
+}
+
+/** A performance input with its value and provenance (analysis and report 1.9+). */
+export interface InputEntry {
+  scope: "node" | "edge" | "workload";
+  id: string | null;
+  label: string;
+  field: string;
+  fieldLabel: string;
+  value: string;
+  provenance?: InputProvenance;
+}
 
 /** A fault injected during a run (see docs/product-spec-v2.md). */
 export interface Fault {
@@ -105,7 +154,7 @@ export interface DocMetadata {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0";
+  schemaVersion: "1.0" | "1.1";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */
@@ -119,6 +168,9 @@ export interface ArchitectureDocument {
     edges?: Record<string, { sourceSide?: "top" | "right" | "bottom" | "left" | null; targetSide?: "top" | "right" | "bottom" | "left" | null }>;
     viewport?: { x: number; y: number; zoom: number } | null;
   };
+  /** Where inputs came from, keyed nodes/<id>/<key>, edges/<id>/<key>, workload/<field> (1.1). */
+  provenance?: Record<string, InputProvenance>;
+  calibration?: CalibrationRecord | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -585,14 +637,10 @@ export interface Report {
   findings: Finding[];
   assumptions: {
     modelNotes: string[];
-    userInputs: {
-      scope: "node" | "edge" | "workload";
-      id: string | null;
-      label: string;
-      field: string;
-      fieldLabel: string;
-      value: string;
-    }[];
+    userInputs: InputEntry[];
+    /** How many inputs are measured, assumed and illustrative (report 1.9+). */
+    provenanceCounts?: Record<InputProvenance["kind"], number>;
+    calibration?: CalibrationRecord | null;
     components: Record<string, { modeled: string[]; notModeled: string[] }>;
     validationWarnings: Issue[];
     /** Each part's technology tier (report 1.8+). */
@@ -692,6 +740,10 @@ export interface Analysis {
   reviewRules: Record<string, string>;
   /** Each part's technology tier. */
   technologies?: TechnologyTier[];
+  /** Every performance input with its provenance (engine 0.8+). */
+  inputs?: InputEntry[];
+  provenanceCounts?: Record<InputProvenance["kind"], number>;
+  calibration?: CalibrationRecord | null;
 }
 
 export interface ComparisonKpi {

@@ -13,6 +13,8 @@ import type {
   Objectives,
   Scenario,
   Workload,
+  CalibrationRecord,
+  InputProvenance,
 } from "./types";
 
 export interface ArchNodeData extends Record<string, unknown> {
@@ -60,6 +62,33 @@ export interface GraphState {
   scenarios: Scenario[];
   objectives: Objectives;
   metadata: DocMetadata;
+  /** Document fields the editor does not edit directly but must keep (schema 1.1). */
+  extras?: DocExtras;
+}
+
+/** Kept through edits and saves: auto-sizing off, where inputs came from, the last calibration. */
+export interface DocExtras {
+  autoSize?: boolean;
+  provenance: Record<string, InputProvenance>;
+  calibration: CalibrationRecord | null;
+}
+
+export const SCHEMA_VERSION = "1.1";
+
+/** The provenance of an input, or undefined (then it is assumed or illustrative). */
+export function provenanceOf(extras: DocExtras | undefined, path: string): InputProvenance | undefined {
+  return extras?.provenance[path];
+}
+
+/** ``extras`` without the provenance of edited inputs (a typed value is no longer measured). */
+export function withoutProvenance(extras: DocExtras | undefined, paths: string[], prefixes: string[] = []): DocExtras | undefined {
+  if (!extras) return extras;
+  const keys = Object.keys(extras.provenance);
+  const drop = keys.filter((k) => paths.includes(k) || prefixes.some((p) => k.startsWith(p)));
+  if (!drop.length) return extras;
+  const provenance = { ...extras.provenance };
+  for (const k of drop) delete provenance[k];
+  return { ...extras, provenance };
 }
 
 export const DEFAULT_OBJECTIVES: Objectives = {
@@ -139,6 +168,11 @@ export function fromDocument(doc: ArchitectureDocument): GraphState & { viewport
     scenarios: doc.scenarios ?? [],
     objectives: { ...DEFAULT_OBJECTIVES, ...(doc.objectives ?? {}) },
     metadata: doc.metadata ?? { name: "Untitled architecture" },
+    extras: {
+      autoSize: doc.architecture.autoSize,
+      provenance: doc.provenance ?? {},
+      calibration: doc.calibration ?? null,
+    },
     viewport: doc.layout?.viewport ?? null,
   };
 }
@@ -146,7 +180,7 @@ export function fromDocument(doc: ArchitectureDocument): GraphState & { viewport
 export function toDocument(state: GraphState, viewport?: Viewport | null): ArchitectureDocument {
   const round = (v: number) => Math.round(v * 10) / 10;
   return {
-    schemaVersion: "1.0",
+    schemaVersion: SCHEMA_VERSION,
     kind: "archsim.architecture",
     metadata: state.metadata,
     architecture: {
@@ -166,6 +200,7 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
         label: e.data?.label ?? null,
         config: e.data?.config ?? defaultEdgeConfigFallback(),
       })),
+      ...(state.extras?.autoSize === false ? { autoSize: false } : {}),
     },
     workload: state.workload,
     scenarios: state.scenarios,
@@ -177,6 +212,8 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
       ...edgeSides(state.edges),
       viewport: viewport ? { x: round(viewport.x), y: round(viewport.y), zoom: viewport.zoom } : null,
     },
+    ...(state.extras && Object.keys(state.extras.provenance).length ? { provenance: state.extras.provenance } : {}),
+    ...(state.extras?.calibration ? { calibration: state.extras.calibration } : {}),
   };
 }
 

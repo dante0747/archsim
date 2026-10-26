@@ -60,6 +60,7 @@ function overrideText(o: Override, labelFor: (k: string) => string, fieldsFor: (
           const p = o.value as TrafficPattern;
           if (p.kind === "burst") return `burst to ${p.burstRps}/s at ${p.startS}s for ${p.durationS}s`;
           if (p.kind === "ramp") return `ramp ${p.startRps}→${p.endRps}/s`;
+          if (p.kind === "trace") return `replayed traffic (${p.points.length} points)`;
           return "constant";
         })()
       : describeValue(f, o.value);

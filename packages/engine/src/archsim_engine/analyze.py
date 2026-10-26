@@ -9,6 +9,7 @@ from typing import Any
 
 from archsim_engine.cost import estimate_cost
 from archsim_engine.load import peak_rps
+from archsim_engine.provenance import input_provenance, provenance_counts
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.review import REVIEW_RULES, count_by_severity, review_design
 from archsim_engine.scenarios import load_document, resolve_scenario_sized, simulation_input
@@ -27,6 +28,7 @@ def analyze_document(
     resolved, scenario, sizes = resolve_scenario_sized(doc, scenario_id, registry)
     snapshot = simulation_input(resolved)
     review = review_design(snapshot, registry)
+    inputs = input_provenance(resolved, registry)
     return {
         "scenarioId": scenario.id if scenario else None,
         "peakRps": peak_rps(snapshot["workload"]),
@@ -36,4 +38,9 @@ def analyze_document(
         "reviewCounts": count_by_severity(review),
         "reviewRules": REVIEW_RULES,
         "technologies": registry.technology_tiers(snapshot["architecture"]["nodes"]),
+        "inputs": inputs,
+        "provenanceCounts": provenance_counts(inputs),
+        "calibration": doc.calibration.model_dump(mode="json", by_alias=True)
+        if doc.calibration
+        else None,
     }

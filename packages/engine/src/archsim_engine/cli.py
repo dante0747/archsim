@@ -5,6 +5,9 @@ Examples::
     archsim validate examples/cache-aside-starter.json
     archsim run examples/cache-aside-starter.json --scenario three-api-replicas --out report.json
     archsim compare examples/cache-aside-starter.json --a baseline --b one-api-replica
+    archsim calibrate prometheus doc.json --map mapping.yaml --url http://localhost:9090 \
+        --range 2026-10-01T00:00:00Z/2026-10-08T00:00:00Z -o calibrated.json
+    archsim calibrate otlp doc.json --traces traces.json -o calibrated.json
 """
 
 from __future__ import annotations
@@ -119,6 +122,88 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def _write_calibration(outcome: Any, out: str | None) -> int:
+    from archsim_engine.calibration import replay_summary
+
+    for c in outcome.changes:
+        fit = f" (fit error {c.fit_error:.0%})" if c.fit_error is not None else ""
+        print(f"  set {c.label}{fit}", file=sys.stderr)
+    for n in outcome.notes:
+        print(f"  note: {n}", file=sys.stderr)
+    for c in (outcome.document.get("calibration") or {}).get("replay", []):
+        err = f"{c['error']:+.0%}" if c.get("error") is not None else "n/a"
+        sim = f"{c['simulated']:,.2f}" if c.get("simulated") is not None else "n/a"
+        print(
+            f"  replay {c['label']} {c['metric']}: observed {c['observed']:,.2f}, simulated {sim} ({err})",
+            file=sys.stderr,
+        )
+    line = replay_summary(outcome.document.get("calibration"))
+    if line:
+        print(line, file=sys.stderr)
+    text = json.dumps(outcome.document, indent=2)
+    if out:
+        Path(out).write_text(text + "\n", encoding="utf-8")
+        print(f"wrote {out}", file=sys.stderr)
+    else:
+        print(text)
+    return 0
+
+
+def cmd_calibrate_prometheus(args: argparse.Namespace) -> int:
+    from archsim_engine.calibration import (
+        HttpPrometheus,
+        PrometheusError,
+        RecordedPrometheus,
+        RecordingPrometheus,
+        calibrate_prometheus,
+        load_mapping,
+        parse_range,
+    )
+
+    mapping = load_mapping(Path(args.map))
+    client: Any = (
+        RecordedPrometheus.load(args.recorded) if args.recorded else HttpPrometheus(args.url)
+    )
+    if args.record:
+        client = RecordingPrometheus(client)
+    rng = parse_range(args.range, args.step) if args.range else None
+    try:
+        outcome = calibrate_prometheus(
+            _load(args.file), mapping, client, default_registry(), rng, replay=not args.no_replay
+        )
+    except DocumentInvalidError as exc:
+        print("Cannot calibrate: document is invalid", file=sys.stderr)
+        _print_issues(exc.issues)
+        return 1
+    except (PrometheusError, ValueError) as exc:
+        print(f"Cannot calibrate: {exc}", file=sys.stderr)
+        return 1
+    if args.record:
+        client.save(args.record)
+        print(f"recorded the responses to {args.record}", file=sys.stderr)
+    return _write_calibration(outcome, args.out)
+
+
+def cmd_calibrate_otlp(args: argparse.Namespace) -> int:
+    from archsim_engine.calibration import calibrate_otlp
+
+    mapping = None
+    if args.map:
+        import yaml
+
+        mapping = yaml.safe_load(Path(args.map).read_text(encoding="utf-8"))
+    try:
+        outcome = calibrate_otlp(_load(args.file), args.traces, default_registry(), mapping)
+    except DocumentInvalidError as exc:
+        print("Cannot calibrate: document is invalid", file=sys.stderr)
+        _print_issues(exc.issues)
+        return 1
+    except (ValueError, KeyError) as exc:
+        print(f"Cannot calibrate: {exc}", file=sys.stderr)
+        return 1
+    return _write_calibration(outcome, args.out)
+
+
 def cmd_catalog(args: argparse.Namespace) -> int:
     print(json.dumps(default_registry().catalog(), indent=2))
     return 0
@@ -153,6 +238,36 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("file")
     p.add_argument("--scenario", help="scenario id to apply")
     p.set_defaults(fn=cmd_analyze)
+    cal = sub.add_parser(
+        "calibrate", help="set a design's inputs from telemetry (docs/calibration.md)"
+    )
+    cal_sub = cal.add_subparsers(dest="source", required=True)
+    p = cal_sub.add_parser("prometheus", help="from Prometheus metrics, with a mapping file")
+    p.add_argument("file", help="the design to calibrate")
+    p.add_argument(
+        "--map", required=True, help="mapping file (YAML or JSON): which query sets which input"
+    )
+    src = p.add_mutually_exclusive_group(required=True)
+    src.add_argument("--url", help="Prometheus base URL, e.g. http://localhost:9090")
+    src.add_argument(
+        "--recorded", help="replay responses recorded earlier (--record) instead of querying"
+    )
+    p.add_argument("--range", help="START/END in ISO 8601 (default: the mapping's range)")
+    p.add_argument("--step", type=float, default=60, help="seconds between points (default 60)")
+    p.add_argument(
+        "--record", help="also save every response to this file (for offline replays and tests)"
+    )
+    p.add_argument("--no-replay", action="store_true", help="skip the replay check")
+    p.add_argument("-o", "--out", help="write the calibrated design here (default: stdout)")
+    p.set_defaults(fn=cmd_calibrate_prometheus)
+    p = cal_sub.add_parser("otlp", help="from an OpenTelemetry trace export (OTLP JSON)")
+    p.add_argument("file", help="the design to calibrate")
+    p.add_argument("--traces", required=True, help="OTLP JSON file (resourceSpans)")
+    p.add_argument(
+        "--map", help="YAML: services: {service.name: part id}, databases: {db: part id}"
+    )
+    p.add_argument("-o", "--out", help="write the calibrated design here (default: stdout)")
+    p.set_defaults(fn=cmd_calibrate_otlp)
     p = sub.add_parser("catalog", help="print the component catalog as JSON")
     p.set_defaults(fn=cmd_catalog)
     p = sub.add_parser("schema", help="print the document JSON Schema")

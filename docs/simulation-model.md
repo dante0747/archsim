@@ -91,6 +91,14 @@ result).
 
 ## Components
 
+### Measured inputs (calibration)
+
+Calibration from Prometheus or OpenTelemetry ([calibration.md](calibration.md)) can set any
+distribution to an `empirical` quantile table (sampled by interpolating a uniform draw from the
+seeded generator, so runs stay reproducible) and the workload to a `trace` pattern: the
+observed rate curve, sampled by thinning like the ramp and burst patterns. Every input carries
+its provenance (measured, assumed, illustrative) in the document and in reports.
+
 ### Technology tiers and where defaults come from
 
 Every technology profile has a tier. **Core** technologies are the ones ArchSim focuses on and

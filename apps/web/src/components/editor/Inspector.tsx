@@ -34,7 +34,8 @@ import { componentOf } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
 import { defaultSource } from "@/lib/tier";
 import { KIND_LABEL, REQ_GLYPH, kindOf, technologyLabel, type Kind } from "@/lib/theme";
-import type { ComponentType, FieldDescriptor, Issue, NodeConfig, RequestType } from "@/lib/types";
+import type { DocExtras } from "@/lib/document";
+import type { ComponentType, FieldDescriptor, InputProvenance, Issue, NodeConfig, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { type RightTab, useEditor } from "@/store/editor";
@@ -104,7 +105,9 @@ export function TrafficCard({ compactCard = false }: { compactCard?: boolean }) 
       ? "steady"
       : w.pattern.kind === "ramp"
         ? `ramp ${compact(w.pattern.startRps)}→${compact(w.pattern.endRps)}/s`
-        : `burst to ${compact(w.pattern.burstRps)}/s`;
+        : w.pattern.kind === "trace"
+          ? `replayed traffic (${w.pattern.points.length} points)`
+          : `burst to ${compact(w.pattern.burstRps)}/s`;
   return (
     <button
       type="button"
@@ -240,6 +243,7 @@ function SettingsBlocks({
   extraAdvanced,
   between,
   autoValues,
+  provenance,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
@@ -247,6 +251,8 @@ function SettingsBlocks({
   idPrefix: string;
   allowedRequestTypes?: RequestType[];
   autoValues?: Record<string, AutoHint>;
+  /** Where values came from, by field key. */
+  provenance?: Record<string, InputProvenance>;
   extraAdvanced?: React.ReactNode;
   /** Shown between the key settings and "More settings" (e.g. resources). */
   between?: React.ReactNode;
@@ -260,7 +266,7 @@ function SettingsBlocks({
       {key.length > 0 && (
         <section aria-label="Settings" className="space-y-3">
           <h3 className="text-[13px] font-semibold text-ink">Settings</h3>
-          <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} autoValues={autoValues} flat />
+          <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} autoValues={autoValues} provenance={provenance} flat />
         </section>
       )}
       {between}
@@ -279,6 +285,7 @@ function SettingsBlocks({
               idPrefix={`${idPrefix}-adv`}
               allowedRequestTypes={allowedRequestTypes}
               autoValues={autoValues}
+              provenance={provenance}
             />
             {extraAdvanced}
           </div>
@@ -345,6 +352,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
   const catalog = useEditor((s) => s.catalog);
   const issues = useEditor((s) => s.issues);
   const setNodeConfig = useEditor((s) => s.setNodeConfig);
+  const extras = useEditor((s) => s.extras);
   const updateNode = useEditor((s) => s.updateNode);
   const deleteElements = useEditor((s) => s.deleteElements);
   const duplicate = useEditor((s) => s.duplicateSelection);
@@ -398,6 +406,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
 
       {comp ? (
         <SettingsBlocks
+          provenance={provenanceUnder(extras, `nodes/${nodeId}/`)}
           fields={comp.fields.filter((f) => !RESOURCE_FIELDS.includes(f.key) && !(comp.isTrafficSource && CLIENT_BLOCK_FIELDS.includes(f.key)))}
           values={node.data.config}
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
@@ -419,6 +428,14 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
       )}
     </div>
   );
+}
+
+/** The provenance entries under ``prefix`` (nodes/<id>/ or edges/<id>/), keyed by field. */
+function provenanceUnder(extras: DocExtras | undefined, prefix: string): Record<string, InputProvenance> | undefined {
+  if (!extras) return undefined;
+  const out: Record<string, InputProvenance> = {};
+  for (const [k, v] of Object.entries(extras.provenance)) if (k.startsWith(prefix)) out[k.slice(prefix.length)] = v;
+  return out;
 }
 
 /** The technology defaults behind this node's "auto" and empty settings. */
@@ -588,6 +605,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
   const catalog = useEditor((s) => s.catalog);
   const issues = useEditor((s) => s.issues);
   const setEdgeConfig = useEditor((s) => s.setEdgeConfig);
+  const extras = useEditor((s) => s.extras);
   const setEdgeLabel = useEditor((s) => s.setEdgeLabel);
   const deleteElements = useEditor((s) => s.deleteElements);
   const report = useActiveReport();
@@ -637,6 +655,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
         </ul>
       )}
       <SettingsBlocks
+        provenance={provenanceUnder(extras, `edges/${edgeId}/`)}
         fields={fields}
         values={edge.data.config as unknown as Record<string, unknown>}
         onChange={(key, v) => setEdgeConfig(edgeId, key, v)}

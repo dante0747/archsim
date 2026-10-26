@@ -1,4 +1,4 @@
-"""Versioned architecture document schema (``schemaVersion`` 1.0).
+"""Versioned architecture document schema (``schemaVersion`` 1.1).
 
 The document deliberately separates four concerns:
 
@@ -6,12 +6,15 @@ The document deliberately separates four concerns:
 * ``workload``     - simulation input: traffic shape, duration, seed
 * ``scenarios``    - named, replayable sets of overrides applied on top of the base document
 * ``layout``       - rendering metadata only (positions, viewport); never affects simulation
+* ``provenance``   - where numeric inputs came from (measured, assumed, illustrative)
+* ``calibration``  - the last calibration from telemetry and how well it replays what was seen
 
 JSON uses camelCase keys; Python attributes are snake_case.
 """
 
 from __future__ import annotations
 
+import itertools
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -20,7 +23,7 @@ from pydantic.alias_generators import to_camel
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.version import SCHEMA_VERSION
 
-assert SCHEMA_VERSION == "1.0", "update ArchitectureDocument.schema_version and add a migration"
+assert SCHEMA_VERSION == "1.1", "update ArchitectureDocument.schema_version and add a migration"
 
 RequestType = Literal["read", "write"]
 REQUEST_TYPES: tuple[RequestType, ...] = ("read", "write")
@@ -169,8 +172,56 @@ class BurstPattern(CamelModel):
     duration_s: float = Field(gt=0, le=3600)
 
 
+class TracePattern(CamelModel):
+    """A replayed rate curve, e.g. observed traffic from telemetry: ``points`` are ``[t, rps]``
+    pairs (seconds from the start of the run), linear between points and flat after the last.
+    ``source`` says where it came from (and how much it was time-compressed)."""
+
+    kind: Literal["trace"] = "trace"
+    points: list[tuple[float, float]] = Field(min_length=2, max_length=2000)
+    source: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def _check(self) -> TracePattern:
+        ts = [t for t, _ in self.points]
+        if ts[0] != 0.0:
+            raise ValueError("a trace starts at t = 0")
+        if any(b <= a for a, b in itertools.pairwise(ts)):
+            raise ValueError("trace times must rise strictly")
+        if any(not 0 <= r <= 100_000 for _, r in self.points):
+            raise ValueError("trace rates must be between 0 and 100,000 req/s")
+        return self
+
+    def rate(self, t_s: float) -> float:
+        pts = self.points
+        if t_s >= pts[-1][0]:
+            return pts[-1][1]
+        lo, hi = 0, len(pts) - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if pts[mid][0] <= t_s:
+                lo = mid
+            else:
+                hi = mid
+        (t0, r0), (t1, r1) = pts[lo], pts[hi]
+        return r0 + (r1 - r0) * (t_s - t0) / (t1 - t0)
+
+    def area(self, until_s: float) -> float:
+        """Expected arrivals from 0 to ``until_s``."""
+        total = 0.0
+        pts = self.points
+        for (t0, r0), (t1, _r1) in itertools.pairwise(pts):
+            if t0 >= until_s:
+                break
+            end = min(t1, until_s)
+            total += (r0 + self.rate(end)) / 2 * (end - t0)
+        if until_s > pts[-1][0]:
+            total += pts[-1][1] * (until_s - pts[-1][0])
+        return total
+
+
 TrafficPattern = Annotated[
-    ConstantPattern | RampPattern | BurstPattern,
+    ConstantPattern | RampPattern | BurstPattern | TracePattern,
     Field(discriminator="kind"),
 ]
 
@@ -314,6 +365,8 @@ class Workload(CamelModel):
     def rate_at(self, t_s: float) -> float:
         """Offered rate (requests/s) at simulated time ``t_s`` seconds."""
         p = self.pattern
+        if isinstance(p, TracePattern):
+            return p.rate(t_s)
         if isinstance(p, RampPattern):
             frac = min(max(t_s / self.duration_s, 0.0), 1.0)
             return p.start_rps + (p.end_rps - p.start_rps) * frac
@@ -323,6 +376,9 @@ class Workload(CamelModel):
 
     def peak_rate(self) -> float:
         p = self.pattern
+        if isinstance(p, TracePattern):
+            inside = [r for t, r in p.points if t <= self.duration_s]
+            return max([*inside, p.rate(self.duration_s)])
         if isinstance(p, RampPattern):
             return max(p.start_rps, p.end_rps)
         if isinstance(p, BurstPattern):
@@ -332,6 +388,8 @@ class Workload(CamelModel):
     def expected_arrivals(self) -> float:
         """Expected number of arrivals over the whole arrival window."""
         p = self.pattern
+        if isinstance(p, TracePattern):
+            return p.area(self.duration_s)
         if isinstance(p, RampPattern):
             return (p.start_rps + p.end_rps) / 2.0 * self.duration_s
         if isinstance(p, BurstPattern):
@@ -415,6 +473,47 @@ class Metadata(CamelModel):
     tags: list[str] = Field(default_factory=list, max_length=20)
 
 
+class InputProvenance(CamelModel):
+    """Where one numeric input came from. ``measured``: fitted from telemetry (``source``,
+    ``query``, ``timeRange``, ``fitError``, ``fittedAt``); ``assumed``: typed by a person;
+    ``illustrative``: an ArchSim default or preset. Inputs without an entry are assumed when
+    they differ from the default and illustrative otherwise (``provenance.py``)."""
+
+    kind: Literal["measured", "assumed", "illustrative"]
+    source: str | None = Field(default=None, max_length=500)
+    query: str | None = Field(default=None, max_length=2000)
+    time_range: str | None = Field(default=None, max_length=100)
+    fit_error: float | None = Field(
+        default=None, ge=0, description="Largest relative error of the fit at the checked quantiles"
+    )
+    fitted_at: str | None = Field(default=None, max_length=40)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ReplayCheck(CamelModel):
+    """One observed-against-simulated comparison of a calibration's replay."""
+
+    scope: Literal["end_to_end", "component"]
+    id: str | None = None
+    label: str = Field(max_length=200)
+    metric: Literal["p50", "p95", "p99", "throughputRps"]
+    observed: float
+    simulated: float | None = None
+    error: float | None = Field(default=None, description="(simulated - observed) / observed")
+
+
+class CalibrationRecord(CamelModel):
+    """The last calibration from telemetry, and how well the calibrated model replays it."""
+
+    at: str = Field(max_length=40)
+    source: str = Field(max_length=500)
+    time_range: str | None = Field(default=None, max_length=100)
+    inputs: int = Field(ge=0, description="Inputs set from telemetry")
+    replay: list[ReplayCheck] = Field(default_factory=list, max_length=500)
+    replay_digest: str | None = Field(default=None, max_length=80)
+    notes: list[str] = Field(default_factory=list, max_length=50)
+
+
 class Objectives(CamelModel):
     """Service-level objectives the design should meet. Not used by the simulation itself; the UI
     and reports evaluate runs against them (pass/fail, error budget)."""
@@ -436,7 +535,7 @@ class Objectives(CamelModel):
 class ArchitectureDocument(CamelModel):
     """Top-level interchange document. Serialize with ``to_json_dict()``."""
 
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.1"] = "1.1"
     kind: Literal["archsim.architecture"] = "archsim.architecture"
     metadata: Metadata = Field(default_factory=Metadata)
     architecture: Architecture = Field(default_factory=Architecture)
@@ -444,6 +543,14 @@ class ArchitectureDocument(CamelModel):
     scenarios: list[Scenario] = Field(default_factory=list, max_length=50)
     objectives: Objectives = Field(default_factory=Objectives)
     layout: Layout = Field(default_factory=Layout)
+    provenance: dict[str, InputProvenance] = Field(
+        default_factory=dict,
+        description=(
+            "Where inputs came from, keyed by path: nodes/<id>/<config key>, edges/<id>/<config "
+            "key> or workload/<field>."
+        ),
+    )
+    calibration: CalibrationRecord | None = None
 
     def to_json_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json", by_alias=True)

@@ -79,3 +79,10 @@ def migrate_document(
         if guard > 100:  # pragma: no cover - defensive
             raise MigrationError("migration chain does not terminate")
     return doc, notes
+
+
+@migration("1.0", "1.1")
+def _provenance_and_calibration(doc: dict[str, Any]) -> dict[str, Any]:
+    """1.1 adds optional ``provenance`` and ``calibration``, the ``empirical`` distribution and
+    the ``trace`` traffic pattern; a 1.0 document needs no change."""
+    return doc

@@ -326,5 +326,441 @@
       "technology": "postgresql",
       "tier": "core"
     }
-  ]
+  ],
+  "inputs": [
+    {
+      "scope": "node",
+      "id": "lb",
+      "label": "Load Balancer",
+      "field": "overheadMs",
+      "fieldLabel": "Overhead",
+      "value": "constant 0.2 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "lb",
+      "label": "Load Balancer",
+      "field": "costPerHour",
+      "fieldLabel": "Cost per hour",
+      "value": "0.025 $/h",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "serviceTimeMs",
+      "fieldLabel": "Service time",
+      "value": "lognormal, p50 8 ms / p95 25 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "memoryPerRequestMb",
+      "fieldLabel": "Memory per request",
+      "value": "2 MiB",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "memoryBaselineMb",
+      "fieldLabel": "Memory at idle",
+      "value": "256 MiB",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "gcPauseMs",
+      "fieldLabel": "GC pause",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "gcEveryRequests",
+      "fieldLabel": "Requests between GCs",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "warmupFactor",
+      "fieldLabel": "JIT warm-up slowdown",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "warmupS",
+      "fieldLabel": "JIT warm-up time",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "api",
+      "label": "API Servers",
+      "field": "costPerHour",
+      "fieldLabel": "Cost per replica-hour",
+      "value": "0.1 $/h",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "cache",
+      "label": "Redis Cache",
+      "field": "hitRatio",
+      "fieldLabel": "Hit ratio",
+      "value": "0.8",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "cache",
+      "label": "Redis Cache",
+      "field": "serviceTimeMs",
+      "fieldLabel": "Command time",
+      "value": "exponential, mean 0.05 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "cache",
+      "label": "Redis Cache",
+      "field": "itemSizeKb",
+      "fieldLabel": "Item size",
+      "value": "1 KiB",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "cache",
+      "label": "Redis Cache",
+      "field": "costPerHour",
+      "fieldLabel": "Cost per hour",
+      "value": "0.1 $/h",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "readServiceTimeMs",
+      "fieldLabel": "Read query time",
+      "value": "lognormal, p50 5 ms / p95 20 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "writeServiceTimeMs",
+      "fieldLabel": "Write query time",
+      "value": "lognormal, p50 10 ms / p95 40 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "throughputLimitRps",
+      "fieldLabel": "Throughput limit per shard",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "commitFlushMs",
+      "fieldLabel": "Log flush time",
+      "value": "lognormal, p50 1 ms / p95 3 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "replicaApplyFactor",
+      "fieldLabel": "Replay cost vs. write time",
+      "value": "0.5",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "replicationDelayMs",
+      "fieldLabel": "Replication network delay",
+      "value": "lognormal, p50 0.5 ms / p95 2 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "sstablesPerRead",
+      "fieldLabel": "SSTables per cold read",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "cpuShare",
+      "fieldLabel": "CPU share of query time",
+      "value": "0.5",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "workingSetGib",
+      "fieldLabel": "Hot working set",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "diskReadMs",
+      "fieldLabel": "Disk read time",
+      "value": "lognormal, p50 1 ms / p95 4 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "dataSizeGib",
+      "fieldLabel": "Data size",
+      "value": "None",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "node",
+      "id": "db",
+      "label": "PostgreSQL",
+      "field": "costPerHour",
+      "fieldLabel": "Cost per instance-hour",
+      "value": "0.35 $/h",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "edge",
+      "id": "clients-lb",
+      "label": "clients \u2192 lb",
+      "field": "latencyMs",
+      "fieldLabel": "Network latency (one way)",
+      "value": "lognormal, p50 15 ms / p95 40 ms",
+      "provenance": {
+        "kind": "assumed"
+      }
+    },
+    {
+      "scope": "edge",
+      "id": "lb-api",
+      "label": "lb \u2192 api",
+      "field": "latencyMs",
+      "fieldLabel": "Network latency (one way)",
+      "value": "constant 0.3 ms",
+      "provenance": {
+        "kind": "assumed"
+      }
+    },
+    {
+      "scope": "edge",
+      "id": "api-cache",
+      "label": "api \u2192 cache",
+      "field": "latencyMs",
+      "fieldLabel": "Network latency (one way)",
+      "value": "constant 0.25 ms",
+      "provenance": {
+        "kind": "assumed"
+      }
+    },
+    {
+      "scope": "edge",
+      "id": "cache-db",
+      "label": "cache \u2192 db",
+      "field": "latencyMs",
+      "fieldLabel": "Network latency (one way)",
+      "value": "constant 0.5 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "edge",
+      "id": "api-db",
+      "label": "api \u2192 db",
+      "field": "latencyMs",
+      "fieldLabel": "Network latency (one way)",
+      "value": "constant 0.5 ms",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "workload",
+      "id": null,
+      "label": "Workload",
+      "field": "rps",
+      "fieldLabel": "Baseline load",
+      "value": "400 req/s",
+      "provenance": {
+        "kind": "assumed"
+      }
+    },
+    {
+      "scope": "workload",
+      "id": null,
+      "label": "Workload",
+      "field": "readRatio",
+      "fieldLabel": "Read share",
+      "value": "90%",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "workload",
+      "id": null,
+      "label": "Workload",
+      "field": "keyCount",
+      "fieldLabel": "Distinct keys",
+      "value": "100,000",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "workload",
+      "id": null,
+      "label": "Workload",
+      "field": "keySkew",
+      "fieldLabel": "Key skew (Zipf s)",
+      "value": "0.99",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    },
+    {
+      "scope": "workload",
+      "id": null,
+      "label": "Workload",
+      "field": "pattern",
+      "fieldLabel": "Traffic pattern",
+      "value": "constant, poisson arrivals",
+      "provenance": {
+        "kind": "illustrative",
+        "source": "ArchSim default"
+      }
+    }
+  ],
+  "provenanceCounts": {
+    "measured": 0,
+    "assumed": 4,
+    "illustrative": 32
+  },
+  "calibration": null
 }

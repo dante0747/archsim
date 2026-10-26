@@ -265,6 +265,30 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     `Service times, hit ratios, latencies, prices and traffic are assumptions entered in the model${inputs.length ? ` (${inputs.length} values marked as assumptions)` : ""}. Calibrate them against real telemetry before treating absolute numbers as predictions; comparisons between options are more reliable than any single value.`,
     "",
   );
+  const counts = report?.assumptions.provenanceCounts;
+  if (counts) {
+    lines.push(`Inputs: ${counts.measured ?? 0} measured from telemetry, ${counts.assumed ?? 0} assumed, ${counts.illustrative ?? 0} illustrative (ArchSim defaults and presets).`, "");
+  }
+  const calibration = report?.assumptions.calibration ?? doc.calibration ?? null;
+  if (calibration) {
+    const e2e = calibration.replay.find((r) => r.scope === "end_to_end" && r.metric === "p95" && r.error != null);
+    lines.push(
+      `Calibrated ${calibration.at} from ${calibration.source}${calibration.timeRange ? ` (${calibration.timeRange})` : ""}: ${calibration.inputs} inputs${
+        e2e?.error != null ? `; the model reproduces the observed p95 within ${Math.round(Math.abs(e2e.error) * 100)}%` : ""
+      }.`,
+      "",
+    );
+    const measured = (report?.assumptions.userInputs ?? []).filter((u) => u.provenance?.kind === "measured");
+    if (measured.length) {
+      lines.push(
+        table(
+          ["Measured input", "Value", "Source", "Fit error"],
+          measured.map((u) => [`${u.label}: ${u.fieldLabel}`, u.value, u.provenance?.source ?? "", u.provenance?.fitError != null ? `${Math.round(u.provenance.fitError * 100)}%` : "–"]),
+        ),
+        "",
+      );
+    }
+  }
   const experimental = nodes.filter((n) => {
     const comp = catalog?.components.find((c) => c.type === n.type);
     return partTier(comp, n.config) === "experimental";

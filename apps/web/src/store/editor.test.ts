@@ -108,7 +108,7 @@ describe("editor store", () => {
     useEditor.getState().setMetadata({ name: "Renamed" });
     const doc = useEditor.getState().toDocument();
     expect(doc.metadata.name).toBe("Renamed");
-    expect(doc.schemaVersion).toBe("1.0");
+    expect(doc.schemaVersion).toBe("1.1");
   });
 });
 

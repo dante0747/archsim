@@ -1,4 +1,4 @@
-# Architecture document format (schema 1.0)
+# Architecture document format (schema 1.1)
 
 An ArchSim project is one human-readable JSON document. It is what the editor saves, what
 `GET /api/v1/projects/{id}/export` downloads and what `POST /api/v1/projects/import` accepts.
@@ -17,7 +17,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.0",                 // required; drives migrations
+  "schemaVersion": "1.1",                 // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -67,7 +67,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.0"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.1"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
@@ -75,6 +75,8 @@ materialised and the fully resolved document is stored in the report's `input`.
 | `scenarios` | array | Max 50. |
 | `objectives` | object | Service-level objectives (see below). Optional; defaults apply. |
 | `layout` | object | `nodes: {id: {x, y}}`, optional `edges: {id: {sourceSide, targetSide}}` (each `top`, `right`, `bottom` or `left`; where a link attaches on the canvas) and optional `viewport: {x, y, zoom}`. Rendering only. |
+| `provenance` | object | 1.1. Where inputs came from, keyed by path: `nodes/<id>/<config key>`, `edges/<id>/<config key>` or `workload/<field>`. Each: `kind` (`measured`, `assumed`, `illustrative`), `source`, `query`, `timeRange`, `fitError`, `fittedAt`, `note`. Inputs without an entry are assumed when they differ from the default (and the technology preset), illustrative otherwise. See [calibration.md](calibration.md). |
+| `calibration` | object or null | 1.1. The last calibration from telemetry: `at`, `source`, `timeRange`, `inputs` (how many were set), `replay` (observed against simulated: `scope`, `id`, `label`, `metric`, `observed`, `simulated`, `error`), `replayDigest`, `notes`. |
 
 ## Nodes
 
@@ -112,6 +114,7 @@ Used for service times and latencies, always in milliseconds:
 | `exponential` | `mean` | Memoryless; standard deviation equals the mean. |
 | `uniform` | `min`, `max` | `max >= min`. |
 | `lognormal` | `median`, `p95` | `p95 >= median`. Right-skewed; a common shape for handler times. |
+| `empirical` | `quantiles` | 1.1. A measured quantile table `[[p, ms], ...]`: `p` rises strictly from 0 to 1 (both included), values never fall; linear between points. Written by calibration. |
 
 ## Workload
 
@@ -123,7 +126,7 @@ Used for service times and latencies, always in milliseconds:
 | `seed` | integer 0-2^32-1 | 42 | Reproducibility. |
 | `readRatio` | number 0-1 | 0.9 | Fraction of reads. |
 | `arrivalProcess` | `"poisson"` \| `"deterministic"` | `"poisson"` | Random vs evenly spaced arrivals. |
-| `pattern` | object | `{"kind": "constant"}` | `constant`; `ramp {startRps, endRps}` (replaces `rps`); `burst {burstRps, startS, durationS}` (burst must start inside `durationS`). |
+| `pattern` | object | `{"kind": "constant"}` | `constant`; `ramp {startRps, endRps}` (replaces `rps`); `burst {burstRps, startS, durationS}` (burst must start inside `durationS`); `trace {points: [[t, rps], ...], source}` (1.1: a replayed rate curve from `t = 0`, linear between points, flat after the last; written by calibration). |
 | `keyCount` | integer 1-1,000,000 | 100,000 | Distinct keys (used by TTL caches). |
 | `keySkew` | number 0-3 | 0.99 | Zipf exponent of key popularity (0 = uniform). |
 | `drainS` | number 0-600? | automatic | Time after arrivals stop for in-flight requests to finish. |
@@ -177,7 +180,9 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.0`).
+  `SCHEMA_VERSION` (currently `1.1`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `calibration`, the `empirical` distribution and the `trace` pattern), so a 1.0 document
+  loads unchanged.
 - On load, `migrate_document()` (`packages/engine/src/archsim_engine/migrations.py`) applies
   registered migrations one step at a time (`1.0 -> 1.1 -> ...`) and records notes. A document
   without `schemaVersion`, from a newer schema, or with no migration path is rejected with a

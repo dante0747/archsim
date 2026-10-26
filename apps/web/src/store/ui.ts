@@ -35,6 +35,8 @@ export interface UiState {
   paletteOpen: boolean;
   /** The export dialog (docker-compose, Kubernetes, Mermaid) is open. */
   exportOpen: boolean;
+  /** The calibration dialog (Prometheus, OpenTelemetry) is open. */
+  calibrateOpen: boolean;
   /** The guided tour of the editor is showing. */
   tourOpen: boolean;
   /** Workflow progress the user has seen (drives the step indicator and next-step hint). */
@@ -48,6 +50,7 @@ export interface UiState {
   setSpeed: (v: number) => void;
   setPaletteOpen: (v: boolean) => void;
   setExportOpen: (v: boolean) => void;
+  setCalibrateOpen: (v: boolean) => void;
   setTourOpen: (v: boolean) => void;
   markTrafficVisited: () => void;
   markInsightsSeen: (runId: string) => void;
@@ -63,6 +66,7 @@ export const useUi = create<UiState>()((set) => ({
   flow: typeof window === "undefined" ? true : readFlag("archsim-flow", true),
   paletteOpen: false,
   exportOpen: false,
+  calibrateOpen: false,
   tourOpen: false,
   trafficVisited: false,
   insightsSeenFor: null,
@@ -77,6 +81,7 @@ export const useUi = create<UiState>()((set) => ({
   setSpeed: (speed) => set({ speed }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
+  setCalibrateOpen: (calibrateOpen) => set({ calibrateOpen }),
   setTourOpen: (tourOpen) => set({ tourOpen }),
   markTrafficVisited: () => set({ trafficVisited: true }),
   markInsightsSeen: (insightsSeenFor) => set({ insightsSeenFor }),
