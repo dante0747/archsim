@@ -104,9 +104,9 @@ def load_mapping(source: str | Path | dict[str, Any]) -> Mapping:
     text = Path(source).read_text(encoding="utf-8") if isinstance(source, Path) else source
     if isinstance(source, str) and "\n" not in source and Path(source).exists():
         text = Path(source).read_text(encoding="utf-8")
-    import yaml
+    from archsim_engine.safe_yaml import load_yaml
 
-    data = yaml.safe_load(text)
+    data = load_yaml(text)
     if not isinstance(data, dict):
         raise ValueError("the mapping must be a YAML or JSON object")
     return Mapping.model_validate(data)

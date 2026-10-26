@@ -82,11 +82,9 @@ def calibrate(
         else:
             if body.traces is None:
                 raise _fail("An OpenTelemetry calibration needs the traces (OTLP JSON)")
-            import yaml
+            from archsim_engine.safe_yaml import load_yaml
 
-            otlp_map = (
-                yaml.safe_load(body.mapping) if isinstance(body.mapping, str) else body.mapping
-            )
+            otlp_map = load_yaml(body.mapping) if isinstance(body.mapping, str) else body.mapping
             outcome = calibrate_otlp(body.document, body.traces, registry, otlp_map or None)
     except HTTPException:
         raise

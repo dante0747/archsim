@@ -197,9 +197,9 @@ def cmd_calibrate_otlp(args: argparse.Namespace) -> int:
 
     mapping = None
     if args.map:
-        import yaml
+        from archsim_engine.safe_yaml import load_yaml
 
-        mapping = yaml.safe_load(Path(args.map).read_text(encoding="utf-8"))
+        mapping = load_yaml(Path(args.map).read_text(encoding="utf-8"))
     try:
         outcome = calibrate_otlp(_load(args.file), args.traces, default_registry(), mapping)
     except DocumentInvalidError as exc:

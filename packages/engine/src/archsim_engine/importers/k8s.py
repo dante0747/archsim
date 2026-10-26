@@ -43,9 +43,9 @@ def _container(spec: Json) -> Json:
 def import_k8s(
     text: str, registry: ComponentRegistry, name: str | None = None
 ) -> tuple[Json, ImportReport]:
-    import yaml
+    from archsim_engine.safe_yaml import load_all_yaml
 
-    docs = [d for d in yaml.safe_load_all(text) if isinstance(d, dict)]
+    docs = [d for d in load_all_yaml(text) if isinstance(d, dict)]
     if not docs:
         raise ValueError("no Kubernetes objects found")
     report = ImportReport("Kubernetes manifests")

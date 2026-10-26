@@ -425,9 +425,9 @@ def calibrate(
                 raise ValueError("OTLP calibration needs traces_path (an OTLP JSON file)")
             mapping = None
             if mapping_path:
-                import yaml
+                from archsim_engine.safe_yaml import load_yaml
 
-                mapping = yaml.safe_load(Path(mapping_path).read_text(encoding="utf-8"))
+                mapping = load_yaml(Path(mapping_path).read_text(encoding="utf-8"))
             outcome = calibrate_otlp(doc, traces_path, default_registry(), mapping)
     except DocumentInvalidError as exc:
         raise _fix(exc) from None

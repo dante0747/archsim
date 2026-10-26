@@ -110,9 +110,9 @@ def apply_labels(config: Json, labels: dict[str, str], type_: str) -> list[str]:
 def import_compose(
     text: str, registry: ComponentRegistry, name: str | None = None
 ) -> tuple[Json, ImportReport]:
-    import yaml
+    from archsim_engine.safe_yaml import load_yaml
 
-    data = yaml.safe_load(text) or {}
+    data = load_yaml(text) or {}
     if not isinstance(data, dict) or not isinstance(data.get("services"), dict):
         raise ValueError("not a docker-compose file: no 'services' mapping")
     report = ImportReport("docker-compose")
