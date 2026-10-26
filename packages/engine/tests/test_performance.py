@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import json
+import pickle
 from typing import Any
 
 import pytest
 
-from archsim_engine import default_registry, load_document, run_simulation
+from archsim_engine import (
+    DocumentInvalidError,
+    SimulationCancelledError,
+    SimulationLimitError,
+    default_registry,
+    load_document,
+    run_simulation,
+)
 from archsim_engine.engine import sample_seconds, stationary
+from archsim_engine.issues import error, warning
 from archsim_engine.sweep import breaking_point
 from engine_builders import EXAMPLES
 
@@ -91,3 +100,37 @@ def test_parallel_sweeps_give_the_same_curve() -> None:
     serial = breaking_point(doc, default_registry(), **kw)
     parallel = breaking_point(doc, default_registry(), workers=3, **kw)
     assert serial["rows"] == parallel["rows"]
+
+
+def test_engine_errors_survive_the_process_boundary() -> None:
+    # errors raised in a worker process are pickled back to the parent; one that does not
+    # unpickle breaks the whole process pool instead of reporting the problem
+    issues = [
+        error("node.unknown_type", "Unknown component type 'x'.", node_id="lb", hint="Pick one."),
+        warning("edge.unused", "Unused link.", edge_id="e1"),
+        error("workload.rps", "rps must be positive.", path="workload.rps"),
+    ]
+    invalid = pickle.loads(pickle.dumps(DocumentInvalidError(issues)))
+    assert isinstance(invalid, DocumentInvalidError)
+    assert invalid.issues == issues
+    assert str(invalid) == "Unknown component type 'x'. (+1 more)"
+    for exc in (SimulationLimitError("too many requests"), SimulationCancelledError("cancelled")):
+        back = pickle.loads(pickle.dumps(exc))
+        assert type(back) is type(exc) and str(back) == str(exc)
+
+
+def test_a_parallel_sweep_of_an_invalid_design_reports_why() -> None:
+    doc = starter(durationS=20, warmupS=4)
+    doc["architecture"]["nodes"][1]["type"] = "no.such.component"  # caught in each step
+    with pytest.raises(DocumentInvalidError) as caught:
+        breaking_point(
+            doc,
+            default_registry(),
+            from_rps=100,
+            to_rps=200,
+            steps=2,
+            duration_s=4,
+            warmup_s=1,
+            workers=2,
+        )
+    assert any(i.node_id == "lb" for i in caught.value.issues)
