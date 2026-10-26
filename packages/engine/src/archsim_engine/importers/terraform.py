@@ -3,9 +3,10 @@
 Resources that map reliably become parts: databases (engine and instance class become the
 technology and real CPU and memory), caches, serverless functions, queues and streams, load
 balancers and gateways, CDNs, Kubernetes clusters and node pools, container services, on AWS,
-GCP and Azure. Infrastructure code rarely says who calls whom, so links are only added where the
-code states them (a Lambda event source mapping); everything else becomes a "connect these?"
-suggestion in the import report.
+GCP and Azure. Infrastructure code rarely says who calls whom, so links are added where the code
+states them (a Lambda event source mapping); a load balancer, which needs targets to run, is
+linked to the services nothing else calls (a guess); everything else becomes a "connect
+these?" suggestion in the import report.
 """
 
 from __future__ import annotations
@@ -14,8 +15,7 @@ import json
 import re
 from typing import Any
 
-from archsim_engine.importers.common import DesignBuilder, ImportReport
-from archsim_engine.importers.compose import _add_clients
+from archsim_engine.importers.common import DesignBuilder, ImportReport, finish
 from archsim_engine.load import kind_of
 from archsim_engine.registry import ComponentRegistry
 
@@ -370,6 +370,11 @@ def import_terraform(
                 cfg = b.node(src)["config"]  # type: ignore[index]
                 cfg["readReplicas"] = int(cfg.get("readReplicas", 0)) + 1
                 report.mapped.append(f"{r['address']} -> a read replica of {src}")
+            else:
+                report.ignored.append(
+                    f"{r['address']} (a read replica of '{v['replicate_source_db']}', which is "
+                    "not in the plan)"
+                )
         elif t == "aws_rds_cluster_instance":
             cluster_id = clusters.get(str(v.get("cluster_identifier")))
             if cluster_id:
@@ -387,6 +392,8 @@ def import_terraform(
                                 f"from instance type {v.get('instance_class')} ({DOCS['aws']})",
                             )
                 report.mapped.append(f"{r['address']} -> an instance of {cid}")
+            else:
+                report.ignored.append(f"{r['address']} (its cluster is not in the plan)")
         elif t in ("aws_eks_node_group", "google_container_node_pool"):
             cluster = clusters.get(str(v.get("cluster_name") or v.get("cluster")))
             if cluster is None:
@@ -432,28 +439,26 @@ def import_terraform(
 
     # links the code states: Lambda event source mappings (queue/stream -> function)
     refs = _config_refs(plan)
+
+    def referenced(attr: list[str]) -> str | None:
+        """The part a reference names: ``aws_sqs_queue.orders`` or ``aws_sqs_queue.orders.arn``
+        (not ``aws_sqs_queue.orders_dlq``, which merely starts the same way)."""
+        return next(
+            (
+                by_address[a]
+                for ref in attr
+                for a in by_address
+                if ref == a or ref.startswith(a + ".") or ref.startswith(a + "[")
+            ),
+            None,
+        )
+
     for r in resources:
         if r["type"] != "aws_lambda_event_source_mapping":
             continue
         rr = refs.get(r["address"], {})
-        src = next(
-            (
-                by_address[a]
-                for ref in rr.get("event_source_arn", [])
-                for a in by_address
-                if ref.startswith(a)
-            ),
-            None,
-        )
-        fn = next(
-            (
-                by_address[a]
-                for ref in rr.get("function_name", [])
-                for a in by_address
-                if ref.startswith(a)
-            ),
-            None,
-        )
+        src = referenced(rr.get("event_source_arn", []))
+        fn = referenced(rr.get("function_name", []))
         if src and fn and b.link(src, fn):
             report.mapped.append(
                 f"{r['address']} -> link {src} -> {fn} (the function consumes the queue)"
@@ -461,40 +466,73 @@ def import_terraform(
         else:
             report.ignored.append(f"{r['address']} (its queue or function is not in the plan)")
 
-    # everything else: suggestions, not guesses
+    # services: a Kubernetes cluster is where services run (by their platform), not a caller
     kinds = {n["id"]: kind_of(n["type"], registry) for n in b.nodes}
-    callers = [n for n, k in kinds.items() if k == "compute"]
-    stores = [n for n, k in kinds.items() if k in ("database", "cache", "messaging")]
+    cdn_ids = {n["id"] for n in b.nodes if n["config"].get("technology") == "cdn"}
+    cdns = [n for n in b.nodes if n["id"] in cdn_ids]
+    callers = [
+        n["id"]
+        for n in b.nodes
+        if kinds[n["id"]] == "compute" and n["type"] != "kubernetes_cluster"
+    ]
+    stores = [
+        n for n, k in kinds.items() if k in ("database", "cache", "messaging") and n not in cdn_ids
+    ]
+    balancers = [n for n, k in kinds.items() if k == "network"]
+
+    # a load balancer needs targets and plans rarely say which (target groups, listeners):
+    # it routes to the services nothing else calls, a guess listed in the report
+    called = {e["target"] for e in b.edges}
+    free = [c for c in callers if c not in called]
+    for lb in balancers:
+        if b.callees(lb):
+            continue
+        for target in free:
+            if b.link(lb, target):
+                report.guessed.append(
+                    f"link {lb} -> {target} (the plan does not say what {lb} routes to; "
+                    f"{target} is a service nothing else calls)"
+                )
+    # a CDN's misses go to its origin: the load balancer when there is exactly one
+    for cdn in cdns:
+        origins = balancers if len(balancers) == 1 else (free if len(free) == 1 else [])
+        if (
+            not b.callees(cdn["id"], "miss")
+            and origins
+            and b.link(cdn["id"], origins[0], "miss", ["read"])
+        ):
+            report.guessed.append(
+                f"link {cdn['id']} -> {origins[0]} on its miss port (the CDN's origin; the "
+                "plan does not say)"
+            )
+
+    # everything else: suggestions, not guesses
     linked = {(e["source"], e["target"]) for e in b.edges}
     for c in callers:
-        for s in stores:
-            if (c, s) not in linked and (s, c) not in linked:
+        for st in stores:
+            if (c, st) not in linked and (st, c) not in linked:
                 report.suggestions.append(
                     {
                         "source": c,
-                        "target": s,
+                        "target": st,
                         "reason": "Terraform does not say whether it calls it",
                     }
                 )
-    entries = [
-        n
-        for n, k in kinds.items()
-        if k == "network"
-        or (k == "cache" and ((b.node(n) or {}).get("config") or {}).get("technology") == "cdn")
-    ]
-    for e in entries:
+    for lb in balancers:
         for c in callers:
-            report.suggestions.append(
-                {
-                    "source": e,
-                    "target": c,
-                    "reason": "which services does the load balancer route to?",
-                }
-            )
+            if (lb, c) not in linked:
+                report.suggestions.append(
+                    {
+                        "source": lb,
+                        "target": c,
+                        "reason": "which services does the load balancer route to?",
+                    }
+                )
     if not callers and stores:
         report.guessed.append(
             "no compute found (EC2/ECS/EKS workloads, functions): add the services that use these stores"
         )
-    _add_clients(b, report, entries, registry)
+    entries = [n["id"] for n in cdns] + balancers
+    finish(b, report, [e for e in entries if e not in {x["target"] for x in b.edges}])
     doc = b.document(lambda t: kind_of(t, registry))
     return doc, report

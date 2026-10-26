@@ -1,15 +1,19 @@
 """Shared pieces of the importers: the design being built, the import report, image and size
-parsing, and what ArchSim's own exports carry so they round-trip: each part's id and outgoing
-links (``archsim.node`` / ``archsim.calls``, ``archsim.dev/node`` / ``archsim.dev/calls``) and
-the parts nothing deploys (clients, Kubernetes clusters); see ``archsim_engine.roundtrip``."""
+parsing, the last steps that make an imported design run (an entry point, cache misses, memory
+that fits), and what ArchSim's own exports carry so they round-trip: each part's id and
+outgoing links (``archsim.node`` / ``archsim.calls``, ``archsim.dev/node`` /
+``archsim.dev/calls``) and the parts nothing deploys (clients, Kubernetes clusters); see
+``archsim_engine.roundtrip``."""
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
+from archsim_engine.load import kind_of
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.roundtrip import (
     decode_calls,
@@ -18,36 +22,193 @@ from archsim_engine.version import SCHEMA_VERSION
 
 Json = dict[str, Any]
 
-# image name (last path part, no tag) -> (part type, technology)
-IMAGE_RULES: list[tuple[str, str, str]] = [
-    (r"^(postgres|postgis|timescaledb|pgvector)", "database", "postgresql"),
-    (r"^mysql", "database", "mysql"),
-    (r"^mariadb", "database", "mariadb"),
-    (r"^mssql|^server$", "database", "sqlserver"),
-    (r"^oracle", "database", "oracle"),
-    (r"^cockroach", "database", "cockroachdb"),
-    (r"^yugabyte", "database", "yugabytedb"),
-    (r"^mongo", "database", "mongodb"),
-    (r"^cassandra", "database", "cassandra"),
-    (r"^scylla", "database", "scylladb"),
-    (r"^dynamodb", "database", "dynamodb"),
-    (r"^couchbase", "database", "couchbase"),
-    (r"^elasticsearch", "database", "elasticsearch"),
-    (r"^opensearch$", "database", "opensearch"),
-    (r"^(redis|redis-stack)$", "cache", "redis"),
-    (r"^valkey", "cache", "valkey"),
-    (r"^memcached", "cache", "memcached"),
-    (r"^varnish", "cache", "varnish"),
-    (r"^(kafka|cp-kafka|cp-server|redpanda)", "message_queue", "kafka"),
-    (r"^rabbitmq", "message_queue", "rabbitmq"),
-    (r"^nats", "message_queue", "nats"),
-    (r"^elasticmq", "message_queue", "sqs"),
-    (r"^(nginx|openresty)", "load_balancer", "nginx"),
-    (r"^haproxy", "load_balancer", "haproxy"),
-    (r"^envoy", "load_balancer", "envoy"),
-    (r"^traefik", "load_balancer", "traefik"),
-    (r"^kong", "load_balancer", "kong"),
+# Infrastructure images, matched against the whole repository name (registry host, tag and
+# digest removed): the image's last path part must be one of the names, or the repository
+# must end with one of the paths. Only the technologies' own images and their common
+# distributions (Bitnami, Confluent, Timescale, PostGIS, Redis Stack...) are listed, so an
+# exporter, UI or client named after a technology is not mistaken for it.
+# (part type, technology, names, repository paths)
+IMAGE_RULES: list[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = [
+    (
+        "database",
+        "postgresql",
+        (
+            "postgres",
+            "postgresql",
+            "postgis",
+            "timescaledb",
+            "timescaledb-ha",
+            "pgvector",
+            "postgresql-repmgr",
+            "crunchy-postgres",
+        ),
+        (),
+    ),
+    ("database", "mysql", ("mysql", "mysql-server", "percona-server"), ()),
+    ("database", "mariadb", ("mariadb", "mariadb-galera"), ()),
+    ("database", "sqlserver", ("mssql-server-linux", "azure-sql-edge"), ("mssql/server",)),
+    ("database", "oracle", ("oracle-xe", "oracle-free", "oracle-database"), ("oracle/database",)),
+    ("database", "cockroachdb", ("cockroach",), ()),
+    ("database", "yugabytedb", ("yugabyte",), ()),
+    (
+        "database",
+        "mongodb",
+        (
+            "mongo",
+            "mongodb",
+            "mongodb-sharded",
+            "mongodb-community-server",
+            "mongodb-enterprise-server",
+        ),
+        (),
+    ),
+    ("database", "cassandra", ("cassandra",), ()),
+    ("database", "scylladb", ("scylla",), ()),
+    ("database", "dynamodb", ("dynamodb-local",), ()),
+    ("database", "couchbase", ("couchbase",), ("couchbase/server",)),
+    ("database", "elasticsearch", ("elasticsearch",), ()),
+    ("database", "opensearch", ("opensearch",), ()),
+    ("cache", "redis", ("redis", "redis-stack", "redis-stack-server", "redis-cluster"), ()),
+    ("cache", "valkey", ("valkey", "valkey-cluster"), ()),
+    ("cache", "memcached", ("memcached",), ()),
+    ("cache", "varnish", ("varnish",), ()),
+    (
+        "message_queue",
+        "kafka",
+        ("kafka", "kafka-native", "cp-kafka", "cp-server", "redpanda"),
+        (),
+    ),
+    ("message_queue", "rabbitmq", ("rabbitmq",), ()),
+    ("message_queue", "nats", ("nats", "nats-streaming"), ()),
+    ("message_queue", "sqs", ("elasticmq", "elasticmq-native"), ()),
+    ("load_balancer", "nginx", ("nginx", "nginx-unprivileged", "openresty"), ()),
+    (
+        "load_balancer",
+        "haproxy",
+        ("haproxy", "haproxy-alpine", "haproxy-debian", "haproxy-ubuntu"),
+        (),
+    ),
+    ("load_balancer", "envoy", ("envoy", "envoy-alpine", "envoy-distroless"), ()),
+    ("load_balancer", "traefik", ("traefik",), ()),
+    ("load_balancer", "kong", ("kong", "kong-gateway"), ()),
 ]
+
+# Images that run next to infrastructure without being it: exporters, web UIs, admin consoles,
+# migration jobs, clients and consumers named after a technology (``kafka-ui``,
+# ``mongo-express``, ``postgres-migrations``, ``nats-consumer``), any ``*-exporter``, and the
+# well-known tools below. They become plain services and are never taken as the entry point.
+INFRA_WORDS = {
+    "postgres",
+    "postgresql",
+    "pg",
+    "mysql",
+    "mysqld",
+    "mariadb",
+    "mssql",
+    "oracle",
+    "cockroach",
+    "cockroachdb",
+    "yugabyte",
+    "mongo",
+    "mongodb",
+    "cassandra",
+    "scylla",
+    "dynamodb",
+    "couchbase",
+    "elasticsearch",
+    "elastic",
+    "opensearch",
+    "redis",
+    "valkey",
+    "memcached",
+    "varnish",
+    "kafka",
+    "redpanda",
+    "rabbitmq",
+    "rabbit",
+    "nats",
+    "sqs",
+    "elasticmq",
+    "nginx",
+    "haproxy",
+    "envoy",
+    "traefik",
+    "kong",
+}
+TOOL_WORD = re.compile(
+    r"exporter|ui|gui|express|admin|commander|insight|console|dashboard|manager|monitor|"
+    r"metrics|migrations?|migrator|migrate|consumer|producer|worker|client|cli|tools?|operator|"
+    r"backup|restore|init|setup|seed|seeder|connect|sentinel|proxy|bouncer"
+)
+TOOL_IMAGE_NAMES = {
+    "pgadmin",
+    "pgadmin4",
+    "adminer",
+    "phpmyadmin",
+    "redisinsight",
+    "akhq",
+    "kafdrop",
+    "cmak",
+    "flyway",
+    "liquibase",
+    "migrate",
+    "pgbouncer",
+    "pgpool",
+    "proxysql",
+    "kcat",
+    "kafkacat",
+}
+
+
+@dataclass(frozen=True)
+class ImageKind:
+    """What an image is taken for: ``infrastructure`` (a part type and technology),
+    ``tool`` or ``application`` (both a plain service), and why, for the import report."""
+
+    kind: Literal["infrastructure", "tool", "application"]
+    type: str
+    technology: str | None
+    why: str
+
+
+def image_repository(image: str) -> str:
+    """The repository of an image reference, lower case, without registry host, tag or digest:
+    ``mcr.microsoft.com/mssql/server:2022`` -> ``mssql/server``."""
+    ref = image.strip().split("@", 1)[0].lower()
+    parts = ref.split("/")
+    if ":" in parts[-1]:
+        parts[-1] = parts[-1].rsplit(":", 1)[0]
+    # a first part with a dot or a port, or "localhost", is a registry host
+    if len(parts) > 1 and (re.search(r"[.:]", parts[0]) or parts[0] == "localhost"):
+        parts = parts[1:]
+    return "/".join(p for p in parts if p)
+
+
+def is_tool_image(name: str) -> bool:
+    """An exporter, UI, admin console, migration job or client (see ``INFRA_WORDS``)."""
+    if name in TOOL_IMAGE_NAMES or re.search(r"[-_]exporter$", name):
+        return True
+    words = re.split(r"[-_.]", name)
+    return any(w in INFRA_WORDS for w in words) and any(TOOL_WORD.fullmatch(w) for w in words)
+
+
+def classify_image(image: str) -> ImageKind:
+    """What a container image is, by its full repository name (see ``IMAGE_RULES``)."""
+    repo = image_repository(image)
+    name = repo.rsplit("/", 1)[-1]
+    if is_tool_image(name):
+        return ImageKind(
+            "tool",
+            "service",
+            None,
+            "looks like a tool that runs next to infrastructure (an exporter, UI, admin "
+            "console, migration job, client or consumer), not the infrastructure itself",
+        )
+    for type_, tech, names, paths in IMAGE_RULES:
+        if name in names or any(repo == p or repo.endswith(f"/{p}") for p in paths):
+            return ImageKind("infrastructure", type_, tech, f"is a {tech} image (by its name)")
+    return ImageKind("application", "service", None, "is not a known infrastructure image")
+
 
 # managed or third-party technologies named in ArchSim's exports
 MANAGED_TYPES = {
@@ -70,20 +231,15 @@ COLUMNS = {
 }
 
 
-def classify_image(image: str) -> tuple[str, str] | None:
-    """(part type, technology) for a container image, or None for an application image."""
-    path = (
-        image.split("@")[0].rsplit(":", 1)[0]
-        if ":" in image.split("/")[-1]
-        else image.split("@")[0]
-    )
-    name = path.split("/")[-1].lower()
-    if "mssql" in path.lower():
-        return "database", "sqlserver"
-    for pattern, type_, tech in IMAGE_RULES:
-        if re.search(pattern, name):
-            return type_, tech
-    return None
+def type_for_technology(registry: ComponentRegistry, type_: str, tech: str | None) -> str:
+    """The part type a stated technology belongs to: an image can serve several (``redis``
+    runs a Redis cache or Redis Streams), the technology says which."""
+    if tech is None or type_ not in registry or tech in registry.get(type_).technology_profiles:
+        return type_
+    for other in ("database", "cache", "message_queue", "load_balancer"):
+        if other in registry and tech in registry.get(other).technology_profiles:
+            return other
+    return type_
 
 
 def parse_cpu(v: Any) -> float | None:
@@ -264,6 +420,20 @@ class DesignBuilder:
                 out[path] = entry
         return out
 
+    def kind(self, node_id: str) -> str:
+        n = self.node(node_id)
+        return kind_of(n["type"], self.registry) if n else "other"
+
+    def callers(self, node_id: str) -> list[str]:
+        return [e["source"] for e in self.edges if e["target"] == node_id]
+
+    def callees(self, node_id: str, port: str | None = None) -> list[str]:
+        return [
+            e["target"]
+            for e in self.edges
+            if e["source"] == node_id and (port is None or e["sourcePort"] == port)
+        ]
+
     def document(self, kind_of: Any) -> Json:
         columns: dict[int, int] = {}
         layout: Json = {}
@@ -285,3 +455,136 @@ class DesignBuilder:
         if prov:
             doc["provenance"] = prov
         return doc
+
+
+# --- finishing an imported design so it validates and runs -----------------------------------
+
+
+def fit_memory(b: DesignBuilder, report: ImportReport) -> None:
+    """A service whose memory limit is below ArchSim's default memory at idle (plus one
+    request) could hold no request at all, which makes the design invalid. Real processes do
+    run in such limits (a 128 MB function, a 256M container), so the idle figure is lowered to
+    half the limit, noted, and listed as a guess instead."""
+    defaults = b.registry.get("service").default_config()
+    for n in b.nodes:
+        cfg = n["config"]
+        mem = cfg.get("memoryGib")
+        if n["type"] != "service" or "memoryBaselineMb" in cfg:
+            continue
+        if isinstance(mem, bool) or not isinstance(mem, int | float) or mem <= 0:
+            continue
+        baseline = float(defaults["memoryBaselineMb"])
+        per_request = float(cfg.get("memoryPerRequestMb", defaults["memoryPerRequestMb"]))
+        mib = mem * 1024
+        if mib - baseline >= per_request:
+            continue
+        lowered = math.floor(mib / 2)
+        cfg["memoryBaselineMb"] = lowered
+        b.note(
+            n["id"],
+            "memoryBaselineMb",
+            f"half the {mib:g} MiB memory limit: ArchSim's default of {baseline:g} MiB at idle "
+            "does not fit in it",
+        )
+        report.guessed.append(
+            f"{n['id']}: memory at idle {lowered} MiB, half its {mib:g} MiB limit (ArchSim's "
+            f"default of {baseline:g} MiB does not fit); set the real figure"
+        )
+
+
+def wire_cache_misses(b: DesignBuilder, report: ImportReport) -> None:
+    """A cache's misses go to the database its callers use (when there is exactly one), or to
+    the only database in the design; the link is a guess. A cache whose misses go nowhere
+    makes the design invalid."""
+    databases = [n["id"] for n in b.nodes if n["type"] == "database"]
+    for n in list(b.nodes):
+        if n["type"] != "cache" or n["config"].get("technology") == "cdn":
+            continue
+        if b.callees(n["id"], "miss"):
+            continue
+        callers = b.callers(n["id"])
+        used = list(
+            dict.fromkeys(
+                t
+                for c in callers
+                for t in b.callees(c)
+                if (b.node(t) or {}).get("type") == "database"
+            )
+        )
+        if len(used) == 1:
+            users = [c for c in callers if used[0] in b.callees(c)]
+            target, why = (
+                used[0],
+                f"{', '.join(users)} also call{'s' if len(users) == 1 else ''} it",
+            )
+        elif not used and len(databases) == 1:
+            target, why = databases[0], "the only database"
+        else:
+            continue
+        if b.link(n["id"], target, "miss", ["read"]):
+            report.guessed.append(
+                f"link {n['id']} -> {target} on its miss port (reads that miss; {why})"
+            )
+
+
+def add_clients(
+    b: DesignBuilder, report: ImportReport, preferred: list[str], skip: set[str] | None = None
+) -> None:
+    """Clients are not infrastructure: one Clients part (assumed) sending to the entry point.
+    The entry is a preferred part (published ports, a LoadBalancer Service, an Ingress, a load
+    balancer in a plan), else a load balancer or service nothing calls; never a Kubernetes
+    cluster part (services run on it, nothing sends to it) nor a tool. Clients send to one part,
+    so several entries get a load balancer in front of them (assumed)."""
+    skip = skip or set()
+    called = {e["target"] for e in b.edges}
+
+    def candidate(node_id: str) -> bool:
+        n = b.node(node_id)
+        return (
+            n is not None
+            and n["type"] != "kubernetes_cluster"
+            and node_id not in skip
+            and b.kind(node_id) in ("network", "compute")
+        )
+
+    preferred = [p for p in dict.fromkeys(preferred) if candidate(p)]
+    entry = [n for n in preferred if b.kind(n) == "network"] or [
+        n for n in preferred if n not in called
+    ]
+    if not entry:
+        free = [n["id"] for n in b.nodes if candidate(n["id"]) and n["id"] not in called]
+        entry = [n for n in free if b.kind(n) == "network"] or free
+    if not entry:
+        return
+    cid = b.unique_id("clients")
+    b.add(cid, "traffic_source", "Clients", {})
+    if len(entry) == 1:
+        b.link(cid, entry[0])
+        report.guessed.append(
+            f"a Clients part sending to {entry[0]} (the entry point; clients are not in the file)"
+        )
+        return
+    gw = b.unique_id("entry")
+    b.add(gw, "load_balancer", "Entry load balancer", {})
+    for target in entry:
+        b.link(gw, target)
+    b.link(cid, gw)
+    report.guessed.append(
+        f"a Clients part sending to {gw}, a load balancer added in front of the entry points "
+        f"{', '.join(entry)} (clients send to one part; clients are not in the file)"
+    )
+
+
+def finish(
+    b: DesignBuilder,
+    report: ImportReport,
+    entries: list[str],
+    *,
+    add_entry: bool = True,
+    skip: set[str] | None = None,
+) -> None:
+    """What every import does last: fit memory limits, route cache misses, add the Clients."""
+    fit_memory(b, report)
+    wire_cache_misses(b, report)
+    if add_entry:
+        add_clients(b, report, entries, skip)

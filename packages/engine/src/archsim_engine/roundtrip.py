@@ -12,6 +12,14 @@ Json = dict[str, Any]
 
 NOT_DEPLOYED = ("traffic_source", "kubernetes_cluster")
 
+EXPORT_PLACEHOLDER_RESOURCES: Json = {
+    "requests": {"cpu": "500m", "memory": "512Mi"},
+    "limits": {"memory": "1Gi"},
+}
+"""Container resources the Kubernetes export writes for a service with no CPU or memory set.
+An import skips exactly these, and only in ArchSim's own manifests (``archsim.dev/node``):
+anywhere else they are someone's real requests."""
+
 
 def encode_calls(edges: list[Json]) -> str:
     """``target[/port][:types]`` per outgoing link, comma separated (what the exporters write)."""

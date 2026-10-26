@@ -1,11 +1,12 @@
 """docker-compose -> design.
 
-Services become parts by image (``postgres`` -> PostgreSQL, ``redis`` -> Redis, Kafka images
--> Kafka, ``nginx`` -> Nginx, anything else -> a service). ``deploy.replicas`` and resource
+Services become parts by their image's full name (``postgres`` -> PostgreSQL, ``redis`` ->
+Redis, Kafka images -> Kafka, ``nginx`` -> Nginx; exporters, UIs, migrators and anything else
+-> a service), listed as guesses. ``deploy.replicas`` (one container when unset) and resource
 limits become replicas and specs. Links come from ``depends_on`` and from environment values
 that are URLs naming another service (``DATABASE_URL=postgresql://db:5432``); they are listed
-as guesses. ArchSim's own exports carry ``archsim.*`` labels (part ids, links, settings) and an
-``x-archsim`` block (clients, clusters), read back exactly.
+as guesses. ArchSim's own exports carry ``archsim.*`` labels (part ids, links, some settings)
+and an ``x-archsim`` block (clients, clusters); see docs/import.md for what comes back.
 """
 
 from __future__ import annotations
@@ -18,8 +19,10 @@ from archsim_engine.importers.common import (
     DesignBuilder,
     ImportReport,
     classify_image,
+    finish,
     parse_cpu,
     parse_memory_gib,
+    type_for_technology,
     url_host,
 )
 from archsim_engine.load import kind_of
@@ -133,58 +136,88 @@ def import_compose(
         ):
             report.ignored.append(f"top-level '{key}'")
 
+    tools: set[str] = set()
     for svc_name, svc in data["services"].items():
         svc = svc or {}
+        if not isinstance(svc, dict):
+            raise ValueError(f"service '{svc_name}' is not a mapping")
         labels = _labels(svc)
         image = str(svc.get("image") or "")
         node_id = b.unique_id(labels.get("archsim.node") or svc_name)
         by_service[svc_name] = node_id
-        cls = classify_image(image) if image else None
-        app = cls is None
-        type_, tech = ("service", None) if app else cls  # type: ignore[misc]
+        exported = "archsim.node" in labels  # ArchSim's own export states the part
+        img = classify_image(image) if image else None
+        type_ = img.type if img else "service"
+        tech = img.technology if img else None
         stated = exported_technology(labels)
-        if stated != "" and not app:
+        if stated != "" and img and img.kind == "infrastructure":
             tech = stated  # an ArchSim export says which technology (or generic)
+            type_ = type_for_technology(registry, type_, tech)  # Redis Streams: a queue
+        if img and img.kind == "tool":
+            tools.add(node_id)
         config: Json = {}
         if tech:
             config["technology"] = tech
+        settings: list[str] = []
+        deploy = svc.get("deploy") or {}
         if type_ == "service":
             config.setdefault("platform", "docker")
-        deploy = svc.get("deploy") or {}
-        if isinstance(deploy.get("replicas"), int):
-            config["replicas"] = deploy["replicas"]
+            if isinstance(deploy.get("replicas"), int):
+                config["replicas"] = deploy["replicas"]
+                b.note(node_id, "replicas", "deploy.replicas")
+                settings.append(f"replicas {config['replicas']}")
+            elif isinstance(svc.get("scale"), int):
+                config["replicas"] = svc["scale"]
+                b.note(node_id, "replicas", "scale")
+                settings.append(f"replicas {config['replicas']}")
+            else:
+                # Compose runs one container unless told otherwise (ArchSim's default is 2)
+                config["replicas"] = 1
+                b.note(node_id, "replicas", "not set: Docker Compose runs one container")
         limits = ((deploy.get("resources") or {}).get("limits")) or {}
         cpu, mem = parse_cpu(limits.get("cpus")), parse_memory_gib(limits.get("memory"))
         if cpu:
             config["cpuCores"] = cpu
+            settings.append(f"{cpu:g} CPU")
         if mem:
             config["memoryGib"] = mem
+            settings.append(f"{mem:g} GiB memory")
+        for key in ("cpuCores", "memoryGib"):
+            if key in config:
+                b.note(node_id, key, "deploy.resources.limits")
         cmd = (
-            " ".join(svc.get("command") or [])
+            " ".join(str(c) for c in svc.get("command") or [])
             if isinstance(svc.get("command"), list)
             else str(svc.get("command") or "")
         )
         if m := re.search(r"max_connections=(\d+)|--max-connections=(\d+)", cmd):
             config["maxConnections"] = int(m[1] or m[2])
             b.note(node_id, "maxConnections", "from the container command")
-        if "replicas" in config:
-            b.note(node_id, "replicas", "deploy.replicas")
-        for key in ("cpuCores", "memoryGib"):
-            if key in config:
-                b.note(node_id, key, "deploy.resources.limits")
+            settings.append(f"connection limit {config['maxConnections']}")
         read = apply_labels(config, labels, type_)
+        if read:
+            settings.append(f"{', '.join(read)} from its labels")
         if "archsim.calls" in labels:
             calls[node_id] = labels["archsim.calls"]
         what = f"image {image}" if image else "a build context"
-        report.mapped.append(
-            f"{svc_name}: {what} -> {registry.get(type_).display_name}"
-            + (f" ({tech})" if tech else "")
-            + (f"; replicas {config['replicas']}" if "replicas" in config else "")
-            + (f"; read {', '.join(read)} from its labels" if read else "")
-        )
-        if app and image and not image.startswith("your-org/"):
-            report.guessed.append(
-                f"{svc_name}: '{image}' is not a known infrastructure image, so it became a service"
+        part = registry.get(type_).display_name + (f" ({tech})" if tech else "")
+        if exported or img is None or image.startswith("your-org/"):
+            # stated by ArchSim's labels, or an application built here: no image to guess from
+            report.mapped.append(
+                f"{svc_name}: {what} -> {part}" + (f"; {'; '.join(settings)}" if settings else "")
+            )
+        else:
+            # the part type and technology come from the image name: a guess, with the reason
+            if img.kind == "infrastructure":
+                report.guessed.append(f"{svc_name}: {part}, because '{image}' {img.why}")
+            else:
+                report.guessed.append(f"{svc_name}: '{image}' {img.why}, so it became a service")
+            if settings:
+                report.mapped.append(f"{svc_name}: {'; '.join(settings)}")
+        if type_ != "service" and "replicas" in deploy:
+            report.ignored.append(
+                f"{svc_name}.deploy.replicas (a {registry.get(type_).display_name.lower()}'s "
+                "instances are set in the editor)"
             )
         for k in svc:
             if k in (
@@ -254,33 +287,7 @@ def import_compose(
         report.mapped.append(
             f"x-archsim: {', '.join(p['id'] for p in parts)} (parts ArchSim exported but nothing deploys)"
         )
-    if not any(p["type"] == "traffic_source" for p in parts):
-        _add_clients(b, report, published, registry)
+    has_clients = any(p["type"] == "traffic_source" for p in parts)
+    finish(b, report, published, add_entry=not has_clients, skip=tools)
     doc = b.document(lambda t: kind_of(t, registry))
     return doc, report
-
-
-def _add_clients(
-    b: DesignBuilder, report: ImportReport, published: list[str], registry: ComponentRegistry
-) -> None:
-    """Clients are not infrastructure: one Clients part at the entry (assumed)."""
-    called = {e["target"] for e in b.edges}
-    kinds = {n["id"]: kind_of(n["type"], registry) for n in b.nodes}
-    entry = [n for n in published if kinds[n] == "network"] or [
-        n for n in published if n not in called
-    ]
-    if not entry:
-        entry = [
-            n["id"]
-            for n in b.nodes
-            if n["id"] not in called and kinds[n["id"]] in ("network", "compute")
-        ]
-    if not entry:
-        return
-    cid = b.unique_id("clients")
-    b.add(cid, "traffic_source", "Clients", {})
-    for target in entry:
-        b.link(cid, target)
-    report.guessed.append(
-        f"a Clients part sending to {', '.join(entry)} (the entry point; clients are not in the file)"
-    )

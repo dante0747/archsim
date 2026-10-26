@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from typing import Any
 
@@ -22,7 +23,7 @@ from archsim_engine.export.tech import (
 )
 from archsim_engine.export.yaml import OMIT, comments, js_number, to_yaml
 from archsim_engine.registry import ComponentRegistry
-from archsim_engine.roundtrip import encode_calls, encode_parts
+from archsim_engine.roundtrip import EXPORT_PLACEHOLDER_RESOURCES, encode_calls, encode_parts
 
 Json = dict[str, Any]
 APP_PORT = 8080
@@ -140,8 +141,7 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
                     "httpGet": {"path": "/healthz", "port": APP_PORT},
                     "periodSeconds": 5,
                 },
-                "resources": k8s_resources(cfg)
-                or {"requests": {"cpu": "500m", "memory": "512Mi"}, "limits": {"memory": "1Gi"}},
+                "resources": k8s_resources(cfg) or copy.deepcopy(EXPORT_PLACEHOLDER_RESOURCES),
             }
             if cfg.get("platform") == "serverless":
                 docs.append(
