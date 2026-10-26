@@ -287,15 +287,27 @@ serves 10 example designs (see below).
   (medians), climbs further when the system still holds, and compares (`comparison.json`).
   `benchmarks/report.py` writes the tables and charts of [docs/validation.md](docs/validation.md);
   `make benchmark` runs everything; `.github/workflows/benchmark.yml` runs it by hand on a
-  hosted runner (no schedule). Run 4 (protocol v4, this laptop): knee error -10% (pg-mixed),
-  -14% (cache-aside), +6% (Kafka); hot-row not measurable here (stalls at one step, 303 to 819
-  req/s across runs). Low-load p95 is about 1 ms high, the model's cliff past the knee is
-  sharper than the real systems', and Kafka consumers (group commit) ran about 2x faster than
-  modeled; validation.md explains each and lists the model changes the data supports. Runs 1 to
-  3 are kept with what each exposed (low-load CPU power states, a double-counted driver CPU, the
-  post-load autovacuum and host stalls). Proposed tier thresholds are in validation.md for the
-  owner; under them no technology is validated yet, so tiers are unchanged. Not verified: a
-  second machine, the hosted-runner workflow (never run: nothing is pushed), Linux.
+  hosted runner (no schedule). Run 4 (protocol v4, this laptop), one run each: knee error -10%
+  (pg-mixed), -14% (cache-aside), +6% (Kafka), +97% (hot-row, not measurable here: stalls at one
+  step, measured knee 132 to 819 req/s across runs). These are single runs inside run-to-run
+  noise (pg-mixed's measured knee was 1,895, 3,162 and 2,291 req/s in runs 2 to 4), and partly
+  in-sample: the protocol was revised after the pg experiments' high-load results were seen, so
+  only cache-aside and Kafka were first run under the final protocol. Low-load p95 is 0.1 to
+  1.4 ms high for pg-mixed, hot-row and cache-aside and about 8.7 ms (+303%, +332%) high for
+  Kafka (its calibration pass had a send/INSERT tail the measured steps did not), the model's
+  cliff past the knee is sharper than the real systems', and Kafka consumers (group commit) ran
+  about 2x faster than modeled; validation.md explains each and lists the model changes the data
+  supports. Runs 1 to 3 of the pg experiments are kept with what each exposed (low-load CPU power
+  states, a double-counted driver CPU, the post-load autovacuum and host stalls). Committed per
+  run: calibration, predictions and each measured repeat's numbers; k6's raw summaries are not
+  kept. `report.py` computes the proposed tier criteria per experiment (no experiment meets
+  them, so tiers are unchanged), the run history and the low-load table; `run.py compare`
+  recomputes the comparisons from the committed data (failed repeats, which run 4 recorded as
+  0 ms, now count as failed; the median below the knee is the true median). 34 tests in
+  `benchmarks/tests` (in `uv run pytest`), including one that fails when docs/validation.md is
+  stale; CI lints and type-checks `benchmarks/`. Not verified: a second machine, the hosted-runner workflow (never run:
+  nothing is pushed), Linux (k6's output directory is now made writable for its uid, untested),
+  the drain and health check between repeats (added after run 4, never run).
 - Technology tiers and discoverable assumptions (report 1.8, 2026-10-26; Phase 1 of
   docs/prompts/how-to-win.md). Every technology profile has a tier: core (the roadmap's
   suggested set: generic, Node.js, Java and Go services, PostgreSQL, Redis, Kafka, SQS-style,
@@ -591,10 +603,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   on a load balancer; faults are scheduled (outage, slowdown, link latency), not random. CPU and
   memory only matter where their specs are set; resource sizes in presets and prices are
   illustrative.
-- Only a core set of technologies is ArchSim's focus, and none is validated yet: the
-  benchmarks (docs/validation.md) put capacity within 14% for PostgreSQL, Redis and Kafka on
-  one machine and one run, short of the proposed thresholds; the others are marked
-  experimental. docs/assumptions.md lists every illustrative number.
+- Only a core set of technologies is ArchSim's focus, and none is validated yet: on one
+  machine and one run, the benchmarks (docs/validation.md) put the knee error at -10%
+  (pg-mixed), -14% (cache-aside), +6% (Kafka) and +97% (hot-row), inside run-to-run noise and
+  short of the proposed thresholds; the others are marked experimental. docs/assumptions.md
+  lists every illustrative number.
 - Technology behaviour uses documented defaults where vendors publish them; GC pauses, JIT
   warm-up, per-runtime cold starts, replica replay cost and log flush times are illustrative
   typical values (labelled in the UI), not measurements. Row locks follow the workload's Zipf

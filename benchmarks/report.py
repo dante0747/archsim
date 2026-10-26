@@ -3,7 +3,8 @@
     uv run python benchmarks/report.py
 
 Hand-written text in docs/validation.md is kept: only the blocks between
-``<!-- BEGIN GENERATED: name -->`` and ``<!-- END GENERATED: name -->`` are replaced.
+``<!-- BEGIN GENERATED: name -->`` and ``<!-- END GENERATED: name -->`` are replaced. The output
+depends only on the files in benchmarks/results, so running it twice gives the same bytes.
 """
 
 from __future__ import annotations
@@ -12,8 +13,11 @@ import json
 import math
 import re
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
+
+import run as bench
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -21,14 +25,35 @@ RESULTS = HERE / "results"
 DOC = ROOT / "docs" / "validation.md"
 CHARTS = ROOT / "docs" / "validation"
 ORDER = ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
+TECHNOLOGIES = {
+    "pg-mixed": ("Node.js", "PostgreSQL"),
+    "pg-hot-row": ("Node.js", "PostgreSQL"),
+    "cache-aside": ("Node.js", "Redis", "PostgreSQL"),
+    "kafka": ("Node.js", "Kafka", "PostgreSQL"),
+}
+CONTAINERS = {
+    "api": "service",
+    "producer": "producer",
+    "consumer": "consumer",
+    "postgres": "PostgreSQL",
+    "redis": "Redis",
+    "kafka": "Kafka",
+    "k6": "k6",
+}
+
+# Proposed tier thresholds (docs/validation.md, "Proposed tier thresholds").
+KNEE_TOLERANCE = 0.25
+P95_TOLERANCE = 1.0
+P95_TOLERANCE_MS = 3.0
+LOW_LOAD_FRACTION = 0.5
 
 PRED = "#e8710a"  # orange: ArchSim's prediction
 MEAS = "#1a73e8"  # blue: measured
 INK = "#888888"
 
 
-def load(exp: str, name: str) -> dict[str, Any] | None:
-    p = RESULTS / exp / f"{name}.json"
+def load(exp: str, name: str, results: Path = RESULTS) -> dict[str, Any] | None:
+    p = results / exp / f"{name}.json"
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
@@ -48,7 +73,14 @@ def rps(v: float | None) -> str:
     return "-" if v is None else f"{v:,.0f}"
 
 
-def knee_text(k: dict[str, Any]) -> str:
+def rps_list(values: list[float]) -> str:
+    """1,000, 2,000 and 3,000 req/s"""
+    items = [rps(v) for v in values]
+    text = items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+    return f"{text} req/s"
+
+
+def knee_text(k: Mapping[str, Any]) -> str:
     if k.get("kneeRps") is not None:
         return rps(k["kneeRps"])
     if k.get("bound") == "above":
@@ -56,6 +88,87 @@ def knee_text(k: dict[str, Any]) -> str:
     if k.get("bound") == "below":
         return f"< {rps(k.get('belowRps'))}"
     return "-"
+
+
+# ---------------------------------------------------------------------------------------------
+# run history and the proposed tier criteria
+# ---------------------------------------------------------------------------------------------
+
+
+def protocol_of(calibration: Mapping[str, Any] | None) -> str:
+    """The protocol version a calibration ran under ("v4"). Run 1 predates the method field."""
+    m = re.search(r"\((v\d+)\)", (calibration or {}).get("method") or "")
+    return m.group(1) if m else "v1"
+
+
+def history(results: Path = RESULTS) -> dict[str, list[dict[str, Any]]]:
+    """Every kept run of each experiment, oldest first, the latest last."""
+    out: dict[str, list[dict[str, Any]]] = {}
+    for exp, d in bench.result_dirs(results):
+        cmp_path = d / "comparison.json"
+        if not cmp_path.exists():
+            continue
+        cmp_ = json.loads(cmp_path.read_text(encoding="utf-8"))
+        cal_path, env_path = d / "calibration.json", d / "environment.json"
+        cal = json.loads(cal_path.read_text(encoding="utf-8")) if cal_path.exists() else None
+        env = json.loads(env_path.read_text(encoding="utf-8")) if env_path.exists() else {}
+        out.setdefault(exp, []).append(
+            {
+                "dir": f"{d.name}/" if d.name != exp else "latest",
+                "protocol": protocol_of(cal),
+                "calibratedAt": (cal or {}).get("at"),
+                "machine": f"{env.get('cpu')}; {env.get('os')}",
+                "measuredKnee": cmp_["measuredKnee"],
+                "predictedKnee": cmp_["predictedKnee"],
+                "kneeError": cmp_["kneeError"],
+            }
+        )
+    return out
+
+
+def p95_within(measured: float | None, predicted: float | None) -> bool:
+    """Criterion 2 for one step: |predicted - measured| within 100% of the measured p95 or 3 ms,
+    whichever is larger."""
+    if measured is None or predicted is None:
+        return False
+    return abs(predicted - measured) <= max(P95_TOLERANCE * measured, P95_TOLERANCE_MS)
+
+
+def criteria(cmp_: Mapping[str, Any], runs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """The proposed tier criteria for one experiment, from its comparison and its kept runs
+    (``history``; the last is the one compared):
+
+    1. knee error within +/-25%;
+    2. at or below the measured knee, every step's p95 within +/-100% or 3 ms (``p95_within``);
+    3. no unstable step at or below the measured knee (3a), reproduced in a second run under the
+       same protocol on another machine (3b)."""
+    below = bench.at_or_below_knee(cmp_["rows"], cmp_["measuredKnee"])
+    knee_error = cmp_["kneeError"]
+    misses = [
+        r["offeredRps"]
+        for r in below
+        if not p95_within(r["measured"]["p95"], r["predicted"]["p95"])
+    ]
+    unstable = [r["offeredRps"] for r in below if r.get("unstable")]
+    protocol = runs[-1]["protocol"] if runs else None
+    same = [r for r in runs if r["protocol"] == protocol]
+    machines = len({r["machine"] for r in same})
+    out: dict[str, Any] = {
+        "knee": {
+            "pass": knee_error is not None and abs(knee_error) <= KNEE_TOLERANCE,
+            "error": knee_error,
+        },
+        "p95": {"pass": bool(below) and not misses, "steps": len(below), "misses": misses},
+        "stable": {"pass": bool(below) and not unstable, "unstable": unstable},
+        "reproduced": {
+            "pass": len(same) >= 2 and machines >= 2,
+            "protocol": protocol,
+            "runs": len(same),
+            "machines": machines,
+        },
+    }
+    out["all"] = all(c["pass"] for c in out.values())
+    return out
 
 
 # ---------------------------------------------------------------------------------------------
@@ -155,8 +268,8 @@ def _panel(
     return out
 
 
-def chart(cmp: dict[str, Any], path: Path) -> None:
-    rows = cmp["rows"]
+def chart(cmp_: Mapping[str, Any]) -> str:
+    rows = cmp_["rows"]
     xs = [r["offeredRps"] for r in rows]
     p95 = _panel(
         0,
@@ -168,7 +281,7 @@ def chart(cmp: dict[str, Any], path: Path) -> None:
         ],
         True,
         "ms",
-        cmp["objective"]["p95Ms"],
+        cmp_["objective"]["p95Ms"],
     )
     thr = _panel(
         340,
@@ -194,8 +307,7 @@ def chart(cmp: dict[str, Any], path: Path) -> None:
         *legend,
         "</svg>",
     ]
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(svg) + "\n", encoding="utf-8", newline="\n")
+    return "\n".join(svg) + "\n"
 
 
 # ---------------------------------------------------------------------------------------------
@@ -205,7 +317,7 @@ def chart(cmp: dict[str, Any], path: Path) -> None:
 
 def summary_block(cmps: list[dict[str, Any]]) -> str:
     lines = [
-        "| Experiment | Knee measured | Knee predicted | Knee error | p95 error below the knee (median / worst) |",
+        "| Experiment | Knee measured | Knee predicted | Knee error | p95 error at or below the measured knee (median / worst) |",
         "| --- | --- | --- | --- | --- |",
     ]
     for c in cmps:
@@ -218,26 +330,165 @@ def summary_block(cmps: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def environment_block(env: dict[str, Any] | None) -> str:
-    if not env:
+def history_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
+    lines = [
+        "| Experiment | Results | Protocol | Calibrated (UTC) | Knee measured | Knee predicted | Knee error |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for exp in ORDER:
+        for r in hist.get(exp, []):
+            where = f"`{r['dir']}`" if r["dir"] != "latest" else f"latest (`results/{exp}/`)"
+            lines.append(
+                f"| {exp} | {where} | {r['protocol']} | {r['calibratedAt'] or '-'} | "
+                f"{knee_text(r['measuredKnee'])} req/s | {knee_text(r['predictedKnee'])} req/s | "
+                f"{pct(r['kneeError'])} |"
+            )
+    return "\n".join(lines)
+
+
+def low_load_block(cmps: list[dict[str, Any]]) -> str:
+    """p95 at the ladder's low steps (at most half the predicted knee), predicted against
+    measured, in milliseconds as well as relative."""
+    lines = [
+        "| Experiment | Offered req/s | p95 measured (ms) | p95 predicted (ms) | Predicted - measured |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for c in cmps:
+        fine = c["predictedKneeFine"]
+        for r in c["rows"]:
+            if not fine or r["offeredRps"] > round(LOW_LOAD_FRACTION * fine):
+                continue
+            m, p = r["measured"]["p95"], r["predicted"]["p95"]
+            diff = "-" if m is None or p is None else f"{p - m:+.2f} ms ({pct(r['error']['p95'])})"
+            lines.append(
+                f"| {c['experiment']} | {rps(r['offeredRps'])} ({r['offeredRps'] / fine:.2g}x the "
+                f"predicted knee) | {ms(m)} | {ms(p)} | {diff} |"
+            )
+    return "\n".join(lines)
+
+
+def tiers_block(cmps: list[dict[str, Any]], hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
+    lines = [
+        "| Experiment | 1. Knee error within ±25% | 2. p95 within ±100% or 3 ms at or below the measured knee | 3a. No unstable step at or below the measured knee | 3b. Reproduced on a second machine, same protocol | All three |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    met: dict[str, bool] = {}
+    for c in cmps:
+        exp = c["experiment"]
+        k = criteria(c, hist.get(exp, []))
+        met[exp] = k["all"]
+        knee = f"{'yes' if k['knee']['pass'] else 'no'} ({pct(k['knee']['error'])})"
+        p = k["p95"]
+        if not p["steps"]:
+            p95 = "no: no step at or below the measured knee"
+        elif p["pass"]:
+            p95 = f"yes ({p['steps']} of {p['steps']} steps)"
+        else:
+            p95 = (
+                f"no: {rps_list(p['misses'])} miss ({p['steps'] - len(p['misses'])} of "
+                f"{p['steps']} steps within)"
+            )
+        s = k["stable"]
+        stable = (
+            "yes"
+            if s["pass"]
+            else f"no: {rps_list(s['unstable'])} unstable"
+            if s["unstable"]
+            else "no: no step at or below the measured knee"
+        )
+        r = k["reproduced"]
+        runs = f"{r['runs']} run{'s' if r['runs'] != 1 else ''} under {r['protocol']}, on {r['machines']} machine{'s' if r['machines'] != 1 else ''}"
+        reproduced = f"{'yes' if r['pass'] else 'no'}: {runs}"
+        lines.append(
+            f"| {exp} | {knee} | {p95} | {stable} | {reproduced} | {'yes' if k['all'] else 'no'} |"
+        )
+    techs: dict[str, list[str]] = {}
+    for exp in ORDER:
+        if exp in met:
+            for t in TECHNOLOGIES[exp]:
+                techs.setdefault(t, []).append(exp)
+    validated = [t for t, exps in techs.items() if all(met[e] for e in exps)]
+    lines += [
+        "",
+        "A technology meets the thresholds when every experiment that exercises it meets all "
+        "three: "
+        + "; ".join(f"{t} ({', '.join(exps)})" for t, exps in techs.items())
+        + ". "
+        + (
+            f"Meeting them on this data: {', '.join(validated)}."
+            if validated
+            else "None meets them on this data."
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def cpus_text(sets: Mapping[str, str]) -> str:
+    return ", ".join(
+        f"{CONTAINERS.get(name, name)} {bench.cpu_count(cpus)} (`{cpus}`)"
+        for name, cpus in sets.items()
+    )
+
+
+def environment_block(envs: Mapping[str, dict[str, Any]]) -> str:
+    """The machine (from the first experiment's environment.json) and the CPU pinning of each
+    stack (recorded in environment.json since it was added; before that, the runner's
+    defaults)."""
+    if not envs:
         return "_No results yet._"
+    env = next(iter(envs.values()))
     imgs = env.get("images", {})
+    stacks: dict[tuple[str, str], list[str]] = {}
+    recorded = True
+    for exp, e in envs.items():
+        stack = bench.EXPERIMENTS[exp].stack
+        sets = e.get("cpusets")
+        if sets is None:
+            recorded = False
+            sets = bench.cpusets(stack, env={})
+        stacks.setdefault((stack, cpus_text(sets)), []).append(exp)
+    pinning = "; ".join(f"{' and '.join(exps)}: {text}" for (_, text), exps in stacks.items())
+    note = (
+        ""
+        if recorded
+        else " These are the runner's defaults (`benchmarks/run.py`, `compose.yaml`): the runs "
+        "shown predate recording the cpusets in `environment.json`."
+    )
     return "\n".join(
         [
             f"- CPU: {env.get('cpu')}; Docker {env.get('docker')} with {env.get('dockerCpus')} CPUs and "
             f"{int(env.get('dockerMemory') or 0) / 2**30:.1f} GiB; {env.get('os')}.",
             f"- Images: {', '.join(f'{k} `{v}`' for k, v in imgs.items())}.",
-            "- CPUs pinned per container (cpuset): service 1, PostgreSQL 2, Redis 1, Kafka 2, k6 2.",
+            f"- CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): {pinning}.{note}",
         ]
     )
 
 
-def experiment_block(exp: str) -> str:
-    cal = load(exp, "calibration")
-    pred = load(exp, "predictions")
-    cmp_ = load(exp, "comparison")
+def input_value(name: str, v: Any) -> str:
+    if isinstance(v, dict) and v.get("kind") == "lognormal":
+        return f"lognormal, median {v['median']:g} ms, p95 {v['p95']:g} ms"
+    if isinstance(v, dict) and v.get("kind") == "exponential":
+        return f"exponential, mean {v['mean']:g} ms"
+    return f"{v:g}" + (" ms" if name.endswith("Ms") else "")
+
+
+def experiment_block(exp: str, results: Path = RESULTS) -> str:
+    cal = load(exp, "calibration", results)
+    pred = load(exp, "predictions", results)
+    cmp_ = load(exp, "comparison", results)
     if not (cal and pred and cmp_):
         return f"_No results for {exp} yet: run `uv run python benchmarks/run.py`._"
+    low = cal["inputs"].get("measuredLowLoad", {})
+    passes = cal.get("passes", {})
+    rate_low = passes.get("low", {}).get("rateRps")
+    rate_high = passes.get("high", {}).get("rateRps", low.get("rateRps"))
+    source = (
+        f"Model inputs from the calibration passes at {rate_low:g} and {rate_high:g} req/s "
+        f"(timings from the {rate_high:g} req/s pass, CPU per request from the slope between "
+        "the two):"
+        if rate_low is not None and rate_high is not None
+        else f"Model inputs from the calibration pass at {rate_high:g} req/s:"
+    )
     out = [
         f"**{cmp_['title']}.** Calibrated {cal['at']}, predicted {pred['at']} (engine {pred['engineVersion']}), "
         f"measured afterwards. Objective: p95 <= {cmp_['objective']['p95Ms']:g} ms with >= "
@@ -245,7 +496,7 @@ def experiment_block(exp: str) -> str:
         "",
         f"![{exp}: predicted and measured p95 and throughput](validation/{exp}.svg)",
         "",
-        "Model inputs from the calibration run (50 req/s):",
+        source,
         "",
         "| Input | Value | How it was measured |",
         "| --- | --- | --- |",
@@ -253,18 +504,11 @@ def experiment_block(exp: str) -> str:
     for name, item in cal["inputs"].items():
         if not isinstance(item, dict) or "value" not in item:
             continue
-        v = item["value"]
-        if isinstance(v, dict) and v.get("kind") == "lognormal":
-            val = f"lognormal, median {v['median']:g} ms, p95 {v['p95']:g} ms"
-        elif isinstance(v, dict) and v.get("kind") == "exponential":
-            val = f"exponential, mean {v['mean']:g} ms"
-        else:
-            val = f"{v:g}" + (" ms" if name.endswith("Ms") else "")
-        out.append(f"| `{name}` | {val} | {item['how']} |")
-    low = cal["inputs"].get("measuredLowLoad", {})
+        out.append(f"| `{name}` | {input_value(name, item['value'])} | {item['how']} |")
     out += [
         "",
-        f"Measured at 50 req/s: p50 {ms(low.get('p50'))} ms, p95 {ms(low.get('p95'))} ms.",
+        f"Measured in the calibration pass at {low.get('rateRps', rate_high):g} req/s: "
+        f"p50 {ms(low.get('p50'))} ms, p95 {ms(low.get('p95'))} ms.",
         "",
         "| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |"
         + (" Hit ratio meas / pred |" if exp == "cache-aside" else "")
@@ -277,8 +521,9 @@ def experiment_block(exp: str) -> str:
     ]
     for r in cmp_["rows"]:
         m, p, e = r["measured"], r["predicted"], r["error"]
+        offered = rps(r["offeredRps"]) + (" (unstable)" if r.get("unstable") else "")
         line = (
-            f"| {rps(r['offeredRps'])} | {ms(m['p50'])} / {ms(p['p50'])} | {ms(m['p95'])} / {ms(p['p95'])} | "
+            f"| {offered} | {ms(m['p50'])} / {ms(p['p50'])} | {ms(m['p95'])} / {ms(p['p95'])} | "
             f"{pct(e['p95'])} | {ms(m['p99'])} / {ms(p['p99'])} | {pct(m['successRate'], False)} / "
             f"{pct(p['successRate'], False)} | {rps(m['throughputRps'])} / {rps(p['throughputRps'])} |"
         )
@@ -293,12 +538,34 @@ def experiment_block(exp: str) -> str:
                 f" {ms(mq.get('p95MessageAgeMs'))} / {ms(pq.get('p95MessageAgeMs'))} |"
             )
         out.append(line)
+    notes = []
+    if any(r.get("unstable") for r in cmp_["rows"]):
+        notes.append(
+            "Unstable: the step's repeats' p95s differ by more than 2x across the objective (a "
+            "repeat with no successful request counts as slower than any)."
+        )
+    for r in cmp_["rows"]:
+        if r.get("failedRepeats"):
+            outcome = (
+                "so this step has no measured latency"
+                if r["measured"]["p95"] is None
+                else "so the step's latency is the slower of the other repeats"
+            )
+            notes.append(
+                f"At {rps(r['offeredRps'])} req/s, {r['failedRepeats']} of {r['repeats']} repeats "
+                "had no successful request (every request failed or was dropped). Such a repeat "
+                "counts as failed: it has no latency, and in the step's median it counts as "
+                f"slower than any measured repeat, {outcome}."
+            )
+    if notes:
+        out += ["", *notes]
     mk, pk = cmp_["measuredKnee"], cmp_["predictedKnee"]
     out += [
         "",
         f"Knee: measured {knee_text(mk)} req/s, predicted {knee_text(pk)} req/s on the same steps "
         f"({pct(cmp_['kneeError'])}); ArchSim's own search before measuring put it at "
-        f"{rps(cmp_['predictedKneeFine'])} req/s. Raw data: `benchmarks/results/{exp}/`.",
+        f"{rps(cmp_['predictedKneeFine'])} req/s. Data: `benchmarks/results/{exp}/` (each "
+        "repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).",
     ]
     return "\n".join(out)
 
@@ -313,19 +580,32 @@ def replace_block(text: str, name: str, body: str) -> str:
     return pat.sub(lambda m: m.group(1) + body + m.group(2), text)
 
 
-def main() -> int:
-    cmps = [c for c in (load(e, "comparison") for e in ORDER) if c]
-    text = DOC.read_text(encoding="utf-8")
+def render(text: str, results: Path = RESULTS) -> tuple[str, dict[str, str]]:
+    """The page with its generated blocks rewritten, and the charts (file name -> SVG)."""
+    cmps = [c for c in (load(e, "comparison", results) for e in ORDER) if c]
+    hist = history(results)
     text = replace_block(text, "summary", summary_block(cmps) if cmps else "_No results yet._")
-    env = next((load(e, "environment") for e in ORDER if load(e, "environment")), None)
-    text = replace_block(text, "environment", environment_block(env))
+    text = replace_block(text, "history", history_block(hist) if hist else "_No results yet._")
+    text = replace_block(text, "low-load", low_load_block(cmps) if cmps else "_No results yet._")
+    text = replace_block(text, "tiers", tiers_block(cmps, hist) if cmps else "_No results yet._")
+    envs = {e: env for e in ORDER if (env := load(e, "environment", results))}
+    text = replace_block(text, "environment", environment_block(envs))
+    charts = {}
     for exp in ORDER:
-        text = replace_block(text, exp, experiment_block(exp))
-        c = load(exp, "comparison")
+        text = replace_block(text, exp, experiment_block(exp, results))
+        c = load(exp, "comparison", results)
         if c:
-            chart(c, CHARTS / f"{exp}.svg")
+            charts[f"{exp}.svg"] = chart(c)
+    return text, charts
+
+
+def main() -> int:
+    text, charts = render(DOC.read_text(encoding="utf-8"))
     DOC.write_text(text, encoding="utf-8", newline="\n")
-    print(f"wrote {DOC.relative_to(ROOT)}")
+    CHARTS.mkdir(parents=True, exist_ok=True)
+    for name, svg in charts.items():
+        (CHARTS / name).write_text(svg, encoding="utf-8", newline="\n")
+    print(f"wrote {DOC.relative_to(ROOT).as_posix()} and {len(charts)} charts")
     return 0
 
 

@@ -171,13 +171,19 @@ result digest so it can be re-run and verified bit for bit.
 
 ## How accurate is it?
 
-Measured, not claimed: [docs/validation.md](docs/validation.md) calibrates ArchSim from a
-low-load run of four real stacks, saves its predictions, then measures them with k6. On the
-latest run (one Windows laptop, Docker Desktop) the predicted breaking point was within 14% of the
-measured one for Node.js + PostgreSQL (-10%), cache-aside with Redis (-14%) and Kafka (+6%); the
-first two on the cautious side. Latency at low load came out about 1 ms high, the model's collapse
-past the knee is sharper than the real one, and a single hot row could not be measured reliably
-on that machine. The page explains each gap, and every run is kept with its raw data.
+Measured, not claimed: [docs/validation.md](docs/validation.md) calibrates ArchSim from
+low-load runs of four real stacks, saves its predictions, then measures them with k6. In one run
+on one Windows laptop (Docker Desktop) the predicted breaking point was off the measured one by
+-10% for Node.js + PostgreSQL, -14% for cache-aside with Redis, +6% for Kafka and +97% for a single
+hot row, which could not be measured reliably on that machine. Treat these as one run, not as an
+accuracy figure: the measured breaking point itself moves between runs (Node.js + PostgreSQL:
+1,895, 3,162 and 2,291 req/s in three runs), and the protocol was revised after the two
+PostgreSQL experiments' high-load results had been seen, so only cache-aside and Kafka were first
+run under the final protocol. At low load the predicted p95 was about 8.7 ms (+300%) high for
+Kafka and 0.1 to 1.4 ms high for the other three, and the model's collapse past the knee is
+sharper than the real one. No technology meets the page's proposed thresholds for "validated".
+The page explains each gap; every measured repeat's numbers are committed, but k6's raw
+summaries are not.
 
 ## Quick start
 

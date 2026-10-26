@@ -4,21 +4,23 @@
     uv run python benchmarks/run.py cache         # cache-aside
     uv run python benchmarks/run.py kafka         # kafka
     uv run python benchmarks/run.py all
+    uv run python benchmarks/run.py compare       # recompute every comparison.json (no Docker)
     uv run python benchmarks/report.py            # rewrite docs/validation.md from the results
 
 Protocol (docs/validation.md): for each experiment the runner
 1. starts the stack (benchmarks/compose.yaml) and settles it: VACUUM ANALYZE and a checkpoint
    after the data load (run 3's first calibration pass met the post-load autovacuum), then a
    discarded 30 s warm-up at the calibration rate;
-2. calibrates: runs the experiment's traffic at 50 req/s and reads what the service measured
-   (CPU per request on the event loop, the time of each PostgreSQL, Redis and Kafka call, the
-   database's CPU per query, Redis's own command time); every model input is derived from these
-   numbers by a formula recorded in calibration.json;
+2. calibrates in two passes of the experiment's traffic, 50 req/s and then a quarter of the most
+   pessimistic capacity the first pass implies, and reads what the service measured (CPU per
+   request on the event loop, the time of each PostgreSQL, Redis and Kafka call, the database's
+   CPU per query, Redis's own command time); every model input is derived from these numbers by
+   a formula recorded in calibration.json;
 3. predicts: builds the ArchSim design from the calibration and simulates it, finding the knee
    (the highest load with p95 <= 50 ms and >= 99% success) and every step of the load ladder
    (0.25x to 1.5x the predicted knee); predictions.json is written before step 4 starts;
-4. measures: runs k6 at each step (10 s warm-up, 30 s measured) and records p50, p95, p99,
-   throughput and errors;
+4. measures: runs k6 at each step three times (5 s warm-up, 20 s measured, WARMUP_S and
+   DURATION_S) and records p50, p95, p99, throughput and errors;
 5. compares: comparison.json with errors per step and the knee error.
 
 Only the Python standard library, Docker and the engine are needed.
@@ -31,10 +33,13 @@ import json
 import math
 import os
 import platform
+import re
+import statistics
 import subprocess
 import sys
 import time
 import urllib.request
+from collections.abc import Iterable, Mapping
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -178,6 +183,11 @@ def cpu_usec(service: str) -> int | None:
     return None
 
 
+def cpu_ms(before: int | None, after: int | None) -> float | None:
+    """CPU used between two cpu_usec readings, in milliseconds."""
+    return None if before is None or after is None else (after - before) / 1000
+
+
 def http_json(url: str, method: str = "GET") -> dict[str, Any]:
     req = urllib.request.Request(url, method=method)
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -220,6 +230,10 @@ def k6(
     skew: float,
 ) -> dict[str, Any]:
     K6_OUT.mkdir(parents=True, exist_ok=True)
+    # The grafana/k6 image runs as uid 12345: on Linux the bind-mounted directory must be
+    # writable by it or handleSummary cannot write the summary. Not tested on Linux yet (Docker
+    # Desktop on Windows, where run 4 ran, maps ownership itself).
+    K6_OUT.chmod(0o777)
     path = K6_OUT / f"{out}.json"
     path.unlink(missing_ok=True)
     compose(
@@ -234,7 +248,10 @@ def k6(
 
 
 def k6_measured(summary: dict[str, Any], duration: int) -> dict[str, Any]:
-    """The measured window of a k6 summary: latency of successful requests, success, throughput."""
+    """The measured window of a k6 summary: latency of successful requests, success, throughput.
+
+    With no successful request k6 still reports the latency trend, as zeros; that is no latency
+    at all, so p50, p95, p99 and the mean are None (run 4 recorded such repeats as 0 ms)."""
     ok = summary.get("http_req_duration{scenario:measure,expected_response:true}", {}).get(
         "values", {}
     )
@@ -246,11 +263,12 @@ def k6_measured(summary: dict[str, Any], duration: int) -> dict[str, Any]:
     n_failed = int(failed.get("passes", 0))
     succeeded = int(ok.get("count", 0))
     attempted = sent + n_dropped
+    latency = ok if succeeded else {}
     return {
-        "p50": ok.get("med"),
-        "p95": ok.get("p(95)"),
-        "p99": ok.get("p(99)"),
-        "mean": ok.get("avg"),
+        "p50": latency.get("med"),
+        "p95": latency.get("p(95)"),
+        "p99": latency.get("p(99)"),
+        "mean": latency.get("avg"),
         "sent": sent,
         "dropped": n_dropped,
         "failed": n_failed,
@@ -266,11 +284,54 @@ def k6_measured(summary: dict[str, Any], duration: int) -> dict[str, Any]:
 
 
 K6_CPUS = {"postgres": "0,1,3,6,7", "cache": "0,3,6,7", "kafka": "6,7"}
+"""k6's cpuset per stack: every CPU the stack's other containers leave free (compose.yaml's
+default for k6 is only used when the runner is bypassed)."""
 USER_K6_CPUS = os.environ.get("BENCH_CPUS_K6")
+STACK_SERVICES = {
+    "postgres": ["api", "postgres"],
+    "cache": ["api", "postgres", "redis"],
+    "kafka": ["producer", "consumer", "postgres", "kafka"],
+}
+
+
+def compose_cpusets() -> dict[str, tuple[str, str]]:
+    """Each container's cpuset in compose.yaml: (environment variable, default)."""
+    out: dict[str, tuple[str, str]] = {}
+    service = None
+    for line in (HERE / "compose.yaml").read_text(encoding="utf-8").splitlines():
+        if m := re.match(r"^  ([\w-]+):\s*$", line):
+            service = m.group(1)
+        elif (m := re.match(r'^\s+cpuset:\s*"\$\{(\w+):-([^}]*)\}"', line)) and service:
+            out[service] = (m.group(1), m.group(2))
+    return out
+
+
+def cpusets(stack: str, env: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The CPUs each container of a stack is pinned to, k6 included, as the runner starts it:
+    BENCH_CPUS_* when set, else compose.yaml's defaults (k6: K6_CPUS). ``env`` defaults to the
+    runner's environment as it started (stack_up overwrites BENCH_CPUS_K6 per stack)."""
+    user_k6 = USER_K6_CPUS if env is None else env.get("BENCH_CPUS_K6")
+    env = os.environ if env is None else env
+    declared = compose_cpusets()
+    out = {}
+    for service in STACK_SERVICES[stack]:
+        var, default = declared[service]
+        out[service] = env.get(var) or default
+    out["k6"] = user_k6 or K6_CPUS[stack]
+    return out
+
+
+def cpu_count(cpuset: str) -> int:
+    """How many CPUs a cpuset ("0,1,3" or "0-3") names."""
+    n = 0
+    for part in cpuset.split(","):
+        lo, _, hi = part.strip().partition("-")
+        n += int(hi) - int(lo) + 1 if hi else 1
+    return n
 
 
 def stack_up(stack: str) -> None:
-    os.environ["BENCH_CPUS_K6"] = USER_K6_CPUS or K6_CPUS[stack]
+    os.environ["BENCH_CPUS_K6"] = cpusets(stack)["k6"]
     if stack == "cache":
         os.environ["BENCH_REDIS_URL"] = "redis://redis:6379"
     else:
@@ -294,11 +355,7 @@ def target_for(exp: Experiment) -> str:
 
 
 def services_for(exp: Experiment) -> list[str]:
-    return {
-        "postgres": ["api", "postgres"],
-        "cache": ["api", "postgres", "redis"],
-        "kafka": ["producer", "consumer", "postgres", "kafka"],
-    }[exp.stack]
+    return STACK_SERVICES[exp.stack]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -378,10 +435,7 @@ def calibration_pass(exp: Experiment, mix: str, rate: float, label: str) -> dict
         "rateRps": rate,
         "k6": k6_measured(summary, CALIBRATION_S),
         "service": http_json(f"{API}/stats"),
-        "containerCpuMs": {
-            s: (cpu1[s] - cpu0[s]) / 1000 if cpu0[s] is not None and cpu1[s] is not None else None
-            for s in cpu0
-        },
+        "containerCpuMs": {s: cpu_ms(cpu0[s], cpu1[s]) for s in cpu0},
     }
     if exp.stack == "kafka":
         entry["consumer"] = http_json(f"{CONSUMER}/stats")
@@ -868,9 +922,9 @@ def measure_once(exp: Experiment, rps: float, run: int) -> dict[str, Any]:
     row["serviceCpuMsPerRequest"] = svc["cpuMsPerRequest"]
     cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
     row["containerCpuShare"] = {
-        s: round((cpu1[s] - cpu0[s]) / 1e6 / elapsed, 3)
-        for s in cpu1
-        if cpu0.get(s) is not None and cpu1[s] is not None
+        s: round((after - before) / 1e6 / elapsed, 3)
+        for s, after in cpu1.items()
+        if (before := cpu0.get(s)) is not None and after is not None
     }
     c = svc.get("counters", {})
     if exp.stack == "cache":
@@ -900,6 +954,8 @@ def measure_once(exp: Experiment, rps: float, run: int) -> dict[str, Any]:
                 break
             time.sleep(2)
         http_json(f"{CONSUMER}/reset", "POST")
+    else:
+        row["drain"] = drain()
     row["at"] = now()
     log(
         f"  p50 {row['p50'] or 0:.2f} ms, p95 {row['p95'] or 0:.2f} ms, success {row['successRate'] or 0:.3f}, "
@@ -909,18 +965,97 @@ def measure_once(exp: Experiment, rps: float, run: int) -> dict[str, Any]:
     return row
 
 
-def _median(values: list[Any]) -> Any:
-    vals = sorted(v for v in values if v is not None)
+DRAIN_S = 60
+
+
+def drain(seconds: float = DRAIN_S) -> dict[str, Any]:
+    """Before the next repeat: wait (bounded) until the service answers its health check and
+    PostgreSQL has no query left running. A step past the knee can leave queued requests or a
+    restarting service behind (run 4's hot-row at 1,126 req/s: after the first repeat no request
+    succeeded), and the next repeat must not start on top of them. Added after run 4 and not yet
+    run against the stacks."""
+    t0 = time.time()
+    healthy = False
+    idle = False
+    while time.time() - t0 < seconds:
+        if not healthy:
+            try:
+                http_json(f"{API}/health")
+                healthy = True
+            except OSError:
+                time.sleep(1)
+                continue
+        active = compose(
+            "exec", "-T", "postgres", "psql", "-U", "bench", "-d", "bench", "-tAq", "-c",
+            "SELECT count(*) FROM pg_stat_activity WHERE datname = 'bench' "
+            "AND state = 'active' AND pid <> pg_backend_pid()",
+            capture=True, check=False,
+        )  # fmt: skip
+        if active.strip() == "0":
+            idle = True
+            break
+        time.sleep(1)
+    if not (healthy and idle):
+        log(
+            f"  not drained after {seconds:g} s (service healthy: {healthy}, database idle: {idle})"
+        )
+    return {"seconds": round(time.time() - t0, 1), "healthy": healthy, "databaseIdle": idle}
+
+
+LATENCY_KEYS = ("p50", "p95", "p99", "mean")
+QUEUE_KEYS = ("consumedRps", "backlogAtEnd", "p95MessageAgeMs", "meanMessageAgeMs")
+
+
+def failed_repeat(run: Mapping[str, Any]) -> bool:
+    """A repeat in which k6 tried to send requests and none succeeded: the system failed (unlike a
+    repeat in which k6 sent nothing, which is the load generator failing)."""
+    attempted = (run.get("sent") or 0) + (run.get("dropped") or 0)
+    return run.get("succeeded") == 0 and attempted > 0
+
+
+def repeat_value(run: Mapping[str, Any], key: str) -> Any:
+    """One repeat's metric; a failed repeat's latency is infinite (worse than any measured one).
+    Runs recorded before k6_measured returned None for them carry k6's zeros instead."""
+    if key in LATENCY_KEYS and failed_repeat(run):
+        return math.inf
+    return run.get(key)
+
+
+def median(values: Iterable[float | None]) -> float | None:
+    """The median of the values that exist (the mean of the middle two for an even count); None
+    when there are none or when the median is infinite (most repeats failed)."""
+    vals = [v for v in values if v is not None]
     if not vals:
         return None
-    mid = len(vals) // 2
-    return vals[mid] if len(vals) % 2 else (vals[mid - 1] + vals[mid]) / 2
+    m = statistics.median(vals)
+    return None if math.isinf(m) else m
+
+
+def aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    """A step's metrics from its repeats: the median of each (robust to one stall). A failed
+    repeat counts as slower than any measured repeat, so one failed repeat out of three moves the
+    median to the slower of the other two, and two or more leave the step without a latency
+    (None; the step fails the objective). A step is unstable when its repeats' p95s differ by more
+    than 2x across the objective (a failed repeat's p95 is infinite)."""
+    out: dict[str, Any] = {}
+    for key in (*LATENCY_KEYS, "successRate", "throughputRps", "cacheHitRatio"):
+        if any(key in r for r in runs):
+            out[key] = median(repeat_value(r, key) for r in runs)
+    if any("queue" in r for r in runs):
+        out["queue"] = {
+            k: median(r["queue"].get(k) for r in runs if "queue" in r) for k in QUEUE_KEYS
+        }
+    p95s = [v for v in (repeat_value(r, "p95") for r in runs) if v is not None]
+    out["unstable"] = bool(p95s) and max(p95s) > 2 * min(p95s) and max(p95s) > OBJECTIVE_P95_MS
+    out["repeats"] = len(runs)
+    out["failedRepeats"] = sum(failed_repeat(r) for r in runs)
+    return out
 
 
 def measure_step(exp: Experiment, rps: float) -> dict[str, Any]:
-    """REPEATS runs of one step; each metric is the median over the runs (robust to one stall).
-    A run in which k6 sent nothing (the load generator failed, run 3 at 754 req/s) is not a
-    measurement: it is recorded as discarded and run once more."""
+    """REPEATS runs of one step, aggregated (``aggregate``). A run in which k6 sent nothing (the
+    load generator failed) is not a measurement: it is recorded as discarded and run once more. A
+    run in which requests were sent and none succeeded is a measurement of a failing system."""
     runs, discarded = [], []
     for i in range(REPEATS):
         r = measure_once(exp, rps, i + 1)
@@ -932,16 +1067,7 @@ def measure_step(exp: Experiment, rps: float) -> dict[str, Any]:
     row: dict[str, Any] = {"offeredRps": rps, "runs": runs, "at": now()}
     if discarded:
         row["discardedRuns"] = discarded
-    for key in ("p50", "p95", "p99", "mean", "successRate", "throughputRps", "cacheHitRatio"):
-        if any(key in r for r in runs):
-            row[key] = _median([r.get(key) for r in runs])
-    if any("queue" in r for r in runs):
-        row["queue"] = {
-            k: _median([r["queue"].get(k) for r in runs if "queue" in r])
-            for k in ("consumedRps", "backlogAtEnd", "p95MessageAgeMs", "meanMessageAgeMs")
-        }
-    p95s = [r["p95"] for r in runs if r.get("p95") is not None]
-    row["unstable"] = bool(p95s) and max(p95s) > 2 * min(p95s) and max(p95s) > OBJECTIVE_P95_MS
+    row.update(aggregate(runs))
     return row
 
 
@@ -983,10 +1109,27 @@ def grid_knee(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {"kneeRps": None, "bound": "above", "aboveRps": rows[-1]["offeredRps"] if rows else None}
 
 
+def at_or_below_knee(rows: list[dict[str, Any]], knee: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The steps at or below a measured knee (all of them when every step met the objective)."""
+    if knee.get("kneeRps") is not None:
+        return [r for r in rows if r["offeredRps"] <= knee["kneeRps"]]
+    return list(rows) if knee.get("bound") == "above" else []
+
+
+def measured_steps(meas: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Each measured step aggregated from its repeats (``aggregate``), so that results recorded
+    before a fix to the aggregation are compared the way new ones are. Steps of run 1 had no
+    repeats: the step is its one run."""
+    return [
+        {"offeredRps": s["offeredRps"], **aggregate(s.get("runs") or [s])} for s in meas["steps"]
+    ]
+
+
 def compare(exp: Experiment, pred: dict[str, Any], meas: dict[str, Any]) -> dict[str, Any]:
     by = {s["offeredRps"]: s for s in pred["steps"]}
+    steps = measured_steps(meas)
     rows = []
-    for m in meas["steps"]:
+    for m in steps:
         p = by[m["offeredRps"]]
         row = {
             "offeredRps": m["offeredRps"],
@@ -997,6 +1140,9 @@ def compare(exp: Experiment, pred: dict[str, Any], meas: dict[str, Any]) -> dict
                 k: p.get(k) for k in ("p50", "p95", "p99", "successRate", "throughputRps")
             },
             "error": {k: err(p.get(k), m.get(k)) for k in ("p50", "p95", "p99", "throughputRps")},
+            "unstable": m["unstable"],
+            "repeats": m["repeats"],
+            "failedRepeats": m["failedRepeats"],
         }
         if "cacheHitRatio" in m:
             row["measured"]["cacheHitRatio"] = m["cacheHitRatio"]
@@ -1005,10 +1151,10 @@ def compare(exp: Experiment, pred: dict[str, Any], meas: dict[str, Any]) -> dict
             row["measured"]["queue"] = m["queue"]
             row["predicted"]["queue"] = p.get("queue")
         rows.append(row)
-    mk = grid_knee(meas["steps"])
+    mk = grid_knee(steps)
     pk = grid_knee(pred["steps"])
     knee_err = err(pk["kneeRps"], mk["kneeRps"])
-    below = [r for r in rows if mk["kneeRps"] is not None and r["offeredRps"] <= mk["kneeRps"]]
+    below = at_or_below_knee(rows, mk)
     p95_errs = [abs(r["error"]["p95"]) for r in below if r["error"]["p95"] is not None]
     return {
         "experiment": exp.id,
@@ -1020,11 +1166,45 @@ def compare(exp: Experiment, pred: dict[str, Any], meas: dict[str, Any]) -> dict
         "kneeError": knee_err,
         "belowKnee": {
             "steps": len(below),
-            "medianAbsP95Error": sorted(p95_errs)[len(p95_errs) // 2] if p95_errs else None,
+            "medianAbsP95Error": median(p95_errs),
             "maxAbsP95Error": max(p95_errs) if p95_errs else None,
         },
         "rows": rows,
     }
+
+
+def result_dirs(results: Path = RESULTS) -> list[tuple[str, Path]]:
+    """Every run kept for each experiment, oldest first: run-1/, run-2/, ... then the latest (the
+    experiment's own directory)."""
+
+    def number(d: Path) -> int:
+        return int(d.name.removeprefix("run-"))
+
+    out = []
+    for exp in EXPERIMENTS:
+        base = results / exp
+        older = sorted(
+            (d for d in base.glob("run-*") if d.is_dir() and d.name[4:].isdigit()), key=number
+        )
+        out += [(exp, d) for d in [*older, base] if (d / "measured.json").exists()]
+    return out
+
+
+def write_json(path: Path, data: Any) -> None:
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def recompare(results: Path = RESULTS) -> list[Path]:
+    """Recompute every comparison.json from its measured.json and predictions.json (no Docker)."""
+    written = []
+    for exp, d in result_dirs(results):
+        if not (d / "predictions.json").exists():
+            continue
+        pred = json.loads((d / "predictions.json").read_text(encoding="utf-8"))
+        meas = json.loads((d / "measured.json").read_text(encoding="utf-8"))
+        write_json(d / "comparison.json", compare(EXPERIMENTS[exp], pred, meas))
+        written.append(d / "comparison.json")
+    return written
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1075,9 +1255,7 @@ def environment() -> dict[str, Any]:
 def save(exp_id: str, name: str, data: dict[str, Any]) -> None:
     d = RESULTS / exp_id
     d.mkdir(parents=True, exist_ok=True)
-    (d / f"{name}.json").write_text(
-        json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n"
-    )
+    write_json(d / f"{name}.json", data)
 
 
 def run_experiment(exp: Experiment) -> None:
@@ -1123,10 +1301,18 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("stack", choices=[*STACKS, "all"])
+    ap.add_argument(
+        "stack",
+        choices=[*STACKS, "all", "compare"],
+        help="a stack to run, all of them, or 'compare': recompute every comparison.json",
+    )
     ap.add_argument("--keep", action="store_true", help="leave the stack running afterwards")
     ap.add_argument("--only", choices=list(EXPERIMENTS), help="run one experiment of the stack")
     args = ap.parse_args(argv)
+    if args.stack == "compare":
+        for path in recompare():
+            log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
+        return 0
     stacks = list(STACKS) if args.stack == "all" else [args.stack]
     env = environment()
     for stack in stacks:
@@ -1135,7 +1321,7 @@ def main(argv: list[str] | None = None) -> int:
             for exp_id in STACKS[stack]:
                 if args.only and exp_id != args.only:
                     continue
-                save(exp_id, "environment", env)
+                save(exp_id, "environment", {**env, "cpusets": cpusets(stack)})
                 run_experiment(EXPERIMENTS[exp_id])
         finally:
             if not args.keep:

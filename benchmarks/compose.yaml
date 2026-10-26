@@ -128,7 +128,11 @@ services:
   k6:
     image: grafana/k6:1.3.0
     profiles: [load]
+    # run.py sets BENCH_CPUS_K6 per stack (every CPU the stack leaves free) and records each
+    # container's cpuset in results/<experiment>/environment.json.
     cpuset: "${BENCH_CPUS_K6:-6,7}"
+    # The image runs as uid 12345: run.py makes results/.k6 writable for it (chmod 777) so that
+    # handleSummary can write on Linux (untested on Linux so far).
     volumes:
       - ./k6:/scripts:ro
       - ./results/.k6:/out

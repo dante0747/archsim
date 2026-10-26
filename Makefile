@@ -27,19 +27,19 @@ test-web:
 	cd apps/web && npm test
 
 lint:
-	uv run ruff check packages services
-	uv run ruff format --check packages services
+	uv run ruff check packages services benchmarks
+	uv run ruff format --check packages services benchmarks
 	cd apps/web && npm run lint
 
 fmt:
-	uv run ruff check --fix packages services
-	uv run ruff format packages services
+	uv run ruff check --fix packages services benchmarks
+	uv run ruff format packages services benchmarks
 
 typecheck:
 	uv run mypy packages/engine/src services/api/src
 	cd apps/web && npm run typecheck
+	uv run mypy benchmarks
 
 benchmark:        ## accuracy benchmarks (Docker; about 1.5 hours, machine otherwise idle), then rewrite docs/validation.md
 	uv run python benchmarks/run.py all
-	uv run python benchmarks/report.py
 	uv run python benchmarks/report.py

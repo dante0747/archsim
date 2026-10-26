@@ -59,7 +59,7 @@ ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/engine/tests", "services/api/tests"]
+testpaths = ["packages/engine/tests", "services/api/tests", "benchmarks/tests"]
 addopts = "-q"
 filterwarnings = [
   # Starlette suggests a different HTTP client for its TestClient; httpx still works.
