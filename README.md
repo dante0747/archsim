@@ -196,6 +196,22 @@ result digest so it can be re-run and verified bit for bit.
 | **Results → Compare** | **Templates gallery** |
 | ![Cost vs. speed map in the dark theme: monthly cost against p95 for every scenario run, the p95 objective line and the Pareto frontier, with a table of options](docs/images/tradeoffs.jpg) | ![The templates gallery in the dark theme: counts (8 templates, 35 scenarios, 16 technologies), category filters and search, and the featured Black Friday on Kubernetes template drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) with traffic flowing along the links, beside its description, "Built with" list, key numbers and a Use this template button](docs/images/templates.jpg) |
 
+## How accurate is it?
+
+Measured, not claimed: [docs/validation.md](docs/validation.md) calibrates ArchSim from
+low-load runs of four real stacks, saves its predictions, then measures them with k6. In one run
+on one Windows laptop (Docker Desktop) the predicted breaking point was off the measured one by
+-10% for Node.js + PostgreSQL, -14% for cache-aside with Redis, +6% for Kafka and +97% for a single
+hot row, which could not be measured reliably on that machine. Treat these as one run, not as an
+accuracy figure: the measured breaking point itself moves between runs (Node.js + PostgreSQL:
+1,895, 3,162 and 2,291 req/s in three runs), and the protocol was revised after the two
+PostgreSQL experiments' high-load results had been seen, so only cache-aside and Kafka were first
+run under the final protocol. At low load the predicted p95 was about 8.7 ms (+300%) high for
+Kafka and 0.1 to 1.4 ms high for the other three, and the model's collapse past the knee is
+sharper than the real one. No technology meets the page's proposed thresholds for "validated".
+The page explains each gap; every measured repeat's numbers are committed, but k6's raw
+summaries are not.
+
 ## Quick start
 
 Prerequisites: **Python 3.11+** with [uv](https://docs.astral.sh/uv/), **Node.js 20.9+** (24
@@ -331,6 +347,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Prices and machine shapes](docs/pricing.md)
 - [An SLO gate in CI](docs/ci.md)
 - [Performance: what is fast, what is not, sampled mode](docs/performance.md)
+- [How accurate is ArchSim? Benchmarks against real stacks](docs/validation.md)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)

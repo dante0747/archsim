@@ -1,0 +1,217 @@
+{
+  "experiment": "pg-hot-row",
+  "at": "2026-10-26T08:42:10Z",
+  "method": "two-pass slope (v2)",
+  "capacityBoundRps": 384.9,
+  "passes": {
+    "low": {
+      "mix": "hot:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 3.3097345000000002,
+        "p95": 4.852322699999999,
+        "p99": 5.571390089999999,
+        "mean": 3.38522197,
+        "sent": 1500,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1500,
+        "successRate": 1.0,
+        "throughputRps": 50.0
+      },
+      "service": {
+        "role": "api",
+        "requests": 1500,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 36105.94989899988,
+        "cpuMs": 1252.743,
+        "cpuMsPerRequest": 0.835162,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {
+          "db_write": {
+            "count": 1500,
+            "mean": 2.5984137026687772,
+            "median": 2.5364739999640733,
+            "p95": 3.769393000053242,
+            "p99": 4.433908000122756
+          },
+          "handler": {
+            "count": 1500,
+            "mean": 2.61493373533478,
+            "median": 2.552163999993354,
+            "p95": 3.7883960001636297,
+            "p99": 4.469616999849677
+          },
+          "own": {
+            "count": 1500,
+            "mean": 0.016520032666002712,
+            "median": 0.013774999883025885,
+            "p95": 0.0320120002143085,
+            "p99": 0.06014900002628565
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 1271.259,
+        "postgres": 1505.351
+      }
+    },
+    "high": {
+      "mix": "hot:1",
+      "rateRps": 96,
+      "k6": {
+        "p50": 2.9748005,
+        "p95": 4.227845849999998,
+        "p99": 5.24857636,
+        "mean": 3.065007839583332,
+        "sent": 2880,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 2880,
+        "successRate": 1.0,
+        "throughputRps": 96.0
+      },
+      "service": {
+        "role": "api",
+        "requests": 2880,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 36131.85688799992,
+        "cpuMs": 2144.42,
+        "cpuMsPerRequest": 0.7445902777777778,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {
+          "db_write": {
+            "count": 2880,
+            "mean": 2.371239715971185,
+            "median": 2.3007930000312626,
+            "p95": 3.3381809999700636,
+            "p99": 4.130379999987781
+          },
+          "handler": {
+            "count": 2880,
+            "mean": 2.3858664649317993,
+            "median": 2.3149840000551194,
+            "p95": 3.3602739998605102,
+            "p99": 4.15479200007394
+          },
+          "own": {
+            "count": 2880,
+            "mean": 0.014626748960613946,
+            "median": 0.011881999904289842,
+            "p95": 0.03100700001232326,
+            "p99": 0.05599300004541874
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 2159.42,
+        "postgres": 2229.066
+      }
+    },
+    "write_async:1": {
+      "mix": "write_async:1",
+      "rateRps": 96,
+      "k6": {
+        "p50": 1.281324,
+        "p95": 2.538082,
+        "p99": 3.2379011999999987,
+        "mean": 1.445933662270048,
+        "sent": 2881,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 2881,
+        "successRate": 1.0,
+        "throughputRps": 96.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 2881,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 36178.15285900002,
+        "cpuMs": 1993.111,
+        "cpuMsPerRequest": 0.6918122179798681,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {
+          "db_write_async": {
+            "count": 2881,
+            "mean": 0.7855605272452888,
+            "median": 0.6823629999998957,
+            "p95": 1.5201999999117106,
+            "p99": 2.0836710000876337
+          },
+          "handler": {
+            "count": 2881,
+            "mean": 0.800329248178204,
+            "median": 0.6955299999099225,
+            "p95": 1.5479099999647588,
+            "p99": 2.115739000029862
+          },
+          "own": {
+            "count": 2881,
+            "mean": 0.014768720932915182,
+            "median": 0.01204399997368455,
+            "p95": 0.031337999971583486,
+            "p99": 0.058111000107601285
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 2008.681,
+        "postgres": 1776.042
+      }
+    }
+  },
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.5451,
+        "p95": 1.4225
+      },
+      "how": "mean = Node's CPU per extra request between the passes: (2144 - 1253 ms) / (2880 - 1500 requests) = 0.6461 ms (at 50 req/s alone: 0.8352 ms); shape (p95/median 0.0310/0.0119 ms) from the handler's own time"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.3299,
+      "how": "(k6 median 2.975 ms - handler median 2.315 ms) / 2, one way"
+    },
+    "measuredLowLoad": {
+      "rateRps": 96,
+      "p50": 2.9748005,
+      "p95": 4.227845849999998,
+      "p99": 5.24857636,
+      "mean": 3.065007839583332,
+      "sent": 2880,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 2880,
+      "successRate": 1.0,
+      "throughputRps": 96.0
+    },
+    "writeServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.6824,
+        "p95": 1.5202
+      },
+      "how": "UPDATE with synchronous_commit off (no WAL flush wait): median 0.682, p95 1.520 ms"
+    },
+    "commitFlushMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 1.6184,
+        "p95": 1.818
+      },
+      "how": "UPDATE with synchronous_commit on minus off: median 2.301 - 0.682 ms, p95 3.338 - 1.520 ms"
+    },
+    "dbCpuShare": {
+      "value": 0.2212,
+      "how": "PostgreSQL CPU per extra query between the passes (0.5244 ms) / mean query time (2.371 ms)"
+    }
+  }
+}

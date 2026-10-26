@@ -26,13 +26,15 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen
       - name: Lint
-        run: uv run ruff check packages services
+        run: uv run ruff check packages services benchmarks
       - name: Format
-        run: uv run ruff format --check packages services
+        run: uv run ruff format --check packages services benchmarks
       - name: Type check
         run: uv run mypy packages/engine/src services/api/src packages/mcp/src
       - name: Tests
         run: uv run pytest
+      - name: Type check the benchmark scripts
+        run: uv run mypy benchmarks
 
   api-postgres:
     name: API tests on PostgreSQL

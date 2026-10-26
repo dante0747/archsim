@@ -1,0 +1,337 @@
+{
+  "experiment": "kafka",
+  "title": "Kafka: Node.js producer, 6 partitions, 3 consumers inserting into PostgreSQL",
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "measuredKnee": {
+    "kneeRps": 945.2,
+    "bound": "interpolated",
+    "between": [
+      905,
+      1006
+    ]
+  },
+  "predictedKnee": {
+    "kneeRps": 1006.1,
+    "bound": "interpolated",
+    "between": [
+      1006,
+      1107
+    ]
+  },
+  "predictedKneeFine": 1006,
+  "kneeError": 0.06443080829454081,
+  "belowKnee": {
+    "steps": 4,
+    "medianAbsP95Error": 2.1114510990286304,
+    "maxAbsP95Error": 3.3188595069248787
+  },
+  "rows": [
+    {
+      "offeredRps": 252,
+      "measured": {
+        "p50": 0.855265,
+        "p95": 2.874117,
+        "p99": 7.433193600000031,
+        "successRate": 1.0,
+        "throughputRps": 252.05,
+        "queue": {
+          "consumedRps": 252.08,
+          "backlogAtEnd": 0,
+          "p95MessageAgeMs": 6,
+          "meanMessageAgeMs": 3.5022812933941676
+        }
+      },
+      "predicted": {
+        "p50": 1.9869,
+        "p95": 11.5766,
+        "p99": 29.9495,
+        "successRate": 1.0,
+        "throughputRps": 251.9,
+        "queue": {
+          "consumedRps": 252.05,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 9.8724,
+          "p95MessageAgeMs": 48.1719
+        }
+      },
+      "error": {
+        "p50": 1.323139611699298,
+        "p95": 3.0278805629694263,
+        "p99": 3.029156458403004,
+        "throughputRps": -0.0005951200158698896
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0
+    },
+    {
+      "offeredRps": 503,
+      "measured": {
+        "p50": 0.772666,
+        "p95": 2.627916,
+        "p99": 5.927431999999994,
+        "successRate": 1.0,
+        "throughputRps": 503.05,
+        "queue": {
+          "consumedRps": 503.08,
+          "backlogAtEnd": 0,
+          "p95MessageAgeMs": 10,
+          "meanMessageAgeMs": 3.7522115097902793
+        }
+      },
+      "predicted": {
+        "p50": 2.0266,
+        "p95": 11.3496,
+        "p99": 31.1594,
+        "successRate": 1.0,
+        "throughputRps": 502.9,
+        "queue": {
+          "consumedRps": 503.1,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 47.5037,
+          "p95MessageAgeMs": 221.3129
+        }
+      },
+      "error": {
+        "p50": 1.6228668014381378,
+        "p95": 3.3188595069248787,
+        "p99": 4.256812731044411,
+        "throughputRps": -0.0002981810953186246
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0
+    },
+    {
+      "offeredRps": 754,
+      "measured": {
+        "p50": 1.5014539999999998,
+        "p95": 28.733978999999987,
+        "p99": 96.24676067999967,
+        "successRate": 0.9961538461538462,
+        "throughputRps": 751.1,
+        "queue": {
+          "consumedRps": 737.64,
+          "backlogAtEnd": 0,
+          "p95MessageAgeMs": 432,
+          "meanMessageAgeMs": 75.5371455834242
+        }
+      },
+      "predicted": {
+        "p50": 2.2823,
+        "p95": 11.5766,
+        "p99": 29.3622,
+        "successRate": 1.0,
+        "throughputRps": 753.95,
+        "queue": {
+          "consumedRps": 663.75,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 1676.9904,
+          "p95MessageAgeMs": 3206.4904
+        }
+      },
+      "error": {
+        "p50": 0.5200598886146365,
+        "p95": -0.5971111414816582,
+        "p99": -0.6949279145339429,
+        "throughputRps": 0.003794434828917618
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0
+    },
+    {
+      "offeredRps": 905,
+      "measured": {
+        "p50": 0.878735,
+        "p95": 5.708782,
+        "p99": 14.103755919999996,
+        "successRate": 0.9970719849732059,
+        "throughputRps": 902.4,
+        "queue": {
+          "consumedRps": 902.96,
+          "backlogAtEnd": 0,
+          "p95MessageAgeMs": 41,
+          "meanMessageAgeMs": 13.549030440307165
+        }
+      },
+      "predicted": {
+        "p50": 3.0114,
+        "p95": 12.5309,
+        "p99": 29.9495,
+        "successRate": 1.0,
+        "throughputRps": 904.95,
+        "queue": {
+          "consumedRps": 664.45,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 3852.4154,
+          "p95MessageAgeMs": 6540.8791
+        }
+      },
+      "error": {
+        "p50": 2.426971726402158,
+        "p95": 1.1950216350878349,
+        "p99": 1.1235123586852325,
+        "throughputRps": 0.002825797872340501
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0
+    },
+    {
+      "offeredRps": 1006,
+      "measured": {
+        "p50": 3.1093315,
+        "p95": 90.45764144999998,
+        "p99": 171.1002230399998,
+        "successRate": 0.9793250832463595,
+        "throughputRps": 985.25,
+        "queue": {
+          "consumedRps": 987.32,
+          "backlogAtEnd": 0,
+          "p95MessageAgeMs": 787,
+          "meanMessageAgeMs": 173.71773865255446
+        }
+      },
+      "predicted": {
+        "p50": 26.0728,
+        "p95": 47.2273,
+        "p99": 57.5698,
+        "successRate": 1.0,
+        "throughputRps": 1005.6,
+        "queue": {
+          "consumedRps": 664.55,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 4928.7917,
+          "p95MessageAgeMs": 8132.761
+        }
+      },
+      "error": {
+        "p50": 7.38533942102989,
+        "p95": -0.4779070154498262,
+        "p99": -0.6635317068725192,
+        "throughputRps": 0.02065465617863489
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0
+    },
+    {
+      "offeredRps": 1107,
+      "measured": {
+        "p50": 1.09733,
+        "p95": 20.159681,
+        "p99": 50.972096,
+        "successRate": 0.9981933968655435,
+        "throughputRps": 1105.05,
+        "queue": {
+          "consumedRps": 1100.16,
+          "backlogAtEnd": 0,
+          "p95MessageAgeMs": 513,
+          "meanMessageAgeMs": 142.05213721753336
+        }
+      },
+      "predicted": {
+        "p50": 1215.1266,
+        "p95": 1954.4549,
+        "p99": 1993.544,
+        "successRate": 0.7688,
+        "throughputRps": 874.5,
+        "queue": {
+          "consumedRps": 664.5,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 4985.8195,
+          "p95MessageAgeMs": 8295.4162
+        }
+      },
+      "error": {
+        "p50": 1106.3483819817193,
+        "p95": 95.94870171804801,
+        "p99": 38.110496849099555,
+        "throughputRps": -0.20863309352517984
+      },
+      "unstable": true,
+      "repeats": 3,
+      "failedRepeats": 0
+    },
+    {
+      "offeredRps": 1258,
+      "measured": {
+        "p50": 1.745985,
+        "p95": 51.84689789999998,
+        "p99": 115.40574086,
+        "successRate": 0.9910178450776996,
+        "throughputRps": 1246.75,
+        "queue": {
+          "consumedRps": 1249.12,
+          "backlogAtEnd": 0,
+          "p95MessageAgeMs": 2369,
+          "meanMessageAgeMs": 1269.0755544312337
+        }
+      },
+      "predicted": {
+        "p50": 1635.4004,
+        "p95": 1954.4549,
+        "p99": 1993.544,
+        "successRate": 0.1515,
+        "throughputRps": 251.7,
+        "queue": {
+          "consumedRps": 664.45,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 4975.2458,
+          "p95MessageAgeMs": 8461.3246
+        }
+      },
+      "error": {
+        "p50": 935.6634879452,
+        "p95": 36.69666034349185,
+        "p99": 16.2742186406341,
+        "throughputRps": -0.798115099258071
+      },
+      "unstable": true,
+      "repeats": 3,
+      "failedRepeats": 0
+    },
+    {
+      "offeredRps": 1509,
+      "measured": {
+        "p50": 104.66689450000001,
+        "p95": 316.50070220000015,
+        "p99": 468.3989883300003,
+        "successRate": 0.6793015473311024,
+        "throughputRps": 1025.1,
+        "queue": {
+          "consumedRps": 886.24,
+          "backlogAtEnd": 2641,
+          "p95MessageAgeMs": 11837,
+          "meanMessageAgeMs": 7413.586838624338
+        }
+      },
+      "predicted": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "successRate": 0.0,
+        "throughputRps": 50.0,
+        "queue": {
+          "consumedRps": 664.45,
+          "backlogAtEnd": 0,
+          "meanMessageAgeMs": 4975.8276,
+          "p95MessageAgeMs": 8461.3246
+        }
+      },
+      "error": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "throughputRps": -0.9512242708028485
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0
+    }
+  ]
+}
