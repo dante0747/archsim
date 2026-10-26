@@ -148,6 +148,10 @@ export interface PricingSource {
   date: string | null;
   illustrative: boolean;
   note?: string | null;
+  /** Hash of the snapshot's content. */
+  sha256?: string;
+  /** The newest snapshot of its provider and region (older ones are listed for pinned designs). */
+  newest?: boolean;
 }
 
 export interface CalibrateRequest {

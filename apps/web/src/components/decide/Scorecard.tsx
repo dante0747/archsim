@@ -296,6 +296,11 @@ function CostPanel({ report }: { report: Report }) {
                         from size
                       </span>
                     )}
+                    {c.priceSource === "preset" && (
+                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="The technology preset's illustrative price: choose a price snapshot to price it as an instance type">
+                        preset price
+                      </span>
+                    )}
                     {c.sku && (
                       <span className="ml-1.5 font-mono text-[11px] text-ink-3" title={`On-demand list price of ${c.sku} on ${c.snapshotDate ?? "the snapshot date"}`}>
                         {c.sku}

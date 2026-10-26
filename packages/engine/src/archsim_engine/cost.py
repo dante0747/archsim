@@ -2,12 +2,21 @@
 (``costPerHour`` per instance; ``costPerMillionRequests`` for third-party APIs), and the cost per
 million successful requests at the throughput a run achieved.
 
-Price per instance-hour: the price set on the part; without one, with a price snapshot
-(``pricing`` names a provider), the on-demand price of the cheapest instance type that covers
-the part's CPU and memory, plus its storage at the snapshot's rate; otherwise the part's size
-at illustrative on-demand rates (the ``generic`` provider); without a size, the catalog default.
+Price per instance-hour, the first that applies:
+
+1. a price a person set on the part (``set``): one that differs from the catalog default and
+   from the illustrative price of every preset of the part's technology, or whose provenance
+   (``nodes/<id>/costPerHour``) is measured or assumed;
+2. with a price snapshot (``pricing`` names a provider): the on-demand price of the cheapest
+   instance type that covers the part's CPU and memory, plus its storage at the snapshot's rate
+   (``snapshot``), or the snapshot's rate for a managed load balancer, queue or serverless
+   function;
+3. a technology preset's illustrative price (``preset``);
+4. the part's size at illustrative on-demand rates (``size``, the ``generic`` provider);
+5. the catalog default (``default``).
+
 A price equal to the catalog default counts as not set (normalized and stored documents carry
-every default).
+every default); a preset's price is illustrative, so a snapshot reprices it.
 
 These are planning estimates, not quotes: a snapshot's prices are list prices on its date (no
 discounts, data transfer or per-request load balancer units), and the generic rates are
@@ -41,14 +50,18 @@ PRICE_PER_GIB_HOUR = GENERIC_GIB_HOUR
 PRICE_PER_STORAGE_GIB_MONTH = GENERIC_STORAGE_GIB_MONTH
 """Illustrative block storage price per GiB-month."""
 CLUSTER_TYPE = "kubernetes_cluster"
-MANAGED_LOAD_BALANCERS = {"aws_alb", "api_gateway"}
+MANAGED_LOAD_BALANCERS = {"aws_alb"}
+"""Billed per hour at the snapshot's ``loadBalancerHour``. API gateways are not: providers bill
+them per request, a rate snapshots do not carry, so they keep an illustrative price."""
 MANAGED_QUEUES = {"sqs", "pubsub"}
+PER_REQUEST_UNPRICED = {"api_gateway"}
 
 
 @dataclass(frozen=True)
 class Quote:
-    """A price per instance-hour and where it came from: ``set`` on the part, a ``snapshot``
-    instance type (``sku``), the part's ``size`` at generic rates, or the catalog ``default``."""
+    """A price per instance-hour and where it came from: ``set`` on the part by a person, a
+    ``snapshot`` instance type (``sku``), a technology ``preset``'s illustrative price, the
+    part's ``size`` at generic rates, or the catalog ``default``."""
 
     price: float | None
     source: str | None
@@ -77,6 +90,38 @@ def config_value(node: Json, registry: ComponentRegistry, key: str) -> Any:
     return v if v is not None else _defaults(node, registry).get(key)
 
 
+def _preset_prices(node: Json, registry: ComponentRegistry) -> set[float]:
+    """The illustrative ``costPerHour`` of the presets of the part's technology."""
+    if node["type"] not in registry:
+        return set()
+    tech = config_value(node, registry, "technology")
+    return {
+        price
+        for p in registry.get(node["type"]).presets
+        if p.technology == tech and (price := num(p.config.get("costPerHour"))) is not None
+    }
+
+
+def price_origin(
+    node: Json, registry: ComponentRegistry, provenance: dict[str, str] | None = None
+) -> str | None:
+    """Where a part's ``costPerHour`` came from: ``set`` by a person, ``preset`` (the
+    illustrative price of a preset of its technology, or marked illustrative), ``default`` (the
+    catalog default) or None (no price). ``provenance``: the document's provenance kind by path;
+    measured or assumed means set by a person, whatever the value."""
+    own = num((node.get("config") or {}).get("costPerHour"))
+    if own is None:
+        return None
+    kind = (provenance or {}).get(f"nodes/{node['id']}/costPerHour")
+    if kind in ("measured", "assumed"):
+        return "set"
+    if own == num(_defaults(node, registry).get("costPerHour")):
+        return "default"
+    if kind == "illustrative" or own in _preset_prices(node, registry):
+        return "preset"
+    return "set"
+
+
 def quote(
     node: Json,
     registry: ComponentRegistry,
@@ -84,13 +129,15 @@ def quote(
     option: str = "on_demand",
     families: tuple[str, ...] = (),
     size_only: bool = False,
+    provenance: dict[str, str] | None = None,
 ) -> Quote:
     """Price of one instance-hour of a part. ``size_only``: the price of its size (instance type
     or generic rates) even when a price is set on the part."""
     cfg = node.get("config") or {}
     fallback = num(_defaults(node, registry).get("costPerHour"))
     own = num(cfg.get("costPerHour"))
-    if not size_only and own is not None and own != fallback:
+    origin = None if size_only else price_origin(node, registry, provenance)
+    if origin == "set":
         return Quote(own, "set")
     cluster = node["type"] == CLUSTER_TYPE
     # a Kubernetes cluster is billed per node, at the node's size
@@ -113,10 +160,13 @@ def quote(
                 "self-managed on compute instances" if m.self_managed else None,
             )
         if m is not None:
-            note = f"no {m.category} type in {snap.label} covers its size: priced at generic rates"
+            note = f"no {m.category} type in {snap.label} covers its size"
+    if origin == "preset":
+        # a preset's price is illustrative: used when the snapshot cannot price the part
+        return Quote(own, "preset", None, f"{note}: priced at its preset's price" if note else None)
     size = size_price_per_hour(cpu, mem, storage)
     if size is not None:
-        return Quote(size, "size", None, note)
+        return Quote(size, "size", None, f"{note}: priced at generic rates" if note else None)
     if size_only:
         return Quote(None, None)
     default = own if own is not None else fallback
@@ -204,9 +254,11 @@ def estimate_cost(
     registry: ComponentRegistry,
     report: Json | None = None,
     pricing: Json | None = None,
+    provenance: dict[str, str] | None = None,
 ) -> Json:
     """Monthly cost of ``nodes`` (a normalized design, or a run's ``input.architecture.nodes``)
-    with the prices ``pricing`` names (generic when unset).
+    with the prices ``pricing`` names (generic when unset). ``provenance``: the document's
+    provenance kind by path (a price marked measured or assumed is the user's).
 
     With a report, third-party calls are priced at the measured call rate, autoscaled services
     at their average active instances, and the cost per million successful requests is derived.
@@ -220,11 +272,11 @@ def estimate_cost(
     option = str((pricing or {}).get("purchaseOption") or "on_demand")
     families = tuple((pricing or {}).get("families") or ())
     snapshot_priced = False
-    fell_back = False
     by_node: list[Json] = []
     any_price = False
     missing_external_rate = False
     size_priced = False
+    preset_kept = False
     report_nodes = {n["id"]: n for n in (report or {}).get("nodes", [])}
     cluster_ids = [n["id"] for n in nodes if n["type"] == CLUSTER_TYPE]
     for n in nodes:
@@ -285,21 +337,29 @@ def estimate_cost(
                 }
             )
             continue
-        managed = _managed_line(n, technology, snap, nr, label)
+        # a price the user set wins over a snapshot's managed rate too
+        user_set = price_origin(n, registry, provenance) == "set"
+        managed = None if user_set else _managed_line(n, technology, snap, nr, label)
         if managed is not None:
             any_price = True
             snapshot_priced = True
             by_node.append(managed)
             continue
-        q = quote(n, registry, snap, option, families)
+        q = quote(n, registry, snap, option, families, provenance=provenance)
         if q.price is not None:
             any_price = True
         if q.source == "size":
             size_priced = True
-            fell_back = fell_back or q.note is not None
         if q.source == "snapshot":
             snapshot_priced = True
+        if q.source == "preset" and not snap.illustrative:
+            preset_kept = True
         count, basis = instances_of(n, registry, nr)
+        note = q.note
+        if technology in PER_REQUEST_UNPRICED and not snap.illustrative and q.source != "set":
+            note = (
+                f"{note}; " if note else ""
+            ) + "an API gateway is billed per request, which the price snapshot does not cover"
         line: Json = {
             "id": n["id"],
             "label": label,
@@ -310,7 +370,7 @@ def estimate_cost(
             "priceSource": q.source,
             "unit": "hour",
             "monthly": q.price * count * HOURS_PER_MONTH if q.price is not None else 0.0,
-            "basis": basis + (f"; {q.note}" if q.note else ""),
+            "basis": basis + (f"; {note}" if note else ""),
         }
         if q.sku:
             line["sku"] = q.sku
@@ -332,11 +392,17 @@ def estimate_cost(
             "covers its CPU and memory; discounts, data transfer and load balancer capacity units "
             "are not included."
         )
-    if size_priced and (fell_back or not snapshot_priced):
+    if preset_kept:
+        notes.append(
+            "Parts the price snapshot does not cover keep their technology preset's illustrative "
+            "price."
+        )
+    if size_priced:
+        # whenever any line is priced at the generic rates, mixed with snapshot lines or not
         notes.append(
             (
-                "Parts no instance type covers are"
-                if snapshot_priced
+                "Parts the price snapshot does not cover are"
+                if not snap.illustrative
                 else "Parts without a set price are"
             )
             + " priced from their size at illustrative on-demand rates "

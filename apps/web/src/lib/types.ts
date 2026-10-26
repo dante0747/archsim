@@ -160,6 +160,10 @@ export interface Pricing {
   purchaseOption?: "on_demand";
   /** Instance families to snap to; empty: any in the snapshot. */
   families?: string[];
+  /** Pins the snapshot of this date (YYYY-MM-DD): exactly that one is used, never a newer one. */
+  snapshotDate?: string | null;
+  /** With snapshotDate: the snapshot's content hash (a run's input records it). */
+  snapshotSha256?: string | null;
 }
 
 export interface ArchitectureDocument {
@@ -710,9 +714,9 @@ export interface NodeCost {
   instances: number;
   /** $/instance-hour, or $/million calls when `unit` is "million". null = no price set. */
   unitPrice: number | null;
-  /** Where a price came from: set on the part, a snapshot's instance type or rate, its size at
-   * generic rates, or the catalog default. */
-  priceSource: "set" | "snapshot" | "size" | "default" | null;
+  /** Where a price came from: set on the part by the user, a snapshot's instance type or rate, a
+   * technology preset's illustrative price, its size at generic rates, or the catalog default. */
+  priceSource: "set" | "snapshot" | "preset" | "size" | "default" | null;
   /** The instance type priced (with a price snapshot), and the snapshot's date. */
   sku?: string;
   snapshotDate?: string | null;
@@ -737,6 +741,8 @@ export interface CostEstimate {
     snapshotDate: string | null;
     illustrative: boolean;
     sources: { name: string; url: string }[];
+    /** Hash of the snapshot's content (null for generic rates). */
+    sha256?: string | null;
     purchaseOption: string;
     families: string[];
   };

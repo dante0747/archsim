@@ -10,7 +10,7 @@ import { useId, useState } from "react";
 import { patchNodeConfig } from "@/components/build/presets";
 import { validateNumber } from "@/components/editor/FieldControl";
 import { Input } from "@/components/ui/input";
-import { formatUsd } from "@/lib/cost";
+import { formatUsd, priceOrigin } from "@/lib/cost";
 import type { ComponentType, FieldDescriptor, NodeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -108,6 +108,7 @@ function SpecInput({
 export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: ComponentType; config: NodeConfig }) {
   const setNodeConfig = useEditor((s) => s.setNodeConfig);
   const pricing = useEditor((s) => s.analysis?.cost.pricing ?? null);
+  const priceProvenance = useEditor((s) => s.extras?.provenance?.[`nodes/${nodeId}/costPerHour`]?.kind ?? null);
   const size = useAutoSize(nodeId);
   const targetCpu = useTargetCpu();
   const fields = RESOURCE_FIELDS.map((k) => comp.fields.find((f) => f.key === k)).filter((f): f is FieldDescriptor => !!f);
@@ -123,8 +124,13 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
   const sku = size?.sku ?? null;
   const autoUsed = fields.filter((f) => num(f.key) == null && autoOf(f.key) != null);
   const hasCost = comp.fields.some((f) => f.key === "costPerHour");
-  // The cost estimate uses a price set on the part; without one, this size's price.
-  const ownPrice = typeof config.costPerHour === "number" && config.costPerHour !== comp.defaultConfig.costPerHour ? config.costPerHour : null;
+  // The cost estimate uses a price the user set on the part; without one, this size's price. A
+  // technology preset's price is illustrative: a price snapshot reprices it, generic rates keep it.
+  const origin = priceOrigin(comp, config, priceProvenance);
+  const ownPrice = origin === "set" ? (config.costPerHour as number) : null;
+  const snapshotPriced = !!(sku && pricing && !pricing.illustrative);
+  const presetPrice = origin === "preset" && !snapshotPriced ? (config.costPerHour as number) : null;
+  const otherPrice = ownPrice ?? presetPrice;
   const anySet = cpu != null || mem != null || storage != null;
 
   return (
@@ -185,15 +191,17 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
               </>
             )}
             {hasCost &&
-              (ownPrice == null ? (
+              (otherPrice == null ? (
                 <span className="text-ink-3">; the cost estimate uses it.</span>
-              ) : ownPrice === price ? (
+              ) : otherPrice === price ? (
                 <span className="text-ink-3">; used as its cost.</span>
-              ) : (
+              ) : ownPrice != null ? (
                 <span className="text-ink-3">; the cost estimate uses your price of {formatUsd(ownPrice)}/h.</span>
+              ) : (
+                <span className="text-ink-3">; the cost estimate uses the technology preset&apos;s illustrative price of {formatUsd(otherPrice)}/h.</span>
               ))}
           </span>
-          {hasCost && ownPrice != null && ownPrice !== price && (
+          {hasCost && otherPrice != null && otherPrice !== price && (
             <button type="button" onClick={() => setNodeConfig(nodeId, "costPerHour", null)} className="font-medium text-accent hover:underline">
               Use size price
             </button>

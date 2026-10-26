@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -162,3 +163,207 @@ def test_schema_1_1_documents_migrate_to_1_2() -> None:
 
     with pytest.raises(DocumentInvalidError):
         load_document({**starter(), "pricing": {"provider": "Not Valid!"}})
+
+
+# -- review fixes: preset prices, managed rates, notes, pinned snapshots --------------------------
+
+
+def _preset(type_: str, preset_id: str) -> dict:
+    return dict(next(p for p in REGISTRY.get(type_).presets if p.id == preset_id).config)
+
+
+def _lines(cost: dict) -> dict[str, dict]:
+    return {c["id"]: c for c in cost["byNode"]}
+
+
+def _with_presets(pricing: dict | None = None) -> dict:
+    """The starter with its API on the Java/Spring preset and its database on the MySQL one:
+    both carry an illustrative ``costPerHour`` (0.17 and 0.33)."""
+    d = starter(pricing)
+    nodes = {n["id"]: n for n in d["architecture"]["nodes"]}
+    nodes["api"]["config"] = {**nodes["api"]["config"], **_preset("service", "java-spring-docker")}
+    nodes["db"]["config"] = {**nodes["db"]["config"], **_preset("database", "mysql")}
+    return d
+
+
+def test_preset_prices_are_illustrative_and_a_snapshot_reprices_them() -> None:
+    plain = analyze_document(_with_presets(), REGISTRY)
+    lines = _lines(plain["cost"])
+    # generic rates: the preset's price is used, as before, but it is not "set" by the user
+    assert (lines["api"]["priceSource"], lines["api"]["unitPrice"]) == ("preset", 0.17)
+    assert (lines["db"]["priceSource"], lines["db"]["unitPrice"]) == ("preset", 0.33)
+    priced = analyze_document(_with_presets(PRICING), REGISTRY)
+    lines = _lines(priced["cost"])
+    for nid in ("api", "db"):
+        sizing = priced["sizing"]["nodes"][nid]
+        # the cost line and the sizing panel agree: the snapshot's SKU and its price
+        assert lines[nid]["priceSource"] == "snapshot"
+        assert lines[nid]["sku"] == sizing["sku"] and lines[nid]["snapshotDate"] == "2026-10-01"
+        assert lines[nid]["unitPrice"] == sizing["pricePerHour"]
+    assert lines["api"]["unitPrice"] != 0.17 and lines["db"]["unitPrice"] != 0.33
+    # a price the user typed stays theirs, with or without a snapshot
+    doc = _with_presets(PRICING)
+    next(n for n in doc["architecture"]["nodes"] if n["id"] == "api")["config"]["costPerHour"] = (
+        0.42
+    )
+    assert _lines(analyze_document(doc, REGISTRY)["cost"])["api"]["priceSource"] == "set"
+    # so does a preset's value whose provenance says a person chose it
+    doc = _with_presets(PRICING)
+    doc["provenance"] = {"nodes/api/costPerHour": {"kind": "assumed", "note": "our contract"}}
+    line = _lines(analyze_document(doc, REGISTRY)["cost"])["api"]
+    assert (line["priceSource"], line["unitPrice"]) == ("set", 0.17)
+
+
+def test_a_user_price_wins_over_a_snapshots_managed_rates() -> None:
+    from archsim_engine.cost import estimate_cost
+
+    def nodes(alb: dict, queue: dict) -> list[dict]:
+        return [
+            {"id": "alb", "type": "load_balancer", "config": {"technology": "aws_alb", **alb}},
+            {"id": "q", "type": "message_queue", "config": {"technology": "sqs", **queue}},
+        ]
+
+    own = _lines(
+        estimate_cost(nodes({"costPerHour": 0.5}, {"costPerHour": 0.3}), REGISTRY, None, PRICING)
+    )
+    assert (own["alb"]["priceSource"], own["alb"]["unitPrice"]) == ("set", 0.5)
+    assert (own["q"]["priceSource"], own["q"]["unitPrice"]) == ("set", 0.3)
+    # the presets' illustrative prices are repriced at the snapshot's rates
+    presets = _lines(
+        estimate_cost(
+            nodes(_preset("load_balancer", "aws-alb"), _preset("message_queue", "sqs")),
+            REGISTRY,
+            None,
+            PRICING,
+        )
+    )
+    assert (presets["alb"]["priceSource"], presets["alb"]["unitPrice"]) == ("snapshot", 0.03)
+    assert (presets["q"]["priceSource"], presets["q"]["unit"]) == ("snapshot", "million")
+
+
+def test_api_gateways_are_not_priced_at_the_load_balancer_hourly_rate() -> None:
+    from archsim_engine.cost import estimate_cost
+
+    gw = {"id": "gw", "type": "load_balancer", "config": _preset("load_balancer", "api-gateway")}
+    line = _lines(estimate_cost([gw], REGISTRY, None, PRICING))["gw"]
+    assert line["priceSource"] == "preset" and line["unitPrice"] == 0.0
+    assert "billed per request" in line["basis"]
+    # even with a size set, a managed gateway is not snapped to an instance type
+    gw["config"]["cpuCores"] = 2
+    assert "sku" not in _lines(estimate_cost([gw], REGISTRY, None, PRICING))["gw"]
+
+
+def test_lines_at_generic_rates_keep_their_note_next_to_snapshot_lines() -> None:
+    from archsim_engine.cost import estimate_cost
+
+    nodes = [
+        {"id": "vm", "type": "service", "config": {"cpuCores": 2, "memoryGib": 4}},
+        # on Kubernetes but the design has no cluster part: priced from its size
+        {
+            "id": "pod",
+            "type": "service",
+            "config": {"platform": "kubernetes", "cpuCores": 1, "memoryGib": 2},
+        },
+    ]
+    cost = estimate_cost(nodes, REGISTRY, None, PRICING)
+    lines = _lines(cost)
+    assert lines["vm"]["priceSource"] == "snapshot" and lines["pod"]["priceSource"] == "size"
+    assert any("illustrative on-demand rates" in n for n in cost["notes"])
+
+
+def _newer_snapshot(tmp_path: Path) -> Path:
+    """A newer snapshot of the same provider and region whose cheapest database type is bigger,
+    so an unpinned design snaps (and simulates) differently."""
+    data = json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
+    data["snapshotDate"] = "2026-11-01"
+    for sku in data["databases"]:
+        if sku["sku"] == "db.gp.4x16":
+            sku["hourly"]["on_demand"] = 0.1
+    d = tmp_path / "newer"
+    d.mkdir()
+    (d / "example-cloud-test-1-2026-11-01.json").write_text(json.dumps(data), encoding="utf-8")
+    return d
+
+
+def _short(doc: dict) -> dict:
+    doc["workload"].update(durationS=10, warmupS=2)
+    doc["scenarios"] = []
+    return doc
+
+
+def test_a_pinned_snapshot_gives_the_same_run_when_a_newer_one_is_installed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pinned_doc = _short(starter({**PRICING, "snapshotDate": "2026-10-01"}))
+    before = run_simulation(copy.deepcopy(pinned_doc))
+    unpinned_before = run_simulation(_short(starter(PRICING)))
+    sha = load_snapshot("example-cloud", "test-1").sha256
+    # the run records the snapshot it used, pinned or not
+    for r in (before, unpinned_before):
+        assert r["input"]["pricing"]["snapshotDate"] == "2026-10-01"
+        assert r["input"]["pricing"]["snapshotSha256"] == sha == r["cost"]["pricing"]["sha256"]
+    monkeypatch.setenv(
+        "ARCHSIM_PRICES_DIR", os.pathsep.join([str(FIXTURES), str(_newer_snapshot(tmp_path))])
+    )
+    after = run_simulation(copy.deepcopy(pinned_doc))
+    assert after["provenance"]["resultDigest"] == before["provenance"]["resultDigest"]
+    assert after["provenance"]["inputDigest"] == before["provenance"]["inputDigest"]
+    assert after["cost"] == before["cost"]
+    # unpinned, the newer snapshot is used (and named), so the run differs
+    unpinned = run_simulation(_short(starter(PRICING)))
+    assert unpinned["input"]["pricing"]["snapshotDate"] == "2026-11-01"
+    assert unpinned["sizing"]["nodes"]["db"]["sku"] == "db.gp.4x16"
+    assert unpinned["provenance"]["resultDigest"] != before["provenance"]["resultDigest"]
+    # a run's input is a pinned document: re-running it reproduces that run
+    rerun = {**copy.deepcopy(unpinned_before["input"]), "kind": "archsim.architecture"}
+    again = run_simulation(rerun)
+    assert again["provenance"]["resultDigest"] == unpinned_before["provenance"]["resultDigest"]
+
+
+def test_a_missing_pinned_snapshot_warns_and_is_never_swapped_for_another() -> None:
+    from archsim_engine import validate_document
+
+    for pin in (
+        {"snapshotDate": "2026-09-01"},
+        {"snapshotDate": "2026-10-01", "snapshotSha256": "0" * 64},
+    ):
+        doc = starter({**PRICING, **pin})
+        issues = validate_document(load_document(doc), REGISTRY).issues
+        missing = [i for i in issues if i.code == "pricing.snapshot_missing"]
+        assert missing and missing[0].severity == "warning"
+        assert "2026-10-01 (" in missing[0].message  # what this machine has
+        analysis = analyze_document(doc, REGISTRY)
+        # generic rates, and said so; never the 2026-10-01 snapshot in place of the pinned one
+        assert analysis["cost"]["pricing"]["illustrative"]
+        assert not any(e.get("sku") for e in analysis["sizing"]["nodes"].values())
+        assert any("no price snapshot" in n for n in analysis["cost"]["notes"])
+    with pytest.raises(PricingError, match="of 2026-09-01"):
+        load_snapshot("example-cloud", "test-1", "2026-09-01")
+
+
+def test_unknown_instance_families_are_reported() -> None:
+    from archsim_engine import validate_document
+
+    doc = starter({**PRICING, "families": ["gp", "m7gg"]})
+    issues = validate_document(load_document(doc), REGISTRY).issues
+    unknown = [i for i in issues if i.code == "pricing.unknown_family"]
+    assert len(unknown) == 1 and unknown[0].message.startswith("m7gg:")
+
+
+def test_available_lists_every_snapshot_with_its_hash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(
+        "ARCHSIM_PRICES_DIR", os.pathsep.join([str(FIXTURES), str(_newer_snapshot(tmp_path))])
+    )
+    assert [(a["date"], a["newest"]) for a in available()] == [("2026-11-01", True)]
+    every = available(every_date=True)
+    assert [(a["date"], a["newest"]) for a in every] == [
+        ("2026-11-01", True),
+        ("2026-10-01", False),
+    ]
+    assert all(len(a["sha256"]) == 64 for a in every)
+    # the hash is of the content, not of the file's formatting or line endings
+    data = json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
+    assert parse_snapshot(data).sha256 == every[1]["sha256"]
+    assert load_snapshot("example-cloud", "test-1").snapshot_date == "2026-11-01"

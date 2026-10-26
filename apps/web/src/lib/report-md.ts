@@ -238,7 +238,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
           c.unitPrice == null
             ? "not set"
             : c.unit === "hour"
-              ? `${formatUsd(c.unitPrice)}/instance-hour${c.priceSource === "size" ? " (from size)" : ""}${c.sku ? ` (${c.sku}, prices of ${c.snapshotDate ?? "?"})` : ""}`
+              ? `${formatUsd(c.unitPrice)}/instance-hour${c.priceSource === "size" ? " (from size)" : c.priceSource === "preset" ? " (preset, illustrative)" : ""}${c.sku ? ` (${c.sku}, prices of ${c.snapshotDate ?? "?"})` : ""}`
               : `${formatUsd(c.unitPrice)}/million calls`,
           formatUsd(c.monthly),
         ]),

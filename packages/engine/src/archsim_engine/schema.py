@@ -537,7 +537,8 @@ class Pricing(CamelModel):
     """Where prices come from. ``generic``: ArchSim's illustrative rates, no machine shapes. Any
     other provider names a price snapshot (docs/pricing.md); auto-sizing then snaps each part to
     the cheapest instance type that covers it (among ``families`` when given) and cost lines cite
-    that SKU and the snapshot date."""
+    that SKU and the snapshot date. ``snapshotDate`` (and ``snapshotSha256``) pin one snapshot:
+    exactly that one is used, never a newer one; a run's input records the snapshot it used."""
 
     provider: str = Field(default="generic", pattern=r"^[a-z0-9-]{1,40}$")
     region: str | None = Field(default=None, pattern=r"^[a-z0-9-]{1,40}$")
@@ -549,6 +550,25 @@ class Pricing(CamelModel):
         default_factory=list,
         max_length=20,
         description="Instance families to snap to (e.g. m7g, r7g); empty: any in the snapshot",
+    )
+    # left out of the JSON when unset, so documents without a pin serialize as before
+    snapshot_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        exclude_if=lambda v: v is None,
+        description=(
+            "Use exactly the snapshot of this date (YYYY-MM-DD), never a newer one; a warning "
+            "and generic rates when this machine does not have it. Empty: the newest."
+        ),
+    )
+    snapshot_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+        exclude_if=lambda v: v is None,
+        description=(
+            "With snapshotDate: the snapshot's content hash, so changed prices of the same date "
+            "are not used either. A run's input records it."
+        ),
     )
 
 

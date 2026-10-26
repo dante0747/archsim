@@ -1,8 +1,44 @@
 /**
  * Money formatting and the cost-vs-latency frontier. Prices and cost estimates are computed by
  * the engine (archsim_engine/cost.py): reports carry `cost`, and POST /analyze prices a design
- * before it runs.
+ * before it runs. The two helpers below mirror the engine's rules so the inspector can word a
+ * price before the next analysis arrives.
  */
+import type { PricingSource } from "@/lib/api";
+import type { ComponentType, InputProvenance, NodeConfig, Pricing } from "@/lib/types";
+
+/**
+ * Where a part's `costPerHour` came from (engine: `cost.price_origin`): "set" by the user, "preset"
+ * (the illustrative price of a preset of the part's technology: a price snapshot reprices it),
+ * "default" (the catalog default), or null (none). Provenance measured or assumed means the user's.
+ */
+export function priceOrigin(comp: ComponentType, config: NodeConfig, provenance?: InputProvenance["kind"] | null): "set" | "preset" | "default" | null {
+  const own = config.costPerHour;
+  if (typeof own !== "number" || !Number.isFinite(own)) return null;
+  if (provenance === "measured" || provenance === "assumed") return "set";
+  if (own === comp.defaultConfig.costPerHour) return "default";
+  const tech = config.technology ?? comp.defaultConfig.technology;
+  const presetPrice = (comp.presets ?? []).some((p) => p.technology === tech && p.config.costPerHour === own);
+  return provenance === "illustrative" || presetPrice ? "preset" : "set";
+}
+
+/**
+ * The snapshot the engine prices a design with (engine: `pricing.snapshot_for`): the pinned one
+ * (`snapshotDate`, `snapshotSha256`), else the newest of the provider (in its region when set).
+ * null for generic rates, or when this machine has no matching snapshot.
+ */
+export function snapshotInUse(sources: PricingSource[], pricing: Pricing | null | undefined): PricingSource | null {
+  if (!pricing || pricing.provider === "generic") return null;
+  let best: PricingSource | null = null;
+  for (const s of sources) {
+    if (s.illustrative || s.provider !== pricing.provider) continue;
+    if (pricing.region && s.region !== pricing.region) continue;
+    if (pricing.snapshotDate && s.date !== pricing.snapshotDate) continue;
+    if (pricing.snapshotSha256 && s.sha256 !== pricing.snapshotSha256) continue;
+    if (!best || (s.date ?? "") > (best.date ?? "")) best = s;
+  }
+  return best;
+}
 
 /** "$1,234" (whole dollars from $100, cents below). */
 export function formatUsd(v: number | null | undefined, opts: { compact?: boolean } = {}): string {
