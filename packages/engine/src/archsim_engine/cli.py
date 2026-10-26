@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -40,12 +41,12 @@ def _load(path: str) -> dict[str, Any]:
     return data
 
 
-def _print_issues(issues: list[Any]) -> None:
+def _print_issues(issues: list[Any], file: Any = None) -> None:
     for i in issues:
         where = f" [{i.node_id or i.edge_id}]" if (i.node_id or i.edge_id) else ""
-        print(f"  {i.severity.upper():7} {i.code}{where}: {i.message}")
+        print(f"  {i.severity.upper():7} {i.code}{where}: {i.message}", file=file)
         if i.hint:
-            print(f"          hint: {i.hint}")
+            print(f"          hint: {i.hint}", file=file)
 
 
 def _summary_line(r: dict[str, Any]) -> str:
@@ -260,75 +261,110 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+class GitRefError(ValueError):
+    """The baseline cannot be read from git: not a repository, or a ref that is not there."""
+
+
+def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[bytes]:
+    # bytes, not text: git prints UTF-8 whatever the locale (cp1252 on Windows)
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, check=False)
+
+
 def _at_ref(ref: str, path: str) -> dict[str, Any] | None:
-    """The JSON of ``path`` as it is at git ``ref`` (None when the file does not exist there)."""
-    import subprocess
+    """The JSON of ``path`` as it is at git ``ref``; None only when the ref is a commit and the
+    file does not exist there. Raises ``GitRefError`` when ``path`` is not in a git repository
+    or ``ref`` cannot be read (a typo, or a shallow checkout that lacks it): a gate must not
+    pass for want of a baseline it was asked to compare with."""
+    import os
 
     file = Path(path).resolve()
-    top = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=file.parent,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    rel = file.relative_to(Path(top).resolve()).as_posix()
-    shown = subprocess.run(
-        ["git", "show", f"{ref}:{rel}"], cwd=top, capture_output=True, text=True, check=False
-    )
+    top = _git(["rev-parse", "--show-toplevel"], file.parent)
+    if top.returncode != 0:
+        raise GitRefError(f"{path} is not in a git repository, so --baseline-ref cannot read it")
+    root = Path(os.fsdecode(top.stdout.strip())).resolve()
+    rel = file.relative_to(root).as_posix()
+    commit = _git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], root)
+    if commit.returncode != 0:
+        raise GitRefError(
+            f"git ref '{ref}' cannot be read: check the name, and fetch it in a shallow "
+            "checkout (actions/checkout with fetch-depth: 0)"
+        )
+    sha = commit.stdout.decode("ascii").strip()
+    if _git(["cat-file", "-e", f"{sha}:{rel}"], root).returncode != 0:
+        return None  # the commit is there; the file is not (a new design)
+    shown = _git(["cat-file", "blob", f"{sha}:{rel}"], root)
     if shown.returncode != 0:
-        return None
-    data: dict[str, Any] = json.loads(shown.stdout)
+        detail = shown.stderr.decode("utf-8", "replace").strip()
+        raise GitRefError(f"cannot read {rel} at {ref}: {detail}")
+    data: dict[str, Any] = json.loads(shown.stdout)  # bytes: UTF-8 (or a BOM's encoding)
     return data
 
 
+def _write_stdout(text: str) -> None:
+    """``text`` as UTF-8 whatever stdout's encoding: a redirected stdout on Windows is cp1252,
+    which cannot encode the verdict's emoji."""
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is None:  # a text-only stream (e.g. StringIO): nothing to encode
+        sys.stdout.write(text)
+        return
+    sys.stdout.flush()
+    buffer.write(text.encode("utf-8"))
+    buffer.flush()
+
+
 def cmd_check(args: argparse.Namespace) -> int:
-    from archsim_engine.check import Thresholds, run_check, to_markdown
+    """Exit 0 passes, 1 fails, 2 for anything else: 1 must only ever mean "the check failed"."""
+    import traceback
 
     try:
-        doc = _load(args.file)
-        baseline = None
-        if args.baseline:
-            baseline = _load(args.baseline)
-        elif args.baseline_ref:
-            baseline = _at_ref(args.baseline_ref, args.file)
-            if baseline is None:
-                print(
-                    f"{args.file} does not exist at {args.baseline_ref}: no baseline",
-                    file=sys.stderr,
-                )
-        result = run_check(
-            doc,
-            default_registry(),
-            scenario_id=args.scenario,
-            baseline=baseline,
-            thresholds=Thresholds(
-                p95_increase=args.max_p95_increase,
-                success_drop=args.max_success_drop,
-                cost_increase=args.max_cost_increase,
-                knee_drop=args.max_knee_drop,
-            ),
-            knee=args.knee,
-            fail_on=tuple(args.fail_on or ["objectives"]),
-        )
+        return _check(args)
     except DocumentInvalidError as exc:
-        _print_issues(exc.issues)
-        return 2
-    except SimulationLimitError as exc:
+        print("cannot check: the design is invalid", file=sys.stderr)
+        _print_issues(exc.issues, file=sys.stderr)
+    except (SimulationLimitError, OSError, ValueError) as exc:  # files, JSON, git, limits
         print(f"cannot check: {exc}", file=sys.stderr)
-        return 2
-    except (OSError, ValueError) as exc:  # unreadable file, bad JSON, git failure
-        print(f"cannot check: {exc}", file=sys.stderr)
-        return 2
+    except Exception as exc:
+        traceback.print_exc(file=sys.stderr)
+        print(f"cannot check: unexpected error: {exc}", file=sys.stderr)
+    return 2
+
+
+def _check(args: argparse.Namespace) -> int:
+    from archsim_engine import check
+
+    doc = _load(args.file)
+    baseline = None
+    if args.baseline:
+        baseline = _load(args.baseline)
+    elif args.baseline_ref:
+        baseline = _at_ref(args.baseline_ref, args.file)
+        if baseline is None:
+            print(
+                f"{args.file} does not exist at {args.baseline_ref}: no baseline", file=sys.stderr
+            )
+    result = check.run_check(
+        doc,
+        default_registry(),
+        scenario_id=args.scenario,
+        baseline=baseline,
+        thresholds=check.Thresholds(
+            p95_increase=args.max_p95_increase,
+            success_drop=args.max_success_drop,
+            cost_increase=args.max_cost_increase,
+            knee_drop=args.max_knee_drop,
+        ),
+        knee=args.knee,
+        fail_on=tuple(args.fail_on or ["objectives"]),
+    )
     text = (
-        to_markdown(result, args.report_url)
+        check.to_markdown(result, args.report_url)
         if args.format == "markdown"
         else json.dumps(result, indent=2) + "\n"
     )
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")
     else:
-        sys.stdout.write(text)
+        _write_stdout(text)
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(("PASS: " if result["pass"] else "FAIL: ") + result["headline"], file=sys.stderr)

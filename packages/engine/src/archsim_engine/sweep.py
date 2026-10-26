@@ -18,6 +18,9 @@ from archsim_engine.registry import ComponentRegistry
 
 Json = dict[str, Any]
 MAX_STEPS = 10
+MAX_RPS = 100_000.0
+"""The schema's highest offered load (``workload.rps``): a step above it cannot run."""
+STEP_DURATION_S = 20.0
 
 
 def _nice_step(raw: float) -> float:
@@ -29,13 +32,38 @@ def _nice_step(raw: float) -> float:
     return nice * mag
 
 
-def suggest_range(current_rps: float) -> tuple[float, float]:
-    """A default range around the baseline load: half to three times it, on round numbers."""
+def rps_cap(limits: Any = None, duration_s: float = STEP_DURATION_S) -> float:
+    """The highest constant load a step of ``duration_s`` can run: the schema's maximum, and no
+    more requests than the engine's ``max_requests`` limit."""
+    from archsim_engine.engine import SimulationLimits
+
+    max_requests = (limits or SimulationLimits()).max_requests
+    return min(MAX_RPS, max_requests / max(duration_s, 1e-9))
+
+
+def suggest_range(current_rps: float, cap: float = MAX_RPS) -> tuple[float, float]:
+    """A default range around the baseline load: half to three times it, on round numbers, and
+    no higher than ``cap`` (``rps_cap``)."""
     base = current_rps if current_rps > 0 else 100.0
     step = _nice_step(base / 4)
     lo = max(step, math.floor(base * 0.5 / step + 0.5) * step)
     hi = max(lo + step, math.floor(base * 3 / step + 0.5) * step)
-    return lo, hi
+    return min(lo, cap), min(hi, cap)
+
+
+def sweep_range(
+    document: Json,
+    registry: ComponentRegistry,
+    scenario_id: str | None = None,
+    limits: Any = None,
+    duration_s: float = STEP_DURATION_S,
+) -> tuple[float, float]:
+    """The range ``breaking_point`` sweeps by default: around the design's (or the scenario's)
+    load, within what a step can run."""
+    from archsim_engine.scenarios import load_document, resolve_scenario
+
+    base, _ = resolve_scenario(load_document(document), scenario_id, registry)
+    return suggest_range(base.workload.rps, rps_cap(limits, max(2.0, duration_s)))
 
 
 def levels(from_rps: float, to_rps: float, steps: int) -> list[float]:
@@ -169,12 +197,14 @@ def breaking_point(
     from_rps: float | None = None,
     to_rps: float | None = None,
     steps: int = 8,
-    duration_s: float = 20.0,
+    duration_s: float = STEP_DURATION_S,
     warmup_s: float = 5.0,
     limits: Any = None,
     workers: int = 1,
 ) -> Json:
     """Simulate the design (or a scenario) at evenly spaced constant loads and analyze the curve.
+    The range (``from_rps``..``to_rps``, default ``suggest_range`` of the design's load) is cut
+    to what a step can run (``rps_cap``); ``levels`` in the result are the loads run.
     ``workers`` > 1 runs the steps in that many processes (default registry only); every step
     is seeded, so the result is the same either way."""
     from archsim_engine import run_simulation
@@ -185,14 +215,16 @@ def breaking_point(
     base, _ = resolve_scenario(load_document(document), scenario_id, registry)
     raw = base.to_json_dict()
     raw["scenarios"] = []
-    lo, hi = (
-        suggest_range(raw["workload"]["rps"])
-        if from_rps is None or to_rps is None
-        else (from_rps, to_rps)
-    )
     duration = max(2.0, duration_s)
     warmup = max(0.0, min(warmup_s, duration - 1))
-    loads = levels(lo, hi, steps)
+    cap = rps_cap(limits, duration)
+    lo, hi = (
+        suggest_range(raw["workload"]["rps"], cap)
+        if from_rps is None or to_rps is None
+        else (min(from_rps, cap), min(to_rps, cap))
+    )
+    # rounding may lift the top step past a cap that is not a round number
+    loads = list(dict.fromkeys(min(v, float(cap)) for v in levels(lo, hi, steps)))
     docs = []
     for rps in loads:
         step = copy.deepcopy(raw)
@@ -213,4 +245,9 @@ def breaking_point(
         reports = [run_simulation(d, registry=registry, limits=limits) for d in docs]
     rows = [row_from(rps, report) for rps, report in zip(loads, reports, strict=True)]
     objectives = raw.get("objectives") or {}
-    return {**analyze(rows, objectives), "objectives": objectives, "range": [lo, hi]}
+    return {
+        **analyze(rows, objectives),
+        "objectives": objectives,
+        "range": [lo, hi],
+        "levels": loads,
+    }

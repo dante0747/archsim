@@ -3,13 +3,17 @@ regress against a baseline (the same design on the base branch, or another file)
 
 ``archsim check`` exits 0 when it passes, 1 when an objective is missed or a metric regressed
 past its threshold (as ``--fail-on`` asks), and 2 when the input cannot be used. Regressions
-compare p95 latency, success rate, monthly cost and (with ``--knee``) the breaking point.
-Results are the model's estimates under the design's assumptions, not measurements.
+compare p95 latency, success rate, monthly cost and (with ``--knee``) the breaking point, which
+is measured for both designs on one load grid (``knee_sweeps``). Results are the model's
+estimates under the design's assumptions, not measurements.
 """
 
 from __future__ import annotations
 
+import html
+import re
 from dataclasses import asdict, dataclass
+from itertools import pairwise
 from typing import Any
 
 from archsim_engine.registry import ComponentRegistry
@@ -17,6 +21,8 @@ from archsim_engine.slo import evaluate, verdict_text
 
 Json = dict[str, Any]
 MARKER = "<!-- archsim-check -->"
+KNEE_STEPS = 6
+"""Constant-load runs per sweep (one over the shared range, one between the breaking points)."""
 
 
 @dataclass(frozen=True)
@@ -30,7 +36,8 @@ class Thresholds:
     cost_increase: float = 0.10
     """Relative: monthly cost up by more than 10%."""
     knee_drop: float = 0.10
-    """Relative: the highest load within the objectives down by more than 10%."""
+    """Relative: the highest load within the objectives down by more than 10% (and by more
+    than one step of the load grid it was measured on)."""
 
 
 def measure(
@@ -40,7 +47,8 @@ def measure(
     knee: bool = False,
     limits: Any = None,
 ) -> Json:
-    """Simulate once (and sweep the load with ``knee``); the numbers a check compares."""
+    """Simulate once (and sweep the load with ``knee``); the numbers a check compares. To
+    compare breaking points, ``run_check`` sweeps both designs together (``knee_sweeps``)."""
     from archsim_engine import load_document, run_simulation
 
     report = run_simulation(document, scenario_id=scenario_id, registry=registry, limits=limits)
@@ -69,21 +77,75 @@ def measure(
         "knee": None,
     }
     if knee:
-        import os
-
-        from archsim_engine.sweep import breaking_point
-
-        bp = breaking_point(
-            document,
-            registry,
-            scenario_id=scenario_id,
-            steps=6,
-            limits=limits,
-            workers=min(6, os.cpu_count() or 1),
-        )
-        out["knee"] = (bp.get("maxWithinSlo") or {}).get("rps")
-        out["kneeVerdict"] = bp.get("verdict")
+        out.update(knee_sweeps([document], registry, scenario_id, limits)[0])
     return out
+
+
+def _knee(sweep: Json) -> float | None:
+    rps: float | None = (sweep.get("maxWithinSlo") or {}).get("rps")
+    return rps
+
+
+def _grid_step(loads: list[float]) -> float:
+    return max((b - a for a, b in pairwise(loads)), default=0.0)
+
+
+def knee_sweeps(
+    documents: list[Json],
+    registry: ComponentRegistry,
+    scenario_id: str | None = None,
+    limits: Any = None,
+) -> list[Json]:
+    """The breaking point of each document (a design and its baseline) on ONE load grid, so a
+    difference comes from the designs, not from two grids. The grid spans every document's
+    suggested range (half to three times its load, within what the engine can run); a second
+    sweep on a finer shared grid, from the lower breaking point to the first load above the
+    higher one, narrows them down. ``knee`` is the highest load within the objectives (None:
+    missed already at the lightest load), ``kneeRange`` the first grid's range and
+    ``kneeResolution`` the step of the grid ``knee`` is read from."""
+    import os
+
+    from archsim_engine.sweep import breaking_point, sweep_range
+
+    workers = min(KNEE_STEPS, os.cpu_count() or 1)
+
+    def sweep(lo: float, hi: float) -> list[Json]:
+        return [
+            breaking_point(
+                d,
+                registry,
+                scenario_id=scenario_id,
+                from_rps=lo,
+                to_rps=hi,
+                steps=KNEE_STEPS,
+                limits=limits,
+                workers=workers,
+            )
+            for d in documents
+        ]
+
+    ranges = [sweep_range(d, registry, scenario_id, limits) for d in documents]
+    lo, hi = min(r[0] for r in ranges), max(r[1] for r in ranges)
+    final = sweep(lo, hi)
+    knees = [k for k in map(_knee, final) if k is not None]
+    if len(knees) == len(final):
+        grid: list[float] = final[0]["levels"]
+        a, top = min(knees), max(knees)
+        b = next((g for g in grid if g > top), top)
+        if b > a:  # every step is seeded: a load both grids share gives the same result
+            fine = sweep(a, b)
+            if all(_knee(f) is not None for f in fine):
+                final = fine
+    step = _grid_step(final[0]["levels"])
+    return [
+        {
+            "knee": _knee(f),
+            "kneeVerdict": f.get("verdict"),
+            "kneeRange": [lo, hi],
+            "kneeResolution": step,
+        }
+        for f in final
+    ]
 
 
 def regressions(current: Json, baseline: Json, th: Thresholds) -> list[Json]:
@@ -132,28 +194,34 @@ def regressions(current: Json, baseline: Json, th: Thresholds) -> list[Json]:
                 change > th.cost_increase,
             )
         )
-    change = rel("knee")
-    if change is not None:
-        out.append(
-            _reg(
-                "knee",
-                "Breaking point",
-                baseline["knee"],
-                current["knee"],
-                change,
-                th.knee_drop,
-                change < -th.knee_drop,
-            )
-        )
+    if current.get("kneeRange") is not None and baseline.get("kneeRange") is not None:
+        out.append(_knee_change(current, baseline, th))
     return out
+
+
+def _knee_change(current: Json, baseline: Json, th: Thresholds) -> Json:
+    """Breaking points come from a load grid: each is known to one step, so a drop of one step
+    may be a far smaller change, and only a larger drop past the threshold is a regression. A
+    design that now misses its objectives even at the lightest load has regressed."""
+    c, b = current.get("knee"), baseline.get("knee")
+    step = max(current.get("kneeResolution") or 0.0, baseline.get("kneeResolution") or 0.0)
+    change: float | None = None
+    if c is not None and b is not None:
+        change = (c - b) / b
+        regressed = change < -th.knee_drop and b - c > step * (1 + 1e-9)
+    else:
+        regressed = b is not None  # and c is None: below the lightest load now
+    row = _reg("knee", "Breaking point", b, c, change, th.knee_drop, regressed)
+    row.update(resolution=step, lightest=current["kneeRange"][0])
+    return row
 
 
 def _reg(
     metric: str,
     label: str,
-    base: float,
-    cur: float,
-    change: float,
+    base: float | None,
+    cur: float | None,
+    change: float | None,
     threshold: float,
     regressed: bool,
 ) -> Json:
@@ -162,7 +230,7 @@ def _reg(
         "label": label,
         "baseline": base,
         "current": cur,
-        "change": round(change, 6),
+        "change": None if change is None else round(change, 6),
         "threshold": threshold,
         "regressed": regressed,
     }
@@ -181,14 +249,21 @@ def run_check(
 ) -> Json:
     """The check of ``document`` against its objectives and, with ``baseline``, against it."""
     th = thresholds or Thresholds()
-    current = measure(document, registry, scenario_id, knee, limits)
+    current = measure(document, registry, scenario_id, limits=limits)
     base = None
     notes: list[str] = []
     if baseline is not None:
         try:
-            base = measure(baseline, registry, scenario_id, knee, limits)
+            base = measure(baseline, registry, scenario_id, limits=limits)
         except Exception as exc:  # the baseline may be an older, unreadable design
             notes.append(f"The baseline could not be simulated ({exc}); no regression check.")
+    if knee:  # both designs on one load grid
+        sides = [current] + ([base] if base else [])
+        docs = [document] + ([baseline] if base and baseline is not None else [])
+        for side, found in zip(
+            sides, knee_sweeps(docs, registry, scenario_id, limits), strict=True
+        ):
+            side.update(found)
     regs = regressions(current, base, th) if base else []
     missed = current["slo"]["pass"] is False
     regressed = any(r["regressed"] for r in regs)
@@ -223,6 +298,19 @@ def _usd(v: float) -> str:
     return f"${abs(v):,.0f}"
 
 
+def _text(value: Any) -> str:
+    """Text that comes from the design (its name, a part label, an error about it) for the
+    comment: one line, HTML and Markdown markup escaped, so it cannot hide or fake the verdict
+    (an unclosed ``<!--``, a new heading, a link)."""
+    one_line = " ".join(str(value).split())
+    return re.sub(r"([\\`*_\[\]#|!~])", r"\\\1", html.escape(one_line, quote=False))
+
+
+def _code(value: Any) -> str:
+    """Design text as inline code (literal on GitHub: no HTML, links or mentions)."""
+    return "`" + " ".join(str(value).split()).replace("`", "'") + "`"
+
+
 def headline(result: Json) -> str:
     """One sentence for a PR comment, e.g. "p95 goes from 180 to 410 ms (objective 300 ms) —
     fails; breaking point drops from 2.1k to 1.3k req/s; cost +$140 a month"."""
@@ -251,6 +339,12 @@ def headline(result: Json) -> str:
     ):
         word = "drops" if cur["knee"] < base["knee"] else "rises"
         parts.append(f"breaking point {word} from {_rps(base['knee'])} to {_rps(cur['knee'])}")
+    elif base and cur.get("kneeRange") and base.get("kneeRange"):
+        below = f"below {_rps(cur['kneeRange'][0])}"
+        if base.get("knee") is not None and cur.get("knee") is None:
+            parts.append(f"breaking point drops from {_rps(base['knee'])} to {below}")
+        elif base.get("knee") is None and cur.get("knee") is not None:
+            parts.append(f"breaking point rises from {below} to {_rps(cur['knee'])}")
     if base and cur.get("costMonthly") is not None and base.get("costMonthly") is not None:
         delta = cur["costMonthly"] - base["costMonthly"]
         if abs(delta) >= 1:
@@ -269,27 +363,34 @@ def to_markdown(result: Json, report_url: str | None = None) -> str:
     cur, base = result["current"], result["baseline"]
     status = "passes" if result["pass"] else "fails"
     icon = "✅" if result["pass"] else "❌"
-    what = cur["name"] + (f" · scenario `{cur['scenarioId']}`" if cur.get("scenarioId") else "")
+    what = _text(cur["name"]) + (
+        f" · scenario {_code(cur['scenarioId'])}" if cur.get("scenarioId") else ""
+    )
     lines = [MARKER, f"### {icon} ArchSim check {status}: {what}", "", result["headline"] + ".", ""]
     if base:
         lines += ["| Metric | Base | This change | Change | |", "| --- | --- | --- | --- | --- |"]
+        knee_step = None
         for r in result["regressions"]:
-            fmt = {
-                "p95": _ms,
-                "successRate": lambda v: f"{v * 100:.2f}%",
-                "costMonthly": lambda v: f"${v:,.0f}",
-                "knee": _rps,
-            }[r["metric"]]
+            if r["metric"] == "knee":
+                knee_step = r.get("resolution")
             change = (
-                f"{r['change'] * 100:+.1f} pp"
+                "n/a"
+                if r["change"] is None
+                else f"{r['change'] * 100:+.1f} pp"
                 if r["metric"] == "successRate"
                 else f"{r['change'] * 100:+.0f}%"
             )
             flag = "regressed" if r["regressed"] else ""
-            lines.append(
-                f"| {r['label']} | {fmt(r['baseline'])} | {fmt(r['current'])} | {change} | {flag} |"
-            )
+            base_cell, cur_cell = _cell(r, r["baseline"]), _cell(r, r["current"])
+            lines.append(f"| {r['label']} | {base_cell} | {cur_cell} | {change} | {flag} |")
         lines.append("")
+        if knee_step:
+            lines += [
+                "Breaking point: the highest load within the objectives. Both designs are swept "
+                f"on one load grid in steps of {_rps(knee_step)}, so a drop of one step is within "
+                "its resolution and not a regression.",
+                "",
+            ]
     checks = cur["slo"]["checks"]
     if checks:
         lines += ["| Objective | Target | Result | |", "| --- | --- | --- | --- |"]
@@ -313,9 +414,9 @@ def to_markdown(result: Json, report_url: str | None = None) -> str:
             "",
         ]
     if cur.get("bottleneck"):
-        lines.append(f"Bottleneck: {cur['bottleneck']}.")
+        lines.append(f"Bottleneck: {_text(cur['bottleneck'])}.")
     for n in result["notes"]:
-        lines.append(n)
+        lines.append(_text(n))
     fails = ", ".join(result["failOn"])
     lines.append(
         f"Fails on: {fails}. These are ArchSim's estimates under the design's assumptions "
@@ -323,3 +424,17 @@ def to_markdown(result: Json, report_url: str | None = None) -> str:
         + (f" [Full report]({report_url})" if report_url else "")
     )
     return "\n".join(lines) + "\n"
+
+
+def _cell(row: Json, v: float | None) -> str:
+    if row["metric"] == "knee" and v is None:  # missed even at the lightest load
+        return f"< {_rps(row.get('lightest'))}"
+    if v is None:
+        return "n/a"
+    if row["metric"] == "p95":
+        return _ms(v)
+    if row["metric"] == "successRate":
+        return f"{v * 100:.2f}%"
+    if row["metric"] == "costMonthly":
+        return f"${v:,.0f}"
+    return _rps(v)
