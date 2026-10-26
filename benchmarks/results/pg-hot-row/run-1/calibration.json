@@ -1,0 +1,158 @@
+{
+  "experiment": "pg-hot-row",
+  "at": "2026-10-26T08:11:06Z",
+  "passes": {
+    "hot:1": {
+      "rateRps": 50,
+      "k6": {
+        "p50": 3.077679,
+        "p95": 4.922404199999999,
+        "p99": 5.81581324,
+        "mean": 3.279191709333343,
+        "sent": 1500,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1500,
+        "successRate": 1.0,
+        "throughputRps": 50.0
+      },
+      "service": {
+        "role": "api",
+        "requests": 1500,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 35993.960323999985,
+        "cpuMs": 1225.763,
+        "cpuMsPerRequest": 0.8171753333333333,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {
+          "db_write": {
+            "count": 1500,
+            "mean": 2.5175551880013662,
+            "median": 2.363143999944441,
+            "p95": 3.8192890000063926,
+            "p99": 4.5247870000312105
+          },
+          "handler": {
+            "count": 1500,
+            "mean": 2.5333951713320952,
+            "median": 2.378622999996878,
+            "p95": 3.8414479999337345,
+            "p99": 4.569855000008829
+          },
+          "own": {
+            "count": 1500,
+            "mean": 0.015839983330729106,
+            "median": 0.012743000057525933,
+            "p95": 0.03288799989968538,
+            "p99": 0.06796899996697903
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 1240.437,
+        "postgres": 1529.924
+      }
+    },
+    "write_async:1": {
+      "rateRps": 50,
+      "k6": {
+        "p50": 1.601983,
+        "p95": 2.865312,
+        "p99": 3.370304,
+        "mean": 1.7258574836775487,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 1501,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 36014.88383399998,
+        "cpuMs": 1196.929,
+        "cpuMsPerRequest": 0.797421052631579,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {
+          "db_write_async": {
+            "count": 1501,
+            "mean": 0.9488563617589175,
+            "median": 0.8543329999083653,
+            "p95": 1.7341119999764487,
+            "p99": 2.2031910000368953
+          },
+          "handler": {
+            "count": 1501,
+            "mean": 0.9651006255853396,
+            "median": 0.8686640000669286,
+            "p95": 1.7539650000398979,
+            "p99": 2.225523000000976
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.01624426382642207,
+            "median": 0.01324100000783801,
+            "p95": 0.035001000040210783,
+            "p99": 0.06154899997636676
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 1210.816,
+        "postgres": 1395.456
+      }
+    }
+  },
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.6921,
+        "p95": 1.7862
+      },
+      "how": "mean = process CPU per request (0.8172 ms: Node's user + system CPU over 1500 requests); shape (p95/median 0.0329/0.0127 ms) from the handler's own time (handler minus awaited calls)"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.3495,
+      "how": "(k6 median 3.078 ms - handler median 2.379 ms) / 2, one way"
+    },
+    "measuredLowLoad": {
+      "p50": 3.077679,
+      "p95": 4.922404199999999,
+      "p99": 5.81581324,
+      "mean": 3.279191709333343,
+      "sent": 1500,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 1500,
+      "successRate": 1.0,
+      "throughputRps": 50.0
+    },
+    "writeServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.8543,
+        "p95": 1.7341
+      },
+      "how": "UPDATE with synchronous_commit off (no WAL flush wait): median 0.854, p95 1.734 ms"
+    },
+    "commitFlushMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 1.5088,
+        "p95": 2.0852
+      },
+      "how": "UPDATE with synchronous_commit on minus off: median 2.363 - 0.854 ms, p95 3.819 - 1.734 ms"
+    },
+    "dbCpuShare": {
+      "value": 0.4051,
+      "how": "PostgreSQL container CPU 1529.9 ms over 1500 queries / their total time 3776.3 ms"
+    }
+  }
+}

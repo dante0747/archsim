@@ -1,0 +1,217 @@
+{
+  "experiment": "pg-mixed",
+  "title": "Node.js + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "measuredKnee": {
+    "kneeRps": 1895.0,
+    "bound": "interpolated",
+    "between": [
+      1734,
+      2081
+    ]
+  },
+  "predictedKnee": {
+    "kneeRps": 2313.7,
+    "bound": "interpolated",
+    "between": [
+      2312,
+      2543
+    ]
+  },
+  "predictedKneeFine": 2312,
+  "kneeError": 0.22094986807387854,
+  "belowKnee": {
+    "steps": 3,
+    "medianAbsP95Error": 0.3305751975086642,
+    "maxAbsP95Error": 0.4167693589315396
+  },
+  "rows": [
+    {
+      "offeredRps": 578,
+      "measured": {
+        "p50": 0.609602,
+        "p95": 2.21889,
+        "p99": 3.354388199999993,
+        "successRate": 1.0,
+        "throughputRps": 578.05
+      },
+      "predicted": {
+        "p50": 1.3911,
+        "p95": 2.9524,
+        "p99": 3.8956,
+        "successRate": 1.0,
+        "throughputRps": 577.95
+      },
+      "error": {
+        "p50": 1.2819807021630507,
+        "p95": 0.3305751975086642,
+        "p99": 0.16134441445984335,
+        "throughputRps": -0.0001729954156213287
+      }
+    },
+    {
+      "offeredRps": 1156,
+      "measured": {
+        "p50": 0.5484205,
+        "p95": 2.083896,
+        "p99": 3.265090799999999,
+        "successRate": 1.0,
+        "throughputRps": 1156.05
+      },
+      "predicted": {
+        "p50": 1.4189,
+        "p95": 2.9524,
+        "p99": 4.134,
+        "successRate": 1.0,
+        "throughputRps": 1156.05
+      },
+      "error": {
+        "p50": 1.587248288493957,
+        "p95": 0.4167693589315396,
+        "p99": 0.2661209911834616,
+        "throughputRps": 0.0
+      }
+    },
+    {
+      "offeredRps": 1734,
+      "measured": {
+        "p50": 0.754178,
+        "p95": 4.735596,
+        "p99": 14.005030599999824,
+        "successRate": 1.0,
+        "throughputRps": 1734.05
+      },
+      "predicted": {
+        "p50": 1.5359,
+        "p95": 3.2596,
+        "p99": 4.3871,
+        "successRate": 1.0,
+        "throughputRps": 1734.0
+      },
+      "error": {
+        "p50": 1.0365218821021032,
+        "p95": -0.31168114847634815,
+        "p99": -0.6867482745807028,
+        "throughputRps": -2.883423200020445e-05
+      }
+    },
+    {
+      "offeredRps": 2081,
+      "measured": {
+        "p50": 0.80436,
+        "p95": 67.3472092,
+        "p99": 109.56403980999998,
+        "successRate": 0.9784483794238485,
+        "throughputRps": 2036.2
+      },
+      "predicted": {
+        "p50": 1.8723,
+        "p95": 4.301,
+        "p99": 5.9044,
+        "successRate": 1.0,
+        "throughputRps": 2080.65
+      },
+      "error": {
+        "p50": 1.3276890944353277,
+        "p95": -0.9361369231020785,
+        "p99": -0.946110055724131,
+        "throughputRps": 0.021829879186720382
+      }
+    },
+    {
+      "offeredRps": 2312,
+      "measured": {
+        "p50": 0.8928995,
+        "p95": 9.8389,
+        "p99": 54.87225944999998,
+        "successRate": 0.9923228303886161,
+        "throughputRps": 2294.3
+      },
+      "predicted": {
+        "p50": 16.8649,
+        "p95": 35.7924,
+        "p99": 45.3934,
+        "successRate": 1.0,
+        "throughputRps": 2312.75
+      },
+      "error": {
+        "p50": 17.88779196314927,
+        "p95": 2.6378456941324737,
+        "p99": -0.17274410685853367,
+        "throughputRps": 0.008041668482761546
+      }
+    },
+    {
+      "offeredRps": 2543,
+      "measured": {
+        "p50": 0.984295,
+        "p95": 22.130507849999994,
+        "p99": 69.77048101999992,
+        "successRate": 0.9968738326025836,
+        "throughputRps": 2535.1
+      },
+      "predicted": {
+        "p50": 1264.2177,
+        "p95": 1916.1322,
+        "p99": 1993.544,
+        "successRate": 0.7715,
+        "throughputRps": 2018.9
+      },
+      "error": {
+        "p50": 1283.3890297116209,
+        "p95": 85.58329094783971,
+        "p99": 27.572885994988976,
+        "throughputRps": -0.2036211589286418
+      }
+    },
+    {
+      "offeredRps": 2890,
+      "measured": {
+        "p50": 0.9463085,
+        "p95": 33.751705999999956,
+        "p99": 80.96622612000007,
+        "successRate": 0.9948096885813149,
+        "throughputRps": 2875.0
+      },
+      "predicted": {
+        "p50": 1635.4004,
+        "p95": 1954.4549,
+        "p99": 1993.544,
+        "successRate": 0.145,
+        "throughputRps": 562.85
+      },
+      "error": {
+        "p50": 1727.1894857755162,
+        "p95": 56.90684773089699,
+        "p99": 23.621920713525263,
+        "throughputRps": -0.8042260869565218
+      }
+    },
+    {
+      "offeredRps": 3468,
+      "measured": {
+        "p50": 1.960689,
+        "p95": 73.82876,
+        "p99": 100.64439379999983,
+        "successRate": 0.9682818875160393,
+        "throughputRps": 3358.05
+      },
+      "predicted": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "successRate": 0.0,
+        "throughputRps": 112.05
+      },
+      "error": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "throughputRps": -0.9666324206012418
+      }
+    }
+  ]
+}

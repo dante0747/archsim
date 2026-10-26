@@ -1,6 +1,6 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup api web dev-db seed test test-py test-web lint fmt typecheck
+.PHONY: setup api web dev-db seed test test-py test-web lint fmt typecheck benchmark
 
 setup:            ## install Python and web dependencies
 	uv sync
@@ -38,3 +38,8 @@ fmt:
 typecheck:
 	uv run mypy packages/engine/src services/api/src
 	cd apps/web && npm run typecheck
+
+benchmark:        ## accuracy benchmarks (Docker; about 1.5 hours, machine otherwise idle), then rewrite docs/validation.md
+	uv run python benchmarks/run.py all
+	uv run python benchmarks/report.py
+	uv run python benchmarks/report.py

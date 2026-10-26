@@ -1,0 +1,279 @@
+{
+  "experiment": "pg-mixed",
+  "at": "2026-10-26T08:25:15Z",
+  "engineVersion": "0.7.0",
+  "reportVersion": "1.8",
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "knee": {
+    "kneeRps": 2312,
+    "tried": [
+      {
+        "offeredRps": 100.0,
+        "p95": 2.7821,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 200.0,
+        "p95": 2.7821,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 400.0,
+        "p95": 2.8945,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": 2.8945,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1600.0,
+        "p95": 3.1331,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 3200.0,
+        "p95": 1993.544,
+        "successRate": 0.0084
+      },
+      {
+        "offeredRps": 2400,
+        "p95": 867.7979,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2000,
+        "p95": 3.8192,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2200,
+        "p95": 6.5189,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2300,
+        "p95": 20.1551,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2350,
+        "p95": 355.9679,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2325,
+        "p95": 98.2652,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2312,
+        "p95": 35.7924,
+        "successRate": 1.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "offeredRps": 578,
+      "p50": 1.3911,
+      "p95": 2.9524,
+      "p99": 3.8956,
+      "mean": 1.5695,
+      "successRate": 1.0,
+      "throughputRps": 577.95,
+      "resultDigest": "e321b0afc3426c117d107a863d5114e7e5c4028f05fa00f0f0a2e604970df99e"
+    },
+    {
+      "offeredRps": 1156,
+      "p50": 1.4189,
+      "p95": 2.9524,
+      "p99": 4.134,
+      "mean": 1.593,
+      "successRate": 1.0,
+      "throughputRps": 1156.05,
+      "resultDigest": "e44cc72eb89372c6e6436dda55025a88b9881fb2deb1728009c16a2d9a7689e7"
+    },
+    {
+      "offeredRps": 1734,
+      "p50": 1.5359,
+      "p95": 3.2596,
+      "p99": 4.3871,
+      "mean": 1.7305,
+      "successRate": 1.0,
+      "throughputRps": 1734.0,
+      "resultDigest": "7602083fea83f57d9b77e4e0fab20a35e3db6619a47b963ec8d7ffdd5332b79d"
+    },
+    {
+      "offeredRps": 2081,
+      "p50": 1.8723,
+      "p95": 4.301,
+      "p99": 5.9044,
+      "mean": 2.1609,
+      "successRate": 1.0,
+      "throughputRps": 2080.65,
+      "resultDigest": "d1c9fbd139ba2abcc0dd3c03ea6203d8523b006d72202d53966b3cab91d4749c"
+    },
+    {
+      "offeredRps": 2312,
+      "p50": 16.8649,
+      "p95": 35.7924,
+      "p99": 45.3934,
+      "mean": 17.5792,
+      "successRate": 1.0,
+      "throughputRps": 2312.75,
+      "resultDigest": "4f584d68fcce5c75ad3527aba7fd9a3779c80032ea72dc02f8101a5bdb5cf43d"
+    },
+    {
+      "offeredRps": 2543,
+      "p50": 1264.2177,
+      "p95": 1916.1322,
+      "p99": 1993.544,
+      "mean": 1263.9722,
+      "successRate": 0.7715,
+      "throughputRps": 2018.9,
+      "resultDigest": "722b12afcc8c46e38cc48bdbfed9350b96eb9b168eca522fe3f61d6eed7d3d8d"
+    },
+    {
+      "offeredRps": 2890,
+      "p50": 1635.4004,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1629.417,
+      "successRate": 0.145,
+      "throughputRps": 562.85,
+      "resultDigest": "a6c044e0104d13c845ee9f30ed83814bf2228a5bf2537fb5b6ecddef64b882c3"
+    },
+    {
+      "offeredRps": 3468,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 112.05,
+      "resultDigest": "1df01186fdf773b67062334a27d70f3ecb30e5bb82bec3c9b7334ffbac0b5d99"
+    }
+  ],
+  "design": {
+    "schemaVersion": "1.0",
+    "kind": "archsim.architecture",
+    "metadata": {
+      "name": "benchmark pg-mixed"
+    },
+    "architecture": {
+      "nodes": [
+        {
+          "id": "clients",
+          "type": "traffic_source",
+          "label": "k6",
+          "config": {
+            "timeoutMs": 2000,
+            "maxAttempts": 1
+          }
+        },
+        {
+          "id": "api",
+          "type": "service",
+          "label": "Node.js service",
+          "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 1,
+            "processesPerReplica": 1,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.3708,
+              "p95": 0.92
+            },
+            "gcPauseMs": 0,
+            "warmupFactor": 1,
+            "cpuCores": 1
+          }
+        },
+        {
+          "id": "db",
+          "type": "database",
+          "label": "PostgreSQL",
+          "config": {
+            "technology": "postgresql",
+            "maxConnections": 10,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "cpuCores": 2,
+            "cpuShare": 0.3498,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.4737,
+              "p95": 1.1858
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.5123,
+              "p95": 1.2631
+            },
+            "commitFlushMs": {
+              "kind": "lognormal",
+              "median": 1.2743,
+              "p95": 2.592
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e-clients",
+          "source": "clients",
+          "sourcePort": "out",
+          "target": "api",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.2151
+            }
+          }
+        },
+        {
+          "id": "e-db",
+          "source": "api",
+          "sourcePort": "out",
+          "target": "db",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0
+            }
+          }
+        }
+      ],
+      "autoSize": false
+    },
+    "workload": {
+      "rps": 2312,
+      "durationS": 25,
+      "warmupS": 5,
+      "readRatio": 0.9,
+      "keyCount": 100000,
+      "keySkew": 0.0,
+      "seed": 42,
+      "arrivalProcess": "deterministic"
+    },
+    "scenarios": []
+  }
+}

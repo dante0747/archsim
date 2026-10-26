@@ -169,6 +169,16 @@ result digest so it can be re-run and verified bit for bit.
 | **Results → Compare** | **Templates gallery** |
 | ![Cost vs. speed map in the dark theme: monthly cost against p95 for every scenario run, the p95 objective line and the Pareto frontier, with a table of options](docs/images/tradeoffs.jpg) | ![The templates gallery in the dark theme: counts (8 templates, 35 scenarios, 16 technologies), category filters and search, and the featured Black Friday on Kubernetes template drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) with traffic flowing along the links, beside its description, "Built with" list, key numbers and a Use this template button](docs/images/templates.jpg) |
 
+## How accurate is it?
+
+Measured, not claimed: [docs/validation.md](docs/validation.md) calibrates ArchSim from a
+low-load run of four real stacks, saves its predictions, then measures them with k6. On the
+latest run (one Windows laptop, Docker Desktop) the predicted breaking point was within 14% of the
+measured one for Node.js + PostgreSQL (-10%), cache-aside with Redis (-14%) and Kafka (+6%); the
+first two on the cautious side. Latency at low load came out about 1 ms high, the model's collapse
+past the knee is sharper than the real one, and a single hot row could not be measured reliably
+on that machine. The page explains each gap, and every run is kept with its raw data.
+
 ## Quick start
 
 Prerequisites: **Python 3.11+** with [uv](https://docs.astral.sh/uv/), **Node.js 20.9+** (24
@@ -292,6 +302,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Architecture](docs/architecture.md)
 - [Simulation model: what is and isn't modeled](docs/simulation-model.md)
 - [Assumptions: every default, documented or illustrative](docs/assumptions.md) (generated)
+- [How accurate is ArchSim? Benchmarks against real stacks](docs/validation.md)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)
