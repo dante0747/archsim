@@ -1,0 +1,100 @@
+name: ArchSim check
+description: >-
+  Simulate an ArchSim design, check its objectives, compare it with the base branch and post
+  one sticky pull request comment (updated on every push). Fails the job when an objective is
+  missed or a metric regresses past its threshold, as fail-on asks.
+inputs:
+  design:
+    description: Path of the design (ArchSim JSON) in the repository.
+    required: true
+  scenario:
+    description: A scenario of the design to check instead of the design as drawn.
+    required: false
+    default: ""
+  baseline-ref:
+    description: Git ref to compare with (for example origin/main). Empty for no comparison.
+    required: false
+    default: ""
+  fail-on:
+    description: "objectives, regression, or both (comma separated)."
+    required: false
+    default: objectives
+  knee:
+    description: Also find the breaking point of both (several extra simulations).
+    required: false
+    default: "false"
+  max-p95-increase:
+    description: Relative p95 increase that counts as a regression.
+    required: false
+    default: "0.10"
+  max-cost-increase:
+    description: Relative monthly cost increase that counts as a regression.
+    required: false
+    default: "0.10"
+  comment:
+    description: Post or update the sticky comment on pull requests.
+    required: false
+    default: "true"
+  archsim-directory:
+    description: Where the ArchSim checkout is (this repository by default).
+    required: false
+    default: "."
+outputs:
+  passed:
+    description: "true or false"
+    value: ${{ steps.check.outputs.passed }}
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v7
+    - id: check
+      shell: bash
+      env:
+        DESIGN: ${{ inputs.design }}
+        SCENARIO: ${{ inputs.scenario }}
+        BASELINE_REF: ${{ inputs.baseline-ref }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        KNEE: ${{ inputs.knee }}
+        MAX_P95: ${{ inputs.max-p95-increase }}
+        MAX_COST: ${{ inputs.max-cost-increase }}
+        ARCHSIM_DIR: ${{ inputs.archsim-directory }}
+        REPORT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -u
+        args=("$GITHUB_WORKSPACE/$DESIGN" --format markdown --out "$RUNNER_TEMP/archsim-check.md"
+              --json-out "$RUNNER_TEMP/archsim-check.json" --report-url "$REPORT_URL"
+              --max-p95-increase "$MAX_P95" --max-cost-increase "$MAX_COST")
+        [ -n "$SCENARIO" ] && args+=(--scenario "$SCENARIO")
+        [ -n "$BASELINE_REF" ] && args+=(--baseline-ref "$BASELINE_REF")
+        [ "$KNEE" = "true" ] && args+=(--knee)
+        IFS=',' read -ra modes <<< "$FAIL_ON"
+        for m in "${modes[@]}"; do args+=(--fail-on "$(echo "$m" | xargs)"); done
+        cd "$ARCHSIM_DIR"
+        uv sync --frozen --quiet
+        set +e
+        uv run archsim check "${args[@]}"
+        code=$?
+        set -e
+        cat "$RUNNER_TEMP/archsim-check.md" >> "$GITHUB_STEP_SUMMARY" || true
+        echo "passed=$([ $code -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        echo "ARCHSIM_CHECK_EXIT=$code" >> "$GITHUB_ENV"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: archsim-check
+        path: |
+          ${{ runner.temp }}/archsim-check.md
+          ${{ runner.temp }}/archsim-check.json
+        if-no-files-found: ignore
+    - if: github.event_name == 'pull_request' && inputs.comment == 'true'
+      continue-on-error: true  # pull requests from forks get a read-only token
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+      run: python "${{ github.action_path }}/sticky_comment.py" --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file "$RUNNER_TEMP/archsim-check.md"
+    - shell: bash
+      run: |
+        if [ "${ARCHSIM_CHECK_EXIT:-2}" != "0" ]; then
+          echo "ArchSim check failed (exit $ARCHSIM_CHECK_EXIT)"; exit "$ARCHSIM_CHECK_EXIT"
+        fi

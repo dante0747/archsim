@@ -10,6 +10,8 @@ Examples::
     archsim calibrate otlp doc.json --traces traces.json -o calibrated.json
     archsim import compose docker-compose.yml -o design.json --report import-report.json
     archsim export k8s design.json -o manifests.yaml
+    archsim check archsim/design.json --baseline-ref origin/main --fail-on objectives \
+        --fail-on regression --format markdown --out check.md
 """
 
 from __future__ import annotations
@@ -254,6 +256,88 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _at_ref(ref: str, path: str) -> dict[str, Any] | None:
+    """The JSON of ``path`` as it is at git ``ref`` (None when the file does not exist there)."""
+    import subprocess
+
+    file = Path(path).resolve()
+    top = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=file.parent,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    rel = file.relative_to(Path(top).resolve()).as_posix()
+    shown = subprocess.run(
+        ["git", "show", f"{ref}:{rel}"], cwd=top, capture_output=True, text=True, check=False
+    )
+    if shown.returncode != 0:
+        return None
+    data: dict[str, Any] = json.loads(shown.stdout)
+    return data
+
+
+def cmd_check(args: argparse.Namespace) -> int:
+    from archsim_engine.check import Thresholds, run_check, to_markdown
+
+    try:
+        doc = _load(args.file)
+        baseline = None
+        if args.baseline:
+            baseline = _load(args.baseline)
+        elif args.baseline_ref:
+            baseline = _at_ref(args.baseline_ref, args.file)
+            if baseline is None:
+                print(
+                    f"{args.file} does not exist at {args.baseline_ref}: no baseline",
+                    file=sys.stderr,
+                )
+        result = run_check(
+            doc,
+            default_registry(),
+            scenario_id=args.scenario,
+            baseline=baseline,
+            thresholds=Thresholds(
+                p95_increase=args.max_p95_increase,
+                success_drop=args.max_success_drop,
+                cost_increase=args.max_cost_increase,
+                knee_drop=args.max_knee_drop,
+            ),
+            knee=args.knee,
+            fail_on=tuple(args.fail_on or ["objectives"]),
+        )
+    except DocumentInvalidError as exc:
+        _print_issues(exc.issues)
+        return 2
+    except SimulationLimitError as exc:
+        print(f"cannot check: {exc}", file=sys.stderr)
+        return 2
+    except (OSError, ValueError) as exc:  # unreadable file, bad JSON, git failure
+        print(f"cannot check: {exc}", file=sys.stderr)
+        return 2
+    text = (
+        to_markdown(result, args.report_url)
+        if args.format == "markdown"
+        else json.dumps(result, indent=2) + "\n"
+    )
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+    else:
+        sys.stdout.write(text)
+    if args.json_out:
+        Path(args.json_out).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(("PASS: " if result["pass"] else "FAIL: ") + result["headline"], file=sys.stderr)
+    code: int = result["exitCode"]
+    return code
+
+
+def _ref(value: str) -> str:
+    if value.startswith("-"):
+        raise argparse.ArgumentTypeError("a git ref cannot start with '-'")
+    return value
+
+
 def cmd_catalog(args: argparse.Namespace) -> int:
     print(json.dumps(default_registry().catalog(), indent=2))
     return 0
@@ -334,6 +418,33 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("file", help="the design (JSON)")
     p.add_argument("-o", "--out", help="write here (default: stdout)")
     p.set_defaults(fn=cmd_export)
+    p = sub.add_parser(
+        "check",
+        help="an SLO gate for CI: objectives and regressions; exit 0 pass, 1 fail, 2 invalid input",
+    )
+    p.add_argument("file", help="the design (JSON)")
+    p.add_argument("--scenario", help="check one of its scenarios instead")
+    base = p.add_mutually_exclusive_group()
+    base.add_argument("--baseline", help="another design file to compare with")
+    base.add_argument(
+        "--baseline-ref", type=_ref, help="compare with this file at a git ref (e.g. origin/main)"
+    )
+    p.add_argument(
+        "--fail-on",
+        action="append",
+        choices=["objectives", "regression"],
+        help="what fails the check (repeatable; default: objectives)",
+    )
+    p.add_argument("--max-p95-increase", type=float, default=0.10, help="relative (default 0.10)")
+    p.add_argument("--max-success-drop", type=float, default=0.001, help="absolute (default 0.001)")
+    p.add_argument("--max-cost-increase", type=float, default=0.10, help="relative (default 0.10)")
+    p.add_argument("--max-knee-drop", type=float, default=0.10, help="relative (default 0.10)")
+    p.add_argument("--knee", action="store_true", help="also compare breaking points (slower)")
+    p.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    p.add_argument("-o", "--out", help="write the result here (default: stdout)")
+    p.add_argument("--json-out", help="also write the JSON result here")
+    p.add_argument("--report-url", help="link to the full report in the Markdown")
+    p.set_defaults(fn=cmd_check)
     p = sub.add_parser("catalog", help="print the component catalog as JSON")
     p.set_defaults(fn=cmd_catalog)
     p = sub.add_parser("schema", help="print the document JSON Schema")

@@ -67,7 +67,8 @@ Pure Python, depends only on SimPy and Pydantic. It owns:
 | `sweep.py` | Breaking point: constant-load steps, the knee and the highest load within the objectives. |
 | `slo.py` | Objectives: the verdict of a run (p95, p99, availability, throughput). |
 | `compare.py` | Two-report comparison with input diff and explanations. |
-| `cli.py` | The `archsim` command: `validate`, `run`, `analyze`, `compare`, `calibrate`, `import`, `export`, `catalog`, `schema`. |
+| `check.py` | The CI gate: objectives and regressions against a baseline, the Markdown comment (`archsim check`, `.github/actions/archsim-check`). |
+| `cli.py` | The `archsim` command: `validate`, `run`, `analyze`, `compare`, `calibrate`, `import`, `export`, `check`, `catalog`, `schema`. |
 
 The engine can be used directly:
 

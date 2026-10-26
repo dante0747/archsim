@@ -93,6 +93,9 @@ API servers behind a lone Clients box.
   region, date): parts then run on the cheapest real instance type that fits them and every
   cost line cites it. ArchSim ships no snapshot yet; the generic illustrative rates stay the
   default. See [docs/pricing.md](docs/pricing.md).
+- **An SLO gate in CI.** `archsim check` fails a pull request when a design misses its
+  objectives or regresses against the base branch (p95, success rate, cost, breaking point),
+  and a GitHub Action posts one sticky comment with the comparison. See [docs/ci.md](docs/ci.md).
 - Every part is the same card: its technology logo on a solid tile in its family's colour, its
   name, one or two key settings, and after a run a 12-segment level meter (green, then yellow,
   then red, like an audio meter) that shows how busy it was. Links are rounded
@@ -278,6 +281,7 @@ uv run archsim calibrate prometheus examples/cache-aside-starter.json \
   --recorded packages/engine/tests/fixtures/calibration/starter-prometheus.json -o calibrated.json
 uv run archsim import compose docker-compose.yml -o design.json --report import-report.json
 uv run archsim export k8s examples/cache-aside-starter.json -o manifests.yaml
+uv run archsim check examples/cache-aside-starter.json --baseline-ref origin/main --fail-on regression
 ```
 
 `analyze` prints the auto sizes, the cost estimate, the design review and each part's
@@ -320,6 +324,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Calibrating from Prometheus and OpenTelemetry](docs/calibration.md)
 - [Importing docker-compose, Kubernetes and Terraform](docs/import.md)
 - [Prices and machine shapes](docs/pricing.md)
+- [An SLO gate in CI](docs/ci.md)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)

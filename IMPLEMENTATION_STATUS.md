@@ -309,6 +309,25 @@ serves 10 example designs (see below).
   note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
   report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
   counts on the landing are computed from the catalog.
+- An SLO gate in CI (2026-10-26; Phase 7 of docs/prompts/how-to-win.md). `archsim check
+  design.json [--scenario] [--baseline other.json | --baseline-ref origin/main] [--fail-on
+  objectives|regression] [--knee] --format markdown|json` exits 0 when it passes, 1 when an
+  objective is missed or a metric regressed past its threshold (p95 +10%, success rate -0.1 pp,
+  monthly cost +10%, breaking point -10%; all settable), 2 for unusable input. The Markdown is a
+  pull request comment: a verdict, one sentence ("p95 goes from 180 to 410 ms (objective 300 ms)
+  — fails; ... cost +$140 a month"), a comparison table and the objectives, with the engine
+  version and result digest. `.github/actions/archsim-check` is a composite action: uv, the
+  check, the job summary, an `archsim-check` artifact, one sticky PR comment updated on every
+  push (found by a hidden marker; inputs passed through environment variables, not
+  interpolated into the script), and a failing job when the check fails. This repository's CI
+  runs it on the starter template against the base branch or the previous commit.
+  [docs/ci.md](docs/ci.md) has an example workflow, and the flow for infrastructure changes
+  (import both sides, then compare). Tests: objectives pass and fail, regressions against a
+  file and against a git ref in a temporary repository, user thresholds, CLI exit codes 0/1/2, a
+  Markdown snapshot, and the sticky comment's update-or-create logic with a fake GitHub API.
+  Not verified: the action on GitHub (nothing is pushed), so the brief's acceptance (a PR in
+  this repository gets a correct comment and fails on a missed objective) is checked locally
+  only: the same command, comment and exit code the action uses.
 - Price snapshots and real machine shapes (engine 0.9.0, schema 1.2, report 1.10, 2026-10-26;
   Phase 6 of docs/prompts/how-to-win.md). A design names its price source in `pricing`
   (`provider`, `region`, `purchaseOption`, `families`). `generic`, the default, is the
