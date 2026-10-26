@@ -6,13 +6,13 @@ import { memo, useMemo } from "react";
 import { describeValue, isFieldVisible } from "@/components/editor/FieldControl";
 import { ClusterNodes, PodStrip } from "@/components/editor/KubernetesViews";
 import { TechIcon } from "@/components/TechIcon";
-import { useIsDark } from "@/components/ui/theme-toggle";
+import { Meter } from "@/components/ui/meter";
 import { type ArchNode, SIDES, type Side, sideHandle } from "@/lib/document";
 import { isDistribution, shortDistribution } from "@/lib/distributions";
 import { compact, compactRate, fmtPct } from "@/lib/format";
 import { componentOf } from "@/lib/graph-rules";
 import { clientFraction, clientShares } from "@/lib/clients";
-import { faultsAt, fmtRate, heatColor, runFaults, statusAt } from "@/lib/recorder";
+import { faultsAt, fmtRate, runFaults, statusAt } from "@/lib/recorder";
 import { NODE_STATUS } from "@/lib/status";
 import { CLUSTER_TYPE, type ClusterPlan, clusterIdsOf, clusterOf, isOnKubernetes, membersOf, planCluster, spreadPods, startingPods } from "@/lib/kubernetes";
 import { kindOf, technologyLabel } from "@/lib/theme";
@@ -96,6 +96,19 @@ function FaultTag({ fault }: { fault: Fault }) {
   );
 }
 
+/** Figma-style selection: four square handles on the card's corners. */
+function SelectionHandles() {
+  const h = "absolute size-[9px] rounded-[2px] border-[1.5px] border-[color:var(--select)] bg-white";
+  return (
+    <span className="pointer-events-none absolute inset-0 z-10" aria-hidden>
+      <span className={cn(h, "-left-[5px] -top-[5px]")} />
+      <span className={cn(h, "-right-[5px] -top-[5px]")} />
+      <span className={cn(h, "-bottom-[5px] -left-[5px]")} />
+      <span className={cn(h, "-bottom-[5px] -right-[5px]")} />
+    </span>
+  );
+}
+
 function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const comp = useEditor((s) => componentOf(s.catalog, data.type));
   const errorCount = useEditor((s) => s.issues.filter((i) => i.nodeId === id && i.severity === "error").length);
@@ -114,7 +127,6 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const nBuckets = report?.timeseries.t.length ?? 0;
   // Quantized to the bucket so nodes re-render once per simulated bucket, not on every frame.
   const bucket = useUi((s) => (s.playhead == null ? -1 : Math.floor(s.playhead / bucketS + 1e-9)));
-  const dark = useIsDark();
   // Kubernetes: where the starting pods land (the cluster's plan), as a string so the card only
   // re-renders when the plan changes, not on every edit elsewhere.
   const isCluster = data.type === CLUSTER_TYPE;
@@ -186,7 +198,6 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const s = nodeReport?.summary;
   const util = live ? live.util : (s?.utilization ?? null);
   const alarm = status === "saturated" || status === "hot";
-  const attention = alarm || status === "warm";
   const outage = live?.faults.find((f) => f.kind === "outage") ?? null;
   const slowdown = live?.faults.find((f) => f.kind === "slowdown") ?? null;
   const rejecting = !!live && (live.rejected ?? 0) > 0;
@@ -202,10 +213,10 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
         ? meta.color
         : "var(--node-stroke)";
   const ring = selected
-    ? "0 0 0 3px color-mix(in srgb, var(--select) 24%, transparent)"
+    ? "0 0 0 1px var(--select)"
     : status === "saturated" && meta
       ? `0 0 0 3px color-mix(in srgb, ${meta.color} 18%, transparent)`
-      : undefined;
+      : "var(--node-shadow)";
   const typeName = comp?.displayName.split(" / ")[0].replace(/ \(.*\)$/, "") ?? data.type;
   const technology = typeof data.config.technology === "string" ? data.config.technology : null;
   const tech = technologyLabel(comp, technology);
@@ -215,7 +226,6 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const [cpu, mem, disk] = [setCpu ?? autos[0], setMem ?? autos[1], setDisk ?? autos[2]];
   const isAuto = [setCpu == null && autos[0] != null, setMem == null && autos[1] != null, setDisk == null && autos[2] != null];
   const level = util != null ? Math.min(1, Math.max(0, util)) : null;
-  const barColor = attention && meta ? meta.color : heatColor(level, dark);
   const facts: { k: string; v: string }[] = [];
   if (comp?.isTrafficSource) {
     facts.push({
@@ -263,6 +273,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
         <Handle key={side} id={sideHandle(side)} type="source" position={SIDE_POSITION[side]} className="arch-handle" title="Drag to another part to connect" />
       ))}
 
+      {selected && <SelectionHandles />}
       <div
         className="relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-150 group-hover:border-line-strong"
         style={{
@@ -273,7 +284,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
         }}
       >
         <div className="flex items-center gap-3 px-3 pt-3">
-          <TechIcon technology={technology} kind={kind} size={20} tile className="rounded-lg" />
+          <TechIcon technology={technology} kind={kind} size={18} tile />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold leading-5 text-ink">{data.label}</p>
             <p className="truncate text-xs leading-4 text-ink-3">{tech && tech !== "Generic" ? tech : typeName}</p>
@@ -301,7 +312,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
           {facts.map((f) => (
             <div key={f.k} className="flex items-baseline justify-between gap-3 text-xs leading-[18px]">
               <span className="truncate text-ink-3">{f.k}</span>
-              <span className="tabular shrink-0 font-medium text-ink">{f.v}</span>
+              <span className="font-readout shrink-0 text-ink">{f.v}</span>
             </div>
           ))}
           {podView}
@@ -333,6 +344,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
               {isAuto.some(Boolean) && <span className="text-[11px] font-medium text-accent">auto</span>}
             </p>
           )}
+          {meta && level != null && <Meter level={level} />}
           {meta && (live || s) && (status !== "ok" || rejecting) && !isCluster && (
             <div className="flex items-center gap-1.5 pt-1 text-xs" aria-label={live ? `State at ${live.t.toFixed(0)} s` : "Simulation result for this component"}>
               <span className={cn("size-2 rounded-full", status === "saturated" && "pulse-soft")} style={{ background: meta.color }} aria-hidden />
@@ -342,19 +354,13 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
                   {fmtRate(live!.rejected)}/s refused
                 </span>
               )}
-              <span className="tabular ml-auto text-ink-2">
+              <span className="font-readout ml-auto text-ink-2">
                 {util != null ? `${fmtPct(util, 0)} busy` : live ? `${fmtRate(live.arrival ?? 0)}/s` : `${compactRate(s?.arrivalRps ?? 0)}/s`}
               </span>
             </div>
           )}
         </div>
 
-        {/* Utilisation: a thin bar along the bottom edge, coloured by status when it needs attention. */}
-        {meta && level != null && (
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-surface-3" aria-hidden>
-            <div className="h-full transition-[width] duration-500 ease-out" style={{ width: `${level * 100}%`, background: barColor }} />
-          </div>
-        )}
       </div>
     </div>
   );

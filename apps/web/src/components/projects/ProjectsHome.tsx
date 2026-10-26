@@ -159,15 +159,15 @@ export function ProjectsHome() {
                 <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
                   <LogoMark className="size-6" />
                   <span className="hidden truncate text-[13px] font-semibold text-ink sm:inline">Black Friday on Kubernetes</span>
-                  <div className="mx-auto flex items-center gap-0.5 rounded-lg bg-surface-2 p-0.5 text-[12px] font-medium">
+                  <div className="mx-auto flex items-center gap-0.5 rounded-[9px] bg-[color:var(--seg)] p-[3px] text-[12px] font-medium">
                     {["Design", "Test", "Results"].map((w) => (
-                      <span key={w} className={cn("rounded-md px-2.5 py-1", w === "Test" ? "bg-surface text-ink" : "text-ink-3")}>
+                      <span key={w} className={cn("rounded-[6px] px-2.5 py-1", w === "Test" ? "bg-[color:var(--seg-on)] text-ink" : "text-ink-3")}>
                         {w}
                       </span>
                     ))}
                   </div>
-                  <span className="hidden items-center gap-1.5 rounded-md bg-accent px-2.5 py-1 text-[12px] font-semibold text-[var(--accent-ink)] sm:inline-flex">
-                    <Play className="size-3 fill-current" /> Simulate
+                  <span className="hidden items-center gap-2 rounded-[8px] border border-[color:var(--record-line)] bg-[color:var(--record-fill)] px-2.5 py-1 text-[12px] font-semibold text-ink sm:inline-flex">
+                    <span className="size-2 rounded-full bg-[color:var(--record)]" /> Simulate
                   </span>
                 </div>
                 <HeroDemo />

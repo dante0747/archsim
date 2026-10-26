@@ -114,9 +114,12 @@ serves 10 example designs (see below).
     **replay timeline**: a short header (play/pause, time, "Whole run", speed button; step
     and jump stay on the keyboard), the traffic plan and failure rows, event markers (faults,
     saturation, SLO breach/recovery, scaling, queue growth, timeouts), latency against the
-    objective and failures; "More detail" (remembered) adds throughput and a heat lane per
-    component. Click or drag any row to scrub, and the canvas shows each component's state at the playhead (fill level,
-    queue, rejections, faults, link flow, replica count) plus a clock overlay. Runs started
+    objective and failures; "More detail" (remembered, on by default) adds throughput and an
+    arrangement lane per component: a rounded region in the part's family colour with its
+    utilisation (or arrivals) as a waveform, the queue as a dashed line, refused requests as red
+    ticks and its failures as solid red clips. Click or drag any row to scrub, and the canvas shows each component's state at the playhead (fill level,
+    queue, rejections, faults, link flow, replica count) plus a clock overlay (on screens 1280 px
+    and wider the top bar's LCD shows the clock instead). Runs started
     from the Test workspace replay automatically; from Design the result lands on the canvas.
   - **Results** (internal key `decide`): summary scorecard (objective tiles with inline-editable targets, error budget and
     burn-down, monthly cost and cost per 1M requests per component), trade-off map (cost vs.
@@ -125,18 +128,32 @@ serves 10 example designs (see below).
     items), plus the existing insights, timeline, components, compare, history and
     assumptions views.
 - Command palette (every action, workspaces, every technology preset, "Theme: …" commands),
-  keyboard shortcuts. "Ops console" look (chosen by the user from four rendered directions on
-  2026-10-25). Dark: graphite panels on a near-black page, signal orange with an
-  orange-to-amber gradient for primary actions and hero type, blue for focus and selection,
-  Grafana-style threshold colours for status, tighter corners. Light (made "more standard" at
-  the user's request the same day): a GitHub-style palette, white panels on a soft grey page,
-  quiet grey borders, one blue (#0969da) for actions, links, focus and selection, no glow, a
-  blue-to-violet hero highlight and soft blue feature bands; the orange gradient remains on
-  the logo only.
-  The sun/moon button offers Dark, Light or Match system (the default, which follows the system
-  live). Each theme is a set of CSS tokens; the choice is stored in this browser's localStorage
-  only and applied before first paint; older saved values (retired palettes) open in Dark.
-  Utilisation heat uses the validated blue ramp below 70%.
+  keyboard shortcuts. "Studio" look (2026-10-26, on branch `ui-studio`, replacing "Ops
+  console" after the user asked for something premium and named Apple pro apps, Figma/Framer
+  and Stripe/Vercel as references): modelled on a pro audio app.
+  - Dark (the default): charcoal page (#1c1c1e), a darker canvas with a quiet dot grid, three
+    surface steps, part families in Apple's system colours (clients green, network teal,
+    compute blue, cache pink, databases orange, messaging purple, third-party grey), solid blue
+    for primary actions. Light mirrors it with Apple's light variants.
+  - Top bar as a transport: replay buttons (back to start, play/pause; play opens Test, which
+    owns the replay loop) and an LCD readout in Geist Mono (time, throughput, p95 against the
+    goal, success; red when an objective is missed). It shows the moment under the playhead
+    while replaying or scrubbing inside the run, and the run's summary otherwise. Simulate is a
+    red record-style button. Workspaces are a segmented control.
+  - Library: a three-column grid of solid colour tiles with white logos (description in the
+    tooltip). Part cards: the same solid tile, numbers in Geist Mono, a 12-segment level meter
+    for utilisation, Figma-style corner handles when selected.
+  - Chaos pads: a rack on the canvas (bottom right, Design workspace) with one pad per quick
+    failure test the design allows (lose the cache, slow database, link latency, kill the
+    service tier, third-party or broker outage, traffic spike). Hitting a pad replaces the
+    planned failures with that one and simulates; the pad stays lit while its failure is
+    planned; Clear removes it; Ctrl Z undoes it. The rack folds to a small button (remembered)
+    and starts folded when the canvas is narrower than 720 px.
+  - Landing page product shot redrawn the same way (LCD, meters, arrangement lanes).
+  The sun/moon button offers Dark, Light or Match system. The choice is stored in this
+  browser's localStorage only (key `archsim-theme-studio`, so earlier choices don't carry
+  over) and applied before first paint. The blue utilisation ramp (`heatColor`) is no longer
+  drawn; lanes use family colours and the cards use the meter.
 - Technology behaviour (engine 0.5.0, report 1.5; `archsim_engine/technology.py`): the selected
   technology switches on mechanisms that make each product behave like the real one, each a
   config setting in a "Technology behaviour" group whose default `auto` takes the technology's
@@ -266,8 +283,8 @@ serves 10 example designs (see below).
   instead of a card over the diagram; flatter inspector, Results and home page; short entrance
   animations for new results.
 - Landing page (the home page): a large headline, a live product shot (a scripted replay of a
-  cache outage drawn with the editor's part cards: moving traffic, autoscaling, saturation,
-  verdict and timeline) on a dark console band, key numbers read from the catalog, a drifting
+  cache outage drawn like the editor: an LCD readout, part cards with level meters, moving
+  traffic, autoscaling, saturation, verdict and arrangement lanes) on a dark console band, key numbers read from the catalog, a drifting
   marquee of every technology logo, "How it works" with three small animated vignettes, a feature
   grid of nine tiles (including the dashboard and the calculations), three template cards with
   a link to the gallery, a closing call to action and a footer; saved projects are on their own page. Sections fade up as they enter the view; all motion stops for
@@ -408,6 +425,21 @@ screenshots were retaken from this build.
 Blueprint and Drafting paper themes, on 2026-10-25 (since replaced by Ops console): home page
 and editor in both themes, switching, reload, legacy values.
 
+Studio look, on 2026-10-26, in the browser pane (Chromium) against the dev server and the Docker
+API, at 1440x900 in dark and light, plus 1100x760 (editor) and 375x812 (landing page): the
+landing page and its product shot, templates gallery, projects page; the editor's top bar
+(transport, LCD with the run's summary, Simulate), library grid, part cards with meters,
+chaos pads ("Lose Redis Cache" planned the outage, simulated, success dropped to 69.5% in red
+and the pad lit), the Test workspace's arrangement lanes, replay from the transport (LCD live
+at 00:24.1: 386 req/s, p95 88.9 ms, with the playhead across the lanes), Results and
+Dashboard. Fixed on the way: the top bar squeezed the LCD and overlapped at 1440 px, the
+chaos rack covered the canvas toolbar (narrower rack; folded on narrow canvases), the LCD
+showed the drain bucket's numbers after a replay ended, the hero's part name was squeezed to
+one letter by its status badge, the hero's LCD ran off a phone screen, and the hero's lane
+paths caused a hydration warning (floating-point noise between server and browser; now
+rounded). `npm test` (223 tests, 10 of them new for the meter, transport and chaos pads), `npm run lint`, `npx tsc --noEmit` and `npm run build`
+pass.
+
 Technology behaviour, calculations, traces and dashboard, on 2026-10-25, against the dev server
 and the Docker API rebuilt with engine 0.5.0: simulated the Black Friday template; the
 dashboard's rows, per-component panels (including GC pauses and time in component), crosshair
@@ -503,10 +535,13 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - `throughputRps` counts by completion time and can be slightly above `offeredRps`.
 - "Queue kept growing" needs at least 4 time buckets inside the measurement window.
 - No authentication or multi-user support; bind to localhost only.
-- README screenshots are 800x500 captures; a demo GIF has not been recorded.
-- The UI was checked by hand in one browser engine (Chromium in the desktop app) at 1280x800
-  and 1440x900, in the Ops console dark and light themes. There are no automated visual or
-  end-to-end tests yet.
+- README screenshots are 800x500 captures of the previous Ops console look; they need retaking
+  if the Studio look is kept. A demo GIF has not been recorded.
+- The UI was checked by hand in one browser engine (Chromium in the desktop app): earlier looks
+  at 1280x800 and 1440x900, the Studio look at 1440x900, 1100x760 and 375x812, in dark and
+  light. There are no automated visual or end-to-end tests yet.
+- At 1100 px wide with both side panels open, the Design review pill overlaps the canvas zoom
+  toolbar (it did before the Studio look too).
 - The canvas layout is usable at tablet widths, but the editor is designed for desktop
   screens.
 

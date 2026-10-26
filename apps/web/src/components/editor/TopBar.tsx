@@ -13,7 +13,6 @@ import {
   LoaderCircle,
   MoreHorizontal,
   PanelRight,
-  Play,
   Redo2,
   Save,
   Search,
@@ -40,8 +39,8 @@ import {
   MenuTrigger,
 } from "@/components/ui/overlays";
 import { ThemeMenu } from "@/components/ui/theme-toggle";
-import { RunStatusChip } from "@/components/editor/CanvasHud";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
+import { TransportButtons, TransportLcd } from "@/components/editor/Transport";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -79,7 +78,7 @@ function RunControl() {
       <button
         type="button"
         onClick={() => void cancel(followRun.id)}
-        className="relative flex h-8 min-w-40 items-center gap-2 overflow-hidden rounded-md border border-line-strong bg-surface px-2.5 text-[13px] font-semibold text-ink shadow-panel"
+        className="relative flex h-9 min-w-40 items-center gap-2 overflow-hidden rounded-[9px] border border-[color:var(--record-line)] bg-[color:var(--record-fill)] px-3 text-[13px] font-semibold text-ink"
         aria-label="Stop simulation"
       >
         <span className="progress-stripes absolute bottom-0 left-0 h-[3px]" style={{ width: `${Math.max(4, followRun.progress * 100)}%` }} aria-hidden />
@@ -91,7 +90,7 @@ function RunControl() {
   }
   const hasScenarios = scenarios.length > 0;
   return (
-    <div className="flex h-8 items-stretch" data-tour="simulate">
+    <div className="flex h-9 items-stretch" data-tour="simulate">
       <Tip content={<>Send traffic through {target ? `“${target.name}”` : "the design"} and record what happens <Kbd>Ctrl Enter</Kbd></>}>
         <button
           type="button"
@@ -99,11 +98,15 @@ function RunControl() {
           disabled={starting}
           data-testid="run-button"
           className={cn(
-            "accent-fill flex items-center gap-1.5 pl-3 pr-3.5 text-[13px] font-semibold transition-[filter] hover:brightness-[1.08] disabled:opacity-60",
-            hasScenarios ? "rounded-l-md" : "rounded-md",
+            "flex items-center gap-2 border border-[color:var(--record-line)] bg-[color:var(--record-fill)] pl-3 pr-3.5 text-[13px] font-semibold text-ink transition-[filter] hover:brightness-110 disabled:opacity-60",
+            hasScenarios ? "rounded-l-[9px] border-r-0" : "rounded-[9px]",
           )}
         >
-          {starting ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5 fill-current" />}
+          {starting ? (
+            <LoaderCircle className="size-3.5 animate-spin" style={{ color: "var(--record)" }} />
+          ) : (
+            <span className="size-3 rounded-full bg-[color:var(--record)] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]" aria-hidden />
+          )}
           Simulate
         </button>
       </Tip>
@@ -113,9 +116,9 @@ function RunControl() {
           <button
             type="button"
             aria-label="Choose what to simulate"
-            className="flex max-w-48 items-center gap-1 rounded-r-md border border-l-0 border-line-strong bg-surface px-2.5 text-[13px] text-ink-2 shadow-panel transition-colors hover:bg-surface-2 hover:text-ink"
+            className="flex max-w-40 items-center gap-1 rounded-r-[9px] border border-line-strong bg-surface-2 px-2 text-[13px] text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink"
           >
-            <span className="truncate">{target ? target.name : "Current design"}</span>
+            {target ? <span className="truncate">{target.name}</span> : <span className="sr-only">Current design</span>}
             <ChevronDown className="size-3.5 shrink-0" />
           </button>
         </MenuTrigger>
@@ -223,8 +226,8 @@ export function TopBar({
   const setExportOpen = useUi((s) => s.setExportOpen);
 
   return (
-    <header className="island relative z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 !overflow-visible border-b border-line px-3">
-      <div className="flex min-w-0 items-center gap-1.5">
+    <header className="island relative z-30 flex h-[60px] shrink-0 items-center gap-3 !overflow-visible border-b border-line px-3">
+      <div className="flex min-w-0 shrink-0 items-center gap-1.5">
         <Tip content="All projects">
           <Link href="/projects" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
             <LogoMark className="size-6" />
@@ -235,18 +238,28 @@ export function TopBar({
           onChange={(e) => setMetadata({ name: e.target.value }, "name")}
           aria-label="Project name"
           maxLength={120}
-          style={{ width: `calc(${Math.min(Math.max(name.length, 12), 32)}ch + 14px)` }}
+          style={{ width: `calc(${Math.min(Math.max(name.length, 8), 20)}ch + 14px)` }}
           className="h-7 min-w-0 max-w-[28vw] rounded-md border border-transparent bg-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em] text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
         />
         <Tip content={saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}>
           <span className={cn("size-1.5 shrink-0 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3/50")} aria-label={saving ? "saving" : dirty ? "unsaved" : "saved"} />
         </Tip>
-        <RunStatusChip />
+        <span className="ml-2 hidden xl:block">
+          <WorkspaceSwitch />
+        </span>
       </div>
 
-      <WorkspaceSwitch />
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+        <span className="xl:hidden">
+          <WorkspaceSwitch />
+        </span>
+        <span className="hidden xl:flex xl:items-center xl:gap-2">
+          <TransportButtons />
+          <TransportLcd />
+        </span>
+      </div>
 
-      <div className="flex items-center justify-end gap-1.5">
+      <div className="flex shrink-0 items-center justify-end gap-1.5">
         <ProblemsPill />
         <RunControl />
         <Tip content={<>Save <Kbd>Ctrl S</Kbd></>}>

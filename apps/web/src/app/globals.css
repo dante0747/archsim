@@ -4,175 +4,187 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * ArchSim design tokens: "Ops console", a monitoring-console look in the spirit of Grafana.
+ * ArchSim design tokens: "Studio", a pro-app look in the spirit of Apple's pro apps and Figma.
  *
- *   Dark (under .dark): graphite panels on a near-black page, crisp hairlines, signal orange
- *   with an orange-to-amber gradient for primary actions and hero type, blue for focus and
- *   selection, threshold colours (green, yellow, orange, red) for status.
- *   Light (the values below): a standard, calm light theme: a cool slate-grey page and canvas,
- *   off-white panels, white cards that stand out on the canvas, quiet grey borders, one blue
- *   for actions, links, focus and selection, no glow. The orange gradient stays on the logo.
+ *   Dark (under .dark, the default): macOS-style charcoal panels, white ink, solid Apple system
+ *   colours for each family of parts (compute blue, data orange, cache pink, messaging purple,
+ *   edge cyan, clients green), one blue for selection and actions, no glow.
+ *   Light (the values below): the same language on white and soft grey, like a Figma canvas.
  *
  * Roles: --accent is for links and accents; --primary-fill / --primary-ink paint the primary
  * button; --select marks focus and selection; --hero-text fills the hero's highlighted words;
- * status colours appear on results with a text label; --band* are the home page's feature
- * bands. Floating things get shadows.
- * Type: Geist for everything; numbers use tabular figures; Geist Mono for code (font-code).
+ * status colours appear on results with a text label; --fam-* tint each family's tiles.
+ * Type: Geist for words and numbers (tabular); Geist Mono for readouts (font-readout) and code.
  */
 :root {
   color-scheme: light;
-  --page: #e6eaf0;
-  --canvas: #edf0f4;
-  --grid-minor: rgba(31, 35, 40, 0.045);
-  --grid-major: rgba(31, 35, 40, 0.085);
-  --surface: #f7f8fa;
-  --surface-2: #eceff3;
-  --surface-3: #dfe4eb;
-  --glass: #f7f8fa;
-  --ink: #1f2328;
-  --ink-2: #545e69;
-  --ink-3: #66707b;
-  --line: rgba(31, 35, 40, 0.13);
-  --line-strong: rgba(31, 35, 40, 0.22);
-  --wire: #858f9a;
+  --page: #f2f2f4;
+  --canvas: #f7f7f8;
+  --grid-minor: rgba(0, 0, 0, 0.04);
+  --grid-major: rgba(0, 0, 0, 0.07);
+  --surface: #ffffff;
+  --surface-2: #f4f4f6;
+  --surface-3: #e9e9ed;
+  --glass: #ffffff;
+  --ink: #1c1c1e;
+  --ink-2: #55555d;
+  --ink-3: #6b6b73;
+  --line: rgba(0, 0, 0, 0.09);
+  --line-strong: rgba(0, 0, 0, 0.16);
+  --wire: #a1a1a8;
   --node-fill: #ffffff;
   --node-fill-2: #ffffff;
-  --node-stroke: #cbd3dd;
-  --ring: #0969da;
-  --select: #0969da;
-  --accent: #0969da;
-  --accent-2: #8250df;
-  --accent-3: #9a6700;
+  --node-stroke: #dcdce0;
+  --ring: #007aff;
+  --select: #007aff;
+  --accent: #0066d6;
+  --accent-2: #5856d6;
+  --accent-3: #c26a00;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(9, 105, 218, 0.08);
-  --brand-a: #f05a28;
-  --brand-b: #f59e0b;
-  --primary-fill: #0969da;
+  --accent-soft: rgba(0, 122, 255, 0.1);
+  --brand-a: #007aff;
+  --brand-b: #af52de;
+  --primary-fill: #007aff;
   --primary-ink: #ffffff;
-  --hero-text: linear-gradient(100deg, #0969da, #8250df);
-  --glow: 0 0 0 3px rgba(9, 105, 218, 0.18);
-  --highlight: transparent;
-  --shadow: none;
-  --shadow-lg: 0 8px 24px rgba(66, 74, 83, 0.12), 0 1px 3px rgba(31, 35, 40, 0.08);
-  --node-shadow: none;
-  --tour-shade: rgba(31, 35, 40, 0.4);
+  --hero-text: linear-gradient(95deg, #007aff, #af52de 45%, #ff2d55 75%, #ff9500);
+  --glow: 0 0 0 3px rgba(0, 122, 255, 0.22);
+  --highlight: rgba(255, 255, 255, 0.6);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --node-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --tour-shade: rgba(0, 0, 0, 0.4);
 
-  /* component families: icon-chip tints */
-  --fam-traffic: #0f8a7e;
-  --fam-network: #0969da;
-  --fam-compute: #8250df;
-  --fam-cache: #bf3989;
-  --fam-database: #9a6700;
-  --fam-messaging: #6639ba;
-  --fam-external: #6e7781;
+  /* families: solid tile colours (white glyphs sit on them) */
+  --fam-traffic: #34c759;
+  --fam-network: #32ade6;
+  --fam-compute: #007aff;
+  --fam-cache: #ff2d55;
+  --fam-database: #ff9500;
+  --fam-messaging: #af52de;
+  --fam-external: #8e8e93;
 
-  /* chart series (validated data-viz palette) */
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --series-7: #6250d6;
-  --series-8: #e34948;
+  /* chart series */
+  --series-1: #007aff;
+  --series-2: #ff9500;
+  --series-3: #34c759;
+  --series-4: #d6a400;
+  --series-5: #ff2d55;
+  --series-6: #32ade6;
+  --series-7: #af52de;
+  --series-8: #ff3b30;
 
   /* status: thresholds, always paired with a label */
-  --status-good: #1a7f37;
-  --status-warning: #9a6700;
-  --status-serious: #bc4c00;
-  --status-critical: #cf222e;
-  --status-good-soft: #dafbe1;
-  --status-warning-soft: #fff8c5;
-  --status-serious-soft: #fff1e5;
-  --status-critical-soft: #ffebe9;
-  --success-ink: #116329;
-  --danger-ink: #a40e26;
+  --status-good: #248a3d;
+  --status-warning: #b78103;
+  --status-serious: #c94f00;
+  --status-critical: #d70015;
+  --status-good-soft: #e6f6ea;
+  --status-warning-soft: #fff6db;
+  --status-serious-soft: #fff0e0;
+  --status-critical-soft: #ffe8e8;
+  --success-ink: #1e7a34;
+  --danger-ink: #b0001a;
 
-  --grid: rgba(31, 35, 40, 0.08);
-  --axis: rgba(31, 35, 40, 0.16);
-  --muted-axis: #6e7781;
-  --warmup-wash: rgba(31, 35, 40, 0.035);
+  --grid: rgba(0, 0, 0, 0.07);
+  --axis: rgba(0, 0, 0, 0.16);
+  --muted-axis: #6b6b73;
+  --warmup-wash: rgba(0, 0, 0, 0.035);
 
-  /* home page feature bands: a soft blue wash in light */
-  --band: #dfe8f4;
-  --band-ink: #1f2328;
-  --band-line: rgba(9, 105, 218, 0.05);
-  --band-glow-1: rgba(9, 105, 218, 0.12);
-  --band-glow-2: rgba(130, 80, 223, 0.08);
+  --band: #e9edf6;
+  --band-ink: #1c1c1e;
+  --band-line: rgba(0, 122, 255, 0.06);
+  --band-glow-1: rgba(0, 122, 255, 0.14);
+  --band-glow-2: rgba(175, 82, 222, 0.1);
+
+  /* the transport LCD */
+  --lcd: #f4f4f6;
+  --lcd-line: rgba(0, 0, 0, 0.08);
+  --record: #ff3b30;
+  --record-fill: #fde9e7;
+  --record-line: #f5c2bd;
+  --seg: #e6e6ea;
+  --seg-on: #ffffff;
 }
 
-/* Ops console (dark). */
+/* Studio (dark): the default. */
 .dark {
   color-scheme: dark;
-  --page: #0b0c10;
-  --canvas: #0e1014;
-  --grid-minor: rgba(204, 214, 235, 0.04);
-  --grid-major: rgba(204, 214, 235, 0.08);
-  --surface: #15171c;
-  --surface-2: #1c1f25;
-  --surface-3: #262a32;
-  --glass: #181b21;
-  --ink: #e8eaf0;
-  --ink-2: #a9afbc;
-  --ink-3: #79808f;
-  --line: rgba(204, 214, 235, 0.09);
-  --line-strong: rgba(204, 214, 235, 0.16);
-  --wire: #59606e;
-  --node-fill: #16191e;
-  --node-fill-2: #16191e;
-  --node-stroke: rgba(204, 214, 235, 0.15);
-  --ring: #6e9fff;
-  --select: #6e9fff;
-  --accent: #ff7a1a;
-  --accent-2: #6e9fff;
-  --accent-3: #f2cc0c;
-  --accent-ink: #1a0c00;
-  --accent-soft: rgba(255, 122, 26, 0.13);
-  --brand-a: #ff6a1a;
-  --brand-b: #ffb020;
-  --primary-fill: linear-gradient(135deg, #ff6a1a, #ffb020);
-  --primary-ink: #1a0c00;
-  --hero-text: linear-gradient(100deg, #ff6a1a, #ffb020);
-  --glow: 0 0 0 1px rgba(255, 138, 40, 0.35), 0 8px 26px -6px rgba(255, 110, 20, 0.55);
-  --highlight: transparent;
-  --shadow: none;
-  --shadow-lg: 0 20px 48px -14px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.45);
-  --node-shadow: none;
+  --page: #1c1c1e;
+  --canvas: #161618;
+  --grid-minor: rgba(255, 255, 255, 0.035);
+  --grid-major: rgba(255, 255, 255, 0.065);
+  --surface: #232326;
+  --surface-2: #2a2a2e;
+  --surface-3: #333338;
+  --glass: #232326;
+  --ink: #f2f2f7;
+  --ink-2: #aeaeb6;
+  --ink-3: #8e8e96;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --wire: #4a4a50;
+  --node-fill: #232326;
+  --node-fill-2: #232326;
+  --node-stroke: #333338;
+  --ring: #0a84ff;
+  --select: #0a84ff;
+  --accent: #409cff;
+  --accent-2: #64d2ff;
+  --accent-3: #ffd60a;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --brand-a: #0a84ff;
+  --brand-b: #bf5af2;
+  --primary-fill: #0a84ff;
+  --primary-ink: #ffffff;
+  --hero-text: linear-gradient(95deg, #409cff, #bf5af2 45%, #ff375f 75%, #ff9f0a);
+  --glow: 0 0 0 3px rgba(10, 132, 255, 0.32);
+  --highlight: rgba(255, 255, 255, 0.04);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-lg: 0 22px 50px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --node-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
   --tour-shade: rgba(0, 0, 0, 0.66);
-  --fam-traffic: #5ad8c8;
-  --fam-network: #6e9fff;
-  --fam-compute: #b48cff;
-  --fam-cache: #ff7eb6;
-  --fam-database: #f2cc0c;
-  --fam-messaging: #c58af9;
-  --fam-external: #9aa3b5;
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --series-5: #d55181;
-  --series-6: #008300;
-  --series-7: #9085e9;
-  --series-8: #e66767;
-  --status-good: #73bf69;
-  --status-warning: #f2cc0c;
-  --status-serious: #ff9830;
-  --status-critical: #f2495c;
-  --status-good-soft: #17261a;
-  --status-warning-soft: #2a2610;
-  --status-serious-soft: #2e1f10;
-  --status-critical-soft: #33161b;
-  --success-ink: #8fd486;
-  --danger-ink: #ff8a96;
-  --grid: rgba(204, 214, 235, 0.07);
-  --axis: rgba(204, 214, 235, 0.14);
-  --muted-axis: #79808f;
-  --warmup-wash: rgba(204, 214, 235, 0.04);
-  --band: #101217;
-  --band-ink: #f1f3f7;
-  --band-line: rgba(204, 214, 235, 0.06);
-  --band-glow-1: rgba(255, 110, 26, 0.24);
-  --band-glow-2: rgba(110, 159, 255, 0.14);
+  --fam-traffic: #30d158;
+  --fam-network: #40c8e0;
+  --fam-compute: #0a84ff;
+  --fam-cache: #ff375f;
+  --fam-database: #ff9f0a;
+  --fam-messaging: #bf5af2;
+  --fam-external: #8e8e93;
+  --series-1: #0a84ff;
+  --series-2: #ff9f0a;
+  --series-3: #30d158;
+  --series-4: #ffd60a;
+  --series-5: #ff375f;
+  --series-6: #64d2ff;
+  --series-7: #bf5af2;
+  --series-8: #ff453a;
+  --status-good: #30d158;
+  --status-warning: #ffd60a;
+  --status-serious: #ff9f0a;
+  --status-critical: #ff453a;
+  --status-good-soft: #12291a;
+  --status-warning-soft: #2b2710;
+  --status-serious-soft: #2e2210;
+  --status-critical-soft: #351718;
+  --success-ink: #6ee08e;
+  --danger-ink: #ff8a82;
+  --grid: rgba(255, 255, 255, 0.07);
+  --axis: rgba(255, 255, 255, 0.14);
+  --muted-axis: #8e8e96;
+  --warmup-wash: rgba(255, 255, 255, 0.04);
+  --band: #161618;
+  --band-ink: #f2f2f7;
+  --band-line: rgba(255, 255, 255, 0.06);
+  --band-glow-1: rgba(10, 132, 255, 0.22);
+  --band-glow-2: rgba(191, 90, 242, 0.16);
+  --lcd: #0f1012;
+  --lcd-line: rgba(255, 255, 255, 0.07);
+  --record: #ff453a;
+  --record-fill: #3a1a1c;
+  --record-line: #5a2a2c;
+  --seg: #161618;
+  --seg-on: #3a3a3f;
 }
 
 @theme inline {
@@ -208,22 +220,24 @@
   --color-band: var(--band);
   --color-band-ink: var(--band-ink);
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* "font-mono" in the UI means tabular numbers, not a typewriter face (see .font-mono below). */
+  /* "font-mono" in the UI means tabular numbers, not a typewriter face (see .font-mono below);
+     "font-readout" is the Geist Mono of the transport LCD, part metrics and live numbers. */
   --font-mono: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-readout: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
   --font-code: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
   --font-display: var(--font-geist-sans), system-ui, sans-serif;
   --shadow-panel: var(--shadow);
   --shadow-float: var(--shadow-lg);
 }
 
-/* Console corners: tighter than consumer apps. */
+/* Studio corners: soft like a pro app, not bubbly. */
 @theme {
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.5rem;
-  --radius-2xl: 0.625rem;
-  --radius-3xl: 0.875rem;
+  --radius-sm: 0.3125rem;
+  --radius-md: 0.4375rem;
+  --radius-lg: 0.5625rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 0.875rem;
+  --radius-3xl: 1.125rem;
 }
 
 html,
@@ -264,8 +278,13 @@ body {
 
   /* Numbers line up (tabular figures) without switching to a monospace face. */
   .font-mono,
-  .tabular {
+  .tabular,
+  .font-readout {
     font-variant-numeric: tabular-nums;
+  }
+
+  .font-readout {
+    letter-spacing: -0.02em;
   }
 
   /* Real code: YAML, JSON, IDs. */
@@ -287,7 +306,7 @@ body {
   background-image: none;
 }
 
-/* Primary action: the orange gradient in dark, solid blue in light; a glow or ring on hover. */
+/* Primary action: solid system blue; a soft ring on hover. */
 .accent-fill {
   background: var(--primary-fill);
   color: var(--primary-ink);
@@ -308,10 +327,16 @@ body {
   color: transparent;
 }
 
-/* The brand mark: gradient tile. */
+/* The brand mark's tile (kept for older call sites): solid blue. */
 .brand-tile {
-  background: linear-gradient(135deg, var(--brand-a), var(--brand-b));
-  color: #1a0c00;
+  background: var(--fam-compute);
+  color: #ffffff;
+}
+
+/* A family tile: solid colour, white glyph, a hairline of light along the top edge. */
+.fam-tile {
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 /* Live indicator: a dot with a soft expanding ring. */

@@ -2,15 +2,15 @@
 
 /**
  * The landing page's product shot: a scripted (not simulated) replay of a design losing its cache,
- * drawn with the same flat part cards as the editor. Traffic moves along the links, the API
- * autoscales, the database saturates, the verdict flips and recovers; a timeline runs below.
- * Loops while visible; one still frame when reduced motion is preferred.
+ * drawn like the editor: an LCD readout, part cards with level meters, and the run as arrangement
+ * lanes, one per part in its family colour. Traffic moves along the links, the API autoscales, the
+ * database saturates, the verdict flips and recovers. Loops while visible; one still frame when
+ * reduced motion is preferred.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TechIcon } from "@/components/TechIcon";
-import { useIsDark } from "@/components/ui/theme-toggle";
-import { heatColor } from "@/lib/recorder";
-import type { Kind } from "@/lib/theme";
+import { Meter } from "@/components/ui/meter";
+import { KIND_COLOR, type Kind } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const T = 60; // scripted seconds
@@ -48,13 +48,13 @@ type Frame = ReturnType<typeof frame>;
 
 type NodeId = "clients" | "lb" | "api" | "cache" | "db";
 const W = 184;
-const H = 68;
+const H = 86;
 const NODES: { id: NodeId; kind: Kind; tech: string | null; name: string; sub: string; x: number; y: number }[] = [
-  { id: "clients", kind: "traffic", tech: "mobile", name: "Shoppers", sub: "Mobile + web", x: 16, y: 122 },
-  { id: "lb", kind: "network", tech: "nginx", name: "Edge", sub: "Nginx", x: 236, y: 122 },
-  { id: "api", kind: "compute", tech: "go", name: "Checkout", sub: "Go · Kubernetes", x: 456, y: 122 },
-  { id: "cache", kind: "cache", tech: "redis", name: "Cart cache", sub: "Redis", x: 690, y: 26 },
-  { id: "db", kind: "database", tech: "postgresql", name: "Orders DB", sub: "PostgreSQL", x: 690, y: 218 },
+  { id: "clients", kind: "traffic", tech: "mobile", name: "Shoppers", sub: "Mobile + web", x: 16, y: 113 },
+  { id: "lb", kind: "network", tech: "nginx", name: "Edge", sub: "Nginx", x: 236, y: 113 },
+  { id: "api", kind: "compute", tech: "go", name: "Checkout", sub: "Go · Kubernetes", x: 456, y: 113 },
+  { id: "cache", kind: "cache", tech: "redis", name: "Cart cache", sub: "Redis", x: 690, y: 12 },
+  { id: "db", kind: "database", tech: "postgresql", name: "Orders DB", sub: "PostgreSQL", x: 690, y: 214 },
 ];
 const STAGE_W = 896;
 const STAGE_H = 312;
@@ -122,6 +122,40 @@ function useFit(ref: React.RefObject<HTMLDivElement | null>, width: number) {
   return k;
 }
 
+/** One readout cell of the LCD. */
+function Cell({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex flex-col justify-center whitespace-nowrap border-[color:var(--lcd-line)] px-3", className)}>
+      <span className="text-[9.5px] font-medium uppercase tracking-[0.08em] text-ink-3">{label}</span>
+      <span className="font-readout text-[15px] leading-tight text-ink">{children}</span>
+    </div>
+  );
+}
+
+// Arrangement lanes: a label column, then the run.
+const LX = 70;
+const LW = 566;
+const lx = (s: number) => LX + (s / T) * LW;
+const LANES: { id: "load" | NodeId; label: string; kind: Kind }[] = [
+  { id: "load", label: "Shoppers", kind: "traffic" },
+  { id: "lb", label: "Edge", kind: "network" },
+  { id: "api", label: "Checkout", kind: "compute" },
+  { id: "cache", label: "Cart cache", kind: "cache" },
+  { id: "db", label: "Orders DB", kind: "database" },
+];
+const LANE_H = 15;
+const LANE_GAP = 3;
+
+/** Path coordinates to 0.1 px, so the server and the browser write the same path (no hydration mismatch). */
+const r1 = (v: number) => Math.round(v * 10) / 10;
+
+/** A lane's waveform (values 0..1) inside a region of height h at y: its outline and its filled area. */
+function wave(values: number[], y: number, h: number): { line: string; area: string } {
+  const yOf = (v: number) => y + h - 2 - Math.min(1, Math.max(0, v)) * (h - 5);
+  const line = `M${values.map((v, i) => `${r1(lx(i + 0.5))},${r1(yOf(v))}`).join(" L")}`;
+  return { line, area: `${line} L${r1(lx(values.length - 0.5))},${y + h - 1} L${r1(lx(0.5))},${y + h - 1} Z` };
+}
+
 export function HeroDemo() {
   const [t, setT] = useState(STILL);
   const host = useRef<HTMLDivElement>(null);
@@ -145,8 +179,6 @@ export function HeroDemo() {
     };
   }, []);
 
-  const dark = useIsDark();
-  const heat = (u: number) => heatColor(u, dark);
   const f = frame(t);
   const s = story(t, f);
   const series = useMemo(() => Array.from({ length: T }, (_, i) => frame(i + 0.5)), []);
@@ -156,25 +188,37 @@ export function HeroDemo() {
       : s.tone === "warn"
         ? { label: "Recovering", color: "var(--status-warning)" }
         : { label: "Healthy", color: "var(--status-good)" };
+  const clock = `00:${t.toFixed(1).padStart(4, "0")}`;
+  const lanesH = LANES.length * (LANE_H + LANE_GAP) + 26;
+  const p95Y = LANES.length * (LANE_H + LANE_GAP) + 4;
 
   return (
     <div ref={host} className="select-none" aria-label="Illustration: a replay of a cache outage saturating the database, then recovering" role="img">
-      {/* live numbers */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5 text-[13px]">
-        <span className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-2.5 py-1 font-medium text-ink">
+      {/* the LCD */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5">
+        <div className="flex h-10 items-stretch rounded-[9px] border border-line bg-[color:var(--lcd)] shadow-[inset_0_1px_0_var(--highlight)]">
+          {/* on a phone: time and p95 only */}
+          <Cell label="Time" className="border-r">
+            {clock}
+            <span className="text-[10.5px] text-ink-3"> / 01:00</span>
+          </Cell>
+          <Cell label="Throughput" className="hidden border-r sm:flex">
+            <span style={{ color: "var(--accent-2)" }}>{Math.round(f.load * f.success)}</span>
+            <span className="text-[10.5px] text-ink-3"> req/s</span>
+          </Cell>
+          <Cell label={`p95 · goal ${SLO_P95}`} className="sm:border-r">
+            <span style={{ color: f.p95 > SLO_P95 ? "var(--status-critical)" : undefined }}>{Math.round(f.p95).toLocaleString("en-US")}</span>
+            <span className="text-[10.5px] text-ink-3"> ms</span>
+          </Cell>
+          <Cell label="Success" className="hidden sm:flex">
+            <span style={{ color: f.success < 0.999 ? "var(--status-critical)" : "var(--status-good)" }}>{(f.success * 100).toFixed(f.success >= 0.999 ? 2 : 1)}</span>
+            <span className="text-[10.5px] text-ink-3"> %</span>
+          </Cell>
+        </div>
+        <span className="ml-auto inline-flex items-center gap-2 rounded-full bg-surface-2 px-2.5 py-1 text-[13px] font-medium text-ink">
           <span className={cn("size-2 rounded-full", s.tone === "bad" && "pulse-soft")} style={{ background: verdict.color }} />
           {verdict.label}
         </span>
-        <span className="tabular text-ink-2">
-          <span className="font-semibold text-ink">{Math.round(f.load)}</span> req/s
-        </span>
-        <span className="tabular text-ink-2">
-          p95 <span className={cn("font-semibold", f.p95 > SLO_P95 ? "text-danger-ink" : "text-ink")}>{Math.round(f.p95).toLocaleString("en-US")} ms</span>
-        </span>
-        <span className="tabular text-ink-2">
-          <span className="font-semibold text-ink">{(f.success * 100).toFixed(1)}%</span> ok
-        </span>
-        <span className="tabular ml-auto text-ink-3">t = {t.toFixed(1)} s</span>
       </div>
 
       {/* the diagram, at a fixed size scaled to fit */}
@@ -212,40 +256,49 @@ export function HeroDemo() {
             return (
               <div
                 key={n.id}
-                className="absolute overflow-hidden rounded-xl border bg-[var(--node-fill)] transition-[border-color,box-shadow] duration-300"
+                className="absolute overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-300"
                 style={{
                   left: n.x,
                   top: n.y,
                   width: W,
                   height: H,
-                  borderColor: down ? "var(--status-critical)" : hot ? heat(u) : "var(--node-stroke)",
+                  background: down ? "color-mix(in srgb, var(--status-critical) 6%, var(--node-fill))" : "var(--node-fill)",
+                  borderColor: down || hot ? "var(--status-critical)" : "var(--node-stroke)",
                   borderStyle: down ? "dashed" : "solid",
-                  boxShadow: hot && !down ? `0 0 0 3px color-mix(in srgb, ${heat(u)} 20%, transparent)` : undefined,
+                  boxShadow: hot && !down ? "0 0 0 3px color-mix(in srgb, var(--status-critical) 18%, transparent)" : "var(--node-shadow)",
                 }}
               >
                 <div className="flex items-center gap-2.5 px-3 pt-3">
-                  <TechIcon technology={n.tech} kind={n.kind} size={18} tile className="rounded-lg" />
+                  <TechIcon technology={n.tech} kind={n.kind} size={18} tile />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-semibold leading-4 text-ink">{n.name}</p>
                     <p className="truncate text-[11px] leading-4 text-ink-3">{n.sub}</p>
                   </div>
                   {n.id === "api" && (
-                    <span key={f.replicas} className="pop-in tabular rounded-full bg-surface-2 px-1.5 text-[11px] font-semibold leading-5 text-ink-2">×{f.replicas}</span>
+                    <span key={f.replicas} className="pop-in font-readout rounded-full bg-surface-2 px-1.5 text-[11px] leading-5 text-ink-2">
+                      ×{f.replicas}
+                    </span>
                   )}
                 </div>
                 {n.id === "clients" ? (
-                  <p className="tabular px-3 pt-1 text-[11px] text-ink-2">{Math.round(f.load)} req/s</p>
+                  <div className="flex items-baseline justify-between px-3 pt-2.5 text-[11px]">
+                    <span className="text-ink-3">Arrivals</span>
+                    <span className="font-readout text-ink">{Math.round(f.load)}/s</span>
+                  </div>
                 ) : (
-                  <>
-                    <div className="flex items-center gap-1.5 px-3 pt-1">
-                      <p className="tabular text-[11px] text-ink-2">{down ? "Not answering" : `${Math.round(u * 100)}% busy`}</p>
-                      {down && <span className="pulse-soft ml-auto rounded-full bg-critical-soft px-1.5 text-[10px] font-semibold leading-4 text-danger-ink">Outage</span>}
-                      {hot && !down && <span className="ml-auto rounded-full bg-critical-soft px-1.5 text-[10px] font-semibold leading-4 text-danger-ink">Saturated</span>}
+                  <div className="px-3 pt-2">
+                    <div className="flex items-baseline justify-between text-[11px]">
+                      {down ? (
+                        <span className="pulse-soft font-semibold text-danger-ink">Outage</span>
+                      ) : hot ? (
+                        <span className="font-semibold text-danger-ink">Saturated</span>
+                      ) : (
+                        <span className="text-ink-3">Busy</span>
+                      )}
+                      <span className="font-readout text-ink">{down ? "–" : `${Math.round(u * 100)}%`}</span>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 h-1 bg-surface-3">
-                      <div className="h-full transition-[width] duration-300" style={{ width: `${(down ? 0 : u) * 100}%`, background: heat(u) }} />
-                    </div>
-                  </>
+                    <Meter level={down ? 0 : u} className="pt-1" />
+                  </div>
                 )}
               </div>
             );
@@ -253,43 +306,55 @@ export function HeroDemo() {
         </div>
       </div>
 
-      {/* timeline */}
-      <div className="border-t border-line px-4 pb-3 pt-2">
-        <svg viewBox="0 0 640 96" className="h-auto w-full" aria-hidden>
-          <rect x={60 + (OUTAGE[0] / T) * 576} y={0} width={((OUTAGE[1] - OUTAGE[0]) / T) * 576} height={96} rx={3} fill="var(--status-critical)" opacity={0.08} />
-          {[
-            ["Traffic", 10],
-            ["Edge", 30],
-            ["API", 44],
-            ["Cache", 58],
-            ["Orders DB", 72],
-            ["p95", 88],
-          ].map(([label, y]) => (
-            <text key={label as string} x={0} y={(y as number) + 3} fontSize={9} fill="var(--ink-3)" fontFamily="var(--font-sans)">
-              {label}
-            </text>
-          ))}
-          <path
-            d={`M60,18 ${series.map((p, i) => `L${60 + ((i + 0.5) / T) * 576},${18 - (p.load / 520) * 14}`).join(" ")} L636,18 Z`}
-            fill="var(--accent)"
-            opacity={0.18}
+      {/* the run as arrangement lanes */}
+      <div className="border-t border-line px-4 pb-3 pt-2.5">
+        <svg viewBox={`0 0 640 ${lanesH}`} className="h-auto w-full" aria-hidden>
+          {LANES.map((lane, row) => {
+            const y = row * (LANE_H + LANE_GAP);
+            const color = KIND_COLOR[lane.kind];
+            const values = series.map((p) => (lane.id === "load" ? p.load / 640 : p.util[lane.id as NodeId]));
+            const w = wave(values, y, LANE_H);
+            return (
+              <g key={lane.id}>
+                <rect x={0} y={y + 4} width={7} height={7} rx={2} fill={color} />
+                <text x={12} y={y + 11} fontSize={8.5} fill="var(--ink-2)" fontFamily="var(--font-sans)">
+                  {lane.label}
+                </text>
+                <rect x={LX + 0.5} y={y + 0.5} width={LW - 1} height={LANE_H - 1} rx={4} fill={color} fillOpacity={0.16} stroke={color} strokeOpacity={0.5} />
+                <path d={w.area} fill={color} fillOpacity={0.3} />
+                <path d={w.line} fill="none" stroke={color} strokeWidth={1.1} strokeLinejoin="round" />
+                {lane.id === "cache" && (
+                  <rect x={lx(OUTAGE[0]) + 0.5} y={y + 2} width={lx(OUTAGE[1]) - lx(OUTAGE[0]) - 1} height={LANE_H - 4} rx={2.5} fill="var(--status-critical)" />
+                )}
+                {lane.id === "db" &&
+                  series.map((p, i) => (p.util.db >= 0.9 ? <rect key={i} x={lx(i) + 0.5} y={y + 1} width={LW / T - 1} height={2} fill="var(--status-critical)" /> : null))}
+              </g>
+            );
+          })}
+          <text x={12} y={p95Y + 13} fontSize={8.5} fill="var(--ink-2)" fontFamily="var(--font-sans)">
+            p95
+          </text>
+          <line
+            x1={LX}
+            x2={LX + LW}
+            y1={p95Y + 18 - (SLO_P95 / 1300) * 16}
+            y2={p95Y + 18 - (SLO_P95 / 1300) * 16}
+            stroke="var(--status-critical)"
+            strokeDasharray="3 3"
+            strokeWidth={0.8}
+            opacity={0.7}
           />
-          {(["lb", "api", "cache", "db"] as const).map((id, row) =>
-            series.map((p, i) => (
-              <rect key={`${id}-${i}`} x={60 + (i / T) * 576 + 0.5} y={24 + row * 14} width={576 / T - 1} height={11} rx={2} fill={heat(p.util[id])} opacity={0.9} />
-            )),
-          )}
-          <line x1={60} x2={636} y1={95 - (SLO_P95 / 1300) * 14} y2={95 - (SLO_P95 / 1300) * 14} stroke="var(--status-critical)" strokeDasharray="3 3" strokeWidth={0.8} opacity={0.7} />
           <path
-            d={`M${series.map((p, i) => `${60 + ((i + 0.5) / T) * 576},${95 - (Math.min(p.p95, 1300) / 1300) * 14}`).join(" L")}`}
+            d={`M${series.map((p, i) => `${r1(lx(i + 0.5))},${r1(p95Y + 18 - (Math.min(p.p95, 1300) / 1300) * 16)}`).join(" L")}`}
             fill="none"
             stroke="var(--ink-2)"
-            strokeWidth={1.2}
+            strokeWidth={1.1}
+            strokeLinejoin="round"
           />
-          <line x1={60 + (t / T) * 576} x2={60 + (t / T) * 576} y1={0} y2={96} stroke="var(--accent)" strokeWidth={1.6} />
-          <circle cx={60 + (t / T) * 576} cy={2} r={3} fill="var(--accent)" />
+          <line x1={lx(t)} x2={lx(t)} y1={0} y2={lanesH} stroke="var(--ink)" strokeWidth={1.2} />
+          <path d={`M${lx(t) - 4},0 L${lx(t) + 4},0 L${lx(t)},5 Z`} fill="var(--ink)" />
         </svg>
-        <p className="mt-1.5 truncate font-code text-xs text-ink-2">
+        <p className="mt-1.5 truncate font-readout text-xs text-ink-2">
           <span className="text-accent">❯</span> {s.text}
         </p>
       </div>

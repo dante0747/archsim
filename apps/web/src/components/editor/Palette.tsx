@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Parts library (Design workspace): a searchable panel of technologies with their logos, grouped
- * by family (Clients, Edge, Compute, Data, Cache, Queues, External). Drag onto the canvas or click.
+ * Parts library (Design workspace): a searchable grid of technology tiles (the logo in white on its
+ * family's colour), grouped by family (Clients, Edge, Compute, Data, Cache, Queues, External).
+ * Drag onto the canvas or click.
  */
 import { useReactFlow } from "@xyflow/react";
 import { PanelLeftClose, PanelLeftOpen, Plus, Search, X } from "lucide-react";
@@ -96,21 +97,31 @@ function rowSub(it: LibraryItem): string {
   return "Any technology, set it up yourself";
 }
 
-function PartRow({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
+/** A part as an app-icon tile: the technology on its family's colour, the name underneath. */
+function PartTile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
   return (
     <button
       type="button"
       {...dragProps(it.type, it.preset?.id)}
       onClick={() => onPick(it)}
-      title={`${tileName(it)}: ${it.description}`}
-      className="group flex w-full cursor-grab items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-2 active:cursor-grabbing"
+      title={`${tileName(it)} (${rowSub(it)}): ${it.description}`}
+      aria-label={`${tileName(it)}: ${rowSub(it)}`}
+      className="group flex w-full cursor-grab flex-col items-center gap-1.5 rounded-xl px-1 pb-1.5 pt-2 text-center transition-colors hover:bg-surface-2 active:cursor-grabbing"
     >
-      <TechIcon technology={it.preset || it.comp.isTrafficSource ? it.technology : null} kind={kindOf(it.type, it.comp.category)} size={18} tile className="rounded-lg" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium leading-5 text-ink">{tileName(it)}</span>
-        <span className="block truncate text-xs leading-4 text-ink-3">{rowSub(it)}</span>
+      <span className="relative">
+        <TechIcon
+          technology={it.preset || it.comp.isTrafficSource ? it.technology : null}
+          kind={kindOf(it.type, it.comp.category)}
+          size={24}
+          tile
+          className="!size-[46px] !rounded-[12px] transition-transform duration-150 group-hover:-translate-y-px"
+        />
+        <Plus
+          className="absolute -right-1.5 -top-1.5 size-4 rounded-full bg-surface p-0.5 text-ink opacity-0 shadow-[0_0_0_1px_var(--line-strong)] transition-opacity group-hover:opacity-100"
+          aria-hidden
+        />
       </span>
-      <Plus className="size-4 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+      <span className="line-clamp-2 w-full text-[11.5px] font-medium leading-[14px] text-ink-2 group-hover:text-ink">{tileName(it)}</span>
     </button>
   );
 }
@@ -217,14 +228,14 @@ export function PartsPanel() {
       <div ref={listRef} className="flex-1 overflow-y-auto px-2 pb-3">
         {sections.map(({ family: f, items: list }) => (
           <section key={f.key} aria-label={f.label}>
-            <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-surface px-2 pb-1 pt-4 text-xs font-semibold text-ink-3">
+            <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-surface px-2 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
               {f.label}
               <span className="font-normal">{list.length}</span>
             </h3>
-            <ul className="space-y-px">
+            <ul className="grid grid-cols-3 gap-x-1 gap-y-1">
               {list.map((it) => (
                 <li key={it.key}>
-                  <PartRow it={it} onPick={pick} />
+                  <PartTile it={it} onPick={pick} />
                 </li>
               ))}
             </ul>

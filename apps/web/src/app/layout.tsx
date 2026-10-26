@@ -14,8 +14,8 @@ export const metadata: Metadata = {
     "Design distributed systems, simulate workloads with a discrete-event engine, and understand bottlenecks.",
 };
 
-// Applies the saved (or system) theme before first paint to avoid a flash.
-const themeScript = `(function(){try{var t=localStorage.getItem('archsim-theme');var d=t==='light'?false:t&&t!=='system'?true:window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
+// Applies the saved theme (dark by default) before first paint to avoid a flash.
+const themeScript = `(function(){var d=true;try{var t=localStorage.getItem('archsim-theme-studio');d=t==='light'?false:t==='system'?window.matchMedia('(prefers-color-scheme: dark)').matches:true;}catch(e){}if(d)document.documentElement.classList.add('dark');})();`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

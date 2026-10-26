@@ -32,16 +32,15 @@ import {
   faultLabel,
   fmtClock,
   fmtRate,
-  heatColor,
-  heatLegend,
   runFaults,
   tickStep,
 } from "@/lib/recorder";
 import { sloTimeline } from "@/lib/slo";
 import type { Fault, NodeReport, Objectives, Report, Series } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { KIND_COLOR, kindOf } from "@/lib/theme";
 
-export const LANE_H = { ruler: 22, section: 22, events: 26, strip: 44, errors: 32, heat: 22 } as const;
+export const LANE_H = { ruler: 22, section: 22, events: 26, strip: 44, errors: 32, heat: 30 } as const;
 
 const finite = (v: number | null | undefined): v is number => v != null && Number.isFinite(v);
 const seriesMax = (...series: (Series | undefined)[]) => {
@@ -267,25 +266,34 @@ function StripLabel({ title, max, hint }: { title: string; max?: string; hint?: 
   );
 }
 
-function HeatLegend({ dark }: { dark: boolean }) {
-  const stops = heatLegend(dark);
+/** What the arrangement draws: the waveform is how busy a part was; red marks refusals and failures. */
+function HeatLegend() {
   return (
-    <span className="flex items-center gap-2 font-mono text-[11px] text-ink-3" aria-label="Heat scale: how busy each part was">
-      {stops.map((st) => (
-        <span key={st.label} className="flex items-center gap-1">
-          <span className={cn("h-2 rounded-[1px]", st.label === "<70%" ? "w-6" : "w-2.5")} style={{ background: st.color }} aria-hidden />
-          {st.label}
-        </span>
-      ))}
+    <span className="flex items-center gap-3 text-[11px] text-ink-3" aria-label="How to read the lanes">
+      <span className="flex items-center gap-1">
+        <svg width="22" height="10" viewBox="0 0 22 10" aria-hidden>
+          <path d="M1 8 L5 6 L9 7 L13 3 L17 4 L21 2" fill="none" stroke="var(--ink-2)" strokeWidth="1.4" />
+        </svg>
+        how busy
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="h-[3px] w-3 rounded-[1px]" style={{ background: "var(--status-critical)" }} aria-hidden />
+        refused
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="h-2 w-4 rounded-[2px]" style={{ background: "var(--status-critical)" }} aria-hidden />
+        failure
+      </span>
     </span>
   );
 }
 
 function readDetail(): boolean {
   try {
-    return localStorage.getItem("archsim-timeline-detail") === "1";
+    // the arrangement (one lane per part) is shown unless it was collapsed
+    return localStorage.getItem("archsim-timeline-detail") !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -390,11 +398,16 @@ const FailureStrip = memo(function FailureStrip({ report, plotWidth, durationS }
 // Heat lanes
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * One part's lane as an arrangement region (like a track in a pro audio app): a rounded clip in the
+ * part's family colour across the run, its utilisation drawn inside as a waveform (or its arrivals
+ * when it has no utilisation), the queue as a thin line, refused requests as red ticks along the
+ * top, and each failure on it as a solid red clip.
+ */
 const HeatLane = memo(function HeatLane({
   node,
   report,
   faults,
-  dark,
   plotWidth,
   durationS,
 }: {
@@ -410,7 +423,7 @@ const HeatLane = memo(function HeatLane({
   const H = LANE_H.heat;
   const x = (t: number) => (t / durationS) * plotWidth;
   const cw = x(b);
-  const gap = cw > 4 ? 1 : 0;
+  const color = KIND_COLOR[kindOf(node.type, node.category)];
   const util = ts.utilization;
   const queue = ts.lag ?? ts.queueMean;
   const qMax = seriesMax(queue);
@@ -418,48 +431,42 @@ const HeatLane = memo(function HeatLane({
   const aMax = seriesMax(arrivals);
   const rejected = ts.rejectedRps;
   const mine = faults.filter((f) => f.target === node.id);
+  const n = (util ?? arrivals ?? []).length;
+  const end = Math.min(plotWidth, x(n * b));
+  const wave = util ? util : arrivals && aMax > 0 ? arrivals.map((v) => (finite(v) ? v / aMax : v)) : null;
+  const yOf = (v: number) => H - 3 - Math.min(1, Math.max(0, v)) * (H - 7);
   return (
     <svg width={plotWidth} height={H} className="absolute inset-0" aria-hidden>
-      {util
-        ? util.map((u, i) =>
-            finite(u) ? (
-              <rect key={i} x={x(i * b)} y={2} width={Math.max(1, cw - gap)} height={H - 4} rx={cw > 6 ? 1 : 0} fill={heatColor(u, dark)} />
-            ) : null,
-          )
-        : arrivals && aMax > 0 && (
-            <path
-              d={`${linePath(arrivals, x, (v) => H - 3 - (v / aMax) * (H - 7), b)}L${x((arrivals.length - 0.5) * b)},${H - 3}L${x(b / 2)},${H - 3}Z`}
-              fill="var(--ink-3)"
-              fillOpacity={0.22}
-              stroke="var(--ink-3)"
-              strokeOpacity={0.6}
-              strokeWidth={1}
-            />
-          )}
+      <rect x={0.5} y={1.5} width={Math.max(4, end - 1)} height={H - 3} rx={5} fill={color} fillOpacity={0.16} stroke={color} strokeOpacity={0.5} />
+      {wave && (
+        <>
+          <path d={`${linePath(wave, x, yOf, b)}L${x((wave.length - 0.5) * b)},${H - 2}L${x(b / 2)},${H - 2}Z`} fill={color} fillOpacity={0.28} />
+          <path d={linePath(wave, x, yOf, b)} fill="none" stroke={color} strokeWidth={1.4} strokeLinejoin="round" />
+        </>
+      )}
       {queue && qMax >= 1 && (
         <path
           d={linePath(queue, x, (v) => H - 3 - (v / qMax) * (H - 7), b)}
           fill="none"
           stroke="var(--ink)"
-          strokeOpacity={0.65}
+          strokeOpacity={0.55}
           strokeWidth={1}
+          strokeDasharray="2 2"
           strokeLinejoin="round"
         />
       )}
       {rejected?.map((r, i) =>
-        finite(r) && r > 0 ? <rect key={`r${i}`} x={x(i * b)} y={0} width={Math.max(1, cw - gap)} height={2} fill="var(--status-critical)" /> : null,
+        finite(r) && r > 0 ? <rect key={`r${i}`} x={x(i * b)} y={1.5} width={Math.max(1, cw - (cw > 4 ? 1 : 0))} height={2.5} fill="var(--status-critical)" /> : null,
       )}
       {mine.map((f) => (
         <rect
           key={f.id}
           x={x(f.startS) + 0.5}
-          y={0.5}
-          width={Math.max(2, x(f.durationS) - 1)}
-          height={H - 1}
-          fill="none"
-          stroke={f.kind === "outage" ? "var(--status-critical)" : "var(--status-serious)"}
-          strokeWidth={1.25}
-          strokeDasharray="3 2"
+          y={2.5}
+          width={Math.max(3, x(f.durationS) - 1)}
+          height={6}
+          rx={2}
+          fill={f.kind === "outage" ? "var(--status-critical)" : "var(--status-serious)"}
         />
       ))}
     </svg>
@@ -629,7 +636,7 @@ export function RecorderLanes({
           <ChevronRight className={cn("size-3.5 transition-transform", detail && "rotate-90")} aria-hidden />
           {detail ? "Less detail" : "More detail"}
         </button>
-        <div className="flex flex-1 items-center justify-end px-3">{detail ? <HeatLegend dark={dark} /> : <span className="text-xs text-ink-3">throughput and each part</span>}</div>
+        <div className="flex flex-1 items-center justify-end px-3">{detail ? <HeatLegend /> : <span className="text-xs text-ink-3">throughput and each part</span>}</div>
       </div>
 
       {detail && (
@@ -651,6 +658,7 @@ export function RecorderLanes({
                 height={LANE_H.heat}
                 label={
                   <span className="flex w-full min-w-0 items-center gap-1.5 text-xs text-ink-2">
+                    <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: KIND_COLOR[kindOf(node.type, node.category)] }} aria-hidden />
                     <span className="min-w-0 flex-1 truncate" title={node.label || node.id}>
                       {node.label || node.id}
                     </span>

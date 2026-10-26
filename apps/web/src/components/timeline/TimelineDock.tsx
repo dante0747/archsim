@@ -24,7 +24,8 @@ export { PlaybackClock } from "@/components/timeline/PlaybackClock";
 const HEIGHT_KEY = "archsim-timeline-h";
 const MIN_H = 150;
 /** Leave most of the screen to the canvas: about a third of the window, at most 280 px. */
-const defaultHeight = () => Math.round(Math.min(280, Math.max(MIN_H, window.innerHeight * 0.3)));
+// Tall enough to show the arrangement (a lane per part) under the canvas.
+const defaultHeight = () => Math.round(Math.min(440, Math.max(MIN_H, window.innerHeight * 0.46)));
 const HEADER_H = 40;
 
 function readHeight(): number {

@@ -5,6 +5,7 @@ import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { EditorAgentTools } from "@/components/agent/AgentTools";
+import { ChaosPads } from "@/components/editor/ChaosPads";
 import { DesignReviewPanel } from "@/components/build/DesignReview";
 import { ExportDialog } from "@/components/build/ExportDialog";
 import { Dashboard } from "@/components/dashboard/Dashboard";
@@ -251,7 +252,13 @@ function EditorShell() {
             <Canvas />
             {mode !== "decide" && mode !== "dashboard" && <NextStepPill />}
             {mode === "build" && <DesignReviewPanel />}
-            {mode === "stress" && <PlaybackClock />}
+            {mode === "build" && <ChaosPads />}
+            {/* the transport LCD shows the same numbers on wide screens */}
+            {mode === "stress" && (
+              <div className="xl:hidden">
+                <PlaybackClock />
+              </div>
+            )}
             {mode === "decide" && (
               <div className="absolute inset-0 z-30 overflow-hidden bg-page">
                 <DecideWorkspace />

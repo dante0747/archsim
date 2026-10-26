@@ -6,7 +6,7 @@ import { Kbd, Tip } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
 import { useUi } from "@/store/ui";
 
-/** Design · Test · Results switch, centred in the top bar. */
+/** Design · Test · Results · Dashboard: a segmented control in the top bar. */
 export function WorkspaceSwitch() {
   const { steps, goTo, mode } = useWorkflow();
   return (
@@ -14,7 +14,7 @@ export function WorkspaceSwitch() {
       role="tablist"
       aria-label="Workspaces"
       data-tour="workspaces"
-      className="flex items-center gap-0.5 rounded-lg border border-line bg-surface-2/70 p-0.5"
+      className="flex items-center gap-0.5 rounded-[10px] bg-[color:var(--seg)] p-[3px]"
     >
       {steps.map((s, i) => {
         const active = mode === s.key;
@@ -34,8 +34,8 @@ export function WorkspaceSwitch() {
               onClick={() => goTo(s.key)}
               data-testid={`workspace-${s.key}`}
               className={cn(
-                "flex h-7 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors",
-                active ? "bg-surface text-ink shadow-[0_0_0_1px_var(--line-strong),0_4px_14px_-6px_var(--accent)]" : "text-ink-3 hover:text-ink",
+                "flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[12.5px] font-medium transition-colors",
+                active ? "bg-[color:var(--seg-on)] text-ink shadow-[0_1px_2px_rgba(0,0,0,0.18),inset_0_1px_0_var(--highlight)]" : "text-ink-3 hover:text-ink",
               )}
             >
               {s.busy ? (

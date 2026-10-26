@@ -19,11 +19,11 @@ describe("themes", () => {
   it("applies and remembers dark and light, and the toggle flips between them", () => {
     applyTheme("dark");
     expect(root().classList.contains("dark")).toBe(true);
-    expect(localStorage.getItem("archsim-theme")).toBe("dark");
+    expect(localStorage.getItem("archsim-theme-studio")).toBe("dark");
 
     toggleTheme();
     expect(root().classList.contains("dark")).toBe(false);
-    expect(localStorage.getItem("archsim-theme")).toBe("light");
+    expect(localStorage.getItem("archsim-theme-studio")).toBe("light");
 
     toggleTheme();
     expect(root().classList.contains("dark")).toBe(true);
@@ -32,7 +32,7 @@ describe("themes", () => {
   it("follows the system when asked and clears the retired palette attribute", () => {
     root().dataset.theme = "nord";
     applyTheme("system");
-    expect(localStorage.getItem("archsim-theme")).toBe("system");
+    expect(localStorage.getItem("archsim-theme-studio")).toBe("system");
     expect(root().dataset.theme).toBeUndefined();
     // jsdom has no matchMedia, so "system" resolves to light here.
     expect(root().classList.contains("dark")).toBe(false);

@@ -323,9 +323,8 @@ export function Canvas() {
         proOptions={{ hideAttribution: false }}
         aria-label="Architecture canvas"
       >
-        {/* Graph paper: a fine line every 24 px and a stronger one every 120 px. */}
-        <Background id="minor" variant={BackgroundVariant.Lines} gap={24} lineWidth={1} color="var(--grid-minor)" />
-        <Background id="major" variant={BackgroundVariant.Lines} gap={120} lineWidth={1} color="var(--grid-major)" />
+        {/* A quiet dot grid, like a pro app's canvas. */}
+        <Background id="dots" variant={BackgroundVariant.Dots} gap={16} size={1.3} color="var(--grid-major)" />
         <ClusterFrames />
         {nodes.length > 8 && (
         <MiniMap
@@ -334,8 +333,8 @@ export function Canvas() {
           nodeColor={miniColor}
           nodeBorderRadius={6}
           nodeStrokeWidth={0}
-          position="bottom-right"
-          style={{ width: 150, height: 96, marginBottom: 56 }}
+          position="top-right"
+          style={{ width: 150, height: 96 }}
           className="!hidden lg:!block"
         />
         )}

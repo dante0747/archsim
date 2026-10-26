@@ -9,14 +9,15 @@ export const Tabs = RTabs.Root;
 export const TabsContent = RTabs.Content;
 
 export function TabsList({ className, ...props }: React.ComponentProps<typeof RTabs.List>) {
-  return <RTabs.List className={cn("flex items-center gap-0.5 border-b border-line", className)} {...props} />;
+  // A segmented control, like the tabs of a pro app's inspector.
+  return <RTabs.List className={cn("m-2.5 flex items-center gap-0.5 rounded-[10px] bg-[color:var(--seg)] p-[3px]", className)} {...props} />;
 }
 
 export function TabsTrigger({ className, ...props }: React.ComponentProps<typeof RTabs.Trigger>) {
   return (
     <RTabs.Trigger
       className={cn(
-        "relative -mb-px inline-flex h-10 items-center gap-1.5 whitespace-nowrap px-2.5 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink-2 data-[state=active]:text-ink [&_svg]:size-3.5 [&_svg]:opacity-80 after:absolute after:inset-x-2.5 after:bottom-0 after:h-[2px] after:rounded-full after:bg-transparent data-[state=active]:after:bg-accent",
+        "inline-flex h-7 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-[7px] px-2.5 text-[12.5px] font-medium text-ink-3 transition-colors hover:text-ink data-[state=active]:bg-[color:var(--seg-on)] data-[state=active]:text-ink data-[state=active]:shadow-[0_1px_2px_rgba(0,0,0,0.18),inset_0_1px_0_var(--highlight)] [&_svg]:size-3.5 [&_svg]:opacity-80",
         className,
       )}
       {...props}

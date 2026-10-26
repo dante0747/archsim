@@ -69,14 +69,17 @@ API servers behind a lone Clients box.
   behaves, each behaviour links to the vendor's documentation, and every one is a setting
   (Auto by default) that you can override. Typical numbers that vendors don't document are
   marked illustrative.
-- Every part is the same flat card: its technology logo on a chip tinted by family, its name, one
-  or two key settings, and after a run a thin bar that shows how busy it was. Links are rounded
+- Every part is the same card: its technology logo on a solid tile in its family's colour, its
+  name, one or two key settings, and after a run a 12-segment level meter (green, then yellow,
+  then red, like an audio meter) that shows how busy it was. Links are rounded
   wires that attach on any of the four sides: drag from a dot on any side of one part to any side
   of another, in either direction. Traffic moves along them while a run replays.
-- An "Ops console" look: graphite panels with signal-orange actions in dark, and a standard,
-  calm light theme (off-white panels and white cards on a slate-grey canvas, one blue for
-  actions) in light; the last run's
-  verdict sits in the top bar (see [docs/ui-redesign.md](docs/ui-redesign.md)).
+- A "Studio" look, modelled on pro audio and design apps: charcoal panels, part families in
+  Apple's system colours, a dot-grid canvas, and a transport bar at the top with replay buttons
+  and an LCD readout (time, throughput, p95 against the goal, success) next to a red
+  record-style Simulate button. Chaos pads on the canvas plan a failure and simulate in one hit,
+  and the replay timeline shows one arrangement lane per part, in its family colour. Dark by
+  default, with a matching light theme (see [docs/ui-redesign.md](docs/ui-redesign.md)).
 - Click a part to edit it: its technology, a one-line last-run status, at most three key
   settings (response-time distributions as a one-line summary you click to edit), and "More
   settings" for everything else, notes and what the model covers.
@@ -137,8 +140,8 @@ is an experimental draft standard; see [docs/agents.md](docs/agents.md) for the 
 browser support.
 
 **Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and the
-Ops console theme in dark and light (the sun/moon button at the top right picks one or follows
-the system). Templates have their own gallery (`/templates`): each card draws the design with
+Studio theme, dark by default, in dark and light (the sun/moon button at the top right picks one
+or follows the system). The screenshots in this README still show the previous look. Templates have their own gallery (`/templates`): each card draws the design with
 its technology logos and flowing traffic, says what you will see happen, its level and key
 numbers, with category filters, search and a featured template. Your saved projects are on their
 own page (`/projects`). Projects live in

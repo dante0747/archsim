@@ -91,3 +91,30 @@ motion is used to show traffic and state changes, never as decoration.
   animation while running and replaying, toolbar out of the way.
 - Inspector, Test and Results: fewer boxes, clearer headings, readable numbers.
 - Home: a calm hero without effects, clearer template cards.
+
+## Studio (2026-10-26)
+
+The user found the Ops console look generic ("AI slop") and asked for something premium,
+naming Apple's pro apps, Figma/Framer and Stripe/Vercel as references, and liking Paperdraw's
+dark canvas, colourful icon tiles, game-like chaos and mono HUD. Three rendered directions were
+turned down (a transit map, a neon reactor, a flat graphite one) before this one. The idea: an
+architecture simulator is an instrument, so it borrows from a pro audio app.
+
+- **Transport, not a toolbar.** Replay buttons and an LCD readout sit in the middle of the top
+  bar; Simulate is the record button. The LCD shows the moment under the playhead during a
+  replay and the run's summary otherwise.
+- **Colour means family.** Apple's system colours, one per part family, as solid tiles with
+  white logos, in the library, on cards and on the timeline lanes. Everything else stays
+  charcoal and grey; red is kept for failures and missed objectives.
+- **Meters, not bars.** Utilisation is a 12-segment level meter: green, then yellow, then red by
+  position, so near-saturation reads at a glance.
+- **Chaos as an instrument.** The quick failure tests are drum pads: hit one and it plans that
+  failure and simulates; it stays lit while planned.
+- **The replay as an arrangement.** One lane per part, a region in its family colour with
+  its load drawn as a waveform and failures as red clips.
+- **Figma precision.** Dot-grid canvas, corner handles on the selected part, segmented
+  controls, 5 to 14 px radii.
+
+Deliberate exceptions to the rules above: numbers in the LCD, on cards and in lanes use Geist
+Mono (a readout, not interface text); the LCD's tiny cell labels are uppercase; the chaos rack
+floats over the canvas, so it is narrow, foldable and folds itself on narrow canvases.

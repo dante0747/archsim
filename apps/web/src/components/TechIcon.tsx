@@ -172,8 +172,8 @@ export function hasLogo(technology: string | null | undefined): boolean {
 }
 
 /**
- * Logo or family icon. `tile` draws it on a small rounded square, as in the parts library and on
- * canvas components.
+ * Logo or family icon. `tile` draws it white on a solid tile of the family's colour (an app icon),
+ * as in the parts library, on canvas components and in the inspector.
  */
 export function TechIcon({
   technology,
@@ -195,26 +195,22 @@ export function TechIcon({
   const Generic = (technology && GENERIC[technology]) || BY_KIND[kind];
   let icon: React.ReactNode;
   if (brand) {
-    // Very dark brand colours disappear on the dark theme: draw those in the text colour instead.
-    const fill = dark && luminance(brand.hex) < 0.09 ? "var(--ink)" : `#${brand.hex}`;
+    // On a tile the logo is white on the family colour (an app icon). Loose, very dark brand
+    // colours disappear on the dark theme: draw those in the text colour instead.
+    const fill = tile ? "#ffffff" : dark && luminance(brand.hex) < 0.09 ? "var(--ink)" : `#${brand.hex}`;
     icon = (
       <svg viewBox="0 0 24 24" width={size} height={size} role="img" aria-label={title ?? brand.title} className="shrink-0">
         <path d={brand.path} fill={fill} />
       </svg>
     );
   } else {
-    icon = <Generic className="shrink-0" style={{ width: size, height: size, color: KIND_COLOR[kind] }} strokeWidth={1.9} aria-label={title} aria-hidden={!title} />;
+    icon = <Generic className="shrink-0" style={{ width: size, height: size, color: tile ? "#ffffff" : KIND_COLOR[kind] }} strokeWidth={tile ? 2 : 1.9} aria-label={title} aria-hidden={!title} />;
   }
   if (!tile) return <span className={cn("inline-flex", className)}>{icon}</span>;
   return (
     <span
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-lg border", className)}
-      style={{
-        width: size + 14,
-        height: size + 14,
-        background: `color-mix(in srgb, ${KIND_COLOR[kind]} 13%, var(--surface))`,
-        borderColor: `color-mix(in srgb, ${KIND_COLOR[kind]} 35%, transparent)`,
-      }}
+      className={cn("fam-tile inline-flex shrink-0 items-center justify-center rounded-[9px]", className)}
+      style={{ width: size + 14, height: size + 14, background: KIND_COLOR[kind] }}
     >
       {icon}
     </span>

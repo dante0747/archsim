@@ -137,8 +137,8 @@ export function ProjectsPage() {
             <ul className="grid gap-3 md:grid-cols-2">
               {list.map((p) => (
                 <li key={p.id} className="group flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-line-strong">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                    <FileJson className="size-5" />
+                  <span className="fam-tile flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--fam-compute)]">
+                    <FileJson className="size-5" strokeWidth={2} />
                   </span>
                   <Link href={`/projects/${p.id}`} className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-semibold text-ink">{p.name}</p>

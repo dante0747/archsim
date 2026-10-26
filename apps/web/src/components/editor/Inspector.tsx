@@ -52,7 +52,7 @@ export function Inspector() {
   return (
     <aside data-tour="panel" className="island flex h-full w-[320px] shrink-0 flex-col border-l border-line" aria-label="Side panel">
       <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as RightTab)} className="flex min-h-0 flex-1 flex-col">
-        <TabsList className="px-2">
+        <TabsList>
           <TabsTrigger value="inspect">
             {hasSelection ? <SlidersHorizontal /> : <LayoutDashboard />} {hasSelection ? "Selected" : "Overview"}
           </TabsTrigger>

@@ -74,7 +74,7 @@ export function ResultsDrawer() {
       >
         <div className="flex items-center gap-2 border-b border-line bg-surface pl-3 pr-2">
           <span className="microlabel hidden sm:inline">Results</span>
-          <TabsList className="min-w-0 flex-1 overflow-x-auto border-b-0" onClick={() => !open && setOpen(true)}>
+          <TabsList className="mx-0 my-1.5 min-w-0 flex-1 overflow-x-auto" onClick={() => !open && setOpen(true)}>
             <TabsTrigger value="overview">
               <LayoutDashboard /> Insights
             </TabsTrigger>

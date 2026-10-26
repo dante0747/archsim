@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * The Ops console look in two themes, dark (graphite) and light, plus "Match system", which follows
- * the operating system and is the default. Dark sets the `dark` class on <html> (Tailwind's dark
- * variant and the dark tokens). The choice is stored in this browser only.
+ * The Studio look in two themes, dark (charcoal, the default) and light, plus "Match system", which
+ * follows the operating system. Dark sets the `dark` class on <html> (Tailwind's dark variant and the
+ * dark tokens). The choice is stored in this browser only.
  */
 import { Check, Moon, Sun } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
@@ -20,12 +20,13 @@ export interface ThemeOption {
 }
 
 export const THEMES: ThemeOption[] = [
-  { id: "dark", label: "Dark", hint: "Graphite console" },
-  { id: "light", label: "Light", hint: "Bright console" },
+  { id: "dark", label: "Dark", hint: "Studio charcoal" },
+  { id: "light", label: "Light", hint: "Studio light" },
   { id: "system", label: "Match system", hint: "Follows your device" },
 ];
 
-const STORE_KEY = "archsim-theme";
+// A new key: the Studio redesign starts everyone on its dark theme once.
+const STORE_KEY = "archsim-theme-studio";
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((cb) => cb());
 
@@ -38,11 +39,10 @@ function readPreference(): ThemeId {
   try {
     const stored = localStorage.getItem(STORE_KEY);
     if (stored === "light" || stored === "system") return stored;
-    if (stored) return "dark"; // "dark" and the retired dark palettes (midnight, tokyo, ...)
   } catch {
     /* storage unavailable */
   }
-  return "system";
+  return "dark";
 }
 
 function setDarkClass(dark: boolean) {
