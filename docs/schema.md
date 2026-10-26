@@ -67,7 +67,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.1"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.2"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
@@ -77,6 +77,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 | `layout` | object | `nodes: {id: {x, y}}`, optional `edges: {id: {sourceSide, targetSide}}` (each `top`, `right`, `bottom` or `left`; where a link attaches on the canvas) and optional `viewport: {x, y, zoom}`. Rendering only. |
 | `provenance` | object | 1.1. Where inputs came from, keyed by path: `nodes/<id>/<config key>`, `edges/<id>/<config key>` or `workload/<field>`. Each: `kind` (`measured`, `assumed`, `illustrative`), `source`, `query`, `timeRange`, `fitError`, `fittedAt`, `note`. Inputs without an entry are assumed when they differ from the default (and the technology preset), illustrative otherwise. See [calibration.md](calibration.md). |
 | `calibration` | object or null | 1.1. The last calibration from telemetry: `at`, `source`, `timeRange`, `inputs` (how many were set), `replay` (observed against simulated: `scope`, `id`, `label`, `metric`, `observed`, `simulated`, `error`), `replayDigest`, `notes`. |
+| `pricing` | object | 1.2. Where prices come from: `provider` (`generic`, the default: illustrative rates; or a price snapshot's provider), `region`, `purchaseOption` (`on_demand`), `families` (instance families to snap to). With a snapshot, auto sizes snap to the cheapest instance type that covers them and cost lines cite it. See [pricing.md](pricing.md). |
 
 ## Nodes
 
@@ -180,9 +181,9 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.1`). 1.0 to 1.1 only adds optional fields (`provenance`,
-  `calibration`, the `empirical` distribution and the `trace` pattern), so a 1.0 document
-  loads unchanged.
+  `SCHEMA_VERSION` (currently `1.2`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `calibration`, the `empirical` distribution and the `trace` pattern) and 1.1 to 1.2 adds
+  `pricing`, so older documents load unchanged.
 - On load, `migrate_document()` (`packages/engine/src/archsim_engine/migrations.py`) applies
   registered migrations one step at a time (`1.0 -> 1.1 -> ...`) and records notes. A document
   without `schemaVersion`, from a newer schema, or with no migration path is rejected with a

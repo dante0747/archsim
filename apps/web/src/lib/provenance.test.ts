@@ -18,21 +18,24 @@ const calibrated = (): ArchitectureDocument => {
     "workload/rps": { kind: "measured", source: "Prometheus http://prom:9090" },
   };
   doc.calibration = { at: "2026-10-26T09:00:00Z", source: "Prometheus http://prom:9090", inputs: 3, replay: [], notes: [] };
+  doc.pricing = { provider: "example-cloud", region: "test-1", purchaseOption: "on_demand", families: ["gp"] };
   return doc;
 };
 
 describe("documents keep what the editor does not edit", () => {
-  it("round-trips provenance, the calibration record and autoSize false", () => {
+  it("round-trips provenance, the calibration record, pricing and autoSize false", () => {
     const doc = calibrated();
     const back = toDocument(fromDocument(doc));
-    expect(back.schemaVersion).toBe("1.1");
+    expect(back.schemaVersion).toBe("1.2");
     expect(back.provenance).toEqual(doc.provenance);
+    expect(back.pricing).toEqual(doc.pricing);
     expect(back.calibration).toEqual(doc.calibration);
     expect(back.architecture.autoSize).toBe(false);
     // plain documents stay plain
     const plain = toDocument(fromDocument(starter as unknown as ArchitectureDocument));
     expect(plain.provenance).toBeUndefined();
     expect(plain.calibration).toBeUndefined();
+    expect(plain.pricing).toBeUndefined();
     expect("autoSize" in plain.architecture).toBe(false);
   });
 

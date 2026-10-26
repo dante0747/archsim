@@ -65,6 +65,26 @@ def components(registry: ComponentRegistry = Depends(get_registry)) -> dict[str,
     return registry.catalog_document()
 
 
+@router.get("/pricing")
+def pricing() -> dict[str, Any]:
+    """Price sources a design can name: ``generic`` (illustrative rates, always) and the price
+    snapshots on this machine (provider, region, date). See docs/pricing.md."""
+    from archsim_engine.pricing import GENERIC, available
+
+    return {
+        "sources": [
+            {
+                "provider": "generic",
+                "region": None,
+                "date": None,
+                "illustrative": True,
+                "note": GENERIC.note,
+            },
+            *({**a, "illustrative": False} for a in available()),
+        ]
+    }
+
+
 @router.get("/schema/architecture")
 def architecture_schema() -> dict[str, Any]:
     return document_json_schema()

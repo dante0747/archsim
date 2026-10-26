@@ -86,3 +86,10 @@ def _provenance_and_calibration(doc: dict[str, Any]) -> dict[str, Any]:
     """1.1 adds optional ``provenance`` and ``calibration``, the ``empirical`` distribution and
     the ``trace`` traffic pattern; a 1.0 document needs no change."""
     return doc
+
+
+@migration("1.1", "1.2")
+def _pricing(doc: dict[str, Any]) -> dict[str, Any]:
+    """1.2 adds optional ``pricing`` (generic by default, as before); a 1.1 document needs no
+    change."""
+    return doc

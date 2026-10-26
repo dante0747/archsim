@@ -625,10 +625,12 @@ def build_report(
         },
         "validationWarnings": [i.to_dict() for i in prep.validation.warnings],
     }
-    report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes)
+    report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes, registry)
     report["input"] = input_snapshot
     # priced and reviewed on what was simulated (auto sizes filled in, scenario applied)
-    report["cost"] = estimate_cost(input_snapshot["architecture"]["nodes"], registry, report)
+    report["cost"] = estimate_cost(
+        input_snapshot["architecture"]["nodes"], registry, report, input_snapshot.get("pricing")
+    )
     report["review"] = review_design(input_snapshot, registry)
     report["provenance"] = {
         "engineVersion": ENGINE_VERSION,

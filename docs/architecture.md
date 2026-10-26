@@ -62,6 +62,7 @@ Pure Python, depends only on SimPy and Pydantic. It owns:
 | `assumptions.py` | Renders docs/assumptions.md: every default, preset number and constant, documented or illustrative. |
 | `export/` | docker-compose, Kubernetes and Mermaid scaffolding (`export_document`; the web app's Export dialog and the MCP server use it through `POST /export` or directly). |
 | `importers/` | docker-compose, Kubernetes and Terraform to a design plus an import report (`import_design`; `POST /import`, `archsim import`). |
+| `pricing/` | Price snapshots (`archsim.prices/1`), the generic illustrative rates, and choosing the cheapest instance type that covers a part (used by sizing and cost). |
 | `roundtrip.py` | What exports carry so an import gives the design back (part ids, links, clients and clusters), shared by both sides. |
 | `sweep.py` | Breaking point: constant-load steps, the knee and the highest load within the objectives. |
 | `slo.py` | Objectives: the verdict of a run (p95, p99, availability, throughput). |

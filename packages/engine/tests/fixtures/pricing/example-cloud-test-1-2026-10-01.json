@@ -1,0 +1,43 @@
+{
+  "format": "archsim.prices/1",
+  "provider": "example-cloud",
+  "region": "test-1",
+  "currency": "USD",
+  "snapshotDate": "2026-10-01",
+  "sources": [{"name": "ArchSim test fixture (made-up prices)", "url": "https://example.com/not-a-real-price-list"}],
+  "note": "Made-up prices and instance types for tests. Not any provider's prices.",
+  "compute": [
+    {"sku": "gp.1x4", "family": "gp", "vcpu": 1, "memoryGib": 4, "hourly": {"on_demand": 0.05}},
+    {"sku": "gp.2x8", "family": "gp", "vcpu": 2, "memoryGib": 8, "hourly": {"on_demand": 0.1}},
+    {"sku": "gp.4x16", "family": "gp", "vcpu": 4, "memoryGib": 16, "hourly": {"on_demand": 0.2}},
+    {"sku": "gp.8x32", "family": "gp", "vcpu": 8, "memoryGib": 32, "hourly": {"on_demand": 0.4}},
+    {"sku": "gp.16x64", "family": "gp", "vcpu": 16, "memoryGib": 64, "hourly": {"on_demand": 0.8}},
+    {"sku": "cpu.2x4", "family": "cpu", "vcpu": 2, "memoryGib": 4, "hourly": {"on_demand": 0.085}},
+    {"sku": "cpu.4x8", "family": "cpu", "vcpu": 4, "memoryGib": 8, "hourly": {"on_demand": 0.17}},
+    {"sku": "cpu.8x16", "family": "cpu", "vcpu": 8, "memoryGib": 16, "hourly": {"on_demand": 0.34}},
+    {"sku": "mem.2x16", "family": "mem", "vcpu": 2, "memoryGib": 16, "hourly": {"on_demand": 0.13}},
+    {"sku": "mem.4x32", "family": "mem", "vcpu": 4, "memoryGib": 32, "hourly": {"on_demand": 0.26}},
+    {"sku": "mem.8x64", "family": "mem", "vcpu": 8, "memoryGib": 64, "hourly": {"on_demand": 0.52}}
+  ],
+  "databases": [
+    {"sku": "db.gp.2x8", "family": "db-gp", "vcpu": 2, "memoryGib": 8, "hourly": {"on_demand": 0.18}, "engines": ["postgresql", "mysql"]},
+    {"sku": "db.gp.4x16", "family": "db-gp", "vcpu": 4, "memoryGib": 16, "hourly": {"on_demand": 0.36}, "engines": ["postgresql", "mysql"]},
+    {"sku": "db.mem.2x16", "family": "db-mem", "vcpu": 2, "memoryGib": 16, "hourly": {"on_demand": 0.25}, "engines": ["postgresql", "mysql"]},
+    {"sku": "db.mem.4x32", "family": "db-mem", "vcpu": 4, "memoryGib": 32, "hourly": {"on_demand": 0.5}, "engines": ["postgresql", "mysql"]}
+  ],
+  "caches": [
+    {"sku": "cache.mem.2x13", "family": "cache-mem", "vcpu": 2, "memoryGib": 13, "hourly": {"on_demand": 0.15}, "engines": ["redis", "valkey", "memcached"]},
+    {"sku": "cache.mem.4x26", "family": "cache-mem", "vcpu": 4, "memoryGib": 26, "hourly": {"on_demand": 0.3}, "engines": ["redis", "valkey", "memcached"]}
+  ],
+  "streams": [
+    {"sku": "stream.2x8", "family": "stream", "vcpu": 2, "memoryGib": 8, "hourly": {"on_demand": 0.21}, "engines": ["kafka"]},
+    {"sku": "stream.4x16", "family": "stream", "vcpu": 4, "memoryGib": 16, "hourly": {"on_demand": 0.42}, "engines": ["kafka"]}
+  ],
+  "rates": {
+    "storageGibMonth": 0.1,
+    "serverlessGbSecond": 0.00002,
+    "serverlessPerMillionRequests": 0.25,
+    "queuePerMillionRequests": 0.5,
+    "loadBalancerHour": 0.03
+  }
+}

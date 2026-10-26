@@ -2,30 +2,58 @@
 (``costPerHour`` per instance; ``costPerMillionRequests`` for third-party APIs), and the cost per
 million successful requests at the throughput a run achieved.
 
-Price per instance-hour: the price set on the part; without one, the part's size (CPU, memory,
-storage) at illustrative on-demand rates; without a size, the catalog default. A price equal to
-the catalog default counts as not set (normalized and stored documents carry every default).
+Price per instance-hour: the price set on the part; without one, with a price snapshot
+(``pricing`` names a provider), the on-demand price of the cheapest instance type that covers
+the part's CPU and memory, plus its storage at the snapshot's rate; otherwise the part's size
+at illustrative on-demand rates (the ``generic`` provider); without a size, the catalog default.
+A price equal to the catalog default counts as not set (normalized and stored documents carry
+every default).
 
-These are planning estimates built from assumptions, not quotes: every price is a config value
-marked as an assumption in the inspector, and the per-size rates are illustrative.
+These are planning estimates, not quotes: a snapshot's prices are list prices on its date (no
+discounts, data transfer or per-request load balancer units), and the generic rates are
+illustrative.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from archsim_engine.load import Json, fixed, js_num, kind_of, num, round_half_up
+from archsim_engine.pricing import (
+    GENERIC,
+    GENERIC_GIB_HOUR,
+    GENERIC_STORAGE_GIB_MONTH,
+    GENERIC_VCPU_HOUR,
+    PricingError,
+    Snapshot,
+    choose_machine,
+    snapshot_for,
+)
 from archsim_engine.registry import ComponentRegistry
 
 HOURS_PER_MONTH = 730
 SECONDS_PER_MONTH = HOURS_PER_MONTH * 3600
-PRICE_PER_VCPU_HOUR = 0.037
+PRICE_PER_VCPU_HOUR = GENERIC_VCPU_HOUR
 """Illustrative on-demand price per vCPU-hour (roughly a large cloud's general-purpose VMs)."""
-PRICE_PER_GIB_HOUR = 0.0028
+PRICE_PER_GIB_HOUR = GENERIC_GIB_HOUR
 """Illustrative on-demand price per GiB-hour of memory."""
-PRICE_PER_STORAGE_GIB_MONTH = 0.08
+PRICE_PER_STORAGE_GIB_MONTH = GENERIC_STORAGE_GIB_MONTH
 """Illustrative block storage price per GiB-month."""
 CLUSTER_TYPE = "kubernetes_cluster"
+MANAGED_LOAD_BALANCERS = {"aws_alb", "api_gateway"}
+MANAGED_QUEUES = {"sqs", "pubsub"}
+
+
+@dataclass(frozen=True)
+class Quote:
+    """A price per instance-hour and where it came from: ``set`` on the part, a ``snapshot``
+    instance type (``sku``), the part's ``size`` at generic rates, or the catalog ``default``."""
+
+    price: float | None
+    source: str | None
+    sku: str | None = None
+    note: str | None = None
 
 
 def size_price_per_hour(
@@ -49,27 +77,56 @@ def config_value(node: Json, registry: ComponentRegistry, key: str) -> Any:
     return v if v is not None else _defaults(node, registry).get(key)
 
 
-def hourly_price(node: Json, registry: ComponentRegistry) -> tuple[float | None, str | None]:
-    """Price of one instance-hour and where it came from: set, size or default."""
+def quote(
+    node: Json,
+    registry: ComponentRegistry,
+    snap: Snapshot = GENERIC,
+    option: str = "on_demand",
+    families: tuple[str, ...] = (),
+    size_only: bool = False,
+) -> Quote:
+    """Price of one instance-hour of a part. ``size_only``: the price of its size (instance type
+    or generic rates) even when a price is set on the part."""
     cfg = node.get("config") or {}
     fallback = num(_defaults(node, registry).get("costPerHour"))
     own = num(cfg.get("costPerHour"))
-    if own is not None and own != fallback:
-        return own, "set"
-    if node["type"] == CLUSTER_TYPE:
-        # a Kubernetes cluster is billed per node, at the node's size
-        size = size_price_per_hour(
-            num(config_value(node, registry, "nodeVcpu")),
-            num(config_value(node, registry, "nodeMemoryGib")),
-        )
-    else:
-        size = size_price_per_hour(
-            num(cfg.get("cpuCores")), num(cfg.get("memoryGib")), num(cfg.get("storageGib"))
-        )
+    if not size_only and own is not None and own != fallback:
+        return Quote(own, "set")
+    cluster = node["type"] == CLUSTER_TYPE
+    # a Kubernetes cluster is billed per node, at the node's size
+    cpu = num(config_value(node, registry, "nodeVcpu" if cluster else "cpuCores"))
+    mem = num(config_value(node, registry, "nodeMemoryGib" if cluster else "memoryGib"))
+    storage = None if cluster else num(cfg.get("storageGib"))
+    note = None
+    if snap.has_shapes() and (cpu is not None or mem is not None):
+        full = {**_defaults(node, registry), **cfg}
+        m = choose_machine(snap, node["type"], full, cpu, mem, option, families)
+        if m is not None and m.sku is not None:
+            price = m.sku.price(option) or 0.0
+            rate = snap.rates.get("storageGibMonth")
+            if storage and rate is not None:
+                price += storage * rate / HOURS_PER_MONTH
+            return Quote(
+                round_half_up(price * 10000) / 10000,
+                "snapshot",
+                m.sku.sku,
+                "self-managed on compute instances" if m.self_managed else None,
+            )
+        if m is not None:
+            note = f"no {m.category} type in {snap.label} covers its size: priced at generic rates"
+    size = size_price_per_hour(cpu, mem, storage)
     if size is not None:
-        return size, "size"
-    price = own if own is not None else fallback
-    return (price, "default") if price is not None else (None, None)
+        return Quote(size, "size", None, note)
+    if size_only:
+        return Quote(None, None)
+    default = own if own is not None else fallback
+    return Quote(default, "default") if default is not None else Quote(None, None)
+
+
+def hourly_price(node: Json, registry: ComponentRegistry) -> tuple[float | None, str | None]:
+    """Price of one instance-hour at generic rates and where it came from: set, size or default."""
+    q = quote(node, registry)
+    return q.price, q.source
 
 
 def _plural(n: float, word: str) -> str:
@@ -143,14 +200,27 @@ def _cluster_of(node: Json, cluster_ids: list[str]) -> str | None:
 
 
 def estimate_cost(
-    nodes: list[Json], registry: ComponentRegistry, report: Json | None = None
+    nodes: list[Json],
+    registry: ComponentRegistry,
+    report: Json | None = None,
+    pricing: Json | None = None,
 ) -> Json:
-    """Monthly cost of ``nodes`` (a normalized design, or a run's ``input.architecture.nodes``).
+    """Monthly cost of ``nodes`` (a normalized design, or a run's ``input.architecture.nodes``)
+    with the prices ``pricing`` names (generic when unset).
 
     With a report, third-party calls are priced at the measured call rate, autoscaled services
     at their average active instances, and the cost per million successful requests is derived.
     """
     notes: list[str] = []
+    try:
+        snap = snapshot_for(pricing)
+    except PricingError as exc:
+        snap = GENERIC
+        notes.append(f"{exc} Priced at generic illustrative rates instead.")
+    option = str((pricing or {}).get("purchaseOption") or "on_demand")
+    families = tuple((pricing or {}).get("families") or ())
+    snapshot_priced = False
+    fell_back = False
     by_node: list[Json] = []
     any_price = False
     missing_external_rate = False
@@ -215,26 +285,37 @@ def estimate_cost(
                 }
             )
             continue
-        price, source = hourly_price(n, registry)
-        if price is not None:
+        managed = _managed_line(n, technology, snap, nr, label)
+        if managed is not None:
             any_price = True
-        if source == "size":
+            snapshot_priced = True
+            by_node.append(managed)
+            continue
+        q = quote(n, registry, snap, option, families)
+        if q.price is not None:
+            any_price = True
+        if q.source == "size":
             size_priced = True
+            fell_back = fell_back or q.note is not None
+        if q.source == "snapshot":
+            snapshot_priced = True
         count, basis = instances_of(n, registry, nr)
-        by_node.append(
-            {
-                "id": n["id"],
-                "label": label,
-                "type": n["type"],
-                "technology": technology,
-                "instances": count,
-                "unitPrice": price,
-                "priceSource": source,
-                "unit": "hour",
-                "monthly": price * count * HOURS_PER_MONTH if price is not None else 0.0,
-                "basis": basis,
-            }
-        )
+        line: Json = {
+            "id": n["id"],
+            "label": label,
+            "type": n["type"],
+            "technology": technology,
+            "instances": count,
+            "unitPrice": q.price,
+            "priceSource": q.source,
+            "unit": "hour",
+            "monthly": q.price * count * HOURS_PER_MONTH if q.price is not None else 0.0,
+            "basis": basis + (f"; {q.note}" if q.note else ""),
+        }
+        if q.sku:
+            line["sku"] = q.sku
+            line["snapshotDate"] = snap.snapshot_date
+        by_node.append(line)
     by_node.sort(key=lambda x: -x["monthly"])
     monthly = sum(x["monthly"] for x in by_node)
     thr = num(((report or {}).get("summary") or {}).get("throughputRps")) if report else None
@@ -243,9 +324,22 @@ def estimate_cost(
         notes.append(
             "No component has a price yet: set Cost per hour on components to estimate cost."
         )
-    if size_priced:
+    if snapshot_priced:
+        names = ", ".join(n for n, _ in snap.sources)
         notes.append(
-            "Parts without a set price are priced from their size at illustrative on-demand rates "
+            f"Prices: {snap.provider} {snap.region}, {option.replace('_', '-')} list prices of "
+            f"{snap.snapshot_date} ({names}). Each part runs on the cheapest instance type that "
+            "covers its CPU and memory; discounts, data transfer and load balancer capacity units "
+            "are not included."
+        )
+    if size_priced and (fell_back or not snapshot_priced):
+        notes.append(
+            (
+                "Parts no instance type covers are"
+                if snapshot_priced
+                else "Parts without a set price are"
+            )
+            + " priced from their size at illustrative on-demand rates "
             f"(${js_num(PRICE_PER_VCPU_HOUR)} per vCPU-hour, ${js_num(PRICE_PER_GIB_HOUR)} per GiB-hour, "
             f"${js_num(PRICE_PER_STORAGE_GIB_MONTH)} per GiB-month of storage)."
         )
@@ -270,5 +364,77 @@ def estimate_cost(
             "perVcpuHour": PRICE_PER_VCPU_HOUR,
             "perGibHour": PRICE_PER_GIB_HOUR,
             "perStorageGibMonth": PRICE_PER_STORAGE_GIB_MONTH,
-        },
+        }
+        if snap.illustrative
+        else {"kind": "snapshot", **{k: v for k, v in snap.rates.items() if v is not None}},
+        "pricing": {**snap.to_json(), "purchaseOption": option, "families": list(families)},
     }
+
+
+def _managed_line(
+    n: Json, technology: str | None, snap: Snapshot, nr: Json | None, label: str
+) -> Json | None:
+    """Managed load balancers (per hour) and queues (per request) at a snapshot's rates; None
+    when the snapshot has no rate for it (it is then priced like any other part)."""
+    if snap.illustrative:
+        return None
+    base = {"id": n["id"], "label": label, "type": n["type"], "technology": technology}
+    lb_hour = snap.rates.get("loadBalancerHour")
+    if technology in MANAGED_LOAD_BALANCERS and lb_hour is not None:
+        return {
+            **base,
+            "instances": 1,
+            "unitPrice": lb_hour,
+            "priceSource": "snapshot",
+            "unit": "hour",
+            "monthly": lb_hour * HOURS_PER_MONTH,
+            "basis": "1 load balancer (capacity units not included)",
+            "snapshotDate": snap.snapshot_date,
+        }
+    gb_second = snap.rates.get("serverlessGbSecond")
+    cfg = n.get("config") or {}
+    if n["type"] == "service" and cfg.get("platform") == "serverless" and gb_second is not None:
+        # billed per invocation and per GB-second of its duration (residence time: a function
+        # is billed while it waits on its own calls)
+        summary = (nr or {}).get("summary") or {}
+        rate = num(summary.get("arrivalRps"))
+        mean_ms = num((summary.get("latencyMs") or {}).get("mean"))
+        mem = num(cfg.get("memoryGib"))
+        per_call = None
+        if mean_ms is not None and mem is not None:
+            per_call = (snap.rates.get("serverlessPerMillionRequests") or 0.0) / 1e6 + (
+                mean_ms / 1000 * mem * gb_second
+            )
+        return {
+            **base,
+            "instances": 0,
+            "unitPrice": per_call * 1e6 if per_call is not None else None,
+            "priceSource": "snapshot",
+            "unit": "million",
+            "monthly": rate * SECONDS_PER_MONTH * per_call
+            if rate is not None and per_call is not None
+            else 0.0,
+            "basis": (
+                f"{int(round_half_up(rate)):,} invocations/s × {fixed(mean_ms, 1)} ms × "
+                f"{js_num(mem)} GiB"
+            )
+            if rate is not None and mean_ms is not None and mem is not None
+            else "per invocation (run a simulation to price it)",
+            "snapshotDate": snap.snapshot_date,
+        }
+    per_million = snap.rates.get("queuePerMillionRequests")
+    if technology in MANAGED_QUEUES and per_million is not None:
+        rate = num(((nr or {}).get("summary") or {}).get("arrivalRps")) if nr else None
+        return {
+            **base,
+            "instances": 0,
+            "unitPrice": per_million,
+            "priceSource": "snapshot",
+            "unit": "million",
+            "monthly": rate * SECONDS_PER_MONTH * per_million / 1e6 if rate is not None else 0.0,
+            "basis": f"{int(round_half_up(rate)):,} requests/s"
+            if rate is not None
+            else "per request",
+            "snapshotDate": snap.snapshot_date,
+        }
+    return None

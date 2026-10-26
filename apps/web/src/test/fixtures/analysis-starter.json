@@ -26,7 +26,8 @@
           "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative)",
           "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative)"
         },
-        "pricePerHour": 0.0398
+        "pricePerHour": 0.0398,
+        "sku": null
       },
       "api": {
         "specs": {
@@ -49,7 +50,8 @@
           "cpuCores": "200 req/s per replica at peak (400 over 2) \u00d7 10.2 ms of CPU each = 2.03 cores busy; at a 60% target that is 3.39 \u2192 4 vCPU",
           "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB, +25% headroom"
         },
-        "pricePerHour": 0.1494
+        "pricePerHour": 0.1494,
+        "sku": null
       },
       "cache": {
         "specs": {
@@ -72,7 +74,8 @@
           "cpuCores": "400 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.03 \u2192 1 vCPU",
           "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom"
         },
-        "pricePerHour": 0.0384
+        "pricePerHour": 0.0384,
+        "sku": null
       },
       "db": {
         "specs": {
@@ -100,7 +103,8 @@
           "memoryGib": "4 GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache",
           "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
         },
-        "pricePerHour": 0.0493
+        "pricePerHour": 0.0493,
+        "sku": null
       }
     }
   },
@@ -168,6 +172,17 @@
       "perVcpuHour": 0.037,
       "perGibHour": 0.0028,
       "perStorageGibMonth": 0.08
+    },
+    "pricing": {
+      "provider": "generic",
+      "region": null,
+      "snapshotDate": null,
+      "currency": "USD",
+      "illustrative": true,
+      "sources": [],
+      "note": "Illustrative on-demand rates, roughly a large cloud's general-purpose VMs; no machine shapes.",
+      "purchaseOption": "on_demand",
+      "families": []
     }
   },
   "review": [

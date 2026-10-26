@@ -600,4 +600,19 @@ def validate_document(
             )
         )
 
+    # -- pricing ----------------------------------------------------------------------------------
+    if doc.pricing.provider != "generic":
+        from archsim_engine.pricing import PricingError, load_snapshot
+
+        try:
+            load_snapshot(doc.pricing.provider, doc.pricing.region)
+        except PricingError as exc:
+            issues.append(
+                warning(
+                    "pricing.snapshot_missing",
+                    f"{exc} Sizes are not snapped and costs use generic illustrative rates.",
+                    hint="Add the snapshot file (scripts/prices/) or set the provider to generic.",
+                )
+            )
+
     return ValidationResult(issues=issues, configs=configs, view=view, edge_flows=edge_flows)

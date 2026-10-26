@@ -141,4 +141,5 @@ def simulation_input(resolved: ArchitectureDocument) -> dict[str, Any]:
         "metadata": {"name": d["metadata"]["name"]},
         "architecture": d["architecture"],
         "workload": d["workload"],
+        "pricing": d["pricing"],
     }

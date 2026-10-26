@@ -11,6 +11,8 @@ auto-sized part is not the bottleneck at the peak it was sized for:
   down), never more than the replica's handlers (workers, event loops, command threads) can use.
 - Memory: what the engine's memory model needs (requests held, buffer cache, keys) plus 25%.
 - Storage: the data per instance kept under 70% full.
+- With a price snapshot (``pricing`` names a provider), CPU and memory then snap to the cheapest
+  instance type that covers them (``pricing.choose_machine``), so sizes are real machine shapes.
 
 A few ratios have no measured basis in the model (proxy throughput per vCPU, broker memory per
 vCPU, database memory without a working set); their explanations say "illustrative".
@@ -25,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 from archsim_engine.components.cache import KEY_MEMORY_SHARE
 from archsim_engine.components.database import BUFFER_CACHE_SHARE
 from archsim_engine.load import Json, estimate_load, js_num, mean_ms, num, peak_rps, round_half_up
+from archsim_engine.pricing import GENERIC, PricingError, Snapshot, choose_machine, snapshot_for
 from archsim_engine.registry import ComponentRegistry
 
 if TYPE_CHECKING:
@@ -71,6 +74,8 @@ class PartSize:
     peak_rps: float = 0.0
     why: dict[str, str] = field(default_factory=dict)
     skipped: str | None = None
+    sku: str | None = None
+    """The instance type the size snapped to (with a price snapshot)."""
 
     def get(self, key: str) -> float | None:
         return {
@@ -89,6 +94,8 @@ class PartSize:
         }
         if self.skipped:
             out["skipped"] = self.skipped
+        if self.sku:
+            out["sku"] = self.sku
         return out
 
 
@@ -401,10 +408,67 @@ def _fit_node(
     return size
 
 
+def pricing_of(doc: Json) -> tuple[Snapshot, str, tuple[str, ...]]:
+    """The price snapshot, purchase option and families a document names (generic when its
+    snapshot is not available here; validation says so)."""
+    pricing = doc.get("pricing") or {}
+    try:
+        snap = snapshot_for(pricing)
+    except PricingError:
+        snap = GENERIC
+    return (
+        snap,
+        str(pricing.get("purchaseOption") or "on_demand"),
+        tuple(pricing.get("families") or ()),
+    )
+
+
+def _snap(
+    size: PartSize,
+    node_type: str,
+    cfg: Json,
+    snap: Snapshot,
+    option: str,
+    families: tuple[str, ...],
+) -> None:
+    """Snap CPU and memory up to the cheapest instance type covering them (a value set on the
+    part counts as the need for that spec)."""
+    set_cpu, set_mem = num(cfg.get("cpuCores")), num(cfg.get("memoryGib"))
+    cpu = set_cpu if set_cpu is not None else size.cpu_cores
+    mem = set_mem if set_mem is not None else size.memory_gib
+    if cpu is None and mem is None:
+        return
+    m = choose_machine(snap, node_type, cfg, cpu, mem, option, families)
+    if m is None:
+        return
+    if m.sku is None:
+        note = (
+            f"; no {m.category} type in {snap.label} has {fmt(cpu or 0)} vCPU and "
+            f"{_gib(mem or 0)}: kept as computed"
+        )
+        for k in ("cpuCores", "memoryGib"):
+            if k in size.why:
+                size.why[k] += note
+        return
+    sku = m.sku
+    how = (
+        f"{sku.sku} ({js_num(sku.vcpu)} vCPU, {_gib(sku.memory_gib)}), the cheapest "
+        f"{'compute (self-managed) ' if m.self_managed else ''}type in {snap.label} that covers it"
+    )
+    if size.cpu_cores is not None:
+        size.why["cpuCores"] = size.why.get("cpuCores", "") + f"; snapped to {how}"
+        size.cpu_cores = float(sku.vcpu)
+    if size.memory_gib is not None:
+        size.why["memoryGib"] = size.why.get("memoryGib", "") + f"; snapped to {how}"
+        size.memory_gib = float(sku.memory_gib)
+    size.sku = sku.sku
+
+
 def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
     """The auto size of every part that has resource specs, from a normalized document dict."""
     nodes: list[Json] = doc["architecture"]["nodes"]
     workload = doc["workload"]
+    snap, option, families = pricing_of(doc)
     loads = estimate_load(doc, registry, ttl_miss_share=1.0)
     clusters = _clusters(nodes, registry)
     out: dict[str, PartSize] = {}
@@ -449,6 +513,8 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             size = _size_queue(cfg, total, workload)
         if size is None:
             continue
+        if snap.has_shapes():
+            _snap(size, n["type"], cfg, snap, option, families)
         # only the specs the part has
         out[n["id"]] = PartSize(
             size.cpu_cores if "cpuCores" in has else None,
@@ -456,6 +522,7 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             size.storage_gib if "storageGib" in has else None,
             total,
             why={k: v for k, v in size.why.items() if k in has},
+            sku=size.sku,
         )
     return out
 
@@ -480,12 +547,17 @@ def apply_auto_sizes(doc: Json, registry: ComponentRegistry) -> tuple[Json, dict
 
 
 def sizing_summary(
-    document: ArchitectureDocument, resolved: ArchitectureDocument, sizes: dict[str, PartSize]
+    document: ArchitectureDocument,
+    resolved: ArchitectureDocument,
+    sizes: dict[str, PartSize],
+    registry: ComponentRegistry,
 ) -> Json:
     """Per part: the CPU, memory and storage it is simulated with and where each came from (set on
     the part, auto-sized, or a scenario override), its auto sizes with how they were worked out,
-    and the illustrative price of the size used."""
-    from archsim_engine.cost import size_price_per_hour
+    and the price of the size used (its instance type with a price snapshot)."""
+    from archsim_engine.cost import quote
+
+    snap, option, families = pricing_of(resolved.to_json_dict())
 
     raw = {n.id: n.config for n in document.architecture.nodes}
     nodes: Json = {}
@@ -503,16 +575,21 @@ def sizing_summary(
                 "set" if given is not None else ("auto" if size.get(k) == value else "scenario")
             )
             specs[k] = {"value": value, "source": source}
+        priced = quote(
+            {"id": n.id, "type": n.type, "config": n.config},
+            registry,
+            snap,
+            option,
+            families,
+            size_only=True,
+        )
         entry: Json = {
             "specs": specs,
             "auto": {k: size.get(k) for k in SPEC_KEYS},
             "peakRps": round(size.peak_rps, 3),
             "why": dict(size.why),
-            "pricePerHour": size_price_per_hour(
-                num(n.config.get("cpuCores")),
-                num(n.config.get("memoryGib")),
-                num(n.config.get("storageGib")),
-            ),
+            "pricePerHour": priced.price,
+            "sku": priced.sku,
         }
         if size.skipped:
             entry["skipped"] = size.skipped

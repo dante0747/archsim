@@ -107,6 +107,7 @@ function SpecInput({
 
 export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: ComponentType; config: NodeConfig }) {
   const setNodeConfig = useEditor((s) => s.setNodeConfig);
+  const pricing = useEditor((s) => s.analysis?.cost.pricing ?? null);
   const size = useAutoSize(nodeId);
   const targetCpu = useTargetCpu();
   const fields = RESOURCE_FIELDS.map((k) => comp.fields.find((f) => f.key === k)).filter((f): f is FieldDescriptor => !!f);
@@ -119,6 +120,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
     size && !size.skipped && (SPEC_KEYS as string[]).includes(k) ? (size.auto[k as (typeof SPEC_KEYS)[number]] ?? null) : null;
   // the engine prices the size a run uses: what is set, else the auto size
   const price = size?.pricePerHour ?? null;
+  const sku = size?.sku ?? null;
   const autoUsed = fields.filter((f) => num(f.key) == null && autoOf(f.key) != null);
   const hasCost = comp.fields.some((f) => f.key === "costPerHour");
   // The cost estimate uses a price set on the part; without one, this size's price.
@@ -168,8 +170,20 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
       {price != null && (
         <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-2">
           <span>
-            About <span className="font-semibold text-ink">{formatUsd(price)}/h</span> for this size
-            <span className="text-ink-3"> (illustrative on-demand price)</span>
+            {sku && pricing && !pricing.illustrative ? (
+              <>
+                <span className="font-mono text-ink">{sku}</span>, <span className="font-semibold text-ink">{formatUsd(price)}/h</span>
+                <span className="text-ink-3">
+                  {" "}
+                  (on-demand, {pricing.provider} {pricing.region}, prices of {pricing.snapshotDate})
+                </span>
+              </>
+            ) : (
+              <>
+                About <span className="font-semibold text-ink">{formatUsd(price)}/h</span> for this size
+                <span className="text-ink-3"> (illustrative on-demand price)</span>
+              </>
+            )}
             {hasCost &&
               (ownPrice == null ? (
                 <span className="text-ink-3">; the cost estimate uses it.</span>

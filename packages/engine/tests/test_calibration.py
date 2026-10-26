@@ -125,10 +125,11 @@ def test_schema_1_0_documents_migrate_and_newer_ones_are_refused() -> None:
     raw = starter()
     assert raw["schemaVersion"] == "1.0"
     migrated, notes = migrate_document(raw)
-    assert migrated["schemaVersion"] == "1.1" and notes == ["migrated schema 1.0 -> 1.1"]
+    assert migrated["schemaVersion"] == "1.2"
+    assert notes == ["migrated schema 1.0 -> 1.1", "migrated schema 1.1 -> 1.2"]
     doc = load_document(raw)
     assert doc.provenance == {} and doc.calibration is None
-    newer = {**raw, "schemaVersion": "1.2"}
+    newer = {**raw, "schemaVersion": "1.3"}
     from archsim_engine import DocumentInvalidError
 
     with pytest.raises(DocumentInvalidError):
@@ -262,7 +263,7 @@ def test_cli_calibrates_from_a_recording(tmp_path: Path) -> None:
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schemaVersion"] == "1.1" and doc["calibration"]["inputs"] == 7
+    assert doc["schemaVersion"] == "1.2" and doc["calibration"]["inputs"] == 7
 
 
 # -- OpenTelemetry --------------------------------------------------------------------------------

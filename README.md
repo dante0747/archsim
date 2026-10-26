@@ -89,6 +89,10 @@ API servers behind a lone Clients box.
   was ignored and which links to confirm. ArchSim's own exports import back exactly. Menu →
   Import from compose, Kubernetes, Terraform, or `archsim import`. See
   [docs/import.md](docs/import.md).
+- **Prices from real machines (machinery).** A design can name a price snapshot (provider,
+  region, date): parts then run on the cheapest real instance type that fits them and every
+  cost line cites it. ArchSim ships no snapshot yet; the generic illustrative rates stay the
+  default. See [docs/pricing.md](docs/pricing.md).
 - Every part is the same card: its technology logo on a solid tile in its family's colour, its
   name, one or two key settings, and after a run a 12-segment level meter (green, then yellow,
   then red, like an audio meter) that shows how busy it was. Links are rounded
@@ -315,6 +319,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Assumptions: every default, documented or illustrative](docs/assumptions.md) (generated)
 - [Calibrating from Prometheus and OpenTelemetry](docs/calibration.md)
 - [Importing docker-compose, Kubernetes and Terraform](docs/import.md)
+- [Prices and machine shapes](docs/pricing.md)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)

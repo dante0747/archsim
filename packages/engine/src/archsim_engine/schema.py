@@ -1,4 +1,4 @@
-"""Versioned architecture document schema (``schemaVersion`` 1.1).
+"""Versioned architecture document schema (``schemaVersion`` 1.2).
 
 The document deliberately separates four concerns:
 
@@ -8,6 +8,7 @@ The document deliberately separates four concerns:
 * ``layout``       - rendering metadata only (positions, viewport); never affects simulation
 * ``provenance``   - where numeric inputs came from (measured, assumed, illustrative)
 * ``calibration``  - the last calibration from telemetry and how well it replays what was seen
+* ``pricing``      - where prices come from (generic illustrative rates, or a price snapshot)
 
 JSON uses camelCase keys; Python attributes are snake_case.
 """
@@ -23,7 +24,7 @@ from pydantic.alias_generators import to_camel
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.version import SCHEMA_VERSION
 
-assert SCHEMA_VERSION == "1.1", "update ArchitectureDocument.schema_version and add a migration"
+assert SCHEMA_VERSION == "1.2", "update ArchitectureDocument.schema_version and add a migration"
 
 RequestType = Literal["read", "write"]
 REQUEST_TYPES: tuple[RequestType, ...] = ("read", "write")
@@ -532,10 +533,29 @@ class Objectives(CamelModel):
     )
 
 
+class Pricing(CamelModel):
+    """Where prices come from. ``generic``: ArchSim's illustrative rates, no machine shapes. Any
+    other provider names a price snapshot (docs/pricing.md); auto-sizing then snaps each part to
+    the cheapest instance type that covers it (among ``families`` when given) and cost lines cite
+    that SKU and the snapshot date."""
+
+    provider: str = Field(default="generic", pattern=r"^[a-z0-9-]{1,40}$")
+    region: str | None = Field(default=None, pattern=r"^[a-z0-9-]{1,40}$")
+    purchase_option: Literal["on_demand"] = Field(
+        default="on_demand",
+        description="On-demand prices. Savings plans and reserved terms are not modeled yet.",
+    )
+    families: list[Annotated[str, Field(pattern=r"^[A-Za-z0-9._-]{1,40}$")]] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Instance families to snap to (e.g. m7g, r7g); empty: any in the snapshot",
+    )
+
+
 class ArchitectureDocument(CamelModel):
     """Top-level interchange document. Serialize with ``to_json_dict()``."""
 
-    schema_version: Literal["1.1"] = "1.1"
+    schema_version: Literal["1.2"] = "1.2"
     kind: Literal["archsim.architecture"] = "archsim.architecture"
     metadata: Metadata = Field(default_factory=Metadata)
     architecture: Architecture = Field(default_factory=Architecture)
@@ -551,6 +571,7 @@ class ArchitectureDocument(CamelModel):
         ),
     )
     calibration: CalibrationRecord | None = None
+    pricing: Pricing = Field(default_factory=Pricing)
 
     def to_json_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json", by_alias=True)

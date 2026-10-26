@@ -296,6 +296,11 @@ function CostPanel({ report }: { report: Report }) {
                         from size
                       </span>
                     )}
+                    {c.sku && (
+                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title={`On-demand list price of ${c.sku} on ${c.snapshotDate ?? "the snapshot date"}`}>
+                        {c.sku}
+                      </span>
+                    )}
                   </span>
                   <span className="tabular shrink-0 font-mono text-ink">{c.unitPrice == null ? "not set" : formatUsd(c.monthly)}</span>
                 </div>

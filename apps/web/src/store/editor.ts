@@ -37,6 +37,7 @@ import type {
   Issue,
   Objectives,
   Preset,
+  Pricing,
   Project,
   Scenario,
   Workload,
@@ -86,6 +87,8 @@ export interface EditorState extends GraphState {
   setWorkload: (patch: Partial<Workload>, key?: string) => void;
   setScenarios: (scenarios: Scenario[], key?: string) => void;
   setObjectives: (patch: Partial<Objectives>, key?: string) => void;
+  /** Where prices come from (null: generic illustrative rates). */
+  setPricing: (pricing: Pricing | null) => void;
   setMetadata: (patch: Partial<DocMetadata>, key?: string) => void;
   select: (sel: { nodeId?: string | null; edgeId?: string | null }) => void;
   autoLayout: () => Promise<void>;
@@ -414,6 +417,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set((st) => ({ objectives: { ...st.objectives, ...patch }, dirty: true }));
   },
 
+  setPricing: (pricing) => {
+    get().pushHistory();
+    set((st) => ({
+      extras: { provenance: {}, calibration: null, ...st.extras, pricing },
+      dirty: true,
+    }));
+  },
+
   setWorkload: (patch, key) => {
     get().pushHistory(key ? `workload:${key}` : undefined);
     set((st) => ({
@@ -474,11 +485,12 @@ export const useEditor = create<EditorState>()((set, get) => ({
 }));
 
 /** Stable key of the simulation-relevant document content (excludes layout and selection). */
-export function contentKey(s: Pick<EditorState, "nodes" | "edges" | "workload" | "scenarios">): string {
+export function contentKey(s: Pick<EditorState, "nodes" | "edges" | "workload" | "scenarios"> & { extras?: EditorState["extras"] }): string {
   return JSON.stringify({
     n: s.nodes.map((n) => [n.id, n.data.type, n.data.config]),
     e: s.edges.map((e) => [e.id, e.source, e.target, e.sourceHandle, e.targetHandle, e.data?.config]),
     w: s.workload,
     s: s.scenarios,
+    p: s.extras?.pricing ?? null,
   });
 }

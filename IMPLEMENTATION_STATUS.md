@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-10-26 (engine 0.8.0, schema 1.1, report 1.9). This file separates what is
+State as of 2026-10-26 (engine 0.9.0, schema 1.2, report 1.10). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
@@ -309,6 +309,33 @@ serves 10 example designs (see below).
   note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
   report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
   counts on the landing are computed from the catalog.
+- Price snapshots and real machine shapes (engine 0.9.0, schema 1.2, report 1.10, 2026-10-26;
+  Phase 6 of docs/prompts/how-to-win.md). A design names its price source in `pricing`
+  (`provider`, `region`, `purchaseOption`, `families`). `generic`, the default, is the
+  illustrative per-vCPU, per-GiB and storage rates as before: no shapes, the same sizes and the
+  same result digests. Any other provider names a price snapshot (`archsim.prices/1`: on-demand
+  prices of instance types, managed databases, caches and Kafka brokers per engine, and rates
+  for storage, serverless, managed queues and load balancers, with sources and a date). With a
+  snapshot, auto-sizing snaps each part's CPU and memory to the cheapest instance type that
+  covers them (a value set on the part counts as the need; `families` narrows the choice), an
+  engine with no managed type runs on compute instances (self-managed), and every cost line
+  cites its SKU and the snapshot date; the inspector, `/analyze`, the report, the scorecard and
+  the Markdown report show the SKU, and the inspector's overview has a price selector fed by
+  `GET /pricing`. A design naming a snapshot this machine lacks gets a warning and generic
+  rates. Refresh scripts in `scripts/prices/` read the AWS Price List bulk API (EC2, RDS,
+  ElastiCache, MSK, EBS gp3, Lambda, SQS, ALB; CSV, streamed), the Azure Retail Prices API (D,
+  E and F series VMs) and the GCP Cloud Billing Catalog (N2, N2D, E2, C3); they are never called
+  at runtime. Tests: 6 engine tests on a made-up snapshot of a fictional provider (format,
+  cover, families, self-managed engines, snapped sizes and cited costs, a run on snapped shapes,
+  a missing snapshot, the 1.1 -> 1.2 migration), the scripts' parsers on small hand-written
+  samples of each API's documented layout, web tests for keeping `pricing` through edits.
+  Checked in the browser (API started with the test snapshot directory): the selector lists
+  generic and the snapshot; choosing it snaps the starter's API servers to `cpu.4x8` and the
+  inspector cites the price, provider, region and date. Not done, waiting on
+  the owner: no provider snapshot ships (which provider and region first is the owner's
+  decision), so the brief's acceptance (Black Friday priced on AWS us-east-1 with real instance
+  types) is not met yet; the refresh scripts have not been run against the live price lists.
+  Savings plans and reserved terms are not modeled.
 - Import from docker-compose, Kubernetes and Terraform (2026-10-26; Phase 5 of
   docs/prompts/how-to-win.md). `archsim import compose|k8s|terraform FILE -o design.json
   --report report.json`, `POST /import`, an "Import from compose, Kubernetes, Terraform" dialog
@@ -659,8 +686,10 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   keyspace, so write contention depends on the key skew you assume.
 - Dashboard replay redraws panels about every 60 ms; smoothness with very large designs was
   not measured in a visible window.
-- Technology presets are illustrative starting points, not vendor benchmarks; costs are
-  assumptions you should replace with your own prices.
+- Technology presets are illustrative starting points, not vendor benchmarks. Costs use
+  generic illustrative rates until a price snapshot is added (none ships yet); with one, they
+  are on-demand list prices without discounts, data transfer or load balancer capacity units.
+  See [docs/pricing.md](docs/pricing.md).
 - The breaking-point sweep uses short steps: autoscaled services start each step at their
   configured replica count, so it measures capacity before the scaler reacts (the page says
   so).

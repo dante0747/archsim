@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo } from "react";
 import { CLIENT_BLOCK_FIELDS, ClientBlock } from "@/components/editor/ClientBlock";
 import { type AutoHint, FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
+import { PricingCard } from "@/components/editor/PricingCard";
 import { RESOURCE_FIELDS, ResourceBlock } from "@/components/editor/ResourceBlock";
 import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
@@ -145,6 +146,7 @@ function DesignOverview() {
   return (
     <div className="space-y-4 p-4">
       <TrafficCard />
+      <PricingCard />
       <ProblemsList />
       <details className="group rounded-xl bg-surface-2/60">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">

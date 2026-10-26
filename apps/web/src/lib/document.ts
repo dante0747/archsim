@@ -6,15 +6,16 @@
 import type { Edge, Node, Viewport } from "@xyflow/react";
 import type {
   ArchitectureDocument,
+  CalibrationRecord,
   Catalog,
   DocMetadata,
   EdgeConfig,
+  InputProvenance,
   NodeConfig,
   Objectives,
+  Pricing,
   Scenario,
   Workload,
-  CalibrationRecord,
-  InputProvenance,
 } from "./types";
 
 export interface ArchNodeData extends Record<string, unknown> {
@@ -66,14 +67,16 @@ export interface GraphState {
   extras?: DocExtras;
 }
 
-/** Kept through edits and saves: auto-sizing off, where inputs came from, the last calibration. */
+/** Kept through edits and saves: auto-sizing off, where inputs came from, the last calibration,
+ * where prices come from. */
 export interface DocExtras {
   autoSize?: boolean;
   provenance: Record<string, InputProvenance>;
   calibration: CalibrationRecord | null;
+  pricing?: Pricing | null;
 }
 
-export const SCHEMA_VERSION = "1.1";
+export const SCHEMA_VERSION = "1.2";
 
 /** The provenance of an input, or undefined (then it is assumed or illustrative). */
 export function provenanceOf(extras: DocExtras | undefined, path: string): InputProvenance | undefined {
@@ -172,6 +175,7 @@ export function fromDocument(doc: ArchitectureDocument): GraphState & { viewport
       autoSize: doc.architecture.autoSize,
       provenance: doc.provenance ?? {},
       calibration: doc.calibration ?? null,
+      pricing: doc.pricing ?? null,
     },
     viewport: doc.layout?.viewport ?? null,
   };
@@ -214,6 +218,7 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
     },
     ...(state.extras && Object.keys(state.extras.provenance).length ? { provenance: state.extras.provenance } : {}),
     ...(state.extras?.calibration ? { calibration: state.extras.calibration } : {}),
+    ...(state.extras?.pricing && state.extras.pricing.provider !== "generic" ? { pricing: state.extras.pricing } : {}),
   };
 }
 

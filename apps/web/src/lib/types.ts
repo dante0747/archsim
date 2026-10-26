@@ -153,8 +153,17 @@ export interface DocMetadata {
   tags?: string[];
 }
 
+/** Where prices come from: "generic" illustrative rates, or a price snapshot (schema 1.2). */
+export interface Pricing {
+  provider: string;
+  region?: string | null;
+  purchaseOption?: "on_demand";
+  /** Instance families to snap to; empty: any in the snapshot. */
+  families?: string[];
+}
+
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1";
+  schemaVersion: "1.0" | "1.1" | "1.2";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */
@@ -171,6 +180,7 @@ export interface ArchitectureDocument {
   /** Where inputs came from, keyed nodes/<id>/<key>, edges/<id>/<key>, workload/<field> (1.1). */
   provenance?: Record<string, InputProvenance>;
   calibration?: CalibrationRecord | null;
+  pricing?: Pricing;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -677,8 +687,10 @@ export interface SizingEntry {
   peakRps: number;
   /** How each auto size was worked out. */
   why: Partial<Record<SpecKey, string>>;
-  /** Illustrative price per hour of the size used. */
+  /** Price per hour of the size used (its instance type with a price snapshot). */
   pricePerHour: number | null;
+  /** The instance type the size snapped to (with a price snapshot). */
+  sku?: string | null;
   /** Why the part is not sized (managed service, unknown load). */
   skipped?: string;
 }
@@ -698,8 +710,12 @@ export interface NodeCost {
   instances: number;
   /** $/instance-hour, or $/million calls when `unit` is "million". null = no price set. */
   unitPrice: number | null;
-  /** Where an hourly price came from: set on the part, its size, or the catalog default. */
-  priceSource: "set" | "size" | "default" | null;
+  /** Where a price came from: set on the part, a snapshot's instance type or rate, its size at
+   * generic rates, or the catalog default. */
+  priceSource: "set" | "snapshot" | "size" | "default" | null;
+  /** The instance type priced (with a price snapshot), and the snapshot's date. */
+  sku?: string;
+  snapshotDate?: string | null;
   unit: "hour" | "million";
   monthly: number;
   /** Plain-language basis, e.g. "2 shards × 3 nodes". */
@@ -714,6 +730,16 @@ export interface CostEstimate {
   notes: string[];
   /** True when at least one component carries a price. */
   hasCost: boolean;
+  /** The price source used (engine 0.9+). */
+  pricing?: {
+    provider: string;
+    region: string | null;
+    snapshotDate: string | null;
+    illustrative: boolean;
+    sources: { name: string; url: string }[];
+    purchaseOption: string;
+    families: string[];
+  };
 }
 
 export type ReviewSeverity = "high" | "medium" | "low";
