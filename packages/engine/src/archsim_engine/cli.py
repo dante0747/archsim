@@ -213,11 +213,23 @@ def cmd_calibrate_otlp(args: argparse.Namespace) -> int:
     return _write_calibration(outcome, args.out)
 
 
+def decode_text(raw: bytes) -> str:
+    """Text from a file's bytes: UTF-8, or UTF-16/UTF-8 with a byte order mark, which is what
+    Windows PowerShell 5.1 (``terraform show -json > plan.json``) and some editors write."""
+    try:
+        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            return raw.decode("utf-16")
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"the file is not UTF-8 or UTF-16 text ({exc})") from None
+
+
 def cmd_import(args: argparse.Namespace) -> int:
     from archsim_engine.importers import import_design
 
-    text = sys.stdin.read() if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
+    raw = sys.stdin.buffer.read() if args.file == "-" else Path(args.file).read_bytes()
     try:
+        text = decode_text(raw)
         doc, report = import_design(args.format, text, default_registry(), args.name)
     except ValueError as exc:
         print(f"cannot import: {exc}", file=sys.stderr)

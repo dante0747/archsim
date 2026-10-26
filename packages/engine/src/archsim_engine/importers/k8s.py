@@ -1,11 +1,12 @@
 """Kubernetes manifests -> design.
 
-Deployments, StatefulSets and Knative Services become parts by image; replicas, HPAs (min, max,
-target utilization, scale-up period) and resource requests become settings and specs;
-StatefulSet volume claims become storage; an Ingress becomes the gateway in front of the
-services it routes to; ``ExternalName`` services become third-party APIs or managed services; a
-Kubernetes cluster part holds the services. Links come from environment URLs naming another
-workload's service (assumed) or, for ArchSim's own exports, the ``archsim.dev/calls``
+Deployments, StatefulSets and Knative Services become parts by their image's full name
+(listed as guesses); replicas (one pod when unset), HPAs (min, max, CPU target, scale-up
+period) and resource requests become settings and specs; StatefulSet volume claims become
+storage; an Ingress becomes the gateway in front of the services it routes to; ``ExternalName``
+services become third-party APIs or managed services; a Kubernetes cluster part holds the
+services (by their platform: it is never linked). Links come from environment URLs naming
+another workload's service (assumed) or, for ArchSim's own exports, the ``archsim.dev/calls``
 annotation.
 """
 
@@ -18,18 +19,20 @@ from archsim_engine.importers.common import (
     DesignBuilder,
     ImportReport,
     classify_image,
+    finish,
     parse_cpu,
     parse_memory_gib,
+    type_for_technology,
     url_host,
 )
-from archsim_engine.importers.compose import (
-    _add_clients,
-    apply_labels,
-    exported_technology,
-)
+from archsim_engine.importers.compose import apply_labels, exported_technology
 from archsim_engine.load import kind_of
 from archsim_engine.registry import ComponentRegistry
-from archsim_engine.roundtrip import decode_calls, parse_parts
+from archsim_engine.roundtrip import (
+    EXPORT_PLACEHOLDER_RESOURCES,
+    decode_calls,
+    parse_parts,
+)
 
 Json = dict[str, Any]
 WORKLOADS = ("Deployment", "StatefulSet", "DaemonSet")
@@ -84,21 +87,29 @@ def import_k8s(
     calls: dict[str, str] = {}
     entry: list[str] = []
     compute: list[str] = []
+    tools: set[str] = set()
+    unset_replicas: set[str] = set()  # parts whose replicas Kubernetes' default gave
     for wname, w in workloads.items():
         meta = w.get("metadata") or {}
         ann = {str(k): str(v) for k, v in (meta.get("annotations") or {}).items()}
+        exported = "archsim.dev/node" in ann  # ArchSim's own export states the part
         spec = w.get("spec") or {}
         knative = str(w.get("apiVersion", "")).startswith("serving.knative.dev")
         c = _container(spec)
         image = str(c.get("image") or "")
-        cls = classify_image(image) if image else None
-        type_, tech = ("service", None) if cls is None else cls
+        img = classify_image(image) if image else None
+        type_ = img.type if img else "service"
+        tech = img.technology if img else None
         stated = exported_technology(ann)
-        if stated != "" and cls is not None:
+        if stated != "" and img and img.kind == "infrastructure":
             tech = stated  # an ArchSim export says which technology (or generic)
+            type_ = type_for_technology(registry, type_, tech)  # Redis Streams: a queue
         node_id = b.unique_id(ann.get("archsim.dev/node") or wname)
         by_name[wname] = node_id
+        if img and img.kind == "tool":
+            tools.add(node_id)
         config: Json = {"technology": tech} if tech else {}
+        settings: list[str] = []
         if type_ == "service":
             config["platform"] = "serverless" if knative else "kubernetes"
             if config["platform"] == "kubernetes" and not ann.get("archsim.dev/platform"):
@@ -106,15 +117,17 @@ def import_k8s(
         res = c.get("resources") or {}
         req = res.get("requests") or res.get("limits") or {}
         cpu, mem = parse_cpu(req.get("cpu")), parse_memory_gib(req.get("memory"))
-        placeholder = (
-            type_ == "service" and req.get("cpu") == "500m" and req.get("memory") == "512Mi"
-        )
+        # ArchSim's exporter writes these requests when a part has no CPU or memory set; only
+        # its own manifests (marked with archsim.dev/node) carry them as a placeholder
+        placeholder = exported and type_ == "service" and res == EXPORT_PLACEHOLDER_RESOURCES
         if cpu and not placeholder:
             config["cpuCores"] = cpu
             b.note(node_id, "cpuCores", "container resources")
+            settings.append(f"{cpu:g} CPU")
         if mem and not placeholder:
             config["memoryGib"] = mem
             b.note(node_id, "memoryGib", "container resources")
+            settings.append(f"{mem:g} GiB memory")
         replicas = spec.get("replicas")
         if knative:
             tmpl = spec.get("template") or {}
@@ -129,13 +142,28 @@ def import_k8s(
             cc = (tmpl.get("spec") or {}).get("containerConcurrency")
             if isinstance(cc, int) and cc > 0:
                 config["workersPerReplica"] = cc
-        elif isinstance(replicas, int):
+        elif w["kind"] == "DaemonSet":
+            if type_ == "service":
+                report.guessed.append(
+                    f"DaemonSet {wname}: one pod per node, so its replicas are left at "
+                    "ArchSim's default; set them to the node count"
+                )
+        else:
+            stated_replicas = isinstance(replicas, int)
+            if not stated_replicas:
+                replicas = 1  # Kubernetes runs one pod when spec.replicas is not set
+                unset_replicas.add(node_id)
+            source = "spec.replicas" if stated_replicas else "not set: Kubernetes runs 1 pod"
             if type_ == "service":
                 config["replicas"] = replicas
-                b.note(node_id, "replicas", "spec.replicas")
+                b.note(node_id, "replicas", source)
+                if stated_replicas:
+                    settings.append(f"replicas {replicas}")
             elif type_ == "message_queue":
                 config["brokers"] = replicas
-                b.note(node_id, "brokers", "StatefulSet replicas")
+                b.note(node_id, "brokers", f"StatefulSet replicas ({source})")
+                if stated_replicas:
+                    settings.append(f"{replicas} brokers")
         claims = spec.get("volumeClaimTemplates") or []
         if claims:
             storage = parse_memory_gib(
@@ -146,7 +174,10 @@ def import_k8s(
             if storage and type_ in ("database", "message_queue"):
                 config["storageGib"] = storage
                 b.note(node_id, "storageGib", "volumeClaimTemplates storage request")
+                settings.append(f"{storage:g} GiB storage")
         read = apply_labels(config, ann, type_)
+        if read:
+            settings.append(f"{', '.join(read)} from its annotations")
         if (
             type_ == "database"
             and "topology" not in read
@@ -162,10 +193,22 @@ def import_k8s(
             )
         if "archsim.dev/calls" in ann:
             calls[node_id] = ann["archsim.dev/calls"]
-        report.mapped.append(
-            f"{w['kind']} {wname}: {image or 'no image'} -> {registry.get(type_).display_name}"
-            + (f" ({tech})" if tech else "")
-        )
+        part = registry.get(type_).display_name + (f" ({tech})" if tech else "")
+        if exported or img is None or image.startswith("your-org/"):
+            report.mapped.append(
+                f"{w['kind']} {wname}: {image or 'no image'} -> {part}"
+                + (f"; {'; '.join(settings)}" if settings else "")
+            )
+        else:
+            # the part type and technology come from the image name: a guess, with the reason
+            if img.kind == "infrastructure":
+                report.guessed.append(f"{w['kind']} {wname}: {part}, because '{image}' {img.why}")
+            else:
+                report.guessed.append(
+                    f"{w['kind']} {wname}: '{image}' {img.why}, so it became a service"
+                )
+            if settings:
+                report.mapped.append(f"{w['kind']} {wname}: {'; '.join(settings)}")
         b.add(node_id, type_, wname, config)
 
     for svc in services:
@@ -197,42 +240,51 @@ def import_k8s(
                 report.mapped.append(f"Service {sname} (ExternalName) -> managed {tech}")
             by_name[sname] = node_id
             continue
-        selector = (spec.get("selector") or {}).get("app.kubernetes.io/name") or (
-            spec.get("selector") or {}
-        ).get("app")
-        target = by_name.get(str(selector)) if selector else by_name.get(sname)
-        if target:
-            by_name.setdefault(sname, target)
-            if spec.get("type") == "LoadBalancer":
-                entry.append(target)
+        target = _selected(spec.get("selector"), sname, workloads, by_name)
+        if target is None:
+            report.ignored.append(f"Service {sname} (its selector matches no workload)")
+            continue
+        by_name.setdefault(sname, target)
+        if spec.get("type") == "LoadBalancer":
+            entry.append(target)
 
     for hpa in hpas:
-        ref = (hpa.get("spec") or {}).get("scaleTargetRef", {}).get("name")
+        hname = (hpa.get("metadata") or {}).get("name", "")
+        spec = hpa.get("spec") or {}
+        ref = (spec.get("scaleTargetRef") or {}).get("name")
         node = b.node(by_name.get(str(ref), ""))
         if node is None:
-            report.ignored.append(
-                f"HorizontalPodAutoscaler {hpa['metadata']['name']} (no matching workload)"
-            )
+            report.ignored.append(f"HorizontalPodAutoscaler {hname} (no matching workload)")
             continue
-        spec = hpa["spec"]
         cfg = node["config"]
         cfg.update(
             autoscaling=True,
             minReplicas=int(spec.get("minReplicas") or 1),
             maxReplicas=int(spec.get("maxReplicas") or 1),
         )
-        for m in spec.get("metrics") or []:
-            goal = (m.get("resource") or {}).get("target") or {}
-            if goal.get("averageUtilization"):
-                cfg["targetUtilization"] = goal["averageUtilization"] / 100
-        for key in ("minReplicas", "maxReplicas", "targetUtilization"):
+        for key in ("minReplicas", "maxReplicas"):
             b.note(node["id"], key, "HorizontalPodAutoscaler")
+        if node["id"] in unset_replicas and node["type"] == "service":
+            cfg["replicas"] = cfg["minReplicas"]
+            b.note(node["id"], "replicas", "not set: the HorizontalPodAutoscaler's minReplicas")
+        cpu_target, why, other = _cpu_target(spec)
+        if cpu_target is not None:
+            cfg["targetUtilization"] = min(0.95, max(0.1, cpu_target))
+            b.note(node["id"], "targetUtilization", why)
+        else:
+            report.guessed.append(
+                f"HorizontalPodAutoscaler {hname} has no CPU utilization target: {node['id']} "
+                "scales on CPU at ArchSim's default target"
+            )
+        if other:
+            report.ignored.append(
+                f"HorizontalPodAutoscaler {hname}: {', '.join(other)} metric"
+                f"{'s' if len(other) > 1 else ''} (ArchSim scales on CPU utilization)"
+            )
         policies = (((spec.get("behavior") or {}).get("scaleUp") or {}).get("policies")) or []
         if policies and policies[0].get("periodSeconds"):
             cfg["scaleIntervalS"] = policies[0]["periodSeconds"]
-        report.mapped.append(
-            f"HorizontalPodAutoscaler {hpa['metadata']['name']} -> autoscaling on {node['id']}"
-        )
+        report.mapped.append(f"HorizontalPodAutoscaler {hname} -> autoscaling on {node['id']}")
 
     for ing in ingresses:
         gw = b.unique_id(ing["metadata"]["name"])
@@ -275,7 +327,57 @@ def import_k8s(
         report.guessed.append(
             "a Kubernetes cluster part with the default node pool (the manifests do not describe nodes)"
         )
-    if not any(p["type"] == "traffic_source" for p in parts):
-        _add_clients(b, report, entry, registry)
+    has_clients = any(p["type"] == "traffic_source" for p in parts)
+    finish(b, report, entry, add_entry=not has_clients, skip=tools)
     doc = b.document(lambda t: kind_of(t, registry))
     return doc, report
+
+
+def _pod_labels(workload: Json) -> dict[str, str]:
+    spec = workload.get("spec") or {}
+    labels = dict(((spec.get("template") or {}).get("metadata") or {}).get("labels") or {})
+    labels.update((spec.get("selector") or {}).get("matchLabels") or {})
+    return {str(k): str(v) for k, v in labels.items()}
+
+
+def _selected(
+    selector: Any, service: str, workloads: dict[str, Json], by_name: dict[str, str]
+) -> str | None:
+    """The part a Service sends to: the workload whose pod labels its selector matches, else
+    the workload named by the selector's ``app`` / ``app.kubernetes.io/name`` (or, with no
+    selector, the Service's own name)."""
+    if not isinstance(selector, dict) or not selector:
+        return by_name.get(service)
+    want = {str(k): str(v) for k, v in selector.items()}
+    for wname, w in workloads.items():
+        labels = _pod_labels(w)
+        if all(labels.get(k) == v for k, v in want.items()):
+            return by_name[wname]
+    named = want.get("app.kubernetes.io/name") or want.get("app")
+    return by_name.get(named) if named in workloads else None
+
+
+def _cpu_target(spec: Json) -> tuple[float | None, str, list[str]]:
+    """The CPU utilization target of an HPA (autoscaling/v1, v2beta1 or v2), how it was found,
+    and the other metrics it names (memory, custom metrics: ArchSim scales on CPU only)."""
+    target: float | None = None
+    why = "HorizontalPodAutoscaler"
+    other: list[str] = []
+    v1 = spec.get("targetCPUUtilizationPercentage")
+    if isinstance(v1, int | float) and not isinstance(v1, bool):
+        target, why = v1 / 100, "HorizontalPodAutoscaler targetCPUUtilizationPercentage"
+    metrics = [m for m in spec.get("metrics") or [] if isinstance(m, dict)]
+    for m in metrics:
+        res = m.get("resource") or m.get("containerResource") or {}
+        if m.get("type") in ("Resource", "ContainerResource") and res.get("name") == "cpu":
+            goal = res.get("target") or {}
+            util = goal.get("averageUtilization") or res.get("targetAverageUtilization")
+            if isinstance(util, int | float) and not isinstance(util, bool):
+                target, why = util / 100, "HorizontalPodAutoscaler CPU metric"
+                continue
+            other.append("cpu (an average value, not a utilization)")
+            continue
+        other.append(str(res.get("name") or m.get("type") or "unnamed"))
+    if target is None and v1 is None and not metrics:
+        target, why = 0.8, "not set: Kubernetes' default of 80% CPU"
+    return target, why, other
