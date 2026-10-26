@@ -63,7 +63,7 @@ Run everything CI runs before opening a pull request:
 # Python
 uv run ruff check packages services
 uv run ruff format --check packages services
-uv run mypy packages/engine/src services/api/src
+uv run mypy packages/engine/src services/api/src packages/mcp/src
 uv run pytest                                   # engine + API tests (SQLite)
 
 # API tests against PostgreSQL (drops all tables in the target database!)

@@ -36,5 +36,5 @@ fmt:
 	uv run ruff format packages services
 
 typecheck:
-	uv run mypy packages/engine/src services/api/src
+	uv run mypy packages/engine/src services/api/src packages/mcp/src
 	cd apps/web && npm run typecheck

@@ -1,4 +1,4 @@
-# AI agents (WebMCP)
+# AI agents: the MCP server and WebMCP
 
 The ArchSim web app registers [WebMCP](https://webmachinelearning.github.io/webmcp/) tools, so an
 AI agent working in your browser can design, simulate and read results through clear,
@@ -61,3 +61,40 @@ itself.
   browsers can ask before using it. Edits are local until saved and can be undone.
 - ArchSim sends nothing to an AI service. The agent is yours (in your browser); it sees only the
   tool results.
+
+## MCP server (Claude Code, Claude Desktop, Cursor...)
+
+`packages/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio
+(the official `mcp` Python SDK). It runs the engine directly: no browser, API server or network
+is needed, and runs keep the engine's limits (120 s wall clock and 2 million requests by
+default; `ARCHSIM_MCP_MAX_WALL_SECONDS`, `ARCHSIM_MCP_MAX_REQUESTS`).
+
+Add it from a checkout of this repository (it is not published to a package index):
+
+```bash
+claude mcp add archsim -- uv run --directory /path/to/archsim archsim-mcp
+```
+
+For Claude Desktop, Cursor and other clients, configure a stdio server with the command
+`uv` and the arguments `run --directory /path/to/archsim archsim-mcp`. Once the package is
+published, `uvx archsim-mcp` will work without a checkout.
+
+| Tool | What it does |
+| --- | --- |
+| `list_part_types` | Part types with their presets and technology tiers; with a type, its settings, ports and presets (read only). |
+| `list_templates` / `get_template` | Ready-made designs and their documents (read only). |
+| `validate_design` | Errors and warnings, each with a code, the part or link, and how to fix it. |
+| `analyze_design` | Without simulating: auto sizes, monthly cost, design review, technology tiers, input provenance counts. |
+| `simulate` | Runs the design or a scenario: verdict against the objectives, throughput, success, p50/p95/p99, findings, per-part status, cost, run id and result digest (deterministic). |
+| `get_results` | A run of this session again, as a summary or the full report. |
+| `compare` | Two scenarios side by side: KPI deltas and the input changes behind them. |
+| `breaking_point` | Steps the load to find the highest that meets the objectives, the knee and the bottleneck. |
+| `export` | docker-compose, Kubernetes manifests or a Mermaid diagram of the design. |
+| `calibrate` | Sets inputs from telemetry files (recorded Prometheus responses plus a mapping, or an OTLP trace export); returns the calibrated document and the replay check. |
+
+Resources: `archsim://schema/architecture` (the JSON Schema), `archsim://templates/{id}`
+and `archsim://docs/simulation-model`. Results are compact JSON; a document that cannot be
+used comes back as an error listing each issue with its fix. `calibrate` opens the files at the
+paths the agent passes, with your permissions, and never queries a Prometheus server (record
+the responses first with `archsim calibrate prometheus --record`). There is no HTTP transport:
+it would need authentication first (see the roadmap).

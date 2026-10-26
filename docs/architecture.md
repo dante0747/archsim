@@ -60,6 +60,9 @@ Pure Python, depends only on SimPy and Pydantic. It owns:
 | `provenance.py` | Where every input came from: measured (with source and fit), assumed or illustrative. |
 | `calibration/` | Calibration from Prometheus (`prometheus.py`, `mapping.py`, `apply.py`) and OpenTelemetry (`otlp.py`), fitting (`fit.py`) and the replay check. |
 | `assumptions.py` | Renders docs/assumptions.md: every default, preset number and constant, documented or illustrative. |
+| `export/` | docker-compose, Kubernetes and Mermaid scaffolding (`export_document`; the web app's Export dialog and the MCP server use it through `POST /export` or directly). |
+| `sweep.py` | Breaking point: constant-load steps, the knee and the highest load within the objectives. |
+| `slo.py` | Objectives: the verdict of a run (p95, p99, availability, throughput). |
 | `compare.py` | Two-report comparison with input diff and explanations. |
 | `cli.py` | The `archsim` command: `validate`, `run`, `analyze`, `compare`, `catalog`, `schema`. |
 
@@ -69,6 +72,13 @@ The engine can be used directly:
 from archsim_engine import run_simulation, compare_reports
 report = run_simulation(document_dict, scenario_id="three-api-replicas")
 ```
+
+### MCP server (`packages/mcp`, import name `archsim_mcp`)
+
+A stdio [MCP](https://modelcontextprotocol.io) server on the official SDK (`archsim-mcp`) that
+calls the engine directly: tools to list, validate, analyze, simulate, compare, sweep, export
+and calibrate, plus resources for the templates, the JSON Schema and the simulation model.
+See [`agents.md`](agents.md).
 
 ### API (`services/api`, import name `archsim_api`)
 
@@ -86,9 +96,11 @@ renders it with React Flow, and builds the technology library, the inspector for
 technology presets from the component catalog returned by `GET /api/v1/components`. Domain
 rules have one source of truth, the engine: auto sizes, cost estimates and the design review
 come from `POST /api/v1/analyze` (called with live validation) and from each run's report, so
-the CLI, the API and the web app give the same answers. SLO evaluation, replay events, load
-sweeps and the docker-compose / Kubernetes / Mermaid exporters are TypeScript modules in
-`apps/web/src/lib/` with unit tests (web tests use engine fixtures written by
+the CLI, the API and the web app give the same answers; the docker-compose / Kubernetes /
+Mermaid exports come from `POST /api/v1/export`. SLO evaluation, replay events and load sweep
+analysis still have TypeScript modules in `apps/web/src/lib/` (the engine has its own
+`slo.py` and `sweep.py` for the CLI and the MCP server; moving the web app onto them is open)
+with unit tests (web tests use engine fixtures written by
 `scripts/export_web_fixtures.py`); the simulation itself only ever runs in the engine.
 
 ## The document: four separate concerns

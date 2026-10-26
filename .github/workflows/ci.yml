@@ -30,7 +30,7 @@ jobs:
       - name: Format
         run: uv run ruff format --check packages services
       - name: Type check
-        run: uv run mypy packages/engine/src services/api/src
+        run: uv run mypy packages/engine/src services/api/src packages/mcp/src
       - name: Tests
         run: uv run pytest
 

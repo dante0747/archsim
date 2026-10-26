@@ -309,6 +309,26 @@ serves 10 example designs (see below).
   note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
   report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
   counts on the landing are computed from the catalog.
+- MCP server for AI coding agents (2026-10-26; Phase 4 of docs/prompts/how-to-win.md).
+  `packages/mcp` (`archsim-mcp`) is a Model Context Protocol server over stdio on the official
+  `mcp` Python SDK (v2, `MCPServer`), running the engine directly: tools `list_part_types`,
+  `list_templates`, `get_template`, `validate_design`, `analyze_design`, `simulate`,
+  `get_results`, `compare`, `breaking_point`, `export` and `calibrate` (files only, no
+  Prometheus queries), resources for the document schema, the templates and the simulation
+  model doc. Results are compact JSON (verdict, key numbers, findings, per-part status, cost,
+  run id and digest); unusable documents come back as errors listing each issue and its fix;
+  runs keep the engine's limits (120 s, 2 million requests by default). To serve both the MCP
+  server and the web app from one source, the docker-compose, Kubernetes and Mermaid exporters
+  moved from TypeScript to the engine (`archsim_engine.export`, `POST /export`; the web app's
+  Export dialog calls it and the TypeScript copies are deleted), and the engine gained the
+  breaking-point sweep (`sweep.py`) and objective checks (`slo.py`) the MCP tools need. Tests:
+  an agent session over stdio with the SDK's own client (tools and resources listed, simulate
+  twice with the same digest, analyze, export, an invalid design's validation and error,
+  get_results, compare two scenarios, a three-step breaking point, calibrate from the recorded
+  fixture), 9 exporter tests, 1 API test. Not verified: Claude Code, Claude Desktop or Cursor
+  driving the server (only the SDK client); the package is not published (`uvx` does not work
+  yet). The web app keeps TypeScript copies of the SLO verdict and sweep analysis for its own
+  pages (moving them onto the engine is open).
 - Calibration from telemetry (engine 0.8.0, schema 1.1, report 1.9, 2026-10-26; Phase 3 of
   docs/prompts/how-to-win.md). Schema 1.1 adds `provenance` (per input: illustrative, assumed or
   measured, with source, query, time range, fit error and when) and a `calibration` record;
@@ -448,8 +468,9 @@ serves 10 example designs (see below).
   projects.
 - Unit tests: document conversion, connection rules, distributions, editor store, workload
   math, form controls, theme and shapes, command ranking, recorder (sampling, events, heat),
-  faults and experiment verdicts, cost, load sweeps, decision report, design review rules and
-  the three exporters. A Python test keeps the web catalog fixture in sync with the registry.
+  faults and experiment verdicts, cost, load sweeps, decision report and design review rules
+  (the exporters are tested in the engine). A Python test keeps the web catalog fixture in sync
+  with the registry.
 
 **Examples** (`examples/`, 8): cache-aside starter, queueing lab, retry storm with a TTL cache,
 and five technology templates: Black Friday on Kubernetes (HPA, Kong rate limit, PostgreSQL

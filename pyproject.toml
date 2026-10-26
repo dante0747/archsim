@@ -3,17 +3,18 @@ name = "archsim-workspace"
 version = "0.2.0"
 description = "Development workspace for ArchSim (engine + API). Not published."
 requires-python = ">=3.11"
-dependencies = ["archsim-engine", "archsim-api"]
+dependencies = ["archsim-engine", "archsim-api", "archsim-mcp"]
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["packages/engine", "services/api"]
+members = ["packages/engine", "services/api", "packages/mcp"]
 
 [tool.uv.sources]
 archsim-engine = { workspace = true }
 archsim-api = { workspace = true }
+archsim-mcp = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -34,7 +35,7 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["E501", "RUF012"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["archsim_engine", "archsim_api", "engine_builders", "api_helpers"]
+known-first-party = ["archsim_engine", "archsim_api", "archsim_mcp", "engine_builders", "api_helpers"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends", "fastapi.Body", "fastapi.Query"]
@@ -44,6 +45,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Body", "fastapi.Query"]
 # Formulas shown to users use real math symbols (x, minus, divide, lambda, ceiling brackets).
 "packages/engine/src/archsim_engine/{explain,report}.py" = ["RUF001"]
 "packages/engine/src/archsim_engine/components/*.py" = ["RUF001"]
+"packages/engine/src/archsim_engine/export/*.py" = ["RUF001"]
 "packages/engine/src/archsim_engine/{sizing,cost,review,validation,assumptions}.py" = ["RUF001"]
 "packages/engine/tests/test_{analysis_rules,limits}.py" = ["RUF001"]
 "services/api/alembic/**" = ["E402"]
@@ -59,7 +61,7 @@ ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/engine/tests", "services/api/tests"]
+testpaths = ["packages/engine/tests", "services/api/tests", "packages/mcp/tests"]
 addopts = "-q"
 filterwarnings = [
   # Starlette suggests a different HTTP client for its TestClient; httpx still works.

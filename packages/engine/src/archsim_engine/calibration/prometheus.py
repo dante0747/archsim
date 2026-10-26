@@ -19,7 +19,8 @@ Series = list[dict[str, Any]]  # Prometheus matrix: [{"metric": {...}, "values":
 
 
 class PrometheusClient(Protocol):
-    source: str
+    @property
+    def source(self) -> str: ...
 
     def query_range(self, query: str, start: float, end: float, step: float) -> Series: ...
 

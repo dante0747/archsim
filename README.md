@@ -154,6 +154,12 @@ clicking. Every agent edit shows on the canvas, is announced in a toast and can 
 is an experimental draft standard; see [docs/agents.md](docs/agents.md) for the tools and
 browser support.
 
+**AI coding agents (MCP):** `packages/mcp` is an MCP server over stdio for Claude Code, Claude
+Desktop, Cursor and others: list part types and templates, validate, analyze, simulate (with
+the verdict, findings and result digest), compare, find the breaking point, export and
+calibrate, with the engine's limits and no browser or API server
+(`claude mcp add archsim -- uv run --directory /path/to/archsim archsim-mcp`).
+
 **Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and the
 Studio theme, dark by default, in dark and light (the sun/moon button at the top right picks one
 or follows the system). The screenshots in this README still show the previous look. Templates have their own gallery (`/templates`): each card draws the design with
@@ -274,7 +280,7 @@ loop, and a design whose one request would fan out into more than 10,000 calls i
 ```bash
 uv run pytest                                   # engine + API
 uv run ruff check packages services && uv run ruff format --check packages services
-uv run mypy packages/engine/src services/api/src
+uv run mypy packages/engine/src services/api/src packages/mcp/src
 cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
 ```
 
@@ -304,7 +310,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)
-- [AI agents: the WebMCP tools](docs/agents.md)
+- [AI agents: the MCP server and the WebMCP tools](docs/agents.md)
 - [Roadmap: calibration, Grafana, AI/MCP, more components](docs/roadmap.md)
 - [Implementation status](IMPLEMENTATION_STATUS.md)
 
@@ -321,8 +327,9 @@ restarts, disk and network bandwidth, packet loss, deadlocks and range locks, ra
 (faults are scheduled), parallel fan-out calls, regions. The full list is in
 [docs/simulation-model.md](docs/simulation-model.md#what-is-not-modeled). There is no
 authentication; do not expose the API publicly.
-Prometheus calibration, Grafana integration and a server-side MCP API are on the roadmap, not
-implemented; AI agents in the browser can already use the [WebMCP tools](docs/agents.md).
+Grafana integration and an HTTP transport for the MCP server are on the roadmap, not
+implemented; AI agents can use the stdio MCP server and, in the browser, the
+[WebMCP tools](docs/agents.md).
 Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 ## Troubleshooting
