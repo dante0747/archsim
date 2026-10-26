@@ -400,10 +400,12 @@ def calibrate(
     export (optional mapping of service and database names to parts). Returns the calibrated
     document, what changed (with fit errors) and the replay check against what was observed."""
     from archsim_engine.calibration import (
+        PrometheusError,
         RecordedPrometheus,
         calibrate_otlp,
         calibrate_prometheus,
-        load_mapping,
+        load_mapping_file,
+        load_otlp_mapping,
         replay_summary,
     )
 
@@ -416,21 +418,28 @@ def calibrate(
                 )
             outcome = calibrate_prometheus(
                 doc,
-                load_mapping(Path(mapping_path)),
+                load_mapping_file(mapping_path),
                 RecordedPrometheus.load(recorded_path),
                 default_registry(),
+                limits=LIMITS,
             )
         else:
             if not traces_path:
                 raise ValueError("OTLP calibration needs traces_path (an OTLP JSON file)")
-            mapping = None
-            if mapping_path:
-                from archsim_engine.safe_yaml import load_yaml
-
-                mapping = load_yaml(Path(mapping_path).read_text(encoding="utf-8"))
-            outcome = calibrate_otlp(doc, traces_path, default_registry(), mapping)
+            mapping = (
+                load_otlp_mapping(Path(mapping_path).read_text(encoding="utf-8"))
+                if mapping_path
+                else None
+            )
+            outcome = calibrate_otlp(doc, traces_path, default_registry(), mapping, limits=LIMITS)
     except DocumentInvalidError as exc:
         raise _fix(exc) from None
+    except SimulationLimitError as exc:
+        raise ValueError(
+            f"The replay run hit a limit: {exc}. Shorten the design's durationS or lower the load."
+        ) from None
+    except PrometheusError as exc:
+        raise ValueError(f"Cannot calibrate: {exc}") from None
     result = outcome.to_dict()
     result["summary"] = replay_summary(outcome.document.get("calibration"))
     return result

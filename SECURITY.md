@@ -46,6 +46,16 @@ exposing it to anyone else:
   checked while it runs. Retries are capped at 5 attempts per call and queues at 100,000
   entries per pool. At most `ARCHSIM_MAX_CONCURRENT_RUNS` simulations execute at once; extra
   runs wait in the queue.
+- **Outbound requests from calibration.** `POST /calibrate` queries the Prometheus URL a
+  request names (the only outbound request the API makes). By default any host is allowed, for
+  local use; **set `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS`** (comma-separated `host` or
+  `host:port`) before the API is reachable by anyone else, or it can be used to probe hosts
+  the server can reach. The allowlist matches the URL's host name, not the address it resolves
+  to, so list names you control. Each query has one deadline (`ARCHSIM_PROMETHEUS_TIMEOUT_S`,
+  30 s, body included) and a size cap (`ARCHSIM_PROMETHEUS_MAX_BYTES`, 50 MiB); redirects are
+  not followed, and errors never repeat what the server answered. The mapping is always text:
+  the API never opens a file a request names. The replay run inside the request is bounded by
+  `ARCHSIM_CALIBRATE_MAX_WALL_SECONDS` (60 s) and `ARCHSIM_MAX_REQUESTS`.
 - **CORS.** Only origins in `ARCHSIM_CORS_ORIGINS` (default `http://localhost:3000`) may call
   the API from a browser. The web app normally reaches the API through its own same-origin
   proxy, so CORS rarely needs widening.

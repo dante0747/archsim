@@ -164,18 +164,18 @@ def cmd_calibrate_prometheus(args: argparse.Namespace) -> int:
         RecordedPrometheus,
         RecordingPrometheus,
         calibrate_prometheus,
-        load_mapping,
+        load_mapping_file,
         parse_range,
     )
 
-    mapping = load_mapping(Path(args.map))
-    client: Any = (
-        RecordedPrometheus.load(args.recorded) if args.recorded else HttpPrometheus(args.url)
-    )
-    if args.record:
-        client = RecordingPrometheus(client)
-    rng = parse_range(args.range, args.step) if args.range else None
     try:
+        mapping = load_mapping_file(args.map)
+        client: Any = (
+            RecordedPrometheus.load(args.recorded) if args.recorded else HttpPrometheus(args.url)
+        )
+        if args.record:
+            client = RecordingPrometheus(client)
+        rng = parse_range(args.range, args.step) if args.range else None
         outcome = calibrate_prometheus(
             _load(args.file), mapping, client, default_registry(), rng, replay=not args.no_replay
         )
@@ -183,7 +183,16 @@ def cmd_calibrate_prometheus(args: argparse.Namespace) -> int:
         print("Cannot calibrate: document is invalid", file=sys.stderr)
         _print_issues(exc.issues)
         return 1
-    except (PrometheusError, ValueError) as exc:
+    except SimulationLimitError as exc:
+        print(f"Cannot calibrate: the replay hit a limit: {exc}", file=sys.stderr)
+        print("  (--no-replay skips it)", file=sys.stderr)
+        return 1
+    except PrometheusError as exc:
+        print(f"Cannot calibrate: {exc}", file=sys.stderr)
+        if exc.detail:
+            print(f"  Prometheus said: {exc.detail}", file=sys.stderr)
+        return 1
+    except (ValueError, OSError) as exc:
         print(f"Cannot calibrate: {exc}", file=sys.stderr)
         return 1
     if args.record:
@@ -193,20 +202,21 @@ def cmd_calibrate_prometheus(args: argparse.Namespace) -> int:
 
 
 def cmd_calibrate_otlp(args: argparse.Namespace) -> int:
-    from archsim_engine.calibration import calibrate_otlp
+    from archsim_engine.calibration import calibrate_otlp, load_otlp_mapping
 
-    mapping = None
-    if args.map:
-        from archsim_engine.safe_yaml import load_yaml
-
-        mapping = load_yaml(Path(args.map).read_text(encoding="utf-8"))
     try:
+        mapping = (
+            load_otlp_mapping(Path(args.map).read_text(encoding="utf-8")) if args.map else None
+        )
         outcome = calibrate_otlp(_load(args.file), args.traces, default_registry(), mapping)
     except DocumentInvalidError as exc:
         print("Cannot calibrate: document is invalid", file=sys.stderr)
         _print_issues(exc.issues)
         return 1
-    except (ValueError, KeyError) as exc:
+    except SimulationLimitError as exc:
+        print(f"Cannot calibrate: the replay hit a limit: {exc}", file=sys.stderr)
+        return 1
+    except (ValueError, KeyError, OSError) as exc:
         print(f"Cannot calibrate: {exc}", file=sys.stderr)
         return 1
     return _write_calibration(outcome, args.out)

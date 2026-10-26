@@ -1,23 +1,32 @@
 """Where every numeric input of a design came from.
 
 An input is **measured** when the document's ``provenance`` says so (calibration writes it, with
-the source, the query, the time range and how well the fit matched), **illustrative** when it is
-ArchSim's default or the number the technology's preset fills in, and **assumed** otherwise (a
-person typed it). Reports list every performance input with its provenance; the inspector badges
-measured ones.
+the source, the query, the time range, how well the fit matched and the value it set) **and** the
+input still has that value; **illustrative** when it is ArchSim's default or the number the
+technology's preset fills in; and **assumed** otherwise (a person typed it). A measured input whose
+value has changed since (a scenario override, a sweep, an edit through the CLI, MCP or API) is
+classified as if it had no record, with a note saying it was measured before. Reports list every
+performance input with its provenance; the inspector badges measured ones.
 
 Paths: ``nodes/<id>/<config key>``, ``edges/<id>/<config key>``, ``workload/<field>``.
 """
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pydantic import BaseModel
 
 from archsim_engine.distributions import Constant, Empirical, Exponential, LogNormal, Uniform
 from archsim_engine.registry import ComponentRegistry, describe_fields
-from archsim_engine.schema import ArchitectureDocument, EdgeConfig, NodeSpec, Workload
+from archsim_engine.schema import (
+    ArchitectureDocument,
+    EdgeConfig,
+    InputProvenance,
+    NodeSpec,
+    Workload,
+)
 
 Json = dict[str, Any]
 WORKLOAD_INPUTS = ("rps", "readRatio", "keyCount", "keySkew", "pattern")
@@ -41,6 +50,60 @@ def _same(a: Any, b: Any) -> bool:
     return bool(a == b)
 
 
+def same_value(a: Any, b: Any) -> bool:
+    """JSON values equal up to number representation (``6`` and ``6.0``) and float noise."""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return a is b
+    if isinstance(a, int | float) and isinstance(b, int | float):
+        return math.isclose(float(a), float(b), rel_tol=1e-9, abs_tol=1e-12)
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(same_value(a[k], b[k]) for k in a)
+    if isinstance(a, list | tuple) and isinstance(b, list | tuple):
+        return len(a) == len(b) and all(same_value(x, y) for x, y in zip(a, b, strict=True))
+    return bool(a == b)
+
+
+def value_at(doc: Json, path: str) -> Any:
+    """The value at a provenance path in a document's JSON (``None`` when it is not set)."""
+    scope, _, rest = path.partition("/")
+    if scope == "workload":
+        return (doc.get("workload") or {}).get(rest)
+    if scope not in ("nodes", "edges"):
+        return None
+    ident, _, key = rest.rpartition("/")
+    for item in (doc.get("architecture") or {}).get(scope) or []:
+        if item.get("id") == ident:
+            return (item.get("config") or {}).get(key)
+    return None
+
+
+def stamp_values(doc: Json, records: dict[str, Json]) -> None:
+    """Record in each provenance record the value its path holds in ``doc`` (a document's
+    canonical JSON, ``load_document(...).to_json_dict()``), so the input counts as measured only
+    while it keeps that value."""
+    for path, record in records.items():
+        record["value"] = value_at(doc, path)
+
+
+def _recorded(entry: InputProvenance | None, current: Any) -> tuple[Json | None, str | None]:
+    """The recorded provenance to report, or (None, a note) when a measured input has changed
+    since it was measured (it is then classified as if it had no record)."""
+    if entry is None:
+        return None, None
+    if (
+        entry.kind == "measured"
+        and entry.value is not None
+        and not same_value(entry.value, current)
+    ):
+        where = ", ".join(x for x in (entry.source, entry.time_range) if x) or "telemetry"
+        return None, f"changed since it was measured ({where})"
+    return entry.model_dump(mode="json", by_alias=True, exclude_none=True, exclude={"value"}), None
+
+
+def _with_note(result: Json, note: str | None) -> Json:
+    return {**result, "note": note} if note else result
+
+
 def describe_value(v: Any, unit: str | None = None) -> str:
     if isinstance(v, Constant | Exponential | Uniform | LogNormal | Empirical):
         return v.describe()
@@ -59,13 +122,13 @@ def classify_node_input(
     doc: ArchitectureDocument, registry: ComponentRegistry, node: NodeSpec, key: str
 ) -> Json:
     """Provenance of one config value of a node (see the module docstring)."""
-    explicit = doc.provenance.get(node_path(node.id, key))
+    explicit, changed = _recorded(doc.provenance.get(node_path(node.id, key)), node.config.get(key))
     if explicit is not None:
-        return explicit.model_dump(mode="json", by_alias=True, exclude_none=True)
+        return explicit
     model = registry.get(node.type)
     default = model.default_config()
     if key not in node.config or _same(node.config[key], default.get(key)):
-        return {"kind": "illustrative", "source": "ArchSim default"}
+        return _with_note({"kind": "illustrative", "source": "ArchSim default"}, changed)
     tech = node.config.get("technology", default.get("technology"))
     for preset in model.presets:
         if (
@@ -73,40 +136,43 @@ def classify_node_input(
             and key in preset.config
             and _same(preset.config[key], node.config[key])
         ):
-            return {"kind": "illustrative", "source": f"preset {preset.name}"}
-    return {"kind": "assumed"}
+            return _with_note({"kind": "illustrative", "source": f"preset {preset.name}"}, changed)
+    return _with_note({"kind": "assumed"}, changed)
 
 
 def classify_edge_input(
     doc: ArchitectureDocument, registry: ComponentRegistry, edge_id: str, key: str, raw: Json
 ) -> Json:
-    explicit = doc.provenance.get(edge_path(edge_id, key))
-    if explicit is not None:
-        return explicit.model_dump(mode="json", by_alias=True, exclude_none=True)
-    default = EdgeConfig().model_dump(mode="json", by_alias=True)
     value = raw.get(key)
+    explicit, changed = _recorded(doc.provenance.get(edge_path(edge_id, key)), value)
+    if explicit is not None:
+        return explicit
+    default = EdgeConfig().model_dump(mode="json", by_alias=True)
     if value is None or _same(value, default.get(key)):
-        return {"kind": "illustrative", "source": "ArchSim default"}
+        return _with_note({"kind": "illustrative", "source": "ArchSim default"}, changed)
     edge = next((e for e in doc.architecture.edges if e.id == edge_id), None)
     src = doc.node(edge.source) if edge else None
     if src is not None and src.type in registry:
         suggested = registry.get(src.type).link_defaults.get(key)
         if suggested is not None and _same(suggested, value):
-            return {
-                "kind": "illustrative",
-                "source": f"{registry.get(src.type).display_name} link default",
-            }
-    return {"kind": "assumed"}
+            return _with_note(
+                {
+                    "kind": "illustrative",
+                    "source": f"{registry.get(src.type).display_name} link default",
+                },
+                changed,
+            )
+    return _with_note({"kind": "assumed"}, changed)
 
 
 def classify_workload_input(doc: ArchitectureDocument, key: str, raw: Json) -> Json:
-    explicit = doc.provenance.get(workload_path(key))
+    explicit, changed = _recorded(doc.provenance.get(workload_path(key)), raw.get(key))
     if explicit is not None:
-        return explicit.model_dump(mode="json", by_alias=True, exclude_none=True)
+        return explicit
     default = Workload().model_dump(mode="json", by_alias=True)
     if key not in raw or _same(raw[key], default.get(key)):
-        return {"kind": "illustrative", "source": "ArchSim default"}
-    return {"kind": "assumed"}
+        return _with_note({"kind": "illustrative", "source": "ArchSim default"}, changed)
+    return _with_note({"kind": "assumed"}, changed)
 
 
 def input_provenance(doc: ArchitectureDocument, registry: ComponentRegistry) -> list[Json]:

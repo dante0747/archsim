@@ -20,6 +20,7 @@ from archsim_engine.calibration import (
     fit_histogram,
     fit_samples,
     load_mapping,
+    load_mapping_file,
     parse_range,
     replay_summary,
 )
@@ -167,7 +168,7 @@ def test_inputs_are_illustrative_assumed_or_measured() -> None:
 
 
 def calibrated_starter() -> dict:
-    mapping = load_mapping(FIXTURES / "starter-mapping.yaml")
+    mapping = load_mapping_file(FIXTURES / "starter-mapping.yaml")
     client = RecordedPrometheus.load(FIXTURES / "starter-prometheus.json")
     return calibrate_prometheus(starter(), mapping, client, REGISTRY).to_dict()
 
@@ -211,7 +212,7 @@ def test_replay_is_deterministic() -> None:
 
 
 def test_a_recording_keeps_its_range_and_replays_from_it(tmp_path: Path) -> None:
-    mapping = load_mapping(FIXTURES / "starter-mapping.yaml")
+    mapping = load_mapping_file(FIXTURES / "starter-mapping.yaml")
     source = RecordedPrometheus.load(FIXTURES / "starter-prometheus.json")
     assert source.recorded_range is not None
     assert source.recorded_range.start == "2026-10-01T00:00:00Z"

@@ -83,6 +83,40 @@ export function provenanceOf(extras: DocExtras | undefined, path: string): Input
   return extras?.provenance[path];
 }
 
+/** JSON values equal up to float noise (the engine's ``same_value``). */
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (typeof a === "number" && typeof b === "number") {
+    return a === b || Math.abs(a - b) <= Math.max(1e-12, 1e-9 * Math.max(Math.abs(a), Math.abs(b)));
+  }
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameValue(x, b[i]));
+  if (a && b && typeof a === "object" && typeof b === "object" && !Array.isArray(a) && !Array.isArray(b)) {
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) => k in b && sameValue((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+  }
+  return a === b;
+}
+
+/** Whether a measured input still has the value calibration set. Records without a value
+ * (written before schema 1.2 kept it) are taken at their word. */
+export function stillMeasured(p: InputProvenance | undefined, current: unknown): boolean {
+  return p?.kind === "measured" && (p.value === undefined || p.value === null || sameValue(p.value, current));
+}
+
+/** One line on a calibration's replay: the end-to-end p95 and always the largest of all errors
+ * (a close p95 can hide a poor p99 or part). Empty when nothing was compared. */
+export function replayVerdict(record: CalibrationRecord | null | undefined): string {
+  const checks = (record?.replay ?? []).filter((c) => c.error != null);
+  if (!checks.length) return "";
+  const pct = (e: number) => `${e > 0 ? "+" : ""}${Math.round(e * 100)}%`;
+  const worst = checks.reduce((w, c) => (Math.abs(c.error ?? 0) > Math.abs(w.error ?? 0) ? c : w));
+  const metric = worst.metric === "throughputRps" ? "throughput" : worst.metric;
+  const largest = `the largest of ${checks.length} replay errors is ${pct(worst.error ?? 0)} (${worst.label} ${metric})`;
+  const e2e = checks.find((c) => c.scope === "end_to_end" && c.metric === "p95");
+  if (!e2e || e2e.error == null) return `${largest[0].toUpperCase()}${largest.slice(1)}.`;
+  return `The model reproduces the observed p95 within ${Math.round(Math.abs(e2e.error) * 100)}% (${e2e.error > 0 ? "over" : "under"}); ${largest}.`;
+}
+
 /** ``extras`` without the provenance of edited inputs (a typed value is no longer measured). */
 export function withoutProvenance(extras: DocExtras | undefined, paths: string[], prefixes: string[] = []): DocExtras | undefined {
   if (!extras) return extras;

@@ -88,6 +88,17 @@ def load_all_yaml(text: str) -> Iterator[Any]:
         loader.dispose()
 
 
+def describe_yaml_error(exc: yaml.YAMLError) -> str:
+    """What is wrong and where (line, column), without the excerpt of the text that
+    ``str(exc)`` prints: the text may have come from someone else."""
+    problem = getattr(exc, "problem", None)
+    mark = getattr(exc, "problem_mark", None)
+    if problem is None:
+        return str(exc) if not hasattr(exc, "problem_mark") else "invalid YAML"
+    where = f" at line {mark.line + 1}, column {mark.column + 1}" if mark is not None else ""
+    return f"{problem}{where}"
+
+
 def load_yaml(text: str) -> Any:
     """The single document in ``text`` (``None`` when empty), parsed safely."""
     docs = list(load_all_yaml(text))

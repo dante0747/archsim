@@ -18,13 +18,19 @@ from typing import Any
 
 from archsim_engine.calibration.apply import Change, Outcome, now_iso
 from archsim_engine.calibration.fit import fit_samples, sample_quantile
-from archsim_engine.provenance import node_path
+from archsim_engine.engine import SimulationLimits
+from archsim_engine.provenance import node_path, stamp_values
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.scenarios import load_document
 
 Json = dict[str, Any]
 KINDS = {1: "INTERNAL", 2: "SERVER", 3: "CLIENT", 4: "PRODUCER", 5: "CONSUMER"}
 WRITES = {"INSERT", "UPDATE", "DELETE", "UPSERT", "MERGE", "SET", "PUT", "HSET", "DEL"}
+MAX_PARENT_DEPTH = 1000
+"""Most parent links followed from one span (real traces are far shallower)."""
+REPLAY_MAX_DURATION_S = 300.0
+"""Longest replay run: the replay compares latency at the traced rate, which needs minutes at
+most, and the API runs it inside a request."""
 
 
 @dataclass
@@ -55,6 +61,7 @@ class TraceSummary:
     start_ns: int = 0
     end_ns: int = 0
     spans: int = 0
+    parent_loops: int = 0  # spans whose chain of parent links loops back on itself
 
 
 def _attr_value(v: dict[str, Any]) -> Any:
@@ -128,8 +135,18 @@ def summarize(spans: list[Span]) -> TraceSummary:
             children[(s.trace_id, s.parent_id)].append(s)
 
     def server_of(s: Span) -> Span | None:
+        """The nearest SERVER ancestor. Parent links come from the file, so they may loop (a
+        span that is its own parent, or a cycle): each span is visited once, and the walk stops
+        after ``MAX_PARENT_DEPTH`` links."""
+        seen = {s.span_id}
         cur: Span | None = s
-        while cur is not None and cur.parent_id:
+        for _ in range(MAX_PARENT_DEPTH):
+            if cur is None or not cur.parent_id:
+                return None
+            if cur.parent_id in seen:
+                out.parent_loops += 1
+                return None
+            seen.add(cur.parent_id)
             cur = by_id.get((cur.trace_id, cur.parent_id))
             if cur is not None and cur.kind == "SERVER":
                 return cur
@@ -179,8 +196,11 @@ def calibrate_otlp(
     registry: ComponentRegistry,
     mapping: dict[str, dict[str, str]] | None = None,
     min_samples: int = 20,
+    limits: SimulationLimits | None = None,
 ) -> Outcome:
-    """Set service and database times of ``document`` from an OTLP JSON trace export."""
+    """Set service and database times of ``document`` from an OTLP JSON trace export
+    (``traces``: the parsed export, or a path to read it from). ``limits`` bound the replay run
+    (``SimulationLimitError`` when it would exceed them)."""
     data = (
         json.loads(Path(traces).read_text(encoding="utf-8"))
         if isinstance(traces, str | Path)
@@ -191,15 +211,22 @@ def calibrate_otlp(
         if isinstance(traces, str | Path)
         else "OpenTelemetry traces"
     )
-    summary = summarize(parse_otlp(data))
+    try:
+        spans = parse_otlp(data)
+    except (AttributeError, TypeError) as exc:
+        raise ValueError(f"not an OTLP JSON export ({type(exc).__name__})") from None
+    summary = summarize(spans)
     doc = load_document(document).to_json_dict()
     out = Outcome(doc)
     if not summary.spans:
         out.notes.append("the file has no spans")
         return out
-    mapping = mapping or {}
-    services_map = mapping.get("services", {})
-    db_map = mapping.get("databases", {})
+    services_map, db_map = _check_mapping(mapping)
+    if summary.parent_loops:
+        out.notes.append(
+            f"{summary.parent_loops} spans have parent links that loop back on themselves: "
+            "their time is not subtracted from any service"
+        )
     rng = f"{_iso(summary.start_ns)}/{_iso(summary.end_ns)}"
     nodes = {n["id"]: n for n in doc["architecture"]["nodes"]}
     prov: Json = {}
@@ -224,6 +251,8 @@ def calibrate_otlp(
             "fittedAt": now_iso(),
             "note": f"{len(samples):,} spans",
         }
+        if fit.error is None:
+            del prov[path]["fitError"]
         out.changes.append(
             Change(
                 path,
@@ -275,8 +304,9 @@ def calibrate_otlp(
             out.notes.append(
                 f"the traces show {src} calling {dst} ({n} calls) but the design has no link {a} → {b}"
             )
+    stamp_values(load_document(doc).to_json_dict(), prov)
     doc["provenance"] = {**(doc.get("provenance") or {}), **prov}
-    replay, digest = _replay(doc, summary, services_map, registry)
+    replay, digest = _replay(doc, summary, services_map, registry, limits)
     doc["calibration"] = {
         "at": now_iso(),
         "source": label,
@@ -291,11 +321,56 @@ def calibrate_otlp(
     return out
 
 
+def load_otlp_mapping(source: str | dict[str, Any] | None) -> dict[str, dict[str, str]] | None:
+    """An OTLP mapping (``services``, ``databases``: name -> part id) from YAML/JSON text or a
+    dict. A string is always the mapping's text, never a path."""
+    if source is None:
+        return None
+    data: Any = source
+    if isinstance(source, str):
+        import yaml
+
+        from archsim_engine.safe_yaml import describe_yaml_error, load_yaml
+
+        try:
+            data = load_yaml(source)
+        except yaml.YAMLError as exc:
+            raise ValueError(
+                f"the OTLP mapping is not valid YAML: {describe_yaml_error(exc)}"
+            ) from None
+    if data is None:
+        return None
+    services, databases = _check_mapping(data)
+    return {"services": services, "databases": databases}
+
+
+def _check_mapping(mapping: Any) -> tuple[dict[str, str], dict[str, str]]:
+    """``services`` and ``databases`` of an OTLP mapping, each name -> part id."""
+    if mapping is None:
+        return {}, {}
+    if not isinstance(mapping, dict):
+        raise ValueError("the OTLP mapping must be an object: {services: {...}, databases: {...}}")
+    out: list[dict[str, str]] = []
+    for key in ("services", "databases"):
+        section = mapping.get(key) or {}
+        if not isinstance(section, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in section.items()
+        ):
+            raise ValueError(f"the OTLP mapping's '{key}' must map names to part ids")
+        out.append(section)
+    return out[0], out[1]
+
+
 def _replay(
-    doc: Json, summary: TraceSummary, services_map: dict[str, str], registry: ComponentRegistry
+    doc: Json,
+    summary: TraceSummary,
+    services_map: dict[str, str],
+    registry: ComponentRegistry,
+    limits: SimulationLimits | None = None,
 ) -> tuple[list[Json], str | None]:
     """Simulate the calibrated design at the traced request rate and compare each mapped
-    service's latency (its SERVER spans, downstream calls included) with the simulation."""
+    service's latency (its SERVER spans, downstream calls included) with the simulation. The
+    run lasts the document's duration, at least 60 s and at most ``REPLAY_MAX_DURATION_S``."""
     import copy
 
     from archsim_engine import run_simulation
@@ -308,8 +383,12 @@ def _replay(
     wl = replayed["workload"]
     wl["rps"] = round(min(max(rate, 0.1), 100_000), 4)
     wl["pattern"] = {"kind": "constant"}
-    wl["durationS"] = max(60.0, float(wl.get("durationS", 60)))
-    report = run_simulation(replayed, registry=registry)
+    duration = max(60.0, float(wl.get("durationS", 60)))
+    if duration > REPLAY_MAX_DURATION_S:
+        duration = REPLAY_MAX_DURATION_S
+        wl["warmupS"] = min(float(wl.get("warmupS", 0)), duration / 10)
+    wl["durationS"] = duration
+    report = run_simulation(replayed, registry=registry, limits=limits)
     nodes = {n["id"]: n for n in report["nodes"]}
     checks: list[Json] = []
     for service, samples in sorted(summary.server_ms.items()):

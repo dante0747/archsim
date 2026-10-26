@@ -29,7 +29,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 
 class _M(BaseModel):
@@ -97,16 +97,50 @@ class Mapping(_M):
     replay: Replay | None = None
 
 
-def load_mapping(source: str | Path | dict[str, Any]) -> Mapping:
-    """A mapping from a dict, a YAML/JSON string, or a file path."""
-    if isinstance(source, dict):
-        return Mapping.model_validate(source)
-    text = Path(source).read_text(encoding="utf-8") if isinstance(source, Path) else source
-    if isinstance(source, str) and "\n" not in source and Path(source).exists():
-        text = Path(source).read_text(encoding="utf-8")
-    from archsim_engine.safe_yaml import load_yaml
+class MappingError(ValueError):
+    """The mapping cannot be used. The message names what is wrong and where, never the values
+    it was given (a mapping can come from a request; errors go back to whoever sent it)."""
 
-    data = load_yaml(text)
+
+def validation_message(exc: ValidationError, limit: int = 10) -> str:
+    """A pydantic validation error as ``where: what`` lines, without the input values pydantic
+    puts in ``str(exc)`` (``input_value=...``)."""
+    errors = exc.errors(include_url=False, include_input=False, include_context=False)
+    lines = [
+        f"{'.'.join(str(x) for x in e['loc']) or '(top level)'}: {e['msg']}" for e in errors[:limit]
+    ]
+    if len(errors) > limit:
+        lines.append(f"... and {len(errors) - limit} more")
+    return "; ".join(lines)
+
+
+def load_mapping(source: str | dict[str, Any]) -> Mapping:
+    """A mapping from YAML/JSON text or a dict. A string is always the mapping's text, never a
+    path: use ``load_mapping_file`` to read a file (the CLI and the MCP server do, for paths the
+    person running them names; the API never reads files)."""
+    if isinstance(source, Path):
+        raise TypeError("load_mapping takes text or a dict; use load_mapping_file(path) for a file")
+    if isinstance(source, str):
+        import yaml
+
+        from archsim_engine.safe_yaml import describe_yaml_error, load_yaml
+
+        try:
+            data: Any = load_yaml(source)
+        except yaml.YAMLError as exc:
+            raise MappingError(
+                f"the mapping is not valid YAML: {describe_yaml_error(exc)}"
+            ) from None
+    else:
+        data = source
     if not isinstance(data, dict):
-        raise ValueError("the mapping must be a YAML or JSON object")
-    return Mapping.model_validate(data)
+        raise MappingError("the mapping must be a YAML or JSON object")
+    try:
+        return Mapping.model_validate(data)
+    except ValidationError as exc:
+        raise MappingError(f"the mapping is not valid: {validation_message(exc)}") from None
+
+
+def load_mapping_file(path: str | Path) -> Mapping:
+    """A mapping read from a file (YAML or JSON)."""
+    return load_mapping(Path(path).read_text(encoding="utf-8"))
