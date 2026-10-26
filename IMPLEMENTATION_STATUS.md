@@ -7,6 +7,49 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**Review fixes (2026-10-26, branch review-fixes on top of phases 1-8).** A review of phases
+1-8 found bugs the tests did not cover; each fix below has a regression test that failed
+before it.
+
+- Untrusted YAML (imports, calibration mappings, CLI, MCP) goes through one loader,
+  `archsim_engine.safe_yaml`: aliases are allowed (Compose merge keys) but capped at 200,000
+  expanded values; recursive aliases, nesting past 100 levels and text over 5 MB are refused. A
+  600-byte alias bomb that held the importer for 19 s is refused in milliseconds. PyYAML is a
+  declared engine dependency.
+- Imports classify images by full repository name and list image-based types under `guessed`;
+  exporters, UIs and migrators become plain services and `server` is no longer SQL Server.
+  Imported designs validate and run (one entry for clients, never the cluster part; cache misses
+  wired; small memory limits fit; Terraform load balancers get guessed targets; a test checks
+  every fixture). Replicas default to 1, real `500m`/`512Mi` requests are kept, HPA targets are
+  CPU only (v1 supported), Terraform references match exact addresses. Bad input is a 422 / exit
+  2, never a 500; the CLI reads UTF-16 and BOM files.
+- Calibration: the API never reads files from a mapping and its errors never echo input; the
+  Prometheus client has one deadline, a 50 MiB cap and no redirects, and
+  `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` must be set before the API is reachable from elsewhere.
+  "Measured" requires the input to still hold the fitted value (stored in provenance), so
+  scenarios, sweeps and edits show as assumed. Calibration never changes the run's duration;
+  replays run under limits (API: 60 s wall clock) and a limit gives a 422. OTLP parent-link
+  loops end. Empirical histogram tables end where the data ends and report the share past the
+  last bucket; the replay summary always names the worst error.
+- The process runner survives a crashed worker: runs on the broken pool fail with "The
+  simulation worker stopped unexpectedly", the pool is replaced once per break and later runs
+  succeed without a restart (tested by crashing a worker); a worker's death is noticed within
+  0.5 s. `DocumentInvalidError` crosses process boundaries, so parallel sweeps report a
+  design's issues instead of `BrokenProcessPool`.
+- `archsim check`: an unreadable `--baseline-ref` (typo, shallow clone, not a repository) exits
+  2 instead of passing; only a file missing at a valid commit means "no baseline". `--knee`
+  sweeps design and baseline on one shared grid (then a finer one) and flags a drop only past
+  the threshold and one grid step; missing the objectives at the lightest load is a
+  regression. Any error exits 2; output is UTF-8 on Windows. The CI action posts one comment
+  per design, updates only its own bot's comment, escapes design text and works from other
+  repositories.
+- Pricing: a technology preset's `costPerHour` is illustrative (`priceSource: "preset"`) and a
+  price snapshot reprices it; a user price beats managed rates; API gateways are not priced at
+  the load balancer hourly rate; the generic-rates note stays next to snapshot lines.
+  `pricing.snapshotDate` / `snapshotSha256` pin a snapshot (exactly that one, or a warning and
+  generic rates), and runs record the snapshot used (date and content hash) in
+  `input.pricing`. Documents without `pricing` keep identical results.
+
 **Engine** (`packages/engine`, 187 tests)
 
 v2 additions:
@@ -441,7 +484,9 @@ serves 10 example designs (see below).
   query; reports count inputs by provenance. Fixtures are generated from known distributions
   (`scripts/make_calibration_fixture.py`, `scripts/make_otlp_fixture.py`), not recorded from a
   live system: the starter calibrates back to the truth (api p50 6.00 / p95 18.6 ms against
-  6 / 18) and replays the observed end-to-end p95 within 5%. 12 engine tests, 2 API tests,
+  6 / 18) and replays the observed end-to-end p95 within 5%, with a largest error of -14%
+  (PostgreSQL p99). The fixture is ArchSim's own simulation of known parameters, so this checks
+  the method, not real-world accuracy. 12 engine tests, 2 API tests,
   5 web tests. Checked in the browser (dev server against this branch's API): the dialog with
   the recorded fixture, the result table and replay check, Apply, and the measured tag and its
   tooltip on the API part. Bug found this way and fixed: a recording did not store its range,
@@ -449,8 +494,9 @@ serves 10 example designs (see below).
   against a live Prometheus or a real OpenTelemetry export (no live system here); the OTLP tab
   in the browser (API-tested only). Choices made without the owner: an explicit mapping file
   rather than metric-name discovery (names vary; guessing would claim more than was measured);
-  lognormal as the default fit; a trace replays in real time when its range fits in an hour,
-  else compressed into the run.
+  lognormal as the default fit; the observed traffic curve is always fitted into the run's
+  existing duration (review fix: ranges up to an hour used to replay in real time, which made
+  every later run of the document that long).
 - Auto-sizing (2026-10-26; computed in the web app until engine 0.7.0, see above): an empty
   CPU, memory or storage spec is "Auto": the part gets the size it needs for the design's peak
   load (now archsim_engine/sizing.py: CPU at a 60% target,
@@ -705,6 +751,14 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Known limitations
 
+- Still open after the review fixes: `recover_interrupted` marks every active run failed when
+  any API process starts, so several API processes on one database break each other's runs;
+  a hard kill of the API leaves worker and manager processes running on Windows; when a pool
+  breaks, every run on it fails, not only the one whose worker died. Sampled mode checks the
+  2M request limit against the full run, so the CLI and MCP refuse the 6M-request design
+  (`scripts/perf.py` runs it with the limit raised). A price someone types that equals a
+  preset's value counts as illustrative. Terraform target groups and listeners are not read
+  (load balancer targets are guesses).
 - Client groups share one workload (one read/write mix and pattern); a group cannot have its
   own read ratio or traffic pattern yet. Synchronous, acyclic call graphs; dependencies are
   called sequentially (no parallel fan-out); no closed-loop users.
