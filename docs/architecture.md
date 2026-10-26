@@ -12,7 +12,7 @@ flowchart LR
   end
   subgraph api["services/api (FastAPI)"]
     Routers["routers: meta, projects, runs"]
-    Jobs["ThreadJobRunner<br/>(bounded thread pool)"]
+    Jobs["ProcessJobRunner<br/>(worker processes; threads with ARCHSIM_RUNNER=thread)"]
     ORM["SQLAlchemy models<br/>+ Alembic migrations"]
   end
   subgraph engine["packages/engine (archsim_engine)"]
@@ -143,7 +143,7 @@ no API or frontend changes; see [`extending-components.md`](extending-components
 sequenceDiagram
   participant B as Browser
   participant A as API
-  participant J as ThreadJobRunner
+  participant J as Job runner (a worker process per run)
   participant E as Engine
   participant D as Database
   B->>A: POST /projects/{id}/runs {scenarioId, document?}
@@ -176,7 +176,10 @@ sequenceDiagram
   memory and written to the database at most once per second.
 - **Cancellation** is cooperative: a queued run is cancelled immediately; a running run stops
   at the next chunk boundary.
-- **Limits:** `ARCHSIM_MAX_CONCURRENT_RUNS` worker threads; per-run wall-clock limit
+- **Workers:** each run simulates in a worker process (`ProcessJobRunner`): progress and
+  cancellation cross the process boundary through a multiprocessing manager, and the API
+  process keeps the database. `ARCHSIM_RUNNER=thread` runs them in API threads instead.
+- **Limits:** `ARCHSIM_MAX_CONCURRENT_RUNS` workers; per-run wall-clock limit
   `ARCHSIM_MAX_WALL_SECONDS`, checked between chunks.
 - **Restart recovery:** on startup, runs left `queued` or `running` by a previous process are
   marked `failed` with an "Interrupted" message.

@@ -1,0 +1,175 @@
+{
+ "label": "baseline",
+ "at": "2026-10-26T14:29:19",
+ "python": "3.12.13",
+ "machine": "AMD64",
+ "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+ "templates": [
+  {
+   "template": "black-friday-kubernetes",
+   "name": "Black Friday on Kubernetes",
+   "requests": 107990,
+   "events": 4399191,
+   "wallSeconds": [
+    50.482,
+    49.543,
+    45.427
+   ],
+   "bestWallSeconds": 45.427,
+   "requestsPerSecond": 2377,
+   "eventsPerSecond": 96841,
+   "resultDigest": "d3dc10450ee3066ab1de30bf40aec276916c8c4ba1e921bd996014231e9a491a"
+  },
+  {
+   "template": "cache-aside-starter",
+   "name": "Cache-aside web API (starter)",
+   "requests": 23980,
+   "events": 733776,
+   "wallSeconds": [
+    6.765,
+    6.906,
+    9.067
+   ],
+   "bestWallSeconds": 6.765,
+   "requestsPerSecond": 3545,
+   "eventsPerSecond": 108462,
+   "resultDigest": "b03ca1028e89b4e108421456c39737cb912cca283d3513485bc7991826b2c92f"
+  },
+  {
+   "template": "iot-cassandra-quorum",
+   "name": "IoT telemetry on Cassandra",
+   "requests": 99869,
+   "events": 3554669,
+   "wallSeconds": [
+    35.042,
+    31.138,
+    23.568
+   ],
+   "bestWallSeconds": 23.568,
+   "requestsPerSecond": 4238,
+   "eventsPerSecond": 150828,
+   "resultDigest": "87bbaa5c3d206a93ce27e470e19d70fb8918a047d948fc437f3cf7b3e9e43ffa"
+  },
+  {
+   "template": "kafka-order-pipeline",
+   "name": "Async order pipeline with Kafka",
+   "requests": 54106,
+   "events": 1268265,
+   "wallSeconds": [
+    11.074,
+    10.271,
+    11.623
+   ],
+   "bestWallSeconds": 10.271,
+   "requestsPerSecond": 5268,
+   "eventsPerSecond": 123477,
+   "resultDigest": "76062f8bc13987032acd8d440d4e6dd18fb722a14ede30c1c67a27d323324254"
+  },
+  {
+   "template": "kubernetes-pods-pending",
+   "name": "Kubernetes spike: pods wait for nodes",
+   "requests": 108476,
+   "events": 3692742,
+   "wallSeconds": [
+    35.022,
+    37.119,
+    38.13
+   ],
+   "bestWallSeconds": 35.022,
+   "requestsPerSecond": 3097,
+   "eventsPerSecond": 105440,
+   "resultDigest": "91650defaaed76bd4d048a1867a02aede4a49624c89b454f54998b0b32f97463"
+  },
+  {
+   "template": "kubernetes-shared-pool",
+   "name": "Shared node pool: a greedy neighbour",
+   "requests": 110391,
+   "events": 7194236,
+   "wallSeconds": [
+    62.449,
+    62.361,
+    63.598
+   ],
+   "bestWallSeconds": 62.361,
+   "requestsPerSecond": 1770,
+   "eventsPerSecond": 115363,
+   "resultDigest": "a266496fb76b5c82e7351fbfccaceb42d8b2d0919211171a966f27c49a927a05"
+  },
+  {
+   "template": "mongodb-hot-shard",
+   "name": "Product catalog on sharded MongoDB",
+   "requests": 80034,
+   "events": 3344565,
+   "wallSeconds": [
+    38.047,
+    24.638,
+    22.193
+   ],
+   "bestWallSeconds": 22.193,
+   "requestsPerSecond": 3606,
+   "eventsPerSecond": 150704,
+   "resultDigest": "6fc30c42b0f8eed1322f70a2e6ef7ee779020b3cd0a9675c61aface3bfa09585"
+  },
+  {
+   "template": "queueing-lab",
+   "name": "Queueing lab: one service under load",
+   "requests": 24154,
+   "events": 314041,
+   "wallSeconds": [
+    1.517,
+    1.74,
+    1.415
+   ],
+   "bestWallSeconds": 1.415,
+   "requestsPerSecond": 17071,
+   "eventsPerSecond": 221950,
+   "resultDigest": "d569dd2403d898c5fe07ccd5725b0638abcab30732774432bc8e021a2c547aa1"
+  },
+  {
+   "template": "retry-storm-ttl-cache",
+   "name": "Retry storm with a TTL cache",
+   "requests": 103083,
+   "events": 2953249,
+   "wallSeconds": [
+    19.532,
+    27.084,
+    36.631
+   ],
+   "bestWallSeconds": 19.532,
+   "requestsPerSecond": 5278,
+   "eventsPerSecond": 151199,
+   "resultDigest": "44bb5583c3bd637ca4cafcff69524b1763db1ba05d60525a3532c2fbbaa98855"
+  },
+  {
+   "template": "serverless-burst",
+   "name": "Serverless API under a burst",
+   "requests": 33768,
+   "events": 976014,
+   "wallSeconds": [
+    10.875,
+    12.394,
+    12.383
+   ],
+   "bestWallSeconds": 10.875,
+   "requestsPerSecond": 3105,
+   "eventsPerSecond": 89750,
+   "resultDigest": "ba670f92528d473c81c71e7ff6b5936f86259cdd38f639db400f02a1d1308542"
+  }
+ ],
+ "target": {
+  "name": "Phase 8 target: 10k req/s for 10 minutes",
+  "requests": 6000651,
+  "events": 108169120,
+  "wallSeconds": [
+   1507.552
+  ],
+  "bestWallSeconds": 1507.552,
+  "requestsPerSecond": 3980,
+  "eventsPerSecond": 71752,
+  "resultDigest": "d1f18161ed66f0960e361dc869021d761fafc165ab35ea08fe4417670170d7fe"
+ },
+ "profile": {
+  "template": "kubernetes-shared-pool",
+  "top": "         170407282 function calls (170406256 primitive calls) in 163.283 seconds\n\n   Ordered by: internal time\n   List reduced from 581 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n  7194434   10.631    0.000  156.441    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\core.py:182(step)\n  7194434    7.636    0.000    7.636    0.000 {built-in method _heapq.heappop}\n  3880657    7.021    0.000  128.770    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\events.py:388(_resume)\n      198    6.454    0.033  162.902    0.823 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\engine.py:193(_run_until)\n  7196043    5.872    0.000   12.472    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\core.py:165(schedule)\n  2590111    5.517    0.000    7.012    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\metrics.py:102(_advance)\n  1931514    5.026    0.000   54.214    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\components\\database.py:826(_operation)\n  7196043    4.923    0.000    4.923    0.000 {built-in method _heapq.heappush}\n  1175263    3.619    0.000   13.867    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\resources\\base.py:48(__init__)\n  3880657    3.575    0.000  118.754    0.000 {method 'send' of 'generator' objects}\n 11288095    3.543    0.000    3.543    0.000 {method 'append' of 'list' objects}\n  1719634    3.500    0.000   53.091    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\runtime.py:490(_deliver)\n  1708710    3.427    0.000   21.422    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\components\\resources.py:98(run)\n  3423451    3.293    0.000   10.305    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\metrics.py:132(add)\n  1163987    3.181    0.000   12.245    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\resources\\base.py:99(__init__)\n   623967    2.942    0.000   14.388    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\runtime.py:183(acquire)\n  2339250    2.780    0.000   10.306    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\resources\\base.py:217(_trigger_put)\n  2327974    2.683    0.000    8.665    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\resources\\base.py:255(_trigger_get)\n   437286    2.622    0.000    3.525    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\events.py:519(__init__)\n  3110016    2.620    0.000    8.230    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\events.py:171(succeed)\n   639794    2.600    0.000    8.692    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\runtime.py:432(call_once)\n  2002720    2.443    0.000    2.443    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\metrics.py:64(inc)\n  1275094    2.358    0.000    6.312    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\.venv\\Lib\\site-packages\\simpy\\resources\\resource.py:213(_do_put)\n  3771557    2.257    0.000    2.257    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\metrics.py:43(index)\n  1268755    2.203    0.000    3.209    0.000 C:\\Projects\\archsim\\.claude\\worktrees\\phase8\\packages\\engine\\src\\archsim_engine\\metrics.py:179(record)\n\n\n"
+ }
+}

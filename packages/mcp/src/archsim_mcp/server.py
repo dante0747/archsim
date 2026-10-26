@@ -154,6 +154,7 @@ def summarize(report: Json, objectives: Json) -> Json:
         ],
         "monthlyCostUsd": cost.get("monthly") if cost.get("hasCost") else None,
         "inputs": (report.get("assumptions") or {}).get("provenanceCounts"),
+        "simulationMode": (report.get("simulationMode") or {}).get("note") or "full",
         "runId": prov["resultDigest"][:12],
         "resultDigest": prov["resultDigest"],
         "engineVersion": prov["engineVersion"],
@@ -161,10 +162,12 @@ def summarize(report: Json, objectives: Json) -> Json:
     }
 
 
-def _simulate(document: Json | str, scenario_id: str | None) -> tuple[Json, Json]:
+def _simulate(
+    document: Json | str, scenario_id: str | None, mode: Literal["full", "sampled"] = "full"
+) -> tuple[Json, Json]:
     doc = _doc(document)
     try:
-        report = run_simulation(doc, scenario_id=scenario_id, limits=LIMITS)
+        report = run_simulation(doc, scenario_id=scenario_id, limits=LIMITS, mode=mode)
     except DocumentInvalidError as exc:
         raise _fix(exc) from None
     except SimulationLimitError as exc:
@@ -298,12 +301,17 @@ def analyze_design(document: Json | str, scenario_id: str | None = None) -> Json
 
 
 @tool(COMPUTE)
-def simulate(document: Json | str, scenario_id: str | None = None) -> Json:
+def simulate(
+    document: Json | str,
+    scenario_id: str | None = None,
+    mode: Literal["full", "sampled"] = "full",
+) -> Json:
     """Run the discrete-event simulation of the design (or one of its scenarios). Returns the
     verdict against the document's objectives, throughput, success rate, latency, findings (the
     bottleneck and what to do), per-part status, monthly cost, run id and result digest (the
-    same document, scenario and seed always give the same digest)."""
-    report, summary = _simulate(document, scenario_id)
+    same document, scenario and seed always give the same digest). mode "sampled" answers a long
+    steady run from a steady sample (much faster; falls back to full when the load changes)."""
+    report, summary = _simulate(document, scenario_id, mode)
     _keep(summary["runId"], report)
     return summary
 
@@ -360,6 +368,7 @@ def breaking_point(
             to_rps=to_rps,
             steps=steps,
             limits=LIMITS,
+            workers=min(steps, os.cpu_count() or 1),
         )
     except DocumentInvalidError as exc:
         raise _fix(exc) from None

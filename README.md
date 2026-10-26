@@ -275,6 +275,7 @@ The engine works without the web stack, with the same answers as the web app:
 uv run archsim validate examples/cache-aside-starter.json
 uv run archsim analyze examples/cache-aside-starter.json
 uv run archsim run examples/cache-aside-starter.json --scenario one-api-replica --out report.json
+uv run archsim run long-steady-design.json --sampled   # answer a long steady run from a sample
 uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
 uv run archsim calibrate prometheus examples/cache-aside-starter.json \
   --map packages/engine/tests/fixtures/calibration/starter-mapping.yaml \
@@ -325,6 +326,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Importing docker-compose, Kubernetes and Terraform](docs/import.md)
 - [Prices and machine shapes](docs/pricing.md)
 - [An SLO gate in CI](docs/ci.md)
+- [Performance: what is fast, what is not, sampled mode](docs/performance.md)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)

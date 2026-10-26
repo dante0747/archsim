@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-10-26 (engine 0.9.0, schema 1.2, report 1.10). This file separates what is
+State as of 2026-10-26 (engine 0.9.0, schema 1.2, report 1.11). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
@@ -309,6 +309,28 @@ serves 10 example designs (see below).
   note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
   report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
   counts on the landing are computed from the catalog.
+- Performance (report 1.11, 2026-10-26; Phase 8 of docs/prompts/how-to-win.md). Measured first
+  (`scripts/perf.py`, numbers in `benchmarks/perf/` and [docs/performance.md](docs/performance.md)):
+  full simulation runs about 2,000 to 5,000 requests per second per core on this laptop, with no
+  single hot spot. Runs now execute in worker processes (`ProcessJobRunner`, the API default;
+  `ARCHSIM_RUNNER=thread` for the old behaviour): progress and cancellation cross the process
+  boundary through a multiprocessing manager, results are identical to a thread's, and the API
+  answers in under a second during a 10-minute run (tested). Breaking-point sweeps run their
+  steps in parallel processes (`archsim check --knee`, the MCP tool; same curve, tested). A
+  least-connections load balancer stops at the first idle replica (same pick; every template's
+  digest unchanged; 2-6% faster side by side). Sampled (hybrid) mode, opt-in (`archsim run
+  --sampled`, `run_simulation(mode="sampled")`, the MCP `simulate` tool): a steady load (constant
+  rate, no faults) much longer than it needs to settle is answered from the warm-up plus a
+  steady sample (at least 10 s and 50,000 arrivals) once the sample passes stationarity checks
+  (throughput, keeping up, p95 drift, no growing queue, backlog or replica count); anything else
+  is simulated whole, and the report's `simulationMode` says which. Validated against full runs
+  of a 10-minute constant variant of every template: the six sampled answers are within 2% on p95
+  and 0.5% on throughput (bar ±5%), and the two not-steady cases (a growing Kafka backlog, an
+  overloaded MongoDB) fell back to full runs as they should. The brief's target, a six-part
+  design at 10k req/s for 10 minutes (6M requests), took 3,306 s in full and 65.6 s sampled (same
+  p95, throughput +0.15%): 50 times faster but **5.6 s over the 60 s target** on this laptop.
+  Not done: a faster event loop or compiled core; sampled mode as the default for long runs
+  (waits for the web app to show sampled reports); sampled mode through the API.
 - An SLO gate in CI (2026-10-26; Phase 7 of docs/prompts/how-to-win.md). `archsim check
   design.json [--scenario] [--baseline other.json | --baseline-ref origin/main] [--fail-on
   objectives|regression] [--knee] --format markdown|json` exits 0 when it passes, 1 when an
@@ -714,8 +736,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   so).
 - Replay resolution is the report bucket (1 s); playback is throttled by the browser when the
   tab is in the background.
-- Heavy designs take a while: the Black Friday template (up to 1,500 req/s for 120 s) takes
-  about 15 s per run, and "Run all & compare" runs at most 2 simulations at a time.
+- Heavy designs take a while: full simulation runs about 2,000-5,000 requests per second per
+  core on a laptop (the Black Friday template takes 35-45 s; a 10k req/s, 10-minute design
+  about 55 minutes). Sampled mode answers long steady runs much faster (65 s for that design)
+  but is opt-in and engine/CLI/MCP only. "Run all & compare" runs at most
+  `ARCHSIM_MAX_CONCURRENT_RUNS` (default 2) simulations at a time.
 - Imports read what infrastructure files state: no latency, traffic or call graph beyond
   links and URLs (Terraform states almost none); Helm and Kustomize must be rendered first and
   HCL is not read (only `terraform show -json`); image matching is by name. See
@@ -728,9 +753,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   an internal dependency timeout.
 - Cancellation and the wall-clock limit are checked between progress chunks (1/200 of the
   simulated time), so a run can overshoot by up to one chunk.
-- Simulations run in threads inside the API process and share the GIL: two concurrent runs
-  each run slower, and the API stays responsive but not instant during heavy runs. Throughput
-  is roughly 5,000-10,000 simulated requests per second per run on a laptop.
+- Simulations run in worker processes on the API's machine: they do not survive an API
+  restart (they are marked interrupted) and do not scale across machines. Cancellation is still
+  cooperative (between chunks).
 - `throughputRps` counts by completion time and can be slightly above `offeredRps`.
 - "Queue kept growing" needs at least 4 time buckets inside the measurement window.
 - No authentication or multi-user support; bind to localhost only.
@@ -753,8 +778,8 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
    TypeScript 7, or hold TypeScript below 7 until then.
 3. Add a Playwright end-to-end test of the main journey (open example, edit, run, compare,
    save, reload).
-4. Move simulations to a process pool or a Redis/RQ worker (the `JobRunner` protocol is the
-   seam) for parallelism and hard cancellation.
+4. A Redis/RQ worker (the `JobRunner` protocol is the seam) so runs survive API restarts and
+   scale across machines; hard cancellation of a worker process.
 5. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
 6. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health

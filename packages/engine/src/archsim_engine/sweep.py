@@ -154,6 +154,13 @@ def analyze(rows: list[Json], objectives: Json) -> Json:
     }
 
 
+def _run_step(document: Json, limits: Any) -> Json:
+    """One sweep step in a worker process (top level, so it pickles)."""
+    from archsim_engine import run_simulation
+
+    return run_simulation(document, limits=limits)
+
+
 def breaking_point(
     document: Json,
     registry: ComponentRegistry,
@@ -165,8 +172,11 @@ def breaking_point(
     duration_s: float = 20.0,
     warmup_s: float = 5.0,
     limits: Any = None,
+    workers: int = 1,
 ) -> Json:
-    """Simulate the design (or a scenario) at evenly spaced constant loads and analyze the curve."""
+    """Simulate the design (or a scenario) at evenly spaced constant loads and analyze the curve.
+    ``workers`` > 1 runs the steps in that many processes (default registry only); every step
+    is seeded, so the result is the same either way."""
     from archsim_engine import run_simulation
     from archsim_engine.scenarios import load_document, resolve_scenario
 
@@ -182,13 +192,25 @@ def breaking_point(
     )
     duration = max(2.0, duration_s)
     warmup = max(0.0, min(warmup_s, duration - 1))
-    rows = []
-    for rps in levels(lo, hi, steps):
+    loads = levels(lo, hi, steps)
+    docs = []
+    for rps in loads:
         step = copy.deepcopy(raw)
-        wl = step["workload"]
-        wl.update(
+        step["workload"].update(
             rps=rps, durationS=duration, warmupS=warmup, pattern={"kind": "constant"}, faults=[]
         )
-        rows.append(row_from(rps, run_simulation(step, registry=registry, limits=limits)))
+        docs.append(step)
+    from archsim_engine.engine import default_registry
+
+    if workers > 1 and len(docs) > 1 and registry is default_registry():
+        import multiprocessing
+        from concurrent.futures import ProcessPoolExecutor
+
+        ctx = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=min(workers, len(docs)), mp_context=ctx) as pool:
+            reports = list(pool.map(_run_step, docs, [limits] * len(docs)))
+    else:
+        reports = [run_simulation(d, registry=registry, limits=limits) for d in docs]
+    rows = [row_from(rps, report) for rps, report in zip(loads, reports, strict=True)]
     objectives = raw.get("objectives") or {}
     return {**analyze(rows, objectives), "objectives": objectives, "range": [lo, hi]}

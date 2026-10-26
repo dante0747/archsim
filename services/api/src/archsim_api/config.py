@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -30,6 +31,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     auto_migrate: bool = True
     max_concurrent_runs: int = Field(default=2, ge=1, le=32)
+    runner: Literal["process", "thread"] = Field(
+        default="process",
+        description="process: each run in a worker process (separate cores, the API stays "
+        "responsive); thread: in the API process",
+    )
     max_wall_seconds: float = Field(default=300.0, gt=0, le=3600)
     max_requests: int = Field(default=2_000_000, ge=1, le=20_000_000)
     max_body_bytes: int = Field(default=5_000_000, ge=10_000)

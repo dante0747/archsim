@@ -192,6 +192,10 @@ class LoadBalancerRuntime(RuntimeComponent):
                 if avoid and n > 1 and (cand[0].id, cand[2]) == avoid:
                     continue
                 load = cand[1].instance_load(cand[2])
+                if load <= 0:
+                    # loads are never negative: the first idle instance in rotation order is the
+                    # pick, so a healthy pool of hundreds of replicas is not scanned in full
+                    return cand
                 if best_load is None or load < best_load:
                     best, best_load = cand, load
             assert best is not None

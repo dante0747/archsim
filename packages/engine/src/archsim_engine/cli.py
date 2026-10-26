@@ -80,7 +80,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     if args.seed is not None:
         raw.setdefault("workload", {})["seed"] = args.seed
     try:
-        report = run_simulation(raw, scenario_id=args.scenario)
+        report = run_simulation(
+            raw, scenario_id=args.scenario, mode="sampled" if args.sampled else "full"
+        )
     except DocumentInvalidError as exc:
         print("Cannot simulate: document is invalid", file=sys.stderr)
         _print_issues(exc.issues)
@@ -89,6 +91,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"Cannot simulate: {exc}", file=sys.stderr)
         return 1
     print(_summary_line(report))
+    if report.get("simulationMode"):
+        print(f"  {report['simulationMode']['note']}")
     for f in report["findings"]:
         print(f"  [{f['severity']}] {f['title']}: {f['detail']}")
     p = report["provenance"]
@@ -359,6 +363,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scenario", help="scenario id to apply")
     p.add_argument("--seed", type=int, help="override the workload seed")
     p.add_argument("--out", help="write the full JSON report to this file")
+    p.add_argument(
+        "--sampled",
+        action="store_true",
+        help="for a long steady load: simulate a steady sample and answer the run from it "
+        "(docs/performance.md); falls back to a full run when the load is not steady",
+    )
     p.set_defaults(fn=cmd_run)
     p = sub.add_parser("compare", help="simulate two scenarios and compare them")
     p.add_argument("file")

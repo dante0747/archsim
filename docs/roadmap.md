@@ -93,9 +93,9 @@ optimistic concurrency (`expectedRevision`), and every run stores its exact inpu
 
 ## 7. Scalable job execution
 
-Replace the in-process thread pool with a Redis-backed queue (RQ, Celery or Dramatiq) so runs
-survive API restarts, execute in separate processes (no GIL sharing with the API) and scale
-across machines. Seam: the `JobRunner` protocol in `services/api/src/archsim_api/jobs.py`
+Runs already execute in worker processes on the API's machine (`ProcessJobRunner`, no GIL
+sharing with the API). Next: a Redis-backed queue (RQ, Celery or Dramatiq) so runs survive API
+restarts and scale across machines. Seam: the `JobRunner` protocol in `services/api/src/archsim_api/jobs.py`
 (`submit`, `cancel`, `live_progress`, `shutdown`). Progress would move to Redis or the database;
 cancellation to a shared flag.
 

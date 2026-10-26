@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from archsim_api.config import Settings, get_settings
 from archsim_api.db import Base, Database
-from archsim_api.jobs import ThreadJobRunner
+from archsim_api.jobs import ProcessJobRunner, ThreadJobRunner
 from archsim_api.migrations import upgrade_to_head
 from archsim_api.routers import calibration, export, importing, meta, projects, runs
 from archsim_engine import ENGINE_VERSION, SimulationLimits, default_registry
@@ -25,7 +25,8 @@ API_PREFIX = "/api/v1"
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     db = Database(settings.database_url)
-    jobs = ThreadJobRunner(
+    runner = ProcessJobRunner if settings.runner == "process" else ThreadJobRunner
+    jobs = runner(
         db,
         SimulationLimits(
             max_requests=settings.max_requests, max_wall_seconds=settings.max_wall_seconds

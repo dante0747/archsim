@@ -85,10 +85,10 @@ published, `uvx archsim-mcp` will work without a checkout.
 | `list_templates` / `get_template` | Ready-made designs and their documents (read only). |
 | `validate_design` | Errors and warnings, each with a code, the part or link, and how to fix it. |
 | `analyze_design` | Without simulating: auto sizes, monthly cost, design review, technology tiers, input provenance counts. |
-| `simulate` | Runs the design or a scenario: verdict against the objectives, throughput, success, p50/p95/p99, findings, per-part status, cost, run id and result digest (deterministic). |
+| `simulate` | Runs the design or a scenario: verdict against the objectives, throughput, success, p50/p95/p99, findings, per-part status, cost, run id and result digest (deterministic). `mode: "sampled"` answers a long steady run from a steady sample ([performance.md](performance.md)). |
 | `get_results` | A run of this session again, as a summary or the full report. |
 | `compare` | Two scenarios side by side: KPI deltas and the input changes behind them. |
-| `breaking_point` | Steps the load to find the highest that meets the objectives, the knee and the bottleneck. |
+| `breaking_point` | Steps the load to find the highest that meets the objectives, the knee and the bottleneck (the steps run in parallel processes). |
 | `export` | docker-compose, Kubernetes manifests or a Mermaid diagram of the design. |
 | `import_design` | A design from a docker-compose file, Kubernetes manifests or a Terraform plan, with the import report (mapped, guessed, ignored, links to confirm). |
 | `calibrate` | Sets inputs from telemetry files (recorded Prometheus responses plus a mapping, or an OTLP trace export); returns the calibrated document and the replay check. |

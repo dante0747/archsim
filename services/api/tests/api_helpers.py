@@ -18,7 +18,10 @@ EXAMPLES = REPO_ROOT / "examples"
 
 
 def make_client(db_url: str, **overrides: Any) -> TestClient:
-    settings = Settings(database_url=db_url, examples_dir=str(EXAMPLES), **overrides)
+    # threads by default: quicker to start; test_api_process_runner covers the process runner
+    settings = Settings(
+        database_url=db_url, examples_dir=str(EXAMPLES), **{"runner": "thread", **overrides}
+    )
     return TestClient(create_app(settings))
 
 

@@ -69,9 +69,18 @@ def measure(
         "knee": None,
     }
     if knee:
+        import os
+
         from archsim_engine.sweep import breaking_point
 
-        bp = breaking_point(document, registry, scenario_id=scenario_id, steps=6, limits=limits)
+        bp = breaking_point(
+            document,
+            registry,
+            scenario_id=scenario_id,
+            steps=6,
+            limits=limits,
+            workers=min(6, os.cpu_count() or 1),
+        )
         out["knee"] = (bp.get("maxWithinSlo") or {}).get("rps")
         out["kneeVerdict"] = bp.get("verdict")
     return out

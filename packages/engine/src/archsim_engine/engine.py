@@ -7,13 +7,14 @@ cancel, and enforce wall-clock limits. It returns a JSON-serialisable report.
 
 from __future__ import annotations
 
+import math
 import time
 from array import array
 from bisect import bisect_left
 from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
 from itertools import accumulate
-from typing import Any
+from typing import Any, Literal
 
 import simpy
 from simpy.core import URGENT, EmptySchedule, StopSimulation
@@ -217,6 +218,69 @@ def _run_until(env: simpy.Environment, at: float, every: int, check: Callable[[]
     return done + (every - left)
 
 
+SAMPLE_MIN_S = 10.0
+"""Sampled mode simulates at least this much steady time after the warm-up..."""
+SAMPLE_MIN_REQUESTS = 50_000
+"""...and at least this many arrivals, so its percentiles rest on enough requests."""
+SAMPLE_MAX_SHARE = 0.5
+"""A run is sampled only when the sample is at most half of it (else it is simulated whole)."""
+
+
+def sample_seconds(wl: Workload) -> float | None:
+    """How long sampled mode simulates (warm-up plus a steady sample), or None when the run must
+    be simulated whole: a load that changes over time, scheduled faults, or a run too short to
+    gain from sampling."""
+    if not isinstance(wl.pattern, ConstantPattern) or wl.faults or wl.rps <= 0:
+        return None
+    sample = max(SAMPLE_MIN_S, SAMPLE_MIN_REQUESTS / wl.rps)
+    total = wl.warmup_s + sample
+    return total if total <= SAMPLE_MAX_SHARE * wl.duration_s else None
+
+
+def stationary(report: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    """Did the sample reach a steady state? The measured window's two halves must agree:
+    throughput within 3% and at least 97% of the offered load (nothing piling up), p95 within
+    15%, and no node's queue, backlog or replica count still growing."""
+    ts = report["timeseries"]
+    bucket = ts["bucketS"]
+    w = report["window"]
+    i0 = math.ceil(w["warmupS"] / bucket)
+    i1 = max(i0 + 2, math.floor(w["durationS"] / bucket))
+
+    def halves(series: list[Any] | None) -> tuple[float, float] | None:
+        vals = [v for v in (series or [])[i0:i1] if v is not None]
+        if len(vals) < 4:
+            return None
+        h = len(vals) // 2
+        return sum(vals[:h]) / h, sum(vals[h:]) / (len(vals) - h)
+
+    checks: dict[str, Any] = {}
+    thr, off, p95 = (
+        halves(ts["throughputRps"]),
+        halves(ts["offeredRps"]),
+        halves(ts["latencyP95Ms"]),
+    )
+    if thr is None or off is None or p95 is None:
+        return False, {"reason": "too few time buckets to judge"}
+    checks["throughputDrift"] = round(abs(thr[1] - thr[0]) / max(thr[0], 1e-9), 4)
+    checks["keepsUp"] = round((thr[0] + thr[1]) / max(off[0] + off[1], 1e-9), 4)
+    checks["p95Drift"] = round(abs(p95[1] - p95[0]) / max(p95[0], 1e-9), 4)
+    growing = []
+    for n in report["nodes"]:
+        for key in ("queueLength", "backlog", "lag", "replicas", "nodes"):
+            h = halves((n.get("timeseries") or {}).get(key))
+            if h is not None and h[1] > h[0] * 1.2 + 0.5:
+                growing.append(f"{n['id']}.{key}")
+    checks["growing"] = growing
+    ok = (
+        checks["throughputDrift"] <= 0.03
+        and checks["keepsUp"] >= 0.97
+        and checks["p95Drift"] <= 0.15
+        and not growing
+    )
+    return ok, checks
+
+
 def run_simulation(
     document: dict[str, Any] | ArchitectureDocument,
     *,
@@ -225,8 +289,69 @@ def run_simulation(
     limits: SimulationLimits | None = None,
     progress: ProgressFn | None = None,
     should_cancel: CancelFn | None = None,
+    mode: Literal["full", "sampled"] = "full",
 ) -> dict[str, Any]:
-    """Run one simulation and return its report (see ``docs/simulation-model.md``)."""
+    """Run one simulation and return its report (see ``docs/simulation-model.md``).
+
+    ``mode="sampled"`` (hybrid): for a steady load (constant rate, no faults) that runs much
+    longer than it needs to settle, simulate the warm-up and a steady sample (at least 10 s and
+    50,000 arrivals) in full, check the sample is stationary, and answer the whole run from it:
+    rates, success and percentiles of a stationary system do not change with run length. The
+    report's ``simulationMode`` says which mode answered and why; a run that does not qualify,
+    or whose sample is not stationary, is simulated whole."""
+    if mode == "sampled":
+        sampled = _run_sampled(document, scenario_id, registry, limits, progress, should_cancel)
+        if sampled is not None:
+            return sampled
+    return _run_full(document, scenario_id, registry, limits, progress, should_cancel)
+
+
+def _run_sampled(
+    document: dict[str, Any] | ArchitectureDocument,
+    scenario_id: str | None,
+    registry: ComponentRegistry | None,
+    limits: SimulationLimits | None,
+    progress: ProgressFn | None,
+    should_cancel: CancelFn | None,
+) -> dict[str, Any] | None:
+    registry = registry or default_registry()
+    prep = prepare_run(document, scenario_id, registry, limits or SimulationLimits())
+    wl = prep.resolved.workload
+    seconds = sample_seconds(wl)
+    if seconds is None:
+        return None
+    short = prep.resolved.to_json_dict()
+    short["workload"]["durationS"] = seconds
+    short["scenarios"] = []
+    report = _run_full(short, None, registry, limits, progress, should_cancel)
+    ok, checks = stationary(report)
+    if not ok:
+        return None
+    report["simulationMode"] = {
+        "kind": "sampled",
+        "requestedDurationS": wl.duration_s,
+        "simulatedDurationS": seconds,
+        "checks": checks,
+        "note": (
+            f"Answered from a steady {seconds - wl.warmup_s:g} s sample after the "
+            f"{wl.warmup_s:g} s warm-up: the {wl.duration_s:g} s run was not simulated whole. "
+            "Rates, success and percentiles hold for a stationary system; counts and time "
+            "series cover the sample."
+        ),
+    }
+    report["provenance"]["scenarioId"] = prep.scenario_id
+    report["provenance"]["scenarioName"] = prep.scenario_name
+    return report
+
+
+def _run_full(
+    document: dict[str, Any] | ArchitectureDocument,
+    scenario_id: str | None,
+    registry: ComponentRegistry | None,
+    limits: SimulationLimits | None,
+    progress: ProgressFn | None,
+    should_cancel: CancelFn | None,
+) -> dict[str, Any]:
     wall0 = time.perf_counter()
     registry = registry or default_registry()
     limits = limits or SimulationLimits()

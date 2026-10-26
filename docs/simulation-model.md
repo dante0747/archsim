@@ -581,6 +581,18 @@ versions differ.
   check.
 - Engine semantics changes bump `ENGINE_VERSION`, which every report records.
 
+## Sampled mode (opt-in)
+
+`run_simulation(mode="sampled")` (`archsim run --sampled`) answers a long steady run (a constant
+rate, no scheduled faults) from its warm-up plus a steady sample of at least 10 s and 50,000
+arrivals, when the sample is no more than half of the run. The sample must be stationary: the
+measured window's two halves agree on throughput (within 3%) and p95 (within 15%), the system
+keeps up with at least 97% of the offered load, and no queue, backlog or replica count is still
+growing. Otherwise the whole run is simulated. A sampled report carries `simulationMode` (the
+requested and simulated durations, the checks, a note); its counts and time series cover the
+sample, and its rates, success and percentiles stand for the whole run. It is deterministic like
+any run. Validation against full runs: [performance.md](performance.md).
+
 ## Validation against queueing theory
 
 `packages/engine/tests/test_reference_benchmark.py` checks the engine against exact results:
