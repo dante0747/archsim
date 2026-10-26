@@ -1,6 +1,6 @@
 "use client";
 
-import { Gauge,
+import {
   BookOpen,
   Check,
   ChevronDown,
@@ -8,6 +8,8 @@ import { Gauge,
   CircleHelp,
   Download,
   FileCode2,
+  FileInput,
+  Gauge,
   Keyboard,
   LayoutGrid,
   LoaderCircle,
@@ -225,6 +227,7 @@ export function TopBar({
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
   const setExportOpen = useUi((s) => s.setExportOpen);
   const setCalibrateOpen = useUi((s) => s.setCalibrateOpen);
+  const setImportOpen = useUi((s) => s.setImportOpen);
 
   return (
     <header className="island relative z-30 flex h-[60px] shrink-0 items-center gap-3 !overflow-visible border-b border-line px-3">
@@ -315,6 +318,9 @@ export function TopBar({
             </MenuItem>
             <MenuItem onSelect={() => fileRef.current?.click()}>
               <Upload /> Import JSON
+            </MenuItem>
+            <MenuItem onSelect={() => setImportOpen(true)}>
+              <FileInput /> Import from compose, Kubernetes, Terraform…
             </MenuItem>
             <MenuSeparator />
             <MenuItem onSelect={startTour}>

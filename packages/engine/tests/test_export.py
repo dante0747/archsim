@@ -188,7 +188,8 @@ def test_tiers_in_exports() -> None:
     k8s = to_kubernetes(doc(), REGISTRY)
     assert "# Experimental technologies (Gateway: kong)" in k8s
     assert re.search(
-        r"name: gateway\n\s+labels:\n(?:.*\n)*?\s+annotations:\n\s+archsim/tier: experimental", k8s
+        r"name: gateway\n\s+labels:\n(?:.*\n)*?\s+annotations:\n(?:\s+.*\n)*?\s+archsim/tier: experimental",
+        k8s,
     )
     core = copy.deepcopy(RAW)
     core["architecture"]["nodes"] = [
@@ -251,7 +252,12 @@ def test_clusters_are_not_deployed() -> None:
         }
     )
     assert "name: prod-pool" not in to_kubernetes(doc(raw), REGISTRY)
-    assert "prod-pool" not in to_docker_compose(doc(raw), REGISTRY)
+    import yaml
+
+    compose = yaml.safe_load(to_docker_compose(doc(raw), REGISTRY))
+    assert "prod-pool" not in compose["services"]
+    # kept for import, not deployed
+    assert any(p["id"] == "prod-pool" for p in compose["x-archsim"]["parts"])
     assert "name: api" in to_kubernetes(doc(raw), REGISTRY)
 
 

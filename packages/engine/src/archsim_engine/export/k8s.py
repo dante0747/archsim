@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from archsim_engine.export.compose import dependency_url
@@ -21,19 +22,26 @@ from archsim_engine.export.tech import (
 )
 from archsim_engine.export.yaml import OMIT, comments, js_number, to_yaml
 from archsim_engine.registry import ComponentRegistry
+from archsim_engine.roundtrip import encode_calls, encode_parts
 
 Json = dict[str, Any]
 APP_PORT = 8080
 
 
-def _meta(n: DeployNode, part: str) -> Json:
-    out: Json = {
+def _meta(n: DeployNode, part: str, calls: str = "", extra: Json | None = None) -> Json:
+    """Name and labels, plus the part's id (and its outgoing links on workloads) so an import
+    of these manifests gives the design back."""
+    annotations: Json = {"archsim.dev/node": n.node["id"]}
+    if calls:
+        annotations["archsim.dev/calls"] = calls
+    annotations.update({k: v for k, v in (extra or {}).items() if v not in (None, "")})
+    if n.tier == "experimental":
+        annotations["archsim/tier"] = "experimental"
+    return {
         "name": n.name,
         "labels": {"app.kubernetes.io/name": n.name, "app.kubernetes.io/part-of": part},
+        "annotations": annotations,
     }
-    if n.tier == "experimental":
-        out["annotations"] = {"archsim/tier": "experimental"}
-    return out
 
 
 def _selector(n: DeployNode) -> Json:
@@ -81,6 +89,7 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
         node, kind, cfg, tech = n.node, n.kind, n.cfg, n.tech
         if kind == "traffic":
             continue
+        calls = encode_calls([e for e in edges if e["source"] == node["id"]])
         deps: list[DeployNode] = []
         for e in edges:
             if e["source"] == node["id"]:
@@ -90,12 +99,20 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
 
         # managed services and third-party APIs: an ExternalName service callers can resolve
         if kind == "external" or (tech and tech.managed):
-            meta = _meta(n, part)
-            meta["annotations"] = {
-                "archsim.dev/note": "third-party API, replace externalName with its host"
+            meta = _meta(
+                n,
+                part,
+                calls,
+                {
+                    "archsim.dev/type": node["type"],
+                    "archsim.dev/technology": str(cfg.get("technology") or "generic"),
+                },
+            )
+            meta["annotations"]["archsim.dev/note"] = (
+                "third-party API, replace externalName with its host"
                 if kind == "external"
                 else ((tech.note if tech else None) or "managed service")
-            }
+            )
             docs.append(
                 {
                     "apiVersion": "v1",
@@ -107,6 +124,13 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
             continue
 
         if kind == "compute":
+            runtime = cfg.get("technology")
+            identity = {
+                "archsim.dev/platform": cfg.get("platform"),
+                "archsim.dev/runtime": runtime
+                if isinstance(runtime, str) and runtime != "generic"
+                else None,
+            }
             container: Json = {
                 "name": n.name,
                 "image": f"your-org/{n.name}:latest",
@@ -124,12 +148,15 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
                     {
                         "apiVersion": "serving.knative.dev/v1",
                         "kind": "Service",
-                        "metadata": _meta(n, part),
+                        "metadata": _meta(n, part, calls, identity),
                         "spec": {
                             "template": {
                                 "metadata": {
                                     "annotations": {
                                         "autoscaling.knative.dev/min-scale": "0",
+                                        "autoscaling.knative.dev/initial-scale": js_number(
+                                            service_replicas(cfg)
+                                        ),
                                         "autoscaling.knative.dev/max-scale": js_number(
                                             num(cfg.get("concurrencyLimit"), 1000)
                                         ),
@@ -150,7 +177,7 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
                 {
                     "apiVersion": "apps/v1",
                     "kind": "Deployment",
-                    "metadata": _meta(n, part),
+                    "metadata": _meta(n, part, calls, identity),
                     "spec": {
                         "replicas": service_replicas(cfg),
                         "selector": {"matchLabels": _selector(n)},
@@ -212,6 +239,7 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
 
         if tech is None:
             continue
+        infra = {"archsim.dev/technology": str(cfg.get("technology") or "generic")}
         container = {
             "name": n.name,
             "image": tech.image,
@@ -234,8 +262,8 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
                 )
             if tech.note:
                 annotations["archsim.dev/note"] = tech.note
-            meta = _meta(n, part)
-            meta["annotations"] = annotations if annotations else OMIT
+            meta = _meta(n, part, calls, infra)
+            meta["annotations"].update(annotations)
             docs.append(
                 {
                     "apiVersion": "apps/v1",
@@ -282,7 +310,7 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
             {
                 "apiVersion": "apps/v1",
                 "kind": "Deployment",
-                "metadata": _meta(n, part),
+                "metadata": _meta(n, part, calls, infra),
                 "spec": {
                     "replicas": 1,
                     "selector": {"matchLabels": _selector(n)},
@@ -301,6 +329,24 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
                 tech.port,
                 type_="LoadBalancer" if kind == "network" else None,
             )
+        )
+
+    parts = encode_parts(doc)
+    if parts:
+        docs.append(
+            {
+                "apiVersion": "v1",
+                "kind": "ConfigMap",
+                "metadata": {
+                    "name": f"{part}-archsim",
+                    "labels": {"app.kubernetes.io/part-of": part},
+                    "annotations": {
+                        "archsim.dev/note": "ArchSim parts nothing deploys (clients, clusters), "
+                        "for importing these manifests back; safe to delete"
+                    },
+                },
+                "data": {"parts.json": json.dumps(parts, separators=(",", ":"))},
+            }
         )
 
     head = comments(

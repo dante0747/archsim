@@ -20,6 +20,7 @@ from archsim_engine.export.tech import (
 )
 from archsim_engine.export.yaml import comments, js_number, to_yaml
 from archsim_engine.registry import ComponentRegistry
+from archsim_engine.roundtrip import encode_calls, encode_parts
 
 Json = dict[str, Any]
 
@@ -68,17 +69,20 @@ def to_docker_compose(doc: Json, registry: ComponentRegistry) -> str:
         node, kind, cfg, name, tech = n.node, n.kind, n.cfg, n.name, n.tech
         if kind == "traffic":
             continue
+        calls = encode_calls([e for e in edges if e["source"] == node["id"]])
         if kind == "external" or (tech and tech.managed):
-            external.append(
-                {
-                    "name": name,
-                    "label": node.get("label") or node["id"],
-                    "technology": n.technology or str(cfg.get("technology") or "generic"),
-                    "note": "third-party API, not deployed; point the callers at its URL"
-                    if kind == "external"
-                    else ((tech.note if tech else None) or "managed service"),
-                }
-            )
+            entry: Json = {
+                "id": node["id"],
+                "name": name,
+                "label": node.get("label") or node["id"],
+                "technology": n.technology or str(cfg.get("technology") or "generic"),
+                "note": "third-party API, not deployed; point the callers at its URL"
+                if kind == "external"
+                else ((tech.note if tech else None) or "managed service"),
+            }
+            if calls:
+                entry["calls"] = calls
+            external.append(entry)
             continue
         targets: list[DeployNode] = []
         for e in edges:
@@ -88,6 +92,8 @@ def to_docker_compose(doc: Json, registry: ComponentRegistry) -> str:
                     targets.append(t)
         deps = [d.name for d in targets]
         labels: Json = {"archsim.node": node["id"]}
+        if calls:
+            labels["archsim.calls"] = calls
         if n.tier == "experimental":
             labels["archsim.tier"] = "experimental"
         svc: Json = {}
@@ -111,6 +117,7 @@ def to_docker_compose(doc: Json, registry: ComponentRegistry) -> str:
             if env:
                 svc["environment"] = env
         elif tech is not None:
+            labels["archsim.technology"] = str(cfg.get("technology") or "generic")
             svc["image"] = tech.image
             if tech.env:
                 svc["environment"] = dict(tech.env)
@@ -174,6 +181,9 @@ def to_docker_compose(doc: Json, registry: ComponentRegistry) -> str:
         body["volumes"] = volumes
     if external:
         body["x-external-dependencies"] = external
+    parts = encode_parts(doc)
+    if parts:
+        body["x-archsim"] = {"parts": parts}
     lines = header(doc["metadata"]["name"], "docker-compose scaffolding")
     if src is not None:
         lines.append(

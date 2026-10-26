@@ -8,6 +8,8 @@ Examples::
     archsim calibrate prometheus doc.json --map mapping.yaml --url http://localhost:9090 \
         --range 2026-10-01T00:00:00Z/2026-10-08T00:00:00Z -o calibrated.json
     archsim calibrate otlp doc.json --traces traces.json -o calibrated.json
+    archsim import compose docker-compose.yml -o design.json --report import-report.json
+    archsim export k8s design.json -o manifests.yaml
 """
 
 from __future__ import annotations
@@ -204,6 +206,54 @@ def cmd_calibrate_otlp(args: argparse.Namespace) -> int:
     return _write_calibration(outcome, args.out)
 
 
+def cmd_import(args: argparse.Namespace) -> int:
+    from archsim_engine.importers import import_design
+
+    text = sys.stdin.read() if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
+    try:
+        doc, report = import_design(args.format, text, default_registry(), args.name)
+    except ValueError as exc:
+        print(f"cannot import: {exc}", file=sys.stderr)
+        return 2
+    r = report.to_dict()
+    for key in ("mapped", "guessed", "ignored"):
+        for line in r[key]:
+            print(f"  {key}: {line}", file=sys.stderr)
+    for s in r["suggestions"]:
+        print(f"  connect? {s['source']} -> {s['target']} ({s['reason']})", file=sys.stderr)
+    errors = [i for i in r["issues"] if i["severity"] == "error"]
+    print(
+        f"{len(doc['architecture']['nodes'])} parts, {len(doc['architecture']['edges'])} links; "
+        f"{len(r['guessed'])} guesses to check, {len(errors)} errors to fix before a run",
+        file=sys.stderr,
+    )
+    if args.report:
+        Path(args.report).write_text(json.dumps(r, indent=2) + "\n", encoding="utf-8")
+    text = json.dumps(doc, indent=2)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+        print(f"wrote {args.out}", file=sys.stderr)
+    else:
+        print(text)
+    return 0
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    from archsim_engine.export import export_document
+
+    try:
+        text = export_document(_load(args.file), args.format, default_registry())
+    except DocumentInvalidError as exc:
+        _print_issues(exc.issues)
+        return 1
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+        print(f"wrote {args.out}", file=sys.stderr)
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
 def cmd_catalog(args: argparse.Namespace) -> int:
     print(json.dumps(default_registry().catalog(), indent=2))
     return 0
@@ -268,6 +318,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("-o", "--out", help="write the calibrated design here (default: stdout)")
     p.set_defaults(fn=cmd_calibrate_otlp)
+    p = sub.add_parser(
+        "import", help="a design from docker-compose, Kubernetes manifests or a Terraform plan"
+    )
+    p.add_argument("format", choices=["compose", "k8s", "terraform"])
+    p.add_argument(
+        "file", help="the file ('-' for stdin); Terraform: the output of terraform show -json"
+    )
+    p.add_argument("--name", help="the design's name (default: from the file)")
+    p.add_argument("-o", "--out", help="write the design here (default: stdout)")
+    p.add_argument("--report", help="write the import report (JSON) here")
+    p.set_defaults(fn=cmd_import)
+    p = sub.add_parser("export", help="docker-compose, Kubernetes or Mermaid from a design")
+    p.add_argument("format", choices=["compose", "k8s", "mermaid"])
+    p.add_argument("file", help="the design (JSON)")
+    p.add_argument("-o", "--out", help="write here (default: stdout)")
+    p.set_defaults(fn=cmd_export)
     p = sub.add_parser("catalog", help="print the component catalog as JSON")
     p.set_defaults(fn=cmd_catalog)
     p = sub.add_parser("schema", help="print the document JSON Schema")

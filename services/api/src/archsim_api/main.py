@@ -14,7 +14,7 @@ from archsim_api.config import Settings, get_settings
 from archsim_api.db import Base, Database
 from archsim_api.jobs import ThreadJobRunner
 from archsim_api.migrations import upgrade_to_head
-from archsim_api.routers import calibration, export, meta, projects, runs
+from archsim_api.routers import calibration, export, importing, meta, projects, runs
 from archsim_engine import ENGINE_VERSION, SimulationLimits, default_registry
 
 log = logging.getLogger("archsim.api")
@@ -92,7 +92,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return await call_next(request)
 
-    for r in (meta.router, projects.router, runs.router, calibration.router, export.router):
+    for r in (
+        meta.router,
+        projects.router,
+        runs.router,
+        calibration.router,
+        export.router,
+        importing.router,
+    ):
         app.include_router(r, prefix=API_PREFIX)
     return app
 

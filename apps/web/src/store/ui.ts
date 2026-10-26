@@ -37,6 +37,8 @@ export interface UiState {
   exportOpen: boolean;
   /** The calibration dialog (Prometheus, OpenTelemetry) is open. */
   calibrateOpen: boolean;
+  /** The import dialog (docker-compose, Kubernetes, Terraform) is open. */
+  importOpen: boolean;
   /** The guided tour of the editor is showing. */
   tourOpen: boolean;
   /** Workflow progress the user has seen (drives the step indicator and next-step hint). */
@@ -51,6 +53,7 @@ export interface UiState {
   setPaletteOpen: (v: boolean) => void;
   setExportOpen: (v: boolean) => void;
   setCalibrateOpen: (v: boolean) => void;
+  setImportOpen: (v: boolean) => void;
   setTourOpen: (v: boolean) => void;
   markTrafficVisited: () => void;
   markInsightsSeen: (runId: string) => void;
@@ -67,6 +70,7 @@ export const useUi = create<UiState>()((set) => ({
   paletteOpen: false,
   exportOpen: false,
   calibrateOpen: false,
+  importOpen: false,
   tourOpen: false,
   trafficVisited: false,
   insightsSeenFor: null,
@@ -82,6 +86,7 @@ export const useUi = create<UiState>()((set) => ({
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
   setCalibrateOpen: (calibrateOpen) => set({ calibrateOpen }),
+  setImportOpen: (importOpen) => set({ importOpen }),
   setTourOpen: (tourOpen) => set({ tourOpen }),
   markTrafficVisited: () => set({ trafficVisited: true }),
   markInsightsSeen: (insightsSeenFor) => set({ insightsSeenFor }),

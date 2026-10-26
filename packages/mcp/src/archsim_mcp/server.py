@@ -427,6 +427,22 @@ def calibrate(
     return result
 
 
+@tool(COMPUTE)
+def import_design(
+    format: Literal["compose", "k8s", "terraform"], text: str, name: str | None = None
+) -> Json:
+    """A design from a docker-compose file, Kubernetes manifests or a Terraform plan (the JSON of
+    `terraform show -json`), with the import report: what was mapped, what was guessed (marked
+    assumed), what was ignored, links to confirm, and validation issues to fix before a run."""
+    from archsim_engine.importers import import_design as run_import
+
+    try:
+        doc, report = run_import(format, text, default_registry(), name)
+    except DocumentInvalidError as exc:
+        raise _fix(exc) from None
+    return {"document": doc, "report": report.to_dict()}
+
+
 # ---------------------------------------------------------------------------------------------
 # resources
 # ---------------------------------------------------------------------------------------------

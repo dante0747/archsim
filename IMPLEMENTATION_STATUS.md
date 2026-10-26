@@ -309,6 +309,30 @@ serves 10 example designs (see below).
   note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
   report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
   counts on the landing are computed from the catalog.
+- Import from docker-compose, Kubernetes and Terraform (2026-10-26; Phase 5 of
+  docs/prompts/how-to-win.md). `archsim import compose|k8s|terraform FILE -o design.json
+  --report report.json`, `POST /import`, an "Import from compose, Kubernetes, Terraform" dialog
+  in the editor (format detected from the file; shows the report; replaces the design, undoable)
+  and an MCP tool `import_design`. Compose services become parts by image, `deploy.replicas`,
+  resource limits and connection limits in the command are read, links come from `depends_on`
+  and URL environment values; Kubernetes reads Deployments, StatefulSets, DaemonSets, Knative
+  Services, Services, HPAs and Ingresses; Terraform (`terraform show -json`) maps databases,
+  caches, functions, queues, streams, load balancers, CDNs and clusters on AWS, GCP and Azure,
+  sizing instances from their type (AWS families, GCP machine types, Azure D/E v3-v6 and F v2).
+  The import report lists what was mapped, what was guessed (inferred links, the Clients part,
+  a cluster part, read replicas counted from pods), what was ignored, links to confirm
+  (Terraform rarely states calls) and validation issues; every number the import set is
+  provenance `assumed` with its source and, where derived, a note. Round trip: exports now
+  carry each part's id, technology, platform, runtime and outgoing links (Compose labels,
+  Kubernetes annotations) and the parts nothing deploys (an `x-archsim` block, a ConfigMap), so
+  every template exported to Compose or Kubernetes imports back with the same parts, types,
+  technologies, replicas, autoscaling and links and no guesses (a test over all 10 templates in
+  both formats). `archsim export` was added for the round trip from the command line. Tests:
+  20 round trips, 3 fixtures, error cases and malformed `x-archsim` parts (engine), 2 API
+  tests, 2 web tests, the MCP stdio session. Choice made without the owner: the fixtures are
+  written for these tests in the style of common examples (a voting app, a shop on Kubernetes,
+  an AWS plan) instead of vendored third-party files, which would need their licences added to
+  the repository (listed as an owner decision).
 - MCP server for AI coding agents (2026-10-26; Phase 4 of docs/prompts/how-to-win.md).
   `packages/mcp` (`archsim-mcp`) is a Model Context Protocol server over stdio on the official
   `mcp` Python SDK (v2, `MCPServer`), running the engine directly: tools `list_part_types`,
@@ -644,6 +668,10 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   tab is in the background.
 - Heavy designs take a while: the Black Friday template (up to 1,500 req/s for 120 s) takes
   about 15 s per run, and "Run all & compare" runs at most 2 simulations at a time.
+- Imports read what infrastructure files state: no latency, traffic or call graph beyond
+  links and URLs (Terraform states almost none); Helm and Kustomize must be rendered first and
+  HCL is not read (only `terraform show -json`); image matching is by name. See
+  [docs/import.md](docs/import.md).
 - Exports (docker-compose, Kubernetes, Mermaid) are scaffolding to review, not deployable
   production configuration.
 - Client `timeoutMs` applies per attempt, not as a total deadline. Link retries also fire on

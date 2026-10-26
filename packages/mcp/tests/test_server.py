@@ -26,6 +26,7 @@ EXPECTED_TOOLS = {
     "breaking_point",
     "export",
     "calibrate",
+    "import_design",
 }
 
 
@@ -86,6 +87,12 @@ async def _session_run() -> dict[str, Any]:
                 },
             )
         )
+        compose = (
+            ROOT / "packages" / "engine" / "tests" / "fixtures" / "import" / "voting-compose.yml"
+        ).read_text(encoding="utf-8")
+        out["imported"] = _payload(
+            await session.call_tool("import_design", {"format": "compose", "text": compose})
+        )
     return out
 
 
@@ -116,3 +123,8 @@ def test_an_agent_can_list_simulate_explain_and_export_over_stdio() -> None:
     cal = out["calibrated"]
     assert cal["document"]["provenance"]["nodes/api/serviceTimeMs"]["kind"] == "measured"
     assert cal["summary"].startswith("This model reproduces the observed p95")
+    # an import says what it guessed
+    assert (
+        out["imported"]["report"]["guessed"]
+        and out["imported"]["document"]["architecture"]["nodes"]
+    )

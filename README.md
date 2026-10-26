@@ -84,6 +84,11 @@ API servers behind a lone Clients box.
   each input is marked measured with its source, query, time range and fit error, and the
   calibrated model replays what was observed ("reproduces the observed p95 within 5%"). Ctrl/⌘ K
   → Calibrate from telemetry, or `archsim calibrate`. See [docs/calibration.md](docs/calibration.md).
+- **Import what you run.** A docker-compose file, Kubernetes manifests or a Terraform plan
+  become a design, with a report of what was mapped, what was guessed (marked assumed), what
+  was ignored and which links to confirm. ArchSim's own exports import back exactly. Menu →
+  Import from compose, Kubernetes, Terraform, or `archsim import`. See
+  [docs/import.md](docs/import.md).
 - Every part is the same card: its technology logo on a solid tile in its family's colour, its
   name, one or two key settings, and after a run a 12-segment level meter (green, then yellow,
   then red, like an audio meter) that shows how busy it was. Links are rounded
@@ -267,6 +272,8 @@ uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-
 uv run archsim calibrate prometheus examples/cache-aside-starter.json \
   --map packages/engine/tests/fixtures/calibration/starter-mapping.yaml \
   --recorded packages/engine/tests/fixtures/calibration/starter-prometheus.json -o calibrated.json
+uv run archsim import compose docker-compose.yml -o design.json --report import-report.json
+uv run archsim export k8s examples/cache-aside-starter.json -o manifests.yaml
 ```
 
 `analyze` prints the auto sizes, the cost estimate, the design review and each part's
@@ -307,6 +314,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Simulation model: what is and isn't modeled](docs/simulation-model.md)
 - [Assumptions: every default, documented or illustrative](docs/assumptions.md) (generated)
 - [Calibrating from Prometheus and OpenTelemetry](docs/calibration.md)
+- [Importing docker-compose, Kubernetes and Terraform](docs/import.md)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)

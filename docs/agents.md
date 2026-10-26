@@ -90,6 +90,7 @@ published, `uvx archsim-mcp` will work without a checkout.
 | `compare` | Two scenarios side by side: KPI deltas and the input changes behind them. |
 | `breaking_point` | Steps the load to find the highest that meets the objectives, the knee and the bottleneck. |
 | `export` | docker-compose, Kubernetes manifests or a Mermaid diagram of the design. |
+| `import_design` | A design from a docker-compose file, Kubernetes manifests or a Terraform plan, with the import report (mapped, guessed, ignored, links to confirm). |
 | `calibrate` | Sets inputs from telemetry files (recorded Prometheus responses plus a mapping, or an OTLP trace export); returns the calibrated document and the replay check. |
 
 Resources: `archsim://schema/architecture` (the JSON Schema), `archsim://templates/{id}`

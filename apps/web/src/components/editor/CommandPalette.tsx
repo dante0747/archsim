@@ -13,6 +13,7 @@ import {
   CircleAlert,
   Copy,
   Download,
+  FileInput,
   Flame,
   FlaskConical,
   Gauge,
@@ -273,6 +274,14 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
         run: () => ui().setCalibrateOpen(true),
       },
       { id: "import", group: "Project", label: "Import JSON into this project", keywords: "upload file open", icon: <Upload className={i} />, run: onImport },
+      {
+        id: "import-infra",
+        group: "Project",
+        label: "Import from docker-compose · Kubernetes · Terraform",
+        keywords: "k8s manifests yaml terraform plan infrastructure existing",
+        icon: <FileInput className={i} />,
+        run: () => ui().setImportOpen(true),
+      },
       { id: "home", group: "Project", label: "Back to projects", keywords: "home list", icon: <ArrowLeft className={i} />, run: () => router.push("/projects") },
       { id: "theme", group: "Project", label: "Toggle light / dark theme", keywords: "dark mode light mode appearance", icon: <Moon className={i} />, run: toggleTheme },
       ...THEMES.map((t) => ({
