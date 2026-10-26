@@ -108,7 +108,8 @@ export interface ArchitectureDocument {
   schemaVersion: "1.0";
   kind: "archsim.architecture";
   metadata: DocMetadata;
-  architecture: { nodes: NodeSpec[]; edges: EdgeSpec[] };
+  /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */
+  architecture: { nodes: NodeSpec[]; edges: EdgeSpec[]; autoSize?: boolean };
   workload: Workload;
   scenarios: Scenario[];
   objectives?: Objectives;
@@ -545,6 +546,8 @@ export interface Provenance {
   inputDigest: string;
   resultDigest: string;
   requestsGenerated: number;
+  /** Simulation events processed (report 1.7+). */
+  eventsProcessed?: number;
   wallSeconds: number;
   python: string;
   simpy: string;
@@ -579,6 +582,90 @@ export interface Report {
   traces?: TraceRecord[];
   /** System-level calculations and where a request's time goes (report 1.5+). */
   explain?: { system: ExplainEntry[]; latencyBreakdown: LatencyShare[] };
+  /** The CPU, memory and storage simulated, and where each came from (report 1.7+). */
+  sizing?: Sizing;
+  /** Cost estimate of what was simulated, at the run's measured rates (report 1.7+). */
+  cost?: CostEstimate;
+  /** The static design review of what was simulated (report 1.7+). */
+  review?: ReviewFinding[];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Analysis (POST /analyze; also in reports 1.7+): computed by the engine, never in the browser
+// ---------------------------------------------------------------------------------------------
+
+export type SpecKey = "cpuCores" | "memoryGib" | "storageGib";
+
+export interface SizingEntry {
+  /** What the part is simulated with, and where each value came from. */
+  specs: Partial<Record<SpecKey, { value: number; source: "set" | "auto" | "scenario" }>>;
+  /** The auto size (used where the part leaves a spec empty). */
+  auto: Record<SpecKey, number | null>;
+  /** Peak requests per second reaching the part (static estimate). */
+  peakRps: number;
+  /** How each auto size was worked out. */
+  why: Partial<Record<SpecKey, string>>;
+  /** Illustrative price per hour of the size used. */
+  pricePerHour: number | null;
+  /** Why the part is not sized (managed service, unknown load). */
+  skipped?: string;
+}
+
+export interface Sizing {
+  auto: boolean;
+  targetCpuUtilization: number;
+  nodes: Record<string, SizingEntry>;
+}
+
+export interface NodeCost {
+  id: string;
+  label: string;
+  type: string;
+  technology: string | null;
+  /** Instances billed per hour (0 for per-call pricing). */
+  instances: number;
+  /** $/instance-hour, or $/million calls when `unit` is "million". null = no price set. */
+  unitPrice: number | null;
+  /** Where an hourly price came from: set on the part, its size, or the catalog default. */
+  priceSource: "set" | "size" | "default" | null;
+  unit: "hour" | "million";
+  monthly: number;
+  /** Plain-language basis, e.g. "2 shards × 3 nodes". */
+  basis: string;
+}
+
+export interface CostEstimate {
+  monthly: number;
+  /** $ per one million successful requests at the run's throughput; null without a run. */
+  perMillionRequests: number | null;
+  byNode: NodeCost[];
+  notes: string[];
+  /** True when at least one component carries a price. */
+  hasCost: boolean;
+}
+
+export type ReviewSeverity = "high" | "medium" | "low";
+
+export interface ReviewFinding {
+  id: string;
+  severity: ReviewSeverity;
+  rule: string;
+  title: string;
+  detail: string;
+  suggestion: string;
+  nodeIds: string[];
+  edgeIds: string[];
+}
+
+export interface Analysis {
+  scenarioId: string | null;
+  peakRps: number;
+  sizing: Sizing;
+  cost: CostEstimate;
+  review: ReviewFinding[];
+  reviewCounts: Record<ReviewSeverity, number>;
+  /** Display names of the review rules. */
+  reviewRules: Record<string, string>;
 }
 
 export interface ComparisonKpi {

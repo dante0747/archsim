@@ -7,7 +7,7 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
-**Engine** (`packages/engine`, 157 tests)
+**Engine** (`packages/engine`, 181 tests)
 
 v2 additions:
 
@@ -80,7 +80,7 @@ MVP features:
   accounting invariants, Little's law, **M/M/1 and M/M/4 against Erlang C**, and a directional
   reference benchmark on the starter example.
 
-**API** (`services/api`, 18 tests). The catalog now carries technology presets and the API
+**API** (`services/api`, 20 tests). The catalog now carries technology presets and the API
 serves 10 example designs (see below).
 
 - FastAPI v1: health, meta, component catalog, examples, JSON Schema, validate; projects CRUD
@@ -94,7 +94,7 @@ serves 10 example designs (see below).
 - Tests cover the full lifecycle, persistence across app restarts, reproducibility of reruns,
   unsaved-document runs, comparison, limits, cancellation, and a seed above 2^31.
 
-**Web** (`apps/web`, 213 tests)
+**Web** (`apps/web`, 182 tests)
 
 - **Studio with three workspaces around one canvas** (keys 1, 2, 3) and a next-step prompt:
   - **Design** (internal key `build`): technology library (families, search, drag or click to add a preset),
@@ -227,8 +227,42 @@ serves 10 example designs (see below).
   800 req/s, simulated (65% success, API servers the bottleneck), set 4 API replicas, tidied
   and simulated again (100%, both objectives met), with toasts for each step. Not tested with a
   real browser agent: none was available here (WebMCP is behind a flag in Chrome).
-- Auto-sizing (web, 2026-10-26): an empty CPU, memory or storage spec is "Auto": the part
-  gets the size it needs for the design's peak load (lib/sizing.ts: CPU at a 60% target,
+- One source of truth and limits that hold (engine 0.7.0, report 1.7, 2026-10-26; Phase 0 of
+  docs/prompts/how-to-win.md). The static load estimate, auto-sizing, the cost estimate and the
+  design review moved from the web app to the engine (`load.py`, `sizing.py`, `cost.py`,
+  `review.py`); before deleting the TypeScript copies, both versions ran on all ten templates
+  and gave identical sizes (every explanation string), identical costs and identical review
+  findings except one intended fix (a Kubernetes cluster was flagged as "runs a single replica").
+  Other fixes while porting: CPU is capped at exactly the handler count (a common size below it,
+  e.g. 2 vCPU for 3 workers, made the CPU the bottleneck), a thread-pool service's handlers are
+  its workers (not workers x processes), a Redis-style cache's cap is the commands it runs at
+  once, a service on a Kubernetes cluster is never sized above what one node can allocate, and
+  the review's retry path walk has a deterministic budget (layered fan-out has exponentially
+  many paths). The engine fills empty specs before every run (sizes from the design as drawn,
+  scenarios on the same sizes); `architecture.autoSize: false` opts a document out (compatible
+  field, schema 1.0), which the queueing-theory and spec-semantics tests use. Reports add
+  `sizing` (value and source set/auto/scenario per spec, auto sizes, how they were worked out,
+  price), `cost` and `review`; `POST /api/v1/analyze` and `archsim analyze` return the same
+  without simulating. The web app gets sizes, cost and review only from the engine (live,
+  with validation, and from reports); its tests use engine output written by
+  `scripts/export_web_fixtures.py` (a Python test keeps it current). Verified: the CLI, the API
+  job runner and `run_simulation` give the same result digest for the starter, plain and with a
+  scenario (tests); in the browser, a starter run from the web app (dev server against this
+  branch's API) and `archsim run` gave the same digest (`b03ca1028e89`), the inspector showed
+  the engine's sizes and price (typing 8 vCPU re-priced it to $0.30/h), and Results priced the
+  run at $311 a month from `report.cost`. Limits: the wall clock and cancellation are checked
+  every 4,096 events inside the event loop (a SimPy-identical step loop: Black Friday with
+  auto-sizing off gives the old engine's digest `e27e9920...`; overhead best of 3, 22.0 s vs
+  22.8 s, +3.5%, timings noisy); a 35-part layered fan-out design now stops 1.7 s after start
+  against a 1 s limit (it used to run one request for ~7 s); validation rejects designs whose one
+  request would cause more than 10,000 calls (`design.amplification`, 88,575 for that design,
+  naming the path), warning above 1,000. Reports count `eventsProcessed` (Black Friday ~4.0M).
+  Not verified: older reports have no `cost` (Results say to re-run); the amplification limit
+  is not a setting of the API yet (default 10,000 everywhere); overhead measured on one machine
+  with other work running.
+- Auto-sizing (2026-10-26; computed in the web app until engine 0.7.0, see above): an empty
+  CPU, memory or storage spec is "Auto": the part gets the size it needs for the design's peak
+  load (now archsim_engine/sizing.py: CPU at a 60% target,
   memory for what the engine's memory model needs plus 25%, storage under 70% full; rules in
   docs/simulation-model.md), shown on the canvas and in the inspector with how it was worked
   out, and filled in for runs, sweeps, batch runs, prices and exports. Typed values win; "Back

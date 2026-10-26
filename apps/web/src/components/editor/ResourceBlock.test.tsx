@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import analysisJson from "@/test/fixtures/analysis-starter.json";
 import catalogJson from "@/test/fixtures/catalog.json";
 import starterJson from "@/test/fixtures/starter.json";
-import type { ArchitectureDocument, Catalog, Project } from "@/lib/types";
+import type { Analysis, ArchitectureDocument, Catalog, Project } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { ResourceBlock } from "./ResourceBlock";
 
@@ -28,7 +29,11 @@ function show(id: string) {
 }
 
 describe("ResourceBlock", () => {
-  beforeEach(() => useEditor.getState().load(structuredClone(project), catalog));
+  beforeEach(() => {
+    useEditor.getState().load(structuredClone(project), catalog);
+    // the engine's analysis of the starter (what POST /analyze returns), as the editor receives it
+    useEditor.getState().setAnalysis(analysisJson as unknown as Analysis);
+  });
   afterEach(cleanup);
 
   it("starts unset and applies a common size in one step", () => {

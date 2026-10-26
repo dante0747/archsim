@@ -18,6 +18,7 @@ from typing import Any
 from archsim_engine import (
     DocumentInvalidError,
     SimulationLimitError,
+    analyze_document,
     compare_reports,
     default_registry,
     document_json_schema,
@@ -107,6 +108,17 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_analyze(args: argparse.Namespace) -> int:
+    try:
+        result = analyze_document(_load(args.file), default_registry(), args.scenario)
+    except DocumentInvalidError as exc:
+        print("Cannot analyze: document is invalid", file=sys.stderr)
+        _print_issues(exc.issues)
+        return 1
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def cmd_catalog(args: argparse.Namespace) -> int:
     print(json.dumps(default_registry().catalog(), indent=2))
     return 0
@@ -134,6 +146,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--a", help="scenario id for A (default: base document)")
     p.add_argument("--b", help="scenario id for B (default: base document)")
     p.set_defaults(fn=cmd_compare)
+    p = sub.add_parser(
+        "analyze", help="print the auto sizes, cost estimate and design review as JSON"
+    )
+    p.add_argument("file")
+    p.add_argument("--scenario", help="scenario id to apply")
+    p.set_defaults(fn=cmd_analyze)
     p = sub.add_parser("catalog", help="print the component catalog as JSON")
     p.set_defaults(fn=cmd_catalog)
     p = sub.add_parser("schema", help="print the document JSON Schema")

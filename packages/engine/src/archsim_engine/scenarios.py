@@ -18,6 +18,7 @@ from archsim_engine.issues import DocumentInvalidError, error
 from archsim_engine.migrations import MigrationError, migrate_document
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.schema import ArchitectureDocument, Override, Scenario
+from archsim_engine.sizing import PartSize, apply_auto_sizes
 from archsim_engine.validation import pydantic_issues
 
 
@@ -96,8 +97,19 @@ def apply_overrides(
 def resolve_scenario(
     doc: ArchitectureDocument, scenario_id: str | None, registry: ComponentRegistry
 ) -> tuple[ArchitectureDocument, Scenario | None]:
-    """Return the document to simulate (defaults materialised, overrides applied)."""
+    """Return the document to simulate (defaults materialised, auto sizes filled in, overrides
+    applied)."""
+    resolved, scenario, _ = resolve_scenario_sized(doc, scenario_id, registry)
+    return resolved, scenario
+
+
+def resolve_scenario_sized(
+    doc: ArchitectureDocument, scenario_id: str | None, registry: ComponentRegistry
+) -> tuple[ArchitectureDocument, Scenario | None, dict[str, PartSize]]:
+    """``resolve_scenario`` that also returns the auto sizes. Sizes come from the design as
+    drawn: a scenario runs on the same sizes (its overrides can still set a spec)."""
     base = normalize_document(doc, registry)
+    base, sizes = apply_auto_sizes(base, registry)
     scenario = None
     if scenario_id:
         scenario = doc.scenario(scenario_id)
@@ -118,7 +130,7 @@ def resolve_scenario(
         resolved = ArchitectureDocument.model_validate(base)
     except ValidationError as exc:
         raise DocumentInvalidError(pydantic_issues(exc, base)) from None
-    return resolved, scenario
+    return resolved, scenario, sizes
 
 
 def simulation_input(resolved: ArchitectureDocument) -> dict[str, Any]:

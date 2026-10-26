@@ -19,7 +19,7 @@ from archsim_engine import (
 from archsim_engine.components.load_balancer import LoadBalancerModel
 from archsim_engine.components.message_queue import MessageQueueModel
 from archsim_engine.components.service import ServiceModel
-from engine_builders import doc, edge, node, node_by_id, short, single_service
+from engine_builders import doc, edge, manual, node, node_by_id, short, single_service
 
 CONST = lambda v: {"kind": "constant", "value": v}  # noqa: E731
 
@@ -84,7 +84,7 @@ def test_outage_rejects_only_inside_its_window(starter: dict[str, Any]) -> None:
 
 
 def test_slowdown_multiplies_service_time_inside_window() -> None:
-    d = single_service(rps=20, service=CONST(5), workers=4, durationS=30, warmupS=2)
+    d = manual(single_service(rps=20, service=CONST(5), workers=4, durationS=30, warmupS=2))
     r = run_simulation(with_faults(d, fault("slow", "slowdown", "svc", 10, 10, factor=4)))
     p50 = r["timeseries"]["latencyP50Ms"]
     assert mean_of(p50, bucket_range(r, 11, 19)) == pytest.approx(20, rel=0.05)
@@ -404,7 +404,7 @@ def test_rate_limit_rejects_above_the_limit() -> None:
 
 def test_edge_timeseries_and_report_version(starter: dict[str, Any]) -> None:
     r = run_simulation(short(starter))
-    assert r["reportVersion"] == REPORT_VERSION == "1.6"
+    assert r["reportVersion"] == REPORT_VERSION == "1.7"
     n = len(r["timeseries"]["t"])
     for e in r["edges"]:
         ts = e["timeseries"]

@@ -28,6 +28,7 @@ import {
 import { checkConnection, componentOf } from "@/lib/graph-rules";
 import { layoutGraph } from "@/lib/layout";
 import type {
+  Analysis,
   ArchitectureDocument,
   Catalog,
   DocMetadata,
@@ -59,6 +60,8 @@ export interface EditorState extends GraphState {
   lastHistoryAt: number;
   issues: Issue[];
   validation: "idle" | "pending" | "done" | "error";
+  /** The engine's analysis of the current design (sizes, cost, review); refreshed with validation. */
+  analysis: Analysis | null;
   rightTab: RightTab;
   layoutVersion: number;
 
@@ -86,6 +89,7 @@ export interface EditorState extends GraphState {
   select: (sel: { nodeId?: string | null; edgeId?: string | null }) => void;
   autoLayout: () => Promise<void>;
   setIssues: (issues: Issue[], state: EditorState["validation"]) => void;
+  setAnalysis: (analysis: Analysis | null) => void;
   setRightTab: (tab: RightTab) => void;
   setSaving: (saving: boolean) => void;
   markSaved: (revision: number, name?: string) => void;
@@ -129,6 +133,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   lastHistoryAt: 0,
   issues: [],
   validation: "idle",
+  analysis: null,
   rightTab: "inspect",
   layoutVersion: 0,
 
@@ -150,6 +155,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       future: [],
       issues: [],
       validation: "idle",
+      analysis: null,
       rightTab: "inspect",
     });
   },
@@ -443,6 +449,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   },
 
   setIssues: (issues, validation) => set({ issues, validation }),
+  setAnalysis: (analysis) => set({ analysis }),
   setRightTab: (rightTab) => set({ rightTab }),
   setSaving: (saving) => set({ saving }),
   markSaved: (revision, name) =>

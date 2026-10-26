@@ -1,16 +1,14 @@
 "use client";
 
 /**
- * Design review panel: the architecture linter (lib/review.ts) as a floating panel at the canvas
+ * Design review panel: the engine's architecture linter (review.py, via POST /analyze) as a floating panel at the canvas
  * bottom-left. Collapsed it is a chip with counts; clicking a finding selects and frames the
  * components and links it is about.
  */
 import { useReactFlow } from "@xyflow/react";
 import { ChevronDown, ScanSearch } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { edgeSourcePort, edgeTargetPort } from "@/lib/document";
-import { REVIEW_RULES, type ReviewFinding, type ReviewSeverity, countBySeverity, reviewDesign } from "@/lib/review";
-import type { EdgeSpec, NodeSpec } from "@/lib/types";
+import { useEffect, useRef, useState } from "react";
+import type { ReviewFinding, ReviewSeverity } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 
@@ -20,24 +18,17 @@ export const SEVERITY_COLOR: Record<ReviewSeverity, string> = {
   low: "var(--ink-3)",
 };
 
-/** Findings of the design review for the current document (recomputed when the model changes). */
+const NO_FINDINGS: ReviewFinding[] = [];
+
+/** Findings of the engine's design review for the current document (refreshed with validation). */
 export function useDesignReview(): ReviewFinding[] {
-  const nodes = useEditor((s) => s.nodes);
-  const edges = useEditor((s) => s.edges);
-  const workload = useEditor((s) => s.workload);
-  const catalog = useEditor((s) => s.catalog);
-  return useMemo(() => {
-    const ns: NodeSpec[] = nodes.map((n) => ({ id: n.id, type: n.data.type, label: n.data.label, config: n.data.config }));
-    const es: EdgeSpec[] = edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      sourcePort: edgeSourcePort(e),
-      target: e.target,
-      targetPort: edgeTargetPort(e),
-      config: e.data?.config ?? { requestTypes: ["read", "write"], latencyMs: { kind: "constant", value: 0.5 } },
-    }));
-    return reviewDesign(ns, es, catalog, workload);
-  }, [nodes, edges, workload, catalog]);
+  return useEditor((s) => s.analysis?.review ?? NO_FINDINGS);
+}
+
+function countBySeverity(findings: ReviewFinding[]): Record<ReviewSeverity, number> {
+  const c: Record<ReviewSeverity, number> = { high: 0, medium: 0, low: 0 };
+  for (const f of findings) c[f.severity] += 1;
+  return c;
 }
 
 function Counts({ findings }: { findings: ReviewFinding[] }) {
@@ -58,6 +49,7 @@ function Counts({ findings }: { findings: ReviewFinding[] }) {
 
 export function DesignReviewPanel() {
   const findings = useDesignReview();
+  const rules = useEditor((s) => s.analysis?.reviewRules);
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const rf = useReactFlow();
@@ -169,7 +161,7 @@ export function DesignReviewPanel() {
                 <span className="absolute inset-y-2 left-1.5 w-[2px] rounded-full" style={{ background: SEVERITY_COLOR[f.severity] }} aria-hidden />
                 <span className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
                   <span style={{ color: SEVERITY_COLOR[f.severity] }}>{f.severity}</span>
-                  <span>{REVIEW_RULES[f.rule] ?? f.rule}</span>
+                  <span>{rules?.[f.rule] ?? f.rule}</span>
                 </span>
                 <span className="mt-0.5 block text-[13px] font-semibold leading-snug text-ink">{f.title}</span>
                 <span className="mt-0.5 block text-xs leading-relaxed text-ink-2">{f.detail}</span>

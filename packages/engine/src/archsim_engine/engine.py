@@ -11,11 +11,12 @@ import time
 from array import array
 from bisect import bisect_left
 from collections.abc import Callable, Generator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import accumulate
 from typing import Any
 
 import simpy
+from simpy.core import URGENT, EmptySchedule, StopSimulation
 
 from archsim_engine.components import create_default_registry
 from archsim_engine.components.traffic_source import TrafficSourceConfig, TrafficSourceRuntime
@@ -24,9 +25,10 @@ from archsim_engine.metrics import Timeline
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.report import build_report
 from archsim_engine.runtime import EdgeRuntime, Request, SimContext
-from archsim_engine.scenarios import load_document, resolve_scenario
+from archsim_engine.scenarios import load_document, resolve_scenario_sized
 from archsim_engine.schema import ArchitectureDocument, ConstantPattern, Workload
-from archsim_engine.validation import ValidationResult, validate_document
+from archsim_engine.sizing import PartSize
+from archsim_engine.validation import DEFAULT_MAX_AMPLIFICATION, ValidationResult, validate_document
 
 ProgressFn = Callable[[float], None]
 CancelFn = Callable[[], bool]
@@ -51,6 +53,10 @@ class SimulationLimits:
     max_requests: int = 2_000_000
     max_wall_seconds: float = 300.0
     progress_chunks: int = 200
+    max_amplification: float | None = DEFAULT_MAX_AMPLIFICATION
+    """Most component invocations one client request may cause (fan-out x retries); None: no bound."""
+    check_every_events: int = 4096
+    """How often (in processed events) the wall clock and the cancel flag are checked."""
 
 
 class SimulationCancelledError(Exception):
@@ -69,6 +75,7 @@ class PreparedRun:
     scenario_name: str | None
     overrides: list[dict[str, Any]]
     validation: ValidationResult
+    sizes: dict[str, PartSize] = field(default_factory=dict)
 
 
 def prepare_run(
@@ -81,8 +88,8 @@ def prepare_run(
     registry = registry or default_registry()
     limits = limits or SimulationLimits()
     doc = load_document(document)
-    resolved, scenario = resolve_scenario(doc, scenario_id, registry)
-    result = validate_document(resolved, registry)
+    resolved, scenario, sizes = resolve_scenario_sized(doc, scenario_id, registry)
+    result = validate_document(resolved, registry, max_amplification=limits.max_amplification)
     if not result.valid:
         raise DocumentInvalidError(result.issues)
     expected = resolved.workload.expected_arrivals()
@@ -100,6 +107,7 @@ def prepare_run(
         if scenario
         else [],
         validation=result,
+        sizes=sizes,
     )
 
 
@@ -182,6 +190,33 @@ def _arrivals(
         env.process(src.submit(req))
 
 
+def _run_until(env: simpy.Environment, at: float, every: int, check: Callable[[], None]) -> int:
+    """``env.run(until=at)`` with ``check()`` called every ``every`` processed events, so limits
+    and cancellation hold inside a chunk too (one request of a heavily fanned-out design can
+    process millions of events). Mirrors SimPy's own loop, stop event included, so results are
+    identical. Returns the number of events processed."""
+    until = simpy.Event(env)
+    until._ok = True
+    until._value = None
+    env.schedule(until, URGENT, at - env.now)
+    assert until.callbacks is not None
+    until.callbacks.append(StopSimulation.callback)
+    step = env.step
+    left = every
+    done = 0
+    try:
+        while True:
+            step()
+            left -= 1
+            if not left:
+                done += every
+                left = every
+                check()
+    except (StopSimulation, EmptySchedule):
+        pass
+    return done + (every - left)
+
+
 def run_simulation(
     document: dict[str, Any] | ArchitectureDocument,
     *,
@@ -245,20 +280,27 @@ def run_simulation(
     keys = ZipfSampler(wl.key_count, wl.key_skew, ctx.rng("keys")) if needs_keys else None
     env.process(_arrivals(env, wl, ctx, sources, shares, tl, keys))
 
-    step = end_ms / max(1, limits.progress_chunks)
-    t = 0.0
-    while t < end_ms:
-        t = min(t + step, end_ms)
-        env.run(until=t)
-        if progress is not None:
-            progress(t / end_ms)
+    def check() -> None:
         if should_cancel is not None and should_cancel():
             raise SimulationCancelledError("simulation cancelled")
         if time.perf_counter() - wall0 > limits.max_wall_seconds:
             raise SimulationLimitError(
                 f"Simulation exceeded the wall-clock limit of {limits.max_wall_seconds:.0f} s "
-                f"at simulated time {t / 1000:.1f} s. Reduce RPS, duration or model size."
+                f"at simulated time {env.now / 1000:.1f} s. Reduce RPS, duration, fan-out or "
+                "model size."
             )
+
+    step = end_ms / max(1, limits.progress_chunks)
+    every = max(1, limits.check_every_events)
+    events = 0
+    t = 0.0
+    while t < end_ms:
+        t = min(t + step, end_ms)
+        if t > env.now:
+            events += _run_until(env, t, every, check)
+        if progress is not None:
+            progress(t / end_ms)
+        check()
         if t >= duration_ms and ctx.idle():
             break  # every request has finished; only stale timers remain
     t_final = t
@@ -275,6 +317,7 @@ def run_simulation(
         t_final=t_final,
         drain_s=drain_s,
         wall_seconds=time.perf_counter() - wall0,
+        events=events,
     )
     if progress is not None:
         progress(1.0)

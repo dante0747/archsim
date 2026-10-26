@@ -132,6 +132,13 @@ class EdgeSpec(CamelModel):
 class Architecture(CamelModel):
     nodes: list[NodeSpec] = Field(default_factory=list, max_length=200)
     edges: list[EdgeSpec] = Field(default_factory=list, max_length=1000)
+    auto_size: bool = Field(
+        default=True,
+        description=(
+            "Give parts with an empty CPU, memory or storage spec the size they need for the "
+            "design's peak load (see sizing.py). false: an empty spec is not modelled."
+        ),
+    )
 
 
 # --------------------------------------------------------------------------------------

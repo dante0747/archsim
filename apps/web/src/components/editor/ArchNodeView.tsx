@@ -20,7 +20,7 @@ import type { Fault, NodeReport, NodeStatus, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { editorSizes } from "@/store/sizes";
+import { autoSizeKey } from "@/store/sizes";
 import { useUi } from "@/store/ui";
 
 export const NODE_W = 212;
@@ -127,10 +127,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   });
   const plan = useMemo(() => (planJson ? (JSON.parse(planJson) as ClusterPlan) : null), [planJson]);
   // Auto sizes fill the specs a part leaves empty (as a string so moving parts does not re-render).
-  const autoKey = useEditor((s) => {
-    const z = editorSizes(s).get(id);
-    return z ? `${z.cpuCores ?? ""}|${z.memoryGib ?? ""}|${z.storageGib ?? ""}` : "||";
-  });
+  const autoKey = useEditor((s) => autoSizeKey(s.analysis, id));
 
   const liveOn = overlay && !!report && !!nodeReport && bucket >= 0 && bucket < nBuckets;
   const live = useMemo(

@@ -13,7 +13,7 @@ from archsim_engine import (
     SimulationLimits,
     run_simulation,
 )
-from engine_builders import doc, edge, node, node_by_id, short, single_service
+from engine_builders import doc, edge, manual, node, node_by_id, short, single_service
 
 
 def assert_accounting(report: dict[str, Any]) -> None:
@@ -51,7 +51,7 @@ def test_no_traffic_completes_cleanly() -> None:
 
 def test_below_capacity_tracks_arrivals_with_little_queueing() -> None:
     # capacity: 4 workers / 10 ms = 400 req/s; offered 100 req/s (25%)
-    r = run_simulation(single_service(rps=100, workers=4, durationS=60, warmupS=5))
+    r = run_simulation(manual(single_service(rps=100, workers=4, durationS=60, warmupS=5)))
     s = r["summary"]
     assert s["successRate"] == 1.0
     assert s["throughputRps"] == pytest.approx(s["offeredRps"], rel=0.05)

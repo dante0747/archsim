@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from archsim_engine.analyze import analyze_document
 from archsim_engine.compare import compare_reports
 from archsim_engine.components import create_default_registry
 from archsim_engine.engine import (
@@ -37,6 +38,7 @@ __all__ = [
     "SimulationLimitError",
     "SimulationLimits",
     "ValidationResult",
+    "analyze_document",
     "compare_reports",
     "create_default_registry",
     "default_registry",

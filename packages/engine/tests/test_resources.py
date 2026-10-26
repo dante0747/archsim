@@ -9,7 +9,7 @@ from test_engine_behaviour import assert_accounting
 from test_validation import codes
 
 from archsim_engine import run_simulation
-from engine_builders import doc, edge, node, node_by_id, single_service
+from engine_builders import doc, edge, manual, node, node_by_id, single_service
 
 CONST = {"kind": "constant", "value": 10}
 
@@ -21,7 +21,7 @@ def svc_doc(rps: float, **svc: Any) -> dict[str, Any]:
 
 
 def test_without_specs_nothing_changes() -> None:
-    plain = run_simulation(svc_doc(300))
+    plain = run_simulation(manual(svc_doc(300)))
     # as many whole cores as workers: no contention, same numbers
     roomy = run_simulation(svc_doc(300, cpuCores=8, memoryGib=64))
     assert plain["summary"]["latencyMs"] == roomy["summary"]["latencyMs"]
@@ -169,8 +169,21 @@ def test_cache_fixed_ratio_warns_when_keyspace_does_not_fit() -> None:
     assert "cache.keyspace_exceeds_memory" in codes(d, "warning")
 
 
+def test_auto_sized_part_is_not_the_bottleneck_at_its_peak() -> None:
+    # 300 req/s x 10 ms = 3 cores busy, / 0.6 = 5 -> 8 vCPU (= the 8 workers): same as unlimited
+    auto = run_simulation(svc_doc(300))
+    plain = run_simulation(manual(svc_doc(300)))
+    sizing = auto["sizing"]["nodes"]["svc"]["specs"]
+    assert sizing["cpuCores"] == {"value": 8.0, "source": "auto"}
+    assert sizing["memoryGib"]["source"] == "auto"
+    assert auto["summary"]["latencyMs"] == plain["summary"]["latencyMs"]
+    assert node_by_id(auto, "svc")["summary"]["cpuCoreUtilization"] == pytest.approx(
+        300 * 0.010 / 8, abs=0.03
+    )
+
+
 def test_capacity_figures_follow_cpu_and_memory() -> None:
-    plain = node_by_id(run_simulation(svc_doc(300)), "svc")["summary"]
+    plain = node_by_id(run_simulation(manual(svc_doc(300))), "svc")["summary"]
     assert plain["capacityLimit"] == "slots" and plain["cpuCapacityRps"] is None
     assert plain["serviceOnlyCapacityRps"] == pytest.approx(800, rel=0.01)
 

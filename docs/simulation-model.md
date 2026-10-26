@@ -345,17 +345,19 @@ judged by its pods, not by requests.
 ### Cost assumptions
 
 `costPerHour` (per instance: replica, database instance, cache node, broker, load balancer)
-and `costPerMillionRequests` (third-party APIs) never affect the simulation. The web app
-turns them into a monthly estimate (730 hours) and a cost per million successful requests,
-using the run's average replica count for autoscaled services and the measured call rate for
-third-party APIs.
+and `costPerMillionRequests` (third-party APIs) never affect the simulation. The engine
+(`cost.py`) turns them into a monthly estimate (730 hours) and a cost per million successful
+requests, using the run's average replica count for autoscaled services and the measured call
+rate for third-party APIs; every report carries it as `cost`, and `POST /analyze` prices a
+design before it runs.
 
 ### Resource specs (CPU, memory, storage)
 
 Services, databases, caches, load balancers and message queues can carry `cpuCores`,
 `memoryGib` and (databases, queues) `storageGib` per instance (per replica, per database
-instance, per cache node, per broker). Every spec is optional: left empty it is not modelled
-and the component behaves exactly as before. Set, it has these effects:
+instance, per cache node, per broker). A spec left empty is auto-sized (see below) unless the
+document sets `architecture.autoSize: false`, in which case it is not modelled and the component
+behaves as if it had unlimited CPU and memory. Set, a spec has these effects:
 
 | Component | CPU cores | Memory | Storage |
 | --- | --- | --- | --- |
@@ -372,18 +374,21 @@ window), `memoryPeakGiB` (services), `bufferHitRatio` (databases) and `capacityK
 collection (GC pauses come from the technology profile, see above, not from the memory spec),
 OOM kills and restarts (memory is a refusal limit), page-cache dynamics, disk write bandwidth,
 network bandwidth.
-**Auto-sizing (web app).** In the web app an empty spec is *Auto*: the part gets the size it
-needs for the design's own peak load (`apps/web/src/lib/sizing.ts`), shown greyed with an
-"auto" tag on the canvas and in the inspector (with how it was worked out), and filled into
-the document whenever the design is simulated, priced or exported. A typed value replaces it;
-"Back to auto" clears it. The engine, the API and the CLI are unchanged: there an empty spec is
-still not modelled. The rules follow the effects in the table above:
+**Auto-sizing.** An empty spec is *Auto*: before a run the engine (`sizing.py`) gives the part
+the size it needs for the design's own peak load, so the CLI, the API and the web app simulate
+the same document identically (same result digest). The report's `sizing` section says, per
+part, the value simulated and whether it was set, auto-sized or set by a scenario, with how each
+auto size was worked out; `POST /analyze` and `archsim analyze` return the same without
+simulating. The web app shows auto sizes greyed with an "auto" tag on the canvas and in the
+inspector; a typed value replaces them, "Back to auto" clears it. `architecture.autoSize: false`
+turns auto-sizing off for a document (an empty spec is then not modelled). The rules follow
+the effects in the table above:
 
 | Part | CPU | Memory | Storage |
 | --- | --- | --- | --- |
-| Service | peak req/s per replica (at full scale when autoscaling) x mean `serviceTimeMs` / 60%, never more than its workers (event loops for Node.js) can use; serverless: 1 vCPU | `memoryBaselineMb` + (workers + `queueCapacity`) x `memoryPerRequestMb`, +25%, at most 64 GiB | - |
+| Service | peak req/s per replica (at full scale when autoscaling) x mean `serviceTimeMs` / 60%, never more than its handlers (workers, or event loops for Node.js) can use: capped at exactly that count; on a Kubernetes cluster, never more than one node can allocate; serverless: 1 vCPU | `memoryBaselineMb` + (requests in flight + `queueCapacity`) x `memoryPerRequestMb`, +25%, at most 64 GiB | - |
 | Database | the busiest primary's CPU work (its share of reads, every scattered read for Elasticsearch-style search, every write; RF and consistency for rings) x `cpuShare` / 60% | hot working set per instance / 0.75 (the buffer cache share); without one, 4 GiB per vCPU (illustrative) | data per instance (`dataSizeGib`, else keys x item size) kept under 70% full, at least 10 GiB |
-| Cache | commands per node x `serviceTimeMs` / 60%, never more than its `concurrency` | keyspace x item size per node / 0.8, +25% | - |
+| Cache | commands per node x `serviceTimeMs` / 60%, never more than the commands it runs at once (1 for single-threaded Redis-style caches) | keyspace x item size per node / 0.8, +25% | - |
 | Load balancer | 5,000 req/s per vCPU (illustrative) | 1 GiB per vCPU (illustrative) | - |
 | Message queue | 10,000 messages/s per broker vCPU (illustrative) | 2 GiB per vCPU (illustrative) | Kafka and Redis Streams: 7 days at the base rate, 3 copies; others: an hour of peak publishes |
 
@@ -400,19 +405,19 @@ Specs also feed the calculations around a run:
   the CPU (`cpuCores x instances / CPU ms per request`) and, for services, the memory (requests
   that fit x replicas / `meanHoldMs`); `capacityLimit` says which (`slots`, `cpu`, `memory`) and
   bottleneck findings name it. `serviceOnlyCapacityRps` also respects the CPU ceiling.
-- **Cost estimate (web)**: a part's price per instance-hour is the price set on it; without one,
+- **Cost estimate (`cost.py`)**: a part's price per instance-hour is the price set on it; without one,
   its size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per
   GiB-month of storage); without a size, the catalog default. A price equal to the catalog
   default counts as not set (saved runs store every default). The cost table marks size-priced
   parts.
-- **Design review (web, before a run)**: a static estimate of the peak load at each part (peak
+- **Design review (`review.py`, before a run)**: a static estimate of the peak load at each part (peak
   rate split by read/write mix and client share, spread over load-balancer targets by replicas,
   cache misses at the fixed hit ratio) is compared with its CPU: high when the CPU would be over
   100% busy, medium above 80%. It also flags a database working set that does not fit in memory
   and a TTL cache smaller than the keyspace.
 - **Exports (web)**: Kubernetes containers get `resources.requests` = `limits` from CPU and memory
-  and StatefulSet volumes the storage size; Docker Compose gets `deploy.resources` limits and
-  reservations. Parts without specs keep the previous placeholders.
+  (set or auto-sized, as the engine reports them) and StatefulSet volumes the storage size;
+  Docker Compose gets `deploy.resources` limits and reservations.
 
 ## Validation rules
 
@@ -565,8 +570,22 @@ assumptions match your production system.
 ## Limits
 
 Runs are bounded by an expected-request limit (default 2,000,000, checked before starting),
-a wall-clock limit (default 300 s, checked between progress chunks), 200 nodes, 1,000 edges,
-queue capacities up to 100,000 per pool, at most 5 attempts per call and 600 s of drain.
+a wall-clock limit (default 300 s) and cancellation, both checked every 4,096 processed events
+inside the event loop (so one request of a heavily fanned-out design cannot run past them), an
+amplification limit, 200 nodes, 1,000 edges, queue capacities up to 100,000 per pool, at most 5
+attempts per call and 600 s of drain. Reports count the events processed
+(`provenance.eventsProcessed`).
+
+**Amplification** (`design.amplification`): services call their dependencies one after another,
+so fan-out multiplies along a path, and retries multiply it again. Validation computes the
+worst-case number of calls between parts one client request can cause: one call into a part
+costs 1 plus, for a service, cache or client, the sum over its links of (attempts x what one
+call there costs) (it calls every dependency); for a load balancer or queue, the most expensive
+link (one target per call). Above 10,000 the document is rejected, naming the path that drives
+it; above 1,000 there is a warning. The limit is a `SimulationLimits` setting
+(`max_amplification`). Example: 11 layers of 3 services, each calling every service of the next
+layer, cause 88,575 calls per request.
+
 Execution speed is roughly 5,000-10,000 simulated requests per second on a laptop, depending
 on graph depth.
 

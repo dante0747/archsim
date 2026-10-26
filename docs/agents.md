@@ -33,7 +33,7 @@ In the editor (while a design is open):
 
 | Tool | What it does |
 | --- | --- |
-| `get_design` | Parts (id, type, label, technology, settings that differ from the defaults, auto-sized CPU/memory/storage), links, traffic, objectives, scenarios and validation problems (read only). |
+| `get_design` | Parts (id, type, label, technology, settings that differ from the defaults, the engine's auto-sized CPU/memory/storage), links, traffic, objectives, scenarios and validation problems (read only). |
 | `list_part_types` | Every part type with its technology presets; with a type, its settings (kind, default, options, unit, limits, meaning), ports and presets (read only). |
 | `add_part` | Adds a part of a type, optionally from a preset (e.g. `postgresql`, `redis`, `kafka`), with a label, settings and a part to place it next to. Returns its id. |
 | `connect_parts` | Links two parts (ports chosen automatically), optionally for reads or writes only, with a timeout, attempts or latency. Returns the link id. |
@@ -42,7 +42,7 @@ In the editor (while a design is open):
 | `remove` | Removes parts (with their links) or links by id. |
 | `set_traffic` | Changes the workload: rate, read share, duration, warm-up, shape (constant, ramp, burst), keys, skew, seed. |
 | `set_objectives` | Sets p95/p99 latency, availability and minimum throughput targets. |
-| `review_design` | The static design review: capacity at peak, timeouts and retries, unbounded queues, single points of failure (read only). |
+| `review_design` | The engine's static design review (via `POST /analyze`): capacity at peak, timeouts and retries, unbounded queues, single points of failure (read only). |
 | `simulate` | Runs the simulation (the design or a scenario), waits, and returns the verdict against the objectives, throughput, success rate, latency, failures, findings, per-part status and monthly cost. |
 | `get_results` | The same summary for the latest run or a run id (read only). |
 | `tidy_layout` | Arranges the parts along the request flow. |

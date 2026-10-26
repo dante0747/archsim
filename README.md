@@ -34,7 +34,9 @@ API servers behind a lone Clients box.
   disk, a cache evicts least recently used keys. Left empty they are **auto-sized**: each part
   gets the CPU, memory and storage it needs for the design's peak load (CPU at a 60% target,
   memory for the requests, buffer cache or keys it holds, storage under 70% full), shown with
-  how it was worked out and used in runs, prices and exports until you type your own.
+  how it was worked out and used in runs, prices and exports until you type your own. The
+  engine does the sizing, so the CLI, the API and the web app simulate a design identically
+  (same result digest).
 - Clients as separate parts: **Mobile app** (iOS, Android, React Native, Flutter), **Web
   browser** (React, Next.js, Vue, Angular, Svelte) and **API consumers** (REST / OpenAPI,
   GraphQL), alongside the generic Clients box. Each has its own timeouts, retries and network
@@ -233,13 +235,19 @@ The numbers come from the shipped examples with seed 42 and are illustrative ass
 
 ## Command line
 
-The engine works without the web stack:
+The engine works without the web stack, with the same answers as the web app:
 
 ```bash
 uv run archsim validate examples/cache-aside-starter.json
+uv run archsim analyze examples/cache-aside-starter.json
 uv run archsim run examples/cache-aside-starter.json --scenario one-api-replica --out report.json
 uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
 ```
+
+`analyze` prints the auto sizes, the cost estimate and the design review without simulating.
+Untrusted documents are bounded: the wall-clock limit and cancellation hold inside the event
+loop, and a design whose one request would fan out into more than 10,000 calls is rejected
+(`design.amplification`).
 
 ## Tests and checks
 

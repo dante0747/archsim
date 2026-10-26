@@ -209,3 +209,6 @@ def test_web_catalog_fixture_matches_registry() -> None:
     spec.loader.exec_module(module)
     committed = json.loads(module.FIXTURE.read_text(encoding="utf-8"))
     assert committed == json.loads(json.dumps(module.catalog()))
+    # the engine's analysis of the starter, which web tests use instead of re-implementing rules
+    analysis = json.loads(module.ANALYSIS.read_text(encoding="utf-8"))
+    assert analysis == json.loads(json.dumps(module.analysis()))
