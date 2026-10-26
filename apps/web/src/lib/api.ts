@@ -1,5 +1,6 @@
 /** Typed client for the ArchSim v1 API (proxied same-origin under /api/v1). */
 import type {
+  Analysis,
   ArchitectureDocument,
   Catalog,
   Comparison,
@@ -63,6 +64,9 @@ export const api = {
   components: () => request<Catalog>("/components"),
   examples: () => request<ExampleSummary[]>("/examples"),
   example: (id: string) => request<ArchitectureDocument>(`/examples/${encodeURIComponent(id)}`),
+  /** Auto sizes, cost estimate and design review, computed by the engine (no simulation). */
+  analyze: (document: ArchitectureDocument, scenarioId?: string | null) =>
+    request<Analysis>("/analyze", { method: "POST", body: json({ document, scenarioId: scenarioId ?? null }) }),
   validate: (document: ArchitectureDocument, scenarioId?: string | null) =>
     request<{ valid: boolean; issues: Issue[] }>("/validate", {
       method: "POST",

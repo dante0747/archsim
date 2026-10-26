@@ -223,7 +223,73 @@ def _fault_issues(
     return issues
 
 
-def validate_document(doc: ArchitectureDocument, registry: ComponentRegistry) -> ValidationResult:
+DEFAULT_MAX_AMPLIFICATION = 10_000
+"""Most component invocations one client request may cause (fan-out x retries); see
+``_amplification``. Above a tenth of it, a warning."""
+
+
+def _amplification(
+    sources: list[NodeSpec],
+    node_map: dict[str, NodeSpec],
+    out: dict[str, list[EdgeSpec]],
+    configs: dict[str, BaseModel],
+    registry: ComponentRegistry,
+) -> tuple[float, list[str]]:
+    """Worst-case component invocations one client request can cause, and the path that drives it.
+
+    One call into a part costs 1 plus: a service, cache or client calls every dependency, so the
+    sum over its links of (attempts x what one call there costs); a load balancer or queue sends
+    each call to one target, so the most expensive link. Retries multiply. Linear in the size of
+    the (acyclic) graph, however many paths it has."""
+    memo: dict[str, tuple[float, str | None]] = {}
+
+    def attempts(e: EdgeSpec) -> int:
+        return max(1, e.config.max_attempts)
+
+    def cost(nid: str) -> tuple[float, str | None]:
+        if nid in memo:
+            return memo[nid]
+        n = node_map[nid]
+        category = registry.get(n.type).category if n.type in registry else ""
+        links = [
+            (attempts(e) * cost(e.target)[0], e.target)
+            for e in out.get(nid, [])
+            if e.target in node_map
+        ]
+        if not links:
+            result: tuple[float, str | None] = (1.0, None)
+        elif category in ("network", "messaging"):
+            best = max(links, key=lambda x: x[0])
+            result = (1.0 + best[0], best[1])
+        else:
+            result = (1.0 + sum(x[0] for x in links), max(links, key=lambda x: x[0])[1])
+        memo[nid] = result
+        return result
+
+    worst = 0.0
+    worst_path: list[str] = []
+    for s in sources:
+        cfg = configs.get(s.id)
+        client_attempts = max(1, int(getattr(cfg, "max_attempts", 1) or 1))
+        total = client_attempts * cost(s.id)[0]
+        if total > worst:
+            worst = total
+            path = [s.id]
+            nxt = cost(s.id)[1]
+            while nxt is not None and nxt not in path and len(path) < 50:
+                path.append(nxt)
+                nxt = cost(nxt)[1]
+            worst_path = path
+    return worst, worst_path
+
+
+def validate_document(
+    doc: ArchitectureDocument,
+    registry: ComponentRegistry,
+    max_amplification: float | None = DEFAULT_MAX_AMPLIFICATION,
+) -> ValidationResult:
+    """Check a document. ``max_amplification`` bounds the component invocations one client
+    request may cause (None: no bound)."""
     issues: list[Issue] = []
     nodes = doc.architecture.nodes
     edges = doc.architecture.edges
@@ -434,6 +500,33 @@ def validate_document(doc: ArchitectureDocument, registry: ComponentRegistry) ->
                 hint="Remove one of the links in the loop.",
             )
         )
+
+    # -- amplification: how much work one request can cause ---------------------------------
+    if not cycle and sources and max_amplification is not None:
+        amp, path = _amplification(sources, node_map, out_edges, configs, registry)
+        route = " → ".join(_name(node_map[x]) for x in path)
+        if amp > max_amplification:
+            issues.append(
+                error(
+                    "design.amplification",
+                    f"One request can cause up to {amp:,.0f} calls between parts (fan-out and retries "
+                    f"multiplied along {route}), above the limit of {max_amplification:,.0f}. Simulating "
+                    "it would take a very long time per request.",
+                    node_id=path[1] if len(path) > 1 else path[0],
+                    hint="Call fewer dependencies per service, remove a layer, or lower maxAttempts "
+                    "(retry at one layer only).",
+                )
+            )
+        elif amp > max_amplification / 10:
+            issues.append(
+                warning(
+                    "design.amplification",
+                    f"One request can cause up to {amp:,.0f} calls between parts (fan-out and retries "
+                    f"multiplied along {route}); runs will be slow.",
+                    node_id=path[1] if len(path) > 1 else path[0],
+                    hint="Call fewer dependencies per service or lower maxAttempts.",
+                )
+            )
 
     view = GraphView(
         nodes=node_map,

@@ -19,6 +19,7 @@ from archsim_engine import (
     SCHEMA_VERSION,
     ComponentRegistry,
     DocumentInvalidError,
+    analyze_document,
     document_json_schema,
     load_document,
     resolve_scenario,
@@ -113,3 +114,24 @@ def validate(
     except DocumentInvalidError as exc:
         return {"valid": False, "issues": [i.to_dict() for i in exc.issues]}
     return validate_document(resolved if body.scenario_id else doc, registry).to_dict()
+
+
+@router.post(
+    "/analyze",
+    responses={422: {"description": "The document cannot be read (issues explain why)."}},
+)
+def analyze(
+    body: ValidateRequest, registry: ComponentRegistry = Depends(get_registry)
+) -> dict[str, Any]:
+    """Auto sizes, cost estimate and design review of a document (and optionally a scenario),
+    computed by the engine exactly as a run would use them, without simulating."""
+    try:
+        return analyze_document(body.document, registry, body.scenario_id)
+    except DocumentInvalidError as exc:
+        raise HTTPException(
+            422,
+            detail={
+                "message": "The document cannot be analyzed",
+                "issues": [i.to_dict() for i in exc.issues],
+            },
+        ) from None

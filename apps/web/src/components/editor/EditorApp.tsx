@@ -98,12 +98,15 @@ function useLiveValidation() {
       useEditor.getState().setIssues(s.issues, "pending");
       timer = setTimeout(async () => {
         const mySeq = ++seq;
-        try {
-          const res = await api.validate(useEditor.getState().toDocument());
-          if (mySeq === seq) useEditor.getState().setIssues(res.issues, "done");
-        } catch {
-          if (mySeq === seq) useEditor.getState().setIssues(useEditor.getState().issues, "error");
-        }
+        const doc = useEditor.getState().toDocument();
+        // the engine validates and analyzes (auto sizes, cost, review): one source of truth
+        const [checked, analyzed] = await Promise.allSettled([api.validate(doc), api.analyze(doc)]);
+        if (mySeq !== seq) return;
+        const st = useEditor.getState();
+        if (checked.status === "fulfilled") st.setIssues(checked.value.issues, "done");
+        else st.setIssues(st.issues, "error");
+        // an unreadable document (mid-edit) keeps the last analysis
+        if (analyzed.status === "fulfilled") st.setAnalysis(analyzed.value);
       }, 350);
     };
     schedule();

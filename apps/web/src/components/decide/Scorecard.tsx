@@ -6,7 +6,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { FindingCard, RunProgress } from "@/components/results/OverviewTab";
 import { Legend, SINGLE_SERIES } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
-import { estimateCost, formatUsd } from "@/lib/cost";
+import { formatUsd } from "@/lib/cost";
 import { compact, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { type SloCheck, type SloKey, errorBudget, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
 import type { Objectives, Report } from "@/lib/types";
@@ -257,8 +257,14 @@ export function ErrorBudgetPanel({ report, objectives }: { report: Report; objec
 // ---------------------------------------------------------------------------------------------
 
 function CostPanel({ report }: { report: Report }) {
-  const catalog = useEditor((s) => s.catalog);
-  const cost = useMemo(() => estimateCost(report.input.architecture.nodes, catalog, report), [report, catalog]);
+  const cost = report.cost;
+  if (!cost) {
+    return (
+      <Panel title="Cost per month">
+        <p className="text-[13px] leading-relaxed text-ink-2">This run was made before reports included a cost estimate. Simulate again to price it.</p>
+      </Panel>
+    );
+  }
   const max = Math.max(...cost.byNode.map((c) => c.monthly), 1e-9);
   return (
     <Panel title="Cost per month">
@@ -334,7 +340,6 @@ function Stat({ label, value }: { label: string; value: string }) {
 /** Results → Answer: does the design hold up, why, and what to fix first. */
 export function AnswerPage() {
   const objectives = useEditor((s) => s.objectives);
-  const catalog = useEditor((s) => s.catalog);
   const setDetailsView = useDecide((s) => s.setDetailsView);
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
   const running = followRun && (followRun.status === "queued" || followRun.status === "running") ? followRun : null;
@@ -370,7 +375,7 @@ export function AnswerPage() {
 
   const slo = evaluateSlo(objectives, report);
   const checks = sloChecks(objectives, report);
-  const cost = estimateCost(report.input.architecture.nodes, catalog, report);
+  const cost = report.cost ?? { monthly: 0, perMillionRequests: null, byNode: [], notes: [], hasCost: false };
   const bottleneck = report.findings.find((f) => f.kind === "bottleneck");
   const tone = slo.pass === true ? "good" : slo.pass === false ? "bad" : "none";
   const VerdictIcon = tone === "good" ? CircleCheck : tone === "bad" ? CircleAlert : CircleDashed;

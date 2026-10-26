@@ -4,10 +4,7 @@
  * undone. Results are compact JSON: ids, labels and the numbers that matter.
  */
 import { api } from "@/lib/api";
-import { estimateCost } from "@/lib/cost";
 import { freeSpot } from "@/lib/placement";
-import { reviewDesign } from "@/lib/review";
-import { autoSizes } from "@/lib/sizing";
 import { evaluateSlo } from "@/lib/slo";
 import type { ComponentType, EdgeConfig, Report, Workload } from "@/lib/types";
 import { useEditor } from "@/store/editor";
@@ -66,7 +63,7 @@ export function summarizeReport(report: Report, runId: string) {
   const s = report.summary;
   const objectives = ed().objectives;
   const slo = evaluateSlo(objectives, report);
-  const cost = estimateCost(report.input.architecture.nodes, ed().catalog, report);
+  const cost = report.cost ?? null; // priced by the engine with the run
   return {
     runId,
     /** Cite it: re-running the same input reproduces this digest exactly. */
@@ -90,7 +87,7 @@ export function summarizeReport(report: Report, runId: string) {
       arrivalRps: round(n.summary.arrivalRps),
       p95Ms: round(n.summary.latencyMs?.p95 ?? null),
     })),
-    costPerMonthUsd: cost.hasCost ? Math.round(cost.monthly) : null,
+    costPerMonthUsd: cost?.hasCost ? Math.round(cost.monthly) : null,
   };
 }
 
@@ -167,19 +164,20 @@ export function editorTools(): AgentTool[] {
         const s = ed();
         const cat = catalog();
         const doc = s.toDocument();
-        const sizes = autoSizes(doc, cat);
+        // sized by the engine, from the design as it is now (not the last debounced analysis)
+        const sizes = (await api.analyze(doc)).sizing.nodes;
         return {
           name: s.metadata.name,
           parts: s.nodes.map((n) => {
             const comp = cat.components.find((c) => c.type === n.data.type);
-            const size = sizes.get(n.id);
+            const size = sizes[n.id];
             return {
               id: n.id,
               type: n.data.type,
               label: n.data.label,
               technology: typeof n.data.config.technology === "string" ? n.data.config.technology : null,
               settings: input.includeDefaults ? { ...(comp?.defaultConfig ?? {}), ...n.data.config } : changedConfig(n.data.config, comp),
-              autoSize: size && !size.skipped ? { cpuCores: size.cpuCores, memoryGib: size.memoryGib, storageGib: size.storageGib, peakRps: round(size.peakRps) } : null,
+              autoSize: size && !size.skipped ? { ...size.auto, peakRps: round(size.peakRps) } : null,
             };
           }),
           links: doc.architecture.edges.map((e) => ({
@@ -415,8 +413,7 @@ export function editorTools(): AgentTool[] {
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: true },
       execute: async () => {
-        const doc = ed().toDocument();
-        return reviewDesign(doc.architecture.nodes, doc.architecture.edges, catalog(), doc.workload).map((f) => ({
+        return (await api.analyze(ed().toDocument())).review.map((f) => ({
           severity: f.severity,
           title: f.title,
           detail: f.detail,

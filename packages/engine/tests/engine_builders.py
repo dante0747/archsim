@@ -38,6 +38,13 @@ def edge(
     }
 
 
+def manual(d: dict[str, Any]) -> dict[str, Any]:
+    """Turn auto-sizing off: empty CPU/memory/storage specs are not modelled (the pure queueing
+    model the physics tests check)."""
+    d["architecture"]["autoSize"] = False
+    return d
+
+
 def doc(
     nodes: list[dict[str, Any]],
     edges: list[dict[str, Any]],

@@ -1,0 +1,300 @@
+{
+  "scenarioId": null,
+  "peakRps": 400.0,
+  "sizing": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+      "lb": {
+        "specs": {
+          "cpuCores": {
+            "value": 1.0,
+            "source": "auto"
+          },
+          "memoryGib": {
+            "value": 1.0,
+            "source": "auto"
+          }
+        },
+        "auto": {
+          "cpuCores": 1.0,
+          "memoryGib": 1.0,
+          "storageGib": null
+        },
+        "peakRps": 400.0,
+        "why": {
+          "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative)",
+          "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative)"
+        },
+        "pricePerHour": 0.0398
+      },
+      "api": {
+        "specs": {
+          "cpuCores": {
+            "value": 4.0,
+            "source": "auto"
+          },
+          "memoryGib": {
+            "value": 0.5,
+            "source": "auto"
+          }
+        },
+        "auto": {
+          "cpuCores": 4.0,
+          "memoryGib": 0.5,
+          "storageGib": null
+        },
+        "peakRps": 400.0,
+        "why": {
+          "cpuCores": "200 req/s per replica at peak (400 over 2) \u00d7 10.2 ms of CPU each = 2.03 cores busy; at a 60% target that is 3.39 \u2192 4 vCPU",
+          "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB, +25% headroom"
+        },
+        "pricePerHour": 0.1494
+      },
+      "cache": {
+        "specs": {
+          "cpuCores": {
+            "value": 1.0,
+            "source": "auto"
+          },
+          "memoryGib": {
+            "value": 0.5,
+            "source": "auto"
+          }
+        },
+        "auto": {
+          "cpuCores": 1.0,
+          "memoryGib": 0.5,
+          "storageGib": null
+        },
+        "peakRps": 400.0,
+        "why": {
+          "cpuCores": "400 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.03 \u2192 1 vCPU",
+          "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom"
+        },
+        "pricePerHour": 0.0384
+      },
+      "db": {
+        "specs": {
+          "cpuCores": {
+            "value": 1.0,
+            "source": "auto"
+          },
+          "memoryGib": {
+            "value": 4.0,
+            "source": "auto"
+          },
+          "storageGib": {
+            "value": 10.0,
+            "source": "auto"
+          }
+        },
+        "auto": {
+          "cpuCores": 1.0,
+          "memoryGib": 4.0,
+          "storageGib": 10.0
+        },
+        "peakRps": 112.0,
+        "why": {
+          "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU",
+          "memoryGib": "4 GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache",
+          "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
+        },
+        "pricePerHour": 0.0493
+      }
+    }
+  },
+  "cost": {
+    "monthly": 311.199,
+    "perMillionRequests": null,
+    "byNode": [
+      {
+        "id": "api",
+        "label": "API Servers",
+        "type": "service",
+        "technology": "generic",
+        "instances": 2.0,
+        "unitPrice": 0.1494,
+        "priceSource": "size",
+        "unit": "hour",
+        "monthly": 218.124,
+        "basis": "2 replicas"
+      },
+      {
+        "id": "db",
+        "label": "PostgreSQL",
+        "type": "database",
+        "technology": "postgresql",
+        "instances": 1.0,
+        "unitPrice": 0.0493,
+        "priceSource": "size",
+        "unit": "hour",
+        "monthly": 35.989,
+        "basis": "1 node"
+      },
+      {
+        "id": "lb",
+        "label": "Load Balancer",
+        "type": "load_balancer",
+        "technology": "generic",
+        "instances": 1.0,
+        "unitPrice": 0.0398,
+        "priceSource": "size",
+        "unit": "hour",
+        "monthly": 29.054000000000002,
+        "basis": "1 node"
+      },
+      {
+        "id": "cache",
+        "label": "Redis Cache",
+        "type": "cache",
+        "technology": "redis",
+        "instances": 1.0,
+        "unitPrice": 0.0384,
+        "priceSource": "size",
+        "unit": "hour",
+        "monthly": 28.031999999999996,
+        "basis": "1 node"
+      }
+    ],
+    "notes": [
+      "Parts without a set price are priced from their size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per GiB-month of storage)."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+      "kind": "illustrative",
+      "perVcpuHour": 0.037,
+      "perGibHour": 0.0028,
+      "perStorageGibMonth": 0.08
+    }
+  },
+  "review": [
+    {
+      "id": "cache-dependency:api+cache|api-cache",
+      "severity": "medium",
+      "rule": "cache-dependency",
+      "title": "Reads fail when Redis Cache is down",
+      "detail": "Every read from API Servers goes through Redis Cache; misses continue to the data store, but if the cache itself is unavailable reads have no other path.",
+      "suggestion": "Let reads degrade to the data store when the cache errors (with a circuit breaker so the store is not flooded), or run the cache with replicas.",
+      "nodeIds": [
+        "api",
+        "cache"
+      ],
+      "edgeIds": [
+        "api-cache"
+      ]
+    },
+    {
+      "id": "missing-timeout:cache+db|cache-db",
+      "severity": "medium",
+      "rule": "missing-timeout",
+      "title": "Redis Cache waits indefinitely on PostgreSQL",
+      "detail": "No timeout on PostgreSQL: a slow or hung dependency keeps Redis Cache's workers waiting until its pool fills and requests queue behind them.",
+      "suggestion": "Set per-call timeouts a little above each dependency's p99 (for example 2\u00d7 p99), keeping their sum inside the caller's own budget.",
+      "nodeIds": [
+        "cache",
+        "db"
+      ],
+      "edgeIds": [
+        "cache-db"
+      ]
+    },
+    {
+      "id": "spof:db|",
+      "severity": "medium",
+      "rule": "spof",
+      "title": "PostgreSQL has no replica",
+      "detail": "A primary failure is an outage for every read and write that reaches it.",
+      "suggestion": "Add a standby or read replicas (relational), a replica set (document stores) or replication factor 3 (wide-column).",
+      "nodeIds": [
+        "db"
+      ],
+      "edgeIds": []
+    },
+    {
+      "id": "edge-rate-limit:lb|",
+      "severity": "low",
+      "rule": "edge-rate-limit",
+      "title": "No rate limit at the edge",
+      "detail": "Nothing in front of the system caps traffic, so a spike, a retry storm or a bot flood reaches every tier at full force.",
+      "suggestion": "Add a rate limit on the gateway or load balancer sized to the capacity you have measured.",
+      "nodeIds": [
+        "lb"
+      ],
+      "edgeIds": []
+    },
+    {
+      "id": "missing-timeout:lb+api|lb-api",
+      "severity": "low",
+      "rule": "missing-timeout",
+      "title": "Load Balancer waits indefinitely on API Servers",
+      "detail": "No timeout on API Servers: a slow or hung dependency keeps Load Balancer's workers waiting until its pool fills and requests queue behind them.",
+      "suggestion": "Set per-call timeouts a little above each dependency's p99 (for example 2\u00d7 p99), keeping their sum inside the caller's own budget.",
+      "nodeIds": [
+        "lb",
+        "api"
+      ],
+      "edgeIds": [
+        "lb-api"
+      ]
+    },
+    {
+      "id": "pool-exhaustion:api+db|api-db",
+      "severity": "low",
+      "rule": "pool-exhaustion",
+      "title": "PostgreSQL has fewer connections than callers",
+      "detail": "Up to 8 blocking workers (API Servers) can wait on PostgreSQL, which accepts 6 connections. When it slows down, 2 requests queue for a connection and fail after 1,000 ms.",
+      "suggestion": "Size application pools to the database's real concurrency, add a pooler, or cap service concurrency.",
+      "nodeIds": [
+        "api",
+        "db"
+      ],
+      "edgeIds": [
+        "api-db"
+      ]
+    },
+    {
+      "id": "spof:lb|",
+      "severity": "low",
+      "rule": "spof",
+      "title": "Load Balancer is a single instance",
+      "detail": "Load Balancer is modelled as one self-hosted instance; if it stops, nothing behind it is reachable.",
+      "suggestion": "Run two instances with failover (floating IP, DNS) or use a managed load balancer.",
+      "nodeIds": [
+        "lb"
+      ],
+      "edgeIds": []
+    }
+  ],
+  "reviewCounts": {
+    "high": 0,
+    "medium": 3,
+    "low": 4
+  },
+  "reviewRules": {
+    "spof": "Single point of failure",
+    "cache-dependency": "Cache without fallback",
+    "missing-timeout": "Missing timeout",
+    "retry-amplification": "Retry amplification",
+    "retry-no-backoff": "Retries without backoff",
+    "timeout-inversion": "Timeout inversion",
+    "unbounded-wait": "Unbounded wait",
+    "pool-exhaustion": "Connection-pool exhaustion",
+    "connection-storm": "Serverless connection storm",
+    "autoscaling-range": "Autoscaling range",
+    "queue-unbounded": "Unbounded backlog",
+    "queue-sink": "Queue without consumers",
+    "queue-partitions": "Idle consumers",
+    "optimistic-cache": "Optimistic hit ratio",
+    "hot-partition": "Hot partition risk",
+    "consistency-all": "Consistency ALL",
+    "external-errors": "Unhandled third-party errors",
+    "edge-rate-limit": "No rate limit at the edge",
+    "deep-chain": "Long synchronous chain",
+    "cpu-capacity": "CPU capacity at peak",
+    "buffer-cache": "Working set larger than memory",
+    "cache-capacity": "Cache smaller than its keyspace"
+  }
+}

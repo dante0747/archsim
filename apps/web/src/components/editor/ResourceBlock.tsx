@@ -10,12 +10,11 @@ import { useId, useState } from "react";
 import { patchNodeConfig } from "@/components/build/presets";
 import { validateNumber } from "@/components/editor/FieldControl";
 import { Input } from "@/components/ui/input";
-import { formatUsd, sizePricePerHour } from "@/lib/cost";
-import { fmt, SPEC_KEYS, TARGET_CPU } from "@/lib/sizing";
+import { formatUsd } from "@/lib/cost";
 import type { ComponentType, FieldDescriptor, NodeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
-import { useAutoSize } from "@/store/sizes";
+import { SPEC_KEYS, useAutoSize, useTargetCpu } from "@/store/sizes";
 
 /** Fields this block shows itself (the inspector leaves them out of the settings list). */
 export const RESOURCE_FIELDS = ["cpuCores", "memoryGib", "storageGib"];
@@ -109,15 +108,17 @@ function SpecInput({
 export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: ComponentType; config: NodeConfig }) {
   const setNodeConfig = useEditor((s) => s.setNodeConfig);
   const size = useAutoSize(nodeId);
+  const targetCpu = useTargetCpu();
   const fields = RESOURCE_FIELDS.map((k) => comp.fields.find((f) => f.key === k)).filter((f): f is FieldDescriptor => !!f);
   if (!fields.length) return null;
   const num = (k: string) => (typeof config[k] === "number" ? (config[k] as number) : null);
   const cpu = num("cpuCores");
   const mem = num("memoryGib");
   const storage = num("storageGib");
-  const autoOf = (k: string): number | null => (size && (SPEC_KEYS as readonly string[]).includes(k) ? (size[k as (typeof SPEC_KEYS)[number]] ?? null) : null);
-  // the size a run uses: what is set, else the auto size
-  const price = sizePricePerHour(cpu ?? autoOf("cpuCores"), mem ?? autoOf("memoryGib"), storage ?? autoOf("storageGib"));
+  const autoOf = (k: string): number | null =>
+    size && !size.skipped && (SPEC_KEYS as string[]).includes(k) ? (size.auto[k as (typeof SPEC_KEYS)[number]] ?? null) : null;
+  // the engine prices the size a run uses: what is set, else the auto size
+  const price = size?.pricePerHour ?? null;
   const autoUsed = fields.filter((f) => num(f.key) == null && autoOf(f.key) != null);
   const hasCost = comp.fields.some((f) => f.key === "costPerHour");
   // The cost estimate uses a price set on the part; without one, this size's price.
@@ -191,7 +192,8 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
           <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
             <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
             <span>
-              <span className="font-medium text-ink">Auto-sized</span> for about {fmt(size.peakRps)} req/s at peak ({Math.round(TARGET_CPU * 100)}% CPU target). Type
+              <span className="font-medium text-ink">Auto-sized</span> for about {Math.round(size.peakRps).toLocaleString("en-US")} req/s at peak
+              {targetCpu != null && <> ({Math.round(targetCpu * 100)}% CPU target)</>}. Type
               a value to set your own.
             </span>
           </summary>

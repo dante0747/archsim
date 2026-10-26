@@ -44,15 +44,20 @@ Pure Python, depends only on SimPy and Pydantic. It owns:
 | `distributions.py` | Constant, exponential, uniform and lognormal (median/p95) distributions in ms. |
 | `registry.py` | `ComponentModel`, `PortSpec`, `ComponentRegistry`, UI field descriptors, entry-point plugin loading. |
 | `components/` | Built-in models: traffic source, load balancer, service, cache, database. |
-| `validation.py` | Structural, port, request-type routing and cycle checks with actionable issues. |
+| `validation.py` | Structural, port, request-type routing, cycle and amplification checks with actionable issues. |
 | `scenarios.py` | Loading, default materialisation, scenario override resolution. |
 | `runtime.py` | Requests, outcomes, worker pools, call/timeout/retry protocol, seeded RNG streams. |
 | `metrics.py` | Bounded-memory counters, time-weighted gauges, log-bucketed histograms. |
 | `engine.py` | `run_simulation`: arrivals, chunked execution, progress, cancellation, limits. |
 | `report.py` | Builds the JSON report (summary, time series, per-node metrics, provenance). |
 | `analysis.py` | Node status classification and bottleneck findings. |
+| `load.py` | Static peak-load estimate per part (no simulation). |
+| `sizing.py` | Auto-sizing: CPU, memory and storage for empty specs, applied before every run. |
+| `cost.py` | Monthly cost estimate (per run in the report, per design via `/analyze`). |
+| `review.py` | Design review: the architecture linter (single points of failure, timeouts, retries...). |
+| `analyze.py` | `analyze_document`: sizes, cost and review of a design without simulating. |
 | `compare.py` | Two-report comparison with input diff and explanations. |
-| `cli.py` | The `archsim` command: `validate`, `run`, `compare`, `catalog`, `schema`. |
+| `cli.py` | The `archsim` command: `validate`, `run`, `analyze`, `compare`, `catalog`, `schema`. |
 
 The engine can be used directly:
 
@@ -74,10 +79,13 @@ A Next.js App Router application. The browser only talks to its own origin (`/ap
 a route handler forwards those requests to the API at `ARCHSIM_API_URL`
 (default `http://127.0.0.1:8000`). The editor keeps the working document in a Zustand store,
 renders it with React Flow, and builds the technology library, the inspector forms and the
-technology presets from the component catalog returned by `GET /api/v1/components`. Design
-review rules, cost estimates, SLO evaluation, replay events, load sweeps and the
-docker-compose / Kubernetes / Mermaid exporters are pure TypeScript modules in
-`apps/web/src/lib/` with unit tests; the simulation itself only ever runs in the engine.
+technology presets from the component catalog returned by `GET /api/v1/components`. Domain
+rules have one source of truth, the engine: auto sizes, cost estimates and the design review
+come from `POST /api/v1/analyze` (called with live validation) and from each run's report, so
+the CLI, the API and the web app give the same answers. SLO evaluation, replay events, load
+sweeps and the docker-compose / Kubernetes / Mermaid exporters are TypeScript modules in
+`apps/web/src/lib/` with unit tests (web tests use engine fixtures written by
+`scripts/export_web_fixtures.py`); the simulation itself only ever runs in the engine.
 
 ## The document: four separate concerns
 

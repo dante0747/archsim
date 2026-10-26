@@ -11,7 +11,7 @@ from archsim_engine import (
     run_simulation,
     validate_document,
 )
-from engine_builders import doc, edge, node, node_by_id
+from engine_builders import doc, edge, manual, node, node_by_id
 
 EXP10 = {"kind": "exponential", "mean": 10}
 CONST1 = {"kind": "constant", "value": 1}
@@ -78,7 +78,7 @@ def test_consistency_level_orders_latency() -> None:
             maxConnections=100,
             readServiceTimeMs=EXP10,
         )
-        r = run_simulation(clients_to(db, rps=50, durationS=40, warmupS=5))
+        r = run_simulation(manual(clients_to(db, rps=50, durationS=40, warmupS=5)))
         return float(node_by_id(r, "db")["summary"]["meanHoldMs"])
 
     one, quorum, all_ = hold("one"), hold("quorum"), hold("all")

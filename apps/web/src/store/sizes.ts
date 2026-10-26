@@ -1,34 +1,41 @@
 /**
- * Auto sizes of the parts in the editor, computed once per change of the design (not per part
- * and not when a part is only moved).
+ * Auto sizes of the parts in the editor: the engine's analysis of the design (POST /analyze),
+ * refreshed together with validation. Nothing is computed in the browser.
  */
-import { toDocument } from "@/lib/document";
-import { type PartSize, autoSizes } from "@/lib/sizing";
+import type { ArchitectureDocument, Analysis, SizingEntry, SpecKey } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 
-type EditorState = ReturnType<typeof useEditor.getState>;
+export const SPEC_KEYS: SpecKey[] = ["cpuCores", "memoryGib", "storageGib"];
 
-let memo: { data: unknown[]; edges: unknown; workload: unknown; catalog: unknown; sizes: Map<string, PartSize> } | null = null;
-
-export function editorSizes(s: EditorState): Map<string, PartSize> {
-  // moving a part gives it a new node object but keeps its data, so only data changes count
-  const data = s.nodes.map((n) => n.data);
-  if (
-    memo &&
-    memo.edges === s.edges &&
-    memo.workload === s.workload &&
-    memo.catalog === s.catalog &&
-    memo.data.length === data.length &&
-    memo.data.every((d, i) => d === data[i])
-  ) {
-    return memo.sizes;
-  }
-  const sizes = autoSizes(toDocument(s), s.catalog);
-  memo = { data, edges: s.edges, workload: s.workload, catalog: s.catalog, sizes };
-  return sizes;
+/** The engine's sizing of one part (null before the first analysis or for parts without specs). */
+export function useAutoSize(nodeId: string): SizingEntry | null {
+  return useEditor((s) => s.analysis?.sizing.nodes[nodeId] ?? null);
 }
 
-/** The auto size of one part (null for parts without resource specs). */
-export function useAutoSize(nodeId: string): PartSize | null {
-  return useEditor((s) => editorSizes(s).get(nodeId) ?? null);
+/** The CPU utilization auto sizes aim for at the peak. */
+export function useTargetCpu(): number | null {
+  return useEditor((s) => s.analysis?.sizing.targetCpuUtilization ?? null);
+}
+
+/** "cpu|mem|storage" auto sizes of one part, for cheap equality in selectors. */
+export function autoSizeKey(analysis: Analysis | null, nodeId: string): string {
+  const a = analysis?.sizing.nodes[nodeId];
+  if (!a || a.skipped) return "||";
+  return SPEC_KEYS.map((k) => a.auto[k] ?? "").join("|");
+}
+
+/** The document with every empty spec filled with the engine's auto size (for exports). */
+export function withAutoSizes(doc: ArchitectureDocument, analysis: Analysis | null): ArchitectureDocument {
+  if (!analysis) return doc;
+  const nodes = doc.architecture.nodes.map((n) => {
+    const a = analysis.sizing.nodes[n.id];
+    if (!a || a.skipped) return n;
+    const patch: Record<string, number> = {};
+    for (const k of SPEC_KEYS) {
+      const v = a.auto[k];
+      if (v != null && typeof n.config?.[k] !== "number") patch[k] = v;
+    }
+    return Object.keys(patch).length ? { ...n, config: { ...n.config, ...patch } } : n;
+  });
+  return { ...doc, architecture: { ...doc.architecture, nodes } };
 }

@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 
 from archsim_engine import run_simulation
-from engine_builders import node_by_id, short, single_service
+from engine_builders import manual, node_by_id, short, single_service
 
 
 def erlang_c_mean_response_ms(lam: float, mean_service_ms: float, c: int) -> float:
@@ -74,7 +74,8 @@ STARTER_EXPECTATIONS = {
 
 
 def test_starter_reference_benchmark(starter: dict[str, Any]) -> None:
-    d = short(starter, duration=40, warmup=8)
+    # the queueing core against theory: no auto-sized CPU queues on top of the worker pools
+    d = manual(short(starter, duration=40, warmup=8))
     reports = {sid: run_simulation(d, scenario_id=sid) for sid in STARTER_EXPECTATIONS}
     for sid, exp in STARTER_EXPECTATIONS.items():
         s = reports[sid]["summary"]

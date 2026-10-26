@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { api } from "@/lib/api";
+import analysisJson from "@/test/fixtures/analysis-starter.json";
 import catalogJson from "@/test/fixtures/catalog.json";
 import starterJson from "@/test/fixtures/starter.json";
-import type { ArchitectureDocument, Catalog, Project } from "@/lib/types";
+import type { Analysis, ArchitectureDocument, Catalog, Project } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { editorTools } from "./editor-tools";
 import { type AgentTool, modelContext, registerAgentTools } from "./webmcp";
@@ -104,7 +106,12 @@ const project: Project = {
 describe("editor tools", () => {
   const tools = Object.fromEntries(editorTools().map((t) => [t.name, t]));
   const call = (name: string, input: Record<string, unknown> = {}) => tools[name].execute(input) as Promise<Record<string, unknown>>;
-  beforeEach(() => useEditor.getState().load(structuredClone(project), catalog));
+  beforeEach(() => {
+    useEditor.getState().load(structuredClone(project), catalog);
+    // sizes and review come from the engine (POST /analyze): its real output for the starter
+    vi.spyOn(api, "analyze").mockResolvedValue(analysisJson as unknown as Analysis);
+  });
+  afterEach(() => vi.restoreAllMocks());
 
   it("describes itself well enough for an agent", () => {
     for (const t of editorTools()) {

@@ -13,7 +13,6 @@ import { useEditorActions } from "@/components/editor/actions";
 import { usePlaybackLoop } from "@/components/timeline/playback";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/misc";
-import { estimateCost } from "@/lib/cost";
 import { formatCompact, formatValue } from "@/lib/metrics-catalog";
 import { detectEvents, faultLabel, runFaults } from "@/lib/recorder";
 import { NODE_STATUS } from "@/lib/status";
@@ -170,10 +169,11 @@ function DashboardBody({ report, runId, running }: { report: Report; runId: stri
   const events = useMemo(() => detectEvents(report, objectives), [report, objectives]);
   const faults = useMemo(() => runFaults(report).map((f) => ({ fault: f, label: faultLabel(report, f) })), [report]);
   const colors = useMemo(() => componentColors(report.nodes), [report]);
+  // priced by the engine with the run (reports before 1.7 have no cost)
   const cost = useMemo(() => {
-    const c = estimateCost(report.input?.architecture?.nodes ?? [], catalog, report);
-    return { monthly: c.monthly, perMillionRequests: c.perMillionRequests, hasCost: c.hasCost };
-  }, [report, catalog]);
+    const c = report.cost;
+    return c ? { monthly: c.monthly, perMillionRequests: c.perMillionRequests, hasCost: c.hasCost } : { monthly: 0, perMillionRequests: null, hasCost: false };
+  }, [report]);
   const typeNames = useMemo(() => Object.fromEntries((catalog?.components ?? []).map((c) => [c.type, c.displayName])), [catalog]);
   const hidden = useMemo(() => new Set(hiddenList), [hiddenList]);
   const model = useMemo(

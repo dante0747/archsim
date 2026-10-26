@@ -20,11 +20,14 @@ import simpy
 from pydantic import BaseModel
 
 from archsim_engine.analysis import analyze
+from archsim_engine.cost import estimate_cost
 from archsim_engine.distributions import Constant, Exponential, LogNormal, Uniform
 from archsim_engine.explain import formula, generic, num, pct
 from archsim_engine.metrics import Timeline, _round, round_series, safe_ratio
 from archsim_engine.registry import ComponentRegistry, describe_fields
+from archsim_engine.review import review_design
 from archsim_engine.scenarios import simulation_input
+from archsim_engine.sizing import sizing_summary
 from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION, SCHEMA_VERSION
 
 if TYPE_CHECKING:
@@ -303,6 +306,7 @@ def build_report(
     t_final: float,
     drain_s: float,
     wall_seconds: float,
+    events: int = 0,
 ) -> dict[str, Any]:
     resolved = prep.resolved
     wl = resolved.workload
@@ -654,7 +658,11 @@ def build_report(
         "validationWarnings": [i.to_dict() for i in prep.validation.warnings],
     }
     input_snapshot = simulation_input(resolved)
+    report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes)
     report["input"] = input_snapshot
+    # priced and reviewed on what was simulated (auto sizes filled in, scenario applied)
+    report["cost"] = estimate_cost(input_snapshot["architecture"]["nodes"], registry, report)
+    report["review"] = review_design(input_snapshot, registry)
     report["provenance"] = {
         "engineVersion": ENGINE_VERSION,
         "schemaVersion": SCHEMA_VERSION,
@@ -668,6 +676,7 @@ def build_report(
             {k: report[k] for k in ("summary", "timeseries", "nodes", "edges", "window")}
         ),
         "requestsGenerated": client.offered.total,
+        "eventsProcessed": events,
         "wallSeconds": round(wall_seconds, 3),
         "python": platform.python_version(),
         "simpy": simpy.__version__,

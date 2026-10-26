@@ -2,13 +2,12 @@
  * Markdown decision report: what was designed, what was simulated, whether it meets the
  * objectives, what it costs, and what to look at. Meant to be pasted into a design doc or PR.
  */
-import { estimateCost, formatUsd } from "./cost";
+import { formatUsd } from "./cost";
 import { isDistribution, shortDistribution } from "./distributions";
-import { applyAutoSizes } from "./sizing";
 import { errorBudget, evaluateSlo, formatSloValue } from "./slo";
 import type { SweepAnalysis } from "./sweep";
 import { technologyLabel } from "./theme";
-import type { ArchitectureDocument, Catalog, Distribution, Objectives, Report, Run } from "./types";
+import type { ArchitectureDocument, Catalog, CostEstimate, Distribution, Objectives, Report, Run } from "./types";
 
 export interface ReviewItem {
   severity: string;
@@ -23,6 +22,8 @@ export interface DecisionReportInput {
   run?: Run | null;
   report?: Report | null;
   review?: ReviewItem[];
+  /** The engine's cost estimate of the design, used when there is no run. */
+  designCost?: CostEstimate | null;
   sweep?: SweepAnalysis | null;
   generatedAt?: Date;
 }
@@ -83,7 +84,8 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
 
   // ---- verdict --------------------------------------------------------------------------
   const slo = report ? evaluateSlo(objectives, report) : null;
-  const cost = estimateCost(report ? report.input.architecture.nodes : applyAutoSizes(doc, catalog).architecture.nodes, catalog, report ?? null);
+  // priced by the engine: the run's own estimate, else the design's
+  const cost = report ? (report.cost ?? null) : (input.designCost ?? null);
   lines.push("## Summary", "");
   if (report && slo) {
     const verdict =
@@ -95,7 +97,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   } else {
     lines.push("- No simulation run yet: run the design to evaluate it against the objectives.");
   }
-  if (cost.hasCost) {
+  if (cost?.hasCost) {
     lines.push(
       `- **Estimated cost:** ${formatUsd(cost.monthly)} per month${cost.perMillionRequests != null ? `, ${formatUsd(cost.perMillionRequests)} per million successful requests` : ""}.`,
     );
@@ -223,7 +225,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   }
 
   // ---- cost ---------------------------------------------------------------------------------
-  if (cost.hasCost) {
+  if (cost?.hasCost) {
     lines.push("## Cost estimate", "");
     lines.push(
       table(

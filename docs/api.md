@@ -48,6 +48,7 @@ Domain errors use one shape:
 | GET | `/examples` | Bundled example documents (id, name, description, tags, scenario count). |
 | GET | `/examples/{exampleId}` | One example document. |
 | POST | `/validate` | Body `{document, scenarioId?}`. Returns `{valid, issues[]}`; never saves or simulates. |
+| POST | `/analyze` | Body `{document, scenarioId?}`. Returns what a run would use, computed by the engine without simulating: `sizing` (per part: `specs` simulated with their `source` set/auto/scenario, `auto` sizes, `peakRps`, `why`, `pricePerHour`), `cost` (monthly estimate by part), `review` (design review findings), `reviewCounts`, `reviewRules`, `peakRps`. 422 with `issues` when the document cannot be read. The web app calls it with live validation; `archsim analyze` prints the same. |
 
 ## Projects
 
@@ -101,10 +102,13 @@ stopped are marked `failed` ("Interrupted") at the next start.
   "edges":      [ { "id", "source", "target", "callRps", "retries", "timeouts", ... } ],
   "findings":   [ { "severity", "kind", "nodeId", "title", "detail", "suggestion"?, "evidence" } ],
   "assumptions":{ "modelNotes", "userInputs", "components", "validationWarnings" },
-  "input":      { resolved document that was simulated },
+  "sizing":     { "auto", "targetCpuUtilization", "nodes": { id: { "specs", "auto", "why", ... } } },
+  "cost":       { "monthly", "perMillionRequests", "byNode": [...], "notes", "hasCost", ... },
+  "review":     [ { "severity", "rule", "title", "detail", "suggestion", "nodeIds", "edgeIds" } ],
+  "input":      { resolved document that was simulated (auto sizes filled in) },
   "provenance": { "engineVersion", "schemaVersion", "seed", "scenarioId", "scenarioName",
                   "overrides", "inputDigest", "resultDigest", "requestsGenerated",
-                  "wallSeconds", "python", "simpy" }
+                  "eventsProcessed", "wallSeconds", "python", "simpy" }
 }
 ```
 

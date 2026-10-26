@@ -49,6 +49,46 @@ def test_validate_endpoint_reports_issues(client: TestClient) -> None:
     assert sc["issues"][0]["code"] == "scenario.unknown"
 
 
+def test_analyze_returns_sizes_cost_and_review(client: TestClient) -> None:
+    res = client.post(f"{API}/analyze", json={"document": starter()})
+    assert res.status_code == 200
+    a = res.json()
+    api = a["sizing"]["nodes"]["api"]
+    assert api["specs"]["cpuCores"]["source"] == "auto" and api["auto"]["cpuCores"] >= 1
+    assert api["pricePerHour"] > 0 and "req/s per replica" in api["why"]["cpuCores"]
+    assert a["cost"]["monthly"] > 0 and a["cost"]["byNode"]
+    assert {f["rule"] for f in a["review"]} and sum(a["reviewCounts"].values()) == len(a["review"])
+    assert a["peakRps"] == starter()["workload"]["rps"]
+    sc = client.post(
+        f"{API}/analyze", json={"document": starter(), "scenarioId": "three-api-replicas"}
+    ).json()
+    assert sc["scenarioId"] == "three-api-replicas"
+    # the scenario runs on the design's sizes: same auto size, more replicas billed
+    assert sc["sizing"]["nodes"]["api"]["auto"] == api["auto"]
+    assert sc["cost"]["monthly"] > a["cost"]["monthly"]
+    bad = client.post(f"{API}/analyze", json={"document": {"kind": "nope"}})
+    assert bad.status_code == 422 and bad.json()["detail"]["issues"]
+
+
+def test_api_run_matches_the_engine_digest_with_auto_sized_parts(client: TestClient) -> None:
+    from archsim_engine import run_simulation
+
+    p = create_project(client)
+    doc = starter(duration=5, warmup=1)
+    for scenario in (None, "three-api-replicas"):
+        run = client.post(
+            f"{API}/projects/{p['id']}/runs", json={"document": doc, "scenarioId": scenario}
+        ).json()
+        assert wait_for(client, run["id"])["status"] == "succeeded"
+        report = client.get(f"{API}/runs/{run['id']}/report").json()
+        direct = run_simulation(doc, scenario_id=scenario)
+        assert report["provenance"]["resultDigest"] == direct["provenance"]["resultDigest"], (
+            scenario
+        )
+        assert report["provenance"]["inputDigest"] == direct["provenance"]["inputDigest"], scenario
+        assert report["sizing"]["nodes"]["api"]["specs"]["cpuCores"]["source"] == "auto"
+
+
 def test_project_crud_and_revision_conflict(client: TestClient) -> None:
     p = create_project(client)
     assert p["name"] == "Cache-aside web API (starter)"

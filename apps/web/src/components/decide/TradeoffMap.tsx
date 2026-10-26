@@ -4,7 +4,7 @@ import { Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { thClass } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
-import { estimateCost, formatUsd, paretoFrontier } from "@/lib/cost";
+import { formatUsd, paretoFrontier } from "@/lib/cost";
 import { fmtMs, fmtPct } from "@/lib/format";
 import { evaluateSlo } from "@/lib/slo";
 import { cn } from "@/lib/utils";
@@ -63,7 +63,6 @@ export function TradeoffMap() {
   const reports = useRuns((s) => s.reports);
   const activeRunId = useRuns((s) => s.activeRunId);
   const showRun = useRuns((s) => s.showRun);
-  const catalog = useEditor((s) => s.catalog);
   const objectives = useEditor((s) => s.objectives);
   const scenarioCount = useEditor((s) => s.scenarios.length);
   const setScorecardRunId = useDecide((s) => s.setScorecardRunId);
@@ -83,7 +82,9 @@ export function TradeoffMap() {
       const rep = reports[r.id];
       const p95 = rep?.summary.latencyMs.p95;
       if (!rep || p95 == null) continue;
-      const cost = estimateCost(rep.input.architecture.nodes, catalog, rep);
+      // priced by the engine with the run; runs from before reports had cost are left out
+      const cost = rep.cost;
+      if (!cost) continue;
       pts.push({
         runId: r.id,
         label: runLabel(r),
@@ -97,7 +98,7 @@ export function TradeoffMap() {
     }
     const front = new Set(paretoFrontier(pts).map((p) => p.runId));
     return pts.map((p) => ({ ...p, frontier: front.has(p.runId) }));
-  }, [runs, reports, catalog, objectives]);
+  }, [runs, reports, objectives]);
 
   const hasCost = points.some((p) => p.cost > 0);
   const loading = runs.length > points.length && runs.some((r) => !reports[r.id]);
