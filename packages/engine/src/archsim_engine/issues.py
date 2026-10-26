@@ -48,3 +48,9 @@ class DocumentInvalidError(ValueError):
         first = errors[0].message if errors else "invalid document"
         more = f" (+{len(errors) - 1} more)" if len(errors) > 1 else ""
         super().__init__(f"{first}{more}")
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # Pickled from the issues, not the message: a worker process (parallel sweeps, the API's
+        # process runner) sends it back to the parent, and an exception that cannot be rebuilt
+        # there breaks the whole process pool instead of reporting what is wrong.
+        return (type(self), (self.issues,), self.__dict__)

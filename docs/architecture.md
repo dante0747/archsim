@@ -179,6 +179,10 @@ sequenceDiagram
 - **Workers:** each run simulates in a worker process (`ProcessJobRunner`): progress and
   cancellation cross the process boundary through a multiprocessing manager, and the API
   process keeps the database. `ARCHSIM_RUNNER=thread` runs them in API threads instead.
+  A worker that dies (out of memory, killed) breaks the whole process pool, so every run
+  simulating on it fails with "The simulation worker stopped unexpectedly…"; the runner then
+  replaces the pool (once per break, however many runs saw it), and later runs succeed without
+  restarting the API.
 - **Limits:** `ARCHSIM_MAX_CONCURRENT_RUNS` workers; per-run wall-clock limit
   `ARCHSIM_MAX_WALL_SECONDS`, checked between chunks.
 - **Restart recovery:** on startup, runs left `queued` or `running` by a previous process are

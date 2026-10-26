@@ -53,10 +53,13 @@ every accuracy check at risk for a speed-up that sampling gives without touching
    shares the API's interpreter: it uses its own core, the API answers while it runs (a test
    checks `/meta` answers in under a second during a 10-minute run), up to
    `ARCHSIM_MAX_CONCURRENT_RUNS` runs use as many cores, and the results are identical to a
-   thread's (same digest). `ARCHSIM_RUNNER=thread` keeps the old behaviour.
+   thread's (same digest). `ARCHSIM_RUNNER=thread` keeps the old behaviour. A worker that
+   dies (out of memory, killed) fails the runs on the pool with a clear message and the pool is
+   replaced, so later runs are unaffected (tested by crashing a worker).
 2. **Parallel sweeps.** The breaking-point sweep runs its steps in separate processes
    (`workers`), used by `archsim check --knee` and the MCP `breaking_point` tool; every step is
-   seeded, so the curve is the same either way (tested).
+   seeded, so the curve is the same either way (tested). An invalid design reports its issues
+   from a worker just as it does in-process.
 3. **Sampled mode (hybrid).** For a steady load (a constant rate, no scheduled faults) that runs
    much longer than it needs to settle, ArchSim simulates the warm-up and a steady sample in
    full (at least 10 s and 50,000 arrivals), checks that the sample is stationary (the
