@@ -34,7 +34,11 @@ def analyze_document(
         "peakRps": peak_rps(snapshot["workload"]),
         "sizing": sizing_summary(doc, resolved, sizes, registry),
         "cost": estimate_cost(
-            snapshot["architecture"]["nodes"], registry, None, snapshot.get("pricing")
+            snapshot["architecture"]["nodes"],
+            registry,
+            None,
+            snapshot.get("pricing"),
+            {k: v.kind for k, v in resolved.provenance.items()},
         ),
         "review": review,
         "reviewCounts": count_by_severity(review),

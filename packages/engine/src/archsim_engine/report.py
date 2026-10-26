@@ -629,7 +629,11 @@ def build_report(
     report["input"] = input_snapshot
     # priced and reviewed on what was simulated (auto sizes filled in, scenario applied)
     report["cost"] = estimate_cost(
-        input_snapshot["architecture"]["nodes"], registry, report, input_snapshot.get("pricing")
+        input_snapshot["architecture"]["nodes"],
+        registry,
+        report,
+        input_snapshot.get("pricing"),
+        {k: v.kind for k, v in resolved.provenance.items()},
     )
     report["review"] = review_design(input_snapshot, registry)
     report["provenance"] = {

@@ -1,11 +1,16 @@
 """Cloud prices: versioned snapshots of on-demand prices, and the machine shapes they price.
 
-A design picks a price source with ``pricing: {provider, region, purchaseOption, families}``.
-``generic`` (the default) is ArchSim's illustrative per-vCPU, per-GiB and per-GiB-month rates,
-with no machine shapes: parts keep their computed sizes. Any other provider needs a snapshot
-file (format ``archsim.prices/1``, see docs/pricing.md) in this package's directory or in
-``ARCHSIM_PRICES_DIR``. With a snapshot, auto-sizing snaps each part to the cheapest instance
-type that covers its CPU and memory, and every cost line cites that SKU and the snapshot date.
+A design picks a price source with ``pricing: {provider, region, purchaseOption, families,
+snapshotDate, snapshotSha256}``. ``generic`` (the default) is ArchSim's illustrative per-vCPU,
+per-GiB and per-GiB-month rates, with no machine shapes: parts keep their computed sizes. Any
+other provider needs a snapshot file (format ``archsim.prices/1``, see docs/pricing.md) in this
+package's directory or in ``ARCHSIM_PRICES_DIR``. With a snapshot, auto-sizing snaps each part to
+the cheapest instance type that covers its CPU and memory, and every cost line cites that SKU and
+the snapshot date.
+
+``snapshotDate`` (and ``snapshotSha256``, the hash of its content) pin one snapshot: exactly that
+one is used, or none (a validation warning, generic rates). Unpinned, the newest snapshot for the
+provider and region is used, and a run records which (``pinned``), so its input reproduces it.
 
 Snapshots are data written by ``scripts/prices/`` from the providers' public price lists; nothing
 here calls a network. This package ships no provider snapshot yet: which provider and region to
@@ -14,6 +19,7 @@ price first is the project owner's decision.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -32,6 +38,9 @@ Category = Literal["compute", "database", "cache", "stream"]
 GENERIC_VCPU_HOUR = 0.037
 GENERIC_GIB_HOUR = 0.0028
 GENERIC_STORAGE_GIB_MONTH = 0.08
+
+MANAGED_TECHNOLOGIES = frozenset({"aws_alb", "api_gateway", "cdn", "dynamodb", "sqs", "pubsub"})
+"""Managed services: the provider sizes them, so they never run on an instance type."""
 
 
 class _M(BaseModel):
@@ -105,6 +114,8 @@ class Snapshot:
     note: str | None = None
     skus: dict[str, tuple[Sku, ...]] = field(default_factory=dict)
     rates: dict[str, float | None] = field(default_factory=dict)
+    sha256: str | None = None
+    """Hash of the snapshot's content (canonical JSON, so line endings do not change it)."""
 
     @property
     def label(self) -> str:
@@ -153,6 +164,7 @@ class Snapshot:
             "illustrative": self.illustrative,
             "sources": [{"name": n, "url": u} for n, u in self.sources],
             "note": self.note,
+            "sha256": self.sha256,
         }
 
 
@@ -171,6 +183,8 @@ def machine_kind(node_type: str, cfg: dict[str, Any]) -> tuple[Category, str | N
     """Which price list a part's machines come from, or None when it is not billed per machine
     (clients, third-party APIs, services on Kubernetes or serverless, managed services)."""
     tech = cfg.get("technology") if isinstance(cfg.get("technology"), str) else None
+    if tech in MANAGED_TECHNOLOGIES:
+        return None
     if node_type == "service":
         return None if cfg.get("platform") in ("kubernetes", "serverless") else ("compute", None)
     if node_type == "database":
@@ -230,7 +244,14 @@ class PricingError(ValueError):
     pass
 
 
-def _from_model(m: SnapshotModel) -> Snapshot:
+def content_sha256(data: dict[str, Any]) -> str:
+    """Hash of a snapshot's JSON content: canonical (sorted keys, no whitespace), so the same
+    prices give the same hash whatever the file's formatting or line endings."""
+    text = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _from_model(m: SnapshotModel, sha256: str | None = None) -> Snapshot:
     def skus(items: list[SkuModel]) -> tuple[Sku, ...]:
         return tuple(
             Sku(s.sku, s.family, s.vcpu, s.memory_gib, dict(s.hourly), tuple(s.engines))
@@ -257,13 +278,14 @@ def _from_model(m: SnapshotModel) -> Snapshot:
             "queuePerMillionRequests": m.rates.queue_per_million_requests,
             "loadBalancerHour": m.rates.load_balancer_hour,
         },
+        sha256=sha256,
     )
 
 
 def parse_snapshot(data: dict[str, Any]) -> Snapshot:
     """A snapshot from its JSON (``archsim.prices/1``); raises ``PricingError`` with the reason."""
     try:
-        return _from_model(SnapshotModel.model_validate(data))
+        return _from_model(SnapshotModel.model_validate(data), content_sha256(data))
     except ValidationError as exc:
         first = exc.errors()[0]
         where = ".".join(str(p) for p in first["loc"])
@@ -292,59 +314,134 @@ def _snapshots() -> list[tuple[Snapshot, Path]]:
     return out
 
 
-def available() -> list[dict[str, str]]:
-    """Snapshots that can be chosen: the newest per provider and region."""
-    newest: dict[tuple[str, str], tuple[Snapshot, Path]] = {}
+def available(every_date: bool = False) -> list[dict[str, Any]]:
+    """Snapshots that can be chosen: the newest per provider and region, or (``every_date``)
+    every snapshot, each marked ``newest`` or not. Sorted by provider and region, newest first."""
+    found: dict[tuple[str, str, str, str], tuple[Snapshot, Path]] = {}
     for snap, path in _snapshots():
-        key = (snap.provider, snap.region or "")
-        if key not in newest or (snap.snapshot_date or "") > (newest[key][0].snapshot_date or ""):
-            newest[key] = (snap, path)
-    return [
-        {
-            "provider": s.provider,
-            "region": s.region or "",
-            "date": s.snapshot_date or "",
-            "file": p.name,
-        }
-        for (s, p) in (newest[k] for k in sorted(newest))
-    ]
+        key = (snap.provider, snap.region or "", snap.snapshot_date or "", snap.sha256 or "")
+        found.setdefault(key, (snap, path))  # the same content in two directories: listed once
+    newest: dict[tuple[str, str], str] = {}
+    for provider, region, date, _ in found:
+        if date > newest.get((provider, region), ""):
+            newest[(provider, region)] = date
+    ordered = sorted(found, key=lambda k: k[3])
+    ordered = sorted(ordered, key=lambda k: k[2], reverse=True)
+    ordered = sorted(ordered, key=lambda k: (k[0], k[1]))
+    out = []
+    for key in ordered:
+        s, p = found[key]
+        is_newest = newest.get((key[0], key[1]), "") == key[2]
+        if is_newest or every_date:
+            out.append(
+                {
+                    "provider": s.provider,
+                    "region": s.region or "",
+                    "date": s.snapshot_date or "",
+                    "file": p.name,
+                    "sha256": s.sha256 or "",
+                    "newest": is_newest,
+                }
+            )
+    return out
 
 
-def load_snapshot(provider: str = "generic", region: str | None = None) -> Snapshot:
-    """The newest snapshot for ``provider`` and ``region`` (``generic`` needs none)."""
+def load_snapshot(
+    provider: str = "generic",
+    region: str | None = None,
+    date: str | None = None,
+    sha256: str | None = None,
+) -> Snapshot:
+    """The newest snapshot for ``provider`` and ``region`` (``generic`` needs none); with
+    ``date`` (and ``sha256``) exactly that snapshot, never another. Raises ``PricingError``
+    naming what this machine has when there is none."""
     if provider == "generic":
         return GENERIC
     best: Snapshot | None = None
     for snap, _ in _snapshots():
-        matches = snap.provider == provider and (region is None or snap.region == region)
+        matches = (
+            snap.provider == provider
+            and (region is None or snap.region == region)
+            and (date is None or snap.snapshot_date == date)
+            and (sha256 is None or snap.sha256 == sha256)
+        )
         if matches and (best is None or (snap.snapshot_date or "") > (best.snapshot_date or "")):
             best = snap
     if best is not None:
         return best
+    wanted = f"no price snapshot for {provider} {region or ''}".rstrip()
+    if date is not None:
+        wanted += f" of {date}"
+    if sha256 is not None:
+        wanted += f" with content {sha256[:12]}"
+    same = [
+        a
+        for a in available(every_date=True)
+        if a["provider"] == provider and (region is None or a["region"] == region)
+    ]
+    if (date is not None or sha256 is not None) and same:
+        have = ", ".join(f"{a['region']} {a['date']} ({a['sha256'][:12]})" for a in same)
+        raise PricingError(
+            f"{wanted} (this machine has {provider} {have}); a pinned snapshot is never "
+            "swapped for another. See docs/pricing.md."
+        )
     have = ", ".join(f"{a['provider']} {a['region']}" for a in available()) or "none"
-    raise PricingError(
-        f"no price snapshot for {provider} {region or ''}".rstrip()
-        + f" (available: generic; snapshots: {have}). See docs/pricing.md."
-    )
+    raise PricingError(f"{wanted} (available: generic; snapshots: {have}). See docs/pricing.md.")
 
 
 def snapshot_for(pricing: dict[str, Any] | None) -> Snapshot:
-    """The snapshot a document's ``pricing`` names (generic when unset)."""
+    """The snapshot a document's ``pricing`` names (generic when unset): the pinned one when it
+    has ``snapshotDate`` (and ``snapshotSha256``), else the newest for its provider and region."""
     p = pricing or {}
-    return load_snapshot(str(p.get("provider") or "generic"), p.get("region"))
+    return load_snapshot(
+        str(p.get("provider") or "generic"),
+        p.get("region"),
+        p.get("snapshotDate"),
+        p.get("snapshotSha256"),
+    )
+
+
+def pinned(pricing: dict[str, Any] | None) -> dict[str, Any] | None:
+    """``pricing`` with the snapshot it resolves to written in (``region``, ``snapshotDate``,
+    ``snapshotSha256``), so a run's input names exactly the prices it used and re-running that
+    input reproduces it. Unchanged for generic prices, or when no snapshot is found (validation
+    warns, and generic rates are used)."""
+    p = pricing or {}
+    if str(p.get("provider") or "generic") == "generic":
+        return pricing
+    try:
+        snap = snapshot_for(p)
+    except PricingError:
+        return pricing
+    return {
+        **p,
+        "region": snap.region,
+        "snapshotDate": snap.snapshot_date,
+        "snapshotSha256": snap.sha256,
+    }
+
+
+def unknown_families(snap: Snapshot, families: list[str] | tuple[str, ...]) -> list[str]:
+    """``families`` that are in none of the snapshot's price lists (they restrict nothing)."""
+    known = {s.family for items in snap.skus.values() for s in items}
+    return [f for f in families if f not in known]
 
 
 __all__ = [
     "FORMAT",
     "GENERIC",
+    "MANAGED_TECHNOLOGIES",
     "Machine",
     "PricingError",
     "Sku",
     "Snapshot",
     "available",
     "choose_machine",
+    "content_sha256",
     "load_snapshot",
     "machine_kind",
     "parse_snapshot",
+    "pinned",
     "snapshot_for",
+    "unknown_families",
 ]

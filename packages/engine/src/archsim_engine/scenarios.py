@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from archsim_engine.issues import DocumentInvalidError, error
 from archsim_engine.migrations import MigrationError, migrate_document
+from archsim_engine.pricing import pinned
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.schema import ArchitectureDocument, Override, Scenario
 from archsim_engine.sizing import PartSize, apply_auto_sizes
@@ -107,8 +108,11 @@ def resolve_scenario_sized(
     doc: ArchitectureDocument, scenario_id: str | None, registry: ComponentRegistry
 ) -> tuple[ArchitectureDocument, Scenario | None, dict[str, PartSize]]:
     """``resolve_scenario`` that also returns the auto sizes. Sizes come from the design as
-    drawn: a scenario runs on the same sizes (its overrides can still set a spec)."""
+    drawn: a scenario runs on the same sizes (its overrides can still set a spec). A price
+    snapshot is resolved once and written into ``pricing`` (date and content hash), so sizing,
+    cost and the run's input all use, and name, the same one."""
     base = normalize_document(doc, registry)
+    base["pricing"] = pinned(base.get("pricing"))
     base, sizes = apply_auto_sizes(base, registry)
     scenario = None
     if scenario_id:

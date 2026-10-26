@@ -602,17 +602,37 @@ def validate_document(
 
     # -- pricing ----------------------------------------------------------------------------------
     if doc.pricing.provider != "generic":
-        from archsim_engine.pricing import PricingError, load_snapshot
+        from archsim_engine.pricing import PricingError, snapshot_for, unknown_families
 
         try:
-            load_snapshot(doc.pricing.provider, doc.pricing.region)
+            snap = snapshot_for(doc.pricing.model_dump(mode="json", by_alias=True))
         except PricingError as exc:
+            pinned = doc.pricing.snapshot_date is not None or doc.pricing.snapshot_sha256
             issues.append(
                 warning(
                     "pricing.snapshot_missing",
                     f"{exc} Sizes are not snapped and costs use generic illustrative rates.",
-                    hint="Add the snapshot file (scripts/prices/) or set the provider to generic.",
+                    hint=(
+                        "Add that snapshot file, or choose another snapshot (clearing "
+                        "snapshotDate uses the newest)."
+                        if pinned
+                        else "Add the snapshot file (scripts/prices/) or set the provider to "
+                        "generic."
+                    ),
                 )
             )
+        else:
+            unknown = unknown_families(snap, doc.pricing.families)
+            if unknown:
+                known = sorted({s.family for items in snap.skus.values() for s in items})
+                issues.append(
+                    warning(
+                        "pricing.unknown_family",
+                        f"{', '.join(unknown)}: no instance family of that name in {snap.label}, "
+                        "so it restricts nothing.",
+                        path="pricing.families",
+                        hint=f"Families in it: {', '.join(known[:20]) or 'none'}.",
+                    )
+                )
 
     return ValidationResult(issues=issues, configs=configs, view=view, edge_flows=edge_flows)

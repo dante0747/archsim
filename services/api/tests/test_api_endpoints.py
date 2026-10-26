@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import copy
+import json
+import os
 import time
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -68,6 +71,27 @@ def test_analyze_returns_sizes_cost_and_review(client: TestClient) -> None:
     assert sc["cost"]["monthly"] > a["cost"]["monthly"]
     bad = client.post(f"{API}/analyze", json={"document": {"kind": "nope"}})
     assert bad.status_code == 422 and bad.json()["detail"]["issues"]
+
+
+def test_pricing_lists_every_snapshot_and_a_pinned_one_is_used(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixtures = Path(__file__).resolve().parents[3] / "packages/engine/tests/fixtures/pricing"
+    data = json.loads((fixtures / "example-cloud-test-1-2026-10-01.json").read_text("utf-8"))
+    (tmp_path / "newer.json").write_text(json.dumps({**data, "snapshotDate": "2026-11-01"}))
+    monkeypatch.setenv("ARCHSIM_PRICES_DIR", os.pathsep.join([str(fixtures), str(tmp_path)]))
+    sources = client.get(f"{API}/pricing").json()["sources"]
+    assert sources[0]["provider"] == "generic"
+    assert [(s["date"], s["newest"]) for s in sources[1:]] == [
+        ("2026-11-01", True),
+        ("2026-10-01", False),
+    ]
+    assert all(len(s["sha256"]) == 64 for s in sources[1:])
+    doc = starter()
+    doc["pricing"] = {"provider": "example-cloud", "region": "test-1", "snapshotDate": "2026-10-01"}
+    cost = client.post(f"{API}/analyze", json={"document": doc}).json()["cost"]
+    assert cost["pricing"]["snapshotDate"] == "2026-10-01"
+    assert cost["pricing"]["sha256"] == sources[2]["sha256"]
 
 
 def test_api_run_matches_the_engine_digest_with_auto_sized_parts(client: TestClient) -> None:

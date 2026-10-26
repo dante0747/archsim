@@ -60,6 +60,31 @@ describe("ResourceBlock", () => {
     expect(node("db").data.config).toMatchObject({ cpuCores: null, memoryGib: null, storageGib: null });
   });
 
+  it("does not call a technology preset's price the user's", () => {
+    useEditor.getState().setNodeConfig("db", "cpuCores", 2);
+    useEditor.getState().setNodeConfig("db", "memoryGib", 8);
+    useEditor.getState().setNodeConfig("db", "technology", "mysql");
+    useEditor.getState().setNodeConfig("db", "costPerHour", 0.33); // the MySQL preset's price
+    show("db");
+    expect(screen.queryByText(/your price/)).toBeNull();
+    expect(screen.getByText(/the technology preset's illustrative price of \$0\.33\/h/)).toBeTruthy();
+    cleanup();
+    // with a price snapshot the engine reprices it at the instance type: the estimate uses that
+    const analysis = structuredClone(analysisJson) as unknown as Analysis;
+    analysis.sizing.nodes.db = { ...analysis.sizing.nodes.db, sku: "db.gp.2x8", pricePerHour: 0.18 };
+    analysis.cost.pricing = { ...analysis.cost.pricing!, provider: "example-cloud", region: "test-1", snapshotDate: "2026-10-01", illustrative: false };
+    useEditor.getState().setAnalysis(analysis);
+    show("db");
+    expect(screen.queryByText(/your price/)).toBeNull();
+    expect(screen.queryByText(/preset/)).toBeNull();
+    expect(screen.getByText(/the cost estimate uses it/)).toBeTruthy();
+    cleanup();
+    // a price the user typed is still theirs
+    useEditor.getState().setNodeConfig("db", "costPerHour", 0.5);
+    show("db");
+    expect(screen.getByText(/your price of \$0\.50\/h/)).toBeTruthy();
+  });
+
   it("shows the auto size in empty boxes, with how it was worked out", () => {
     show("api");
     const cpu = screen.getByLabelText(/CPU/) as HTMLInputElement;

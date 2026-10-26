@@ -378,7 +378,13 @@ and `costPerMillionRequests` (third-party APIs) never affect the simulation. The
 (`cost.py`) turns them into a monthly estimate (730 hours) and a cost per million successful
 requests, using the run's average replica count for autoscaled services and the measured call
 rate for third-party APIs; every report carries it as `cost`, and `POST /analyze` prices a
-design before it runs.
+design before it runs. A price you set on a part wins; a technology preset's `costPerHour` is
+illustrative, so with a price snapshot the part is priced at the instance type it snaps to (or
+the snapshot's managed rate) instead; parts without either are priced from their size at
+illustrative rates. Each cost line says which (`priceSource`), see
+[pricing.md](pricing.md#which-price-a-part-gets). With a snapshot, sizes snap to its instance
+types, so the snapshot changes results too: a design pins one with `pricing.snapshotDate`, and a
+run's `input.pricing` records the one it used.
 
 ### Resource specs (CPU, memory, storage)
 

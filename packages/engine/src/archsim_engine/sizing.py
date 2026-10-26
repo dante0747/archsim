@@ -27,7 +27,14 @@ from typing import TYPE_CHECKING, Any
 from archsim_engine.components.cache import KEY_MEMORY_SHARE
 from archsim_engine.components.database import BUFFER_CACHE_SHARE
 from archsim_engine.load import Json, estimate_load, js_num, mean_ms, num, peak_rps, round_half_up
-from archsim_engine.pricing import GENERIC, PricingError, Snapshot, choose_machine, snapshot_for
+from archsim_engine.pricing import (
+    GENERIC,
+    MANAGED_TECHNOLOGIES,
+    PricingError,
+    Snapshot,
+    choose_machine,
+    snapshot_for,
+)
 from archsim_engine.registry import ComponentRegistry
 
 if TYPE_CHECKING:
@@ -49,7 +56,7 @@ LOG_RETENTION_S = 7 * 24 * 3600
 LOG_BROKERS = {"kafka", "redis_streams"}
 MAX_SERVICE_MEMORY_GIB = 64
 """Largest auto memory for one service replica (a huge queue would otherwise ask for more)."""
-MANAGED = {"aws_alb", "api_gateway", "cdn", "dynamodb", "sqs", "pubsub"}
+MANAGED = MANAGED_TECHNOLOGIES
 """Managed services you do not size yourself."""
 MEMORY_HEADROOM = 1.25
 """Auto memory is what the engine's memory model needs, plus 25%."""

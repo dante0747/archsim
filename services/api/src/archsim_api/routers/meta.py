@@ -67,8 +67,10 @@ def components(registry: ComponentRegistry = Depends(get_registry)) -> dict[str,
 
 @router.get("/pricing")
 def pricing() -> dict[str, Any]:
-    """Price sources a design can name: ``generic`` (illustrative rates, always) and the price
-    snapshots on this machine (provider, region, date). See docs/pricing.md."""
+    """Price sources a design can name: ``generic`` (illustrative rates, always) and every price
+    snapshot on this machine (provider, region, date, content ``sha256``; ``newest`` marks the
+    newest per provider and region). A design pins one with ``pricing.snapshotDate``. See
+    docs/pricing.md."""
     from archsim_engine.pricing import GENERIC, available
 
     return {
@@ -80,7 +82,7 @@ def pricing() -> dict[str, Any]:
                 "illustrative": True,
                 "note": GENERIC.note,
             },
-            *({**a, "illustrative": False} for a in available()),
+            *({**a, "illustrative": False} for a in available(every_date=True)),
         ]
     }
 
