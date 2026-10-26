@@ -91,6 +91,27 @@ result).
 
 ## Components
 
+### Technology tiers and where defaults come from
+
+Every technology profile has a tier. **Core** technologies are the ones ArchSim focuses on and
+validates first: generic, Node.js, Java and Go services, PostgreSQL, Redis, Kafka, SQS-style
+queues, Nginx and ALB-style load balancers, upstream Kubernetes, and the generic part of each
+kind (it adds no technology behaviour, only the shared mechanisms). Every other technology is
+**experimental**: its behaviour rests on documentation and illustrative numbers. The tier is
+metadata: it never changes what is simulated (result digests are unchanged). It is in the
+catalog (`technologyTiers`, `presets[].tier`), in `/analyze` and in reports
+(`assumptions.technologies`, and a model note naming the experimental parts); the web app shows
+an "experimental" badge in the parts library, the inspector, the results and the exports. No
+technology has been validated against measurements yet.
+
+A technology's "auto" default is **documented** when one of its traits links the vendor
+documentation that states it (`Trait.covers`; PostgreSQL-linked traits document PostgreSQL's
+values only), and a preset number when the preset's `sources` links it; everything else is
+**illustrative**. The inspector says which for every Auto value.
+[assumptions.md](assumptions.md) lists every such value, preset number, assumption default and
+engine constant with its basis; `scripts/gen_assumptions.py` writes it from the code and a test
+fails when it is out of date.
+
 ### Worker pools (shared building block)
 
 Services, caches and databases execute work on a `WorkerPool`: `N` slots (workers,

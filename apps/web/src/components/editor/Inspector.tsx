@@ -32,6 +32,7 @@ import { compact, fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { edgeSourcePort, edgeTargetPort } from "@/lib/document";
 import { componentOf } from "@/lib/graph-rules";
 import { NODE_STATUS } from "@/lib/status";
+import { defaultSource } from "@/lib/tier";
 import { KIND_LABEL, REQ_GLYPH, kindOf, technologyLabel, type Kind } from "@/lib/theme";
 import type { ComponentType, FieldDescriptor, Issue, NodeConfig, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -428,7 +429,7 @@ function autoHints(comp: ComponentType, config: NodeConfig): Record<string, Auto
   const source = technologyLabel(comp, tech) ?? tech;
   const out: Record<string, AutoHint> = {};
   for (const [key, byTech] of Object.entries(defaults)) {
-    if (tech in byTech) out[key] = { value: byTech[tech], source };
+    if (tech in byTech) out[key] = { value: byTech[tech], source, link: defaultSource(comp, key, tech) };
   }
   return out;
 }

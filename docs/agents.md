@@ -33,8 +33,8 @@ In the editor (while a design is open):
 
 | Tool | What it does |
 | --- | --- |
-| `get_design` | Parts (id, type, label, technology, settings that differ from the defaults, the engine's auto-sized CPU/memory/storage), links, traffic, objectives, scenarios and validation problems (read only). |
-| `list_part_types` | Every part type with its technology presets; with a type, its settings (kind, default, options, unit, limits, meaning), ports and presets (read only). |
+| `get_design` | Parts (id, type, label, technology and its tier, settings that differ from the defaults, the engine's auto-sized CPU/memory/storage), links, traffic, objectives, scenarios and validation problems (read only). |
+| `list_part_types` | Every part type with its technology presets (each with its tier: core or experimental); with a type, its settings (kind, default, options, unit, limits, meaning), ports and presets (read only). |
 | `add_part` | Adds a part of a type, optionally from a preset (e.g. `postgresql`, `redis`, `kafka`), with a label, settings and a part to place it next to. Returns its id. |
 | `connect_parts` | Links two parts (ports chosen automatically), optionally for reads or writes only, with a timeout, attempts or latency. Returns the link id. |
 | `update_part` | Renames a part or changes its settings; `null` goes back to the default or to auto sizing. |

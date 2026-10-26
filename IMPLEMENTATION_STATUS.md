@@ -1,13 +1,13 @@
 # Implementation status
 
-State as of 2026-10-26 (engine 0.6.0, schema 1.0, report 1.6). This file separates what is
+State as of 2026-10-26 (engine 0.7.0, schema 1.0, report 1.8). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
 
-**Engine** (`packages/engine`, 181 tests)
+**Engine** (`packages/engine`, 187 tests)
 
 v2 additions:
 
@@ -94,7 +94,7 @@ serves 10 example designs (see below).
 - Tests cover the full lifecycle, persistence across app restarts, reproducibility of reruns,
   unsaved-document runs, comparison, limits, cancellation, and a seed above 2^31.
 
-**Web** (`apps/web`, 192 tests)
+**Web** (`apps/web`, 198 tests)
 
 - **Studio with three workspaces around one canvas** (keys 1, 2, 3) and a next-step prompt:
   - **Design** (internal key `build`): technology library (families, search, drag or click to add a preset),
@@ -277,6 +277,38 @@ serves 10 example designs (see below).
   Not verified: older reports have no `cost` (Results say to re-run); the amplification limit
   is not a setting of the API yet (default 10,000 everywhere); overhead measured on one machine
   with other work running.
+- Technology tiers and discoverable assumptions (report 1.8, 2026-10-26; Phase 1 of
+  docs/prompts/how-to-win.md). Every technology profile has a tier: core (the roadmap's
+  suggested set: generic, Node.js, Java and Go services, PostgreSQL, Redis, Kafka, SQS-style,
+  Nginx and ALB-style load balancers, upstream Kubernetes, and the generic part of each kind,
+  which adds no technology behaviour; 15 profiles) or experimental (the other 36; none deleted).
+  The catalog carries `technologyTiers`, `presets[].tier` and `tierNote` (the badge text);
+  `/analyze` and reports add each part's tier (`technologies`, `assumptions.technologies`) and
+  reports a model note naming experimental parts. Tiers are metadata: all ten templates give
+  the same result digests as before (checked against main, e.g. starter `b03ca1028e89`). Where
+  defaults come from is now data: a profile value is documented when a trait with a link
+  `covers` it (PostgreSQL-linked traits count for PostgreSQL only, so MySQL, MariaDB, Oracle
+  and others sharing them are illustrative), a preset number when the preset's `sources` links
+  it (17 numbers; the new links were read to check the values: Tomcat threads and accept
+  queue, Lambda concurrency and memory per vCPU, S3 request rate, and for the engine constants
+  DynamoDB's on-demand start; the rest reuse trait links);
+  sizing's inline ratios became named constants. `scripts/gen_assumptions.py` writes
+  [docs/assumptions.md](docs/assumptions.md) from the code: tiers, every profile value, preset
+  number, assumption default and engine constant, each documented (with link) or
+  illustrative; a test fails when it is out of date. The web app shows a small "experimental"
+  badge (tooltip from the engine) in the parts library, the inspector's technology line, the
+  verdict, Details > Calculations and a new Technologies table under Assumptions, marks
+  experimental technologies in the Markdown report (Design table and Assumptions) and in
+  exports (Compose label `archsim.tier`, Kubernetes annotation `archsim/tier`, header line),
+  and every Auto value in the inspector says documented (linked) or illustrative. Agent tools
+  return tiers. Landing copy no longer says each technology "behaves like the real thing": it
+  names the core set and says no technology is validated against measurements yet. 6 engine
+  tests, 6 web tests. Checked in the browser (dev server against this branch's API): library
+  badges in dark and light, MongoDB on the starter shows the badge with its tooltip and Auto
+  hints ("on for MongoDB, documented", "16 (MongoDB, illustrative)"), and its run shows the
+  note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
+  report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
+  counts on the landing are computed from the catalog.
 - Auto-sizing (2026-10-26; computed in the web app until engine 0.7.0, see above): an empty
   CPU, memory or storage spec is "Auto": the part gets the size it needs for the design's peak
   load (now archsim_engine/sizing.py: CPU at a 60% target,
@@ -540,6 +572,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   on a load balancer; faults are scheduled (outage, slowdown, link latency), not random. CPU and
   memory only matter where their specs are set; resource sizes in presets and prices are
   illustrative.
+- Only a core set of technologies is ArchSim's focus, and none is validated against
+  measurements yet (Phase 2 of docs/prompts/how-to-win.md); the others are marked
+  experimental. docs/assumptions.md lists every illustrative number.
 - Technology behaviour uses documented defaults where vendors publish them; GC pauses, JIT
   warm-up, per-runtime cold starts, replica replay cost and log flush times are illustrative
   typical values (labelled in the UI), not measurements. Row locks follow the workload's Zipf
@@ -581,18 +616,21 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. Take Dependabot's web dependency group (PR #4) once typescript-eslint supports
+1. Phase 2 of docs/prompts/how-to-win.md: reproducible benchmarks (PostgreSQL, cache-aside,
+   Kafka) that publish predicted against measured latency and knee, then tier thresholds from
+   that data (the owner decides the thresholds).
+2. Take Dependabot's web dependency group (PR #4) once typescript-eslint supports
    TypeScript 7, or hold TypeScript below 7 until then.
-2. Add a Playwright end-to-end test of the main journey (open example, edit, run, compare,
+3. Add a Playwright end-to-end test of the main journey (open example, edit, run, compare,
    save, reload).
-3. Move simulations to a process pool or a Redis/RQ worker (the `JobRunner` protocol is the
+4. Move simulations to a process pool or a Redis/RQ worker (the `JobRunner` protocol is the
    seam) for parallelism and hard cancellation.
-4. Total client deadline across retries, retry budgets / circuit breaker component, and
+5. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
-5. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
+6. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-6. Prometheus calibration of service-time distributions and arrival rates, export of the
+7. Prometheus calibration of service-time distributions and arrival rates, export of the
    dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
    [docs/roadmap.md](docs/roadmap.md)).
-7. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
+8. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
    group rebalancing, adaptive capacity, per-key hot-row splitting.

@@ -97,7 +97,9 @@
       "presets": [],
       "linkDefaults": {},
       "technologyTraits": {},
-      "technologyDefaults": {}
+      "technologyDefaults": {},
+      "technologySources": {},
+      "technologyTiers": {}
     },
     {
       "type": "mobile_app",
@@ -224,7 +226,9 @@
         }
       },
       "technologyTraits": {},
-      "technologyDefaults": {}
+      "technologyDefaults": {},
+      "technologySources": {},
+      "technologyTiers": {}
     },
     {
       "type": "web_client",
@@ -352,7 +356,9 @@
         }
       },
       "technologyTraits": {},
-      "technologyDefaults": {}
+      "technologyDefaults": {},
+      "technologySources": {},
+      "technologyTiers": {}
     },
     {
       "type": "api_consumer",
@@ -477,7 +483,9 @@
         }
       },
       "technologyTraits": {},
-      "technologyDefaults": {}
+      "technologyDefaults": {},
+      "technologySources": {},
+      "technologyTiers": {}
     },
     {
       "type": "load_balancer",
@@ -727,7 +735,9 @@
           "tags": [
             "proxy",
             "l7"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "haproxy",
@@ -748,7 +758,9 @@
           "tags": [
             "proxy",
             "l7"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "envoy",
@@ -769,7 +781,9 @@
           "tags": [
             "proxy",
             "mesh"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "kong",
@@ -793,7 +807,9 @@
           "tags": [
             "gateway",
             "rate-limit"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "aws-alb",
@@ -814,7 +830,9 @@
           "tags": [
             "managed",
             "l7"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "api-gateway",
@@ -837,7 +855,12 @@
             "managed",
             "gateway",
             "rate-limit"
-          ]
+          ],
+          "sources": {
+            "rateLimitRps": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html",
+            "rateLimitBurst": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html"
+          },
+          "tier": "experimental"
         }
       ],
       "linkDefaults": {},
@@ -915,6 +938,28 @@
         "circuitBreakerMaxRequests": {
           "envoy": 1024
         }
+      },
+      "technologySources": {
+        "upstreamTimeoutMs": {
+          "nginx": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout",
+          "envoy": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+          "aws_alb": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html",
+          "api_gateway": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html",
+          "kong": "https://developer.konghq.com/gateway/entities/service/"
+        },
+        "circuitBreakerMaxRequests": {
+          "envoy": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto"
+        }
+      },
+      "technologyTiers": {
+        "nginx": "core",
+        "envoy": "experimental",
+        "aws_alb": "core",
+        "api_gateway": "experimental",
+        "kong": "experimental",
+        "haproxy": "experimental",
+        "traefik": "experimental",
+        "generic": "core"
       }
     },
     {
@@ -1465,7 +1510,9 @@
           "tags": [
             "vm",
             "static"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "java-spring-docker",
@@ -1495,7 +1542,12 @@
             "container",
             "jvm",
             "blocking"
-          ]
+          ],
+          "sources": {
+            "workersPerReplica": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+            "queueCapacity": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
+          },
+          "tier": "core"
         },
         {
           "id": "nodejs-docker",
@@ -1525,7 +1577,11 @@
             "container",
             "event-loop",
             "non-blocking"
-          ]
+          ],
+          "sources": {
+            "workersPerReplica": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop"
+          },
+          "tier": "core"
         },
         {
           "id": "go-k8s-hpa",
@@ -1560,7 +1616,11 @@
             "kubernetes",
             "hpa",
             "autoscaling"
-          ]
+          ],
+          "sources": {
+            "scaleIntervalS": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+          },
+          "tier": "core"
         },
         {
           "id": "python-k8s-hpa",
@@ -1595,7 +1655,11 @@
             "kubernetes",
             "hpa",
             "autoscaling"
-          ]
+          ],
+          "sources": {
+            "scaleIntervalS": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+          },
+          "tier": "experimental"
         },
         {
           "id": "serverless-fn",
@@ -1621,7 +1685,13 @@
             "serverless",
             "faas",
             "cold-start"
-          ]
+          ],
+          "sources": {
+            "cpuCores": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html",
+            "memoryGib": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html",
+            "concurrencyLimit": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+          },
+          "tier": "core"
         }
       ],
       "linkDefaults": {},
@@ -1807,6 +1877,36 @@
             "p95": 900
           }
         }
+      },
+      "technologySources": {
+        "runtimeModel": {
+          "nodejs": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "java": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+          "go": "https://go.dev/doc/go1.8",
+          "python": "https://gunicorn.org/design/",
+          "php": "https://www.php.net/manual/en/install.fpm.configuration.php"
+        },
+        "gcPauseMs": {
+          "go": "https://go.dev/doc/go1.8",
+          "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+        },
+        "warmupFactor": {
+          "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+        },
+        "warmupS": {
+          "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+        }
+      },
+      "technologyTiers": {
+        "nodejs": "core",
+        "java": "core",
+        "dotnet": "experimental",
+        "go": "core",
+        "rust": "experimental",
+        "python": "experimental",
+        "php": "experimental",
+        "ruby": "experimental",
+        "generic": "core"
       }
     },
     {
@@ -2189,7 +2289,11 @@
           "tags": [
             "in-memory",
             "key-value"
-          ]
+          ],
+          "sources": {
+            "concurrency": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+          },
+          "tier": "core"
         },
         {
           "id": "valkey",
@@ -2211,7 +2315,11 @@
           "tags": [
             "in-memory",
             "key-value"
-          ]
+          ],
+          "sources": {
+            "concurrency": "https://valkey.io/blog/unlock-one-million-rps/"
+          },
+          "tier": "experimental"
         },
         {
           "id": "memcached",
@@ -2233,7 +2341,11 @@
           "tags": [
             "in-memory",
             "key-value"
-          ]
+          ],
+          "sources": {
+            "concurrency": "https://docs.memcached.org/serverguide/configuring/"
+          },
+          "tier": "experimental"
         },
         {
           "id": "cdn",
@@ -2257,7 +2369,9 @@
             "edge",
             "http",
             "static"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "varnish",
@@ -2281,7 +2395,9 @@
           "tags": [
             "http",
             "reverse-proxy"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         }
       ],
       "linkDefaults": {},
@@ -2357,6 +2473,27 @@
           "valkey": "none",
           "memcached": "none"
         }
+      },
+      "technologySources": {
+        "singleThreaded": {
+          "redis": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+          "valkey": "https://valkey.io/blog/unlock-one-million-rps/",
+          "memcached": "https://docs.memcached.org/serverguide/configuring/"
+        },
+        "evictionPolicy": {
+          "memcached": "https://docs.memcached.org/serverguide/configuring/"
+        },
+        "persistence": {
+          "memcached": "https://docs.memcached.org/serverguide/configuring/"
+        }
+      },
+      "technologyTiers": {
+        "redis": "core",
+        "valkey": "experimental",
+        "memcached": "experimental",
+        "cdn": "experimental",
+        "varnish": "experimental",
+        "generic": "core"
       }
     },
     {
@@ -3085,7 +3222,9 @@
             "relational",
             "sql",
             "acid"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "postgresql-replicas",
@@ -3116,7 +3255,9 @@
             "relational",
             "sql",
             "read-scaling"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "mysql",
@@ -3146,7 +3287,9 @@
             "relational",
             "sql",
             "acid"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "sqlserver",
@@ -3176,7 +3319,9 @@
             "relational",
             "sql",
             "acid"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "cockroachdb",
@@ -3210,7 +3355,11 @@
             "sql",
             "distributed",
             "consensus"
-          ]
+          ],
+          "sources": {
+            "replicationFactor": "https://docs.cockroachlabs.com/docs/stable/architecture/replication-layer"
+          },
+          "tier": "experimental"
         },
         {
           "id": "mongodb-replica-set",
@@ -3243,7 +3392,9 @@
             "nosql",
             "document",
             "read-scaling"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "mongodb-sharded",
@@ -3277,7 +3428,9 @@
             "nosql",
             "document",
             "sharded"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "cassandra",
@@ -3310,7 +3463,9 @@
             "nosql",
             "wide-column",
             "leaderless"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "dynamodb-style",
@@ -3339,7 +3494,9 @@
             "nosql",
             "key-value",
             "managed"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "elasticsearch",
@@ -3371,7 +3528,12 @@
           "tags": [
             "search",
             "full-text"
-          ]
+          ],
+          "sources": {
+            "maxConnections": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings",
+            "queueCapacity": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings"
+          },
+          "tier": "experimental"
         }
       ],
       "linkDefaults": {},
@@ -3770,6 +3932,64 @@
           "elasticsearch": 1.0,
           "opensearch": 1.0
         }
+      },
+      "technologySources": {
+        "rowLocks": {
+          "postgresql": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "cassandra": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
+        },
+        "readsWaitForWrites": {
+          "postgresql": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+          "sqlserver": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide"
+        },
+        "commitFlush": {
+          "postgresql": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+          "cassandra": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
+        },
+        "replication": {
+          "postgresql": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
+          "mongodb": "https://www.mongodb.com/docs/manual/reference/write-concern/",
+          "elasticsearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+          "opensearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+        },
+        "replicaApplyWorkers": {
+          "postgresql": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
+          "mysql": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-replica.html#sysvar_replica_parallel_workers"
+        },
+        "readFrom": {
+          "mongodb": "https://www.mongodb.com/docs/manual/core/read-preference/"
+        },
+        "readTickets": {
+          "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
+        },
+        "writeTickets": {
+          "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
+        },
+        "capacityUnits": {
+          "dynamodb": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html"
+        },
+        "scatterReads": {
+          "elasticsearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+          "opensearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+        }
+      },
+      "technologyTiers": {
+        "postgresql": "core",
+        "mysql": "experimental",
+        "mariadb": "experimental",
+        "oracle": "experimental",
+        "sqlserver": "experimental",
+        "cockroachdb": "experimental",
+        "yugabytedb": "experimental",
+        "mongodb": "experimental",
+        "couchbase": "experimental",
+        "cassandra": "experimental",
+        "scylladb": "experimental",
+        "dynamodb": "experimental",
+        "elasticsearch": "experimental",
+        "opensearch": "experimental",
+        "generic": "core"
       }
     },
     {
@@ -3930,7 +4150,8 @@
           "tags": [
             "payments",
             "third-party"
-          ]
+          ],
+          "sources": {}
         },
         {
           "id": "email-api",
@@ -3952,7 +4173,8 @@
           "tags": [
             "email",
             "third-party"
-          ]
+          ],
+          "sources": {}
         },
         {
           "id": "sms-api",
@@ -3974,7 +4196,8 @@
           "tags": [
             "sms",
             "third-party"
-          ]
+          ],
+          "sources": {}
         },
         {
           "id": "identity-provider",
@@ -3996,7 +4219,8 @@
           "tags": [
             "auth",
             "third-party"
-          ]
+          ],
+          "sources": {}
         },
         {
           "id": "llm-api",
@@ -4020,7 +4244,8 @@
             "ai",
             "llm",
             "third-party"
-          ]
+          ],
+          "sources": {}
         },
         {
           "id": "object-storage",
@@ -4043,12 +4268,17 @@
             "storage",
             "blob",
             "third-party"
-          ]
+          ],
+          "sources": {
+            "rateLimitRps": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html"
+          }
         }
       ],
       "linkDefaults": {},
       "technologyTraits": {},
-      "technologyDefaults": {}
+      "technologyDefaults": {},
+      "technologySources": {},
+      "technologyTiers": {}
     },
     {
       "type": "message_queue",
@@ -4516,7 +4746,9 @@
             "log",
             "stream",
             "partitions"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "rabbitmq",
@@ -4550,7 +4782,9 @@
           "tags": [
             "broker",
             "amqp"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "sqs",
@@ -4580,7 +4814,9 @@
           "tags": [
             "managed",
             "queue"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "pubsub",
@@ -4610,7 +4846,9 @@
           "tags": [
             "managed",
             "pubsub"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "nats",
@@ -4642,7 +4880,9 @@
           "tags": [
             "broker",
             "low-latency"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "redis-streams",
@@ -4673,7 +4913,9 @@
           "tags": [
             "stream",
             "in-memory"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         }
       ],
       "linkDefaults": {},
@@ -4788,6 +5030,33 @@
           "redis_streams": "off",
           "generic": "off"
         }
+      },
+      "technologySources": {
+        "partitioning": {
+          "kafka": "https://kafka.apache.org/documentation/#intro_concepts_and_terms"
+        },
+        "acks": {
+          "kafka": "https://kafka.apache.org/documentation/#producerconfigs_acks"
+        },
+        "lingerMs": {
+          "kafka": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms"
+        },
+        "flowControl": {
+          "rabbitmq": "https://www.rabbitmq.com/docs/memory"
+        },
+        "visibilityTimeoutS": {
+          "sqs": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html",
+          "pubsub": "https://docs.cloud.google.com/pubsub/docs/subscription-properties"
+        }
+      },
+      "technologyTiers": {
+        "kafka": "core",
+        "rabbitmq": "experimental",
+        "sqs": "core",
+        "pubsub": "experimental",
+        "nats": "experimental",
+        "redis_streams": "experimental",
+        "generic": "core"
       }
     },
     {
@@ -5083,7 +5352,9 @@
           "tags": [
             "kubernetes",
             "cluster-autoscaler"
-          ]
+          ],
+          "sources": {},
+          "tier": "core"
         },
         {
           "id": "eks-style",
@@ -5104,7 +5375,9 @@
           "tags": [
             "kubernetes",
             "managed"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "gke-style",
@@ -5125,7 +5398,9 @@
           "tags": [
             "kubernetes",
             "managed"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "aks-style",
@@ -5146,7 +5421,9 @@
           "tags": [
             "kubernetes",
             "managed"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         },
         {
           "id": "k3s",
@@ -5167,7 +5444,9 @@
           "tags": [
             "kubernetes",
             "edge"
-          ]
+          ],
+          "sources": {},
+          "tier": "experimental"
         }
       ],
       "linkDefaults": {},
@@ -5365,7 +5644,16 @@
           }
         ]
       },
-      "technologyDefaults": {}
+      "technologyDefaults": {},
+      "technologySources": {},
+      "technologyTiers": {
+        "kubernetes": "core",
+        "eks": "experimental",
+        "gke": "experimental",
+        "aks": "experimental",
+        "k3s": "experimental",
+        "openshift": "experimental"
+      }
     }
   ],
   "edgeFields": [
@@ -5614,5 +5902,6 @@
       "group": "Chaos",
       "hidden": true
     }
-  ]
+  ],
+  "tierNote": "Behaviour based on documentation and illustrative numbers; not yet validated against measurements."
 }

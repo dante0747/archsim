@@ -28,6 +28,7 @@ from archsim_engine.registry import ComponentRegistry, describe_fields
 from archsim_engine.review import review_design
 from archsim_engine.scenarios import simulation_input
 from archsim_engine.sizing import sizing_summary
+from archsim_engine.technology import TIER_NOTE
 from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION, SCHEMA_VERSION
 
 if TYPE_CHECKING:
@@ -195,6 +196,15 @@ def _describe_value(v: Any) -> str:
     if isinstance(v, float):
         return f"{v:g}"
     return str(v)
+
+
+def _tier_notes(technologies: list[dict[str, Any]]) -> list[str]:
+    """A model note naming the parts whose technology is experimental (none when all are core)."""
+    names = [t["label"] for t in technologies if t["tier"] == "experimental"]
+    if not names:
+        return []
+    shown = ", ".join(names[:5]) + (f" and {len(names) - 5} more" if len(names) > 5 else "")
+    return [f"Experimental technologies ({shown}): {TIER_NOTE[:1].lower()}{TIER_NOTE[1:]}"]
 
 
 def _user_assumptions(prep: PreparedRun, registry: ComponentRegistry) -> list[dict[str, Any]]:
@@ -645,8 +655,11 @@ def build_report(
             )
         )
     report["explain"] = {"system": sys_explain, "latencyBreakdown": breakdown}
+    input_snapshot = simulation_input(resolved)
+    technologies = registry.technology_tiers(input_snapshot["architecture"]["nodes"])
     report["assumptions"] = {
-        "modelNotes": MODEL_NOTES,
+        "modelNotes": MODEL_NOTES + _tier_notes(technologies),
+        "technologies": technologies,
         "userInputs": _user_assumptions(prep, registry),
         "components": {
             t: {
@@ -657,7 +670,6 @@ def build_report(
         },
         "validationWarnings": [i.to_dict() for i in prep.validation.warnings],
     }
-    input_snapshot = simulation_input(resolved)
     report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes)
     report["input"] = input_snapshot
     # priced and reviewed on what was simulated (auto sizes filled in, scenario applied)

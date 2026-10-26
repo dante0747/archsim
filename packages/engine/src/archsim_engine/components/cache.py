@@ -43,6 +43,15 @@ from archsim_engine.schema import CamelModel, NodeSpec
 from archsim_engine.technology import CACHE_PROFILES, Profile, resolve
 
 BEHAVIOUR = "Technology behaviour"
+KEY_MEMORY_SHARE = 0.8
+"""Share of a cache node's memory that holds keys; the rest is overhead (illustrative)."""
+
+# Documentation behind preset numbers (see Preset.sources).
+_REDIS_LATENCY = (
+    "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+)
+_VALKEY_THREADS = "https://valkey.io/blog/unlock-one-million-rps/"
+_MEMCACHED_CONFIG = "https://docs.memcached.org/serverguide/configuring/"
 
 
 class CacheConfig(CamelModel):
@@ -218,10 +227,12 @@ class CacheConfig(CamelModel):
         return 1 if self.setting("single_threaded", "off") == "on" else self.concurrency
 
     def capacity_keys(self) -> int | None:
-        """Keys that fit in 80% of memory, or None when memory is not set."""
+        """Keys that fit in KEY_MEMORY_SHARE of memory, or None when memory is not set."""
         if self.memory_gib is None:
             return None
-        return max(1, math.floor(0.8 * self.memory_gib * 1024 * 1024 / self.item_size_kb))
+        return max(
+            1, math.floor(KEY_MEMORY_SHARE * self.memory_gib * 1024 * 1024 / self.item_size_kb)
+        )
 
 
 class CacheShard:
@@ -342,7 +353,7 @@ class CacheRuntime(RuntimeComponent):
             if self.ttl_mode:
                 gib = len(sh.expiry) * cfg.item_size_kb / (1024 * 1024)
             else:
-                gib = 0.8 * (cfg.memory_gib or 0.0)
+                gib = KEY_MEMORY_SHARE * (cfg.memory_gib or 0.0)
             stall = cfg.fork_ms_per_gib * gib
             if stall > 0:
                 sh.paused_until = max(sh.paused_until, env.now + stall)
@@ -439,8 +450,8 @@ class CacheRuntime(RuntimeComponent):
                 formula(
                     "key_capacity",
                     "Keys that fit",
-                    "keys = shards × 80% of memory ÷ item size",
-                    f"{len(self.shards)} × 0.8 × {num(cfg.memory_gib)} GiB ÷ {num(cfg.item_size_kb)} KiB",
+                    f"keys = shards × {KEY_MEMORY_SHARE:.0%} of memory ÷ item size",
+                    f"{len(self.shards)} × {KEY_MEMORY_SHARE:g} × {num(cfg.memory_gib)} GiB ÷ {num(cfg.item_size_kb)} KiB",
                     float(self.capacity),
                     "keys",
                     metric="memoryUsedRatio",
@@ -538,6 +549,7 @@ class CacheModel(ComponentModel):
                 "costPerHour": 0.1,
             },
             ("in-memory", "key-value"),
+            sources={"concurrency": _REDIS_LATENCY},
         ),
         Preset(
             "valkey",
@@ -555,6 +567,7 @@ class CacheModel(ComponentModel):
                 "costPerHour": 0.1,
             },
             ("in-memory", "key-value"),
+            sources={"concurrency": _VALKEY_THREADS},
         ),
         Preset(
             "memcached",
@@ -572,6 +585,7 @@ class CacheModel(ComponentModel):
                 "costPerHour": 0.09,
             },
             ("in-memory", "key-value"),
+            sources={"concurrency": _MEMCACHED_CONFIG},
         ),
         Preset(
             "cdn",
@@ -656,7 +670,7 @@ class CacheModel(ComponentModel):
         if cap is not None and config.hit_model == "fixed_ratio":
             keys = view.workload.key_count
             if keys > cap:
-                need = keys * config.item_size_kb / (1024 * 1024) / 0.8
+                need = keys * config.item_size_kb / (1024 * 1024) / KEY_MEMORY_SHARE
                 issues.append(
                     warning(
                         "cache.keyspace_exceeds_memory",

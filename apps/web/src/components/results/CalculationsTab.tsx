@@ -12,6 +12,7 @@ import { LatencyBreakdown } from "@/components/explain/LatencyBreakdown";
 import { TechTraits } from "@/components/explain/TechTraits";
 import { TechIcon } from "@/components/TechIcon";
 import { Empty } from "@/components/ui/misc";
+import { TierBadge } from "@/components/ui/TierBadge";
 import { kindOf } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -74,9 +75,10 @@ export function CalculationsTab() {
           <section className="min-w-0 space-y-4">
             <header>
               <h3 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{node.label}</h3>
-              <p className="text-xs text-ink-3">
+              <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-3">
                 {catalog?.components.find((c) => c.type === node.type)?.displayName ?? node.type}
                 {typeof node.config.technology === "string" ? ` · ${node.config.technology}` : ""}
+                <TierBadge tier={report?.assumptions.technologies?.find((t) => t.id === node.id)?.tier} />
               </p>
             </header>
             {(node.behaviour?.length ?? 0) > 0 && (

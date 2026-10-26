@@ -22,6 +22,8 @@ import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from archsim_engine.components.cache import KEY_MEMORY_SHARE
+from archsim_engine.components.database import BUFFER_CACHE_SHARE
 from archsim_engine.load import Json, estimate_load, js_num, mean_ms, num, peak_rps, round_half_up
 from archsim_engine.registry import ComponentRegistry
 
@@ -46,6 +48,19 @@ MAX_SERVICE_MEMORY_GIB = 64
 """Largest auto memory for one service replica (a huge queue would otherwise ask for more)."""
 MANAGED = {"aws_alb", "api_gateway", "cdn", "dynamodb", "sqs", "pubsub"}
 """Managed services you do not size yourself."""
+MEMORY_HEADROOM = 1.25
+"""Auto memory is what the engine's memory model needs, plus 25%."""
+STORAGE_FILL = 0.7
+"""Auto storage keeps the data under 70% full."""
+MIN_STORAGE_GIB = 10.0
+DB_GIB_PER_VCPU = 4
+"""Illustrative: database memory per vCPU when no hot working set is set."""
+PROXY_GIB_PER_VCPU = 1
+"""Illustrative: load balancer memory per vCPU (a proxy keeps little state)."""
+BROKER_GIB_PER_VCPU = 2
+"""Illustrative: broker memory per vCPU for buffers and page cache."""
+BACKLOG_S = 3600
+"""Storage of a broker that deletes on ack: room for an hour of peak publishes."""
 
 
 @dataclass
@@ -104,6 +119,14 @@ def _pct(v: float) -> str:
     return f"{int(round_half_up(v * 100))}%"
 
 
+def _headroom() -> str:
+    return f"+{_pct(MEMORY_HEADROOM - 1)} headroom"
+
+
+def _fill() -> str:
+    return f"kept under {_pct(STORAGE_FILL)} full"
+
+
 def _cpu_for(busy: float, intro: str) -> tuple[float, str]:
     cpu = min(512.0, _step_up(max(busy / TARGET_CPU, 0.0), CPU_STEPS))
     return cpu, (
@@ -125,7 +148,7 @@ def _mem_for(need: float, floor: float) -> float:
 
 
 def _disk_for(need: float) -> float:
-    return min(1_000_000.0, _step_up(max(need, 10.0), DISK_STEPS))
+    return min(1_000_000.0, _step_up(max(need, MIN_STORAGE_GIB), DISK_STEPS))
 
 
 def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
@@ -137,11 +160,11 @@ def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
         mb = baseline + per_req
         return PartSize(
             1.0,
-            _mem_for(mb * 1.25 / 1024, 0.5),
+            _mem_for(mb * MEMORY_HEADROOM / 1024, 0.5),
             None,
             why={
                 "cpuCores": "One request per instance: 1 vCPU runs it at full speed",
-                "memoryGib": f"{fmt(baseline)} MiB base + 1 request × {fmt(per_req)} MiB, +25% headroom",
+                "memoryGib": f"{fmt(baseline)} MiB base + 1 request × {fmt(per_req)} MiB, {_headroom()}",
             },
         )
     autoscaling = cfg.get("autoscaling") is True
@@ -175,11 +198,11 @@ def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
     queue = max(0.0, num(cfg.get("queueCapacity")) or 0.0)
     held = working + queue
     mb = baseline + held * per_req
-    wanted = _mem_for(mb * 1.25 / 1024, 0.5)
+    wanted = _mem_for(mb * MEMORY_HEADROOM / 1024, 0.5)
     mem = min(wanted, float(MAX_SERVICE_MEMORY_GIB))
     mem_why = (
         f"{fmt(baseline)} MiB base + {fmt(held)} requests held ({working} working, {fmt(queue)} "
-        f"queued) × {fmt(per_req)} MiB = {_gib(mb / 1024)}, +25% headroom"
+        f"queued) × {fmt(per_req)} MiB = {_gib(mb / 1024)}, {_headroom()}"
     )
     if mem < wanted:
         refuse_at = math.floor((mem * 1024 - baseline) / max(per_req, 1e-9))
@@ -233,23 +256,23 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
     ws = num(cfg.get("workingSetGib"))
     if ws is not None:
         per = ws / shards
-        mem = _mem_for(per / 0.75, 2)
-        mem_why = f"{_gib(per)} of hot data per instance in a buffer cache of 75% of memory, so reads stay in memory"
+        mem = _mem_for(per / BUFFER_CACHE_SHARE, 2)
+        mem_why = f"{_gib(per)} of hot data per instance in a buffer cache of {_pct(BUFFER_CACHE_SHARE)} of memory, so reads stay in memory"
     else:
-        mem = _mem_for(4 * cpu, 2)
-        mem_why = "4 GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache"
+        mem = _mem_for(DB_GIB_PER_VCPU * cpu, 2)
+        mem_why = f"{DB_GIB_PER_VCPU} GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache"
     given = num(cfg.get("dataSizeGib"))
     item_kb = num(cfg.get("itemSizeKb"))
     item_kb = 1.0 if item_kb is None else item_kb
     data = given if given is not None else int(workload["keyCount"]) * item_kb * 1000 / 2**30
     per_instance = data / shards
-    disk = _disk_for(per_instance / 0.7)
+    disk = _disk_for(per_instance / STORAGE_FILL)
     source = (
         f"{_gib(data)} of data"
         if given is not None
         else f"{fmt(int(workload['keyCount']))} keys × {fmt(item_kb)} KB ≈ {_gib(data)} (set the data size for a better estimate)"
     )
-    storage_why = f"{source}{f' over {shards} shards' if shards > 1 else ''}, kept under 70% full (at least 10 GiB)"
+    storage_why = f"{source}{f' over {shards} shards' if shards > 1 else ''}, {_fill()} (at least {js_num(MIN_STORAGE_GIB)} GiB)"
     return PartSize(
         cpu, mem, disk, why={"cpuCores": why, "memoryGib": mem_why, "storageGib": storage_why}
     )
@@ -275,13 +298,13 @@ def _size_cache(config: Any, cfg: Json, total: float, workload: Json) -> PartSiz
     data = keys * item_kb / shards / 1024 / 1024
     return PartSize(
         cpu,
-        _mem_for(data / 0.8 * 1.25, 0.5),
+        _mem_for(data / KEY_MEMORY_SHARE * MEMORY_HEADROOM, 0.5),
         None,
         why={
             "cpuCores": why,
             "memoryGib": (
                 f"{fmt(keys)} keys × {fmt(item_kb)} KiB{f' over {shards} shards' if shards > 1 else ''} "
-                f"= {_gib(data)} per node; 80% of memory holds keys, +25% headroom"
+                f"= {_gib(data)} per node; {_pct(KEY_MEMORY_SHARE)} of memory holds keys, {_headroom()}"
             ),
         },
     )
@@ -291,11 +314,11 @@ def _size_balancer(total: float) -> PartSize:
     cpu = min(512.0, _step_up(max(1.0, total / PROXY_RPS_PER_VCPU), CPU_STEPS))
     return PartSize(
         cpu,
-        _mem_for(cpu, 1),
+        _mem_for(PROXY_GIB_PER_VCPU * cpu, 1),
         None,
         why={
             "cpuCores": f"{fmt(total)} req/s at peak at about {fmt(PROXY_RPS_PER_VCPU)} req/s per vCPU (illustrative)",
-            "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative)",
+            "memoryGib": f"{PROXY_GIB_PER_VCPU} GiB per vCPU: a proxy keeps little state (illustrative)",
         },
     )
 
@@ -310,27 +333,27 @@ def _size_queue(cfg: Json, total: float, workload: Json) -> PartSize:
     # a log keeps messages for its retention at the usual rate; other brokers delete on ack and
     # only need room for a backlog (an hour of peak publishes)
     rate = total * (min(1.0, float(workload["rps"]) / peak) if peak > 0 else 1.0) if log else total
-    seconds = LOG_RETENTION_S if log else 3600
+    seconds = LOG_RETENTION_S if log else BACKLOG_S
     copies = min(3, brokers) if log else 1
     stored = rate * msg_kb * 1024 * seconds * copies / brokers / 2**30
     over = f" over {brokers} brokers" if brokers > 1 else ""
     if log:
         storage_why = (
             f"{fmt(rate)} messages/s × {fmt(msg_kb)} KiB kept 7 days (Kafka's default retention)"
-            f"{f' × {copies} copies' if copies > 1 else ''}{over} = {_gib(stored)}, kept under 70% full"
+            f"{f' × {copies} copies' if copies > 1 else ''}{over} = {_gib(stored)}, {_fill()}"
         )
     else:
         storage_why = (
             f"An hour of peak publishes as a backlog buffer ({fmt(total)} messages/s × {fmt(msg_kb)} KiB"
-            f"{over}) = {_gib(stored)}, kept under 70% full"
+            f"{over}) = {_gib(stored)}, {_fill()}"
         )
     return PartSize(
         cpu,
-        _mem_for(2 * cpu, 2),
-        _disk_for(stored / 0.7),
+        _mem_for(BROKER_GIB_PER_VCPU * cpu, 2),
+        _disk_for(stored / STORAGE_FILL),
         why={
             "cpuCores": f"{fmt(total / brokers)} messages/s per broker at peak at about {fmt(BROKER_MSGS_PER_VCPU)} per vCPU (illustrative)",
-            "memoryGib": "2 GiB per vCPU for buffers and page cache (illustrative)",
+            "memoryGib": f"{BROKER_GIB_PER_VCPU} GiB per vCPU for buffers and page cache (illustrative)",
             "storageGib": storage_why,
         },
     )

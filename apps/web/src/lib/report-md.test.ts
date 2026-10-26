@@ -50,6 +50,16 @@ describe("decision report", () => {
     expect(md).toContain("Error budget: 10 failed requests against 20 allowed");
   });
 
+  it("marks experimental technologies in the design and the assumptions", () => {
+    expect(decisionReportMarkdown({ doc, catalog, objectives: {} })).not.toContain("xperimental");
+    const mongo = structuredClone(doc);
+    const db = mongo.architecture.nodes.find((n) => n.type === "database")!;
+    db.config = { ...db.config, technology: "mongodb" };
+    const md = decisionReportMarkdown({ doc: mongo, catalog, objectives: {} });
+    expect(md).toMatch(/\| MongoDB \(experimental\) \|/);
+    expect(md).toContain(`Experimental technologies (${db.label}): ${catalog.tierNote}`);
+  });
+
   it("flags failed objectives and works without a run", () => {
     const failing = decisionReportMarkdown({ doc, catalog, objectives: { latencyP95Ms: 50 }, report: fakeReport({ p95: 89 }) });
     expect(failing).toContain("Misses 1 of 1 objectives");

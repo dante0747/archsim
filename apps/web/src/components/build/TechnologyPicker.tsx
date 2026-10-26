@@ -3,7 +3,9 @@
 /** Inspector header control: shows a node's technology and re-applies a technology preset. */
 import { toast } from "sonner";
 import { applyPresetToNode } from "@/components/build/presets";
+import { TierBadge } from "@/components/ui/TierBadge";
 import { technologyLabel } from "@/lib/theme";
+import { partTier } from "@/lib/tier";
 import type { ComponentType, NodeConfig, Preset } from "@/lib/types";
 
 export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; comp: ComponentType | undefined; config: NodeConfig }) {
@@ -24,8 +26,9 @@ export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; com
 
   return (
     <div className="mt-3 space-y-1">
-      <p className="text-xs text-ink-3">
-        Technology{tech ? <span className="ml-1.5 font-medium text-ink">{tech}</span> : null}
+      <p className="flex items-center gap-1.5 text-xs text-ink-3">
+        Technology{tech ? <span className="font-medium text-ink">{tech}</span> : null}
+        <TierBadge tier={partTier(comp, config)} />
       </p>
       {presets.length > 0 && (
         <select
@@ -44,6 +47,7 @@ export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; com
                 .map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
+                    {p.tier === "experimental" ? " · experimental" : ""}
                     {current?.id === p.id ? "  (current)" : ""}
                   </option>
                 ))}

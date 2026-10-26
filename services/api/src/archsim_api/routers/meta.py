@@ -25,8 +25,6 @@ from archsim_engine import (
     resolve_scenario,
     validate_document,
 )
-from archsim_engine.registry import describe_fields
-from archsim_engine.schema import EdgeConfig, Workload
 
 router = APIRouter(tags=["meta"])
 
@@ -63,12 +61,8 @@ def meta(settings: Settings = Depends(get_settings_dep), db: Database = Depends(
 @router.get("/components")
 def components(registry: ComponentRegistry = Depends(get_registry)) -> dict[str, Any]:
     """Component catalog: ports, config field descriptors (units, ranges, assumption flags),
-    defaults. The editor renders its palette and inspector from this."""
-    return {
-        "components": registry.catalog(),
-        "edgeFields": describe_fields(EdgeConfig),
-        "workloadFields": describe_fields(Workload),
-    }
+    defaults, technology tiers. The editor renders its palette and inspector from this."""
+    return registry.catalog_document()
 
 
 @router.get("/schema/architecture")

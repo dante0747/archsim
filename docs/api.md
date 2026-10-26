@@ -43,12 +43,12 @@ Domain errors use one shape:
 | --- | --- | --- |
 | GET | `/health` | `200 {"status": "ok", "database": "ok"}`; `503 {"status": "degraded", "database": "unavailable"}` when the database cannot be reached, so health checks take the instance out of service. |
 | GET | `/meta` | Engine/schema/report versions, database dialect, run limits. |
-| GET | `/components` | Component catalog: ports, field descriptors (kind, unit, range, group, assumption flag, visibility), defaults, modeled/not-modeled notes; plus `edgeFields` and `workloadFields`. |
+| GET | `/components` | Component catalog: ports, field descriptors (kind, unit, range, group, assumption flag, visibility), defaults, modeled/not-modeled notes, presets (with `tier` and `sources`, the links behind documented preset numbers), `technologyTraits`, `technologyDefaults`, `technologySources` (links behind documented defaults) and `technologyTiers` (core or experimental); plus `edgeFields`, `workloadFields` and `tierNote` (the text of the "experimental" badge). |
 | GET | `/schema/architecture` | JSON Schema of the document. |
 | GET | `/examples` | Bundled example documents (id, name, description, tags, scenario count). |
 | GET | `/examples/{exampleId}` | One example document. |
 | POST | `/validate` | Body `{document, scenarioId?}`. Returns `{valid, issues[]}`; never saves or simulates. |
-| POST | `/analyze` | Body `{document, scenarioId?}`. Returns what a run would use, computed by the engine without simulating: `sizing` (per part: `specs` simulated with their `source` set/auto/scenario, `auto` sizes, `peakRps`, `why`, `pricePerHour`), `cost` (monthly estimate by part), `review` (design review findings), `reviewCounts`, `reviewRules`, `peakRps`. 422 with `issues` when the document cannot be read. The web app calls it with live validation; `archsim analyze` prints the same. |
+| POST | `/analyze` | Body `{document, scenarioId?}`. Returns what a run would use, computed by the engine without simulating: `sizing` (per part: `specs` simulated with their `source` set/auto/scenario, `auto` sizes, `peakRps`, `why`, `pricePerHour`), `cost` (monthly estimate by part), `review` (design review findings), `reviewCounts`, `reviewRules`, `peakRps`, `technologies` (each part's technology and tier). 422 with `issues` when the document cannot be read. The web app calls it with live validation; `archsim analyze` prints the same. |
 
 ## Projects
 

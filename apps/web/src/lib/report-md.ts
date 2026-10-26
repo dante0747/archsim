@@ -7,6 +7,7 @@ import { isDistribution, shortDistribution } from "./distributions";
 import { errorBudget, evaluateSlo, formatSloValue } from "./slo";
 import type { SweepAnalysis } from "./sweep";
 import { technologyLabel } from "./theme";
+import { partTier, tierNote, tierOf } from "./tier";
 import type { ArchitectureDocument, Catalog, CostEstimate, Distribution, Objectives, Report, Run } from "./types";
 
 export interface ReviewItem {
@@ -115,7 +116,8 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
         const comp = catalog?.components.find((c) => c.type === n.type);
         const techValue = n.config?.technology ?? comp?.defaultConfig?.technology;
         const tech = techValue === "generic" ? null : technologyLabel(comp, techValue);
-        return [n.label || n.id, comp?.displayName ?? n.type, tech ?? "–", keySettings(n.type, n.config ?? {}, catalog)];
+        const experimental = tierOf(comp, techValue) === "experimental" ? " (experimental)" : "";
+        return [n.label || n.id, comp?.displayName ?? n.type, tech ? `${tech}${experimental}` : "–", keySettings(n.type, n.config ?? {}, catalog)];
       }),
     ),
     "",
@@ -263,5 +265,12 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     `Service times, hit ratios, latencies, prices and traffic are assumptions entered in the model${inputs.length ? ` (${inputs.length} values marked as assumptions)` : ""}. Calibrate them against real telemetry before treating absolute numbers as predictions; comparisons between options are more reliable than any single value.`,
     "",
   );
+  const experimental = nodes.filter((n) => {
+    const comp = catalog?.components.find((c) => c.type === n.type);
+    return partTier(comp, n.config) === "experimental";
+  });
+  if (experimental.length) {
+    lines.push(`Experimental technologies (${experimental.map((n) => n.label || n.id).join(", ")}): ${tierNote(catalog?.tierNote)}`, "");
+  }
   return lines.join("\n");
 }

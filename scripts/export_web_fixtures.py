@@ -13,8 +13,6 @@ from pathlib import Path
 
 from archsim_engine.analyze import analyze_document
 from archsim_engine.components import create_default_registry
-from archsim_engine.registry import describe_fields
-from archsim_engine.schema import EdgeConfig, Workload
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "apps" / "web" / "src" / "test" / "fixtures"
@@ -24,12 +22,7 @@ ANALYSIS = FIXTURES / "analysis-starter.json"
 
 
 def catalog() -> dict:
-    registry = create_default_registry(include_plugins=False)
-    return {
-        "components": registry.catalog(),
-        "edgeFields": describe_fields(EdgeConfig),
-        "workloadFields": describe_fields(Workload),
-    }
+    return create_default_registry(include_plugins=False).catalog_document()
 
 
 def analysis() -> dict:

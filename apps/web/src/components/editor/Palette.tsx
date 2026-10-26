@@ -21,6 +21,7 @@ import {
 } from "@/components/build/presets";
 import { TechIcon } from "@/components/TechIcon";
 import { Tip } from "@/components/ui/misc";
+import { TierBadge, useTierNote } from "@/components/ui/TierBadge";
 import { freeSpot } from "@/lib/placement";
 import { FAMILIES, kindOf } from "@/lib/theme";
 import { useEditor } from "@/store/editor";
@@ -99,13 +100,15 @@ function rowSub(it: LibraryItem): string {
 
 /** A part as an app-icon tile: the technology on its family's colour, the name underneath. */
 function PartTile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
+  const note = useTierNote();
+  const experimental = it.tier === "experimental" ? ` Experimental: ${note}` : "";
   return (
     <button
       type="button"
       {...dragProps(it.type, it.preset?.id)}
       onClick={() => onPick(it)}
-      title={`${tileName(it)} (${rowSub(it)}): ${it.description}`}
-      aria-label={`${tileName(it)}: ${rowSub(it)}`}
+      title={`${tileName(it)} (${rowSub(it)}): ${it.description}${experimental}`}
+      aria-label={`${tileName(it)}: ${rowSub(it)}${it.tier === "experimental" ? ", experimental" : ""}`}
       className="group flex w-full cursor-grab flex-col items-center gap-1.5 rounded-xl px-1 pb-1.5 pt-2 text-center transition-colors hover:bg-surface-2 active:cursor-grabbing"
     >
       <span className="relative">
@@ -122,6 +125,7 @@ function PartTile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) =
         />
       </span>
       <span className="line-clamp-2 w-full text-[11.5px] font-medium leading-[14px] text-ink-2 group-hover:text-ink">{tileName(it)}</span>
+      <TierBadge tier={it.tier} variant="tile" className="-mt-1" />
     </button>
   );
 }

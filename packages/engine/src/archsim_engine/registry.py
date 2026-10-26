@@ -26,8 +26,16 @@ import annotated_types
 from pydantic import BaseModel, ValidationError
 
 from archsim_engine.issues import Issue, error
-from archsim_engine.schema import REQUEST_TYPES, RequestType
-from archsim_engine.technology import Profile, defaults_catalog, traits_catalog
+from archsim_engine.schema import REQUEST_TYPES, EdgeConfig, RequestType, Workload
+from archsim_engine.technology import (
+    TIER_NOTE,
+    Profile,
+    Tier,
+    defaults_catalog,
+    sources_catalog,
+    tiers_catalog,
+    traits_catalog,
+)
 
 if TYPE_CHECKING:
     from archsim_engine.runtime import RuntimeComponent, SimContext
@@ -210,6 +218,8 @@ class Preset:
     against the component's config model by the test suite. Behaviour comes from the config
     values: the technology field resolves the "auto" behaviour settings through the component's
     ``technology_profiles``, and presets add typical numbers (replicas, shards, sizes...).
+    Those numbers are illustrative unless ``sources`` links the documentation that states them
+    (camelCase config key -> URL).
     """
 
     id: str
@@ -219,6 +229,7 @@ class Preset:
     description: str
     config: dict[str, Any]
     tags: tuple[str, ...] = ()
+    sources: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -229,6 +240,7 @@ class Preset:
             "description": self.description,
             "config": dict(self.config),
             "tags": list(self.tags),
+            "sources": dict(self.sources),
         }
 
 
@@ -284,6 +296,12 @@ class ComponentModel(ABC):
         """Total concurrent slots (workers/connections) used for utilization; None if n/a."""
         return None
 
+    def technology_tier(self, config: Any) -> tuple[str, Tier] | None:
+        """The node's technology and its tier, or None for parts without technology profiles."""
+        tech = getattr(config, "technology", None)
+        profile = self.technology_profiles.get(tech) if isinstance(tech, str) else None
+        return (tech, profile.tier) if isinstance(tech, str) and profile else None
+
     def uses_keys(self, config: Any) -> bool:
         """True if runtime behaviour depends on request keys (enables key sampling)."""
         return False
@@ -305,11 +323,20 @@ class ComponentModel(ABC):
             "defaultConfig": self.default_config(),
             "modeled": list(self.modeled),
             "notModeled": list(self.not_modeled),
-            "presets": [p.to_dict() for p in self.presets],
+            "presets": [self._preset_entry(p) for p in self.presets],
             "linkDefaults": dict(self.link_defaults),
             "technologyTraits": traits_catalog(self.technology_profiles),
             "technologyDefaults": defaults_catalog(self.technology_profiles),
+            "technologySources": sources_catalog(self.technology_profiles),
+            "technologyTiers": tiers_catalog(self.technology_profiles),
         }
+
+    def _preset_entry(self, preset: Preset) -> dict[str, Any]:
+        out = preset.to_dict()
+        profile = self.technology_profiles.get(preset.technology)
+        if profile is not None:
+            out["tier"] = profile.tier
+        return out
 
 
 class UnknownComponentError(KeyError):
@@ -341,11 +368,50 @@ class ComponentRegistry:
     def __contains__(self, type_: object) -> bool:
         return type_ in self._models
 
+    def models(self) -> list[ComponentModel]:
+        return list(self._models.values())
+
     def types(self) -> list[str]:
         return list(self._models)
 
     def catalog(self) -> list[dict[str, Any]]:
         return [m.catalog_entry() for m in self._models.values()]
+
+    def catalog_document(self) -> dict[str, Any]:
+        """Everything an editor renders from (``GET /api/v1/components``): the component
+        catalog, link and workload settings, and the text of the "experimental" badge."""
+        return {
+            "components": self.catalog(),
+            "edgeFields": describe_fields(EdgeConfig),
+            "workloadFields": describe_fields(Workload),
+            "tierNote": TIER_NOTE,
+        }
+
+    def technology_tiers(self, nodes: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Each part that has technology profiles, with its technology and tier (``nodes`` as in
+        a document: id, type, label, camelCase config). Unknown types and invalid configs are
+        skipped; validation reports them."""
+        out: list[dict[str, Any]] = []
+        for n in nodes:
+            model = self._models.get(str(n.get("type")))
+            if model is None or not model.technology_profiles:
+                continue
+            try:
+                config = model.parse_config(n.get("config") or {})
+            except ValidationError:
+                continue
+            found = model.technology_tier(config)
+            if found:
+                out.append(
+                    {
+                        "id": n["id"],
+                        "label": n.get("label") or n["id"],
+                        "type": model.type,
+                        "technology": found[0],
+                        "tier": found[1],
+                    }
+                )
+        return out
 
     def parse_node_config(self, node: NodeSpec) -> tuple[BaseModel | None, list[Issue]]:
         model = self.get(node.type)

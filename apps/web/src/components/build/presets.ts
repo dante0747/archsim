@@ -1,6 +1,7 @@
 /** Technology presets: lookup, drag-and-drop payloads, and applying a preset to a node. */
 import { type Family, FAMILIES, kindOf } from "@/lib/theme";
-import type { Catalog, ComponentType, Preset } from "@/lib/types";
+import { tierOf } from "@/lib/tier";
+import type { Catalog, ComponentType, Preset, Tier } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 
 /** MIME type of component drags from the technology library onto the canvas. */
@@ -35,6 +36,8 @@ export interface LibraryItem {
   group: string;
   description: string;
   tags: string[];
+  /** Core or experimental (null for parts without technology profiles). */
+  tier: Tier | null;
 }
 
 export function libraryItems(catalog: Catalog | null): LibraryItem[] {
@@ -51,19 +54,22 @@ export function libraryItems(catalog: Catalog | null): LibraryItem[] {
         group: p.family,
         description: p.description,
         tags: p.tags ?? [],
+        tier: p.tier ?? tierOf(comp, p.technology),
       });
     }
+    const technology = typeof comp.defaultConfig.technology === "string" ? comp.defaultConfig.technology : "custom";
     out.push({
       key: comp.type,
       type: comp.type,
       comp,
       preset: null,
       name: `Generic ${comp.displayName.split(" / ")[0].replace(/ \(.*\)$/, "").toLowerCase()}`,
-      technology: typeof comp.defaultConfig.technology === "string" ? comp.defaultConfig.technology : "custom",
+      technology,
       group: "Generic",
       description: comp.description,
       // Client parts are found by what they are built with ("ios", "react", "graphql").
       tags: comp.isTrafficSource ? (comp.fields.find((f) => f.key === "technology")?.options ?? []).map((o) => o.replace(/_/g, " ")) : [],
+      tier: tierOf(comp, technology),
     });
   }
   return out;
@@ -78,7 +84,7 @@ export function familyOfItem(item: LibraryItem): Family {
 export function matchesItem(item: LibraryItem, query: string): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return true;
-  const hay = `${item.name} ${item.technology} ${item.group} ${item.tags.join(" ")} ${item.description} ${item.type}`.toLowerCase();
+  const hay = `${item.name} ${item.technology} ${item.group} ${item.tags.join(" ")} ${item.description} ${item.type} ${item.tier ?? ""}`.toLowerCase();
   return words.every((w) => hay.includes(w));
 }
 

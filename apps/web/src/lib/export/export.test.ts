@@ -112,6 +112,21 @@ describe("toKubernetes", () => {
   });
 });
 
+describe("technology tiers in exports", () => {
+  it("marks experimental technologies (Kong here) and leaves core ones alone", () => {
+    const compose = toDockerCompose(doc, catalog);
+    expect(compose).toContain("# Experimental technologies (Gateway: kong): " + catalog.tierNote);
+    expect(compose.match(/archsim\.tier: experimental/g)).toHaveLength(1);
+    expect(compose).toMatch(/gateway:\n(?:.*\n)*?\s+archsim\.tier: experimental/);
+    const k8s = toKubernetes(doc, catalog);
+    expect(k8s).toContain("# Experimental technologies (Gateway: kong)");
+    expect(k8s).toMatch(/name: gateway\n\s+labels:\n(?:.*\n)*?\s+annotations:\n\s+archsim\/tier: experimental/);
+    const allCore = structuredClone(doc);
+    allCore.architecture.nodes = allCore.architecture.nodes.filter((n) => n.id !== "gateway");
+    expect(toDockerCompose(allCore, catalog)).not.toContain("xperimental");
+  });
+});
+
 describe("resource specs in exports", () => {
   const sized: ArchitectureDocument = structuredClone(doc);
   const set = (id: string, cfg: Record<string, unknown>) => {

@@ -1,7 +1,7 @@
 /** Kubernetes manifests (multi-document YAML) generated from an architecture document. */
 import type { ArchitectureDocument, Catalog } from "@/lib/types";
 import { dependencyUrl } from "./compose";
-import { HEADER, deployNodes, k8sResources, k8sStorage, num, serviceReplicas, slug, specsOf, storeInstances, type DeployNode } from "./tech";
+import { HEADER, deployNodes, k8sResources, k8sStorage, num, serviceReplicas, slug, specsOf, storeInstances, tierLines, type DeployNode } from "./tech";
 import { comments, toYaml, type YamlValue } from "./yaml";
 
 const APP_PORT = 8080;
@@ -10,6 +10,7 @@ function meta(n: DeployNode, part: string, extra: Record<string, string> = {}): 
   return {
     name: n.name,
     labels: { "app.kubernetes.io/name": n.name, "app.kubernetes.io/part-of": part, ...extra },
+    ...(n.tier === "experimental" ? { annotations: { "archsim/tier": "experimental" } } : {}),
   };
 }
 
@@ -179,6 +180,7 @@ export function toKubernetes(doc: ArchitectureDocument, catalog?: Catalog | null
     ...HEADER(doc.metadata.name, "Kubernetes manifests"),
     "Apply into a namespace of your choice: kubectl apply -n <namespace> -f <file>.yaml",
     "Serverless services use Knative Serving; StatefulSets need a StorageClass.",
+    ...tierLines(nodes, catalog),
   ]);
   return `${head}\n${docs.map((d) => `---\n${toYaml(d)}`).join("\n")}\n`;
 }

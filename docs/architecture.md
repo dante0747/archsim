@@ -55,7 +55,9 @@ Pure Python, depends only on SimPy and Pydantic. It owns:
 | `sizing.py` | Auto-sizing: CPU, memory and storage for empty specs, applied before every run. |
 | `cost.py` | Monthly cost estimate (per run in the report, per design via `/analyze`). |
 | `review.py` | Design review: the architecture linter (single points of failure, timeouts, retries...). |
-| `analyze.py` | `analyze_document`: sizes, cost and review of a design without simulating. |
+| `analyze.py` | `analyze_document`: sizes, cost, review and technology tiers of a design without simulating. |
+| `technology.py` | Technology profiles: "auto" defaults, traits with documentation links, tier (core or experimental). |
+| `assumptions.py` | Renders docs/assumptions.md: every default, preset number and constant, documented or illustrative. |
 | `compare.py` | Two-report comparison with input diff and explanations. |
 | `cli.py` | The `archsim` command: `validate`, `run`, `analyze`, `compare`, `catalog`, `schema`. |
 

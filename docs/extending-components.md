@@ -202,6 +202,15 @@ merged over `defaultConfig` when a preset is applied. Keep behaviour in config f
 in the preset name: a preset is a convenient, transparent starting point. The test suite
 validates every preset of every registered model against its config model.
 
+Preset numbers are illustrative unless `sources` links the documentation that states them
+(`sources={"maxConnections": "https://..."}`, camelCase keys of `config`). Technology profiles
+(`technology_profiles`, see `archsim_engine/technology.py`) work the same way: a profile value
+is documented when one of its traits lists it in `covers` and has a `source`. Each profile has a
+`tier`, `experimental` unless you set `core`; the web app badges experimental technologies.
+After changing presets or profiles, regenerate the table of assumptions with
+`uv run python scripts/gen_assumptions.py` (a test fails when `docs/assumptions.md` is out of
+date).
+
 Built-in examples: `database` (PostgreSQL, MongoDB sharded, Cassandra...), `service` (VM,
 Docker, Kubernetes HPA, serverless), `message_queue` (Kafka, RabbitMQ...), `external_api`
 (payments, LLM inference...). Their implementations are good references for asynchronous work

@@ -68,6 +68,14 @@ def _count_series(g: Gauge, t_end: float | None) -> list[float | None]:
     return out
 
 
+# Documentation behind preset numbers (see Preset.sources).
+_SPRING = "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
+_NODE_LOOP = "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop"
+_HPA = "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+_LAMBDA_MEMORY = "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"
+_LAMBDA_CONCURRENCY = "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+
+
 class ServiceConfig(CamelModel):
     technology: Literal[
         "generic", "java", "nodejs", "go", "python", "dotnet", "rust", "php", "ruby"
@@ -1173,6 +1181,7 @@ class ServiceModel(ComponentModel):
                 "costPerHour": 0.17,
             },
             tags=("container", "jvm", "blocking"),
+            sources={"workersPerReplica": _SPRING, "queueCapacity": _SPRING},
         ),
         Preset(
             id="nodejs-docker",
@@ -1195,6 +1204,7 @@ class ServiceModel(ComponentModel):
                 "costPerHour": 0.05,
             },
             tags=("container", "event-loop", "non-blocking"),
+            sources={"workersPerReplica": _NODE_LOOP},
         ),
         Preset(
             id="go-k8s-hpa",
@@ -1222,6 +1232,7 @@ class ServiceModel(ComponentModel):
                 "costPerHour": 0.05,
             },
             tags=("kubernetes", "hpa", "autoscaling"),
+            sources={"scaleIntervalS": _HPA},
         ),
         Preset(
             id="python-k8s-hpa",
@@ -1249,6 +1260,7 @@ class ServiceModel(ComponentModel):
                 "costPerHour": 0.05,
             },
             tags=("kubernetes", "hpa", "autoscaling"),
+            sources={"scaleIntervalS": _HPA},
         ),
         Preset(
             id="serverless-fn",
@@ -1267,6 +1279,11 @@ class ServiceModel(ComponentModel):
                 "costPerHour": 0.06,
             },
             tags=("serverless", "faas", "cold-start"),
+            sources={
+                "cpuCores": _LAMBDA_MEMORY,
+                "memoryGib": _LAMBDA_MEMORY,
+                "concurrencyLimit": _LAMBDA_CONCURRENCY,
+            },
         ),
     )
 

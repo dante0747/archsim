@@ -91,6 +91,15 @@ PARTITION_GIB = 10.0
 ON_DEMAND_READ_UNITS = 12_000.0
 ON_DEMAND_WRITE_UNITS = 4000.0
 BURST_SECONDS = 300.0
+BUFFER_CACHE_SHARE = 0.75
+"""Share of a database's memory that caches hot data (illustrative)."""
+
+# Documentation behind preset numbers (see Preset.sources).
+_RAFT = "https://docs.cockroachlabs.com/docs/stable/architecture/replication-layer"
+_ES_POOLS = (
+    "https://www.elastic.co/docs/reference/elasticsearch/configuration-refe"
+    "rence/thread-pool-settings"
+)
 
 
 class DatabaseConfig(CamelModel):
@@ -470,7 +479,7 @@ class DatabaseConfig(CamelModel):
         if self.memory_gib is None or self.working_set_gib is None:
             return None
         per_shard = self.working_set_gib / self.partitions()
-        return min(1.0, 0.75 * self.memory_gib / per_shard)
+        return min(1.0, BUFFER_CACHE_SHARE * self.memory_gib / per_shard)
 
     def wait_for(self) -> int:
         """Replica responses an operation waits for (k of RF)."""
@@ -1099,8 +1108,8 @@ class DatabaseRuntime(RuntimeComponent):
                 formula(
                     "buffer_hit",
                     "Buffer cache hit ratio",
-                    "hit = min(1, 0.75 × memory ÷ (working set ÷ shards))",
-                    f"min(1, 0.75 × {num(cfg.memory_gib)} GiB ÷ ({num(cfg.working_set_gib)} GiB ÷ {self.parts}))",
+                    f"hit = min(1, {BUFFER_CACHE_SHARE:g} × memory ÷ (working set ÷ shards))",
+                    f"min(1, {BUFFER_CACHE_SHARE:g} × {num(cfg.memory_gib)} GiB ÷ ({num(cfg.working_set_gib)} GiB ÷ {self.parts}))",
                     self.hit,
                     "",
                     note="A read that misses pays a disk read"
@@ -1367,6 +1376,7 @@ class DatabaseModel(ComponentModel):
                 "costPerHour": 0.5,
             },
             ("relational", "sql", "distributed", "consensus"),
+            sources={"replicationFactor": _RAFT},
         ),
         Preset(
             "mongodb-replica-set",
@@ -1476,6 +1486,7 @@ class DatabaseModel(ComponentModel):
                 "costPerHour": 0.45,
             },
             ("search", "full-text"),
+            sources={"maxConnections": _ES_POOLS, "queueCapacity": _ES_POOLS},
         ),
     )
 

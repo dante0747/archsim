@@ -59,6 +59,8 @@ export function ProjectsHome() {
   const recent = projects ? [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : [];
   const latest = recent[0] ?? null;
   const presetCount = catalog ? catalog.components.reduce((n, c) => n + (c.presets?.length ?? 0), 0) : null;
+  const presetTiers = catalog ? catalog.components.flatMap((c) => (c.presets ?? []).map((p) => p.tier ?? null)) : null;
+  const tierCount = (t: string | null) => presetTiers?.filter((x) => x === t).length ?? 0;
   const clientTypes = catalog ? catalog.components.filter((c) => c.isTrafficSource).length : null;
   const startStarter = () => starter && void openTemplate(starter.id);
 
@@ -103,7 +105,7 @@ export function ProjectsHome() {
         <div className="relative mx-auto max-w-6xl px-4 pt-16 text-center sm:px-6 sm:pt-24">
           <p className="pop-in mx-auto inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3 text-[13px] text-ink-2">
             <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-[var(--accent-ink)]">New</span>
-            Live dashboard · real technology behaviour · the maths behind every number
+            Live dashboard · technology behaviour from vendor docs · the maths behind every number
           </p>
           <h1 className="mt-7 font-display text-[44px] font-semibold leading-[0.98] tracking-[-0.05em] text-ink sm:text-[64px] lg:text-[80px]">
             Crash-test your architecture
@@ -191,7 +193,13 @@ export function ProjectsHome() {
         <section aria-label="At a glance" className="border-b border-line">
           <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-px px-4 py-12 sm:px-6 lg:grid-cols-4">
             {[
-              [presetCount ?? "…", "technology profiles", "PostgreSQL to Kafka to serverless"],
+              [
+                presetCount ?? "…",
+                "technology profiles",
+                presetTiers
+                  ? `${tierCount("core")} core, ${tierCount("experimental")} experimental${tierCount(null) ? `, ${tierCount(null)} third-party APIs` : ""}`
+                  : "PostgreSQL to Kafka to serverless",
+              ],
               [examples.length || "…", "ready-made templates", "each with scenarios to compare"],
               [clientTypes ?? "…", "kinds of clients", "mobile, web, API consumers, generic"],
               ["0", "bytes leave your machine", "local, open source, no account"],
@@ -216,9 +224,10 @@ export function ProjectsHome() {
                 Model the stack you actually run
               </h2>
               <p className="mt-4 text-[17px] leading-relaxed text-ink-2">
-                Pick a technology and it behaves like the real thing: PostgreSQL locks rows and waits for its log, MongoDB waits for a majority, Redis runs
+                Pick a technology and it brings the mechanisms its documentation describes: PostgreSQL locks rows and waits for its log, Redis runs
                 commands on one thread, Kafka keeps keys in order on one partition. Every behaviour links to the vendor&apos;s documentation and can be
-                overridden.
+                overridden. A core set (PostgreSQL, Redis, Kafka, SQS, Nginx and ALB-style load balancers, Node.js, Java and Go services) comes first;
+                the others are marked experimental. Their numbers are illustrative, and no technology is validated against measurements yet.
               </p>
             </Reveal>
             <div className="mt-12">

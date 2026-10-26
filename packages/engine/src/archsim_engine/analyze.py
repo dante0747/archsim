@@ -1,6 +1,7 @@
-"""Static analysis of a design without simulating it: the auto sizes, the cost estimate and the
-design review, exactly as a run would use them (``POST /api/v1/analyze``, the web app's live
-inspector and design review, the CLI and the MCP server all call this)."""
+"""Static analysis of a design without simulating it: the auto sizes, the cost estimate, the
+design review and each part's technology tier, exactly as a run would use them
+(``POST /api/v1/analyze``, the web app's live inspector and design review, the CLI and the MCP
+server all call this)."""
 
 from __future__ import annotations
 
@@ -34,4 +35,5 @@ def analyze_document(
         "review": review,
         "reviewCounts": count_by_severity(review),
         "reviewRules": REVIEW_RULES,
+        "technologies": registry.technology_tiers(snapshot["architecture"]["nodes"]),
     }

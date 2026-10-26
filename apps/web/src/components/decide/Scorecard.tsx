@@ -6,6 +6,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { FindingCard, RunProgress } from "@/components/results/OverviewTab";
 import { Legend, SINGLE_SERIES } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
+import { TierBadge } from "@/components/ui/TierBadge";
 import { formatUsd } from "@/lib/cost";
 import { compact, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { type SloCheck, type SloKey, errorBudget, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
@@ -391,6 +392,7 @@ export function AnswerPage() {
         : slo.pass === true
           ? `Meets all ${slo.total} objectives at ${fmtRps(report.summary.offeredRps)}.`
           : "Try a longer run or more traffic.";
+  const experimental = (report.assumptions.technologies ?? []).filter((t) => t.tier === "experimental");
   const findings = report.findings
     .filter((f) => f.kind !== "healthy")
     .sort((a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9));
@@ -406,6 +408,13 @@ export function AnswerPage() {
             <h2 className="font-display text-[46px] leading-[1.02] tracking-[-0.035em] text-ink">{headline}</h2>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{reason}</p>
             {bottleneck && <p className="mt-1 text-[15px] text-ink">{bottleneck.title}.</p>}
+            {experimental.length > 0 && (
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[13px] text-ink-3">
+                <TierBadge tier="experimental" />
+                {experimental.map((t) => t.label).join(", ")} {experimental.length === 1 ? "uses a technology" : "use technologies"} whose model is not yet validated against
+                measurements.
+              </p>
+            )}
           </div>
         </div>
         <dl className="mt-6 flex flex-wrap gap-x-12 gap-y-4 border-t border-line pt-5">

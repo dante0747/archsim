@@ -6,6 +6,7 @@
 import { api } from "@/lib/api";
 import { freeSpot } from "@/lib/placement";
 import { evaluateSlo } from "@/lib/slo";
+import { partTier } from "@/lib/tier";
 import type { ComponentType, EdgeConfig, Report, Workload } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -157,7 +158,7 @@ export function editorTools(): AgentTool[] {
       name: "get_design",
       title: "Read the design",
       description:
-        "Return the open ArchSim design: its parts (id, type, label, technology, settings that differ from the defaults, auto-sized CPU/memory/storage), links between parts, traffic, objectives, scenarios and current validation problems. Start here.",
+        "Return the open ArchSim design: its parts (id, type, label, technology and its tier (core, or experimental: not yet validated against measurements), settings that differ from the defaults, auto-sized CPU/memory/storage), links between parts, traffic, objectives, scenarios and current validation problems. Start here.",
       inputSchema: { type: "object", properties: { includeDefaults: { type: "boolean", description: "Include every setting, not only changed ones." } } },
       annotations: { readOnlyHint: true },
       execute: async (input) => {
@@ -176,6 +177,7 @@ export function editorTools(): AgentTool[] {
               type: n.data.type,
               label: n.data.label,
               technology: typeof n.data.config.technology === "string" ? n.data.config.technology : null,
+              tier: partTier(comp, n.data.config),
               settings: input.includeDefaults ? { ...(comp?.defaultConfig ?? {}), ...n.data.config } : changedConfig(n.data.config, comp),
               autoSize: size && !size.skipped ? { ...size.auto, peakRps: round(size.peakRps) } : null,
             };
@@ -224,7 +226,7 @@ export function editorTools(): AgentTool[] {
               nullable: f.nullable,
               description: f.description,
             })),
-            presets: (c.presets ?? []).map((p) => ({ id: p.id, name: p.name, technology: p.technology, description: p.description })),
+            presets: (c.presets ?? []).map((p) => ({ id: p.id, name: p.name, technology: p.technology, tier: p.tier ?? null, description: p.description })),
           };
         }
         return cat.components.map((c) => ({
@@ -232,7 +234,7 @@ export function editorTools(): AgentTool[] {
           name: c.displayName,
           category: c.category,
           description: c.description,
-          presets: (c.presets ?? []).map((p) => ({ id: p.id, name: p.name, technology: p.technology })),
+          presets: (c.presets ?? []).map((p) => ({ id: p.id, name: p.name, technology: p.technology, tier: p.tier ?? null })),
         }));
       },
     },

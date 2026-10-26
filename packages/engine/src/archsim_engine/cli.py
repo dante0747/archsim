@@ -147,7 +147,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--b", help="scenario id for B (default: base document)")
     p.set_defaults(fn=cmd_compare)
     p = sub.add_parser(
-        "analyze", help="print the auto sizes, cost estimate and design review as JSON"
+        "analyze",
+        help="print the auto sizes, cost estimate, design review and technology tiers as JSON",
     )
     p.add_argument("file")
     p.add_argument("--scenario", help="scenario id to apply")

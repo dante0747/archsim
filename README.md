@@ -51,7 +51,7 @@ API servers behind a lone Clients box.
   (HPA autoscaling, pods on a cluster's nodes) or serverless (cold starts, concurrency limits),
   Kubernetes clusters (EKS-, GKE- and AKS-style, k3s), and third-party APIs
   (payments, e-mail, identity, LLM inference...).
-- **Each technology behaves like the real one.** PostgreSQL locks rows, makes commits wait for
+- **Each technology brings the behaviour its documentation describes.** PostgreSQL locks rows, makes commits wait for
   its write-ahead log (sharing flushes between concurrent commits) and replays writes on
   replicas with a single worker, so heavy writes make replicas lag and serve stale reads.
   MySQL replays on four workers; SQL Server's reads wait for writers; MongoDB waits for a
@@ -69,8 +69,16 @@ API servers behind a lone Clients box.
   canvas draws each service's pods (ready, starting, Pending) and the cluster's nodes, live
   during replay. The inspector shows how the selected technology
   behaves, each behaviour links to the vendor's documentation, and every one is a setting
-  (Auto by default) that you can override. Typical numbers that vendors don't document are
-  marked illustrative.
+  (Auto by default) that you can override; each Auto value says whether it is documented or
+  illustrative. [docs/assumptions.md](docs/assumptions.md) lists every such number, generated
+  from the code.
+- **Core and experimental technologies.** A core set comes first: generic, Node.js, Java and
+  Go services (on VMs, containers, Kubernetes with HPA or serverless), PostgreSQL, Redis, Kafka,
+  SQS-style queues, and Nginx and ALB-style load balancers (plus the generic part of each kind,
+  which adds no technology behaviour). Every other technology carries an "experimental" badge
+  in the parts library, the inspector, reports and exports: its behaviour rests on
+  documentation and illustrative numbers. No technology is validated against measurements yet;
+  that is the next step.
 - Every part is the same card: its technology logo on a solid tile in its family's colour, its
   name, one or two key settings, and after a run a 12-segment level meter (green, then yellow,
   then red, like an audio meter) that shows how busy it was. Links are rounded
@@ -247,7 +255,8 @@ uv run archsim run examples/cache-aside-starter.json --scenario one-api-replica 
 uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
 ```
 
-`analyze` prints the auto sizes, the cost estimate and the design review without simulating.
+`analyze` prints the auto sizes, the cost estimate, the design review and each part's
+technology tier without simulating.
 Untrusted documents are bounded: the wall-clock limit and cancellation hold inside the event
 loop, and a design whose one request would fan out into more than 10,000 calls is rejected
 (`design.amplification`).
@@ -282,6 +291,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 - [Implementation plan and assumptions](docs/plan.md)
 - [Architecture](docs/architecture.md)
 - [Simulation model: what is and isn't modeled](docs/simulation-model.md)
+- [Assumptions: every default, documented or illustrative](docs/assumptions.md) (generated)
 - [Document schema](docs/schema.md)
 - [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
 - [Adding a component type](docs/extending-components.md)

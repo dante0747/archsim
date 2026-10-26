@@ -1,6 +1,6 @@
 /** docker-compose.yml scaffolding generated from an architecture document. */
 import type { ArchitectureDocument, Catalog } from "@/lib/types";
-import { HEADER, composeResources, deployNodes, num, serviceReplicas, slug, specsOf, storeInstances, type DeployNode } from "./tech";
+import { HEADER, composeResources, deployNodes, num, serviceReplicas, slug, specsOf, storeInstances, tierLines, type DeployNode } from "./tech";
 import { comments, toYaml, type YamlValue } from "./yaml";
 
 function upperEnv(name: string): string {
@@ -62,6 +62,7 @@ export function toDockerCompose(doc: ArchitectureDocument, catalog?: Catalog | n
     ];
     const deps = targets.map((d) => d.name);
     const labels: Record<string, string> = { "archsim.node": node.id };
+    if (n.tier === "experimental") labels["archsim.tier"] = "experimental";
     const svc: Record<string, YamlValue> = {};
 
     if (kind === "compute") {
@@ -117,6 +118,7 @@ export function toDockerCompose(doc: ArchitectureDocument, catalog?: Catalog | n
     ...HEADER(doc.metadata.name, "docker-compose scaffolding"),
     src ? `Modelled load: ${src.node.label || src.node.id} send ${w.rps} req/s (${Math.round(w.readRatio * 100)}% reads).` : "",
     "App images (your-org/...) are placeholders for your own services.",
+    ...tierLines(nodes, catalog),
   ].filter(Boolean));
   return `${head}\n${toYaml(body)}\n`;
 }

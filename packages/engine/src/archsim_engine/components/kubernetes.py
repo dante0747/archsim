@@ -80,8 +80,10 @@ K8S_TRAITS = (
     ),
 )
 
+# Upstream Kubernetes is core; the distributions behave the same here and differ only in their
+# presets' (illustrative) node sizes and provisioning times.
 CLUSTER_PROFILES: dict[str, Profile] = {
-    tech: Profile({}, K8S_TRAITS)
+    tech: Profile({}, K8S_TRAITS, "core" if tech == "kubernetes" else "experimental")
     for tech in ("kubernetes", "eks", "gke", "aks", "k3s", "openshift")
 }
 

@@ -1,6 +1,9 @@
 "use client";
 
 import { Badge, Section } from "@/components/ui/misc";
+import { TierBadge, useTierNote } from "@/components/ui/TierBadge";
+import { technologyLabel } from "@/lib/theme";
+import type { TechnologyTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { thClass } from "./charts";
 import { useEditor } from "@/store/editor";
@@ -13,9 +16,52 @@ const GENERAL_NOTES = [
   "Components behave like their technology (locks, group commit, replica lag, event loops, GC pauses, partitions...), with documented defaults where they exist. Not modeled: network bandwidth and packet loss, failures of machines or regions, noisy neighbours.",
 ];
 
+/** Each part's technology and tier: from the run, or from the live analysis before a run. */
+function TechnologiesSection({ technologies, fromRun }: { technologies: TechnologyTier[]; fromRun: boolean }) {
+  const catalog = useEditor((s) => s.catalog);
+  const note = useTierNote();
+  if (!technologies.length) return null;
+  const experimental = technologies.filter((t) => t.tier === "experimental").length;
+  return (
+    <Section title="Technologies">
+      <p className="text-xs leading-relaxed text-ink-2">
+        {experimental
+          ? `${experimental} of ${technologies.length} parts use an experimental technology. ${note}`
+          : "Every part uses a core technology: one ArchSim focuses on. No technology has been validated against measurements yet."}
+        {fromRun ? "" : " (Live, from the design; a run records its own.)"}
+      </p>
+      <div className="overflow-auto rounded-md border border-line bg-surface">
+        <table className="w-full text-xs">
+          <thead className="bg-surface text-left">
+            <tr className="border-b border-line">
+              <th className={cn(thClass, "px-3 py-1.5")}>Part</th>
+              <th className={cn(thClass, "px-2 py-1.5")}>Technology</th>
+              <th className={cn(thClass, "px-3 py-1.5")}>Tier</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {technologies.map((t) => {
+              const comp = catalog?.components.find((c) => c.type === t.type);
+              return (
+                <tr key={t.id}>
+                  <td className="px-3 py-1.5 text-ink">{t.label}</td>
+                  <td className="px-2 py-1.5 text-ink-2">{technologyLabel(comp, t.technology) ?? t.technology}</td>
+                  <td className="px-3 py-1.5 text-ink-2">{t.tier === "experimental" ? <TierBadge tier={t.tier} /> : "core"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+
 export function AssumptionsTab() {
   const report = useActiveReport();
   const catalog = useEditor((s) => s.catalog);
+  const analysis = useEditor((s) => s.analysis);
+  const runTechs = report?.assumptions.technologies;
   const types = report
     ? Object.entries(report.assumptions.components)
     : (catalog?.components ?? []).map((c) => [c.type, { modeled: c.modeled, notModeled: c.notModeled }] as const);
@@ -30,6 +76,7 @@ export function AssumptionsTab() {
             ))}
           </ul>
         </Section>
+        <TechnologiesSection technologies={runTechs ?? (report ? [] : (analysis?.technologies ?? []))} fromRun={!!runTechs} />
         <Section
           title={
             <span className="flex items-center gap-1.5">

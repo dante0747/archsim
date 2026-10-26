@@ -37,6 +37,9 @@ BEHAVIOUR = "Technology behaviour"
 
 Candidate = tuple[EdgeRuntime, RuntimeComponent, int]
 
+# Documentation behind preset numbers (see Preset.sources).
+_APIGW_LIMITS = "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html"
+
 
 class LoadBalancerConfig(CamelModel):
     technology: Literal[
@@ -462,6 +465,7 @@ class LoadBalancerModel(ComponentModel):
                 "costPerHour": 0.0,
             },
             tags=("managed", "gateway", "rate-limit"),
+            sources={"rateLimitRps": _APIGW_LIMITS, "rateLimitBurst": _APIGW_LIMITS},
         ),
     )
 

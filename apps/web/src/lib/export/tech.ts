@@ -1,6 +1,7 @@
 /** Container images, ports and deployment hints per technology, shared by the exporters. */
 import { kindOf, type Kind } from "@/lib/theme";
-import type { ArchitectureDocument, Catalog, NodeConfig, NodeSpec } from "@/lib/types";
+import { partTier, tierNote } from "@/lib/tier";
+import type { ArchitectureDocument, Catalog, NodeConfig, NodeSpec, Tier } from "@/lib/types";
 
 export interface TechSpec {
   image: string;
@@ -72,6 +73,8 @@ export interface DeployNode {
   name: string;
   technology: string | null;
   tech: TechSpec | null;
+  /** The modelled technology's tier (null for parts without technology profiles). */
+  tier: Tier | null;
 }
 
 /** DNS-1123-ish name: lowercase letters, digits and dashes. */
@@ -96,7 +99,7 @@ export function deployNodes(doc: ArchitectureDocument, catalog?: Catalog | null)
     const kind = kindOf(node.type, comp?.category);
     const technology = typeof cfg.technology === "string" && cfg.technology !== "generic" ? cfg.technology : (DEFAULT_BY_KIND[kind] ?? null);
     const tech = technology ? (T[technology] ?? null) : null;
-    return { node, kind, cfg, name: dnsName(node.id), technology, tech };
+    return { node, kind, cfg, name: dnsName(node.id), technology, tech, tier: partTier(comp, cfg) };
   });
 }
 
@@ -146,6 +149,13 @@ export function storeInstances(cfg: NodeConfig): number {
   const shards = Math.max(1, num(cfg.shards, 1));
   const copies = Math.max(1 + num(cfg.readReplicas, 0), num(cfg.replicationFactor, 1));
   return shards * copies;
+}
+
+/** Header lines naming the parts whose modelled technology is experimental (none when all are core). */
+export function tierLines(nodes: DeployNode[], catalog?: Catalog | null): string[] {
+  const exp = nodes.filter((n) => n.tier === "experimental");
+  if (!exp.length) return [];
+  return [`Experimental technologies (${exp.map((n) => `${n.node.label || n.node.id}: ${n.cfg.technology}`).join(", ")}): ${tierNote(catalog?.tierNote)}`];
 }
 
 export const HEADER = (name: string, what: string) => [

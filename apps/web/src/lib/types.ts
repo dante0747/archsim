@@ -178,6 +178,22 @@ export interface Preset {
   description: string;
   config: NodeConfig;
   tags: string[];
+  /** The technology's tier (parts with technology profiles only). */
+  tier?: Tier;
+  /** Documentation behind preset numbers: config key -> link; other numbers are illustrative. */
+  sources?: Record<string, string>;
+}
+
+/** Core technologies are ArchSim's focus; experimental ones rest on documentation and illustrative numbers. */
+export type Tier = "core" | "experimental";
+
+/** A part of a design with its technology and that technology's tier (analysis and report 1.8+). */
+export interface TechnologyTier {
+  id: string;
+  label: string;
+  type: string;
+  technology: string;
+  tier: Tier;
 }
 
 export interface ComponentType {
@@ -199,6 +215,10 @@ export interface ComponentType {
   technologyTraits?: Record<string, TechTrait[]>;
   /** "Auto" settings resolved per technology: field key -> technology -> value (engine 0.5+). */
   technologyDefaults?: Record<string, Record<string, unknown>>;
+  /** Documented "auto" defaults: field key -> technology -> link; the rest are illustrative. */
+  technologySources?: Record<string, Record<string, string>>;
+  /** Each technology's tier. */
+  technologyTiers?: Record<string, Tier>;
 }
 
 /** One behaviour a technology brings, with the vendor documentation it comes from. */
@@ -262,6 +282,8 @@ export interface Catalog {
   components: ComponentType[];
   edgeFields: FieldDescriptor[];
   workloadFields: FieldDescriptor[];
+  /** What the "experimental" badge says. */
+  tierNote?: string;
 }
 
 export interface Issue {
@@ -573,6 +595,8 @@ export interface Report {
     }[];
     components: Record<string, { modeled: string[]; notModeled: string[] }>;
     validationWarnings: Issue[];
+    /** Each part's technology tier (report 1.8+). */
+    technologies?: TechnologyTier[];
   };
   input: Pick<ArchitectureDocument, "schemaVersion" | "architecture" | "workload"> & {
     metadata: { name: string };
@@ -666,6 +690,8 @@ export interface Analysis {
   reviewCounts: Record<ReviewSeverity, number>;
   /** Display names of the review rules. */
   reviewRules: Record<string, string>;
+  /** Each part's technology tier. */
+  technologies?: TechnologyTier[];
 }
 
 export interface ComparisonKpi {

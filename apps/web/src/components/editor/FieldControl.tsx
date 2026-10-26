@@ -30,6 +30,13 @@ export interface AutoHint {
   value: unknown;
   /** The technology it comes from, e.g. "PostgreSQL". */
   source: string;
+  /** The documentation that states the value; without one the value is illustrative. */
+  link?: string | null;
+}
+
+/** "250 ms (PostgreSQL, documented)" for an empty setting's placeholder. */
+function autoText(field: Pick<FieldDescriptor, "unit">, auto: AutoHint): string {
+  return `${describeAuto(field, auto.value)} (${auto.source}, ${auto.link ? "documented" : "illustrative"})`;
 }
 
 export function describeAuto(field: Pick<FieldDescriptor, "unit">, value: unknown): string {
@@ -370,7 +377,7 @@ export function FieldControl({
         <div className="flex items-start gap-2">
           {isNull ? (
             <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-dashed border-line px-2 text-xs text-ink-3">
-              {auto ? `${describeAuto(field, auto.value)} (${auto.source})` : nullLabel(field)}
+              {auto ? autoText(field, auto) : nullLabel(field)}
             </div>
           ) : (
             numberEl
@@ -438,7 +445,7 @@ export function FieldControl({
         isNull && field.nullable ? (
           <div className="flex items-start gap-2">
             <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-dashed border-line px-2 text-xs text-ink-3">
-              {auto ? `${describeAuto(field, auto.value)} (${auto.source})` : "None"}
+              {auto ? autoText(field, auto) : "None"}
             </div>
             {toggle}
           </div>
@@ -499,7 +506,14 @@ export function FieldControl({
       {control}
       {auto && value === "auto" && (
         <p className={cn("text-[11px] text-ink-3", row && "col-span-2 -mt-2 text-right")}>
-          Auto: {describeAuto(field, auto.value)} for {auto.source}
+          Auto: {describeAuto(field, auto.value)} for {auto.source},{" "}
+          {auto.link ? (
+            <a href={auto.link} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-ink">
+              documented
+            </a>
+          ) : (
+            "illustrative"
+          )}
         </p>
       )}
     </div>

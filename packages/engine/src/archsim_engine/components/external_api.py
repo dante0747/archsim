@@ -31,6 +31,11 @@ from archsim_engine.runtime import (
 )
 from archsim_engine.schema import CamelModel, NodeSpec
 
+# Documentation behind preset numbers (see Preset.sources).
+_S3_PERFORMANCE = (
+    "https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html"
+)
+
 
 class ExternalApiConfig(CamelModel):
     technology: Literal[
@@ -258,6 +263,7 @@ class ExternalApiModel(ComponentModel):
                 "costPerMillionRequests": 0.4,
             },
             ("storage", "blob", "third-party"),
+            sources={"rateLimitRps": _S3_PERFORMANCE},
         ),
     )
 
