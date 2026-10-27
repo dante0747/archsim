@@ -1,4 +1,5 @@
-"""Simulation runs: create (async), poll, cancel, reproduce, fetch reports, compare."""
+"""Simulation runs: create (async), poll, cancel, reproduce, fetch reports, compare. A run belongs
+to its project's workspace: viewers read runs, editors start, cancel and delete them."""
 
 from __future__ import annotations
 
@@ -7,15 +8,24 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
-from sqlalchemy.orm import Session, undefer
+from sqlalchemy.orm import Session
 
 from archsim_api.config import Settings
 from archsim_api.db import SimulationRun
-from archsim_api.deps import get_jobs, get_registry, get_session, get_settings_dep, raise_issues
+from archsim_api.deps import (
+    get_jobs,
+    get_principal,
+    get_registry,
+    get_session,
+    get_settings_dep,
+    raise_issues,
+    require_project,
+    require_run,
+)
 from archsim_api.jobs.queue import ACTIVE
 from archsim_api.jobs.worker import JobService
-from archsim_api.routers.projects import get_project_or_404
 from archsim_api.schemas import BatchRunCreate, RunCreate, RunOut
+from archsim_api.security import Principal, ProjectAccess, RunAccess, run_access
 from archsim_engine import (
     ENGINE_VERSION,
     ComponentRegistry,
@@ -49,6 +59,8 @@ def _enqueue(
     registry: ComponentRegistry,
     settings: Settings,
     project_id: str,
+    workspace_id: str,
+    created_by: str,
     document: dict[str, Any],
     scenario_id: str | None,
     label: str | None,
@@ -61,6 +73,8 @@ def _enqueue(
         raise_issues(422, str(exc))
     run = SimulationRun(
         project_id=project_id,
+        workspace_id=workspace_id,
+        created_by=created_by,
         label=label or prep.scenario_name or "Current design",
         scenario_id=prep.scenario_id,
         scenario_name=prep.scenario_name,
@@ -73,45 +87,46 @@ def _enqueue(
     return jobs.enqueue(session, run)
 
 
-def get_run_or_404(session: Session, run_id: str, with_payload: bool = False) -> SimulationRun:
-    stmt = select(SimulationRun).where(SimulationRun.id == run_id)
-    if with_payload:
-        stmt = stmt.options(undefer(SimulationRun.report), undefer(SimulationRun.input_document))
-    run = session.execute(stmt).scalar_one_or_none()
-    if run is None:
-        raise HTTPException(404, detail={"message": f"Run '{run_id}' not found", "issues": []})
-    return run
-
-
 @router.post("/projects/{project_id}/runs", response_model=RunOut, status_code=202)
 def create_run(
-    project_id: str,
     body: RunCreate,
+    access: ProjectAccess = Depends(require_project("editor")),
+    principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
     jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
 ) -> RunOut:
     """Validate and enqueue a simulation. Returns immediately; poll ``GET /runs/{id}``."""
-    project = get_project_or_404(session, project_id)
+    project = access.project
     document = body.document if body.document is not None else project.document
     run = _enqueue(
-        session, jobs, registry, settings, project_id, document, body.scenario_id, body.label
+        session,
+        jobs,
+        registry,
+        settings,
+        project.id,
+        project.workspace_id,
+        principal.user_id,
+        document,
+        body.scenario_id,
+        body.label,
     )
     return _run_out(run)
 
 
 @router.post("/projects/{project_id}/runs/batch", response_model=list[RunOut], status_code=202)
 def create_batch(
-    project_id: str,
     body: BatchRunCreate,
+    access: ProjectAccess = Depends(require_project("editor")),
+    principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
     jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
 ) -> list[RunOut]:
     """Enqueue several scenarios of the same document (``null`` = base document)."""
-    project = get_project_or_404(session, project_id)
+    project = access.project
     document = body.document if body.document is not None else project.document
     for sid in body.scenario_ids:  # validate everything before enqueueing anything
         try:
@@ -121,7 +136,18 @@ def create_batch(
         except SimulationLimitError as exc:
             raise_issues(422, str(exc))
     runs = [
-        _enqueue(session, jobs, registry, settings, project_id, document, sid, None)
+        _enqueue(
+            session,
+            jobs,
+            registry,
+            settings,
+            project.id,
+            project.workspace_id,
+            principal.user_id,
+            document,
+            sid,
+            None,
+        )
         for sid in body.scenario_ids
     ]
     return [_run_out(r) for r in runs]
@@ -129,15 +155,14 @@ def create_batch(
 
 @router.get("/projects/{project_id}/runs", response_model=list[RunOut])
 def list_runs(
-    project_id: str,
+    access: ProjectAccess = Depends(require_project("viewer")),
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings_dep),
 ) -> list[RunOut]:
-    get_project_or_404(session, project_id)
     rows = (
         session.execute(
             select(SimulationRun)
-            .where(SimulationRun.project_id == project_id)
+            .where(SimulationRun.project_id == access.project.id)
             .order_by(SimulationRun.created_at.desc())
             .limit(settings.run_history_limit)
         )
@@ -148,14 +173,16 @@ def list_runs(
 
 
 @router.get("/runs/{run_id}", response_model=RunOut)
-def get_run(run_id: str, session: Session = Depends(get_session)) -> RunOut:
-    return _run_out(get_run_or_404(session, run_id))
+def get_run(access: RunAccess = Depends(require_run("viewer"))) -> RunOut:
+    return _run_out(access.run)
 
 
 @router.get("/runs/{run_id}/report")
-def get_report(run_id: str, session: Session = Depends(get_session)) -> JSONResponse:
+def get_report(
+    access: RunAccess = Depends(require_run("viewer", with_payload=True)),
+) -> JSONResponse:
     """Full simulation report: provenance, summary, time series, per-node metrics, findings."""
-    run = get_run_or_404(session, run_id, with_payload=True)
+    run = access.run
     if run.status != "succeeded" or run.report is None:
         raise HTTPException(
             409, detail={"message": f"Run is {run.status}; no report available", "issues": []}
@@ -164,26 +191,30 @@ def get_report(run_id: str, session: Session = Depends(get_session)) -> JSONResp
 
 
 @router.get("/runs/{run_id}/input")
-def get_run_input(run_id: str, session: Session = Depends(get_session)) -> JSONResponse:
+def get_run_input(
+    access: RunAccess = Depends(require_run("viewer", with_payload=True)),
+) -> JSONResponse:
     """The exact document submitted for this run (re-importable)."""
-    run = get_run_or_404(session, run_id, with_payload=True)
-    return JSONResponse(run.input_document)
+    return JSONResponse(access.run.input_document)
 
 
 @router.post("/runs/{run_id}/cancel", response_model=RunOut)
 def cancel_run(
-    run_id: str, session: Session = Depends(get_session), jobs: JobService = Depends(get_jobs)
+    access: RunAccess = Depends(require_run("editor")),
+    session: Session = Depends(get_session),
+    jobs: JobService = Depends(get_jobs),
 ) -> RunOut:
-    run = get_run_or_404(session, run_id)
+    run = access.run
     if run.status in ACTIVE:
-        jobs.cancel(run_id)
+        jobs.cancel(run.id)
         session.refresh(run)
     return _run_out(run)
 
 
 @router.post("/runs/{run_id}/rerun", response_model=RunOut, status_code=202)
 def rerun(
-    run_id: str,
+    access: RunAccess = Depends(require_run("editor", with_payload=True)),
+    principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
     jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
@@ -191,13 +222,15 @@ def rerun(
 ) -> RunOut:
     """Re-simulate the exact stored input (same document, scenario and seed) to check
     reproducibility: the new run's ``resultDigest`` should equal the original's."""
-    original = get_run_or_404(session, run_id, with_payload=True)
+    original = access.run
     run = _enqueue(
         session,
         jobs,
         registry,
         settings,
         original.project_id,
+        original.workspace_id,
+        principal.user_id,
         original.input_document,
         original.scenario_id,
         f"Reproduce: {original.label or original.id[:8]}"[:200],
@@ -207,21 +240,28 @@ def rerun(
 
 @router.delete("/runs/{run_id}", status_code=204)
 def delete_run(
-    run_id: str, session: Session = Depends(get_session), jobs: JobService = Depends(get_jobs)
+    access: RunAccess = Depends(require_run("editor")),
+    session: Session = Depends(get_session),
+    jobs: JobService = Depends(get_jobs),
 ) -> Response:
-    run = get_run_or_404(session, run_id)
+    run = access.run
     if run.status in ACTIVE:
-        jobs.cancel(run_id)
+        jobs.cancel(run.id)
     session.delete(run)
     session.commit()
     return Response(status_code=204)
 
 
 @router.get("/compare")
-def compare(a: str, b: str, session: Session = Depends(get_session)) -> dict[str, Any]:
+def compare(
+    a: str,
+    b: str,
+    principal: Principal = Depends(get_principal),
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
     """Compare two finished runs: KPI deltas, input differences and explanations."""
-    ra = get_run_or_404(session, a, with_payload=True)
-    rb = get_run_or_404(session, b, with_payload=True)
+    ra = run_access(session, principal, a, "viewer", with_payload=True).run
+    rb = run_access(session, principal, b, "viewer", with_payload=True).run
     for r in (ra, rb):
         if r.status != "succeeded" or r.report is None:
             raise HTTPException(

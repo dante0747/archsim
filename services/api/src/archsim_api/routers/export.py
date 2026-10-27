@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from archsim_api.deps import get_registry
+from archsim_api.deps import get_principal, get_registry
 from archsim_api.schemas import ApiModel
 from archsim_engine import ComponentRegistry, DocumentInvalidError
 from archsim_engine.export import FORMATS, export_document
@@ -22,6 +22,7 @@ class ExportRequest(ApiModel):
 
 @router.post(
     "/export",
+    dependencies=[Depends(get_principal)],
     responses={422: {"description": "The document cannot be read (issues explain why)."}},
 )
 def export(

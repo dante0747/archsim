@@ -9,7 +9,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field
 
-from archsim_api.deps import get_registry
+from archsim_api.deps import get_principal, get_registry
 from archsim_api.schemas import ApiModel
 from archsim_engine import ComponentRegistry, DocumentInvalidError
 from archsim_engine.importers import import_design
@@ -27,6 +27,7 @@ class ImportRequest(ApiModel):
 
 @router.post(
     "/import",
+    dependencies=[Depends(get_principal)],
     responses={422: {"description": "The text cannot be read as that format."}},
 )
 def import_(

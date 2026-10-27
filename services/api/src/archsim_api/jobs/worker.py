@@ -31,9 +31,9 @@ import socket
 import threading
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import Future
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from multiprocessing.connection import wait as wait_ready
 from multiprocessing.process import BaseProcess
 from queue import SimpleQueue
@@ -91,6 +91,9 @@ class WorkerConfig:
     deadline_margin_seconds: float = 30.0
     """Added to ``limits.max_wall_seconds`` for the hard deadline of a run's process (start-up,
     building the report)."""
+    workspace_caps: Mapping[str, int | None] = field(default_factory=dict)
+    """Runs at once per workspace, by workspace kind, for workspaces without a cap of their own
+    (across all workers; see ``queue.claim``). Empty: no cap."""
 
     @classmethod
     def from_settings(cls, settings: Settings, slots: int | None = None) -> WorkerConfig:
@@ -324,7 +327,12 @@ class Worker:
             if free > 0:
                 try:
                     claimed = queue.claim(
-                        self.db, self.id, free, self.config.lease_seconds, exclude=busy
+                        self.db,
+                        self.id,
+                        free,
+                        self.config.lease_seconds,
+                        exclude=busy,
+                        kind_caps=self.config.workspace_caps,
                     )
                 except Exception:
                     log.warning("could not claim runs", exc_info=True)

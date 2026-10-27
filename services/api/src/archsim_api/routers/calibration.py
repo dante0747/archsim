@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field, ValidationError
 
 from archsim_api.config import Settings
-from archsim_api.deps import get_registry, get_settings_dep
+from archsim_api.deps import get_principal, get_registry, get_settings_dep
 from archsim_api.schemas import ApiModel
 from archsim_engine import (
     ComponentRegistry,
@@ -72,6 +72,7 @@ def _replay_limits(settings: Settings) -> SimulationLimits:
 
 @router.post(
     "/calibrate",
+    dependencies=[Depends(get_principal)],
     responses={422: {"description": "The document, mapping or telemetry cannot be used."}},
 )
 def calibrate(

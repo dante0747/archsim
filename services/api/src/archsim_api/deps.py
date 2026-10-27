@@ -3,17 +3,28 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, NoReturn
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from archsim_api.config import Settings
-from archsim_api.db import Database
+from archsim_api.db import DEFAULT_WORKSPACE_ID, LOCAL_USER_ID, Database, Membership, Workspace
 from archsim_api.jobs.worker import JobService
+from archsim_api.security import (
+    Principal,
+    ProjectAccess,
+    RunAccess,
+    WorkspaceAccess,
+    not_found,
+    project_access,
+    run_access,
+    workspace_access,
+)
 from archsim_engine import ComponentRegistry, Issue
 
 
@@ -41,6 +52,99 @@ def get_jobs(request: Request) -> JobService:
 def get_registry(request: Request) -> ComponentRegistry:
     registry: ComponentRegistry = request.app.state.registry
     return registry
+
+
+WORKSPACE_HEADER = "x-archsim-workspace"
+
+
+def client_address(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+def get_principal(
+    request: Request,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
+) -> Principal:
+    """Who is asking. Without sign-in, the local user (owner of the default workspace)."""
+    cached: Principal | None = getattr(request.state, "principal", None)
+    if cached is not None:
+        return cached
+    ip = client_address(request)
+    if not settings.hosted:
+        principal = Principal(LOCAL_USER_ID, "local", ip=ip)
+    else:
+        raise HTTPException(
+            401,
+            detail={"message": "Sign in to continue", "issues": []},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    request.state.principal = principal
+    return principal
+
+
+def default_workspace_id(session: Session, principal: Principal) -> str:
+    """The workspace a request means when it names none: a token's own workspace, else the
+    principal's personal workspace, else the default one, else its oldest membership."""
+    if principal.token_workspace_id is not None:
+        return principal.token_workspace_id
+    rows = session.execute(
+        select(Membership.workspace_id, Workspace.kind)
+        .join(Workspace, Workspace.id == Membership.workspace_id)
+        .where(Membership.user_id == principal.user_id)
+        .order_by(Membership.created_at)
+    ).all()
+    if not rows:
+        raise not_found("A workspace you belong to was")
+    for wid, kind in rows:
+        if kind == "personal":
+            return str(wid)
+    ids = [str(wid) for wid, _ in rows]
+    return DEFAULT_WORKSPACE_ID if DEFAULT_WORKSPACE_ID in ids else ids[0]
+
+
+def get_workspace(
+    request: Request,
+    workspace: str | None = Query(
+        default=None,
+        max_length=32,
+        description="Workspace id (or the X-ArchSim-Workspace header). Default: your personal "
+        "workspace, else the default one.",
+    ),
+    principal: Principal = Depends(get_principal),
+    session: Session = Depends(get_session),
+) -> WorkspaceAccess:
+    """The workspace a list or create request is about, and the principal's role there."""
+    wid = workspace or request.headers.get(WORKSPACE_HEADER) or None
+    return workspace_access(session, principal, wid or default_workspace_id(session, principal))
+
+
+def require_project(minimum: str = "viewer") -> Callable[..., ProjectAccess]:
+    """Dependency: the path's ``project_id``, if the principal has at least ``minimum`` there
+    (404 without a role in its workspace, 403 when the role is too weak)."""
+
+    def dependency(
+        project_id: str,
+        principal: Principal = Depends(get_principal),
+        session: Session = Depends(get_session),
+    ) -> ProjectAccess:
+        return project_access(session, principal, project_id, minimum)
+
+    return dependency
+
+
+def require_run(minimum: str = "viewer", with_payload: bool = False) -> Callable[..., RunAccess]:
+    """Dependency: the path's ``run_id``, like ``require_project``. ``with_payload`` loads the
+    report and the input document too."""
+
+    def dependency(
+        run_id: str,
+        principal: Principal = Depends(get_principal),
+        session: Session = Depends(get_session),
+    ) -> RunAccess:
+        return run_access(session, principal, run_id, minimum, with_payload)
+
+    return dependency
 
 
 def raise_issues(status: int, message: str, issues: list[Issue] | None = None) -> NoReturn:

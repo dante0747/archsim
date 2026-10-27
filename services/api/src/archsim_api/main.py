@@ -11,9 +11,19 @@ from fastapi.responses import JSONResponse
 
 from archsim_api.config import Settings, get_settings
 from archsim_api.db import Base, Database
+from archsim_api.identity import ensure_defaults
 from archsim_api.jobs.worker import JobService, Worker, WorkerConfig
 from archsim_api.migrations import upgrade_to_head
-from archsim_api.routers import calibration, export, importing, meta, projects, runs
+from archsim_api.routers import (
+    auth,
+    calibration,
+    export,
+    importing,
+    meta,
+    projects,
+    runs,
+    workspaces,
+)
 from archsim_engine import ENGINE_VERSION, default_registry
 
 API_PREFIX = "/api/v1"
@@ -34,6 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             upgrade_to_head(settings.database_url)
         else:
             Base.metadata.create_all(db.engine, checkfirst=True)
+            ensure_defaults(db)
         jobs.start()  # requeues runs a stopped worker left behind, then takes runs
         yield
         jobs.shutdown()  # gives back runs still in flight: requeued for the next worker
@@ -87,6 +98,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     for r in (
         meta.router,
+        auth.router,
+        workspaces.router,
         projects.router,
         runs.router,
         calibration.router,
