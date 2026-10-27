@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Kubernetes spike: pods wait for nodes",
-    "description": "A Java API on a Kubernetes cluster with the horizontal pod autoscaler and the cluster autoscaler. A spike makes the HPA ask for more pods within seconds, but the two nodes are full: new pods wait as Pending until a node is provisioned (about 2 minutes), pull their image and start. Until then the pods that fit queue and refuse requests.",
+    "description": "A Java API (Redis cache-aside in front of PostgreSQL) on a Kubernetes cluster with the horizontal pod autoscaler and the cluster autoscaler. A spike makes the HPA ask for more pods within seconds, but the two nodes are full: new pods wait as Pending until a node is provisioned (about 2 minutes), pull their image and start. Until then the pods that fit queue and refuse requests.",
     "tags": [
       "kubernetes",
       "hpa",
@@ -171,17 +171,19 @@
         "sourcePort": "out",
         "target": "cache",
         "targetPort": "in",
-        "label": null,
+        "label": "lookups + invalidations",
         "config": {
           "requestTypes": [
-            "read"
+            "read",
+            "write"
           ],
           "latencyMs": {
             "kind": "constant",
             "value": 0.5
           },
-          "order": 0,
-          "timeoutMs": 100
+          "order": 1,
+          "timeoutMs": 100,
+          "continueOnFailure": true
         }
       },
       {
@@ -190,36 +192,19 @@
         "sourcePort": "out",
         "target": "db",
         "targetPort": "in",
-        "label": null,
+        "label": "writes + reads on a miss",
         "config": {
           "requestTypes": [
+            "read",
             "write"
           ],
           "latencyMs": {
             "kind": "constant",
             "value": 0.5
           },
-          "order": 1,
-          "timeoutMs": 1000
-        }
-      },
-      {
-        "id": "cache-db",
-        "source": "cache",
-        "sourcePort": "miss",
-        "target": "db",
-        "targetPort": "in",
-        "label": null,
-        "config": {
-          "requestTypes": [
-            "read"
-          ],
-          "latencyMs": {
-            "kind": "constant",
-            "value": 0.5
-          },
           "order": 0,
-          "timeoutMs": 1000
+          "timeoutMs": 1000,
+          "readsOnMiss": true
         }
       }
     ]
@@ -251,7 +236,7 @@
     {
       "id": "headroom",
       "name": "Headroom: 5 nodes up front",
-      "description": "Keep enough nodes running for the spike, so new pods schedule at once.",
+      "description": "Five nodes from the start: most new pods schedule at once, so far fewer requests are refused. The rest is the HPA's own reaction time, JIT warm-up and the last pods waiting for a sixth node.",
       "overrides": [
         {
           "target": {

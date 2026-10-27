@@ -571,7 +571,7 @@ Each node gets a status from its window metrics:
 
 | Status | Rule |
 | --- | --- |
-| `saturated` | utilization >= 95%, or >= 1% of arrivals rejected, or the queue kept growing (mean queue in the last quarter of the window > max(2, 1.5 x first quarter + 1); needs at least 4 window buckets) |
+| `saturated` | utilization >= 95%, or >= 1% of arrivals rejected, or the queue kept growing (mean queue in the last quarter of the window > max(2, 1.5 x first quarter + 1); needs at least 4 window buckets). Calls refused while a planned outage has the part down do not count: they are the outage, not overload (its status reasons say how many it refused) |
 | `hot` | utilization >= 85% |
 | `warm` | utilization >= 70% |
 | `ok` / `idle` | otherwise / no arrivals |
@@ -579,7 +579,7 @@ Each node gets a status from its window metrics:
 Findings (`analysis.py`) are rule-based and cite the numbers they use:
 
 - **Primary bottleneck:** the saturated node with the highest rejection rate and utilization,
-  excluding *symptoms*. A saturated or hot node is a **symptom** when a downstream node is
+  excluding *symptoms* (rejections exclude calls refused by a planned outage). A saturated or hot node is a **symptom** when a downstream node is
   also saturated or hot and either less than 50% of its occupied worker time is its own
   processing (`cpuUtilization / utilization < 0.5`) or it is a load balancer.
 - **Running hot** for hot nodes; a note when less than 70% of busy worker time is own work.
@@ -591,6 +591,12 @@ Findings (`analysis.py`) are rule-based and cite the numbers they use:
   is the signature of overload with unbounded queues: the server stays 100% busy while goodput
   collapses. The usual fix is a queue limit or a queue timeout below the client timeout.
   (Dependency timeouts inside the graph are not counted as wasted work.)
+- **Fault impact** (one per planned fault): success and p95 before and inside the window, and
+  how long recovery took. For an outage it also says how many calls the part refused while
+  down and how many client requests failed there rather than carrying on without it.
+- **Hot shard:** one shard gets well over its fair share of keyed operations (scattered
+  searches load every shard evenly and do not count), with its estimated load from connections
+  or, when CPU is set, its cores (only the primary when reads go to the primary).
 - **Cache** hit ratio and the read rate reaching the data store.
 - **Healthy** when nothing is saturated, naming the busiest component.
 

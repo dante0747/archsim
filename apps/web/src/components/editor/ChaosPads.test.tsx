@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ArchNode } from "@/lib/document";
 import { useEditor } from "@/store/editor";
@@ -38,6 +38,18 @@ describe("ChaosPads", () => {
     // Clear removes the planned failure
     fireEvent.click(screen.getByRole("button", { name: /Clear/ }));
     expect(useEditor.getState().workload.faults).toEqual([]);
+  });
+
+  it("keeps the pad lit after a reload fills in the engine's defaults", () => {
+    render(<ChaosPads />);
+    fireEvent.click(screen.getByRole("button", { name: /Lose Redis for 15 s/ }));
+    const [f] = useEditor.getState().workload.faults ?? [];
+    // As the API stores it: every fault gets a factor, extra latency and a label.
+    act(() => {
+      useEditor.setState({ workload: { ...useEditor.getState().workload, faults: [{ ...f, factor: 4, extraMs: 200, label: null }] } });
+    });
+    expect(screen.getByRole("button", { name: /Lose Redis for 15 s/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Kill API for 10 s/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("folds into a small button and remembers it", () => {

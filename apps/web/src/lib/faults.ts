@@ -215,6 +215,33 @@ function faultPreset(
   };
 }
 
+/** Does `actual` hold every field `want` sets? Arrays must match element by element. */
+function holds(actual: unknown, want: unknown): boolean {
+  if (Array.isArray(want)) {
+    const list = actual ?? [];
+    return Array.isArray(list) && list.length === want.length && want.every((v, i) => holds(list[i], v));
+  }
+  if (want !== null && typeof want === "object") {
+    if (actual === null || typeof actual !== "object") return false;
+    return Object.entries(want).every(([k, v]) => holds((actual as Record<string, unknown>)[k], v));
+  }
+  return actual === want;
+}
+
+/**
+ * Is this experiment already planned? Only what the pad sets counts: a saved fault comes back
+ * from the API with the engine's defaults filled in (`factor`, `extraMs`, `label: null`), and the
+ * fault's id or label does not change the run. Faults compare by what they do (`faultEffect`).
+ */
+export function presetActive(p: ChaosPreset, w: Workload): boolean {
+  const patch = p.apply(w);
+  return Object.entries(patch).every(([k, v]) =>
+    k === "faults"
+      ? sameJson(((v as Fault[] | undefined) ?? []).map(faultEffect), (w.faults ?? []).map(faultEffect))
+      : holds((w as unknown as Record<string, unknown>)[k], v),
+  );
+}
+
 /** Experiments that make sense for this graph, most telling first (at most 6). */
 export function chaosPresets(nodes: NodeLike[], edges: EdgeLike[], catalog: Catalog | null, workload: Workload): ChaosPreset[] {
   const out: ChaosPreset[] = [];

@@ -33,6 +33,9 @@ def _hot_shard(n: dict[str, Any], resolved: ArchitectureDocument) -> dict[str, A
     s = n["summary"]
     counters: dict[str, int] = s.get("counters") or {}
     counts = [int(counters.get(f"shard{i}", 0)) for i in range(shards)]
+    # A scattered read (an Elasticsearch-style search) runs on every shard but is counted once,
+    # on shard 0: it loads the shards evenly, so only keyed operations can make one hot.
+    counts[0] = max(0, counts[0] - int(counters.get("scatterReads", 0)))
     total = sum(counts)
     if total < MIN_SAMPLES:
         return None
@@ -42,13 +45,27 @@ def _hot_shard(n: dict[str, Any], resolved: ArchitectureDocument) -> dict[str, A
     ratio = share / fair
     if ratio < HOT_SHARD_BUSY_RATIO:
         return None
-    per_shard_slots = (1 + int(cfg.get("readReplicas") or 0)) * int(cfg.get("maxConnections") or 1)
+    # Instances of a shard that serve its requests: the primary alone when reads go to the
+    # primary (MongoDB's default read preference), else the primary and its replicas.
+    behaviour = {b.get("id") for b in n.get("behaviour") or []}
+    serving = 1 if "primary_reads" in behaviour else 1 + int(cfg.get("readReplicas") or 0)
+    per_shard_slots = serving * int(cfg.get("maxConnections") or 1)
     hold = _f(s.get("meanHoldMs"))
     rate = _f(s.get("arrivalRps"))
     est = (rate * share * hold / 1000.0) / per_shard_slots if (hold and rate) else None
+    util = s.get("utilization")
+    # With CPU cores set, a shard usually runs out of CPU long before it runs out of connections.
+    cores, cpu_share, service = (
+        _f(cfg.get("cpuCores")),
+        _f(cfg.get("cpuShare")),
+        _f(s.get("meanServiceMs")),
+    )
+    if cores and cpu_share and service and rate:
+        est_cpu = rate * share * service * cpu_share / (1000.0 * cores * serving)
+        if est is None or est_cpu > est:
+            est, util = est_cpu, s.get("cpuCoreUtilization")
     if ratio < HOT_SHARD_RATIO and (est is None or est < HOT_SHARD_BUSY):
         return None
-    util = s.get("utilization")
     wl = resolved.workload
     label = n["label"]
     detail = (

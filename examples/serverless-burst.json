@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Serverless API under a burst",
-    "description": "An API gateway in front of a Lambda-style function and a DynamoDB-style key-value store with provisioned throughput per shard. A 10\u00d7 burst triggers cold starts, hits the function's concurrency limit and throttles the table.",
+    "description": "An API gateway in front of a Lambda-style function and a DynamoDB table with provisioned capacity. A one-minute 10x spike makes the function scale out through cold starts and into its concurrency limit. The table's burst credits (300 s of unused capacity) absorb the first part of the spike, then writes are throttled.",
     "tags": [
       "serverless",
       "cold-start",
@@ -74,9 +74,7 @@
         "description": null,
         "config": {
           "technology": "dynamodb",
-          "shards": 4,
           "maxConnections": 200,
-          "throughputLimitRps": 250,
           "queueCapacity": 0,
           "queueTimeoutMs": null,
           "readServiceTimeMs": {
@@ -88,7 +86,10 @@
             "kind": "lognormal",
             "median": 6,
             "p95": 15
-          }
+          },
+          "capacityMode": "provisioned",
+          "readCapacityUnits": 100,
+          "writeCapacityUnits": 60
         }
       }
     ],
@@ -157,7 +158,7 @@
   },
   "workload": {
     "rps": 150,
-    "durationS": 90,
+    "durationS": 100,
     "warmupS": 10,
     "seed": 42,
     "readRatio": 0.7,
@@ -165,8 +166,8 @@
     "pattern": {
       "kind": "burst",
       "burstRps": 1500,
-      "startS": 40,
-      "durationS": 15
+      "startS": 30,
+      "durationS": 60
     },
     "keyCount": 100000,
     "keySkew": 0.8,
@@ -175,14 +176,14 @@
   "scenarios": [
     {
       "id": "baseline",
-      "name": "Baseline (concurrency 100, 4\u00d7250 rps provisioned)",
+      "name": "Baseline (concurrency 100, 100 RCU / 60 WCU)",
       "description": "The document as drawn.",
       "overrides": []
     },
     {
       "id": "concurrency",
       "name": "Concurrency limit 1,000",
-      "description": "Raise the function's concurrency limit.",
+      "description": "Raise the function's concurrency limit: the function keeps up, so the table takes the whole spike and throttles harder.",
       "overrides": [
         {
           "target": {
@@ -196,16 +197,39 @@
     },
     {
       "id": "provisioned",
-      "name": "Provisioned throughput \u00d73",
-      "description": "Raise the table's provisioned throughput per shard.",
+      "name": "Provisioned capacity x3",
+      "description": "300 read and 180 write units: the burst credits outlast the spike.",
       "overrides": [
         {
           "target": {
             "kind": "node",
             "id": "table"
           },
-          "path": "throughputLimitRps",
-          "value": 750
+          "path": "readCapacityUnits",
+          "value": 300
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "table"
+          },
+          "path": "writeCapacityUnits",
+          "value": 180
+        }
+      ]
+    },
+    {
+      "id": "on-demand",
+      "name": "On-demand capacity",
+      "description": "Pay per request instead: the table serves the spike without throttling.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "table"
+          },
+          "path": "capacityMode",
+          "value": "on_demand"
         }
       ]
     },

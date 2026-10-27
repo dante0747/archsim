@@ -68,6 +68,29 @@ def test_skewed_keys_make_a_hot_shard() -> None:
     assert abs(sum(hot[0]["evidence"]["shardShares"]) - 1) < 1e-3
 
 
+def test_a_cpu_bound_hot_shard_is_estimated_from_its_primary_cores() -> None:
+    """MongoDB reads go to the primary: replicas add no read CPU, so the hot shard's load is its
+    primary's cores (not the connections of three replica-set members)."""
+    db = node(
+        "db",
+        "database",
+        technology="mongodb",
+        shards=4,
+        readReplicas=2,
+        maxConnections=100,
+        cpuCores=1,
+        readServiceTimeMs=CONST1,
+    )
+    report = run_simulation(clients_to(db, rps=900, durationS=15, keyCount=1000, keySkew=1.5))
+    s = node_by_id(report, "db")["summary"]
+    # 4 primaries x 1 core / 0.5 ms of CPU per read (cpuShare 0.5): replicas serve no reads
+    assert s["cpuCapacityRps"] < 4 * 1000 / 0.5 * 1.1
+    hot = next(f for f in report["findings"] if f["kind"] == "hot_shard")
+    share = hot["evidence"]["share"]
+    # this shard's reads x 0.5 ms of CPU on its primary's one core
+    assert hot["evidence"]["estimatedHotShardUtilization"] > 0.9 * 900 * share * 0.5 / 1000
+
+
 def test_consistency_level_orders_latency() -> None:
     def hold(level: str) -> float:
         db = node(

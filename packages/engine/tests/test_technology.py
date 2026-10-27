@@ -138,6 +138,8 @@ def test_elasticsearch_searches_fan_out_to_every_shard() -> None:
     assert "fan_out" in {e["id"] for e in node_by_id(r, "es")["explain"]}
     # the slowest of three exponential(5) shard queries plus 1 ms of merging: ~9.2 + 1 ms
     assert 8 < s["latencyMs"]["mean"] < 13
+    # every search loads every shard, so no shard is hot (a search is counted once, on shard 0)
+    assert not [f for f in r["findings"] if f["kind"] == "hot_shard"]
 
 
 def test_dynamodb_throttles_a_hot_key_but_not_a_spread_keyspace() -> None:

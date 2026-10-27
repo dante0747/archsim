@@ -3,6 +3,8 @@
 Each node gets a ``status``:
 
 * ``saturated`` - utilization >= 95%, or >= 1% of arrivals rejected, or its queue kept growing
+                  (calls refused while a planned outage had it down do not count: that is the
+                  outage, reported by the fault_impact finding, not overload)
 * ``hot``       - utilization >= 85%
 * ``warm``      - utilization >= 70%
 * ``ok`` / ``idle``
@@ -51,7 +53,32 @@ def _queue_growing(series: list[float | None], i0: int, i1: int) -> bool:
     return last > max(2.0, 1.5 * first + 1.0)
 
 
+def outage_refusals(s: dict[str, Any]) -> int:
+    """Calls the node refused because an injected outage had it down."""
+    return int((s.get("rejected") or {}).get("outage", 0))
+
+
+def load_rejection_rate(s: dict[str, Any]) -> float:
+    """Rejections caused by load, as a share of the calls that reached the node while it was up.
+
+    Calls refused during an injected outage are the outage, not overload: they say nothing about
+    whether the node can carry its load, so they never make it saturated or the bottleneck (the
+    fault_impact finding reports what the outage did)."""
+    refused = outage_refusals(s)
+    served = (s.get("arrivals") or 0) - refused
+    rejected = (s.get("rejectedTotal") or 0) - refused
+    return rejected / served if served > 0 else 0.0
+
+
 def classify(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
+    status, reasons = _classify_load(node, i0, i1)
+    refused = outage_refusals(node["summary"])
+    if refused:
+        reasons = [*reasons, f"refused {refused:,} calls while down (planned outage)"]
+    return status, reasons
+
+
+def _classify_load(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
     s = node["summary"]
     if node["category"] == "traffic":  # client groups
         return "ok", []
@@ -65,7 +92,7 @@ def classify(node: dict[str, Any], i0: int, i1: int) -> tuple[str, list[str]]:
     if not s["arrivals"]:
         return "idle", ["received no requests"]
     util = s["utilization"] or 0.0
-    rej = s["rejectionRate"] or 0.0
+    rej = load_rejection_rate(s)
     growing = _queue_growing(node["timeseries"].get("queueMean", []), i0, i1)
     if node["type"] == "message_queue" and rej < 0.01 and (util >= 0.85 or growing):
         # Producers still get their acks: a saturated consumer group shows up as consumer lag
@@ -166,7 +193,7 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
     roots.sort(
         key=lambda n: (
             STATUS_RANK[n["status"]],
-            n["summary"]["rejectionRate"] or 0.0,
+            load_rejection_rate(n["summary"]),
             n["summary"]["utilization"] or 0.0,
         ),
         reverse=True,
@@ -190,10 +217,17 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
             if "queue kept growing" in n["statusReasons"]:
                 q += " and kept growing"
             parts.append(q + ".")
-        if s["rejectedTotal"]:
-            reasons = ", ".join(f"{k.replace('_', ' ')}: {v:,}" for k, v in s["rejected"].items())
+        refused = outage_refusals(s)
+        load_rejected = {k: v for k, v in s["rejected"].items() if k != "outage" and v}
+        if load_rejected:
+            reasons = ", ".join(f"{k.replace('_', ' ')}: {v:,}" for k, v in load_rejected.items())
             parts.append(
-                f"{s['rejectedTotal']:,} requests ({(s['rejectionRate'] or 0):.1%}) were rejected ({reasons})."
+                f"{sum(load_rejected.values()):,} requests ({load_rejection_rate(s):.1%}) were "
+                f"rejected ({reasons})."
+            )
+        if refused:
+            parts.append(
+                f"Separately, it refused {refused:,} calls while a planned outage had it down."
             )
         limit = s.get("capacityLimit")
         if s["capacityRps"] and limit == "cpu":
@@ -232,7 +266,16 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
                 else f"{n['label']} is also saturated"
             )
         else:
-            title = f"{n['label']} is running hot ({util:.0%} busy)"
+            # hot from its CPU cores rather than its slots: say so, not "20% busy"
+            cores = s.get("cpuCoreUtilization")
+            busy = (
+                f"CPU {cores:.0%} busy"
+                if util < 0.85 and cores is not None and cores >= 0.85
+                else f"{util:.0%} busy"
+            )
+            title = f"{n['label']} is running hot ({busy})"
+            if n["type"] == "message_queue" and "backlog kept growing" in n["statusReasons"]:
+                title = f"{n['label']}'s backlog grew (consumers {util:.0%} busy)"
         findings.append(
             {
                 "severity": "critical" if n["status"] == "saturated" else "warning",
