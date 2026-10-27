@@ -9,6 +9,7 @@ import { shareObjectives, shareVerdict } from "@/lib/share-view";
 import { CONFIDENCE_LABEL } from "@/lib/confidence";
 import { fmtPct, fmtRps } from "@/lib/format";
 import { formatSloValue } from "@/lib/slo";
+import { LOGO_DATA_URI } from "@/lib/logo";
 
 export const alt = "ArchSim shared results: the verdict and key numbers";
 export const size = { width: 1200, height: 630 };
@@ -23,7 +24,6 @@ const C = {
   ink3: "#96969e",
   good: "#30d158",
   bad: "#ff453a",
-  tiles: ["#0a84ff", "#ff9f0a", "#ff375f", "#30d158"],
 };
 
 function clip(text: string, max: number): string {
@@ -52,12 +52,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: C.page, padding: "56px 64px", color: C.ink }}>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", width: 52, height: 52 }}>
-            {C.tiles.map((c) => (
-              <div key={c} style={{ width: 22, height: 22, margin: 2, borderRadius: 6, background: c }} />
-            ))}
-          </div>
-          <div style={{ marginLeft: 18, fontSize: 32, fontWeight: 700 }}>archsim</div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- next/og draws plain img elements */}
+          <img src={LOGO_DATA_URI} width={60} height={60} alt="" />
+          <div style={{ marginLeft: 16, fontSize: 32, fontWeight: 700 }}>ArchSim</div>
           <div style={{ marginLeft: 18, fontSize: 26, color: C.ink3 }}>shared results</div>
         </div>
         <div style={{ marginTop: 44, fontSize: 32, color: C.ink2 }}>{clip(share.title, 60)}</div>
