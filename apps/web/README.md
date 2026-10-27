@@ -11,6 +11,7 @@ npm run dev        # http://localhost:3000 (start the API first: uv run archsim-
 npm test           # unit tests (Vitest + Testing Library)
 npm run lint
 npm run build      # then: npm run typecheck
+npm run e2e        # end-to-end main path against the build (Playwright; see e2e/)
 ```
 
 Layout:
