@@ -355,6 +355,51 @@ class RateLimit(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
+class SharedReport(Base):
+    """A share link: a frozen copy of one run's report (no traces), its objectives and project
+    name, readable by anyone with the random ``slug`` until it expires or is revoked. Revoking
+    clears the payload. The run and project may be deleted; the share stays (see
+    ``archsim_api.routers.shares``)."""
+
+    __tablename__ = "shared_reports"
+    __table_args__ = (
+        Index("ix_shared_reports_project_created", "project_id", "created_at"),
+        Index("ix_shared_reports_workspace_created", "workspace_id", "created_at"),
+        UniqueConstraint("slug", name="uq_shared_reports_slug"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    slug: Mapped[str] = mapped_column(String(32))
+    workspace_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("workspaces.id", ondelete="CASCADE", name="fk_shared_reports_workspace_id"),
+    )
+    project_id: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("projects.id", ondelete="SET NULL", name="fk_shared_reports_project_id"),
+        nullable=True,
+    )
+    run_id: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("simulation_runs.id", ondelete="SET NULL", name="fk_shared_reports_run_id"),
+        nullable=True,
+    )
+    created_by: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_shared_reports_created_by"),
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(200))
+    payload: Mapped[dict[str, Any] | None] = deferred(mapped_column(JSONType, nullable=True))
+    payload_version: Mapped[int] = mapped_column(Integer)
+    report_version: Mapped[str] = mapped_column(String(16))
+    result_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    view_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
         engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})
