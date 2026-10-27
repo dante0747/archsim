@@ -138,6 +138,8 @@ describe("history", () => {
     expect(describeEvent(event({ meta: { anchorKind: "node", anchorId: "cache", reply: true } }), name).text).toBe("replied on Cache");
     expect(describeEvent(event({ action: "project.update", meta: { name: "Shop", revision: 3 } })).text).toBe("saved revision 3");
     expect(describeEvent(event({ action: "run.create", meta: { label: "Lose Redis" } })).text).toBe("simulated Lose Redis");
+    expect(describeEvent(event({ action: "share.create", meta: { label: "Baseline", title: "Starter" } }))).toEqual({ text: "shared Baseline as a link", quote: "Starter" });
+    expect(describeEvent(event({ action: "share.revoke", meta: { title: "Starter" } })).text).toBe("revoked a share link");
     expect(describeEvent(event({ action: "comment.resolve", meta: { anchorKind: "project" } })).text).toBe("resolved a thread on the design");
     expect(describeEvent(event({ action: "signoff.create", meta: { decision: "approved", revision: 4, note: "Ship it" } }))).toEqual({
       text: "approved the design (revision 4)",

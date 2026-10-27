@@ -213,7 +213,7 @@ def test_confidence_is_not_in_the_result_digest(starter: dict[str, Any]) -> None
     from archsim_engine.report import canonical_digest
 
     r = run_simulation(shortened(starter))
-    assert r["reportVersion"] == "1.13"
+    assert r["reportVersion"] == "1.14"
     digest = canonical_digest(
         {k: r[k] for k in ("summary", "timeseries", "nodes", "edges", "window")}
     )

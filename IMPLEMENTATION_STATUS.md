@@ -1,11 +1,55 @@
 # Implementation status
 
-State as of 2026-10-27 (engine 0.12.0, schema 1.3, report 1.13). This file separates what is
+State as of 2026-10-27 (engine 0.12.0, schema 1.3, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Seed ranges and quick checks (2026-10-27, migration 0006, report 1.14; inspection report C-1, H-2 part).**
+
+- `RunCreate.seeds` (5 hosted, 10 locally) runs one input with seeds base ... base + N - 1 as a
+  run group (`run_groups`; runs carry `group_id`, `seed_index` and `mode`). `GET
+  /run-groups/{id}` returns the runs and the engine's `summarize_seeds`: the verdict split and
+  p50/p95/p99, success and throughput ranges with medians. `run_simulation(seed=...)` makes
+  reruns reproduce exactly.
+- Results reads "Meets the objectives in 4 of 5 runs · p95 98–131 ms (median 104) · seeds
+  42–46", shows an amber Borderline and caps confidence at medium when runs disagree, and offers
+  "Check 5 seeds" when a single run's p95 is within 15% of its objective. The Markdown report
+  carries the range.
+- `RunCreate.mode = full|sampled`, stored on the run (reruns match). The Simulate menu's "Quick
+  check (estimated)" is enabled only when `/analyze` `quickCheck` says the design qualifies,
+  and says why otherwise. Sampled reports are labelled "Estimated" everywhere and charts say they
+  cover only the sample; a quick check whose sample is not steady runs in full and the report
+  says so (`simulationMode.requestedMode`), hence report 1.14.
+
+**Share links and phones (2026-10-27, migration 0007; inspection report C-2 part, H-6).**
+
+- Frozen share links (`shared_reports`): a run's report without traces (calibration addresses
+  hidden), its objectives and project name, behind a random 128-bit link that editors make and
+  revoke, viewers list, and anyone opens without signing in. Revoked or expired links answer
+  404 at once; public answers are rate-limited per address, never cached and not indexed.
+  Making and revoking a link is recorded in the project's history.
+- `/r/<slug>`: server-rendered, phone-first: the verdict with confidence, key numbers,
+  objectives, findings, latency and error budget, link-preview text and image (`next/og`), and
+  "Open a copy" into your workspace. Results has a Share dialog; the editor's phone screen
+  offers "View latest results". Report pieces live in `components/report-view/`.
+
+**Comments, review sign-off and history (2026-10-27, migration 0008; inspection report C-3).**
+
+- Comments anchored to a part (node or link), the project or a run, in threads anyone in the
+  workspace can reply to and resolve; comments whose part or run was deleted stay, shown as
+  detached. Viewers comment; authors edit and delete their own; owners may delete any;
+  read-only tokens only read.
+- Review sign-off on a finished run (approve or request changes, with a note), recording the
+  project revision and the run's digests; it goes stale once the design is saved again.
+- `audit_events`, written in the same transaction as each change: project edits, runs, share
+  links, comments, sign-offs, members, invitations and workspaces; project and workspace
+  activity endpoints, paged, IP addresses for owners only.
+- Web: comment badges on parts and links, a Comments section in the side panel, an Activity
+  drawer, a Review panel on Results and a review badge on run rows; polls every 10 s. Works as
+  the single local user without sign-in. Not yet shown on share pages.
 
 **Sign-in, workspaces and security (2026-10-27, migrations 0004-0005; inspection report C-3 part, M-4).**
 

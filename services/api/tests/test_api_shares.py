@@ -156,6 +156,12 @@ def test_revoking_answers_404_at_once_and_deletes_the_copy(client: TestClient) -
     assert client.delete(f"{API}/shares/{made['id']}").status_code == 204  # idempotent
     listed = client.get(f"{API}/projects/{project['id']}/shares").json()
     assert [s["status"] for s in listed] == ["revoked"]
+    # the project's history names the link once when made and once when revoked
+    actions = [
+        i["action"] for i in client.get(f"{API}/projects/{project['id']}/activity").json()["items"]
+    ]
+    assert actions.count("share.create") == 1 and actions.count("share.revoke") == 1
+    assert actions.index("share.revoke") < actions.index("share.create")  # newest first
 
 
 def test_expired_links_answer_404(client: TestClient) -> None:

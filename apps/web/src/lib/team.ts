@@ -156,6 +156,10 @@ export function describeEvent(e: ActivityEvent, partName: PartName = defaultPart
       const rev = typeof m.revision === "number" ? ` (revision ${m.revision})` : "";
       return { text: `${m.decision === "approved" ? "approved the design" : "requested changes"}${rev}`, quote: str(m.note) };
     }
+    case "share.create":
+      return { text: `shared ${label} as a link`, quote: str(m.title) };
+    case "share.revoke":
+      return { text: "revoked a share link", quote: str(m.title) };
     case "signoff.withdraw":
       return { text: "withdrew a sign-off", quote: null };
     case "member.join":

@@ -28,6 +28,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session, undefer
 
 from archsim_api import limits
+from archsim_api.audit import audit
 from archsim_api.config import Settings
 from archsim_api.db import Database, Project, SharedReport, utcnow
 from archsim_api.deps import (
@@ -278,6 +279,17 @@ def create_share(
         view_count=0,
     )
     session.add(share)
+    session.flush()
+    audit(
+        session,
+        "share.create",
+        workspace_id=share.workspace_id,
+        target_kind="share",
+        target_id=share.id,
+        project_id=share.project_id,
+        meta={"title": share.title, "runId": run.id, "label": run.label},
+        actor=principal,
+    )
     session.commit()
     return _share_out(share, settings)
 
@@ -318,6 +330,16 @@ def revoke_share(
         raise forbidden(role, "editor")
     if share.revoked_at is None:
         share.revoked_at = utcnow()
+        audit(
+            session,
+            "share.revoke",
+            workspace_id=share.workspace_id,
+            target_kind="share",
+            target_id=share.id,
+            project_id=share.project_id,
+            meta={"title": share.title},
+            actor=principal,
+        )
     share.payload = None
     session.commit()
     return Response(status_code=204)

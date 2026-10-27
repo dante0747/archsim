@@ -463,7 +463,7 @@ def test_rate_limit_rejects_above_the_limit() -> None:
 
 def test_edge_timeseries_and_report_version(starter: dict[str, Any]) -> None:
     r = run_simulation(short(starter))
-    assert r["reportVersion"] == REPORT_VERSION == "1.13"
+    assert r["reportVersion"] == REPORT_VERSION == "1.14"
     n = len(r["timeseries"]["t"])
     for e in r["edges"]:
         ts = e["timeseries"]
