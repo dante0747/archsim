@@ -7,6 +7,32 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**Sign-in, workspaces and security (2026-10-27, migrations 0004-0005; inspection report C-3 part, M-4).**
+
+- `ARCHSIM_AUTH_MODE=none|oauth`. `none` keeps today's local, single-user use: every request
+  is the owner of the `default` workspace. `oauth` adds GitHub and Google sign-in in the API
+  (PKCE, Authlib), database sessions in the `__Host-archsim_session` cookie, and a CSRF header
+  (`X-ArchSim-CSRF`) on changes made with the cookie. The first sign-in matching
+  `ARCHSIM_ADMIN_EMAILS` owns `default`.
+- Migrations 0004-0005: users, identities, workspaces (personal, team, sandbox), memberships
+  (owner, editor, viewer), invitations, sessions, hashed `asim_pat_` personal tokens (read or
+  write, optionally one workspace) and `rate_limits`. Projects and runs carry `workspace_id` and
+  `created_by`, backfilled into `default`.
+- Every router is scoped by workspace: non-members get 404, viewers get 403 when they change
+  anything. Opening a template no longer hands one visitor another visitor's copy
+  (`reuseUnedited` is scoped to the workspace and creator).
+- Limits by workspace kind: runs at once (the queue enforces them and shares workers fairly),
+  runs per hour (429 with `Retry-After`), the largest run, and a 20 s hosted calibration replay.
+- `ARCHSIM_OUTBOUND`: hosted calibration calls only allowlisted hosts on public addresses, with
+  the connection pinned to the checked address and TLS still verified; sandbox workspaces never
+  call out. The Prometheus client no longer fails when a server closes the connection right
+  after replying. The API sends security headers.
+- The web app has sign-in, settings (members, invitations, tokens), invitation pages, a user
+  menu and a workspace switcher; the proxy forwards cookies, tokens, the CSRF header and the
+  client address. Tested against a stand-in OAuth provider (`services/api/tests/fake_oauth.py`)
+  and on SQLite and PostgreSQL. Not tried yet with real GitHub or Google apps; the hosted compose
+  stack and deploy guide are W11.
+
 **Confidence and instant estimate (2026-10-27, report 1.13; inspection report C-1 and H-2, part).**
 
 - Inputs equal to a vendor-documented technology or preset value are classified `documented`
