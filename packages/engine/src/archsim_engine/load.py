@@ -289,8 +289,11 @@ def estimate_load(
                         fs = fetch_share(outs)
                         read = None if fs is None else read * fs
                     elif e in aside_lookups(outs) and cfg[e["target"]].get("populateOnMiss", True):
+                        # The lookups are known; the write-backs depend on the miss share. A TTL
+                        # cache whose share depends on the run counts its lookups alone, like a
+                        # read-through cache, whose reads are known and only its misses are not.
                         ms = miss_share(e["target"])
-                        read = None if ms is None else read * (1 + ms)
+                        read = read * (1 + ms) if ms is not None else read
                 write = here.write if _carries(e, "write") else 0.0
                 sent = None if read is None else NodeLoad(read, write)
             add(e["target"], sent)

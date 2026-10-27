@@ -1,11 +1,67 @@
 # Implementation status
 
-State as of 2026-10-27 (engine 0.11.0, schema 1.3, report 1.12). This file separates what is
+State as of 2026-10-27 (engine 0.12.0, schema 1.3, report 1.13). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Confidence and instant estimate (2026-10-27, report 1.13; inspection report C-1 and H-2, part).**
+
+- Inputs equal to a vendor-documented technology or preset value are classified `documented`
+  and cite their source (derived; schema 1.3 unchanged). `report.confidence` and
+  `analysis.confidence` give high, medium or low with the reason that decided it, the inputs to
+  replace first and how to raise it. Parts are weighted by their share of latency in runs and
+  by estimated utilisation in analysis. The starter is low ("31 of 35 inputs are illustrative
+  defaults"); the queueing lab with every input calibrated is high. There is no numeric score.
+- `analysis.estimate` and `report.estimate` come from queueing formulas (M/M/c waits, path
+  latency, a rough p95, the saturation point) in about 1 ms. They are within 7% of the
+  simulation on the starter and the queueing lab (tests allow 15%); burst templates are
+  evaluated at their peak. A TTL cache used cache-aside counts its lookups as load even
+  while its hit ratio depends on the run (only the write-backs wait for it), so its hit ratio
+  can be estimated: the retry-storm template's Redis comes out at 73%.
+- Results shows the confidence badge, its reason, "how to raise it" (opens the inputs) and a
+  link to the measured accuracy on every verdict, and the estimate while a run is queued or
+  running, then estimate against simulation. The Markdown report, CLI, CI-gate comment and MCP
+  tools carry confidence too. A compiled core is out of scope (docs/performance.md).
+
+**Public accuracy page (2026-10-27; inspection report C-1, part).**
+
+- `benchmarks/report.py --json` writes `docs/validation/accuracy.json` and an identical copy in
+  `apps/web/src/data/` (the web image only copies `apps/web`). It holds each experiment's knee
+  error, p95 error below the knee, proposed tier, run-to-run spread of the measured knee on the
+  same machine, date, engine and environment, plus a summary and the run history, from the same
+  helpers as `docs/validation.md`; tests check the JSON is fresh, the copies match and it agrees
+  with the doc's tables.
+- `/accuracy` is a static page built from it: good and bad results in plain words, a knee chart
+  per experiment with the range over runs, how to read the numbers, every run with its date and
+  machine, and how to calibrate your own design. It links nowhere outside the site (the
+  repository is private). The landing page and the confidence badge link to it.
+- `run.py --archive` keeps previous results in `run-N/`; `.github/workflows/benchmark.yml` runs
+  weekly, on `v*` tags and by hand, and opens a pull request for a person to merge. The
+  automatic triggers sit in a marked block that can be switched off. Not run yet (never on
+  Linux): the first run should be a manual dispatch.
+
+**Template audit (2026-10-27, engine 0.12.0; inspection report H-4).**
+
+- All 10 templates audited and simulated with every scenario; `docs/templates-review.md`
+  records the checks, changes and results, with unsigned "Reviewed by" lines for outside
+  reviewers (who reply to whoever shared it). `reviewedBy` in `templates-meta.ts` shows on the
+  card once signed.
+- Redis is cache-aside in every template (read-through remained in Black Friday, MongoDB,
+  pods-pending and retry storm). The Kafka, MongoDB and serverless templates now show their
+  stories (before: the API saturated, consumers could never keep up, the table never
+  throttled). Black Friday's payment timeouts and replica replay, the shared pool's Search CPU
+  and the queueing lab's sizing are fixed, and copy and insights match the runs.
+- A chaos pad stays lit after a reload (`presetActive` compares only the fields the pad sets).
+  A planned outage is no longer named the bottleneck; its finding says what the part refused
+  and how many requests failed there. The hot-shard finding ignores scattered searches and
+  estimates CPU; database CPU capacity counts read-serving instances. Node status changes for
+  runs with an outage, hence engine 0.12.0.
+- Follow-ups: DynamoDB capacity-unit pricing (the serverless table is priced as an instance),
+  consistency-level CPU, rate limiting reported as a symptom, and the `docs/performance.md`
+  template table.
 
 **Real prices and shapes (2026-10-27, engine 0.11.0; inspection report H-3, L-2).**
 

@@ -6,7 +6,7 @@ convince. The October 2026 inspection found one (H-4: the starter modelled Redis
 PostgreSQL by itself). This page records the audit of all ten that followed (workstream W5): what
 was checked, what changed and why, and a line for outside experts to sign.
 
-How the numbers were made: engine 0.11.0 plus the analysis changes below, prices from the AWS
+How the numbers were made: engine 0.12.0 (0.11.0 plus the analysis changes below), prices from the AWS
 us-east-1 snapshot of 2026-10-27, each template's own seed. Every scenario was simulated with
 `uv run archsim run examples/<template>.json --scenario <scenario>`; the tables come straight from
 those reports. Rerun them to check any number here.
@@ -85,7 +85,7 @@ while down, with no request failing there (see the engine changes).
 what makes one replica saturate at 400 req/s, the beginner lesson. Is an 80% hit ratio with a
 60 s TTL a fair default for a web API?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -129,7 +129,7 @@ row, then the payment), the cache pattern, payment timeouts and retries, the HPA
 40 to 65 s into the ramp). Is a 20 s pod start fair for a Go service? Is a 3 s client timeout
 realistic for a checkout that calls a payments provider?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -164,7 +164,7 @@ holds the operation's CPU for the slowest replica's time (see Follow-ups). In th
 storm, Ingest is named the bottleneck: its workers wait on the slow ring and its queue
 overflows. Would you call the ring the cause?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -205,7 +205,7 @@ retries (e-mail: 3 attempts; messages: 3 deliveries), timeouts.
 **For reviewers.** Would you send the confirmation e-mail inline in the consumer, or hand it to
 its own queue? Are 16 partitions a fair default for an orders topic at this rate?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -234,7 +234,7 @@ pull (10 s), Java JIT warm-up on new pods, the cache pattern.
 the HPA grows the API from 3 to 5 pods before the spike. Is 0.5 vCPU a fair request for a Java
 service like this?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -265,7 +265,7 @@ split (reads to Search and Elasticsearch, writes to Checkout and PostgreSQL), ea
 of the first seconds of an instant 4.5x spike before any HPA reacts. Should the objectives, or
 the spike, be gentler so the fixes show as a pass?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -303,7 +303,7 @@ capacity.
 **For reviewers.** Half of each query's time on CPU (the engine's default `cpuShare`) is an
 assumption; is it fair for in-memory catalog reads?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -331,7 +331,7 @@ client out, and a 200 ms queue timeout keeps 91% succeeding.
 
 **For reviewers.** Does the 110% pair make the case for queue timeouts clearly?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -362,7 +362,7 @@ pattern, the TTL model.
 **For reviewers.** The model recovers as soon as the burst ends; retries do not keep it
 overloaded afterwards (no metastable failure). Would you expect them to, with these settings?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
@@ -397,7 +397,7 @@ the SDK's call to the table).
 **For reviewers.** Is 100 a realistic reserved concurrency here? Would you size provisioned
 capacity at twice the base load, or use on-demand for a spiky API?
 
-Results (engine 0.11.0, seed as in the template):
+Results (engine 0.12.0, seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |

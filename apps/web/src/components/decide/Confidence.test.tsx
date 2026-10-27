@@ -36,7 +36,7 @@ function runOf(id: string, status: Run["status"], scenarioId: string | null = nu
     progress: status === "succeeded" ? 1 : 0.3,
     error: null,
     seed: 42,
-    engineVersion: "0.11.0",
+    engineVersion: "0.12.0",
     inputDigest: null,
     resultDigest: null,
     summary: null,

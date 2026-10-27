@@ -69,6 +69,17 @@ export function ConfidenceLine({ confidence, fromDesign = false }: { confidence:
           how to raise it
         </button>
       </Tip>
+      <span aria-hidden className="text-ink-3">
+        ·
+      </span>
+      <a
+        href="/accuracy"
+        target="_blank"
+        rel="noreferrer"
+        className="rounded-sm font-medium text-ink underline decoration-dotted underline-offset-2 hover:decoration-solid focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        measured accuracy
+      </a>
     </p>
   );
 }

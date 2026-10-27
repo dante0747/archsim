@@ -69,6 +69,7 @@ export function ProjectsHome() {
     ["#how", "How it works"],
     ["#features", "Features"],
     ["/templates", "Templates"],
+    ["/accuracy", "Accuracy"],
     ["/projects", projects && projects.length > 0 ? `Your projects · ${projects.length}` : "Your projects"],
   ];
 
@@ -357,6 +358,9 @@ export function ProjectsHome() {
           <span>Runs on your machine · no account, no telemetry</span>
           <Link href="/templates" className="hover:text-ink">
             Templates
+          </Link>
+          <Link href="/accuracy" className="hover:text-ink">
+            Accuracy
           </Link>
           <Link href="/projects" className="hover:text-ink">
             Your projects
