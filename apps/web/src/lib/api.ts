@@ -33,7 +33,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${BASE}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...requestHeaders(), ...(init?.headers ?? {}) },
+      headers: { "Content-Type": "application/json", ...requestHeaders(init?.method), ...(init?.headers ?? {}) },
       cache: "no-store",
     });
   } catch {

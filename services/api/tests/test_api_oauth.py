@@ -101,6 +101,7 @@ def test_signing_in_makes_an_account_a_personal_workspace_and_a_session(
         ("personal", "owner", "Ada's workspace")
     ]
     # projects go to the personal workspace; the default workspace is not hers
+    client.headers["X-ArchSim-CSRF"] = me["csrfToken"]
     p = create_project(client)
     assert client.get(f"{API}/projects").json()[0]["id"] == p["id"]
     assert client.get(f"{API}/projects", params={"workspace": "default"}).status_code == 404

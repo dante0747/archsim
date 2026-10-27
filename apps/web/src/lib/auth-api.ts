@@ -1,6 +1,8 @@
 /** API calls for sign-in, workspaces, members and invitations. */
 import { request } from "./api";
 import type {
+  ApiToken,
+  ApiTokenCreated,
   AuthConfig,
   Invitation,
   InvitationCreated,
@@ -36,6 +38,11 @@ export const authApi = {
     request<void>(`${ws(id)}/invitations/${encodeURIComponent(invitationId)}`, { method: "DELETE" }),
   previewInvitation: (token: string) => request<InvitationPreview>("/invitations/preview", { method: "POST", body: json({ token }) }),
   acceptInvitation: (token: string) => request<WorkspaceInfo>("/invitations/accept", { method: "POST", body: json({ token }) }),
+
+  tokens: () => request<ApiToken[]>("/tokens"),
+  createToken: (body: { name: string; scope: "read" | "write"; workspaceId?: string | null; expiresInDays?: number | null }) =>
+    request<ApiTokenCreated>("/tokens", { method: "POST", body: json(body) }),
+  revokeToken: (id: string) => request<void>(`/tokens/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };
 
 /** Starts signing in with a provider (a full-page navigation: the API redirects to it). */

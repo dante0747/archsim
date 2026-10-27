@@ -69,6 +69,25 @@ export interface InvitationCreated extends Invitation {
   token: string;
 }
 
+export interface ApiToken {
+  id: string;
+  name: string;
+  /** The token's first characters, to tell tokens apart. */
+  prefix: string;
+  scope: "read" | "write";
+  /** Limited to this workspace; null: all of yours. */
+  workspaceId: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface ApiTokenCreated extends ApiToken {
+  /** The secret, shown once. */
+  token: string;
+}
+
 export interface InvitationPreview {
   workspaceName: string;
   role: Role;

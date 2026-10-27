@@ -48,6 +48,7 @@ log = logging.getLogger("archsim.auth")
 
 SESSION_COOKIE = "__Host-archsim_session"
 STATE_COOKIE = "__Host-archsim_oauth"
+CSRF_COOKIE = "__Host-archsim_csrf"
 STATE_SECONDS = 600
 HTTP_TIMEOUT_S = 10.0
 

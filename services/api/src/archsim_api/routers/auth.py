@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from archsim_api import oauth
 from archsim_api.config import Settings
 from archsim_api.db import User, UserSession
-from archsim_api.deps import get_principal, get_session, get_settings_dep
+from archsim_api.deps import check_csrf, get_principal, get_session, get_settings_dep
 from archsim_api.identity import UserOut, WorkspaceOut, user_out, workspaces_of
 from archsim_api.schemas import ApiModel
 from archsim_api.security import Principal, PrincipalKind, client_ip, not_found, sha256_hex
@@ -66,6 +66,9 @@ def me(
         workspaces=workspaces_of(
             session, user.id, principal.token_workspace_id, principal.read_only
         ),
+        csrf_token=oauth.csrf_token(settings, principal.session_id)
+        if principal.session_id
+        else None,
     )
 
 
@@ -87,6 +90,20 @@ def _cookie(response: Response, name: str, value: str, max_age: int) -> None:
 
 def _clear(response: Response, name: str) -> None:
     response.delete_cookie(name, path="/", secure=True, httponly=True, samesite="lax")
+
+
+def _csrf_cookie(response: Response, value: str, max_age: int) -> None:
+    # readable by the web app's scripts (it sends it back as X-ArchSim-CSRF); never sent by
+    # another site's requests (Strict)
+    response.set_cookie(
+        oauth.CSRF_COOKIE,
+        value,
+        max_age=max_age,
+        path="/",
+        secure=True,
+        httponly=False,
+        samesite="strict",
+    )
 
 
 @router.get(
@@ -135,7 +152,7 @@ def callback(
             settings, p, code, state, request.cookies.get(oauth.STATE_COOKIE), transport
         )
         user = oauth.sign_in(session, settings, p.name, profile)
-        secret, _row = oauth.start_session(
+        secret, row = oauth.start_session(
             session,
             settings,
             user,
@@ -148,7 +165,9 @@ def callback(
         return response
     response = RedirectResponse(landing, status_code=302)
     _clear(response, oauth.STATE_COOKIE)
-    _cookie(response, oauth.SESSION_COOKIE, secret, settings.session_days * 86_400)
+    max_age = settings.session_days * 86_400
+    _cookie(response, oauth.SESSION_COOKIE, secret, max_age)
+    _csrf_cookie(response, oauth.csrf_token(settings, row.id), max_age)
     response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -158,13 +177,15 @@ def logout(
     request: Request,
     everywhere: bool = Query(default=False, description="End every session of this account"),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> Response:
     """End this browser's session (``everywhere``: all of this account's), effective at once on
-    every instance. Signed out already: nothing to do."""
+    every instance. Needs the CSRF header like any change. Signed out already: nothing to do."""
     cookie = request.cookies.get(oauth.SESSION_COOKIE)
-    if cookie:
+    if cookie and settings.hosted:
         row = session.get(UserSession, sha256_hex(cookie))
         if row is not None:
+            check_csrf(request, settings, row.id)
             if everywhere:
                 session.execute(delete(UserSession).where(UserSession.user_id == row.user_id))
             else:
@@ -172,4 +193,5 @@ def logout(
             session.commit()
     response = Response(status_code=204)
     _clear(response, oauth.SESSION_COOKIE)
+    response.delete_cookie(oauth.CSRF_COOKIE, path="/", secure=True, samesite="strict")
     return response

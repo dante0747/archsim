@@ -10,7 +10,7 @@ import { create } from "zustand";
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth-api";
 import type { AuthConfig, Me, WorkspaceInfo } from "@/lib/auth-types";
-import { onUnauthorized, setActiveWorkspace, storedWorkspace } from "@/lib/session";
+import { onUnauthorized, setActiveWorkspace, setCsrfToken, storedWorkspace } from "@/lib/session";
 
 export type AuthStatus = "idle" | "loading" | "ready" | "signed-out" | "error";
 
@@ -58,10 +58,12 @@ export const useAuth = create<AuthState>((set, get) => ({
           const me = await authApi.me();
           const id = pickWorkspace(me.workspaces, get().workspaceId ?? storedWorkspace());
           setActiveWorkspace(id);
+          setCsrfToken(me.csrfToken);
           set({ status: "ready", config, me, workspaceId: id, error: null });
         } catch (e) {
           if (!(e instanceof ApiError && e.status === 401)) throw e;
           setActiveWorkspace(null);
+          setCsrfToken(null);
           set({ status: "signed-out", config, me: null, workspaceId: null, error: null });
         }
       } catch (e) {

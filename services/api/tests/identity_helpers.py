@@ -60,6 +60,9 @@ def sign_in(client: TestClient, fake: FakeProviders, login: str, provider: str =
     back = fake.authorize(start.headers["location"])
     done = client.get(back.removeprefix(PUBLIC_URL), follow_redirects=False)
     assert done.status_code == 302, done.text
+    csrf = client.cookies.get("__Host-archsim_csrf")
+    if csrf:  # what the web app does: send the CSRF token back with every change
+        client.headers["X-ArchSim-CSRF"] = csrf
     return str(done.headers["location"])
 
 

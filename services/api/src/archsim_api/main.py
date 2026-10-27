@@ -22,6 +22,7 @@ from archsim_api.routers import (
     meta,
     projects,
     runs,
+    tokens,
     workspaces,
 )
 from archsim_engine import ENGINE_VERSION, default_registry
@@ -100,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         meta.router,
         auth.router,
         workspaces.router,
+        tokens.router,
         projects.router,
         runs.router,
         calibration.router,

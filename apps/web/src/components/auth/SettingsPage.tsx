@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { TokensSection } from "@/components/auth/TokensSection";
 import { Avatar, UserMenu } from "@/components/auth/UserMenu";
 import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -344,6 +345,7 @@ export function SettingsPage() {
             <MembersCard workspace={workspace} meId={me.user.id} />
             {workspace.role === "owner" && workspace.kind === "team" && <InvitationsCard workspace={workspace} />}
             <NewWorkspaceCard />
+            {me.kind !== "token" && <TokensSection workspaces={me.workspaces} />}
             {me.kind === "session" && (
               <Card title="Account" description={`Signed in as ${me.user.name}${me.user.email ? ` (${me.user.email})` : ""}.`}>
                 <div className="flex flex-wrap gap-2">

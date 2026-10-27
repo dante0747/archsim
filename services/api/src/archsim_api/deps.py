@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 from collections.abc import Callable, Iterator
 from datetime import timedelta
@@ -17,6 +18,7 @@ from archsim_api.config import Settings
 from archsim_api.db import (
     DEFAULT_WORKSPACE_ID,
     LOCAL_USER_ID,
+    ApiToken,
     Database,
     Membership,
     User,
@@ -26,8 +28,9 @@ from archsim_api.db import (
 )
 from archsim_api.identity import as_utc
 from archsim_api.jobs.worker import JobService
-from archsim_api.oauth import SESSION_COOKIE
+from archsim_api.oauth import SESSION_COOKIE, csrf_token
 from archsim_api.security import (
+    TOKEN_PREFIX,
     Principal,
     ProjectAccess,
     RunAccess,
@@ -73,6 +76,9 @@ WORKSPACE_HEADER = "x-archsim-workspace"
 
 SESSION_TOUCH = timedelta(minutes=5)
 """How stale a session's last-seen time may get before a request updates it."""
+TOKEN_TOUCH = timedelta(minutes=1)
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+CSRF_HEADER = "x-archsim-csrf"
 
 
 def unauthorized(message: str = "Sign in to continue") -> HTTPException:
@@ -86,18 +92,45 @@ def get_principal(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings_dep),
 ) -> Principal:
-    """Who is asking. Without sign-in, the local user (owner of the default workspace); with
-    it, the signed-in session in the cookie, else 401."""
+    """Who is asking. Without sign-in, the local user (owner of the default workspace). With
+    it, an API token (``Authorization: Bearer asim_pat_...``) or the signed-in session in the
+    cookie, else 401. A cookie request that changes something must carry the session's CSRF
+    token in ``X-ArchSim-CSRF`` (403 otherwise): another site can make a browser send the
+    cookie, but cannot read the token."""
     cached: Principal | None = getattr(request.state, "principal", None)
     if cached is not None:
         return cached
     ip = client_ip(request, settings.trusted_proxies)
     if not settings.hosted:
         principal = Principal(LOCAL_USER_ID, "local", ip=ip)
+    elif request.headers.get("authorization"):
+        principal = _from_token(request, session, ip)
     else:
         principal = _from_session(request, session, ip)
+        if request.method not in SAFE_METHODS:
+            check_csrf(request, settings, principal.session_id or "")
     request.state.principal = principal
     return principal
+
+
+def check_csrf(request: Request, settings: Settings, session_id: str) -> None:
+    sent = request.headers.get(CSRF_HEADER, "")
+    if not sent or not hmac.compare_digest(sent, csrf_token(settings, session_id)):
+        raise HTTPException(
+            403,
+            detail={
+                "message": "Missing or wrong X-ArchSim-CSRF header: send the csrfToken from "
+                "GET /auth/me (or the __Host-archsim_csrf cookie) with every change",
+                "issues": [],
+            },
+        )
+
+
+def _active_user(session: Session, user_id: str) -> User:
+    user = session.get(User, user_id)
+    if user is None or user.disabled_at is not None:
+        raise unauthorized("This account cannot sign in")
+    return user
 
 
 def _from_session(request: Request, session: Session, ip: str | None) -> Principal:
@@ -108,14 +141,54 @@ def _from_session(request: Request, session: Session, ip: str | None) -> Princip
     now = utcnow()
     if row is None or as_utc(row.expires_at) <= now:
         raise unauthorized("Your sign-in has expired: sign in again")
-    user = session.get(User, row.user_id)
-    if user is None or user.disabled_at is not None:
-        raise unauthorized("This account cannot sign in")
+    user = _active_user(session, row.user_id)
     if now - as_utc(row.last_seen_at) > SESSION_TOUCH:
         row.last_seen_at = now
         user.last_seen_at = now
         session.commit()
     return Principal(user.id, "session", ip=ip, session_id=row.id)
+
+
+def _from_token(request: Request, session: Session, ip: str | None) -> Principal:
+    scheme, _, value = request.headers.get("authorization", "").partition(" ")
+    value = value.strip()
+    if scheme.lower() != "bearer" or not value.startswith(TOKEN_PREFIX):
+        raise unauthorized(f"Send an API token as Authorization: Bearer {TOKEN_PREFIX}...")
+    row = session.execute(
+        select(ApiToken).where(ApiToken.token_hash == sha256_hex(value))
+    ).scalar_one_or_none()
+    now = utcnow()
+    if (
+        row is None
+        or row.revoked_at is not None
+        or (row.expires_at is not None and as_utc(row.expires_at) <= now)
+    ):
+        raise unauthorized("This API token is not valid: it was revoked, expired or mistyped")
+    user = _active_user(session, row.user_id)
+    if row.last_used_at is None or now - as_utc(row.last_used_at) > TOKEN_TOUCH:
+        row.last_used_at = now
+        session.commit()
+    return Principal(
+        user.id,
+        "token",
+        ip=ip,
+        token_id=row.id,
+        token_workspace_id=row.workspace_id,
+        read_only=row.scope == "read",
+    )
+
+
+def require_session(principal: Principal = Depends(get_principal)) -> Principal:
+    """For managing access itself (tokens, invitations, workspaces): a person, not a token."""
+    if principal.kind == "token":
+        raise HTTPException(
+            403,
+            detail={
+                "message": "API tokens cannot do this: sign in to the web app instead.",
+                "issues": [],
+            },
+        )
+    return principal
 
 
 def default_workspace_id(session: Session, principal: Principal) -> str:

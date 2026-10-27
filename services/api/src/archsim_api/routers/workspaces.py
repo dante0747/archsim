@@ -23,7 +23,7 @@ from archsim_api.db import (
     Workspace,
     utcnow,
 )
-from archsim_api.deps import get_principal, get_session
+from archsim_api.deps import get_principal, get_session, require_session
 from archsim_api.identity import (
     InvitationCreate,
     InvitationCreated,
@@ -68,12 +68,10 @@ def list_workspaces(
 @router.post("/workspaces", response_model=WorkspaceOut, status_code=201)
 def create_team_workspace(
     body: WorkspaceCreate,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
 ) -> WorkspaceOut:
     """A new team workspace, with you as its owner."""
-    if principal.kind == "token":
-        raise _session_only()
     ws = create_workspace(session, body.name.strip() or "Team", "team", principal.user_id)
     session.commit()
     return workspace_out(ws, "owner")
@@ -106,14 +104,12 @@ def update_workspace(
 @router.delete("/workspaces/{workspace_id}", status_code=204)
 def delete_workspace(
     workspace_id: str,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
 ) -> Response:
     """Delete a team workspace with all its projects and runs (owners only). The default and
     personal workspaces stay."""
     access = workspace_access(session, principal, workspace_id, "owner")
-    if principal.kind == "token":
-        raise _session_only()
     if access.workspace.id == DEFAULT_WORKSPACE_ID or access.workspace.kind != "team":
         raise conflict("Only team workspaces you created can be deleted.")
     session.delete(access.workspace)
@@ -213,14 +209,12 @@ def list_invitations(
 def create_invitation(
     workspace_id: str,
     body: InvitationCreate,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
 ) -> InvitationCreated:
     """An invitation link (owners only). The token is in this answer only: share
     ``<web address>/invite/<token>``."""
     access = workspace_access(session, principal, workspace_id, "owner")
-    if principal.kind == "token":
-        raise _session_only()
     if access.workspace.kind != "team":
         raise conflict("Only team workspaces can be shared: create one under Settings.")
     token = new_secret(INVITE_PREFIX)
@@ -305,12 +299,10 @@ def preview_invitation(
 @router.post("/invitations/accept", response_model=WorkspaceOut)
 def accept_invitation(
     body: InvitationToken,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
 ) -> WorkspaceOut:
     """Join the workspace an invitation is for. A member keeps the stronger of the two roles."""
-    if principal.kind == "token":
-        raise _session_only()
     inv = _open_invitation(session, principal, body.token)
     m = session.get(Membership, {"workspace_id": inv.workspace_id, "user_id": principal.user_id})
     if m is None:
@@ -336,14 +328,4 @@ def _member_out(m: Membership, u: User) -> MemberOut:
             "role": m.role,
             "joined_at": m.created_at,
         }
-    )
-
-
-def _session_only() -> HTTPException:
-    return HTTPException(
-        403,
-        detail={
-            "message": "API tokens cannot do this: sign in to the web app instead.",
-            "issues": [],
-        },
     )
