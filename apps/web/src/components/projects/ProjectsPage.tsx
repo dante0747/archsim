@@ -17,6 +17,9 @@ import { api } from "@/lib/api";
 import { fmtRelativeTime } from "@/lib/format";
 import type { ExampleSummary, ProjectSummary } from "@/lib/types";
 import { MobileNav } from "@/components/ui/MobileNav";
+import { UserMenu } from "@/components/auth/UserMenu";
+import { signInPage } from "@/lib/session";
+import { authSettled, useAuthState } from "@/store/auth";
 
 export function ProjectsPage() {
   const router = useRouter();
@@ -37,8 +40,26 @@ export function ProjectsPage() {
     }
   }, []);
   const { busy, create, importFile, remove, duplicate } = useProjectActions(() => void refresh());
+  const { status: authStatus, workspaceId, workspace } = useAuthState();
 
   useEffect(() => {
+    let alive = true;
+    api
+      .examples()
+      .then((e) => alive && setExamples(e))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // The current workspace's projects; signed out on a server with sign-in: to the sign-in page.
+  useEffect(() => {
+    if (authStatus === "signed-out") {
+      window.location.replace(signInPage("/projects"));
+      return;
+    }
+    if (!authSettled(authStatus)) return;
     let alive = true;
     api
       .listProjects()
@@ -48,14 +69,11 @@ export function ProjectsPage() {
         setError(e instanceof Error ? e.message : String(e));
         setProjects([]);
       });
-    api
-      .examples()
-      .then((e) => alive && setExamples(e))
-      .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, []);
+  }, [authStatus, workspaceId]);
+  const readOnly = workspace?.role === "viewer";
 
   const q = query.trim().toLowerCase();
   const list = (projects ?? []).filter((p) => !q || p.name.toLowerCase().includes(q)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -75,6 +93,7 @@ export function ProjectsPage() {
           </Button>
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
+            <UserMenu />
             <MobileNav className="sm:hidden" items={[{ href: "/templates", label: "Templates" }, { href: "/api/v1/docs", label: "API docs", external: true }]} />
           </div>
         </div>
@@ -85,7 +104,11 @@ export function ProjectsPage() {
           <div>
             <h1 className="font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[44px]">Your projects</h1>
             <p className="mt-2 text-[15px] text-ink-2">
-              {projects ? `${projects.length} saved in your local ArchSim database.` : "Saved in your local ArchSim database."}
+              {workspace && workspace.id !== "default"
+                ? `${projects ? `${projects.length} ` : ""}in ${workspace.name}${readOnly ? ". You can open them; editors change them." : "."}`
+                : projects
+                  ? `${projects.length} saved in your ArchSim database.`
+                  : "Saved in your ArchSim database."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -100,10 +123,10 @@ export function ProjectsPage() {
                 e.target.value = "";
               }}
             />
-            <Button onClick={() => fileRef.current?.click()} disabled={busy !== null}>
+            <Button onClick={() => fileRef.current?.click()} disabled={busy !== null || readOnly}>
               {busy === "import" ? <LoaderCircle className="animate-spin" /> : <Upload />} Import JSON
             </Button>
-            <Button variant="primary" onClick={() => setNewOpen(true)}>
+            <Button variant="primary" onClick={() => setNewOpen(true)} disabled={readOnly}>
               <Plus /> New project
             </Button>
           </div>
@@ -166,7 +189,7 @@ export function ProjectsPage() {
                       <MenuItem onSelect={() => router.push(`/projects/${p.id}`)}>
                         <ArrowRight /> Open
                       </MenuItem>
-                      <MenuItem onSelect={() => void duplicate(p)}>
+                      <MenuItem onSelect={() => void duplicate(p)} disabled={readOnly}>
                         <Copy /> Duplicate
                       </MenuItem>
                       <MenuItem asChild>
@@ -175,7 +198,7 @@ export function ProjectsPage() {
                         </a>
                       </MenuItem>
                       <MenuSeparator />
-                      <MenuItem className="text-danger-ink" onSelect={() => void remove(p)}>
+                      <MenuItem className="text-danger-ink" onSelect={() => void remove(p)} disabled={readOnly}>
                         <Trash2 /> Delete
                       </MenuItem>
                     </MenuContent>

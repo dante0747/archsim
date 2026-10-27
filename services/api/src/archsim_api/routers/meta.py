@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from archsim_api.config import Settings
 from archsim_api.db import Database
-from archsim_api.deps import examples, get_db, get_registry, get_settings_dep
+from archsim_api.deps import examples, get_db, get_principal, get_registry, get_settings_dep
 from archsim_api.schemas import ExampleOut, MetaOut, ValidateRequest, ValidateResponse
 from archsim_engine import (
     ENGINE_VERSION,
@@ -119,7 +119,7 @@ def get_example(example_id: str, settings: Settings = Depends(get_settings_dep))
     return copy.deepcopy(ex)
 
 
-@router.post("/validate", response_model=ValidateResponse)
+@router.post("/validate", response_model=ValidateResponse, dependencies=[Depends(get_principal)])
 def validate(
     body: ValidateRequest, registry: ComponentRegistry = Depends(get_registry)
 ) -> dict[str, Any]:
@@ -134,6 +134,7 @@ def validate(
 
 @router.post(
     "/analyze",
+    dependencies=[Depends(get_principal)],
     responses={422: {"description": "The document cannot be read (issues explain why)."}},
 )
 def analyze(

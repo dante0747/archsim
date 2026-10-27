@@ -1,4 +1,7 @@
-"""Projects: saved architecture documents, import/export."""
+"""Projects: saved architecture documents, import/export. Each project belongs to a workspace:
+lists and new projects use the request's workspace (``?workspace=`` or the
+``X-ArchSim-Workspace`` header, else the caller's own), and a project asked for by id answers
+404 to anyone without a role in its workspace."""
 
 from __future__ import annotations
 
@@ -8,13 +11,23 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from archsim_api import limits
 from archsim_api.config import Settings
-from archsim_api.db import Project, utcnow
-from archsim_api.deps import examples, get_session, get_settings_dep, raise_issues
+from archsim_api.db import Project, Workspace, utcnow
+from archsim_api.deps import (
+    examples,
+    get_principal,
+    get_session,
+    get_settings_dep,
+    get_workspace,
+    raise_issues,
+    require_project,
+)
 from archsim_api.schemas import ProjectCreate, ProjectOut, ProjectSummaryOut, ProjectUpdate
+from archsim_api.security import Principal, ProjectAccess, WorkspaceAccess
 from archsim_engine import SCHEMA_VERSION, DocumentInvalidError, load_document
 from archsim_engine.pricing import default_pricing
 
@@ -67,24 +80,41 @@ def _out(p: Project) -> ProjectOut:
     return ProjectOut.model_validate({**_summary(p), "document": p.document})
 
 
-def get_project_or_404(session: Session, project_id: str) -> Project:
-    p = session.get(Project, project_id)
-    if p is None:
+def _check_room(session: Session, settings: Settings, workspace_id: str) -> None:
+    """A workspace whose kind caps its projects (the sandbox) refuses one more past the cap."""
+    ws = session.get(Workspace, workspace_id)
+    cap = limits.profile(settings, ws.kind).max_projects if ws is not None else None
+    if cap is None:
+        return
+    held = session.execute(
+        select(func.count()).select_from(Project).where(Project.workspace_id == workspace_id)
+    ).scalar_one()
+    if held >= cap:
         raise HTTPException(
-            404, detail={"message": f"Project '{project_id}' not found", "issues": []}
+            409,
+            detail={
+                "message": f"This workspace holds at most {cap} projects: delete one first.",
+                "issues": [],
+            },
         )
-    return p
 
 
 def _create(
     session: Session,
+    workspace_id: str,
+    created_by: str,
     document: dict[str, Any],
     name: str | None,
     description: str | None,
     source_example: str | None = None,
+    settings: Settings | None = None,
 ) -> Project:
     doc = _normalize(document, name)
+    if settings is not None:
+        _check_room(session, settings, workspace_id)
     p = Project(
+        workspace_id=workspace_id,
+        created_by=created_by,
         name=doc["metadata"]["name"],
         description=description if description is not None else doc["metadata"].get("description"),
         document=doc,
@@ -97,8 +127,19 @@ def _create(
 
 
 @router.get("", response_model=list[ProjectSummaryOut])
-def list_projects(session: Session = Depends(get_session)) -> list[dict[str, Any]]:
-    rows = session.execute(select(Project).order_by(Project.updated_at.desc())).scalars().all()
+def list_projects(
+    access: WorkspaceAccess = Depends(get_workspace), session: Session = Depends(get_session)
+) -> list[dict[str, Any]]:
+    """The workspace's projects, most recently updated first."""
+    rows = (
+        session.execute(
+            select(Project)
+            .where(Project.workspace_id == access.workspace.id)
+            .order_by(Project.updated_at.desc())
+        )
+        .scalars()
+        .all()
+    )
     return [_summary(p) for p in rows]
 
 
@@ -111,13 +152,18 @@ def list_projects(session: Session = Depends(get_session)) -> list[dict[str, Any
 def create_project(
     body: ProjectCreate,
     response: Response,
+    access: WorkspaceAccess = Depends(get_workspace),
+    principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings_dep),
 ) -> ProjectOut:
-    """Create a project from a document, an example (``exampleId``) or blank.
+    """Create a project in the workspace from a document, an example (``exampleId``) or blank.
 
     With ``reuseUnedited`` (and an example, no name), opening the same template twice returns
-    the copy made the first time as long as it was never saved, instead of a duplicate."""
+    the copy *you* made in this workspace the first time, as long as it was never saved,
+    instead of a duplicate. Someone else's copy is never handed back."""
+    access.require("editor")
+    ws = access.workspace.id
     if body.document is not None and body.example_id is not None:
         raise HTTPException(
             400, detail={"message": "Pass either document or exampleId, not both", "issues": []}
@@ -131,7 +177,12 @@ def create_project(
         if body.reuse_unedited and body.name is None:
             existing = session.execute(
                 select(Project)
-                .where(Project.source_example == body.example_id, Project.revision == 1)
+                .where(
+                    Project.workspace_id == ws,
+                    Project.created_by == principal.user_id,
+                    Project.source_example == body.example_id,
+                    Project.revision == 1,
+                )
                 .order_by(Project.updated_at.desc())
                 .limit(1)
             ).scalar_one_or_none()
@@ -144,29 +195,51 @@ def create_project(
         document = copy.deepcopy(body.document) if body.document else blank_document()
     # A project the user named is theirs, not a copy that opening the template may hand back.
     source = body.example_id if body.name is None else None
-    return _out(_create(session, document, body.name, body.description, source))
+    return _out(
+        _create(
+            session,
+            ws,
+            principal.user_id,
+            document,
+            body.name,
+            body.description,
+            source,
+            settings,
+        )
+    )
 
 
 @router.post("/import", response_model=ProjectOut, status_code=201)
 def import_project(
     document: dict[str, Any] = Body(..., description="A versioned ArchSim document (JSON)"),
     name: str | None = None,
+    access: WorkspaceAccess = Depends(get_workspace),
+    principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> ProjectOut:
-    """Import a document exported earlier (older schema versions are migrated)."""
-    return _out(_create(session, document, name, None))
+    """Import a document exported earlier into the workspace (older schema versions are
+    migrated)."""
+    access.require("editor")
+    return _out(
+        _create(
+            session, access.workspace.id, principal.user_id, document, name, None, None, settings
+        )
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
-def get_project(project_id: str, session: Session = Depends(get_session)) -> ProjectOut:
-    return _out(get_project_or_404(session, project_id))
+def get_project(access: ProjectAccess = Depends(require_project("viewer"))) -> ProjectOut:
+    return _out(access.project)
 
 
 @router.put("/{project_id}", response_model=ProjectOut)
 def update_project(
-    project_id: str, body: ProjectUpdate, session: Session = Depends(get_session)
+    body: ProjectUpdate,
+    access: ProjectAccess = Depends(require_project("editor")),
+    session: Session = Depends(get_session),
 ) -> ProjectOut:
-    p = get_project_or_404(session, project_id)
+    p = access.project
     if body.expected_revision is not None and body.expected_revision != p.revision:
         raise HTTPException(
             409,
@@ -194,25 +267,42 @@ def update_project(
 
 
 @router.delete("/{project_id}", status_code=204)
-def delete_project(project_id: str, session: Session = Depends(get_session)) -> Response:
-    p = get_project_or_404(session, project_id)
-    session.delete(p)
+def delete_project(
+    access: ProjectAccess = Depends(require_project("editor")),
+    session: Session = Depends(get_session),
+) -> Response:
+    session.delete(access.project)
     session.commit()
     return Response(status_code=204)
 
 
 @router.post("/{project_id}/duplicate", response_model=ProjectOut, status_code=201)
-def duplicate_project(project_id: str, session: Session = Depends(get_session)) -> ProjectOut:
-    p = get_project_or_404(session, project_id)
+def duplicate_project(
+    access: ProjectAccess = Depends(require_project("editor")),
+    principal: Principal = Depends(get_principal),
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
+) -> ProjectOut:
+    """Copy as "Name (copy)", in the same workspace."""
+    p = access.project
     return _out(
-        _create(session, copy.deepcopy(p.document), f"{p.name} (copy)"[:120], p.description)
+        _create(
+            session,
+            p.workspace_id,
+            principal.user_id,
+            copy.deepcopy(p.document),
+            f"{p.name} (copy)"[:120],
+            p.description,
+            None,
+            settings,
+        )
     )
 
 
 @router.get("/{project_id}/export")
-def export_project(project_id: str, session: Session = Depends(get_session)) -> JSONResponse:
+def export_project(access: ProjectAccess = Depends(require_project("viewer"))) -> JSONResponse:
     """Download the project as a versioned JSON document."""
-    p = get_project_or_404(session, project_id)
+    p = access.project
     slug = re.sub(r"[^a-z0-9]+", "-", p.name.lower()).strip("-") or "architecture"
     return JSONResponse(
         p.document,

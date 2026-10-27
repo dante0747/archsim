@@ -25,13 +25,99 @@ with you. Please give us a reasonable chance to ship a fix before disclosing pub
 
 ## Threat model and deployment notes
 
-The MVP is designed for **local, single-user use**. Keep these properties in mind before
-exposing it to anyone else:
+ArchSim runs in one of two modes, chosen with `ARCHSIM_AUTH_MODE`:
 
-- **No authentication or authorization.** Anyone who can reach the API can read, change and
-  delete every project and run. `archsim-api serve` binds to `127.0.0.1` by default; keep it
-  that way, or put it behind an authenticating reverse proxy. The Docker Compose file binds
-  ports for local development only.
+- **`none` (the default): local, single-user.** There is no sign-in: every request is the
+  local owner of the `default` workspace, so anyone who can reach the API can read, change and
+  delete everything. `archsim-api serve` binds to `127.0.0.1`; keep it that way. The Docker
+  Compose file binds ports to `127.0.0.1` for the same reason.
+- **`oauth`: hosted, for people other than whoever runs the server.** Sign-in with GitHub or
+  Google, workspaces with roles, API tokens, CSRF protection, rate limits and an outbound block
+  are on. The rest of this section describes that mode; the notes after it apply to both.
+
+### Hosted mode (`ARCHSIM_AUTH_MODE=oauth`)
+
+**What is protected.** Designs, runs and reports in each workspace; who belongs where; the
+server's network position (it must not become a way into the network it runs in); its CPU
+(simulations are expensive); sign-in sessions and API tokens.
+
+**Who might attack.** Anyone on the internet (no account), a signed-in person reaching for
+another workspace, a viewer trying to edit, a malicious site visited by a signed-in person
+(CSRF), and someone holding a leaked token or cookie.
+
+**Trust boundaries.** Browser → reverse proxy (TLS) → web server (Next.js, the only thing that
+talks to the API) → API → database. API instances and workers trust each other through the
+database. Keep the API's port unpublished: browsers, the CLI and CI reach it through the web
+server at `https://<host>/api/v1`.
+
+**How each threat is handled.**
+
+- **Sign-in.** GitHub and Google OAuth 2 with PKCE (S256) through Authlib. The state and the
+  PKCE verifier live in a short-lived (10 min) HttpOnly cookie signed with
+  `ARCHSIM_SECRET_KEY` (HMAC-SHA256); the callback refuses a missing, expired, tampered or
+  different state, and a stolen authorization code is useless without the verifier. After
+  signing in the browser only ever lands on a path of this site (`next` cannot point
+  elsewhere). Accounts are matched by the provider's stable id; a second provider is linked to
+  an existing account only through an email both providers marked **verified**. Only a
+  verified email in `ARCHSIM_ADMIN_EMAILS` makes a new account an owner of `default`. The
+  provider's access token is discarded after reading the profile.
+- **Sessions.** `__Host-archsim_session`: HttpOnly, Secure, SameSite=Lax, path `/`, no domain.
+  It holds 256 random bits; the database stores only its SHA-256, so a database leak does not
+  hand out live sessions. Sessions expire after `ARCHSIM_SESSION_DAYS` (30) and are revoked at
+  once on every instance by signing out (or "sign out everywhere"). Disabled accounts are
+  refused on their next request.
+- **CSRF.** Every request that changes something with the session cookie must carry
+  `X-ArchSim-CSRF`, an HMAC of the session derived from `ARCHSIM_SECRET_KEY`. Another site can
+  make a browser send the cookie but cannot read the token (it is in `__Host-archsim_csrf`,
+  readable only by this site's pages, and returned by `GET /auth/me`). SameSite=Lax is a second
+  layer. Bearer-token requests need no CSRF token (browsers never add them on their own).
+- **API tokens.** `asim_pat_` plus 256 random bits, shown once, stored as SHA-256. A token acts
+  as its owner; `read` tokens are viewers everywhere; a token can be limited to one workspace
+  and can expire. Tokens cannot create tokens, workspaces or invitations, or accept
+  invitations, so a leaked token cannot widen its own access. Revocation is immediate.
+- **Authorization.** Every project and run belongs to a workspace; access needs a membership
+  (`viewer` < `editor` < `owner`). Someone without a role in a workspace gets **404** for
+  anything in it, exactly like something that does not exist, so ids reveal nothing; a role too
+  weak for an action gets 403. Opening a template only ever reuses your own unedited copy.
+  Invitations are single-use links (256-bit tokens stored as hashes) that expire in at most 30
+  days and can be bound to a verified email; a workspace always keeps an owner.
+- **Abuse and cost.** Counters in the database (shared by every instance) limit runs per hour
+  per workspace and per person, sign-in attempts per address, and token, workspace,
+  invitation and calibration creation; over a limit the API answers **429** with
+  `Retry-After`. Each workspace kind has a profile: runs at once (enforced by the queue across
+  all workers, which also keeps workspaces fair), runs per hour, the largest run, the
+  calibration replay's wall clock (20 s) and, for sandboxes, the number of projects.
+- **Outbound requests (SSRF).** `ARCHSIM_OUTBOUND` decides whether `POST /calibrate` may call a
+  Prometheus server: `off` by default when hosted (recorded responses and OTLP traces still
+  work), `allowlist` when `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` is set, and always `off` for
+  sandbox workspaces. With `allowlist`, the host is resolved once, every address it resolves to
+  must be public (`ipaddress.is_global`: no loopback, private, link-local and metadata,
+  CGNAT, unique-local IPv6, or IPv4 hidden in IPv6), the connection goes to that checked
+  address (no second lookup an attacker could change), TLS is still verified against the host
+  name, and redirects are never followed. An IP address written in the allowlist itself is
+  trusted as written (for a Prometheus on a private network the operator chose).
+- **Client addresses.** The web server sends the visitor's address as `X-ArchSim-Client-IP`,
+  taken from `X-Forwarded-For` at the depth `ARCHSIM_TRUSTED_HOPS` says (1 behind one reverse
+  proxy; 0 sends nothing, since the header would be the client's own word). The API believes it
+  only from `ARCHSIM_TRUSTED_PROXIES` (the web server's address or Compose service name);
+  anyone else is limited by the address they connect from.
+- **Response headers.** API answers carry `nosniff`, `DENY` framing, `no-referrer`,
+  `Cross-Origin-Resource-Policy: same-origin`, a `default-src 'none'` Content-Security-Policy
+  (except the interactive docs page, which loads Swagger UI from a CDN), `no-store` on
+  identity endpoints and HSTS when `ARCHSIM_PUBLIC_URL` is https. The web app sends its own CSP
+  (self only), framing and referrer headers.
+- **Secrets.** `ARCHSIM_SECRET_KEY` (32+ characters, the same on every API instance) and the
+  OAuth client secrets come from the environment only. Rotating the key signs everyone out of
+  pending sign-ins and invalidates CSRF tokens (people reload); sessions themselves stay valid.
+
+**What remains.** Resolving a host name is not covered by the per-query deadline (the
+system's resolver timeout applies). A workspace owner can read every design in it. Provider
+accounts are trusted for the emails they verify. Denial of service by a signed-in person is
+bounded by the limits above, not prevented. SQLite is for one machine; use PostgreSQL when
+hosted.
+
+### Both modes
+
 - **No code execution over the API.** Documents are data: they are parsed with strict
   Pydantic models (`extra="forbid"`) and component types must already be registered in the
   server process. There is no endpoint that evaluates expressions, templates or user code.
@@ -56,12 +142,11 @@ exposing it to anyone else:
   synchronised clocks; a host whose clock runs ahead can make other workers' leases look
   expired.
 - **Outbound requests from calibration.** `POST /calibrate` queries the Prometheus URL a
-  request names (the only outbound request the API makes). By default any host is allowed, for
-  local use; **set `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS`** (comma-separated `host` or
-  `host:port`) before the API is reachable by anyone else, or it can be used to probe hosts
-  the server can reach. The allowlist matches the URL's host name, not the address it resolves
-  to, so list names you control. Each query has one deadline (`ARCHSIM_PROMETHEUS_TIMEOUT_S`,
-  30 s, body included) and a size cap (`ARCHSIM_PROMETHEUS_MAX_BYTES`, 50 MiB); redirects are
+  request names (besides sign-in's calls to GitHub and Google, the only outbound request the
+  API makes). Without sign-in any host is allowed, for local use
+  (`ARCHSIM_OUTBOUND=open`; `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` still narrows it when set);
+  hosted mode is `off` or `allowlist` as described above. Each query has one deadline
+  (`ARCHSIM_PROMETHEUS_TIMEOUT_S`, 30 s, body included) and a size cap (`ARCHSIM_PROMETHEUS_MAX_BYTES`, 50 MiB); redirects are
   not followed, and errors never repeat what the server answered. The mapping is always text:
   the API never opens a file a request names. The replay run inside the request is bounded by
   `ARCHSIM_CALIBRATE_MAX_WALL_SECONDS` (60 s) and `ARCHSIM_MAX_REQUESTS`.

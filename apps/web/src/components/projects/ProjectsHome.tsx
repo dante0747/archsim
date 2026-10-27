@@ -20,6 +20,8 @@ import { api } from "@/lib/api";
 import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MobileNav } from "@/components/ui/MobileNav";
+import { UserMenu } from "@/components/auth/UserMenu";
+import { authSettled, useAuthState } from "@/store/auth";
 
 export function ProjectsHome() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
@@ -30,17 +32,19 @@ export function ProjectsHome() {
   const [newOpen, setNewOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { busy, create, openTemplate, importFile } = useProjectActions();
+  const { status: authStatus, workspaceId } = useAuthState();
 
+  // The catalog and the templates are public: they show before anyone signs in.
   useEffect(() => {
     let alive = true;
     api
       .components()
       .then((c) => alive && setCatalog(c))
       .catch(() => undefined);
-    Promise.all([api.listProjects(), api.examples()])
-      .then(async ([p, e]) => {
+    api
+      .examples()
+      .then(async (e) => {
         if (!alive) return;
-        setProjects(p);
         setExamples(e);
         const docs = await Promise.all(e.map((x) => api.example(x.id).catch(() => null)));
         if (!alive) return;
@@ -55,6 +59,23 @@ export function ProjectsHome() {
       alive = false;
     };
   }, []);
+
+  // Your projects, in the current workspace (none while signed out).
+  useEffect(() => {
+    if (!authSettled(authStatus)) return;
+    let alive = true;
+    api
+      .listProjects()
+      .then((p) => alive && setProjects(p))
+      .catch((e: unknown) => {
+        if (!alive) return;
+        setError(e instanceof Error ? e.message : String(e));
+        setProjects([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [authStatus, workspaceId]);
 
   const starter = examples.find((e) => e.id === "cache-aside-starter") ?? examples[0];
   const recent = projects ? [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : [];
@@ -92,6 +113,7 @@ export function ProjectsHome() {
               </a>
             </Button>
             <ThemeToggle />
+            <UserMenu showWorkspace={false} />
             <MobileNav
               className="md:hidden"
               items={[

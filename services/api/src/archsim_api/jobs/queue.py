@@ -12,10 +12,13 @@ once; a running one gets ``cancel_requested_at``, which its worker sees at its n
 requested. Every function opens and commits its own transaction, so API instances and workers
 share nothing but the database.
 
-PostgreSQL claims with ``UPDATE ... FROM (SELECT ... FOR UPDATE SKIP LOCKED LIMIT n) RETURNING``,
-so any number of workers on any number of hosts take different runs without waiting on each
-other. SQLite takes the write lock first (``BEGIN IMMEDIATE``): fine for
-several processes on one host, not across machines.
+Runs belong to workspaces. ``claim`` keeps each workspace under its ``max_concurrent_runs``
+(the workspace's own, else its kind's from ``kind_caps``; None: no cap), counted across every
+worker, and takes the oldest run of each workspace before anyone's second, so one busy
+workspace cannot hold every slot. To count running runs and pick consistently, claims take
+turns: PostgreSQL holds a transaction advisory lock while claiming (a few milliseconds), SQLite
+the write lock (``BEGIN IMMEDIATE``): fine for several processes on one host, not across
+machines.
 
 Lease times come from each process's clock, so hosts sharing a database need synchronised clocks
 (NTP); the lease length (30 s by default) is far longer than the skew that leaves.
@@ -23,8 +26,10 @@ Lease times come from each process's clock, so hosts sharing a database need syn
 
 from __future__ import annotations
 
-from collections.abc import Collection, Sequence
-from dataclasses import dataclass
+from collections import defaultdict
+from collections.abc import Collection, Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -39,9 +44,11 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from archsim_api.db import Database, JobWorker, SimulationRun, utcnow
+from archsim_api.db import Database, JobWorker, SimulationRun, Workspace, utcnow
+from archsim_engine import SimulationLimits
 
 ACTIVE = ("queued", "running")
 
@@ -57,8 +64,12 @@ WORKER_STOPPED = (
 STALE_WORKER_ROWS = timedelta(hours=1)
 """Heartbeat rows older than this are deleted by ``reap`` (the workers are long gone)."""
 
+CLAIM_LOCK_KEY = 0x61726368_73696D02
+"""PostgreSQL advisory lock key held while claiming ("archsim" plus 2)."""
+
 runs = cast(Table, SimulationRun.__table__)
 workers = cast(Table, JobWorker.__table__)
+workspaces = cast(Table, Workspace.__table__)
 
 
 @dataclass(frozen=True)
@@ -67,6 +78,19 @@ class ClaimedRun:
     document: dict[str, Any]
     scenario_id: str | None
     attempts: int
+    max_requests: int | None = None
+    max_wall_seconds: float | None = None
+    """The run's own limits (its workspace's when it was queued); None: the worker's."""
+
+    def limits(self, worker: SimulationLimits) -> SimulationLimits:
+        """The worker's limits, tightened by the run's own."""
+        return replace(
+            worker,
+            max_requests=min(worker.max_requests, self.max_requests or worker.max_requests),
+            max_wall_seconds=min(
+                worker.max_wall_seconds, self.max_wall_seconds or worker.max_wall_seconds
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -111,16 +135,85 @@ def enqueue(session: Session, run: SimulationRun) -> SimulationRun:
     return run
 
 
+@contextmanager
+def _claiming(db: Database) -> Iterator[Connection]:
+    """A transaction no other claim runs alongside (see the module notes)."""
+    if db.dialect == "postgresql":
+        with db.engine.begin() as conn:
+            conn.execute(select(func.pg_advisory_xact_lock(CLAIM_LOCK_KEY)))
+            yield conn
+    else:
+        with db.write_transaction() as conn:
+            yield conn
+
+
+def _pick(
+    conn: Connection,
+    limit: int,
+    exclude: Collection[str],
+    kind_caps: Mapping[str, int | None],
+) -> list[str]:
+    """Up to ``limit`` queued runs to start: each workspace's oldest first, then their second
+    oldest, and so on, skipping workspaces at their cap of runs at once."""
+    q = runs.alias("q")
+    position = (
+        func.row_number()
+        .over(partition_by=q.c.workspace_id, order_by=(q.c.created_at, q.c.id))
+        .label("position")
+    )
+    ranked = (
+        select(q.c.id, q.c.workspace_id, q.c.created_at, position)
+        .where(_claimable(q, exclude))
+        .subquery()
+    )
+    candidates = conn.execute(
+        select(ranked.c.id, ranked.c.workspace_id)
+        .where(ranked.c.position <= limit)  # nobody gets more than `limit` from one claim
+        .order_by(ranked.c.position, ranked.c.created_at, ranked.c.id)
+    ).all()
+    if not candidates:
+        return []
+    ids = {c.workspace_id for c in candidates}
+    caps: dict[str, int | None] = {}
+    for wid, kind, cap in conn.execute(
+        select(workspaces.c.id, workspaces.c.kind, workspaces.c.max_concurrent_runs).where(
+            workspaces.c.id.in_(ids)
+        )
+    ):
+        caps[wid] = cap if cap is not None else kind_caps.get(kind)
+    busy: dict[str, int] = defaultdict(int)
+    if any(c is not None for c in caps.values()):
+        for wid, n in conn.execute(
+            select(runs.c.workspace_id, func.count())
+            .where(runs.c.status == "running", runs.c.workspace_id.in_(ids))
+            .group_by(runs.c.workspace_id)
+        ):
+            busy[wid] = int(n)
+    picked: list[str] = []
+    for run_id, wid in candidates:
+        cap = caps.get(wid)
+        if cap is not None and busy[wid] >= cap:
+            continue
+        busy[wid] += 1
+        picked.append(run_id)
+        if len(picked) == limit:
+            break
+    return picked
+
+
 def claim(
     db: Database,
     worker_id: str,
     limit: int,
     lease_seconds: float,
     exclude: Collection[str] = (),
+    kind_caps: Mapping[str, int | None] | None = None,
 ) -> list[ClaimedRun]:
-    """Take up to ``limit`` of the oldest queued runs for ``worker_id``: they become running
-    under a lease of ``lease_seconds``, with one more attempt counted. ``exclude``: runs the
-    worker is still executing (after it lost their lease), which it must not take twice."""
+    """Take up to ``limit`` queued runs for ``worker_id``, oldest first but fair between
+    workspaces and within each workspace's cap of runs at once (``kind_caps``: the cap of each
+    workspace kind, for workspaces without their own). They become running under a lease of
+    ``lease_seconds``, with one more attempt counted. ``exclude``: runs the worker is still
+    executing (after it lost their lease), which it must not take twice."""
     if limit <= 0:
         return []
     now = utcnow()
@@ -132,49 +225,31 @@ def claim(
         "progress": 0.0,
         "attempts": runs.c.attempts + 1,
     }
-    payload = (runs.c.id, runs.c.input_document, runs.c.scenario_id, runs.c.attempts)
+    payload = (
+        runs.c.id,
+        runs.c.input_document,
+        runs.c.scenario_id,
+        runs.c.attempts,
+        runs.c.max_requests,
+        runs.c.max_wall_seconds,
+    )
     rows: Sequence[Any]
-    if db.dialect == "postgresql":
-        # The picked rows are a CTE, which PostgreSQL evaluates exactly once (a CTE with FOR
-        # UPDATE is never inlined). ``id IN (SELECT ... LIMIT n)`` may be re-run by the planner
-        # and take more than ``limit`` runs.
-        q = runs.alias("q")
-        picked = (
-            select(q.c.id)
-            .where(_claimable(q, exclude))
-            .order_by(q.c.created_at)
-            .limit(limit)
-            .with_for_update(skip_locked=True)
-            .cte("picked")
+    with _claiming(db) as conn:
+        ids = _pick(conn, limit, exclude, kind_caps or {})
+        if not ids:
+            return []
+        conn.execute(
+            update(runs).where(runs.c.id.in_(ids), runs.c.status == "queued").values(values)
         )
-        with db.engine.begin() as conn:
-            rows = conn.execute(
-                update(runs)
-                .where(runs.c.id == picked.c.id, runs.c.status == "queued")
-                .values(values)
-                .returning(*payload)
-            ).all()
-    else:
-        with db.write_transaction() as conn:
-            ids = (
-                conn.execute(
-                    select(runs.c.id)
-                    .where(_claimable(runs, exclude))
-                    .order_by(runs.c.created_at)
-                    .limit(limit)
-                )
-                .scalars()
-                .all()
-            )
-            if not ids:
-                return []
-            conn.execute(
-                update(runs).where(runs.c.id.in_(ids), runs.c.status == "queued").values(values)
-            )
-            rows = conn.execute(
-                select(*payload).where(runs.c.id.in_(ids), runs.c.lease_owner == worker_id)
-            ).all()
-    return [ClaimedRun(r.id, r.input_document, r.scenario_id, r.attempts) for r in rows]
+        rows = conn.execute(
+            select(*payload).where(runs.c.id.in_(ids), runs.c.lease_owner == worker_id)
+        ).all()
+    return [
+        ClaimedRun(
+            r.id, r.input_document, r.scenario_id, r.attempts, r.max_requests, r.max_wall_seconds
+        )
+        for r in rows
+    ]
 
 
 def renew(db: Database, worker_id: str, run_ids: list[str], lease_seconds: float) -> Renewal:

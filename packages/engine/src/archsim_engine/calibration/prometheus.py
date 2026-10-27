@@ -5,15 +5,23 @@ The HTTP client is bounded: one deadline covers connecting, the headers and the 
 server that trickles bytes cannot hold a call past it), responses are capped in size, redirects
 are not followed, and an optional host allowlist (``allowed_hosts``; the API reads
 ``ARCHSIM_PROMETHEUS_ALLOWED_HOSTS``) refuses any other server. Error messages never repeat what
-the server said (``PrometheusError.detail`` keeps it for local tools that want to show it)."""
+the server said (``PrometheusError.detail`` keeps it for local tools that want to show it).
+
+The host name is resolved once per query and the connection goes to that address (TLS is still
+checked against the name), so a name cannot point at one address for a check and another for the
+call. With ``require_global`` (a hosted API) every address the name resolves to must be public:
+loopback, private, link-local (cloud metadata), CGNAT, unique-local IPv6 and other special ranges
+are refused. An IP address written in the allowlist itself is trusted as written."""
 
 from __future__ import annotations
 
 import contextlib
 import http.client
+import ipaddress
 import json
 import math
 import socket
+import ssl
 import threading
 import time
 import urllib.parse
@@ -71,6 +79,73 @@ def host_allowed(url: str, allowed: Sequence[str]) -> bool:
     return False
 
 
+IpAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
+
+NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
+def is_public(address: IpAddress) -> bool:
+    """Whether an address is on the public internet: not loopback, private, link-local, CGNAT,
+    unique-local, multicast, reserved or unspecified (an IPv4 address inside IPv6, mapped or
+    NAT64, is judged as the IPv4 address it carries)."""
+    if isinstance(address, ipaddress.IPv6Address):
+        inner = address.ipv4_mapped
+        if inner is None and address in NAT64:
+            inner = ipaddress.IPv4Address(int(address) & 0xFFFFFFFF)
+        if inner is not None:
+            return is_public(inner)
+    return (
+        address.is_global
+        and not address.is_multicast
+        and not address.is_reserved
+        and not address.is_unspecified
+    )
+
+
+def _ip_literal(host: str) -> IpAddress | None:
+    try:
+        return ipaddress.ip_address(host.strip("[]"))
+    except ValueError:
+        return None
+
+
+class _PinnedHTTP(http.client.HTTPConnection):
+    """Connects to an address resolved beforehand; the Host header keeps the name."""
+
+    def __init__(self, host: str, port: int | None, address: str, timeout: float) -> None:
+        super().__init__(host, port, timeout=timeout)
+        self._address = address
+
+    def connect(self) -> None:
+        self.sock = socket.create_connection((self._address, self.port), self.timeout)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+
+class _PinnedHTTPS(http.client.HTTPSConnection):
+    """Like ``_PinnedHTTP``, with TLS verified against the host name (not the address)."""
+
+    def __init__(
+        self,
+        host: str,
+        port: int | None,
+        address: str,
+        timeout: float,
+        context: ssl.SSLContext | None,
+    ) -> None:
+        self._tls = context or ssl.create_default_context()
+        super().__init__(host, port, timeout=timeout, context=self._tls)
+        self._address = address
+
+    def connect(self) -> None:
+        sock = socket.create_connection((self._address, self.port), self.timeout)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        try:
+            self.sock = self._tls.wrap_socket(sock, server_hostname=self.host)
+        except BaseException:
+            sock.close()
+            raise
+
+
 @dataclass
 class HttpPrometheus:
     """``GET <url>/api/v1/query_range``. Only called when you run a calibration."""
@@ -81,6 +156,10 @@ class HttpPrometheus:
     max_bytes: int = DEFAULT_MAX_BYTES
     allowed_hosts: Sequence[str] = ()
     """Hosts this client may query (``host`` or ``host:port``); empty: any."""
+    require_global: bool = False
+    """Refuse a host name that resolves to anything but public addresses (see the module)."""
+    ssl_context: ssl.SSLContext | None = None
+    """Certificates to trust for https (default: the system's)."""
 
     @property
     def source(self) -> str:
@@ -113,14 +192,40 @@ class HttpPrometheus:
             raise PrometheusError(f"{self.url} answered HTTP {status}: {query}")
         return _matrix(body, query)
 
+    def _address(self, host: str, port: int) -> str:
+        """The one address this query connects to, checked when ``require_global``."""
+        try:
+            infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        except (OSError, UnicodeError):
+            raise PrometheusError(f"cannot query {self.url}: unknown host") from None
+        addresses = [str(info[4][0]).split("%")[0] for info in infos]
+        if not addresses:
+            raise PrometheusError(f"cannot query {self.url}: unknown host")
+        literal = _ip_literal(host)
+        trusted = literal is not None and bool(self.allowed_hosts)  # an IP the allowlist names
+        if self.require_global and not trusted:
+            for a in addresses:
+                ip = _ip_literal(a)
+                if ip is None or not is_public(ip):
+                    what = "is" if literal is not None else "resolves to"
+                    raise PrometheusError(
+                        f"{host} {what} a loopback, private, link-local or otherwise "
+                        "non-public address, which this server does not call"
+                    )
+        return addresses[0]
+
     def _get(self, parts: urllib.parse.SplitResult, path: str) -> tuple[int, bytes]:
         """One GET under one deadline. A watchdog shuts the socket down when the deadline
         passes, so neither slow headers nor a trickled body can hold the call past it."""
         deadline = time.monotonic() + self.timeout_s
-        conn_type = (
-            http.client.HTTPSConnection if parts.scheme == "https" else http.client.HTTPConnection
-        )
-        conn = conn_type(parts.hostname or "", parts.port, timeout=self.timeout_s)
+        host = parts.hostname or ""
+        port = parts.port or (443 if parts.scheme == "https" else 80)
+        address = self._address(host, port)
+        conn: http.client.HTTPConnection
+        if parts.scheme == "https":
+            conn = _PinnedHTTPS(host, port, address, self.timeout_s, self.ssl_context)
+        else:
+            conn = _PinnedHTTP(host, port, address, self.timeout_s)
         expired = threading.Event()
         held: list[socket.socket] = []
 
@@ -150,7 +255,9 @@ class HttpPrometheus:
                 if remaining <= 0 or expired.is_set():
                     raise TimeoutError
                 for sock in held:
-                    sock.settimeout(remaining)
+                    # closed once a server that ends the connection has sent the whole body
+                    with contextlib.suppress(OSError):
+                        sock.settimeout(remaining)
                 chunk = resp.read1(64 * 1024)
                 if not chunk:
                     break
@@ -193,6 +300,8 @@ def _reason(exc: BaseException) -> str:
         return "connection refused"
     if isinstance(exc, socket.gaierror):
         return "unknown host"
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        return "its TLS certificate is not valid for this host"
     if isinstance(exc, OSError) and exc.strerror:
         return str(exc.strerror)
     return type(exc).__name__

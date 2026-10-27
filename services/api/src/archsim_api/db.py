@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -22,6 +23,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     event,
 )
@@ -52,10 +54,166 @@ class Base(DeclarativeBase):
     pass
 
 
-class Project(Base):
-    __tablename__ = "projects"
+DEFAULT_WORKSPACE_ID = "default"
+"""The workspace every project and run belonged to before workspaces existed. In
+``ARCHSIM_AUTH_MODE=none`` every request is its owner, the local user."""
+LOCAL_USER_ID = "local"
+"""The user every request is in ``ARCHSIM_AUTH_MODE=none`` (no sign-in)."""
+
+ROLES = ("viewer", "editor", "owner")
+"""Membership roles, weakest first: viewers read, editors also change projects and runs,
+owners also manage the workspace, its members and invitations."""
+WORKSPACE_KINDS = ("personal", "team", "sandbox")
+
+
+# -- identity --------------------------------------------------------------------------------
+class User(Base):
+    __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Identity(Base):
+    """A sign-in account at a provider (GitHub, Google) that belongs to a user."""
+
+    __tablename__ = "identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "subject", name="uq_identities_provider_subject"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32))
+    subject: Mapped[str] = mapped_column(String(255))
+    """The provider's stable id for the account (GitHub user id, Google ``sub``)."""
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    login: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Workspace(Base):
+    """Projects and runs belong to a workspace; people reach them through a membership."""
+
+    __tablename__ = "workspaces"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(16))  # personal | team | sandbox
+    max_concurrent_runs: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    """Runs of this workspace simulated at once, across all workers (None: its kind's limit)."""
+    max_runs_per_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    """Runs it may queue per hour (None: its kind's limit)."""
+    created_by: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Membership(Base):
+    __tablename__ = "memberships"
+
+    workspace_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    role: Mapped[str] = mapped_column(String(16))  # viewer | editor | owner
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Invitation(Base):
+    """A link that makes whoever opens it (signed in, with the email if one is set) a member."""
+
+    __tablename__ = "invitations"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    workspace_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    role: Mapped[str] = mapped_column(String(16))
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    accepted_by: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class UserSession(Base):
+    """A signed-in browser. The cookie holds a random secret; only its SHA-256 is stored."""
+
+    __tablename__ = "sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # sha256 of the cookie value
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+
+class ApiToken(Base):
+    """A personal access token (``asim_pat_...``) for the CLI, CI and MCP, sent as
+    ``Authorization: Bearer``. Only its SHA-256 is stored. ``scope`` is ``read`` or ``write``;
+    ``workspace_id`` limits it to one workspace (None: all of its user's)."""
+
+    __tablename__ = "api_tokens"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    workspace_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(100))
+    prefix: Mapped[str] = mapped_column(String(24))
+    """The token's first characters, to recognise it in a list."""
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    scope: Mapped[str] = mapped_column(String(16))  # read | write
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# -- projects and runs ------------------------------------------------------------------------
+class Project(Base):
+    __tablename__ = "projects"
+    __table_args__ = (Index("ix_projects_workspace_updated", "workspace_id", "updated_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    # Python-side default only: routes always set it; rows made directly (tests, `seed`) land in
+    # the default workspace.
+    workspace_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("workspaces.id", ondelete="CASCADE", name="fk_projects_workspace_id"),
+        default=DEFAULT_WORKSPACE_ID,
+    )
+    created_by: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_projects_created_by"),
+        nullable=True,
+    )
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     document: Mapped[dict[str, Any]] = mapped_column(JSONType)
@@ -79,11 +237,23 @@ class SimulationRun(Base):
     __table_args__ = (
         Index("ix_runs_project_created", "project_id", "created_at"),
         Index("ix_runs_status_created", "status", "created_at"),  # oldest queued run first
+        Index("ix_runs_workspace_status", "workspace_id", "status"),  # runs at once, per workspace
     )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     project_id: Mapped[str] = mapped_column(
         String(32), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    # The project's workspace, copied so the queue counts runs per workspace without a join.
+    workspace_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("workspaces.id", ondelete="CASCADE", name="fk_runs_workspace_id"),
+        default=DEFAULT_WORKSPACE_ID,
+    )
+    created_by: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_runs_created_by"),
+        nullable=True,
     )
     label: Mapped[str | None] = mapped_column(String(200), nullable=True)
     scenario_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -110,6 +280,10 @@ class SimulationRun(Base):
     cancel_requested_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # The largest this run may grow, from its workspace's limits when it was queued (None: the
+    # worker's own).
+    max_requests: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_wall_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Large payloads are deferred so listing runs stays cheap.
     input_document: Mapped[dict[str, Any]] = deferred(mapped_column(JSONType, nullable=False))
     report: Mapped[dict[str, Any] | None] = deferred(mapped_column(JSONType, nullable=True))
@@ -132,6 +306,18 @@ class JobWorker(Base):
     heartbeat_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )
+
+
+class RateLimit(Base):
+    """A rate-limit counter: requests counted against ``key`` in the window starting at
+    ``window_start`` (Unix seconds). See ``archsim_api.limits``."""
+
+    __tablename__ = "rate_limits"
+
+    key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    window_start: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    count: Mapped[int] = mapped_column(Integer)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
 def make_engine(url: str) -> Engine:

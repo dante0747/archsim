@@ -1,9 +1,14 @@
 """Calibration from telemetry (``POST /calibrate``): the engine's Prometheus and OpenTelemetry
-calibration, returning a new document and what changed. The API calls a Prometheus server only
-when a request names one, and only a host in ``ARCHSIM_PROMETHEUS_ALLOWED_HOSTS`` when that is
-set; like the rest of the API it is meant to run on your machine. The mapping is always text or
-an object, never a path: the API reads no files. Errors name what is wrong, never the values a
-request (or a server) sent."""
+calibration, returning a new document and what changed. The mapping is always text or an
+object, never a path: the API reads no files. Errors name what is wrong, never the values a
+request (or a server) sent.
+
+The API calls a Prometheus server only when a request names one, under ``ARCHSIM_OUTBOUND``:
+``open`` (local use) calls any host (``ARCHSIM_PROMETHEUS_ALLOWED_HOSTS`` still narrows it when
+set); ``allowlist`` only listed hosts, and a listed *name* must resolve to public addresses (the
+connection goes to the address checked); ``off`` none, so only recorded responses and OTLP
+traces work. Sandbox workspaces are always ``off``. The replay inside the request is bounded by
+the workspace's limits (20 s when hosted)."""
 
 from __future__ import annotations
 
@@ -13,9 +18,12 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field, ValidationError
 
+from archsim_api import limits as quotas
 from archsim_api.config import Settings
-from archsim_api.deps import get_registry, get_settings_dep
+from archsim_api.db import Database, Workspace
+from archsim_api.deps import get_db, get_principal, get_registry, get_settings_dep, get_workspace
 from archsim_api.schemas import ApiModel
+from archsim_api.security import Principal, WorkspaceAccess
 from archsim_engine import (
     ComponentRegistry,
     DocumentInvalidError,
@@ -62,27 +70,53 @@ def _fail(message: str, issues: list[dict[str, Any]] | None = None) -> HTTPExcep
     return HTTPException(422, detail={"message": message, "issues": issues or []})
 
 
-def _replay_limits(settings: Settings) -> SimulationLimits:
-    """The replay runs inside the request, so it gets the tighter of the two wall clocks."""
+def _replay_limits(settings: Settings, workspace: Workspace) -> SimulationLimits:
+    """The replay runs inside the request, so it gets the tightest wall clock: the server's, its
+    calibration limit's and the workspace's."""
+    run = quotas.simulation_limits(settings, workspace)
     return SimulationLimits(
-        max_requests=settings.max_requests,
-        max_wall_seconds=min(settings.max_wall_seconds, settings.calibrate_max_wall_seconds),
+        max_requests=run.max_requests,
+        max_wall_seconds=quotas.calibrate_wall_seconds(settings, workspace),
     )
+
+
+def outbound_mode(settings: Settings, workspace: Workspace) -> str:
+    """How freely this request may call a Prometheus server (see the module notes)."""
+    if workspace.kind == "sandbox":
+        return "off"
+    mode = settings.outbound_mode
+    if mode == "allowlist" and not settings.prometheus_allowed_hosts:
+        return "off"  # an empty allowlist allows nothing
+    return mode
 
 
 @router.post(
     "/calibrate",
-    responses={422: {"description": "The document, mapping or telemetry cannot be used."}},
+    responses={
+        422: {"description": "The document, mapping or telemetry cannot be used."},
+        429: {"description": "Too many calibrations this hour (Retry-After)."},
+    },
 )
 def calibrate(
     body: CalibrateRequest,
+    access: WorkspaceAccess = Depends(get_workspace),
+    principal: Principal = Depends(get_principal),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> dict[str, Any]:
     """Set a design's inputs from telemetry and check the result by replaying it. Returns the
     calibrated document (the stored project is not changed), the changes, notes and the
-    calibration record."""
-    limits = _replay_limits(settings)
+    calibration record. Runs in the request's workspace (editors)."""
+    access.require("editor")
+    quotas.enforce(
+        settings,
+        db,
+        f"user:{principal.user_id}:calibrate",
+        quotas.CALIBRATIONS_PER_USER,
+        "You have run many calibrations this hour.",
+    )
+    limits = _replay_limits(settings, access.workspace)
     try:
         if body.source == "prometheus":
             if body.mapping is None:
@@ -91,6 +125,12 @@ def calibrate(
             if body.recorded is not None:
                 client: Any = RecordedPrometheus.from_dict(body.recorded)
             elif body.prometheus_url:
+                mode = outbound_mode(settings, access.workspace)
+                if mode == "off":
+                    raise _fail(
+                        "This server does not call Prometheus servers (ARCHSIM_OUTBOUND): send "
+                        "recorded responses instead (archsim calibrate --record makes them)"
+                    )
                 url = urlparse(body.prometheus_url)
                 if url.scheme not in ("http", "https") or not url.netloc:
                     raise _fail("The Prometheus URL must be http(s)://host[:port]")
@@ -104,6 +144,7 @@ def calibrate(
                     timeout_s=settings.prometheus_timeout_s,
                     max_bytes=settings.prometheus_max_bytes,
                     allowed_hosts=tuple(settings.prometheus_allowed_hosts),
+                    require_global=mode == "allowlist",
                 )
             else:
                 raise _fail("Give a Prometheus URL or recorded responses")

@@ -12,6 +12,7 @@ import type {
   Report,
   Run,
 } from "./types";
+import { notifyUnauthorized, requestHeaders } from "./session";
 
 export class ApiError extends Error {
   constructor(
@@ -26,18 +27,20 @@ export class ApiError extends Error {
 
 const BASE = "/api/v1";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/** One API call: JSON in and out, the current workspace attached; errors become ApiError. */
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers: { "Content-Type": "application/json", ...requestHeaders(init?.method), ...(init?.headers ?? {}) },
       cache: "no-store",
     });
   } catch {
     throw new ApiError("Network error: cannot reach the ArchSim web server.", 0);
   }
   if (!res.ok) {
+    if (res.status === 401 && !path.startsWith("/auth/")) notifyUnauthorized();
     let message = `${res.status} ${res.statusText}`;
     let issues: Issue[] = [];
     try {

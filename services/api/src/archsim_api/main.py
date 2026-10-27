@@ -11,9 +11,20 @@ from fastapi.responses import JSONResponse
 
 from archsim_api.config import Settings, get_settings
 from archsim_api.db import Base, Database
+from archsim_api.identity import ensure_defaults
 from archsim_api.jobs.worker import JobService, Worker, WorkerConfig
 from archsim_api.migrations import upgrade_to_head
-from archsim_api.routers import calibration, export, importing, meta, projects, runs
+from archsim_api.routers import (
+    auth,
+    calibration,
+    export,
+    importing,
+    meta,
+    projects,
+    runs,
+    tokens,
+    workspaces,
+)
 from archsim_engine import ENGINE_VERSION, default_registry
 
 API_PREFIX = "/api/v1"
@@ -34,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             upgrade_to_head(settings.database_url)
         else:
             Base.metadata.create_all(db.engine, checkfirst=True)
+            ensure_defaults(db)
         jobs.start()  # requeues runs a stopped worker left behind, then takes runs
         yield
         jobs.shutdown()  # gives back runs still in flight: requeued for the next worker
@@ -64,6 +76,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    hsts = bool(settings.public_url and settings.public_url.startswith("https://"))
+    private_prefixes = tuple(
+        f"{API_PREFIX}/{p}" for p in ("auth", "tokens", "workspaces", "invitations")
+    )
+
+    @app.middleware("http")
+    async def security_headers(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Headers that keep API answers from being framed, sniffed, cached or leaked. The
+        interactive docs load their script from a CDN, so they keep the browser's defaults."""
+        response = await call_next(request)
+        h = response.headers
+        h.setdefault("X-Content-Type-Options", "nosniff")
+        h.setdefault("X-Frame-Options", "DENY")
+        h.setdefault("Referrer-Policy", "no-referrer")
+        h.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+        h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if not request.url.path.startswith(f"{API_PREFIX}/docs"):
+            h.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+        if request.url.path.startswith(private_prefixes):
+            h.setdefault("Cache-Control", "no-store")
+        if hsts:
+            h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return response
+
     @app.middleware("http")
     async def limit_body_size(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -87,6 +125,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     for r in (
         meta.router,
+        auth.router,
+        workspaces.router,
+        tokens.router,
         projects.router,
         runs.router,
         calibration.router,
