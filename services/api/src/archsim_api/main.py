@@ -22,6 +22,7 @@ from archsim_api.routers import (
     meta,
     projects,
     runs,
+    shares,
     tokens,
     workspaces,
 )
@@ -135,6 +136,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         importing.router,
     ):
         app.include_router(r, prefix=API_PREFIX)
+    app.include_router(shares.router, prefix=API_PREFIX)
     return app
 
 
