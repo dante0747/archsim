@@ -16,10 +16,10 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from archsim_api import oauth
+from archsim_api import limits, oauth
 from archsim_api.config import Settings
-from archsim_api.db import User, UserSession
-from archsim_api.deps import check_csrf, get_principal, get_session, get_settings_dep
+from archsim_api.db import Database, User, UserSession
+from archsim_api.deps import check_csrf, get_db, get_principal, get_session, get_settings_dep
 from archsim_api.identity import UserOut, WorkspaceOut, user_out, workspaces_of
 from archsim_api.schemas import ApiModel
 from archsim_api.security import Principal, PrincipalKind, client_ip, not_found, sha256_hex
@@ -114,11 +114,17 @@ def _csrf_cookie(response: Response, value: str, max_age: int) -> None:
 )
 def login(
     provider: str,
+    request: Request,
     next: str | None = Query(default=None, max_length=500, description="Path to land on after"),
     settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> RedirectResponse:
     """Start signing in with ``github`` or ``google``: redirects to the provider."""
     p = _provider(settings, provider)
+    ip = client_ip(request, settings.trusted_proxies) or "unknown"
+    limits.enforce(
+        settings, db, f"ip:{ip}:login", limits.LOGINS_PER_IP, "Too many sign-in attempts."
+    )
     url, state_cookie = oauth.start(settings, p, next)
     response = RedirectResponse(url, status_code=302)
     _cookie(response, oauth.STATE_COOKIE, state_cookie, oauth.STATE_SECONDS)

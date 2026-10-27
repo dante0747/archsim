@@ -41,6 +41,7 @@ from typing import Any, Literal, TypeVar
 
 from sqlalchemy.orm import Session
 
+from archsim_api import limits
 from archsim_api.config import Settings
 from archsim_api.db import Database, SimulationRun
 from archsim_api.jobs import child, orphans, queue
@@ -107,6 +108,7 @@ class WorkerConfig:
             heartbeat_seconds=settings.heartbeat_seconds,
             reap_seconds=settings.reap_seconds,
             cancel_grace_seconds=settings.cancel_grace_seconds,
+            workspace_caps=limits.kind_caps(settings),
         )
 
 
@@ -387,6 +389,10 @@ class Worker:
 
     def _reap(self) -> None:
         try:
+            limits.prune(self.db)  # rate-limit counters of windows that ended
+        except Exception:
+            log.debug("could not prune rate-limit counters", exc_info=True)
+        try:
             reaped = queue.reap(self.db)
         except Exception:
             log.warning("could not reap expired runs", exc_info=True)
@@ -419,6 +425,8 @@ class Execution:
         self._abandon: str | None = None
         """"requeue" (the worker is stopping) or "lost" (another worker may hold the run now)."""
         self._last_progress = 0.0
+        self.limits = run.limits(worker.config.limits)
+        """The worker's limits, tightened by the run's own (its workspace's)."""
         self.thread = threading.Thread(
             target=self._main, name=f"archsim-run-{run.id[:8]}", daemon=True
         )
@@ -467,7 +475,7 @@ class Execution:
         outcome = simulate(
             self.run.document,
             self.run.scenario_id,
-            self.worker.config.limits,
+            self.limits,
             self._progress,
             self._stop_wanted,
         )
@@ -479,7 +487,7 @@ class Execution:
         cfg = self.worker.config
         launcher = self.worker._launcher
         assert launcher is not None
-        job = (self.run.document, self.run.scenario_id, cfg.limits, self.worker.target)
+        job = (self.run.document, self.run.scenario_id, self.limits, self.worker.target)
         for attempt in (1, 2):
             started = launcher.take()
             try:
@@ -493,7 +501,7 @@ class Execution:
         self.pid = started.pid
         log.info("run %s: simulating in process %d", self.id, started.pid)
 
-        deadline = time.monotonic() + cfg.limits.max_wall_seconds + cfg.deadline_margin_seconds
+        deadline = time.monotonic() + self.limits.max_wall_seconds + cfg.deadline_margin_seconds
         outcome: Outcome | None = None
         cancel_sent_at: float | None = None
         terminate_at = float("inf")
@@ -547,7 +555,7 @@ class Execution:
             return {"status": "cancelled"}
         if timed_out:
             message = (
-                f"Simulation exceeded the wall-clock limit of {cfg.limits.max_wall_seconds:.0f} s"
+                f"Simulation exceeded the wall-clock limit of {self.limits.max_wall_seconds:.0f} s"
                 " and was stopped. Reduce RPS, duration, fan-out or model size."
             )
             return {"status": "failed", "error": {"message": message}}

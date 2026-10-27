@@ -141,10 +141,35 @@ class Settings(BaseSettings):
         "their own address",
     )
 
+    outbound: Literal["open", "allowlist", "off"] | None = Field(
+        default=None,
+        description="Calls to servers a request names (Prometheus). open: any host; allowlist: "
+        "only ARCHSIM_PROMETHEUS_ALLOWED_HOSTS, and a listed name must resolve to public "
+        "addresses; off: none. Default: open without sign-in; with it, allowlist when hosts "
+        "are listed, else off. Sandbox workspaces are always off",
+    )
+    rate_limits: bool | None = Field(
+        default=None,
+        description="Limits per workspace, person and address (429 with Retry-After) and the "
+        "hosted limits per workspace kind. Default: on with sign-in, off without",
+    )
+
     @property
     def hosted(self) -> bool:
         """Signed-in use: people other than whoever runs the server reach it."""
         return self.auth_mode == "oauth"
+
+    @property
+    def outbound_mode(self) -> Literal["open", "allowlist", "off"]:
+        if self.outbound is not None:
+            return self.outbound
+        if not self.hosted:
+            return "open"
+        return "allowlist" if self.prometheus_allowed_hosts else "off"
+
+    @property
+    def limits_on(self) -> bool:
+        return self.hosted if self.rate_limits is None else self.rate_limits
 
     def oauth_providers(self) -> list[str]:
         """Providers with a client id and secret, in the order sign-in offers them."""

@@ -280,6 +280,10 @@ class SimulationRun(Base):
     cancel_requested_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # The largest this run may grow, from its workspace's limits when it was queued (None: the
+    # worker's own).
+    max_requests: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_wall_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Large payloads are deferred so listing runs stays cheap.
     input_document: Mapped[dict[str, Any]] = deferred(mapped_column(JSONType, nullable=False))
     report: Mapped[dict[str, Any] | None] = deferred(mapped_column(JSONType, nullable=True))
@@ -302,6 +306,18 @@ class JobWorker(Base):
     heartbeat_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )
+
+
+class RateLimit(Base):
+    """A rate-limit counter: requests counted against ``key`` in the window starting at
+    ``window_start`` (Unix seconds). See ``archsim_api.limits``."""
+
+    __tablename__ = "rate_limits"
+
+    key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    window_start: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    count: Mapped[int] = mapped_column(Integer)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
 def make_engine(url: str) -> Engine:

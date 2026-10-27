@@ -16,8 +16,10 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from archsim_api.db import ApiToken, utcnow
-from archsim_api.deps import get_session, require_session
+from archsim_api import limits
+from archsim_api.config import Settings
+from archsim_api.db import ApiToken, Database, utcnow
+from archsim_api.deps import get_db, get_session, get_settings_dep, require_session
 from archsim_api.identity import as_utc, conflict
 from archsim_api.schemas import ApiModel, UtcDateTime
 from archsim_api.security import (
@@ -89,8 +91,17 @@ def create_token(
     body: TokenCreate,
     principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> TokenCreated:
     """A new token. Copy ``token`` now: it is never shown again."""
+    limits.enforce(
+        settings,
+        db,
+        f"user:{principal.user_id}:tokens",
+        limits.TOKENS_PER_USER,
+        "You have made many tokens today.",
+    )
     if body.workspace_id is not None:
         workspace_access(session, principal, body.workspace_id)
     active = len(list_tokens(principal, session))

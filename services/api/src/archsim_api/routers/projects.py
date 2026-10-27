@@ -11,11 +11,12 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from archsim_api import limits
 from archsim_api.config import Settings
-from archsim_api.db import Project, utcnow
+from archsim_api.db import Project, Workspace, utcnow
 from archsim_api.deps import (
     examples,
     get_principal,
@@ -79,6 +80,25 @@ def _out(p: Project) -> ProjectOut:
     return ProjectOut.model_validate({**_summary(p), "document": p.document})
 
 
+def _check_room(session: Session, settings: Settings, workspace_id: str) -> None:
+    """A workspace whose kind caps its projects (the sandbox) refuses one more past the cap."""
+    ws = session.get(Workspace, workspace_id)
+    cap = limits.profile(settings, ws.kind).max_projects if ws is not None else None
+    if cap is None:
+        return
+    held = session.execute(
+        select(func.count()).select_from(Project).where(Project.workspace_id == workspace_id)
+    ).scalar_one()
+    if held >= cap:
+        raise HTTPException(
+            409,
+            detail={
+                "message": f"This workspace holds at most {cap} projects: delete one first.",
+                "issues": [],
+            },
+        )
+
+
 def _create(
     session: Session,
     workspace_id: str,
@@ -87,8 +107,11 @@ def _create(
     name: str | None,
     description: str | None,
     source_example: str | None = None,
+    settings: Settings | None = None,
 ) -> Project:
     doc = _normalize(document, name)
+    if settings is not None:
+        _check_room(session, settings, workspace_id)
     p = Project(
         workspace_id=workspace_id,
         created_by=created_by,
@@ -173,7 +196,16 @@ def create_project(
     # A project the user named is theirs, not a copy that opening the template may hand back.
     source = body.example_id if body.name is None else None
     return _out(
-        _create(session, ws, principal.user_id, document, body.name, body.description, source)
+        _create(
+            session,
+            ws,
+            principal.user_id,
+            document,
+            body.name,
+            body.description,
+            source,
+            settings,
+        )
     )
 
 
@@ -184,11 +216,16 @@ def import_project(
     access: WorkspaceAccess = Depends(get_workspace),
     principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> ProjectOut:
     """Import a document exported earlier into the workspace (older schema versions are
     migrated)."""
     access.require("editor")
-    return _out(_create(session, access.workspace.id, principal.user_id, document, name, None))
+    return _out(
+        _create(
+            session, access.workspace.id, principal.user_id, document, name, None, None, settings
+        )
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
@@ -244,6 +281,7 @@ def duplicate_project(
     access: ProjectAccess = Depends(require_project("editor")),
     principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> ProjectOut:
     """Copy as "Name (copy)", in the same workspace."""
     p = access.project
@@ -255,6 +293,8 @@ def duplicate_project(
             copy.deepcopy(p.document),
             f"{p.name} (copy)"[:120],
             p.description,
+            None,
+            settings,
         )
     )
 

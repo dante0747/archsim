@@ -1,5 +1,7 @@
 """Simulation runs: create (async), poll, cancel, reproduce, fetch reports, compare. A run belongs
-to its project's workspace: viewers read runs, editors start, cancel and delete them."""
+to its project's workspace: viewers read runs, editors start, cancel and delete them. With limits
+on, starting runs counts against the workspace's runs per hour and your own (429 with
+Retry-After), and each run is bounded by its workspace's limits (see ``archsim_api.limits``)."""
 
 from __future__ import annotations
 
@@ -10,9 +12,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from archsim_api import limits
 from archsim_api.config import Settings
-from archsim_api.db import SimulationRun
+from archsim_api.db import Database, SimulationRun, Workspace
 from archsim_api.deps import (
+    get_db,
     get_jobs,
     get_principal,
     get_registry,
@@ -39,9 +43,32 @@ from archsim_engine import (
 router = APIRouter(tags=["runs"])
 
 
-def _limits(settings: Settings) -> SimulationLimits:
-    return SimulationLimits(
-        max_requests=settings.max_requests, max_wall_seconds=settings.max_wall_seconds
+def _workspace(session: Session, workspace_id: str) -> Workspace:
+    ws = session.get(Workspace, workspace_id)
+    assert ws is not None  # the project's, which a foreign key keeps
+    return ws
+
+
+def _charge(
+    settings: Settings, db: Database, workspace: Workspace, principal: Principal, runs: int
+) -> None:
+    """Count ``runs`` new runs against the hourly limits (429 when over)."""
+    per_ws = limits.runs_per_hour(settings, workspace)
+    limits.enforce(
+        settings,
+        db,
+        f"user:{principal.user_id}:runs",
+        (limits.USER_RUNS_PER_HOUR, limits.HOUR),
+        f"You have started {limits.USER_RUNS_PER_HOUR} runs this hour, the most one person may.",
+        cost=runs,
+    )
+    limits.enforce(
+        settings,
+        db,
+        f"ws:{workspace.id}:runs",
+        limits.window(per_ws, limits.HOUR),
+        f"{workspace.name} has started its {per_ws} runs for this hour.",
+        cost=runs,
     )
 
 
@@ -57,7 +84,7 @@ def _enqueue(
     session: Session,
     jobs: JobService,
     registry: ComponentRegistry,
-    settings: Settings,
+    run_limits: SimulationLimits,
     project_id: str,
     workspace_id: str,
     created_by: str,
@@ -66,7 +93,7 @@ def _enqueue(
     label: str | None,
 ) -> SimulationRun:
     try:
-        prep = prepare_run(document, scenario_id, registry, _limits(settings))
+        prep = prepare_run(document, scenario_id, registry, run_limits)
     except DocumentInvalidError as exc:
         raise_issues(422, f"Cannot simulate: {exc}", exc.issues)
     except SimulationLimitError as exc:
@@ -83,6 +110,8 @@ def _enqueue(
         seed=prep.resolved.workload.seed,
         engine_version=ENGINE_VERSION,
         input_document=prep.document.to_json_dict(),
+        max_requests=run_limits.max_requests,
+        max_wall_seconds=run_limits.max_wall_seconds,
     )
     return jobs.enqueue(session, run)
 
@@ -96,15 +125,18 @@ def create_run(
     jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> RunOut:
     """Validate and enqueue a simulation. Returns immediately; poll ``GET /runs/{id}``."""
     project = access.project
+    workspace = _workspace(session, project.workspace_id)
     document = body.document if body.document is not None else project.document
+    _charge(settings, db, workspace, principal, 1)
     run = _enqueue(
         session,
         jobs,
         registry,
-        settings,
+        limits.simulation_limits(settings, workspace),
         project.id,
         project.workspace_id,
         principal.user_id,
@@ -124,23 +156,27 @@ def create_batch(
     jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> list[RunOut]:
     """Enqueue several scenarios of the same document (``null`` = base document)."""
     project = access.project
+    workspace = _workspace(session, project.workspace_id)
+    run_limits = limits.simulation_limits(settings, workspace)
     document = body.document if body.document is not None else project.document
     for sid in body.scenario_ids:  # validate everything before enqueueing anything
         try:
-            prepare_run(document, sid, registry, _limits(settings))
+            prepare_run(document, sid, registry, run_limits)
         except DocumentInvalidError as exc:
             raise_issues(422, f"Cannot simulate scenario '{sid or 'base'}': {exc}", exc.issues)
         except SimulationLimitError as exc:
             raise_issues(422, str(exc))
+    _charge(settings, db, workspace, principal, len(body.scenario_ids))
     runs = [
         _enqueue(
             session,
             jobs,
             registry,
-            settings,
+            run_limits,
             project.id,
             project.workspace_id,
             principal.user_id,
@@ -219,15 +255,18 @@ def rerun(
     jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> RunOut:
     """Re-simulate the exact stored input (same document, scenario and seed) to check
     reproducibility: the new run's ``resultDigest`` should equal the original's."""
     original = access.run
+    workspace = _workspace(session, original.workspace_id)
+    _charge(settings, db, workspace, principal, 1)
     run = _enqueue(
         session,
         jobs,
         registry,
-        settings,
+        limits.simulation_limits(settings, workspace),
         original.project_id,
         original.workspace_id,
         principal.user_id,

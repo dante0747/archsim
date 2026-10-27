@@ -29,7 +29,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Collection, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -48,6 +48,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
 from archsim_api.db import Database, JobWorker, SimulationRun, Workspace, utcnow
+from archsim_engine import SimulationLimits
 
 ACTIVE = ("queued", "running")
 
@@ -77,6 +78,19 @@ class ClaimedRun:
     document: dict[str, Any]
     scenario_id: str | None
     attempts: int
+    max_requests: int | None = None
+    max_wall_seconds: float | None = None
+    """The run's own limits (its workspace's when it was queued); None: the worker's."""
+
+    def limits(self, worker: SimulationLimits) -> SimulationLimits:
+        """The worker's limits, tightened by the run's own."""
+        return replace(
+            worker,
+            max_requests=min(worker.max_requests, self.max_requests or worker.max_requests),
+            max_wall_seconds=min(
+                worker.max_wall_seconds, self.max_wall_seconds or worker.max_wall_seconds
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -211,7 +225,14 @@ def claim(
         "progress": 0.0,
         "attempts": runs.c.attempts + 1,
     }
-    payload = (runs.c.id, runs.c.input_document, runs.c.scenario_id, runs.c.attempts)
+    payload = (
+        runs.c.id,
+        runs.c.input_document,
+        runs.c.scenario_id,
+        runs.c.attempts,
+        runs.c.max_requests,
+        runs.c.max_wall_seconds,
+    )
     rows: Sequence[Any]
     with _claiming(db) as conn:
         ids = _pick(conn, limit, exclude, kind_caps or {})
@@ -223,7 +244,12 @@ def claim(
         rows = conn.execute(
             select(*payload).where(runs.c.id.in_(ids), runs.c.lease_owner == worker_id)
         ).all()
-    return [ClaimedRun(r.id, r.input_document, r.scenario_id, r.attempts) for r in rows]
+    return [
+        ClaimedRun(
+            r.id, r.input_document, r.scenario_id, r.attempts, r.max_requests, r.max_wall_seconds
+        )
+        for r in rows
+    ]
 
 
 def renew(db: Database, worker_id: str, run_ids: list[str], lease_seconds: float) -> Renewal:

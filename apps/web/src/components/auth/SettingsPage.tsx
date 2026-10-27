@@ -343,9 +343,17 @@ export function SettingsPage() {
           <>
             <WorkspaceCard key={`${workspace.id}:${workspace.name}`} workspace={workspace} />
             <MembersCard workspace={workspace} meId={me.user.id} />
-            {workspace.role === "owner" && workspace.kind === "team" && <InvitationsCard workspace={workspace} />}
+            {me.kind !== "local" && workspace.role === "owner" && workspace.kind === "team" && <InvitationsCard workspace={workspace} />}
             <NewWorkspaceCard />
-            {me.kind !== "token" && <TokensSection workspaces={me.workspaces} />}
+            {me.kind === "session" && <TokensSection workspaces={me.workspaces} />}
+            {me.kind === "local" && (
+              <Card title="Sign-in is off on this server">
+                <p className="text-[13px] text-ink-2">
+                  You are the local owner of every workspace here. Inviting people and API tokens need sign-in: run the API with{" "}
+                  <code className="font-mono text-xs">ARCHSIM_AUTH_MODE=oauth</code> (see SECURITY.md).
+                </p>
+              </Card>
+            )}
             {me.kind === "session" && (
               <Card title="Account" description={`Signed in as ${me.user.name}${me.user.email ? ` (${me.user.email})` : ""}.`}>
                 <div className="flex flex-wrap gap-2">

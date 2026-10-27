@@ -14,8 +14,11 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from archsim_api import limits
+from archsim_api.config import Settings
 from archsim_api.db import (
     DEFAULT_WORKSPACE_ID,
+    Database,
     Identity,
     Invitation,
     Membership,
@@ -23,7 +26,7 @@ from archsim_api.db import (
     Workspace,
     utcnow,
 )
-from archsim_api.deps import get_principal, get_session, require_session
+from archsim_api.deps import get_db, get_principal, get_session, get_settings_dep, require_session
 from archsim_api.identity import (
     InvitationCreate,
     InvitationCreated,
@@ -70,8 +73,17 @@ def create_team_workspace(
     body: WorkspaceCreate,
     principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> WorkspaceOut:
     """A new team workspace, with you as its owner."""
+    limits.enforce(
+        settings,
+        db,
+        f"user:{principal.user_id}:workspaces",
+        limits.WORKSPACES_PER_USER,
+        "You have made many workspaces today.",
+    )
     ws = create_workspace(session, body.name.strip() or "Team", "team", principal.user_id)
     session.commit()
     return workspace_out(ws, "owner")
@@ -211,12 +223,21 @@ def create_invitation(
     body: InvitationCreate,
     principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
+    db: Database = Depends(get_db),
 ) -> InvitationCreated:
     """An invitation link (owners only). The token is in this answer only: share
     ``<web address>/invite/<token>``."""
     access = workspace_access(session, principal, workspace_id, "owner")
     if access.workspace.kind != "team":
         raise conflict("Only team workspaces can be shared: create one under Settings.")
+    limits.enforce(
+        settings,
+        db,
+        f"ws:{workspace_id}:invitations",
+        limits.INVITES_PER_WORKSPACE,
+        "This workspace has sent many invitations today.",
+    )
     token = new_secret(INVITE_PREFIX)
     inv = Invitation(
         workspace_id=workspace_id,
