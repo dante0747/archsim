@@ -4,35 +4,14 @@
  * The confidence badge every verdict carries, and the instant estimate from queueing formulas:
  * shown while a run is queued or running, then set against what the run simulated.
  */
-import { Calculator, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { Calculator } from "lucide-react";
+import { ConfidenceBadge } from "@/components/report-view/ConfidenceBadge";
 import { Tip } from "@/components/ui/misc";
-import { CONFIDENCE_LABEL, compareEstimate, estimateText } from "@/lib/confidence";
-import type { Confidence, ConfidenceLevel, Estimate, Report } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { compareEstimate, estimateText } from "@/lib/confidence";
+import type { Confidence, Estimate, Report } from "@/lib/types";
 import { useDecide } from "@/store/decide";
 
-const TONE: Record<ConfidenceLevel, string> = {
-  high: "bg-good-soft",
-  medium: "bg-warning-soft",
-  low: "bg-serious-soft",
-};
-
-const ICON = { high: ShieldCheck, medium: ShieldQuestion, low: ShieldAlert } as const;
-
-export function ConfidenceBadge({ level, className }: { level: ConfidenceLevel; className?: string }) {
-  const Icon = ICON[level];
-  return (
-    <span
-      data-testid="confidence-badge"
-      data-level={level}
-      className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-px text-[12.5px] font-medium leading-5 text-ink", TONE[level], className)}
-    >
-      <Icon className="size-3.5" aria-hidden />
-      {CONFIDENCE_LABEL[level]}
-      <span className="sr-only">:</span>
-    </span>
-  );
-}
+export { ConfidenceBadge };
 
 /** Opens the inputs list (Details → Assumptions), where the confidence section explains the level. */
 export function showInputs() {

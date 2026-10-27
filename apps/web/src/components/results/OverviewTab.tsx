@@ -1,14 +1,15 @@
 "use client";
 
-import { CircleAlert, CircleCheck, Info, LoaderCircle, Play, RotateCcw, TriangleAlert } from "lucide-react";
+import { CircleAlert, CircleCheck, LoaderCircle, Play } from "lucide-react";
 import { verdictOf } from "@/components/editor/workflow";
+import { FindingCard } from "@/components/report-view/FindingCard";
+import { ProvenanceBar } from "@/components/report-view/ProvenanceBar";
 import { TechIcon } from "@/components/TechIcon";
-import { Button } from "@/components/ui/button";
-import { Badge, Empty, Section, Tip } from "@/components/ui/misc";
-import { fmtMs, fmtNum, fmtPct, fmtRps, shortDigest } from "@/lib/format";
-import { NODE_STATUS, SEVERITY } from "@/lib/status";
+import { Empty, Section } from "@/components/ui/misc";
+import { fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
+import { NODE_STATUS } from "@/lib/status";
 import { REQ_GLYPH } from "@/lib/theme";
-import type { Finding, Report, Run, Series } from "@/lib/types";
+import type { Report, Run, Series } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -63,43 +64,6 @@ function Kpi({
   );
 }
 
-const SEVERITY_ICON = {
-  critical: CircleAlert,
-  warning: TriangleAlert,
-  info: Info,
-  ok: CircleCheck,
-};
-
-export function FindingCard({ f }: { f: Finding }) {
-  const meta = SEVERITY[f.severity];
-  const Icon = SEVERITY_ICON[f.severity];
-  const select = useEditor((s) => s.select);
-  return (
-    <li className="relative flex gap-2.5 overflow-hidden rounded-md border border-line bg-surface p-3 pl-3.5">
-      <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: meta.color }} aria-hidden />
-      <Icon className="mt-0.5 size-3.5 shrink-0" style={{ color: meta.color }} aria-hidden />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="sr-only">{meta.label}:</span>
-          <p className="text-[13px] font-semibold text-ink">{f.title}</p>
-          {f.nodeId && (
-            <button type="button" className="text-xs font-medium text-accent hover:underline" onClick={() => select({ nodeId: f.nodeId })}>
-              Show on canvas
-            </button>
-          )}
-        </div>
-        <p className="text-xs leading-relaxed text-ink-2">{f.detail}</p>
-        {f.suggestion && (
-          <p className="rounded-sm border-l border-accent bg-surface-2 px-2.5 py-1.5 text-xs leading-relaxed text-ink">
-            <span className="mr-1.5 font-mono text-[11px] text-accent">try →</span>
-            {f.suggestion}
-          </p>
-        )}
-      </div>
-    </li>
-  );
-}
-
 export function RunProgress({ run }: { run: Run }) {
   return (
     <div className="flex items-center gap-3 rounded-md border border-line bg-surface p-3" role="status">
@@ -119,36 +83,6 @@ export function RunProgress({ run }: { run: Run }) {
   );
 }
 
-export function ProvenanceBar({ report, run }: { report: Report; run: Run | undefined }) {
-  const rerun = useRuns((s) => s.rerun);
-  const p = report.provenance;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-ink-2">
-      <Badge tone="accent" className="font-mono">
-        simulation-derived
-      </Badge>
-      <Tip content="Random seed: the same document + scenario + seed + engine version reproduces these results exactly.">
-        <Badge className="font-mono">seed {p.seed}</Badge>
-      </Tip>
-      <Badge className="font-mono">engine {p.engineVersion}</Badge>
-      <Tip content={`Input digest ${p.inputDigest}`}>
-        <Badge className="font-mono">in {shortDigest(p.inputDigest)}</Badge>
-      </Tip>
-      <Tip content={`Result digest ${p.resultDigest}`}>
-        <Badge className="font-mono">out {shortDigest(p.resultDigest)}</Badge>
-      </Tip>
-      <Badge className="font-mono">
-        {fmtNum(p.requestsGenerated)} req · {fmtNum(report.window.simulatedS, 1)} s sim · {fmtNum(p.wallSeconds, 1)} s wall
-      </Badge>
-      {run && (
-        <Button size="sm" variant="ghost" onClick={() => void rerun(run.id)} title="Re-run the stored snapshot and check the result digest matches">
-          <RotateCcw /> Reproduce
-        </Button>
-      )}
-    </div>
-  );
-}
-
 const VERDICT_WORD = { ok: "healthy", warn: "running hot", bad: "bottleneck" } as const;
 
 export function OverviewTab() {
@@ -159,6 +93,8 @@ export function OverviewTab() {
   const followRun = runs.find((r) => r.id === followRunId);
   const run = runs.find((r) => r.id === activeRunId);
   const running = followRun && (followRun.status === "queued" || followRun.status === "running") ? followRun : null;
+  const select = useEditor((s) => s.select);
+  const rerun = useRuns((s) => s.rerun);
 
   if (!report) {
     return (
@@ -198,7 +134,7 @@ export function OverviewTab() {
         </div>
         <p className="mt-1.5 text-lg font-semibold leading-snug text-ink">{v.title}</p>
         <div className="mt-3">
-          <ProvenanceBar report={report} run={run} />
+          <ProvenanceBar report={report} onReproduce={run ? () => void rerun(run.id) : undefined} />
         </div>
       </div>
 
@@ -229,7 +165,7 @@ export function OverviewTab() {
         <Section title="What the simulation found">
           <ul className="space-y-2">
             {report.findings.map((f, i) => (
-              <FindingCard key={i} f={f} />
+              <FindingCard key={i} f={f} onShowNode={(nodeId) => select({ nodeId })} />
             ))}
           </ul>
         </Section>

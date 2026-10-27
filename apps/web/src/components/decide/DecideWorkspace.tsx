@@ -15,6 +15,7 @@ import { ComponentsTab } from "@/components/results/ComponentsTab";
 import { TracesTab } from "@/components/results/TracesTab";
 import { OverviewTab } from "@/components/results/OverviewTab";
 import { RunsTab } from "@/components/results/RunsTab";
+import { ErrorBudgetPanel } from "@/components/report-view/ErrorBudgetPanel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { type CompareView, type DecideSection, type DetailsView, useDecide } from "@/store/decide";
@@ -23,7 +24,7 @@ import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 import { BreakingPoint } from "./BreakingPoint";
 import { ReportSection } from "./ReportSection";
-import { AnswerPage, ErrorBudgetPanel } from "./Scorecard";
+import { AnswerPage } from "./Scorecard";
 import { TradeoffMap } from "./TradeoffMap";
 import { RunPicker, SubTabs, runAllScenariosNow, useDecideRun } from "./shared";
 
