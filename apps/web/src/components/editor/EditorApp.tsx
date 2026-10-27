@@ -23,6 +23,7 @@ import { TopBar } from "@/components/editor/TopBar";
 import { NextStepPill } from "@/components/editor/WorkspaceBar";
 import { openDecide } from "@/components/editor/workflow";
 import { ExperimentPanel } from "@/components/stress/ExperimentPanel";
+import { LatestResultsLink } from "@/components/share/LatestResultsLink";
 import { PlaybackClock, TimelineDock } from "@/components/timeline/TimelineDock";
 import { LogoMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,7 @@ export function EditorApp({ projectId }: { projectId: string }) {
       </div>
     );
   }
-  if (narrow && !openAnyway) return <DesktopOnly onOpenAnyway={() => setOpenAnyway(true)} />;
+  if (narrow && !openAnyway) return <DesktopOnly projectId={projectId} onOpenAnyway={() => setOpenAnyway(true)} />;
   return (
     <ReactFlowProvider>
       <TooltipProvider>
@@ -116,7 +117,7 @@ function useNarrowScreen(): boolean {
 }
 
 /** Shown instead of the editor on phones: the design is saved, so hand it over to a computer. */
-function DesktopOnly({ onOpenAnyway }: { onOpenAnyway: () => void }) {
+function DesktopOnly({ projectId, onOpenAnyway }: { projectId: string; onOpenAnyway: () => void }) {
   const name = useEditor((s) => s.metadata.name);
   const copy = async () => {
     try {
@@ -139,6 +140,7 @@ function DesktopOnly({ onOpenAnyway }: { onOpenAnyway: () => void }) {
         <Button variant="primary" size="lg" onClick={() => void copy()}>
           Copy link
         </Button>
+        <LatestResultsLink projectId={projectId} />
         <Button variant="ghost" size="sm" onClick={onOpenAnyway}>
           Open the editor anyway
         </Button>

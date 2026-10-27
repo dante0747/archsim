@@ -87,6 +87,13 @@ server at `https://<host>/api/v1`.
   `Retry-After`. Each workspace kind has a profile: runs at once (enforced by the queue across
   all workers, which also keeps workspaces fair), runs per hour, the largest run, the
   calibration replay's wall clock (20 s) and, for sandboxes, the number of projects.
+- **Share links.** `/r/<slug>` pages are public to anyone with the link: the slug is 128
+  random bits, and the page is a frozen copy of one run's report made when the link was
+  created, without request traces and with telemetry addresses (a calibration's Prometheus URL)
+  hidden. Editors make and revoke links; revoking deletes the copy and the page answers 404 at
+  once (the web server never caches it), as do expired and unknown links. Pages are `noindex`,
+  the public endpoint is limited per address (60 a minute) and needs no sign-in, and "Open a
+  copy" needs editor access to a workspace of your own.
 - **Outbound requests (SSRF).** `ARCHSIM_OUTBOUND` decides whether `POST /calibrate` may call a
   Prometheus server: `off` by default when hosted (recorded responses and OTLP traces still
   work), `allowlist` when `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` is set, and always `off` for

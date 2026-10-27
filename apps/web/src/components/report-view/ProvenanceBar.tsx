@@ -7,7 +7,7 @@ import { fmtNum, shortDigest } from "@/lib/format";
 import type { Report } from "@/lib/types";
 
 /** Where a result came from: seed, engine, digests and size. `onReproduce` adds "Reproduce" (the editor). */
-export function ProvenanceBar({ report, onReproduce }: { report: Report; onReproduce?: () => void }) {
+export function ProvenanceBar({ report, onReproduce }: { report: Pick<Report, "provenance" | "window">; onReproduce?: () => void }) {
   const p = report.provenance;
   return (
     <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-ink-2">

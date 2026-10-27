@@ -231,6 +231,24 @@ room; workers take each workspace's oldest run before anyone's second). A person
 refused whole. The counters live in the database (`rate_limits`), so every API instance shares
 them. Without sign-in the counters are off, and only sandboxes keep their other limits.
 
+## Share links
+
+A share link is a frozen, read-only copy of one finished run's results that anyone with the
+link can open on the web app at `/r/<slug>`, without signing in. It holds the report without
+request traces (calibration addresses hidden), the objectives from the run's input document,
+the project name and that document (for "Open a copy"; the public answer leaves it out). It
+does not change when the design does and stays when the run or project is deleted, until it
+expires or is revoked. Slugs are 128 random bits in base62 (22 characters).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/runs/{runId}/shares` | Editors: `{title?, expiresInDays? (default 30, at most 365; null: never)}`. `201` with `{id, slug, path: "/r/<slug>", url (when ARCHSIM_PUBLIC_URL is set), title, projectId, runId, createdAt, expiresAt, revokedAt, viewCount, resultDigest, reportVersion, status: active|expired|revoked}`. 409 unless the run succeeded. |
+| GET | `/projects/{id}/shares` | Viewers: the project's links, newest first (revoked and expired ones included). |
+| GET | `/shares` | Viewers: every link of the workspace (`?workspace=`), including those whose project was deleted. |
+| DELETE | `/shares/{id}` | Editors: revoke at once (`204`); the stored copy is deleted. |
+| GET | `/public/shares/{slug}` | No sign-in. `{slug, title, projectName, runLabel, scenarioName, createdAt, expiresAt, payloadVersion, reportVersion, resultDigest, objectives, report, canCopy}`; `?view=false` does not count a view (link previews). 404 alike for unknown, expired and revoked links; `Cache-Control: no-store`, `X-Robots-Tag: noindex`. With limits on, 60 answers a minute per address (429 with `Retry-After`). |
+| POST | `/projects/from-share` | `{slug, name?}`: "Open a copy", a new project in the request's workspace (editors) from the shared design. `201` with the project. |
+
 ## Compare
 
 | Method | Path | Description |
