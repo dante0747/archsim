@@ -18,10 +18,10 @@ those reports. Rerun them to check any number here.
 2. Go through the checklist and the "For reviewers" questions. Judge the design as you would a
    design review at work: would you build it like this, and do the numbers look like your
    production systems?
-3. If you agree, sign its "Reviewed by" line (name, role, date) in a pull request. The template's
-   card then shows "Reviewed by ..." (`reviewedBy` in
-   `apps/web/src/components/templates/templates-meta.ts`).
-4. If you disagree, open an issue or comment on the pull request with what you would change.
+3. If you agree, send your "Reviewed by" line (name, role, date) back to whoever shared this
+   checklist with you. It is added here, and the template's card then shows "Reviewed by ..."
+   (`reviewedBy` in `apps/web/src/components/templates/templates-meta.ts`).
+4. If you disagree, reply with what you would change instead.
 
 Nothing is signed yet.
 
