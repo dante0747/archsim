@@ -14,7 +14,7 @@ import {
 } from "@/lib/distributions";
 import { fmtNum } from "@/lib/format";
 import { technologyLabel } from "@/lib/theme";
-import type { Distribution, FieldDescriptor, InputProvenance, RequestType } from "@/lib/types";
+import type { ClassifiedProvenance, Distribution, FieldDescriptor, InputProvenance, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 
@@ -53,7 +53,30 @@ export function isFieldVisible(field: FieldDescriptor, values: Record<string, un
 }
 
 /** "measured" on a setting fitted from telemetry: where from, which query, when, how well it fits. */
-export function ProvenanceTag({ provenance }: { provenance: InputProvenance }) {
+/** A link to the vendor documentation a documented default comes from. */
+export function DocumentedTag({ provenance }: { provenance: ClassifiedProvenance }) {
+  if (provenance.kind !== "documented" || !provenance.source) return null;
+  let host = provenance.source;
+  try {
+    host = new URL(provenance.source).hostname.replace(/^(www|docs)\./, "");
+  } catch {
+    // not a URL: show it as it is
+  }
+  return (
+    <a
+      href={provenance.source}
+      target="_blank"
+      rel="noreferrer"
+      title={provenance.note ?? undefined}
+      className="whitespace-nowrap rounded-full bg-accent-soft px-1.5 text-[10.5px] font-medium leading-4 text-ink-2 underline decoration-dotted underline-offset-2 hover:text-ink"
+    >
+      documented · {host}
+    </a>
+  );
+}
+
+export function ProvenanceTag({ provenance }: { provenance: ClassifiedProvenance }) {
+  if (provenance.kind === "documented") return <DocumentedTag provenance={provenance} />;
   if (provenance.kind !== "measured") return null;
   const fit = provenance.fitError != null ? `Fit error ${Math.round(provenance.fitError * 100)}% at the checked quantiles` : null;
   return (

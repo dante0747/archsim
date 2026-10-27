@@ -34,7 +34,11 @@ def test_cli_run_writes_report(tmp_path: Path, capsys: pytest.CaptureFixture[str
     assert main(["run", str(src), "--scenario", "three-api-replicas", "--out", str(out)]) == 0
     report = json.loads(out.read_text(encoding="utf-8"))
     assert report["provenance"]["scenarioId"] == "three-api-replicas"
-    assert "throughput" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "throughput" in printed
+    # the summary says how far to trust it, and what the formulas predicted without simulating
+    assert "  Low confidence: 31 of 35 inputs are illustrative defaults. To raise it: " in printed
+    assert "  Estimate from queueing formulas (not simulated): p95 ≈ " in printed
 
 
 def test_cli_gives_the_engine_digest_with_auto_sized_parts(

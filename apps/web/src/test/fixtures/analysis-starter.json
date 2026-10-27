@@ -380,7 +380,7 @@
       "label": "API Servers",
       "field": "gcPauseMs",
       "fieldLabel": "GC pause",
-      "value": "None",
+      "value": "0 ms",
       "provenance": {
         "kind": "illustrative",
         "source": "ArchSim default"
@@ -404,7 +404,7 @@
       "label": "API Servers",
       "field": "warmupFactor",
       "fieldLabel": "JIT warm-up slowdown",
-      "value": "None",
+      "value": "1",
       "provenance": {
         "kind": "illustrative",
         "source": "ArchSim default"
@@ -416,7 +416,7 @@
       "label": "API Servers",
       "field": "warmupS",
       "fieldLabel": "JIT warm-up time",
-      "value": "None",
+      "value": "0 s",
       "provenance": {
         "kind": "illustrative",
         "source": "ArchSim default"
@@ -733,8 +733,223 @@
   ],
   "provenanceCounts": {
     "measured": 0,
+    "documented": 0,
     "assumed": 4,
     "illustrative": 31
+  },
+  "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 400.0,
+    "latencyMs": {
+      "mean": 55.44,
+      "p95": 96.78
+    },
+    "p95Approximate": true,
+    "busiest": {
+      "id": "api",
+      "label": "API Servers",
+      "utilization": 0.6967,
+      "limitedBy": "slots"
+    },
+    "overloaded": false,
+    "saturationRps": 574.1,
+    "summary": "p95 \u2248 97 ms; busiest API Servers 70%",
+    "paths": [
+      {
+        "clientId": "clients",
+        "client": "Clients",
+        "op": "read",
+        "rps": 360.0,
+        "meanMs": 53.961
+      },
+      {
+        "clientId": "clients",
+        "client": "Clients",
+        "op": "write",
+        "rps": 40.0,
+        "meanMs": 68.738
+      }
+    ],
+    "breakdown": [
+      {
+        "nodeId": null,
+        "label": "Network",
+        "meanMs": 37.307,
+        "share": 0.6729
+      },
+      {
+        "nodeId": "api",
+        "label": "API Servers",
+        "meanMs": 15.036,
+        "share": 0.2712
+      },
+      {
+        "nodeId": "db",
+        "label": "PostgreSQL",
+        "meanMs": 2.835,
+        "share": 0.0511
+      },
+      {
+        "nodeId": "lb",
+        "label": "Load Balancer",
+        "meanMs": 0.2,
+        "share": 0.0036
+      },
+      {
+        "nodeId": "cache",
+        "label": "Redis Cache",
+        "meanMs": 0.06,
+        "share": 0.0011
+      }
+    ],
+    "parts": [
+      {
+        "id": "lb",
+        "label": "Load Balancer",
+        "type": "load_balancer",
+        "onPath": true,
+        "arrivalRps": 400.0,
+        "status": "ok",
+        "slots": 10000,
+        "pools": 1,
+        "meanServiceMs": 0.2,
+        "meanHoldMs": 19.601,
+        "utilization": 0.0008,
+        "slotUtilization": 0.0008,
+        "cpuUtilization": null,
+        "limitedBy": "slots",
+        "waitProbability": 0.0,
+        "meanWaitMs": 0.0,
+        "perRequestMs": 0.2
+      },
+      {
+        "id": "api",
+        "label": "API Servers",
+        "type": "service",
+        "onPath": true,
+        "arrivalRps": 400.0,
+        "status": "ok",
+        "slots": 4,
+        "pools": 2,
+        "meanServiceMs": 10.169,
+        "meanHoldMs": 13.935,
+        "utilization": 0.6967,
+        "slotUtilization": 0.6967,
+        "cpuUtilization": 0.5085,
+        "limitedBy": "slots",
+        "waitProbability": 0.4236,
+        "meanWaitMs": 4.867,
+        "perRequestMs": 15.036
+      },
+      {
+        "id": "cache",
+        "label": "Redis Cache",
+        "type": "cache",
+        "onPath": true,
+        "arrivalRps": 472.0,
+        "status": "ok",
+        "slots": 1,
+        "pools": 1,
+        "meanServiceMs": 0.05,
+        "meanHoldMs": 0.05,
+        "utilization": 0.0236,
+        "slotUtilization": 0.0236,
+        "cpuUtilization": 0.0118,
+        "limitedBy": "slots",
+        "waitProbability": 0.0236,
+        "meanWaitMs": 0.001,
+        "perRequestMs": 0.06
+      },
+      {
+        "id": "db",
+        "label": "PostgreSQL",
+        "type": "database",
+        "onPath": true,
+        "arrivalRps": 112.0,
+        "status": "ok",
+        "slots": 20,
+        "pools": 1,
+        "meanServiceMs": 10.126,
+        "meanHoldMs": 10.126,
+        "utilization": 0.2835,
+        "slotUtilization": 0.0567,
+        "cpuUtilization": 0.2835,
+        "limitedBy": "cpu",
+        "waitProbability": 0.0,
+        "meanWaitMs": 0.0,
+        "perRequestMs": 2.835
+      }
+    ],
+    "notes": [
+      "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+      "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+  },
+  "confidence": {
+    "level": "low",
+    "reason": "31 of 35 inputs are illustrative defaults",
+    "reasons": [
+      "31 of 35 inputs are illustrative defaults",
+      "0% of the load (by part utilization) rests on measured or documented inputs"
+    ],
+    "drivers": [
+      {
+        "scope": "node",
+        "id": "api",
+        "label": "API Servers",
+        "field": "serviceTimeMs",
+        "fieldLabel": "Service time",
+        "kind": "illustrative",
+        "weight": 0.694
+      },
+      {
+        "scope": "node",
+        "id": "db",
+        "label": "PostgreSQL",
+        "field": "readServiceTimeMs",
+        "fieldLabel": "Read query time",
+        "kind": "illustrative",
+        "weight": 0.282
+      },
+      {
+        "scope": "node",
+        "id": "db",
+        "label": "PostgreSQL",
+        "field": "writeServiceTimeMs",
+        "fieldLabel": "Write query time",
+        "kind": "illustrative",
+        "weight": 0.282
+      },
+      {
+        "scope": "node",
+        "id": "db",
+        "label": "PostgreSQL",
+        "field": "commitFlushMs",
+        "fieldLabel": "Log flush time",
+        "kind": "illustrative",
+        "weight": 0.282
+      },
+      {
+        "scope": "node",
+        "id": "cache",
+        "label": "Redis Cache",
+        "field": "hitRatio",
+        "fieldLabel": "Hit ratio",
+        "kind": "illustrative",
+        "weight": 0.023
+      },
+      {
+        "scope": "node",
+        "id": "cache",
+        "label": "Redis Cache",
+        "field": "serviceTimeMs",
+        "fieldLabel": "Command time",
+        "kind": "illustrative",
+        "weight": 0.023
+      }
+    ],
+    "weightedBy": "utilization",
+    "howToRaise": "Calibrate from telemetry, or replace the illustrative and assumed inputs of API Servers, PostgreSQL and 1 more with measured values."
   },
   "calibration": null
 }

@@ -4,8 +4,10 @@ Report sections: ``provenance`` (exactly what was simulated), ``window``, ``summ
 KPIs and request accounting), ``timeseries``, ``nodes`` and ``edges`` (per-component metrics,
 including each node's ``explain`` calculations and technology ``behaviour``), ``findings``
 (bottleneck analysis), ``assumptions`` (what was asserted vs. modeled), ``traces`` (a sample of
-individual requests, step by step) and ``explain`` (system-level calculations, including where
-the time of a request goes).
+individual requests, step by step), ``explain`` (system-level calculations, including where
+the time of a request goes), ``estimate`` (what queueing formulas predict for the same input,
+:mod:`archsim_engine.estimate`) and ``confidence`` (how much of the result rests on measured or
+documented inputs, :mod:`archsim_engine.confidence`).
 """
 
 from __future__ import annotations
@@ -19,8 +21,10 @@ from typing import TYPE_CHECKING, Any
 import simpy
 
 from archsim_engine.analysis import analyze
+from archsim_engine.confidence import report_confidence
 from archsim_engine.cost import estimate_cost
 from archsim_engine.distributions import Constant, Exponential, LogNormal, Uniform
+from archsim_engine.estimate import estimate_design
 from archsim_engine.explain import formula, generic, num, pct
 from archsim_engine.metrics import Timeline, _round, round_series, safe_ratio
 from archsim_engine.provenance import input_provenance, provenance_counts
@@ -637,6 +641,13 @@ def build_report(
         {k: v.kind for k, v in resolved.provenance.items()},
     )
     report["review"] = review_design(input_snapshot, registry)
+    report["estimate"] = estimate_design(resolved, registry, input_snapshot, configs)
+    report["confidence"] = report_confidence(
+        report,
+        user_inputs,
+        {e.id: e.config.latency_ms.expected() for e in resolved.architecture.edges},
+        registry,
+    )
     report["provenance"] = {
         "engineVersion": ENGINE_VERSION,
         "schemaVersion": SCHEMA_VERSION,

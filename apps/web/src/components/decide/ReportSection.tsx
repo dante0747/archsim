@@ -159,6 +159,8 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
   const objectives = useEditor((s) => s.objectives);
   const catalog = useEditor((s) => s.catalog);
   const designCost = useEditor((s) => s.analysis?.cost ?? null);
+  const designConfidence = useEditor((s) => s.analysis?.confidence ?? null);
+  const designEstimate = useEditor((s) => s.analysis?.estimate ?? null);
   const projectId = useRuns((s) => s.projectId);
   const sweep = useDecide((s) => s.sweep);
   const { run, report } = useDecideRun();
@@ -167,8 +169,8 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
   const md = useMemo(() => {
     const doc = toDocument({ nodes, edges, workload, scenarios, objectives, metadata });
     const sweepAnalysis = sweep.projectId === projectId && sweep.rows.some((r) => r.throughput != null) ? analyzeSweep(sweep.rows, objectives) : null;
-    return decisionReportMarkdown({ doc, catalog, objectives, run, report, review, designCost, sweep: sweepAnalysis });
-  }, [nodes, edges, workload, scenarios, metadata, objectives, catalog, run, report, review, designCost, sweep, projectId]);
+    return decisionReportMarkdown({ doc, catalog, objectives, run, report, review, designCost, designConfidence, designEstimate, sweep: sweepAnalysis });
+  }, [nodes, edges, workload, scenarios, metadata, objectives, catalog, run, report, review, designCost, designConfidence, designEstimate, sweep, projectId]);
 
   const fileName = `${slugify(metadata.name || "architecture")}-decision-report.md`;
   const download = () => {

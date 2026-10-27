@@ -1,11 +1,13 @@
 "use client";
 
+import { ConfidenceBadge } from "@/components/decide/Confidence";
 import { ProvenanceTag } from "@/components/editor/FieldControl";
 import { Badge, Section } from "@/components/ui/misc";
 import { TierBadge, useTierNote } from "@/components/ui/TierBadge";
+import { KIND_LABEL, countsText } from "@/lib/confidence";
 import { replayVerdict } from "@/lib/document";
 import { technologyLabel } from "@/lib/theme";
-import type { CalibrationRecord, TechnologyTier } from "@/lib/types";
+import type { CalibrationRecord, Confidence, ProvenanceKind, TechnologyTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { thClass } from "./charts";
 import { useEditor } from "@/store/editor";
@@ -59,18 +61,63 @@ function TechnologiesSection({ technologies, fromRun }: { technologies: Technolo
   );
 }
 
+/** How far to trust the verdict: the engine's level, why, and which inputs to replace first. */
+function ConfidenceSection({ confidence, fromRun }: { confidence: Confidence; fromRun: boolean }) {
+  const basis =
+    confidence.weightedBy === "latency"
+      ? "Each part counts by its share of a request's latency in this run."
+      : confidence.weightedBy === "utilization"
+        ? "Each part counts by how busy the queueing formulas expect it to be at the peak."
+        : "Each part counts equally.";
+  return (
+    <div id="confidence" className="scroll-mt-4">
+      <Section title="Confidence">
+        <p className="flex flex-wrap items-center gap-2 text-xs leading-relaxed text-ink-2">
+          <ConfidenceBadge level={confidence.level} />
+          <span>{fromRun ? "Recorded with this run." : "Live, from the design; a run records its own."}</span>
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-ink-2" aria-label="Why">
+          {confidence.reasons.map((r) => (
+            <li key={r}>{r}.</li>
+          ))}
+        </ul>
+        <p className="text-xs leading-relaxed text-ink-2">
+          <b className="font-medium text-ink">To raise it:</b> {confidence.howToRaise}
+        </p>
+        {confidence.drivers.length > 0 && (
+          <div className="text-xs text-ink-2">
+            <p className="microlabel mb-1">Replace first</p>
+            <ul className="space-y-0.5" aria-label="Inputs to replace first">
+              {confidence.drivers.map((d) => (
+                <li key={`${d.id}-${d.field}`} className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 truncate">
+                    <span className="text-ink">{d.label}</span> · {d.fieldLabel}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-ink-3">
+                    {d.kind ? KIND_LABEL[d.kind] : "–"}
+                    {d.weight != null && ` · ${Math.round(d.weight * 100)}% of the weight`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <p className="text-[11px] leading-relaxed text-ink-3">
+          {basis} High needs 80% of that weight measured (fit error ≤ 15%) or documented, and no experimental technology on the request path. Low: under 40%, an
+          experimental technology at the bottleneck, or a calibration fit error above 30%.
+        </p>
+      </Section>
+    </div>
+  );
+}
+
 /** Where the inputs came from, and how well the last calibration replays what was observed. */
-function CalibrationSection({ record, counts }: { record: CalibrationRecord | null; counts?: Record<string, number> }) {
+function CalibrationSection({ record, counts }: { record: CalibrationRecord | null; counts?: Partial<Record<ProvenanceKind, number>> }) {
   if (!record && !counts) return null;
   const verdict = replayVerdict(record);
   return (
     <Section title="Where the inputs came from">
-      {counts && (
-        <p className="text-xs leading-relaxed text-ink-2">
-          {counts.measured ?? 0} measured from telemetry, {counts.assumed ?? 0} assumed (typed in), {counts.illustrative ?? 0} illustrative (ArchSim defaults
-          and presets).
-        </p>
-      )}
+      {counts && <p className="text-xs leading-relaxed text-ink-2">{countsText(counts)}.</p>}
       {record ? (
         <p className="text-xs leading-relaxed text-ink-2">
           Calibrated {record.at.replace("T", " ").replace("Z", " UTC")} from {record.source}
@@ -89,6 +136,7 @@ export function AssumptionsTab() {
   const catalog = useEditor((s) => s.catalog);
   const analysis = useEditor((s) => s.analysis);
   const runTechs = report?.assumptions.technologies;
+  const confidence = report?.confidence ?? analysis?.confidence ?? null;
   const types = report
     ? Object.entries(report.assumptions.components)
     : (catalog?.components ?? []).map((c) => [c.type, { modeled: c.modeled, notModeled: c.notModeled }] as const);
@@ -103,6 +151,7 @@ export function AssumptionsTab() {
             ))}
           </ul>
         </Section>
+        {confidence && <ConfidenceSection confidence={confidence} fromRun={!!report?.confidence} />}
         <TechnologiesSection technologies={runTechs ?? (report ? [] : (analysis?.technologies ?? []))} fromRun={!!runTechs} />
         <CalibrationSection record={report ? (report.assumptions.calibration ?? null) : (analysis?.calibration ?? null)} counts={report?.assumptions.provenanceCounts ?? analysis?.provenanceCounts} />
         <Section
@@ -130,7 +179,7 @@ export function AssumptionsTab() {
                       <td className="px-2 py-1.5 text-ink-2">{u.fieldLabel}</td>
                       <td className="tabular px-2 py-1.5 font-mono text-xs text-ink">{u.value}</td>
                       <td className="px-3 py-1.5 text-ink-2">
-                        {u.provenance?.kind === "measured" ? <ProvenanceTag provenance={u.provenance} /> : (u.provenance?.kind ?? "–")}
+                        {u.provenance?.kind === "measured" || u.provenance?.kind === "documented" ? <ProvenanceTag provenance={u.provenance} /> : (u.provenance?.kind ?? "–")}
                       </td>
                     </tr>
                   ))}

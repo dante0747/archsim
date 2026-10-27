@@ -87,6 +87,15 @@ export interface CalibrationRecord {
   notes: string[];
 }
 
+/**
+ * How an input is grounded, as reports and the analysis classify it. "documented" (report 1.13+)
+ * is derived: the value the technology fills in, stated by the vendor's documentation (``source``
+ * is the link). Documents never store it.
+ */
+export type ProvenanceKind = InputProvenance["kind"] | "documented";
+
+export type ClassifiedProvenance = Omit<InputProvenance, "kind"> & { kind: ProvenanceKind };
+
 /** A performance input with its value and provenance (analysis and report 1.9+). */
 export interface InputEntry {
   scope: "node" | "edge" | "workload";
@@ -95,7 +104,79 @@ export interface InputEntry {
   field: string;
   fieldLabel: string;
   value: string;
-  provenance?: InputProvenance;
+  provenance?: ClassifiedProvenance;
+}
+
+export type ConfidenceLevel = "high" | "medium" | "low";
+
+/** An input that holds confidence down: replace it first. */
+export interface ConfidenceDriver {
+  scope: "node" | "edge";
+  id: string;
+  label: string;
+  field: string;
+  fieldLabel: string;
+  kind: ProvenanceKind | null;
+  /** The part's (or link's) share of the weight, 0–1. */
+  weight: number | null;
+}
+
+/** How far to trust a verdict, from where its inputs came from (report 1.13+, analysis). */
+export interface Confidence {
+  level: ConfidenceLevel;
+  /** The reason that decided the level. */
+  reason: string;
+  /** Every reason, the deciding one first. */
+  reasons: string[];
+  drivers: ConfidenceDriver[];
+  /** What weighs each part: its share of the latency (runs) or its utilization (analysis). */
+  weightedBy: "latency" | "utilization" | "inputs";
+  howToRaise: string;
+}
+
+export type EstimateStatus = "ok" | "busy" | "overloaded" | "unknown";
+
+export interface EstimatePart {
+  id: string;
+  label: string;
+  type: string;
+  onPath: boolean;
+  arrivalRps: number | null;
+  status: EstimateStatus;
+  slots?: number | null;
+  pools?: number;
+  meanServiceMs?: number | null;
+  meanHoldMs?: number | null;
+  utilization?: number | null;
+  slotUtilization?: number | null;
+  cpuUtilization?: number | null;
+  limitedBy?: "slots" | "cpu" | "rate limit" | null;
+  waitProbability?: number | null;
+  meanWaitMs?: number | null;
+  /** Wait and own time per client request (ms). */
+  perRequestMs?: number | null;
+  note?: string;
+}
+
+/** What queueing formulas predict, without simulating (report 1.13+, analysis). */
+export interface Estimate {
+  method: string;
+  /** The peak load the formulas are evaluated at (req/s). */
+  atRps: number | null;
+  /** Null when a part on the request path is overloaded or its load depends on the run. */
+  latencyMs: { mean: number | null; p95: number | null } | null;
+  /** The p95 is a rough lognormal approximation. */
+  p95Approximate: boolean;
+  busiest: { id: string; label: string; utilization: number; limitedBy: string | null } | null;
+  overloaded: boolean;
+  /** About where the busiest part runs out of capacity (req/s). */
+  saturationRps: number | null;
+  /** "p95 ≈ 97 ms; busiest API Servers 70%", or the overload. */
+  summary: string;
+  paths: { clientId: string; client: string; op: "read" | "write"; rps: number | null; meanMs: number | null }[];
+  breakdown: { nodeId: string | null; label: string; meanMs: number | null; share: number | null }[];
+  parts: EstimatePart[];
+  notes: string[];
 }
 
 /** A fault injected during a run (see docs/product-spec-v2.md). */
@@ -663,8 +744,8 @@ export interface Report {
   assumptions: {
     modelNotes: string[];
     userInputs: InputEntry[];
-    /** How many inputs are measured, assumed and illustrative (report 1.9+). */
-    provenanceCounts?: Record<InputProvenance["kind"], number>;
+    /** How many inputs are measured, documented (1.13+), assumed and illustrative (report 1.9+). */
+    provenanceCounts?: Partial<Record<ProvenanceKind, number>>;
     calibration?: CalibrationRecord | null;
     components: Record<string, { modeled: string[]; notModeled: string[] }>;
     validationWarnings: Issue[];
@@ -685,6 +766,10 @@ export interface Report {
   cost?: CostEstimate;
   /** The static design review of what was simulated (report 1.7+). */
   review?: ReviewFinding[];
+  /** What queueing formulas predict for exactly what was simulated (report 1.13+). */
+  estimate?: Estimate;
+  /** How far to trust this run's verdict (report 1.13+). */
+  confidence?: Confidence;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -787,8 +872,12 @@ export interface Analysis {
   technologies?: TechnologyTier[];
   /** Every performance input with its provenance (engine 0.8+). */
   inputs?: InputEntry[];
-  provenanceCounts?: Record<InputProvenance["kind"], number>;
+  provenanceCounts?: Partial<Record<ProvenanceKind, number>>;
   calibration?: CalibrationRecord | null;
+  /** What queueing formulas predict for the design, at its peak (engine 0.11+). */
+  estimate?: Estimate;
+  /** How far the design's numbers can be trusted, before any run (engine 0.11+). */
+  confidence?: Confidence;
 }
 
 export interface ComparisonKpi {
