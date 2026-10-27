@@ -33,6 +33,8 @@ export interface SweepRow {
   p50: number | null;
   p95: number | null;
   p99: number | null;
+  /** p95 counting each failed request as a full client timeout (null in reports before 1.12). */
+  p95WithFailures: number | null;
   successRate: number | null;
   errorRate: number | null;
   /** Label of the primary bottleneck reported for the step, if any. */
@@ -134,7 +136,7 @@ export function failedRps(row: Pick<SweepRow, "offered" | "successRate">): numbe
 /** One curve row from a step's report. */
 export function sweepRow(rps: number, report: Report | null, runId: string | null = null): SweepRow {
   if (!report) {
-    return { rps, runId, offered: null, throughput: null, p50: null, p95: null, p99: null, successRate: null, errorRate: null, bottleneck: null };
+    return { rps, runId, offered: null, throughput: null, p50: null, p95: null, p99: null, p95WithFailures: null, successRate: null, errorRate: null, bottleneck: null };
   }
   const s = report.summary;
   const bottleneck = report.findings.find((f) => f.kind === "bottleneck");
@@ -148,6 +150,7 @@ export function sweepRow(rps: number, report: Report | null, runId: string | nul
     p50: s.latencyMs.p50,
     p95: s.latencyMs.p95,
     p99: s.latencyMs.p99,
+    p95WithFailures: s.latencyWithFailuresMs?.p95 ?? null,
     successRate: s.successRate,
     errorRate,
     bottleneck: label,

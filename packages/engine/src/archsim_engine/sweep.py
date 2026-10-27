@@ -98,6 +98,7 @@ def row_from(rps: float, report: Json) -> Json:
         "p50": lat.get("p50"),
         "p95": lat.get("p95"),
         "p99": lat.get("p99"),
+        "p95WithFailures": (s.get("latencyWithFailuresMs") or {}).get("p95"),
         "successRate": s.get("successRate"),
         "bottleneck": label,
         "resultDigest": report["provenance"]["resultDigest"],

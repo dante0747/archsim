@@ -16,7 +16,13 @@ import simpy
 from pydantic import Field
 
 from archsim_engine.issues import Issue, error, warning
-from archsim_engine.metrics import BucketedHistograms, Counter, LatencyHistogram, Timeline
+from archsim_engine.metrics import (
+    BucketedHistograms,
+    Counter,
+    LatencyHistogram,
+    LatencyWithFailures,
+    Timeline,
+)
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, ui
 from archsim_engine.runtime import OK, Outcome, Request, RuntimeComponent, SimContext, span
 from archsim_engine.schema import CamelModel, NodeSpec
@@ -145,6 +151,8 @@ class ClientMetrics:
         self.timeouts = Counter(tl)
         self.attempts = Counter(tl)
         self.latency = LatencyHistogram()
+        # Failing fast must not look fast: failed requests count as a full client timeout.
+        self.latency_with_failures = LatencyWithFailures()
         self.latency_by_op = {"read": LatencyHistogram(), "write": LatencyHistogram()}
         self.latency_series = BucketedHistograms(tl)
         self.cohorts = {"warmup": Cohort(), "measured": Cohort()}
@@ -153,15 +161,16 @@ class ClientMetrics:
     def cohort(self, req: Request) -> Cohort:
         return self.cohorts["measured" if req.measured else "warmup"]
 
-    def record(self, req: Request, outcome: Outcome, now: float) -> None:
+    def record(self, req: Request, outcome: Outcome, now: float, timeout_ms: float) -> None:
         c = self.cohort(req)
+        lat = now - req.created_at
         if outcome.ok:
             c.succeeded += 1
             self.succeeded.inc(now)
-            lat = now - req.created_at
             self.latency_series.record(now, lat)
             if req.measured:
                 self.latency.record(lat)
+                self.latency_with_failures.success(lat)
                 self.latency_by_op[req.op].record(lat)
             return
         if outcome.reason == "client_timeout":
@@ -171,6 +180,7 @@ class ClientMetrics:
             c.errors += 1
             self.errors.inc(now)
         if req.measured:
+            self.latency_with_failures.failure(lat, timeout_ms)
             key = (outcome.status, outcome.reason or "unknown", outcome.node_id, outcome.edge_id)
             self.failures[key] = self.failures.get(key, 0) + 1
 
@@ -246,7 +256,7 @@ class TrafficSourceRuntime(RuntimeComponent):
                     yield env.timeout(backoff)
                     span(att, self.id, "backoff", t0, env.now, f"retry {attempt + 2} after backoff")
         now = env.now
-        self.client.record(req, outcome, now)
+        self.client.record(req, outcome, now, cfg.timeout_ms)
         self.group.record(req, outcome, now)
         self.m.depart(now, outcome)
         if req.trace is not None:

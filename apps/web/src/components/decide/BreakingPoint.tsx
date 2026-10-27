@@ -89,16 +89,20 @@ export function BreakingPoint() {
     p50: r.p50,
     p95: r.p95,
     p99: r.p99,
+    p95All: r.p95WithFailures,
   }));
   const tpSeries = [
     { key: "throughput", label: "Successful throughput", color: SINGLE_SERIES },
     { key: "ideal", label: "Offered load (keeping up)", color: "var(--muted-axis)" },
     { key: "failed", label: "Failed requests", color: "var(--status-critical)" },
   ];
-  const latSeries = [
+  // p95 counting failures: drawn only when some step failed requests, where it differs from p95.
+  const anyFailed = rows.some((r) => r.p95WithFailures != null && r.successRate != null && r.successRate < 1);
+  const latSeries: { key: string; label: string; color: string; dashed?: boolean }[] = [
     { key: "p50", label: "p50", color: PERCENTILE_SERIES[0] },
     { key: "p95", label: "p95", color: PERCENTILE_SERIES[1] },
     { key: "p99", label: "p99", color: PERCENTILE_SERIES[2] },
+    ...(anyFailed ? [{ key: "p95All", label: "p95 counting failures", color: PERCENTILE_SERIES[1], dashed: true }] : []),
   ];
   const knee = analysis?.knee ?? null;
   const best = analysis?.maxWithinSlo ?? null;
@@ -248,7 +252,8 @@ export function BreakingPoint() {
                   <span className="text-xs font-semibold text-ink">Latency against offered load</span>
                   <Legend series={latSeries} />
                   <p className="text-[11px] leading-snug text-ink-3">
-                    Successful requests only.
+                    Solid lines: successful requests only.
+                    {anyFailed && <> The dashed p95 counts each failed request as a full client timeout.</>}
                     {failZone && <> In the shaded steps more than {allowed} of requests failed; red dots mark a p95 that leaves them out.</>}
                   </p>
                 </figcaption>
@@ -272,7 +277,18 @@ export function BreakingPoint() {
                       {knee && <ReferenceLine x={knee.rps} stroke="var(--status-serious)" strokeDasharray="4 3" />}
                       {best?.p95 != null && <ReferenceDot x={best.rps} y={best.p95} r={6} fill="none" stroke="var(--accent)" strokeWidth={2} />}
                       {latSeries.map((s) => (
-                        <Line key={s.key} type="linear" dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }} isAnimationActive={false} />
+                        <Line
+                          key={s.key}
+                          type="linear"
+                          dataKey={s.key}
+                          name={s.label}
+                          stroke={s.color}
+                          strokeWidth={2}
+                          strokeDasharray={s.dashed ? "5 4" : undefined}
+                          dot={false}
+                          activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+                          isAnimationActive={false}
+                        />
                       ))}
                       {rows
                         .filter((r) => r.p95 != null && tooManyFailures(r.successRate, objectives))
@@ -286,11 +302,11 @@ export function BreakingPoint() {
             </div>
 
             <div className="overflow-x-auto rounded-md border border-line bg-surface">
-              <table className="tabular w-full min-w-[720px] text-xs">
+              <table className="tabular w-full min-w-[800px] text-xs">
                 <thead>
                   <tr className="border-b border-line text-left">
-                    {["Offered", "Throughput", "Kept up", "p50", "p95", "p99", "Success", "Bottleneck", "Objectives"].map((h, i) => (
-                      <th key={h} className={cn(thClass, "px-3 py-2", i > 0 && i < 7 && "text-right")}>
+                    {["Offered", "Throughput", "Kept up", "p50", "p95", "p99", "p95 with failures", "Success", "Bottleneck", "Objectives"].map((h, i) => (
+                      <th key={h} className={cn(thClass, "px-3 py-2", i > 0 && i < 8 && "text-right")}>
                         {h}
                       </th>
                     ))}
@@ -309,6 +325,7 @@ export function BreakingPoint() {
                       <td className="px-3 py-2 text-right font-mono text-ink-2">{fmtMs(r.p50)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink">{fmtMs(r.p95)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink-2">{fmtMs(r.p99)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-ink-2">{fmtMs(r.p95WithFailures)}</td>
                       <td className={cn("px-3 py-2 text-right font-mono", tooManyFailures(r.successRate, objectives) ? "text-danger-ink" : "text-ink")}>{fmtPct(r.successRate, 2)}</td>
                       <td className="px-3 py-2 text-ink-2">{r.bottleneck ?? "–"}</td>
                       <td className="px-3 py-2">

@@ -328,6 +328,7 @@ def build_report(
         "attempts": client.attempts.window,
         "retryAmplification": _round(safe_ratio(client.attempts.window, client.offered.window)),
         "latencyMs": client.latency.summary(),
+        "latencyWithFailuresMs": client.latency_with_failures.summary(),
         "latencyByOp": {op: h.summary() for op, h in client.latency_by_op.items()},
         "failureBreakdown": failures,
         "clients": _client_groups(sources, shares, labels, resolved, window_s),

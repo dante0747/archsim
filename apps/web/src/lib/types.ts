@@ -496,6 +496,11 @@ export interface ReportSummary {
   attempts: number;
   retryAmplification: number | null;
   latencyMs: LatencySummary;
+  /**
+   * Latency counting failures: successes at their latency, each failed request as a full client
+   * timeout (or longer, when retries ran past it). Missing in reports before 1.12.
+   */
+  latencyWithFailuresMs?: LatencySummary;
   latencyByOp: Record<RequestType, LatencySummary>;
   failureBreakdown: FailureRow[];
   /** What each client group experienced (one entry per client part). Missing in reports before 1.2. */

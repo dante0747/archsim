@@ -61,13 +61,21 @@ const STAGE_H = 312;
 const at = (id: NodeId) => NODES.find((n) => n.id === id)!;
 const mid = (id: NodeId) => at(id).y + H / 2;
 
-type Link = { id: string; pts: [number, number][]; rate: (f: Frame) => number; write?: boolean; miss?: boolean };
+// Cache-aside: the API looks reads up in Redis and, on a miss (16% of reads), reads PostgreSQL
+// itself; writes go to PostgreSQL. While Redis is down every read goes to PostgreSQL.
+const READS = 0.9;
+const MISS = 0.16;
+type Link = { id: string; pts: [number, number][]; rate: (f: Frame) => number; writeShare?: (f: Frame) => number };
 const LINKS: Link[] = [
   { id: "c-lb", pts: [[16 + W, mid("clients")], [236, mid("lb")]], rate: (f) => f.load },
   { id: "lb-api", pts: [[236 + W, mid("lb")], [456, mid("api")]], rate: (f) => f.load },
   { id: "api-cache", pts: [[456 + W, mid("api")], [664, mid("api")], [664, mid("cache")], [690, mid("cache")]], rate: (f) => (f.down ? 0 : f.load * 0.9) },
-  { id: "api-db", pts: [[456 + W, mid("api")], [664, mid("api")], [664, mid("db")], [690, mid("db")]], rate: (f) => f.load * (f.down ? 1 : 0.1), write: true },
-  { id: "miss", pts: [[690 + W, mid("cache")], [888, mid("cache")], [888, mid("db")], [690 + W, mid("db")]], rate: (f) => (f.down ? 0 : f.load * 0.16), miss: true },
+  {
+    id: "api-db",
+    pts: [[456 + W, mid("api")], [664, mid("api")], [664, mid("db")], [690, mid("db")]],
+    rate: (f) => f.load * (1 - READS + READS * (f.down ? 1 : MISS)),
+    writeShare: (f) => (1 - READS) / (1 - READS + READS * (f.down ? 1 : MISS)),
+  },
 ];
 
 /** A path through orthogonal points with rounded corners. */
@@ -103,7 +111,7 @@ function along(pts: [number, number][], f: number): [number, number] {
 function story(t: number, f: Frame): { text: string; tone: "ok" | "bad" | "warn" } {
   if (t < OUTAGE[0]) return { text: `Ramping to 500 req/s · Checkout API ${Math.round(f.util.api * 100)}% busy · p95 ${Math.round(f.p95)} ms`, tone: "ok" };
   if (t < OUTAGE[0] + 3) return { text: "Fault injected: the cart cache goes down", tone: "bad" };
-  if (t < OUTAGE[0] + 6) return { text: "Reads fall through to PostgreSQL · it saturates", tone: "bad" };
+  if (t < OUTAGE[0] + 6) return { text: "Every read now goes from the API to PostgreSQL · it saturates", tone: "bad" };
   if (t < OUTAGE[1]) return { text: "The autoscaler adds 2 API replicas · the database is still the bottleneck", tone: "bad" };
   if (t < OUTAGE[1] + 6) return { text: "Cache back · queues draining", tone: "warn" };
   return { text: "Recovered · verdict: give the database a fallback or replicas", tone: "ok" };
@@ -228,6 +236,7 @@ export function HeroDemo() {
             {LINKS.map((e) => {
               const rate = e.rate(f);
               const dots = Math.round(Math.min(6, rate / 75));
+              const writes = e.writeShare ? Math.max(1, Math.round(dots * e.writeShare(f))) : 0;
               return (
                 <g key={e.id}>
                   <path
@@ -235,11 +244,10 @@ export function HeroDemo() {
                     fill="none"
                     stroke={e.id === "api-db" && f.down ? "color-mix(in srgb, var(--status-critical) 60%, var(--wire))" : "var(--wire)"}
                     strokeWidth={1.5 + Math.min(2, rate / 280)}
-                    strokeDasharray={e.miss ? "6 5" : undefined}
                   />
                   {Array.from({ length: dots }, (_, i) => {
                     const [px, py] = along(e.pts, (t * 0.85 + i / dots) % 1);
-                    return e.write ? (
+                    return i < writes ? (
                       <rect key={i} x={px - 3} y={py - 3} width={6} height={6} rx={1} fill="var(--accent)" />
                     ) : (
                       <circle key={i} cx={px} cy={py} r={3.2} fill="var(--accent)" />

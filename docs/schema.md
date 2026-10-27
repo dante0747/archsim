@@ -31,7 +31,7 @@ are here for explanation only):
       { "id": "cache", "type": "cache", "label": "Redis Cache",
         "config": { "hitModel": "fixed_ratio", "hitRatio": 0.8 } },
       { "id": "db", "type": "database", "label": "PostgreSQL",
-        "config": { "maxConnections": 6 } }
+        "config": { "maxConnections": 20 } }
     ],
     "edges": [
       { "id": "clients-api", "source": "clients", "target": "api",

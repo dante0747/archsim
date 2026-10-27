@@ -229,6 +229,66 @@ class LatencyHistogram:
         }
 
 
+class LatencyWithFailures:
+    """What users waited, failures included: successes at their latency, and each failed request
+    as a full client timeout. A failure that outlasted the timeout (retries) counts as long as it
+    took. Failures that ended within the timeout are kept exactly, so a percentile that lands on
+    them reads as the timeout itself rather than a histogram bin near it."""
+
+    __slots__ = ("at_timeout", "hist")
+
+    def __init__(self) -> None:
+        self.hist = LatencyHistogram()
+        self.at_timeout: dict[float, int] = {}
+
+    def success(self, v: float) -> None:
+        self.hist.record(v)
+
+    def failure(self, v: float, timeout_ms: float) -> None:
+        if v <= timeout_ms + 1e-6:
+            self.at_timeout[timeout_ms] = self.at_timeout.get(timeout_ms, 0) + 1
+        else:
+            self.hist.record(v)
+
+    @property
+    def count(self) -> int:
+        return self.hist.count + sum(self.at_timeout.values())
+
+    def _max(self) -> float:
+        return max([self.hist.max if self.hist.count else 0.0, *self.at_timeout])
+
+    def percentile(self, p: float) -> float | None:
+        n = self.count
+        if n == 0:
+            return None
+        if p >= 100:
+            return self._max()
+        h = self.hist
+        points = [(min(max(h._bin_value(k), h.min), h.max), c) for k, c in h.bins.items()]
+        points += self.at_timeout.items()
+        points.sort(key=lambda vc: vc[0])
+        rank = p / 100.0 * n
+        seen = 0
+        for v, c in points:
+            seen += c
+            if seen >= rank and seen > 0:
+                return v
+        return points[-1][0]
+
+    def summary(self) -> dict[str, float | int | None]:
+        n = self.count
+        total = self.hist.sum + sum(t * c for t, c in self.at_timeout.items())
+        return {
+            "count": n,
+            "mean": _round(total / n if n else None),
+            "p50": _round(self.percentile(50)),
+            "p90": _round(self.percentile(90)),
+            "p95": _round(self.percentile(95)),
+            "p99": _round(self.percentile(99)),
+            "max": _round(self._max() if n else None),
+        }
+
+
 class BucketedHistograms:
     """One latency histogram per time bucket (for percentile time series)."""
 

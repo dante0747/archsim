@@ -56,11 +56,15 @@ def _summary_line(r: dict[str, Any]) -> str:
     def f(v: Any, spec: str) -> str:
         return "n/a" if v is None else format(v, spec)
 
-    return (
+    line = (
         f"offered {f(s['offeredRps'], ',.1f')} req/s | throughput {f(s['throughputRps'], ',.1f')} req/s | "
         f"success {f(s['successRate'], '.2%')} | p50 {f(lat['p50'], ',.1f')} ms | "
         f"p95 {f(lat['p95'], ',.1f')} ms | p99 {f(lat['p99'], ',.1f')} ms"
     )
+    with_failures = (s.get("latencyWithFailuresMs") or {}).get("p95")
+    if with_failures is not None and s["successRate"] is not None and s["successRate"] < 1:
+        line += f" | p95 counting failures {f(with_failures, ',.1f')} ms"
+    return line
 
 
 def cmd_validate(args: argparse.Namespace) -> int:

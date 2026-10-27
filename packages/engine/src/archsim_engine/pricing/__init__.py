@@ -383,10 +383,10 @@ def load_snapshot(
         have = ", ".join(f"{a['region']} {a['date']} ({a['sha256'][:12]})" for a in same)
         raise PricingError(
             f"{wanted} (this machine has {provider} {have}); a pinned snapshot is never "
-            "swapped for another. See docs/pricing.md."
+            "swapped for another."
         )
     have = ", ".join(f"{a['provider']} {a['region']}" for a in available()) or "none"
-    raise PricingError(f"{wanted} (available: generic; snapshots: {have}). See docs/pricing.md.")
+    raise PricingError(f"{wanted} (available: generic; snapshots: {have}).")
 
 
 def snapshot_for(pricing: dict[str, Any] | None) -> Snapshot:

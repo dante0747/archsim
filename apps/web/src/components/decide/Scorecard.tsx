@@ -431,6 +431,9 @@ export function AnswerPage() {
           <Stat label="objectives met" value={`${slo.met}/${slo.total}`} />
           <Stat label="handled" value={fmtRps(report.summary.throughputRps)} />
           <Stat label="latency p95" value={formatSloValue("p95", report.summary.latencyMs.p95)} />
+          {report.summary.successRate != null && report.summary.successRate < 1 && report.summary.latencyWithFailuresMs?.p95 != null && (
+            <Stat label="p95 counting failures as timeouts" value={formatSloValue("p95", report.summary.latencyWithFailuresMs.p95)} />
+          )}
           <Stat label="success" value={fmtPct(report.summary.successRate, report.summary.successRate === 1 ? 0 : 1)} />
           {cost.hasCost && <Stat label="per month" value={formatUsd(cost.monthly)} />}
         </dl>

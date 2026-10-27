@@ -76,7 +76,7 @@ describe("decision report", () => {
       catalog,
       objectives: {},
       review: [{ severity: "warning", title: "Single point of failure", detail: "PostgreSQL has one node." }],
-      sweep: { rows: [{ rps: 100, runId: null, offered: 100, throughput: 100, p50: 5, p95: 10, p99: 20, successRate: 1, errorRate: 0, bottleneck: null }], knee: null, kneeReason: null, maxWithinSlo: null, saturatedAt: null, failingFrom: null, verdict: "Holds 100 req/s." },
+      sweep: { rows: [{ rps: 100, runId: null, offered: 100, throughput: 100, p50: 5, p95: 10, p99: 20, p95WithFailures: 10, successRate: 1, errorRate: 0, bottleneck: null }], knee: null, kneeReason: null, maxWithinSlo: null, saturatedAt: null, failingFrom: null, verdict: "Holds 100 req/s." },
     });
     expect(md).toContain("outage on `cache` from 10 s for 5 s");
     expect(md).toContain("**Single point of failure** (warning): PostgreSQL has one node.");

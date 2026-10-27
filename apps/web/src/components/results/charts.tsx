@@ -75,13 +75,17 @@ function ChartTooltip({
   );
 }
 
-export function Legend({ series }: { series: Pick<SeriesDef, "key" | "label" | "color">[] }) {
+export function Legend({ series }: { series: (Pick<SeriesDef, "key" | "label" | "color"> & { dashed?: boolean })[] }) {
   if (series.length < 2) return null;
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Legend">
       {series.map((s) => (
         <li key={s.key} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-2">
-          <span className="inline-block h-0.5 w-3.5 rounded" style={{ background: s.color }} aria-hidden />
+          {s.dashed ? (
+            <span className="inline-block w-3.5 border-t-2 border-dashed" style={{ borderColor: s.color }} aria-hidden />
+          ) : (
+            <span className="inline-block h-0.5 w-3.5 rounded" style={{ background: s.color }} aria-hidden />
+          )}
           {s.label}
         </li>
       ))}

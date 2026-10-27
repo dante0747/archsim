@@ -516,6 +516,7 @@ Client-side (end-to-end) summary:
 | `throughputRps` | Successful completions whose *completion time* falls inside the window / `measuredS`. Because it is time-based it can be marginally above `offeredRps`. |
 | `successRate`, `errorRate`, `timeoutRate` | Outcome counts of the measured cohort / `arrived`. `null` when nothing arrived. |
 | `latencyMs` (`mean`, `p50`, `p90`, `p95`, `p99`, `max`) | End-to-end latency of **successful** measured-cohort requests, including retries and backoff. Failed and timed-out requests are counted in the rates, not in latency. |
+| `latencyWithFailuresMs` (same fields) | What users waited, failures included: successes at their latency, and each failed or timed-out measured-cohort request as its client's full timeout (`timeoutMs`), or as long as it took when retries ran past it. Failing fast never looks fast, and once more than 5% of requests fail, p95 is at least the timeout. Report 1.12+. |
 | `retryAmplification` | Client attempts / client requests inside the window. |
 | `failureBreakdown` | Failures of the measured cohort grouped by (status, reason, origin node, link). |
 | `clients` | One entry per client group: `share` (fraction of the workload), the measured cohort's `arrived` / `succeeded` / `failed` / `timedOut`, `offeredRps`, `successRate`, `retryAmplification` and `latencyMs`. The fields above are the totals across groups. |

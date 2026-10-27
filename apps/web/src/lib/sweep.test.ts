@@ -25,6 +25,7 @@ const row = (rps: number, throughput: number, p95: number, successRate = 1, bott
   p50: p95 / 3,
   p95,
   p99: p95 * 1.5,
+  p95WithFailures: successRate < 0.95 ? 2000 : p95,
   successRate,
   errorRate: 1 - successRate,
   bottleneck,
@@ -120,8 +121,17 @@ describe("sweepRow", () => {
       nodes: [{ id: "api", label: "API Servers" }],
     } as unknown as Report;
     const r = sweepRow(500, report, "run-1");
-    expect(r).toMatchObject({ rps: 500, runId: "run-1", throughput: 480, p95: 50, bottleneck: "API Servers" });
+    expect(r).toMatchObject({ rps: 500, runId: "run-1", throughput: 480, p95: 50, p95WithFailures: null, bottleneck: "API Servers" });
     expect(r.errorRate).toBeCloseTo(0.04, 9);
+  });
+
+  it("reads the p95 that counts failures when the report has it (1.12+)", () => {
+    const report = {
+      summary: { offeredRps: 500, throughputRps: 400, successRate: 0.8, latencyMs: { p50: 10, p95: 50, p99: 90 }, latencyWithFailuresMs: { p50: 12, p95: 2000, p99: 2000 } },
+      findings: [],
+      nodes: [],
+    } as unknown as Report;
+    expect(sweepRow(500, report).p95WithFailures).toBe(2000);
   });
 });
 

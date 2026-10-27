@@ -15,4 +15,4 @@ p95 goes from 104 ms to 275 ms (objective 400 ms); availability misses its objec
 | Availability | ≥ 99.00% | 70.23% | missed |
 
 Bottleneck: API Servers is the primary bottleneck.
-Fails on: regression. These are ArchSim's estimates under the design's assumptions (engine 0.10.0, result `90e5b06c9e02`), not measurements. [Full report](https://example.com/run/1)
+Fails on: regression. These are ArchSim's estimates under the design's assumptions (engine 0.10.0, result `f7cfe74de7f0`), not measurements. [Full report](https://example.com/run/1)

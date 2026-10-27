@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-10-26 (engine 0.10.0, schema 1.3, report 1.11). This file separates what is
+State as of 2026-10-27 (engine 0.10.0, schema 1.3, report 1.12). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
@@ -27,6 +27,28 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 - The Test plan no longer says "the plan changed since" right after a run on PostgreSQL:
   JSONB reorders keys, and the check compared `JSON.stringify` output. It now compares the
   values (`sameExperiment` in `lib/faults.ts`, tested with a JSONB-ordered run).
+
+**Product review quick wins (2026-10-27, report 1.12).**
+
+- Reports add `summary.latencyWithFailuresMs` (same shape as `latencyMs`): successes at their
+  latency and each failed request as a full client timeout (as long as it took when retries ran
+  past it). Failures that ended within the timeout are kept exactly, so a p95 that lands on them
+  reads as the timeout. The breaking-point chart draws it dashed when any step failed requests,
+  the table and the Markdown report add a "p95 with failures" column, and the Results page shows
+  it next to p95 when some requests failed. Sweep rows (CLI and web) carry `p95WithFailures`.
+- The starter's PostgreSQL allows 20 concurrent queries instead of 6. Every starter scenario
+  gives the same success and latency; PostgreSQL's utilisation drops and the "fewer connections
+  than callers" review note goes away.
+- The landing-page animation shows cache-aside: the API reads PostgreSQL itself on a miss.
+- No file paths in the UI: the pricing card and the engine's pricing messages and hints no
+  longer point to `docs/pricing.md` or `scripts/prices/`. The tour says to drag from any of the
+  dots on a part's edges.
+- The web app sends security headers: a content security policy (same-origin only, inline
+  scripts allowed because Next.js bootstraps with them, `frame-ancestors 'none'`),
+  `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a
+  restrictive `Permissions-Policy` and `Cross-Origin-Opener-Policy: same-origin`, and no
+  `X-Powered-By`. Checked in a production build: no policy violations on the landing page,
+  editor, Results and breaking point.
 
 **Review fixes (2026-10-26, branch review-fixes on top of phases 1-8).** A review of phases
 1-8 found bugs the tests did not cover; each fix below has a regression test that failed

@@ -227,21 +227,6 @@
       ]
     },
     {
-      "id": "pool-exhaustion:api+db|api-db",
-      "severity": "low",
-      "rule": "pool-exhaustion",
-      "title": "PostgreSQL has fewer connections than callers",
-      "detail": "Up to 8 blocking workers (API Servers) can wait on PostgreSQL, which accepts 6 connections. When it slows down, 2 requests queue for a connection and fail after 1,000 ms.",
-      "suggestion": "Size application pools to the database's real concurrency, add a pooler, or cap service concurrency.",
-      "nodeIds": [
-        "api",
-        "db"
-      ],
-      "edgeIds": [
-        "api-db"
-      ]
-    },
-    {
       "id": "spof:lb|",
       "severity": "low",
       "rule": "spof",
@@ -257,7 +242,7 @@
   "reviewCounts": {
     "high": 0,
     "medium": 1,
-    "low": 4
+    "low": 3
   },
   "reviewRules": {
     "spof": "Single point of failure",

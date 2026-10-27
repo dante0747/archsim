@@ -86,7 +86,7 @@ export function PricingCard() {
               : "Parts snap to the cheapest instance type that covers them; costs cite it."
           : snapshots.length
             ? "Choose a price snapshot to size parts as real instance types."
-            : "No price snapshot on this machine yet (see docs/pricing.md)."}
+            : "No price snapshot on this machine yet, so costs use generic illustrative rates."}
       </p>
     </div>
   );

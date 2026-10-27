@@ -95,6 +95,10 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     const bottleneck = report.findings.find((f) => f.kind === "bottleneck");
     lines.push(`- **Verdict:** ${verdict}${run?.label ? ` (run "${run.label}")` : ""}.`);
     lines.push(`- **Throughput:** ${rps(report.summary.throughputRps)} of ${rps(report.summary.offeredRps)} offered; p95 ${ms(report.summary.latencyMs.p95)}; success ${pct(report.summary.successRate)}.`);
+    const withFailures = report.summary.latencyWithFailuresMs?.p95;
+    if (withFailures != null && report.summary.successRate != null && report.summary.successRate < 1) {
+      lines.push(`- **p95 counting failures:** ${ms(withFailures)} (each failed request counted as a full client timeout).`);
+    }
     if (bottleneck) lines.push(`- **Bottleneck:** ${bottleneck.title}.`);
   } else {
     lines.push("- No simulation run yet: run the design to evaluate it against the objectives.");
@@ -180,6 +184,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
           ["Successful throughput", rps(s.throughputRps)],
           ["Success rate", pct(s.successRate)],
           ["Latency p50 / p95 / p99", `${ms(s.latencyMs.p50)} / ${ms(s.latencyMs.p95)} / ${ms(s.latencyMs.p99)}`],
+          ...(s.latencyWithFailuresMs ? [["Latency p95 counting failures as timeouts", ms(s.latencyWithFailuresMs.p95)]] : []),
           ["Timeouts", pct(s.timeoutRate)],
           ["Attempts per request", s.retryAmplification == null ? "–" : s.retryAmplification.toFixed(2)],
         ],
@@ -220,14 +225,14 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     lines.push("## Breaking point", "", sweep.verdict, "");
     lines.push(
       table(
-        ["Offered", "Throughput", "p95", "p99", "Success", "Bottleneck"],
-        sweep.rows.map((r) => [rps(r.rps), rps(r.throughput), ms(r.p95), ms(r.p99), pct(r.successRate, 1), r.bottleneck ?? "–"]),
+        ["Offered", "Throughput", "p95", "p99", "p95 with failures", "Success", "Bottleneck"],
+        sweep.rows.map((r) => [rps(r.rps), rps(r.throughput), ms(r.p95), ms(r.p99), ms(r.p95WithFailures), pct(r.successRate, 1), r.bottleneck ?? "–"]),
       ),
       "",
     );
     if (sweep.failingFrom) {
       lines.push(
-        `Latency covers successful requests only. From ${rps(sweep.failingFrom.rps)} on, more requests failed than the objectives allow (${pct(1 - (sweep.failingFrom.successRate ?? 1), 1)} at that step), and those failures are not in p95 or p99.`,
+        `Latency covers successful requests only. From ${rps(sweep.failingFrom.rps)} on, more requests failed than the objectives allow (${pct(1 - (sweep.failingFrom.successRate ?? 1), 1)} at that step), and those failures are not in p95 or p99. "p95 with failures" counts each failed request as a full client timeout.`,
         "",
       );
     }

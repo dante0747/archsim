@@ -33,7 +33,7 @@ export const TOUR_STEPS: TourStep[] = [
     anchor: "canvas",
     side: "inside",
     title: "Connect and tune",
-    body: "Drag from the dot on a part's right edge to the next part. Click a part to change its settings.",
+    body: "Hover a part and drag from any of the dots on its edges to the next part. Click a part to change its settings.",
   },
   {
     anchor: "panel",

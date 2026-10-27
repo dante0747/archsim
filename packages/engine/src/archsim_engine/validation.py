@@ -637,8 +637,8 @@ def validate_document(
                         "Add that snapshot file, or choose another snapshot (clearing "
                         "snapshotDate uses the newest)."
                         if pinned
-                        else "Add the snapshot file (scripts/prices/) or set the provider to "
-                        "generic."
+                        else "Add a price snapshot for that provider on this machine, or "
+                        "use generic rates."
                     ),
                 )
             )
