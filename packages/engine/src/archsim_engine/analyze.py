@@ -1,5 +1,6 @@
 """Static analysis of a design without simulating it: the auto sizes, the cost estimate, the
-design review and each part's technology tier, exactly as a run would use them
+design review, each part's technology tier, where every input came from, the instant estimate
+from queueing formulas and the confidence it deserves, exactly as a run would use them
 (``POST /api/v1/analyze``, the web app's live inspector and design review, the CLI and the MCP
 server all call this)."""
 
@@ -7,7 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from archsim_engine.confidence import analysis_confidence
 from archsim_engine.cost import estimate_cost
+from archsim_engine.estimate import estimate_design
 from archsim_engine.load import peak_rps
 from archsim_engine.provenance import input_provenance, provenance_counts
 from archsim_engine.registry import ComponentRegistry
@@ -29,6 +32,8 @@ def analyze_document(
     snapshot = simulation_input(resolved)
     review = review_design(snapshot, registry)
     inputs = input_provenance(resolved, registry)
+    technologies = registry.technology_tiers(snapshot["architecture"]["nodes"])
+    estimate = estimate_design(resolved, registry, snapshot)
     return {
         "scenarioId": scenario.id if scenario else None,
         "peakRps": peak_rps(snapshot["workload"]),
@@ -43,9 +48,13 @@ def analyze_document(
         "review": review,
         "reviewCounts": count_by_severity(review),
         "reviewRules": REVIEW_RULES,
-        "technologies": registry.technology_tiers(snapshot["architecture"]["nodes"]),
+        "technologies": technologies,
         "inputs": inputs,
         "provenanceCounts": provenance_counts(inputs),
+        "estimate": estimate,
+        "confidence": analysis_confidence(
+            estimate, inputs, technologies, registry, snapshot["architecture"]
+        ),
         "calibration": doc.calibration.model_dump(mode="json", by_alias=True)
         if doc.calibration
         else None,

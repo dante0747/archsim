@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import analysisJson from "@/test/fixtures/analysis-starter.json";
 import catalogJson from "@/test/fixtures/catalog.json";
 import starter from "@/test/fixtures/starter.json";
 import { cell, decisionReportMarkdown } from "./report-md";
-import type { ArchitectureDocument, Catalog, Report } from "./types";
+import type { Analysis, ArchitectureDocument, Catalog, Report } from "./types";
 
 const doc = starter as unknown as ArchitectureDocument;
 const catalog = catalogJson as unknown as Catalog;
@@ -82,6 +83,38 @@ describe("decision report", () => {
     expect(md).toContain("**Single point of failure** (warning): PostgreSQL has one node.");
     expect(md).toContain("## Breaking point");
     expect(md).toContain("Holds 100 req/s.");
+  });
+
+  it("carries the run's confidence, its estimate against the simulation and documented inputs", () => {
+    const analysis = analysisJson as unknown as Analysis;
+    const report = fakeReport();
+    report.confidence = analysis.confidence;
+    report.estimate = analysis.estimate;
+    report.nodes = [{ id: "api", summary: { utilization: 0.698 } }] as unknown as Report["nodes"];
+    report.assumptions = {
+      ...report.assumptions,
+      provenanceCounts: { measured: 0, documented: 1, assumed: 4, illustrative: 30 },
+      userInputs: [
+        { scope: "node", id: "api", label: "API Servers", field: "gcPauseMs", fieldLabel: "GC pause", value: "0.1 ms", provenance: { kind: "documented", source: "https://go.dev/doc/go1.8", note: "default for go" } },
+      ],
+    };
+    const md = decisionReportMarkdown({ doc, catalog, objectives: { latencyP95Ms: 300 }, report });
+    expect(md).toContain("- **Low confidence:** 31 of 35 inputs are illustrative defaults. To raise it: Calibrate from telemetry");
+    expect(md).toContain("### Confidence: low");
+    expect(md).toContain("| API Servers: Service time | illustrative |");
+    expect(md).toContain("Queueing formulas: p95 ≈ 97 ms (simulated 89 ms); API Servers 70% busy (simulated 70%).");
+    expect(md).toContain("Inputs: 0 measured from telemetry, 1 documented by the vendor, 4 assumed (typed in), 30 illustrative");
+    expect(md).toContain("| API Servers: GC pause | 0.1 ms | https://go.dev/doc/go1.8 |");
+  });
+
+  it("uses the design's confidence and estimate without a run", () => {
+    const analysis = analysisJson as unknown as Analysis;
+    const md = decisionReportMarkdown({ doc, catalog, objectives: {}, designConfidence: analysis.confidence, designEstimate: analysis.estimate });
+    expect(md).toContain("- **Estimate from queueing formulas (not simulated):** p95 ≈ ");
+    expect(md).toContain("- **Low confidence:** 31 of 35 inputs are illustrative defaults.");
+    // a run made before confidence was recorded borrows the design's, and says so
+    const old = decisionReportMarkdown({ doc, catalog, objectives: {}, report: fakeReport(), designConfidence: analysis.confidence });
+    expect(old).toContain("**Low confidence (current design; the run predates confidence):**");
   });
 
   it("escapes table cells", () => {

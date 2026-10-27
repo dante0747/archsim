@@ -74,6 +74,9 @@ def measure(
         ),
         "resultDigest": report["provenance"]["resultDigest"],
         "engineVersion": report["provenance"]["engineVersion"],
+        "confidence": {
+            k: (report.get("confidence") or {}).get(k) for k in ("level", "reason", "howToRaise")
+        },
         "knee": None,
     }
     if knee:
@@ -415,6 +418,12 @@ def to_markdown(result: Json, report_url: str | None = None) -> str:
         ]
     if cur.get("bottleneck"):
         lines.append(f"Bottleneck: {_text(cur['bottleneck'])}.")
+    conf = cur.get("confidence") or {}
+    if conf.get("level"):
+        lines.append(
+            f"**{conf['level'].capitalize()} confidence**: {_text(conf['reason'])}. "
+            f"To raise it: {_text(conf['howToRaise'])}"
+        )
     for n in result["notes"]:
         lines.append(_text(n))
     fails = ", ".join(result["failOn"])

@@ -97,7 +97,8 @@ Calibration from Prometheus or OpenTelemetry ([calibration.md](calibration.md)) 
 distribution to an `empirical` quantile table (sampled by interpolating a uniform draw from the
 seeded generator, so runs stay reproducible) and the workload to a `trace` pattern: the
 observed rate curve, sampled by thinning like the ramp and burst patterns. Every input carries
-its provenance (measured, assumed, illustrative) in the document and in reports.
+its provenance in the document (measured, assumed, illustrative) and in reports and `/analyze`,
+which add a fourth, derived kind: documented (below).
 
 ### Technology tiers and where defaults come from
 
@@ -115,7 +116,12 @@ technology has been validated against measurements yet.
 A technology's "auto" default is **documented** when one of its traits links the vendor
 documentation that states it (`Trait.covers`; PostgreSQL-linked traits document PostgreSQL's
 values only), and a preset number when the preset's `sources` links it; everything else is
-**illustrative**. The inspector says which for every Auto value.
+**illustrative**. The inspector says which for every Auto value. In reports
+(`assumptions.userInputs`) and `/analyze` (`inputs`), an input that is left at such a documented
+value, or set to the same number, is classified **documented**, with `source` the link and a
+`note` saying whose default it is; `provenanceCounts` counts `measured`, `documented`, `assumed`
+and `illustrative`. It is derived each time: documents still store only the three kinds of the
+schema (1.3), and a record in the document (a calibration) always wins.
 [assumptions.md](assumptions.md) lists every such value, preset number, assumption default and
 engine constant with its basis; `scripts/gen_assumptions.py` writes it from the code and a test
 fails when it is out of date.
@@ -553,6 +559,79 @@ cohorts, so warm-up is visible in charts).
 **Memory is bounded** by buckets and histogram bins, never by the number of requests.
 Latency histograms use logarithmic bins growing by 2% (reported values are the bin's geometric
 midpoint, so percentiles are accurate to about 1-2%). Means are exact.
+
+## Confidence (`confidence`)
+
+Every report (1.13+) and every `/analyze` result has `confidence`: how much of what decides the
+result rests on numbers someone checked. There is no numeric score.
+
+| Field | Definition |
+| --- | --- |
+| `level` | `high`, `medium` or `low` (rules below). |
+| `reason` | The fact that decided the level, e.g. "31 of 35 inputs are illustrative defaults". |
+| `reasons` | Every fact behind it, the deciding one first. |
+| `drivers` | Up to six inputs to replace first: badly fitted measured inputs, then the assumed and illustrative inputs of the heaviest parts, service times and latencies first. Each has `scope`, `id`, `label`, `field`, `fieldLabel`, `kind` and `weight` (its part's share of the weight). |
+| `weightedBy` | `latency` (reports), `utilization` (analysis), or `inputs` when nothing carries weight. |
+| `howToRaise` | One sentence: what would raise it. |
+
+**Weight.** In a report each part counts by its share of a successful request's time
+(`explain.latencyBreakdown`); the network's share goes to the links in proportion to calls x
+mean link latency. A run in which no request succeeded falls back to utilization. Before a run
+(`/analyze`), each part counts by its utilization at the peak from the instant estimate (below),
+capped at 1. Parts without inputs carry no weight; the workload's inputs describe the question,
+not the system, and are not weighed. Cost inputs are not weighed either.
+
+**Grounded inputs.** A part's share of grounded inputs: measured with a calibration fit error of
+at most 15% (or no fit error recorded), or documented.
+
+- **High:** at least 80% of the weight is grounded and no experimental technology is on the
+  request path (a part that serves requests in the run, or that the estimate puts on a client's
+  path).
+- **Low:** under 40% is grounded, or an experimental technology is at the bottleneck (the report's
+  bottleneck finding, else its busiest part; before a run, the estimate's busiest part), or a
+  measured input's fit error is above 30%.
+- **Medium:** otherwise.
+
+The web app shows the badge and the reason next to every verdict, the Markdown report and
+`archsim run` print them, the CI gate's comment carries them, and the MCP tools return them.
+Confidence is not part of `resultDigest`.
+
+## Instant estimate (`estimate`)
+
+What textbook queueing formulas predict for the design, without simulating: `/analyze` returns it
+for the design (cheap enough for every edit, about a millisecond), and every report (1.13+)
+records it for exactly what was simulated, so the two can be compared. At the workload's peak,
+from the static load estimate (first attempts only; a fixed hit ratio, or for a TTL cache one
+estimated from its TTL and the key popularity: each key's hit ratio is r·W / (1 + r·W), with W
+the time until the key expires or is next written):
+
+- **Utilization** ρ = λ / (pools x slots x μ), with μ = 1000 / mean holding time. A slot is held
+  for the part's own time, plus its downstream calls when it waits on them (thread-per-request
+  services, load-balancer connections, serverless instances, queue consumers). CPU cores (set or
+  auto-sized) and rate or throughput limits can bind first.
+- **Waiting:** an M/M/c queue per pool (a service replica, a database instance, a cache shard),
+  Wq = C(c, a) / (c·μ - λ) with Erlang C. Load balancers, serverless functions and third-party
+  APIs refuse rather than queue, so they add no wait.
+- **Latency** of each request type: the network both ways on every link, each part's wait and own
+  time, and its calls in order, each weighted by how often it is made (misses, load-balancer
+  shares). A message queue's consumers are off the path: the producer waits for the publish.
+
+| Field | Definition |
+| --- | --- |
+| `atRps` | The peak the formulas are evaluated at (req/s). |
+| `latencyMs.mean` | Mean over the request mix, from the sums above. |
+| `latencyMs.p95` | **Rough approximation**: a lognormal per request path with that path's mean and variance, mixed by traffic share. `latencyMs` is null when a part on the path is overloaded or its load depends on the run. |
+| `busiest` | The part with the highest utilization: `id`, `label`, `utilization`, `limitedBy` (`slots`, `cpu` or `rate limit`). |
+| `overloaded`, `saturationRps` | Whether any part is at ρ ≥ 1, and about where the busiest part runs out: peak / ρ. A queue whose consumers fall behind is overloaded but does not slow its producers. |
+| `summary` | "p95 ≈ 97 ms; busiest API Servers 70%", or "Overloaded at 1,600 req/s: Fulfillment needs 1145% of its capacity; it saturates at about 140 req/s." |
+| `parts[]` | Per part: `arrivalRps`, `slots`, `pools`, `meanServiceMs`, `meanHoldMs`, `utilization`, `slotUtilization`, `cpuUtilization`, `limitedBy`, `waitProbability`, `meanWaitMs`, `perRequestMs` (wait and own time per client request), `onPath`, `status` (`ok`, `busy` from 80%, `overloaded`, or `unknown` with a `note`). |
+| `paths[]`, `breakdown[]` | Mean latency per client and request type; where a request's time goes (comparable with `explain.latencyBreakdown`). |
+| `notes` | What it leaves out, and how it was computed. |
+
+Not included: retries, timeouts, faults, row-lock waits, buffer-cache misses, cold starts, GC
+pauses, autoscaling delays and the memory model. On the starter the estimate is within 7% of the
+simulated mean and p95 and within a point of its busiest part's utilization; on the queueing lab
+(an M/M/4 queue) within 5%. `test_estimate.py` keeps both within 15%.
 
 ## Accounting invariants
 

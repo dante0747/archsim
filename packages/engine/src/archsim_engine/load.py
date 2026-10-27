@@ -176,9 +176,18 @@ def _weight(cfg: Json, type_: str) -> float:
 
 
 def estimate_load(
-    doc: Json, registry: ComponentRegistry, ttl_miss_share: float | None = None
+    doc: Json,
+    registry: ComponentRegistry,
+    ttl_miss_share: float | None = None,
+    *,
+    miss_shares: dict[str, float] | None = None,
+    edge_loads: dict[str, NodeLoad | None] | None = None,
 ) -> dict[str, NodeLoad | None]:
-    """Peak load per node id; ``None`` when it cannot be estimated statically."""
+    """Peak load per node id; ``None`` when it cannot be estimated statically.
+
+    ``miss_shares`` gives the miss share of particular TTL caches (cache id -> share), taking
+    precedence over ``ttl_miss_share``. When ``edge_loads`` is given, it is filled with the first
+    attempts sent over each link (link id -> load, ``None`` when unknown)."""
     nodes: list[Json] = doc["architecture"]["nodes"]
     edges: list[Json] = doc["architecture"]["edges"]
     by_id = {n["id"]: n for n in nodes}
@@ -209,6 +218,8 @@ def estimate_load(
         c = cfg[cache_id]
         if (c.get("hitModel") or "fixed_ratio") == "fixed_ratio":
             return 1 - (num(c.get("hitRatio")) or 0.0)
+        if miss_shares is not None and cache_id in miss_shares:
+            return miss_shares[cache_id]
         return ttl_miss_share
 
     def aside_lookups(outs: list[Json]) -> list[Json]:
@@ -283,6 +294,8 @@ def estimate_load(
                 write = here.write if _carries(e, "write") else 0.0
                 sent = None if read is None else NodeLoad(read, write)
             add(e["target"], sent)
+            if edge_loads is not None:
+                edge_loads[e["id"]] = sent
             indeg[e["target"]] = indeg.get(e["target"], 1) - 1
             if indeg[e["target"]] == 0:
                 queue.append(e["target"])

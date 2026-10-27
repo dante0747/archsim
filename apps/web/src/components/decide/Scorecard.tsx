@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { ConfidenceLine, EstimatePending, EstimateVsSimulation } from "./Confidence";
 import { EmptyPanel, Panel, StatusMark, runDesignNow, useDecideRun } from "./shared";
 
 // ---------------------------------------------------------------------------------------------
@@ -378,11 +379,15 @@ export function AnswerPage() {
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
   const running = followRun && (followRun.status === "queued" || followRun.status === "running") ? followRun : null;
   const { run, report } = useDecideRun();
+  const analysis = useEditor((s) => s.analysis);
+  // the live analysis is of the base design: only a run of the base design can borrow its estimate
+  const pendingEstimate = running && !running.scenarioId ? (analysis?.estimate ?? null) : null;
 
   if (!run || !report) {
     return (
       <div className="mx-auto max-w-5xl space-y-5 px-6 py-8">
         {running && <RunProgress run={running} />}
+        {pendingEstimate && <EstimatePending estimate={pendingEstimate} />}
         {!running && (
           <EmptyPanel
             icon={<Play />}
@@ -426,6 +431,8 @@ export function AnswerPage() {
           ? `Meets all ${slo.total} objectives at ${fmtRps(report.summary.offeredRps)}.`
           : "Try a longer run or more traffic.";
   const experimental = (report.assumptions.technologies ?? []).filter((t) => t.tier === "experimental");
+  // runs before report 1.13 have no confidence: fall back to the current design's
+  const confidence = report.confidence ?? analysis?.confidence ?? null;
   const findings = report.findings
     .filter((f) => f.kind !== "healthy")
     .sort((a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9));
@@ -433,6 +440,7 @@ export function AnswerPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-6 py-8">
       {running && <RunProgress run={running} />}
+      {pendingEstimate && <EstimatePending estimate={pendingEstimate} />}
 
       <section aria-label="Answer">
         <div key={report.provenance.resultDigest} className="pop-in flex items-start gap-4">
@@ -441,6 +449,7 @@ export function AnswerPage() {
             <h2 className="font-display text-[46px] leading-[1.02] tracking-[-0.035em] text-ink">{headline}</h2>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{reason}</p>
             {bottleneck && <p className="mt-1 text-[15px] text-ink">{bottleneck.title}.</p>}
+            {confidence && <ConfidenceLine confidence={confidence} fromDesign={!report.confidence} />}
             {experimental.length > 0 && (
               <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[13px] text-ink-3">
                 <TierBadge tier="experimental" />
@@ -460,6 +469,7 @@ export function AnswerPage() {
           <Stat label="success" value={fmtPct(report.summary.successRate, report.summary.successRate === 1 ? 0 : 1)} />
           {cost.hasCost && <Stat label="per month" value={formatUsd(cost.monthly)} source={priceSource(cost)} />}
         </dl>
+        <EstimateVsSimulation report={report} />
       </section>
 
       {findings.length > 0 && (

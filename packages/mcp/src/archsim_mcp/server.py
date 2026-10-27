@@ -125,6 +125,28 @@ def _keep(run_id: str, report: Json) -> None:
         _runs.popitem(last=False)
 
 
+def _confidence(c: Json | None) -> Json | None:
+    """How far to trust the verdict: level, the reason, and what would raise it."""
+    if not c:
+        return None
+    return {
+        "level": c["level"],
+        "reason": c["reason"],
+        "howToRaise": c["howToRaise"],
+        "drivers": [f"{d['label']}: {d['fieldLabel']} ({d['kind']})" for d in c["drivers"]],
+    }
+
+
+def _estimate(e: Json | None) -> Json | None:
+    """The queueing formulas' prediction, without simulating."""
+    if not e:
+        return None
+    return {
+        k: e.get(k)
+        for k in ("method", "summary", "latencyMs", "busiest", "overloaded", "saturationRps")
+    }
+
+
 def summarize(report: Json, objectives: Json) -> Json:
     """The compact result an agent needs: verdict, key numbers, findings, parts, cost, provenance."""
     s = report["summary"]
@@ -133,6 +155,7 @@ def summarize(report: Json, objectives: Json) -> Json:
     prov = report["provenance"]
     return {
         "verdict": verdict_text(slo),
+        "confidence": _confidence(report.get("confidence")),
         "objectives": slo["checks"],
         "throughputRps": s.get("throughputRps"),
         "offeredRps": s.get("offeredRps"),
@@ -278,7 +301,8 @@ def validate_design(document: Json | str) -> Json:
 def analyze_design(document: Json | str, scenario_id: str | None = None) -> Json:
     """Without simulating: the engine's auto sizes (CPU, memory, storage per part), monthly cost
     estimate, design review (capacity, timeouts, retries, single points of failure), technology
-    tiers and where every input came from."""
+    tiers, where every input came from, an instant latency and utilization estimate from queueing
+    formulas, and how much confidence the inputs deserve (high, medium or low, with why)."""
     try:
         a = analyze_document(_doc(document), default_registry(), scenario_id)
     except DocumentInvalidError as exc:
@@ -297,6 +321,8 @@ def analyze_design(document: Json | str, scenario_id: str | None = None) -> Json
         ],
         "technologies": a.get("technologies"),
         "inputs": a.get("provenanceCounts"),
+        "estimate": _estimate(a.get("estimate")),
+        "confidence": _confidence(a.get("confidence")),
     }
 
 

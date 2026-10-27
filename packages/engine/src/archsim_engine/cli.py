@@ -67,6 +67,25 @@ def _summary_line(r: dict[str, Any]) -> str:
     return line
 
 
+def confidence_line(confidence: dict[str, Any] | None) -> str | None:
+    """ "Low confidence: 31 of 35 inputs are illustrative defaults", or None before report 1.13."""
+    if not confidence:
+        return None
+    return f"{confidence['level'].capitalize()} confidence: {confidence['reason']}"
+
+
+def _trust_lines(r: dict[str, Any]) -> list[str]:
+    """How far to trust a run: its confidence, then the queueing formulas' estimate of it."""
+    out = []
+    line = confidence_line(r.get("confidence"))
+    if line:
+        out.append(f"{line}. To raise it: {r['confidence']['howToRaise']}")
+    est = r.get("estimate")
+    if est:
+        out.append(f"{est['method']}: {est['summary']}")
+    return out
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     try:
         doc = load_document(_load(args.file))
@@ -98,6 +117,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(_summary_line(report))
     if report.get("simulationMode"):
         print(f"  {report['simulationMode']['note']}")
+    for line in _trust_lines(report):
+        # part names and "≈" need UTF-8 when stdout is redirected (cp1252 on Windows)
+        _write_stdout(f"  {line}\n")
     for f in report["findings"]:
         print(f"  [{f['severity']}] {f['title']}: {f['detail']}")
     p = report["provenance"]

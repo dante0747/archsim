@@ -2,6 +2,7 @@
  * Markdown decision report: what was designed, what was simulated, whether it meets the
  * objectives, what it costs, and what to look at. Meant to be pasted into a design doc or PR.
  */
+import { CONFIDENCE_LABEL, KIND_LABEL, compareEstimate, countsText } from "./confidence";
 import { formatUsd, priceSource } from "./cost";
 import { replayVerdict } from "./document";
 import { isDistribution, shortDistribution } from "./distributions";
@@ -9,7 +10,7 @@ import { errorBudget, evaluateSlo, formatSloValue } from "./slo";
 import type { SweepAnalysis } from "./sweep";
 import { technologyLabel } from "./theme";
 import { partTier, tierNote, tierOf } from "./tier";
-import type { ArchitectureDocument, Catalog, CostEstimate, Distribution, Objectives, Report, Run } from "./types";
+import type { ArchitectureDocument, Catalog, Confidence, CostEstimate, Distribution, Estimate, Objectives, Report, Run } from "./types";
 
 export interface ReviewItem {
   severity: string;
@@ -26,6 +27,10 @@ export interface DecisionReportInput {
   review?: ReviewItem[];
   /** The engine's cost estimate of the design, used when there is no run. */
   designCost?: CostEstimate | null;
+  /** The engine's confidence in the design's numbers, used when the run has none (report < 1.13). */
+  designConfidence?: Confidence | null;
+  /** The queueing formulas' estimate of the design, used when there is no run. */
+  designEstimate?: Estimate | null;
   sweep?: SweepAnalysis | null;
   generatedAt?: Date;
 }
@@ -88,6 +93,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   const slo = report ? evaluateSlo(objectives, report) : null;
   // priced by the engine: the run's own estimate, else the design's
   const cost = report ? (report.cost ?? null) : (input.designCost ?? null);
+  const confidence = report?.confidence ?? input.designConfidence ?? null;
   lines.push("## Summary", "");
   if (report && slo) {
     const verdict =
@@ -102,6 +108,11 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     if (bottleneck) lines.push(`- **Bottleneck:** ${bottleneck.title}.`);
   } else {
     lines.push("- No simulation run yet: run the design to evaluate it against the objectives.");
+    if (input.designEstimate) lines.push(`- **${input.designEstimate.method}:** ${input.designEstimate.summary}.`);
+  }
+  if (confidence) {
+    const scope = report && !report.confidence ? " (current design; the run predates confidence)" : "";
+    lines.push(`- **${CONFIDENCE_LABEL[confidence.level]}${scope}:** ${confidence.reason}. To raise it: ${confidence.howToRaise}`);
   }
   if (cost?.hasCost) {
     lines.push(
@@ -191,6 +202,8 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
       ),
       "",
     );
+    const vs = compareEstimate(report);
+    if (vs) lines.push(`${vs.text} ${report.estimate?.notes[0] ?? ""}`.trim(), "");
     if ((s.clients?.length ?? 0) > 1) {
       lines.push(
         "By client:",
@@ -279,7 +292,31 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   );
   const counts = report?.assumptions.provenanceCounts;
   if (counts) {
-    lines.push(`Inputs: ${counts.measured ?? 0} measured from telemetry, ${counts.assumed ?? 0} assumed, ${counts.illustrative ?? 0} illustrative (ArchSim defaults and presets).`, "");
+    lines.push(`Inputs: ${countsText(counts)}.`, "");
+  }
+  if (confidence) {
+    lines.push(`### Confidence: ${confidence.level}`, "");
+    for (const r of confidence.reasons) lines.push(`- ${r}.`);
+    lines.push("", `To raise it: ${confidence.howToRaise}`, "");
+    if (confidence.drivers.length) {
+      lines.push(
+        table(
+          ["Replace first", "Basis", "Share of the weight"],
+          confidence.drivers.map((d) => [`${d.label}: ${d.fieldLabel}`, d.kind ? KIND_LABEL[d.kind] : "–", d.weight == null ? "–" : `${Math.round(d.weight * 100)}%`]),
+        ),
+        "",
+      );
+    }
+  }
+  const documented = (report?.assumptions.userInputs ?? []).filter((u) => u.provenance?.kind === "documented");
+  if (documented.length) {
+    lines.push(
+      table(
+        ["Documented input", "Value", "Source"],
+        documented.map((u) => [`${u.label}: ${u.fieldLabel}`, u.value, u.provenance?.source ?? ""]),
+      ),
+      "",
+    );
   }
   const calibration = report?.assumptions.calibration ?? doc.calibration ?? null;
   if (calibration) {

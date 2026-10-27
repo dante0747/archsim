@@ -2,11 +2,15 @@
 
 An input is **measured** when the document's ``provenance`` says so (calibration writes it, with
 the source, the query, the time range, how well the fit matched and the value it set) **and** the
-input still has that value; **illustrative** when it is ArchSim's default or the number the
-technology's preset fills in; and **assumed** otherwise (a person typed it). A measured input whose
-value has changed since (a scenario override, a sweep, an edit through the CLI, MCP or API) is
-classified as if it had no record, with a note saying it was measured before. Reports list every
-performance input with its provenance; the inspector badges measured ones.
+input still has that value; **documented** when it is the value the part's technology profile (or
+the technology's preset) fills in and the vendor's documentation states it (``Profile.source``,
+``Preset.sources``; the entry cites that link); **illustrative** when it is ArchSim's default or
+another number a technology's profile or preset fills in; and **assumed** otherwise (a person typed
+it). "Documented" is derived here, never stored: a document's ``provenance`` records keep the
+schema's three kinds. A measured input whose value has changed since (a scenario override, a
+sweep, an edit through the CLI, MCP or API) is classified as if it had no record, with a note
+saying it was measured before. Reports list every performance input with its provenance; the
+inspector badges measured ones.
 
 Paths: ``nodes/<id>/<config key>``, ``edges/<id>/<config key>``, ``workload/<field>``.
 """
@@ -16,10 +20,17 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from archsim_engine.distributions import Constant, Empirical, Exponential, LogNormal, Uniform
-from archsim_engine.registry import ComponentRegistry, describe_fields
+from archsim_engine.distributions import (
+    Constant,
+    Distribution,
+    Empirical,
+    Exponential,
+    LogNormal,
+    Uniform,
+)
+from archsim_engine.registry import ComponentModel, ComponentRegistry, describe_fields
 from archsim_engine.schema import (
     ArchitectureDocument,
     EdgeConfig,
@@ -27,9 +38,13 @@ from archsim_engine.schema import (
     NodeSpec,
     Workload,
 )
+from archsim_engine.technology import Profile
 
 Json = dict[str, Any]
 WORKLOAD_INPUTS = ("rps", "readRatio", "keyCount", "keySkew", "pattern")
+_DISTRIBUTION: TypeAdapter[Distribution] = TypeAdapter(Distribution)
+KINDS = ("measured", "documented", "assumed", "illustrative")
+"""Every kind an input can be classified as, in the order reports count them."""
 
 
 def node_path(node_id: str, key: str) -> str:
@@ -118,6 +133,34 @@ def describe_value(v: Any, unit: str | None = None) -> str:
     return f"{text} {unit}" if unit and isinstance(v, int | float) else text
 
 
+def _field_name(model: ComponentModel, key: str) -> str:
+    """The config model's attribute (snake_case) for a camelCase config key."""
+    for name, info in model.config_model.model_fields.items():
+        if (info.alias or name) == key:
+            return name
+    return key
+
+
+def _profile(model: ComponentModel, node: NodeSpec) -> tuple[str | None, Profile | None]:
+    tech = node.config.get("technology", model.default_config().get("technology"))
+    if not isinstance(tech, str):
+        return None, None
+    return tech, model.technology_profiles.get(tech)
+
+
+def profile_value(model: ComponentModel, node: NodeSpec, key: str) -> tuple[bool, Any]:
+    """Whether the node's technology profile fills in ``key`` (camelCase), and with what."""
+    _tech, profile = _profile(model, node)
+    name = _field_name(model, key)
+    if profile is None or name not in profile.values:
+        return False, None
+    return True, profile.values[name]
+
+
+def _documented(source: str, note: str) -> Json:
+    return {"kind": "documented", "source": source, "note": note}
+
+
 def classify_node_input(
     doc: ArchitectureDocument, registry: ComponentRegistry, node: NodeSpec, key: str
 ) -> Json:
@@ -127,15 +170,27 @@ def classify_node_input(
         return explicit
     model = registry.get(node.type)
     default = model.default_config()
+    tech, profile = _profile(model, node)
+    current = node.config.get(key)
+    filled, by_profile = profile_value(model, node, key)
+    if filled and profile is not None and (current in (None, "auto") or _same(current, by_profile)):
+        # an empty ("auto") setting takes the technology's value, as does the same number typed in
+        source = profile.source(_field_name(model, key))
+        if source:
+            return _with_note(
+                _documented(source, f"default for {tech}, stated in its documentation"), changed
+            )
     if key not in node.config or _same(node.config[key], default.get(key)):
         return _with_note({"kind": "illustrative", "source": "ArchSim default"}, changed)
-    tech = node.config.get("technology", default.get("technology"))
     for preset in model.presets:
         if (
             preset.technology == tech
             and key in preset.config
             and _same(preset.config[key], node.config[key])
         ):
+            if preset.sources.get(key):
+                note = f"preset {preset.name}, stated in its documentation"
+                return _with_note(_documented(preset.sources[key], note), changed)
             return _with_note({"kind": "illustrative", "source": f"preset {preset.name}"}, changed)
     return _with_note({"kind": "assumed"}, changed)
 
@@ -199,6 +254,11 @@ def input_provenance(doc: ArchitectureDocument, registry: ComponentRegistry) -> 
             ):
                 continue
             value = getattr(cfg, _attr(cfg, fd["key"]), values.get(fd["key"]))
+            if value is None:
+                # an empty setting the technology fills in: show the value that applies
+                filled, by_profile = profile_value(model, n, fd["key"])
+                if filled and by_profile is not None:
+                    value = _as_value(by_profile)
             out.append(
                 {
                     "scope": "node",
@@ -250,10 +310,23 @@ def input_provenance(doc: ArchitectureDocument, registry: ComponentRegistry) -> 
 
 
 def provenance_counts(inputs: list[Json]) -> dict[str, int]:
-    counts = {"measured": 0, "assumed": 0, "illustrative": 0}
+    """How many inputs are measured, documented, assumed and illustrative."""
+    counts = dict.fromkeys(KINDS, 0)
     for i in inputs:
         counts[i["provenance"]["kind"]] += 1
     return counts
+
+
+def _as_value(v: Any) -> Any:
+    """A profile value as the config would hold it (distribution dicts become distributions)."""
+    if isinstance(v, dict) and "median" in v and "p95" in v and "kind" not in v:
+        v = {"kind": "lognormal", **v}
+    if isinstance(v, dict) and "kind" in v:
+        try:
+            return _DISTRIBUTION.validate_python(v)
+        except ValidationError:
+            return v
+    return v
 
 
 def _attr(cfg: BaseModel, key: str) -> str:

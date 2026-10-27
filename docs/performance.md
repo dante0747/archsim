@@ -133,6 +133,15 @@ here). Sampled mode stays **opt-in**: it passed on every template, but the web a
 show sampled reports (its charts would cover only the sample), so it is not the default for
 long runs until it does.
 
+## What-if questions: the instant estimate, not a faster core
+
+The profile above has no single hot spot, so tuning the Python engine would gain 20 to 30% at
+best, and a compiled core is out of scope. Quick what-if answers come from elsewhere: every
+`/analyze` (each edit) returns an instant estimate from queueing formulas in about a millisecond
+([simulation-model.md](simulation-model.md#instant-estimate-estimate)), which Results shows while
+a run is queued or running and then sets against the simulation; and runs go to a queue with one
+process each, so several run in parallel ([api.md](api.md)).
+
 ## What would close the remaining gap
 
 - A faster event loop: profile-guided work on SimPy's hot path and ArchSim's metrics (20-30% at
