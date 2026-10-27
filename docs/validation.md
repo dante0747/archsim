@@ -50,16 +50,27 @@ shows up in the measurements (see the protocol history):
 uv run python benchmarks/run.py postgres   # pg-mixed and pg-hot-row
 uv run python benchmarks/run.py cache      # cache-aside
 uv run python benchmarks/run.py kafka      # kafka
-uv run python benchmarks/report.py         # rewrite this page's tables and charts
+uv run python benchmarks/report.py --json  # rewrite this page's tables, charts and accuracy.json
 ```
 
 `make benchmark` runs all of them. `uv run python benchmarks/run.py compare` recomputes every
 `comparison.json` from the committed measurements and predictions without Docker. Results depend
-on the machine: rerun on yours before quoting numbers. A manual GitHub Actions workflow
-(`.github/workflows/benchmark.yml`) runs them on a hosted runner. Every run so far was on Windows
-with Docker Desktop; on Linux, neither the workflow nor the local runs have been tried (the k6
-container writes its summary as uid 12345, so the runner makes `benchmarks/results/.k6`
-world-writable for it, untested on Linux).
+on the machine: rerun on yours before quoting numbers. `run.py --archive` first moves each
+experiment's latest results into its next `run-N/` folder, so the history below keeps them.
+
+`report.py --json` also writes the same numbers as data, to `docs/validation/accuracy.json` and a
+copy in `apps/web/src/data/` (the web image is built from `apps/web` alone; a test keeps the two
+equal). The web app's public `/accuracy` page is built from that copy.
+
+A GitHub Actions workflow (`.github/workflows/benchmark.yml`) runs everything on a hosted runner
+every week, on every release tag (`v*`) and by hand: it archives the previous results, measures,
+runs `report.py --json`, uploads the raw results as an artifact and opens a pull request for a
+person to review and merge. The repository is private, so each automatic run uses about 1.5 hours
+of billed Actions minutes: the weekly and release-tag triggers sit in a marked block at the top of
+the workflow, to comment out to turn them off. **It has not run yet, and the first run should be a
+manual dispatch to check it:** every run so far was on Windows with Docker Desktop; on Linux,
+neither the workflow nor the local runs have been tried (the k6 container writes its summary as
+uid 12345, so the runner makes `benchmarks/results/.k6` world-writable for it, untested on Linux).
 
 ## Protocol
 

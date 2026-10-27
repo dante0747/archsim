@@ -1,0 +1,255 @@
+/**
+ * The accuracy benchmarks as data, for the /accuracy page. `src/data/accuracy.json` is written by
+ * `benchmarks/report.py --json` (a copy of docs/validation/accuracy.json; a test keeps them equal),
+ * from the same numbers as docs/validation.md. Text fields (`text`) are the report's own
+ * formatting, so the page and validation.md show the same figures.
+ */
+import raw from "@/data/accuracy.json";
+
+// The repository is private: the page names these files instead of linking to them.
+export const VALIDATION_DOC = "docs/validation.md";
+export const CALIBRATION_DOC = "docs/calibration.md";
+export const BENCHMARK_WORKFLOW = ".github/workflows/benchmark.yml";
+
+export interface Knee {
+  kneeRps: number | null;
+  bound: "interpolated" | "above" | "below" | string;
+  between?: number[];
+  aboveRps?: number | null;
+  belowRps?: number | null;
+}
+
+export interface Step {
+  offeredRps: number;
+  atOrBelowKnee: boolean;
+  unstable: boolean;
+  measured: { p95Ms: number | null; successRate: number | null };
+  predicted: { p95Ms: number | null; successRate: number | null };
+  p95Error: number | null;
+  p95Within: boolean;
+  text: { offered: string; measuredP95: string; predictedP95: string; p95Error: string; measuredSuccess: string; predictedSuccess: string };
+}
+
+export interface SpreadRun {
+  run: string;
+  protocol: string;
+  calibratedAt: string | null;
+  kneeRps: number;
+  text: string;
+}
+
+export interface Spread {
+  runs: number;
+  minRps: number;
+  maxRps: number;
+  plusMinus: number;
+  text: string;
+  plusMinusText: string;
+  values: SpreadRun[];
+}
+
+export interface LowLoadStep {
+  offeredRps: number;
+  fractionOfPredictedKnee: number;
+  measuredP95Ms: number | null;
+  predictedP95Ms: number | null;
+  diffMs: number | null;
+  text: { offered: string; fraction: string; measuredP95: string; predictedP95: string; diff: string; p95Error: string };
+}
+
+export interface Criteria {
+  knee: { pass: boolean; error: number | null };
+  p95: { pass: boolean; steps: number; misses: number[] };
+  stable: { pass: boolean; unstable: number[] };
+  reproduced: { pass: boolean; protocol: string | null; runs: number; machines: number };
+  all: boolean;
+}
+
+export interface Environment {
+  cpu: string | null;
+  os: string | null;
+  docker: string | null;
+  dockerCpus: number | string | null;
+  dockerMemoryGiB: number;
+  images: Record<string, string>;
+  python: string | null;
+  cpusets: { container: string; cpus: string; count: number }[];
+  cpusetsRecorded: boolean;
+  text: string;
+}
+
+export interface Experiment {
+  id: string;
+  name: string;
+  title: string;
+  technologies: string[];
+  objective: { p95Ms: number; minSuccess: number };
+  date: string;
+  calibratedAt: string;
+  predictedAt: string;
+  engineVersion: string | null;
+  protocol: string;
+  runs: number;
+  inSample: boolean;
+  tier: "validated" | "not-validated";
+  criteria: Criteria;
+  knee: {
+    measured: Knee;
+    predicted: Knee;
+    searchedRps: number;
+    error: number | null;
+    withinTolerance: boolean;
+    text: { measured: string; predicted: string; error: string; absError: string };
+  };
+  spread: Spread | null;
+  spreadExceedsError: boolean;
+  p95BelowKnee: {
+    steps: number;
+    within: number;
+    misses: number[];
+    pass: boolean;
+    medianAbsError: number | null;
+    maxAbsError: number | null;
+    worst: Step | null;
+    text: { medianAbsError: string; maxAbsError: string };
+  };
+  lowLoad: LowLoadStep[];
+  steps: Step[];
+  environment: Environment;
+}
+
+export interface HistoryRun {
+  dir: string;
+  protocol: string;
+  calibratedAt: string | null;
+  machine: string;
+  measuredKnee: Knee;
+  predictedKnee: Knee;
+  kneeError: number | null;
+  text: { measuredKnee: string; predictedKnee: string; kneeError: string };
+}
+
+export interface Accuracy {
+  generatedBy: string;
+  objective: { p95Ms: number; minSuccess: number };
+  thresholds: { kneeError: number; p95Error: number; p95Ms: number; lowLoadFraction: number };
+  summary: {
+    experiments: number;
+    runs: number;
+    firstDate: string | null;
+    latestDate: string;
+    machines: string[];
+    kneeErrorMin: number | null;
+    kneeErrorMax: number | null;
+    kneeErrorRangeText: string;
+    kneeWithinTolerance: string[];
+    p95WithinTolerance: string[];
+    validated: string[];
+    withSpread: string[];
+    spreadExceedsError: string[];
+    inSample: string[];
+    technologies: { name: string; experiments: string[]; validated: boolean }[];
+  };
+  experiments: Experiment[];
+  history: Record<string, HistoryRun[]>;
+}
+
+export const accuracy = raw as unknown as Accuracy;
+
+/** A signed figure from the report ("-10%") with a typographic minus ("−10%"). */
+export function minus(text: string): string {
+  return text.replace(/^-(?=\d)/, "−").replace(/ -(?=\d)/g, " −");
+}
+
+/** "26 Oct 2026" from an ISO date or timestamp (UTC, so the server and every reader agree). */
+export function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+/** "26 Oct, 08:00 UTC" from a timestamp. */
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
+  return `${day}, ${time} UTC`;
+}
+
+/**
+ * A load axis from 0 that fits `top` with a little room: 3 to 5 round ticks (steps of 1, 2, 2.5
+ * or 5 times a power of ten).
+ */
+export function kneeScale(top: number): { max: number; ticks: number[] } {
+  const want = Math.max(top, 1) * 1.08;
+  const raw = want / 4;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag;
+  const max = Math.ceil(want / step) * step;
+  const ticks: number[] = [];
+  for (let t = 0; t <= max + step / 1000; t += step) ticks.push(Math.round(t * 1000) / 1000);
+  return { max, ticks };
+}
+
+/** Plain words for "percent": "-10%" -> "10%", for sentences that say "too high" or "too low". */
+function abs(x: Experiment): string {
+  return x.knee.text.absError;
+}
+
+/**
+ * One line on the capacity knee, good or bad: "within 6% (1,006 against 945 req/s measured), a
+ * little high" / "97% too high: predicted 444 req/s where the system managed 225".
+ */
+export function kneeSentence(x: Experiment): string {
+  const { error, withinTolerance, text } = x.knee;
+  if (error === null) return `No knee error: measured ${text.measured} req/s, predicted ${text.predicted} req/s.`;
+  const pair = `${text.predicted} req/s predicted against ${text.measured} req/s measured`;
+  if (error === 0) return `Predicted the knee exactly (${pair}).`;
+  if (withinTolerance) {
+    const side = error < 0 ? "on the low side, which is the safe side" : "on the high side";
+    return `Predicted the knee within ${abs(x)} (${pair}), ${side}.`;
+  }
+  return error > 0
+    ? `Predicted the knee ${abs(x)} too high: ${text.predicted} req/s where the system managed ${text.measured} req/s.`
+    : `Predicted the knee ${abs(x)} too low: ${text.predicted} req/s where the system managed ${text.measured} req/s (the safe side, but far off).`;
+}
+
+/** The experiments ordered from the closest knee prediction to the furthest. */
+export function byKneeError(experiments: Experiment[]): Experiment[] {
+  return [...experiments].sort((a, b) => Math.abs(a.knee.error ?? Infinity) - Math.abs(b.knee.error ?? Infinity));
+}
+
+/** "4 of 6 load steps" with the latency (p95) tolerance met, in words. */
+export function p95Sentence(x: Experiment, t: Accuracy["thresholds"]): string {
+  const b = x.p95BelowKnee;
+  if (b.steps === 0) return "No measured step was below the knee, so latency there could not be checked.";
+  const tol = `±${Math.round(t.p95Error * 100)}% or ${t.p95Ms} ms`;
+  const head = `Latency (p95) within ${tol} at ${b.within} of ${b.steps} load steps up to the measured knee`;
+  if (!b.worst || b.pass) return `${head}; the typical miss was ${b.text.medianAbsError}.`;
+  const w = b.worst.text;
+  return `${head}. Worst: at ${w.offered} req/s it predicted ${w.predictedP95} ms where the system measured ${w.measuredP95} ms.`;
+}
+
+/** The light-load steps in one phrase: "+0.90 to +1.08 ms above the measured p95". */
+export function lowLoadSentence(x: Experiment): string | null {
+  const diffs = x.lowLoad.map((s) => s.diffMs).filter((d): d is number => d !== null);
+  if (!diffs.length) return null;
+  const texts = x.lowLoad.filter((s) => s.diffMs !== null).map((s) => s.text.diff.replace(" ms", ""));
+  const sorted = [...texts].sort((a, b) => Number(a) - Number(b));
+  const range = sorted.length === 1 || sorted[0] === sorted[sorted.length - 1] ? sorted[0] : `${sorted[0]} to ${sorted[sorted.length - 1]}`;
+  const where = diffs.every((d) => d > 0) ? "above" : diffs.every((d) => d < 0) ? "below" : "off from";
+  const shown = where === "off from" ? range : range.replace(/[+-]/g, "");
+  return `At light load (${x.lowLoad.map((s) => s.text.offered).join(" and ")} req/s), predicted p95 was ${minus(shown)} ms ${where} the measured one.`;
+}
+
+/** What the run-to-run spread says next to the knee error. */
+export function spreadSentence(x: Experiment): string {
+  const s = x.spread;
+  if (!s) return x.runs > 1 ? "No second run measured a knee on this machine yet, so its run-to-run spread is unknown." : "Measured once so far, so its run-to-run spread is unknown.";
+  const head = `The measured knee ranged from ${s.text} over ${s.runs} runs on this machine (${s.plusMinusText} around the middle)`;
+  if (x.knee.error === null) return `${head}.`;
+  return x.spreadExceedsError
+    ? `${head}: wider than the ${minus(x.knee.text.error)} error, which is inside run-to-run noise.`
+    : `${head}: the ${minus(x.knee.text.error)} error is larger than that.`;
+}

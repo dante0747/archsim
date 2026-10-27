@@ -43,6 +43,6 @@ typecheck:
 	cd apps/web && npm run typecheck
 	uv run mypy benchmarks
 
-benchmark:        ## accuracy benchmarks (Docker; about 1.5 hours, machine otherwise idle), then rewrite docs/validation.md
+benchmark:        ## accuracy benchmarks (Docker; about 1.5 hours, machine otherwise idle), then rewrite docs/validation.md and accuracy.json
 	uv run python benchmarks/run.py all
-	uv run python benchmarks/report.py
+	uv run python benchmarks/report.py --json

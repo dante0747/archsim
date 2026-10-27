@@ -1,14 +1,20 @@
 """Rewrite the generated parts of docs/validation.md (and its charts) from benchmarks/results.
 
-    uv run python benchmarks/report.py
+    uv run python benchmarks/report.py          # the page and its charts
+    uv run python benchmarks/report.py --json   # also docs/validation/accuracy.json
 
 Hand-written text in docs/validation.md is kept: only the blocks between
 ``<!-- BEGIN GENERATED: name -->`` and ``<!-- END GENERATED: name -->`` are replaced. The output
 depends only on the files in benchmarks/results, so running it twice gives the same bytes.
+
+``--json`` writes the same numbers as data (``accuracy``) for the web app's /accuracy page, to
+docs/validation/accuracy.json and to a copy inside apps/web (the web image is built from
+apps/web alone, so it cannot read docs/).
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import re
@@ -24,7 +30,16 @@ ROOT = HERE.parent
 RESULTS = HERE / "results"
 DOC = ROOT / "docs" / "validation.md"
 CHARTS = ROOT / "docs" / "validation"
+JSON_OUT = CHARTS / "accuracy.json"
+WEB_JSON = ROOT / "apps" / "web" / "src" / "data" / "accuracy.json"
 ORDER = ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
+# Plain names for the web page (the comparison's title has the details).
+NAMES = {
+    "pg-mixed": "PostgreSQL, mixed reads and writes",
+    "pg-hot-row": "PostgreSQL, every request updating one row",
+    "cache-aside": "Redis cache in front of PostgreSQL",
+    "kafka": "Kafka queue feeding PostgreSQL",
+}
 TECHNOLOGIES = {
     "pg-mixed": ("Node.js", "PostgreSQL"),
     "pg-hot-row": ("Node.js", "PostgreSQL"),
@@ -169,6 +184,65 @@ def criteria(cmp_: Mapping[str, Any], runs: Sequence[Mapping[str, Any]]) -> dict
     }
     out["all"] = all(c["pass"] for c in out.values())
     return out
+
+
+def technology_status(met: Mapping[str, bool]) -> list[dict[str, Any]]:
+    """Each technology, the experiments that exercise it, and whether all of them meet the
+    thresholds (``met``: experiment -> all three criteria met)."""
+    techs: dict[str, list[str]] = {}
+    for exp in ORDER:
+        if exp in met:
+            for t in TECHNOLOGIES[exp]:
+                techs.setdefault(t, []).append(exp)
+    return [
+        {"name": t, "experiments": exps, "validated": all(met[e] for e in exps)}
+        for t, exps in techs.items()
+    ]
+
+
+def knee_spread(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
+    """How far the measured knee moved between the kept runs of one experiment (``history``) on
+    the latest run's machine, or None with fewer than two such runs that measured one. Every
+    protocol counts, as in docs/validation.md's headline: the protocols differ in the
+    calibration, and the knee is found the same way in each (run 1 measured each step once
+    rather than three times). ``plusMinus`` is half the range over its middle: 1,000 to 3,000
+    req/s is +/-50%."""
+    machine = runs[-1]["machine"] if runs else None
+    knees = [
+        (r, r["measuredKnee"]["kneeRps"])
+        for r in runs
+        if r["machine"] == machine and r["measuredKnee"].get("kneeRps") is not None
+    ]
+    if len(knees) < 2:
+        return None
+    lo, hi = min(k for _, k in knees), max(k for _, k in knees)
+    plus_minus = (hi - lo) / (hi + lo)
+    return {
+        "runs": len(knees),
+        "minRps": lo,
+        "maxRps": hi,
+        "plusMinus": plus_minus,
+        "text": f"{rps(lo)} to {rps(hi)} req/s",
+        "plusMinusText": f"±{pct(plus_minus, False)}",
+        "values": [
+            {
+                "run": r["dir"],
+                "protocol": r["protocol"],
+                "calibratedAt": r["calibratedAt"],
+                "kneeRps": k,
+                "text": rps(k),
+            }
+            for r, k in knees
+        ],
+    }
+
+
+def low_load_rows(cmp_: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The ladder's low steps: at most LOW_LOAD_FRACTION of ArchSim's own predicted knee."""
+    fine = cmp_["predictedKneeFine"]
+    if not fine:
+        return []
+    return [r for r in cmp_["rows"] if r["offeredRps"] <= round(LOW_LOAD_FRACTION * fine)]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -355,9 +429,7 @@ def low_load_block(cmps: list[dict[str, Any]]) -> str:
     ]
     for c in cmps:
         fine = c["predictedKneeFine"]
-        for r in c["rows"]:
-            if not fine or r["offeredRps"] > round(LOW_LOAD_FRACTION * fine):
-                continue
+        for r in low_load_rows(c):
             m, p = r["measured"]["p95"], r["predicted"]["p95"]
             diff = "-" if m is None or p is None else f"{p - m:+.2f} ms ({pct(r['error']['p95'])})"
             lines.append(
@@ -402,17 +474,13 @@ def tiers_block(cmps: list[dict[str, Any]], hist: Mapping[str, Sequence[Mapping[
         lines.append(
             f"| {exp} | {knee} | {p95} | {stable} | {reproduced} | {'yes' if k['all'] else 'no'} |"
         )
-    techs: dict[str, list[str]] = {}
-    for exp in ORDER:
-        if exp in met:
-            for t in TECHNOLOGIES[exp]:
-                techs.setdefault(t, []).append(exp)
-    validated = [t for t, exps in techs.items() if all(met[e] for e in exps)]
+    techs = technology_status(met)
+    validated = [t["name"] for t in techs if t["validated"]]
     lines += [
         "",
         "A technology meets the thresholds when every experiment that exercises it meets all "
         "three: "
-        + "; ".join(f"{t} ({', '.join(exps)})" for t, exps in techs.items())
+        + "; ".join(f"{t['name']} ({', '.join(t['experiments'])})" for t in techs)
         + ". "
         + (
             f"Meeting them on this data: {', '.join(validated)}."
@@ -430,6 +498,23 @@ def cpus_text(sets: Mapping[str, str]) -> str:
     )
 
 
+def stack_cpusets(exp: str, env: Mapping[str, Any]) -> tuple[dict[str, str], bool]:
+    """The CPUs each container of an experiment's stack was pinned to, and whether
+    environment.json recorded them (runs before that used the runner's defaults)."""
+    sets = env.get("cpusets")
+    if sets is None:
+        return bench.cpusets(bench.EXPERIMENTS[exp].stack, env={}), False
+    return dict(sets), True
+
+
+def machine_text(env: Mapping[str, Any]) -> str:
+    """CPU; Docker version with its CPUs and memory; OS."""
+    return (
+        f"{env.get('cpu')}; Docker {env.get('docker')} with {env.get('dockerCpus')} CPUs and "
+        f"{int(env.get('dockerMemory') or 0) / 2**30:.1f} GiB; {env.get('os')}"
+    )
+
+
 def environment_block(envs: Mapping[str, dict[str, Any]]) -> str:
     """The machine (from the first experiment's environment.json) and the CPU pinning of each
     stack (recorded in environment.json since it was added; before that, the runner's
@@ -442,10 +527,8 @@ def environment_block(envs: Mapping[str, dict[str, Any]]) -> str:
     recorded = True
     for exp, e in envs.items():
         stack = bench.EXPERIMENTS[exp].stack
-        sets = e.get("cpusets")
-        if sets is None:
-            recorded = False
-            sets = bench.cpusets(stack, env={})
+        sets, was_recorded = stack_cpusets(exp, e)
+        recorded = recorded and was_recorded
         stacks.setdefault((stack, cpus_text(sets)), []).append(exp)
     pinning = "; ".join(f"{' and '.join(exps)}: {text}" for (_, text), exps in stacks.items())
     note = (
@@ -456,8 +539,7 @@ def environment_block(envs: Mapping[str, dict[str, Any]]) -> str:
     )
     return "\n".join(
         [
-            f"- CPU: {env.get('cpu')}; Docker {env.get('docker')} with {env.get('dockerCpus')} CPUs and "
-            f"{int(env.get('dockerMemory') or 0) / 2**30:.1f} GiB; {env.get('os')}.",
+            f"- CPU: {machine_text(env)}.",
             f"- Images: {', '.join(f'{k} `{v}`' for k, v in imgs.items())}.",
             f"- CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): {pinning}.{note}",
         ]
@@ -599,13 +681,235 @@ def render(text: str, results: Path = RESULTS) -> tuple[str, dict[str, str]]:
     return text, charts
 
 
-def main() -> int:
+# ---------------------------------------------------------------------------------------------
+# JSON for the web app's /accuracy page
+# ---------------------------------------------------------------------------------------------
+
+
+def step_json(r: Mapping[str, Any], below: bool) -> dict[str, Any]:
+    """One step of the ladder: measured and predicted p95 and success, with the same text as
+    the page's tables."""
+    m, p, e = r["measured"], r["predicted"], r["error"]
+    return {
+        "offeredRps": r["offeredRps"],
+        "atOrBelowKnee": below,
+        "unstable": bool(r.get("unstable")),
+        "measured": {"p95Ms": m["p95"], "successRate": m["successRate"]},
+        "predicted": {"p95Ms": p["p95"], "successRate": p["successRate"]},
+        "p95Error": e["p95"],
+        "p95Within": p95_within(m["p95"], p["p95"]),
+        "text": {
+            "offered": rps(r["offeredRps"]),
+            "measuredP95": ms(m["p95"]),
+            "predictedP95": ms(p["p95"]),
+            "p95Error": pct(e["p95"]),
+            "measuredSuccess": pct(m["successRate"], False),
+            "predictedSuccess": pct(p["successRate"], False),
+        },
+    }
+
+
+def low_load_json(r: Mapping[str, Any], fine: float) -> dict[str, Any]:
+    """One low-load step (``low_load_rows``) as the low-load table shows it."""
+    m, p = r["measured"]["p95"], r["predicted"]["p95"]
+    return {
+        "offeredRps": r["offeredRps"],
+        "fractionOfPredictedKnee": r["offeredRps"] / fine,
+        "measuredP95Ms": m,
+        "predictedP95Ms": p,
+        "diffMs": None if m is None or p is None else p - m,
+        "text": {
+            "offered": rps(r["offeredRps"]),
+            "fraction": f"{r['offeredRps'] / fine:.2g}x",
+            "measuredP95": ms(m),
+            "predictedP95": ms(p),
+            "diff": "-" if m is None or p is None else f"{p - m:+.2f} ms",
+            "p95Error": pct(r["error"]["p95"]),
+        },
+    }
+
+
+def environment_json(exp: str, env: Mapping[str, Any]) -> dict[str, Any]:
+    sets, recorded = stack_cpusets(exp, env)
+    cpus = env.get("dockerCpus")
+    return {
+        "cpu": env.get("cpu"),
+        "os": env.get("os"),
+        "docker": env.get("docker"),
+        "dockerCpus": int(cpus) if isinstance(cpus, str) and cpus.isdigit() else cpus,
+        "dockerMemoryGiB": round(int(env.get("dockerMemory") or 0) / 2**30, 1),
+        "images": dict(env.get("images", {})),
+        "python": env.get("python"),
+        "cpusets": [
+            {"container": CONTAINERS.get(name, name), "cpus": c, "count": bench.cpu_count(c)}
+            for name, c in sets.items()
+        ],
+        "cpusetsRecorded": recorded,
+        "text": machine_text(env),
+    }
+
+
+def experiment_json(
+    exp: str, runs: Sequence[Mapping[str, Any]], results: Path = RESULTS
+) -> dict[str, Any] | None:
+    """One experiment's latest run, as the summary, low-load and tier tables show it, plus how
+    far its measured knee moved between kept runs (``runs``: its ``history``)."""
+    cal = load(exp, "calibration", results)
+    pred = load(exp, "predictions", results)
+    c = load(exp, "comparison", results)
+    if not (cal and pred and c):
+        return None
+    env = load(exp, "environment", results) or {}
+    k = criteria(c, runs)
+    mk, pk, e = c["measuredKnee"], c["predictedKnee"], c["kneeError"]
+    below = bench.at_or_below_knee(c["rows"], mk)
+    below_ids = {id(r) for r in below}
+    measured = [r for r in below if r["error"]["p95"] is not None]
+    worst = max(measured, key=lambda r: abs(r["error"]["p95"]), default=None)
+    b = c["belowKnee"]
+    spread = knee_spread(runs)
+    protocol = protocol_of(cal)
+    return {
+        "id": exp,
+        "name": NAMES.get(exp, exp),
+        "title": c["title"],
+        "technologies": list(TECHNOLOGIES[exp]),
+        "objective": c["objective"],
+        "date": cal["at"][:10],
+        "calibratedAt": cal["at"],
+        "predictedAt": pred["at"],
+        "engineVersion": pred.get("engineVersion"),
+        "protocol": protocol,
+        "runs": len(runs),
+        # Earlier runs under another protocol: the protocol was revised with this experiment's
+        # results in view, so its latest numbers are in-sample.
+        "inSample": any(r["protocol"] != protocol for r in runs),
+        "tier": "validated" if k["all"] else "not-validated",
+        "criteria": k,
+        "knee": {
+            "measured": mk,
+            "predicted": pk,
+            "searchedRps": c["predictedKneeFine"],
+            "error": e,
+            "withinTolerance": k["knee"]["pass"],
+            "text": {
+                "measured": knee_text(mk),
+                "predicted": knee_text(pk),
+                "error": pct(e),
+                "absError": pct(abs(e) if e is not None else None, False),
+            },
+        },
+        "spread": spread,
+        "spreadExceedsError": bool(spread and e is not None and spread["plusMinus"] > abs(e)),
+        "p95BelowKnee": {
+            "steps": b["steps"],
+            "within": b["steps"] - len(k["p95"]["misses"]),
+            "misses": k["p95"]["misses"],
+            "pass": k["p95"]["pass"],
+            "medianAbsError": b["medianAbsP95Error"],
+            "maxAbsError": b["maxAbsP95Error"],
+            "worst": step_json(worst, True) if worst else None,
+            "text": {
+                "medianAbsError": pct(b["medianAbsP95Error"], False),
+                "maxAbsError": pct(b["maxAbsP95Error"], False),
+            },
+        },
+        "lowLoad": [low_load_json(r, c["predictedKneeFine"]) for r in low_load_rows(c)],
+        "steps": [step_json(r, id(r) in below_ids) for r in c["rows"]],
+        "environment": environment_json(exp, env),
+    }
+
+
+def history_json(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> dict[str, list[Any]]:
+    """``history`` in the page's order, each run with the history table's text."""
+    return {
+        exp: [
+            {
+                **r,
+                "text": {
+                    "measuredKnee": knee_text(r["measuredKnee"]),
+                    "predictedKnee": knee_text(r["predictedKnee"]),
+                    "kneeError": pct(r["kneeError"]),
+                },
+            }
+            for r in hist[exp]
+        ]
+        for exp in ORDER
+        if exp in hist
+    }
+
+
+def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
+    """Every number of docs/validation.md's generated blocks, as data, or None without
+    results."""
+    hist = history(results)
+    exps = [x for exp in ORDER if (x := experiment_json(exp, hist.get(exp, []), results))]
+    if not exps:
+        return None
+    errors = [x["knee"]["error"] for x in exps if x["knee"]["error"] is not None]
+    lo, hi = (min(errors), max(errors)) if errors else (None, None)
+    all_runs = [r for exp in ORDER for r in hist.get(exp, [])]
+    machines = list(dict.fromkeys(r["machine"] for r in all_runs))
+    dates = sorted(r["calibratedAt"][:10] for r in all_runs if r["calibratedAt"])
+    return {
+        "generatedBy": "benchmarks/report.py --json, from benchmarks/results",
+        "objective": exps[0]["objective"],
+        "thresholds": {
+            "kneeError": KNEE_TOLERANCE,
+            "p95Error": P95_TOLERANCE,
+            "p95Ms": P95_TOLERANCE_MS,
+            "lowLoadFraction": LOW_LOAD_FRACTION,
+        },
+        "summary": {
+            "experiments": len(exps),
+            "runs": len(all_runs),
+            "firstDate": dates[0] if dates else None,
+            "latestDate": max(x["date"] for x in exps),
+            "machines": machines,
+            "kneeErrorMin": lo,
+            "kneeErrorMax": hi,
+            "kneeErrorRangeText": f"{pct(lo)} to {pct(hi)}",
+            "kneeWithinTolerance": [x["id"] for x in exps if x["knee"]["withinTolerance"]],
+            "p95WithinTolerance": [x["id"] for x in exps if x["p95BelowKnee"]["pass"]],
+            "validated": [x["id"] for x in exps if x["tier"] == "validated"],
+            "withSpread": [x["id"] for x in exps if x["spread"]],
+            "spreadExceedsError": [x["id"] for x in exps if x["spreadExceedsError"]],
+            "inSample": [x["id"] for x in exps if x["inSample"]],
+            "technologies": technology_status({x["id"]: x["criteria"]["all"] for x in exps}),
+        },
+        "experiments": exps,
+        "history": history_json(hist),
+    }
+
+
+def accuracy_text(results: Path = RESULTS) -> str:
+    """``accuracy`` as the bytes written to accuracy.json."""
+    return json.dumps(accuracy(results), indent=2, ensure_ascii=False) + "\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--json",
+        action="store_true",
+        help=f"also write {JSON_OUT.relative_to(ROOT).as_posix()} and its copy "
+        f"{WEB_JSON.relative_to(ROOT).as_posix()}",
+    )
+    args = ap.parse_args(argv)
     text, charts = render(DOC.read_text(encoding="utf-8"))
     DOC.write_text(text, encoding="utf-8", newline="\n")
     CHARTS.mkdir(parents=True, exist_ok=True)
     for name, svg in charts.items():
         (CHARTS / name).write_text(svg, encoding="utf-8", newline="\n")
     print(f"wrote {DOC.relative_to(ROOT).as_posix()} and {len(charts)} charts")
+    if args.json:
+        data = accuracy_text()
+        for path in (JSON_OUT, WEB_JSON):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(data, encoding="utf-8", newline="\n")
+            print(f"wrote {path.relative_to(ROOT).as_posix()}")
     return 0
 
 

@@ -1,0 +1,1981 @@
+{
+  "generatedBy": "benchmarks/report.py --json, from benchmarks/results",
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "thresholds": {
+    "kneeError": 0.25,
+    "p95Error": 1.0,
+    "p95Ms": 3.0,
+    "lowLoadFraction": 0.5
+  },
+  "summary": {
+    "experiments": 4,
+    "runs": 10,
+    "firstDate": "2026-10-26",
+    "latestDate": "2026-10-26",
+    "machines": [
+      "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0"
+    ],
+    "kneeErrorMin": -0.139246495181653,
+    "kneeErrorMax": 0.9724689165186501,
+    "kneeErrorRangeText": "-14% to +97%",
+    "kneeWithinTolerance": [
+      "pg-mixed",
+      "cache-aside",
+      "kafka"
+    ],
+    "p95WithinTolerance": [
+      "pg-hot-row"
+    ],
+    "validated": [],
+    "withSpread": [
+      "pg-mixed",
+      "pg-hot-row"
+    ],
+    "spreadExceedsError": [
+      "pg-mixed"
+    ],
+    "inSample": [
+      "pg-mixed",
+      "pg-hot-row"
+    ],
+    "technologies": [
+      {
+        "name": "Node.js",
+        "experiments": [
+          "pg-mixed",
+          "pg-hot-row",
+          "cache-aside",
+          "kafka"
+        ],
+        "validated": false
+      },
+      {
+        "name": "PostgreSQL",
+        "experiments": [
+          "pg-mixed",
+          "pg-hot-row",
+          "cache-aside",
+          "kafka"
+        ],
+        "validated": false
+      },
+      {
+        "name": "Redis",
+        "experiments": [
+          "cache-aside"
+        ],
+        "validated": false
+      },
+      {
+        "name": "Kafka",
+        "experiments": [
+          "kafka"
+        ],
+        "validated": false
+      }
+    ]
+  },
+  "experiments": [
+    {
+      "id": "pg-mixed",
+      "name": "PostgreSQL, mixed reads and writes",
+      "title": "Node.js + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+      "technologies": [
+        "Node.js",
+        "PostgreSQL"
+      ],
+      "objective": {
+        "p95Ms": 50.0,
+        "minSuccess": 0.99
+      },
+      "date": "2026-10-26",
+      "calibratedAt": "2026-10-26T11:13:41Z",
+      "predictedAt": "2026-10-26T11:15:51Z",
+      "engineVersion": "0.7.0",
+      "protocol": "v4",
+      "runs": 4,
+      "inSample": true,
+      "tier": "not-validated",
+      "criteria": {
+        "knee": {
+          "pass": true,
+          "error": -0.09875141884222467
+        },
+        "p95": {
+          "pass": false,
+          "steps": 6,
+          "misses": [
+            2062,
+            2268
+          ]
+        },
+        "stable": {
+          "pass": false,
+          "unstable": [
+            2268
+          ]
+        },
+        "reproduced": {
+          "pass": false,
+          "protocol": "v4",
+          "runs": 1,
+          "machines": 1
+        },
+        "all": false
+      },
+      "knee": {
+        "measured": {
+          "kneeRps": 2290.6,
+          "bound": "interpolated",
+          "between": [
+            2268,
+            2578
+          ]
+        },
+        "predicted": {
+          "kneeRps": 2064.4,
+          "bound": "interpolated",
+          "between": [
+            2062,
+            2268
+          ]
+        },
+        "searchedRps": 2062,
+        "error": -0.09875141884222467,
+        "withinTolerance": true,
+        "text": {
+          "measured": "2,291",
+          "predicted": "2,064",
+          "error": "-10%",
+          "absError": "10%"
+        }
+      },
+      "spread": {
+        "runs": 3,
+        "minRps": 1895.0,
+        "maxRps": 3162.3,
+        "plusMinus": 0.2505882585569375,
+        "text": "1,895 to 3,162 req/s",
+        "plusMinusText": "±25%",
+        "values": [
+          {
+            "run": "run-2/",
+            "protocol": "v2",
+            "calibratedAt": "2026-10-26T08:23:18Z",
+            "kneeRps": 1895.0,
+            "text": "1,895"
+          },
+          {
+            "run": "run-3/",
+            "protocol": "v3",
+            "calibratedAt": "2026-10-26T09:46:26Z",
+            "kneeRps": 3162.3,
+            "text": "3,162"
+          },
+          {
+            "run": "latest",
+            "protocol": "v4",
+            "calibratedAt": "2026-10-26T11:13:41Z",
+            "kneeRps": 2290.6,
+            "text": "2,291"
+          }
+        ]
+      },
+      "spreadExceedsError": true,
+      "p95BelowKnee": {
+        "steps": 6,
+        "within": 4,
+        "misses": [
+          2062,
+          2268
+        ],
+        "pass": false,
+        "medianAbsError": 0.6655165735786704,
+        "maxAbsError": 183.16014830212407,
+        "worst": {
+          "offeredRps": 2268,
+          "atOrBelowKnee": true,
+          "unstable": true,
+          "measured": {
+            "p95Ms": 10.404706,
+            "successRate": 0.9966271328424673
+          },
+          "predicted": {
+            "p95Ms": 1916.1322,
+            "successRate": 0.7862
+          },
+          "p95Error": 183.16014830212407,
+          "p95Within": false,
+          "text": {
+            "offered": "2,268",
+            "measuredP95": "10.4",
+            "predictedP95": "1,916",
+            "p95Error": "+18316%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "79%"
+          }
+        },
+        "text": {
+          "medianAbsError": "67%",
+          "maxAbsError": "18316%"
+        }
+      },
+      "lowLoad": [
+        {
+          "offeredRps": 516,
+          "fractionOfPredictedKnee": 0.2502424830261882,
+          "measuredP95Ms": 1.567202,
+          "predictedP95Ms": 2.4704,
+          "diffMs": 0.9031980000000002,
+          "text": {
+            "offered": "516",
+            "fraction": "0.25x",
+            "measuredP95": "1.57",
+            "predictedP95": "2.47",
+            "diff": "+0.90 ms",
+            "p95Error": "+58%"
+          }
+        },
+        {
+          "offeredRps": 1031,
+          "fractionOfPredictedKnee": 0.5,
+          "measuredP95Ms": 1.436012,
+          "predictedP95Ms": 2.5198,
+          "diffMs": 1.083788,
+          "text": {
+            "offered": "1,031",
+            "fraction": "0.5x",
+            "measuredP95": "1.44",
+            "predictedP95": "2.52",
+            "diff": "+1.08 ms",
+            "p95Error": "+75%"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "offeredRps": 516,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.567202,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 2.4704,
+            "successRate": 1.0
+          },
+          "p95Error": 0.5763124345170566,
+          "p95Within": true,
+          "text": {
+            "offered": "516",
+            "measuredP95": "1.57",
+            "predictedP95": "2.47",
+            "p95Error": "+58%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 1031,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.436012,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 2.5198,
+            "successRate": 1.0
+          },
+          "p95Error": 0.7547207126402843,
+          "p95Within": true,
+          "text": {
+            "offered": "1,031",
+            "measuredP95": "1.44",
+            "predictedP95": "2.52",
+            "p95Error": "+75%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 1546,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 4.181336,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 2.7275,
+            "successRate": 1.0
+          },
+          "p95Error": -0.3476965257037463,
+          "p95Within": true,
+          "text": {
+            "offered": "1,546",
+            "measuredP95": "4.18",
+            "predictedP95": "2.73",
+            "p95Error": "-35%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 1856,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 3.983766,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 3.7443,
+            "successRate": 1.0
+          },
+          "p95Error": -0.06011045829499026,
+          "p95Within": true,
+          "text": {
+            "offered": "1,856",
+            "measuredP95": "3.98",
+            "predictedP95": "3.74",
+            "p95Error": "-6%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 2062,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 12.414576599999945,
+            "successRate": 0.9979388942774006
+          },
+          "predicted": {
+            "p95Ms": 27.6687,
+            "successRate": 1.0
+          },
+          "p95Error": 1.2287268339058879,
+          "p95Within": false,
+          "text": {
+            "offered": "2,062",
+            "measuredP95": "12.4",
+            "predictedP95": "27.7",
+            "p95Error": "+123%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 2268,
+          "atOrBelowKnee": true,
+          "unstable": true,
+          "measured": {
+            "p95Ms": 10.404706,
+            "successRate": 0.9966271328424673
+          },
+          "predicted": {
+            "p95Ms": 1916.1322,
+            "successRate": 0.7862
+          },
+          "p95Error": 183.16014830212407,
+          "p95Within": false,
+          "text": {
+            "offered": "2,268",
+            "measuredP95": "10.4",
+            "predictedP95": "1,916",
+            "p95Error": "+18316%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "79%"
+          }
+        },
+        {
+          "offeredRps": 2578,
+          "atOrBelowKnee": false,
+          "unstable": true,
+          "measured": {
+            "p95Ms": 115.999907,
+            "successRate": 0.9057602792862685
+          },
+          "predicted": {
+            "p95Ms": 1954.4549,
+            "successRate": 0.1511
+          },
+          "p95Error": 15.848762645990744,
+          "p95Within": false,
+          "text": {
+            "offered": "2,578",
+            "measuredP95": "116",
+            "predictedP95": "1,954",
+            "p95Error": "+1585%",
+            "measuredSuccess": "91%",
+            "predictedSuccess": "15%"
+          }
+        },
+        {
+          "offeredRps": 3093,
+          "atOrBelowKnee": false,
+          "unstable": true,
+          "measured": {
+            "p95Ms": 101.0608508,
+            "successRate": 0.9269641125121242
+          },
+          "predicted": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "p95Error": null,
+          "p95Within": false,
+          "text": {
+            "offered": "3,093",
+            "measuredP95": "101",
+            "predictedP95": "-",
+            "p95Error": "-",
+            "measuredSuccess": "93%",
+            "predictedSuccess": "0%"
+          }
+        }
+      ],
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+        "os": "Windows-11-10.0.26200-SP0",
+        "docker": "29.1.3 (linux/amd64)",
+        "dockerCpus": 8,
+        "dockerMemoryGiB": 7.6,
+        "images": {
+          "postgres": "postgres:16-alpine",
+          "redis": "redis:7-alpine",
+          "kafka": "apache/kafka:3.8.0",
+          "k6": "grafana/k6:1.3.0",
+          "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+        },
+        "python": "3.12.13",
+        "cpusets": [
+          {
+            "container": "service",
+            "cpus": "2",
+            "count": 1
+          },
+          {
+            "container": "PostgreSQL",
+            "cpus": "4,5",
+            "count": 2
+          },
+          {
+            "container": "k6",
+            "cpus": "0,1,3,6,7",
+            "count": 5
+          }
+        ],
+        "cpusetsRecorded": false,
+        "text": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Docker 29.1.3 (linux/amd64) with 8 CPUs and 7.6 GiB; Windows-11-10.0.26200-SP0"
+      }
+    },
+    {
+      "id": "pg-hot-row",
+      "name": "PostgreSQL, every request updating one row",
+      "title": "Node.js + PostgreSQL: every request updates the same row",
+      "technologies": [
+        "Node.js",
+        "PostgreSQL"
+      ],
+      "objective": {
+        "p95Ms": 50.0,
+        "minSuccess": 0.99
+      },
+      "date": "2026-10-26",
+      "calibratedAt": "2026-10-26T11:33:38Z",
+      "predictedAt": "2026-10-26T11:34:16Z",
+      "engineVersion": "0.7.0",
+      "protocol": "v4",
+      "runs": 4,
+      "inSample": true,
+      "tier": "not-validated",
+      "criteria": {
+        "knee": {
+          "pass": false,
+          "error": 0.9724689165186501
+        },
+        "p95": {
+          "pass": true,
+          "steps": 2,
+          "misses": []
+        },
+        "stable": {
+          "pass": true,
+          "unstable": []
+        },
+        "reproduced": {
+          "pass": false,
+          "protocol": "v4",
+          "runs": 1,
+          "machines": 1
+        },
+        "all": false
+      },
+      "knee": {
+        "measured": {
+          "kneeRps": 225.2,
+          "bound": "interpolated",
+          "between": [
+            222,
+            333
+          ]
+        },
+        "predicted": {
+          "kneeRps": 444.2,
+          "bound": "interpolated",
+          "between": [
+            444,
+            488
+          ]
+        },
+        "searchedRps": 444,
+        "error": 0.9724689165186501,
+        "withinTolerance": false,
+        "text": {
+          "measured": "225",
+          "predicted": "444",
+          "error": "+97%",
+          "absError": "97%"
+        }
+      },
+      "spread": {
+        "runs": 4,
+        "minRps": 132.1,
+        "maxRps": 819.2,
+        "plusMinus": 0.7222747818774309,
+        "text": "132 to 819 req/s",
+        "plusMinusText": "±72%",
+        "values": [
+          {
+            "run": "run-1/",
+            "protocol": "v1",
+            "calibratedAt": "2026-10-26T08:11:06Z",
+            "kneeRps": 302.8,
+            "text": "303"
+          },
+          {
+            "run": "run-2/",
+            "protocol": "v2",
+            "calibratedAt": "2026-10-26T08:42:10Z",
+            "kneeRps": 819.2,
+            "text": "819"
+          },
+          {
+            "run": "run-3/",
+            "protocol": "v3",
+            "calibratedAt": "2026-10-26T10:11:09Z",
+            "kneeRps": 132.1,
+            "text": "132"
+          },
+          {
+            "run": "latest",
+            "protocol": "v4",
+            "calibratedAt": "2026-10-26T11:33:38Z",
+            "kneeRps": 225.2,
+            "text": "225"
+          }
+        ]
+      },
+      "spreadExceedsError": false,
+      "p95BelowKnee": {
+        "steps": 2,
+        "within": 2,
+        "misses": [],
+        "pass": true,
+        "medianAbsError": 0.2878302107864945,
+        "maxAbsError": 0.5505980326558588,
+        "worst": {
+          "offeredRps": 222,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 2.512321,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 3.8956,
+            "successRate": 1.0
+          },
+          "p95Error": 0.5505980326558588,
+          "p95Within": true,
+          "text": {
+            "offered": "222",
+            "measuredP95": "2.51",
+            "predictedP95": "3.90",
+            "p95Error": "+55%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        "text": {
+          "medianAbsError": "29%",
+          "maxAbsError": "55%"
+        }
+      },
+      "lowLoad": [
+        {
+          "offeredRps": 111,
+          "fractionOfPredictedKnee": 0.25,
+          "measuredP95Ms": 3.725822,
+          "predictedP95Ms": 3.8192,
+          "diffMs": 0.09337799999999996,
+          "text": {
+            "offered": "111",
+            "fraction": "0.25x",
+            "measuredP95": "3.73",
+            "predictedP95": "3.82",
+            "diff": "+0.09 ms",
+            "p95Error": "+3%"
+          }
+        },
+        {
+          "offeredRps": 222,
+          "fractionOfPredictedKnee": 0.5,
+          "measuredP95Ms": 2.512321,
+          "predictedP95Ms": 3.8956,
+          "diffMs": 1.383279,
+          "text": {
+            "offered": "222",
+            "fraction": "0.5x",
+            "measuredP95": "2.51",
+            "predictedP95": "3.90",
+            "diff": "+1.38 ms",
+            "p95Error": "+55%"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "offeredRps": 111,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 3.725822,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 3.8192,
+            "successRate": 1.0
+          },
+          "p95Error": 0.025062388917130224,
+          "p95Within": true,
+          "text": {
+            "offered": "111",
+            "measuredP95": "3.73",
+            "predictedP95": "3.82",
+            "p95Error": "+3%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 222,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 2.512321,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 3.8956,
+            "successRate": 1.0
+          },
+          "p95Error": 0.5505980326558588,
+          "p95Within": true,
+          "text": {
+            "offered": "222",
+            "measuredP95": "2.51",
+            "predictedP95": "3.90",
+            "p95Error": "+55%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 333,
+          "atOrBelowKnee": false,
+          "unstable": true,
+          "measured": {
+            "p95Ms": 1639.498823,
+            "successRate": 0.7148648648648649
+          },
+          "predicted": {
+            "p95Ms": 4.053,
+            "successRate": 1.0
+          },
+          "p95Error": -0.9975279030743165,
+          "p95Within": true,
+          "text": {
+            "offered": "333",
+            "measuredP95": "1,639",
+            "predictedP95": "4.05",
+            "p95Error": "-100%",
+            "measuredSuccess": "71%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 400,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.967531,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 5.0393,
+            "successRate": 1.0
+          },
+          "p95Error": 1.561230293194872,
+          "p95Within": false,
+          "text": {
+            "offered": "400",
+            "measuredP95": "1.97",
+            "predictedP95": "5.04",
+            "p95Error": "+156%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 444,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 2.033076,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 39.5177,
+            "successRate": 1.0
+          },
+          "p95Error": 18.437394371877883,
+          "p95Within": false,
+          "text": {
+            "offered": "444",
+            "measuredP95": "2.03",
+            "predictedP95": "39.5",
+            "p95Error": "+1844%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 488,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.898892,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1916.1322,
+            "successRate": 0.7602
+          },
+          "p95Error": 1008.0790840132036,
+          "p95Within": false,
+          "text": {
+            "offered": "488",
+            "measuredP95": "1.90",
+            "predictedP95": "1,916",
+            "p95Error": "+100808%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "76%"
+          }
+        },
+        {
+          "offeredRps": 555,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.963586,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1954.4549,
+            "successRate": 0.1503
+          },
+          "p95Error": 994.3497835083361,
+          "p95Within": false,
+          "text": {
+            "offered": "555",
+            "measuredP95": "1.96",
+            "predictedP95": "1,954",
+            "p95Error": "+99435%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "15%"
+          }
+        },
+        {
+          "offeredRps": 666,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.868292,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "p95Error": null,
+          "p95Within": false,
+          "text": {
+            "offered": "666",
+            "measuredP95": "1.87",
+            "predictedP95": "-",
+            "p95Error": "-",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "0%"
+          }
+        },
+        {
+          "offeredRps": 866,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 7.8715608999999835,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "p95Error": null,
+          "p95Within": false,
+          "text": {
+            "offered": "866",
+            "measuredP95": "7.87",
+            "predictedP95": "-",
+            "p95Error": "-",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "0%"
+          }
+        },
+        {
+          "offeredRps": 1126,
+          "atOrBelowKnee": false,
+          "unstable": true,
+          "measured": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "predicted": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "p95Error": null,
+          "p95Within": false,
+          "text": {
+            "offered": "1,126",
+            "measuredP95": "-",
+            "predictedP95": "-",
+            "p95Error": "-",
+            "measuredSuccess": "0%",
+            "predictedSuccess": "0%"
+          }
+        }
+      ],
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+        "os": "Windows-11-10.0.26200-SP0",
+        "docker": "29.1.3 (linux/amd64)",
+        "dockerCpus": 8,
+        "dockerMemoryGiB": 7.6,
+        "images": {
+          "postgres": "postgres:16-alpine",
+          "redis": "redis:7-alpine",
+          "kafka": "apache/kafka:3.8.0",
+          "k6": "grafana/k6:1.3.0",
+          "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+        },
+        "python": "3.12.13",
+        "cpusets": [
+          {
+            "container": "service",
+            "cpus": "2",
+            "count": 1
+          },
+          {
+            "container": "PostgreSQL",
+            "cpus": "4,5",
+            "count": 2
+          },
+          {
+            "container": "k6",
+            "cpus": "0,1,3,6,7",
+            "count": 5
+          }
+        ],
+        "cpusetsRecorded": false,
+        "text": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Docker 29.1.3 (linux/amd64) with 8 CPUs and 7.6 GiB; Windows-11-10.0.26200-SP0"
+      }
+    },
+    {
+      "id": "cache-aside",
+      "name": "Redis cache in front of PostgreSQL",
+      "title": "Cache-aside: Node.js, Redis (30 s TTL) and PostgreSQL; Zipf 0.99 over 100,000 keys",
+      "technologies": [
+        "Node.js",
+        "Redis",
+        "PostgreSQL"
+      ],
+      "objective": {
+        "p95Ms": 50.0,
+        "minSuccess": 0.99
+      },
+      "date": "2026-10-26",
+      "calibratedAt": "2026-10-26T11:53:13Z",
+      "predictedAt": "2026-10-26T11:57:39Z",
+      "engineVersion": "0.7.0",
+      "protocol": "v4",
+      "runs": 1,
+      "inSample": false,
+      "tier": "not-validated",
+      "criteria": {
+        "knee": {
+          "pass": true,
+          "error": -0.139246495181653
+        },
+        "p95": {
+          "pass": false,
+          "steps": 6,
+          "misses": [
+            3450,
+            3795
+          ]
+        },
+        "stable": {
+          "pass": true,
+          "unstable": []
+        },
+        "reproduced": {
+          "pass": false,
+          "protocol": "v4",
+          "runs": 1,
+          "machines": 1
+        },
+        "all": false
+      },
+      "knee": {
+        "measured": {
+          "kneeRps": 4015.9,
+          "bound": "interpolated",
+          "between": [
+            3795,
+            4312
+          ]
+        },
+        "predicted": {
+          "kneeRps": 3456.7,
+          "bound": "interpolated",
+          "between": [
+            3450,
+            3795
+          ]
+        },
+        "searchedRps": 3450,
+        "error": -0.139246495181653,
+        "withinTolerance": true,
+        "text": {
+          "measured": "4,016",
+          "predicted": "3,457",
+          "error": "-14%",
+          "absError": "14%"
+        }
+      },
+      "spread": null,
+      "spreadExceedsError": false,
+      "p95BelowKnee": {
+        "steps": 6,
+        "within": 4,
+        "misses": [
+          3450,
+          3795
+        ],
+        "pass": false,
+        "medianAbsError": 0.29429916283993585,
+        "maxAbsError": 1016.4884425323307,
+        "worst": {
+          "offeredRps": 3795,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.883198,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1916.1322,
+            "successRate": 0.7945
+          },
+          "p95Error": 1016.4884425323307,
+          "p95Within": false,
+          "text": {
+            "offered": "3,795",
+            "measuredP95": "1.88",
+            "predictedP95": "1,916",
+            "p95Error": "+101649%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "79%"
+          }
+        },
+        "text": {
+          "medianAbsError": "29%",
+          "maxAbsError": "101649%"
+        }
+      },
+      "lowLoad": [
+        {
+          "offeredRps": 862,
+          "fractionOfPredictedKnee": 0.24985507246376812,
+          "measuredP95Ms": 0.996374,
+          "predictedP95Ms": 1.3109,
+          "diffMs": 0.314526,
+          "text": {
+            "offered": "862",
+            "fraction": "0.25x",
+            "measuredP95": "1.00",
+            "predictedP95": "1.31",
+            "diff": "+0.31 ms",
+            "p95Error": "+32%"
+          }
+        },
+        {
+          "offeredRps": 1725,
+          "fractionOfPredictedKnee": 0.5,
+          "measuredP95Ms": 1.009641,
+          "predictedP95Ms": 1.2852,
+          "diffMs": 0.2755589999999999,
+          "text": {
+            "offered": "1,725",
+            "fraction": "0.5x",
+            "measuredP95": "1.01",
+            "predictedP95": "1.29",
+            "diff": "+0.28 ms",
+            "p95Error": "+27%"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "offeredRps": 862,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 0.996374,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1.3109,
+            "successRate": 1.0
+          },
+          "p95Error": 0.3156706216741906,
+          "p95Within": true,
+          "text": {
+            "offered": "862",
+            "measuredP95": "1.00",
+            "predictedP95": "1.31",
+            "p95Error": "+32%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 1725,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.009641,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1.2852,
+            "successRate": 1.0
+          },
+          "p95Error": 0.2729277040056811,
+          "p95Within": true,
+          "text": {
+            "offered": "1,725",
+            "measuredP95": "1.01",
+            "predictedP95": "1.29",
+            "p95Error": "+27%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 2588,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.211566,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1.3638,
+            "successRate": 1.0
+          },
+          "p95Error": 0.12565060425928096,
+          "p95Within": true,
+          "text": {
+            "offered": "2,588",
+            "measuredP95": "1.21",
+            "predictedP95": "1.36",
+            "p95Error": "+13%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 3105,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 2.036255,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1.7643,
+            "successRate": 1.0
+          },
+          "p95Error": -0.13355645535554247,
+          "p95Within": true,
+          "text": {
+            "offered": "3,105",
+            "measuredP95": "2.04",
+            "predictedP95": "1.76",
+            "p95Error": "-13%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 3450,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.2446987500000004,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 13.2979,
+            "successRate": 1.0
+          },
+          "p95Error": 9.683629271741452,
+          "p95Within": false,
+          "text": {
+            "offered": "3,450",
+            "measuredP95": "1.24",
+            "predictedP95": "13.3",
+            "p95Error": "+968%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 3795,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 1.883198,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 1916.1322,
+            "successRate": 0.7945
+          },
+          "p95Error": 1016.4884425323307,
+          "p95Within": false,
+          "text": {
+            "offered": "3,795",
+            "measuredP95": "1.88",
+            "predictedP95": "1,916",
+            "p95Error": "+101649%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "79%"
+          }
+        },
+        {
+          "offeredRps": 4312,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 20.16673475,
+            "successRate": 0.9765980146581316
+          },
+          "predicted": {
+            "p95Ms": 1954.4549,
+            "successRate": 0.1596
+          },
+          "p95Error": 95.91479182072348,
+          "p95Within": false,
+          "text": {
+            "offered": "4,312",
+            "measuredP95": "20.2",
+            "predictedP95": "1,954",
+            "p95Error": "+9591%",
+            "measuredSuccess": "98%",
+            "predictedSuccess": "16%"
+          }
+        },
+        {
+          "offeredRps": 5175,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 7.64627225,
+            "successRate": 0.9918358276731626
+          },
+          "predicted": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "p95Error": null,
+          "p95Within": false,
+          "text": {
+            "offered": "5,175",
+            "measuredP95": "7.65",
+            "predictedP95": "-",
+            "p95Error": "-",
+            "measuredSuccess": "99%",
+            "predictedSuccess": "0%"
+          }
+        },
+        {
+          "offeredRps": 6728,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 32.50240775,
+            "successRate": 0.95326317979816
+          },
+          "predicted": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "p95Error": null,
+          "p95Within": false,
+          "text": {
+            "offered": "6,728",
+            "measuredP95": "32.5",
+            "predictedP95": "-",
+            "p95Error": "-",
+            "measuredSuccess": "95%",
+            "predictedSuccess": "0%"
+          }
+        }
+      ],
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+        "os": "Windows-11-10.0.26200-SP0",
+        "docker": "29.1.3 (linux/amd64)",
+        "dockerCpus": 8,
+        "dockerMemoryGiB": 7.6,
+        "images": {
+          "postgres": "postgres:16-alpine",
+          "redis": "redis:7-alpine",
+          "kafka": "apache/kafka:3.8.0",
+          "k6": "grafana/k6:1.3.0",
+          "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+        },
+        "python": "3.12.13",
+        "cpusets": [
+          {
+            "container": "service",
+            "cpus": "2",
+            "count": 1
+          },
+          {
+            "container": "PostgreSQL",
+            "cpus": "4,5",
+            "count": 2
+          },
+          {
+            "container": "Redis",
+            "cpus": "1",
+            "count": 1
+          },
+          {
+            "container": "k6",
+            "cpus": "0,3,6,7",
+            "count": 4
+          }
+        ],
+        "cpusetsRecorded": false,
+        "text": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Docker 29.1.3 (linux/amd64) with 8 CPUs and 7.6 GiB; Windows-11-10.0.26200-SP0"
+      }
+    },
+    {
+      "id": "kafka",
+      "name": "Kafka queue feeding PostgreSQL",
+      "title": "Kafka: Node.js producer, 6 partitions, 3 consumers inserting into PostgreSQL",
+      "technologies": [
+        "Node.js",
+        "Kafka",
+        "PostgreSQL"
+      ],
+      "objective": {
+        "p95Ms": 50.0,
+        "minSuccess": 0.99
+      },
+      "date": "2026-10-26",
+      "calibratedAt": "2026-10-26T12:22:50Z",
+      "predictedAt": "2026-10-26T12:24:22Z",
+      "engineVersion": "0.7.0",
+      "protocol": "v4",
+      "runs": 1,
+      "inSample": false,
+      "tier": "not-validated",
+      "criteria": {
+        "knee": {
+          "pass": true,
+          "error": 0.06443080829454081
+        },
+        "p95": {
+          "pass": false,
+          "steps": 4,
+          "misses": [
+            252,
+            503,
+            905
+          ]
+        },
+        "stable": {
+          "pass": true,
+          "unstable": []
+        },
+        "reproduced": {
+          "pass": false,
+          "protocol": "v4",
+          "runs": 1,
+          "machines": 1
+        },
+        "all": false
+      },
+      "knee": {
+        "measured": {
+          "kneeRps": 945.2,
+          "bound": "interpolated",
+          "between": [
+            905,
+            1006
+          ]
+        },
+        "predicted": {
+          "kneeRps": 1006.1,
+          "bound": "interpolated",
+          "between": [
+            1006,
+            1107
+          ]
+        },
+        "searchedRps": 1006,
+        "error": 0.06443080829454081,
+        "withinTolerance": true,
+        "text": {
+          "measured": "945",
+          "predicted": "1,006",
+          "error": "+6%",
+          "absError": "6%"
+        }
+      },
+      "spread": null,
+      "spreadExceedsError": false,
+      "p95BelowKnee": {
+        "steps": 4,
+        "within": 1,
+        "misses": [
+          252,
+          503,
+          905
+        ],
+        "pass": false,
+        "medianAbsError": 2.1114510990286304,
+        "maxAbsError": 3.3188595069248787,
+        "worst": {
+          "offeredRps": 503,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 2.627916,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 11.3496,
+            "successRate": 1.0
+          },
+          "p95Error": 3.3188595069248787,
+          "p95Within": false,
+          "text": {
+            "offered": "503",
+            "measuredP95": "2.63",
+            "predictedP95": "11.3",
+            "p95Error": "+332%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        "text": {
+          "medianAbsError": "211%",
+          "maxAbsError": "332%"
+        }
+      },
+      "lowLoad": [
+        {
+          "offeredRps": 252,
+          "fractionOfPredictedKnee": 0.2504970178926441,
+          "measuredP95Ms": 2.874117,
+          "predictedP95Ms": 11.5766,
+          "diffMs": 8.702482999999999,
+          "text": {
+            "offered": "252",
+            "fraction": "0.25x",
+            "measuredP95": "2.87",
+            "predictedP95": "11.6",
+            "diff": "+8.70 ms",
+            "p95Error": "+303%"
+          }
+        },
+        {
+          "offeredRps": 503,
+          "fractionOfPredictedKnee": 0.5,
+          "measuredP95Ms": 2.627916,
+          "predictedP95Ms": 11.3496,
+          "diffMs": 8.721684,
+          "text": {
+            "offered": "503",
+            "fraction": "0.5x",
+            "measuredP95": "2.63",
+            "predictedP95": "11.3",
+            "diff": "+8.72 ms",
+            "p95Error": "+332%"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "offeredRps": 252,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 2.874117,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 11.5766,
+            "successRate": 1.0
+          },
+          "p95Error": 3.0278805629694263,
+          "p95Within": false,
+          "text": {
+            "offered": "252",
+            "measuredP95": "2.87",
+            "predictedP95": "11.6",
+            "p95Error": "+303%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 503,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 2.627916,
+            "successRate": 1.0
+          },
+          "predicted": {
+            "p95Ms": 11.3496,
+            "successRate": 1.0
+          },
+          "p95Error": 3.3188595069248787,
+          "p95Within": false,
+          "text": {
+            "offered": "503",
+            "measuredP95": "2.63",
+            "predictedP95": "11.3",
+            "p95Error": "+332%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 754,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 28.733978999999987,
+            "successRate": 0.9961538461538462
+          },
+          "predicted": {
+            "p95Ms": 11.5766,
+            "successRate": 1.0
+          },
+          "p95Error": -0.5971111414816582,
+          "p95Within": true,
+          "text": {
+            "offered": "754",
+            "measuredP95": "28.7",
+            "predictedP95": "11.6",
+            "p95Error": "-60%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 905,
+          "atOrBelowKnee": true,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 5.708782,
+            "successRate": 0.9970719849732059
+          },
+          "predicted": {
+            "p95Ms": 12.5309,
+            "successRate": 1.0
+          },
+          "p95Error": 1.1950216350878349,
+          "p95Within": false,
+          "text": {
+            "offered": "905",
+            "measuredP95": "5.71",
+            "predictedP95": "12.5",
+            "p95Error": "+120%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 1006,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 90.45764144999998,
+            "successRate": 0.9793250832463595
+          },
+          "predicted": {
+            "p95Ms": 47.2273,
+            "successRate": 1.0
+          },
+          "p95Error": -0.4779070154498262,
+          "p95Within": true,
+          "text": {
+            "offered": "1,006",
+            "measuredP95": "90.5",
+            "predictedP95": "47.2",
+            "p95Error": "-48%",
+            "measuredSuccess": "98%",
+            "predictedSuccess": "100%"
+          }
+        },
+        {
+          "offeredRps": 1107,
+          "atOrBelowKnee": false,
+          "unstable": true,
+          "measured": {
+            "p95Ms": 20.159681,
+            "successRate": 0.9981933968655435
+          },
+          "predicted": {
+            "p95Ms": 1954.4549,
+            "successRate": 0.7688
+          },
+          "p95Error": 95.94870171804801,
+          "p95Within": false,
+          "text": {
+            "offered": "1,107",
+            "measuredP95": "20.2",
+            "predictedP95": "1,954",
+            "p95Error": "+9595%",
+            "measuredSuccess": "100%",
+            "predictedSuccess": "77%"
+          }
+        },
+        {
+          "offeredRps": 1258,
+          "atOrBelowKnee": false,
+          "unstable": true,
+          "measured": {
+            "p95Ms": 51.84689789999998,
+            "successRate": 0.9910178450776996
+          },
+          "predicted": {
+            "p95Ms": 1954.4549,
+            "successRate": 0.1515
+          },
+          "p95Error": 36.69666034349185,
+          "p95Within": false,
+          "text": {
+            "offered": "1,258",
+            "measuredP95": "51.8",
+            "predictedP95": "1,954",
+            "p95Error": "+3670%",
+            "measuredSuccess": "99%",
+            "predictedSuccess": "15%"
+          }
+        },
+        {
+          "offeredRps": 1509,
+          "atOrBelowKnee": false,
+          "unstable": false,
+          "measured": {
+            "p95Ms": 316.50070220000015,
+            "successRate": 0.6793015473311024
+          },
+          "predicted": {
+            "p95Ms": null,
+            "successRate": 0.0
+          },
+          "p95Error": null,
+          "p95Within": false,
+          "text": {
+            "offered": "1,509",
+            "measuredP95": "317",
+            "predictedP95": "-",
+            "p95Error": "-",
+            "measuredSuccess": "68%",
+            "predictedSuccess": "0%"
+          }
+        }
+      ],
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+        "os": "Windows-11-10.0.26200-SP0",
+        "docker": "29.1.3 (linux/amd64)",
+        "dockerCpus": 8,
+        "dockerMemoryGiB": 7.6,
+        "images": {
+          "postgres": "postgres:16-alpine",
+          "redis": "redis:7-alpine",
+          "kafka": "apache/kafka:3.8.0",
+          "k6": "grafana/k6:1.3.0",
+          "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+        },
+        "python": "3.12.13",
+        "cpusets": [
+          {
+            "container": "producer",
+            "cpus": "2",
+            "count": 1
+          },
+          {
+            "container": "consumer",
+            "cpus": "3",
+            "count": 1
+          },
+          {
+            "container": "PostgreSQL",
+            "cpus": "4,5",
+            "count": 2
+          },
+          {
+            "container": "Kafka",
+            "cpus": "0,1",
+            "count": 2
+          },
+          {
+            "container": "k6",
+            "cpus": "6,7",
+            "count": 2
+          }
+        ],
+        "cpusetsRecorded": false,
+        "text": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Docker 29.1.3 (linux/amd64) with 8 CPUs and 7.6 GiB; Windows-11-10.0.26200-SP0"
+      }
+    }
+  ],
+  "history": {
+    "pg-mixed": [
+      {
+        "dir": "run-1/",
+        "protocol": "v1",
+        "calibratedAt": "2026-10-26T08:00:55Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": null,
+          "bound": "above",
+          "aboveRps": 1359
+        },
+        "predictedKnee": {
+          "kneeRps": 906.2,
+          "bound": "interpolated",
+          "between": [
+            906,
+            997
+          ]
+        },
+        "kneeError": null,
+        "text": {
+          "measuredKnee": "> 1,359",
+          "predictedKnee": "906",
+          "kneeError": "-"
+        }
+      },
+      {
+        "dir": "run-2/",
+        "protocol": "v2",
+        "calibratedAt": "2026-10-26T08:23:18Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 1895.0,
+          "bound": "interpolated",
+          "between": [
+            1734,
+            2081
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 2313.7,
+          "bound": "interpolated",
+          "between": [
+            2312,
+            2543
+          ]
+        },
+        "kneeError": 0.22094986807387854,
+        "text": {
+          "measuredKnee": "1,895",
+          "predictedKnee": "2,314",
+          "kneeError": "+22%"
+        }
+      },
+      {
+        "dir": "run-3/",
+        "protocol": "v3",
+        "calibratedAt": "2026-10-26T09:46:26Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 3162.3,
+          "bound": "interpolated",
+          "between": [
+            2636,
+            3427
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 808.2,
+          "bound": "interpolated",
+          "between": [
+            800,
+            880
+          ]
+        },
+        "kneeError": -0.7444265249976284,
+        "text": {
+          "measuredKnee": "3,162",
+          "predictedKnee": "808",
+          "kneeError": "-74%"
+        }
+      },
+      {
+        "dir": "latest",
+        "protocol": "v4",
+        "calibratedAt": "2026-10-26T11:13:41Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 2290.6,
+          "bound": "interpolated",
+          "between": [
+            2268,
+            2578
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 2064.4,
+          "bound": "interpolated",
+          "between": [
+            2062,
+            2268
+          ]
+        },
+        "kneeError": -0.09875141884222467,
+        "text": {
+          "measuredKnee": "2,291",
+          "predictedKnee": "2,064",
+          "kneeError": "-10%"
+        }
+      }
+    ],
+    "pg-hot-row": [
+      {
+        "dir": "run-1/",
+        "protocol": "v1",
+        "calibratedAt": "2026-10-26T08:11:06Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 302.8,
+          "bound": "interpolated",
+          "between": [
+            302,
+            363
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 403.4,
+          "bound": "interpolated",
+          "between": [
+            403,
+            443
+          ]
+        },
+        "kneeError": 0.33223249669748994,
+        "text": {
+          "measuredKnee": "303",
+          "predictedKnee": "403",
+          "kneeError": "+33%"
+        }
+      },
+      {
+        "dir": "run-2/",
+        "protocol": "v2",
+        "calibratedAt": "2026-10-26T08:42:10Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 819.2,
+          "bound": "interpolated",
+          "between": [
+            815,
+            1060
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 418.5,
+          "bound": "interpolated",
+          "between": [
+            418,
+            460
+          ]
+        },
+        "kneeError": -0.48913574218750006,
+        "text": {
+          "measuredKnee": "819",
+          "predictedKnee": "418",
+          "kneeError": "-49%"
+        }
+      },
+      {
+        "dir": "run-3/",
+        "protocol": "v3",
+        "calibratedAt": "2026-10-26T10:11:09Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 132.1,
+          "bound": "interpolated",
+          "between": [
+            126,
+            252
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 503.8,
+          "bound": "interpolated",
+          "between": [
+            503,
+            553
+          ]
+        },
+        "kneeError": 2.8137774413323244,
+        "text": {
+          "measuredKnee": "132",
+          "predictedKnee": "504",
+          "kneeError": "+281%"
+        }
+      },
+      {
+        "dir": "latest",
+        "protocol": "v4",
+        "calibratedAt": "2026-10-26T11:33:38Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 225.2,
+          "bound": "interpolated",
+          "between": [
+            222,
+            333
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 444.2,
+          "bound": "interpolated",
+          "between": [
+            444,
+            488
+          ]
+        },
+        "kneeError": 0.9724689165186501,
+        "text": {
+          "measuredKnee": "225",
+          "predictedKnee": "444",
+          "kneeError": "+97%"
+        }
+      }
+    ],
+    "cache-aside": [
+      {
+        "dir": "latest",
+        "protocol": "v4",
+        "calibratedAt": "2026-10-26T11:53:13Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 4015.9,
+          "bound": "interpolated",
+          "between": [
+            3795,
+            4312
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 3456.7,
+          "bound": "interpolated",
+          "between": [
+            3450,
+            3795
+          ]
+        },
+        "kneeError": -0.139246495181653,
+        "text": {
+          "measuredKnee": "4,016",
+          "predictedKnee": "3,457",
+          "kneeError": "-14%"
+        }
+      }
+    ],
+    "kafka": [
+      {
+        "dir": "latest",
+        "protocol": "v4",
+        "calibratedAt": "2026-10-26T12:22:50Z",
+        "machine": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Windows-11-10.0.26200-SP0",
+        "measuredKnee": {
+          "kneeRps": 945.2,
+          "bound": "interpolated",
+          "between": [
+            905,
+            1006
+          ]
+        },
+        "predictedKnee": {
+          "kneeRps": 1006.1,
+          "bound": "interpolated",
+          "between": [
+            1006,
+            1107
+          ]
+        },
+        "kneeError": 0.06443080829454081,
+        "text": {
+          "measuredKnee": "945",
+          "predictedKnee": "1,006",
+          "kneeError": "+6%"
+        }
+      }
+    ]
+  }
+}
