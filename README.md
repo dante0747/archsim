@@ -264,8 +264,8 @@ All settings are listed in [.env.example](.env.example).
 docker compose up --build
 ```
 
-Then open <http://localhost:3000>. Ports are bound to 127.0.0.1 because the MVP has no
-authentication. A one-shot `migrate` service updates the database first.
+Then open <http://localhost:3000>. Ports are bound to 127.0.0.1 because the stack runs
+without sign-in by default. A one-shot `migrate` service updates the database first.
 
 ### Several API instances and workers
 
@@ -276,6 +276,24 @@ the database); set `ARCHSIM_EMBEDDED_WORKER=false` on API instances that should 
 A run survives a restart (it is queued again), cancel works from any instance, and a crashed
 simulation fails only its own run. SQLite is for one machine. Details and limits:
 [docs/api.md](docs/api.md#background-runs-and-several-instances).
+
+### Sign-in, teams and API tokens
+
+Locally there is no sign-in: you are the owner of one `default` workspace. To let other people
+in, run the API with `ARCHSIM_AUTH_MODE=oauth`, a secret key, the public address and a GitHub
+or Google OAuth app (all listed in [.env.example](.env.example)). Then:
+
+- people sign in with GitHub or Google and get a personal workspace; whoever's verified email
+  is in `ARCHSIM_ADMIN_EMAILS` also owns `default`;
+- the person menu at the top right switches workspaces, and **Settings** creates team
+  workspaces, invites people as viewers, editors or owners, and makes **API tokens** for the
+  CLI, CI and MCP (`Authorization: Bearer asim_pat_...` to `https://<host>/api/v1`);
+- runs per hour and runs at once are limited per workspace (429 with `Retry-After`), and the
+  server calls a Prometheus only on an allowlist of public hosts.
+
+Use PostgreSQL and HTTPS, and keep the API's port private (the web server proxies it). The
+threat model is in [SECURITY.md](SECURITY.md); the endpoints in
+[docs/api.md](docs/api.md#sign-in-workspaces-and-tokens).
 
 ## A five-minute tour
 
@@ -373,13 +391,16 @@ Supported today: several client groups per design (Clients, mobile app, web brow
 consumers) sharing one workload; load balancers, services (with autoscaling and serverless),
 caches, databases, message queues and external APIs; synchronous acyclic call graphs;
 open-loop synthetic workloads; scheduled faults (outage, slowdown, link latency); local
-single-user operation; optional CPU, memory and storage specs (CPU contention, memory limits,
+use without sign-in, or GitHub/Google sign-in with workspaces, roles and API tokens; optional
+CPU, memory and storage specs (CPU contention, memory limits,
 database buffer cache, LRU cache eviction); the technology behaviours listed above (row locks,
 write-ahead-log flushes, GC pauses, cold starts and so on). Not modeled: OOM kills and
 restarts, disk and network bandwidth, packet loss, deadlocks and range locks, random failures
 (faults are scheduled), parallel fan-out calls, regions. The full list is in
-[docs/simulation-model.md](docs/simulation-model.md#what-is-not-modeled). There is no
-authentication; do not expose the API publicly.
+[docs/simulation-model.md](docs/simulation-model.md#what-is-not-modeled). Without
+`ARCHSIM_AUTH_MODE=oauth` there is no authentication: keep it on your machine. A hosted stack
+and deploy guide are still to come; until then, read [SECURITY.md](SECURITY.md) before exposing
+a server.
 Grafana integration and an HTTP transport for the MCP server are on the roadmap, not
 implemented; AI agents can use the stdio MCP server and, in the browser, the
 [WebMCP tools](docs/agents.md).

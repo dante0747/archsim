@@ -195,8 +195,11 @@ uv run archsim calibrate prometheus examples/cache-aside-starter.json \
   replay's observed p95 approximate.
 - Not derived yet: capacity limits from pool gauges without a mapping, retries and timeouts from
   traces, a design from traces (the call graph is reported, not drawn).
-- The API's `/calibrate` calls the Prometheus URL it is given. By default any host is allowed,
-  for local use: keep the API on localhost (as the README says), and **set
-  `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS`** (comma-separated `host` or `host:port`) before it is
-  reachable from anywhere else, or it can be used to probe hosts the server can reach. The list
-  matches host names, not the addresses they resolve to (see [SECURITY.md](../SECURITY.md)).
+- The API's `/calibrate` calls the Prometheus URL it is given only as `ARCHSIM_OUTBOUND`
+  allows. Without sign-in (local use) any host is allowed, or only
+  `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` when set. A hosted API (sign-in on) calls none unless
+  hosts are listed, and then only those, each name resolving to public addresses only (no
+  loopback, private or cloud-metadata addresses; the call goes to the address checked); sandbox
+  workspaces never call out. Where the API may not call your Prometheus, record the responses
+  with `archsim calibrate --record` on a machine that can reach it and send those instead
+  (see [SECURITY.md](../SECURITY.md)).
