@@ -14,6 +14,14 @@ updates:
     groups:
       web:
         patterns: ["*"]
+    # Held back until the lint tooling supports them: typescript-eslint does not support
+    # TypeScript 7 yet, and the plugins in eslint-config-next accept ESLint up to 9. Remove a
+    # rule once `npm run lint` passes with that version.
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">=7"]
+      - dependency-name: "eslint"
+        versions: [">=10"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

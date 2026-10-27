@@ -1157,8 +1157,10 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
    run 4 and measure hot-row, then decide tier thresholds (the owner; a proposal is in
    docs/validation.md). Model changes the data supports: CPU per request that falls with load,
    group commit, a gradual saturation regime.
-2. Take Dependabot's web dependency group (PR #4) once typescript-eslint supports
-   TypeScript 7, or hold TypeScript below 7 until then.
+2. Move to TypeScript 7 and ESLint 10 once typescript-eslint supports TypeScript 7 and
+   eslint-config-next's plugins accept ESLint 10; `.github/dependabot.yml` ignores both until
+   then (the rest of Dependabot's PR #4 is merged: React 19.3.1, simple-icons 16.35.0,
+   jsdom 30, @types/node 26).
 3. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
 4. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
