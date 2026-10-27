@@ -400,6 +400,105 @@ class SharedReport(Base):
     view_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
+# -- review: comments, sign-offs and history ---------------------------------------------------
+COMMENT_ANCHORS = ("node", "edge", "project", "run")
+REVIEW_DECISIONS = ("approved", "changes_requested")
+ACTOR_KINDS = ("user", "token", "system")
+
+# SQLite only numbers INTEGER primary keys by itself; PostgreSQL gets a BIGSERIAL.
+AutoBigInt = BigInteger().with_variant(Integer(), "sqlite")
+
+
+class Comment(Base):
+    """A comment on a part of a design (a node or link, by its id in the document), on the
+    project or on a run. Replies point at the first comment of their thread (``parent_id``);
+    resolving the thread marks that first comment. A comment whose part was deleted since is
+    shown as detached, never lost."""
+
+    __tablename__ = "comments"
+    __table_args__ = (Index("ix_comments_project_created", "project_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    workspace_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("workspaces.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    anchor_kind: Mapped[str] = mapped_column(String(16))  # node | edge | project | run
+    anchor_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    """The node or edge id in the document, or the run id (None for the project)."""
+    run_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("simulation_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    """The run the comment is about (a run comment) or was written next to."""
+    parent_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("comments.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    author_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class ReviewSignoff(Base):
+    """A reviewer's decision on a run of a design: approved, or changes requested. It records
+    the project's revision and the run's digests, so it goes stale once the design changes."""
+
+    __tablename__ = "review_signoffs"
+    __table_args__ = (Index("ix_signoffs_project_created", "project_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    project_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    run_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("simulation_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_revision: Mapped[int] = mapped_column(Integer)
+    input_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    result_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reviewer_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    decision: Mapped[str] = mapped_column(String(24))  # approved | changes_requested
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AuditEvent(Base):
+    """One change, written in the same transaction as the change (``archsim_api.audit``).
+    ``project_id`` has no foreign key: a project's history outlives the project."""
+
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        Index("ix_audit_workspace_id", "workspace_id", "id"),
+        Index("ix_audit_project_id", "project_id", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(AutoBigInt, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("workspaces.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    actor_user_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    actor_kind: Mapped[str] = mapped_column(String(16))  # user | token | system
+    action: Mapped[str] = mapped_column(String(64))
+    target_kind: Mapped[str] = mapped_column(String(32))
+    target_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    meta: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
         engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})

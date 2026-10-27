@@ -3,6 +3,7 @@
 import { CircleAlert, CircleCheck, CircleSlash, Eye, History, LoaderCircle, MoreHorizontal, RotateCcw, Square, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/misc";
+import { SignOffBadge } from "@/components/team/SignOff";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/overlays";
 import { fmtMs, fmtPct, fmtRelativeTime, fmtRps, shortDigest } from "@/lib/format";
 import type { Run } from "@/lib/types";
@@ -71,6 +72,7 @@ export function RunsTab() {
                 <td className="max-w-56 px-2 py-1.5">
                   <p className="truncate font-medium text-ink">{r.label}</p>
                   {r.mode === "sampled" && <p className="font-mono text-[11px] text-ink-3">estimated (quick check)</p>}
+                  <SignOffBadge runId={r.id} />
                   {r.status === "failed" && r.error && <p className="truncate text-danger-ink" title={r.error.message}>{r.error.message}</p>}
                   {active && <p className="font-mono text-[11px] text-ink-3">{r.status} · {Math.round(r.progress * 100)}%</p>}
                   {(r.id === compareA || r.id === compareB) && (

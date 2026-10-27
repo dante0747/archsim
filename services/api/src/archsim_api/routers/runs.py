@@ -17,8 +17,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from archsim_api import limits
+from archsim_api.audit import audit_run
 from archsim_api.config import Settings
-from archsim_api.db import Database, RunGroup, SimulationRun, Workspace
+from archsim_api.db import Database, RunGroup, SimulationRun, Workspace, new_id
 from archsim_api.deps import (
     get_db,
     get_jobs,
@@ -121,6 +122,7 @@ def _enqueue(
     prep = _prepare(document, scenario_id, registry, run_limits, seed)
     default = prep.scenario_name or "Current design"
     run = SimulationRun(
+        id=new_id(),
         project_id=project_id,
         workspace_id=workspace_id,
         created_by=created_by,
@@ -138,6 +140,7 @@ def _enqueue(
         group_id=group.id if group else None,
         seed_index=seed_index,
     )
+    audit_run(session, "run.create", run, actor=created_by)
     return jobs.enqueue(session, run)
 
 
@@ -316,6 +319,8 @@ def cancel_run(
     run = access.run
     if run.status in ACTIVE:
         jobs.cancel(run.id)
+        audit_run(session, "run.cancel", run)
+        session.commit()
         session.refresh(run)
     return _run_out(run)
 
@@ -361,6 +366,7 @@ def delete_run(
     run = access.run
     if run.status in ACTIVE:
         jobs.cancel(run.id)
+    audit_run(session, "run.delete", run)
     session.delete(run)
     session.commit()
     return Response(status_code=204)

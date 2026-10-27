@@ -8,12 +8,15 @@ from contextlib import contextmanager
 from typing import Any
 
 import httpx2
+from fastapi import Depends
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from api_helpers import EXAMPLES
+from archsim_api.audit import PRINCIPAL_KEY
 from archsim_api.config import Settings
 from archsim_api.db import Database, Membership, User, Workspace
-from archsim_api.deps import get_principal
+from archsim_api.deps import get_principal, get_session
 from archsim_api.main import create_app
 from archsim_api.security import Principal
 from fake_oauth import FakeProviders
@@ -104,7 +107,13 @@ def acting_as(client: TestClient, user_id: str, **principal: Any) -> Iterator[No
     """Requests inside the block are made by ``user_id`` (a signed-in session by default)."""
     overrides = client.app.dependency_overrides  # type: ignore[attr-defined]
     kind = principal.pop("kind", "session")
-    overrides[get_principal] = lambda: Principal(user_id, kind, **principal)
+
+    def acting(session: Session = Depends(get_session)) -> Principal:
+        p = Principal(user_id, kind, **principal)
+        session.info[PRINCIPAL_KEY] = p  # what get_principal does, for the history's actor
+        return p
+
+    overrides[get_principal] = acting
     try:
         yield
     finally:

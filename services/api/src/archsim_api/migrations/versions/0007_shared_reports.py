@@ -5,7 +5,7 @@ A snapshot rather than a link to the run: run digests are guessable and cannot b
 go when their project is deleted, and the report format changes between versions.
 
 Revision ID: 0007
-Revises: 0005 (W9's 0006 and W12's 0008 are chained in order when they are merged)
+Revises: 0006
 Create Date: 2026-10-27
 """
 

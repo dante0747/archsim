@@ -2,6 +2,7 @@
 
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getSmoothStepPath } from "@xyflow/react";
 import { memo, useMemo } from "react";
+import { EdgeCommentBadge } from "@/components/team/CommentBadge";
 import type { ArchEdge } from "@/lib/document";
 import { describeDistribution } from "@/lib/distributions";
 import { compact, compactRate } from "@/lib/format";
@@ -166,6 +167,7 @@ function ArchEdgeViewImpl({
         </div>
       </EdgeLabelRenderer>
       )}
+      <EdgeCommentBadge edgeId={id} x={labelX} y={labelY} />
     </>
   );
 }
