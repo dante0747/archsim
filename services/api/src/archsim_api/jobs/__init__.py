@@ -25,6 +25,7 @@ from typing import Any, Protocol
 from sqlalchemy import select, update
 
 from archsim_api.db import Database, SimulationRun, utcnow
+from archsim_api.jobs.queue import ACTIVE, WORKER_STOPPED
 from archsim_engine import (
     DocumentInvalidError,
     SimulationCancelledError,
@@ -35,13 +36,7 @@ from archsim_engine import (
 
 log = logging.getLogger("archsim.jobs")
 
-ACTIVE = ("queued", "running")
-
-WORKER_STOPPED = (
-    "The simulation worker stopped unexpectedly (for example, it ran out of memory or was "
-    "killed), so this run did not finish. Run it again; if it keeps happening, shorten the run "
-    "or lower the load."
-)
+__all__ = ["ACTIVE", "WORKER_STOPPED", "ProcessJobRunner", "ThreadJobRunner", "run_summary"]
 
 
 class JobRunner(Protocol):

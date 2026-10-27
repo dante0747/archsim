@@ -34,12 +34,10 @@ def _limits(settings: Settings) -> SimulationLimits:
     )
 
 
-def _run_out(run: SimulationRun, jobs: ThreadJobRunner, reproduces: str | None = None) -> RunOut:
+def _run_out(run: SimulationRun, reproduces: str | None = None) -> RunOut:
+    # progress comes from the row: the worker running it writes it at most once a second, from
+    # whichever process or host it is on
     out = RunOut.model_validate(run)
-    if run.status == "running":
-        live = jobs.live_progress(run.id)
-        if live is not None:
-            out.progress = live
     out.reproduces_run_id = reproduces
     return out
 
@@ -102,7 +100,7 @@ def create_run(
     run = _enqueue(
         session, jobs, registry, settings, project_id, document, body.scenario_id, body.label
     )
-    return _run_out(run, jobs)
+    return _run_out(run)
 
 
 @router.post("/projects/{project_id}/runs/batch", response_model=list[RunOut], status_code=202)
@@ -128,14 +126,13 @@ def create_batch(
         _enqueue(session, jobs, registry, settings, project_id, document, sid, None)
         for sid in body.scenario_ids
     ]
-    return [_run_out(r, jobs) for r in runs]
+    return [_run_out(r) for r in runs]
 
 
 @router.get("/projects/{project_id}/runs", response_model=list[RunOut])
 def list_runs(
     project_id: str,
     session: Session = Depends(get_session),
-    jobs: ThreadJobRunner = Depends(get_jobs),
     settings: Settings = Depends(get_settings_dep),
 ) -> list[RunOut]:
     get_project_or_404(session, project_id)
@@ -149,14 +146,12 @@ def list_runs(
         .scalars()
         .all()
     )
-    return [_run_out(r, jobs) for r in rows]
+    return [_run_out(r) for r in rows]
 
 
 @router.get("/runs/{run_id}", response_model=RunOut)
-def get_run(
-    run_id: str, session: Session = Depends(get_session), jobs: ThreadJobRunner = Depends(get_jobs)
-) -> RunOut:
-    return _run_out(get_run_or_404(session, run_id), jobs)
+def get_run(run_id: str, session: Session = Depends(get_session)) -> RunOut:
+    return _run_out(get_run_or_404(session, run_id))
 
 
 @router.get("/runs/{run_id}/report")
@@ -185,7 +180,7 @@ def cancel_run(
     if run.status in ACTIVE:
         jobs.cancel(run_id)
         session.refresh(run)
-    return _run_out(run, jobs)
+    return _run_out(run)
 
 
 @router.post("/runs/{run_id}/rerun", response_model=RunOut, status_code=202)
@@ -209,7 +204,7 @@ def rerun(
         original.scenario_id,
         f"Reproduce: {original.label or original.id[:8]}"[:200],
     )
-    return _run_out(run, jobs, reproduces=original.id)
+    return _run_out(run, reproduces=original.id)
 
 
 @router.delete("/runs/{run_id}", status_code=204)
