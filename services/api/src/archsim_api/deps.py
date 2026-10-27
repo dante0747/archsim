@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterator
+from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, NoReturn
@@ -13,16 +14,29 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from archsim_api.config import Settings
-from archsim_api.db import DEFAULT_WORKSPACE_ID, LOCAL_USER_ID, Database, Membership, Workspace
+from archsim_api.db import (
+    DEFAULT_WORKSPACE_ID,
+    LOCAL_USER_ID,
+    Database,
+    Membership,
+    User,
+    UserSession,
+    Workspace,
+    utcnow,
+)
+from archsim_api.identity import as_utc
 from archsim_api.jobs.worker import JobService
+from archsim_api.oauth import SESSION_COOKIE
 from archsim_api.security import (
     Principal,
     ProjectAccess,
     RunAccess,
     WorkspaceAccess,
+    client_ip,
     not_found,
     project_access,
     run_access,
+    sha256_hex,
     workspace_access,
 )
 from archsim_engine import ComponentRegistry, Issue
@@ -57,8 +71,14 @@ def get_registry(request: Request) -> ComponentRegistry:
 WORKSPACE_HEADER = "x-archsim-workspace"
 
 
-def client_address(request: Request) -> str | None:
-    return request.client.host if request.client else None
+SESSION_TOUCH = timedelta(minutes=5)
+"""How stale a session's last-seen time may get before a request updates it."""
+
+
+def unauthorized(message: str = "Sign in to continue") -> HTTPException:
+    return HTTPException(
+        401, detail={"message": message, "issues": []}, headers={"WWW-Authenticate": "Bearer"}
+    )
 
 
 def get_principal(
@@ -66,21 +86,36 @@ def get_principal(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings_dep),
 ) -> Principal:
-    """Who is asking. Without sign-in, the local user (owner of the default workspace)."""
+    """Who is asking. Without sign-in, the local user (owner of the default workspace); with
+    it, the signed-in session in the cookie, else 401."""
     cached: Principal | None = getattr(request.state, "principal", None)
     if cached is not None:
         return cached
-    ip = client_address(request)
+    ip = client_ip(request, settings.trusted_proxies)
     if not settings.hosted:
         principal = Principal(LOCAL_USER_ID, "local", ip=ip)
     else:
-        raise HTTPException(
-            401,
-            detail={"message": "Sign in to continue", "issues": []},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        principal = _from_session(request, session, ip)
     request.state.principal = principal
     return principal
+
+
+def _from_session(request: Request, session: Session, ip: str | None) -> Principal:
+    cookie = request.cookies.get(SESSION_COOKIE)
+    if not cookie:
+        raise unauthorized()
+    row = session.get(UserSession, sha256_hex(cookie))
+    now = utcnow()
+    if row is None or as_utc(row.expires_at) <= now:
+        raise unauthorized("Your sign-in has expired: sign in again")
+    user = session.get(User, row.user_id)
+    if user is None or user.disabled_at is not None:
+        raise unauthorized("This account cannot sign in")
+    if now - as_utc(row.last_seen_at) > SESSION_TOUCH:
+        row.last_seen_at = now
+        user.last_seen_at = now
+        session.commit()
+    return Principal(user.id, "session", ip=ip, session_id=row.id)
 
 
 def default_workspace_id(session: Session, principal: Principal) -> str:

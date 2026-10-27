@@ -17,6 +17,7 @@ import { api } from "@/lib/api";
 import type { ArchitectureDocument, Catalog, ExampleSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MobileNav } from "@/components/ui/MobileNav";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 export function TemplatesGallery() {
   const [examples, setExamples] = useState<ExampleSummary[] | null>(null);
@@ -94,6 +95,7 @@ export function TemplatesGallery() {
           </Button>
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
+            <UserMenu showWorkspace={false} />
             <MobileNav
               className="sm:hidden"
               items={[

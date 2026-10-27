@@ -43,6 +43,7 @@ import {
   MenuTrigger,
 } from "@/components/ui/overlays";
 import { ThemeMenu, toggleTheme } from "@/components/ui/theme-toggle";
+import { UserMenu } from "@/components/auth/UserMenu";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
 import { TransportButtons, TransportLcd } from "@/components/editor/Transport";
 import { cn, modKey } from "@/lib/utils";
@@ -353,6 +354,7 @@ export function TopBar({
             </MenuItem>
           </MenuContent>
         </Menu>
+        <UserMenu showWorkspace={false} />
       </div>
 
       <Dialog open={shortcutsOpen} onOpenChange={onShortcutsOpenChange}>

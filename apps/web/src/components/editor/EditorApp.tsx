@@ -28,6 +28,7 @@ import { LogoMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
 import { ApiError, api } from "@/lib/api";
+import { signInPage } from "@/lib/session";
 import { isEditableTarget } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { contentKey, useEditor } from "@/store/editor";
@@ -53,8 +54,16 @@ export function EditorApp({ projectId }: { projectId: string }) {
         setState({ kind: "ready" });
       } catch (e) {
         if (cancelled) return;
+        if (e instanceof ApiError && e.status === 401) {
+          window.location.replace(signInPage(`/projects/${projectId}`));
+          return;
+        }
         const message =
-          e instanceof ApiError && e.status === 404 ? "This project does not exist (it may have been deleted)." : e instanceof Error ? e.message : String(e);
+          e instanceof ApiError && e.status === 404
+            ? "This project does not exist, or it is in a workspace you are not a member of."
+            : e instanceof Error
+              ? e.message
+              : String(e);
         setState({ kind: "error", message });
       }
     })();

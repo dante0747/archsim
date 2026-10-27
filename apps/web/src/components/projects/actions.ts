@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ApiError, api } from "@/lib/api";
 import type { ProjectSummary } from "@/lib/types";
+import { signInPage } from "@/lib/session";
 import { readJsonFile } from "@/lib/utils";
 
 export type CreateBody = Parameters<typeof api.createProject>[0];
@@ -20,6 +21,10 @@ export function useProjectActions(onChanged?: () => void) {
       const p = await api.createProject(body);
       router.push(`/projects/${p.id}`);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        window.location.assign(signInPage()); // signed out: sign in, then come back here
+        return;
+      }
       toast.error("Could not create project", { description: e instanceof Error ? e.message : String(e) });
       setBusy(null);
     }

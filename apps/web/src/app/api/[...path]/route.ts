@@ -1,37 +1,33 @@
 /**
- * Same-origin proxy to the FastAPI backend. The target is read at request time from
- * ARCHSIM_API_URL, so the same build works locally and in Docker.
+ * Same-origin proxy to the FastAPI backend. The target is read from ARCHSIM_API_URL when the
+ * server starts, so the same build works locally and in Docker.
+ *
+ * Sign-in rides through here: the session cookie, API tokens and the CSRF header go to the API,
+ * and its Set-Cookie, redirects (sign-in) and Retry-After (rate limits) come back. The visitor's
+ * address is sent as X-ArchSim-Client-IP, worked out from X-Forwarded-For and
+ * ARCHSIM_TRUSTED_HOPS (see lib/proxy.ts); the API believes it only from this server.
  */
 import type { NextRequest } from "next/server";
+import { forwardRequestHeaders, forwardResponseHeaders } from "@/lib/proxy";
 
 const API_URL = (process.env.ARCHSIM_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
-const FORWARD_REQUEST_HEADERS = ["content-type", "accept"];
-const FORWARD_RESPONSE_HEADERS = ["content-type", "content-disposition"];
+const TRUSTED_HOPS = Number(process.env.ARCHSIM_TRUSTED_HOPS ?? "0");
 
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
   const search = new URL(req.url).search;
   const target = `${API_URL}/api/${path.map(encodeURIComponent).join("/")}${search}`;
-  const headers = new Headers();
-  for (const h of FORWARD_REQUEST_HEADERS) {
-    const v = req.headers.get(h);
-    if (v) headers.set(h, v);
-  }
   const hasBody = !["GET", "HEAD"].includes(req.method);
   try {
     const res = await fetch(target, {
       method: req.method,
-      headers,
+      headers: forwardRequestHeaders(req.headers, TRUSTED_HOPS),
       body: hasBody ? await req.arrayBuffer() : undefined,
       cache: "no-store",
       redirect: "manual",
     });
-    const out = new Headers();
-    for (const h of FORWARD_RESPONSE_HEADERS) {
-      const v = res.headers.get(h);
-      if (v) out.set(h, v);
-    }
-    return new Response(res.status === 204 ? null : res.body, { status: res.status, headers: out });
+    const body = res.status === 204 || res.status === 304 ? null : res.body;
+    return new Response(body, { status: res.status, headers: forwardResponseHeaders(res.headers) });
   } catch {
     return Response.json(
       {

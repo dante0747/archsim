@@ -13,11 +13,15 @@ answer 404 exactly like ones that do not exist. A role too weak for an action an
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import secrets
+import socket
+import time
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Literal
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session, undefer
 
@@ -37,6 +41,50 @@ def sha256_hex(value: str) -> str:
 def new_secret(prefix: str = "") -> str:
     """256 random bits, URL-safe."""
     return prefix + secrets.token_urlsafe(32)
+
+
+CLIENT_IP_HEADER = "x-archsim-client-ip"
+"""The visitor's address, as the web server saw it (believed only from ``trusted_proxies``)."""
+
+
+@lru_cache(maxsize=64)
+def _resolve(name: str, _bucket: int) -> frozenset[str]:
+    try:
+        return frozenset(str(info[4][0]) for info in socket.getaddrinfo(name, None))
+    except OSError:
+        return frozenset()
+
+
+def _is_trusted(peer: str, trusted: list[str]) -> bool:
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        address = None
+    for entry in trusted:
+        if entry == peer:
+            return True
+        if address is None:
+            continue
+        try:
+            if address in ipaddress.ip_network(entry, strict=False):
+                return True
+        except ValueError:  # a host name (the web container's): resolved once a minute
+            if peer in _resolve(entry, int(time.monotonic() // 60)):
+                return True
+    return False
+
+
+def client_ip(request: Request, trusted: list[str]) -> str | None:
+    """Who is asking: ``X-ArchSim-Client-IP`` when the request comes from a trusted proxy (the
+    web server), else the address the request came from."""
+    peer = request.client.host if request.client else None
+    forwarded = request.headers.get(CLIENT_IP_HEADER)
+    if forwarded and peer and _is_trusted(peer, trusted):
+        try:
+            return str(ipaddress.ip_address(forwarded.strip()))
+        except ValueError:
+            pass
+    return peer
 
 
 def at_least(role: str, minimum: str) -> bool:
