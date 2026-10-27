@@ -31,6 +31,8 @@ export interface UiState {
   speed: number;
   /** Animate measured traffic along links after a run. */
   flow: boolean;
+  /** Offer experimental ("Labs") technologies when adding parts. */
+  labs: boolean;
   /** The command palette (Ctrl/Cmd K) is open. */
   paletteOpen: boolean;
   /** The export dialog (docker-compose, Kubernetes, Mermaid) is open. */
@@ -46,6 +48,7 @@ export interface UiState {
   insightsSeenFor: string | null;
   dismissedHint: string | null;
   setFlow: (v: boolean) => void;
+  setLabs: (v: boolean) => void;
   setMode: (m: Workspace) => void;
   setPlayhead: (t: number | null) => void;
   setPlaying: (v: boolean) => void;
@@ -67,6 +70,7 @@ export const useUi = create<UiState>()((set) => ({
   playing: false,
   speed: 4,
   flow: typeof window === "undefined" ? true : readFlag("archsim-flow", true),
+  labs: typeof window === "undefined" ? false : readFlag("archsim-labs", false),
   paletteOpen: false,
   exportOpen: false,
   calibrateOpen: false,
@@ -78,6 +82,10 @@ export const useUi = create<UiState>()((set) => ({
   setFlow: (flow) => {
     writeFlag("archsim-flow", flow);
     set({ flow });
+  },
+  setLabs: (labs) => {
+    writeFlag("archsim-labs", labs);
+    set({ labs });
   },
   setMode: (mode) => set({ mode }),
   setPlayhead: (playhead) => set({ playhead }),

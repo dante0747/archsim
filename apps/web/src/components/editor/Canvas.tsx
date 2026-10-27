@@ -13,6 +13,7 @@ import {
   ReactFlow,
   useNodesInitialized,
   useReactFlow,
+  useStore,
   ViewportPortal,
 } from "@xyflow/react";
 import { ArrowRight, Cable, MousePointerClick, Play } from "lucide-react";
@@ -159,6 +160,9 @@ export function Canvas() {
   const mode = useUi((s) => s.mode);
   const rf = useReactFlow<ArchNode, ArchEdge>();
   const wrapRef = useRef<HTMLDivElement>(null);
+  // How far out the canvas is zoomed, for part cards to keep small text readable (globals.css):
+  // "mid" strengthens secondary text, "far" hides the fact rows. Changes only between bands.
+  const zoomBand = useStore((s) => (s.transform[2] >= 0.75 ? "near" : s.transform[2] >= 0.5 ? "mid" : "far"));
   const dark = useIsDark();
   const firstLayout = useRef(true);
   const nodesInitialized = useNodesInitialized();
@@ -284,7 +288,7 @@ export function Canvas() {
   };
 
   return (
-    <div ref={wrapRef} data-tour="canvas" className="relative h-full w-full bg-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+    <div ref={wrapRef} data-tour="canvas" data-zoom={zoomBand} className="relative h-full w-full bg-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       {/* Shared paint for node bodies: a faint top-down gradient gives shapes a sense of material. */}
       <svg width="0" height="0" className="absolute" aria-hidden>
         <defs>

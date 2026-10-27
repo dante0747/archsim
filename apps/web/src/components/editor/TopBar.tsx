@@ -9,10 +9,12 @@ import {
   Download,
   FileCode2,
   FileInput,
+  TestTubeDiagonal,
   Gauge,
   Keyboard,
   LayoutGrid,
   LoaderCircle,
+  Moon,
   MoreHorizontal,
   PanelRight,
   Redo2,
@@ -40,7 +42,7 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "@/components/ui/overlays";
-import { ThemeMenu } from "@/components/ui/theme-toggle";
+import { ThemeMenu, toggleTheme } from "@/components/ui/theme-toggle";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
 import { TransportButtons, TransportLcd } from "@/components/editor/Transport";
 import { cn, modKey } from "@/lib/utils";
@@ -228,10 +230,12 @@ export function TopBar({
   const setExportOpen = useUi((s) => s.setExportOpen);
   const setCalibrateOpen = useUi((s) => s.setCalibrateOpen);
   const setImportOpen = useUi((s) => s.setImportOpen);
+  const labs = useUi((s) => s.labs);
+  const setLabs = useUi((s) => s.setLabs);
 
   return (
     <header className="island relative z-30 flex h-[60px] shrink-0 items-center gap-3 !overflow-visible border-b border-line px-3">
-      <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+      <div className="flex min-w-0 shrink items-center gap-1.5 xl:shrink-0">
         <Tip content="All projects">
           <Link href="/projects" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
             <LogoMark className="size-6" />
@@ -243,7 +247,7 @@ export function TopBar({
           aria-label="Project name"
           maxLength={120}
           style={{ width: `calc(${Math.min(Math.max(name.length, 8), 20)}ch + 14px)` }}
-          className="h-7 min-w-0 max-w-[28vw] rounded-md border border-transparent bg-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em] text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
+          className="h-7 min-w-0 max-w-[20vw] rounded-md xl:max-w-[28vw] border border-transparent bg-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em] text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
         />
         <Tip content={saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}>
           <span className={cn("size-1.5 shrink-0 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3/50")} aria-label={saving ? "saving" : dirty ? "unsaved" : "saved"} />
@@ -267,7 +271,7 @@ export function TopBar({
         <ProblemsPill />
         <RunControl />
         <Tip content={<>Save <Kbd>Ctrl S</Kbd></>}>
-          <Button variant="ghost" size="icon" onClick={() => void save()} disabled={saving} aria-label="Save" className={cn(dirty && "text-ink")}>
+          <Button variant="ghost" size="icon" onClick={() => void save()} disabled={saving} aria-label="Save" className={cn("hidden xl:inline-flex", dirty && "text-ink")}>
             {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
           </Button>
         </Tip>
@@ -282,7 +286,9 @@ export function TopBar({
             e.target.value = "";
           }}
         />
-        <ThemeMenu />
+        <span className="hidden xl:inline-flex">
+          <ThemeMenu />
+        </span>
         <Menu>
           <MenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="More actions">
@@ -290,6 +296,12 @@ export function TopBar({
             </Button>
           </MenuTrigger>
           <MenuContent align="end" className="w-64">
+            <MenuItem onSelect={() => void save()} disabled={saving} className="xl:hidden">
+              <Save /> Save <Kbd className="ml-auto">Ctrl S</Kbd>
+            </MenuItem>
+            <MenuItem onSelect={toggleTheme} className="xl:hidden">
+              <Moon /> Switch light / dark
+            </MenuItem>
             <MenuItem onSelect={() => setPaletteOpen(true)}>
               <Search /> Search commands <Kbd className="ml-auto">{modKey()} K</Kbd>
             </MenuItem>
@@ -321,6 +333,11 @@ export function TopBar({
             </MenuItem>
             <MenuItem onSelect={() => setImportOpen(true)}>
               <FileInput /> Import from compose, Kubernetes, Terraform…
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem onSelect={() => setLabs(!labs)}>
+              <TestTubeDiagonal /> Labs parts (experimental)
+              {labs && <Check className="ml-auto" aria-label="on" />}
             </MenuItem>
             <MenuSeparator />
             <MenuItem onSelect={startTour}>

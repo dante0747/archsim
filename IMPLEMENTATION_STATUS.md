@@ -28,6 +28,25 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   JSONB reorders keys, and the check compared `JSON.stringify` output. It now compares the
   values (`sameExperiment` in `lib/faults.ts`, tested with a JSONB-ordered run).
 
+**W1 · UI polish (2026-10-27, plan for the inspection report).**
+
+- Labs: experimental technologies are offered only with "Labs parts" on (More menu, the
+  command palette, or the parts panel's footer; stored as `archsim-labs`, off by default). The
+  parts panel, the command palette's "Add technology" and the inspector's technology picker
+  filter them (`offeredWithLabs` in `lib/tier.ts`); a search that only matches Labs parts offers
+  to show them. Parts already on the canvas keep their technology (the picker still lists it),
+  and templates that use experimental parts open as before, with a "Labs" badge on their card
+  (`experimentalParts`).
+- Part cards at small zoom: the canvas marks its zoom band (`data-zoom` near/mid/far). Below
+  0.75 secondary text uses `--ink-2`; below 0.5 the fact rows and resource line hide, leaving
+  name, technology and status. Dark `--ink-3` is now `#96969e` (4.87:1 on `--surface-2`, was
+  4.40).
+- Small screens: the landing page, projects page and templates gallery have a menu button below
+  their breakpoint (`components/ui/MobileNav.tsx`), and the landing footer links Templates and
+  Projects. Below 768 px the editor shows "Continue on a larger screen" (copy link, open anyway,
+  back to projects). Below 1280 px the top bar moves Save and the theme switch into the More
+  menu and narrows the project name, so nothing overlaps (checked at 800 and 1024 px).
+
 **Product review quick wins (2026-10-27, report 1.12).**
 
 - Reports add `summary.latencyWithFailuresMs` (same shape as `latencyMs`): successes at their

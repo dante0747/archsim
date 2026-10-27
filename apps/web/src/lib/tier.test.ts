@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { libraryItems } from "@/components/build/presets";
 import catalogJson from "@/test/fixtures/catalog.json";
-import { defaultSource, tierNote, tierOf } from "./tier";
-import type { Catalog } from "./types";
+import starterJson from "@/test/fixtures/starter.json";
+import { defaultSource, experimentalParts, offeredWithLabs, tierNote, tierOf } from "./tier";
+import type { ArchitectureDocument, Catalog } from "./types";
 
 const catalog = catalogJson as unknown as Catalog;
 const comp = (type: string) => catalog.components.find((c) => c.type === type);
@@ -32,5 +33,32 @@ describe("technology tiers (from the engine's catalog)", () => {
   it("uses the engine's wording for the badge", () => {
     expect(tierNote(catalog.tierNote)).toBe(catalog.tierNote);
     expect(catalog.tierNote).toMatch(/not yet validated against measurements/);
+  });
+});
+
+describe("Labs (experimental technologies)", () => {
+  it("offers experimental technologies only with Labs on, and everything else always", () => {
+    expect(offeredWithLabs("experimental", false)).toBe(false);
+    expect(offeredWithLabs("experimental", true)).toBe(true);
+    expect(offeredWithLabs("core", false)).toBe(true);
+    expect(offeredWithLabs(null, false)).toBe(true); // generic parts and third-party APIs
+  });
+
+  it("hides about half of the library without Labs, never a generic part", () => {
+    const items = libraryItems(catalog);
+    const offered = items.filter((i) => offeredWithLabs(i.tier, false));
+    expect(offered.length).toBeLessThan(items.length);
+    expect(offered.some((i) => i.key === "database")).toBe(true);
+    expect(offered.every((i) => i.tier !== "experimental")).toBe(true);
+  });
+
+  it("names a design's parts that use experimental technologies", () => {
+    const starter = starterJson as unknown as ArchitectureDocument;
+    expect(experimentalParts(starter, catalog)).toEqual([]);
+    expect(experimentalParts(starter, null)).toEqual([]);
+    const withMongo = structuredClone(starter);
+    const db = withMongo.architecture.nodes.find((n) => n.id === "db")!;
+    db.config = { ...db.config, technology: "mongodb" };
+    expect(experimentalParts(withMongo, catalog)).toEqual(["PostgreSQL"]);
   });
 });

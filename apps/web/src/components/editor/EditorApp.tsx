@@ -3,7 +3,8 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 import { EditorAgentTools } from "@/components/agent/AgentTools";
 import { ChaosPads } from "@/components/editor/ChaosPads";
 import { DesignReviewPanel } from "@/components/build/DesignReview";
@@ -23,6 +24,7 @@ import { NextStepPill } from "@/components/editor/WorkspaceBar";
 import { openDecide } from "@/components/editor/workflow";
 import { ExperimentPanel } from "@/components/stress/ExperimentPanel";
 import { PlaybackClock, TimelineDock } from "@/components/timeline/TimelineDock";
+import { LogoMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
 import { ApiError, api } from "@/lib/api";
@@ -33,6 +35,8 @@ import { useRuns } from "@/store/runs";
 import { type Workspace, useUi } from "@/store/ui";
 
 export function EditorApp({ projectId }: { projectId: string }) {
+  const narrow = useNarrowScreen();
+  const [openAnyway, setOpenAnyway] = useState(false);
   const [state, setState] = useState<{ kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string }>({
     kind: "loading",
   });
@@ -77,12 +81,63 @@ export function EditorApp({ projectId }: { projectId: string }) {
       </div>
     );
   }
+  if (narrow && !openAnyway) return <DesktopOnly onOpenAnyway={() => setOpenAnyway(true)} />;
   return (
     <ReactFlowProvider>
       <TooltipProvider>
         <EditorShell />
       </TooltipProvider>
     </ReactFlowProvider>
+  );
+}
+
+const NARROW = "(max-width: 767px)";
+
+/** True on phone-width screens, where the editor's canvas and panels do not fit. */
+function useNarrowScreen(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(NARROW);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(NARROW).matches,
+    () => false,
+  );
+}
+
+/** Shown instead of the editor on phones: the design is saved, so hand it over to a computer. */
+function DesktopOnly({ onOpenAnyway }: { onOpenAnyway: () => void }) {
+  const name = useEditor((s) => s.metadata.name);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied", { description: "Open it on a computer to carry on." });
+    } catch {
+      toast.error("Could not copy the link", { description: window.location.href });
+    }
+  };
+  return (
+    <main className="flex min-h-full flex-col items-center justify-center gap-5 bg-page px-6 py-12 text-center">
+      <LogoMark className="size-10" />
+      <div className="space-y-2">
+        <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.03em] text-ink">Continue on a larger screen</h1>
+        <p className="mx-auto max-w-sm text-[15px] leading-relaxed text-ink-2">
+          {name ? <>“{name}” is saved. </> : null}The editor needs a computer or a tablet in landscape. Copy the link and open it there to pick up where you are.
+        </p>
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <Button variant="primary" size="lg" onClick={() => void copy()}>
+          Copy link
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onOpenAnyway}>
+          Open the editor anyway
+        </Button>
+        <Link href="/projects" className="mt-1 text-[13px] text-ink-3 hover:text-ink">
+          Back to projects
+        </Link>
+      </div>
+    </main>
   );
 }
 

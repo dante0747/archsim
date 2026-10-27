@@ -11,7 +11,8 @@ import { TemplatePreview } from "@/components/templates/TemplatePreview";
 import { CATEGORY_COLOR, type TemplateFacts, templateFacts, templateMeta } from "@/components/templates/templates-meta";
 import { fmtNum } from "@/lib/format";
 import { technologyLabel } from "@/lib/theme";
-import type { ArchitectureDocument, ExampleSummary } from "@/lib/types";
+import { experimentalParts } from "@/lib/tier";
+import type { ArchitectureDocument, Catalog, ExampleSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const LEVEL_DOTS = { Beginner: 1, Intermediate: 2, Advanced: 3 } as const;
@@ -47,9 +48,12 @@ export function TemplateCard({
   spotlight = false,
   onOpen,
   className,
+  catalog = null,
 }: {
   example: ExampleSummary;
   doc: ArchitectureDocument | undefined;
+  /** With the catalog, templates that use experimental technologies get a "Labs" badge. */
+  catalog?: Catalog | null;
   busy: boolean;
   disabled: boolean;
   spotlight?: boolean;
@@ -59,6 +63,7 @@ export function TemplateCard({
   const meta = templateMeta(example);
   const hue = CATEGORY_COLOR[meta.category];
   const facts = doc ? templateFacts(doc) : null;
+  const labsParts = doc ? experimentalParts(doc, catalog) : [];
 
   const badges = (
     <div className="absolute inset-x-3 top-3 z-10 flex items-center gap-2">
@@ -66,6 +71,14 @@ export function TemplateCard({
         <span className="size-1.5 rounded-full" style={{ background: hue }} aria-hidden />
         {meta.category}
       </span>
+      {labsParts.length > 0 && (
+        <span
+          className="inline-flex items-center rounded-full border border-line bg-surface/90 px-2.5 py-1 text-[11px] font-medium text-ink-2 backdrop-blur-sm"
+          title={`Uses experimental technologies (Labs): ${labsParts.join(", ")}. Their numbers are not validated.`}
+        >
+          Labs
+        </span>
+      )}
       <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-line bg-surface/90 px-2.5 py-1 text-[11px] font-medium text-ink-2 backdrop-blur-sm">
         <span className="flex gap-0.5" aria-hidden>
           {[1, 2, 3].map((i) => (
