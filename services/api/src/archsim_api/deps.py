@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from archsim_api.config import Settings
 from archsim_api.db import Database
-from archsim_api.jobs import ThreadJobRunner
+from archsim_api.jobs.worker import JobService
 from archsim_engine import ComponentRegistry, Issue
 
 
@@ -33,8 +33,8 @@ def get_session(request: Request) -> Iterator[Session]:
         yield s
 
 
-def get_jobs(request: Request) -> ThreadJobRunner:
-    jobs: ThreadJobRunner = request.app.state.jobs
+def get_jobs(request: Request) -> JobService:
+    jobs: JobService = request.app.state.jobs
     return jobs
 
 

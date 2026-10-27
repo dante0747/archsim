@@ -93,11 +93,11 @@ optimistic concurrency (`expectedRevision`), and every run stores its exact inpu
 
 ## 7. Scalable job execution
 
-Runs already execute in worker processes on the API's machine (`ProcessJobRunner`, no GIL
-sharing with the API). Next: a Redis-backed queue (RQ, Celery or Dramatiq) so runs survive API
-restarts and scale across machines. Seam: the `JobRunner` protocol in `services/api/src/archsim_api/jobs.py`
-(`submit`, `cancel`, `live_progress`, `shutdown`). Progress would move to Redis or the database;
-cancellation to a shared flag.
+Done: runs are queued in the database with leases (`services/api/src/archsim_api/jobs/`), so
+they survive API restarts, cancel works from any instance, and `archsim-api worker` processes on
+any number of machines share the queue through PostgreSQL. Each run simulates in a process of
+its own. Next, if a single database becomes the limit: a broker (Redis, NATS) for wake-ups
+instead of polling once a second, and fair sharing between workspaces once they exist.
 
 ## 8. Engine performance
 

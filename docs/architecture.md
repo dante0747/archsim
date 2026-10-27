@@ -12,7 +12,7 @@ flowchart LR
   end
   subgraph api["services/api (FastAPI)"]
     Routers["routers: meta, projects, runs"]
-    Jobs["ProcessJobRunner<br/>(worker processes; threads with ARCHSIM_RUNNER=thread)"]
+    Jobs["jobs: queue in the database + workers<br/>(a process per run; embedded in serve,<br/>or archsim-api worker)"]
     ORM["SQLAlchemy models<br/>+ Alembic migrations"]
   end
   subgraph engine["packages/engine (archsim_engine)"]
@@ -23,11 +23,11 @@ flowchart LR
   end
   DB[("PostgreSQL<br/>or SQLite")]
   UI --> Store --> Proxy --> Routers
-  Routers --> Jobs --> Sim
   Routers --> Schema
   Routers --> Registry
   Routers --> ORM --> DB
   Jobs --> ORM
+  Jobs --> Sim
   Sim --> Analysis
 ```
 
@@ -143,25 +143,26 @@ no API or frontend changes; see [`extending-components.md`](extending-components
 sequenceDiagram
   participant B as Browser
   participant A as API
-  participant J as Job runner (a worker process per run)
-  participant E as Engine
   participant D as Database
+  participant W as Worker (any instance)
+  participant E as Simulation process (one per run)
   B->>A: POST /projects/{id}/runs {scenarioId, document?}
-  A->>E: prepare_run() (migrate, resolve scenario, validate, size check)
+  A->>A: prepare_run() (migrate, resolve scenario, validate, size check)
   alt invalid or too large
     A-->>B: 422 {message, issues[]}
   else ok
     A->>D: insert run (status=queued, input snapshot)
-    A->>J: submit(run_id)
     A-->>B: 202 run
   end
-  J->>D: status=running
-  loop every simulated chunk (1/200 of the run)
-    J->>E: env.run(until=t)
-    E-->>J: progress(p) / should_cancel()
-    J->>D: progress (at most once per second)
+  W->>D: claim: status=running, lease_owner=W, lease 30 s, attempts+1
+  W->>E: the run, down a pipe
+  loop while it simulates
+    E-->>W: progress(p), up the pipe
+    W->>D: progress (at most once a second)
+    W->>D: heartbeat every 2 s: renew lease, read cancel requests
   end
-  J->>D: status=succeeded + report JSON + digests
+  E-->>W: result
+  W->>D: status=succeeded + report JSON + digests (only while W holds the lease)
   B->>A: GET /runs/{id} (polling)
   B->>A: GET /runs/{id}/report
 ```
@@ -172,27 +173,41 @@ sequenceDiagram
   `422` with structured issues.
 - **Unsaved edits.** A run request may include the current (unsaved) document. It is stored
   with the run, so results stay reproducible without forcing a save.
-- **Progress** is simulated time divided by total simulated time. Live progress is kept in
-  memory and written to the database at most once per second.
-- **Cancellation** is cooperative: a queued run is cancelled immediately; a running run stops
-  at the next chunk boundary.
-- **Workers:** each run simulates in a worker process (`ProcessJobRunner`): progress and
-  cancellation cross the process boundary through a multiprocessing manager, and the API
-  process keeps the database. `ARCHSIM_RUNNER=thread` runs them in API threads instead.
-  A worker that dies (out of memory, killed) breaks the whole process pool, so every run
-  simulating on it fails with "The simulation worker stopped unexpectedly…"; the runner then
-  replaces the pool (once per break, however many runs saw it), and later runs succeed without
-  restarting the API.
-- **Limits:** `ARCHSIM_MAX_CONCURRENT_RUNS` workers; per-run wall-clock limit
-  `ARCHSIM_MAX_WALL_SECONDS`, checked between chunks.
-- **Restart recovery:** on startup, runs left `queued` or `running` by a previous process are
-  marked `failed` with an "Interrupted" message.
+- **Progress** is simulated time divided by total simulated time. The worker writes it to the
+  database at most once per second; the API reads it from there, so any instance can answer.
+- **Queue** (`services/api/src/archsim_api/jobs/queue.py`): the run row is the job. A worker
+  claims the oldest queued runs under a lease (PostgreSQL: `FOR UPDATE SKIP LOCKED`; SQLite:
+  `BEGIN IMMEDIATE`, one host only) and renews it every heartbeat. Progress and the outcome are
+  written only while the worker still holds the lease, so a worker that lost a run cannot
+  overwrite the one that took it over.
+- **Workers** (`jobs/worker.py`): `archsim-api serve` contains one by default; `archsim-api
+  worker --slots N` runs more, on any host that reaches the database. Each run simulates in a
+  `spawn` process of its own (`jobs/child.py`) with a pipe each way: the run and "cancel" go
+  down, progress and the result come up. One process is started ahead, so a run does not wait
+  for the engine to import. A process that crashes fails only its own run.
+  `ARCHSIM_RUNNER=thread` simulates in the worker's threads instead (tests).
+- **Cancellation:** a queued run is cancelled immediately, by any instance. A running one gets
+  `cancel_requested_at`; its worker sees it at the next heartbeat (2 s) and tells the process,
+  which stops at its next check (every 4,096 events). A process still running
+  `ARCHSIM_CANCEL_GRACE_SECONDS` (10 s) later is terminated, then killed.
+- **Limits:** `ARCHSIM_MAX_CONCURRENT_RUNS` runs per worker (default: CPU count - 1); per-run
+  wall-clock limit `ARCHSIM_MAX_WALL_SECONDS`, checked by the engine every 4,096 events, and a
+  hard deadline 30 s later at which the worker kills the process.
+- **Workers that stop:** a worker that is stopped (SIGTERM, Ctrl+C, the API shutting down)
+  requeues its runs without counting the attempt. One that dies stops renewing its leases;
+  every worker reaps expired leases every 10 s (and at start-up): requeued after a first
+  attempt, `failed` with "The simulation worker stopped unexpectedly…" after a second,
+  `cancelled` if a cancel was requested.
+- **No orphans:** a simulation process exits when its worker's pipe closes, gets SIGKILL from
+  the kernel when its worker dies on Linux (`PR_SET_PDEATHSIG`), and sits in a Windows Job
+  Object that kills it with its worker. Containers run the API and workers under an init
+  (`init: true`). Simulation processes ignore Ctrl+C: the worker decides when they stop.
 - **Reproduce:** `POST /runs/{id}/rerun` re-simulates the stored input with the same scenario
   and seed. Equal `resultDigest` values confirm reproducibility.
 
 ## Persistence model
 
-Two tables, created by Alembic revision `0001`:
+Three tables (Alembic revisions `0001` to `0003`):
 
 **`projects`** - `id`, `name`, `description`, `document` (JSON/JSONB), `schema_version`,
 `revision`, timestamps. `revision` increments on each update; clients can send
@@ -204,7 +219,12 @@ link) can be saved, so work in progress is never lost; they cannot be simulated 
 small denormalised `summary` for fast listing, timestamps, plus two large **deferred**
 columns: `input_document` (exactly what was submitted) and `report` (the full result). Deferred
 columns are not loaded when listing runs. The report is written once, when the run finishes.
-Deleting a project deletes its runs (`ON DELETE CASCADE`).
+Deleting a project deletes its runs (`ON DELETE CASCADE`). Queue columns: `attempts`,
+`lease_owner`, `lease_expires_at`, `cancel_requested_at`, with an index on
+`(status, created_at)`.
+
+**`job_workers`** - one row per worker: host, process id, slots, runs in flight, status
+(`running` or `draining`) and its latest heartbeat.
 
 PostgreSQL uses `JSONB` for document columns; SQLite uses its JSON type. Both are exercised in
 CI.

@@ -1,22 +1,80 @@
-"""``archsim-api`` command: serve, migrate, seed."""
+"""``archsim-api`` command: serve, worker, migrate, seed."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import logging
+import signal
+import threading
 from pathlib import Path
+from types import FrameType
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
-    import uvicorn
+    import copy
 
+    import uvicorn
+    from uvicorn.config import LOGGING_CONFIG
+
+    # uvicorn's logging plus ArchSim's own lines (runs taken, finished, given back), also in the
+    # server process that --reload starts
+    log_config = copy.deepcopy(LOGGING_CONFIG)
+    log_config["loggers"]["archsim"] = {
+        "handlers": ["default"],
+        "level": "INFO",
+        "propagate": False,
+    }
     uvicorn.run(
         "archsim_api.main:app_factory",
         factory=True,
         host=args.host,
         port=args.port,
         reload=args.reload,
+        log_config=log_config,
     )
+    return 0
+
+
+def _slots(text: str) -> int:
+    value = int(text)
+    if not 1 <= value <= 32:
+        raise argparse.ArgumentTypeError("--slots must be between 1 and 32")
+    return value
+
+
+def cmd_worker(args: argparse.Namespace) -> int:
+    """Simulate queued runs until SIGTERM or Ctrl+C, then give back the runs in flight."""
+    from archsim_api.config import get_settings
+    from archsim_api.db import Database
+    from archsim_api.jobs.worker import Worker, WorkerConfig
+    from archsim_api.migrations import upgrade_to_head
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
+    log = logging.getLogger("archsim.worker")
+    settings = get_settings()
+    if settings.auto_migrate:
+        upgrade_to_head(settings.database_url)
+    db = Database(settings.database_url)
+    worker = Worker(db, WorkerConfig.from_settings(settings, slots=args.slots))
+    stop = threading.Event()
+
+    def on_signal(signum: int, _frame: FrameType | None) -> None:
+        log.info("%s received: finishing up", signal.Signals(signum).name)
+        stop.set()
+
+    for name in ("SIGTERM", "SIGINT", "SIGBREAK"):  # SIGBREAK: Ctrl+Break on Windows
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), on_signal)
+    worker.start()
+    try:
+        while not stop.wait(0.5):  # short waits, so signals are handled promptly on Windows
+            pass
+    finally:
+        worker.stop()
+        db.engine.dispose()
     return 0
 
 
@@ -72,7 +130,24 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--reload", action="store_true")
     p.set_defaults(fn=cmd_serve)
-    sub.add_parser("migrate", help="apply database migrations").set_defaults(fn=cmd_migrate)
+    w = sub.add_parser(
+        "worker",
+        help="simulate queued runs (scale these for several hosts; set "
+        "ARCHSIM_EMBEDDED_WORKER=false on the API instances)",
+    )
+    w.add_argument(
+        "--slots",
+        type=_slots,
+        default=None,
+        help="runs simulated at once (default: ARCHSIM_MAX_CONCURRENT_RUNS, which defaults to "
+        "the CPU count - 1)",
+    )
+    w.set_defaults(fn=cmd_worker)
+    sub.add_parser(
+        "migrate",
+        help="apply database migrations, then exit (safe to run from several processes at once "
+        "on PostgreSQL: they take turns)",
+    ).set_defaults(fn=cmd_migrate)
     sub.add_parser("seed", help="create example projects").set_defaults(fn=cmd_seed)
     args = parser.parse_args(argv)
     code: int = args.fn(args)

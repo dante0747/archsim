@@ -1,17 +1,17 @@
-"""The process job runner: runs in worker processes give the same result as in threads, can be
-cancelled, leave the API responsive while they simulate, and survive a crashed worker."""
+"""Runs in simulation processes (the default executor): the same result as in threads, cancellable,
+the API responsive while they simulate, and a process that dies fails only its own run."""
 
 from __future__ import annotations
 
 import os
+import signal
 import time
-from concurrent.futures.process import BrokenProcessPool
 from typing import Any
 
-import pytest
 from fastapi.testclient import TestClient
 
 from api_helpers import create_project, make_client, starter, wait_for
+from archsim_api.jobs.queue import WORKER_STOPPED
 
 API = "/api/v1"
 
@@ -36,7 +36,7 @@ def test_process_runner_matches_threads_cancels_and_stays_responsive(db_url: str
         assert client.get(f"{API}/meta").status_code == 200
         assert time.perf_counter() - t0 < 1.0  # not held behind the simulation
         client.post(f"{API}/runs/{long_run['id']}/cancel")
-        assert wait_for(client, long_run["id"], timeout=120)["status"] == "cancelled"
+        assert wait_for(client, long_run["id"], timeout=60)["status"] == "cancelled"
 
     # the same input in a thread gives the same digest
     with make_client(db_url, runner="thread") as client:
@@ -47,16 +47,14 @@ def test_process_runner_matches_threads_cancels_and_stays_responsive(db_url: str
         assert report["provenance"]["resultDigest"] == digest
 
 
-def _crash_a_worker(jobs: Any) -> None:
-    """A worker process exits abruptly, the way an out-of-memory kill or ``taskkill /F`` ends it:
-    the process pool is broken and every run it was simulating fails."""
-    crash = jobs.pool.submit(os._exit, 1)
-    with pytest.raises(BrokenProcessPool):
-        crash.result(timeout=120)
+def _kill(pid: int) -> None:
+    """End a process abruptly, the way an out-of-memory kill or ``taskkill /F`` does (on Windows
+    any signal but Ctrl+C/Ctrl+Break is TerminateProcess)."""
+    os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
 
 
 def _start_long_runs(client: TestClient, count: int) -> list[str]:
-    """Runs that take minutes, once each is simulating in a worker (it reports progress)."""
+    """Runs that take minutes, once each is simulating in its process (it reports progress)."""
     project = create_project(client, starter(duration=900, warmup=5))
     url = f"{API}/projects/{project['id']}/runs"
     run_ids: list[str] = [client.post(url, json={}).json()["id"] for _ in range(count)]
@@ -67,29 +65,28 @@ def _start_long_runs(client: TestClient, count: int) -> list[str]:
     return run_ids
 
 
-def test_a_crashed_worker_fails_its_runs_and_later_runs_still_succeed(db_url: str) -> None:
-    # three workers: two simulate long runs, the third takes the job that crashes it
-    with make_client(db_url, runner="process", max_concurrent_runs=3) as client:
+def test_a_killed_simulation_process_fails_only_its_own_run(db_url: str) -> None:
+    with make_client(db_url, runner="process", max_concurrent_runs=2) as client:
         app: Any = client.app
-        jobs = app.state.jobs
+        worker = app.state.jobs.worker
 
-        # two runs simulating when a worker dies: both fail with a clear message, and the pool
-        # is replaced once, not once per run that saw it break
-        running = _start_long_runs(client, 2)
-        _crash_a_worker(jobs)
-        for run_id in running:
-            failed = wait_for(client, run_id, timeout=120)
-            assert failed["status"] == "failed", failed
-            assert "simulation worker stopped unexpectedly" in failed["error"]["message"]
-        assert jobs.pool_generation == 1
+        victim, survivor = _start_long_runs(client, 2)
+        pids = worker.running
+        assert pids[victim] and pids[survivor] and pids[victim] != pids[survivor]
+        _kill(pids[victim])
 
-        # later runs use a fresh pool
+        failed = wait_for(client, victim, timeout=60)
+        assert failed["status"] == "failed", failed
+        assert failed["error"]["message"] == WORKER_STOPPED
+        # the other run, in a process of its own, carries on
+        time.sleep(1.5)
+        other = client.get(f"{API}/runs/{survivor}").json()
+        assert other["status"] == "running", other
+        assert worker.running.get(survivor) == pids[survivor]
+        client.post(f"{API}/runs/{survivor}/cancel")
+        assert wait_for(client, survivor, timeout=60)["status"] == "cancelled"
+
+        # and later runs are unaffected
         p = create_project(client, starter(duration=4, warmup=1))
         run = client.post(f"{API}/projects/{p['id']}/runs", json={}).json()
         assert wait_for(client, run["id"], timeout=180)["status"] == "succeeded"
-
-        # a pool that broke while idle (no run saw it) is replaced when the next run starts
-        _crash_a_worker(jobs)
-        run = client.post(f"{API}/projects/{p['id']}/runs", json={}).json()
-        assert wait_for(client, run["id"], timeout=180)["status"] == "succeeded"
-        assert jobs.pool_generation == 2

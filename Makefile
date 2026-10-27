@@ -1,6 +1,6 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup api web dev-db seed test test-py test-web lint fmt typecheck benchmark
+.PHONY: setup api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
 
 setup:            ## install Python and web dependencies
 	uv sync
@@ -8,6 +8,9 @@ setup:            ## install Python and web dependencies
 
 api:              ## run the API on http://127.0.0.1:8000
 	uv run archsim-api serve --reload
+
+worker:           ## run another simulation worker (share a PostgreSQL database with the API)
+	uv run archsim-api worker
 
 web:              ## run the web app on http://localhost:3000
 	cd apps/web && npm run dev

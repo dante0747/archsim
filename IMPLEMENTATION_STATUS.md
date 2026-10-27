@@ -60,6 +60,41 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   `docs/images/cache-outage.gif` (ffmpeg converts the video; without it the `.webm` is kept and
   the command printed).
 
+**Durable job queue (2026-10-27, migration 0003).** Closes M-3 of the product review.
+
+- Runs are queued in the database: `simulation_runs` gains `attempts`, `lease_owner`,
+  `lease_expires_at` and `cancel_requested_at`, and `job_workers` records each worker's
+  heartbeat (`jobs/queue.py`). Workers claim the oldest queued runs under a 30 s lease
+  (PostgreSQL: `FOR UPDATE SKIP LOCKED` in a CTE evaluated once; SQLite: `BEGIN IMMEDIATE`, one
+  host) and renew it every 2 s. Progress and outcomes are written only by the lease holder, so a
+  worker that lost a run cannot overwrite the one that took it over (`test_api_queue.py`,
+  SQLite and PostgreSQL, including 4 threads claiming 24 runs: each taken once).
+- Runs survive restarts: an API or worker that stops (Ctrl+C, SIGTERM) requeues its runs without
+  counting the attempt; one that dies leaves them to be requeued when the lease runs out (reaped
+  every 10 s and at start-up), then failed after a second attempt, or cancelled if a cancel was
+  requested. This replaces marking every active run failed at start-up, which broke the runs of
+  other instances sharing the database.
+- One `spawn` process per run with a pipe each way, replacing the shared process pool and the
+  multiprocessing manager: a process that crashes fails only its own run, the others carry on
+  (tested by killing one of two). One process is started ahead, so a run does not wait about a
+  second for the engine to import on Windows. A cancelled run still going 10 s later is
+  terminated, then killed; any run is killed 30 s past `ARCHSIM_MAX_WALL_SECONDS`.
+- Cancel works from any instance: it sets `cancel_requested_at`, and the worker holding the run
+  stops it at its next heartbeat (tested with two apps sharing one database, on SQLite and
+  PostgreSQL).
+- No orphans: a simulation process exits when its worker's pipe closes, gets SIGKILL when its
+  worker dies on Linux (`PR_SET_PDEATHSIG`), and sits in a Windows Job Object with
+  kill-on-close. Tests kill a worker process outright and check its simulation process is gone,
+  and interrupt a worker's whole process group (Ctrl+Break on Windows, SIGINT elsewhere) and
+  check the run is given back rather than failed. A new CI job runs the API tests on Windows.
+- `archsim-api worker --slots N` runs extra workers on any host; `archsim-api serve` keeps one
+  inside by default (`ARCHSIM_EMBEDDED_WORKER`), so the one-command local setup is unchanged.
+  Default slots: CPU count - 1. The API reads progress from the database only.
+- Migrations take a PostgreSQL advisory lock in one transaction, so instances starting together
+  take turns (tested with three waiting on the lock); `archsim-api migrate` and a one-shot
+  Compose `migrate` service run them once. Compose runs the API under `init: true` and has an
+  optional `worker` service (`--profile workers`).
+
 **Product review fixes (2026-10-26, engine 0.10.0, schema 1.3).**
 
 - Cache-aside is modelled as applications do it. A cache with no `miss` link answers "miss" to
@@ -245,7 +280,7 @@ serves 10 example designs (see below).
   with optimistic concurrency (revision), duplicate, import (with migration) and export; runs
   (async enqueue, batch scenarios, list, status with live progress, report, input snapshot,
   cancel, reproduce, delete); comparison. OpenAPI at `/api/v1/openapi.json`.
-- Background execution in a bounded thread pool; interrupted runs marked failed on restart;
+- Background execution through a queue in the database (see "Durable job queue" above);
   progress written at most once per second; reports stored once per run.
 - SQLAlchemy 2 models, Alembic migration (a test asserts models and migrations agree),
   SQLite and PostgreSQL support (JSONB on PostgreSQL), request body limit, CORS.
@@ -771,6 +806,23 @@ templates, Dependabot, CI workflow, Docker Compose, Dockerfiles, `.env.example`,
 
 ## Verified manually
 
+Durable job queue, on 2026-10-27, on Windows 11 with real `archsim-api serve` processes and in
+Docker:
+- Two `serve` processes on one PostgreSQL 16, one without a worker: a run queued through the
+  second and simulated by the first was cancelled through the second; the first stopped it
+  1.4 s later.
+- Killing one of two simulation processes (`taskkill /F`) failed only that run
+  ("The simulation worker stopped unexpectedly…"); the other kept running and then cancelled.
+- A run in flight when the API was stopped with Ctrl+Break was requeued and succeeded after a
+  restart. After `taskkill /F` of the API mid-run, `tasklist` showed none of its three
+  simulation processes (two runs and the spare); after a restart the run was requeued once its
+  lease ran out and simulated again.
+- Compose (`migrate`, the API under `init: true` with one slot, `--scale worker=2`, a 6 s
+  lease): `migrate` exited 0 before the API started; three runs spread over the three workers;
+  `docker kill` of a worker requeued its run when the lease ran out; a cancel through the API
+  stopped a run held by another worker, whose free slot then took the requeued run (attempt
+  2); `docker compose stop worker` gave its run back in 4.8 s.
+
 CI on GitHub, on 2026-10-25, in the private repository `dante0747/archsim`: the first run
 (commit `e4febe3`) passed all three jobs: Python engine + API on SQLite (ruff, format check,
 mypy, pytest; 5 min), API tests on PostgreSQL 16 (37 s), and web lint, types, tests and
@@ -897,10 +949,7 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Known limitations
 
-- Still open after the review fixes: `recover_interrupted` marks every active run failed when
-  any API process starts, so several API processes on one database break each other's runs;
-  a hard kill of the API leaves worker and manager processes running on Windows; when a pool
-  breaks, every run on it fails, not only the one whose worker died. Sampled mode checks the
+- Still open after the review fixes: sampled mode checks the
   2M request limit against the full run, so the CLI and MCP refuse the 6M-request design
   (`scripts/perf.py` runs it with the limit raised). A price someone types that equals a
   preset's value counts as illustrative. Terraform target groups and listeners are not read
@@ -954,11 +1003,10 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   instant rejections (`queue_full`).
 - Wasted work is counted only for requests whose client gave up, not for work continuing after
   an internal dependency timeout.
-- Cancellation and the wall-clock limit are checked between progress chunks (1/200 of the
-  simulated time), so a run can overshoot by up to one chunk.
-- Simulations run in worker processes on the API's machine: they do not survive an API
-  restart (they are marked interrupted) and do not scale across machines. Cancellation is still
-  cooperative (between chunks).
+- A run requeued after a restart starts again from the beginning (simulations have no
+  checkpoints). Cancelling a run held by another instance takes up to one heartbeat (2 s).
+  Workers poll the queue once a second; SQLite supports several processes on one machine only,
+  and hosts sharing PostgreSQL need synchronised clocks for leases.
 - `throughputRps` counts by completion time and can be slightly above `offeredRps`.
 - "Queue kept growing" needs at least 4 time buckets inside the measurement window.
 - No authentication or multi-user support; bind to localhost only.
@@ -985,16 +1033,14 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
    group commit, a gradual saturation regime.
 2. Take Dependabot's web dependency group (PR #4) once typescript-eslint supports
    TypeScript 7, or hold TypeScript below 7 until then.
-3. A Redis/RQ worker (the `JobRunner` protocol is the seam) so runs survive API restarts and
-   scale across machines; hard cancellation of a worker process.
-4. Total client deadline across retries, retry budgets / circuit breaker component, and
+3. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
-5. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
+4. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-6. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
+5. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
    dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
    [docs/roadmap.md](docs/roadmap.md)).
-7. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
+6. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
    group rebalancing, adaptive capacity, per-key hot-row splitting.
 
 ## Bugs per week

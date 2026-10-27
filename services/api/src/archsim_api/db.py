@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,7 +26,7 @@ from sqlalchemy import (
     event,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -72,8 +73,13 @@ class Project(Base):
 
 
 class SimulationRun(Base):
+    """A simulation run, which is also its job in the queue (see ``archsim_api.jobs.queue``)."""
+
     __tablename__ = "simulation_runs"
-    __table_args__ = (Index("ix_runs_project_created", "project_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_runs_project_created", "project_id", "created_at"),
+        Index("ix_runs_status_created", "status", "created_at"),  # oldest queued run first
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     project_id: Mapped[str] = mapped_column(
@@ -94,11 +100,38 @@ class SimulationRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Queue bookkeeping: how many times a worker took the run, which worker holds it and until
+    # when (it renews the lease while the run is alive), and when someone asked to cancel it.
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    lease_owner: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancel_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Large payloads are deferred so listing runs stays cheap.
     input_document: Mapped[dict[str, Any]] = deferred(mapped_column(JSONType, nullable=False))
     report: Mapped[dict[str, Any] | None] = deferred(mapped_column(JSONType, nullable=True))
 
     project: Mapped[Project] = relationship(back_populates="runs")
+
+
+class JobWorker(Base):
+    """A worker that takes runs from the queue, with its latest heartbeat."""
+
+    __tablename__ = "job_workers"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    hostname: Mapped[str] = mapped_column(String(255))
+    pid: Mapped[int] = mapped_column(Integer)
+    slots: Mapped[int] = mapped_column(Integer)
+    running: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(16), default="running")  # running | draining
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    heartbeat_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
 
 
 def make_engine(url: str) -> Engine:
@@ -131,6 +164,24 @@ class Database:
     def sessions(self) -> Iterator[Session]:
         with self.session_factory() as s:
             yield s
+
+    @contextmanager
+    def write_transaction(self) -> Iterator[Connection]:
+        """A transaction that takes the write lock before it reads anything.
+
+        On SQLite that is ``BEGIN IMMEDIATE``: processes sharing the file wait for each other
+        (up to the busy timeout) instead of failing when a read turns into a write. Elsewhere it
+        is an ordinary transaction; PostgreSQL callers lock rows themselves. Commits on success,
+        rolls back on error."""
+        with self.engine.connect() as conn:
+            if self.dialect == "sqlite":
+                conn.exec_driver_sql("BEGIN IMMEDIATE")
+            try:
+                yield conn
+            except BaseException:
+                conn.rollback()
+                raise
+            conn.commit()
 
     @property
     def dialect(self) -> str:

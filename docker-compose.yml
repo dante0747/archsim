@@ -2,7 +2,12 @@
 #
 #   docker compose up -d postgres     # just the database (run API and web locally)
 #   docker compose up --build         # everything: http://localhost:3000
+#   docker compose --profile workers up --build --scale worker=2   # plus two extra workers
 name: archsim
+
+x-api-image: &api-image
+  context: .
+  dockerfile: services/api/Dockerfile
 
 services:
   postgres:
@@ -21,17 +26,29 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: services/api/Dockerfile
+  # One-shot: brings the database to the latest schema, then exits. The API waits for it.
+  migrate:
+    build: *api-image
+    command: ["archsim-api", "migrate"]
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
-      ARCHSIM_EXAMPLES_DIR: /app/examples
-      ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
     depends_on:
       postgres:
         condition: service_healthy
+    restart: "no"
+
+  api:
+    build: *api-image
+    init: true # reaps and signals the simulation processes
+    environment:
+      ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
+      ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
+      ARCHSIM_EXAMPLES_DIR: /app/examples
+      ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s # time to give runs in flight back to the queue
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -46,6 +63,21 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # More simulation workers, on top of the one inside the API. They share the queue in
+  # PostgreSQL; on SIGTERM each gives its runs back to it.
+  worker:
+    build: *api-image
+    init: true
+    profiles: ["workers"]
+    command: ["archsim-api", "worker"]
+    environment:
+      ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
+      ARCHSIM_AUTO_MIGRATE: "false"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
 
   web:
     build:

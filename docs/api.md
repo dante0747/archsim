@@ -83,13 +83,44 @@ document. Schema-invalid documents (unknown keys, out-of-range link settings, wr
 | GET | `/runs/{runId}` | Status, `progress` (0-1), `error`, seed, digests, and a small `summary` once finished. Poll this. |
 | GET | `/runs/{runId}/report` | Full report (`409` unless `succeeded`). See below. |
 | GET | `/runs/{runId}/input` | The exact document submitted for the run (re-importable). |
-| POST | `/runs/{runId}/cancel` | Cancels a queued run immediately, a running one at the next chunk. |
+| POST | `/runs/{runId}/cancel` | Cancels a queued run immediately. A running one is stopped by the worker holding it, on any instance, within about 2 s (its next heartbeat; at once when that worker is in the same process); one still going `ARCHSIM_CANCEL_GRACE_SECONDS` (10 s) later is killed. The response shows `cancelled`, or `running` while the cancel is on its way. |
 | POST | `/runs/{runId}/rerun` | Re-simulates the stored input with the same scenario and seed. Response has `reproducesRunId`; compare `resultDigest` values. `202`. |
 | DELETE | `/runs/{runId}` | Cancels if active, then deletes. `204`. |
 
 Run `status`: `queued`, `running`, `succeeded`, `failed`, `cancelled`. A failed run has
-`error.message` and, for document problems, `error.issues`. Runs that were active when the API
-stopped are marked `failed` ("Interrupted") at the next start.
+`error.message` and, for document problems, `error.issues`. `progress` is read from the
+database, where the worker simulating the run writes it at most once a second, so every API
+instance reports the same value.
+
+### Background runs and several instances
+
+Runs are queued in the database; workers take them. By default `archsim-api serve` contains a
+worker (`ARCHSIM_EMBEDDED_WORKER=true`), so one command runs everything. Each run simulates in a
+process of its own (`ARCHSIM_RUNNER=process`), up to `ARCHSIM_MAX_CONCURRENT_RUNS` at once
+(default: CPU count - 1).
+
+- **Restarts.** An API or worker that stops normally (Ctrl+C, SIGTERM) gives its runs back to the
+  queue, and the next worker simulates them again from the start. One that dies without warning
+  (killed, out of memory, host lost) stops renewing its runs' leases; after
+  `ARCHSIM_LEASE_SECONDS` (30 s) another worker, or the same API after a restart, requeues them.
+  A run whose worker stops twice is `failed` with "The simulation worker stopped
+  unexpectedly…".
+- **A crashed simulation** (its process ran out of memory or was killed) fails only that run,
+  with the same message; the worker and its other runs carry on.
+- **Deadline.** A run still going `ARCHSIM_MAX_WALL_SECONDS` + 30 s after it started is killed and
+  `failed`, even if the simulation stopped checking its limits.
+- **Several instances.** With PostgreSQL, any number of API instances and workers can share one
+  database: workers claim runs with `FOR UPDATE SKIP LOCKED`, and cancel requests reach the
+  worker holding a run wherever it is. Run extra workers with `archsim-api worker --slots N`
+  (`docker compose --profile workers up --scale worker=2`), and set
+  `ARCHSIM_EMBEDDED_WORKER=false` on API instances that should only serve HTTP. Hosts need
+  synchronised clocks (NTP): leases compare their times. SQLite works for several processes on
+  one machine only.
+- **Migrations** take a PostgreSQL advisory lock, so instances starting together migrate one at
+  a time. `archsim-api migrate` (the Compose `migrate` service) migrates once and exits; then
+  set `ARCHSIM_AUTO_MIGRATE=false` on the instances.
+- **Workers table.** `job_workers` lists each worker's latest heartbeat (every 2 s), slots and
+  runs in flight; rows of workers gone for an hour are deleted.
 
 ### Report shape
 
