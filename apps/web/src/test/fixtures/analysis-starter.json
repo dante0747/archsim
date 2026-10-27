@@ -69,9 +69,9 @@
           "memoryGib": 0.5,
           "storageGib": null
         },
-        "peakRps": 400.0,
+        "peakRps": 472.0,
         "why": {
-          "cpuCores": "400 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.03 \u2192 1 vCPU",
+          "cpuCores": "472 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.04 \u2192 1 vCPU",
           "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom"
         },
         "pricePerHour": 0.0384,
@@ -188,36 +188,6 @@
   },
   "review": [
     {
-      "id": "cache-dependency:api+cache|api-cache",
-      "severity": "medium",
-      "rule": "cache-dependency",
-      "title": "Reads fail when Redis Cache is down",
-      "detail": "Every read from API Servers goes through Redis Cache; misses continue to the data store, but if the cache itself is unavailable reads have no other path.",
-      "suggestion": "Let reads degrade to the data store when the cache errors (with a circuit breaker so the store is not flooded), or run the cache with replicas.",
-      "nodeIds": [
-        "api",
-        "cache"
-      ],
-      "edgeIds": [
-        "api-cache"
-      ]
-    },
-    {
-      "id": "missing-timeout:cache+db|cache-db",
-      "severity": "medium",
-      "rule": "missing-timeout",
-      "title": "Redis Cache waits indefinitely on PostgreSQL",
-      "detail": "No timeout on PostgreSQL: a slow or hung dependency keeps Redis Cache's workers waiting until its pool fills and requests queue behind them.",
-      "suggestion": "Set per-call timeouts a little above each dependency's p99 (for example 2\u00d7 p99), keeping their sum inside the caller's own budget.",
-      "nodeIds": [
-        "cache",
-        "db"
-      ],
-      "edgeIds": [
-        "cache-db"
-      ]
-    },
-    {
       "id": "spof:db|",
       "severity": "medium",
       "rule": "spof",
@@ -286,7 +256,7 @@
   ],
   "reviewCounts": {
     "high": 0,
-    "medium": 3,
+    "medium": 1,
     "low": 4
   },
   "reviewRules": {
@@ -691,18 +661,6 @@
     },
     {
       "scope": "edge",
-      "id": "cache-db",
-      "label": "cache \u2192 db",
-      "field": "latencyMs",
-      "fieldLabel": "Network latency (one way)",
-      "value": "constant 0.5 ms",
-      "provenance": {
-        "kind": "illustrative",
-        "source": "ArchSim default"
-      }
-    },
-    {
-      "scope": "edge",
       "id": "api-db",
       "label": "api \u2192 db",
       "field": "latencyMs",
@@ -776,7 +734,7 @@
   "provenanceCounts": {
     "measured": 0,
     "assumed": 4,
-    "illustrative": 32
+    "illustrative": 31
   },
   "calibration": null
 }

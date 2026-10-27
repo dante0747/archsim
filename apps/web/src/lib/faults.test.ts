@@ -9,6 +9,7 @@ import {
   faultsActiveAt,
   newFault,
   nextFaultId,
+  sameExperiment,
   targetNames,
   windowEvidence,
 } from "./faults";
@@ -151,5 +152,36 @@ describe("experiment verdict", () => {
 
   it("has no hypothesis without objectives", () => {
     expect(experimentVerdict(report({}), {}).held).toBeNull();
+  });
+});
+
+describe("sameExperiment", () => {
+  const plan: Workload = {
+    ...workload,
+    faults: [{ id: "f1", kind: "outage", target: "cache", startS: 28, durationS: 15 }],
+    pattern: { kind: "burst", burstRps: 900, startS: 30, durationS: 10 },
+  };
+
+  it("ignores key order and the defaults the engine fills into a stored run", () => {
+    // As stored by the API: the engine adds a factor and extra latency to every fault, and
+    // PostgreSQL (JSONB) returns keys shortest first.
+    const stored = JSON.parse(
+      '{"rps":400,"durationS":60,"warmupS":10,"pattern":{"kind":"burst","startS":30,"burstRps":900,"durationS":10},' +
+        '"faults":[{"id":"f1","kind":"outage","label":null,"factor":4.0,"startS":28,"target":"cache","extraMs":200.0,"durationS":15}]}',
+    ) as Workload;
+    expect(sameExperiment(stored, plan)).toBe(true);
+  });
+
+  it("applies the engine's defaults to a slowdown without a factor", () => {
+    const slow: Fault = { id: "s", kind: "slowdown", target: "db", startS: 20, durationS: 10 };
+    expect(sameExperiment({ ...plan, faults: [{ ...slow, factor: 4 }] }, { ...plan, faults: [slow] })).toBe(true);
+    expect(sameExperiment({ ...plan, faults: [{ ...slow, factor: 8 }] }, { ...plan, faults: [slow] })).toBe(false);
+  });
+
+  it("notices a changed failure, traffic shape or rate", () => {
+    expect(sameExperiment(plan, { ...plan, faults: [] })).toBe(false);
+    expect(sameExperiment(plan, { ...plan, faults: [{ ...plan.faults![0], durationS: 20 }] })).toBe(false);
+    expect(sameExperiment(plan, { ...plan, pattern: { kind: "constant" } })).toBe(false);
+    expect(sameExperiment(plan, { ...plan, rps: 500 })).toBe(false);
   });
 });

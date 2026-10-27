@@ -86,8 +86,10 @@ def _fault_suggestion(f: Fault, target_type: str | None) -> str:
         )
     if target_type == "cache":
         return (
-            "Treat cache errors as misses and fall back to the database (with a timeout and a "
-            "capacity check), or run a replicated cache."
+            "Treat cache errors as misses and fall back to the database: turn on 'Carry on if "
+            "this call fails' on the link to the cache and set the link to the database to 'Reads "
+            "only on a cache miss' (check the database can take every read), or run a replicated "
+            "cache."
         )
     if target_type == "database":
         return (

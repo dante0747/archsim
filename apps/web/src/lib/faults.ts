@@ -10,6 +10,7 @@
 import { evaluateSlo, sloTimeline, type SloResult } from "./slo";
 import { isClientType } from "./theme";
 import type { Catalog, Fault, Objectives, Report, Workload } from "./types";
+import { sameJson } from "./utils";
 
 export type FaultKind = Fault["kind"];
 
@@ -105,6 +106,33 @@ export function clampFault(f: Fault, durationS: number): Fault {
   if (f.factor != null) out.factor = clamp(f.factor, 1, 100);
   if (f.extraMs != null) out.extraMs = clamp(f.extraMs, 0, 60_000);
   return out;
+}
+
+/** What a fault does to a run: the fields the engine reads for its kind, with its defaults. */
+function faultEffect(f: Fault) {
+  return {
+    kind: f.kind,
+    target: f.target,
+    startS: f.startS,
+    durationS: f.durationS,
+    factor: f.kind === "slowdown" ? (f.factor ?? 4) : null,
+    extraMs: f.kind === "latency" ? (f.extraMs ?? 200) : null,
+  };
+}
+
+/**
+ * Whether a run used the test plan the editor holds now (traffic and failures). Only what
+ * changes the run counts: a stored run comes back with the engine's defaults filled in (an
+ * outage gets a slowdown factor and extra latency it never uses), and from PostgreSQL with its
+ * keys reordered.
+ */
+export function sameExperiment(ran: Workload, now: Workload): boolean {
+  return (
+    sameJson((ran.faults ?? []).map(faultEffect), (now.faults ?? []).map(faultEffect)) &&
+    sameJson(ran.pattern, now.pattern) &&
+    ran.rps === now.rps &&
+    ran.durationS === now.durationS
+  );
 }
 
 export function faultsActiveAt(faults: Fault[] | undefined, t: number): Fault[] {

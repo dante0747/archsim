@@ -1,5 +1,6 @@
 """What ArchSim's exports carry so an import gives the design back: each part's outgoing links
-as ``target[/port][:types]`` (comma separated) and the parts nothing deploys (clients, Kubernetes
+as ``target[/port][:types][!flag...]`` (comma separated; flags ``on-miss`` and ``carry-on`` for
+the cache-aside link settings) and the parts nothing deploys (clients, Kubernetes
 clusters) as a list of ``{id, type, label, config, calls}``. Shared by the exporters and the
 importers so the format has one definition."""
 
@@ -12,6 +13,9 @@ Json = dict[str, Any]
 
 NOT_DEPLOYED = ("traffic_source", "kubernetes_cluster")
 
+LINK_FLAGS = {"on-miss": "readsOnMiss", "carry-on": "continueOnFailure"}
+"""Link settings an export writes as ``!flag`` after a link (flag -> config key)."""
+
 EXPORT_PLACEHOLDER_RESOURCES: Json = {
     "requests": {"cpu": "500m", "memory": "512Mi"},
     "limits": {"memory": "1Gi"},
@@ -22,26 +26,32 @@ anywhere else they are someone's real requests."""
 
 
 def encode_calls(edges: list[Json]) -> str:
-    """``target[/port][:types]`` per outgoing link, comma separated (what the exporters write)."""
+    """``target[/port][:types][!flag...]`` per outgoing link, comma separated (what the exporters
+    write)."""
     parts = []
     for e in edges:
         port = e.get("sourcePort") or "out"
-        types = (e.get("config") or {}).get("requestTypes") or ["read", "write"]
+        cfg = e.get("config") or {}
+        types = cfg.get("requestTypes") or ["read", "write"]
         text = e["target"] + (f"/{port}" if port != "out" else "")
         if sorted(types) != ["read", "write"]:
             text += ":" + "+".join(types)
+        text += "".join(f"!{flag}" for flag, key in LINK_FLAGS.items() if cfg.get(key) is True)
         parts.append(text)
     return ",".join(parts)
 
 
-def decode_calls(text: str) -> list[tuple[str, str | None, list[str] | None]]:
+def decode_calls(text: str) -> list[tuple[str, str | None, list[str] | None, Json]]:
+    """Each link's target, port, request types and the settings its flags turn on."""
     out = []
     for item in (x.strip() for x in text.split(",")):
         if not item:
             continue
+        item, *flags = item.split("!")
         target, _, types = item.partition(":")
         target, _, port = target.partition("/")
-        out.append((target, port or None, types.split("+") if types else None))
+        extra = {LINK_FLAGS[f]: True for f in flags if f in LINK_FLAGS}
+        out.append((target, port or None, types.split("+") if types else None, extra))
     return out
 
 

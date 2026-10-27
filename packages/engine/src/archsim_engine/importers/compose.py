@@ -262,8 +262,8 @@ def import_compose(
     for svc_name, svc in data["services"].items():
         src = by_service[svc_name]
         if src in calls:
-            for target, port, types in decode_calls(calls[src]):
-                b.link(src, target, port, types)
+            for target, port, types, extra in decode_calls(calls[src]):
+                b.link(src, target, port, types, extra)
             continue
         targets = [(d, "depends_on") for d in _depends(svc or {})]
         for k, v in _env(svc or {}).items():
@@ -280,8 +280,8 @@ def import_compose(
     deployed = set(by_service.values())
     for src, text in calls.items():
         if src not in deployed:  # managed services and third-party APIs (x-external-dependencies)
-            for target, port, types in decode_calls(text):
-                b.link(src, target, port, types)
+            for target, port, types, extra in decode_calls(text):
+                b.link(src, target, port, types, extra)
     b.link_parts(parts)
     if parts:
         report.mapped.append(

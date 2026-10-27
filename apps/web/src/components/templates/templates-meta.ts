@@ -27,7 +27,7 @@ const META: Record<string, TemplateMeta> = {
   "cache-aside-starter": {
     category: "Starter",
     level: "Beginner",
-    insight: "Redis absorbs the reads; every miss falls through to PostgreSQL.",
+    insight: "Redis absorbs the reads; on a miss the API reads PostgreSQL itself.",
   },
   "black-friday-kubernetes": {
     category: "Scale",

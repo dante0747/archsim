@@ -93,3 +93,11 @@ def _pricing(doc: dict[str, Any]) -> dict[str, Any]:
     """1.2 adds optional ``pricing`` (generic by default, as before); a 1.1 document needs no
     change."""
     return doc
+
+
+@migration("1.2", "1.3")
+def _cache_aside_links(doc: dict[str, Any]) -> dict[str, Any]:
+    """1.3 adds the link settings ``readsOnMiss`` and ``continueOnFailure`` (cache-aside; off by
+    default, as before) and lets a cache leave its misses to its callers; a 1.2 document needs
+    no change."""
+    return doc

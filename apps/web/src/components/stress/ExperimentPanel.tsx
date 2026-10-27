@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";
 import { Switch } from "@/components/ui/misc";
 import { compact, fmtPct } from "@/lib/format";
-import { clampFault, experimentVerdict, faultLabel, fmtWindow, type Verdict } from "@/lib/faults";
+import { clampFault, experimentVerdict, faultLabel, fmtWindow, sameExperiment, type Verdict } from "@/lib/faults";
 import { formatSloValue } from "@/lib/slo";
 import type { Objectives, Report, Workload } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -267,16 +267,6 @@ function PlanCard() {
 // Result
 // ---------------------------------------------------------------------------------------------
 
-function sameExperiment(report: Report, w: Workload): boolean {
-  const r = report.input.workload;
-  return (
-    JSON.stringify(r.faults ?? []) === JSON.stringify(w.faults ?? []) &&
-    JSON.stringify(r.pattern) === JSON.stringify(w.pattern) &&
-    r.rps === w.rps &&
-    r.durationS === w.durationS
-  );
-}
-
 function ResultCard({ report }: { report: Report }) {
   const objectives = useEditor((s) => s.objectives);
   const workload = useEditor((s) => s.workload);
@@ -286,7 +276,7 @@ function ResultCard({ report }: { report: Report }) {
   const v: Verdict = useMemo(() => experimentVerdict(report, objectives, names), [report, objectives, names]);
   const tone = v.held === true ? "var(--status-good)" : v.held === false ? "var(--status-critical)" : "var(--ink-3)";
   const Icon = v.held === true ? CircleCheck : v.held === false ? CircleX : CircleHelp;
-  const stale = !sameExperiment(report, workload);
+  const stale = !sameExperiment(report.input.workload, workload);
   const jump = (t: number) => {
     setPlaying(false);
     setPlayhead(t + report.timeseries.bucketS / 2);

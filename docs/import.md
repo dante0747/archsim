@@ -99,8 +99,12 @@ The import finishes the design so it validates and simulates, and lists each ste
   LoadBalancer Service or an Ingress (Kubernetes), a load balancer or CDN (Terraform), else the
   load balancer or service nothing calls. Clients send to one part, so several entries get a
   load balancer in front of them. Never a Kubernetes cluster part, never a tool.
-- **Cache misses.** A cache's miss port links to the database its callers also use (when there
-  is exactly one), or to the only database in the design.
+- **Cache misses.** When every service that uses a cache also calls one database, the design
+  is cache-aside: those services' links to the database get reads only on a cache miss
+  (Redis never calls PostgreSQL). Otherwise the cache's miss port links to the database its
+  callers use (when there is exactly one), or to the only database in the design. ArchSim's
+  own exports carry the link settings (`!on-miss`, `!carry-on` after a link in
+  `archsim.calls`), so they come back as they were.
 - **Small memory limits.** ArchSim assumes 256 MiB per replica at idle. A smaller limit (a 256M
   container, a 128 MB function) would leave no room for a single request, so memory at idle is
   set to half the limit, noted, and listed.

@@ -251,24 +251,35 @@ def review_design(doc: Json, registry: ComponentRegistry) -> list[Json]:
             reads = [
                 e for e in c.out.get(nid, []) if "read" in (_ecfg(e).get("requestTypes") or [])
             ]
-            via_cache = [e for e in reads if c.kind.get(e["target"]) == "cache"]
-            direct = [e for e in reads if c.kind.get(e["target"]) != "cache"]
-            if via_cache and not direct:
-                cache_name = c.label(via_cache[0]["target"])
+            via_cache = [
+                e
+                for e in reads
+                if c.kind.get(e["target"]) == "cache" and not _ecfg(e).get("readsOnMiss")
+            ]
+            fetch = [e for e in reads if _ecfg(e).get("readsOnMiss")]
+            hard = [e for e in via_cache if not _ecfg(e).get("continueOnFailure")]
+            if via_cache and (hard or not fetch):
+                cache_name = c.label((hard or via_cache)[0]["target"])
+                detail = (
+                    f"{name} reads {c.label(fetch[0]['target'])} on a cache miss, but a failed "
+                    f"lookup on {cache_name} fails the read instead of counting as a miss."
+                    if fetch
+                    else f"Every read from {name} goes through {cache_name}; if the cache itself "
+                    "is unavailable, reads have no other path."
+                )
                 add(
                     severity="medium",
                     rule="cache-dependency",
                     title=f"Reads fail when {cache_name} is down",
-                    detail=(
-                        f"Every read from {name} goes through {cache_name}; misses continue to the data store, "
-                        "but if the cache itself is unavailable reads have no other path."
-                    ),
+                    detail=detail,
                     suggestion=(
-                        "Let reads degrade to the data store when the cache errors (with a circuit breaker so the "
-                        "store is not flooded), or run the cache with replicas."
+                        f"Turn on 'Carry on if this call fails' on the link to {cache_name} and give "
+                        f"{name} a link to the data store set to 'Reads only on a cache miss', so "
+                        "reads fall back to the data store (check it can take every read), or run "
+                        "the cache with replicas."
                     ),
-                    nodeIds=[nid, via_cache[0]["target"]],
-                    edgeIds=[e["id"] for e in via_cache],
+                    nodeIds=[nid, (hard or via_cache)[0]["target"]],
+                    edgeIds=[e["id"] for e in (hard or via_cache)],
                 )
 
         # -- unbounded waits -----------------------------------------------------------------

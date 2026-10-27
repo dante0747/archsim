@@ -28,6 +28,10 @@ export interface EdgeConfig {
   maxAttempts?: number;
   retryBackoffMs?: number;
   order?: number;
+  /** Cache-aside: reads go over this link only after the service's cache lookup missed. */
+  readsOnMiss?: boolean;
+  /** A failure on this link does not fail the request (a failed cache lookup counts as a miss). */
+  continueOnFailure?: boolean;
 }
 
 export interface EdgeSpec {
@@ -169,7 +173,7 @@ export interface Pricing {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */

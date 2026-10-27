@@ -72,6 +72,8 @@ function ArchEdgeViewImpl({
   const bucket = useUi((s) => (s.playhead == null ? -1 : Math.floor(s.playhead / bucketS + 1e-9)));
   const cfg = data?.config;
   const isMiss = (data?.sourcePort ?? sourceHandleId) === "miss";
+  // cache-aside: the service reads the data store over this link only after a cache miss
+  const onMiss = cfg?.readsOnMiss === true && (cfg.requestTypes ?? []).includes("read");
   const showFlow = overlay && !!edgeReport;
   const liveOn = showFlow && !!report && bucket >= 0 && bucket < nBuckets;
 
@@ -119,14 +121,14 @@ function ArchEdgeViewImpl({
         style={{
           stroke,
           strokeWidth: selected ? Math.max(width, 1.75) : width,
-          strokeDasharray: isMiss || hasError || live?.latency ? "6 4" : undefined,
+          strokeDasharray: isMiss || onMiss || hasError || live?.latency ? "6 4" : undefined,
           transition: "stroke-width 300ms ease, stroke 300ms ease",
         }}
       />
       {dots.map(({ i, type }) => (
         <Particle key={i} type={type} path={path} dur={dur} begin={-(i * dur) / SLOTS} />
       ))}
-      {(isMiss || showFlow || !!live?.latency || hasError || selected) && (
+      {(isMiss || onMiss || showFlow || !!live?.latency || hasError || selected) && (
       <EdgeLabelRenderer>
         <div
           className={cn(
@@ -137,7 +139,8 @@ function ArchEdgeViewImpl({
           data-testid={`edge-label-${id}`}
           title={[
             data?.label,
-            isMiss ? "Cache miss path" : `Carries ${types.join(" + ")}`,
+            isMiss ? "Cache miss path" : `Carries ${types.join(" + ")}${onMiss ? " (reads only on a cache miss)" : ""}`,
+            cfg?.continueOnFailure ? "carries on if this call fails" : null,
             cfg?.latencyMs ? `latency ${describeDistribution(cfg.latencyMs)} each way` : null,
             cfg?.timeoutMs ? `timeout ${cfg.timeoutMs} ms` : null,
             cfg?.maxAttempts && cfg.maxAttempts > 1 ? `${cfg.maxAttempts} attempts` : null,
@@ -146,7 +149,9 @@ function ArchEdgeViewImpl({
             .join(" · ")}
         >
           {isMiss && <span className="lowercase">miss</span>}
-          {!isMiss && !showFlow && !live?.latency && <span className="lowercase">{types.join(" + ")}</span>}
+          {!isMiss && !showFlow && !live?.latency && (
+            <span className="lowercase">{types.map((t) => (t === "read" && onMiss ? "read on miss" : t)).join(" + ")}</span>
+          )}
           {showFlow && <span className="tabular font-semibold text-ink">{live ? fmtRate(rps) : compactRate(rps)}/s</span>}
           {live?.latency && (
             <span className="font-semibold text-ink" title="Injected network latency">

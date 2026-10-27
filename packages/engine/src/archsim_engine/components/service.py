@@ -39,7 +39,6 @@ from archsim_engine.metrics import Gauge
 from archsim_engine.ratelimit import TokenBucket
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
-    OK,
     EdgeRuntime,
     Outcome,
     Request,
@@ -655,22 +654,15 @@ class ServiceRuntime(RuntimeComponent):
         m.service.record(env.now, st)
         span(req, self.id, "service", start, env.now, None)
         self._after_request(index)
-        outcome: Outcome = OK
         deps = self.deps_for(req.op)
         if self.blocking:
-            for e in deps:
-                outcome = yield from self.ctx.call(e, req, self.id)
-                if not outcome.ok:
-                    break
+            outcome = yield from self.ctx.call_dependencies(deps, req, self.id)
             pool.release(tok)
             m.hold.record(env.now, env.now - start)
         else:
             pool.release(tok)
             m.hold.record(env.now, env.now - start)
-            for e in deps:
-                outcome = yield from self.ctx.call(e, req, self.id)
-                if not outcome.ok:
-                    break
+            outcome = yield from self.ctx.call_dependencies(deps, req, self.id)
         self.load[index] -= 1
         m.depart(env.now, outcome, req)
         return outcome
@@ -1045,11 +1037,7 @@ class ServerlessRuntime(RuntimeComponent):
             yield env.timeout(cpu_ms)
         m.cpu.add(-1, env.now)
         m.service.record(env.now, st)
-        outcome: Outcome = OK
-        for e in self.deps_for(req.op):
-            outcome = yield from self.ctx.call(e, req, self.id)
-            if not outcome.ok:
-                break
+        outcome = yield from self.ctx.call_dependencies(self.deps_for(req.op), req, self.id)
         end = env.now
         m.busy.add(-1, end)
         m.hold.record(end, end - start)
@@ -1106,6 +1094,63 @@ class ServerlessRuntime(RuntimeComponent):
             "replicasPeak": max(self.instances.maxes) if self.instances.maxes else self.alive,
             "replicasEnd": self.alive,
         }
+
+
+def _cache_aside_issues(node: NodeSpec, view: GraphView) -> list[Issue]:
+    """Checks for links set to 'Reads only on a cache miss': the service needs a cache lookup
+    that can answer 'miss', which a read-through cache (one with its own miss link) never does."""
+    issues: list[Issue] = []
+    name = node.label or node.id
+    outs = view.out_edges.get(node.id, [])
+    fetch = [e for e in outs if e.config.reads_on_miss and "read" in e.config.request_types]
+    if not fetch:
+        return issues
+    lookups = [
+        e
+        for e in outs
+        if not e.config.reads_on_miss
+        and "read" in e.config.request_types
+        and view.nodes[e.target].type == "cache"
+    ]
+    if not lookups:
+        issues.append(
+            error(
+                "edge.reads_on_miss_no_cache",
+                f"{name} sends reads to {_label(view, fetch[0].target)} only on a cache miss, but "
+                f"{name} has no link that reads from a cache, so those reads never happen.",
+                node_id=node.id,
+                edge_id=fetch[0].id,
+                hint="Link the service to a cache for reads, or turn off 'Reads only on a cache "
+                "miss' on this link.",
+            )
+        )
+        return issues
+    read_through = [
+        e
+        for e in lookups
+        if any(x.source_port == "miss" for x in view.out_edges.get(e.target, []))
+        and not e.config.continue_on_failure
+    ]
+    if len(read_through) == len(lookups):
+        cache = _label(view, read_through[0].target)
+        issues.append(
+            warning(
+                "edge.reads_on_miss_unused",
+                f"{cache} reads the data store itself on a miss (its 'miss' port is connected), so "
+                f"{name}'s link to {_label(view, fetch[0].target)} set to 'Reads only on a cache "
+                "miss' never gets reads.",
+                node_id=node.id,
+                edge_id=fetch[0].id,
+                hint=f"For cache-aside, remove {cache}'s miss link; for read-through, turn off "
+                "'Reads only on a cache miss'.",
+            )
+        )
+    return issues
+
+
+def _label(view: GraphView, node_id: str) -> str:
+    n = view.nodes.get(node_id)
+    return (n.label or n.id) if n is not None else node_id
 
 
 def _lognormal(median: float, p95: float) -> dict[str, Any]:
@@ -1395,6 +1440,7 @@ class ServiceModel(ComponentModel):
                             node_id=node.id,
                         )
                     )
+        issues.extend(_cache_aside_issues(node, view))
         return issues
 
     def build(self, ctx: SimContext, node: NodeSpec, config: Any) -> RuntimeComponent:

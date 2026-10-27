@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.3",
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Cache-aside web API (starter)",
-    "description": "Clients reach two API replicas through a load balancer. Reads check Redis first; cache misses continue to PostgreSQL. Writes go to PostgreSQL and then invalidate the cached key. All performance numbers are illustrative assumptions, not measurements.",
+    "description": "Clients reach two API replicas through a load balancer. The API uses Redis cache-aside: it looks each read up in Redis and, on a miss, reads PostgreSQL itself and writes the value back. Writes go to PostgreSQL and then invalidate the cached key. If Redis fails, reads fall back to PostgreSQL and invalidations are skipped. All performance numbers are illustrative assumptions, not measurements.",
     "tags": [
       "starter",
       "cache-aside",
@@ -40,7 +40,7 @@
         "id": "api",
         "type": "service",
         "label": "API Servers",
-        "description": "Thread-per-request API. Workers stay busy while waiting on Redis/PostgreSQL.",
+        "description": "Thread-per-request API. Workers stay busy while waiting on Redis/PostgreSQL. On a cache miss the API reads PostgreSQL itself.",
         "config": {
           "replicas": 2,
           "workersPerReplica": 4,
@@ -136,7 +136,7 @@
         "sourcePort": "out",
         "target": "cache",
         "targetPort": "in",
-        "label": "reads + invalidations",
+        "label": "lookups + invalidations",
         "config": {
           "requestTypes": [
             "read",
@@ -147,24 +147,8 @@
             "value": 0.25
           },
           "timeoutMs": 250,
-          "order": 1
-        }
-      },
-      {
-        "id": "cache-db",
-        "source": "cache",
-        "sourcePort": "miss",
-        "target": "db",
-        "targetPort": "in",
-        "label": "cache miss",
-        "config": {
-          "requestTypes": [
-            "read"
-          ],
-          "latencyMs": {
-            "kind": "constant",
-            "value": 0.5
-          }
+          "order": 1,
+          "continueOnFailure": true
         }
       },
       {
@@ -173,9 +157,10 @@
         "sourcePort": "out",
         "target": "db",
         "targetPort": "in",
-        "label": "writes",
+        "label": "writes + reads on a miss",
         "config": {
           "requestTypes": [
+            "read",
             "write"
           ],
           "latencyMs": {
@@ -183,7 +168,8 @@
             "value": 0.5
           },
           "timeoutMs": 1500,
-          "order": 0
+          "order": 0,
+          "readsOnMiss": true
         }
       }
     ]
@@ -241,7 +227,7 @@
     {
       "id": "cache-hit-20",
       "name": "Cache hit ratio 20%",
-      "description": "Most reads miss: PostgreSQL load rises sharply, and blocked API workers back up.",
+      "description": "Most reads miss: the API sends them to PostgreSQL, whose load rises sharply, and blocked API workers back up.",
       "overrides": [
         {
           "target": {

@@ -17,7 +17,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.1",                 // required; drives migrations
+  "schemaVersion": "1.3",                 // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -37,12 +37,12 @@ are here for explanation only):
       { "id": "clients-api", "source": "clients", "target": "api",
         "config": { "requestTypes": ["read", "write"],
                     "latencyMs": { "kind": "lognormal", "median": 15, "p95": 40 } } },
-      { "id": "api-cache", "source": "api", "target": "cache",
-        "config": { "requestTypes": ["read", "write"], "timeoutMs": 250, "order": 1 } },
-      { "id": "cache-db", "source": "cache", "sourcePort": "miss", "target": "db",
-        "config": { "requestTypes": ["read"] } },     // cache misses reach PostgreSQL
-      { "id": "api-db", "source": "api", "target": "db",
-        "config": { "requestTypes": ["write"], "order": 0 } }  // writes go to the DB first
+      { "id": "api-cache", "source": "api", "target": "cache",   // lookups + invalidations
+        "config": { "requestTypes": ["read", "write"], "timeoutMs": 250, "order": 1,
+                    "continueOnFailure": true } },  // cache down: reads go to the DB instead
+      { "id": "api-db", "source": "api", "target": "db",         // cache-aside: the API reads
+        "config": { "requestTypes": ["read", "write"], "order": 0,  // the DB itself on a miss;
+                    "readsOnMiss": true } }                         // writes go to the DB first
     ]
   },
 
@@ -67,7 +67,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.2"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.3"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
@@ -95,7 +95,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 | --- | --- | --- | --- |
 | `id` | string | | Same rules as node ids. |
 | `source`, `target` | string | | Node ids. |
-| `sourcePort` | string | `"out"` | Must be an output port of the source (the cache's miss port is `"miss"`). |
+| `sourcePort` | string | `"out"` | Must be an output port of the source (the cache's miss port is `"miss"`, for read-through caching). |
 | `targetPort` | string | `"in"` | Must be an input port of the target. |
 | `label` | string? | | |
 | `config.requestTypes` | `["read" \| "write"]` | both | Which requests use this link. Drives routing (e.g. reads to the cache, writes to the database). |
@@ -104,6 +104,8 @@ materialised and the fully resolved document is stored in the report's `input`.
 | `config.maxAttempts` | integer 1-5 | 1 | Attempts including retries. Ignored on the link from the traffic source. |
 | `config.retryBackoffMs` | number | 50 | Backoff before the first retry; doubles each retry. |
 | `config.order` | integer | 0 | Call order when a service calls several links for the same request (lower first). |
+| `config.readsOnMiss` | boolean | false | Cache-aside, on a service's link to a data store: reads use it only after the service's cache lookup missed (or failed on a link that carries on), and the value is then written back to the cache. Writes on the link are always sent. |
+| `config.continueOnFailure` | boolean | false | On a service's link: if the call still fails after its attempts, the request carries on. A failed cache lookup counts as a miss (reads go to the `readsOnMiss` links; with none, the read fails); a failed invalidation is skipped. |
 
 ## Distributions
 

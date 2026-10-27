@@ -22,7 +22,7 @@ API = "/api/v1"
 def test_meta_catalog_examples_schema(client: TestClient) -> None:
     assert client.get(f"{API}/health").json() == {"status": "ok", "database": "ok"}
     meta = client.get(f"{API}/meta").json()
-    assert meta["engineVersion"] and meta["schemaVersion"] == "1.2"
+    assert meta["engineVersion"] and meta["schemaVersion"] == "1.3"
     assert meta["database"] in ("sqlite", "postgresql")
     cat = client.get(f"{API}/components").json()
     types = {c["type"] for c in cat["components"]}
@@ -31,7 +31,7 @@ def test_meta_catalog_examples_schema(client: TestClient) -> None:
     examples = client.get(f"{API}/examples").json()
     ids = {e["id"] for e in examples}
     assert {"cache-aside-starter", "queueing-lab", "retry-storm-ttl-cache"} <= ids
-    assert client.get(f"{API}/examples/cache-aside-starter").json()["schemaVersion"] == "1.0"
+    assert client.get(f"{API}/examples/cache-aside-starter").json()["schemaVersion"] == "1.3"
     assert client.get(f"{API}/examples/nope").status_code == 404
     assert client.get(f"{API}/schema/architecture").json()["title"] == "ArchitectureDocument"
     assert "/api/v1/projects" in client.get(f"{API}/openapi.json").json()["paths"]
@@ -40,10 +40,10 @@ def test_meta_catalog_examples_schema(client: TestClient) -> None:
 def test_validate_endpoint_reports_issues(client: TestClient) -> None:
     good = client.post(f"{API}/validate", json={"document": starter()}).json()
     assert good == {"valid": True, "issues": []}
-    bad = starter()
-    bad["architecture"]["edges"] = [
-        e for e in bad["architecture"]["edges"] if e["id"] != "cache-db"
-    ]
+    bad = starter()  # cache misses that nothing reads: the API no longer reads the DB on a miss
+    for e in bad["architecture"]["edges"]:
+        if e["id"] == "api-db":
+            e["config"]["readsOnMiss"] = False
     res = client.post(f"{API}/validate", json={"document": bad}).json()
     assert not res["valid"]
     assert res["issues"][0]["code"] == "cache.miss_unrouted"
@@ -245,7 +245,7 @@ def test_run_lifecycle_report_and_reproduce(client: TestClient) -> None:
 
     runs = client.get(f"{API}/projects/{p['id']}/runs").json()
     assert {r["id"] for r in runs} == {done["id"], again["id"]}
-    assert client.get(f"{API}/runs/{done['id']}/input").json()["schemaVersion"] == "1.2"
+    assert client.get(f"{API}/runs/{done['id']}/input").json()["schemaVersion"] == "1.3"
 
 
 def test_run_with_unsaved_document_snapshot(client: TestClient) -> None:

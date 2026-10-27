@@ -6,7 +6,7 @@ import { thClass } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
 import { formatUsd, paretoFrontier } from "@/lib/cost";
 import { fmtMs, fmtPct } from "@/lib/format";
-import { evaluateSlo } from "@/lib/slo";
+import { evaluateSlo, failureAllowance, tooManyFailures } from "@/lib/slo";
 import { cn } from "@/lib/utils";
 import { ensureReports, useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
@@ -96,7 +96,8 @@ export function TradeoffMap() {
         pass: evaluateSlo(objectives, rep).pass,
       });
     }
-    const front = new Set(paretoFrontier(pts).map((p) => p.runId));
+    // p95 covers successful requests only: a run that failed too many requests is not an option
+    const front = new Set(paretoFrontier(pts.filter((p) => !tooManyFailures(p.success, objectives))).map((p) => p.runId));
     return pts.map((p) => ({ ...p, frontier: front.has(p.runId) }));
   }, [runs, reports, objectives]);
 
@@ -197,7 +198,7 @@ export function TradeoffMap() {
               <svg width="18" height="8" aria-hidden>
                 <path d="M1,7 H9 V1 H17" fill="none" stroke="var(--ink-2)" strokeWidth="1.5" />
               </svg>
-              Pareto frontier
+              Pareto frontier (leaves out runs with more than {fmtPct(failureAllowance(objectives), 1)} failed)
             </span>
             {slo != null && (
               <span className="flex items-center gap-1.5">

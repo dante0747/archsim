@@ -11,6 +11,20 @@ const { nodes, edges } = fromDocument(starterJson as unknown as ArchitectureDocu
 const check = (source: string, target: string, sourceHandle = "out", targetHandle = "in") =>
   checkConnection({ source, target, sourceHandle, targetHandle }, nodes, edges, catalog);
 
+// The starter is cache-aside (the API reads PostgreSQL on a miss); this variant is read-through:
+// the cache's own miss link goes to PostgreSQL.
+const starter = starterJson as unknown as ArchitectureDocument;
+const readThrough = fromDocument({
+  ...starter,
+  architecture: {
+    ...starter.architecture,
+    edges: [
+      ...starter.architecture.edges,
+      { id: "cache-db", source: "cache", sourcePort: "miss", target: "db", targetPort: "in", config: { requestTypes: ["read"], latencyMs: { kind: "constant", value: 0.5 } } },
+    ],
+  },
+});
+
 describe("connection rules", () => {
   it("resolves side handles to the component's ports", () => {
     const withoutApiDb = edges.filter((e) => e.id !== "api-db");
@@ -47,7 +61,9 @@ describe("connection rules", () => {
 
   it("enforces port arity and duplicates", () => {
     expect(check("clients", "api")).toMatchObject({ ok: false, reason: expect.stringMatching(/only 1 link/) });
-    expect(check("cache", "db", "miss")).toMatchObject({ ok: false, reason: expect.stringMatching(/only 1 link/) });
+    expect(
+      checkConnection({ source: "cache", target: "db", sourceHandle: "miss", targetHandle: "in" }, readThrough.nodes, readThrough.edges, catalog),
+    ).toMatchObject({ ok: false, reason: expect.stringMatching(/only 1 link/) });
     expect(check("lb", "api")).toMatchObject({ ok: false, reason: expect.stringMatching(/already linked/) });
   });
 

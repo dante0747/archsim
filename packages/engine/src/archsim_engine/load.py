@@ -5,7 +5,9 @@ peak, without simulating. Used by auto-sizing (``sizing.py``) and the design rev
 The peak rate is split by the read/write mix and by each client part's traffic share, then pushed
 along the links in call order: a load balancer (and a queue) spreads a request type over the links
 that carry it, weighted by the targets' replicas; a service calls every dependency that carries the
-type; a cache forwards reads to its miss link at (1 - hit ratio) and absorbs writes. First attempts
+type; a cache forwards reads to its miss link at (1 - hit ratio) and absorbs writes (read-through);
+in cache-aside the service's link set to ``readsOnMiss`` gets that share instead, and the cache
+one more read per miss for the write-back. First attempts
 only (no retries). Where the share is unknown (a TTL cache's misses) the parts downstream get no
 estimate, unless ``ttl_miss_share`` assumes one.
 
@@ -158,6 +160,11 @@ def _carries(edge: Json, op: str) -> bool:
     return op in (edge.get("config", {}).get("requestTypes") or ["read", "write"])
 
 
+def _on_miss(edge: Json) -> bool:
+    """The link gets reads only after a cache lookup missed (cache-aside)."""
+    return edge.get("config", {}).get("readsOnMiss") is True
+
+
 def _weight(cfg: Json, type_: str) -> float:
     """Replicas a load balancer weighs a target by (services: at max scale when autoscaling)."""
     if type_ != "service":
@@ -197,13 +204,43 @@ def estimate_load(
             return
         load[nid] = None if sent is None else NodeLoad(cur.read + sent.read, cur.write + sent.write)
 
+    def miss_share(cache_id: str) -> float | None:
+        """Share of reads a cache misses (None when it depends on the run)."""
+        c = cfg[cache_id]
+        if (c.get("hitModel") or "fixed_ratio") == "fixed_ratio":
+            return 1 - (num(c.get("hitRatio")) or 0.0)
+        return ttl_miss_share
+
+    def aside_lookups(outs: list[Json]) -> list[Json]:
+        """A service's read links to caches that leave misses to it (cache-aside), when it has
+        a link that reads the data store on a miss."""
+        if not any(_on_miss(x) and _carries(x, "read") for x in outs):
+            return []
+        return [
+            x
+            for x in outs
+            if _carries(x, "read")
+            and not _on_miss(x)
+            and by_id[x["target"]]["type"] == "cache"
+            and not any(y.get("sourcePort") == "miss" for y in out.get(x["target"], []))
+        ]
+
+    def fetch_share(outs: list[Json]) -> float | None:
+        """Share of a service's reads that miss at least one of its cache-aside lookups."""
+        hit_all = 1.0
+        for x in aside_lookups(outs):
+            s = miss_share(x["target"])
+            if s is None:
+                return None
+            hit_all *= 1 - s
+        return 1 - hit_all if aside_lookups(outs) else 0.0
+
     # Kahn's order (designs are acyclic; parts on a cycle keep whatever reached them).
     queue = [n["id"] for n in nodes if indeg.get(n["id"], 0) == 0]
     while queue:
         nid = queue.pop(0)
         node = by_id[nid]
         here = load.get(nid)
-        c = cfg[nid]
         kind = kind_of(node["type"], registry)
         outs = out.get(nid, [])
         for e in outs:
@@ -223,21 +260,28 @@ def estimate_load(
 
                 sent = NodeLoad(here.read * share("read"), here.write * share("write"))
             elif kind == "cache":
+                missed = miss_share(nid)
                 if e.get("sourcePort") != "miss":
                     sent = NodeLoad(0.0, 0.0)
-                elif (c.get("hitModel") or "fixed_ratio") == "fixed_ratio":
-                    hit = num(c.get("hitRatio")) or 0.0
-                    sent = NodeLoad(here.read * (1 - hit) if _carries(e, "read") else 0.0, 0.0)
-                elif ttl_miss_share is not None:
-                    sent = NodeLoad(here.read * ttl_miss_share if _carries(e, "read") else 0.0, 0.0)
-                else:
+                elif missed is None:
                     sent = None  # TTL misses depend on the run
+                else:
+                    sent = NodeLoad(here.read * missed if _carries(e, "read") else 0.0, 0.0)
             else:
-                # clients and services send each request type to every link that carries it
-                sent = NodeLoad(
-                    here.read if _carries(e, "read") else 0.0,
-                    here.write if _carries(e, "write") else 0.0,
-                )
+                # clients and services send each request type to every link that carries it.
+                # Cache-aside: a link that reads only on a cache miss gets the share of reads
+                # that missed, and each lookup that misses writes the value back (one more read
+                # on the cache).
+                read: float | None = here.read if _carries(e, "read") else 0.0
+                if read and kind == "compute":
+                    if _on_miss(e):
+                        fs = fetch_share(outs)
+                        read = None if fs is None else read * fs
+                    elif e in aside_lookups(outs) and cfg[e["target"]].get("populateOnMiss", True):
+                        ms = miss_share(e["target"])
+                        read = None if ms is None else read * (1 + ms)
+                write = here.write if _carries(e, "write") else 0.0
+                sent = None if read is None else NodeLoad(read, write)
             add(e["target"], sent)
             indeg[e["target"]] = indeg.get(e["target"], 1) - 1
             if indeg[e["target"]] == 0:

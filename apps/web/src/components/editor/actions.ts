@@ -67,8 +67,8 @@ export function useEditorActions() {
       if (!raw || typeof raw !== "object" || raw.kind !== "archsim.architecture") {
         throw new Error("This file is not an ArchSim architecture document.");
       }
-      // 1.0 -> 1.1 only adds optional fields, so both open in place
-      if (raw.schemaVersion !== "1.0" && raw.schemaVersion !== "1.1" && raw.schemaVersion !== "1.2") {
+      // 1.0 -> 1.3 only add optional fields, so all open in place
+      if (raw.schemaVersion !== "1.0" && raw.schemaVersion !== "1.1" && raw.schemaVersion !== "1.2" && raw.schemaVersion !== "1.3") {
         throw new Error(
           `Schema ${String(raw.schemaVersion)} cannot be opened in place. Use “Import JSON” on the projects page, which migrates older documents.`,
         );

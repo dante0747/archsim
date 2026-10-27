@@ -228,11 +228,14 @@ export function LoadTooltip({
   payload,
   label,
   format,
+  note,
 }: {
   active?: boolean;
   payload?: { dataKey: string; value: number | null; color: string; name: string }[];
   label?: number;
   format: (v: number) => string;
+  /** An extra line about the hovered load (e.g. its success rate). */
+  note?: (rps?: number) => string | null;
 }) {
   if (!active || !payload?.length) return null;
   return (
@@ -245,6 +248,7 @@ export function LoadTooltip({
           <span className="tabular ml-auto pl-3 text-ink">{p.value == null ? "–" : format(p.value)}</span>
         </p>
       ))}
+      {note?.(label) && <p className="mt-1 text-ink-3">{note(label)}</p>}
     </div>
   );
 }

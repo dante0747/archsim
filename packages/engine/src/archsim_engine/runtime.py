@@ -56,6 +56,8 @@ class Outcome(NamedTuple):
 
 
 OK = Outcome(True, "ok")
+MISS = Outcome(True, "miss")
+"""A cache lookup that did not find the key and leaves fetching it to the caller (cache-aside)."""
 
 
 def rejected(reason: str, node_id: str) -> Outcome:
@@ -565,3 +567,42 @@ class SimContext:
                 if backoff > 0:
                     yield env.timeout(backoff)
         return outcome
+
+    def call_dependencies(self, deps: list[EdgeRuntime], req: Request, caller_id: str) -> SimGen:
+        """A service calling its dependencies for one request, one after another in ``deps``
+        order; the first failure fails the request unless its link carries on after failures.
+
+        Cache-aside: links set to ``readsOnMiss`` get reads only after a cache lookup on an
+        earlier link answered ``miss`` (a cache with no miss link of its own) or failed on a link
+        that carries on; they are called right then, and after a successful fetch the value is
+        written back to that cache (a failed write-back does not fail the read). A failed lookup
+        with no such link fails the read: there is nowhere else to get the data."""
+        read = req.op == "read"
+        on_miss = [e for e in deps if read and e.cfg.reads_on_miss]
+        fetched = False
+        for e in deps:
+            if read and e.cfg.reads_on_miss:
+                continue
+            outcome = yield from self.call(e, req, caller_id)
+            if outcome.ok and outcome.status != "miss":
+                continue
+            if not outcome.ok and not e.cfg.continue_on_failure:
+                return outcome
+            if not (read and self.components[e.target_id].node.type == "cache"):
+                continue  # a failure this link tolerates
+            if fetched:
+                continue  # the data store was already read for this request
+            if not on_miss:
+                return outcome  # nowhere to fetch from (a miss here is prevented by validation)
+            got = True
+            for f in on_miss:
+                result = yield from self.call(f, req, caller_id)
+                if not result.ok and not f.cfg.continue_on_failure:
+                    return result
+                got = got and result.ok
+            fetched = True
+            populate = getattr(self.components[e.target_id], "populate_handler", None)
+            handler = populate() if populate is not None and got else None
+            if handler is not None:
+                yield from self.call(e, req, caller_id, handler)
+        return OK
