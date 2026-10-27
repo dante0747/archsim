@@ -301,7 +301,8 @@ export function StatPanel({ spec, span }: { spec: StatSpec; span: number }) {
   const [num, unit] = splitValue(r.value, spec.unit);
   const alarm = status && status !== "good";
   const color = status ? STATUS_COLOR[status] : "var(--ink-3)";
-  const second = [r.owner ?? spec.note, r.caption].filter(Boolean).join(" · ");
+  // a dollar figure names where its prices come from first
+  const second = [spec.source?.label, r.owner ?? spec.note, r.caption].filter(Boolean).join(" · ");
   return (
     <PanelFrame
       spec={spec}
@@ -323,7 +324,7 @@ export function StatPanel({ spec, span }: { spec: StatSpec; span: number }) {
             <span className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">{num}</span>
             {unit && <span className="text-[13px] font-medium text-ink-2">{unit}</span>}
           </div>
-          <p className="mt-1 truncate text-[11px] text-ink-3" title={second}>
+          <p className="mt-1 truncate text-[11px] text-ink-3" title={spec.source ? [spec.source.detail, r.owner ?? spec.note, r.caption].filter(Boolean).join(" · ") : second}>
             {second || "\u00a0"}
           </p>
         </div>

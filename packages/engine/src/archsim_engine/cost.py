@@ -389,8 +389,8 @@ def estimate_cost(
         notes.append(
             f"Prices: {snap.provider} {snap.region}, {option.replace('_', '-')} list prices of "
             f"{snap.snapshot_date} ({names}). Each part runs on the cheapest instance type that "
-            "covers its CPU and memory; discounts, data transfer and load balancer capacity units "
-            "are not included."
+            "covers its CPU and memory (burstable types only when their family is named); "
+            "discounts, data transfer and load balancer capacity units are not included."
         )
     if preset_kept:
         notes.append(

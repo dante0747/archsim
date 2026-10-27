@@ -36,6 +36,9 @@ def test_empty() -> None:
 
 def _redis_outage(starter: dict[str, Any]) -> dict[str, Any]:
     d = copy.deepcopy(short(starter, duration=30, warmup=4))
+    # at generic rates PostgreSQL is auto-sized to 1 vCPU, so the reads Redis no longer answers
+    # fill the API servers up; on the AWS types the starter pins it has 2 and copes better
+    d.pop("pricing", None)
     d["workload"]["faults"] = [
         {"id": "f1", "kind": "outage", "target": "cache", "startS": 10, "durationS": 15}
     ]

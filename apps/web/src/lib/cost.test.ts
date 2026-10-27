@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import type { PricingSource } from "@/lib/api";
-import type { Catalog } from "@/lib/types";
-import { formatUsd, paretoFrontier, priceOrigin, snapshotInUse } from "./cost";
+import type { Catalog, CostEstimate, NodeCost } from "@/lib/types";
+import { formatUsd, paretoFrontier, priceOrigin, priceSource, snapshotInUse } from "./cost";
 
 const catalog = catalogJson as unknown as Catalog;
 
@@ -60,5 +60,49 @@ describe("snapshotInUse", () => {
     expect(snapshotInUse(sources, { provider: "aws", region: "us-east-1", snapshotDate: "2026-08-01" })).toBeNull();
     expect(snapshotInUse(sources, { provider: "gcp" })).toBeNull();
     expect(snapshotInUse(sources, { provider: "generic" })).toBeNull();
+  });
+});
+
+describe("priceSource", () => {
+  const line = (id: string, priceSource: NodeCost["priceSource"], extra: Partial<NodeCost> = {}): NodeCost => ({
+    id,
+    label: id,
+    type: "service",
+    technology: null,
+    instances: 1,
+    unitPrice: 0.1,
+    priceSource,
+    unit: "hour",
+    monthly: 73,
+    basis: "1 replica",
+    ...extra,
+  });
+  const aws: CostEstimate["pricing"] = {
+    provider: "aws",
+    region: "us-east-1",
+    snapshotDate: "2026-10-27",
+    illustrative: false,
+    sources: [{ name: "AWS Price List bulk API", url: "https://pricing.us-east-1.amazonaws.com/" }],
+    purchaseOption: "on_demand",
+    families: [],
+  };
+  const generic: CostEstimate["pricing"] = { ...aws, provider: "generic", region: null, snapshotDate: null, illustrative: true, sources: [] };
+
+  it("names the provider, region and month of a snapshot", () => {
+    const s = priceSource({ rates: { kind: "snapshot" }, pricing: aws, byNode: [line("api", "snapshot", { sku: "c6g.xlarge" })] });
+    expect(s).toMatchObject({ label: "AWS us-east-1 · Oct 2026", illustrative: false });
+    expect(s.detail).toContain("on 2026-10-27 (AWS Price List bulk API)");
+  });
+  it("says when parts the snapshot cannot price use illustrative rates", () => {
+    const s = priceSource({ rates: { kind: "snapshot" }, pricing: aws, byNode: [line("api", "snapshot"), line("gw", "preset")] });
+    expect(s.label).toBe("AWS us-east-1 · Oct 2026 + illustrative");
+    expect(s.detail).toContain("1 part is priced at illustrative rates");
+  });
+  it("calls generic rates illustrative, and the user's own prices theirs", () => {
+    expect(priceSource({ rates: { kind: "illustrative" }, pricing: generic, byNode: [line("api", "size")] })).toMatchObject({ label: "illustrative rates", illustrative: true });
+    expect(priceSource({ rates: { kind: "illustrative" }, pricing: generic, byNode: [line("api", "set")] }).label).toBe("your prices");
+    // reports from before price sources were recorded
+    expect(priceSource({ byNode: [] }).label).toBe("illustrative rates");
+    expect(priceSource(null).label).toBe("illustrative rates");
   });
 });

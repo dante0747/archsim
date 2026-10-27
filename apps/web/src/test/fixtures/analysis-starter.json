@@ -12,22 +12,22 @@
             "source": "auto"
           },
           "memoryGib": {
-            "value": 1.0,
+            "value": 2.0,
             "source": "auto"
           }
         },
         "auto": {
           "cpuCores": 1.0,
-          "memoryGib": 1.0,
+          "memoryGib": 2.0,
           "storageGib": null
         },
         "peakRps": 400.0,
         "why": {
-          "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative)",
-          "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative)"
+          "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative); snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
+          "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative); snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it"
         },
-        "pricePerHour": 0.0398,
-        "sku": null
+        "pricePerHour": 0.034,
+        "sku": "c6g.medium"
       },
       "api": {
         "specs": {
@@ -36,55 +36,55 @@
             "source": "auto"
           },
           "memoryGib": {
-            "value": 0.5,
+            "value": 8.0,
             "source": "auto"
           }
         },
         "auto": {
           "cpuCores": 4.0,
-          "memoryGib": 0.5,
+          "memoryGib": 8.0,
           "storageGib": null
         },
         "peakRps": 400.0,
         "why": {
-          "cpuCores": "200 req/s per replica at peak (400 over 2) \u00d7 10.2 ms of CPU each = 2.03 cores busy; at a 60% target that is 3.39 \u2192 4 vCPU",
-          "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB, +25% headroom"
+          "cpuCores": "200 req/s per replica at peak (400 over 2) \u00d7 10.2 ms of CPU each = 2.03 cores busy; at a 60% target that is 3.39 \u2192 4 vCPU; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
+          "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB, +25% headroom; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it"
         },
-        "pricePerHour": 0.1494,
-        "sku": null
+        "pricePerHour": 0.136,
+        "sku": "c6g.xlarge"
       },
       "cache": {
         "specs": {
           "cpuCores": {
-            "value": 1.0,
+            "value": 2.0,
             "source": "auto"
           },
           "memoryGib": {
-            "value": 0.5,
+            "value": 6.38,
             "source": "auto"
           }
         },
         "auto": {
-          "cpuCores": 1.0,
-          "memoryGib": 0.5,
+          "cpuCores": 2.0,
+          "memoryGib": 6.38,
           "storageGib": null
         },
         "peakRps": 472.0,
         "why": {
-          "cpuCores": "472 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.04 \u2192 1 vCPU",
-          "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom"
+          "cpuCores": "472 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.04 \u2192 1 vCPU; snapped to cache.m6g.large (2 vCPU, 6.38 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
+          "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom; snapped to cache.m6g.large (2 vCPU, 6.38 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it"
         },
-        "pricePerHour": 0.0384,
-        "sku": null
+        "pricePerHour": 0.149,
+        "sku": "cache.m6g.large"
       },
       "db": {
         "specs": {
           "cpuCores": {
-            "value": 1.0,
+            "value": 2.0,
             "source": "auto"
           },
           "memoryGib": {
-            "value": 4.0,
+            "value": 8.0,
             "source": "auto"
           },
           "storageGib": {
@@ -93,23 +93,23 @@
           }
         },
         "auto": {
-          "cpuCores": 1.0,
-          "memoryGib": 4.0,
+          "cpuCores": 2.0,
+          "memoryGib": 8.0,
           "storageGib": 10.0
         },
         "peakRps": 112.0,
         "why": {
-          "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU",
-          "memoryGib": "4 GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache",
+          "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
+          "memoryGib": "4 GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
           "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
         },
-        "pricePerHour": 0.0493,
-        "sku": null
+        "pricePerHour": 0.1601,
+        "sku": "db.m6g.large"
       }
     }
   },
   "cost": {
-    "monthly": 311.199,
+    "monthly": 449.02299999999997,
     "perMillionRequests": null,
     "byNode": [
       {
@@ -118,11 +118,13 @@
         "type": "service",
         "technology": "generic",
         "instances": 2.0,
-        "unitPrice": 0.1494,
-        "priceSource": "size",
+        "unitPrice": 0.136,
+        "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 218.124,
-        "basis": "2 replicas"
+        "monthly": 198.56,
+        "basis": "2 replicas",
+        "sku": "c6g.xlarge",
+        "snapshotDate": "2026-10-27"
       },
       {
         "id": "db",
@@ -130,23 +132,13 @@
         "type": "database",
         "technology": "postgresql",
         "instances": 1.0,
-        "unitPrice": 0.0493,
-        "priceSource": "size",
+        "unitPrice": 0.1601,
+        "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 35.989,
-        "basis": "1 node"
-      },
-      {
-        "id": "lb",
-        "label": "Load Balancer",
-        "type": "load_balancer",
-        "technology": "generic",
-        "instances": 1.0,
-        "unitPrice": 0.0398,
-        "priceSource": "size",
-        "unit": "hour",
-        "monthly": 29.054000000000002,
-        "basis": "1 node"
+        "monthly": 116.87299999999999,
+        "basis": "1 node",
+        "sku": "db.m6g.large",
+        "snapshotDate": "2026-10-27"
       },
       {
         "id": "cache",
@@ -154,34 +146,57 @@
         "type": "cache",
         "technology": "redis",
         "instances": 1.0,
-        "unitPrice": 0.0384,
-        "priceSource": "size",
+        "unitPrice": 0.149,
+        "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 28.031999999999996,
-        "basis": "1 node"
+        "monthly": 108.77,
+        "basis": "1 node",
+        "sku": "cache.m6g.large",
+        "snapshotDate": "2026-10-27"
+      },
+      {
+        "id": "lb",
+        "label": "Load Balancer",
+        "type": "load_balancer",
+        "technology": "generic",
+        "instances": 1.0,
+        "unitPrice": 0.034,
+        "priceSource": "snapshot",
+        "unit": "hour",
+        "monthly": 24.82,
+        "basis": "1 node",
+        "sku": "c6g.medium",
+        "snapshotDate": "2026-10-27"
       }
     ],
     "notes": [
-      "Parts without a set price are priced from their size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per GiB-month of storage)."
+      "Prices: aws us-east-1, on-demand list prices of 2026-10-27 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (burstable types only when their family is named); discounts, data transfer and load balancer capacity units are not included."
     ],
     "hasCost": true,
     "currency": "USD",
     "hoursPerMonth": 730,
     "rates": {
-      "kind": "illustrative",
-      "perVcpuHour": 0.037,
-      "perGibHour": 0.0028,
-      "perStorageGibMonth": 0.08
+      "kind": "snapshot",
+      "storageGibMonth": 0.08,
+      "serverlessGbSecond": 1.66667e-05,
+      "serverlessPerMillionRequests": 0.2,
+      "queuePerMillionRequests": 0.4,
+      "loadBalancerHour": 0.0225
     },
     "pricing": {
-      "provider": "generic",
-      "region": null,
-      "snapshotDate": null,
+      "provider": "aws",
+      "region": "us-east-1",
+      "snapshotDate": "2026-10-27",
       "currency": "USD",
-      "illustrative": true,
-      "sources": [],
-      "note": "Illustrative on-demand rates, roughly a large cloud's general-purpose VMs; no machine shapes.",
-      "sha256": null,
+      "illustrative": false,
+      "sources": [
+        {
+          "name": "AWS Price List bulk API",
+          "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+        }
+      ],
+      "note": "Offer file versions: AmazonEC2 20261023221355, AmazonRDS 20261026214716, AmazonElastiCache 20261014221139, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subject to the terms included at https://aws.amazon.com/free/",
+      "sha256": "3c2b02c1f86a7cb561b9454ea085cdddaebdede673df3f4370e66c4d5738c8dc",
       "purchaseOption": "on_demand",
       "families": []
     }

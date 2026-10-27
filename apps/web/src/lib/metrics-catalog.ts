@@ -769,7 +769,8 @@ const DERIVED: Record<string, Def> = {
     short: "Cost",
     unit: "count",
     kind: "gauge",
-    description: "Planning estimate of the design's monthly cost from the prices set on each component.",
+    description:
+      "Planning estimate of the design's monthly cost: a cloud's on-demand list prices from the design's price snapshot (or ArchSim's illustrative rates, as the panel says), and any price set on a component.",
     howCalculated: "Instances × price per instance-hour × 730 hours, plus per-call prices at the measured call rate.",
     panel: "overview",
     slot: 1,

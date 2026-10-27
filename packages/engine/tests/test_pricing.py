@@ -1,6 +1,7 @@
 """Price snapshots: the format, snapping auto sizes to the cheapest covering instance type, and
-cost lines that cite their SKU and snapshot date. The snapshot used here is a fixture with
-made-up prices for a fictional provider; ArchSim ships no provider snapshot yet."""
+cost lines that cite their SKU and snapshot date. Most tests use a fixture with made-up prices
+for a fictional provider (so they do not change when AWS's prices do); the last ones check the
+AWS us-east-1 snapshot ArchSim ships, the templates' pins and the generic standard shapes."""
 
 from __future__ import annotations
 
@@ -14,13 +15,17 @@ import pytest
 from archsim_engine import analyze_document, create_default_registry, load_document, run_simulation
 from archsim_engine.migrations import migrate_document
 from archsim_engine.pricing import (
+    DIR,
     GENERIC,
     PricingError,
     available,
     choose_machine,
+    default_pricing,
     load_snapshot,
+    machine_kind,
     parse_snapshot,
 )
+from archsim_engine.sizing import GIB_PER_VCPU, standard_shape
 from engine_builders import EXAMPLES
 
 REGISTRY = create_default_registry(include_plugins=False)
@@ -35,7 +40,9 @@ def _prices_dir(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def starter(pricing: dict | None = None) -> dict:
+    """The starter template priced with ``pricing`` (generic rates without it)."""
     d = json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+    d.pop("pricing", None)
     if pricing is not None:
         d["pricing"] = pricing
     return d
@@ -45,11 +52,12 @@ def test_snapshots_are_validated_and_found() -> None:
     data = json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
     snap = parse_snapshot(data)
     assert snap.label == "example-cloud test-1 (2026-10-01)" and snap.has_shapes()
+    listed = [a for a in available() if a["provider"] == "example-cloud"]
     assert {
         "provider": "example-cloud",
         "region": "test-1",
         "date": "2026-10-01",
-    }.items() <= available()[0].items()
+    }.items() <= listed[0].items()
     assert load_snapshot("example-cloud", "test-1").snapshot_date == "2026-10-01"
     assert load_snapshot("generic") is GENERIC and not GENERIC.has_shapes()
     for broken, where in (
@@ -65,8 +73,8 @@ def test_snapshots_are_validated_and_found() -> None:
     ):
         with pytest.raises(PricingError, match=where):
             parse_snapshot(broken)
-    with pytest.raises(PricingError, match="no price snapshot for aws us-east-1"):
-        load_snapshot("aws", "us-east-1")
+    with pytest.raises(PricingError, match="no price snapshot for aws eu-north-9"):
+        load_snapshot("aws", "eu-north-9")
 
 
 def test_cover_picks_the_cheapest_type_that_fits() -> None:
@@ -359,8 +367,12 @@ def test_available_lists_every_snapshot_with_its_hash(
     monkeypatch.setenv(
         "ARCHSIM_PRICES_DIR", os.pathsep.join([str(FIXTURES), str(_newer_snapshot(tmp_path))])
     )
-    assert [(a["date"], a["newest"]) for a in available()] == [("2026-11-01", True)]
-    every = available(every_date=True)
+
+    def ours(listed: list[dict]) -> list[dict]:
+        return [a for a in listed if a["provider"] == "example-cloud"]
+
+    assert [(a["date"], a["newest"]) for a in ours(available())] == [("2026-11-01", True)]
+    every = ours(available(every_date=True))
     assert [(a["date"], a["newest"]) for a in every] == [
         ("2026-11-01", True),
         ("2026-10-01", False),
@@ -370,3 +382,106 @@ def test_available_lists_every_snapshot_with_its_hash(
     data = json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
     assert parse_snapshot(data).sha256 == every[1]["sha256"]
     assert load_snapshot("example-cloud", "test-1").snapshot_date == "2026-11-01"
+
+
+# -- the AWS snapshot ArchSim ships, templates and new documents, generic shapes -------------------
+
+
+def _shipped_aws() -> list[Path]:
+    return sorted(DIR.glob("aws-us-east-1-*.json"))
+
+
+def test_the_shipped_aws_snapshots_are_clean() -> None:
+    files = _shipped_aws()
+    assert files, "the engine ships an AWS us-east-1 price snapshot"
+    for path in files:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        snap = parse_snapshot(data)
+        assert (snap.provider, snap.region) == ("aws", "us-east-1")
+        assert path.name == f"aws-us-east-1-{snap.snapshot_date}.json"
+        for category in ("compute", "database", "cache", "stream"):
+            items = snap.skus[category]
+            assert items, f"{path.name} has no {category} types"
+            # one price per type and engine (Outposts or Local Zone rows would add a second)
+            keys = [(s.sku, e) for s in items for e in (s.engines or ("",))]
+            assert len(keys) == len(set(keys)), f"{path.name}: duplicate {category} types"
+            assert all((s.price("on_demand") or 0) > 0 for s in items)
+            # burstable types (the t families) are marked, and only they are
+            for s in items:
+                name = s.sku if category == "compute" else s.sku.split(".", 1)[1]
+                assert s.burstable == (name[0] == "t" and name[1].isdigit()), s.sku
+        assert all(v is not None and v > 0 for v in snap.rates.values()), snap.rates
+
+
+def test_templates_and_new_documents_pin_a_shipped_aws_snapshot() -> None:
+    shipped = {json.loads(p.read_text(encoding="utf-8"))["snapshotDate"] for p in _shipped_aws()}
+    assert default_pricing() == {
+        "provider": "aws",
+        "region": "us-east-1",
+        "snapshotDate": max(shipped),
+    }
+    for path in sorted(EXAMPLES.glob("*.json")):
+        pricing = json.loads(path.read_text(encoding="utf-8")).get("pricing") or {}
+        assert (pricing.get("provider"), pricing.get("region")) == ("aws", "us-east-1"), path.name
+        assert pricing.get("snapshotDate") in shipped, path.name
+        assert load_snapshot("aws", "us-east-1", pricing["snapshotDate"]).has_shapes()
+
+
+def test_the_starter_runs_on_real_aws_types_and_says_so() -> None:
+    doc = json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+    analysis = analyze_document(doc, REGISTRY)
+    snap = load_snapshot("aws", "us-east-1", doc["pricing"]["snapshotDate"])
+    by_sku = {(s.sku, c): s for c, items in snap.skus.items() for s in items}
+    expected = {"lb": "compute", "api": "compute", "cache": "cache", "db": "database"}
+    for nid, category in expected.items():
+        sku = by_sku[(analysis["sizing"]["nodes"][nid]["sku"], category)]
+        assert not sku.burstable, f"{nid} snapped to a burstable type"
+    lines = _lines(analysis["cost"])
+    assert {lines[nid]["priceSource"] for nid in expected} == {"snapshot"}
+    assert analysis["cost"]["rates"]["kind"] == "snapshot"
+    assert analysis["cost"]["pricing"]["provider"] == "aws"
+    assert any("AWS Price List" in n for n in analysis["cost"]["notes"])
+
+
+def test_burstable_types_are_picked_only_when_their_family_is_named() -> None:
+    data = json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
+    data["compute"].append(
+        {
+            "sku": "burst.2x4",
+            "family": "burst",
+            "vcpu": 2,
+            "memoryGib": 4,
+            "hourly": {"on_demand": 0.001},
+            "burstable": True,
+        }
+    )
+    snap = parse_snapshot(data)
+    assert snap.cover("compute", 2, 4).sku != "burst.2x4"  # type: ignore[union-attr]
+    assert snap.cover("compute", 2, 4, families=("burst",)).sku == "burst.2x4"  # type: ignore[union-attr]
+
+
+def test_without_a_snapshot_machines_get_standard_shapes() -> None:
+    # the report's example: 4 vCPU and 0.5 GiB becomes 4 vCPU and 8 GiB (the cheapest ratio)
+    assert standard_shape(4, 0.5) == (4.0, 8.0)
+    assert standard_shape(1, 32) == (4.0, 32.0)  # memory-heavy: 8 GiB per vCPU
+    assert standard_shape(2, 8) == (2.0, 8.0)  # already standard
+    # a value set on the part is kept: 3 vCPU set, so memory follows it
+    assert standard_shape(3, 1, set_cpu=3) == (3.0, 6.0)
+    assert standard_shape(1, 16, set_memory=16) == (2.0, 16.0)
+    for path in sorted(EXAMPLES.glob("*.json")):
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        doc.pop("pricing", None)
+        analysis = analyze_document(doc, REGISTRY)
+        nodes = {n["id"]: n for n in doc["architecture"]["nodes"]}
+        for nid, entry in analysis["sizing"]["nodes"].items():
+            cpu, mem = entry["auto"]["cpuCores"], entry["auto"]["memoryGib"]
+            n = nodes[nid]
+            cfg = {**REGISTRY.get(n["type"]).default_config(), **(n.get("config") or {})}
+            if entry.get("skipped") or cpu is None or mem is None:
+                continue
+            if machine_kind(n["type"], cfg) is None:
+                continue  # pods and functions: not machines of their own
+            assert mem / cpu in GIB_PER_VCPU, f"{path.name} {nid}: {cpu} vCPU, {mem} GiB"
+    api = analyze_document(starter(), REGISTRY)["sizing"]["nodes"]["api"]
+    assert (api["auto"]["cpuCores"], api["auto"]["memoryGib"]) == (4.0, 8.0)
+    assert "standard shape" in api["why"]["memoryGib"]

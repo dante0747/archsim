@@ -2,9 +2,10 @@
 
 A design picks a price source with ``pricing: {provider, region, purchaseOption, families,
 snapshotDate, snapshotSha256}``. ``generic`` (the default) is ArchSim's illustrative per-vCPU,
-per-GiB and per-GiB-month rates, with no machine shapes: parts keep their computed sizes. Any
-other provider needs a snapshot file (format ``archsim.prices/1``, see docs/pricing.md) in this
-package's directory or in ``ARCHSIM_PRICES_DIR``. With a snapshot, auto-sizing snaps each part to
+per-GiB and per-GiB-month rates, with no instance types: auto-sizing rounds parts to standard
+shapes (2, 4 or 8 GiB per vCPU). Any other provider needs a snapshot file (format
+``archsim.prices/1``, see docs/pricing.md) in this package's directory or in
+``ARCHSIM_PRICES_DIR``. With a snapshot, auto-sizing snaps each part to
 the cheapest instance type that covers its CPU and memory, and every cost line cites that SKU and
 the snapshot date.
 
@@ -13,8 +14,13 @@ one is used, or none (a validation warning, generic rates). Unpinned, the newest
 provider and region is used, and a run records which (``pinned``), so its input reproduces it.
 
 Snapshots are data written by ``scripts/prices/`` from the providers' public price lists; nothing
-here calls a network. This package ships no provider snapshot yet: which provider and region to
-price first is the project owner's decision.
+here calls a network. This package ships AWS us-east-1 snapshots (``aws-us-east-1-<date>.json``);
+templates and new documents pin the newest of them (``default_pricing``), while a document
+without ``pricing`` keeps the generic rates, as before.
+
+Burstable types (``burstable``: AWS's t families) run on CPU credits rather than full cores, and
+the engine simulates every vCPU at full speed, so snapping never picks one unless the design
+names its family in ``families``.
 """
 
 from __future__ import annotations
@@ -39,6 +45,10 @@ GENERIC_VCPU_HOUR = 0.037
 GENERIC_GIB_HOUR = 0.0028
 GENERIC_STORAGE_GIB_MONTH = 0.08
 
+DEFAULT_PROVIDER = "aws"
+DEFAULT_REGION = "us-east-1"
+"""The prices templates and new documents pin (the newest snapshot of them this package ships)."""
+
 MANAGED_TECHNOLOGIES = frozenset({"aws_alb", "api_gateway", "cdn", "dynamodb", "sqs", "pubsub"})
 """Managed services: the provider sizes them, so they never run on an instance type."""
 
@@ -55,6 +65,10 @@ class SkuModel(_M):
     hourly: dict[str, float] = Field(description="Price per hour by purchase option")
     engines: list[str] = Field(
         default_factory=list, description="For databases, caches and streams: the engines it runs"
+    )
+    burstable: bool = Field(
+        default=False,
+        description="Runs on CPU credits (AWS t families): never snapped to unless its family is named",
     )
 
 
@@ -98,6 +112,7 @@ class Sku:
     memory_gib: float
     hourly: dict[str, float]
     engines: tuple[str, ...] = ()
+    burstable: bool = False
 
     def price(self, option: str) -> float | None:
         return self.hourly.get(option)
@@ -137,8 +152,9 @@ class Snapshot:
     ) -> Sku | None:
         """The cheapest SKU of ``category`` with at least ``cpu`` vCPU and ``memory_gib`` GiB (a
         database, cache or stream SKU must run ``engine``). ``families`` restrict a price list
-        that has any of them (naming compute families leaves the database list alone). Ties go to
-        the smaller machine, then the name. None when nothing fits."""
+        that has any of them (naming compute families leaves the database list alone). Burstable
+        types are left out unless their family is named. Ties go to the smaller machine, then the
+        name. None when nothing fits."""
         items = self.skus.get(category) or ()
         if not any(s.family in families for s in items):
             families = ()
@@ -149,6 +165,7 @@ class Snapshot:
             and s.memory_gib >= (memory_gib or 0) - 1e-9
             and s.price(option) is not None
             and (not families or s.family in families)
+            and (not s.burstable or s.family in families)
             and (not engine or not s.engines or engine in s.engines)
         ]
         if not fits:
@@ -231,7 +248,10 @@ GENERIC = Snapshot(
     snapshot_date=None,
     sources=(),
     illustrative=True,
-    note="Illustrative on-demand rates, roughly a large cloud's general-purpose VMs; no machine shapes.",
+    note=(
+        "Illustrative on-demand rates, roughly a large cloud's general-purpose VMs; sizes are "
+        "standard shapes (2, 4 or 8 GiB per vCPU), not real instance types."
+    ),
     rates={
         "vcpuHour": GENERIC_VCPU_HOUR,
         "gibHour": GENERIC_GIB_HOUR,
@@ -254,7 +274,9 @@ def content_sha256(data: dict[str, Any]) -> str:
 def _from_model(m: SnapshotModel, sha256: str | None = None) -> Snapshot:
     def skus(items: list[SkuModel]) -> tuple[Sku, ...]:
         return tuple(
-            Sku(s.sku, s.family, s.vcpu, s.memory_gib, dict(s.hourly), tuple(s.engines))
+            Sku(
+                s.sku, s.family, s.vcpu, s.memory_gib, dict(s.hourly), tuple(s.engines), s.burstable
+            )
             for s in items
         )
 
@@ -421,6 +443,21 @@ def pinned(pricing: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
+def default_pricing() -> dict[str, Any]:
+    """The ``pricing`` templates and new documents start with: the newest AWS us-east-1 snapshot
+    this package ships, pinned by date; generic rates when it ships none."""
+    dates = [
+        snap.snapshot_date or ""
+        for snap, path in _snapshots()
+        if path.parent == DIR
+        and snap.provider == DEFAULT_PROVIDER
+        and snap.region == DEFAULT_REGION
+    ]
+    if not dates:
+        return {"provider": "generic"}
+    return {"provider": DEFAULT_PROVIDER, "region": DEFAULT_REGION, "snapshotDate": max(dates)}
+
+
 def unknown_families(snap: Snapshot, families: list[str] | tuple[str, ...]) -> list[str]:
     """``families`` that are in none of the snapshot's price lists (they restrict nothing)."""
     known = {s.family for items in snap.skus.values() for s in items}
@@ -438,6 +475,7 @@ __all__ = [
     "available",
     "choose_machine",
     "content_sha256",
+    "default_pricing",
     "load_snapshot",
     "machine_kind",
     "parse_snapshot",

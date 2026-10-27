@@ -1,11 +1,46 @@
 # Implementation status
 
-State as of 2026-10-27 (engine 0.10.0, schema 1.3, report 1.12). This file separates what is
+State as of 2026-10-27 (engine 0.11.0, schema 1.3, report 1.12). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Real prices and shapes (2026-10-27, engine 0.11.0; inspection report H-3, L-2).**
+
+- ArchSim ships AWS us-east-1 on-demand list prices:
+  `packages/engine/src/archsim_engine/pricing/aws-us-east-1-2026-10-27.json` (about 270 KB, in
+  the wheel), read from the public AWS Price List bulk API by `scripts/prices/aws.py`: 1,107 EC2,
+  315 RDS, 188 ElastiCache and 16 MSK types, plus EBS gp3, Lambda, SQS and ALB rates. The first
+  run against the live lists found what the hand-written samples could not: a region's file
+  also lists Outposts prices (cache.m5.large Redis at $0.06 next to the regional $0.156, and
+  snapping picks the cheapest), Capacity Blocks, extended-support surcharges and an ALB trust
+  store row; Lambda's and SQS's rates depended on row order or took the high-volume tier; MSK's
+  file names brokers by compute family with the unit "hours", so no broker was read. The script
+  now keeps only the region's own current-generation on-demand rows, stores a type once per
+  price (engines merged) and stops on a type with two prices. Source, offer file versions,
+  AWS's disclaimer and hand-checked prices are in `docs/pricing.md`.
+- Burstable types (t families) are marked in snapshots and never picked by snapping unless the
+  design names their family: they sustain a fraction of their vCPUs, and auto-sizing aims at 60%
+  CPU on full cores.
+- Templates and new projects (`blank_document()` in the API) pin
+  `{provider: aws, region: us-east-1, snapshotDate}`; the schema default stays `generic`, so
+  saved documents keep their prices and results. The starter now runs on c6g.medium (load
+  balancer), 2 × c6g.xlarge (API), cache.m6g.large (Redis) and db.m6g.large (PostgreSQL):
+  $449 a month, every line citing its SKU and the snapshot date.
+- Without a snapshot, auto-sizing rounds CPU and memory up together to the cheapest standard
+  shape of 2, 4 or 8 GiB per vCPU: the starter's API Servers are 4 vCPU and 8 GiB, not 4 vCPU
+  and 0.5 GiB. Pods and serverless functions keep their computed size.
+- Every dollar figure names its source ("AWS us-east-1 · Oct 2026", "illustrative rates",
+  "+ illustrative" when some parts are not in the snapshot): the Results "per month" stat and
+  cost panel (which also tags user and default prices per line), the Compare map (once, or per
+  row when runs differ), the dashboard's cost stat and the Markdown report.
+- `.github/workflows/prices.yml` rebuilds the snapshot on the 2nd of each month and opens a pull
+  request with a price-diff summary (`scripts/prices/diff.py`); none when no price changed.
+- Engine 0.11.0: sizes change for any design with a snapshot or with odd generic shapes, so
+  results do too. The starter's CI-gate snapshot, the web fixtures and the pricing tests were
+  regenerated. The `docs/performance.md` tables predate this and were not re-measured.
 
 **Product review fixes (2026-10-26, engine 0.10.0, schema 1.3).**
 
@@ -857,10 +892,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   keyspace, so write contention depends on the key skew you assume.
 - Dashboard replay redraws panels about every 60 ms; smoothness with very large designs was
   not measured in a visible window.
-- Technology presets are illustrative starting points, not vendor benchmarks. Costs use
-  generic illustrative rates until a price snapshot is added (none ships yet); with one, they
-  are on-demand list prices without discounts, data transfer or load balancer capacity units.
-  See [docs/pricing.md](docs/pricing.md).
+- Technology presets are illustrative starting points, not vendor benchmarks. Prices are AWS
+  us-east-1 on-demand list prices for templates and new projects (other regions and providers
+  have scripts but no shipped snapshot), and generic illustrative rates for documents without a
+  snapshot; neither includes discounts, savings plans, data transfer, load balancer capacity
+  units or multi-AZ pricing. See [docs/pricing.md](docs/pricing.md).
 - The breaking-point sweep uses short steps: autoscaled services start each step at their
   configured replica count, so it measures capacity before the scaler reacts (the page says
   so).

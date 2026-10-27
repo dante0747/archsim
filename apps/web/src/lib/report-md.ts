@@ -2,7 +2,7 @@
  * Markdown decision report: what was designed, what was simulated, whether it meets the
  * objectives, what it costs, and what to look at. Meant to be pasted into a design doc or PR.
  */
-import { formatUsd } from "./cost";
+import { formatUsd, priceSource } from "./cost";
 import { replayVerdict } from "./document";
 import { isDistribution, shortDistribution } from "./distributions";
 import { errorBudget, evaluateSlo, formatSloValue } from "./slo";
@@ -105,7 +105,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   }
   if (cost?.hasCost) {
     lines.push(
-      `- **Estimated cost:** ${formatUsd(cost.monthly)} per month${cost.perMillionRequests != null ? `, ${formatUsd(cost.perMillionRequests)} per million successful requests` : ""}.`,
+      `- **Estimated cost:** ${formatUsd(cost.monthly)} per month${cost.perMillionRequests != null ? `, ${formatUsd(cost.perMillionRequests)} per million successful requests` : ""} (prices: ${priceSource(cost).label}).`,
     );
   }
   if (sweep?.verdict && sweep.rows.length) lines.push(`- **Capacity:** ${sweep.verdict}`);
@@ -256,7 +256,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
         ]),
       ),
       "",
-      `Total ${formatUsd(cost.monthly)} per month (730 hours).${cost.perMillionRequests != null ? ` ${formatUsd(cost.perMillionRequests)} per million successful requests.` : ""}`,
+      `Total ${formatUsd(cost.monthly)} per month (730 hours).${cost.perMillionRequests != null ? ` ${formatUsd(cost.perMillionRequests)} per million successful requests.` : ""} Prices: ${priceSource(cost).detail}`,
       "",
     );
     for (const n of cost.notes) lines.push(`> ${n}`);

@@ -16,18 +16,25 @@ from archsim_api.db import Project, utcnow
 from archsim_api.deps import examples, get_session, get_settings_dep, raise_issues
 from archsim_api.schemas import ProjectCreate, ProjectOut, ProjectSummaryOut, ProjectUpdate
 from archsim_engine import SCHEMA_VERSION, DocumentInvalidError, load_document
+from archsim_engine.pricing import default_pricing
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
-BLANK_DOCUMENT: dict[str, Any] = {
-    "schemaVersion": SCHEMA_VERSION,
-    "kind": "archsim.architecture",
-    "metadata": {"name": "Untitled architecture"},
-    "architecture": {"nodes": [], "edges": []},
-    "workload": {},
-    "scenarios": [],
-    "layout": {"nodes": {}},
-}
+
+def blank_document() -> dict[str, Any]:
+    """A new, empty design. It pins the newest AWS us-east-1 price snapshot the engine ships
+    (generic rates when it ships none), like the templates; documents saved before keep the
+    prices they name."""
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "kind": "archsim.architecture",
+        "metadata": {"name": "Untitled architecture"},
+        "architecture": {"nodes": [], "edges": []},
+        "workload": {},
+        "scenarios": [],
+        "layout": {"nodes": {}},
+        "pricing": default_pricing(),
+    }
 
 
 def _normalize(raw: dict[str, Any], name: str | None = None) -> dict[str, Any]:
@@ -134,7 +141,7 @@ def create_project(
                 return _out(existing)
         document = copy.deepcopy(ex)
     else:
-        document = copy.deepcopy(body.document or BLANK_DOCUMENT)
+        document = copy.deepcopy(body.document) if body.document else blank_document()
     # A project the user named is theirs, not a copy that opening the template may hand back.
     source = body.example_id if body.name is None else None
     return _out(_create(session, document, body.name, body.description, source))

@@ -80,18 +80,21 @@ def test_pricing_lists_every_snapshot_and_a_pinned_one_is_used(
     data = json.loads((fixtures / "example-cloud-test-1-2026-10-01.json").read_text("utf-8"))
     (tmp_path / "newer.json").write_text(json.dumps({**data, "snapshotDate": "2026-11-01"}))
     monkeypatch.setenv("ARCHSIM_PRICES_DIR", os.pathsep.join([str(fixtures), str(tmp_path)]))
-    sources = client.get(f"{API}/pricing").json()["sources"]
-    assert sources[0]["provider"] == "generic"
-    assert [(s["date"], s["newest"]) for s in sources[1:]] == [
+    listed = client.get(f"{API}/pricing").json()["sources"]
+    assert listed[0]["provider"] == "generic"
+    # the AWS snapshot the engine ships is listed too
+    assert any(s["provider"] == "aws" and s["region"] == "us-east-1" for s in listed)
+    sources = [s for s in listed if s["provider"] == "example-cloud"]
+    assert [(s["date"], s["newest"]) for s in sources] == [
         ("2026-11-01", True),
         ("2026-10-01", False),
     ]
-    assert all(len(s["sha256"]) == 64 for s in sources[1:])
+    assert all(len(s["sha256"]) == 64 for s in listed[1:])
     doc = starter()
     doc["pricing"] = {"provider": "example-cloud", "region": "test-1", "snapshotDate": "2026-10-01"}
     cost = client.post(f"{API}/analyze", json={"document": doc}).json()["cost"]
     assert cost["pricing"]["snapshotDate"] == "2026-10-01"
-    assert cost["pricing"]["sha256"] == sources[2]["sha256"]
+    assert cost["pricing"]["sha256"] == sources[1]["sha256"]
 
 
 def test_api_run_matches_the_engine_digest_with_auto_sized_parts(client: TestClient) -> None:

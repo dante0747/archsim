@@ -5,7 +5,56 @@
  * price before the next analysis arrives.
  */
 import type { PricingSource } from "@/lib/api";
-import type { ComponentType, InputProvenance, NodeConfig, Pricing } from "@/lib/types";
+import type { ComponentType, CostEstimate, InputProvenance, NodeConfig, Pricing } from "@/lib/types";
+
+const PROVIDERS: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "Google Cloud" };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Oct 2026" from "2026-10-27" (no time zone involved); the input as it is when it is not a date. */
+function monthOf(date: string): string {
+  const m = /^(\d{4})-(\d{2})/.exec(date);
+  return m && MONTHS[Number(m[2]) - 1] ? `${MONTHS[Number(m[2]) - 1]} ${m[1]}` : date;
+}
+
+export interface PriceSource {
+  /** Short, for next to a dollar figure: "AWS us-east-1 · Oct 2026" or "illustrative rates". */
+  label: string;
+  /** One sentence for a tooltip or a report. */
+  detail: string;
+  illustrative: boolean;
+}
+
+/**
+ * Where a cost estimate's prices come from (engine: `cost.rates.kind` and `cost.pricing`), so no
+ * dollar figure is shown without its source. A snapshot estimate with parts the snapshot could not
+ * price says "+ illustrative"; one priced only with the user's own prices says so.
+ */
+export function priceSource(cost: Pick<CostEstimate, "rates" | "pricing" | "byNode"> | null | undefined): PriceSource {
+  const priced = (cost?.byNode ?? []).filter((c) => c.unitPrice != null && c.priceSource != null);
+  const guessed = priced.filter((c) => c.priceSource === "size" || c.priceSource === "preset" || c.priceSource === "default").length;
+  const p = cost?.pricing;
+  const snapshot = (cost?.rates?.kind ?? (p && !p.illustrative ? "snapshot" : "illustrative")) === "snapshot" && !!p;
+  if (snapshot && p) {
+    const provider = PROVIDERS[p.provider] ?? p.provider;
+    const where = [provider, p.region].filter(Boolean).join(" ");
+    const when = p.snapshotDate ? monthOf(p.snapshotDate) : "";
+    const label = [where, when].filter(Boolean).join(" · ") + (guessed ? " + illustrative" : "");
+    const detail =
+      `On-demand list prices of ${where}${p.snapshotDate ? ` on ${p.snapshotDate}` : ""}` +
+      (p.sources?.length ? ` (${p.sources.map((s) => s.name).join(", ")})` : "") +
+      (guessed ? `; ${guessed} ${guessed === 1 ? "part is" : "parts are"} priced at illustrative rates` : "") +
+      ". No discounts or data transfer.";
+    return { label, detail, illustrative: false };
+  }
+  if (priced.length > 0 && priced.every((c) => c.priceSource === "set")) {
+    return { label: "your prices", detail: "Prices you set on the parts.", illustrative: false };
+  }
+  return {
+    label: "illustrative rates",
+    detail: "ArchSim's illustrative on-demand rates, not a cloud's price list.",
+    illustrative: true,
+  };
+}
 
 /**
  * Where a part's `costPerHour` came from (engine: `cost.price_origin`): "set" by the user, "preset"

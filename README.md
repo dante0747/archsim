@@ -93,10 +93,12 @@ API servers behind a lone Clients box.
   workload and scenarios do not. Menu →
   Import from compose, Kubernetes, Terraform, or `archsim import`. See
   [docs/import.md](docs/import.md).
-- **Prices from real machines (machinery).** A design can name a price snapshot (provider,
-  region, date): parts then run on the cheapest real instance type that fits them and every
-  cost line cites it. ArchSim ships no snapshot yet; the generic illustrative rates stay the
-  default. See [docs/pricing.md](docs/pricing.md).
+- **Prices from real machines.** A design names a price snapshot (provider, region, date):
+  parts then run on the cheapest real instance type that fits them and every cost line cites
+  it. ArchSim ships AWS us-east-1 on-demand list prices (EC2, RDS, ElastiCache, MSK, EBS,
+  Lambda, SQS, ALB), refreshed monthly; templates and new projects use them, and every dollar
+  figure names its source. Designs saved without a snapshot keep the generic illustrative
+  rates. See [docs/pricing.md](docs/pricing.md).
 - **An SLO gate in CI.** `archsim check` fails a pull request when a design misses its
   objectives or regresses against the base branch (p95, success rate, cost, breaking point),
   and a GitHub Action posts one sticky comment with the comparison. See [docs/ci.md](docs/ci.md).
