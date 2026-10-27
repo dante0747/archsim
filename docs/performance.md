@@ -49,13 +49,15 @@ every accuracy check at risk for a speed-up that sampling gives without touching
 
 ## What changed
 
-1. **Runs in worker processes** (`ProcessJobRunner`, the API's default). A simulation no longer
-   shares the API's interpreter: it uses its own core, the API answers while it runs (a test
-   checks `/meta` answers in under a second during a 10-minute run), up to
-   `ARCHSIM_MAX_CONCURRENT_RUNS` runs use as many cores, and the results are identical to a
-   thread's (same digest). `ARCHSIM_RUNNER=thread` keeps the old behaviour. A worker that
-   dies (out of memory, killed) fails the runs on the pool with a clear message and the pool is
-   replaced, so later runs are unaffected (tested by crashing a worker).
+1. **A process per run** (the API's default; see [architecture.md](architecture.md#run-lifecycle)).
+   A simulation no longer shares the API's interpreter: it uses its own core, the API answers
+   while it runs (a test checks `/meta` answers in under a second during a 10-minute run), up
+   to `ARCHSIM_MAX_CONCURRENT_RUNS` runs use as many cores, and the results are identical to a
+   thread's (same digest). `ARCHSIM_RUNNER=thread` keeps the old behaviour. A process that dies
+   (out of memory, killed) fails only its own run (tested by killing one of two). One process
+   is started ahead of time: importing the engine takes about a second on Windows, so a run
+   that finds it ready starts in a tenth of a second. More workers (`archsim-api worker`) on
+   more machines share the queue.
 2. **Parallel sweeps.** The breaking-point sweep runs its steps in separate processes
    (`workers`), used by `archsim check --knee` and the MCP `breaking_point` tool; every step is
    seeded, so the curve is the same either way (tested). An invalid design reports its issues

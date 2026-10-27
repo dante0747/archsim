@@ -43,9 +43,18 @@ exposing it to anyone else:
   5 MB). Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked
   before the run starts and a wall-clock limit (`ARCHSIM_MAX_WALL_SECONDS`, default 300 s)
-  checked while it runs. Retries are capped at 5 attempts per call and queues at 100,000
-  entries per pool. At most `ARCHSIM_MAX_CONCURRENT_RUNS` simulations execute at once; extra
-  runs wait in the queue.
+  checked while it runs, then enforced 30 s later by killing the run's process. Retries are
+  capped at 5 attempts per call and queues at 100,000 entries per pool. Each worker simulates at
+  most `ARCHSIM_MAX_CONCURRENT_RUNS` runs at once (default: CPU count - 1), each in its own
+  process; extra runs wait in the queue.
+- **Several instances and workers.** API instances and `archsim-api worker` processes trust each
+  other through the database: whoever can write to it can queue, cancel or change runs, so keep
+  it reachable only by them. Simulation processes run with their worker's privileges and end
+  with it: they exit when its pipe closes, and get SIGKILL on Linux (`PR_SET_PDEATHSIG`) or are
+  killed by a Windows Job Object when it dies. In containers, run workers under an init
+  (`init: true` in Compose) so killed processes are reaped. Hosts sharing a database need
+  synchronised clocks; a host whose clock runs ahead can make other workers' leases look
+  expired.
 - **Outbound requests from calibration.** `POST /calibrate` queries the Prometheus URL a
   request names (the only outbound request the API makes). By default any host is allowed, for
   local use; **set `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS`** (comma-separated `host` or
