@@ -221,6 +221,8 @@ describe("overview stats", () => {
     expect(stat("stat:p95").note).toBe("objective 60 ms");
     expect(stat("stat:errors").summary).toBeCloseTo(0.05);
     expect(stat("stat:cost").note).toBe("$0.42 per million requests");
+    // a dollar figure names where its prices come from
+    expect(stat("stat:cost").source?.label).toBeTruthy();
   });
 
   it("reads the summary for the whole run, the series for a zoom and the playhead in replay", () => {

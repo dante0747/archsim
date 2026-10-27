@@ -31,12 +31,16 @@ describe("documents keep what the editor does not edit", () => {
     expect(back.pricing).toEqual(doc.pricing);
     expect(back.calibration).toEqual(doc.calibration);
     expect(back.architecture.autoSize).toBe(false);
-    // plain documents stay plain
+    // plain documents stay plain: the starter keeps the price snapshot it pins, and a document
+    // without one keeps generic rates (no pricing written)
     const plain = toDocument(fromDocument(starter as unknown as ArchitectureDocument));
     expect(plain.provenance).toBeUndefined();
     expect(plain.calibration).toBeUndefined();
-    expect(plain.pricing).toBeUndefined();
+    expect(plain.pricing).toEqual((starter as unknown as ArchitectureDocument).pricing);
     expect("autoSize" in plain.architecture).toBe(false);
+    const unpriced = structuredClone(starter) as unknown as ArchitectureDocument;
+    delete unpriced.pricing;
+    expect(toDocument(fromDocument(unpriced)).pricing).toBeUndefined();
   });
 
   it("drops provenance of edited and deleted inputs", () => {

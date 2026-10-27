@@ -6,6 +6,7 @@
  * (one map per dashboard, never cycled: components past the eighth fold into "Other"); a
  * component's own panels colour by metric (the registry's slot), so a metric keeps its colour.
  */
+import { priceSource } from "@/lib/cost";
 import { kindOf, type Kind } from "@/lib/theme";
 import {
   DERIVED_METRICS,
@@ -105,6 +106,8 @@ export interface StatSpec extends PanelBase {
   thresholds: MetricThresholds | null;
   /** Static second line, e.g. "objective 250 ms". */
   note?: string;
+  /** For a dollar figure: where its prices come from ("AWS us-east-1 · Oct 2026"). */
+  source?: { label: string; detail: string };
 }
 
 export interface TableSpec extends PanelBase {
@@ -397,6 +400,7 @@ export function overviewStats({ report, objectives, cost }: OverviewInput): Stat
       unit: "usd",
       spark: null,
       summary: cost?.hasCost ? cost.monthly : null,
+      source: cost?.hasCost ? priceSource(report.cost) : undefined,
       reduce: "fixed",
       thresholds: null,
       note: !cost?.hasCost

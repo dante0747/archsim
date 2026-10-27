@@ -745,6 +745,8 @@ export interface CostEstimate {
   notes: string[];
   /** True when at least one component carries a price. */
   hasCost: boolean;
+  /** The rates behind the estimate: ArchSim's generic "illustrative" ones, or a price "snapshot"'s. */
+  rates?: { kind: "illustrative" | "snapshot"; [rate: string]: number | string };
   /** The price source used (engine 0.9+). */
   pricing?: {
     provider: string;

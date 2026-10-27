@@ -7,7 +7,7 @@ import { FindingCard, RunProgress } from "@/components/results/OverviewTab";
 import { Legend, SINGLE_SERIES } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
 import { TierBadge } from "@/components/ui/TierBadge";
-import { formatUsd } from "@/lib/cost";
+import { formatUsd, priceSource } from "@/lib/cost";
 import { compact, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { type SloCheck, type SloKey, errorBudget, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
 import type { Objectives, Report } from "@/lib/types";
@@ -267,6 +267,7 @@ function CostPanel({ report }: { report: Report }) {
     );
   }
   const max = Math.max(...cost.byNode.map((c) => c.monthly), 1e-9);
+  const source = priceSource(cost);
   return (
     <Panel title="Cost per month">
       {!cost.hasCost ? (
@@ -285,6 +286,10 @@ function CostPanel({ report }: { report: Report }) {
               <p className="font-mono text-xs text-ink-3">per 1M successful req</p>
             </div>
           </div>
+          <p className="mt-2 text-xs text-ink-2" data-testid="cost-source" title={source.detail}>
+            Prices: <span className={cn("font-mono", source.illustrative ? "text-ink-3" : "text-ink")}>{source.label}</span>
+            {!source.illustrative && <span className="text-ink-3"> · on-demand list prices</span>}
+          </p>
           <ul className="mt-4 space-y-2.5" aria-label="Cost by component">
             {cost.byNode.map((c) => (
               <li key={c.id}>
@@ -304,6 +309,16 @@ function CostPanel({ report }: { report: Report }) {
                     {c.sku && (
                       <span className="ml-1.5 font-mono text-[11px] text-ink-3" title={`On-demand list price of ${c.sku} on ${c.snapshotDate ?? "the snapshot date"}`}>
                         {c.sku}
+                      </span>
+                    )}
+                    {c.priceSource === "set" && (
+                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="A price you set on the part">
+                        your price
+                      </span>
+                    )}
+                    {c.priceSource === "default" && (
+                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="The catalog's default price for this kind of part (illustrative)">
+                        default price
                       </span>
                     )}
                   </span>
@@ -339,11 +354,19 @@ function CostPanel({ report }: { report: Report }) {
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2, ok: 3 };
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, source }: { label: string; value: string; source?: { label: string; detail: string } }) {
   return (
     <div>
       <dd className="tabular font-mono text-[22px] font-semibold leading-7 tracking-tight text-ink">{value}</dd>
-      <dt className="text-xs text-ink-3">{label}</dt>
+      <dt className="text-xs text-ink-3">
+        {label}
+        {source && (
+          <span title={source.detail} data-testid="stat-price-source">
+            {" "}
+            · {source.label}
+          </span>
+        )}
+      </dt>
     </div>
   );
 }
@@ -435,7 +458,7 @@ export function AnswerPage() {
             <Stat label="p95 counting failures as timeouts" value={formatSloValue("p95", report.summary.latencyWithFailuresMs.p95)} />
           )}
           <Stat label="success" value={fmtPct(report.summary.successRate, report.summary.successRate === 1 ? 0 : 1)} />
-          {cost.hasCost && <Stat label="per month" value={formatUsd(cost.monthly)} />}
+          {cost.hasCost && <Stat label="per month" value={formatUsd(cost.monthly)} source={priceSource(cost)} />}
         </dl>
       </section>
 

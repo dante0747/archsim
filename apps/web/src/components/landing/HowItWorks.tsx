@@ -67,7 +67,7 @@ function ResultsVignette() {
         {[
           ["949/s", "handled"],
           ["370 ms", "p95"],
-          ["$1,278", "per month"],
+          ["$1,278", "per month · AWS"],
         ].map(([v, k]) => (
           <div key={k} className="rounded-lg bg-surface-2 px-2.5 py-2">
             <dd className="tabular text-[15px] font-semibold text-ink">{v}</dd>

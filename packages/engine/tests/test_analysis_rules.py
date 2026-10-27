@@ -151,8 +151,11 @@ def test_service_cpu_is_sized_for_its_peak_share_and_memory_for_what_it_holds() 
     s = auto_sizes(d, REG)["api"]
     # 150 req/s per replica x 10 ms = 1.5 cores busy; / 0.6 = 2.5 -> 4 vCPU
     assert s.cpu_cores == 4
-    # 256 MiB + (8 + 50) x 2 MiB = 372 MiB, x 1.25 = 465 MiB -> 0.5 GiB
-    assert s.memory_gib == 0.5
+    # 256 MiB + (8 + 50) x 2 MiB = 372 MiB, x 1.25 = 465 MiB -> 0.5 GiB, which no machine with
+    # 4 vCPU has: rounded up to the cheapest standard shape, 4 vCPU and 8 GiB (2 GiB per vCPU)
+    assert "= 372 MiB" in s.why["memoryGib"]
+    assert s.memory_gib == 8
+    assert "rounded up to a standard shape, 4 vCPU and 8 GiB" in s.why["memoryGib"]
     assert s.storage_gib is None
     assert "150 req/s per replica" in s.why["cpuCores"]
 
@@ -182,13 +185,15 @@ def test_autoscaling_full_scale_worker_cap_and_floor() -> None:
         REG,
     )
     assert sizes["hpa"].cpu_cores == 2  # 500 req/s over 10 replicas x 20 ms = 1 core / 0.6 -> 2
-    # 25 cores would be needed, but 3 workers can only use 3 (exactly 3: a common size of 2 would
-    # make the CPU the bottleneck below the workers)
-    assert sizes["narrow"].cpu_cores == 3
+    # 25 cores would be needed, but 3 workers can only use 3 (never fewer: a common size of 2
+    # would make the CPU the bottleneck below the workers); the machine is then the standard
+    # shape that holds them, 4 vCPU
+    assert sizes["narrow"].cpu_cores == 4
     assert "capped at 3" in sizes["narrow"].why["cpuCores"]
+    assert "rounded up to a standard shape, 4 vCPU" in sizes["narrow"].why["cpuCores"]
     assert (sizes["idle"].cpu_cores, sizes["idle"].memory_gib, sizes["idle"].peak_rps) == (
         1,
-        0.5,
+        2,
         0,
     )
 
@@ -269,7 +274,8 @@ def test_apply_fills_only_empty_specs_and_can_be_switched_off() -> None:
     filled, sizes = apply_auto_sizes(d, REG)
     api = next(x for x in filled["architecture"]["nodes"] if x["id"] == "api")
     assert api["config"]["cpuCores"] == 3  # set by the user: kept
-    assert api["config"]["memoryGib"] == sizes["api"].memory_gib == 0.5
+    # auto memory follows the 3 vCPU set: the smallest standard ratio, 2 GiB per vCPU
+    assert api["config"]["memoryGib"] == sizes["api"].memory_gib == 6
     off = norm([n("clients", "traffic_source"), n("api", "service")], [e("clients", "api")])
     off["architecture"]["autoSize"] = False
     kept, none = apply_auto_sizes(off, REG)

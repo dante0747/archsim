@@ -13,6 +13,11 @@ auto-sized part is not the bottleneck at the peak it was sized for:
 - Storage: the data per instance kept under 70% full.
 - With a price snapshot (``pricing`` names a provider), CPU and memory then snap to the cheapest
   instance type that covers them (``pricing.choose_machine``), so sizes are real machine shapes.
+- Without one (generic rates), CPU and memory are rounded up together to a standard shape of 2,
+  4 or 8 GiB per vCPU (the compute, general-purpose and memory-optimised ratios every large
+  cloud sells), the cheapest at generic rates, so a part never asks for "4 vCPU, 0.5 GiB".
+  Parts that do not run on their own machines (pods on a Kubernetes cluster, serverless
+  functions, managed services) keep their computed size, with a snapshot or without.
 
 A few ratios have no measured basis in the model (proxy throughput per vCPU, broker memory per
 vCPU, database memory without a working set); their explanations say "illustrative".
@@ -29,10 +34,13 @@ from archsim_engine.components.database import BUFFER_CACHE_SHARE
 from archsim_engine.load import Json, estimate_load, js_num, mean_ms, num, peak_rps, round_half_up
 from archsim_engine.pricing import (
     GENERIC,
+    GENERIC_GIB_HOUR,
+    GENERIC_VCPU_HOUR,
     MANAGED_TECHNOLOGIES,
     PricingError,
     Snapshot,
     choose_machine,
+    machine_kind,
     snapshot_for,
 )
 from archsim_engine.registry import ComponentRegistry
@@ -71,6 +79,9 @@ BROKER_GIB_PER_VCPU = 2
 """Illustrative: broker memory per vCPU for buffers and page cache."""
 BACKLOG_S = 3600
 """Storage of a broker that deletes on ack: room for an hour of peak publishes."""
+GIB_PER_VCPU = (2, 4, 8)
+"""Standard shapes without a price snapshot: 2, 4 or 8 GiB per vCPU (compute, general purpose,
+memory optimised)."""
 
 
 @dataclass
@@ -471,6 +482,52 @@ def _snap(
     size.sku = sku.sku
 
 
+def standard_shape(
+    cpu: float, memory_gib: float, set_cpu: float | None = None, set_memory: float | None = None
+) -> tuple[float, float] | None:
+    """The cheapest standard shape (at generic rates) with at least ``cpu`` vCPU and
+    ``memory_gib`` GiB: a common vCPU count with 2, 4 or 8 GiB per vCPU. A spec set on the part
+    is kept as it is (``set_cpu``, ``set_memory``). None when no standard shape fits."""
+    best: tuple[float, float, float] | None = None
+    for vcpu in [set_cpu] if set_cpu is not None else CPU_STEPS:
+        if vcpu < cpu - 1e-9:
+            continue
+        for ratio in GIB_PER_VCPU:
+            gib = vcpu * ratio
+            if gib < memory_gib - 1e-9 or (set_memory is not None and abs(gib - set_memory) > 1e-9):
+                continue
+            key = (vcpu * GENERIC_VCPU_HOUR + gib * GENERIC_GIB_HOUR, float(vcpu), float(gib))
+            if best is None or key < best:
+                best = key
+    return (best[1], best[2]) if best else None
+
+
+def _shape(size: PartSize, node_type: str, cfg: Json) -> None:
+    """Without machine shapes: round auto CPU and memory up together to a standard shape (a
+    value set on the part counts as the need for that spec and is kept)."""
+    if machine_kind(node_type, cfg) is None:
+        return  # pods, serverless functions, managed services: not a machine of their own
+    set_cpu, set_mem = num(cfg.get("cpuCores")), num(cfg.get("memoryGib"))
+    cpu = set_cpu if set_cpu is not None else size.cpu_cores
+    mem = set_mem if set_mem is not None else size.memory_gib
+    if cpu is None or mem is None or (set_cpu is not None and set_mem is not None):
+        return
+    shape = standard_shape(cpu, mem, set_cpu, set_mem)
+    if shape is None or shape == (cpu, mem):
+        return
+    vcpu, gib = shape
+    how = (
+        f"rounded up to a standard shape, {js_num(vcpu)} vCPU and {_gib(gib)} "
+        f"({js_num(gib / vcpu)} GiB per vCPU)"
+    )
+    if set_cpu is None and size.cpu_cores is not None and vcpu != size.cpu_cores:
+        size.why["cpuCores"] = size.why.get("cpuCores", "") + f"; {how}"
+        size.cpu_cores = vcpu
+    if set_mem is None and size.memory_gib is not None and gib != size.memory_gib:
+        size.why["memoryGib"] = size.why.get("memoryGib", "") + f"; {how}"
+        size.memory_gib = gib
+
+
 def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
     """The auto size of every part that has resource specs, from a normalized document dict."""
     nodes: list[Json] = doc["architecture"]["nodes"]
@@ -522,6 +579,8 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             continue
         if snap.has_shapes():
             _snap(size, n["type"], cfg, snap, option, families)
+        else:
+            _shape(size, n["type"], cfg)
         # only the specs the part has
         out[n["id"]] = PartSize(
             size.cpu_cores if "cpuCores" in has else None,

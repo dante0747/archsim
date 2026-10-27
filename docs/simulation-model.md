@@ -444,8 +444,14 @@ the effects in the table above:
 | Message queue | 10,000 messages/s per broker vCPU (illustrative) | 2 GiB per vCPU (illustrative) | Kafka and Redis Streams: 7 days at the base rate, 3 copies; others: an hour of peak publishes |
 
 CPU is rounded up to 1, 2, 4, 8... vCPU (at least 1, since below one core the engine slows
-every request), memory to 0.5, 1, 2, 4... GiB, storage to 10, 20, 50, 100... GiB. Peak load
-comes from the static estimate below (a TTL cache counts every read as a possible miss).
+every request), memory to 0.5, 1, 2, 4... GiB, storage to 10, 20, 50, 100... GiB. A part that
+runs on machines of its own then gets a shape a cloud sells: with a price snapshot, the cheapest
+instance type that covers its CPU and memory (burstable types only when the design names their
+family, see [pricing.md](pricing.md)); without one, CPU and memory rounded up together to the
+cheapest standard shape of 2, 4 or 8 GiB per vCPU (4 vCPU and 0.5 GiB becomes 4 vCPU and 8 GiB).
+Pods on a Kubernetes cluster and serverless functions keep their computed size: their machines
+are the cluster's nodes and the provider's. Peak load comes from the static estimate below (a
+TTL cache counts every read as a possible miss).
 Managed services (ALB- and API-gateway-style, CDN, DynamoDB-, SQS- and Pub/Sub-style) are not
 sized. Sizes come from the design as drawn: scenarios run on the same sizes, so a scenario with
 more traffic, fewer cache hits or a slowdown shows what those machines do.

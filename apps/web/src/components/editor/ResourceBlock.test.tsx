@@ -23,6 +23,14 @@ const project: Project = {
 const node = (id: string) => useEditor.getState().nodes.find((n) => n.id === id)!;
 const comp = (type: string) => catalog.components.find((c) => c.type === type)!;
 
+/** The starter's analysis as it reads at generic rates: no instance types, illustrative prices. */
+function genericAnalysis(): Analysis {
+  const a = structuredClone(analysisJson) as unknown as Analysis;
+  a.cost.pricing = { ...a.cost.pricing!, provider: "generic", region: null, snapshotDate: null, illustrative: true, sources: [], sha256: null };
+  for (const entry of Object.values(a.sizing.nodes)) entry.sku = null;
+  return a;
+}
+
 function show(id: string) {
   const n = node(id);
   return render(<ResourceBlock nodeId={id} comp={comp(n.data.type)} config={n.data.config} />);
@@ -65,6 +73,8 @@ describe("ResourceBlock", () => {
     useEditor.getState().setNodeConfig("db", "memoryGib", 8);
     useEditor.getState().setNodeConfig("db", "technology", "mysql");
     useEditor.getState().setNodeConfig("db", "costPerHour", 0.33); // the MySQL preset's price
+    // at generic rates the preset's illustrative price is used
+    useEditor.getState().setAnalysis(genericAnalysis());
     show("db");
     expect(screen.queryByText(/your price/)).toBeNull();
     expect(screen.getByText(/the technology preset's illustrative price of \$0\.33\/h/)).toBeTruthy();
@@ -93,7 +103,14 @@ describe("ResourceBlock", () => {
     expect(screen.getAllByText("auto").length).toBeGreaterThan(0);
     expect(screen.getByText("Auto-sized")).toBeTruthy();
     expect(screen.getByText(/req\/s per replica at peak/)).toBeTruthy();
-    expect(screen.getByText(/for this size/)).toBeTruthy(); // priced at the auto size
+    // the starter pins AWS prices: the auto size is a real instance type, priced from the snapshot
+    expect(screen.getByText("c6g.xlarge")).toBeTruthy();
+    expect(screen.getByText(/on-demand, aws us-east-1, prices of 2026-10-27/)).toBeTruthy();
+    cleanup();
+    // at generic rates, the size's illustrative price
+    useEditor.getState().setAnalysis(genericAnalysis());
+    show("api");
+    expect(screen.getByText(/for this size/)).toBeTruthy();
   });
 
   it("an empty box means auto", () => {

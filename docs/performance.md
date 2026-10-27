@@ -6,6 +6,11 @@ CPUs, Windows 11, Python 3.12), and what was done about it. Numbers come from
 `scripts/validate_sampled.py` (`benchmarks/perf/sampled-validation.json`); rerun them on your
 machine before quoting.
 
+> These tables were measured with engine 0.10.0. Engine 0.11.0 runs the templates on AWS
+> instance types and rounds generic sizes to standard shapes ([pricing.md](pricing.md)), which
+> changes some parts' CPU and memory and so their latencies (the starter's p95 at 400 req/s, for
+> example). They have not been re-measured yet: wall-clock numbers need a quiet machine.
+
 ## Baseline: full simulation
 
 Every template as shipped (its own traffic shape and duration, no scenarios), best of three runs:

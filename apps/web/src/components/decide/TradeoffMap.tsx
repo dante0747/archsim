@@ -4,7 +4,7 @@ import { Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { thClass } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
-import { formatUsd, paretoFrontier } from "@/lib/cost";
+import { type PriceSource, formatUsd, paretoFrontier, priceSource } from "@/lib/cost";
 import { fmtMs, fmtPct } from "@/lib/format";
 import { evaluateSlo, failureAllowance, tooManyFailures } from "@/lib/slo";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,8 @@ interface Point {
   seed: number;
   cost: number;
   perMillion: number | null;
+  /** Where the run's prices come from ("AWS us-east-1 · Oct 2026", "illustrative rates"). */
+  source: PriceSource;
   p95: number;
   success: number | null;
   pass: boolean | null;
@@ -91,6 +93,7 @@ export function TradeoffMap() {
         seed: r.seed,
         cost: cost.monthly,
         perMillion: cost.perMillionRequests,
+        source: priceSource(cost),
         p95,
         success: rep.summary.successRate,
         pass: evaluateSlo(objectives, rep).pass,
@@ -102,6 +105,9 @@ export function TradeoffMap() {
   }, [runs, reports, objectives]);
 
   const hasCost = points.some((p) => p.cost > 0);
+  // every dollar figure names its source: once for the map when the runs agree, per row when not
+  const sources = [...new Set(points.map((p) => p.source.label))];
+  const mixedSources = sources.length > 1;
   const loading = runs.length > points.length && runs.some((r) => !reports[r.id]);
 
   // Compare (the parent tab) owns the title row and the "Simulate all scenarios" action.
@@ -208,6 +214,11 @@ export function TradeoffMap() {
                 p95 objective {fmtMs(slo)}
               </span>
             )}
+            {hasCost && sources.length > 0 && (
+              <span className="text-ink-3" data-testid="map-price-source" title={mixedSources ? undefined : points[0]?.source.detail}>
+                prices: {mixedSources ? "differ between runs (see the table)" : sources[0]}
+              </span>
+            )}
             {loading && <span className="text-ink-3">loading reports…</span>}
           </figcaption>
           <div ref={boxRef} className="relative" style={{ height: H }}>
@@ -297,6 +308,9 @@ export function TradeoffMap() {
                 <p className="flex justify-between text-ink-2">
                   cost <span className="tabular text-ink">{formatUsd(hovered.cost)}/mo</span>
                 </p>
+                <p className="truncate text-right text-[11px] text-ink-3" title={hovered.source.detail}>
+                  {hovered.source.label}
+                </p>
                 <p className="flex justify-between text-ink-2">
                   p95 <span className="tabular text-ink">{fmtMs(hovered.p95)}</span>
                 </p>
@@ -343,7 +357,14 @@ export function TradeoffMap() {
                         {p.frontier && <span className="ml-2 font-mono text-[11px] text-accent">Frontier</span>}
                         <span className="ml-2 font-mono text-[11px] text-ink-3">seed {p.seed}</span>
                       </td>
-                      <td className="px-3 py-2 text-right font-mono text-ink">{formatUsd(p.cost)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-ink">
+                        {formatUsd(p.cost)}
+                        {mixedSources && (
+                          <span className="block text-[11px] text-ink-3" title={p.source.detail}>
+                            {p.source.label}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right font-mono text-ink-2">{formatUsd(p.perMillion)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink">{fmtMs(p.p95)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink">{fmtPct(p.success, 2)}</td>

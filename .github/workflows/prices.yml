@@ -1,0 +1,88 @@
+name: Price refresh
+
+# Once a month, rebuild the AWS us-east-1 price snapshot from the public AWS Price List bulk API
+# (no account or key needed) and open a pull request with it and a summary of what changed. A
+# person reviews and merges it; nothing here changes main by itself, and when no price changed no
+# pull request is opened.
+#
+# After the merge, new projects pin the new snapshot. Templates stay pinned to the one they name
+# until someone re-pins them (see docs/pricing.md, "Refreshing snapshots"), because a new snapshot
+# can change sizes and so simulation results. Older snapshots stay, so saved designs pinned to
+# them reproduce.
+#
+# Pull requests opened with the default GITHUB_TOKEN do not start other workflows (CI): set a
+# PRICES_PR_TOKEN secret (a fine-grained token with contents and pull-requests write) to have CI
+# run on them, or close and reopen the pull request.
+on:
+  schedule:
+    - cron: "23 6 2 * *" # 06:23 UTC on the 2nd of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prices
+  cancel-in-progress: false
+
+env:
+  UV_PYTHON: "3.12"
+  REGION: us-east-1
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Build the snapshot
+        id: build
+        run: |
+          date="$(date -u +%F)"
+          out="packages/engine/src/archsim_engine/pricing/aws-${REGION}-${date}.json"
+          if [ -e "$out" ]; then echo "$out exists already"; exit 1; fi
+          uv run python scripts/prices/aws.py --region "$REGION" --cache "$RUNNER_TEMP/aws-prices"
+          echo "date=$date" >> "$GITHUB_OUTPUT"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+      - name: Check it against the engine's tests
+        run: uv run pytest packages/engine/tests/test_pricing.py packages/engine/tests/test_price_scripts.py
+      - name: Summarize the price changes
+        id: diff
+        run: uv run python scripts/prices/diff.py "${{ steps.build.outputs.file }}" | tee "$RUNNER_TEMP/summary.md"
+      - name: Open a pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PRICES_PR_TOKEN || github.token }}
+          DATE: ${{ steps.build.outputs.date }}
+          FILE: ${{ steps.build.outputs.file }}
+        run: |
+          branch="prices/aws-${REGION}-${DATE}"
+          {
+            cat "$RUNNER_TEMP/summary.md"
+            echo
+            echo "---"
+            echo "Opened by the monthly price refresh (.github/workflows/prices.yml). Before merging:"
+            echo
+            echo "- [ ] Spot-check a few prices against https://aws.amazon.com/ec2/pricing/on-demand/ and the RDS, ElastiCache and MSK pricing pages."
+            echo "- [ ] CI passes. New projects will pin this snapshot after the merge; templates keep theirs until re-pinned."
+          } > "$RUNNER_TEMP/body.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add "$FILE"
+          git commit -m "Prices: AWS ${REGION} snapshot of ${DATE}"
+          git push --force origin "$branch"
+          if gh pr view "$branch" --json state -q .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$branch" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base "${{ github.event.repository.default_branch }}" --head "$branch" \
+              --title "Prices: AWS ${REGION} snapshot of ${DATE}" --body-file "$RUNNER_TEMP/body.md"
+          fi
+      - name: No change
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "Prices are the same as the last snapshot; no pull request."

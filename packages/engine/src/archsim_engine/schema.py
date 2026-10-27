@@ -564,7 +564,7 @@ class Objectives(CamelModel):
 
 
 class Pricing(CamelModel):
-    """Where prices come from. ``generic``: ArchSim's illustrative rates, no machine shapes. Any
+    """Where prices come from. ``generic``: ArchSim's illustrative rates, no instance types. Any
     other provider names a price snapshot (docs/pricing.md); auto-sizing then snaps each part to
     the cheapest instance type that covers it (among ``families`` when given) and cost lines cite
     that SKU and the snapshot date. ``snapshotDate`` (and ``snapshotSha256``) pin one snapshot:
