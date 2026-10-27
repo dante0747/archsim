@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Async order pipeline with Kafka",
-    "description": "The API reads from PostgreSQL and publishes orders to Kafka instead of writing synchronously. A fulfillment service consumes the topic, writes to PostgreSQL and sends a confirmation e-mail. Clients get fast acks while consumer lag absorbs bursts. Partitions cap consumer parallelism.",
+    "description": "The API reads order status from PostgreSQL and publishes new orders to Kafka instead of writing them synchronously. A fulfillment service consumes the topic, writes each order to PostgreSQL and sends a confirmation e-mail, one message at a time per partition. Clients get fast acks while consumer lag absorbs a burst; partitions cap how many orders are processed at once.",
     "tags": [
       "kafka",
       "async",
@@ -41,7 +41,8 @@
             "median": 3,
             "p95": 10
           },
-          "blockingDownstream": false
+          "blockingDownstream": false,
+          "processesPerReplica": 4
         }
       },
       {
@@ -51,8 +52,8 @@
         "description": null,
         "config": {
           "technology": "kafka",
-          "partitions": 6,
-          "consumers": 4,
+          "partitions": 16,
+          "consumers": 16,
           "brokers": 3,
           "publishTimeMs": {
             "kind": "lognormal",
@@ -76,7 +77,7 @@
           "technology": "java",
           "platform": "docker",
           "replicas": 2,
-          "workersPerReplica": 8,
+          "workersPerReplica": 24,
           "queueCapacity": 100,
           "queueTimeoutMs": null,
           "serviceTimeMs": {
@@ -249,7 +250,7 @@
     "durationS": 90,
     "warmupS": 10,
     "seed": 42,
-    "readRatio": 0.5,
+    "readRatio": 0.9,
     "arrivalProcess": "poisson",
     "pattern": {
       "kind": "burst",
@@ -258,20 +259,20 @@
       "durationS": 15
     },
     "keyCount": 100000,
-    "keySkew": 0.99,
+    "keySkew": 0.0,
     "faults": []
   },
   "scenarios": [
     {
       "id": "baseline",
-      "name": "Baseline (4 consumers, 6 partitions)",
+      "name": "Baseline (16 consumers, 16 partitions)",
       "description": "The document as drawn.",
       "overrides": []
     },
     {
       "id": "more-consumers",
-      "name": "12 consumers (still 6 partitions)",
-      "description": "More consumers than partitions do not add parallelism.",
+      "name": "32 consumers (still 16 partitions)",
+      "description": "Consumers beyond the partition count sit idle: the lag is the same.",
       "overrides": [
         {
           "target": {
@@ -279,13 +280,13 @@
             "id": "orders-topic"
           },
           "path": "consumers",
-          "value": 12
+          "value": 32
         }
       ]
     },
     {
       "id": "more-partitions",
-      "name": "12 partitions, 12 consumers",
+      "name": "32 partitions, 32 consumers",
       "description": "Scale the topic and the consumer group together.",
       "overrides": [
         {
@@ -294,7 +295,7 @@
             "id": "orders-topic"
           },
           "path": "partitions",
-          "value": 12
+          "value": 32
         },
         {
           "target": {
@@ -302,14 +303,14 @@
             "id": "orders-topic"
           },
           "path": "consumers",
-          "value": 12
+          "value": 32
         }
       ]
     },
     {
       "id": "db-slow",
       "name": "Database 4\u00d7 slower (45\u201375 s)",
-      "description": "Chaos: lag builds while clients still get fast acks.",
+      "description": "Chaos: consumers slow down and the lag grows, yet order acks stay fast; status reads, which go to the database directly, slow down and some time out.",
       "overrides": [
         {
           "target": {

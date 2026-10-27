@@ -107,6 +107,33 @@ def _fault_suggestion(f: Fault, target_type: str | None) -> str:
     )
 
 
+def _outage_effect(
+    report: dict[str, Any], f: Fault, labels: dict[str, str]
+) -> tuple[str, dict[str, int]] | None:
+    """What an outage did at its part: the calls it refused while down, and how many client
+    requests failed there rather than carrying on without it (a fallback, or a retry that found
+    another instance). Those refusals are the outage, not overload, so the part is not named a
+    bottleneck for them (analysis.load_rejection_rate)."""
+    node = next((n for n in report["nodes"] if n["id"] == f.target), None)
+    if node is None:
+        return None
+    refused = int((node["summary"].get("rejected") or {}).get("outage", 0))
+    failed = sum(
+        int(b["count"])
+        for b in report["summary"]["failureBreakdown"]
+        if b["reason"] == "outage" and b["nodeId"] == f.target
+    )
+    name = labels.get(f.target, f.target)
+    text = f"{name} refused {refused:,} calls while it was down"
+    if not refused:
+        text = f"{name} received no calls while it was down."
+    elif failed:
+        text += f"; {failed:,} client requests failed because of it."
+    else:
+        text += "; no client request failed there: its callers carried on without it."
+    return text, {"refusedCalls": refused, "failedAtTarget": failed}
+
+
 def _fault_findings(
     report: dict[str, Any], resolved: ArchitectureDocument, s: _Series
 ) -> list[dict[str, Any]]:
@@ -173,6 +200,9 @@ def _fault_findings(
                 if recovery_s < s.b
                 else f"It took about {recovery_s:g} s after the fault ended to recover."
             )
+        outage = _outage_effect(report, f, labels) if f.kind == "outage" else None
+        if outage is not None:
+            parts.append(outage[0])
         finding: dict[str, Any] = {
             "severity": severity,
             "kind": "fault_impact",
@@ -191,6 +221,7 @@ def _fault_findings(
                 "p95DuringMs": dur_p95,
                 "recoveryS": recovery_s,
                 "recovered": recovered,
+                **(outage[1] if outage is not None else {}),
             },
         }
         if severity != "ok":

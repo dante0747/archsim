@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import starterJson from "@/test/fixtures/starter.json";
-import { FEATURED, orderTemplates, templateFacts, templateMeta } from "@/components/templates/templates-meta";
+import { FEATURED, orderTemplates, reviewedByLine, templateFacts, templateMeta } from "@/components/templates/templates-meta";
 import type { ArchitectureDocument } from "@/lib/types";
 
 describe("templates", () => {
@@ -14,6 +14,16 @@ describe("templates", () => {
     expect(templateMeta({ id: "mongodb-hot-shard", tags: [] }).category).toBe("Data");
     expect(templateMeta({ id: "something-new", tags: ["education"] }).category).toBe("Learn");
     expect(templateMeta({ id: "something-new", tags: [] }).insight).toMatch(/Simulate/);
+  });
+
+  it("says who reviewed a template once someone signs, and nothing before", () => {
+    for (const id of ["cache-aside-starter", "black-friday-kubernetes", "kafka-order-pipeline"]) {
+      expect(reviewedByLine(templateMeta({ id, tags: [] }))).toBeNull();
+    }
+    expect(reviewedByLine({ reviewedBy: [] })).toBeNull();
+    expect(reviewedByLine({ reviewedBy: [{ name: "A. Expert, SRE", date: "2026-11-02" }] })).toBe("Reviewed by A. Expert, SRE");
+    const three = ["Ana", "Bo", "Cy"].map((name) => ({ name, date: "2026-11-02" }));
+    expect(reviewedByLine({ reviewedBy: three })).toBe("Reviewed by Ana, Bo and Cy");
   });
 
   it("reads parts, peak load and technologies from the design", () => {

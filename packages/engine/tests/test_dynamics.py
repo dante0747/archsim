@@ -95,6 +95,53 @@ def test_outage_rejects_only_inside_its_window(starter: dict[str, Any]) -> None:
     )
 
 
+def test_a_planned_outage_is_not_the_bottleneck(starter: dict[str, Any]) -> None:
+    """Calls a part refuses while a planned outage has it down are the outage, not overload: the
+    part is not saturated or named the bottleneck (it was hardly busy), and the outage's own
+    finding says what it did."""
+    r = run_simulation(
+        with_faults(short(starter, duration=30, warmup=4), fault("f1", "outage", "cache", 12, 10))
+    )
+    cache = node_by_id(r, "cache")["summary"]
+    refused = cache["rejected"]["outage"]
+    assert refused > 0.2 * cache["arrivals"]  # far above the 1% that marks overload
+    status = node_by_id(r, "cache")["status"]
+    assert status not in ("saturated", "hot")
+    assert (
+        f"refused {refused:,} calls while down (planned outage)"
+        in (node_by_id(r, "cache")["statusReasons"])
+    )
+    assert not [f for f in r["findings"] if f["nodeId"] == "cache" and f["kind"] == "bottleneck"]
+    assert not [f for f in r["findings"] if f["kind"] == "symptom"]  # nothing waits "on Redis"
+    impact = next(f for f in r["findings"] if f["kind"] == "fault_impact")
+    assert impact["nodeId"] == "cache"
+    assert impact["evidence"]["refusedCalls"] == refused
+    assert impact["evidence"]["failedAtTarget"] == 0
+    assert f"Redis Cache refused {refused:,} calls while it was down" in impact["detail"]
+    assert "its callers carried on without it" in impact["detail"]
+
+
+def test_an_outage_without_a_fallback_says_how_many_requests_it_failed(
+    starter: dict[str, Any],
+) -> None:
+    r = run_simulation(
+        with_faults(
+            short(no_fallback(starter), duration=30, warmup=4),
+            fault("f1", "outage", "cache", 12, 10),
+        )
+    )
+    assert node_by_id(r, "cache")["status"] not in ("saturated", "hot")
+    impact = next(f for f in r["findings"] if f["kind"] == "fault_impact")
+    failed = impact["evidence"]["failedAtTarget"]
+    at_cache = [
+        b
+        for b in r["summary"]["failureBreakdown"]
+        if b["reason"] == "outage" and b["nodeId"] == "cache"
+    ]
+    assert failed == sum(b["count"] for b in at_cache) > 0
+    assert f"{failed:,} client requests failed because of it" in impact["detail"]
+
+
 def test_slowdown_multiplies_service_time_inside_window() -> None:
     d = manual(single_service(rps=20, service=CONST(5), workers=4, durationS=30, warmupS=2))
     r = run_simulation(with_faults(d, fault("slow", "slowdown", "svc", 10, 10, factor=4)))

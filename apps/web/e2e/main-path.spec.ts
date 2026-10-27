@@ -104,12 +104,12 @@ test("starter: simulate, chaos, compare, save, reload", async ({ page }) => {
   await expect(page.getByTestId("node-cache")).toBeVisible();
   await expect(page.getByLabel("saved", { exact: true })).toBeVisible();
 
-  // Still saved: the rack shows a planned failure, and the stored document holds the outage.
-  // (Not the pad's lit state: the API fills in the fault's defaults, which the pad does not
-  // treat as the same patch yet.)
+  // Still saved: the pad is still lit (the API filled in the fault's defaults, which the pad
+  // ignores), and the stored document holds the outage.
   await workspace(page, "build").click();
   if (await show.isVisible()) await show.click();
   await expect(pads.getByRole("button", { name: "Clear" })).toBeVisible();
+  await expect(loseCache).toHaveAttribute("aria-pressed", "true");
   const res = await page.request.get(`/api/v1/projects/${projectId}`);
   expect(res.ok()).toBe(true);
   const project = await res.json();

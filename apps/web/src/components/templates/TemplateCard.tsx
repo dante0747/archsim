@@ -5,10 +5,10 @@
  * traffic in its category's colour, what you will see happen, and its key numbers. The whole card
  * opens the template as a new project. ``spotlight`` is the wide featured layout.
  */
-import { ArrowRight, Boxes, Eye, Gauge, GitBranch, LoaderCircle, Play } from "lucide-react";
+import { ArrowRight, BadgeCheck, Boxes, Eye, Gauge, GitBranch, LoaderCircle, Play } from "lucide-react";
 import { TechIcon } from "@/components/TechIcon";
 import { TemplatePreview } from "@/components/templates/TemplatePreview";
-import { CATEGORY_COLOR, type TemplateFacts, templateFacts, templateMeta } from "@/components/templates/templates-meta";
+import { CATEGORY_COLOR, reviewedByLine, type TemplateFacts, templateFacts, templateMeta } from "@/components/templates/templates-meta";
 import { fmtNum } from "@/lib/format";
 import { technologyLabel } from "@/lib/theme";
 import { experimentalParts } from "@/lib/tier";
@@ -64,6 +64,14 @@ export function TemplateCard({
   const hue = CATEGORY_COLOR[meta.category];
   const facts = doc ? templateFacts(doc) : null;
   const labsParts = doc ? experimentalParts(doc, catalog) : [];
+  // Shown once an outside expert has signed the template's review (docs/templates-review.md).
+  const reviewed = reviewedByLine(meta);
+  const reviewNote = reviewed && (
+    <p className="flex items-center gap-1.5 text-xs text-ink-3">
+      <BadgeCheck className="size-3.5 shrink-0" style={{ color: hue }} aria-hidden />
+      {reviewed}
+    </p>
+  );
 
   const badges = (
     <div className="absolute inset-x-3 top-3 z-10 flex items-center gap-2">
@@ -144,6 +152,7 @@ export function TemplateCard({
             <span>{meta.insight}</span>
           </p>
           <p className="text-sm leading-relaxed text-ink-2">{example.description}</p>
+          {reviewNote}
           {facts && facts.technologies.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-medium text-ink-3">Built with</p>
@@ -195,6 +204,7 @@ export function TemplateCard({
         <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2" title={example.description ?? undefined}>
           {example.description}
         </p>
+        {reviewNote}
         <div className="mt-auto border-t border-line pt-3">
           <Stats facts={facts} scenarios={example.scenarioCount} />
         </div>

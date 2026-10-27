@@ -1017,7 +1017,9 @@ class DatabaseRuntime(RuntimeComponent):
         cfg: DatabaseConfig = self.config
         if cfg.cpu_cores is None or not service_ms or cfg.cpu_share <= 0:
             return {}
-        instances = self.parts * (1 + cfg.read_replicas)
+        # replicas add CPU only when they serve reads (not with reads on the primary, MongoDB's default)
+        serving = 1 if self.read_from == "primary" else 1 + cfg.read_replicas
+        instances = self.parts * serving
         return {"cpu": cfg.cpu_cores * instances * 1000.0 / (service_ms * cfg.cpu_share)}
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:

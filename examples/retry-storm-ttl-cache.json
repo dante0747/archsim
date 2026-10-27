@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Retry storm with a TTL cache",
-    "description": "Read-heavy API whose cache hit rate is derived from a TTL over a Zipf-distributed keyspace (including cold start). Clients retry aggressively with a short timeout. A traffic burst shows how retries amplify load on an already saturated system.",
+    "description": "Read-heavy API using Redis cache-aside; the hit rate is derived from a TTL over a Zipf-distributed keyspace (including cold start). Mobile clients retry aggressively (400 ms timeout, 3 attempts, 50 ms backoff), and the API queue and the database queue both wait longer than any client will. A traffic burst shows retries more than doubling the load on an API that is already saturated.",
     "tags": [
       "retries",
       "ttl-cache",
@@ -136,23 +136,11 @@
             "kind": "constant",
             "value": 0.25
           },
-          "order": 1
-        }
-      },
-      {
-        "id": "cache-db",
-        "source": "cache",
-        "sourcePort": "miss",
-        "target": "db",
-        "config": {
-          "requestTypes": [
-            "read"
-          ],
-          "latencyMs": {
-            "kind": "constant",
-            "value": 0.5
-          }
-        }
+          "order": 1,
+          "timeoutMs": 50,
+          "continueOnFailure": true
+        },
+        "label": "lookups + invalidations"
       },
       {
         "id": "api-db",
@@ -160,14 +148,18 @@
         "target": "db",
         "config": {
           "requestTypes": [
+            "read",
             "write"
           ],
           "latencyMs": {
             "kind": "constant",
             "value": 0.5
           },
-          "order": 0
-        }
+          "order": 0,
+          "timeoutMs": null,
+          "readsOnMiss": true
+        },
+        "label": "writes + reads on a miss"
       }
     ]
   },
@@ -191,12 +183,13 @@
     {
       "id": "burst-with-retries",
       "name": "Burst, 3 attempts per request",
-      "overrides": []
+      "overrides": [],
+      "description": "The document as drawn: during the burst the API receives more than twice as many attempts as there are requests."
     },
     {
       "id": "burst-no-retries",
       "name": "Burst, no retries",
-      "description": "Same burst, but clients do not retry: less amplification.",
+      "description": "Same burst, clients do not retry: less than half the attempts. A few more requests fail, but those that succeed are not stuck behind retries (much lower p95).",
       "overrides": [
         {
           "target": {
@@ -236,7 +229,8 @@
             "kind": "constant"
           }
         }
-      ]
+      ],
+      "description": "The same 900 req/s without the burst: the API copes."
     }
   ],
   "layout": {

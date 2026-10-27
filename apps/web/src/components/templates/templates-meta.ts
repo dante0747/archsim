@@ -16,11 +16,21 @@ export const CATEGORY_COLOR: Record<TemplateCategory, string> = {
   Learn: "var(--series-3)",
 };
 
+/** An outside expert who checked a template against its checklist in docs/templates-review.md. */
+export interface TemplateReviewer {
+  /** Name and role as they signed, e.g. "Jane Doe, staff SRE". */
+  name: string;
+  /** When they signed (ISO date). */
+  date: string;
+}
+
 export interface TemplateMeta {
   category: TemplateCategory;
   level: "Beginner" | "Intermediate" | "Advanced";
   /** One line: what you will watch happen. */
   insight: string;
+  /** Who signed this template's review in docs/templates-review.md. Unset until someone signs. */
+  reviewedBy?: TemplateReviewer[];
 }
 
 const META: Record<string, TemplateMeta> = {
@@ -37,7 +47,7 @@ const META: Record<string, TemplateMeta> = {
   "iot-cassandra-quorum": {
     category: "Data",
     level: "Intermediate",
-    insight: "One slow replica decides how fast a quorum write can be.",
+    insight: "At QUORUM the second-fastest of three replicas sets the latency; at ALL, the slowest.",
   },
   "kafka-order-pipeline": {
     category: "Async",
@@ -47,7 +57,7 @@ const META: Record<string, TemplateMeta> = {
   "mongodb-hot-shard": {
     category: "Data",
     level: "Intermediate",
-    insight: "One hot shard saturates while the other three sit idle.",
+    insight: "One hot shard runs out of CPU while the other three have room to spare.",
   },
   "queueing-lab": {
     category: "Learn",
@@ -57,7 +67,7 @@ const META: Record<string, TemplateMeta> = {
   "retry-storm-ttl-cache": {
     category: "Resilience",
     level: "Advanced",
-    insight: "Aggressive retries turn a traffic burst into a storm.",
+    insight: "Aggressive retries more than double the load a burst puts on the API.",
   },
   "kubernetes-pods-pending": {
     category: "Kubernetes",
@@ -72,7 +82,7 @@ const META: Record<string, TemplateMeta> = {
   "serverless-burst": {
     category: "Serverless",
     level: "Intermediate",
-    insight: "A 10× burst meets cold starts, a concurrency cap and a throttled table.",
+    insight: "A 10× spike meets cold starts, a concurrency cap and, once burst credits run out, a throttled table.",
   },
 };
 
@@ -87,6 +97,14 @@ export function templateMeta(ex: Pick<ExampleSummary, "id" | "tags">): TemplateM
       insight: "Open it and press Simulate to see how it behaves.",
     }
   );
+}
+
+/** "Reviewed by A and B" for a signed template, or null while nobody has signed its review. */
+export function reviewedByLine(meta: Pick<TemplateMeta, "reviewedBy">): string | null {
+  const names = (meta.reviewedBy ?? []).map((r) => r.name);
+  if (!names.length) return null;
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `Reviewed by ${list}`;
 }
 
 export interface TemplateFacts {

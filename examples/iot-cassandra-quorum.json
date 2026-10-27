@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "IoT telemetry on Cassandra",
-    "description": "Write-heavy telemetry ingestion through Envoy into a Go ingest service on Kubernetes and a 6-shard Cassandra ring with replication factor 3. Compare consistency levels ONE, QUORUM and ALL, and what one slow replica does to quorum latency.",
+    "description": "Write-heavy telemetry ingestion through Envoy into a Go ingest service on Kubernetes and a 6-shard Cassandra ring with replication factor 3. Compare consistency levels ONE, QUORUM and ALL: each operation waits for the fastest, the second-fastest or the slowest of its three replicas. A compaction storm that slows the whole ring shows how fast the ingest tier backs up. Devices retry once; Cassandra writes are idempotent upserts, so that is safe.",
     "tags": [
       "cassandra",
       "consistency",
@@ -170,7 +170,7 @@
     {
       "id": "one",
       "name": "Consistency ONE",
-      "description": "Fastest replica answers: lower latency, weaker guarantees.",
+      "description": "The fastest of three replicas answers: lower latency, weaker guarantees.",
       "overrides": [
         {
           "target": {
@@ -185,7 +185,7 @@
     {
       "id": "all",
       "name": "Consistency ALL",
-      "description": "Every replica must answer: the slowest one sets the latency.",
+      "description": "Every replica must answer: the slowest of the three sets the latency.",
       "overrides": [
         {
           "target": {
@@ -200,7 +200,7 @@
     {
       "id": "slow-ring",
       "name": "Ring 3\u00d7 slower (18\u201332 s)",
-      "description": "Chaos: a compaction storm slows the store.",
+      "description": "Chaos: a compaction storm makes the whole ring 3x slower; ingest workers wait on it and the ingest queue overflows.",
       "overrides": [
         {
           "target": {

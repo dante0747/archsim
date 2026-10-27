@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Product catalog on sharded MongoDB",
-    "description": "A read-heavy catalog on a 4-shard MongoDB cluster. Product popularity is skewed (Zipf), so one shard holds the hottest keys and saturates first while the others idle. Compare a higher-cardinality key, more shards, and a Redis cache in front.",
+    "description": "A read-heavy catalog on a 4-shard MongoDB cluster: each shard is a three-member replica set on 2-vCPU machines, and reads go to the primary (MongoDB's default). Product popularity is skewed (Zipf), so the shard holding the hottest products runs out of CPU while the others have room. Compare a higher-cardinality key, more shards, and Redis cache-aside in front.",
     "tags": [
       "mongodb",
       "sharding",
@@ -56,7 +56,8 @@
             "median": 2,
             "p95": 8
           },
-          "blockingDownstream": false
+          "blockingDownstream": false,
+          "processesPerReplica": 4
         }
       },
       {
@@ -84,7 +85,7 @@
         "config": {
           "technology": "mongodb",
           "shards": 4,
-          "maxConnections": 3,
+          "maxConnections": 100,
           "queueCapacity": 400,
           "queueTimeoutMs": 500,
           "readServiceTimeMs": {
@@ -96,7 +97,9 @@
             "kind": "lognormal",
             "median": 6,
             "p95": 25
-          }
+          },
+          "readReplicas": 2,
+          "cpuCores": 2
         }
       }
     ],
@@ -145,17 +148,19 @@
         "sourcePort": "out",
         "target": "cache",
         "targetPort": "in",
-        "label": null,
+        "label": "lookups + invalidations",
         "config": {
           "requestTypes": [
-            "read"
+            "read",
+            "write"
           ],
           "latencyMs": {
             "kind": "constant",
             "value": 0.5
           },
-          "order": 0,
-          "timeoutMs": 50
+          "order": 1,
+          "timeoutMs": 50,
+          "continueOnFailure": true
         }
       },
       {
@@ -164,42 +169,25 @@
         "sourcePort": "out",
         "target": "products",
         "targetPort": "in",
-        "label": null,
+        "label": "writes + reads on a miss",
         "config": {
           "requestTypes": [
+            "read",
             "write"
           ],
           "latencyMs": {
             "kind": "constant",
             "value": 0.5
           },
-          "order": 1,
-          "timeoutMs": 800
-        }
-      },
-      {
-        "id": "cache-miss-products",
-        "source": "cache",
-        "sourcePort": "miss",
-        "target": "products",
-        "targetPort": "in",
-        "label": "miss",
-        "config": {
-          "requestTypes": [
-            "read"
-          ],
-          "latencyMs": {
-            "kind": "constant",
-            "value": 0.5
-          },
           "order": 0,
-          "timeoutMs": 800
+          "timeoutMs": 800,
+          "readsOnMiss": true
         }
       }
     ]
   },
   "workload": {
-    "rps": 2000,
+    "rps": 2800,
     "durationS": 40,
     "warmupS": 8,
     "seed": 42,
@@ -215,8 +203,8 @@
   "scenarios": [
     {
       "id": "baseline",
-      "name": "Baseline (4 shards, skewed keys, no cache hits)",
-      "description": "The document as drawn: the cache is bypassed (0% hits).",
+      "name": "Baseline (4 shards, skewed keys, every read misses the cache)",
+      "description": "The document as drawn: the cache misses every read (0% hits), so all reads reach MongoDB.",
       "overrides": []
     },
     {
@@ -236,7 +224,7 @@
     {
       "id": "eight-shards",
       "name": "8 shards",
-      "description": "More shards, same skew: the hottest keys still land together.",
+      "description": "More shards, same skew: the hottest product still lands on one shard, which gets twice its fair share. It copes here, at half again the cost.",
       "overrides": [
         {
           "target": {

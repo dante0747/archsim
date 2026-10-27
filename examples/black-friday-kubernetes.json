@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Black Friday on Kubernetes",
-    "description": "Checkout on Kubernetes with HPA autoscaling behind a Kong gateway, PostgreSQL with two read replicas, Redis for hot reads and a third-party payments API. Traffic ramps from 300 to 1,500 req/s: watch the autoscaler catch up, payments dominate the tail, and the gateway's rate limit protect everything behind it. All numbers are illustrative assumptions.",
+    "description": "Checkout on Kubernetes with HPA autoscaling behind a Kong gateway, PostgreSQL with two read replicas, a Redis catalog cache and a third-party payments API. The API uses Redis cache-aside: it looks catalog reads up in Redis and, on a miss or if Redis fails, reads PostgreSQL itself. Checkouts write the order and then charge the card. Traffic ramps from 300 to 1,500 req/s: watch the pods fall behind the ramp until the autoscaler catches up, and payments dominate the tail. All numbers are illustrative assumptions.",
     "tags": [
       "kubernetes",
       "autoscaling",
@@ -103,7 +103,8 @@
             "kind": "lognormal",
             "median": 9,
             "p95": 35
-          }
+          },
+          "replicaApplyFactor": 0.15
         }
       },
       {
@@ -167,7 +168,7 @@
         "sourcePort": "out",
         "target": "cache",
         "targetPort": "in",
-        "label": null,
+        "label": "catalog lookups",
         "config": {
           "requestTypes": [
             "read"
@@ -177,7 +178,8 @@
             "value": 0.5
           },
           "order": 0,
-          "timeoutMs": 50
+          "timeoutMs": 50,
+          "continueOnFailure": true
         }
       },
       {
@@ -186,9 +188,10 @@
         "sourcePort": "out",
         "target": "orders",
         "targetPort": "in",
-        "label": null,
+        "label": "orders + catalog reads on a miss",
         "config": {
           "requestTypes": [
+            "read",
             "write"
           ],
           "latencyMs": {
@@ -196,26 +199,8 @@
             "value": 0.5
           },
           "order": 1,
-          "timeoutMs": 800
-        }
-      },
-      {
-        "id": "cache-miss-orders",
-        "source": "cache",
-        "sourcePort": "miss",
-        "target": "orders",
-        "targetPort": "in",
-        "label": "miss",
-        "config": {
-          "requestTypes": [
-            "read"
-          ],
-          "latencyMs": {
-            "kind": "constant",
-            "value": 0.5
-          },
-          "order": 0,
-          "timeoutMs": 500
+          "timeoutMs": 800,
+          "readsOnMiss": true
         }
       },
       {
@@ -224,7 +209,7 @@
         "sourcePort": "out",
         "target": "payments",
         "targetPort": "in",
-        "label": null,
+        "label": "charge (idempotency key)",
         "config": {
           "requestTypes": [
             "write"
@@ -234,9 +219,9 @@
             "value": 15
           },
           "order": 2,
-          "timeoutMs": 2000,
+          "timeoutMs": 1200,
           "maxAttempts": 2,
-          "retryBackoffMs": 200
+          "retryBackoffMs": 100
         }
       }
     ]
@@ -305,7 +290,7 @@
     {
       "id": "cache-down",
       "name": "Lose the cache for 20 s",
-      "description": "Chaos: every read falls through to PostgreSQL.",
+      "description": "Chaos: every catalog read falls back to PostgreSQL while Redis is down; can the database and its replicas take it?",
       "overrides": [
         {
           "target": {
@@ -327,7 +312,7 @@
     {
       "id": "tight-limit",
       "name": "Gateway rate limit 900 req/s",
-      "description": "Shed load at the edge instead of queueing it.",
+      "description": "A limit below peak demand: the gateway turns away about one shopper in six at once (HTTP 429) that the autoscaled checkout could have served, and it does not stop the queueing while new pods start.",
       "overrides": [
         {
           "target": {

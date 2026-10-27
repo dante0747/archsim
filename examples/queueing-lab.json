@@ -3,7 +3,7 @@
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Queueing lab: one service under load",
-    "description": "A single service with 4 workers and exponential 10 ms service time (an M/M/4 queue, capacity 400 req/s). Compare the scenarios to see latency explode near saturation, and how a queue timeout sheds load instead of wasting work on requests whose clients already gave up.",
+    "description": "A single service with 4 workers and exponential 10 ms service time (an M/M/4 queue, capacity 400 req/s). CPU and memory are not modelled (auto-sizing is off), so it behaves exactly like the textbook queue. Compare the scenarios to see latency explode near saturation, and how a queue timeout sheds load instead of wasting work on requests whose clients already gave up.",
     "tags": [
       "education",
       "queueing-theory"
@@ -56,7 +56,8 @@
           }
         }
       }
-    ]
+    ],
+    "autoSize": false
   },
   "workload": {
     "rps": 200,
@@ -73,7 +74,8 @@
     {
       "id": "load-50",
       "name": "50% load (200 req/s)",
-      "overrides": []
+      "overrides": [],
+      "description": "The document as drawn: half of capacity, so requests rarely wait."
     },
     {
       "id": "load-90",

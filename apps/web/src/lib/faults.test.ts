@@ -9,6 +9,7 @@ import {
   faultsActiveAt,
   newFault,
   nextFaultId,
+  presetActive,
   sameExperiment,
   targetNames,
   windowEvidence,
@@ -183,5 +184,42 @@ describe("sameExperiment", () => {
     expect(sameExperiment(plan, { ...plan, faults: [{ ...plan.faults![0], durationS: 20 }] })).toBe(false);
     expect(sameExperiment(plan, { ...plan, pattern: { kind: "constant" } })).toBe(false);
     expect(sameExperiment(plan, { ...plan, rps: 500 })).toBe(false);
+  });
+});
+
+describe("presetActive", () => {
+  const presets = chaosPresets(nodes, edges, null, workload);
+  const byId = (id: string) => presets.find((p) => p.id === id)!;
+  /** What the API hands back after a save: the engine's defaults filled in, keys reordered. */
+  const stored = (w: Workload): Workload => ({
+    ...w,
+    faults: (w.faults ?? []).map((f) => JSON.parse(JSON.stringify({ label: null, factor: 4, extraMs: 200, ...f }))),
+  });
+
+  it("stays on after a save and reload fills in the engine's defaults", () => {
+    for (const id of ["lose-cache", "slow-db", "lag-api-db"]) {
+      const planned = { ...workload, ...byId(id).apply(workload) };
+      expect(presetActive(byId(id), planned)).toBe(true);
+      expect(presetActive(byId(id), stored(planned))).toBe(true);
+    }
+    const spike = { ...workload, ...byId("spike").apply(workload) };
+    expect(presetActive(byId("spike"), spike)).toBe(true);
+  });
+
+  it("ignores a fault's id and label, not what it does", () => {
+    const planned = stored({ ...workload, ...byId("slow-db").apply(workload) });
+    const f = planned.faults![0];
+    expect(presetActive(byId("slow-db"), { ...planned, faults: [{ ...f, id: "f7", label: "DB brown-out" }] })).toBe(true);
+    expect(presetActive(byId("slow-db"), { ...planned, faults: [{ ...f, factor: 8 }] })).toBe(false);
+    expect(presetActive(byId("slow-db"), { ...planned, faults: [{ ...f, durationS: 30 }] })).toBe(false);
+    expect(presetActive(byId("slow-db"), { ...planned, faults: [f, { ...f, id: "f2" }] })).toBe(false);
+  });
+
+  it("is off when nothing or something else is planned", () => {
+    expect(presetActive(byId("lose-cache"), workload)).toBe(false);
+    expect(presetActive(byId("lose-cache"), { ...workload, ...byId("slow-db").apply(workload) })).toBe(false);
+    // the spike plans no failures: a planned outage turns it off
+    const spike = { ...workload, ...byId("spike").apply(workload) };
+    expect(presetActive(byId("spike"), { ...spike, faults: byId("lose-cache").apply(workload).faults })).toBe(false);
   });
 });

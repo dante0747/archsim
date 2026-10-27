@@ -10,7 +10,7 @@ import { Ban, ChevronDown, Flame, Snail, Timer, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useEditorActions } from "@/components/editor/actions";
-import { type ChaosPreset, chaosPresets } from "@/lib/faults";
+import { type ChaosPreset, chaosPresets, presetActive } from "@/lib/faults";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 
@@ -67,11 +67,8 @@ export function ChaosPads() {
   const marker = <span ref={probe} className="hidden" aria-hidden />;
   if (!presets.length) return marker;
 
-  // A pad is lit when its patch is already what the workload holds.
-  const lit = (p: ChaosPreset) => {
-    const patch = p.apply(workload) as Record<string, unknown>;
-    return Object.entries(patch).every(([k, v]) => JSON.stringify((workload as unknown as Record<string, unknown>)[k]) === JSON.stringify(v));
-  };
+  // A pad is lit while its experiment is planned (also after a save and reload).
+  const lit = (p: ChaosPreset) => presetActive(p, workload);
   const planned = (workload.faults ?? []).length > 0;
 
   const hit = (p: ChaosPreset) => {
