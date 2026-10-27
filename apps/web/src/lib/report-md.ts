@@ -5,6 +5,7 @@
 import { CONFIDENCE_LABEL, KIND_LABEL, compareEstimate, countsText } from "./confidence";
 import { formatUsd, priceSource } from "./cost";
 import { replayVerdict } from "./document";
+import { type SeedRun, seedCappedConfidence, seedResultLines, seedSummaryLines } from "./report-md-seeds";
 import { isDistribution, shortDistribution } from "./distributions";
 import { errorBudget, evaluateSlo, formatSloValue } from "./slo";
 import type { SweepAnalysis } from "./sweep";
@@ -32,6 +33,8 @@ export interface DecisionReportInput {
   /** The queueing formulas' estimate of the design, used when there is no run. */
   designEstimate?: Estimate | null;
   sweep?: SweepAnalysis | null;
+  /** The runs of the run's seed group, when it has one: ranges across seeds. */
+  seedRuns?: SeedRun[] | null;
   generatedAt?: Date;
 }
 
@@ -93,7 +96,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   const slo = report ? evaluateSlo(objectives, report) : null;
   // priced by the engine: the run's own estimate, else the design's
   const cost = report ? (report.cost ?? null) : (input.designCost ?? null);
-  const confidence = report?.confidence ?? input.designConfidence ?? null;
+  const confidence = seedCappedConfidence(report?.confidence ?? input.designConfidence ?? null, report ? input.seedRuns : null, objectives);
   lines.push("## Summary", "");
   if (report && slo) {
     const verdict =
@@ -106,6 +109,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
       lines.push(`- **p95 counting failures:** ${ms(withFailures)} (each failed request counted as a full client timeout).`);
     }
     if (bottleneck) lines.push(`- **Bottleneck:** ${bottleneck.title}.`);
+    lines.push(...seedSummaryLines(report, input.seedRuns, objectives));
   } else {
     lines.push("- No simulation run yet: run the design to evaluate it against the objectives.");
     if (input.designEstimate) lines.push(`- **${input.designEstimate.method}:** ${input.designEstimate.summary}.`);
@@ -172,6 +176,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
       `Run${run?.label ? ` "${run.label}"` : ""}: seed ${p.seed}, engine ${p.engineVersion}, ${p.requestsGenerated.toLocaleString("en-US")} requests simulated, input digest \`${p.inputDigest.slice(0, 12)}\`, result digest \`${p.resultDigest.slice(0, 12)}\` (re-running the same input reproduces it exactly).`,
       "",
     );
+    lines.push(...seedResultLines(input.seedRuns, table));
     if (slo.checks.length) {
       lines.push(
         table(

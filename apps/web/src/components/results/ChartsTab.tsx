@@ -2,6 +2,7 @@
 
 import { LineChart as LineChartIcon } from "lucide-react";
 import { useMemo } from "react";
+import { SampleNote } from "@/components/decide/SeedRange";
 import { Empty } from "@/components/ui/misc";
 import { fmtMs, fmtNum, fmtRps } from "@/lib/format";
 import { SERIES } from "@/lib/status";
@@ -42,6 +43,7 @@ export function ChartsTab() {
 
   return (
     <div className="grid gap-3 p-4 lg:grid-cols-2 2xl:grid-cols-3">
+      <SampleNote report={report} className="lg:col-span-2 2xl:col-span-3" />
       <TimeSeriesChart
         {...common}
         title="Offered vs successful throughput"

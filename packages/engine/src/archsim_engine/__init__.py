@@ -12,6 +12,7 @@ from archsim_engine.engine import (
     SimulationLimits,
     default_registry,
     prepare_run,
+    quick_check,
     run_simulation,
 )
 from archsim_engine.issues import DocumentInvalidError, Issue
@@ -19,6 +20,7 @@ from archsim_engine.migrations import MigrationError, migrate_document
 from archsim_engine.registry import ComponentModel, ComponentRegistry, PortSpec, ui
 from archsim_engine.scenarios import load_document, resolve_scenario
 from archsim_engine.schema import ArchitectureDocument
+from archsim_engine.seeds import summarize_seeds
 from archsim_engine.validation import ValidationResult, validate_document
 from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION, SCHEMA_VERSION
 
@@ -45,8 +47,10 @@ __all__ = [
     "load_document",
     "migrate_document",
     "prepare_run",
+    "quick_check",
     "resolve_scenario",
     "run_simulation",
+    "summarize_seeds",
     "ui",
     "validate_document",
 ]

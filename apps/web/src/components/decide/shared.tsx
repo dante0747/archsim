@@ -187,7 +187,7 @@ export function RunPicker({ value, onChange, label = "Run" }: { value: string | 
       >
         {runs.map((r) => (
           <option key={r.id} value={r.id}>
-            {runLabel(r)} · seed {r.seed} · {fmtRelativeTime(r.createdAt)}
+            {runLabel(r)} · seed {r.seed}{r.mode === "sampled" ? " · estimated" : ""} · {fmtRelativeTime(r.createdAt)}
           </option>
         ))}
       </select>

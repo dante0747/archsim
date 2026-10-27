@@ -362,7 +362,7 @@ def test_a_simulation_process_exits_when_its_parent_pipe_closes() -> None:
     up_send.close()
     down_recv.close()
     try:
-        down_send.send(({}, None, SimulationLimits(), sim_targets.stubborn))
+        down_send.send(({}, None, SimulationLimits(), sim_targets.stubborn, {}))
         assert up_recv.poll(60), "the child never reported progress"
         down_send.close()  # what the OS does when the worker dies
         proc.join(timeout=15)

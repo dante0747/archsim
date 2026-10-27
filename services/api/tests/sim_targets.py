@@ -16,6 +16,7 @@ def stubborn(
     limits: Any,
     progress: Callable[[float], None],
     should_cancel: Callable[[], bool],
+    **options: Any,
 ) -> dict[str, Any]:
     """Reports progress for ever and ignores cancellation, like a run stuck in native code."""
     while True:
@@ -29,6 +30,7 @@ def cooperative(
     limits: Any,
     progress: Callable[[float], None],
     should_cancel: Callable[[], bool],
+    **options: Any,
 ) -> dict[str, Any]:
     """Runs for ``document["seconds"]`` (default: for ever) unless cancelled, then ends as
     ``failed`` with the message ``FINISHED`` (a stand-in has no report to succeed with)."""
@@ -47,6 +49,7 @@ def until_cancelled(
     limits: Any,
     progress: Callable[[float], None],
     should_cancel: Callable[[], bool],
+    **options: Any,
 ) -> dict[str, Any]:
     """Like ``cooperative``, but whatever the document says."""
     return cooperative({}, scenario_id, limits, progress, should_cancel)

@@ -478,6 +478,7 @@ class Execution:
             self.limits,
             self._progress,
             self._stop_wanted,
+            **self.run.options(),
         )
         if outcome["status"] == "cancelled" and self._abandon is not None:
             return None
@@ -487,7 +488,13 @@ class Execution:
         cfg = self.worker.config
         launcher = self.worker._launcher
         assert launcher is not None
-        job = (self.run.document, self.run.scenario_id, self.limits, self.worker.target)
+        job = (
+            self.run.document,
+            self.run.scenario_id,
+            self.limits,
+            self.worker.target,
+            self.run.options(),
+        )
         for attempt in (1, 2):
             started = launcher.take()
             try:

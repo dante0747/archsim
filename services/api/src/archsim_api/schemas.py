@@ -115,6 +115,20 @@ class RunCreate(ApiModel):
         description="Simulate this document (e.g. unsaved edits) instead of the saved one. "
         "It is stored with the run, so results stay reproducible.",
     )
+    seeds: int = Field(
+        default=1,
+        ge=1,
+        le=10,
+        description="Above 1: a seed group, one run per seed from the document's seed (base) to "
+        "base + seeds - 1, read together with GET /run-groups/{groupId}. Up to 5 in hosted "
+        "workspaces, 10 locally. The answer is the group's first run.",
+    )
+    mode: Literal["full", "sampled"] = Field(
+        default="full",
+        description="'sampled': a quick check, answered from a steady sample when the design "
+        "qualifies (constant traffic, no faults, a long enough run; see /analyze quickCheck). "
+        "Stored with the run, so a rerun uses it too.",
+    )
 
 
 class BatchRunCreate(ApiModel):
@@ -141,3 +155,6 @@ class RunOut(ApiModel):
     started_at: UtcDateTime | None
     finished_at: UtcDateTime | None
     reproduces_run_id: str | None = None
+    group_id: str | None = None
+    seed_index: int | None = None
+    mode: Literal["full", "sampled"] = "full"
