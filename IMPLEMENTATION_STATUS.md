@@ -7,6 +7,24 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**End-to-end tests (2026-10-27).**
+
+- A Playwright test (`apps/web/e2e/main-path.spec.ts`, `npm run e2e`) drives the main path in
+  Chromium against a production build and the real API on a throwaway SQLite database: open
+  the cache-aside starter from the gallery, simulate, read the verdict, hit the "Lose Redis
+  Cache" chaos pad (which plans the outage and simulates again), compare the two runs, save,
+  reload, and check the outage is still planned and stored. It also fails on any Content
+  Security Policy violation in the console. The templates are shortened to 20 s of simulated
+  time with their bursts and faults moved to the same fraction of the run, so the test takes
+  about 20 s. CI runs it in an `e2e` job and keeps the trace when it fails.
+- Every template in `examples/` is simulated (`test_templates_simulate.py`, 8 s with a 2 s
+  warm-up and the timeline squeezed to fit): each finishes with balanced accounting for the
+  clients and every part, and a non-empty report. Before, only the starter was ever simulated.
+- `npm run e2e:capture` (`e2e/capture.spec.ts`, not part of the default run) retakes the
+  README screenshots into `docs/images/` and records the starter's cache-outage demo as
+  `docs/images/cache-outage.gif` (ffmpeg converts the video; without it the `.webm` is kept and
+  the command printed).
+
 **Product review fixes (2026-10-26, engine 0.10.0, schema 1.3).**
 
 - Cache-aside is modelled as applications do it. A cache with no `miss` link answers "miss" to
@@ -890,10 +908,15 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - "Queue kept growing" needs at least 4 time buckets inside the measurement window.
 - No authentication or multi-user support; bind to localhost only.
 - README screenshots are 800x500 captures of the previous Ops console look; they need retaking
-  if the Studio look is kept. A demo GIF has not been recorded.
+  if the Studio look is kept (`npm run e2e:capture` does it). The demo GIF is not committed yet.
 - The UI was checked by hand in one browser engine (Chromium in the desktop app): earlier looks
   at 1280x800 and 1440x900, the Studio look at 1440x900, 1100x760 and 375x812, in dark and
-  light. There are no automated visual or end-to-end tests yet.
+  light. The one end-to-end test covers the main path in Chromium at 1440x900; there are no
+  visual-regression tests, and other paths (import, scenarios, breaking point, dashboard) are
+  covered only by unit tests.
+- After a reload, a chaos pad whose failure is planned is no longer lit: the API stores the
+  fault with its default fields (`factor`, `extraMs`, `label`), and the pad compares the
+  stored fault with its own patch exactly. The failure is still planned and simulated.
 - At 1100 px wide with both side panels open, the Design review pill overlaps the canvas zoom
   toolbar (it did before the Studio look too).
 - The canvas layout is usable at tablet widths, but the editor is designed for desktop
@@ -907,16 +930,29 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
    group commit, a gradual saturation regime.
 2. Take Dependabot's web dependency group (PR #4) once typescript-eslint supports
    TypeScript 7, or hold TypeScript below 7 until then.
-3. Add a Playwright end-to-end test of the main journey (open example, edit, run, compare,
-   save, reload).
-4. A Redis/RQ worker (the `JobRunner` protocol is the seam) so runs survive API restarts and
+3. A Redis/RQ worker (the `JobRunner` protocol is the seam) so runs survive API restarts and
    scale across machines; hard cancellation of a worker process.
-5. Total client deadline across retries, retry budgets / circuit breaker component, and
+4. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
-6. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
+5. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-7. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
+6. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
    dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
    [docs/roadmap.md](docs/roadmap.md)).
-8. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
+7. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
    group rebalancing, adaptive capacity, per-key hot-row splitting.
+
+## Bugs per week
+
+Every bug is a GitHub issue with the `bug` label (the bug report form adds it; see
+CONTRIBUTING.md). Each Monday, add a row for the week before (ISO weeks, Monday to Sunday):
+
+```bash
+gh issue list --label bug --state all --search "created:2026-10-26..2026-11-01" --limit 1000 --json number --jq length
+gh issue list --label bug --state closed --search "closed:2026-10-26..2026-11-01" --limit 1000 --json number --jq length
+gh issue list --label bug --state open --limit 1000 --json number --jq length
+```
+
+| Week | Opened | Closed | Open at the end |
+|---|---|---|---|
+| 2026-W44 (Oct 26 – Nov 1, so far) | 0 | 0 | 0 |

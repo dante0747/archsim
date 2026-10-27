@@ -100,3 +100,36 @@ jobs:
       # build first: it generates next-env.d.ts and route types that tsc needs
       - run: npm run build
       - run: npm run typecheck
+
+  e2e:
+    # the main path in Chromium against a production build and the real API on SQLite;
+    # see apps/web/e2e/main-path.spec.ts
+    name: End-to-end (Playwright, main path)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+        working-directory: .
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run e2e
+      - name: Upload the Playwright trace
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace
+          path: apps/web/test-results/
+          retention-days: 14

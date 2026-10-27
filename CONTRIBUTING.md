@@ -78,7 +78,16 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npx playwright install chromium   # once
+npm run e2e                       # the main path in Chromium, against the build above
 ```
+
+`npm run e2e` starts its own API (a throwaway SQLite database under `apps/web/.e2e/`, templates
+shortened to 20 s) on :8002 and `next start` on :3002, so a stack running on :3000/:8000 is
+left alone; set `E2E_API_PORT`/`E2E_WEB_PORT` to move them. It needs `uv` on PATH and a fresh
+`npm run build`. On a failure, `npx playwright show-trace apps/web/test-results/<test>/trace.zip`
+replays it step by step. `npm run e2e:capture` retakes the README images in `docs/images/` and
+records the demo GIF (it needs ffmpeg for the GIF and takes a few minutes).
 
 `uv run ruff format packages services` fixes formatting. Tests must not depend on wall-clock
 speed beyond generous limits, and simulations in tests should use short durations.
@@ -94,6 +103,14 @@ speed beyond generous limits, and simulations in tests should use short duration
 - New dependencies need a reason in the PR description. No telemetry, no paid services.
 - If you change component metadata (fields, ports, defaults), regenerate the web test fixture
   with `uv run python scripts/export_web_fixtures.py`.
+
+## Bugs
+
+Report bugs with the bug report form, which labels the issue `bug`; if you open one another
+way, add the label yourself. Keep the label for things that do not work as documented (crashes,
+wrong results, broken accounting, results that are not reproducible from the same seed), not
+for feature requests. The weekly count of opened and closed bugs in
+[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#bugs-per-week) comes from this label.
 
 ## Changing simulation semantics
 
