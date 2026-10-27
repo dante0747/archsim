@@ -72,7 +72,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--reload", action="store_true")
     p.set_defaults(fn=cmd_serve)
-    sub.add_parser("migrate", help="apply database migrations").set_defaults(fn=cmd_migrate)
+    sub.add_parser(
+        "migrate",
+        help="apply database migrations, then exit (safe to run from several processes at once "
+        "on PostgreSQL: they take turns)",
+    ).set_defaults(fn=cmd_migrate)
     sub.add_parser("seed", help="create example projects").set_defaults(fn=cmd_seed)
     args = parser.parse_args(argv)
     code: int = args.fn(args)

@@ -4,6 +4,10 @@
 #   docker compose up --build         # everything: http://localhost:3000
 name: archsim
 
+x-api-image: &api-image
+  context: .
+  dockerfile: services/api/Dockerfile
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -21,17 +25,28 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: services/api/Dockerfile
+  # One-shot: brings the database to the latest schema, then exits. The API waits for it.
+  migrate:
+    build: *api-image
+    command: ["archsim-api", "migrate"]
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
-      ARCHSIM_EXAMPLES_DIR: /app/examples
-      ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
     depends_on:
       postgres:
         condition: service_healthy
+    restart: "no"
+
+  api:
+    build: *api-image
+    init: true # reaps and signals the simulation processes
+    environment:
+      ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
+      ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
+      ARCHSIM_EXAMPLES_DIR: /app/examples
+      ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
