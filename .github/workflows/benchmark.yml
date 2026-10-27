@@ -1,19 +1,50 @@
 name: Accuracy benchmarks
 
-# Slow (about 1.5 hours) and noisy on shared runners, so never on pull requests. Manual for now; to
-# run it nightly, uncomment the schedule (it uses Actions minutes). Results are uploaded as an
-# artifact; docs/validation.md is only updated by a person who reviews them.
+# Measures ArchSim's predictions against real stacks (benchmarks/, docs/validation.md). Slow
+# (about 1.5 hours) and noisy on shared runners, so never on pull requests: it runs every week, on
+# every release tag (v*) and by hand. Each run keeps the previous results in run-N/ folders
+# (run.py --archive), measures again, regenerates docs/validation.md, its charts and
+# docs/validation/accuracy.json with the web app's copy (report.py --json, which the /accuracy
+# page is built from), uploads the raw results as an artifact and opens a pull request. A person
+# reviews and merges it; nothing here changes main by itself.
+#
+# NOT YET RUN ON LINUX. Every run so far was on Windows with Docker Desktop; on a hosted runner the
+# k6 container writes its summary as uid 12345 (run.py makes benchmarks/results/.k6
+# world-writable for it, untested on Linux). Start the first run by hand (Actions > Accuracy
+# benchmarks > Run workflow) and check its artifact and pull request before relying on the
+# schedule and the tag trigger.
+#
+# Pull requests opened with the default GITHUB_TOKEN do not start other workflows (CI): set a
+# BENCHMARK_PR_TOKEN secret (a fine-grained token with contents and pull-requests write) to have
+# CI run on them, or close and reopen the pull request. The repository must allow GitHub Actions
+# to create pull requests (Settings > Actions > General > Workflow permissions).
 on:
+  # Manual runs (Actions > Accuracy benchmarks > Run workflow).
   workflow_dispatch:
     inputs:
       stack:
         description: "postgres, cache, kafka or all"
         default: all
-  # schedule:
-  #   - cron: "17 3 * * *"
+
+  # ---------------------------------------------------------------------------------------------
+  # AUTOMATIC RUNS. The repository is private, so every run uses billed Actions minutes (about
+  # 1.5 hours each). To turn them off, comment out or delete the lines below:
+  #   - the weekly run: the `schedule:` line and the `- cron:` line under it;
+  #   - the run for every release tag: the `push:` line and the `tags:` line under it.
+  # Manual runs above keep working either way.
+  schedule:
+    - cron: "17 3 * * 1" # 03:17 UTC every Monday
+  push:
+    tags: ["v*"]
+  # --------------------------------------------------------------- end of automatic runs ------
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
 
 env:
   UV_PYTHON: "3.12"
@@ -39,13 +70,56 @@ jobs:
       - name: Benchmarks
         env:
           STACK: ${{ inputs.stack || 'all' }}
-        run: uv run python benchmarks/run.py "$STACK"
+        run: uv run python benchmarks/run.py "$STACK" --archive
       - name: Report
-        run: uv run python benchmarks/report.py
+        run: uv run python benchmarks/report.py --json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: benchmark-results
+          name: benchmark-results-${{ github.run_id }}
           path: |
             benchmarks/results/
             docs/validation.md
             docs/validation/
+      - name: Open a pull request
+        env:
+          GH_TOKEN: ${{ secrets.BENCHMARK_PR_TOKEN || github.token }}
+          TRIGGER: ${{ github.event_name == 'push' && github.ref_name || github.event_name }}
+          STACK: ${{ inputs.stack || 'all' }}
+        run: |
+          date="$(date -u +%F)"
+          branch="benchmarks/${date}-${GITHUB_RUN_ID}"
+          {
+            echo "Accuracy benchmarks (${STACK}) run on ${date} by ${TRIGGER}, on a GitHub-hosted"
+            echo "Linux runner ([run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID});"
+            echo "raw results in its artifact). The previous results are kept in \`run-N/\` folders."
+            echo
+            uv run python - <<'EOF'
+          import re
+          import sys
+          from pathlib import Path
+
+          sys.stdout.reconfigure(encoding="utf-8")
+          doc = Path("docs/validation.md").read_text(encoding="utf-8")
+          for name in ("summary", "tiers"):
+              m = re.search(rf"<!-- BEGIN GENERATED: {name} -->\n(.*?)\n<!-- END GENERATED", doc, re.S)
+              print(m.group(1) if m else f"(no {name} block)")
+              print()
+          EOF
+            echo "---"
+            echo "Opened by .github/workflows/benchmark.yml. Before merging:"
+            echo
+            echo "- [ ] The numbers are plausible (no stack failed to start, no step without requests)."
+            echo "- [ ] The hand-written text in docs/validation.md (headline bullets, protocol history, \"Where the model is wrong\") matches the new numbers."
+            echo "- [ ] Tests that pin the committed numbers are updated (benchmarks/tests: \`*_on_the_committed_results\`, \`test_experiment_block_*\`)."
+            echo "- [ ] CI passes; /accuracy is rebuilt from apps/web/src/data/accuracy.json on the next web build."
+          } > "$RUNNER_TEMP/body.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add benchmarks/results docs/validation.md docs/validation apps/web/src/data/accuracy.json
+          git commit -m "Benchmarks: results of ${date} (${STACK}, ${TRIGGER})"
+          git push origin "$branch"
+          base="$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef -q .defaultBranchRef.name)"
+          gh pr create --base "$base" --head "$branch" \
+            --title "Benchmarks: results of ${date} (${STACK}, ${TRIGGER})" --body-file "$RUNNER_TEMP/body.md"

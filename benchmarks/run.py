@@ -1190,6 +1190,22 @@ def result_dirs(results: Path = RESULTS) -> list[tuple[str, Path]]:
     return out
 
 
+def archive(exp_id: str, results: Path = RESULTS) -> Path | None:
+    """Move an experiment's latest results into its next run-N/ before a new run replaces them,
+    so report.py's history keeps every run (N counts this experiment's kept runs). None when
+    there is nothing to keep."""
+    base = results / exp_id
+    if not (base / "measured.json").exists():
+        return None
+    taken = [int(d.name[4:]) for d in base.glob("run-*") if d.is_dir() and d.name[4:].isdigit()]
+    dest = base / f"run-{max(taken, default=0) + 1}"
+    dest.mkdir()
+    for f in sorted(base.iterdir()):
+        if f.is_file():
+            f.rename(dest / f.name)
+    return dest
+
+
 def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
 
@@ -1308,6 +1324,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--keep", action="store_true", help="leave the stack running afterwards")
     ap.add_argument("--only", choices=list(EXPERIMENTS), help="run one experiment of the stack")
+    ap.add_argument(
+        "--archive",
+        action="store_true",
+        help="first move each experiment's latest results into its next run-N/ (kept history)",
+    )
     args = ap.parse_args(argv)
     if args.stack == "compare":
         for path in recompare():
@@ -1321,6 +1342,8 @@ def main(argv: list[str] | None = None) -> int:
             for exp_id in STACKS[stack]:
                 if args.only and exp_id != args.only:
                     continue
+                if args.archive and (kept := archive(exp_id)):
+                    log(f"{exp_id}: kept the previous results in {kept.relative_to(HERE.parent)}")
                 save(exp_id, "environment", {**env, "cpusets": cpusets(stack)})
                 run_experiment(EXPERIMENTS[exp_id])
         finally:

@@ -1,0 +1,40 @@
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { AccuracyPage } from "@/components/accuracy/AccuracyPage";
+import { CALIBRATION_DOC, VALIDATION_DOC, accuracy, kneeSentence, minus, spreadSentence } from "@/lib/accuracy";
+
+// Expectations come from the data, so this keeps passing when the benchmarks rerun.
+describe("AccuracyPage", () => {
+  it("shows good and bad results, the spread, every run and the calibration steps", () => {
+    const { container } = render(<AccuracyPage data={accuracy} />);
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/NaN|undefined|null|Infinity|- ms/);
+
+    expect(screen.getByRole("heading", { level: 1, name: "How accurate is ArchSim?" })).toBeInTheDocument();
+    expect(text).toContain(minus(accuracy.summary.kneeErrorRangeText));
+    expect(screen.getByText("Knees move between runs")).toBeInTheDocument();
+
+    for (const x of accuracy.experiments) {
+      expect(text).toContain(kneeSentence(x)); // the short version, good and bad alike
+      if (x.spread) expect(text).toContain(spreadSentence(x));
+      const card = container.querySelector(`article#${x.id}`) as HTMLElement | null;
+      expect(card, x.id).not.toBeNull();
+      expect(within(card as HTMLElement).getByText(x.name)).toBeInTheDocument();
+      expect(card?.textContent).toContain(x.environment.text);
+      if (x.knee.measured.kneeRps !== null) {
+        expect(within(card as HTMLElement).getByRole("img", { name: new RegExp(`Measured knee ${x.knee.text.measured} req/s`) })).toBeInTheDocument();
+      }
+    }
+
+    const runs = Object.values(accuracy.history).flat();
+    expect(screen.getAllByRole("table").length).toBe(accuracy.experiments.length * 2); // each card's steps + each history table
+    expect(text).toContain(`${runs.length} runs `);
+    for (const r of runs) expect(text).toContain(r.machine);
+    expect(screen.getByRole("heading", { name: "How to calibrate your own design" })).toBeInTheDocument();
+    // the repository is private: docs are named, never linked, and nothing leaves the site
+    expect(text).toContain(VALIDATION_DOC);
+    expect(text).toContain(CALIBRATION_DOC);
+    const hrefs = [...container.querySelectorAll("a[href]")].map((a) => a.getAttribute("href") ?? "");
+    expect(hrefs.filter((h) => !h.startsWith("/") && !h.startsWith("#"))).toEqual([]);
+  });
+});

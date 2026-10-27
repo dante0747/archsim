@@ -435,3 +435,157 @@ def test_environment_block_uses_recorded_cpusets() -> None:
     block = report.environment_block({"pg-mixed": env})
     assert "pg-mixed: service 1 (`0`), PostgreSQL 2 (`1-2`), k6 5 (`3-7`)" in block
     assert "runner's defaults" not in block
+
+
+# ---------------------------------------------------------------------------------------------
+# accuracy.json (the web app's /accuracy page)
+# ---------------------------------------------------------------------------------------------
+
+
+def test_accuracy_json_is_generated_from_the_committed_results() -> None:
+    text = report.accuracy_text()
+    assert report.JSON_OUT.read_text(encoding="utf-8") == text, (
+        "docs/validation/accuracy.json is stale: run benchmarks/report.py --json"
+    )
+    assert report.accuracy_text() == text  # byte-reproducible
+
+
+def test_web_copy_of_accuracy_json_matches_docs() -> None:
+    # the web image is built from apps/web alone, so the page reads a copy
+    assert report.WEB_JSON.read_bytes() == report.JSON_OUT.read_bytes(), (
+        "apps/web/src/data/accuracy.json differs from docs/validation/accuracy.json: run "
+        "benchmarks/report.py --json"
+    )
+
+
+def test_accuracy_json_agrees_with_the_validation_page() -> None:
+    doc = report.DOC.read_text(encoding="utf-8")
+    data = report.accuracy()
+    assert data is not None
+    assert [x["id"] for x in data["experiments"]] == report.ORDER
+    for x in data["experiments"]:
+        k, b = x["knee"]["text"], x["p95BelowKnee"]
+        row = (
+            f"| [{x['id']}](#{x['id']}) | {k['measured']} req/s | {k['predicted']} req/s | "
+            f"{k['error']} | {b['text']['medianAbsError']} / {b['text']['maxAbsError']} "
+            f"({b['steps']} steps) |"
+        )
+        assert row in doc, row
+        for low in x["lowLoad"]:
+            assert f"| {x['id']} | {low['text']['offered']} ({low['text']['fraction']} the " in doc
+            assert f"{low['text']['diff']} ({low['text']['p95Error']}) |" in doc
+        assert x["environment"]["text"] in doc
+        tier = "yes" if x["tier"] == "validated" else "no"
+        assert any(
+            ln.startswith(f"| {x['id']} |") and ln.endswith(f"| {tier} |")
+            for ln in doc.splitlines()
+        )
+    for runs in data["history"].values():
+        for r in runs:
+            t = r["text"]
+            assert (
+                f"| {t['measuredKnee']} req/s | {t['predictedKnee']} req/s | {t['kneeError']} |"
+                in doc
+            )
+
+
+def test_accuracy_json_on_the_committed_results() -> None:
+    data = report.accuracy()
+    assert data is not None
+    s = data["summary"]
+    assert s["kneeErrorRangeText"] == "-14% to +97%"
+    assert s["kneeWithinTolerance"] == ["pg-mixed", "cache-aside", "kafka"]
+    assert s["validated"] == [] and not any(t["validated"] for t in s["technologies"])
+    assert s["inSample"] == ["pg-mixed", "pg-hot-row"]
+    assert s["withSpread"] == ["pg-mixed", "pg-hot-row"]
+    assert s["spreadExceedsError"] == ["pg-mixed"]  # +/-25% against -10%; hot-row +/-72% < 97%
+    assert s["runs"] == 10 and len(s["machines"]) == 1
+    by = {x["id"]: x for x in data["experiments"]}
+    mixed = by["pg-mixed"]
+    assert mixed["knee"]["text"] == {
+        "measured": "2,291",
+        "predicted": "2,064",
+        "error": "-10%",
+        "absError": "10%",
+    }
+    assert mixed["spread"]["text"] == "1,895 to 3,162 req/s"
+    assert mixed["spread"]["plusMinusText"] == "±25%"
+    assert [v["run"] for v in mixed["spread"]["values"]] == ["run-2/", "run-3/", "latest"]
+    assert by["pg-hot-row"]["spread"]["text"] == "132 to 819 req/s"
+    assert by["pg-hot-row"]["spread"]["runs"] == 4
+    assert by["cache-aside"]["spread"] is None and by["kafka"]["spread"] is None
+    assert mixed["p95BelowKnee"]["within"] == 4 and mixed["p95BelowKnee"]["steps"] == 6
+    assert mixed["p95BelowKnee"]["worst"]["text"]["offered"] == "2,268"
+    assert by["kafka"]["p95BelowKnee"]["misses"] == [252, 503, 905]
+    assert mixed["date"] == "2026-10-26" and mixed["engineVersion"] == "0.7.0"
+    assert mixed["environment"]["dockerCpus"] == 8
+    assert mixed["environment"]["dockerMemoryGiB"] == 7.6
+    assert not mixed["environment"]["cpusetsRecorded"]
+    assert sum(1 for x in mixed["steps"] if x["atOrBelowKnee"]) == 6
+
+
+def test_knee_spread() -> None:
+    def hist_run(knee: float | None, machine: str = "a", bound: str = "interpolated") -> dict:
+        return {
+            "dir": "latest",
+            "protocol": "v4",
+            "calibratedAt": None,
+            "machine": machine,
+            "measuredKnee": {"kneeRps": knee, "bound": bound},
+        }
+
+    assert report.knee_spread([]) is None
+    assert report.knee_spread([hist_run(1000.0)]) is None
+    assert report.knee_spread([hist_run(None, bound="above"), hist_run(1000.0)]) is None
+    s = report.knee_spread([hist_run(3000.0), hist_run(None, bound="above"), hist_run(1000.0)])
+    assert s is not None
+    assert (s["runs"], s["minRps"], s["maxRps"]) == (2, 1000.0, 3000.0)
+    assert s["plusMinus"] == pytest.approx(0.5)
+    assert (s["text"], s["plusMinusText"]) == ("1,000 to 3,000 req/s", "±50%")
+    # only runs on the latest run's machine: another machine's knee is not run-to-run noise
+    s = report.knee_spread([hist_run(9000.0, "b"), hist_run(1000.0), hist_run(1200.0)])
+    assert s is not None and s["maxRps"] == 1200.0
+
+
+def test_accuracy_without_older_runs_has_no_spread(tmp_path: Path) -> None:
+    for exp in report.ORDER:
+        shutil.copytree(run.RESULTS / exp, tmp_path / exp, ignore=shutil.ignore_patterns("run-*"))
+    data = report.accuracy(tmp_path)
+    assert data is not None
+    assert all(x["spread"] is None and x["runs"] == 1 for x in data["experiments"])
+    assert data["summary"]["inSample"] == []  # no run under an earlier protocol
+    assert report.accuracy(tmp_path / "none") is None
+
+
+def test_report_writes_json_only_when_asked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc = tmp_path / "docs" / "validation.md"
+    doc.parent.mkdir()
+    shutil.copy(report.DOC, doc)
+    monkeypatch.setattr(report, "ROOT", tmp_path)
+    monkeypatch.setattr(report, "DOC", doc)
+    monkeypatch.setattr(report, "CHARTS", tmp_path / "docs" / "validation")
+    monkeypatch.setattr(report, "JSON_OUT", tmp_path / "docs" / "validation" / "accuracy.json")
+    monkeypatch.setattr(report, "WEB_JSON", tmp_path / "web" / "accuracy.json")
+    assert report.main([]) == 0
+    assert not report.JSON_OUT.exists() and not report.WEB_JSON.exists()
+    assert report.main(["--json"]) == 0
+    assert report.JSON_OUT.read_text(encoding="utf-8") == report.accuracy_text()
+    assert report.WEB_JSON.read_bytes() == report.JSON_OUT.read_bytes()
+
+
+def test_archive_keeps_the_latest_run(tmp_path: Path) -> None:
+    shutil.copytree(run.RESULTS / "pg-hot-row", tmp_path / "pg-hot-row")
+    shutil.copytree(
+        run.RESULTS / "kafka", tmp_path / "kafka", ignore=shutil.ignore_patterns("run-*")
+    )
+    latest = (tmp_path / "pg-hot-row" / "comparison.json").read_bytes()
+    older = len(list((tmp_path / "pg-hot-row").glob("run-*")))
+    kept = run.archive("pg-hot-row", tmp_path)
+    assert kept == tmp_path / "pg-hot-row" / f"run-{older + 1}"
+    assert (kept / "comparison.json").read_bytes() == latest
+    assert not (tmp_path / "pg-hot-row" / "measured.json").exists()
+    assert run.archive("pg-hot-row", tmp_path) is None  # nothing left to keep
+    assert run.archive("kafka", tmp_path) == tmp_path / "kafka" / "run-1"
+    assert run.archive("cache-aside", tmp_path) is None  # no results at all
