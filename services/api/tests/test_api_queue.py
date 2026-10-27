@@ -31,18 +31,19 @@ def db(db_url: str) -> Iterator[Database]:
 
 def _enqueue(db: Database, n: int = 1) -> list[str]:
     ids = []
-    for i in range(n):
-        run = queue.enqueue(
-            db,
-            SimulationRun(
-                project_id="p",
-                seed=i,
-                engine_version="test",
-                input_document={"n": i},
-                created_at=utcnow() + timedelta(milliseconds=i),  # a stable order
-            ),
-        )
-        ids.append(run.id)
+    with db.session() as s:
+        for i in range(n):
+            run = queue.enqueue(
+                s,
+                SimulationRun(
+                    project_id="p",
+                    seed=i,
+                    engine_version="test",
+                    input_document={"n": i},
+                    created_at=utcnow() + timedelta(milliseconds=i),  # a stable order
+                ),
+            )
+            ids.append(run.id)
     return ids
 
 
@@ -202,7 +203,6 @@ def test_worker_heartbeats(db: Database) -> None:
     queue.heartbeat(db, "w1", hostname="h", pid=1, slots=2, running=0)
     queue.heartbeat(db, "w1", hostname="h", pid=1, slots=2, running=1, status="draining")
     queue.heartbeat(db, "w2", hostname="h", pid=2, slots=1, running=0)
-    assert queue.live_workers(db, 60) == 2
     with db.session() as s:
         w1 = s.get(JobWorker, "w1")
         assert w1 is not None and (w1.running, w1.status) == (1, "draining")
@@ -212,8 +212,9 @@ def test_worker_heartbeats(db: Database) -> None:
             .values(heartbeat_at=utcnow() - queue.STALE_WORKER_ROWS - timedelta(minutes=1))
         )
         s.commit()
-    assert queue.live_workers(db, 60) == 1
-    queue.reap(db)  # drops long-gone workers
+    queue.reap(db)  # drops workers gone for an hour
+    with db.session() as s:
+        assert s.execute(select(JobWorker.id)).scalars().all() == ["w1"]
     queue.forget_worker(db, "w1")
     with db.session() as s:
         assert s.execute(select(JobWorker.id)).scalars().all() == []

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
@@ -12,12 +11,10 @@ from fastapi.responses import JSONResponse
 
 from archsim_api.config import Settings, get_settings
 from archsim_api.db import Base, Database
-from archsim_api.jobs import ProcessJobRunner, ThreadJobRunner
+from archsim_api.jobs.worker import JobService, Worker, WorkerConfig
 from archsim_api.migrations import upgrade_to_head
 from archsim_api.routers import calibration, export, importing, meta, projects, runs
-from archsim_engine import ENGINE_VERSION, SimulationLimits, default_registry
-
-log = logging.getLogger("archsim.api")
+from archsim_engine import ENGINE_VERSION, default_registry
 
 API_PREFIX = "/api/v1"
 
@@ -25,14 +22,11 @@ API_PREFIX = "/api/v1"
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     db = Database(settings.database_url)
-    runner = ProcessJobRunner if settings.runner == "process" else ThreadJobRunner
-    jobs = runner(
-        db,
-        SimulationLimits(
-            max_requests=settings.max_requests, max_wall_seconds=settings.max_wall_seconds
-        ),
-        settings.max_concurrent_runs,
-    )
+    # Runs are queued in the database. By default this process also simulates them (one
+    # command, no other service); with ARCHSIM_EMBEDDED_WORKER=false, `archsim-api worker`
+    # processes do, and any number of API instances can share the database.
+    worker = Worker(db, WorkerConfig.from_settings(settings)) if settings.embedded_worker else None
+    jobs = JobService(db, worker)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -40,11 +34,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             upgrade_to_head(settings.database_url)
         else:
             Base.metadata.create_all(db.engine, checkfirst=True)
-        interrupted = jobs.recover_interrupted()
-        if interrupted:
-            log.warning("marked %d interrupted run(s) as failed", interrupted)
+        jobs.start()  # requeues runs a stopped worker left behind, then takes runs
         yield
-        jobs.shutdown()
+        jobs.shutdown()  # gives back runs still in flight: requeued for the next worker
         db.engine.dispose()
 
     app = FastAPI(

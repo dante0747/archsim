@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session, undefer
 from archsim_api.config import Settings
 from archsim_api.db import SimulationRun
 from archsim_api.deps import get_jobs, get_registry, get_session, get_settings_dep, raise_issues
-from archsim_api.jobs import ACTIVE, ThreadJobRunner
+from archsim_api.jobs.queue import ACTIVE
+from archsim_api.jobs.worker import JobService
 from archsim_api.routers.projects import get_project_or_404
 from archsim_api.schemas import BatchRunCreate, RunCreate, RunOut
 from archsim_engine import (
@@ -44,7 +45,7 @@ def _run_out(run: SimulationRun, reproduces: str | None = None) -> RunOut:
 
 def _enqueue(
     session: Session,
-    jobs: ThreadJobRunner,
+    jobs: JobService,
     registry: ComponentRegistry,
     settings: Settings,
     project_id: str,
@@ -69,10 +70,7 @@ def _enqueue(
         engine_version=ENGINE_VERSION,
         input_document=prep.document.to_json_dict(),
     )
-    session.add(run)
-    session.commit()
-    jobs.submit(run.id)
-    return run
+    return jobs.enqueue(session, run)
 
 
 def get_run_or_404(session: Session, run_id: str, with_payload: bool = False) -> SimulationRun:
@@ -90,7 +88,7 @@ def create_run(
     project_id: str,
     body: RunCreate,
     session: Session = Depends(get_session),
-    jobs: ThreadJobRunner = Depends(get_jobs),
+    jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
 ) -> RunOut:
@@ -108,7 +106,7 @@ def create_batch(
     project_id: str,
     body: BatchRunCreate,
     session: Session = Depends(get_session),
-    jobs: ThreadJobRunner = Depends(get_jobs),
+    jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
 ) -> list[RunOut]:
@@ -174,7 +172,7 @@ def get_run_input(run_id: str, session: Session = Depends(get_session)) -> JSONR
 
 @router.post("/runs/{run_id}/cancel", response_model=RunOut)
 def cancel_run(
-    run_id: str, session: Session = Depends(get_session), jobs: ThreadJobRunner = Depends(get_jobs)
+    run_id: str, session: Session = Depends(get_session), jobs: JobService = Depends(get_jobs)
 ) -> RunOut:
     run = get_run_or_404(session, run_id)
     if run.status in ACTIVE:
@@ -187,7 +185,7 @@ def cancel_run(
 def rerun(
     run_id: str,
     session: Session = Depends(get_session),
-    jobs: ThreadJobRunner = Depends(get_jobs),
+    jobs: JobService = Depends(get_jobs),
     registry: ComponentRegistry = Depends(get_registry),
     settings: Settings = Depends(get_settings_dep),
 ) -> RunOut:
@@ -209,7 +207,7 @@ def rerun(
 
 @router.delete("/runs/{run_id}", status_code=204)
 def delete_run(
-    run_id: str, session: Session = Depends(get_session), jobs: ThreadJobRunner = Depends(get_jobs)
+    run_id: str, session: Session = Depends(get_session), jobs: JobService = Depends(get_jobs)
 ) -> Response:
     run = get_run_or_404(session, run_id)
     if run.status in ACTIVE:

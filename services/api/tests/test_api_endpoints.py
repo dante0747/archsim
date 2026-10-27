@@ -6,6 +6,7 @@ import copy
 import json
 import os
 import time
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from api_helpers import create_project, make_client, starter, wait_for
-from archsim_api.db import Project, SimulationRun
+from archsim_api.db import Project, SimulationRun, utcnow
 
 API = "/api/v1"
 
@@ -302,33 +303,61 @@ def test_limits_and_cancellation(db_url: str) -> None:
         assert c.get(f"{API}/runs/{first['id']}/report").status_code == 409
 
 
-def test_saved_work_survives_restart_and_interrupted_runs_are_marked(db_url: str) -> None:
+def test_saved_work_survives_restart_and_interrupted_runs_are_requeued(db_url: str) -> None:
     with make_client(db_url) as c:
         p = create_project(c)
         run = c.post(f"{API}/projects/{p['id']}/runs", json={}).json()
-        wait_for(c, run["id"])
-    # simulate a crash that left a run active
+        assert wait_for(c, run["id"])["status"] == "succeeded"
+        document = c.get(f"{API}/runs/{run['id']}/input").json()
+
+    # a crash left runs held by a worker that is gone: their leases ran out
     engine = create_engine(db_url)
+    gone = utcnow() - timedelta(minutes=1)
     with Session(engine) as s:
-        stuck = SimulationRun(
-            project_id=p["id"],
-            status="running",
-            progress=0.3,
-            seed=1,
-            engine_version="x",
-            input_document={},
-        )
-        s.add(stuck)
+        stuck = {
+            "retried": SimulationRun(attempts=1, lease_owner="gone", lease_expires_at=gone),
+            "exhausted": SimulationRun(attempts=2, lease_owner="gone", lease_expires_at=gone),
+            "pre-queue": SimulationRun(attempts=0),  # left by an API from before the queue
+        }
+        for r in stuck.values():
+            r.project_id, r.status, r.progress, r.seed = p["id"], "running", 0.3, 1
+            r.engine_version, r.input_document = "x", document
+            s.add(r)
         s.commit()
-        stuck_id = stuck.id
+        ids = {name: r.id for name, r in stuck.items()}
         assert s.get(Project, p["id"]) is not None
     engine.dispose()
+
     with make_client(db_url) as c:
         assert c.get(f"{API}/projects/{p['id']}").json()["name"] == p["name"]
         assert c.get(f"{API}/runs/{run['id']}").json()["status"] == "succeeded"
-        recovered = c.get(f"{API}/runs/{stuck_id}").json()
-        assert recovered["status"] == "failed"
-        assert "Interrupted" in recovered["error"]["message"]
+        # requeued at start-up and simulated again
+        for name in ("retried", "pre-queue"):
+            assert wait_for(c, ids[name])["status"] == "succeeded", name
+        # a run whose worker stopped on its second attempt too is not tried a third time
+        failed = c.get(f"{API}/runs/{ids['exhausted']}").json()
+        assert failed["status"] == "failed"
+        assert "simulation worker stopped unexpectedly" in failed["error"]["message"]
+
+
+def test_a_run_in_flight_when_the_api_stops_finishes_after_a_restart(db_url: str) -> None:
+    with make_client(db_url) as c:
+        p = create_project(c, starter(duration=20, warmup=2))
+        run = c.post(f"{API}/projects/{p['id']}/runs", json={}).json()
+        deadline = time.monotonic() + 60
+        while c.get(f"{API}/runs/{run['id']}").json()["progress"] == 0:
+            assert time.monotonic() < deadline
+            time.sleep(0.05)
+    # stopping gave the run back without counting the attempt
+    engine = create_engine(db_url)
+    with Session(engine) as s:
+        row = s.get(SimulationRun, run["id"])
+        assert row is not None
+        assert (row.status, row.attempts, row.lease_owner) == ("queued", 0, None)
+    engine.dispose()
+    with make_client(db_url) as c:
+        done = wait_for(c, run["id"], timeout=120)
+        assert done["status"] == "succeeded", done
 
 
 def test_deleting_project_removes_runs(client: TestClient) -> None:

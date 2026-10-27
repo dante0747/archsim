@@ -39,6 +39,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.orm import Session
 
 from archsim_api.db import Database, JobWorker, SimulationRun, utcnow
 
@@ -100,14 +101,13 @@ def _claimable(table: Any, exclude: Collection[str]) -> ColumnElement[bool]:
     return and_(queued, table.c.id.not_in(list(exclude))) if exclude else queued
 
 
-def enqueue(db: Database, run: SimulationRun) -> SimulationRun:
-    """Store a new run as queued; any worker may claim it from now on."""
+def enqueue(session: Session, run: SimulationRun) -> SimulationRun:
+    """Store a new run as queued (committing ``session``); any worker may claim it from now on."""
     run.status = "queued"
     run.progress = 0.0
     run.attempts = 0
-    with db.session() as s:
-        s.add(run)
-        s.commit()
+    session.add(run)
+    session.commit()
     return run
 
 
@@ -207,7 +207,8 @@ def heartbeat(
     running: int,
     status: str = "running",
 ) -> None:
-    """Record that ``worker_id`` is alive (``job_workers``), for operators and health checks."""
+    """Record that ``worker_id`` is alive, with its slots and runs in flight (``job_workers``,
+    for operators: which workers exist and how busy they are)."""
     now = utcnow()
     with db.engine.begin() as conn:
         res = conn.execute(
@@ -233,16 +234,6 @@ def heartbeat(
 def forget_worker(db: Database, worker_id: str) -> None:
     with db.engine.begin() as conn:
         conn.execute(delete(workers).where(workers.c.id == worker_id))
-
-
-def live_workers(db: Database, within_seconds: float) -> int:
-    """Workers that sent a heartbeat in the last ``within_seconds``."""
-    since = utcnow() - timedelta(seconds=within_seconds)
-    with db.engine.connect() as conn:
-        count = conn.execute(
-            select(func.count()).select_from(workers).where(workers.c.heartbeat_at >= since)
-        ).scalar_one()
-    return int(count)
 
 
 def set_progress(db: Database, run_id: str, worker_id: str, progress: float) -> bool:
