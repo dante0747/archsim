@@ -33,8 +33,13 @@ function Card({ title, description, children }: { title: string; description?: R
   );
 }
 
-function limitText(n: number | null, unit: string) {
-  return n == null ? `no limit of ${unit}` : `${n} ${unit}`;
+/** "Limits: 2 runs at once, 60 runs an hour." from the limits that apply (null: none). */
+export function limitsText(atOnce: number | null, perHour: number | null): string {
+  const parts = [
+    ...(atOnce == null ? [] : [`${atOnce} ${atOnce === 1 ? "run" : "runs"} at once`]),
+    ...(perHour == null ? [] : [`${perHour} runs an hour`]),
+  ];
+  return parts.length ? `Limits: ${parts.join(", ")}.` : "No run limits beyond the server's own.";
 }
 
 function WorkspaceCard({ workspace }: { workspace: WorkspaceInfo }) {
@@ -90,7 +95,7 @@ function WorkspaceCard({ workspace }: { workspace: WorkspaceInfo }) {
       </div>
       <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-2">
         <Badge>{workspace.kind}</Badge>
-        Runs: {limitText(workspace.maxConcurrentRuns, "at once")}, {limitText(workspace.maxRunsPerHour, "per hour")} beyond the server&apos;s own.
+        {limitsText(workspace.maxConcurrentRuns, workspace.maxRunsPerHour)}
       </p>
       {owner && workspace.kind === "team" && workspace.id !== "default" && (
         <Button variant="danger" size="sm" className="mt-4" onClick={() => void remove()}>

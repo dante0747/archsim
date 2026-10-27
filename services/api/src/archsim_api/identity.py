@@ -12,6 +12,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from archsim_api import limits
+from archsim_api.config import Settings
 from archsim_api.db import (
     DEFAULT_WORKSPACE_ID,
     LOCAL_USER_ID,
@@ -40,7 +42,9 @@ class WorkspaceOut(ApiModel):
     role: Role
     """Your role in it."""
     max_concurrent_runs: int | None
+    """Runs simulated at once: the workspace's own limit, else its kind's (None: no limit)."""
     max_runs_per_hour: int | None
+    """Runs it may start per hour, the same way (None: no limit)."""
     created_at: UtcDateTime
 
 
@@ -57,15 +61,20 @@ def conflict(message: str) -> HTTPException:
     return HTTPException(409, detail={"message": message, "issues": []})
 
 
-def workspace_out(ws: Workspace, role: str) -> WorkspaceOut:
+def workspace_out(ws: Workspace, role: str, settings: Settings) -> WorkspaceOut:
+    """A workspace with the limits that apply to it."""
+    profile = limits.profile(settings, ws.kind)
+    at_once = ws.max_concurrent_runs
     return WorkspaceOut.model_validate(
         {
             "id": ws.id,
             "name": ws.name,
             "kind": ws.kind,
             "role": role,
-            "max_concurrent_runs": ws.max_concurrent_runs,
-            "max_runs_per_hour": ws.max_runs_per_hour,
+            "max_concurrent_runs": at_once if at_once is not None else profile.max_concurrent_runs,
+            "max_runs_per_hour": limits.runs_per_hour(settings, ws)
+            if settings.limits_on
+            else ws.max_runs_per_hour,
             "created_at": ws.created_at,
         }
     )
@@ -76,7 +85,11 @@ def user_out(user: User) -> UserOut:
 
 
 def workspaces_of(
-    session: Session, user_id: str, only: str | None = None, read_only: bool = False
+    session: Session,
+    settings: Settings,
+    user_id: str,
+    only: str | None = None,
+    read_only: bool = False,
 ) -> list[WorkspaceOut]:
     """The workspaces a user belongs to (``only``: just that one, for a one-workspace token),
     personal first, then by name."""
@@ -88,7 +101,7 @@ def workspaces_of(
     if only is not None:
         stmt = stmt.where(Workspace.id == only)
     rows = session.execute(stmt).all()
-    out = [workspace_out(ws, "viewer" if read_only else role) for ws, role in rows]
+    out = [workspace_out(ws, "viewer" if read_only else role, settings) for ws, role in rows]
     return sorted(out, key=lambda w: (w.kind != "personal", w.name.lower(), w.id))
 
 

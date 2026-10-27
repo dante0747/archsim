@@ -207,9 +207,10 @@ class HttpPrometheus:
             for a in addresses:
                 ip = _ip_literal(a)
                 if ip is None or not is_public(ip):
+                    what = "is" if literal is not None else "resolves to"
                     raise PrometheusError(
-                        f"{host} is a loopback, private, link-local or otherwise non-public "
-                        "address, which this server does not call"
+                        f"{host} {what} a loopback, private, link-local or otherwise "
+                        "non-public address, which this server does not call"
                     )
         return addresses[0]
 

@@ -60,11 +60,13 @@ router = APIRouter(tags=["workspaces"])
 
 @router.get("/workspaces", response_model=list[WorkspaceOut])
 def list_workspaces(
-    principal: Principal = Depends(get_principal), session: Session = Depends(get_session)
+    principal: Principal = Depends(get_principal),
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> list[WorkspaceOut]:
     """The workspaces you belong to, with your role in each (personal first)."""
     return workspaces_of(
-        session, principal.user_id, principal.token_workspace_id, principal.read_only
+        session, settings, principal.user_id, principal.token_workspace_id, principal.read_only
     )
 
 
@@ -86,7 +88,7 @@ def create_team_workspace(
     )
     ws = create_workspace(session, body.name.strip() or "Team", "team", principal.user_id)
     session.commit()
-    return workspace_out(ws, "owner")
+    return workspace_out(ws, "owner", settings)
 
 
 @router.get("/workspaces/{workspace_id}", response_model=WorkspaceOut)
@@ -94,9 +96,10 @@ def get_workspace_details(
     workspace_id: str,
     principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> WorkspaceOut:
     access = workspace_access(session, principal, workspace_id)
-    return workspace_out(access.workspace, access.role)
+    return workspace_out(access.workspace, access.role, settings)
 
 
 @router.patch("/workspaces/{workspace_id}", response_model=WorkspaceOut)
@@ -105,12 +108,13 @@ def update_workspace(
     body: WorkspaceUpdate,
     principal: Principal = Depends(get_principal),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> WorkspaceOut:
     access = workspace_access(session, principal, workspace_id, "owner")
     if body.name:
         access.workspace.name = body.name.strip()[:120] or access.workspace.name
     session.commit()
-    return workspace_out(access.workspace, access.role)
+    return workspace_out(access.workspace, access.role, settings)
 
 
 @router.delete("/workspaces/{workspace_id}", status_code=204)
@@ -322,6 +326,7 @@ def accept_invitation(
     body: InvitationToken,
     principal: Principal = Depends(require_session),
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings_dep),
 ) -> WorkspaceOut:
     """Join the workspace an invitation is for. A member keeps the stronger of the two roles."""
     inv = _open_invitation(session, principal, body.token)
@@ -336,7 +341,7 @@ def accept_invitation(
     session.commit()
     ws = session.get(Workspace, inv.workspace_id)
     assert ws is not None
-    return workspace_out(ws, m.role)
+    return workspace_out(ws, m.role, settings)
 
 
 def _member_out(m: Membership, u: User) -> MemberOut:

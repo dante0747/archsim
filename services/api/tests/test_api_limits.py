@@ -172,6 +172,16 @@ def test_profiles_per_kind(db_url: str) -> None:
     assert limits.simulation_limits(local, Workspace(kind="sandbox")).max_wall_seconds == 20.0
 
 
+def test_workspaces_report_the_limits_that_apply(hosted: TestClient, db_url: str) -> None:
+    (mine,) = hosted.get(f"{API}/workspaces").json()
+    assert (mine["kind"], mine["maxConcurrentRuns"], mine["maxRunsPerHour"]) == ("personal", 2, 60)
+    _set(hosted, mine["id"], max_concurrent_runs=5)
+    assert hosted.get(f"{API}/workspaces/{mine['id']}").json()["maxConcurrentRuns"] == 5
+    with make_client(db_url, embedded_worker=False) as local:
+        (default,) = local.get(f"{API}/workspaces").json()
+        assert (default["maxConcurrentRuns"], default["maxRunsPerHour"]) == (None, None)
+
+
 def test_a_sandbox_holds_five_projects(hosted: TestClient) -> None:
     sandbox = add_workspace(hosted, "sand", kind="sandbox")
     me = hosted.get(f"{API}/auth/me").json()["user"]["id"]

@@ -107,7 +107,7 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
         <MenuSeparator />
         <MenuItem asChild>
           <Link href="/settings">
-            <Settings /> Settings, members and tokens
+            <Settings /> Settings
           </Link>
         </MenuItem>
         {me.kind === "session" && (

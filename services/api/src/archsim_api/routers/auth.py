@@ -64,7 +64,7 @@ def me(
         kind=principal.kind,
         user=user_out(user),
         workspaces=workspaces_of(
-            session, user.id, principal.token_workspace_id, principal.read_only
+            session, settings, user.id, principal.token_workspace_id, principal.read_only
         ),
         csrf_token=oauth.csrf_token(settings, principal.session_id)
         if principal.session_id
