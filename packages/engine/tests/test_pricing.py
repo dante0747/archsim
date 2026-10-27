@@ -157,7 +157,10 @@ def test_schema_1_1_documents_migrate_to_1_2() -> None:
     raw = starter()
     raw["schemaVersion"] = "1.1"
     out, notes = migrate_document(raw)
-    assert out["schemaVersion"] == "1.2" and notes == ["migrated schema 1.1 -> 1.2"]
+    assert out["schemaVersion"] == "1.3" and notes == [
+        "migrated schema 1.1 -> 1.2",
+        "migrated schema 1.2 -> 1.3",
+    ]
     assert load_document(raw).pricing.provider == "generic"
     from archsim_engine import DocumentInvalidError
 

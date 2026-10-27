@@ -1,11 +1,32 @@
 # Implementation status
 
-State as of 2026-10-26 (engine 0.9.0, schema 1.2, report 1.11). This file separates what is
+State as of 2026-10-26 (engine 0.10.0, schema 1.3, report 1.11). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Product review fixes (2026-10-26, engine 0.10.0, schema 1.3).**
+
+- Cache-aside is modelled as applications do it. A cache with no `miss` link answers "miss" to
+  the calling service, which reads the data store itself over a link set to `readsOnMiss`
+  ("Reads only on a cache miss") and writes the value back; a link set to `continueOnFailure`
+  ("Carry on if this call fails") turns a failed lookup into a miss and skips a failed
+  invalidation. Read-through (a `miss` link) works as before. The "Cache-aside web API"
+  starter now uses cache-aside: Redis no longer calls PostgreSQL, and losing Redis sends reads
+  to PostgreSQL instead of failing them (with the starter's 8 API workers, a 15 s outage at
+  400 req/s now ends at 88.7% success from API saturation, where reads used to fail
+  outright). The static load estimate, design review, findings, validation, import guesses
+  and export round trips follow the new links (`test_cache_aside.py`, import tests).
+- Breaking point: latency percentiles cover successful requests only, so the throughput chart
+  now draws failed requests, both charts shade the steps that failed more requests than the
+  availability objective allows (1% without one), failing p95 points are marked, the tooltip
+  gives the success rate, and the Markdown report says so. The Compare map leaves runs with
+  too many failures off the Pareto frontier.
+- The Test plan no longer says "the plan changed since" right after a run on PostgreSQL:
+  JSONB reorders keys, and the check compared `JSON.stringify` output. It now compares the
+  values (`sameExperiment` in `lib/faults.ts`, tested with a JSONB-ordered run).
 
 **Review fixes (2026-10-26, branch review-fixes on top of phases 1-8).** A review of phases
 1-8 found bugs the tests did not cover; each fix below has a regression test that failed

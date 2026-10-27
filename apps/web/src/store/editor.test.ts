@@ -26,7 +26,7 @@ describe("editor store", () => {
   it("loads a project clean", () => {
     const s = useEditor.getState();
     expect(s.nodes).toHaveLength(5);
-    expect(s.edges).toHaveLength(5);
+    expect(s.edges).toHaveLength(4);
     expect(s.dirty).toBe(false);
     expect(s.revision).toBe(3);
   });
@@ -108,7 +108,7 @@ describe("editor store", () => {
     useEditor.getState().setMetadata({ name: "Renamed" });
     const doc = useEditor.getState().toDocument();
     expect(doc.metadata.name).toBe("Renamed");
-    expect(doc.schemaVersion).toBe("1.2");
+    expect(doc.schemaVersion).toBe("1.3");
   });
 });
 

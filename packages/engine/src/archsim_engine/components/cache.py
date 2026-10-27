@@ -1,5 +1,10 @@
-"""Cache used cache-aside (Redis, Valkey, Memcached, CDN edge, Varnish): hits return
-immediately, misses continue to the data store linked from the ``miss`` port.
+"""Cache (Redis, Valkey, Memcached, CDN edge, Varnish). Hits return immediately. A miss is
+handled one of two ways:
+
+- **cache-aside** (no ``miss`` link): the cache answers "miss" and the calling service reads the
+  data store itself over a link set to ``readsOnMiss``, then writes the value back here;
+- **read-through** (a ``miss`` link): the cache asks the data store on that link and repopulates
+  itself.
 
 The technology sets behaviour (see ``archsim_engine.technology``): Redis and Valkey execute
 commands on one thread per shard however many cores they have, evict by policy (noeviction makes
@@ -30,7 +35,9 @@ from archsim_engine.issues import Issue, error, warning
 from archsim_engine.metrics import Gauge
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
+    MISS,
     OK,
+    Handler,
     Outcome,
     Request,
     RuntimeComponent,
@@ -481,12 +488,20 @@ class CacheRuntime(RuntimeComponent):
             m.depart(env.now, OK, req)
             return OK
         m.count("misses", env.now)
-        span(req, self.id, "miss", env.now, env.now, "not cached: asking the data store")
         miss_edges = self.out_edges("miss")
-        if not miss_edges:  # prevented by validation; kept for safety
-            outcome = rejected("miss_unrouted", self.id)
-            m.depart(env.now, outcome, req)
-            return outcome
+        if not miss_edges:
+            # cache-aside: the caller reads the data store itself and writes the value back
+            span(
+                req,
+                self.id,
+                "miss",
+                env.now,
+                env.now,
+                "not cached: the caller reads the data store",
+            )
+            m.depart(env.now, MISS, req)
+            return MISS
+        span(req, self.id, "miss", env.now, env.now, "not cached: asking the data store")
         outcome = yield from self.ctx.call(miss_edges[0], req, self.id)
         if outcome.ok and self.config.populate_on_miss:
             r = yield from self._command(sh, req)
@@ -495,14 +510,37 @@ class CacheRuntime(RuntimeComponent):
         m.depart(env.now, outcome, req)
         return outcome
 
+    def populate_handler(self) -> Handler | None:
+        """The write-back a cache-aside caller sends after reading the data store on a miss (one
+        more command on this cache), or None when this cache does not populate on miss."""
+        return self._populate if self.config.populate_on_miss else None
+
+    def _populate(self, req: Request) -> Generator[simpy.Event, Any, Outcome]:
+        env = self.env
+        m = self.m
+        m.arrive(env.now)
+        sh = self._shard(req.key)
+        t0 = env.now
+        reason = yield from self._command(sh, req)
+        if reason is not None:
+            m.reject(reason, env.now)
+            return rejected(reason, self.id)
+        if not self.ttl_mode or self._fill(sh, req.key):
+            m.count("populates", env.now)
+            span(req, self.id, "populate", t0, env.now, "value written back to the cache")
+        m.depart(env.now, OK, req)
+        return OK
+
 
 class CacheModel(ComponentModel):
     type = "cache"
     display_name = "Cache"
     category = "storage"
     description = (
-        "Cache-aside: reads that hit return from memory; misses continue through the 'miss' port "
-        "to the data store, then optionally repopulate the cache. Writes invalidate the key."
+        "Reads that hit return from memory. On a miss, either the calling service reads the data "
+        "store itself and writes the value back (cache-aside: leave the 'miss' port empty and set "
+        "the service's link to the data store to 'Reads only on a cache miss'), or the cache asks "
+        "the data store linked to its 'miss' port (read-through). Writes invalidate the key."
     )
     icon = "zap"
     config_model = CacheConfig
@@ -513,7 +551,8 @@ class CacheModel(ComponentModel):
             "miss",
             "out",
             "Miss",
-            "Where reads go when the key is not cached (usually the database).",
+            "Read-through: where the cache sends reads it does not hold (usually the database). "
+            "Leave it empty for cache-aside, where the calling service reads the data store.",
             request_types=("read",),
             max_edges=1,
         ),
@@ -522,6 +561,7 @@ class CacheModel(ComponentModel):
         "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
         "Technology behaviour: single-threaded commands (Redis, Valkey) or worker threads (Memcached)",
         "Cluster shards: keys hash to a shard with its own executors and memory",
+        "Cache-aside (the caller reads the data store and writes the value back) or read-through (the cache reads it through its miss link)",
         "Miss path latency added to the caller; repopulation cost",
         "Memory (when set, TTL model): key capacity per shard, LRU eviction or noeviction out-of-memory errors",
         "RDB snapshots (when on): fork stalls block commands for a time proportional to the data",
@@ -642,19 +682,36 @@ class CacheModel(ComponentModel):
         miss_edges = [e for e in view.out_edges.get(node.id, []) if e.source_port == "miss"]
         receives_reads = "read" in view.incoming_types.get(node.id, {"read"})
         name = node.label or node.id
-        if config.can_miss() and not miss_edges and receives_reads:
+        # cache-aside: callers that read the data store themselves on a miss
+        readers = [
+            e.source for e in view.in_edges.get(node.id, []) if "read" in e.config.request_types
+        ]
+        unhandled = [
+            src
+            for src in dict.fromkeys(readers)
+            if not any(
+                x.config.reads_on_miss and "read" in x.config.request_types
+                for x in view.out_edges.get(src, [])
+            )
+            or view.nodes[src].type != "service"
+        ]
+        if config.can_miss() and not miss_edges and receives_reads and unhandled:
             what = (
                 f"hit ratio {config.hit_ratio:.0%}"
                 if config.hit_model == "fixed_ratio"
                 else "TTL-based keys expire"
             )
+            caller = view.nodes[unhandled[0]].label or unhandled[0]
             issues.append(
                 error(
                     "cache.miss_unrouted",
-                    f"{name} can miss ({what}) but its 'miss' port is not connected, so missed "
-                    "reads would have nowhere to go.",
+                    f"{name} can miss ({what}) but nothing reads the data on a miss: its 'miss' "
+                    f"port is not connected and {caller} has no link set to 'Reads only on a "
+                    "cache miss'.",
                     node_id=node.id,
-                    hint="Connect the cache's 'miss' port to the database that holds the data.",
+                    hint="Cache-aside: give the service a link to the database with 'Reads only "
+                    "on a cache miss' on. Read-through: connect the cache's 'miss' port to the "
+                    "database.",
                 )
             )
         if not config.can_miss() and miss_edges:

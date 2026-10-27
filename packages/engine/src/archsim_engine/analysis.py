@@ -383,21 +383,36 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
         s = n["summary"]
         misses = s["counters"].get("misses", 0)
         miss_rps = misses / window["measuredS"] if window["measuredS"] else 0.0
-        target = next(
+        edges = resolved.architecture.edges
+        # read-through: the cache's miss link; cache-aside: the callers' links read on a miss
+        callers = {e.source for e in edges if e.target == n["id"] and e.source_port != "miss"}
+        through = next(
             (
                 by_id[e.target]["label"]
-                for e in resolved.architecture.edges
+                for e in edges
                 if e.source == n["id"] and e.source_port == "miss" and e.target in by_id
             ),
-            "the data store",
+            None,
         )
+        aside = next(
+            (
+                (by_id[e.source]["label"], by_id[e.target]["label"])
+                for e in edges
+                if e.source in callers and e.config.reads_on_miss and e.target in by_id
+            ),
+            None,
+        )
+        if through is None and aside is not None:
+            then = f"{miss_rps:,.0f} reads/s missed and {aside[0]} read them from {aside[1]}"
+        else:
+            then = f"{miss_rps:,.0f} reads/s continued to {through or 'the data store'}"
         findings.append(
             {
                 "severity": "info",
                 "kind": "cache",
                 "nodeId": n["id"],
                 "title": f"{n['label']} hit ratio {s['hitRatio']:.0%}",
-                "detail": f"{s['hitRatio']:.0%} of reads were served from the cache; {miss_rps:,.0f} reads/s continued to {target}.",
+                "detail": f"{s['hitRatio']:.0%} of reads were served from the cache; {then}.",
                 "evidence": {"hitRatio": s["hitRatio"], "missRps": round(miss_rps, 3)},
             }
         )

@@ -359,7 +359,12 @@ class DesignBuilder:
         return next((n for n in self.nodes if n["id"] == node_id), None)
 
     def link(
-        self, source: str, target: str, port: str | None = None, types: list[str] | None = None
+        self,
+        source: str,
+        target: str,
+        port: str | None = None,
+        types: list[str] | None = None,
+        extra: Json | None = None,
     ) -> bool:
         """Add a link (once). Inferred links are listed as guesses in the import report."""
         src, dst = self.node(source), self.node(target)
@@ -384,7 +389,7 @@ class DesignBuilder:
                 "sourcePort": port,
                 "target": target,
                 "targetPort": "in",
-                "config": {"requestTypes": types or ["read", "write"]},
+                "config": {"requestTypes": types or ["read", "write"], **(extra or {})},
             }
         )
         return True
@@ -401,8 +406,8 @@ class DesignBuilder:
 
     def link_parts(self, parts: list[Json]) -> None:
         for p in parts:
-            for target, port, types in decode_calls(str(p.get("calls") or "")):
-                self.link(p["id"], target, port, types)
+            for target, port, types, extra in decode_calls(str(p.get("calls") or "")):
+                self.link(p["id"], target, port, types, extra)
 
     def provenance(self) -> Json:
         """Every number the import set is assumed (someone wrote it in the file), with its source
@@ -493,9 +498,12 @@ def fit_memory(b: DesignBuilder, report: ImportReport) -> None:
 
 
 def wire_cache_misses(b: DesignBuilder, report: ImportReport) -> None:
-    """A cache's misses go to the database its callers use (when there is exactly one), or to
-    the only database in the design; the link is a guess. A cache whose misses go nowhere
-    makes the design invalid."""
+    """Who reads the data on a cache miss (a guess). When every service that uses a cache also
+    calls one database, they do it themselves (cache-aside, how applications use Redis or
+    Memcached): their link to that database gets reads only on a miss. Otherwise the cache's
+    misses go to the database its callers use (when there is exactly one), or to the only
+    database in the design (read-through). A cache whose misses go nowhere makes the design
+    invalid."""
     databases = [n["id"] for n in b.nodes if n["type"] == "database"]
     for n in list(b.nodes):
         if n["type"] != "cache" or n["config"].get("technology") == "cdn":
@@ -503,6 +511,29 @@ def wire_cache_misses(b: DesignBuilder, report: ImportReport) -> None:
         if b.callees(n["id"], "miss"):
             continue
         callers = b.callers(n["id"])
+        db_links = [
+            e
+            for c in callers
+            for e in b.edges
+            if e["source"] == c and (b.node(e["target"]) or {}).get("type") == "database"
+        ]
+        if any(e["config"].get("readsOnMiss") for e in db_links):
+            continue  # cache-aside already (ArchSim's own export)
+        dbs = {e["target"] for e in db_links}
+        if (
+            callers
+            and len(dbs) == 1
+            and all((b.node(c) or {}).get("type") == "service" for c in callers)
+            and {e["source"] for e in db_links} == set(callers)
+            and all("read" in e["config"].get("requestTypes", []) for e in db_links)
+        ):
+            for e in db_links:
+                e["config"]["readsOnMiss"] = True
+                report.guessed.append(
+                    f"{e['source']} reads {e['target']} only on a {n['id']} miss (cache-aside: "
+                    f"{e['source']} calls both)"
+                )
+            continue
         used = list(
             dict.fromkeys(
                 t

@@ -7,6 +7,7 @@
  * capacity number is the highest load that still meets every objective, which is usually below
  * raw saturation.
  */
+import { tooManyFailures } from "./slo";
 import type { ArchitectureDocument, Objectives, Override, Report, Scenario } from "./types";
 
 export const SWEEP_SCENARIO_PREFIX = "sweep-";
@@ -47,6 +48,11 @@ export interface SweepAnalysis {
   maxWithinSlo: SweepRow | null;
   /** Bottleneck at the knee (or at the heaviest step when there is no knee). */
   saturatedAt: string | null;
+  /**
+   * First step at which more requests failed than the objectives allow. From there on the
+   * latency percentiles (successful requests only) no longer describe the load.
+   */
+  failingFrom: SweepRow | null;
   verdict: string;
 }
 
@@ -120,6 +126,11 @@ export function buildSweepDocument(
   };
 }
 
+/** Requests per second that failed at a step (null while unknown). */
+export function failedRps(row: Pick<SweepRow, "offered" | "successRate">): number | null {
+  return row.offered != null && row.successRate != null ? row.offered * (1 - row.successRate) : null;
+}
+
 /** One curve row from a step's report. */
 export function sweepRow(rps: number, report: Report | null, runId: string | null = null): SweepRow {
   if (!report) {
@@ -157,7 +168,7 @@ const fmt = (v: number) => Math.round(v).toLocaleString("en-US");
 export function analyzeSweep(input: SweepRow[], obj: Objectives): SweepAnalysis {
   const rows = input.filter((r) => r.throughput != null).sort((a, b) => a.rps - b.rps);
   if (rows.length === 0) {
-    return { rows, knee: null, kneeReason: null, maxWithinSlo: null, saturatedAt: null, verdict: "No completed steps yet." };
+    return { rows, knee: null, kneeReason: null, maxWithinSlo: null, saturatedAt: null, failingFrom: null, verdict: "No completed steps yet." };
   }
   const baseP95 = rows.find((r) => r.p95 != null)?.p95 ?? null;
   let knee: SweepRow | null = null;
@@ -196,5 +207,6 @@ export function analyzeSweep(input: SweepRow[], obj: Objectives): SweepAnalysis 
     if (saturatedAt) verdict += ` at ${saturatedAt}`;
     verdict += ".";
   }
-  return { rows, knee, kneeReason, maxWithinSlo, saturatedAt, verdict };
+  const failingFrom = rows.find((r) => tooManyFailures(r.successRate, obj)) ?? null;
+  return { rows, knee, kneeReason, maxWithinSlo, saturatedAt, failingFrom, verdict };
 }

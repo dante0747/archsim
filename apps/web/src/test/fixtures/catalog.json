@@ -1913,7 +1913,7 @@
       "type": "cache",
       "displayName": "Cache",
       "category": "storage",
-      "description": "Cache-aside: reads that hit return from memory; misses continue through the 'miss' port to the data store, then optionally repopulate the cache. Writes invalidate the key.",
+      "description": "Reads that hit return from memory. On a miss, either the calling service reads the data store itself and writes the value back (cache-aside: leave the 'miss' port empty and set the service's link to the data store to 'Reads only on a cache miss'), or the cache asks the data store linked to its 'miss' port (read-through). Writes invalidate the key.",
       "icon": "zap",
       "isTrafficSource": false,
       "ports": [
@@ -1933,7 +1933,7 @@
           "name": "miss",
           "direction": "out",
           "label": "Miss",
-          "description": "Where reads go when the key is not cached (usually the database).",
+          "description": "Read-through: where the cache sends reads it does not hold (usually the database). Leave it empty for cache-aside, where the calling service reads the data store.",
           "requestTypes": [
             "read"
           ],
@@ -2261,6 +2261,7 @@
         "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
         "Technology behaviour: single-threaded commands (Redis, Valkey) or worker threads (Memcached)",
         "Cluster shards: keys hash to a shard with its own executors and memory",
+        "Cache-aside (the caller reads the data store and writes the value back) or read-through (the cache reads it through its miss link)",
         "Miss path latency added to the caller; repopulation cost",
         "Memory (when set, TTL model): key capacity per shard, LRU eviction or noeviction out-of-memory errors",
         "RDB snapshots (when on): fork stalls block commands for a time proportional to the data",
@@ -5744,6 +5745,28 @@
       "min": 0,
       "max": 1000,
       "group": "Routing"
+    },
+    {
+      "key": "readsOnMiss",
+      "label": "Reads only on a cache miss",
+      "kind": "boolean",
+      "nullable": false,
+      "description": "Cache-aside: send reads over this link only after the service's cache lookup for the same request missed (or failed, when that link carries on after failures). The service then reads the data store itself and writes the value back to the cache. Writes on this link are always sent.",
+      "default": false,
+      "assumption": false,
+      "headline": false,
+      "group": "Routing"
+    },
+    {
+      "key": "continueOnFailure",
+      "label": "Carry on if this call fails",
+      "kind": "boolean",
+      "nullable": false,
+      "description": "If this call still fails after its attempts, the service carries on instead of failing the request. A failed cache lookup counts as a miss, so reads go to the links set to 'Reads only on a cache miss'; a failed cache invalidation is skipped.",
+      "default": false,
+      "assumption": false,
+      "headline": false,
+      "group": "Reliability"
     }
   ],
   "workloadFields": [

@@ -301,8 +301,8 @@ def import_k8s(
     for wname, w in workloads.items():
         src = by_name[wname]
         if src in calls:
-            for target, port, types in decode_calls(calls[src]):
-                b.link(src, target, port, types)
+            for target, port, types, extra in decode_calls(calls[src]):
+                b.link(src, target, port, types, extra)
             continue
         for env in _container(w.get("spec") or {}).get("env") or []:
             host = url_host(env.get("value"))
@@ -314,8 +314,8 @@ def import_k8s(
     workload_ids = {by_name[w] for w in workloads}
     for src, text in calls.items():
         if src not in workload_ids:  # managed services and third-party APIs (ExternalName)
-            for target, port, types in decode_calls(text):
-                b.link(src, target, port, types)
+            for target, port, types, extra in decode_calls(text):
+                b.link(src, target, port, types, extra)
     b.link_parts(parts)
     if parts:
         report.mapped.append(

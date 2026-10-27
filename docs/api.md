@@ -13,16 +13,16 @@ Domain errors use one shape:
 ```json
 {
   "detail": {
-    "message": "Cannot simulate: Redis Cache can miss (hit ratio 80%) but its 'miss' port is not connected, ...",
+    "message": "Cannot simulate: Redis Cache can miss (hit ratio 80%) but nothing reads the data on a miss: ...",
     "issues": [
       {
         "severity": "error",
         "code": "cache.miss_unrouted",
-        "message": "Redis Cache can miss (hit ratio 80%) but its 'miss' port is not connected, so missed reads would have nowhere to go.",
+        "message": "Redis Cache can miss (hit ratio 80%) but nothing reads the data on a miss: its 'miss' port is not connected and API Servers has no link set to 'Reads only on a cache miss'.",
         "nodeId": "cache",
         "edgeId": null,
         "path": null,
-        "hint": "Connect the cache's 'miss' port to the database that holds the data."
+        "hint": "Cache-aside: give the service a link to the database with 'Reads only on a cache miss' on. Read-through: connect the cache's 'miss' port to the database."
       }
     ]
   }

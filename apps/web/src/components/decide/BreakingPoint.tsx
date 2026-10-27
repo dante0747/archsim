@@ -2,11 +2,12 @@
 
 import { CircleAlert, CircleCheck, Crosshair, LoaderCircle, Play, RotateCcw, Square } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CartesianGrid, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Legend, PERCENTILE_SERIES, SINGLE_SERIES, VIZ_VARS, fmtAxisMs, fmtAxisRps, thClass } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
 import { fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
-import { MAX_SWEEP_STEPS, type SweepConfig, analyzeSweep, rowMeetsSlo, suggestRange, sweepLevels } from "@/lib/sweep";
+import { failureAllowance, tooManyFailures } from "@/lib/slo";
+import { MAX_SWEEP_STEPS, type SweepConfig, analyzeSweep, failedRps, rowMeetsSlo, suggestRange, sweepLevels } from "@/lib/sweep";
 import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
@@ -84,6 +85,7 @@ export function BreakingPoint() {
     rps: r.rps,
     throughput: r.throughput,
     ideal: r.offered ?? r.rps,
+    failed: failedRps(r),
     p50: r.p50,
     p95: r.p95,
     p99: r.p99,
@@ -91,6 +93,7 @@ export function BreakingPoint() {
   const tpSeries = [
     { key: "throughput", label: "Successful throughput", color: SINGLE_SERIES },
     { key: "ideal", label: "Offered load (keeping up)", color: "var(--muted-axis)" },
+    { key: "failed", label: "Failed requests", color: "var(--status-critical)" },
   ];
   const latSeries = [
     { key: "p50", label: "p50", color: PERCENTILE_SERIES[0] },
@@ -100,6 +103,31 @@ export function BreakingPoint() {
   const knee = analysis?.knee ?? null;
   const best = analysis?.maxWithinSlo ?? null;
   const headroom = best && workloadRps > 0 ? best.rps / workloadRps : null;
+  // Steps where more requests failed than the objectives allow: latency percentiles cover only the
+  // requests that succeeded, so the charts shade these steps instead of letting the curve flatter.
+  const failing = analysis?.failingFrom ?? null;
+  const failIdx = failing ? rows.indexOf(failing) : -1;
+  const failZone =
+    failing && failIdx >= 0
+      ? { x1: failIdx > 0 ? (rows[failIdx - 1].rps + failing.rps) / 2 : failing.rps, x2: rows[rows.length - 1].rps }
+      : null;
+  const allowed = fmtPct(failureAllowance(objectives), 1);
+  const successAt = (rps?: number) => {
+    const r = rows.find((x) => x.rps === rps);
+    return r?.successRate != null ? `succeeded ${fmtPct(r.successRate, 1)}` : null;
+  };
+  const zone = (label: boolean) =>
+    failZone && failZone.x2 > failZone.x1 ? (
+      <ReferenceArea
+        x1={failZone.x1}
+        x2={failZone.x2}
+        fill="var(--status-critical)"
+        fillOpacity={0.08}
+        stroke="none"
+        ifOverflow="hidden"
+        label={label ? { value: `> ${allowed} failed`, position: "insideBottomRight", fill: "var(--danger-ink)", fontSize: 10.5, fontFamily: "var(--font-mono)" } : undefined}
+      />
+    ) : null;
 
   return (
     <div>
@@ -204,11 +232,13 @@ export function BreakingPoint() {
                       <XAxis dataKey="rps" type="number" domain={["dataMin", "dataMax"]} tickFormatter={fmtAxisRps} stroke="var(--axis)" tick={tick} tickLine={false} minTickGap={24} />
                       <YAxis width={44} tickFormatter={fmtAxisRps} tick={tick} tickLine={false} axisLine={false} domain={[0, "auto"]} />
                       <Tooltip content={<LoadTooltip format={(v) => fmtRps(v)} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
+                      {zone(false)}
                       {knee && (
                         <ReferenceLine x={knee.rps} stroke="var(--status-serious)" strokeDasharray="4 3" label={{ value: "knee", position: "insideTopRight", fill: "var(--ink-2)", fontSize: 10.5, fontFamily: "var(--font-mono)" }} />
                       )}
                       <Line type="linear" dataKey="ideal" name={tpSeries[1].label} stroke={tpSeries[1].color} strokeWidth={1.5} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
                       <Line type="linear" dataKey="throughput" name={tpSeries[0].label} stroke={tpSeries[0].color} strokeWidth={2} dot={{ r: 3, strokeWidth: 2, stroke: "var(--surface)", fill: SINGLE_SERIES }} activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--surface)" }} isAnimationActive={false} />
+                      <Line type="linear" dataKey="failed" name={tpSeries[2].label} stroke={tpSeries[2].color} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -217,6 +247,10 @@ export function BreakingPoint() {
                 <figcaption className="mb-2 space-y-1">
                   <span className="text-xs font-semibold text-ink">Latency against offered load</span>
                   <Legend series={latSeries} />
+                  <p className="text-[11px] leading-snug text-ink-3">
+                    Successful requests only.
+                    {failZone && <> In the shaded steps more than {allowed} of requests failed; red dots mark a p95 that leaves them out.</>}
+                  </p>
                 </figcaption>
                 <div className="h-60">
                   <ResponsiveContainer width="100%" height="100%">
@@ -224,7 +258,8 @@ export function BreakingPoint() {
                       <CartesianGrid stroke="var(--grid)" vertical={false} />
                       <XAxis dataKey="rps" type="number" domain={["dataMin", "dataMax"]} tickFormatter={fmtAxisRps} stroke="var(--axis)" tick={tick} tickLine={false} minTickGap={24} />
                       <YAxis width={48} tickFormatter={fmtAxisMs} tick={tick} tickLine={false} axisLine={false} domain={[0, "auto"]} />
-                      <Tooltip content={<LoadTooltip format={(v) => fmtMs(v)} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
+                      <Tooltip content={<LoadTooltip format={(v) => fmtMs(v)} note={successAt} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
+                      {zone(true)}
                       {objectives.latencyP95Ms != null && (
                         <ReferenceLine
                           y={objectives.latencyP95Ms}
@@ -239,6 +274,11 @@ export function BreakingPoint() {
                       {latSeries.map((s) => (
                         <Line key={s.key} type="linear" dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }} isAnimationActive={false} />
                       ))}
+                      {rows
+                        .filter((r) => r.p95 != null && tooManyFailures(r.successRate, objectives))
+                        .map((r) => (
+                          <ReferenceDot key={r.rps} x={r.rps} y={r.p95 as number} r={4} fill="var(--status-critical)" stroke="var(--surface)" strokeWidth={1.5} />
+                        ))}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -269,7 +309,7 @@ export function BreakingPoint() {
                       <td className="px-3 py-2 text-right font-mono text-ink-2">{fmtMs(r.p50)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink">{fmtMs(r.p95)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink-2">{fmtMs(r.p99)}</td>
-                      <td className="px-3 py-2 text-right font-mono text-ink">{fmtPct(r.successRate, 2)}</td>
+                      <td className={cn("px-3 py-2 text-right font-mono", tooManyFailures(r.successRate, objectives) ? "text-danger-ink" : "text-ink")}>{fmtPct(r.successRate, 2)}</td>
                       <td className="px-3 py-2 text-ink-2">{r.bottleneck ?? "–"}</td>
                       <td className="px-3 py-2">
                         <StatusMark pass={rowMeetsSlo(r, objectives)} />

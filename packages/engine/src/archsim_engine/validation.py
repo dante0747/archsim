@@ -442,6 +442,27 @@ def validate_document(
         out_edges.setdefault(e.source, []).append(e)
         in_edges.setdefault(e.target, []).append(e)
 
+    # -- caller-side link settings (only services call their dependencies one by one) ----------
+    for e in valid_edges:
+        flags = [
+            label
+            for on, label in (
+                (e.config.reads_on_miss, "'Reads only on a cache miss'"),
+                (e.config.continue_on_failure, "'Carry on if this call fails'"),
+            )
+            if on
+        ]
+        if flags and node_map[e.source].type != "service":
+            issues.append(
+                warning(
+                    "edge.caller_setting_ignored",
+                    f"Link '{e.label or e.id}' starts at {_name(node_map[e.source])}, which is not a "
+                    f"service, so {' and '.join(flags)} {'is' if len(flags) == 1 else 'are'} ignored.",
+                    edge_id=e.id,
+                    hint="Only a service's links use these settings.",
+                )
+            )
+
     # -- port arity -------------------------------------------------------------------------------
     for n in nodes:
         if n.type not in registry:

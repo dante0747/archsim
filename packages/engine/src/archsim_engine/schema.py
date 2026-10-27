@@ -1,4 +1,4 @@
-"""Versioned architecture document schema (``schemaVersion`` 1.2).
+"""Versioned architecture document schema (``schemaVersion`` 1.3).
 
 The document deliberately separates four concerns:
 
@@ -24,7 +24,7 @@ from pydantic.alias_generators import to_camel
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.version import SCHEMA_VERSION
 
-assert SCHEMA_VERSION == "1.2", "update ArchitectureDocument.schema_version and add a migration"
+assert SCHEMA_VERSION == "1.3", "update ArchitectureDocument.schema_version and add a migration"
 
 RequestType = Literal["read", "write"]
 REQUEST_TYPES: tuple[RequestType, ...] = ("read", "write")
@@ -111,6 +111,27 @@ class EdgeConfig(CamelModel):
         le=1000,
         description="Call order when a service calls several dependencies for the same request (lower first).",
         json_schema_extra={"x-ui": {"label": "Call order", "group": "Routing"}},
+    )
+    reads_on_miss: bool = Field(
+        default=False,
+        description=(
+            "Cache-aside: send reads over this link only after the service's cache lookup for the "
+            "same request missed (or failed, when that link carries on after failures). The "
+            "service then reads the data store itself and writes the value back to the cache. "
+            "Writes on this link are always sent."
+        ),
+        json_schema_extra={"x-ui": {"label": "Reads only on a cache miss", "group": "Routing"}},
+    )
+    continue_on_failure: bool = Field(
+        default=False,
+        description=(
+            "If this call still fails after its attempts, the service carries on instead of "
+            "failing the request. A failed cache lookup counts as a miss, so reads go to the "
+            "links set to 'Reads only on a cache miss'; a failed cache invalidation is skipped."
+        ),
+        json_schema_extra={
+            "x-ui": {"label": "Carry on if this call fails", "group": "Reliability"}
+        },
     )
 
     @field_validator("request_types")
@@ -584,7 +605,7 @@ class Pricing(CamelModel):
 class ArchitectureDocument(CamelModel):
     """Top-level interchange document. Serialize with ``to_json_dict()``."""
 
-    schema_version: Literal["1.2"] = "1.2"
+    schema_version: Literal["1.3"] = "1.3"
     kind: Literal["archsim.architecture"] = "archsim.architecture"
     metadata: Metadata = Field(default_factory=Metadata)
     architecture: Architecture = Field(default_factory=Architecture)

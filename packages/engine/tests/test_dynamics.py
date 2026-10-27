@@ -63,8 +63,19 @@ def fault(
 # -----------------------------------------------------------------------------------------
 
 
+def no_fallback(d: dict[str, Any]) -> dict[str, Any]:
+    """The starter with a cache the API depends on: a failed lookup fails the read."""
+    d = copy.deepcopy(d)
+    for e in d["architecture"]["edges"]:
+        if e["id"] == "api-cache":
+            e["config"]["continueOnFailure"] = False
+    return d
+
+
 def test_outage_rejects_only_inside_its_window(starter: dict[str, Any]) -> None:
-    d = with_faults(short(starter, duration=40, warmup=4), fault("f1", "outage", "cache", 15, 10))
+    d = with_faults(
+        short(no_fallback(starter), duration=40, warmup=4), fault("f1", "outage", "cache", 15, 10)
+    )
     r = run_simulation(d)
     cache = node_by_id(r, "cache")
     assert cache["summary"]["rejected"].get("outage", 0) > 0

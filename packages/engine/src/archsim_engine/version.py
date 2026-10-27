@@ -1,9 +1,9 @@
 """Version constants recorded in every simulation report for provenance."""
 
-ENGINE_VERSION = "0.9.0"
+ENGINE_VERSION = "0.10.0"
 """Version of the simulation engine. Bump when simulation semantics change."""
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
 """Current version of the architecture document schema."""
 
 REPORT_VERSION = "1.11"

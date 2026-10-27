@@ -232,7 +232,23 @@ SDKs.
     `warmupFactor` times slower at first, fading linearly over `warmupS` (Java 2.5x over 45 s,
     .NET 1.5x over 20 s; illustrative).
 
-### Cache (`cache`), cache-aside
+### Cache (`cache`): cache-aside or read-through
+
+A miss is handled one of two ways, chosen by the links:
+
+- **Cache-aside** (what applications usually do with Redis or Memcached, and the starter
+  example): the cache has no `miss` link. A read that misses returns "miss" to the calling
+  service, which then reads the data store itself over its link set to `readsOnMiss` and, if
+  that succeeds and `populateOnMiss` is on, writes the value back (one more command on the
+  cache, over the same link). With `continueOnFailure` on the service's link to the cache, a
+  failed lookup (outage, timeout, rejection) counts as a miss, so reads fall back to the data
+  store, and a failed invalidation is skipped instead of failing the write.
+- **Read-through**: the cache's `miss` port links to the data store, and the cache reads it
+  itself (below).
+
+Validation requires one of the two for a cache that can miss and receives reads; a service's
+`readsOnMiss` link needs a cache lookup to follow, and is never used behind a read-through
+cache (a warning).
 
 - Every command (lookup, invalidation, repopulation) runs on a pool of executors per shard
   taking `serviceTimeMs`, with its own queue. **Redis and Valkey execute commands on one thread
@@ -250,9 +266,9 @@ SDKs.
     holds 80% of its memory / `itemSizeKb` keys: `allkeys_lru` evicts the least recently used
     key, `noeviction` (Redis's own default) refuses new keys with an out-of-memory error, so
     missed reads stay uncached.
-- **Misses** continue through the `miss` port (reads only, at most one link) to the data
-  store. The miss path's latency counts toward the caller's request. The cache executor is
-  *not* held while the data store works.
+- **Misses** (read-through) continue through the `miss` port (reads only, at most one link)
+  to the data store. The miss path's latency counts toward the caller's request. The cache
+  executor is *not* held while the data store works.
 - If `populateOnMiss` is on and the miss succeeded, one more command writes the value back
   (and, in the TTL model, sets the key's expiry). If that command is rejected the read still
   succeeds; the key just is not cached.

@@ -33,6 +33,7 @@ const KINDS: Record<string, { group: Group; label: string }> = {
   fork: { group: "pause", label: "Snapshot fork" },
   hit: { group: "marker", label: "Cache hit" },
   miss: { group: "marker", label: "Cache miss" },
+  populate: { group: "marker", label: "Written back to the cache" },
   stale: { group: "failure", label: "Stale read" },
   rejected: { group: "failure", label: "Rejected" },
   timeout: { group: "failure", label: "Gave up (timeout)" },

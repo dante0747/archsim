@@ -238,7 +238,10 @@ def test_newer_schema_version_rejected() -> None:
 
 
 def test_issue_messages_name_components(starter: dict[str, Any]) -> None:
+    # the API no longer reads PostgreSQL on a miss, and the cache has no miss link
     d = copy.deepcopy(starter)
-    d["architecture"]["edges"] = [e for e in d["architecture"]["edges"] if e["id"] != "cache-db"]
+    for e in d["architecture"]["edges"]:
+        if e["id"] == "api-db":
+            e["config"]["readsOnMiss"] = False
     issues = [i for i in issues_for(d) if i["code"] == "cache.miss_unrouted"]
-    assert "Redis Cache" in issues[0]["message"]
+    assert "Redis Cache" in issues[0]["message"] and "API Servers" in issues[0]["message"]

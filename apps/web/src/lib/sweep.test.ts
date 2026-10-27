@@ -6,11 +6,13 @@ import {
   type SweepRow,
   analyzeSweep,
   buildSweepDocument,
+  failedRps,
   rowMeetsSlo,
   suggestRange,
   sweepLevels,
   sweepRow,
 } from "./sweep";
+import { failureAllowance, tooManyFailures } from "./slo";
 import type { ArchitectureDocument, Report } from "./types";
 
 const doc = starter as unknown as ArchitectureDocument;
@@ -120,5 +122,35 @@ describe("sweepRow", () => {
     const r = sweepRow(500, report, "run-1");
     expect(r).toMatchObject({ rps: 500, runId: "run-1", throughput: 480, p95: 50, bottleneck: "API Servers" });
     expect(r.errorRate).toBeCloseTo(0.04, 9);
+  });
+});
+
+describe("failed requests in the sweep", () => {
+  // The starter's curve: p95 stays near the objective while almost half the requests fail.
+  const rows = [row(485, 487, 178), row(630, 521, 298, 0.8295, "API Servers"), row(915, 524, 304, 0.5716, "API Servers")];
+
+  it("finds the first step that failed more requests than the availability objective allows", () => {
+    expect(analyzeSweep(rows, { latencyP95Ms: 300, availability: 0.999 }).failingFrom?.rps).toBe(630);
+    expect(analyzeSweep([row(100, 100, 20, 0.995)], { availability: 0.99 }).failingFrom).toBeNull();
+  });
+
+  it("allows 1% of failures when no availability objective is set", () => {
+    expect(analyzeSweep([row(100, 100, 20, 0.995), row(200, 190, 30, 0.95)], {}).failingFrom?.rps).toBe(200);
+  });
+
+  it("gives the failed rate of a step", () => {
+    expect(failedRps(rows[2])).toBeCloseTo(915 * (1 - 0.5716));
+    expect(failedRps(sweepRow(200, null))).toBeNull();
+  });
+});
+
+describe("tooManyFailures", () => {
+  it("compares the failed share with the availability objective's allowance", () => {
+    expect(tooManyFailures(0.999, { availability: 0.999 })).toBe(false);
+    expect(tooManyFailures(0.998, { availability: 0.999 })).toBe(true);
+    expect(tooManyFailures(0.99, {})).toBe(false);
+    expect(tooManyFailures(0.98, {})).toBe(true);
+    expect(tooManyFailures(null, {})).toBe(false);
+    expect(failureAllowance({ availability: 0.995 })).toBeCloseTo(0.005);
   });
 });

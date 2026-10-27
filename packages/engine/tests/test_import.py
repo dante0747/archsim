@@ -86,7 +86,7 @@ def test_compose_maps_infrastructure_and_lists_what_it_guessed() -> None:
         "note": "deploy.replicas",
     }
     assert doc["provenance"]["nodes/db/maxConnections"]["note"] == "from the container command"
-    assert doc["schemaVersion"] == "1.2"
+    assert doc["schemaVersion"] == "1.3"
 
 
 def test_kubernetes_reads_autoscalers_ingresses_and_resources() -> None:
@@ -444,11 +444,29 @@ def test_terraform_lists_a_replica_without_its_source_and_fits_small_functions()
     assert any("memory at idle" in g for g in report.guessed)
 
 
-def test_a_cache_misses_to_the_database_its_callers_use() -> None:
+def test_an_app_that_calls_a_cache_and_a_database_reads_the_database_on_a_miss() -> None:
+    # cache-aside: the application calls both; Redis never calls PostgreSQL
     text = (
         "services:\n"
         "  api:\n    image: acme/api:1\n    ports: ['8080:8080']\n"
         "    environment:\n      CACHE: redis://cache:6379\n      DB: postgresql://db:5432/app\n"
+        "  cache:\n    image: redis:7\n"
+        "  db:\n    image: postgres:16\n"
+    )
+    doc, report = import_design("compose", text, REGISTRY)
+    edges = {(e["source"], e["target"]): e for e in doc["architecture"]["edges"]}
+    assert not any(e["sourcePort"] == "miss" for e in edges.values())
+    assert edges[("api", "db")]["config"]["readsOnMiss"] is True
+    assert not edges[("api", "cache")]["config"].get("readsOnMiss")
+    assert any(g.startswith("api reads db only on a cache miss") for g in report.guessed)
+    assert not [i for i in report.issues if i["severity"] == "error"], report.issues
+
+
+def test_a_cache_whose_callers_use_no_database_misses_to_the_only_one() -> None:
+    text = (
+        "services:\n"
+        "  api:\n    image: acme/api:1\n    ports: ['8080:8080']\n"
+        "    environment:\n      CACHE: redis://cache:6379\n"
         "  cache:\n    image: redis:7\n"
         "  db:\n    image: postgres:16\n"
     )
@@ -459,7 +477,7 @@ def test_a_cache_misses_to_the_database_its_callers_use() -> None:
         "miss",
         ["read"],
     )
-    assert any("cache -> db" in g and "miss" in g for g in report.guessed)
+    assert any("cache -> db" in g and "only database" in g for g in report.guessed)
     assert not [i for i in report.issues if i["severity"] == "error"], report.issues
 
 

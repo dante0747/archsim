@@ -225,6 +225,12 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
       ),
       "",
     );
+    if (sweep.failingFrom) {
+      lines.push(
+        `Latency covers successful requests only. From ${rps(sweep.failingFrom.rps)} on, more requests failed than the objectives allow (${pct(1 - (sweep.failingFrom.successRate ?? 1), 1)} at that step), and those failures are not in p95 or p99.`,
+        "",
+      );
+    }
   }
 
   // ---- cost ---------------------------------------------------------------------------------

@@ -40,6 +40,21 @@ export function sloChecks(obj: Objectives, report: Pick<Report, "summary">): Slo
   return checks;
 }
 
+/** Share of failed requests above which latency percentiles stop describing the load: the
+ * availability objective's allowance, or 1% without one. */
+export function failureAllowance(obj: Objectives): number {
+  return obj.availability != null ? Math.max(0, 1 - obj.availability) : 0.01;
+}
+
+/**
+ * Whether more requests failed than the objectives allow. Latency percentiles cover successful
+ * requests only, so a run like this can look fast while much of its traffic failed: charts mark
+ * it instead of letting its latency speak for the whole load.
+ */
+export function tooManyFailures(successRate: number | null | undefined, obj: Objectives): boolean {
+  return successRate != null && 1 - successRate > failureAllowance(obj) + 1e-9;
+}
+
 export function evaluateSlo(obj: Objectives, report: Pick<Report, "summary">): SloResult {
   const checks = sloChecks(obj, report);
   const decided = checks.filter((c) => c.pass !== null);
