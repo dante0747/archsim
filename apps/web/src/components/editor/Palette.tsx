@@ -23,6 +23,7 @@ import { TechIcon } from "@/components/TechIcon";
 import { Tip } from "@/components/ui/misc";
 import { TierBadge, useTierNote } from "@/components/ui/TierBadge";
 import { freeSpot } from "@/lib/placement";
+import { offeredWithLabs } from "@/lib/tier";
 import { FAMILIES, kindOf } from "@/lib/theme";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
@@ -153,7 +154,13 @@ export function PartsPanel() {
       /* storage unavailable */
     }
   };
-  const items = useMemo(() => libraryItems(catalog), [catalog]);
+  const labs = useUi((s) => s.labs);
+  const setLabs = useUi((s) => s.setLabs);
+  const allItems = useMemo(() => libraryItems(catalog), [catalog]);
+  // Experimental technologies are offered only with Labs on; parts already placed are untouched.
+  const items = useMemo(() => allItems.filter((i) => offeredWithLabs(i.tier, labs)), [allItems, labs]);
+  const hiddenCount = allItems.length - items.length;
+  const hiddenMatches = useMemo(() => (q.trim() ? allItems.filter((i) => !offeredWithLabs(i.tier, labs) && matchesItem(i, q)).length : 0), [allItems, labs, q]);
   const visible = useMemo(() => items.filter((i) => matchesItem(i, q)), [items, q]);
   const sections = useMemo(
     () =>
@@ -245,9 +252,31 @@ export function PartsPanel() {
             </ul>
           </section>
         ))}
-        {sections.length === 0 && <p className="py-8 text-center text-[13px] text-ink-3">Nothing matches “{q}”</p>}
+        {sections.length === 0 && (
+          <p className="py-8 text-center text-[13px] text-ink-3">
+            Nothing matches “{q}”
+            {hiddenMatches > 0 && (
+              <>
+                <br />
+                <button type="button" onClick={() => setLabs(true)} className="mt-2 text-accent hover:underline">
+                  Show {hiddenMatches} matching Labs {hiddenMatches === 1 ? "part" : "parts"}
+                </button>
+              </>
+            )}
+          </p>
+        )}
       </div>
-      <p className="border-t border-line px-3 py-2 text-xs text-ink-3">Drag onto the canvas, or click</p>
+      <div className="space-y-0.5 border-t border-line px-3 py-2 text-xs text-ink-3">
+        <p>Drag onto the canvas, or click</p>
+        {(labs || hiddenCount > 0) && (
+          <p>
+            {labs ? "Labs parts shown (experimental, not validated). " : `${hiddenCount} experimental parts are in Labs. `}
+            <button type="button" onClick={() => setLabs(!labs)} className="text-accent hover:underline">
+              {labs ? "Hide them" : "Show them"}
+            </button>
+          </p>
+        )}
+      </div>
     </aside>
   );
 }

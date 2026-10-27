@@ -119,7 +119,7 @@
   --glass: #232326;
   --ink: #f2f2f7;
   --ink-2: #aeaeb6;
-  --ink-3: #8e8e96;
+  --ink-3: #96969e;
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.14);
   --wire: #4a4a50;
@@ -466,6 +466,16 @@ body {
     opacity 140ms ease,
     transform 120ms ease,
     background-color 120ms ease;
+}
+
+/* Part cards at small zoom (the canvas sets data-zoom): stronger secondary text when zoomed out,
+   and only the name and technology when far out, so what is shown stays readable. */
+[data-zoom="mid"] .arch-card .text-ink-3,
+[data-zoom="far"] .arch-card .text-ink-3 {
+  color: var(--ink-2);
+}
+[data-zoom="far"] .arch-card-fact {
+  display: none;
 }
 
 .react-flow__node:hover .react-flow__handle,

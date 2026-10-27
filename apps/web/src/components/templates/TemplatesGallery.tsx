@@ -14,12 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { api } from "@/lib/api";
-import type { ArchitectureDocument, ExampleSummary } from "@/lib/types";
+import type { ArchitectureDocument, Catalog, ExampleSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { MobileNav } from "@/components/ui/MobileNav";
 
 export function TemplatesGallery() {
   const [examples, setExamples] = useState<ExampleSummary[] | null>(null);
   const [docs, setDocs] = useState<Record<string, ArchitectureDocument>>({});
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<TemplateCategory | "All">("All");
@@ -28,6 +30,10 @@ export function TemplatesGallery() {
 
   useEffect(() => {
     let alive = true;
+    api
+      .components()
+      .then((c) => alive && setCatalog(c))
+      .catch(() => undefined);
     api
       .examples()
       .then(async (list) => {
@@ -88,6 +94,13 @@ export function TemplatesGallery() {
           </Button>
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
+            <MobileNav
+              className="sm:hidden"
+              items={[
+                { href: "/projects", label: "Your projects" },
+                { label: "Start blank", onSelect: () => setNewOpen(true) },
+              ]}
+            />
             <Button variant="primary" size="md" onClick={() => setNewOpen(true)} className="hidden sm:inline-flex">
               <Plus /> Start blank
             </Button>
@@ -177,6 +190,7 @@ export function TemplatesGallery() {
                 <TemplateCard
                   example={featured}
                   doc={docs[featured.id]}
+                  catalog={catalog}
                   busy={busy === featured.id}
                   disabled={busy !== null}
                   spotlight
@@ -189,6 +203,7 @@ export function TemplatesGallery() {
                 <TemplateCard
                   example={ex}
                   doc={docs[ex.id]}
+                  catalog={catalog}
                   busy={busy === ex.id}
                   disabled={busy !== null}
                   onOpen={() => void openTemplate(ex.id)}

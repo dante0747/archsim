@@ -16,6 +16,7 @@ import {
   FileInput,
   Flame,
   FlaskConical,
+  TestTubeDiagonal,
   Gauge,
   GitCompare,
   History,
@@ -50,6 +51,7 @@ import { Kbd } from "@/components/ui/misc";
 import { THEMES, applyTheme, toggleTheme } from "@/components/ui/theme-toggle";
 import { rankCommands } from "@/lib/commands";
 import { kindOf } from "@/lib/theme";
+import { offeredWithLabs, tierOf } from "@/lib/tier";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { type DecideSection, useDecide } from "@/store/decide";
@@ -84,6 +86,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
   const drawerOpen = useRuns((s) => s.drawerOpen);
   const selectedScenarioId = useRuns((s) => s.selectedScenarioId);
   const flow = useUi((s) => s.flow);
+  const labs = useUi((s) => s.labs);
   const mod = modKey();
 
   return useMemo(() => {
@@ -162,7 +165,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
         run: () => add(c.type),
       })),
       ...(catalog?.components ?? []).flatMap((c) =>
-        (c.presets ?? []).map((p) => ({
+        (c.presets ?? []).filter((p) => offeredWithLabs(p.tier ?? tierOf(c, p.technology), labs)).map((p) => ({
           id: `add-${c.type}-${p.id}`,
           group: "Add technology",
           label: `Add ${p.name}`,
@@ -254,6 +257,14 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
         icon: <Activity className={i} />,
         run: () => ui().setFlow(!flow),
       },
+      {
+        id: "labs",
+        group: "Canvas",
+        label: labs ? "Hide Labs parts" : "Show Labs parts (experimental technologies)",
+        keywords: "experimental tier labs preview technologies",
+        icon: <TestTubeDiagonal className={i} />,
+        run: () => ui().setLabs(!labs),
+      },
       // project
       { id: "save", group: "Project", label: "Save", shortcut: `${mod} S`, icon: <Save className={i} />, run: () => void save() },
       { id: "export", group: "Project", label: "Export JSON", keywords: "download file", icon: <Download className={i} />, run: exportJson },
@@ -322,6 +333,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
     drawerOpen,
     selectedScenarioId,
     flow,
+    labs,
     mod,
     onShowShortcuts,
     onImport,

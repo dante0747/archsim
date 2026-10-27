@@ -272,7 +272,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
 
       {selected && <SelectionHandles />}
       <div
-        className="relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-150 group-hover:border-line-strong"
+        className="arch-card relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-150 group-hover:border-line-strong"
         style={{
           background: broken ? "color-mix(in srgb, var(--status-critical) 6%, var(--node-fill))" : "var(--node-fill)",
           borderColor: border,
@@ -307,7 +307,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
 
         <div className="space-y-1 px-3 pb-3 pt-2.5">
           {facts.map((f) => (
-            <div key={f.k} className="flex items-baseline justify-between gap-3 text-xs leading-[18px]">
+            <div key={f.k} className="arch-card-fact flex items-baseline justify-between gap-3 text-xs leading-[18px]">
               <span className="truncate text-ink-3">{f.k}</span>
               <span className="font-readout shrink-0 text-ink">{f.v}</span>
             </div>
@@ -316,7 +316,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
           {clusterView}
           {(cpu != null || mem != null || disk != null) && (
             <p
-              className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5 text-xs text-ink-2"
+              className="arch-card-fact flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5 text-xs text-ink-2"
               aria-label={isAuto.some(Boolean) ? "Resources (auto-sized for the peak load)" : "Resources"}
               title={isAuto.some(Boolean) ? "Auto-sized for the design's peak load; set your own in the inspector" : undefined}
             >

@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { api } from "@/lib/api";
 import { fmtRelativeTime } from "@/lib/format";
 import type { ExampleSummary, ProjectSummary } from "@/lib/types";
+import { MobileNav } from "@/components/ui/MobileNav";
 
 export function ProjectsPage() {
   const router = useRouter();
@@ -69,8 +70,12 @@ export function ProjectsPage() {
               <ArrowLeft /> Home
             </Link>
           </Button>
+          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+            <Link href="/templates">Templates</Link>
+          </Button>
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
+            <MobileNav className="sm:hidden" items={[{ href: "/templates", label: "Templates" }, { href: "/api/v1/docs", label: "API docs", external: true }]} />
           </div>
         </div>
       </header>

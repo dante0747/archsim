@@ -19,6 +19,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { api } from "@/lib/api";
 import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { MobileNav } from "@/components/ui/MobileNav";
 
 export function ProjectsHome() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
@@ -90,6 +91,14 @@ export function ProjectsHome() {
               </a>
             </Button>
             <ThemeToggle />
+            <MobileNav
+              className="md:hidden"
+              items={[
+                ...nav.map(([href, label]) => ({ href, label })),
+                { href: "/api/v1/docs", label: "API docs", external: true },
+                ...(starter ? [{ label: "Try the starter example", onSelect: startStarter }] : []),
+              ]}
+            />
             {starter && (
               <Button variant="primary" size="md" onClick={startStarter} disabled={busy !== null} className="hidden sm:inline-flex">
                 Try it now <ArrowRight />
@@ -286,6 +295,7 @@ export function ProjectsHome() {
                     <TemplateCard
                       example={ex}
                       doc={exampleDocs[ex.id]}
+                      catalog={catalog}
                       busy={busy === ex.id}
                       disabled={busy !== null}
                       onOpen={() => void openTemplate(ex.id)}
@@ -345,6 +355,12 @@ export function ProjectsHome() {
           <Logo />
           <span>AGPL-3.0 · open source</span>
           <span>Runs on your machine · no account, no telemetry</span>
+          <Link href="/templates" className="hover:text-ink">
+            Templates
+          </Link>
+          <Link href="/projects" className="hover:text-ink">
+            Your projects
+          </Link>
           <a href="/api/v1/docs" target="_blank" rel="noreferrer" className="hover:text-ink">
             API docs
           </a>

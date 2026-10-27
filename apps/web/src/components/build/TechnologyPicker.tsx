@@ -5,16 +5,21 @@ import { toast } from "sonner";
 import { applyPresetToNode } from "@/components/build/presets";
 import { TierBadge } from "@/components/ui/TierBadge";
 import { technologyLabel } from "@/lib/theme";
-import { partTier } from "@/lib/tier";
+import { offeredWithLabs, partTier } from "@/lib/tier";
 import type { ComponentType, NodeConfig, Preset } from "@/lib/types";
+import { useUi } from "@/store/ui";
 
 export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; comp: ComponentType | undefined; config: NodeConfig }) {
-  const presets = comp?.presets ?? [];
+  const all = comp?.presets ?? [];
+  const labs = useUi((s) => s.labs);
   const tech = technologyLabel(comp, config.technology);
   const current: Preset | undefined =
-    presets.find((p) => p.technology === config.technology && Object.entries(p.config).every(([k, v]) => JSON.stringify(config[k]) === JSON.stringify(v))) ??
-    presets.find((p) => p.technology === config.technology);
-  if (!presets.length && !tech) return null;
+    all.find((p) => p.technology === config.technology && Object.entries(p.config).every(([k, v]) => JSON.stringify(config[k]) === JSON.stringify(v))) ??
+    all.find((p) => p.technology === config.technology);
+  // Experimental technologies are offered only with Labs on; the part's own stays listed.
+  const presets = all.filter((p) => offeredWithLabs(p.tier, labs) || p.id === current?.id);
+  const hidden = all.length - presets.length;
+  if (!all.length && !tech) return null;
 
   const families = [...new Set(presets.map((p) => p.family))];
   const apply = (id: string) => {
@@ -53,6 +58,11 @@ export function TechnologyPicker({ nodeId, comp, config }: { nodeId: string; com
                 ))}
             </optgroup>
           ))}
+          {hidden > 0 && (
+            <option value="" disabled>
+              {`${hidden} experimental ${hidden === 1 ? "technology" : "technologies"} in Labs (More menu)`}
+            </option>
+          )}
         </select>
       )}
     </div>
