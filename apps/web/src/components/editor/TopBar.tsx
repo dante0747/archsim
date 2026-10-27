@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/overlays";
 import { ThemeMenu, toggleTheme } from "@/components/ui/theme-toggle";
 import { UserMenu } from "@/components/auth/UserMenu";
+import { ActivityButton } from "@/components/team/ActivityButton";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
 import { TransportButtons, TransportLcd } from "@/components/editor/Transport";
 import { cn, modKey } from "@/lib/utils";
@@ -269,6 +270,7 @@ export function TopBar({
       </div>
 
       <div className="flex shrink-0 items-center justify-end gap-1.5">
+        <ActivityButton />
         <ProblemsPill />
         <RunControl />
         <Tip content={<>Save <Kbd>Ctrl S</Kbd></>}>

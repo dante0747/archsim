@@ -13,8 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from archsim_api import limits
+from archsim_api.audit import audit_run
 from archsim_api.config import Settings
-from archsim_api.db import Database, SimulationRun, Workspace
+from archsim_api.db import Database, SimulationRun, Workspace, new_id
 from archsim_api.deps import (
     get_db,
     get_jobs,
@@ -99,6 +100,7 @@ def _enqueue(
     except SimulationLimitError as exc:
         raise_issues(422, str(exc))
     run = SimulationRun(
+        id=new_id(),
         project_id=project_id,
         workspace_id=workspace_id,
         created_by=created_by,
@@ -113,6 +115,7 @@ def _enqueue(
         max_requests=run_limits.max_requests,
         max_wall_seconds=run_limits.max_wall_seconds,
     )
+    audit_run(session, "run.create", run, actor=created_by)
     return jobs.enqueue(session, run)
 
 
@@ -243,6 +246,8 @@ def cancel_run(
     run = access.run
     if run.status in ACTIVE:
         jobs.cancel(run.id)
+        audit_run(session, "run.cancel", run)
+        session.commit()
         session.refresh(run)
     return _run_out(run)
 
@@ -286,6 +291,7 @@ def delete_run(
     run = access.run
     if run.status in ACTIVE:
         jobs.cancel(run.id)
+    audit_run(session, "run.delete", run)
     session.delete(run)
     session.commit()
     return Response(status_code=204)

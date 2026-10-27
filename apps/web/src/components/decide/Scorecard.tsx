@@ -7,6 +7,7 @@ import { FindingCard, RunProgress } from "@/components/results/OverviewTab";
 import { Legend, SINGLE_SERIES } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
 import { TierBadge } from "@/components/ui/TierBadge";
+import { SignOffPanel } from "@/components/team/SignOff";
 import { formatUsd, priceSource } from "@/lib/cost";
 import { compact, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { type SloCheck, type SloKey, errorBudget, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
@@ -471,6 +472,7 @@ export function AnswerPage() {
         </dl>
         <EstimateVsSimulation report={report} />
       </section>
+      <SignOffPanel run={run} />
 
       {findings.length > 0 && (
         <section aria-label="Fix first">

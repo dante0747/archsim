@@ -25,6 +25,7 @@ import { openDecide } from "@/components/editor/workflow";
 import { FormulaCard } from "@/components/explain/FormulaCard";
 import { TechTraits } from "@/components/explain/TechTraits";
 import { WorkloadPanel } from "@/components/editor/WorkloadPanel";
+import { CommentsSection } from "@/components/team/CommentsSection";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Badge, Section, Tip } from "@/components/ui/misc";
@@ -148,6 +149,7 @@ function DesignOverview() {
       <TrafficCard />
       <PricingCard />
       <ProblemsList />
+      <CommentsSection anchorKind="project" />
       <details className="group rounded-xl bg-surface-2/60">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
           <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
@@ -428,6 +430,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
       ) : (
         <p className="text-xs text-danger-ink">Unknown component type “{node.data.type}”.</p>
       )}
+      <CommentsSection anchorKind="node" anchorId={nodeId} />
     </div>
   );
 }
@@ -696,6 +699,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
           </dl>
         </Section>
       )}
+      <CommentsSection anchorKind="edge" anchorId={edgeId} />
     </div>
   );
 }

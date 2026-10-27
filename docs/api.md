@@ -231,6 +231,28 @@ room; workers take each workspace's oldest run before anyone's second). A person
 refused whole. The counters live in the database (`rate_limits`), so every API instance shares
 them. Without sign-in the counters are off, and only sandboxes keep their other limits.
 
+## Review: comments, sign-offs and history
+
+Anyone in a project's workspace reads, comments, resolves threads and signs off, viewers
+included; editors also change the design. Authors edit and delete their own comments, and
+owners may delete any. A `read` token only reads (403 on these changes). People outside the
+workspace get 404, as for its projects.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/projects/{id}/comments` | Oldest first; replies carry `parentId`. Filters: `anchorKind`, `anchorId`, `runId`. Each has `author`, `resolvedAt`/`resolvedBy` (on a thread's first comment), `detached` (its part or run is gone from the saved design), `canEdit`, `canDelete`. |
+| POST | `/projects/{id}/comments` | `{anchorKind: node|edge|project|run, anchorId?, runId?, parentId?, body (≤ 4000)}`. `anchorId` is the node or edge id in the document, or the run id. A reply (`parentId`) joins its thread's part. `201`. |
+| PATCH, DELETE | `/comments/{id}` | `{body}` (author); delete (author or owner; a thread's first comment takes its replies). |
+| POST | `/comments/{id}/resolve` | `{resolved: true|false}`: resolve or reopen the thread the comment is in. Returns its first comment. |
+| POST | `/runs/{id}/signoffs` | `{decision: approved|changes_requested, note? (≤ 2000)}` on a succeeded run (409 otherwise). Records the project's current `revision` and the run's input and result digests. `201`. |
+| GET | `/runs/{id}/signoffs`, `/projects/{id}/signoffs` | Newest first. `stale` once the design was saved again since (`currentRevision` > `projectRevision`). |
+| DELETE | `/signoffs/{id}` | Withdraw your own sign-off. |
+| GET | `/projects/{id}/activity`, `/workspaces/{id}/activity` | The history, newest first: `{items, nextBefore}`; pass `?before=<nextBefore>` for older ones (`limit` 1–200, default 50). Each event has `action` (`project.update`, `run.create`, `comment.resolve`, `signoff.create`, `member.role` ...), `targetKind`/`targetId`, `projectId`, `actor` and `actorKind` (user, token, system), `meta`, and `ip` for owners only. |
+
+Every change to a project, its runs, comments and sign-offs, and to a workspace's members and
+invitations, writes its history row in the same transaction as the change. A project's history
+outlives the project, in its workspace's history.
+
 ## Compare
 
 | Method | Path | Description |

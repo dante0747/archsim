@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from archsim_api.audit import PRINCIPAL_KEY
 from archsim_api.config import Settings
 from archsim_api.db import (
     DEFAULT_WORKSPACE_ID,
@@ -99,6 +100,7 @@ def get_principal(
     cookie, but cannot read the token."""
     cached: Principal | None = getattr(request.state, "principal", None)
     if cached is not None:
+        session.info[PRINCIPAL_KEY] = cached  # for audit(): the request's changes are its
         return cached
     ip = client_ip(request, settings.trusted_proxies)
     if not settings.hosted:
@@ -110,6 +112,7 @@ def get_principal(
         if request.method not in SAFE_METHODS:
             check_csrf(request, settings, principal.session_id or "")
     request.state.principal = principal
+    session.info[PRINCIPAL_KEY] = principal
     return principal
 
 

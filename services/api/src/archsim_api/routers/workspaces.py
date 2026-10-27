@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from archsim_api import limits
+from archsim_api.audit import audit_member
 from archsim_api.config import Settings
 from archsim_api.db import (
     DEFAULT_WORKSPACE_ID,
@@ -87,6 +88,7 @@ def create_team_workspace(
         "You have made many workspaces today.",
     )
     ws = create_workspace(session, body.name.strip() or "Team", "team", principal.user_id)
+    audit_member(session, "workspace.create", ws.id, None, {"name": ws.name}, principal)
     session.commit()
     return workspace_out(ws, "owner", settings)
 
@@ -113,6 +115,9 @@ def update_workspace(
     access = workspace_access(session, principal, workspace_id, "owner")
     if body.name:
         access.workspace.name = body.name.strip()[:120] or access.workspace.name
+        audit_member(
+            session, "workspace.rename", workspace_id, None, {"name": access.workspace.name}
+        )
     session.commit()
     return workspace_out(access.workspace, access.role, settings)
 
@@ -165,6 +170,7 @@ def change_role(
         raise not_found("Member")
     if m.role == "owner" and body.role != "owner" and owner_count(session, workspace_id) <= 1:
         raise conflict("A workspace needs an owner: make someone else an owner first.")
+    audit_member(session, "member.role", workspace_id, user_id, {"from": m.role, "to": body.role})
     m.role = body.role
     session.commit()
     user = session.get(User, user_id)
@@ -189,6 +195,7 @@ def remove_member(
         raise conflict("A personal workspace keeps its owner.")
     if m.role == "owner" and owner_count(session, workspace_id) <= 1:
         raise conflict("A workspace needs an owner: make someone else an owner first.")
+    audit_member(session, "member.remove", workspace_id, user_id, {"role": m.role, "left": leaving})
     session.delete(m)
     session.commit()
     return Response(status_code=204)
@@ -252,6 +259,8 @@ def create_invitation(
         expires_at=utcnow() + timedelta(days=body.expires_in_days),
     )
     session.add(inv)
+    session.flush()  # inv.id
+    audit_member(session, "invitation.create", workspace_id, inv.id, {"role": inv.role}, principal)
     session.commit()
     out = InvitationOut.model_validate(inv).model_dump()
     return InvitationCreated.model_validate({**out, "token": token})
@@ -268,6 +277,7 @@ def revoke_invitation(
     inv = session.get(Invitation, invitation_id)
     if inv is None or inv.workspace_id != workspace_id:
         raise not_found("Invitation")
+    audit_member(session, "invitation.revoke", workspace_id, invitation_id, {"role": inv.role})
     session.delete(inv)
     session.commit()
     return Response(status_code=204)
@@ -338,6 +348,9 @@ def accept_invitation(
         m.role = inv.role
     inv.accepted_at = utcnow()
     inv.accepted_by = principal.user_id
+    audit_member(
+        session, "member.join", inv.workspace_id, principal.user_id, {"role": m.role}, principal
+    )
     session.commit()
     ws = session.get(Workspace, inv.workspace_id)
     assert ws is not None

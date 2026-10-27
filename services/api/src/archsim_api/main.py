@@ -15,12 +15,15 @@ from archsim_api.identity import ensure_defaults
 from archsim_api.jobs.worker import JobService, Worker, WorkerConfig
 from archsim_api.migrations import upgrade_to_head
 from archsim_api.routers import (
+    activity,
     auth,
     calibration,
+    comments,
     export,
     importing,
     meta,
     projects,
+    reviews,
     runs,
     tokens,
     workspaces,
@@ -135,6 +138,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         importing.router,
     ):
         app.include_router(r, prefix=API_PREFIX)
+    app.include_router(comments.router, prefix=API_PREFIX)
+    app.include_router(reviews.router, prefix=API_PREFIX)
+    app.include_router(activity.router, prefix=API_PREFIX)
     return app
 
 

@@ -6,6 +6,7 @@ import { memo, useMemo } from "react";
 import { describeValue, isFieldVisible } from "@/components/editor/FieldControl";
 import { ClusterNodes, PodStrip } from "@/components/editor/KubernetesViews";
 import { TechIcon } from "@/components/TechIcon";
+import { NodeCommentBadge } from "@/components/team/CommentBadge";
 import { Meter } from "@/components/ui/meter";
 import { type ArchNode, SIDES, type Side, sideHandle } from "@/lib/document";
 import { isDistribution, shortDistribution } from "@/lib/distributions";
@@ -271,6 +272,7 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
       ))}
 
       {selected && <SelectionHandles />}
+      <NodeCommentBadge nodeId={id} />
       <div
         className="arch-card relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-150 group-hover:border-line-strong"
         style={{

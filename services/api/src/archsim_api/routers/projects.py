@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from archsim_api import limits
+from archsim_api.audit import audit_project
 from archsim_api.config import Settings
 from archsim_api.db import Project, Workspace, utcnow
 from archsim_api.deps import (
@@ -122,6 +123,8 @@ def _create(
         source_example=source_example,
     )
     session.add(p)
+    session.flush()  # p.id
+    audit_project(session, "project.create", p, {"fromExample": source_example}, created_by)
     session.commit()
     return p
 
@@ -262,6 +265,7 @@ def update_project(
         p.description = body.description
     p.revision += 1
     p.updated_at = utcnow()
+    audit_project(session, "project.update", p, {"revision": p.revision})
     session.commit()
     return _out(p)
 
@@ -271,6 +275,7 @@ def delete_project(
     access: ProjectAccess = Depends(require_project("editor")),
     session: Session = Depends(get_session),
 ) -> Response:
+    audit_project(session, "project.delete", access.project)
     session.delete(access.project)
     session.commit()
     return Response(status_code=204)
