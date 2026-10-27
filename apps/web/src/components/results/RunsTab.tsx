@@ -70,6 +70,7 @@ export function RunsTab() {
                 </td>
                 <td className="max-w-56 px-2 py-1.5">
                   <p className="truncate font-medium text-ink">{r.label}</p>
+                  {r.mode === "sampled" && <p className="font-mono text-[11px] text-ink-3">estimated (quick check)</p>}
                   {r.status === "failed" && r.error && <p className="truncate text-danger-ink" title={r.error.message}>{r.error.message}</p>}
                   {active && <p className="font-mono text-[11px] text-ink-3">{r.status} · {Math.round(r.progress * 100)}%</p>}
                   {(r.id === compareA || r.id === compareB) && (

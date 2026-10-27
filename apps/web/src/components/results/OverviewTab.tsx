@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, Empty, Section, Tip } from "@/components/ui/misc";
 import { fmtMs, fmtNum, fmtPct, fmtRps, shortDigest } from "@/lib/format";
 import { NODE_STATUS, SEVERITY } from "@/lib/status";
+import { isEstimated } from "@/lib/seed-groups";
 import { REQ_GLYPH } from "@/lib/theme";
 import type { Finding, Report, Run, Series } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -190,7 +191,7 @@ export function OverviewTab() {
       <div className="relative overflow-hidden rounded-md border border-line bg-surface p-4 pl-5">
         <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: vColor }} aria-hidden />
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <p className="microlabel">Verdict · {run?.label ?? report.provenance.scenarioName ?? "Design as drawn"}</p>
+          <p className="microlabel">Verdict · {run?.label ?? report.provenance.scenarioName ?? "Design as drawn"}{isEstimated(report) && " · estimated from a sample"}</p>
           <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-2">
             <span className={cn("size-2 rounded-full", v.tone !== "ok" && "pulse-soft")} style={{ background: vColor }} aria-hidden />
             {VERDICT_WORD[v.tone]}

@@ -5,6 +5,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { ApiError, api } from "@/lib/api";
+import { type RunMode, getRunGroup } from "@/lib/seed-groups";
 import { SWEEP_SCENARIO_PREFIX } from "@/lib/sweep";
 import type { ArchitectureDocument, Comparison, Report, Run } from "@/lib/types";
 
@@ -38,7 +39,8 @@ export interface RunsState {
   lastFinishedRunId: string | null;
 
   reset: (projectId: string) => Promise<void>;
-  startRun: (doc: ArchitectureDocument, scenarioId: string | null) => Promise<Run | null>;
+  /** ``seeds`` above 1 starts a seed group (all its runs are polled); ``mode`` "sampled" is a quick check. */
+  startRun: (doc: ArchitectureDocument, scenarioId: string | null, opts?: { seeds?: number; mode?: RunMode }) => Promise<Run | null>;
   startBatch: (doc: ArchitectureDocument, scenarioIds: (string | null)[]) => Promise<void>;
   cancel: (runId: string) => Promise<void>;
   rerun: (runId: string) => Promise<void>;
@@ -191,15 +193,18 @@ export const useRuns = create<RunsState>()((set, get) => {
       }
     },
 
-    startRun: async (doc, scenarioId) => {
+    startRun: async (doc, scenarioId, opts) => {
       const projectId = get().projectId;
       if (!projectId) return null;
       set({ starting: true });
       try {
-        const run = await api.createRun(projectId, { document: doc, scenarioId });
+        const run = await api.createRun(projectId, { document: doc, scenarioId, ...opts });
+        // a seed group answers its first run: poll every run of the group (the others turn up
+        // in the history anyway if the group cannot be read now)
+        const group = run.groupId ? await getRunGroup(run.groupId).then((g) => g.runs, () => [run]) : [run];
         set((s) => ({
-          runs: upsert(s.runs, run),
-          pending: [...s.pending, run.id],
+          runs: group.reduceRight(upsert, s.runs),
+          pending: [...s.pending, ...group.map((r) => r.id).filter((id) => !s.pending.includes(id))],
           followRunId: run.id,
           // keep the canvas visible: results appear on it, and "Open insights" opens the panel
           drawerTab: s.drawerTab === "compare" || s.drawerTab === "runs" ? "overview" : s.drawerTab,

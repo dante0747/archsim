@@ -81,6 +81,14 @@ class ClaimedRun:
     max_requests: int | None = None
     max_wall_seconds: float | None = None
     """The run's own limits (its workspace's when it was queued); None: the worker's."""
+    seed: int | None = None
+    """The seed to simulate with (a seed group's runs share one document); None: the document's."""
+    mode: str = "full"
+    """``full`` or ``sampled`` (a quick check)."""
+
+    def options(self) -> dict[str, Any]:
+        """Keyword arguments for the simulation (``child.simulate``)."""
+        return {"seed": self.seed, "mode": self.mode}
 
     def limits(self, worker: SimulationLimits) -> SimulationLimits:
         """The worker's limits, tightened by the run's own."""
@@ -232,6 +240,8 @@ def claim(
         runs.c.attempts,
         runs.c.max_requests,
         runs.c.max_wall_seconds,
+        runs.c.seed,
+        runs.c.mode,
     )
     rows: Sequence[Any]
     with _claiming(db) as conn:
@@ -246,7 +256,14 @@ def claim(
         ).all()
     return [
         ClaimedRun(
-            r.id, r.input_document, r.scenario_id, r.attempts, r.max_requests, r.max_wall_seconds
+            r.id,
+            r.input_document,
+            r.scenario_id,
+            r.attempts,
+            r.max_requests,
+            r.max_wall_seconds,
+            r.seed,
+            r.mode or "full",
         )
         for r in rows
     ]

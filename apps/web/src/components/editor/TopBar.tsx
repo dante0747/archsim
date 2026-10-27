@@ -45,6 +45,7 @@ import {
 import { ThemeMenu, toggleTheme } from "@/components/ui/theme-toggle";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
+import { SimulateOptionItems } from "@/components/editor/SimulateOptions";
 import { TransportButtons, TransportLcd } from "@/components/editor/Transport";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -103,8 +104,7 @@ function RunControl() {
           disabled={starting}
           data-testid="run-button"
           className={cn(
-            "flex items-center gap-2 border border-[color:var(--record-line)] bg-[color:var(--record-fill)] pl-3 pr-3.5 text-[13px] font-semibold text-ink transition-[filter] hover:brightness-110 disabled:opacity-60",
-            hasScenarios ? "rounded-l-[9px] border-r-0" : "rounded-[9px]",
+            "flex items-center gap-2 rounded-l-[9px] border border-r-0 border-[color:var(--record-line)] bg-[color:var(--record-fill)] pl-3 pr-3.5 text-[13px] font-semibold text-ink transition-[filter] hover:brightness-110 disabled:opacity-60",
           )}
         >
           {starting ? (
@@ -115,7 +115,6 @@ function RunControl() {
           Simulate
         </button>
       </Tip>
-      {hasScenarios && (
       <Menu>
         <MenuTrigger asChild>
           <button
@@ -127,7 +126,9 @@ function RunControl() {
             <ChevronDown className="size-3.5 shrink-0" />
           </button>
         </MenuTrigger>
-        <MenuContent className="w-72">
+        <MenuContent className="w-80">
+          {hasScenarios && (
+          <>
           <MenuLabel>What to simulate</MenuLabel>
           <MenuItem onSelect={() => selectScenario(null)}>
             <Check className={cn(!target ? "opacity-100" : "opacity-0")} />
@@ -149,9 +150,12 @@ function RunControl() {
               </span>
             </MenuItem>
           ))}
+          <MenuSeparator />
+          </>
+          )}
+          <SimulateOptionItems onRun={(opts) => void run(opts)} />
         </MenuContent>
       </Menu>
-      )}
     </div>
   );
 }

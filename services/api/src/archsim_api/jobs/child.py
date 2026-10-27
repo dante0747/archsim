@@ -1,7 +1,7 @@
 """What runs inside a simulation process (and, with the thread executor, in a worker thread).
 
 The worker starts one ``spawn`` process per run with two one-way pipes:
-- *down*, parent to child: first the run (document, scenario, limits), then possibly
+- *down*, parent to child: first the run (document, scenario, limits, seed and mode), then possibly
   ``"cancel"``. The pipe also tells the child its parent is alive: when it closes (the worker
   exited or was killed), the process ends at once;
 - *up*, child to parent: ``("progress", p)`` messages, then one ``("result", outcome)``.
@@ -29,7 +29,7 @@ import threading
 import time
 from collections.abc import Callable
 from multiprocessing.connection import Connection
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from archsim_api.jobs.orphans import EXIT_ORPHANED, die_with_parent
 
@@ -42,10 +42,23 @@ Outcome = dict[str, Any]
 """``{"status": "succeeded", "report": ...}``, ``{"status": "cancelled"}`` or
 ``{"status": "failed", "error": {"message": ..., "issues"?: [...]}}``."""
 
-Simulate = Callable[
-    [dict[str, Any], str | None, "SimulationLimits", Callable[[float], None], Callable[[], bool]],
-    Outcome,
-]
+
+class Simulate(Protocol):
+    """``simulate`` or a stand-in for it (tests)."""
+
+    def __call__(
+        self,
+        document: dict[str, Any],
+        scenario_id: str | None,
+        limits: SimulationLimits,
+        progress: Callable[[float], None],
+        should_cancel: Callable[[], bool],
+        /,
+        *,
+        seed: int | None = ...,
+        mode: str = ...,
+    ) -> Outcome: ...
+
 
 PROGRESS_EVERY_S = 0.25
 """How often the child reports progress; the worker writes it to the database once a second."""
@@ -57,8 +70,13 @@ def simulate(
     limits: SimulationLimits,
     progress: Callable[[float], None],
     should_cancel: Callable[[], bool],
+    /,
+    *,
+    seed: int | None = None,
+    mode: str = "full",
 ) -> Outcome:
-    """Simulate one run and describe how it ended, without raising."""
+    """Simulate one run and describe how it ended, without raising. ``seed`` replaces the
+    document's (a seed group's runs share one document); ``mode`` is ``full`` or ``sampled``."""
     from archsim_engine import (
         DocumentInvalidError,
         SimulationCancelledError,
@@ -73,6 +91,8 @@ def simulate(
             limits=limits,
             progress=progress,
             should_cancel=should_cancel,
+            mode="sampled" if mode == "sampled" else "full",
+            seed=seed,
         )
     except SimulationCancelledError:
         return {"status": "cancelled"}
@@ -111,7 +131,7 @@ def main(up: Connection, down: Connection, parent_pid: int) -> None:
     import archsim_engine  # noqa: F401 - now, while the process waits for its run
 
     try:
-        document, scenario_id, limits, target = down.recv()
+        document, scenario_id, limits, target, options = down.recv()
     except (EOFError, OSError):  # closed before it got a run: no longer needed, or orphaned
         os._exit(EXIT_ORPHANED)
     cancel = threading.Event()
@@ -131,6 +151,6 @@ def main(up: Connection, down: Connection, parent_pid: int) -> None:
                 os._exit(EXIT_ORPHANED)
 
     simulate_run: Simulate = target or simulate  # ``target`` replaces ``simulate`` in tests
-    outcome = simulate_run(document, scenario_id, limits, on_progress, cancel.is_set)
+    outcome = simulate_run(document, scenario_id, limits, on_progress, cancel.is_set, **options)
     up.send(("result", outcome))
     up.close()

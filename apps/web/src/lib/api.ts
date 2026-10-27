@@ -111,7 +111,7 @@ export const api = {
 
   createRun: (
     projectId: string,
-    body: { scenarioId?: string | null; label?: string; document?: ArchitectureDocument },
+    body: { scenarioId?: string | null; label?: string; document?: ArchitectureDocument; seeds?: number; mode?: "full" | "sampled" },
   ) => request<Run>(`/projects/${projectId}/runs`, { method: "POST", body: json(body) }),
   batchRuns: (projectId: string, scenarioIds: (string | null)[], document?: ArchitectureDocument) =>
     request<Run[]>(`/projects/${projectId}/runs/batch`, {

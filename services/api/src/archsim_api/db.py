@@ -284,11 +284,46 @@ class SimulationRun(Base):
     # worker's own).
     max_requests: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     max_wall_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # A seed group's runs share one input; run i of a group uses seed base + i (``seed``).
+    group_id: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("run_groups.id", ondelete="SET NULL", name="fk_runs_group_id"),
+        nullable=True,
+        index=True,
+    )
+    seed_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mode: Mapped[str] = mapped_column(String(16), default="full", server_default="full")
+    """``full`` or ``sampled`` (a quick check: answered from a steady sample when it can be)."""
     # Large payloads are deferred so listing runs stays cheap.
     input_document: Mapped[dict[str, Any]] = deferred(mapped_column(JSONType, nullable=False))
     report: Mapped[dict[str, Any] | None] = deferred(mapped_column(JSONType, nullable=True))
 
     project: Mapped[Project] = relationship(back_populates="runs")
+
+
+class RunGroup(Base):
+    """Runs started together from one input: ``seeds`` runs it with seeds ``base_seed`` …
+    ``base_seed + size - 1`` (``sweep`` is kept for load sweeps)."""
+
+    __tablename__ = "run_groups"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    workspace_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("workspaces.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16))  # seeds | sweep
+    base_seed: Mapped[int] = mapped_column(BigInteger)
+    size: Mapped[int] = mapped_column(Integer)
+    mode: Mapped[str] = mapped_column(String(16), default="full", server_default="full")
+    scenario_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    label: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class JobWorker(Base):

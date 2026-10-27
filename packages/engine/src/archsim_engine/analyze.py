@@ -1,6 +1,7 @@
 """Static analysis of a design without simulating it: the auto sizes, the cost estimate, the
 design review, each part's technology tier, where every input came from, the instant estimate
-from queueing formulas and the confidence it deserves, exactly as a run would use them
+from queueing formulas and the confidence it deserves, and whether a quick (sampled) check can
+answer it, exactly as a run would use them
 (``POST /api/v1/analyze``, the web app's live inspector and design review, the CLI and the MCP
 server all call this)."""
 
@@ -10,6 +11,7 @@ from typing import Any
 
 from archsim_engine.confidence import analysis_confidence
 from archsim_engine.cost import estimate_cost
+from archsim_engine.engine import quick_check
 from archsim_engine.estimate import estimate_design
 from archsim_engine.load import peak_rps
 from archsim_engine.provenance import input_provenance, provenance_counts
@@ -55,6 +57,8 @@ def analyze_document(
         "confidence": analysis_confidence(
             estimate, inputs, technologies, registry, snapshot["architecture"]
         ),
+        # can "Quick check (estimated)" (sampled mode) answer it, and if not, why
+        "quickCheck": quick_check(resolved.workload),
         "calibration": doc.calibration.model_dump(mode="json", by_alias=True)
         if doc.calibration
         else None,

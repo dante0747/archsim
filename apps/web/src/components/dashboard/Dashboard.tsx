@@ -9,6 +9,7 @@
 import { Activity, ChevronRight, Download, LocateFixed, Play, X } from "lucide-react";
 import { Dialog as RDialog } from "radix-ui";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SampleNote } from "@/components/decide/SeedRange";
 import { useEditorActions } from "@/components/editor/actions";
 import { usePlaybackLoop } from "@/components/timeline/playback";
 import { Button } from "@/components/ui/button";
@@ -211,6 +212,7 @@ function DashboardBody({ report, runId, running }: { report: Report; runId: stri
           aria-label="Dashboard panels"
           onPointerLeave={() => useCursor.getState().setCursor(null, null)}
         >
+          <SampleNote report={report} className="mb-2 mt-1" />
           {rows.map((row, k) => {
             const prev = rows[k - 1];
             const heading = groupByKind && row.nodeId && (!prev?.nodeId || prev.kind !== row.kind) ? row.kind : null;

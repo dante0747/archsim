@@ -510,6 +510,10 @@ export interface Run {
   startedAt: string | null;
   finishedAt: string | null;
   reproducesRunId?: string | null;
+  /** Seed group (see lib/seed-groups.ts): the group, this run's place in it, and full or sampled. */
+  groupId?: string | null;
+  seedIndex?: number | null;
+  mode?: "full" | "sampled";
 }
 
 // ---------------------------------------------------------------------------------------------

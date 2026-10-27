@@ -3,8 +3,8 @@
 **Profiles.** With limits on (``ARCHSIM_RATE_LIMITS``, on with sign-in), each workspace kind has
 a profile: runs at once (enforced by ``queue.claim`` across all workers), runs per hour, the
 largest run (``SimulationLimits``: expected requests and wall clock, never above the server's
-own ``ARCHSIM_MAX_REQUESTS``/``ARCHSIM_MAX_WALL_SECONDS``), the calibration replay's wall clock
-and how many projects it may hold. A workspace's own ``max_concurrent_runs`` /
+own ``ARCHSIM_MAX_REQUESTS``/``ARCHSIM_MAX_WALL_SECONDS``), the calibration replay's wall clock,
+how many projects it may hold and how many seeds one seed group may run (5 hosted, 10 locally). A workspace's own ``max_concurrent_runs`` /
 ``max_runs_per_hour`` replace its kind's. Without limits (local use) only the server's own
 settings apply, except for sandboxes, which always keep theirs.
 
@@ -48,9 +48,11 @@ class Profile:
     calibrate_wall_seconds: float | None
     """Wall clock of the replay inside POST /calibrate (it answers synchronously)."""
     max_projects: int | None
+    max_seeds: int = 5
+    """Runs in one seed group (``RunCreate.seeds``)."""
 
 
-UNLIMITED = Profile(None, None, None, None, None, None)
+UNLIMITED = Profile(None, None, None, None, None, None, max_seeds=10)
 
 SANDBOX = Profile(
     max_concurrent_runs=1,
@@ -105,6 +107,11 @@ def calibrate_wall_seconds(settings: Settings, workspace: Workspace) -> float:
     p = profile(settings, workspace.kind)
     server = min(settings.max_wall_seconds, settings.calibrate_max_wall_seconds)
     return _least(_least(server, p.max_wall_seconds), p.calibrate_wall_seconds)
+
+
+def max_seeds(settings: Settings, workspace: Workspace) -> int:
+    """The most seeds one seed group of this workspace may run."""
+    return profile(settings, workspace.kind).max_seeds
 
 
 def runs_per_hour(settings: Settings, workspace: Workspace) -> int | None:

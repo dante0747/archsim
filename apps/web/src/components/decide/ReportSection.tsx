@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { useSeedGroup } from "@/store/seed-groups";
 import { PageHeader, useDecideRun } from "./shared";
 
 /** Inline Markdown: **bold** and `code`. */
@@ -164,13 +165,14 @@ export function ReportSection({ review }: { review?: ReviewItem[] }) {
   const projectId = useRuns((s) => s.projectId);
   const sweep = useDecide((s) => s.sweep);
   const { run, report } = useDecideRun();
+  const seedRuns = useSeedGroup(run?.groupId)?.runs ?? null;
   const [view, setView] = useState<"preview" | "markdown">("preview");
 
   const md = useMemo(() => {
     const doc = toDocument({ nodes, edges, workload, scenarios, objectives, metadata });
     const sweepAnalysis = sweep.projectId === projectId && sweep.rows.some((r) => r.throughput != null) ? analyzeSweep(sweep.rows, objectives) : null;
-    return decisionReportMarkdown({ doc, catalog, objectives, run, report, review, designCost, designConfidence, designEstimate, sweep: sweepAnalysis });
-  }, [nodes, edges, workload, scenarios, metadata, objectives, catalog, run, report, review, designCost, designConfidence, designEstimate, sweep, projectId]);
+    return decisionReportMarkdown({ doc, catalog, objectives, run, report, review, designCost, designConfidence, designEstimate, sweep: sweepAnalysis, seedRuns });
+  }, [nodes, edges, workload, scenarios, metadata, objectives, catalog, run, report, review, designCost, designConfidence, designEstimate, sweep, projectId, seedRuns]);
 
   const fileName = `${slugify(metadata.name || "architecture")}-decision-report.md`;
   const download = () => {

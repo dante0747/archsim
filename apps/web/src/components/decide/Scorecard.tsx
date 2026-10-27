@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { ConfidenceLine, EstimatePending, EstimateVsSimulation } from "./Confidence";
+import { EstimatePending, EstimateVsSimulation } from "./Confidence";
+import { SeedConfidenceLine, SeedRange } from "./SeedRange";
 import { EmptyPanel, Panel, StatusMark, runDesignNow, useDecideRun } from "./shared";
 
 // ---------------------------------------------------------------------------------------------
@@ -448,8 +449,9 @@ export function AnswerPage() {
           <div className="min-w-0">
             <h2 className="font-display text-[46px] leading-[1.02] tracking-[-0.035em] text-ink">{headline}</h2>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{reason}</p>
+            <SeedRange run={run} report={report} />
             {bottleneck && <p className="mt-1 text-[15px] text-ink">{bottleneck.title}.</p>}
-            {confidence && <ConfidenceLine confidence={confidence} fromDesign={!report.confidence} />}
+            {confidence && <SeedConfidenceLine run={run} confidence={confidence} fromDesign={!report.confidence} />}
             {experimental.length > 0 && (
               <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[13px] text-ink-3">
                 <TierBadge tier="experimental" />

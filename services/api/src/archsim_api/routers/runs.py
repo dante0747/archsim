@@ -1,7 +1,11 @@
 """Simulation runs: create (async), poll, cancel, reproduce, fetch reports, compare. A run belongs
 to its project's workspace: viewers read runs, editors start, cancel and delete them. With limits
 on, starting runs counts against the workspace's runs per hour and your own (429 with
-Retry-After), and each run is bounded by its workspace's limits (see ``archsim_api.limits``)."""
+Retry-After), and each run is bounded by its workspace's limits (see ``archsim_api.limits``).
+
+``seeds: N`` starts a seed group (``GET /run-groups/{id}``), one run per seed from the
+document's seed on; ``mode: "sampled"`` is a quick check. Both are stored on each run, so a rerun
+reproduces it."""
 
 from __future__ import annotations
 
@@ -14,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from archsim_api import limits
 from archsim_api.config import Settings
-from archsim_api.db import Database, SimulationRun, Workspace
+from archsim_api.db import Database, RunGroup, SimulationRun, Workspace
 from archsim_api.deps import (
     get_db,
     get_jobs,
@@ -34,11 +38,14 @@ from archsim_engine import (
     ENGINE_VERSION,
     ComponentRegistry,
     DocumentInvalidError,
+    PreparedRun,
     SimulationLimitError,
     SimulationLimits,
     compare_reports,
     prepare_run,
+    quick_check,
 )
+from archsim_engine.engine import MAX_SEED
 
 router = APIRouter(tags=["runs"])
 
@@ -80,6 +87,21 @@ def _run_out(run: SimulationRun, reproduces: str | None = None) -> RunOut:
     return out
 
 
+def _prepare(
+    document: dict[str, Any],
+    scenario_id: str | None,
+    registry: ComponentRegistry,
+    run_limits: SimulationLimits,
+    seed: int | None = None,
+) -> PreparedRun:
+    try:
+        return prepare_run(document, scenario_id, registry, run_limits, seed)
+    except DocumentInvalidError as exc:
+        raise_issues(422, f"Cannot simulate: {exc}", exc.issues)
+    except SimulationLimitError as exc:
+        raise_issues(422, str(exc))
+
+
 def _enqueue(
     session: Session,
     jobs: JobService,
@@ -91,18 +113,18 @@ def _enqueue(
     document: dict[str, Any],
     scenario_id: str | None,
     label: str | None,
+    seed: int | None = None,
+    mode: str = "full",
+    group: RunGroup | None = None,
+    seed_index: int | None = None,
 ) -> SimulationRun:
-    try:
-        prep = prepare_run(document, scenario_id, registry, run_limits)
-    except DocumentInvalidError as exc:
-        raise_issues(422, f"Cannot simulate: {exc}", exc.issues)
-    except SimulationLimitError as exc:
-        raise_issues(422, str(exc))
+    prep = _prepare(document, scenario_id, registry, run_limits, seed)
+    default = prep.scenario_name or "Current design"
     run = SimulationRun(
         project_id=project_id,
         workspace_id=workspace_id,
         created_by=created_by,
-        label=label or prep.scenario_name or "Current design",
+        label=label or (f"{default} · quick check" if mode == "sampled" else default),
         scenario_id=prep.scenario_id,
         scenario_name=prep.scenario_name,
         status="queued",
@@ -112,8 +134,18 @@ def _enqueue(
         input_document=prep.document.to_json_dict(),
         max_requests=run_limits.max_requests,
         max_wall_seconds=run_limits.max_wall_seconds,
+        mode=mode,
+        group_id=group.id if group else None,
+        seed_index=seed_index,
     )
     return jobs.enqueue(session, run)
+
+
+def _check_quick(prep: PreparedRun) -> None:
+    """422 unless sampled mode can answer this run (the reason says why not)."""
+    qc = quick_check(prep.resolved.workload)
+    if not qc["eligible"]:
+        raise_issues(422, f"Cannot run a quick check: {qc['reason']}")
 
 
 @router.post("/projects/{project_id}/runs", response_model=RunOut, status_code=202)
@@ -127,24 +159,65 @@ def create_run(
     settings: Settings = Depends(get_settings_dep),
     db: Database = Depends(get_db),
 ) -> RunOut:
-    """Validate and enqueue a simulation. Returns immediately; poll ``GET /runs/{id}``."""
+    """Validate and enqueue a simulation. Returns immediately; poll ``GET /runs/{id}``.
+
+    With ``seeds`` above 1, enqueue a seed group and return its first run (``groupId`` names
+    the group; poll ``GET /run-groups/{groupId}``)."""
     project = access.project
     workspace = _workspace(session, project.workspace_id)
     document = body.document if body.document is not None else project.document
-    _charge(settings, db, workspace, principal, 1)
-    run = _enqueue(
-        session,
-        jobs,
-        registry,
-        limits.simulation_limits(settings, workspace),
-        project.id,
-        project.workspace_id,
-        principal.user_id,
-        document,
-        body.scenario_id,
-        body.label,
+    run_limits = limits.simulation_limits(settings, workspace)
+    args = (session, jobs, registry, run_limits, project.id, project.workspace_id)
+    if body.seeds == 1:
+        if body.mode == "sampled":
+            _check_quick(_prepare(document, body.scenario_id, registry, run_limits))
+        _charge(settings, db, workspace, principal, 1)
+        run = _enqueue(
+            *args, principal.user_id, document, body.scenario_id, body.label, mode=body.mode
+        )
+        return _run_out(run)
+
+    # a seed group: one input, seeds base ... base + N - 1
+    prep = _prepare(document, body.scenario_id, registry, run_limits)
+    if body.mode == "sampled":
+        _check_quick(prep)
+    cap = limits.max_seeds(settings, workspace)
+    if body.seeds > cap:
+        raise_issues(422, f"{workspace.name} can run at most {cap} seeds at once.")
+    base = prep.resolved.workload.seed
+    last = base + body.seeds - 1
+    if last > MAX_SEED:
+        raise_issues(422, f"Seeds {base:,} to {last:,} go past the largest, {MAX_SEED:,}.")
+    _charge(settings, db, workspace, principal, body.seeds)
+    label = body.label or prep.scenario_name or "Current design"
+    group = RunGroup(
+        workspace_id=project.workspace_id,
+        project_id=project.id,
+        kind="seeds",
+        base_seed=base,
+        size=body.seeds,
+        mode=body.mode,
+        scenario_id=prep.scenario_id,
+        label=label,
+        created_by=principal.user_id,
     )
-    return _run_out(run)
+    session.add(group)
+    session.flush()
+    runs = [
+        _enqueue(
+            *args,
+            principal.user_id,
+            document,
+            body.scenario_id,
+            f"{label} · seed {i + 1} of {body.seeds}"[:200],
+            seed=base + i,
+            mode=body.mode,
+            group=group,
+            seed_index=i,
+        )
+        for i in range(body.seeds)
+    ]
+    return _run_out(runs[0])
 
 
 @router.post("/projects/{project_id}/runs/batch", response_model=list[RunOut], status_code=202)
@@ -257,7 +330,7 @@ def rerun(
     settings: Settings = Depends(get_settings_dep),
     db: Database = Depends(get_db),
 ) -> RunOut:
-    """Re-simulate the exact stored input (same document, scenario and seed) to check
+    """Re-simulate the exact stored input (same document, scenario, seed and mode) to check
     reproducibility: the new run's ``resultDigest`` should equal the original's."""
     original = access.run
     workspace = _workspace(session, original.workspace_id)
@@ -273,6 +346,8 @@ def rerun(
         original.input_document,
         original.scenario_id,
         f"Reproduce: {original.label or original.id[:8]}"[:200],
+        seed=original.seed,
+        mode=original.mode or "full",
     )
     return _run_out(run, reproduces=original.id)
 

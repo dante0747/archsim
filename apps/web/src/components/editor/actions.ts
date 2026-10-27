@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { ApiError, api } from "@/lib/api";
 import { slugify } from "@/lib/document";
+import type { RunMode } from "@/lib/seed-groups";
 import type { ArchitectureDocument } from "@/lib/types";
 import { downloadJson, readJsonFile } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
@@ -37,7 +38,8 @@ export function useEditorActions() {
     }
   }, [rf]);
 
-  const run = useCallback(async () => {
+  /** Simulate the design (or the chosen scenario); ``opts``: a seed group or a quick check. */
+  const run = useCallback(async (opts?: { seeds?: number; mode?: RunMode }) => {
     const s = useEditor.getState();
     const firstError = s.issues.find((i) => i.severity === "error");
     if (firstError) {
@@ -52,7 +54,7 @@ export function useEditorActions() {
     const ui = useUi.getState();
     ui.setPlaying(false);
     ui.setPlayhead(null);
-    await r.startRun(s.toDocument(rf.getViewport()), scenarioId);
+    await r.startRun(s.toDocument(rf.getViewport()), scenarioId, opts);
   }, [rf]);
 
   const exportJson = useCallback(() => {

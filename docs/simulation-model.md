@@ -707,6 +707,23 @@ requested and simulated durations, the checks, a note); its counts and time seri
 sample, and its rates, success and percentiles stand for the whole run. It is deterministic like
 any run. Validation against full runs: [performance.md](performance.md).
 
+The API and the web app call it a *quick check* (`mode: "sampled"`, Simulate menu → "Quick check
+(estimated)"). It is offered only when `quick_check(workload)` (in `/analyze` as `quickCheck`) says
+the design qualifies, and otherwise says why. When a sample turns out not steady, the whole run is
+simulated and `simulationMode` is `{kind: "full", requestedMode: "sampled", note}`. The web app
+labels a sampled report "Estimated" and its charts say they cover only the sample.
+
+## Seeds and seed groups
+
+One run answers for one random sequence. `run_simulation(..., seed=N)` replaces the workload's seed
+(after the scenario is applied), so a run of seed N reproduces exactly: the report's input, and so
+its `inputDigest`, carries the seed used. The API's seed groups run one document with seeds base
+to base + N - 1, and `summarize_seeds` (in `archsim_engine.seeds`) reads them together: the
+verdict split ("Meets the objectives in 4 of 5 runs"), p50/p95/p99, success and throughput ranges
+with their medians. Runs that disagree on the verdict are *borderline*; the web app shows an amber
+Borderline and caps the confidence at medium, and offers "Check 5 seeds" whenever a single run's
+p95 is within 15% of its objective.
+
 ## Validation against queueing theory
 
 `packages/engine/tests/test_reference_benchmark.py` checks the engine against exact results:

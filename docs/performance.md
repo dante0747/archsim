@@ -77,7 +77,8 @@ every accuracy check at risk for a speed-up that sampling gives without touching
    whose sample is not stationary (an overloaded system's queue grows). The report's
    `simulationMode` says which mode answered and why; counts and time series cover the sample.
    It is opt-in: `archsim run --sampled`, `run_simulation(..., mode="sampled")`, the MCP
-   `simulate` tool's `mode`.
+   `simulate` tool's `mode`, the API's `mode: "sampled"` and the web app's Simulate menu
+   ("Quick check (estimated)", offered only when the design qualifies).
 
 4. **Load balancer pick.** Least-connections routing stops at the first idle replica (the same
    pick as a full scan), which matters for pools of hundreds of replicas.
@@ -129,9 +130,9 @@ rate as a constant load for 10 minutes (no faults, no scenarios), simulated both
 Every sampled answer is within ±5% of the full run (the brief's bar); the largest p95 difference
 is 2%. Two runs were refused because their samples were not steady (Kafka's backlog grows;
 mongodb-hot-shard is overloaded), which costs the sample's time on top of the full run (7 to 19%
-here). Sampled mode stays **opt-in**: it passed on every template, but the web app does not yet
-show sampled reports (its charts would cover only the sample), so it is not the default for
-long runs until it does.
+here). Sampled mode stays **opt-in**: the web app offers it as "Quick check (estimated)" and
+labels its reports "Estimated", with charts that say they cover only the sample; full runs stay
+the default.
 
 ## What-if questions: the instant estimate, not a faster core
 

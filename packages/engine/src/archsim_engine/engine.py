@@ -21,7 +21,7 @@ from simpy.core import URGENT, EmptySchedule, StopSimulation
 
 from archsim_engine.components import create_default_registry
 from archsim_engine.components.traffic_source import TrafficSourceConfig, TrafficSourceRuntime
-from archsim_engine.issues import DocumentInvalidError
+from archsim_engine.issues import DocumentInvalidError, error
 from archsim_engine.metrics import Timeline
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.report import build_report
@@ -79,17 +79,36 @@ class PreparedRun:
     sizes: dict[str, PartSize] = field(default_factory=dict)
 
 
+MAX_SEED = 2**32 - 1
+
+
+def with_seed(resolved: ArchitectureDocument, seed: int | None) -> ArchitectureDocument:
+    """``resolved`` with its workload's seed replaced (``None``: unchanged). Raises
+    ``DocumentInvalidError`` for a seed outside 0 to 2**32 - 1."""
+    if seed is None or seed == resolved.workload.seed:
+        return resolved
+    if not 0 <= seed <= MAX_SEED:
+        raise DocumentInvalidError(
+            [error("workload.seed", f"Seeds go from 0 to {MAX_SEED:,}; got {seed:,}.")]
+        )
+    workload = resolved.workload.model_copy(update={"seed": seed})
+    return resolved.model_copy(update={"workload": workload})
+
+
 def prepare_run(
     document: dict[str, Any] | ArchitectureDocument,
     scenario_id: str | None = None,
     registry: ComponentRegistry | None = None,
     limits: SimulationLimits | None = None,
+    seed: int | None = None,
 ) -> PreparedRun:
-    """Load, resolve and validate. Raises ``DocumentInvalidError`` or ``SimulationLimitError``."""
+    """Load, resolve and validate. ``seed`` replaces the workload's seed after the scenario is
+    applied. Raises ``DocumentInvalidError`` or ``SimulationLimitError``."""
     registry = registry or default_registry()
     limits = limits or SimulationLimits()
     doc = load_document(document)
     resolved, scenario, sizes = resolve_scenario_sized(doc, scenario_id, registry)
+    resolved = with_seed(resolved, seed)
     result = validate_document(resolved, registry, max_amplification=limits.max_amplification)
     if not result.valid:
         raise DocumentInvalidError(result.issues)
@@ -226,15 +245,68 @@ SAMPLE_MAX_SHARE = 0.5
 """A run is sampled only when the sample is at most half of it (else it is simulated whole)."""
 
 
+def _secs(v: float) -> str:
+    return f"{v:,.0f} s" if v >= 10 else f"{v:.1f} s"
+
+
+def quick_check(wl: Workload) -> dict[str, Any]:
+    """Can sampled mode (the web app's "Quick check (estimated)") answer this workload? It needs
+    a constant rate, no scheduled faults, and a run long enough that the warm-up plus a steady
+    sample is at most half of it. ``reason`` says why not, or what it will simulate.
+
+    ``{eligible, reason, requestedS, simulatedS, sampleS}`` (the last two None when not
+    eligible). Even an eligible run is simulated whole if its sample turns out not steady."""
+    duration = wl.duration_s
+    out: dict[str, Any] = {
+        "eligible": False,
+        "reason": "",
+        "requestedS": duration,
+        "simulatedS": None,
+        "sampleS": None,
+    }
+    if not isinstance(wl.pattern, ConstantPattern):
+        out["reason"] = (
+            f"Quick check needs constant traffic; this run's traffic is a {wl.pattern.kind} "
+            "pattern, so it is simulated whole."
+        )
+        return out
+    if wl.faults:
+        n = len(wl.faults)
+        out["reason"] = (
+            f"Quick check needs a run without planned failures; this one has {n} "
+            f"planned failure{'s' if n != 1 else ''}, so it is simulated whole."
+        )
+        return out
+    if wl.rps <= 0:
+        out["reason"] = "There is no traffic to sample."
+        return out
+    sample = max(SAMPLE_MIN_S, SAMPLE_MIN_REQUESTS / wl.rps)
+    total = wl.warmup_s + sample
+    if total > SAMPLE_MAX_SHARE * duration:
+        out["reason"] = (
+            f"The run is too short to gain from a quick check: the warm-up and a steady sample "
+            f"({_secs(total)}) would be more than half of its {_secs(duration)}. Runs of "
+            f"{_secs(math.ceil(total / SAMPLE_MAX_SHARE))} or longer qualify."
+        )
+        return out
+    out.update(
+        eligible=True,
+        simulatedS=total,
+        sampleS=sample,
+        reason=(
+            f"Simulates the {_secs(wl.warmup_s)} warm-up and a {_secs(sample)} steady sample "
+            f"instead of all {_secs(duration)}, then answers from the sample if it is steady."
+        ),
+    )
+    return out
+
+
 def sample_seconds(wl: Workload) -> float | None:
     """How long sampled mode simulates (warm-up plus a steady sample), or None when the run must
     be simulated whole: a load that changes over time, scheduled faults, or a run too short to
-    gain from sampling."""
-    if not isinstance(wl.pattern, ConstantPattern) or wl.faults or wl.rps <= 0:
-        return None
-    sample = max(SAMPLE_MIN_S, SAMPLE_MIN_REQUESTS / wl.rps)
-    total = wl.warmup_s + sample
-    return total if total <= SAMPLE_MAX_SHARE * wl.duration_s else None
+    gain from sampling (see ``quick_check``)."""
+    qc = quick_check(wl)
+    return float(qc["simulatedS"]) if qc["eligible"] else None
 
 
 def stationary(report: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
@@ -290,20 +362,32 @@ def run_simulation(
     progress: ProgressFn | None = None,
     should_cancel: CancelFn | None = None,
     mode: Literal["full", "sampled"] = "full",
+    seed: int | None = None,
 ) -> dict[str, Any]:
     """Run one simulation and return its report (see ``docs/simulation-model.md``).
+
+    ``seed`` replaces the workload's seed (after the scenario is applied): the API's seed groups
+    run one document with seeds base to base + N - 1, and a rerun with the same seed reproduces
+    the run exactly (the report's input, and so its ``inputDigest``, carries the seed used).
 
     ``mode="sampled"`` (hybrid): for a steady load (constant rate, no faults) that runs much
     longer than it needs to settle, simulate the warm-up and a steady sample (at least 10 s and
     50,000 arrivals) in full, check the sample is stationary, and answer the whole run from it:
     rates, success and percentiles of a stationary system do not change with run length. The
-    report's ``simulationMode`` says which mode answered and why; a run that does not qualify,
-    or whose sample is not stationary, is simulated whole."""
+    report's ``simulationMode`` says which mode answered and why; a run that does not qualify
+    is simulated whole, and one whose sample is not stationary is simulated whole with
+    ``simulationMode.kind == "full"`` saying why."""
+    fallback: dict[str, Any] | None = None
     if mode == "sampled":
-        sampled = _run_sampled(document, scenario_id, registry, limits, progress, should_cancel)
+        sampled, fallback = _run_sampled(
+            document, scenario_id, registry, limits, progress, should_cancel, seed
+        )
         if sampled is not None:
             return sampled
-    return _run_full(document, scenario_id, registry, limits, progress, should_cancel)
+    report = _run_full(document, scenario_id, registry, limits, progress, should_cancel, seed)
+    if fallback is not None:
+        report["simulationMode"] = fallback
+    return report
 
 
 def _run_sampled(
@@ -313,20 +397,34 @@ def _run_sampled(
     limits: SimulationLimits | None,
     progress: ProgressFn | None,
     should_cancel: CancelFn | None,
-) -> dict[str, Any] | None:
+    seed: int | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """The sampled report, or None and (when a sample was simulated but was not steady) the
+    ``simulationMode`` note for the full run that answers instead."""
     registry = registry or default_registry()
-    prep = prepare_run(document, scenario_id, registry, limits or SimulationLimits())
+    prep = prepare_run(document, scenario_id, registry, limits or SimulationLimits(), seed)
     wl = prep.resolved.workload
     seconds = sample_seconds(wl)
     if seconds is None:
-        return None
+        return None, None
     short = prep.resolved.to_json_dict()
     short["workload"]["durationS"] = seconds
     short["scenarios"] = []
     report = _run_full(short, None, registry, limits, progress, should_cancel)
     ok, checks = stationary(report)
     if not ok:
-        return None
+        return None, {
+            "kind": "full",
+            "requestedMode": "sampled",
+            "requestedDurationS": wl.duration_s,
+            "simulatedDurationS": wl.duration_s,
+            "checks": checks,
+            "note": (
+                f"A quick check was asked for, but the {seconds - wl.warmup_s:g} s sample was "
+                "not steady (a queue, backlog or latency was still changing), so the whole "
+                f"{wl.duration_s:g} s run was simulated."
+            ),
+        }
     report["simulationMode"] = {
         "kind": "sampled",
         "requestedDurationS": wl.duration_s,
@@ -341,7 +439,7 @@ def _run_sampled(
     }
     report["provenance"]["scenarioId"] = prep.scenario_id
     report["provenance"]["scenarioName"] = prep.scenario_name
-    return report
+    return report, None
 
 
 def _run_full(
@@ -351,11 +449,12 @@ def _run_full(
     limits: SimulationLimits | None,
     progress: ProgressFn | None,
     should_cancel: CancelFn | None,
+    seed: int | None = None,
 ) -> dict[str, Any]:
     wall0 = time.perf_counter()
     registry = registry or default_registry()
     limits = limits or SimulationLimits()
-    prep = prepare_run(document, scenario_id, registry, limits)
+    prep = prepare_run(document, scenario_id, registry, limits, seed)
     resolved = prep.resolved
     configs = prep.validation.configs
     wl = resolved.workload
