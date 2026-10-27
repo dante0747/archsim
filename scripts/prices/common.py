@@ -111,7 +111,7 @@ def write_snapshot(snapshot: dict[str, Any], out: Path | None) -> Path:
         )
     parse_snapshot(snapshot)  # raises with the reason when something is off
     path = out or SNAPSHOT_DIR / f"{snapshot['provider']}-{snapshot['region']}-{snapshot['snapshotDate']}.json"
-    path.write_text(json.dumps(snapshot, indent=1) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(snapshot, indent=1) + "\n", encoding="utf-8", newline="\n")
     counts = {k: len(snapshot.get(k, [])) for k in ("compute", "databases", "caches", "streams")}
     print(f"wrote {path} {counts}", file=sys.stderr)
     return path
