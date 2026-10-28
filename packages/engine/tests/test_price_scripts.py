@@ -32,7 +32,7 @@ EC2_COLUMNS = (
     '"StartingRange","EndingRange","Unit","PricePerUnit","Currency","Product Family",'
     '"Location Type","Instance Type","Current Generation","Instance Family","vCPU","Memory",'
     '"Tenancy","Operating System","License Model","Pre Installed S/W","CapacityStatus",'
-    '"MarketOption","Volume API Name"\n'
+    '"MarketOption","Volume API Name","usageType"\n'
 )
 
 
@@ -77,13 +77,22 @@ def ec2_row(
         "Used",
         market,
         "",
+        "",
     ]
     return ",".join(f'"{c}"' for c in cells) + "\n"
 
 
 def gp3_row(sku: str, price: str, location: str = "AWS Region") -> str:
     cells = [sku, "JRTCKXETXF", f"{sku}.r", "OnDemand", "gp3", "2026-10-01", "0", "Inf"]
-    cells += ["GB-Mo", price, "USD", "Storage", location] + [""] * 11 + ["gp3"]
+    cells += ["GB-Mo", price, "USD", "Storage", location] + [""] * 11 + ["gp3", ""]
+    return ",".join(f'"{c}"' for c in cells) + "\n"
+
+
+def credit_row(sku: str, price: str, family: str, os: str = "Linux") -> str:
+    """Surplus CPU credits of a burstable family (unlimited mode), per vCPU-hour."""
+    cells = [sku, "JRTCKXETXF", f"{sku}.r", "OnDemand", "credits", "2026-10-01", "0", "Inf"]
+    cells += ["vCPU-Hours", price, "USD", "CPU Credits", "AWS Region"] + [""] * 6
+    cells += [os] + [""] * 5 + [f"CPUCredits:{family}"]
     return ",".join(f'"{c}"' for c in cells) + "\n"
 
 
@@ -101,17 +110,22 @@ EC2 = (
     + ec2_row("A8", "0.0300000000", "o1.large", current="No")
     + ec2_row("A9", "0.9000000000", "g9.xlarge", "4", "16 GiB", category="GPU instance")
     + ec2_row("A10", "0.0400000000", "t9g.large")
+    + ec2_row("A11", "0.0672000000", "t4g.large")
+    + credit_row("A12", "0.0400000000", "t4g")
+    + credit_row("A13", "0.0960000000", "t4g", os="Windows")
     + gp3_row("S1", "0.0900000000")
     + gp3_row("S2", "0.0300000000", "AWS Outposts")
 )
 RDS = (
     AWS_HEAD
-    + """"SKU","TermType","Unit","PricePerUnit","Product Family","Location Type","Instance Type","vCPU","Memory","Database Engine","Deployment Option"
-"R1","OnDemand","Hrs","0.2500000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","PostgreSQL","Single-AZ"
-"R2","OnDemand","Hrs","0.5000000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","PostgreSQL","Multi-AZ"
-"R3","OnDemand","Hrs","0.2400000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","MySQL","Single-AZ"
-"R4","OnDemand","Hrs","0.2400000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","MariaDB","Single-AZ"
-"R5","OnDemand","Hrs","0.1000000000","Database Instance","AWS Outposts","db.y9.large","2","16 GiB","PostgreSQL","Single-AZ"
+    + """"SKU","TermType","Unit","PricePerUnit","Product Family","Location Type","Instance Type","vCPU","Memory","Database Engine","Deployment Option","usageType"
+"R1","OnDemand","Hrs","0.2500000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","PostgreSQL","Single-AZ",""
+"R2","OnDemand","Hrs","0.5000000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","PostgreSQL","Multi-AZ",""
+"R3","OnDemand","Hrs","0.2400000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","MySQL","Single-AZ",""
+"R4","OnDemand","Hrs","0.2400000000","Database Instance","AWS Region","db.y9.large","2","16 GiB","MariaDB","Single-AZ",""
+"R5","OnDemand","Hrs","0.1000000000","Database Instance","AWS Outposts","db.y9.large","2","16 GiB","PostgreSQL","Single-AZ",""
+"R6","OnDemand","Hrs","0.0160000000","Database Instance","AWS Region","db.t4g.micro","2","1 GiB","PostgreSQL","Single-AZ",""
+"R7","OnDemand","vCPU-Hours","0.0750000000","CPU Credits","AWS Region","","","","PostgreSQL","","CPUCredits:db.t4g"
 """
 )
 CACHE = (
@@ -158,6 +172,53 @@ ELB = (
 "E2","OnDemand","Hrs","0.0050000000","AWS Region","Load Balancer-Application","TS-LoadBalancerUsage"
 "E3","OnDemand","LCU-Hrs","0.0080000000","AWS Region","Load Balancer-Application","LCUUsage"
 "E4","OnDemand","Hrs","0.0225000000","AWS Outposts","Load Balancer-Application","Outposts-LoadBalancerUsage"
+"E5","OnDemand","ReservedLCU-Hr","0.0060000000","AWS Region","Load Balancer-Application","ReservedLCUUsage"
+"E6","OnDemand","Hrs","0.0225000000","AWS Region","Load Balancer-Network","LoadBalancerUsage"
+"E7","OnDemand","LCU-Hrs","0.0060000000","AWS Region","Load Balancer-Network","LCUUsage"
+"E8","OnDemand","Hrs","0.0125000000","AWS Region","Load Balancer-Gateway","LoadBalancerUsage"
+"""
+)
+RDS_STORAGE = (
+    AWS_HEAD
+    + """"SKU","TermType","Unit","PricePerUnit","Product Family","Location Type","Volume Type","Database Engine","Deployment Option"
+"V1","OnDemand","GB-Mo","0.1150000000","Database Storage","AWS Region","General Purpose-GP3","PostgreSQL","Single-AZ"
+"V2","OnDemand","GB-Mo","0.1150000000","Database Storage","AWS Region","General Purpose-GP3","MySQL","Single-AZ"
+"V3","OnDemand","GB-Mo","0.2300000000","Database Storage","AWS Region","General Purpose-GP3","PostgreSQL","Multi-AZ"
+"V4","OnDemand","GB-Mo","0.1250000000","Database Storage","AWS Region","Provisioned IOPS","PostgreSQL","Single-AZ"
+"""
+)
+DYNAMODB = (
+    AWS_HEAD
+    + """"SKU","TermType","Unit","PricePerUnit","Product Family","Location Type","Group","usageType","StartingRange"
+"D1","OnDemand","ReadCapacityUnit-Hrs","0.0000000000","Provisioned IOPS","AWS Region","DDB-ReadUnits","ReadCapacityUnit-Hrs","0"
+"D2","OnDemand","ReadCapacityUnit-Hrs","0.0001300000","Provisioned IOPS","AWS Region","DDB-ReadUnits","ReadCapacityUnit-Hrs","18600"
+"D3","OnDemand","WriteCapacityUnit-Hrs","0.0000000000","Provisioned IOPS","AWS Region","DDB-WriteUnits","WriteCapacityUnit-Hrs","0"
+"D4","OnDemand","WriteCapacityUnit-Hrs","0.0006500000","Provisioned IOPS","AWS Region","DDB-WriteUnits","WriteCapacityUnit-Hrs","18600"
+"D5","OnDemand","ReadCapacityUnit-Hrs","0.0001600000","Provisioned IOPS","AWS Region","DDB-ReadUnitsIA","IA-ReadCapacityUnit-Hrs","0"
+"D6","OnDemand","ReadRequestUnits","0.0000001250","Amazon DynamoDB PayPerRequest Throughput","AWS Region","DDB-ReadUnits","ReadRequestUnits","0"
+"D7","OnDemand","WriteRequestUnits","0.0000006250","Amazon DynamoDB PayPerRequest Throughput","AWS Region","DDB-WriteUnits","WriteRequestUnits","0"
+"D8","OnDemand","GB-Mo","0.0000000000","Database Storage","AWS Region","","TimedStorage-ByteHrs","0"
+"D9","OnDemand","GB-Mo","0.2500000000","Database Storage","AWS Region","","TimedStorage-ByteHrs","25"
+"D10","OnDemand","GB-Mo","0.1000000000","Database Storage","AWS Region","","IA-TimedStorage-ByteHrs","0"
+"D11","OnDemand","GB-Mo","0.2000000000","Database Storage","AWS Region","","USE1-TimedPITRStorage-ByteHrs","0"
+"""
+)
+API_GATEWAY = (
+    AWS_HEAD
+    + """"SKU","TermType","Unit","PricePerUnit","Product Family","Location Type","usageType","StartingRange"
+"G1","OnDemand","Requests","0.0000035000","API Calls","AWS Region","USE1-ApiGatewayRequest","0"
+"G2","OnDemand","Requests","0.0000028000","API Calls","AWS Region","USE1-ApiGatewayRequest","333000000"
+"G3","OnDemand","Requests","0.0000010000","API Calls","AWS Region","USE1-ApiGatewayHttpRequest","0"
+"G4","OnDemand","Messages","0.0000010000","WebSocket","AWS Region","USE1-ApiGatewayMessage","0"
+"""
+)
+EKS = (
+    AWS_HEAD
+    + """"SKU","TermType","Unit","PricePerUnit","Product Family","Location Type","usageType"
+"S1","OnDemand","Hours","0.1000000000","Compute","AWS Region","USE1-AmazonEKS-Hours:perCluster"
+"S2","OnDemand","hours","0.5000000000","Compute","AWS Region","USE1-AmazonEKS-Hours:extendedSupport"
+"S3","OnDemand","Hours","1.6500000000","Compute","AWS Region","USE1-AmazonEKS-Hours:XL-ProvisionedTier"
+"S4","OnDemand","hours","0.0492700000","Compute","AWS Region","EKS-Auto:c7a.2xlarge-management-hours"
 """
 )
 
@@ -174,14 +235,24 @@ def test_aws_offer_csvs() -> None:
         ("x9.large", 0.1, False),
         ("x9.2xlarge", 0.4, False),
         ("t9g.large", 0.04, True),
+        ("t4g.large", 0.0672, True),
     ]
+    # AWS's baseline CPU per vCPU, from the script's table: only for the families it knows
+    assert [c.get("baselineCpu") for c in compute] == [None, None, None, 0.3]
+    # surplus CPU credits (unlimited mode) at the Linux price, on that family's types only
+    assert [c.get("creditVcpuHour") for c in compute] == [None, None, None, 0.04]
+    assert aws.baseline_cpu("db.t4g.micro") == 0.1 and aws.baseline_cpu("cache.t3.small") == 0.2
+    assert aws.baseline_cpu("t2.micro") is None and aws.baseline_cpu("m7g.large") is None
     assert shapes["x9.large"] == (2.0, 8.0) and gp3 == 0.09
     dbs = aws.rds(lines(RDS))
     assert {(d["sku"], d["engines"][0], d["hourly"]["on_demand"]) for d in dbs} == {
         ("db.y9.large", "postgresql", 0.25),
         ("db.y9.large", "mysql", 0.24),
         ("db.y9.large", "mariadb", 0.24),
+        ("db.t4g.micro", "postgresql", 0.016),
     }
+    micro = next(d for d in dbs if d["sku"] == "db.t4g.micro")
+    assert (micro["baselineCpu"], micro["creditVcpuHour"]) == (0.1, 0.075)
     caches = aws.elasticache(lines(CACHE))
     assert {(c["engines"][0], c["hourly"]["on_demand"]) for c in caches} == {
         ("redis", 0.156),
@@ -194,13 +265,30 @@ def test_aws_offer_csvs() -> None:
         ("kafka.t9.small", 2.0, 2.0, True),
     ]
     # the first paid tier, not the free tier or the cheaper high-volume ones; the load
-    # balancer-hour, not a trust store's
+    # balancer-hour, not a trust store's; capacity units used, not reserved; no gateway LBs
     assert aws.rates(lines(LAMBDA), lines(SQS), lines(ELB)) == {
         "serverlessGbSecond": 0.0000166667,
         "serverlessPerMillionRequests": 0.2,
         "queuePerMillionRequests": 0.4,
         "loadBalancerHour": 0.0225,
+        "loadBalancerLcuHour": 0.008,
+        "networkLoadBalancerHour": 0.0225,
+        "networkLoadBalancerLcuHour": 0.006,
     }
+    # gp3 Single-AZ storage (not Multi-AZ or provisioned IOPS)
+    assert aws.rds_storage(lines(RDS_STORAGE)) == {"rdsStorageGibMonth": 0.115}
+    # the Standard table class; the paid tier past the free allowance; not PITR or IA storage
+    assert aws.dynamodb(lines(DYNAMODB)) == {
+        "dynamodbRcuHour": 0.00013,
+        "dynamodbWcuHour": 0.00065,
+        "dynamodbReadPerMillion": 0.125,
+        "dynamodbWritePerMillion": 0.625,
+        "dynamodbStorageGibMonth": 0.25,
+    }
+    # REST API requests' first tier, not HTTP APIs or WebSocket messages
+    assert aws.api_gateway(lines(API_GATEWAY)) == {"apiGatewayPerMillion": 3.5}
+    # the standard control plane, not extended support, provisioned tiers or Auto Mode
+    assert aws.eks(lines(EKS)) == {"kubernetesControlPlaneHour": 0.1}
     with pytest.raises(ValueError, match="no header row"):
         list(aws.rows(["not a price list\n"]))
 

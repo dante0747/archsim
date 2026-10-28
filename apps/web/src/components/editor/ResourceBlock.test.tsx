@@ -105,7 +105,7 @@ describe("ResourceBlock", () => {
     expect(screen.getByText(/req\/s per replica at peak/)).toBeTruthy();
     // the starter pins AWS prices: the auto size is a real instance type, priced from the snapshot
     expect(screen.getByText("c6g.xlarge")).toBeTruthy();
-    expect(screen.getByText(/on-demand, aws us-east-1, prices of 2026-10-27/)).toBeTruthy();
+    expect(screen.getByText(/on-demand, aws us-east-1, prices of 2026-10-28/)).toBeTruthy();
     cleanup();
     // at generic rates, the size's illustrative price
     useEditor.getState().setAnalysis(genericAnalysis());

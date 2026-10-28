@@ -70,18 +70,81 @@ class SkuModel(_M):
         default=False,
         description="Runs on CPU credits (AWS t families): never snapped to unless its family is named",
     )
+    baseline_cpu: float | None = Field(
+        default=None,
+        alias="baselineCpu",
+        gt=0,
+        le=1,
+        description=(
+            "Burstable types: the share of each vCPU it can use all the time without spending "
+            "CPU credits (AWS's baseline performance; not in the price list)"
+        ),
+    )
+    credit_vcpu_hour: float | None = Field(
+        default=None,
+        alias="creditVcpuHour",
+        ge=0,
+        description=(
+            "Burstable types that run in unlimited mode: the price per vCPU-hour of surplus CPU "
+            "credits (CPU used above the baseline). Without it a burstable type is throttled to "
+            "its baseline when its credits run out (standard mode)"
+        ),
+    )
+
+
+def _rate(alias: str, what: str) -> Any:
+    return Field(default=None, alias=alias, ge=0, description=what)
 
 
 class RatesModel(_M):
-    storage_gib_month: float | None = Field(default=None, alias="storageGibMonth", ge=0)
-    serverless_gb_second: float | None = Field(default=None, alias="serverlessGbSecond", ge=0)
-    serverless_per_million_requests: float | None = Field(
-        default=None, alias="serverlessPerMillionRequests", ge=0
+    """Per-unit prices of a snapshot; every one is optional (older snapshots have fewer)."""
+
+    storage_gib_month: float | None = _rate("storageGibMonth", "Block storage per GiB-month")
+    serverless_gb_second: float | None = _rate(
+        "serverlessGbSecond", "Serverless functions per GB-second"
     )
-    queue_per_million_requests: float | None = Field(
-        default=None, alias="queuePerMillionRequests", ge=0
+    serverless_per_million_requests: float | None = _rate(
+        "serverlessPerMillionRequests", "Serverless functions per million invocations"
     )
-    load_balancer_hour: float | None = Field(default=None, alias="loadBalancerHour", ge=0)
+    queue_per_million_requests: float | None = _rate(
+        "queuePerMillionRequests", "Managed queues per million requests"
+    )
+    load_balancer_hour: float | None = _rate(
+        "loadBalancerHour", "An application load balancer per hour"
+    )
+    load_balancer_lcu_hour: float | None = _rate(
+        "loadBalancerLcuHour", "An application load balancer's capacity unit (LCU) per hour"
+    )
+    network_load_balancer_hour: float | None = _rate(
+        "networkLoadBalancerHour", "A network load balancer per hour"
+    )
+    network_load_balancer_lcu_hour: float | None = _rate(
+        "networkLoadBalancerLcuHour", "A network load balancer's capacity unit (NLCU) per hour"
+    )
+    dynamodb_read_per_million: float | None = _rate(
+        "dynamodbReadPerMillion", "DynamoDB on-demand, per million read request units"
+    )
+    dynamodb_write_per_million: float | None = _rate(
+        "dynamodbWritePerMillion", "DynamoDB on-demand, per million write request units"
+    )
+    dynamodb_rcu_hour: float | None = _rate(
+        "dynamodbRcuHour", "DynamoDB provisioned, per read capacity unit-hour"
+    )
+    dynamodb_wcu_hour: float | None = _rate(
+        "dynamodbWcuHour", "DynamoDB provisioned, per write capacity unit-hour"
+    )
+    dynamodb_storage_gib_month: float | None = _rate(
+        "dynamodbStorageGibMonth", "DynamoDB table storage per GiB-month"
+    )
+    api_gateway_per_million: float | None = _rate(
+        "apiGatewayPerMillion", "An API gateway per million requests (REST API, first tier)"
+    )
+    rds_storage_gib_month: float | None = _rate(
+        "rdsStorageGibMonth", "Managed database storage per GiB-month (gp3, Single-AZ)"
+    )
+    kubernetes_control_plane_hour: float | None = _rate(
+        "kubernetesControlPlaneHour", "A managed Kubernetes cluster's control plane per hour"
+    )
 
 
 class SourceModel(_M):
@@ -113,6 +176,10 @@ class Sku:
     hourly: dict[str, float]
     engines: tuple[str, ...] = ()
     burstable: bool = False
+    baseline_cpu: float | None = None
+    """Burstable types: the share of each vCPU usable all the time without spending credits."""
+    credit_vcpu_hour: float | None = None
+    """Burstable types in unlimited mode: the price of a vCPU-hour above the baseline."""
 
     def price(self, option: str) -> float | None:
         return self.hourly.get(option)
@@ -275,7 +342,15 @@ def _from_model(m: SnapshotModel, sha256: str | None = None) -> Snapshot:
     def skus(items: list[SkuModel]) -> tuple[Sku, ...]:
         return tuple(
             Sku(
-                s.sku, s.family, s.vcpu, s.memory_gib, dict(s.hourly), tuple(s.engines), s.burstable
+                s.sku,
+                s.family,
+                s.vcpu,
+                s.memory_gib,
+                dict(s.hourly),
+                tuple(s.engines),
+                s.burstable,
+                s.baseline_cpu,
+                s.credit_vcpu_hour,
             )
             for s in items
         )
@@ -293,13 +368,8 @@ def _from_model(m: SnapshotModel, sha256: str | None = None) -> Snapshot:
             "cache": skus(m.caches),
             "stream": skus(m.streams),
         },
-        rates={
-            "storageGibMonth": m.rates.storage_gib_month,
-            "serverlessGbSecond": m.rates.serverless_gb_second,
-            "serverlessPerMillionRequests": m.rates.serverless_per_million_requests,
-            "queuePerMillionRequests": m.rates.queue_per_million_requests,
-            "loadBalancerHour": m.rates.load_balancer_hour,
-        },
+        # every rate by its JSON name; None when the snapshot does not have it
+        rates=m.rates.model_dump(by_alias=True),
         sha256=sha256,
     )
 

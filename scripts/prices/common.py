@@ -54,6 +54,7 @@ def sku(
     hourly: float,
     engines: list[str] | None = None,
     burstable: bool = False,
+    baseline_cpu: float | None = None,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {
         "sku": sku_id,
@@ -66,6 +67,8 @@ def sku(
         out["engines"] = engines
     if burstable:
         out["burstable"] = True
+    if baseline_cpu is not None:
+        out["baselineCpu"] = baseline_cpu
     return out
 
 

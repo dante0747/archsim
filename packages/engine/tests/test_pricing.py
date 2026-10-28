@@ -410,7 +410,16 @@ def test_the_shipped_aws_snapshots_are_clean() -> None:
             for s in items:
                 name = s.sku if category == "compute" else s.sku.split(".", 1)[1]
                 assert s.burstable == (name[0] == "t" and name[1].isdigit()), s.sku
-        assert all(v is not None and v > 0 for v in snap.rates.values()), snap.rates
+                # a baseline only on burstable types; in the newest, the t4g ones all have theirs
+                assert s.baseline_cpu is None or s.burstable, s.sku
+                if path == files[-1] and name.startswith("t4g.") and category != "stream":
+                    assert s.baseline_cpu is not None and 0 < s.baseline_cpu <= 1, s.sku
+        # older snapshots have fewer rates: every rate a snapshot has is a price
+        assert all(v is None or v > 0 for v in snap.rates.values()), snap.rates
+    # the newest has every rate the engine knows (the older ones stay as they were: stored runs
+    # pin their content hash)
+    newest = parse_snapshot(json.loads(files[-1].read_text(encoding="utf-8")))
+    assert all(v is not None and v > 0 for v in newest.rates.values()), newest.rates
 
 
 def test_templates_and_new_documents_pin_a_shipped_aws_snapshot() -> None:
