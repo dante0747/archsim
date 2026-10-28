@@ -33,6 +33,7 @@ _DYNAMO_BURST = (
     "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/burst-adaptive-capacity.html"
 )
 _KAFKA_RETENTION = "https://kafka.apache.org/documentation/#brokerconfigs_log.retention.hours"
+_LAMBDA_MEMORY = "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,10 @@ def constants() -> list[Constant]:
         Constant("Auto-sizing", "Load balancer memory per vCPU", f"{s.PROXY_GIB_PER_VCPU} GiB", "sizing.PROXY_GIB_PER_VCPU"),
         Constant("Auto-sizing", "Broker throughput per vCPU", f"{s.BROKER_MSGS_PER_VCPU:,} messages/s", "sizing.BROKER_MSGS_PER_VCPU"),
         Constant("Auto-sizing", "Broker memory per vCPU", f"{s.BROKER_GIB_PER_VCPU} GiB", "sizing.BROKER_GIB_PER_VCPU"),
-        Constant("Auto-sizing", "Database memory per vCPU when no hot working set is set", f"{s.DB_GIB_PER_VCPU} GiB", "sizing.DB_GIB_PER_VCPU"),
+        Constant("Auto-sizing", "Share of a database's data read often, when no hot working set is set", _pct(s.DB_HOT_SHARE), "sizing.DB_HOT_SHARE"),
+        Constant("Auto-sizing", "Smallest auto memory of a database instance", f"{s.DB_MIN_MEMORY_GIB:g} GiB", "sizing.DB_MIN_MEMORY_GIB"),
+        Constant("Auto-sizing", "Memory of a VM's operating system", f"{s.OS_MEMORY_GIB:g} GiB", "sizing.OS_MEMORY_GIB"),
+        Constant("Auto-sizing", "Serverless function memory per vCPU", f"{s.LAMBDA_MB_PER_VCPU:,} MB", "sizing.LAMBDA_MB_PER_VCPU", _LAMBDA_MEMORY),
         Constant("Auto-sizing", "Backlog a delete-on-ack broker keeps room for", f"{s.BACKLOG_S // 60:g} minutes of peak publishes", "sizing.BACKLOG_S"),
         Constant("Auto-sizing", "Log retention of Kafka-style brokers", f"{s.LOG_RETENTION_S // 3600:g} hours", "sizing.LOG_RETENTION_S", _KAFKA_RETENTION),
         Constant("Cost estimate", "Hours in a month", f"{c.HOURS_PER_MONTH}", "cost.HOURS_PER_MONTH"),

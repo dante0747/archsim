@@ -56,7 +56,7 @@
         "peakRps": 400.0,
         "why": {
           "cpuCores": "200 req/s per replica at peak (400 over 2) \u00d7 10.2 ms of CPU each = 2.03 cores busy; at a 60% target that is 3.39 \u2192 4 vCPU; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
-          "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB, +25% headroom; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
+          "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
         },
         "pricePerHour": 0.136,
         "sku": "c6g.xlarge",
@@ -127,7 +127,7 @@
         "peakRps": 112.0,
         "why": {
           "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
-          "memoryGib": "4 GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
+          "memoryGib": "24 MiB of hot data per instance (25% of the 95 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 1 GiB for the engine and its connections; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
           "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
         },
         "pricePerHour": 0.1601,

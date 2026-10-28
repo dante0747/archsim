@@ -490,6 +490,11 @@ def test_without_a_snapshot_machines_get_standard_shapes() -> None:
                 continue
             if machine_kind(n["type"], cfg) is None:
                 continue  # pods and functions: not machines of their own
+            if any(
+                isinstance((n.get("config") or {}).get(k), int | float)
+                for k in ("cpuCores", "memoryGib")
+            ):
+                continue  # a spec set on the part: the shape follows it (checked below)
             assert mem / cpu in GIB_PER_VCPU, f"{path.name} {nid}: {cpu} vCPU, {mem} GiB"
     api = analyze_document(starter(), REGISTRY)["sizing"]["nodes"]["api"]
     assert (api["auto"]["cpuCores"], api["auto"]["memoryGib"]) == (4.0, 8.0)

@@ -272,6 +272,29 @@ def test_sqs_and_pubsub_get_their_stand_ins() -> None:
     assert "managed Pub/Sub-style service" in compose
 
 
+def test_kubernetes_requests_the_cpu_a_light_pod_needs() -> None:
+    import json
+
+    import yaml
+
+    from engine_builders import EXAMPLES
+
+    doc = json.loads((EXAMPLES / "notification-fanout-quotas.json").read_text(encoding="utf-8"))
+    out = list(yaml.safe_load_all(export_document(doc, "k8s", REGISTRY)))
+    found = False
+    for d in out:
+        if not d or d.get("kind") != "Deployment":
+            continue
+        for c in d["spec"]["template"]["spec"]["containers"]:
+            res = c.get("resources") or {}
+            req, lim = (res.get("requests") or {}).get("cpu"), (res.get("limits") or {}).get("cpu")
+            if isinstance(req, str) and req.endswith("m"):
+                found = True
+                # a fraction of a core requested, the whole cores it is simulated with as the limit
+                assert int(req[:-1]) < 1000 * float(lim)
+    assert found, "no auto-sized pod requested millicores"
+
+
 def test_export_document_fills_auto_sizes() -> None:
     out = export_document(copy.deepcopy(RAW), "k8s", REGISTRY)
     # every container gets resources (set or auto-sized); no placeholder 500m/512Mi requests

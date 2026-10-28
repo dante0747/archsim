@@ -188,6 +188,79 @@ def test_parts_record_what_they_need_beside_the_instance_they_get() -> None:
     assert api["specs"]["cpuCores"]["value"] == 4 and api["specs"]["memoryGib"]["value"] == 8
 
 
+def test_a_database_is_sized_by_its_connections_and_hot_data() -> None:
+    import json
+
+    from archsim_engine.analyze import analyze_document
+    from engine_builders import EXAMPLES
+
+    doc = json.loads((EXAMPLES / "retry-storm-ttl-cache.json").read_text(encoding="utf-8"))
+    db = analyze_document(doc, REG)["sizing"]["nodes"]["db"]
+    # the TTL cache's hit ratio is estimated (not 100% misses), and 10 connections x 50% CPU
+    # can keep at most 5 cores busy: no 32-vCPU instance
+    assert "capped at 5 because 10 connections × 50% CPU" in db["why"]["cpuCores"]
+    assert db["sku"] == "db.m6g.2xlarge"
+    assert db["need"]["busyCores"] < 5
+    # memory from its hot data (an illustrative 25% of what it stores), at least 1 GiB; no
+    # longer 4 GiB per vCPU
+    assert "of hot data per instance (25% of the" in db["why"]["memoryGib"]
+    assert "at least 1 GiB" in db["why"]["memoryGib"] and db["need"]["memoryGib"] < 1
+    # with a hot working set, the buffer cache holds it
+    sizes = auto_sizes(
+        norm(
+            [
+                n("clients", "traffic_source"),
+                n("db", "database", workingSetGib=12, maxConnections=40, cpuShare=0.5),
+            ],
+            [e("clients", "db")],
+        ),
+        REG,
+    )
+    assert sizes["db"].memory_gib == 16  # 12 GiB / 75% = 16 GiB
+    assert sizes["db"].need["memoryGib"] == pytest.approx(16)
+
+
+def test_a_function_gets_its_cpu_with_its_memory() -> None:
+    def fn(**config: Any) -> Any:
+        return auto_sizes(
+            norm(
+                [
+                    n("clients", "traffic_source"),
+                    n("fn", "service", platform="serverless", **config),
+                ],
+                [e("clients", "fn")],
+            ),
+            REG,
+        )["fn"]
+
+    # a full vCPU, so a request runs at full speed, comes with 1,769 MB (AWS Lambda)
+    full = fn()
+    assert full.cpu_cores == 1 and full.memory_gib == pytest.approx(1769 / 1024, abs=1e-5)
+    assert "1 vCPU takes 1,769 MB" in full.why["memoryGib"]
+    # memory set on the part sets the CPU: 1 GiB gives 0.58 vCPU
+    small = fn(memoryGib=1)
+    assert small.cpu_cores == pytest.approx(1024 / 1769, abs=1e-6)
+    assert "below 1 its work runs slower" in small.why["cpuCores"]
+
+
+def test_a_service_on_a_vm_counts_the_operating_system() -> None:
+    def api(platform: str) -> Any:
+        return auto_sizes(
+            norm(
+                [
+                    n("clients", "traffic_source"),
+                    n("api", "service", platform=platform, queueCapacity=0, workersPerReplica=4),
+                ],
+                [e("clients", "api")],
+            ),
+            REG,
+        )["api"]
+
+    vm, pod = api("vm"), api("kubernetes")
+    assert "for the operating system" in vm.why["memoryGib"]
+    assert vm.need["memoryGibMax"] == pytest.approx(pod.need["memoryGibMax"] + 0.25)
+
+
 def test_autoscaling_full_scale_worker_cap_and_floor() -> None:
     sizes = auto_sizes(
         norm(
@@ -262,7 +335,11 @@ def test_databases_are_sized_from_the_busiest_primary_working_set_and_data() -> 
     assert (db.cpu_cores, db.memory_gib, db.storage_gib) == (4, 32, 100)
     assert sizes["plain"].storage_gib == 10
     assert "set the data size" in sizes["plain"].why["storageGib"]
-    assert sizes["plain"].memory_gib == 4 * (sizes["plain"].cpu_cores or 0)
+    # no working set: an illustrative 25% of its data is hot, at least 1 GiB, then rounded with
+    # its CPU to a standard shape (no longer 4 GiB per vCPU)
+    assert "25% of the" in sizes["plain"].why["memoryGib"]
+    assert sizes["plain"].need["memoryGib"] < 1
+    assert sizes["plain"].memory_gib == 2 * (sizes["plain"].cpu_cores or 0)
     # every search hits all 6 shards: 1600 x 6 ms x 0.5 = 4.8 cores per shard / 0.6 = 8
     assert sizes["es"].cpu_cores == 8
     assert "all 6 shards" in sizes["es"].why["cpuCores"]

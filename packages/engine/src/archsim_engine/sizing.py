@@ -6,10 +6,15 @@ simulate the same document the same way. A value set on the part always wins. Th
 what the engine does with each spec (docs/simulation-model.md, "Resource specs"), so an
 auto-sized part is not the bottleneck at the peak it was sized for:
 
-- CPU: the CPU work per second at the peak (from the static load estimate in ``load.py``) at a
-  60% target, rounded up to a common size, at least 1 vCPU (below one core every request slows
-  down), never more than the replica's handlers (workers, event loops, command threads) can use.
-- Memory: what the engine's memory model needs (requests held, buffer cache, keys) plus 25%.
+- CPU: the CPU work per second at the peak (from the static load estimate in ``load.py``, with
+  each TTL cache's hit ratio estimated from its TTL and the key popularity) at a 60% target,
+  rounded up to a common size, at least 1 vCPU (below one core every request slows down; the
+  fraction shows only as the need, and as a Kubernetes CPU request in the export), never more
+  than the replica's handlers (workers, event loops, command threads) or a database's
+  connections (times the CPU share of a query) can use.
+- Memory: what the engine's memory model needs (requests held, buffer cache, keys) plus 25%; a
+  database's is its hot data in its buffer cache (at least 1 GiB); a serverless function gets
+  1,769 MB per vCPU (AWS Lambda's coupling of CPU to memory).
 - Storage: the data per instance kept under 70% full.
 - With a price snapshot (``pricing`` names a provider), CPU and memory then snap to the cheapest
   instance type that covers them (``pricing.choose_machine``), so sizes are real machine shapes.
@@ -38,7 +43,16 @@ from typing import TYPE_CHECKING, Any
 
 from archsim_engine.components.cache import KEY_MEMORY_SHARE
 from archsim_engine.components.database import BUFFER_CACHE_SHARE
-from archsim_engine.load import Json, estimate_load, js_num, mean_ms, num, peak_rps, round_half_up
+from archsim_engine.load import (
+    Json,
+    estimate_load,
+    js_num,
+    mean_ms,
+    num,
+    peak_rps,
+    round_half_up,
+    ttl_miss_shares,
+)
 from archsim_engine.pricing import (
     GENERIC,
     GENERIC_GIB_HOUR,
@@ -78,8 +92,11 @@ MEMORY_HEADROOM = 1.25
 STORAGE_FILL = 0.7
 """Auto storage keeps the data under 70% full."""
 MIN_STORAGE_GIB = 10.0
-DB_GIB_PER_VCPU = 4
-"""Illustrative: database memory per vCPU when no hot working set is set."""
+DB_MIN_MEMORY_GIB = 1.0
+"""Illustrative: the smallest auto memory of a database instance (the engine and its
+connections)."""
+LAMBDA_MB_PER_VCPU = 1769
+"""AWS Lambda gives a function one vCPU per 1,769 MB of memory (CPU scales with memory)."""
 PROXY_GIB_PER_VCPU = 1
 """Illustrative: load balancer memory per vCPU (a proxy keeps little state)."""
 BROKER_GIB_PER_VCPU = 2
@@ -200,23 +217,45 @@ def _disk_for(need: float) -> float:
     return min(1_000_000.0, _step_up(max(need, MIN_STORAGE_GIB), DISK_STEPS))
 
 
+def _size_function(cfg: Json, baseline: float, per_req: float) -> PartSize:
+    """A serverless function runs one request per instance. Its CPU comes with its memory (AWS
+    Lambda: 1 vCPU per 1,769 MB): a full vCPU, so the request runs at full speed, takes 1,769 MB;
+    memory set on the part sets the CPU instead."""
+    mb = baseline + per_req
+    full = LAMBDA_MB_PER_VCPU / 1024  # GiB that come with one vCPU
+    coupling = f"a function gets 1 vCPU per {LAMBDA_MB_PER_VCPU:,} MB of memory (AWS Lambda)"
+    set_cpu, set_mem = num(cfg.get("cpuCores")), num(cfg.get("memoryGib"))
+    if set_mem is not None and set_cpu is None:
+        cpu = min(1.0, set_mem / full)
+        cpu_why = f"{js_num(set_mem)} GiB of memory: {coupling}, so {fmt(cpu)} vCPU" + (
+            "; below 1 its work runs slower" if cpu < 1 else ""
+        )
+    else:
+        cpu = 1.0
+        cpu_why = "One request per instance: 1 vCPU runs it at full speed"
+    vcpu = set_cpu if set_cpu is not None else cpu
+    own = _mem_for(mb * MEMORY_HEADROOM / 1024, 0.125)
+    coupled = round(min(1.0, vcpu) * full, 6)
+    mem = max(own, coupled)
+    mem_why = f"{fmt(baseline)} MiB base + 1 request × {fmt(per_req)} MiB, {_headroom()}"
+    if coupled >= own:
+        mem_why += f"; {coupling}, so {js_num(min(1.0, vcpu))} vCPU takes {int(round_half_up(coupled * 1024)):,} MB"
+    return PartSize(
+        cpu,
+        mem,
+        None,
+        why={"cpuCores": cpu_why, "memoryGib": mem_why},
+        need={"cpuCores": 1.0, "memoryGib": mb / 1024, "memoryGibMax": mb / 1024},
+    )
+
+
 def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> PartSize:
     baseline = num(cfg.get("memoryBaselineMb"))
     baseline = 256.0 if baseline is None else baseline
     per_req = num(cfg.get("memoryPerRequestMb"))
     per_req = 2.0 if per_req is None else per_req
     if cfg.get("platform") == "serverless":
-        mb = baseline + per_req
-        return PartSize(
-            1.0,
-            _mem_for(mb * MEMORY_HEADROOM / 1024, 0.5),
-            None,
-            why={
-                "cpuCores": "One request per instance: 1 vCPU runs it at full speed",
-                "memoryGib": f"{fmt(baseline)} MiB base + 1 request × {fmt(per_req)} MiB, {_headroom()}",
-            },
-            need={"cpuCores": 1.0, "memoryGib": mb / 1024, "memoryGibMax": mb / 1024},
-        )
+        return _size_function(cfg, baseline, per_req)
     autoscaling = cfg.get("autoscaling") is True
     replicas_set = num(cfg.get("replicas")) or 1.0
     if autoscaling:
@@ -249,18 +288,19 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
     queue = max(0.0, num(cfg.get("queueCapacity")) or 0.0)
     held = working + queue
     mb = baseline + held * per_req
-    wanted = _mem_for(mb * MEMORY_HEADROOM / 1024, 0.5)
-    mem = min(wanted, float(MAX_SERVICE_MEMORY_GIB))
     os = OS_MEMORY_GIB if on_vm else 0.0
+    wanted = _mem_for((mb / 1024 + os) * MEMORY_HEADROOM, 0.5)
+    mem = min(wanted, float(MAX_SERVICE_MEMORY_GIB))
     need = {
         "busyCores": busy,
         "cpuCores": busy / TARGET_CPU,
         "memoryGibMax": mb / 1024 + os,
     }
     memory_model = (baseline / 1024 + os, per_req / 1024, replicas)
+    on_os = f" + {_gib(os)} for the operating system" if os else ""
     mem_why = (
         f"{fmt(baseline)} MiB base + {fmt(held)} requests held ({working} working, {fmt(queue)} "
-        f"queued) × {fmt(per_req)} MiB = {_gib(mb / 1024)}, {_headroom()}"
+        f"queued) × {fmt(per_req)} MiB = {_gib(mb / 1024)}{on_os}, {_headroom()}"
     )
     if mem < wanted:
         refuse_at = math.floor((mem * 1024 - baseline) / max(per_req, 1e-9))
@@ -318,14 +358,18 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
             f"{fmt(write / shards)} writes/s × {fmt(write_ms)} ms, {_pct(share)} of it CPU"
         )
     cpu, why = _cpu_for(busy, intro)
+    # each connection runs one query at a time, and only its CPU share needs a core: more cores
+    # than that would idle (like a service's workers)
+    conns = max(1, int(num(cfg.get("maxConnections")) or 1))
+    usable = max(1, math.ceil(conns * share - 1e-9))
+    cpu, why = _cap_cpu(
+        cpu,
+        why,
+        usable,
+        f"{conns} connection{'' if conns == 1 else 's'} × {_pct(share)} CPU keep at most "
+        f"{usable} core{'' if usable == 1 else 's'} busy (add connections, read replicas or shards)",
+    )
     ws = num(cfg.get("workingSetGib"))
-    if ws is not None:
-        per = ws / shards
-        mem = _mem_for(per / BUFFER_CACHE_SHARE, 2)
-        mem_why = f"{_gib(per)} of hot data per instance in a buffer cache of {_pct(BUFFER_CACHE_SHARE)} of memory, so reads stay in memory"
-    else:
-        mem = _mem_for(DB_GIB_PER_VCPU * cpu, 2)
-        mem_why = f"{DB_GIB_PER_VCPU} GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache"
     given = num(cfg.get("dataSizeGib"))
     item_kb = num(cfg.get("itemSizeKb"))
     item_kb = 1.0 if item_kb is None else item_kb
@@ -338,9 +382,22 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
         else f"{fmt(int(workload['keyCount']))} keys × {fmt(item_kb)} KB ≈ {_gib(data)} (set the data size for a better estimate)"
     )
     storage_why = f"{source}{f' over {shards} shards' if shards > 1 else ''}, {_fill()} (at least {js_num(MIN_STORAGE_GIB)} GiB)"
-    # memory it needs: its hot data in the buffer cache (the working set, else an illustrative
-    # share of the data it stores)
+    # memory: its hot data in a buffer cache of 75% of memory (the working set, else an
+    # illustrative share of the data it stores)
     hot = ws / shards if ws is not None else DB_HOT_SHARE * per_instance
+    mem = _mem_for(hot / BUFFER_CACHE_SHARE, DB_MIN_MEMORY_GIB)
+    floor = f", at least {js_num(DB_MIN_MEMORY_GIB)} GiB for the engine and its connections"
+    if ws is not None:
+        mem_why = (
+            f"{_gib(hot)} of hot data per instance in a buffer cache of "
+            f"{_pct(BUFFER_CACHE_SHARE)} of memory, so reads stay in memory{floor}"
+        )
+    else:
+        mem_why = (
+            f"{_gib(hot)} of hot data per instance ({_pct(DB_HOT_SHARE)} of the {_gib(per_instance)} "
+            f"it stores, illustrative: set a hot working set for a better estimate) in a buffer "
+            f"cache of {_pct(BUFFER_CACHE_SHARE)} of memory{floor}"
+        )
     need = {
         "busyCores": busy,
         "cpuCores": busy / TARGET_CPU,
@@ -601,7 +658,11 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
     nodes: list[Json] = doc["architecture"]["nodes"]
     workload = doc["workload"]
     snap, option, families = pricing_of(doc)
-    loads = estimate_load(doc, registry, ttl_miss_share=1.0)
+    # a TTL cache's misses from its TTL and the key popularity (all of them when its load
+    # cannot be estimated)
+    loads = estimate_load(
+        doc, registry, ttl_miss_share=1.0, miss_shares=ttl_miss_shares(doc, registry)
+    )
     clusters = _clusters(nodes, registry)
     out: dict[str, PartSize] = {}
     for n in nodes:

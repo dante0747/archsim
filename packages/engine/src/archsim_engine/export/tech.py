@@ -248,7 +248,10 @@ def k8s_storage(g: float) -> str:
     return f"{math.ceil(g)}Gi"
 
 
-def k8s_resources(cfg: Json) -> Json | None:
+def k8s_resources(cfg: Json, cpu_request: float | None = None) -> Json | None:
+    """Requests and limits from the part's specs. ``cpu_request``: the CPU an auto-sized part
+    needs, when below its cores, requested in millicores (rounded up to 10m) with its cores as
+    the limit."""
     cpu, mem, _ = specs_of(cfg)
     if cpu is None and mem is None:
         return None
@@ -257,7 +260,10 @@ def k8s_resources(cfg: Json) -> Json | None:
         q["cpu"] = k8s_cpu(cpu)
     if mem is not None:
         q["memory"] = k8s_memory(mem)
-    return {"requests": dict(q), "limits": dict(q)}
+    requests = dict(q)
+    if cpu is not None and cpu_request is not None and 0 < cpu_request < cpu:
+        requests["cpu"] = k8s_cpu(max(0.01, math.ceil(cpu_request * 100 - 1e-9) / 100))
+    return {"requests": requests, "limits": dict(q)}
 
 
 def compose_resources(cfg: Json) -> Json | None:
