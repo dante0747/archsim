@@ -24,8 +24,8 @@ from archsim_engine.estimate import (
     mmc_wait,
     moments,
     times,
-    ttl_hit_ratio,
 )
+from archsim_engine.load import ttl_hit_ratio, ttl_miss_shares
 from archsim_engine.scenarios import load_document, resolve_scenario_sized
 from engine_builders import EXAMPLES, doc, edge, load_example, node
 
@@ -99,6 +99,26 @@ def test_ttl_hit_ratio_matches_the_renewal_formula() -> None:
         (s := k**-0.9 / exact) * (1000 * s * 60 / (1 + 1000 * s * 60)) for k in range(1, 50_001)
     )
     assert ttl_hit_ratio(1000, 0, 50_000, 0.9, 60) == pytest.approx(want, rel=0.01)
+    # memory for half the keys: the most popular half is held, reads of the rest miss
+    assert ttl_hit_ratio(100, 0, 100, 0.0, 1.0, capacity_keys=50) == pytest.approx(0.25, abs=1e-6)
+    assert ttl_hit_ratio(100, 0, 100, 0.0, 1.0, capacity_keys=500) == pytest.approx(0.5, abs=1e-6)
+    top = ttl_hit_ratio(1000, 0, 50_000, 0.9, 60, capacity_keys=10_000)
+    assert top < ttl_hit_ratio(1000, 0, 50_000, 0.9, 60)
+    held = sum(
+        (s := k**-0.9 / exact) * (1000 * s * 60 / (1 + 1000 * s * 60)) for k in range(1, 10_001)
+    )
+    assert top == pytest.approx(held, rel=0.01)
+
+
+def test_ttl_miss_shares_follow_the_load_reaching_each_cache() -> None:
+    from archsim_engine.scenarios import normalize_document
+
+    d = load_document(load_example("retry-storm-ttl-cache.json"))
+    shares = ttl_miss_shares(normalize_document(d, REGISTRY), REGISTRY)
+    assert set(shares) == {"cache"} and 0 < shares["cache"] < 1
+    # at a lower rate each key is read less often, so more reads find it expired
+    low = ttl_miss_shares(normalize_document(d, REGISTRY), REGISTRY, rate=10)
+    assert low["cache"] > shares["cache"]
 
 
 # ---------------------------------------------------------------------------------------------

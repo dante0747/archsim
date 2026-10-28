@@ -37,7 +37,14 @@ from typing import Any
 
 from archsim_engine.distributions import Constant, Empirical, Exponential, LogNormal, Uniform
 from archsim_engine.explain import erlang_c
-from archsim_engine.load import NodeLoad, estimate_load, kind_of, peak_rps
+from archsim_engine.load import (
+    NodeLoad,
+    estimate_load,
+    kind_of,
+    peak_rps,
+    ttl_capacity_keys,
+    ttl_miss_shares,
+)
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.scenarios import simulation_input
 from archsim_engine.schema import ArchitectureDocument, EdgeSpec, NodeSpec
@@ -158,51 +165,6 @@ def lognormal_p95(components: list[tuple[float, Moments]]) -> float | None:
         else:
             hi = mid
     return hi
-
-
-# ---------------------------------------------------------------------------------------------
-# TTL cache hit ratio
-# ---------------------------------------------------------------------------------------------
-
-
-def ttl_hit_ratio(read_rps: float, write_rps: float, keys: int, skew: float, ttl_s: float) -> float:
-    """Expected hit ratio of a TTL cache for Zipf(skew) key popularity.
-
-    A key read after it expired (or after a write invalidated it) misses and is cached again;
-    reads in the next ``min(TTL, time to the next write)`` hit. Per key with read rate r and write
-    rate w that window lasts W = (1 - e^(-w·TTL)) ÷ w on average, so its hit ratio is
-    r·W ÷ (1 + r·W). Evictions for lack of memory are not included."""
-    if read_rps <= 0 or keys <= 0 or ttl_s <= 0:
-        return 0.0
-    exact = min(keys, 2000)
-
-    def weight(k: float) -> float:
-        return k**-skew
-
-    def mass(a: float, b: float) -> float:
-        """∫ x^-s dx from a to b (the popularity of keys a+0.5 ... b-0.5)."""
-        if abs(skew - 1.0) < 1e-9:
-            return math.log(b / a)
-        return (b ** (1 - skew) - a ** (1 - skew)) / (1 - skew)
-
-    buckets: list[tuple[float, float]] = [(weight(k), 1.0) for k in range(1, exact + 1)]
-    lo = exact
-    while lo < keys:
-        hi = min(keys, max(lo + 1, math.ceil(lo * 1.05)))
-        count = hi - lo
-        buckets.append((mass(lo + 0.5, hi + 0.5) / count, float(count)))
-        lo = hi
-    total = sum(w * n for w, n in buckets)
-    if total <= 0:
-        return 0.0
-    hits = 0.0
-    for w, n in buckets:
-        share = w / total
-        r = read_rps * share
-        wr = write_rps * share
-        window = ttl_s if wr * ttl_s < 1e-9 else -math.expm1(-wr * ttl_s) / wr
-        hits += n * share * (r * window / (1 + r * window))
-    return min(1.0, max(0.0, hits))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -378,33 +340,22 @@ def estimate_design(
     peak = peak_rps(wl)
     notes: list[str] = []
 
-    # TTL caches: estimate their hit ratio from the reads that reach them, then the load again
-    miss_shares: dict[str, float] = {}
-    ttl = [
-        n
-        for n in nodes
-        if n.type == "cache" and getattr(parsed.get(n.id), "hit_model", None) == "ttl_keyspace"
-    ]
-    for _ in range(len(ttl) + 1):
-        loads = estimate_load(snapshot, registry, miss_shares=miss_shares)
-        pending = [n for n in ttl if n.id not in miss_shares and loads.get(n.id) is not None]
-        if not pending:
-            break
-        for n in pending:
-            ld = loads[n.id]
-            assert ld is not None
-            hit = ttl_hit_ratio(
-                ld.read,
-                ld.write,
-                int(wl["keyCount"]),
-                float(wl["keySkew"]),
-                parsed[n.id].ttl_seconds,
-            )
-            miss_shares[n.id] = 1 - hit
-            notes.append(
-                f"{labels[n.id]}'s hit ratio is estimated at {hit:.0%} from its TTL and how "
-                "popular the keys are (evictions not included)."
-            )
+    # TTL caches: their hit ratio from the reads that reach them (load.ttl_miss_shares)
+    miss_shares = ttl_miss_shares(snapshot, registry)
+    for n in nodes:
+        if n.id not in miss_shares:
+            continue
+        held = ttl_capacity_keys(n.config, registry)
+        keys = int(wl["keyCount"])
+        why = (
+            f"its memory holds the {held:,} most popular of {keys:,} keys"
+            if held is not None and held < keys
+            else "evictions not included"
+        )
+        notes.append(
+            f"{labels[n.id]}'s hit ratio is estimated at {1 - miss_shares[n.id]:.0%} from its TTL "
+            f"and how popular the keys are ({why})."
+        )
     flows: dict[str, NodeLoad | None] = {}
     loads = estimate_load(snapshot, registry, miss_shares=miss_shares, edge_loads=flows)
     on_path, sync_links = _sync_reach(nodes, out, kinds)
