@@ -21,7 +21,7 @@ import type { Fault, NodeReport, NodeStatus, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { autoSizeKey } from "@/store/sizes";
+import { autoSizeKey, needKey } from "@/store/sizes";
 import { useUi } from "@/store/ui";
 
 export const NODE_W = 212;
@@ -141,6 +141,8 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const plan = useMemo(() => (planJson ? (JSON.parse(planJson) as ClusterPlan) : null), [planJson]);
   // Auto sizes fill the specs a part leaves empty (as a string so moving parts does not re-render).
   const autoKey = useEditor((s) => autoSizeKey(s.analysis, id));
+  // what the part needs, beside the instance it gets (engine 0.13+)
+  const needOf = useEditor((s) => needKey(s.analysis, id));
 
   const liveOn = overlay && !!report && !!nodeReport && bucket >= 0 && bucket < nBuckets;
   const live = useMemo(
@@ -223,6 +225,11 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
   const [setCpu, setMem, setDisk] = [spec("cpuCores"), spec("memoryGib"), spec("storageGib")];
   const [cpu, mem, disk] = [setCpu ?? autos[0], setMem ?? autos[1], setDisk ?? autos[2]];
   const isAuto = [setCpu == null && autos[0] != null, setMem == null && autos[1] != null, setDisk == null && autos[2] != null];
+  const [needCpu, needMem] = needOf.split("|").map((v) => (v === "" ? null : Number(v)));
+  const needText = [
+    needCpu != null && cpu != null ? `${needCpu < 10 ? +needCpu.toFixed(2) : Math.round(needCpu)} vCPU` : null,
+    needMem != null && mem != null ? (needMem < 1 ? `${Math.round(needMem * 1024)} MiB` : `${+needMem.toFixed(1)} GiB`) : null,
+  ].filter(Boolean);
   const level = util != null ? Math.min(1, Math.max(0, util)) : null;
   const facts: { k: string; v: string }[] = [];
   if (comp?.isTrafficSource) {
@@ -341,6 +348,15 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
                 </span>
               )}
               {isAuto.some(Boolean) && <span className="text-[11px] font-medium text-accent">auto</span>}
+            </p>
+          )}
+          {needText.length > 0 && (
+            <p
+              className="arch-card-fact text-[11px] leading-4 text-ink-3"
+              data-testid="node-need"
+              title="What the part needs at the design's peak (CPU at the 60% target, typical memory); the line above is what its instance has"
+            >
+              needs {needText.join(" · ")}
             </p>
           )}
           {meta && level != null && <Meter level={level} />}

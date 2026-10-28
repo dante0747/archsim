@@ -446,13 +446,17 @@ def estimate_design(
         slot_util = None
         if shape.slots:
             slot_util = here.total * mean_hold / (1000.0 * shape.slots * shape.pools)
-        candidates = {"slots": slot_util, "cpu": shape.cpu, "rate limit": shape.limit}
-        known = {k: v for k, v in candidates.items() if v is not None}
-        util = max(known.values()) if known else None
-        limited_by = max(known, key=lambda k: known[k]) if known else None
+        # busy: the share of its slots or CPU in use, what a run's utilization measures. A rate
+        # or throughput limit is not work: its share says how close the part is to turning
+        # requests away (load), which can bind first without the part being busy at all
+        busy_by = {k: v for k, v in {"slots": slot_util, "cpu": shape.cpu}.items() if v is not None}
+        util = max(busy_by.values()) if busy_by else None
+        limits = {**busy_by, **({"rate limit": shape.limit} if shape.limit is not None else {})}
+        load = max(limits.values()) if limits else None
+        limited_by = max(limits, key=lambda k: limits[k]) if limits else None
         wait = Moments()
         pw: float | None = 0.0
-        stable = util is None or util < 1.0
+        stable = load is None or load < 1.0
         if stable and shape.queues and shape.slots and here.total > 0:
             got = mmc_wait(shape.slots, here.total / shape.pools, mean_hold)
             if got is None:
@@ -473,12 +477,14 @@ def estimate_design(
                 "utilization": _round(util, 4),
                 "slotUtilization": _round(slot_util, 4),
                 "cpuUtilization": _round(shape.cpu, 4),
+                "rateLimitShare": _round(shape.limit, 4),
+                "load": _round(load, 4),
                 "limitedBy": limited_by,
                 "waitProbability": _round(pw, 4) if stable else None,
                 "meanWaitMs": _round(wait.mean) if stable else None,
                 "status": "overloaded"
                 if not stable
-                else ("busy" if util is not None and util >= BUSY else "ok"),
+                else ("busy" if load is not None and load >= BUSY else "ok"),
             }
         )
         if not stable or node.type == "message_queue":
@@ -567,6 +573,9 @@ def estimate_design(
 
     measured_rows = [r for r in rows.values() if r.get("utilization") is not None]
     busiest = max(measured_rows, key=lambda r: r["utilization"], default=None)
+    # the first part to reach a limit (its slots, CPU or a rate limit) sets the saturation point
+    loaded = [r for r in rows.values() if r.get("load") is not None]
+    first = max(loaded, key=lambda r: r["load"], default=None)
     overloaded = [r for r in rows.values() if r["status"] == "overloaded"]
     # a queue whose consumers fall behind builds a backlog; its producers are not slowed
     path_overloaded = any(r["onPath"] and r["type"] != "message_queue" for r in overloaded)
@@ -577,12 +586,13 @@ def estimate_design(
     elif not path_overloaded and not complete:
         notes.append("Latency not estimated: the load on some parts depends on the run.")
     util_max = busiest["utilization"] if busiest else None
-    saturation = peak / util_max if util_max else None
+    load_max = first["load"] if first else None
+    saturation = peak / load_max if load_max else None
     if busiest is None:
         summary = "No estimate: no part with known capacity carries load."
     elif overloaded:
-        worst = max(overloaded, key=lambda r: r.get("utilization") or 0.0)
-        need = worst.get("utilization")
+        worst = max(overloaded, key=lambda r: r.get("load") or 0.0)
+        need = worst.get("load")
         summary = (
             f"Overloaded at {peak:,.0f} req/s: {worst['label']} "
             + (f"needs {need:.0%} of its capacity" if need is not None else "cannot keep up")
@@ -595,6 +605,11 @@ def estimate_design(
             else ""
         )
         summary = f"{lead}busiest {busiest['label']} {util_max:.0%}"
+        if first is not None and first is not busiest and first.get("limitedBy") == "rate limit":
+            summary += (
+                f"; {first['label']} uses {load_max:.0%} of its rate limit (turns requests away "
+                f"above about {saturation:,.0f} req/s)"
+            )
     if wl.get("pattern", {}).get("kind", "constant") != "constant":
         notes.append(
             f"At the pattern's peak of {peak:,.0f} req/s; a run's p95 also covers quieter periods."

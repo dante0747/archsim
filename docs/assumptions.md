@@ -684,6 +684,7 @@ Numbers built into the sizing, cost and component models. Design review threshol
 | Area | Constant | Value | Basis | Code |
 | --- | --- | --- | --- | --- |
 | Auto-sizing | CPU utilisation a part is sized for at its peak | 60% | illustrative | `sizing.TARGET_CPU` |
+| Auto-sizing | CPU at the peak a size below the target's may run at, rather than double the cores | 65% | illustrative | `sizing.CPU_STEP_SLACK` |
 | Auto-sizing | Memory headroom over what the model needs | +25% | illustrative | `sizing.MEMORY_HEADROOM` |
 | Auto-sizing | Storage kept under this fill level | 70% | illustrative | `sizing.STORAGE_FILL` |
 | Auto-sizing | Smallest auto storage | 10 GiB | illustrative | `sizing.MIN_STORAGE_GIB` |

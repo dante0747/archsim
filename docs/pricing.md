@@ -64,10 +64,35 @@ compute instances and the cost line says "self-managed". Services on Kubernetes 
 through their cluster's nodes; serverless services, managed queues (SQS-style, Pub/Sub-style)
 and managed load balancers (ALB-style) use the snapshot's per-request and per-hour rates where it
 has them. Managed services (ALB-, SQS-, Pub/Sub-, DynamoDB-style, CDN, API gateways) never snap to
-an instance type. API gateways are billed per request by the providers, a rate snapshots do not
-carry yet, so they keep an illustrative price and their cost line says so. Storage is priced at
-the snapshot's block storage rate. Not included: discounts, data transfer, load balancer capacity
-units, licences, multi-AZ or replica pricing beyond the instance count.
+an instance type; the inspector shows no size price for them or for serverless functions, which
+are billed per use. Storage is priced at the snapshot's block storage rate, a managed database's
+at its own (RDS gp3). Not included: discounts, Multi-AZ, reserved instances and savings plans,
+data transfer and NAT, free tiers, licences (the cost panel says so).
+
+**Managed and per-request lines** (with a snapshot that has the rate), each listing what it
+prices with its unit price (`items`, shown in the cost panel as "394.20 M requests × $3.50/M"):
+
+| Part | Priced as |
+|---|---|
+| Application load balancer (`aws_alb`) | hours, plus capacity units: requests/s at the base load × 10 KB processed each (assumed: request and response; new connections and rule evaluations are assumed to need fewer), 1 LCU per GB an hour |
+| API gateway | requests at the base load × `apiGatewayPerMillion` |
+| Serverless function | invocations × `serverlessPerMillionRequests`, plus GB-seconds: invocations × its duration at the base load (in flight ÷ arrivals over the run's base-load time buckets; before a run, the instant estimate's time in the part) × its memory |
+| SQS-style queue | three requests per message (send, receive, delete) × `queuePerMillionRequests` |
+| DynamoDB | provisioned: RCU and WCU × hours; on demand: read and write request units at the base load (a read is half a unit per 4 KB when eventually consistent, a write one per KB); plus storage (`dataSizeGib`, else keys × item size) |
+| Services on Kubernetes without a cluster in the design | implied nodes: each pod's share of the cheapest general node type that fits it at 90% allocatable (not burstable, HPC or bare-metal types), plus one managed control plane (`kubernetesControlPlaneHour`). A cluster in the design also pays for its control plane. |
+
+Per-request lines are priced at the workload's steady **base** load as if it lasted the whole
+month (a burst's or a ramp's peak is not billed all month): after a run, each part's rate
+measured while the offered load was at the base, scaled to it exactly, so fan-out, cache misses
+and retries are kept but a burst's retries are not; before one, the static load estimate at the
+base rate, so a design is priced before it runs.
+
+**Checked by hand**, the serverless template (150 req/s with a burst to 1,500): DynamoDB with
+100 RCU and 60 WCU provisioned is 100 × $0.00013 × 730 + 60 × $0.00065 × 730 = $37.96 a month;
+the function at 150 invocations/s, 1,769 MB (1 vCPU) and about 40 ms each at the base load is
+394.2 M invocations × $0.20/M + 394.2 M × 0.04 s × 1.7275 GB × $0.0000166667 ≈ $530 a month, and
+the cost line agrees within a few percent (it uses the measured duration and rate);
+`test_cost_managed.py` keeps it within 10%.
 
 ## Which price a part gets
 

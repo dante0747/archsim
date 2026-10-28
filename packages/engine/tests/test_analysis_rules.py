@@ -641,3 +641,37 @@ def test_review_path_walk_is_bounded_on_layered_fan_out() -> None:
         prev = cur
     fs = review_design(norm(nodes, edges), REG)
     assert rule(fs, "retry-amplification") and rule(fs, "deep-chain")
+
+
+def test_an_autoscaled_bottleneck_counts_its_workers_in_words() -> None:
+    from archsim_engine import run_simulation
+
+    doc = {
+        "schemaVersion": "1.4",
+        "kind": "archsim.architecture",
+        "architecture": {
+            "nodes": [
+                n("clients", "traffic_source"),
+                n(
+                    "api",
+                    "service",
+                    label="Checkout API",
+                    autoscaling=True,
+                    replicas=1,
+                    maxReplicas=3,
+                    workersPerReplica=4,
+                    queueCapacity=20,
+                    serviceTimeMs=C(40),
+                ),
+            ],
+            "edges": [e("clients", "api")],
+        },
+        "workload": {"rps": 250, "durationS": 40, "warmupS": 2, "seed": 3, "readRatio": 1.0},
+    }
+    report = run_simulation(doc)
+    slots = next(x for x in report["nodes"] if x["id"] == "api")["summary"]["slots"]
+    assert not float(slots).is_integer()  # an average over the run, as it scaled
+    text = " ".join(f.get("detail", "") for f in report["findings"] if f["kind"] == "bottleneck")
+    # rounded and said to be an average, not a raw fraction that reads as thousands
+    assert f"{slots}" not in text
+    assert f"workers (about {round(slots)} on average as it scaled)" in text

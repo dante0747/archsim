@@ -230,8 +230,15 @@ function CostPanel({ report }: { report: Report }) {
                   <div className="h-1.5 flex-1 rounded-[2px] bg-surface-3" aria-hidden>
                     <div className="h-full rounded-[2px]" style={{ width: `${(c.monthly / max) * 100}%`, background: SINGLE_SERIES }} />
                   </div>
-                  <span className="w-28 shrink-0 truncate text-right font-mono text-[11px] text-ink-3">{c.basis}</span>
+                  <span className="w-28 shrink-0 truncate text-right font-mono text-[11px] text-ink-3" title={c.basis}>
+                    {c.basis}
+                  </span>
                 </div>
+                {c.items && c.items.length > 0 && (
+                  <p className="mt-0.5 font-mono text-[11px] leading-4 text-ink-3" data-testid="cost-units" title={c.basis}>
+                    {c.items.map((i) => i.text).join(" + ")}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

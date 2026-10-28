@@ -131,6 +131,12 @@ class Cores:
         self.pool.release(req)
 
 
+def busy_cores_series(busy: Gauge, cores: Cores) -> list[float | None]:
+    """CPU cores busy in each time bucket, over all the part's instances: busy executors times their
+    speed (a fraction of a core below one vCPU)."""
+    return [v * cores.speed for v in busy.mean_series()]
+
+
 def core_utilization(busy: Gauge | None, executors_total: float) -> float | None:
     """Mean share of CPU executors busy inside the measurement window."""
     if busy is None or executors_total <= 0:

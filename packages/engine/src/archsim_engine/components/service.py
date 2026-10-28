@@ -28,6 +28,7 @@ from archsim_engine.components.resources import (
     CPU_CONTENTION,
     RESOURCES,
     Cores,
+    busy_cores_series,
     core_utilization,
     cpu_field,
     instance_type_field,
@@ -545,6 +546,8 @@ class ServiceRuntime(RuntimeComponent):
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         out: dict[str, list[float | None]] = {"inflightMean": list(self.m.inflight.mean_series())}
+        if self.core_busy is not None and self.cores:
+            out["cpuBusyCores"] = busy_cores_series(self.core_busy, self.cores[0])
         bucket_s = self.ctx.tl.bucket_ms / 1000.0
         if self.gc_cfg is not None:
             out["gcPauseMs"] = [v / bucket_s for v in self.gc_ms]

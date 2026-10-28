@@ -17,6 +17,15 @@ export function useTargetCpu(): number | null {
   return useEditor((s) => s.analysis?.sizing.targetCpuUtilization ?? null);
 }
 
+/** "cpu|mem" a part needs (CPU cores at the target, typical memory), for cheap equality in
+ * selectors; "|" when the engine reports no need. */
+export function needKey(analysis: Analysis | null, nodeId: string): string {
+  const a = analysis?.sizing.nodes[nodeId];
+  if (!a || a.skipped || !a.need) return "|";
+  const mem = a.need.memoryGib ?? a.need.memoryGibMax;
+  return `${a.need.cpuCores ?? ""}|${mem ?? ""}`;
+}
+
 /** "cpu|mem|storage" auto sizes of one part, for cheap equality in selectors. */
 export function autoSizeKey(analysis: Analysis | null, nodeId: string): string {
   const a = analysis?.sizing.nodes[nodeId];

@@ -78,6 +78,9 @@ if TYPE_CHECKING:
 
 TARGET_CPU = 0.6
 """CPU utilization a part is sized for at the peak."""
+CPU_STEP_SLACK = 0.65
+"""The size below the target's is kept when it runs the peak at up to this: rounding up to the next
+common size would otherwise double the cores for a few points of utilization."""
 SPEC_KEYS = ("cpuCores", "memoryGib", "storageGib")
 
 CPU_STEPS = [1, 2, 4, 8, 16, 32, 48, 64, 96, 128, 192, 256, 384, 512]
@@ -215,10 +218,19 @@ def _fill() -> str:
 
 def _cpu_for(busy: float, intro: str) -> tuple[float, str]:
     cpu = min(512.0, _step_up(max(busy / TARGET_CPU, 0.0), CPU_STEPS))
-    return cpu, (
+    why = (
         f"{intro} = {fmt(busy)} cores busy; at a {_pct(TARGET_CPU)} target that is "
         f"{fmt(busy / TARGET_CPU)} → {js_num(cpu)} vCPU"
     )
+    below = max((s for s in CPU_STEPS if s < cpu), default=None)
+    if below is not None and busy <= CPU_STEP_SLACK * below + 1e-9:
+        # a few points over the target: the size below, rather than twice the cores
+        why += (
+            f"; {js_num(below)} vCPU instead, since it runs the peak at "
+            f"{_pct(busy / below)} (up to {_pct(CPU_STEP_SLACK)} rather than double the cores)"
+        )
+        cpu = float(below)
+    return cpu, why
 
 
 def _cap_cpu(cpu: float, why: str, handlers: int, reason: str) -> tuple[float, str]:
@@ -314,7 +326,8 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
     need = {
         "busyCores": busy,
         "cpuCores": busy / TARGET_CPU,
-        "memoryGibMax": mb / 1024 + os,
+        # every request it can hold, and the one arriving when it is full (read, then refused)
+        "memoryGibMax": (mb + per_req) / 1024 + os,
     }
     memory_model = (baseline / 1024 + os, per_req / 1024, replicas)
     on_os = f" + {_gib(os)} for the operating system" if os else ""
@@ -478,9 +491,10 @@ def _size_cache(config: Any, cfg: Json, total: float, workload: Json) -> PartSiz
 def _size_balancer(total: float) -> PartSize:
     cpu = min(512.0, _step_up(max(1.0, total / PROXY_RPS_PER_VCPU), CPU_STEPS))
     need_cpu = total / PROXY_RPS_PER_VCPU
+    need_mem = PROXY_GIB_PER_VCPU * need_cpu + OS_MEMORY_GIB
     return PartSize(
         cpu,
-        _mem_for(PROXY_GIB_PER_VCPU * cpu, 1),
+        _mem_for(max(PROXY_GIB_PER_VCPU * cpu, need_mem), 1),
         None,
         why={
             "cpuCores": f"{fmt(total)} req/s at peak at about {fmt(PROXY_RPS_PER_VCPU)} req/s per vCPU (illustrative)",
@@ -489,7 +503,7 @@ def _size_balancer(total: float) -> PartSize:
         need={
             "busyCores": need_cpu * TARGET_CPU,
             "cpuCores": need_cpu,
-            "memoryGib": PROXY_GIB_PER_VCPU * need_cpu + OS_MEMORY_GIB,
+            "memoryGib": need_mem,
         },
     )
 
@@ -519,9 +533,10 @@ def _size_queue(cfg: Json, total: float, workload: Json, on_vm: bool = False) ->
             f"An hour of peak publishes as a backlog buffer ({fmt(total)} messages/s × {fmt(msg_kb)} KiB"
             f"{over}) = {_gib(stored)}, {_fill()}"
         )
+    need_mem = BROKER_GIB_PER_VCPU * need_cpu + (OS_MEMORY_GIB if on_vm else 0.0)
     return PartSize(
         cpu,
-        _mem_for(BROKER_GIB_PER_VCPU * cpu, 2),
+        _mem_for(max(BROKER_GIB_PER_VCPU * cpu, need_mem), 2),
         _disk_for(stored / STORAGE_FILL),
         why={
             "cpuCores": f"{fmt(total / brokers)} messages/s per broker at peak at about {fmt(BROKER_MSGS_PER_VCPU)} per vCPU (illustrative)",
@@ -531,7 +546,7 @@ def _size_queue(cfg: Json, total: float, workload: Json, on_vm: bool = False) ->
         need={
             "busyCores": need_cpu * TARGET_CPU,
             "cpuCores": need_cpu,
-            "memoryGib": BROKER_GIB_PER_VCPU * need_cpu + (OS_MEMORY_GIB if on_vm else 0.0),
+            "memoryGib": need_mem,
             "storageGib": stored,
         },
     )
@@ -803,6 +818,9 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             _snap(size, n["type"], cfg, snap, option, families, burstable)
         else:
             _shape(size, n["type"], cfg)
+        if size.sku is None:
+            # not on an instance type (a pod, a function, generic shapes): its smallest size is
+            # the 1-vCPU floor
             need_cpu = size.need.get("cpuCores")
             size.smallest = need_cpu is not None and need_cpu <= 1.0 + 1e-9
         # only the specs the part has
@@ -899,6 +917,12 @@ def need_text(key: str, need: dict[str, float], value: float | None, holder: str
     return None
 
 
+def _per_use(node_type: str, cfg: Json) -> bool:
+    """A part billed per use (requests, GB-seconds, capacity units), not per hour of its size."""
+    serverless = node_type == "service" and cfg.get("platform") == "serverless"
+    return serverless or str(cfg.get("technology")) in MANAGED
+
+
 def _holder(node_type: str, cfg: Json) -> str:
     """What holds a part's resources when there is no instance type: a pod, a function, a node."""
     if node_type == "service":
@@ -961,7 +985,8 @@ def sizing_summary(
             "auto": {k: size.get(k) for k in SPEC_KEYS},
             "peakRps": round(size.peak_rps, 3),
             "why": dict(size.why),
-            "pricePerHour": priced.price,
+            # serverless functions and managed services are billed per use, not per hour of a size
+            "pricePerHour": None if _per_use(n.type, n.config) else priced.price,
             "sku": priced.sku,
         }
         need = dict(size.need)

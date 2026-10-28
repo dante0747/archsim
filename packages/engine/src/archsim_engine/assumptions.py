@@ -62,6 +62,7 @@ def constants() -> list[Constant]:
     s, c, db, ch, p = sizing, cost, database_model, cache_model, pricing
     return [
         Constant("Auto-sizing", "CPU utilisation a part is sized for at its peak", _pct(s.TARGET_CPU), "sizing.TARGET_CPU"),
+        Constant("Auto-sizing", "CPU at the peak a size below the target's may run at, rather than double the cores", _pct(s.CPU_STEP_SLACK), "sizing.CPU_STEP_SLACK"),
         Constant("Auto-sizing", "Memory headroom over what the model needs", "+" + _pct(s.MEMORY_HEADROOM - 1), "sizing.MEMORY_HEADROOM"),
         Constant("Auto-sizing", "Storage kept under this fill level", _pct(s.STORAGE_FILL), "sizing.STORAGE_FILL"),
         Constant("Auto-sizing", "Smallest auto storage", f"{s.MIN_STORAGE_GIB:g} GiB", "sizing.MIN_STORAGE_GIB"),

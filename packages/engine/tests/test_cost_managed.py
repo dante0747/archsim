@@ -117,3 +117,9 @@ def test_pods_without_a_cluster_run_on_implied_nodes_and_a_control_plane() -> No
     k8s = _lines(analyze_document(_example("kubernetes-shared-pool"), REGISTRY)["cost"])
     assert "kubernetes-control-plane" not in k8s
     assert k8s["k8s"]["controlPlaneMonthly"] == pytest.approx(0.10 * HOURS_PER_MONTH)
+
+
+def test_parts_billed_per_use_have_no_size_price() -> None:
+    nodes = analyze_document(_example("serverless-burst"), REGISTRY)["sizing"]["nodes"]
+    assert nodes["fn"]["pricePerHour"] is None  # a function: invocations and GB-seconds
+    assert nodes["gw"]["pricePerHour"] is None and nodes["gw"]["skipped"]  # a managed gateway

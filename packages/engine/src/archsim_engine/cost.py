@@ -217,9 +217,12 @@ def _qty(x: float) -> str:
 
 
 def _price(x: float) -> str:
-    if x >= 1:
-        return fixed(x, 2)
-    return f"{x:.10f}".rstrip("0").rstrip(".") if x > 0 else "0"
+    """$3.50, $0.20, $0.0225, $0.0000166667: cents always, more digits only where they are."""
+    if x <= 0:
+        return "0.00"
+    text = f"{x:.10f}".rstrip("0")
+    decimals = len(text.split(".")[1])
+    return text + "0" * max(0, 2 - decimals)
 
 
 def item(what: str, quantity: float, unit_price: float, unit: str, per: float = 1.0) -> Json:

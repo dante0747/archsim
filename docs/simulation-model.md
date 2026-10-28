@@ -398,9 +398,14 @@ judged by its pods, not by requests.
 `costPerHour` (per instance: replica, database instance, cache node, broker, load balancer)
 and `costPerMillionRequests` (third-party APIs) never affect the simulation. The engine
 (`cost.py`) turns them into a monthly estimate (730 hours) and a cost per million successful
-requests, using the run's average replica count for autoscaled services and the measured call
-rate for third-party APIs; every report carries it as `cost`, and `POST /analyze` prices a
-design before it runs. A price you set on a part wins; a technology preset's `costPerHour` is
+requests; every report carries it as `cost`, and `POST /analyze` prices a design before it runs.
+A month is priced at the workload's steady **base** load (`load.base_rps`: a constant rate, the
+rate outside a burst, a ramp's low end, a trace's median), not at a burst's peak: per-request
+parts (third-party APIs, functions, API gateways, managed queues, DynamoDB on demand) at each
+part's rate while the run's offered load was at the base, scaled to it exactly (before a run,
+the static load estimate at the base rate), and autoscaled services at their average active
+instances scaled the same way. Managed and per-request lines list each priced quantity with its
+unit price (`items`: "394.20 M requests × $3.50/M"); see [pricing.md](pricing.md). A price you set on a part wins; a technology preset's `costPerHour` is
 illustrative, so with a price snapshot the part is priced at the instance type it snaps to (or
 the snapshot's managed rate) instead; parts without either are priced from their size at
 illustrative rates. Each cost line says which (`priceSource`), see
@@ -435,7 +440,16 @@ network bandwidth.
 the size it needs for the design's own peak load, so the CLI, the API and the web app simulate
 the same document identically (same result digest). The report's `sizing` section says, per
 part, the value simulated and whether it was set, auto-sized or set by a scenario, with how each
-auto size was worked out; `POST /analyze` and `archsim analyze` return the same without
+auto size was worked out, and what the part **needs** beside what its instance has (`need`,
+`needText`: "needs 520 MiB (up to 620 MiB when queues are full) · c6g.xlarge has 8 GiB"):
+`busyCores` (CPU busy at the peak) and `baseBusyCores` (at the base load), `cpuCores` (busy at
+the 60% target), `memoryGib` (a service: its fixed memory plus the requests one replica holds on
+average, λ·W from the instant estimate's `meanResidenceMs`; a cache: its keyspace; a database:
+its hot data in the buffer cache, and enough for its connections), `memoryGibMax` (a service
+with every queue full, and the request arriving when it is), `storageGib` (the data it stores).
+`cpuCores` and `memoryGib` in `specs` stay the instance's real capacity, which is what runs.
+`smallest` marks a part whose CPU need is below the smallest size it can get (1 vCPU, or the
+smallest type of its kind). `POST /analyze` and `archsim analyze` return the same without
 simulating. The web app shows auto sizes greyed with an "auto" tag on the canvas and in the
 inspector; a typed value replaces them, "Back to auto" clears it. `architecture.autoSize: false`
 turns auto-sizing off for a document (an empty spec is then not modelled). The rules follow
@@ -443,21 +457,39 @@ the effects in the table above:
 
 | Part | CPU | Memory | Storage |
 | --- | --- | --- | --- |
-| Service | peak req/s per replica (at full scale when autoscaling) x mean `serviceTimeMs` / 60%, never more than its handlers (workers, or event loops for Node.js) can use: capped at exactly that count; on a Kubernetes cluster, never more than one node can allocate; serverless: 1 vCPU | `memoryBaselineMb` + (requests in flight + `queueCapacity`) x `memoryPerRequestMb`, +25%, at most 64 GiB | - |
-| Database | the busiest primary's CPU work (its share of reads, every scattered read for Elasticsearch-style search, every write; RF and consistency for rings) x `cpuShare` / 60% | hot working set per instance / 0.75 (the buffer cache share); without one, 4 GiB per vCPU (illustrative) | data per instance (`dataSizeGib`, else keys x item size) kept under 70% full, at least 10 GiB |
+| Service | peak req/s per replica (at full scale when autoscaling) x mean `serviceTimeMs` / 60%, never more than its handlers (workers, or event loops for Node.js) can use: capped at exactly that count; on a Kubernetes cluster, never more than one node can allocate; serverless: 1 vCPU (with memory set: memory / 1,769 MB, AWS Lambda's coupling) | `memoryBaselineMb` + (requests in flight + `queueCapacity`) x `memoryPerRequestMb`, plus 0.25 GiB for the operating system on a VM of its own, +25%, at most 64 GiB; serverless: at least 1,769 MB per vCPU | - |
+| Database | the busiest primary's CPU work (its share of reads, every scattered read for Elasticsearch-style search, every write; RF and consistency for rings) x `cpuShare` / 60%, never more than its connections x `cpuShare` can keep busy | hot data per instance / 0.75 (the buffer cache share): the working set, else an illustrative 25% of the data it stores; at least its connections x 9,531,392 bytes (RDS's default `max_connections` formula) and 1 GiB | data per instance (`dataSizeGib`, else keys x item size) kept under 70% full, at least 10 GiB |
 | Cache | commands per node x `serviceTimeMs` / 60%, never more than the commands it runs at once (1 for single-threaded Redis-style caches) | keyspace x item size per node / 0.8, +25% | - |
 | Load balancer | 5,000 req/s per vCPU (illustrative) | 1 GiB per vCPU (illustrative) | - |
 | Message queue | 10,000 messages/s per broker vCPU (illustrative) | 2 GiB per vCPU (illustrative) | Kafka and Redis Streams: 7 days at the base rate, 3 copies; others: an hour of peak publishes |
 
 CPU is rounded up to 1, 2, 4, 8... vCPU (at least 1, since below one core the engine slows
-every request), memory to 0.5, 1, 2, 4... GiB, storage to 10, 20, 50, 100... GiB. A part that
-runs on machines of its own then gets a shape a cloud sells: with a price snapshot, the cheapest
-instance type that covers its CPU and memory (burstable types only when the design names their
-family, see [pricing.md](pricing.md)); without one, CPU and memory rounded up together to the
-cheapest standard shape of 2, 4 or 8 GiB per vCPU (4 vCPU and 0.5 GiB becomes 4 vCPU and 8 GiB).
-Pods on a Kubernetes cluster and serverless functions keep their computed size: their machines
-are the cluster's nodes and the provider's. Peak load comes from the static estimate below (a
-TTL cache counts every read as a possible miss).
+every request; the fraction a light part needs shows only as its need and as a Kubernetes CPU
+request in the export; the size below is kept when it runs the peak at up to 65%, rather than
+doubling the cores for a few points over the 60% target), memory to 0.5, 1, 2, 4... GiB, storage to 10, 20, 50, 100... GiB. A part
+that runs on machines of its own then gets a shape a cloud sells: with a price snapshot, the
+cheapest instance type that covers its CPU and memory, a burstable t4g type when the part passes
+the credit check (its CPU at the base load under 80% of the type's baseline, at the peak under
+60% of its vCPUs; `pricing.burstable: never` turns it off; see [pricing.md](pricing.md)), or its
+own `instanceType` (schema 1.4) while that covers it; auto-sizing writes the type it chose into
+the run's input, so running the input again gives the same types and cost. Without a snapshot,
+CPU and memory are rounded up together to the cheapest standard shape of 2, 4 or 8 GiB per vCPU
+(4 vCPU and 0.5 GiB becomes 4 vCPU and 8 GiB). Pods on a Kubernetes cluster and serverless
+functions keep their computed size: their machines are the cluster's nodes and the provider's.
+Peak load comes from the static estimate below, with each TTL cache's hit ratio estimated from
+its TTL and the key popularity (`load.ttl_miss_shares`; a cache whose memory holds fewer keys
+than the keyspace keeps the most popular ones).
+
+**The sizing audit** (`scripts/sizing_audit.py`, run by `test_sizing_audit.py` on every
+template) checks auto sizes against what the simulation then does: each auto-sized part's p95
+busy cores per instance (from the per-bucket `cpuBusyCores` series of services, databases and
+caches) between 25% and 75% of its vCPU, unless it is on the smallest type its need allows,
+capped by its workers or connections, on a bigger type for its memory, or behind a part that
+holds its load back; no auto-sized part is the bottleneck because of its CPU or memory;
+simulated memory peak ≤ need ≤ instance memory; a re-run of the input reproduces the same types
+and cost; a higher request rate never gets a part a cheaper type; per-request cost
+lines within 10% of a hand calculation; and each template's monthly cost at most 1.15 times a
+hand-picked reference.
 Managed services (ALB- and API-gateway-style, CDN, DynamoDB-, SQS- and Pub/Sub-style) are not
 sized. Sizes come from the design as drawn: scenarios run on the same sizes, so a scenario with
 more traffic, fewer cache hits or a slowdown shows what those machines do.
@@ -478,9 +510,11 @@ Specs also feed the calculations around a run:
   cache misses at the fixed hit ratio) is compared with its CPU: high when the CPU would be over
   100% busy, medium above 80%. It also flags a database working set that does not fit in memory
   and a TTL cache smaller than the keyspace.
-- **Exports (web)**: Kubernetes containers get `resources.requests` = `limits` from CPU and memory
-  (set or auto-sized, as the engine reports them) and StatefulSet volumes the storage size;
-  Docker Compose gets `deploy.resources` limits and reservations.
+- **Exports**: Kubernetes containers get `resources.requests` = `limits` from CPU and memory
+  (set or auto-sized, as the engine reports them), except that an auto-sized pod requests the CPU
+  it needs in millicores (e.g. `210m`, rounded up to 10m) with its whole cores as the limit, and
+  StatefulSet volumes the storage size; Docker Compose gets `deploy.resources` limits and
+  reservations.
 
 ## Validation rules
 
@@ -608,7 +642,10 @@ the time until the key expires or is next written):
 - **Utilization** ρ = λ / (pools x slots x μ), with μ = 1000 / mean holding time. A slot is held
   for the part's own time, plus its downstream calls when it waits on them (thread-per-request
   services, load-balancer connections, serverless instances, queue consumers). CPU cores (set or
-  auto-sized) and rate or throughput limits can bind first.
+  auto-sized) can bind first. `utilization` is the busy share of slots or CPU, what a run's
+  utilization measures; a rate or throughput limit is not work, so its share is `rateLimitShare`,
+  and `load` (the largest of them) says whether the part can keep up (before engine 0.13 a
+  gateway at 75% of its rate limit showed as 75% busy).
 - **Waiting:** an M/M/c queue per pool (a service replica, a database instance, a cache shard),
   Wq = C(c, a) / (c·μ - λ) with Erlang C. Load balancers, serverless functions and third-party
   APIs refuse rather than queue, so they add no wait.
@@ -622,9 +659,9 @@ the time until the key expires or is next written):
 | `latencyMs.mean` | Mean over the request mix, from the sums above. |
 | `latencyMs.p95` | **Rough approximation**: a lognormal per request path with that path's mean and variance, mixed by traffic share. `latencyMs` is null when a part on the path is overloaded or its load depends on the run. |
 | `busiest` | The part with the highest utilization: `id`, `label`, `utilization`, `limitedBy` (`slots`, `cpu` or `rate limit`). |
-| `overloaded`, `saturationRps` | Whether any part is at ρ ≥ 1, and about where the busiest part runs out: peak / ρ. A queue whose consumers fall behind is overloaded but does not slow its producers. |
+| `overloaded`, `saturationRps` | Whether any part is at a `load` of 1 or more, and about where the first part reaches a limit (its slots, CPU or a rate limit): peak / `load`. A queue whose consumers fall behind is overloaded but does not slow its producers. |
 | `summary` | "p95 ≈ 97 ms; busiest API Servers 70%", or "Overloaded at 1,600 req/s: Fulfillment needs 1145% of its capacity; it saturates at about 140 req/s." |
-| `parts[]` | Per part: `arrivalRps`, `slots`, `pools`, `meanServiceMs`, `meanHoldMs`, `utilization`, `slotUtilization`, `cpuUtilization`, `limitedBy`, `waitProbability`, `meanWaitMs`, `perRequestMs` (wait and own time per client request), `onPath`, `status` (`ok`, `busy` from 80%, `overloaded`, or `unknown` with a `note`). |
+| `parts[]` | Per part: `arrivalRps`, `slots`, `pools`, `meanServiceMs`, `meanHoldMs`, `utilization`, `slotUtilization`, `cpuUtilization`, `rateLimitShare`, `load`, `limitedBy`, `waitProbability`, `meanWaitMs`, `meanResidenceMs` (waiting, working and its own calls), `perRequestMs` (wait and own time per client request), `onPath`, `status` (`ok`, `busy` from a load of 80%, `overloaded`, or `unknown` with a `note`). |
 | `paths[]`, `breakdown[]` | Mean latency per client and request type; where a request's time goes (comparable with `explain.latencyBreakdown`). |
 | `notes` | What it leaves out, and how it was computed. |
 

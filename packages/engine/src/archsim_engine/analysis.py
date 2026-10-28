@@ -204,7 +204,15 @@ def analyze(report: dict[str, Any], resolved: ArchitectureDocument) -> list[dict
         noun = SLOT_NOUN.get(n["type"], "slots")
         util = s["utilization"] or 0.0
         if s.get("slots") is not None and s.get("utilization") is not None:
-            parts = [f"On average {util:.0%} of its {s['slots']:,} {noun} were busy"]
+            slots = float(s["slots"])
+            # an autoscaled part's slot count is a time average (86.545 workers): round it and
+            # say so, rather than print a fraction that reads as thousands
+            count = (
+                f"{slots:,.0f} {noun}"
+                if slots.is_integer()
+                else f"{noun} (about {slots:,.0f} on average as it scaled)"
+            )
+            parts = [f"On average {util:.0%} of its {count} were busy"]
             peak = s.get("peakUtilization")
             if peak is not None and peak - util >= 0.1:
                 parts[0] += f", peaking at {peak:.0%}"

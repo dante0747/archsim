@@ -63,6 +63,7 @@ export function PricingCard() {
             purchaseOption: "on_demand",
             families: pricing?.families ?? [],
             snapshotDate: s.date,
+            ...(pricing?.burstable ? { burstable: pricing.burstable } : {}),
           });
         }}
       >
@@ -75,6 +76,26 @@ export function PricingCard() {
         ))}
         {current === MISSING && pricing && <option value={MISSING}>{`${where}${pricing.snapshotDate ? ` of ${pricing.snapshotDate}` : ""} (no snapshot here)`}</option>}
       </NativeSelect>
+      {!generic && (
+        <label className="mt-2 flex items-start gap-2 text-xs text-ink-2">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            data-testid="pricing-burstable"
+            checked={pricing?.burstable !== "never"}
+            onChange={(e) => {
+              if (!pricing) return;
+              const rest = { ...pricing };
+              delete rest.burstable;
+              setPricing(e.target.checked ? rest : { ...rest, burstable: "never" });
+            }}
+          />
+          <span>
+            Burstable t4g types for light parts
+            <span className="block text-ink-3">When a part&apos;s CPU at the base load stays under the type&apos;s baseline (it earns CPU credits). Off: full cores only.</span>
+          </span>
+        </label>
+      )}
       <p className="mt-1.5 text-xs leading-relaxed text-ink-3">
         {!generic
           ? current === MISSING

@@ -33,6 +33,19 @@ describe("PricingCard", () => {
     vi.restoreAllMocks();
   });
 
+  it("lets a design turn burstable t4g types off, and keeps that choice", async () => {
+    withPricing({ provider: "aws", region: "us-east-1", snapshotDate: "2026-11-01" });
+    await shown();
+    const box = screen.getByTestId("pricing-burstable") as HTMLInputElement;
+    expect(box.checked).toBe(true); // auto, the default
+    fireEvent.click(box);
+    expect(useEditor.getState().extras?.pricing?.burstable).toBe("never");
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: `aws|us-east-1|2026-11-01|${"b".repeat(64)}` } });
+    expect(useEditor.getState().extras?.pricing?.burstable).toBe("never");
+    fireEvent.click(screen.getByTestId("pricing-burstable"));
+    expect(useEditor.getState().extras?.pricing?.burstable).toBeUndefined();
+  });
+
   it("choosing a snapshot pins its date", async () => {
     withPricing(null);
     const select = await shown();

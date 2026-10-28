@@ -237,3 +237,17 @@ def test_estimate_ignores_scenario_free_copies() -> None:
     """The estimate is a pure function of the resolved document."""
     d = load_example("cache-aside-starter.json")
     assert estimate_of(d) == estimate_of(copy.deepcopy(d))
+
+
+def test_a_gateway_near_its_rate_limit_is_not_reported_busy() -> None:
+    """Black Friday's API gateway carries 75% of its rate limit at the peak, but hardly any of its
+    connections are busy (the simulation measures about 1%): the estimate says both, apart."""
+    estimate = analyze_document(load_example("black-friday-kubernetes.json"), REGISTRY)["estimate"]
+    gw = next(p for p in estimate["parts"] if p["id"] == "gateway")
+    assert gw["utilization"] < 0.05
+    assert gw["rateLimitShare"] == pytest.approx(0.75, abs=0.01)
+    assert gw["load"] == gw["rateLimitShare"] and gw["limitedBy"] == "rate limit"
+    assert estimate["busiest"]["id"] != "gateway"
+    assert "uses 75% of its rate limit" in estimate["summary"]
+    # the rate limit still sets where the design turns requests away
+    assert estimate["saturationRps"] == pytest.approx(estimate["atRps"] / 0.75, rel=0.01)

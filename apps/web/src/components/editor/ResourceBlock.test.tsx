@@ -44,6 +44,21 @@ describe("ResourceBlock", () => {
   });
   afterEach(cleanup);
 
+  it("shows what a part needs beside what its instance has", () => {
+    show("api");
+    const lines = screen.getByTestId("need-vs-instance").textContent ?? "";
+    // memory: the typical need, the most with full queues, and the instance's real memory
+    expect(lines).toMatch(/needs \d+ MiB \(up to \d+ MiB when queues are full\) · c6g\.xlarge has 8 GiB/);
+    expect(lines).toMatch(/needs 3\.39 vCPU \(2\.03 busy at the peak, at a 60% target\) · c6g\.xlarge has 4 vCPU/);
+  });
+
+  it("picking a size clears an instance type set on the part", () => {
+    useEditor.getState().setNodeConfig("api", "instanceType", "m7g.2xlarge");
+    show("api");
+    fireEvent.click(screen.getByRole("button", { name: "2·4" }));
+    expect(node("api").data.config).toMatchObject({ cpuCores: 2, memoryGib: 4, instanceType: null });
+  });
+
   it("starts unset and applies a common size in one step", () => {
     show("api");
     expect(screen.getByLabelText(/CPU/)).toHaveProperty("value", "");

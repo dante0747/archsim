@@ -11,7 +11,7 @@ import { patchNodeConfig } from "@/components/build/presets";
 import { validateNumber } from "@/components/editor/FieldControl";
 import { Input } from "@/components/ui/input";
 import { formatUsd, priceOrigin } from "@/lib/cost";
-import type { ComponentType, FieldDescriptor, NodeConfig } from "@/lib/types";
+import type { ComponentType, FieldDescriptor, NodeConfig, SpecKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { SPEC_KEYS, useAutoSize, useTargetCpu } from "@/store/sizes";
@@ -215,6 +215,15 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
             </button>
           )}
         </p>
+      )}
+      {size?.needText && !size.skipped && SPEC_FIELDS.some((k) => size.needText?.[k as SpecKey]) && (
+        <ul className="space-y-0.5 text-xs leading-relaxed text-ink-2" data-testid="need-vs-instance" aria-label="Needs and instance">
+          {SPEC_FIELDS.filter((k) => size.needText?.[k as SpecKey]).map((k) => (
+            <li key={k}>
+              <span className="text-ink-3">{NAME[k]}:</span> {size.needText?.[k as SpecKey]}
+            </li>
+          ))}
+        </ul>
       )}
       {size?.skipped && <p className="text-xs text-ink-3">{size.skipped} Nothing is filled in automatically.</p>}
       {autoUsed.length > 0 && size && (
