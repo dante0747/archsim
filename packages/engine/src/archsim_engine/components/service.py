@@ -30,6 +30,7 @@ from archsim_engine.components.resources import (
     Cores,
     core_utilization,
     cpu_field,
+    instance_type_field,
     memory_field,
 )
 from archsim_engine.distributions import Distribution, LogNormal
@@ -155,6 +156,7 @@ class ServiceConfig(CamelModel):
         "When set, every request a replica holds (queued, running or waiting on downstream calls) "
         "uses memory; a request that would exceed it is refused (out of memory).",
     )
+    instance_type: str | None = instance_type_field("replica on a VM or Docker")
     memory_per_request_mb: float = Field(
         default=2.0,
         gt=0,

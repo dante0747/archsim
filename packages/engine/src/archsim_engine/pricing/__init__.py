@@ -239,6 +239,13 @@ class Snapshot:
             return None
         return min(fits, key=lambda s: (s.price(option), s.vcpu, s.memory_gib, s.sku))
 
+    def find(self, category: Category, name: str, engine: str | None = None) -> Sku | None:
+        """The SKU of ``category`` named ``name`` (that runs ``engine``), or None."""
+        for s in self.skus.get(category) or ():
+            if s.sku == name and (not engine or not s.engines or engine in s.engines):
+                return s
+        return None
+
     def to_json(self) -> dict[str, Any]:
         return {
             "provider": self.provider,
@@ -255,12 +262,14 @@ class Snapshot:
 @dataclass(frozen=True)
 class Machine:
     """The instance type a part runs on in a snapshot. ``sku`` is None when no type covers the
-    size; ``self_managed`` when the engine has no managed offering there (it runs on VMs)."""
+    size; ``self_managed`` when the engine has no managed offering there (it runs on VMs);
+    ``named`` when it is the part's own ``instanceType``."""
 
     category: Category
     engine: str | None
     sku: Sku | None
     self_managed: bool = False
+    named: bool = False
 
 
 def machine_kind(node_type: str, cfg: dict[str, Any]) -> tuple[Category, str | None] | None:
@@ -291,13 +300,29 @@ def choose_machine(
     option: str = "on_demand",
     families: list[str] | tuple[str, ...] = (),
 ) -> Machine | None:
-    """The cheapest instance type for a part of this size (None: not billed per machine, or the
-    snapshot has no shapes). A database, cache or stream engine the snapshot has no managed
-    type for runs on compute instances (self-managed)."""
+    """The instance type a part of this size runs on (None: not billed per machine, or the
+    snapshot has no shapes): its own ``instanceType`` while that is in the snapshot and covers
+    the size, else the cheapest that does. A database, cache or stream engine the snapshot has
+    no managed type for runs on compute instances (self-managed)."""
     kind = machine_kind(node_type, cfg)
     if kind is None or not snap.has_shapes():
         return None
     category, engine = kind
+    named = cfg.get("instanceType")
+    if isinstance(named, str) and named:
+        sku = snap.find(category, named, engine)
+        own_category = sku is not None
+        if sku is None and category != "compute":
+            sku = snap.find("compute", named)  # an engine run on a VM of that type
+        if (
+            sku is not None
+            and sku.vcpu >= (cpu or 0) - 1e-9
+            and sku.memory_gib >= (memory_gib or 0) - 1e-9
+            and sku.price(option) is not None
+        ):
+            if own_category:
+                return Machine(category, engine, sku, named=True)
+            return Machine("compute", engine, sku, self_managed=True, named=True)
     sku = snap.cover(category, cpu, memory_gib, option, engine, families)
     if (
         sku is None

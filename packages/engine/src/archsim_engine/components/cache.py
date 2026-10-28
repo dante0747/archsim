@@ -27,6 +27,7 @@ from archsim_engine.components.resources import (
     Cores,
     core_utilization,
     cpu_field,
+    instance_type_field,
     memory_field,
 )
 from archsim_engine.distributions import Distribution, Exponential
@@ -205,6 +206,7 @@ class CacheConfig(CamelModel):
         "80% of it holds keys. TTL model: when it is full the least recently used key is evicted. "
         "Fixed hit ratio: checked against the workload's keyspace.",
     )
+    instance_type: str | None = instance_type_field("cache node")
     item_size_kb: float = Field(
         default=1.0,
         gt=0,

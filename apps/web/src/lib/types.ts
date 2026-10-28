@@ -254,7 +254,7 @@ export interface Pricing {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */

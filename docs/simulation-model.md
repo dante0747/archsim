@@ -121,7 +121,7 @@ values only), and a preset number when the preset's `sources` links it; everythi
 value, or set to the same number, is classified **documented**, with `source` the link and a
 `note` saying whose default it is; `provenanceCounts` counts `measured`, `documented`, `assumed`
 and `illustrative`. It is derived each time: documents still store only the three kinds of the
-schema (1.3), and a record in the document (a calibration) always wins.
+schema (1.4), and a record in the document (a calibration) always wins.
 [assumptions.md](assumptions.md) lists every such value, preset number, assumption default and
 engine constant with its basis; `scripts/gen_assumptions.py` writes it from the code and a test
 fails when it is out of date.

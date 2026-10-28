@@ -13,7 +13,12 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field
 
-from archsim_engine.components.resources import INFO_ONLY, cpu_field, memory_field
+from archsim_engine.components.resources import (
+    INFO_ONLY,
+    cpu_field,
+    instance_type_field,
+    memory_field,
+)
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.explain import formula, num
 from archsim_engine.issues import Issue, error, warning
@@ -109,6 +114,7 @@ class LoadBalancerConfig(CamelModel):
     )
     cpu_cores: float | None = cpu_field("instance", INFO_ONLY)
     memory_gib: float | None = memory_field("instance", INFO_ONLY)
+    instance_type: str | None = instance_type_field("instance")
     cost_per_hour: float = Field(
         default=0.025,
         ge=0,

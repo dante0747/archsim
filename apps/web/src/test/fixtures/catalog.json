@@ -677,6 +677,17 @@
           "step": 0.5
         },
         {
+          "key": "instanceType",
+          "label": "Instance type",
+          "kind": "string",
+          "nullable": true,
+          "description": "Instance type of each instance in the design's price snapshot (e.g. c6g.xlarge). It is used while it covers the CPU and memory; empty, or too small: the cheapest type that covers them. Auto-sizing records the type it chose in a run's input, so running that input again gives the same types and cost.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "group": "Resources"
+        },
+        {
           "key": "costPerHour",
           "label": "Cost per hour",
           "kind": "number",
@@ -1147,6 +1158,17 @@
           "unit": "GiB",
           "group": "Resources",
           "step": 0.5
+        },
+        {
+          "key": "instanceType",
+          "label": "Instance type",
+          "kind": "string",
+          "nullable": true,
+          "description": "Instance type of each replica on a VM or Docker in the design's price snapshot (e.g. c6g.xlarge). It is used while it covers the CPU and memory; empty, or too small: the cheapest type that covers them. Auto-sizing records the type it chose in a run's input, so running that input again gives the same types and cost.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "group": "Resources"
         },
         {
           "key": "memoryPerRequestMb",
@@ -2207,6 +2229,17 @@
           "step": 0.5
         },
         {
+          "key": "instanceType",
+          "label": "Instance type",
+          "kind": "string",
+          "nullable": true,
+          "description": "Instance type of each cache node in the design's price snapshot (e.g. c6g.xlarge). It is used while it covers the CPU and memory; empty, or too small: the cheapest type that covers them. Auto-sizing records the type it chose in a run's input, so running that input again gives the same types and cost.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "group": "Resources"
+        },
+        {
           "key": "itemSizeKb",
           "label": "Item size",
           "kind": "number",
@@ -3096,6 +3129,17 @@
           "exclusiveMin": true,
           "max": 1000000,
           "unit": "GiB",
+          "group": "Resources"
+        },
+        {
+          "key": "instanceType",
+          "label": "Instance type",
+          "kind": "string",
+          "nullable": true,
+          "description": "Instance type of each instance in the design's price snapshot (e.g. c6g.xlarge). It is used while it covers the CPU and memory; empty, or too small: the cheapest type that covers them. Auto-sizing records the type it chose in a run's input, so running that input again gives the same types and cost.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
           "group": "Resources"
         },
         {
@@ -4650,6 +4694,17 @@
           "exclusiveMin": true,
           "max": 1000000,
           "unit": "GiB",
+          "group": "Resources"
+        },
+        {
+          "key": "instanceType",
+          "label": "Instance type",
+          "kind": "string",
+          "nullable": true,
+          "description": "Instance type of each broker in the design's price snapshot (e.g. c6g.xlarge). It is used while it covers the CPU and memory; empty, or too small: the cheapest type that covers them. Auto-sizing records the type it chose in a run's input, so running that input again gives the same types and cost.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
           "group": "Resources"
         },
         {

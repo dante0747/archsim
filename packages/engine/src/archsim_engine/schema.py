@@ -1,4 +1,4 @@
-"""Versioned architecture document schema (``schemaVersion`` 1.3).
+"""Versioned architecture document schema (``schemaVersion`` 1.4).
 
 The document deliberately separates four concerns:
 
@@ -24,7 +24,7 @@ from pydantic.alias_generators import to_camel
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.version import SCHEMA_VERSION
 
-assert SCHEMA_VERSION == "1.3", "update ArchitectureDocument.schema_version and add a migration"
+assert SCHEMA_VERSION == "1.4", "update ArchitectureDocument.schema_version and add a migration"
 
 RequestType = Literal["read", "write"]
 REQUEST_TYPES: tuple[RequestType, ...] = ("read", "write")
@@ -605,7 +605,7 @@ class Pricing(CamelModel):
 class ArchitectureDocument(CamelModel):
     """Top-level interchange document. Serialize with ``to_json_dict()``."""
 
-    schema_version: Literal["1.3"] = "1.3"
+    schema_version: Literal["1.4"] = "1.4"
     kind: Literal["archsim.architecture"] = "archsim.architecture"
     metadata: Metadata = Field(default_factory=Metadata)
     architecture: Architecture = Field(default_factory=Architecture)

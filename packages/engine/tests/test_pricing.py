@@ -165,9 +165,10 @@ def test_schema_1_1_documents_migrate_to_1_2() -> None:
     raw = starter()
     raw["schemaVersion"] = "1.1"
     out, notes = migrate_document(raw)
-    assert out["schemaVersion"] == "1.3" and notes == [
+    assert out["schemaVersion"] == "1.4" and notes == [
         "migrated schema 1.1 -> 1.2",
         "migrated schema 1.2 -> 1.3",
+        "migrated schema 1.3 -> 1.4",
     ]
     assert load_document(raw).pricing.provider == "generic"
     from archsim_engine import DocumentInvalidError
@@ -499,3 +500,80 @@ def test_without_a_snapshot_machines_get_standard_shapes() -> None:
     api = analyze_document(starter(), REGISTRY)["sizing"]["nodes"]["api"]
     assert (api["auto"]["cpuCores"], api["auto"]["memoryGib"]) == (4.0, 8.0)
     assert "standard shape" in api["why"]["memoryGib"]
+
+
+# -- the instance type a part runs on (schema 1.4) ----------------------------------------------
+
+
+def _aws_starter() -> dict:
+    return json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+
+
+def test_a_run_records_its_instance_types_and_its_input_reproduces_them() -> None:
+    doc = _short(_aws_starter())
+    first = run_simulation(copy.deepcopy(doc))
+    inp = first["input"]
+    assert inp["schemaVersion"] == "1.4"
+    types = {n["id"]: n["config"].get("instanceType") for n in inp["architecture"]["nodes"]}
+    assert types["api"] == first["sizing"]["nodes"]["api"]["sku"] == "c6g.xlarge"
+    # running the input again: the same types, cost and result
+    again = run_simulation(copy.deepcopy(inp))
+    assert {n: e["sku"] for n, e in again["sizing"]["nodes"].items()} == {
+        n: e["sku"] for n, e in first["sizing"]["nodes"].items()
+    }
+    assert again["cost"]["monthly"] == first["cost"]["monthly"]
+    assert again["provenance"]["resultDigest"] == first["provenance"]["resultDigest"]
+
+
+def test_an_instance_type_is_kept_while_it_covers_the_part() -> None:
+    doc = _aws_starter()
+    api = next(n for n in doc["architecture"]["nodes"] if n["id"] == "api")
+    api["config"]["instanceType"] = "m7g.2xlarge"
+    entry = analyze_document(doc, REGISTRY)["sizing"]["nodes"]["api"]
+    assert entry["sku"] == "m7g.2xlarge" and entry["specs"]["cpuCores"]["value"] == 8
+    assert "the instance type set on the part" in entry["why"]["cpuCores"]
+    cost = _lines(analyze_document(doc, REGISTRY)["cost"])["api"]
+    assert cost["sku"] == "m7g.2xlarge"
+    # too small for what is set on the part: the cheapest type that covers it, and why
+    api["config"]["cpuCores"] = 16
+    entry = analyze_document(doc, REGISTRY)["sizing"]["nodes"]["api"]
+    assert entry["sku"] != "m7g.2xlarge"
+    assert (
+        "(m7g.2xlarge, the type set on the part, is not in it or is too small)"
+        in (entry["why"]["memoryGib"])
+    )
+    # a type the snapshot does not have: a warning, and the cheapest covering type
+    api["config"].pop("cpuCores")
+    api["config"]["instanceType"] = "zz9.huge"
+    from archsim_engine import validate_document
+
+    codes = [i.code for i in validate_document(load_document(doc), REGISTRY).warnings]
+    assert "pricing.unknown_instance_type" in codes
+    assert analyze_document(doc, REGISTRY)["sizing"]["nodes"]["api"]["sku"] == "c6g.xlarge"
+
+
+def test_a_scenario_that_resizes_a_part_gets_a_type_that_fits() -> None:
+    from archsim_engine.scenarios import resolve_scenario
+
+    doc = _aws_starter()
+    doc["scenarios"] = [
+        {
+            "id": "small",
+            "name": "Small API",
+            "overrides": [
+                {"target": {"kind": "node", "id": "api"}, "path": "cpuCores", "value": 1}
+            ],
+        }
+    ]
+    base, _ = resolve_scenario(load_document(doc), None, REGISTRY)
+    small, _ = resolve_scenario(load_document(doc), "small", REGISTRY)
+    assert base.node("api").config["instanceType"] == "c6g.xlarge"  # type: ignore[union-attr]
+    assert "instanceType" not in small.node("api").config  # type: ignore[union-attr]
+
+
+def test_schema_1_3_documents_open_unchanged() -> None:
+    doc = _aws_starter()
+    assert doc["schemaVersion"] == "1.3"
+    out, notes = migrate_document(doc)
+    assert out["schemaVersion"] == "1.4" and notes == ["migrated schema 1.3 -> 1.4"]
+    assert out["architecture"] == doc["architecture"]

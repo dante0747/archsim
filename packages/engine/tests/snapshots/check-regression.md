@@ -16,4 +16,4 @@ p95 goes from 90.8 ms to 264 ms (objective 400 ms); availability misses its obje
 
 Bottleneck: API Servers is the primary bottleneck.
 **Low confidence**: 31 of 35 inputs are illustrative defaults. To raise it: Calibrate from telemetry, or replace the illustrative and assumed inputs of API Servers, Clients → Load Balancer and 1 more with measured values.
-Fails on: regression. These are ArchSim's estimates under the design's assumptions (engine 0.13.0, result `82681c3aa391`), not measurements. [Full report](https://example.com/run/1)
+Fails on: regression. These are ArchSim's estimates under the design's assumptions (engine 0.13.0, result `ddbac8656a25`), not measurements. [Full report](https://example.com/run/1)

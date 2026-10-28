@@ -58,6 +58,20 @@ def storage_field(per: str, effect: str) -> Any:
     )
 
 
+def instance_type_field(per: str) -> Any:
+    return Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+        description=(
+            f"Instance type of each {per} in the design's price snapshot (e.g. c6g.xlarge). It is "
+            "used while it covers the CPU and memory; empty, or too small: the cheapest type that "
+            "covers them. Auto-sizing records the type it chose in a run's input, so running that "
+            "input again gives the same types and cost."
+        ),
+        json_schema_extra=ui(label="Instance type", group=RESOURCES),
+    )
+
+
 CPU_CONTENTION = (
     "When set, CPU work waits for a free core while more handlers than cores want the CPU "
     "(CPU contention); below 1 (e.g. 0.5) CPU work runs proportionally slower."

@@ -40,6 +40,7 @@ from archsim_engine.components.resources import (
     Cores,
     core_utilization,
     cpu_field,
+    instance_type_field,
     memory_field,
     storage_field,
 )
@@ -418,6 +419,7 @@ class DatabaseConfig(CamelModel):
     storage_gib: float | None = storage_field(
         "instance", "Checked against the data size: each instance stores its shard's data."
     )
+    instance_type: str | None = instance_type_field("instance")
     data_size_gib: float | None = Field(
         default=None,
         gt=0,

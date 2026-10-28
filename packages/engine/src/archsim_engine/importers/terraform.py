@@ -204,6 +204,13 @@ def import_terraform(
             config["cpuCores"], config["memoryGib"] = size
             from_type = f"from instance type {instance} ({DOCS[cloud]})"
             config["_notes"] = {"cpuCores": from_type, "memoryGib": from_type}
+            if cloud == "aws" and instance:
+                # priced as that type (MSK's broker types carry a "kafka." prefix in the snapshot)
+                config["instanceType"] = (
+                    f"kafka.{instance}"
+                    if config.get("technology") == "kafka" and not instance.startswith("kafka.")
+                    else instance
+                )
         elif instance:
             report.guessed.append(
                 f"instance type '{instance}' is not in the size table ({DOCS[cloud]}): set CPU and memory yourself"

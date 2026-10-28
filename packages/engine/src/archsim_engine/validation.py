@@ -655,5 +655,20 @@ def validate_document(
                         hint=f"Families in it: {', '.join(known[:20]) or 'none'}.",
                     )
                 )
+            if snap.has_shapes():
+                listed = {s.sku for items in snap.skus.values() for s in items}
+                for n in doc.architecture.nodes:
+                    named = n.config.get("instanceType")
+                    if isinstance(named, str) and named and named not in listed:
+                        issues.append(
+                            warning(
+                                "pricing.unknown_instance_type",
+                                f"{n.label or n.id}: no instance type {named} in {snap.label}, so "
+                                "it runs on the cheapest type that covers its CPU and memory.",
+                                node_id=n.id,
+                                path="instanceType",
+                                hint="Choose a type from the snapshot, or clear it.",
+                            )
+                        )
 
     return ValidationResult(issues=issues, configs=configs, view=view, edge_flows=edge_flows)

@@ -594,10 +594,17 @@ def _snap(
                 size.why[k] += note
         return
     sku = m.sku
-    how = (
-        f"{sku.sku} ({js_num(sku.vcpu)} vCPU, {_gib(sku.memory_gib)}), the cheapest "
-        f"{'compute (self-managed) ' if m.self_managed else ''}type in {snap.label} that covers it"
-    )
+    shape = f"{sku.sku} ({js_num(sku.vcpu)} vCPU, {_gib(sku.memory_gib)})"
+    named = cfg.get("instanceType")
+    if m.named:
+        how = f"{shape}, the instance type set on the part"
+    else:
+        how = (
+            f"{shape}, the cheapest {'compute (self-managed) ' if m.self_managed else ''}type in "
+            f"{snap.label} that covers it"
+        )
+        if isinstance(named, str) and named:
+            how += f" ({named}, the type set on the part, is not in it or is too small)"
     if size.cpu_cores is not None:
         size.why["cpuCores"] = size.why.get("cpuCores", "") + f"; snapped to {how}"
         size.cpu_cores = float(sku.vcpu)
@@ -746,6 +753,9 @@ def apply_auto_sizes(doc: Json, registry: ComponentRegistry) -> tuple[Json, dict
             value = size.get(k)
             if value is not None and num(config.get(k)) is None:
                 config[k] = value
+        # the instance type chosen, so cost and a re-run of the run's input use the same one
+        if size.sku and not config.get("instanceType"):
+            config["instanceType"] = size.sku
     return doc, sizes
 
 
