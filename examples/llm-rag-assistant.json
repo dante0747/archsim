@@ -1,0 +1,608 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "RAG assistant: living within the LLM provider's limits",
+    "description": "A support assistant that answers questions from a company's documents (retrieval-augmented generation). A web chat (75% of questions; one attempt, 60 s timeout) and integrations such as chat bots (25%; two attempts) call a Node.js chat API. For each question the API gets an embedding from a third-party embeddings API and looks for an earlier answer to a similar question in a Redis semantic cache (cache-aside; it answers 40% of questions, an assumption). Only on a miss does it search the vector store (OpenSearch k-NN, three shards, every search hits all of them) for the best passages and ask the LLM provider to answer with them. The provider allows 30 calls a second and 150 in flight, and its SDK retries a failed call once. Uploaded documents are queued on SQS for an ingest worker that embeds and indexes them; they never call the LLM. The engine models the whole answer, not streaming, so latency is the time to the last token. LLM calls are almost all of the monthly cost. All numbers are illustrative assumptions.",
+    "tags": [
+      "ai",
+      "llm",
+      "rag",
+      "rate-limiting",
+      "third-party",
+      "opensearch",
+      "semantic-cache"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web chat",
+        "description": null,
+        "config": {
+          "technology": "react",
+          "timeoutMs": 60000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 75
+        }
+      },
+      {
+        "id": "bots",
+        "type": "api_consumer",
+        "label": "Integrations and bots",
+        "description": null,
+        "config": {
+          "technology": "rest",
+          "timeoutMs": 60000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 2000,
+          "trafficShare": 25
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "chat",
+        "type": "service",
+        "label": "Chat API",
+        "description": null,
+        "config": {
+          "technology": "nodejs",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "processesPerReplica": 2,
+          "workersPerReplica": 1,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 12
+          },
+          "blockingDownstream": false,
+          "cpuCores": 2
+        }
+      },
+      {
+        "id": "embed",
+        "type": "external_api",
+        "label": "Embeddings API",
+        "description": null,
+        "config": {
+          "technology": "llm",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 80,
+            "p95": 250
+          },
+          "errorRate": 0.001,
+          "rateLimitRps": 160,
+          "costPerMillionRequests": 20
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Semantic answer cache (Redis)",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "hitModel": "fixed_ratio",
+          "hitRatio": 0.4,
+          "populateOnMiss": true,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 1.0
+          },
+          "itemSizeKb": 8,
+          "queueCapacity": 10000,
+          "queueTimeoutMs": null
+        }
+      },
+      {
+        "id": "vectors",
+        "type": "database",
+        "label": "Vector store (OpenSearch k-NN)",
+        "description": null,
+        "config": {
+          "technology": "opensearch",
+          "shards": 3,
+          "readReplicas": 1,
+          "maxConnections": 4,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 8,
+            "p95": 25
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 40,
+            "p95": 120
+          },
+          "memoryGib": 16,
+          "workingSetGib": 24,
+          "dataSizeGib": 60
+        }
+      },
+      {
+        "id": "llm",
+        "type": "external_api",
+        "label": "LLM completion API",
+        "description": null,
+        "config": {
+          "technology": "llm",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 2500,
+            "p95": 7000
+          },
+          "errorRate": 0.01,
+          "rateLimitRps": 30,
+          "concurrencyLimit": 150,
+          "costPerMillionRequests": 3000
+        }
+      },
+      {
+        "id": "ingest-q",
+        "type": "message_queue",
+        "label": "ingest-jobs (SQS)",
+        "description": null,
+        "config": {
+          "technology": "sqs",
+          "partitions": 10000,
+          "consumers": 16,
+          "maxDeliveries": 5,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 40
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "visibilityTimeoutS": 60
+        }
+      },
+      {
+        "id": "ingest",
+        "type": "service",
+        "label": "Ingest worker",
+        "description": null,
+        "config": {
+          "technology": "python",
+          "platform": "kubernetes",
+          "replicas": 2,
+          "workersPerReplica": 8,
+          "queueCapacity": 20,
+          "queueTimeoutMs": 30000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 30,
+            "p95": 90
+          },
+          "blockingDownstream": true
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "web-lb",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "bots-lb",
+        "source": "bots",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-chat",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "chat",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 55000
+        }
+      },
+      {
+        "id": "chat-embed",
+        "source": "chat",
+        "sourcePort": "out",
+        "target": "embed",
+        "targetPort": "in",
+        "label": "embed the question",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 5
+          },
+          "order": 0,
+          "timeoutMs": 2000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 200
+        }
+      },
+      {
+        "id": "chat-cache",
+        "source": "chat",
+        "sourcePort": "out",
+        "target": "cache",
+        "targetPort": "in",
+        "label": "similar question answered? (cache-aside)",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.25
+          },
+          "order": 1,
+          "timeoutMs": 50,
+          "continueOnFailure": true
+        }
+      },
+      {
+        "id": "chat-vectors",
+        "source": "chat",
+        "sourcePort": "out",
+        "target": "vectors",
+        "targetPort": "in",
+        "label": "on a miss: top-k passages",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 2,
+          "timeoutMs": 2000,
+          "readsOnMiss": true
+        }
+      },
+      {
+        "id": "chat-llm",
+        "source": "chat",
+        "sourcePort": "out",
+        "target": "llm",
+        "targetPort": "in",
+        "label": "on a miss: answer with the passages (SDK retries once)",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 10
+          },
+          "order": 3,
+          "timeoutMs": 20000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 1000,
+          "readsOnMiss": true
+        }
+      },
+      {
+        "id": "chat-ingest-q",
+        "source": "chat",
+        "sourcePort": "out",
+        "target": "ingest-q",
+        "targetPort": "in",
+        "label": "queue the uploaded document",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 4,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "ingest-q-worker",
+        "source": "ingest-q",
+        "sourcePort": "out",
+        "target": "ingest",
+        "targetPort": "in",
+        "label": "one job per document",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 45000
+        }
+      },
+      {
+        "id": "ingest-embed",
+        "source": "ingest",
+        "sourcePort": "out",
+        "target": "embed",
+        "targetPort": "in",
+        "label": "embed the chunks (one batch call)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 5
+          },
+          "order": 0,
+          "timeoutMs": 10000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 1000
+        }
+      },
+      {
+        "id": "ingest-vectors",
+        "source": "ingest",
+        "sourcePort": "out",
+        "target": "vectors",
+        "targetPort": "in",
+        "label": "bulk-index the chunks",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 10000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 40,
+    "durationS": 150,
+    "warmupS": 20,
+    "seed": 42,
+    "readRatio": 0.95,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 100000,
+    "keySkew": 0.0,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (40 questions/s)",
+      "description": "The document as drawn. Cache hits are answered in about 0.1 to 0.25 s. The other 60% of questions (about 23 a second) search the vector store and wait for the LLM, which takes about 3 s on average and is 90% of a successful question's time. The LLM runs at about three quarters of its quota (30 calls/s) and about half of its 150 in-flight cap. Every question is answered and p95 is about 6.4 s, inside the 8 s objective.",
+      "overrides": []
+    },
+    {
+      "id": "launch",
+      "name": "Launch day: 100 questions/s for 45 s (50\u201395 s)",
+      "description": "Traffic jumps 2.5\u00d7 at 50 s. Cache misses now need about 60 LLM calls a second against the 30 the quota allows, so the provider answers the excess with HTTP 429. The SDK's retry a second later mostly meets an empty quota again: during the spike only about three questions in four are answered (76.8%). Over the run the web chat, which does not retry, keeps 84% and the integrations 95% (their own retry gives a question up to four tries at the quota, against two for the web chat). None of your own parts is busy, so the results' headline says no component is saturated; the throttling finding below it (49% of LLM calls turned away) is the story.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 100,
+            "startS": 50,
+            "durationS": 45
+          }
+        }
+      ]
+    },
+    {
+      "id": "launch-provisioned",
+      "name": "Launch day with raised LLM limits (80 calls/s, 400 in flight)",
+      "description": "The same spike after asking the provider for more before the launch (a higher tier or provisioned throughput): 80 calls a second and 400 in flight. Every question is answered and p95 stays about 6.3 s. Raising only the rate limit would not have been enough: about 57 calls a second that take about 3 s each keep about 170 calls in flight (Little's law; the run peaks at 202), above the old cap of 150. Provisioned throughput is often billed by the hour, which this model's price per call does not show.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 100,
+            "startS": 50,
+            "durationS": 45
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "llm"
+          },
+          "path": "rateLimitRps",
+          "value": 80
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "llm"
+          },
+          "path": "concurrencyLimit",
+          "value": 400
+        }
+      ]
+    },
+    {
+      "id": "cache-down",
+      "name": "Semantic cache down for 30 s (60\u201390 s)",
+      "description": "Chaos at normal traffic: Redis stops answering. The chat API treats a failed lookup as a miss and carries on, so no question fails at the cache, but every question now needs the LLM: about 40 calls a second against a quota of 30. Inside the window about one question in four fails with a 429 (76.9% are answered), and the assistant recovers as soon as Redis is back. The cache was not only saving time and money: it was what kept the assistant under its quota.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "cache-down",
+              "kind": "outage",
+              "target": "cache",
+              "startS": 60,
+              "durationS": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "llm-slow",
+      "name": "LLM provider 3\u00d7 slower for 40 s (60\u2013100 s)",
+      "description": "Chaos: the provider slows to a median of about 7.5 s per answer. The same 23 calls a second now keep three times as many calls in flight, so the 150 cap is reached and the provider turns the rest away (throttled); the SDK's retries of those then run into the per-second quota as well. Inside the window 81% of questions are answered and p95 averages about 13 s, over the 8 s objective; answers that started slow take about 14 s to clear after it ends. The Node.js API itself is unaffected: its event loops do not wait for the provider (about 3% CPU).",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "llm-slow",
+              "kind": "slowdown",
+              "target": "llm",
+              "startS": 60,
+              "durationS": 40,
+              "factor": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 8000,
+    "latencyP99Ms": null,
+    "availability": 0.99,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "web": {
+        "x": 0,
+        "y": 120
+      },
+      "bots": {
+        "x": 0,
+        "y": 380
+      },
+      "lb": {
+        "x": 350,
+        "y": 250
+      },
+      "chat": {
+        "x": 700,
+        "y": 250
+      },
+      "cache": {
+        "x": 1050,
+        "y": 60
+      },
+      "llm": {
+        "x": 1050,
+        "y": 440
+      },
+      "vectors": {
+        "x": 1400,
+        "y": 300
+      },
+      "embed": {
+        "x": 1750,
+        "y": 160
+      },
+      "ingest-q": {
+        "x": 1050,
+        "y": 640
+      },
+      "ingest": {
+        "x": 1400,
+        "y": 640
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

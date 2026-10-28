@@ -1,0 +1,496 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Live match telemetry on NATS: drop or buffer",
+    "description": "Live telemetry from a multiplayer game. Game servers post match events (kills, objectives, round ends, each with an event id) to a Go ingest gateway behind a load balancer, which publishes them to NATS and answers as soon as the publish returns. Match aggregators, a NATS queue group of 16 subscribers on three Go pods, fold each event into its match: they append it to the match history in DynamoDB (a put keyed by event id, so a repeat is harmless), then bump the player's score in the Redis sorted set that the live leaderboards read. As drawn it runs on core NATS: at-most-once, nothing acknowledged by the subscribers, and a pending limit of 2,000 events (about two seconds of traffic) beyond which NATS drops what the aggregators cannot take. One scenario switches to JetStream. Watch the queue's dropped counter and message age: the game servers' success rate never moves. All numbers are illustrative assumptions.",
+    "tags": [
+      "nats",
+      "jetstream",
+      "telemetry",
+      "at-most-once",
+      "games",
+      "dynamodb",
+      "redis"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "game-servers",
+        "type": "api_consumer",
+        "label": "Game servers",
+        "description": null,
+        "config": {
+          "technology": "api_client",
+          "timeoutMs": 1000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 100,
+          "trafficShare": 100
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Ingest load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "ingest",
+        "type": "service",
+        "label": "Ingest gateway",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 250,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 0.5,
+            "p95": 2
+          },
+          "blockingDownstream": true,
+          "cpuCores": 1
+        }
+      },
+      {
+        "id": "events",
+        "type": "message_queue",
+        "label": "match-events (NATS)",
+        "description": null,
+        "config": {
+          "technology": "nats",
+          "partitions": 1000,
+          "consumers": 16,
+          "maxDepth": 2000,
+          "delivery": "at_most_once",
+          "maxDeliveries": 1,
+          "brokers": 3,
+          "cpuCores": 2,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 0.2,
+            "p95": 1
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 0.3,
+            "p95": 1
+          },
+          "replicationMs": {
+            "kind": "lognormal",
+            "median": 0.5,
+            "p95": 2
+          }
+        }
+      },
+      {
+        "id": "aggregator",
+        "type": "service",
+        "label": "Match aggregator",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 16,
+          "queueCapacity": 50,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "blockingDownstream": true,
+          "cpuCores": 2
+        }
+      },
+      {
+        "id": "history",
+        "type": "database",
+        "label": "Match history (DynamoDB)",
+        "description": null,
+        "config": {
+          "technology": "dynamodb",
+          "capacityMode": "on_demand",
+          "itemSizeKb": 1,
+          "maxConnections": 5000,
+          "queueCapacity": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 8
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 10
+          }
+        }
+      },
+      {
+        "id": "leaderboard",
+        "type": "cache",
+        "label": "Leaderboards (Redis)",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.05
+          },
+          "concurrency": 1,
+          "shards": 1
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "servers-lb",
+        "source": "game-servers",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": "POST match events (event id)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-ingest",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "ingest",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "ingest-events",
+        "source": "ingest",
+        "sourcePort": "out",
+        "target": "events",
+        "targetPort": "in",
+        "label": "publish match.<id>.events",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 250
+        }
+      },
+      {
+        "id": "events-aggregator",
+        "source": "events",
+        "sourcePort": "out",
+        "target": "aggregator",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "aggregator-history",
+        "source": "aggregator",
+        "sourcePort": "out",
+        "target": "history",
+        "targetPort": "in",
+        "label": "append to match history (put by event id)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 200,
+          "maxAttempts": 3,
+          "retryBackoffMs": 50
+        }
+      },
+      {
+        "id": "aggregator-leaderboard",
+        "source": "aggregator",
+        "sourcePort": "out",
+        "target": "leaderboard",
+        "targetPort": "in",
+        "label": "ZINCRBY the leaderboard",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 50,
+          "maxAttempts": 2,
+          "retryBackoffMs": 20
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1000,
+    "durationS": 100,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.0,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 2000,
+    "keySkew": 0.0,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (core NATS, 1,000 events/s)",
+      "description": "The document as drawn: 1,000 events a second from 2,000 matches. The 16 aggregators are about 60% busy, nothing is dropped, and an event reaches the match history and the leaderboard about 10 ms after it was published (mean message age). Game servers get their answer within about 15 ms at p95.",
+      "overrides": []
+    },
+    {
+      "id": "bad-deploy",
+      "name": "Bad aggregator deploy: 10\u00d7 slower (30\u201360 s)",
+      "description": "Chaos: a release makes the aggregators' own work 10 times slower (a CPU regression) for 30 s. They handle about 450 events a second against 1,000 published, the pending limit fills within about 4 s, and core NATS drops the overflow: about 14,700 events, half of those published during the bad deploy, never reach the match history or the leaderboard. Every publish is still answered, so the game servers see 100% success, the fault finding says the system absorbed the slowdown and the queue's lag finding is informational; only its dropped counter shows the loss. What does get through is at most a few seconds old (p95 message age about 4.5 s): dropping keeps the view live, at the price of a wrong history.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "bad-deploy",
+              "kind": "slowdown",
+              "target": "aggregator",
+              "startS": 30,
+              "durationS": 30,
+              "factor": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bad-deploy-jetstream",
+      "name": "Bad deploy on JetStream",
+      "description": "The same bad deploy on JetStream: at-least-once delivery, a stream that keeps up to a million events, publishes acknowledged once the stream's three replicas have them, up to 5 deliveries with a 30 s ack wait. Nothing is dropped: the backlog peaks at about 16,700 events and is worked off about 22 s after the release is fixed, but meanwhile the leaderboard falls behind the matches by up to about 16 s (p95 message age about 15 s). Buffering keeps the history complete and makes the live view late instead. Publishes cost about 1 ms more.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "bad-deploy",
+              "kind": "slowdown",
+              "target": "aggregator",
+              "startS": 30,
+              "durationS": 30,
+              "factor": 10
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "delivery",
+          "value": "at_least_once"
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "maxDepth",
+          "value": 1000000
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "maxDeliveries",
+          "value": 5
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "visibilityTimeoutS",
+          "value": 30
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "acks",
+          "value": "all"
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "publishTimeMs",
+          "value": {
+            "kind": "lognormal",
+            "median": 0.5,
+            "p95": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "final",
+      "name": "Tournament final: 2,500 events/s (30\u201360 s)",
+      "description": "Every player is in a match for the final, and events jump to 2,500 a second for 30 s. Nothing is broken, but 16 aggregators handle only about 1,700 a second: core NATS drops about 21,700 events, more than a quarter of the final's, while the game servers see every publish succeed and the results report no saturated component. The estimate does see it coming (\"Overloaded at 2,500 req/s\").",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 2500,
+            "startS": 30,
+            "durationS": 30
+          }
+        }
+      ]
+    },
+    {
+      "id": "final-scaled",
+      "name": "Tournament final, twice the aggregators",
+      "description": "The same final with 32 subscribers in the queue group on six aggregator pods. They keep up (about 44% busy on average), nothing is dropped and events stay about 10 ms behind. With core NATS, capacity for the peak is the only protection: size the queue group for the biggest night of the season, or use JetStream to buffer what it cannot take.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 2500,
+            "startS": 30,
+            "durationS": 30
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "consumers",
+          "value": 32
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "aggregator"
+          },
+          "path": "replicas",
+          "value": 6
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 50,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "game-servers": {
+        "x": 0,
+        "y": 200
+      },
+      "lb": {
+        "x": 350,
+        "y": 200
+      },
+      "ingest": {
+        "x": 700,
+        "y": 200
+      },
+      "events": {
+        "x": 1050,
+        "y": 200
+      },
+      "aggregator": {
+        "x": 1400,
+        "y": 200
+      },
+      "history": {
+        "x": 1750,
+        "y": 80
+      },
+      "leaderboard": {
+        "x": 1750,
+        "y": 320
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

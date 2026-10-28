@@ -3,7 +3,7 @@ import { peakRps } from "@/lib/load";
 import { kindOf, type Kind } from "@/lib/theme";
 import type { ArchitectureDocument, ExampleSummary } from "@/lib/types";
 
-export type TemplateCategory = "Starter" | "Scale" | "Kubernetes" | "Data" | "Async" | "Serverless" | "Resilience" | "Learn";
+export type TemplateCategory = "Starter" | "Scale" | "Kubernetes" | "Data" | "Async" | "Serverless" | "Resilience" | "AI" | "Learn";
 
 export const CATEGORY_COLOR: Record<TemplateCategory, string> = {
   Starter: "var(--fam-traffic)",
@@ -13,6 +13,7 @@ export const CATEGORY_COLOR: Record<TemplateCategory, string> = {
   Async: "var(--fam-messaging)",
   Serverless: "var(--fam-network)",
   Resilience: "var(--fam-cache)",
+  AI: "var(--series-5)",
   Learn: "var(--series-3)",
 };
 
@@ -108,6 +109,56 @@ const META: Record<string, TemplateMeta> = {
     category: "Learn",
     level: "Intermediate",
     insight: "Six ways to run one API on the cost and speed map: scaling the wrong tier buys nothing.",
+  },
+  "notification-fanout-quotas": {
+    category: "Async",
+    level: "Intermediate",
+    insight: "Provider quotas set the pace: extra senders only buy 429s, and an SMS outage fills the dead-letter queue.",
+  },
+  "nats-live-telemetry": {
+    category: "Async",
+    level: "Intermediate",
+    insight: "Core NATS drops events while every publish succeeds; JetStream loses none but falls behind.",
+  },
+  "llm-rag-assistant": {
+    category: "AI",
+    level: "Intermediate",
+    insight: "The LLM provider's quota, not your servers, caps the answers; the semantic cache keeps you under it.",
+  },
+  "auth-token-introspection": {
+    category: "Resilience",
+    level: "Intermediate",
+    insight: "Introspecting every call caps the API at the identity provider's quota; local JWT checks free the reads.",
+  },
+  "microservices-call-chain": {
+    category: "Resilience",
+    level: "Advanced",
+    insight: "A hung pricing service takes reads down through one missing timeout; deadlines keep it to checkouts.",
+  },
+  "serverless-image-pipeline": {
+    category: "Serverless",
+    level: "Intermediate",
+    insight: "The queue keeps a viral spike off uploads; concurrency, memory and runtime decide how late thumbnails are.",
+  },
+  "sqlserver-saas-blocking": {
+    category: "Data",
+    level: "Advanced",
+    insight: "A big tenant's month-end close makes readers queue behind its postings; RCSI frees readers, not writers.",
+  },
+  "cdn-video-streaming": {
+    category: "Scale",
+    level: "Intermediate",
+    insight: "Three edge POPs absorb a 2.5× premiere; a 2 s TTL swamps the origin, and without the shield only edge hits play.",
+  },
+  "search-opensearch-catalog": {
+    category: "Data",
+    level: "Advanced",
+    insight: "Every search hits every shard: 12 small shards burn the headroom, and a second replica buys it back.",
+  },
+  "mysql-replica-lag": {
+    category: "Data",
+    level: "Intermediate",
+    insight: "Replicas fall 9 s behind while every request succeeds; more apply workers fix it, primary reads overload it.",
   },
 };
 

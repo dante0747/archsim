@@ -1,0 +1,376 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": ".NET SaaS on SQL Server: readers blocked by writers",
+    "description": "A multi-tenant B2B accounting app. Browser users (75% of requests) and customers' integrations (25%, three attempts with backoff) reach an ASP.NET Core API on four instances through a load balancer. The API's data access is synchronous, so each request holds one of an instance's 64 threads while SQL Server works. One SQL Server database (8 vCPU, 32 sessions at once) holds every tenant. Requests are keyed by tenant: a posting updates its tenant's totals row in the same transaction, and the tenant's screens read it. SQL Server runs its default READ COMMITTED with locking reads (no RCSI), so a read of a tenant waits while one of that tenant's postings holds the lock. 1,500 req/s, 15% of them postings. On a normal day that costs nothing; at month-end the largest tenants' readers queue behind their postings and take every session with them. Prices are for self-managed x86 instances (the price list has no RDS for SQL Server) and leave out the SQL Server licence. All numbers are illustrative assumptions.",
+    "tags": [
+      "sql-server",
+      "dotnet",
+      "multi-tenant",
+      "row-locks",
+      "rcsi",
+      "failover",
+      "client-groups"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Browser users",
+        "description": null,
+        "config": {
+          "technology": "angular",
+          "timeoutMs": 15000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 75
+        }
+      },
+      {
+        "id": "integrations",
+        "type": "api_consumer",
+        "label": "Customer integrations",
+        "description": null,
+        "config": {
+          "technology": "rest",
+          "timeoutMs": 15000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 1000,
+          "trafficShare": 25
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Accounting API (ASP.NET Core)",
+        "description": null,
+        "config": {
+          "technology": "dotnet",
+          "platform": "docker",
+          "replicas": 4,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 2000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "blockingDownstream": true,
+          "cpuCores": 4
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "Tenant DB (SQL Server)",
+        "description": null,
+        "config": {
+          "technology": "sqlserver",
+          "cpuCores": 8,
+          "maxConnections": 32,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 2000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 8
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 12
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "web-lb",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "integrations-lb",
+        "source": "integrations",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": "retries POSTs with an idempotency key",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-api",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 10000
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": "tenant screens; post invoices (updates the tenant's totals row)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 3000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1500,
+    "durationS": 90,
+    "warmupS": 10,
+    "seed": 11,
+    "readRatio": 0.85,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 2000,
+    "keySkew": 0.7,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Normal day",
+      "description": "The document as drawn: 1,500 req/s over 2,000 tenants whose sizes follow Zipf 0.7 (the largest sends about 3% of the requests), and postings that take about 4 ms. Every request succeeds with a p95 of about 81 ms. Locking reads cost almost nothing: about 470 reads in the 80 s window find their tenant's row locked and wait for a posting to commit.",
+      "overrides": []
+    },
+    {
+      "id": "month-end",
+      "name": "Month-end close",
+      "description": "The largest tenants close their books. Tenant sizes follow Zipf 1.2, so the largest sends about 22% of the requests, and postings recalculate the period totals while they hold the tenant's totals row: a median of 6 ms, but one in twenty takes over 60 ms. With locking reads, every read of that tenant waits behind the posting, and the waiting readers hold SQL Server sessions. About 26,000 reads wait, the 32 sessions are 97% busy, requests queue for one (p95 wait about 335 ms) and the API's threads fill behind them (90% occupied, 3% of it its own work). The API's queue overflows: 8.6% of browser requests fail and p95 is about 1.1 s. Integrations retry and get every request through. Postings wait only about 17 ms on average for each other: the pile-up is the readers.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.2
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "writeServiceTimeMs",
+          "value": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 60
+          }
+        }
+      ]
+    },
+    {
+      "id": "month-end-rcsi",
+      "name": "Month-end close with RCSI",
+      "description": "The same month-end with READ_COMMITTED_SNAPSHOT on: reads see the last committed version and never wait for a posting. Every request succeeds and the sessions are about 63% busy on average. The largest tenant's postings still queue for its totals row (about 55 ms on average, now that the session queue no longer holds them back), and at the busiest moments those waiting postings fill the sessions, so reads queue for a session and p95 stays at about 470 ms, above the 250 ms objective. RCSI ends reader-writer blocking, not writer-writer blocking. Its cost, row versions kept in tempdb, is not modelled.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.2
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "writeServiceTimeMs",
+          "value": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 60
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "readsWaitForWrites",
+          "value": "off"
+        }
+      ]
+    },
+    {
+      "id": "month-end-append",
+      "name": "Month-end with RCSI and append-only postings",
+      "description": "The fix for the hot row: each posting inserts its own ledger rows instead of updating one totals row per tenant, and a rollup job (not drawn) sums them, so the totals trail the postings by its interval. New rows never wait for each other, which the engine models by turning row locks off. With RCSI on as well, month-end looks like a normal day although postings take as long as before: p95 about 86 ms, sessions about 24% busy, every request succeeds.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.2
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "writeServiceTimeMs",
+          "value": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 60
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "readsWaitForWrites",
+          "value": "off"
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "rowLocks",
+          "value": "off"
+        }
+      ]
+    },
+    {
+      "id": "failover",
+      "name": "Failover: 15 s without the database (45\u201360 s)",
+      "description": "Chaos on a normal day: SQL Server is unreachable for 15 s, as during an availability-group or Multi-AZ failover, and connections are refused at once. Because the failure is fast, nothing piles up: the API stays about 5% busy and the system recovers about 2 s after the database is back. Inside the window 0.2% of requests succeed. Over the run browser users keep 81.3% and integrations 85.0%: their retries, 1 s and then 2 s later, carry requests from the last seconds of the outage across, at 1.37 attempts per request.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "failover",
+              "kind": "outage",
+              "target": "db",
+              "startS": 45,
+              "durationS": 15,
+              "label": "availability group fails over"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 250,
+    "latencyP99Ms": null,
+    "availability": 0.995,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "web": {
+        "x": 0,
+        "y": 0
+      },
+      "integrations": {
+        "x": 0,
+        "y": 200
+      },
+      "lb": {
+        "x": 350,
+        "y": 100
+      },
+      "api": {
+        "x": 700,
+        "y": 100
+      },
+      "db": {
+        "x": 1050,
+        "y": 100
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27",
+    "families": [
+      "c6i",
+      "m6i",
+      "r6i"
+    ]
+  }
+}

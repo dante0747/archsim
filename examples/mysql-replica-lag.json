@@ -1,0 +1,352 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "User profiles on MySQL: replica lag and stale reads",
+    "description": "A user-profile service. A mobile app (65% of requests, one retry) and a web app (35%) call a Go profile API on four instances behind a load balancer. MySQL 8 runs a primary for writes and three read replicas that serve every read; each replica applies the primary's changes on 4 worker threads (replica_parallel_workers, MySQL 8's default), at about 70% of the original write's time. 1,500 req/s over 200,000 users, 10% of them profile and settings updates. Replication is asynchronous, so the request path says little here: a replica can fall seconds behind while every request succeeds, and a replica read of a profile whose latest change it has not applied yet is stale. All numbers are illustrative assumptions.",
+    "tags": [
+      "mysql",
+      "read-replicas",
+      "replication-lag",
+      "stale-reads",
+      "go",
+      "client-groups"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "react_native",
+          "timeoutMs": 10000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 500,
+          "trafficShare": 65
+        }
+      },
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web app",
+        "description": null,
+        "config": {
+          "technology": "nextjs",
+          "timeoutMs": 15000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 35
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Profile API (Go)",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "docker",
+          "replicas": 4,
+          "workersPerReplica": 128,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 5
+          },
+          "blockingDownstream": true,
+          "cpuCores": 2
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "Profiles (MySQL 8)",
+        "description": null,
+        "config": {
+          "technology": "mysql",
+          "readReplicas": 3,
+          "readFrom": "replicas",
+          "cpuCores": 4,
+          "cpuShare": 0.3,
+          "maxConnections": 16,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 12
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 16
+          },
+          "replicaApplyFactor": 0.7
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "mobile-lb",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": "profile reads; PUT /settings (idempotent)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "web-lb",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-api",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 5000
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": "reads from the replicas, writes to the primary",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1500
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1500,
+    "durationS": 60,
+    "warmupS": 10,
+    "seed": 23,
+    "readRatio": 0.9,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 200000,
+    "keySkew": 0.7,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Normal day",
+      "description": "The document as drawn: 1,500 req/s, 150 of them updates. Replaying a write takes about 4.5 ms, so each replica's 4 workers could apply about 890 a second: the lag stays under about 15 ms and 13 of about 67,000 replica reads are stale. Every request succeeds; p95 is about 185 ms, most of it the mobile network.",
+      "overrides": []
+    },
+    {
+      "id": "surge",
+      "name": "Settings surge: 1,050 updates a second",
+      "description": "The app asks every user to confirm new notification settings: updates go from 150 to 1,050 a second while reads stay at 1,350. The replicas apply about 890 a second and fall behind from the first second: the lag grows by about 0.15 s every second and reaches about 9 s by the end of the run, and 17% of replica reads (11,670 of 67,406) return a profile without its latest change. Every request succeeds and p95 does not move: nothing on the request path shows it. Only the replication-lag finding does.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "rps",
+          "value": 2400
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "readRatio",
+          "value": 0.5625
+        }
+      ]
+    },
+    {
+      "id": "surge-16-workers",
+      "name": "Settings surge, 16 apply workers",
+      "description": "The usual fix: replica_parallel_workers = 16, with writeset dependency tracking so that changes to different users can apply in parallel. The replicas now apply the 1,050 writes a second with room to spare: the lag stays under about 30 ms and 122 replica reads (0.2%) are stale, against 11,670 with 4 workers. Nothing else changes: the request path looked the same before.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "rps",
+          "value": 2400
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "readRatio",
+          "value": 0.5625
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "replicaApplyWorkers",
+          "value": 16
+        }
+      ]
+    },
+    {
+      "id": "surge-primary",
+      "name": "Settings surge, reads from the primary",
+      "description": "The blunt fix for stale reads: send every read to the primary. No read is stale, but the primary now runs 1,350 reads and 1,050 writes a second on its own 4 vCPUs and 16 connections, while the three replicas replay writes nobody reads (they still fall 7 s behind). Its CPU is nearly full and its connection queue overflows: about 3% of requests fail (7.7% of the web app's; the mobile app's retry gets all but 0.7% through) and p95 rises to about 450 ms.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "rps",
+          "value": 2400
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "readRatio",
+          "value": 0.5625
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "readFrom",
+          "value": "primary"
+        }
+      ]
+    },
+    {
+      "id": "storage-stall",
+      "name": "Storage stall: 5\u00d7 slower for 20 s (25\u201345 s)",
+      "description": "Chaos on a normal day: every query, log flush and replay on the database is 5\u00d7 slower for 20 s, as when an EBS volume runs out of I/O credits. At 150 updates a second, replay now needs about 3.4 of each replica's 4 workers, and the replicas fall up to 1.6 s behind: 388 replica reads are stale instead of 13. Users barely notice: every request succeeds and p95 inside the window rises from 185 to 223 ms. The lag clears about 2 s after the stall ends.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "storage-stall",
+              "kind": "slowdown",
+              "target": "db",
+              "startS": 25,
+              "durationS": 20,
+              "factor": 5,
+              "label": "EBS volume out of I/O credits"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 250,
+    "latencyP99Ms": null,
+    "availability": 0.995,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "mobile": {
+        "x": 0,
+        "y": 0
+      },
+      "web": {
+        "x": 0,
+        "y": 200
+      },
+      "lb": {
+        "x": 350,
+        "y": 100
+      },
+      "api": {
+        "x": 700,
+        "y": 100
+      },
+      "db": {
+        "x": 1050,
+        "y": 100
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

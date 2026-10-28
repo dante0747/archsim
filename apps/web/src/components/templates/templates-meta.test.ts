@@ -18,7 +18,7 @@ describe("templates", () => {
     const ids = readdirSync(dir)
       .filter((f) => f.endsWith(".json"))
       .map((f) => f.replace(/\.json$/, ""));
-    expect(ids.length).toBeGreaterThanOrEqual(15);
+    expect(ids.length).toBeGreaterThanOrEqual(25);
     for (const id of ids) expect(templateMeta({ id, tags: [] }).insight, id).not.toMatch(/press Simulate/);
   });
 
@@ -26,6 +26,7 @@ describe("templates", () => {
     expect(templateMeta({ id: "mongodb-hot-shard", tags: [] }).category).toBe("Data");
     expect(templateMeta({ id: "cqrs-kafka-read-model", tags: [] }).category).toBe("Async");
     expect(templateMeta({ id: "right-size-catalog-api", tags: [] }).category).toBe("Learn");
+    expect(templateMeta({ id: "llm-rag-assistant", tags: [] }).category).toBe("AI");
     expect(templateMeta({ id: "something-new", tags: ["education"] }).category).toBe("Learn");
     expect(templateMeta({ id: "something-new", tags: [] }).insight).toMatch(/Simulate/);
   });

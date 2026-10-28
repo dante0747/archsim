@@ -1,0 +1,557 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Image uploads: API Gateway, Lambda, SQS and S3",
+    "description": "A photo app's upload path on managed AWS services. A mobile app (70%) and a web uploader call API Gateway, whose integration timeout is lowered to 8 s so it gives up before the clients' 10 s. A Node.js Lambda stores the original in S3, writes a metadata item to DynamoDB (on demand) and sends a resize job to SQS, then answers. A Python Lambda behind the queue (reserved concurrency 300, with the event source's maximum concurrency set to the same 300 so the poller never invokes more than the function may run) fetches the original, writes three sizes to a second bucket and marks the item ready. Half the requests are status reads. Each path retries in one place: the mobile app retries an upload (its photo id makes that safe), and SQS redelivers a failed job up to five times, then moves it to a dead-letter queue. The visibility timeout is 6 minutes, six times the function's 60 s timeout, as AWS advises. Traffic is 150 req/s until a post goes viral from 20 to 50 s (900 req/s). The engine has no payload sizes, so an upload's transfer time is not modelled, and the API writes to S3 itself where many apps hand out a presigned URL instead. All numbers are illustrative assumptions.",
+    "tags": [
+      "serverless",
+      "lambda",
+      "sqs",
+      "s3",
+      "dynamodb",
+      "cold-start",
+      "backlog",
+      "client-groups"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "react_native",
+          "timeoutMs": 10000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 500,
+          "trafficShare": 70
+        }
+      },
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web uploader",
+        "description": null,
+        "config": {
+          "technology": "react",
+          "timeoutMs": 10000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 30
+        }
+      },
+      {
+        "id": "apigw",
+        "type": "load_balancer",
+        "label": "API Gateway",
+        "description": null,
+        "config": {
+          "technology": "api_gateway",
+          "overheadMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 20
+          },
+          "maxConnections": 10000,
+          "rateLimitRps": 10000,
+          "rateLimitBurst": 5000,
+          "upstreamTimeoutMs": 8000,
+          "costPerHour": 0.0
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Photos API (Lambda)",
+        "description": null,
+        "config": {
+          "technology": "nodejs",
+          "platform": "serverless",
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 8,
+            "p95": 25
+          },
+          "concurrencyLimit": 700,
+          "keepWarmS": 300,
+          "memoryGib": 1,
+          "cpuCores": 0.58,
+          "replicas": 1,
+          "workersPerReplica": 1,
+          "queueCapacity": 0,
+          "queueTimeoutMs": null,
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "originals",
+        "type": "external_api",
+        "label": "Originals bucket (S3)",
+        "description": null,
+        "config": {
+          "technology": "object_storage",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 60,
+            "p95": 200
+          },
+          "errorRate": 0.0001,
+          "rateLimitRps": 5500,
+          "costPerMillionRequests": 2.7
+        }
+      },
+      {
+        "id": "metadata",
+        "type": "database",
+        "label": "Photo metadata (DynamoDB)",
+        "description": null,
+        "config": {
+          "technology": "dynamodb",
+          "capacityMode": "on_demand",
+          "itemSizeKb": 1,
+          "maxConnections": 5000,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 100,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 8
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 12
+          }
+        }
+      },
+      {
+        "id": "jobs",
+        "type": "message_queue",
+        "label": "resize-jobs (SQS)",
+        "description": null,
+        "config": {
+          "technology": "sqs",
+          "partitions": 10000,
+          "consumers": 300,
+          "maxDepth": null,
+          "maxDeliveries": 5,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 40
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 20
+          },
+          "visibilityTimeoutS": 360,
+          "brokers": 1,
+          "costPerHour": 0.0
+        }
+      },
+      {
+        "id": "resizer",
+        "type": "service",
+        "label": "Resize worker (Lambda)",
+        "description": null,
+        "config": {
+          "technology": "python",
+          "platform": "serverless",
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 800,
+            "p95": 2500
+          },
+          "concurrencyLimit": 300,
+          "keepWarmS": 300,
+          "memoryGib": 1.75,
+          "cpuCores": 1,
+          "replicas": 1,
+          "workersPerReplica": 1,
+          "queueCapacity": 0,
+          "queueTimeoutMs": null,
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "thumbs",
+        "type": "external_api",
+        "label": "Thumbnails bucket (S3)",
+        "description": null,
+        "config": {
+          "technology": "object_storage",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 25,
+            "p95": 80
+          },
+          "errorRate": 0.0001,
+          "rateLimitRps": 3500,
+          "costPerMillionRequests": 5.0
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "mobile-apigw",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "apigw",
+        "targetPort": "in",
+        "label": "uploads carry a client-generated photo id",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "web-apigw",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "apigw",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "apigw-api",
+        "source": "apigw",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": "integration timeout 8 s",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 8000
+        }
+      },
+      {
+        "id": "api-originals",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "originals",
+        "targetPort": "in",
+        "label": "PUT the original",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 2
+          },
+          "order": 0,
+          "timeoutMs": 2500
+        }
+      },
+      {
+        "id": "api-metadata",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "metadata",
+        "targetPort": "in",
+        "label": "read status; put item (processing)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 1
+          },
+          "order": 1,
+          "timeoutMs": 300
+        }
+      },
+      {
+        "id": "api-jobs",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "jobs",
+        "targetPort": "in",
+        "label": "SendMessage",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 1
+          },
+          "order": 2,
+          "timeoutMs": 500
+        }
+      },
+      {
+        "id": "jobs-resizer",
+        "source": "jobs",
+        "sourcePort": "out",
+        "target": "resizer",
+        "targetPort": "in",
+        "label": "invoke (function timeout 60 s)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 1
+          },
+          "order": 0,
+          "timeoutMs": 60000
+        }
+      },
+      {
+        "id": "resizer-originals",
+        "source": "resizer",
+        "sourcePort": "out",
+        "target": "originals",
+        "targetPort": "in",
+        "label": "GET the original",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 2
+          },
+          "order": 0,
+          "timeoutMs": 5000
+        }
+      },
+      {
+        "id": "resizer-thumbs",
+        "source": "resizer",
+        "sourcePort": "out",
+        "target": "thumbs",
+        "targetPort": "in",
+        "label": "PUT three sizes",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 2
+          },
+          "order": 1,
+          "timeoutMs": 5000
+        }
+      },
+      {
+        "id": "resizer-metadata",
+        "source": "resizer",
+        "sourcePort": "out",
+        "target": "metadata",
+        "targetPort": "in",
+        "label": "update item (ready)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 1
+          },
+          "order": 2,
+          "timeoutMs": 500
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 150,
+    "durationS": 140,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.5,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 900,
+      "startS": 20,
+      "durationS": 30
+    },
+    "keyCount": 1000000,
+    "keySkew": 0.2,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (a post goes viral at 20\u201350 s)",
+      "description": "The document as drawn. When the post goes viral, the Photos API scales out to 155 instances (120 cold starts, 0.3% of its requests) and uploads stay under 400 ms at p95. The worker reaches its 300 instances and the queue takes the rest: the backlog peaks at about 5,600 jobs as the spike ends and is gone 30 s later. A thumbnail is ready about 21 s after its upload at p95. Nothing fails apart from one S3 error.",
+      "overrides": []
+    },
+    {
+      "id": "low-concurrency",
+      "name": "Reserved concurrency 100",
+      "description": "The worker capped at 100 instances, with the event source's maximum concurrency lowered to match. 100 instances do about 87 jobs a second: enough for the 75 uploads a second of a normal evening, not for the spike. The backlog peaks at about 10,900 and drains at about 12 a second, so thumbnails are 91 s late at p95 and about 4,800 jobs are still waiting a minute after uploads stop. Uploads themselves are unaffected: the queue keeps the worker's limit away from users. Size reserved concurrency for the drain time you can accept, not for the average.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "resizer"
+          },
+          "path": "concurrencyLimit",
+          "value": 100
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "jobs"
+          },
+          "path": "consumers",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "id": "small-worker",
+      "name": "Resize worker at 512 MB",
+      "description": "The worker given 512 MB instead of 1,792 MB to save money. Lambda allocates CPU in proportion to memory, so it gets about 0.29 vCPU and a job takes 3.6 s instead of 1.15 s. The same 300 instances now manage about 83 jobs a second, so the result looks like 100 instances at full size: the backlog peaks at about 11,000, thumbnails are 93 s late at p95, and about 5,500 jobs are left at the end. Per image it is only about 10% cheaper (1.8 GB-seconds instead of 2.0): for CPU-bound work, less memory mostly buys time.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "resizer"
+          },
+          "path": "memoryGib",
+          "value": 0.5
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "resizer"
+          },
+          "path": "cpuCores",
+          "value": 0.29
+        }
+      ]
+    },
+    {
+      "id": "java-worker",
+      "name": "Resize worker on Java",
+      "description": "The same worker on Java, with the same resize time once warm. The cold starts (about 1.2 s each instead of about 0.25 s) are the small part: a new Java instance also runs about 2.5 times slower until its JIT compiler has warmed up (45 s, illustrative), and during the spike every one of the 300 instances is new. The backlog peaks at about 7,700 instead of 5,600 and drains 12 s later; thumbnails are 29.5 s late at p95 instead of 21.5 s. SnapStart and provisioned concurrency, which address this, are not modelled.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "resizer"
+          },
+          "path": "technology",
+          "value": "java"
+        }
+      ]
+    },
+    {
+      "id": "s3-slow",
+      "name": "S3 8\u00d7 slower for 30 s (80\u2013110 s)",
+      "description": "Chaos: from 80 to 110 s the originals bucket answers 8 times slower (a median of about half a second). Users feel it, because an upload waits for its PUT: p95 inside the window rises from 336 ms to about 1.3 s, and a few uploads hit the 2.5 s PUT timeout (99.8% of requests in the window succeed). The worker hardly notices: its GETs take longer, but it has room under its 300 instances, and the backlog is the spike's alone.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "s3-slow",
+              "kind": "slowdown",
+              "target": "originals",
+              "startS": 80,
+              "durationS": 30,
+              "factor": 8,
+              "label": "originals bucket 8\u00d7 slower"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 600,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "mobile": {
+        "x": 0,
+        "y": 100
+      },
+      "web": {
+        "x": 0,
+        "y": 300
+      },
+      "apigw": {
+        "x": 350,
+        "y": 200
+      },
+      "api": {
+        "x": 700,
+        "y": 200
+      },
+      "jobs": {
+        "x": 1050,
+        "y": 200
+      },
+      "resizer": {
+        "x": 1400,
+        "y": 200
+      },
+      "originals": {
+        "x": 1750,
+        "y": 0
+      },
+      "thumbs": {
+        "x": 1750,
+        "y": 200
+      },
+      "metadata": {
+        "x": 1750,
+        "y": 400
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}
