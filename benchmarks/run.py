@@ -173,15 +173,16 @@ def log(msg: str) -> None:
 
 
 def compose(*args: str, check: bool = True, capture: bool = False) -> str:
+    """``docker compose`` with the benchmark stack. A failing command raises when ``check``;
+    with ``capture``, what Docker printed is shown first (it would be lost otherwise)."""
     env = {**os.environ, "BENCH_REDIS_URL": os.environ.get("BENCH_REDIS_URL", "")}
-    proc = subprocess.run(
-        ["docker", "compose", "-f", str(HERE / "compose.yaml"), *args],
-        cwd=HERE,
-        env=env,
-        check=check,
-        text=True,
-        capture_output=capture,
-    )
+    cmd = ["docker", "compose", "-f", str(HERE / "compose.yaml"), *args]
+    proc = subprocess.run(cmd, cwd=HERE, env=env, check=False, text=True, capture_output=capture)
+    if check and proc.returncode != 0:
+        if capture:
+            log(f"docker compose {' '.join(args[:4])} failed (exit {proc.returncode}):")
+            print((proc.stdout or "")[-4000:], (proc.stderr or "")[-4000:], sep="\n", flush=True)
+        raise subprocess.CalledProcessError(proc.returncode, cmd, proc.stdout, proc.stderr)
     return proc.stdout if capture else ""
 
 
