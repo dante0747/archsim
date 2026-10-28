@@ -41,6 +41,11 @@ services:
   api:
     build: *api-image
     init: true # reaps and signals the simulation processes
+    # Settings for this machine, such as sign-in and its secrets: put them in .env.docker (git
+    # ignores it; see the sign-in block of .env.example). Without the file, no sign-in.
+    env_file:
+      - path: .env.docker
+        required: false
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
       ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
