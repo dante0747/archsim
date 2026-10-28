@@ -35,6 +35,8 @@ _DYNAMO_BURST = (
 _KAFKA_RETENTION = "https://kafka.apache.org/documentation/#brokerconfigs_log.retention.hours"
 _LAMBDA_MEMORY = "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"
 _RDS_CONNECTIONS = "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.MaxConnections"
+_ALB_LCU = "https://aws.amazon.com/elasticloadbalancing/pricing/"
+_SQS_PRICING = "https://aws.amazon.com/sqs/pricing/"
 _T4G_BASELINE = (
     "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/burstable-credits-baseline-concepts.html"
 )
@@ -81,6 +83,10 @@ def constants() -> list[Constant]:
         Constant("Cost estimate", "Price per vCPU-hour (parts without a price)", f"${c.PRICE_PER_VCPU_HOUR:g}", "cost.PRICE_PER_VCPU_HOUR"),
         Constant("Cost estimate", "Price per GiB-hour of memory", f"${c.PRICE_PER_GIB_HOUR:g}", "cost.PRICE_PER_GIB_HOUR"),
         Constant("Cost estimate", "Price per GiB-month of storage", f"${c.PRICE_PER_STORAGE_GIB_MONTH:g}", "cost.PRICE_PER_STORAGE_GIB_MONTH"),
+        Constant("Cost estimate", "Bytes an application load balancer processes per request", f"{c.ALB_KB_PER_REQUEST:g} KB", "cost.ALB_KB_PER_REQUEST"),
+        Constant("Cost estimate", "Processed bytes per load balancer capacity unit (LCU)", f"{c.ALB_GB_PER_LCU_HOUR:g} GB an hour", "cost.ALB_GB_PER_LCU_HOUR", _ALB_LCU),
+        Constant("Cost estimate", "SQS requests per message", f"{c.SQS_REQUESTS_PER_MESSAGE} (send, receive, delete)", "cost.SQS_REQUESTS_PER_MESSAGE", _SQS_PRICING),
+        Constant("Cost estimate", "Share of an implied Kubernetes node allocatable to pods", _pct(c.KUBERNETES_ALLOCATABLE), "cost.KUBERNETES_ALLOCATABLE"),
         Constant("Database model", "Share of memory used as buffer cache", _pct(db.BUFFER_CACHE_SHARE), "database.BUFFER_CACHE_SHARE"),
         Constant("Database model", "DynamoDB read units per partition per second", f"{db.PARTITION_READ_UNITS:,g}", "database.PARTITION_READ_UNITS", _DYNAMO_PARTITIONS),
         Constant("Database model", "DynamoDB write units per partition per second", f"{db.PARTITION_WRITE_UNITS:,g}", "database.PARTITION_WRITE_UNITS", _DYNAMO_PARTITIONS),

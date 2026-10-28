@@ -7,7 +7,7 @@ p95 goes from 90.8 ms to 264 ms (objective 400 ms); availability misses its obje
 | --- | --- | --- | --- | --- |
 | Latency p95 | 90.8 ms | 264 ms | +191% | regressed |
 | Success rate | 100.00% | 71.99% | -28.0 pp | regressed |
-| Monthly cost | $333 | $234 | -30% |  |
+| Monthly cost | $334 | $234 | -30% |  |
 
 | Objective | Target | Result | |
 | --- | --- | --- | --- |

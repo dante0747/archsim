@@ -273,17 +273,22 @@ def test_lines_at_generic_rates_keep_their_note_next_to_snapshot_lines() -> None
 
     nodes = [
         {"id": "vm", "type": "service", "config": {"cpuCores": 2, "memoryGib": 4}},
-        # on Kubernetes but the design has no cluster part: priced from its size
+        # bigger than any type in the snapshot: priced from its size at generic rates
+        {"id": "huge", "type": "service", "config": {"cpuCores": 512, "memoryGib": 4}},
+        # on Kubernetes but the design has no cluster part: its share of implied nodes
         {
             "id": "pod",
             "type": "service",
-            "config": {"platform": "kubernetes", "cpuCores": 1, "memoryGib": 2},
+            "config": {"platform": "kubernetes", "cpuCores": 1, "memoryGib": 2, "replicas": 3},
         },
     ]
     cost = estimate_cost(nodes, REGISTRY, None, PRICING)
     lines = _lines(cost)
-    assert lines["vm"]["priceSource"] == "snapshot" and lines["pod"]["priceSource"] == "size"
+    assert lines["vm"]["priceSource"] == "snapshot" and lines["huge"]["priceSource"] == "size"
     assert any("illustrative on-demand rates" in n for n in cost["notes"])
+    pod = lines["pod"]
+    assert pod["priceSource"] == "snapshot" and "on implied" in pod["basis"] and pod["sku"]
+    assert pod["instances"] == 3
 
 
 def _newer_snapshot(tmp_path: Path) -> Path:

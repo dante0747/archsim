@@ -641,6 +641,8 @@ def build_report(
         input_snapshot.get("pricing"),
         {k: v.kind for k, v in resolved.provenance.items()},
         base_busy(prep.sizes),
+        document=input_snapshot,
+        estimate=estimate,
     )
     report["review"] = review_design(input_snapshot, registry)
     report["estimate"] = estimate

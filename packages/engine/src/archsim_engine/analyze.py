@@ -47,6 +47,8 @@ def analyze_document(
             snapshot.get("pricing"),
             {k: v.kind for k, v in resolved.provenance.items()},
             base_busy(sizes),
+            document=snapshot,
+            estimate=estimate,
         ),
         "review": review,
         "reviewCounts": count_by_severity(review),

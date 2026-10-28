@@ -705,6 +705,10 @@ Numbers built into the sizing, cost and component models. Design review threshol
 | Cost estimate | Price per vCPU-hour (parts without a price) | $0.037 | illustrative | `cost.PRICE_PER_VCPU_HOUR` |
 | Cost estimate | Price per GiB-hour of memory | $0.0028 | illustrative | `cost.PRICE_PER_GIB_HOUR` |
 | Cost estimate | Price per GiB-month of storage | $0.08 | illustrative | `cost.PRICE_PER_STORAGE_GIB_MONTH` |
+| Cost estimate | Bytes an application load balancer processes per request | 10 KB | illustrative | `cost.ALB_KB_PER_REQUEST` |
+| Cost estimate | Processed bytes per load balancer capacity unit (LCU) | 1 GB an hour | documented: [aws.amazon.com](https://aws.amazon.com/elasticloadbalancing/pricing/) | `cost.ALB_GB_PER_LCU_HOUR` |
+| Cost estimate | SQS requests per message | 3 (send, receive, delete) | documented: [aws.amazon.com](https://aws.amazon.com/sqs/pricing/) | `cost.SQS_REQUESTS_PER_MESSAGE` |
+| Cost estimate | Share of an implied Kubernetes node allocatable to pods | 90% | illustrative | `cost.KUBERNETES_ALLOCATABLE` |
 | Database model | Share of memory used as buffer cache | 75% | illustrative | `database.BUFFER_CACHE_SHARE` |
 | Database model | DynamoDB read units per partition per second | 3,000 | documented: [aws.amazon.com](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html) | `database.PARTITION_READ_UNITS` |
 | Database model | DynamoDB write units per partition per second | 1,000 | documented: [aws.amazon.com](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html) | `database.PARTITION_WRITE_UNITS` |

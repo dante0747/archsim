@@ -136,7 +136,7 @@
           "memoryGib": "24 MiB of hot data per instance (25% of the 95 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 182 MiB for 20 connections (RDS's default: 9,531,392 bytes each) and 1 GiB in all; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest database type has)",
           "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
         },
-        "pricePerHour": 0.1601,
+        "pricePerHour": 0.1606,
         "sku": "db.m6g.large",
         "need": {
           "busyCores": 0.542,
@@ -155,7 +155,7 @@
     }
   },
   "cost": {
-    "monthly": 333.245,
+    "monthly": 333.61,
     "perMillionRequests": null,
     "byNode": [
       {
@@ -178,10 +178,10 @@
         "type": "database",
         "technology": "postgresql",
         "instances": 1.0,
-        "unitPrice": 0.1601,
+        "unitPrice": 0.1606,
         "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 116.87299999999999,
+        "monthly": 117.238,
         "basis": "1 node",
         "sku": "db.m6g.large",
         "snapshotDate": "2026-10-28"
@@ -216,7 +216,8 @@
       }
     ],
     "notes": [
-      "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named); discounts, data transfer and load balancer capacity units are not included."
+      "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+      "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
     ],
     "hasCost": true,
     "currency": "USD",
