@@ -1,11 +1,31 @@
 # Implementation status
 
-State as of 2026-10-28 (engine 0.12.0, schema 1.3, report 1.14). This file separates what is
+State as of 2026-10-28 (engine 0.13.0, schema 1.4, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Sizing and pricing that match reality (2026-10-28, engine 0.13.0, schema 1.4; sizing plan W14).**
+
+- New AWS snapshot `aws-us-east-1-2026-10-28` with burstable baselines, surplus-credit prices
+  and managed-service rates; 2026-10-27 is kept unchanged (stored runs pin its digest).
+- Each part reports what it needs beside the instance it gets (`sizing.need`/`needText`), shown
+  in the inspector and on node cards: TTL cache hit ratios, a database CPU cap from its
+  connections, database memory from its hot data, Lambda's 1,769 MB per vCPU, Kubernetes
+  millicore requests.
+- Optional `instanceType` (schema 1.4), so re-running a run's input reproduces its instance
+  types and cost. Burstable t4g for light parts with a CPU-credit check and
+  `pricing.burstable: auto|never`; the `families` bug is fixed.
+- Managed and per-request pricing at the steady base load (`base_rps`): DynamoDB, API Gateway,
+  ALB capacity units, SQS x3, RDS storage, implied Kubernetes nodes plus the control plane; the
+  cost panel shows units and unit prices.
+- Fixed the "86,545 workers" finding and the instant estimate's API gateway (rate-limit use is
+  reported apart from busy).
+- `scripts/sizing_audit.py` and `test_sizing_audit.py` check the acceptance criteria on all 25
+  templates. Starter $449 -> $334/month; retry storm $2,587 -> $992; serverless $1,771 -> $2,006
+  (API Gateway now priced; Lambda and DynamoDB down).
 
 **CPU and memory against real stacks (2026-10-28; sizing plan W16).**
 
