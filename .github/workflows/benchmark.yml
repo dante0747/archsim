@@ -53,14 +53,6 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    env:
-      # hosted runners have 4 vCPUs: share them instead of pinning (noisier than a dedicated box)
-      BENCH_CPUS_POSTGRES: "0-3"
-      BENCH_CPUS_REDIS: "0-3"
-      BENCH_CPUS_KAFKA: "0-3"
-      BENCH_CPUS_SERVICE: "0-3"
-      BENCH_CPUS_CONSUMER: "0-3"
-      BENCH_CPUS_K6: "0-3"
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -70,7 +62,14 @@ jobs:
       - name: Benchmarks
         env:
           STACK: ${{ inputs.stack || 'all' }}
-        run: uv run python benchmarks/run.py "$STACK" --archive
+        # Hosted runners have 2 vCPUs in private repositories (4 in public ones), too few to give
+        # each container its own: every container shares all of them (noisier than a dedicated
+        # box, where compose.yaml's defaults pin each to its own CPUs).
+        run: |
+          cpus="0-$(( $(nproc) - 1 ))"
+          for name in POSTGRES REDIS KAFKA SERVICE CONSUMER K6; do export "BENCH_CPUS_$name=$cpus"; done
+          echo "every container shares CPUs $cpus"
+          uv run python benchmarks/run.py "$STACK" --archive
       - name: Report
         run: uv run python benchmarks/report.py --json
       - uses: actions/upload-artifact@v4
