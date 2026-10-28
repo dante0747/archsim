@@ -11,13 +11,16 @@ import { patchNodeConfig } from "@/components/build/presets";
 import { validateNumber } from "@/components/editor/FieldControl";
 import { Input } from "@/components/ui/input";
 import { formatUsd, priceOrigin } from "@/lib/cost";
-import type { ComponentType, FieldDescriptor, NodeConfig } from "@/lib/types";
+import type { ComponentType, FieldDescriptor, NodeConfig, SpecKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { SPEC_KEYS, useAutoSize, useTargetCpu } from "@/store/sizes";
 
-/** Fields this block shows itself (the inspector leaves them out of the settings list). */
-export const RESOURCE_FIELDS = ["cpuCores", "memoryGib", "storageGib"];
+/** The specs this block has inputs for. */
+const SPEC_FIELDS = ["cpuCores", "memoryGib", "storageGib"];
+/** Fields this block shows itself (the inspector leaves them out of the settings list): the specs and
+ * the instance type they run on (schema 1.4), which shows as the size's SKU. */
+export const RESOURCE_FIELDS = [...SPEC_FIELDS, "instanceType"];
 
 const PER: Record<string, string> = {
   service: "per replica",
@@ -111,7 +114,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
   const priceProvenance = useEditor((s) => s.extras?.provenance?.[`nodes/${nodeId}/costPerHour`]?.kind ?? null);
   const size = useAutoSize(nodeId);
   const targetCpu = useTargetCpu();
-  const fields = RESOURCE_FIELDS.map((k) => comp.fields.find((f) => f.key === k)).filter((f): f is FieldDescriptor => !!f);
+  const fields = SPEC_FIELDS.map((k) => comp.fields.find((f) => f.key === k)).filter((f): f is FieldDescriptor => !!f);
   if (!fields.length) return null;
   const num = (k: string) => (typeof config[k] === "number" ? (config[k] as number) : null);
   const cpu = num("cpuCores");
@@ -131,7 +134,12 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
   const snapshotPriced = !!(sku && pricing && !pricing.illustrative);
   const presetPrice = origin === "preset" && !snapshotPriced ? (config.costPerHour as number) : null;
   const otherPrice = ownPrice ?? presetPrice;
-  const anySet = cpu != null || mem != null || storage != null;
+  // an instance type set on the part (schema 1.4): kept while it covers the size, so picking a
+  // size or going back to auto clears it
+  const hasType = comp.fields.some((f) => f.key === "instanceType");
+  const typeSet = hasType && typeof config.instanceType === "string" && config.instanceType !== "";
+  const clearType = hasType ? { instanceType: null } : {};
+  const anySet = cpu != null || mem != null || storage != null || typeSet;
 
   return (
     <section aria-label="Resources" className="space-y-2.5">
@@ -152,7 +160,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
               key={`${c}-${m}`}
               type="button"
               aria-pressed={on}
-              onClick={() => patchNodeConfig(nodeId, { cpuCores: c, memoryGib: m })}
+              onClick={() => patchNodeConfig(nodeId, { cpuCores: c, memoryGib: m, ...clearType })}
               className={cn(
                 "rounded-md border px-1.5 py-0.5 font-mono text-xs transition-colors",
                 on ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-2 hover:border-line-strong hover:text-ink",
@@ -165,7 +173,7 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
         {anySet && (
           <button
             type="button"
-            onClick={() => patchNodeConfig(nodeId, Object.fromEntries(fields.map((f) => [f.key, null])))}
+            onClick={() => patchNodeConfig(nodeId, { ...Object.fromEntries(fields.map((f) => [f.key, null])), ...clearType })}
             className="rounded-md px-1.5 py-0.5 text-xs text-ink-3 hover:text-ink"
             title="Clear the values you set and use the auto size"
           >
@@ -207,6 +215,15 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
             </button>
           )}
         </p>
+      )}
+      {size?.needText && !size.skipped && SPEC_FIELDS.some((k) => size.needText?.[k as SpecKey]) && (
+        <ul className="space-y-0.5 text-xs leading-relaxed text-ink-2" data-testid="need-vs-instance" aria-label="Needs and instance">
+          {SPEC_FIELDS.filter((k) => size.needText?.[k as SpecKey]).map((k) => (
+            <li key={k}>
+              <span className="text-ink-3">{NAME[k]}:</span> {size.needText?.[k as SpecKey]}
+            </li>
+          ))}
+        </ul>
       )}
       {size?.skipped && <p className="text-xs text-ink-3">{size.skipped} Nothing is filled in automatically.</p>}
       {autoUsed.length > 0 && size && (

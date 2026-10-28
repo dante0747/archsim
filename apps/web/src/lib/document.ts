@@ -76,7 +76,7 @@ export interface DocExtras {
   pricing?: Pricing | null;
 }
 
-export const SCHEMA_VERSION = "1.3";
+export const SCHEMA_VERSION = "1.4";
 
 /** The provenance of an input, or undefined (then it is assumed or illustrative). */
 export function provenanceOf(extras: DocExtras | undefined, path: string): InputProvenance | undefined {

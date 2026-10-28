@@ -32,7 +32,13 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field
 
-from archsim_engine.components.resources import INFO_ONLY, cpu_field, memory_field, storage_field
+from archsim_engine.components.resources import (
+    INFO_ONLY,
+    cpu_field,
+    instance_type_field,
+    memory_field,
+    storage_field,
+)
 from archsim_engine.distributions import Distribution, LogNormal
 from archsim_engine.explain import formula, num, pct, zipf_share
 from archsim_engine.issues import Issue, warning
@@ -222,6 +228,7 @@ class MessageQueueConfig(CamelModel):
         "broker", "Used by the memory alarm (RabbitMQ); otherwise shown on the design and priced."
     )
     storage_gib: float | None = storage_field("broker", INFO_ONLY)
+    instance_type: str | None = instance_type_field("broker")
     cost_per_hour: float = Field(
         default=0.15,
         ge=0,

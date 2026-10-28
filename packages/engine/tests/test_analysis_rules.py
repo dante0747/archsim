@@ -160,6 +160,109 @@ def test_service_cpu_is_sized_for_its_peak_share_and_memory_for_what_it_holds() 
     assert "150 req/s per replica" in s.why["cpuCores"]
 
 
+def test_parts_record_what_they_need_beside_the_instance_they_get() -> None:
+    import json
+
+    from archsim_engine.analyze import analyze_document
+    from engine_builders import EXAMPLES
+
+    doc = json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+    nodes = analyze_document(doc, REG)["sizing"]["nodes"]
+    api = nodes["api"]
+    # 200 req/s per replica x 10.2 ms = 2.03 cores busy; at a 60% target, 3.39 vCPU needed
+    assert api["need"]["busyCores"] == pytest.approx(2.03, abs=0.01)
+    assert api["need"]["cpuCores"] == pytest.approx(api["need"]["busyCores"] / 0.6, rel=1e-3)
+    # memory: what it typically holds (lambda x W) and the most, with every queue full, plus the
+    # VM's operating system; both well under what the instance has
+    typical, most = api["need"]["memoryGib"], api["need"]["memoryGibMax"]
+    assert 0.25 < typical < most < 1
+    assert api["specs"]["memoryGib"]["value"] >= most
+    assert api["needText"]["memoryGib"].startswith("needs ")
+    assert "when queues are full) · c6g.xlarge has 8 GiB" in api["needText"]["memoryGib"]
+    assert "2.03 busy at the peak" in api["needText"]["cpuCores"]
+    # a cache needs its keyspace; a database its hot data; storage the data it keeps
+    assert nodes["cache"]["need"]["memoryGib"] == pytest.approx(100_000 / 1024**2 / 0.8, rel=1e-3)
+    assert nodes["db"]["need"]["storageGib"] == pytest.approx(100_000 * 1000 / 2**30, rel=1e-3)
+    assert nodes["db"]["needText"]["storageGib"].startswith("stores ")
+    # cpuCores and memoryGib stay the instance's real capacity
+    assert api["specs"]["cpuCores"]["value"] == 4 and api["specs"]["memoryGib"]["value"] == 8
+
+
+def test_a_database_is_sized_by_its_connections_and_hot_data() -> None:
+    import json
+
+    from archsim_engine.analyze import analyze_document
+    from engine_builders import EXAMPLES
+
+    doc = json.loads((EXAMPLES / "retry-storm-ttl-cache.json").read_text(encoding="utf-8"))
+    db = analyze_document(doc, REG)["sizing"]["nodes"]["db"]
+    # the TTL cache's hit ratio is estimated (not 100% misses), and 10 connections x 50% CPU
+    # can keep at most 5 cores busy: no 32-vCPU instance
+    assert "capped at 5 because 10 connections × 50% CPU" in db["why"]["cpuCores"]
+    assert db["sku"] in ("db.m6g.2xlarge", "db.t4g.2xlarge")  # 8 vCPU, not 32
+    assert db["need"]["busyCores"] < 5
+    # memory from its hot data (an illustrative 25% of what it stores), at least 1 GiB; no
+    # longer 4 GiB per vCPU
+    assert "of hot data per instance (25% of the" in db["why"]["memoryGib"]
+    assert "and 1 GiB in all" in db["why"]["memoryGib"] and db["need"]["memoryGib"] < 1
+    # enough memory for its connections: RDS's default is one per 9,531,392 bytes
+    assert "for 10 connections (RDS's default: 9,531,392 bytes each)" in db["why"]["memoryGib"]
+    # with a hot working set, the buffer cache holds it
+    sizes = auto_sizes(
+        norm(
+            [
+                n("clients", "traffic_source"),
+                n("db", "database", workingSetGib=12, maxConnections=40, cpuShare=0.5),
+            ],
+            [e("clients", "db")],
+        ),
+        REG,
+    )
+    assert sizes["db"].memory_gib == 16  # 12 GiB / 75% = 16 GiB
+    assert sizes["db"].need["memoryGib"] == pytest.approx(16)
+
+
+def test_a_function_gets_its_cpu_with_its_memory() -> None:
+    def fn(**config: Any) -> Any:
+        return auto_sizes(
+            norm(
+                [
+                    n("clients", "traffic_source"),
+                    n("fn", "service", platform="serverless", **config),
+                ],
+                [e("clients", "fn")],
+            ),
+            REG,
+        )["fn"]
+
+    # a full vCPU, so a request runs at full speed, comes with 1,769 MB (AWS Lambda)
+    full = fn()
+    assert full.cpu_cores == 1 and full.memory_gib == pytest.approx(1769 / 1024, abs=1e-5)
+    assert "1 vCPU takes 1,769 MB" in full.why["memoryGib"]
+    # memory set on the part sets the CPU: 1 GiB gives 0.58 vCPU
+    small = fn(memoryGib=1)
+    assert small.cpu_cores == pytest.approx(1024 / 1769, abs=1e-6)
+    assert "below 1 its work runs slower" in small.why["cpuCores"]
+
+
+def test_a_service_on_a_vm_counts_the_operating_system() -> None:
+    def api(platform: str) -> Any:
+        return auto_sizes(
+            norm(
+                [
+                    n("clients", "traffic_source"),
+                    n("api", "service", platform=platform, queueCapacity=0, workersPerReplica=4),
+                ],
+                [e("clients", "api")],
+            ),
+            REG,
+        )["api"]
+
+    vm, pod = api("vm"), api("kubernetes")
+    assert "for the operating system" in vm.why["memoryGib"]
+    assert vm.need["memoryGibMax"] == pytest.approx(pod.need["memoryGibMax"] + 0.25)
+
+
 def test_autoscaling_full_scale_worker_cap_and_floor() -> None:
     sizes = auto_sizes(
         norm(
@@ -234,7 +337,11 @@ def test_databases_are_sized_from_the_busiest_primary_working_set_and_data() -> 
     assert (db.cpu_cores, db.memory_gib, db.storage_gib) == (4, 32, 100)
     assert sizes["plain"].storage_gib == 10
     assert "set the data size" in sizes["plain"].why["storageGib"]
-    assert sizes["plain"].memory_gib == 4 * (sizes["plain"].cpu_cores or 0)
+    # no working set: an illustrative 25% of its data is hot, at least 1 GiB, then rounded with
+    # its CPU to a standard shape (no longer 4 GiB per vCPU)
+    assert "25% of the" in sizes["plain"].why["memoryGib"]
+    assert sizes["plain"].need["memoryGib"] < 1
+    assert sizes["plain"].memory_gib == 2 * (sizes["plain"].cpu_cores or 0)
     # every search hits all 6 shards: 1600 x 6 ms x 0.5 = 4.8 cores per shard / 0.6 = 8
     assert sizes["es"].cpu_cores == 8
     assert "all 6 shards" in sizes["es"].why["cpuCores"]
@@ -534,3 +641,37 @@ def test_review_path_walk_is_bounded_on_layered_fan_out() -> None:
         prev = cur
     fs = review_design(norm(nodes, edges), REG)
     assert rule(fs, "retry-amplification") and rule(fs, "deep-chain")
+
+
+def test_an_autoscaled_bottleneck_counts_its_workers_in_words() -> None:
+    from archsim_engine import run_simulation
+
+    doc = {
+        "schemaVersion": "1.4",
+        "kind": "archsim.architecture",
+        "architecture": {
+            "nodes": [
+                n("clients", "traffic_source"),
+                n(
+                    "api",
+                    "service",
+                    label="Checkout API",
+                    autoscaling=True,
+                    replicas=1,
+                    maxReplicas=3,
+                    workersPerReplica=4,
+                    queueCapacity=20,
+                    serviceTimeMs=C(40),
+                ),
+            ],
+            "edges": [e("clients", "api")],
+        },
+        "workload": {"rps": 250, "durationS": 40, "warmupS": 2, "seed": 3, "readRatio": 1.0},
+    }
+    report = run_simulation(doc)
+    slots = next(x for x in report["nodes"] if x["id"] == "api")["summary"]["slots"]
+    assert not float(slots).is_integer()  # an average over the run, as it scaled
+    text = " ".join(f.get("detail", "") for f in report["findings"] if f["kind"] == "bottleneck")
+    # rounded and said to be an average, not a raw fraction that reads as thousands
+    assert f"{slots}" not in text
+    assert f"workers (about {round(slots)} on average as it scaled)" in text

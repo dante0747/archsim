@@ -25,8 +25,10 @@ from archsim_engine.components.resources import (
     CPU_CONTENTION,
     RESOURCES,
     Cores,
+    busy_cores_series,
     core_utilization,
     cpu_field,
+    instance_type_field,
     memory_field,
 )
 from archsim_engine.distributions import Distribution, Exponential
@@ -205,6 +207,7 @@ class CacheConfig(CamelModel):
         "80% of it holds keys. TTL model: when it is full the least recently used key is evicted. "
         "Fixed hit ratio: checked against the workload's keyspace.",
     )
+    instance_type: str | None = instance_type_field("cache node")
     item_size_kb: float = Field(
         default=1.0,
         gt=0,
@@ -383,6 +386,8 @@ class CacheRuntime(RuntimeComponent):
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         out: dict[str, list[float | None]] = {}
+        if self.core_busy is not None and self.shards:
+            out["cpuBusyCores"] = busy_cores_series(self.core_busy, self.shards[0].cores)
         if "evictions" in self.m.extra:
             out["evictionRps"] = list(self.m.extra["evictions"].rate_series())
         if self.capacity is not None:

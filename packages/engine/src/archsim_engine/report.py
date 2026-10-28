@@ -31,7 +31,7 @@ from archsim_engine.provenance import input_provenance, provenance_counts
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.review import review_design
 from archsim_engine.scenarios import simulation_input
-from archsim_engine.sizing import sizing_summary
+from archsim_engine.sizing import base_busy, sizing_summary
 from archsim_engine.technology import TIER_NOTE
 from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION, SCHEMA_VERSION
 
@@ -630,7 +630,8 @@ def build_report(
         },
         "validationWarnings": [i.to_dict() for i in prep.validation.warnings],
     }
-    report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes, registry)
+    estimate = estimate_design(resolved, registry, input_snapshot, configs)
+    report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes, registry, estimate)
     report["input"] = input_snapshot
     # priced and reviewed on what was simulated (auto sizes filled in, scenario applied)
     report["cost"] = estimate_cost(
@@ -639,9 +640,12 @@ def build_report(
         report,
         input_snapshot.get("pricing"),
         {k: v.kind for k, v in resolved.provenance.items()},
+        base_busy(prep.sizes),
+        document=input_snapshot,
+        estimate=estimate,
     )
     report["review"] = review_design(input_snapshot, registry)
-    report["estimate"] = estimate_design(resolved, registry, input_snapshot, configs)
+    report["estimate"] = estimate
     report["confidence"] = report_confidence(
         report,
         user_inputs,

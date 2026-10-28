@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
-from archsim_engine import cost, sizing, validation
+from archsim_engine import cost, pricing, sizing, validation
 from archsim_engine.components import cache as cache_model
 from archsim_engine.components import create_default_registry
 from archsim_engine.components import database as database_model
@@ -33,6 +33,13 @@ _DYNAMO_BURST = (
     "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/burst-adaptive-capacity.html"
 )
 _KAFKA_RETENTION = "https://kafka.apache.org/documentation/#brokerconfigs_log.retention.hours"
+_LAMBDA_MEMORY = "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"
+_RDS_CONNECTIONS = "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.MaxConnections"
+_ALB_LCU = "https://aws.amazon.com/elasticloadbalancing/pricing/"
+_SQS_PRICING = "https://aws.amazon.com/sqs/pricing/"
+_T4G_BASELINE = (
+    "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/burstable-credits-baseline-concepts.html"
+)
 
 
 @dataclass(frozen=True)
@@ -52,9 +59,10 @@ def _pct(v: float) -> str:
 
 def constants() -> list[Constant]:
     """The engine-wide constants behind sizing, prices and component models."""
-    s, c, db, ch = sizing, cost, database_model, cache_model
+    s, c, db, ch, p = sizing, cost, database_model, cache_model, pricing
     return [
         Constant("Auto-sizing", "CPU utilisation a part is sized for at its peak", _pct(s.TARGET_CPU), "sizing.TARGET_CPU"),
+        Constant("Auto-sizing", "CPU at the peak a size below the target's may run at, rather than double the cores", _pct(s.CPU_STEP_SLACK), "sizing.CPU_STEP_SLACK"),
         Constant("Auto-sizing", "Memory headroom over what the model needs", "+" + _pct(s.MEMORY_HEADROOM - 1), "sizing.MEMORY_HEADROOM"),
         Constant("Auto-sizing", "Storage kept under this fill level", _pct(s.STORAGE_FILL), "sizing.STORAGE_FILL"),
         Constant("Auto-sizing", "Smallest auto storage", f"{s.MIN_STORAGE_GIB:g} GiB", "sizing.MIN_STORAGE_GIB"),
@@ -63,13 +71,23 @@ def constants() -> list[Constant]:
         Constant("Auto-sizing", "Load balancer memory per vCPU", f"{s.PROXY_GIB_PER_VCPU} GiB", "sizing.PROXY_GIB_PER_VCPU"),
         Constant("Auto-sizing", "Broker throughput per vCPU", f"{s.BROKER_MSGS_PER_VCPU:,} messages/s", "sizing.BROKER_MSGS_PER_VCPU"),
         Constant("Auto-sizing", "Broker memory per vCPU", f"{s.BROKER_GIB_PER_VCPU} GiB", "sizing.BROKER_GIB_PER_VCPU"),
-        Constant("Auto-sizing", "Database memory per vCPU when no hot working set is set", f"{s.DB_GIB_PER_VCPU} GiB", "sizing.DB_GIB_PER_VCPU"),
+        Constant("Auto-sizing", "Share of a database's data read often, when no hot working set is set", _pct(s.DB_HOT_SHARE), "sizing.DB_HOT_SHARE"),
+        Constant("Auto-sizing", "Smallest auto memory of a database instance", f"{s.DB_MIN_MEMORY_GIB:g} GiB", "sizing.DB_MIN_MEMORY_GIB"),
+        Constant("Auto-sizing", "Database memory per connection", f"{s.DB_BYTES_PER_CONNECTION:,} bytes", "sizing.DB_BYTES_PER_CONNECTION", _RDS_CONNECTIONS),
+        Constant("Auto-sizing", "A burstable type's CPU at the base load, at most", f"{_pct(p.BURST_BASE_SHARE)} of its baseline", "pricing.BURST_BASE_SHARE", _T4G_BASELINE),
+        Constant("Auto-sizing", "A burstable type's CPU at the peak, at most", f"{_pct(p.BURST_PEAK_SHARE)} of its vCPUs", "pricing.BURST_PEAK_SHARE"),
+        Constant("Auto-sizing", "Memory of a VM's operating system", f"{s.OS_MEMORY_GIB:g} GiB", "sizing.OS_MEMORY_GIB"),
+        Constant("Auto-sizing", "Serverless function memory per vCPU", f"{s.LAMBDA_MB_PER_VCPU:,} MB", "sizing.LAMBDA_MB_PER_VCPU", _LAMBDA_MEMORY),
         Constant("Auto-sizing", "Backlog a delete-on-ack broker keeps room for", f"{s.BACKLOG_S // 60:g} minutes of peak publishes", "sizing.BACKLOG_S"),
         Constant("Auto-sizing", "Log retention of Kafka-style brokers", f"{s.LOG_RETENTION_S // 3600:g} hours", "sizing.LOG_RETENTION_S", _KAFKA_RETENTION),
         Constant("Cost estimate", "Hours in a month", f"{c.HOURS_PER_MONTH}", "cost.HOURS_PER_MONTH"),
         Constant("Cost estimate", "Price per vCPU-hour (parts without a price)", f"${c.PRICE_PER_VCPU_HOUR:g}", "cost.PRICE_PER_VCPU_HOUR"),
         Constant("Cost estimate", "Price per GiB-hour of memory", f"${c.PRICE_PER_GIB_HOUR:g}", "cost.PRICE_PER_GIB_HOUR"),
         Constant("Cost estimate", "Price per GiB-month of storage", f"${c.PRICE_PER_STORAGE_GIB_MONTH:g}", "cost.PRICE_PER_STORAGE_GIB_MONTH"),
+        Constant("Cost estimate", "Bytes an application load balancer processes per request", f"{c.ALB_KB_PER_REQUEST:g} KB", "cost.ALB_KB_PER_REQUEST"),
+        Constant("Cost estimate", "Processed bytes per load balancer capacity unit (LCU)", f"{c.ALB_GB_PER_LCU_HOUR:g} GB an hour", "cost.ALB_GB_PER_LCU_HOUR", _ALB_LCU),
+        Constant("Cost estimate", "SQS requests per message", f"{c.SQS_REQUESTS_PER_MESSAGE} (send, receive, delete)", "cost.SQS_REQUESTS_PER_MESSAGE", _SQS_PRICING),
+        Constant("Cost estimate", "Share of an implied Kubernetes node allocatable to pods", _pct(c.KUBERNETES_ALLOCATABLE), "cost.KUBERNETES_ALLOCATABLE"),
         Constant("Database model", "Share of memory used as buffer cache", _pct(db.BUFFER_CACHE_SHARE), "database.BUFFER_CACHE_SHARE"),
         Constant("Database model", "DynamoDB read units per partition per second", f"{db.PARTITION_READ_UNITS:,g}", "database.PARTITION_READ_UNITS", _DYNAMO_PARTITIONS),
         Constant("Database model", "DynamoDB write units per partition per second", f"{db.PARTITION_WRITE_UNITS:,g}", "database.PARTITION_WRITE_UNITS", _DYNAMO_PARTITIONS),

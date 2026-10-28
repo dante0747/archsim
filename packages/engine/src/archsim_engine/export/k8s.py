@@ -79,7 +79,9 @@ def _env(n: DeployNode, deps: list[DeployNode]) -> Any:
     return env if env else OMIT
 
 
-def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
+def to_kubernetes(
+    doc: Json, registry: ComponentRegistry, cpu_requests: dict[str, float] | None = None
+) -> str:
     part = slug(doc["metadata"]["name"])
     nodes = deploy_nodes(doc, registry)
     by_id = {n.node["id"]: n for n in nodes}
@@ -141,7 +143,8 @@ def to_kubernetes(doc: Json, registry: ComponentRegistry) -> str:
                     "httpGet": {"path": "/healthz", "port": APP_PORT},
                     "periodSeconds": 5,
                 },
-                "resources": k8s_resources(cfg) or copy.deepcopy(EXPORT_PLACEHOLDER_RESOURCES),
+                "resources": k8s_resources(cfg, (cpu_requests or {}).get(node["id"]))
+                or copy.deepcopy(EXPORT_PLACEHOLDER_RESOURCES),
             }
             if cfg.get("platform") == "serverless":
                 docs.append(

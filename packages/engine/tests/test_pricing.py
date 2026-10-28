@@ -17,9 +17,12 @@ from archsim_engine.migrations import migrate_document
 from archsim_engine.pricing import (
     DIR,
     GENERIC,
+    Busy,
     PricingError,
+    Snapshot,
     available,
     choose_machine,
+    credit_check,
     default_pricing,
     load_snapshot,
     machine_kind,
@@ -165,9 +168,10 @@ def test_schema_1_1_documents_migrate_to_1_2() -> None:
     raw = starter()
     raw["schemaVersion"] = "1.1"
     out, notes = migrate_document(raw)
-    assert out["schemaVersion"] == "1.3" and notes == [
+    assert out["schemaVersion"] == "1.4" and notes == [
         "migrated schema 1.1 -> 1.2",
         "migrated schema 1.2 -> 1.3",
+        "migrated schema 1.3 -> 1.4",
     ]
     assert load_document(raw).pricing.provider == "generic"
     from archsim_engine import DocumentInvalidError
@@ -269,17 +273,22 @@ def test_lines_at_generic_rates_keep_their_note_next_to_snapshot_lines() -> None
 
     nodes = [
         {"id": "vm", "type": "service", "config": {"cpuCores": 2, "memoryGib": 4}},
-        # on Kubernetes but the design has no cluster part: priced from its size
+        # bigger than any type in the snapshot: priced from its size at generic rates
+        {"id": "huge", "type": "service", "config": {"cpuCores": 512, "memoryGib": 4}},
+        # on Kubernetes but the design has no cluster part: its share of implied nodes
         {
             "id": "pod",
             "type": "service",
-            "config": {"platform": "kubernetes", "cpuCores": 1, "memoryGib": 2},
+            "config": {"platform": "kubernetes", "cpuCores": 1, "memoryGib": 2, "replicas": 3},
         },
     ]
     cost = estimate_cost(nodes, REGISTRY, None, PRICING)
     lines = _lines(cost)
-    assert lines["vm"]["priceSource"] == "snapshot" and lines["pod"]["priceSource"] == "size"
+    assert lines["vm"]["priceSource"] == "snapshot" and lines["huge"]["priceSource"] == "size"
     assert any("illustrative on-demand rates" in n for n in cost["notes"])
+    pod = lines["pod"]
+    assert pod["priceSource"] == "snapshot" and "on implied" in pod["basis"] and pod["sku"]
+    assert pod["instances"] == 3
 
 
 def _newer_snapshot(tmp_path: Path) -> Path:
@@ -410,7 +419,16 @@ def test_the_shipped_aws_snapshots_are_clean() -> None:
             for s in items:
                 name = s.sku if category == "compute" else s.sku.split(".", 1)[1]
                 assert s.burstable == (name[0] == "t" and name[1].isdigit()), s.sku
-        assert all(v is not None and v > 0 for v in snap.rates.values()), snap.rates
+                # a baseline only on burstable types; in the newest, the t4g ones all have theirs
+                assert s.baseline_cpu is None or s.burstable, s.sku
+                if path == files[-1] and name.startswith("t4g.") and category != "stream":
+                    assert s.baseline_cpu is not None and 0 < s.baseline_cpu <= 1, s.sku
+        # older snapshots have fewer rates: every rate a snapshot has is a price
+        assert all(v is None or v > 0 for v in snap.rates.values()), snap.rates
+    # the newest has every rate the engine knows (the older ones stay as they were: stored runs
+    # pin their content hash)
+    newest = parse_snapshot(json.loads(files[-1].read_text(encoding="utf-8")))
+    assert all(v is not None and v > 0 for v in newest.rates.values()), newest.rates
 
 
 def test_templates_and_new_documents_pin_a_shipped_aws_snapshot() -> None:
@@ -433,9 +451,14 @@ def test_the_starter_runs_on_real_aws_types_and_says_so() -> None:
     snap = load_snapshot("aws", "us-east-1", doc["pricing"]["snapshotDate"])
     by_sku = {(s.sku, c): s for c, items in snap.skus.items() for s in items}
     expected = {"lb": "compute", "api": "compute", "cache": "cache", "db": "database"}
+    nodes = analysis["sizing"]["nodes"]
     for nid, category in expected.items():
-        sku = by_sku[(analysis["sizing"]["nodes"][nid]["sku"], category)]
-        assert not sku.burstable, f"{nid} snapped to a burstable type"
+        sku = by_sku[(nodes[nid]["sku"], category)]
+        # the light load balancer and cache run on t4g, which their CPU at the base load keeps
+        # in credit; the API and the database are too busy for one
+        assert sku.burstable == (nid in ("lb", "cache")), f"{nid} on {sku.sku}"
+    assert "burstable: " in nodes["cache"]["why"]["cpuCores"]
+    assert "so it earns CPU credits" in nodes["cache"]["why"]["cpuCores"]
     lines = _lines(analysis["cost"])
     assert {lines[nid]["priceSource"] for nid in expected} == {"snapshot"}
     assert analysis["cost"]["rates"]["kind"] == "snapshot"
@@ -443,9 +466,9 @@ def test_the_starter_runs_on_real_aws_types_and_says_so() -> None:
     assert any("AWS Price List" in n for n in analysis["cost"]["notes"])
 
 
-def test_burstable_types_are_picked_only_when_their_family_is_named() -> None:
+def _with_burstables() -> Snapshot:
     data = json.loads(SNAPSHOT_FILE.read_text(encoding="utf-8"))
-    data["compute"].append(
+    data["compute"] += [
         {
             "sku": "burst.2x4",
             "family": "burst",
@@ -453,11 +476,105 @@ def test_burstable_types_are_picked_only_when_their_family_is_named() -> None:
             "memoryGib": 4,
             "hourly": {"on_demand": 0.001},
             "burstable": True,
+            "baselineCpu": 0.2,
+        },
+        {
+            "sku": "t4g.medium",
+            "family": "t4g",
+            "vcpu": 2,
+            "memoryGib": 4,
+            "hourly": {"on_demand": 0.002},
+            "burstable": True,
+            "baselineCpu": 0.2,
+            "creditVcpuHour": 0.04,
+        },
+    ]
+    data["databases"].append(
+        {
+            "sku": "db.t4g.medium",
+            "family": "t4g",
+            "vcpu": 2,
+            "memoryGib": 4,
+            "hourly": {"on_demand": 0.003},
+            "engines": ["postgresql"],
+            "burstable": True,
+            "baselineCpu": 0.2,
         }
     )
-    snap = parse_snapshot(data)
-    assert snap.cover("compute", 2, 4).sku != "burst.2x4"  # type: ignore[union-attr]
-    assert snap.cover("compute", 2, 4, families=("burst",)).sku == "burst.2x4"  # type: ignore[union-attr]
+    return parse_snapshot(data)
+
+
+def test_burstable_types_need_the_credit_check_or_their_family_named() -> None:
+    snap = _with_burstables()
+    sku = lambda **kw: snap.cover("compute", 2, 4, **kw).sku  # type: ignore[union-attr]  # noqa: E731
+    # no load known: never a burstable type
+    assert sku() not in ("t4g.medium", "burst.2x4")
+    # light: 0.2 cores at the base load, under 80% of a t4g.medium's 0.4-core baseline; 1 at the
+    # peak, under 60% of its 2 vCPUs. Only t4g is picked on its own; other families when named
+    assert sku(busy=Busy(peak=1.0, base=0.2)) == "t4g.medium"
+    assert sku(families=("burst",)) == "burst.2x4"
+    # too busy at the base load (it would spend credits all month), or at the peak
+    assert sku(busy=Busy(peak=1.0, base=0.33)) != "t4g.medium"
+    assert sku(busy=Busy(peak=1.3, base=0.1)) != "t4g.medium"
+    # pricing.burstable "never": none, named or not
+    assert sku(busy=Busy(peak=1.0, base=0.2), burstable="never") != "t4g.medium"
+    assert credit_check(snap.find("compute", "t4g.medium"), Busy(1.0, 0.32))  # type: ignore[arg-type]
+
+
+def test_naming_t4g_allows_it_without_forcing_every_list_onto_it() -> None:
+    snap = _with_burstables()
+    # t4g named: allowed where it is cheapest and fits, but the lists are not restricted to it
+    assert snap.cover("compute", 2, 4, families=("t4g",)).sku == "t4g.medium"  # type: ignore[union-attr]
+    big = snap.cover("compute", 16, 64, families=("t4g",))
+    assert big is not None and not big.burstable
+    db = snap.cover("database", 4, 16, engine="postgresql", families=("t4g",))
+    assert db is not None and not db.burstable
+    # a non-burstable family named restricts its list, and leaves other lists alone
+    families = {s.family for s in snap.skus["compute"] if not s.burstable}
+    one = sorted(families)[0]
+    picked = snap.cover("compute", 1, 1, families=(one,))
+    assert picked is not None and picked.family == one
+
+
+def test_pricing_burstable_never_keeps_every_part_on_full_cores() -> None:
+    doc = json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+    auto = analyze_document(doc, REGISTRY)
+    doc["pricing"]["burstable"] = "never"
+    never = analyze_document(doc, REGISTRY)
+    assert auto["sizing"]["nodes"]["cache"]["sku"].startswith("cache.t4g.")
+    assert not any("t4g" in (e.get("sku") or "") for e in never["sizing"]["nodes"].values())
+    assert never["cost"]["monthly"] > auto["cost"]["monthly"]
+    # "auto", the default, is left out of the JSON
+    assert (
+        "burstable"
+        not in load_document(
+            json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+        ).to_json_dict()["pricing"]
+    )
+
+
+def test_a_burstable_type_above_its_baseline_pays_for_surplus_credits() -> None:
+    from archsim_engine.cost import surplus_credits
+
+    snap = load_snapshot("aws", "us-east-1", "2026-10-28")
+    micro = snap.find("compute", "t4g.micro")
+    assert micro is not None and micro.baseline_cpu == 0.1 and micro.credit_vcpu_hour == 0.04
+    # 0.5 cores busy at the base load, 0.3 over its 0.2-core baseline: 0.3 x $0.04 x 730 h
+    monthly, why = surplus_credits(micro, 0.5, 1)  # type: ignore[misc]
+    assert monthly == pytest.approx(0.3 * 0.04 * 730)
+    assert "surplus CPU credits" in why
+    assert surplus_credits(micro, 0.15, 1) is None  # under its baseline: nothing
+    # ElastiCache's t4g has no credit price: throttled at its baseline instead
+    cache = snap.find("cache", "cache.t4g.micro", "redis")
+    assert surplus_credits(cache, 0.5, 1) == (0.0, pytest.approx(surplus_credits(cache, 0.5, 1)[1]))  # type: ignore[index]
+    assert "throttled" in surplus_credits(cache, 0.5, 1)[1]  # type: ignore[index]
+    # a part made to run on a t4g by name, too busy for it: the cost line adds the credits
+    doc = json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+    api = next(n for n in doc["architecture"]["nodes"] if n["id"] == "api")
+    api["config"].update(instanceType="t4g.xlarge")
+    line = _lines(analyze_document(doc, REGISTRY)["cost"])["api"]
+    assert line["sku"] == "t4g.xlarge" and line["creditsMonthly"] > 0
+    assert "surplus CPU credits" in line["basis"]
 
 
 def test_without_a_snapshot_machines_get_standard_shapes() -> None:
@@ -481,7 +598,89 @@ def test_without_a_snapshot_machines_get_standard_shapes() -> None:
                 continue
             if machine_kind(n["type"], cfg) is None:
                 continue  # pods and functions: not machines of their own
+            if any(
+                isinstance((n.get("config") or {}).get(k), int | float)
+                for k in ("cpuCores", "memoryGib")
+            ):
+                continue  # a spec set on the part: the shape follows it (checked below)
             assert mem / cpu in GIB_PER_VCPU, f"{path.name} {nid}: {cpu} vCPU, {mem} GiB"
     api = analyze_document(starter(), REGISTRY)["sizing"]["nodes"]["api"]
     assert (api["auto"]["cpuCores"], api["auto"]["memoryGib"]) == (4.0, 8.0)
     assert "standard shape" in api["why"]["memoryGib"]
+
+
+# -- the instance type a part runs on (schema 1.4) ----------------------------------------------
+
+
+def _aws_starter() -> dict:
+    return json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+
+
+def test_a_run_records_its_instance_types_and_its_input_reproduces_them() -> None:
+    doc = _short(_aws_starter())
+    first = run_simulation(copy.deepcopy(doc))
+    inp = first["input"]
+    assert inp["schemaVersion"] == "1.4"
+    types = {n["id"]: n["config"].get("instanceType") for n in inp["architecture"]["nodes"]}
+    assert types["api"] == first["sizing"]["nodes"]["api"]["sku"] == "c6g.xlarge"
+    # running the input again: the same types, cost and result
+    again = run_simulation(copy.deepcopy(inp))
+    assert {n: e["sku"] for n, e in again["sizing"]["nodes"].items()} == {
+        n: e["sku"] for n, e in first["sizing"]["nodes"].items()
+    }
+    assert again["cost"]["monthly"] == first["cost"]["monthly"]
+    assert again["provenance"]["resultDigest"] == first["provenance"]["resultDigest"]
+
+
+def test_an_instance_type_is_kept_while_it_covers_the_part() -> None:
+    doc = _aws_starter()
+    api = next(n for n in doc["architecture"]["nodes"] if n["id"] == "api")
+    api["config"]["instanceType"] = "m7g.2xlarge"
+    entry = analyze_document(doc, REGISTRY)["sizing"]["nodes"]["api"]
+    assert entry["sku"] == "m7g.2xlarge" and entry["specs"]["cpuCores"]["value"] == 8
+    assert "the instance type set on the part" in entry["why"]["cpuCores"]
+    cost = _lines(analyze_document(doc, REGISTRY)["cost"])["api"]
+    assert cost["sku"] == "m7g.2xlarge"
+    # too small for what is set on the part: the cheapest type that covers it, and why
+    api["config"]["cpuCores"] = 16
+    entry = analyze_document(doc, REGISTRY)["sizing"]["nodes"]["api"]
+    assert entry["sku"] != "m7g.2xlarge"
+    assert (
+        "(m7g.2xlarge, the type set on the part, is not in it or is too small)"
+        in (entry["why"]["memoryGib"])
+    )
+    # a type the snapshot does not have: a warning, and the cheapest covering type
+    api["config"].pop("cpuCores")
+    api["config"]["instanceType"] = "zz9.huge"
+    from archsim_engine import validate_document
+
+    codes = [i.code for i in validate_document(load_document(doc), REGISTRY).warnings]
+    assert "pricing.unknown_instance_type" in codes
+    assert analyze_document(doc, REGISTRY)["sizing"]["nodes"]["api"]["sku"] == "c6g.xlarge"
+
+
+def test_a_scenario_that_resizes_a_part_gets_a_type_that_fits() -> None:
+    from archsim_engine.scenarios import resolve_scenario
+
+    doc = _aws_starter()
+    doc["scenarios"] = [
+        {
+            "id": "small",
+            "name": "Small API",
+            "overrides": [
+                {"target": {"kind": "node", "id": "api"}, "path": "cpuCores", "value": 1}
+            ],
+        }
+    ]
+    base, _ = resolve_scenario(load_document(doc), None, REGISTRY)
+    small, _ = resolve_scenario(load_document(doc), "small", REGISTRY)
+    assert base.node("api").config["instanceType"] == "c6g.xlarge"  # type: ignore[union-attr]
+    assert "instanceType" not in small.node("api").config  # type: ignore[union-attr]
+
+
+def test_schema_1_3_documents_open_unchanged() -> None:
+    doc = _aws_starter()
+    assert doc["schemaVersion"] == "1.3"
+    out, notes = migrate_document(doc)
+    assert out["schemaVersion"] == "1.4" and notes == ["migrated schema 1.3 -> 1.4"]
+    assert out["architecture"] == doc["architecture"]

@@ -37,7 +37,14 @@ from typing import Any
 
 from archsim_engine.distributions import Constant, Empirical, Exponential, LogNormal, Uniform
 from archsim_engine.explain import erlang_c
-from archsim_engine.load import NodeLoad, estimate_load, kind_of, peak_rps
+from archsim_engine.load import (
+    NodeLoad,
+    estimate_load,
+    kind_of,
+    peak_rps,
+    ttl_capacity_keys,
+    ttl_miss_shares,
+)
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.scenarios import simulation_input
 from archsim_engine.schema import ArchitectureDocument, EdgeSpec, NodeSpec
@@ -158,51 +165,6 @@ def lognormal_p95(components: list[tuple[float, Moments]]) -> float | None:
         else:
             hi = mid
     return hi
-
-
-# ---------------------------------------------------------------------------------------------
-# TTL cache hit ratio
-# ---------------------------------------------------------------------------------------------
-
-
-def ttl_hit_ratio(read_rps: float, write_rps: float, keys: int, skew: float, ttl_s: float) -> float:
-    """Expected hit ratio of a TTL cache for Zipf(skew) key popularity.
-
-    A key read after it expired (or after a write invalidated it) misses and is cached again;
-    reads in the next ``min(TTL, time to the next write)`` hit. Per key with read rate r and write
-    rate w that window lasts W = (1 - e^(-w·TTL)) ÷ w on average, so its hit ratio is
-    r·W ÷ (1 + r·W). Evictions for lack of memory are not included."""
-    if read_rps <= 0 or keys <= 0 or ttl_s <= 0:
-        return 0.0
-    exact = min(keys, 2000)
-
-    def weight(k: float) -> float:
-        return k**-skew
-
-    def mass(a: float, b: float) -> float:
-        """∫ x^-s dx from a to b (the popularity of keys a+0.5 ... b-0.5)."""
-        if abs(skew - 1.0) < 1e-9:
-            return math.log(b / a)
-        return (b ** (1 - skew) - a ** (1 - skew)) / (1 - skew)
-
-    buckets: list[tuple[float, float]] = [(weight(k), 1.0) for k in range(1, exact + 1)]
-    lo = exact
-    while lo < keys:
-        hi = min(keys, max(lo + 1, math.ceil(lo * 1.05)))
-        count = hi - lo
-        buckets.append((mass(lo + 0.5, hi + 0.5) / count, float(count)))
-        lo = hi
-    total = sum(w * n for w, n in buckets)
-    if total <= 0:
-        return 0.0
-    hits = 0.0
-    for w, n in buckets:
-        share = w / total
-        r = read_rps * share
-        wr = write_rps * share
-        window = ttl_s if wr * ttl_s < 1e-9 else -math.expm1(-wr * ttl_s) / wr
-        hits += n * share * (r * window / (1 + r * window))
-    return min(1.0, max(0.0, hits))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -378,33 +340,22 @@ def estimate_design(
     peak = peak_rps(wl)
     notes: list[str] = []
 
-    # TTL caches: estimate their hit ratio from the reads that reach them, then the load again
-    miss_shares: dict[str, float] = {}
-    ttl = [
-        n
-        for n in nodes
-        if n.type == "cache" and getattr(parsed.get(n.id), "hit_model", None) == "ttl_keyspace"
-    ]
-    for _ in range(len(ttl) + 1):
-        loads = estimate_load(snapshot, registry, miss_shares=miss_shares)
-        pending = [n for n in ttl if n.id not in miss_shares and loads.get(n.id) is not None]
-        if not pending:
-            break
-        for n in pending:
-            ld = loads[n.id]
-            assert ld is not None
-            hit = ttl_hit_ratio(
-                ld.read,
-                ld.write,
-                int(wl["keyCount"]),
-                float(wl["keySkew"]),
-                parsed[n.id].ttl_seconds,
-            )
-            miss_shares[n.id] = 1 - hit
-            notes.append(
-                f"{labels[n.id]}'s hit ratio is estimated at {hit:.0%} from its TTL and how "
-                "popular the keys are (evictions not included)."
-            )
+    # TTL caches: their hit ratio from the reads that reach them (load.ttl_miss_shares)
+    miss_shares = ttl_miss_shares(snapshot, registry)
+    for n in nodes:
+        if n.id not in miss_shares:
+            continue
+        held = ttl_capacity_keys(n.config, registry)
+        keys = int(wl["keyCount"])
+        why = (
+            f"its memory holds the {held:,} most popular of {keys:,} keys"
+            if held is not None and held < keys
+            else "evictions not included"
+        )
+        notes.append(
+            f"{labels[n.id]}'s hit ratio is estimated at {1 - miss_shares[n.id]:.0%} from its TTL "
+            f"and how popular the keys are ({why})."
+        )
     flows: dict[str, NodeLoad | None] = {}
     loads = estimate_load(snapshot, registry, miss_shares=miss_shares, edge_loads=flows)
     on_path, sync_links = _sync_reach(nodes, out, kinds)
@@ -495,13 +446,17 @@ def estimate_design(
         slot_util = None
         if shape.slots:
             slot_util = here.total * mean_hold / (1000.0 * shape.slots * shape.pools)
-        candidates = {"slots": slot_util, "cpu": shape.cpu, "rate limit": shape.limit}
-        known = {k: v for k, v in candidates.items() if v is not None}
-        util = max(known.values()) if known else None
-        limited_by = max(known, key=lambda k: known[k]) if known else None
+        # busy: the share of its slots or CPU in use, what a run's utilization measures. A rate
+        # or throughput limit is not work: its share says how close the part is to turning
+        # requests away (load), which can bind first without the part being busy at all
+        busy_by = {k: v for k, v in {"slots": slot_util, "cpu": shape.cpu}.items() if v is not None}
+        util = max(busy_by.values()) if busy_by else None
+        limits = {**busy_by, **({"rate limit": shape.limit} if shape.limit is not None else {})}
+        load = max(limits.values()) if limits else None
+        limited_by = max(limits, key=lambda k: limits[k]) if limits else None
         wait = Moments()
         pw: float | None = 0.0
-        stable = util is None or util < 1.0
+        stable = load is None or load < 1.0
         if stable and shape.queues and shape.slots and here.total > 0:
             got = mmc_wait(shape.slots, here.total / shape.pools, mean_hold)
             if got is None:
@@ -522,12 +477,14 @@ def estimate_design(
                 "utilization": _round(util, 4),
                 "slotUtilization": _round(slot_util, 4),
                 "cpuUtilization": _round(shape.cpu, 4),
+                "rateLimitShare": _round(shape.limit, 4),
+                "load": _round(load, 4),
                 "limitedBy": limited_by,
                 "waitProbability": _round(pw, 4) if stable else None,
                 "meanWaitMs": _round(wait.mean) if stable else None,
                 "status": "overloaded"
                 if not stable
-                else ("busy" if util is not None and util >= BUSY else "ok"),
+                else ("busy" if load is not None and load >= BUSY else "ok"),
             }
         )
         if not stable or node.type == "message_queue":
@@ -550,6 +507,13 @@ def estimate_design(
                     extra = times(miss / here.read, wait + shape.own["read"])
             own_time[nid][op] = mine + extra
             resid[nid][op] = mine + d + extra
+        # how long a request stays in the part (waiting, working and in its own calls): with
+        # the arrival rate, the requests it holds at once (Little's law), e.g. for memory
+        stays = [(r, resid[nid][op]) for op, r in (("read", here.read), ("write", here.write))]
+        if here.total > 0 and all(m is not None for r, m in stays if r > 0):
+            row["meanResidenceMs"] = _round(
+                sum(r * m.mean for r, m in stays if r > 0 and m is not None) / here.total
+            )
 
     # clients: each request type's path, mixed by traffic share
     components: list[tuple[float, Moments]] = []
@@ -609,6 +573,9 @@ def estimate_design(
 
     measured_rows = [r for r in rows.values() if r.get("utilization") is not None]
     busiest = max(measured_rows, key=lambda r: r["utilization"], default=None)
+    # the first part to reach a limit (its slots, CPU or a rate limit) sets the saturation point
+    loaded = [r for r in rows.values() if r.get("load") is not None]
+    first = max(loaded, key=lambda r: r["load"], default=None)
     overloaded = [r for r in rows.values() if r["status"] == "overloaded"]
     # a queue whose consumers fall behind builds a backlog; its producers are not slowed
     path_overloaded = any(r["onPath"] and r["type"] != "message_queue" for r in overloaded)
@@ -619,12 +586,13 @@ def estimate_design(
     elif not path_overloaded and not complete:
         notes.append("Latency not estimated: the load on some parts depends on the run.")
     util_max = busiest["utilization"] if busiest else None
-    saturation = peak / util_max if util_max else None
+    load_max = first["load"] if first else None
+    saturation = peak / load_max if load_max else None
     if busiest is None:
         summary = "No estimate: no part with known capacity carries load."
     elif overloaded:
-        worst = max(overloaded, key=lambda r: r.get("utilization") or 0.0)
-        need = worst.get("utilization")
+        worst = max(overloaded, key=lambda r: r.get("load") or 0.0)
+        need = worst.get("load")
         summary = (
             f"Overloaded at {peak:,.0f} req/s: {worst['label']} "
             + (f"needs {need:.0%} of its capacity" if need is not None else "cannot keep up")
@@ -637,6 +605,11 @@ def estimate_design(
             else ""
         )
         summary = f"{lead}busiest {busiest['label']} {util_max:.0%}"
+        if first is not None and first is not busiest and first.get("limitedBy") == "rate limit":
+            summary += (
+                f"; {first['label']} uses {load_max:.0%} of its rate limit (turns requests away "
+                f"above about {saturation:,.0f} req/s)"
+            )
     if wl.get("pattern", {}).get("kind", "constant") != "constant":
         notes.append(
             f"At the pattern's peak of {peak:,.0f} req/s; a run's p95 also covers quieter periods."

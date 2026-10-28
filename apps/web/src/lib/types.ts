@@ -147,9 +147,17 @@ export interface EstimatePart {
   pools?: number;
   meanServiceMs?: number | null;
   meanHoldMs?: number | null;
+  /** Share of its slots or CPU busy at the peak (what a run's utilization measures). */
   utilization?: number | null;
   slotUtilization?: number | null;
   cpuUtilization?: number | null;
+  /** Share of its rate or throughput limit used at the peak (engine 0.13+): not work, but how close
+   * it is to turning requests away. */
+  rateLimitShare?: number | null;
+  /** The largest of the shares above: 1 or more means it cannot keep up (engine 0.13+). */
+  load?: number | null;
+  /** Time a request spends in the part, waiting, working and in its own calls (ms; engine 0.13+). */
+  meanResidenceMs?: number | null;
   limitedBy?: "slots" | "cpu" | "rate limit" | null;
   waitProbability?: number | null;
   meanWaitMs?: number | null;
@@ -247,6 +255,9 @@ export interface Pricing {
   purchaseOption?: "on_demand";
   /** Instance families to snap to; empty: any in the snapshot. */
   families?: string[];
+  /** "auto" (default): a light part may run on a burstable t4g type its CPU keeps in credit; "never": none
+   * (schema 1.4). */
+  burstable?: "auto" | "never";
   /** Pins the snapshot of this date (YYYY-MM-DD): exactly that one is used, never a newer one. */
   snapshotDate?: string | null;
   /** With snapshotDate: the snapshot's content hash (a run's input records it). */
@@ -254,7 +265,7 @@ export interface Pricing {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */
@@ -797,12 +808,33 @@ export interface SizingEntry {
   sku?: string | null;
   /** Why the part is not sized (managed service, unknown load). */
   skipped?: string;
+  /** What the part needs before rounding to an instance (engine 0.13+): CPU busy at the peak and at
+   * the base load, cores at the target, memory (typical, and when every queue is full), data stored. */
+  need?: Partial<Record<"busyCores" | "baseBusyCores" | "cpuCores" | "memoryGib" | "memoryGibMax" | "storageGib", number>>;
+  /** One line per spec: "needs 520 MiB (up to 620 MiB when queues are full) · c6g.xlarge has 8 GiB". */
+  needText?: Partial<Record<SpecKey, string>>;
+  /** Its CPU need is below the smallest size it can get (1 vCPU, or the smallest type of its kind). */
+  smallest?: boolean;
 }
 
 export interface Sizing {
   auto: boolean;
   targetCpuUtilization: number;
   nodes: Record<string, SizingEntry>;
+}
+
+/** One priced quantity of a cost line, at the base load: "394.20 M requests × $3.50/M". */
+export interface CostItem {
+  what: string;
+  /** Units a month. */
+  quantity: number;
+  /** The unit billed: "hour", "request", "invocation", "GB-second", "RCU-hour", "LCU-hour", "GiB-month"... */
+  unit: string;
+  /** The unit price is per this many units (1, or 1,000,000 for per-million prices). */
+  per: number;
+  unitPrice: number;
+  monthly: number;
+  text: string;
 }
 
 export interface NodeCost {
@@ -819,6 +851,12 @@ export interface NodeCost {
   priceSource: "set" | "snapshot" | "preset" | "size" | "default" | null;
   /** The instance type priced (with a price snapshot), and the snapshot's date. */
   sku?: string;
+  /** A burstable type above its baseline at the base load: the surplus CPU credits included in `monthly`. */
+  creditsMonthly?: number;
+  /** A managed Kubernetes cluster's control plane, included in `monthly`. */
+  controlPlaneMonthly?: number;
+  /** The quantities priced (managed and per-request parts, engine 0.13+), each with its unit price. */
+  items?: CostItem[];
   snapshotDate?: string | null;
   unit: "hour" | "million";
   monthly: number;

@@ -18,9 +18,13 @@ here calls a network. This package ships AWS us-east-1 snapshots (``aws-us-east-
 templates and new documents pin the newest of them (``default_pricing``), while a document
 without ``pricing`` keeps the generic rates, as before.
 
-Burstable types (``burstable``: AWS's t families) run on CPU credits rather than full cores, and
-the engine simulates every vCPU at full speed, so snapping never picks one unless the design
-names its family in ``families``.
+Burstable types (``burstable``: AWS's t families) run on CPU credits rather than full cores: each
+vCPU can use its ``baselineCpu`` share all the time and earns credits below it, which it spends
+above it. Snapping picks one for a light part (``pricing.burstable`` "auto", the default) only when
+the part's CPU at the base load stays under 80% of the baseline (so it earns credits and pays
+for no surplus) and its peak under 60% of the vCPUs (the auto-sizing target), the credit check;
+the engine then simulates every vCPU at full speed, as the credits allow. ``never`` leaves them
+out; naming a burstable family in ``families`` allows it wherever it fits, credit check or not.
 """
 
 from __future__ import annotations
@@ -52,6 +56,36 @@ DEFAULT_REGION = "us-east-1"
 MANAGED_TECHNOLOGIES = frozenset({"aws_alb", "api_gateway", "cdn", "dynamodb", "sqs", "pubsub"})
 """Managed services: the provider sizes them, so they never run on an instance type."""
 
+BURST_BASE_SHARE = 0.8
+"""A burstable type is picked only when the part's CPU at the base load stays under this share
+of the type's baseline: it then earns credits all the time and spends them only in peaks."""
+BURST_PEAK_SHARE = 0.6
+"""... and when its CPU at the peak stays under this share of the type's vCPUs (the target
+auto-sizing aims at)."""
+Burstable = Literal["auto", "never"]
+AUTO_BURSTABLE = frozenset({"t4g"})
+"""Burstable families auto-sizing may pick by itself (Graviton t4g: EC2, RDS db.t4g and
+ElastiCache cache.t4g, the cheapest of their kind); others only when named in ``families``."""
+
+
+@dataclass(frozen=True)
+class Busy:
+    """CPU cores one instance of a part keeps busy: at the peak and at the steady base load."""
+
+    peak: float
+    base: float
+
+
+def credit_check(sku: Sku, busy: Busy | None) -> bool:
+    """A burstable type can run the part on its credits: its CPU at the base load stays under
+    80% of the type's baseline, and at the peak under 60% of its vCPUs."""
+    if not sku.burstable or sku.baseline_cpu is None or busy is None:
+        return False
+    return (
+        busy.base <= BURST_BASE_SHARE * sku.baseline_cpu * sku.vcpu + 1e-12
+        and busy.peak <= BURST_PEAK_SHARE * sku.vcpu + 1e-12
+    )
+
 
 class _M(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -70,18 +104,81 @@ class SkuModel(_M):
         default=False,
         description="Runs on CPU credits (AWS t families): never snapped to unless its family is named",
     )
+    baseline_cpu: float | None = Field(
+        default=None,
+        alias="baselineCpu",
+        gt=0,
+        le=1,
+        description=(
+            "Burstable types: the share of each vCPU it can use all the time without spending "
+            "CPU credits (AWS's baseline performance; not in the price list)"
+        ),
+    )
+    credit_vcpu_hour: float | None = Field(
+        default=None,
+        alias="creditVcpuHour",
+        ge=0,
+        description=(
+            "Burstable types that run in unlimited mode: the price per vCPU-hour of surplus CPU "
+            "credits (CPU used above the baseline). Without it a burstable type is throttled to "
+            "its baseline when its credits run out (standard mode)"
+        ),
+    )
+
+
+def _rate(alias: str, what: str) -> Any:
+    return Field(default=None, alias=alias, ge=0, description=what)
 
 
 class RatesModel(_M):
-    storage_gib_month: float | None = Field(default=None, alias="storageGibMonth", ge=0)
-    serverless_gb_second: float | None = Field(default=None, alias="serverlessGbSecond", ge=0)
-    serverless_per_million_requests: float | None = Field(
-        default=None, alias="serverlessPerMillionRequests", ge=0
+    """Per-unit prices of a snapshot; every one is optional (older snapshots have fewer)."""
+
+    storage_gib_month: float | None = _rate("storageGibMonth", "Block storage per GiB-month")
+    serverless_gb_second: float | None = _rate(
+        "serverlessGbSecond", "Serverless functions per GB-second"
     )
-    queue_per_million_requests: float | None = Field(
-        default=None, alias="queuePerMillionRequests", ge=0
+    serverless_per_million_requests: float | None = _rate(
+        "serverlessPerMillionRequests", "Serverless functions per million invocations"
     )
-    load_balancer_hour: float | None = Field(default=None, alias="loadBalancerHour", ge=0)
+    queue_per_million_requests: float | None = _rate(
+        "queuePerMillionRequests", "Managed queues per million requests"
+    )
+    load_balancer_hour: float | None = _rate(
+        "loadBalancerHour", "An application load balancer per hour"
+    )
+    load_balancer_lcu_hour: float | None = _rate(
+        "loadBalancerLcuHour", "An application load balancer's capacity unit (LCU) per hour"
+    )
+    network_load_balancer_hour: float | None = _rate(
+        "networkLoadBalancerHour", "A network load balancer per hour"
+    )
+    network_load_balancer_lcu_hour: float | None = _rate(
+        "networkLoadBalancerLcuHour", "A network load balancer's capacity unit (NLCU) per hour"
+    )
+    dynamodb_read_per_million: float | None = _rate(
+        "dynamodbReadPerMillion", "DynamoDB on-demand, per million read request units"
+    )
+    dynamodb_write_per_million: float | None = _rate(
+        "dynamodbWritePerMillion", "DynamoDB on-demand, per million write request units"
+    )
+    dynamodb_rcu_hour: float | None = _rate(
+        "dynamodbRcuHour", "DynamoDB provisioned, per read capacity unit-hour"
+    )
+    dynamodb_wcu_hour: float | None = _rate(
+        "dynamodbWcuHour", "DynamoDB provisioned, per write capacity unit-hour"
+    )
+    dynamodb_storage_gib_month: float | None = _rate(
+        "dynamodbStorageGibMonth", "DynamoDB table storage per GiB-month"
+    )
+    api_gateway_per_million: float | None = _rate(
+        "apiGatewayPerMillion", "An API gateway per million requests (REST API, first tier)"
+    )
+    rds_storage_gib_month: float | None = _rate(
+        "rdsStorageGibMonth", "Managed database storage per GiB-month (gp3, Single-AZ)"
+    )
+    kubernetes_control_plane_hour: float | None = _rate(
+        "kubernetesControlPlaneHour", "A managed Kubernetes cluster's control plane per hour"
+    )
 
 
 class SourceModel(_M):
@@ -113,6 +210,10 @@ class Sku:
     hourly: dict[str, float]
     engines: tuple[str, ...] = ()
     burstable: bool = False
+    baseline_cpu: float | None = None
+    """Burstable types: the share of each vCPU usable all the time without spending credits."""
+    credit_vcpu_hour: float | None = None
+    """Burstable types in unlimited mode: the price of a vCPU-hour above the baseline."""
 
     def price(self, option: str) -> float | None:
         return self.hourly.get(option)
@@ -149,28 +250,49 @@ class Snapshot:
         option: str = "on_demand",
         engine: str | None = None,
         families: list[str] | tuple[str, ...] = (),
+        busy: Busy | None = None,
+        burstable: str = "auto",
     ) -> Sku | None:
         """The cheapest SKU of ``category`` with at least ``cpu`` vCPU and ``memory_gib`` GiB (a
         database, cache or stream SKU must run ``engine``). ``families`` restrict a price list
-        that has any of them (naming compute families leaves the database list alone). Burstable
-        types are left out unless their family is named. Ties go to the smaller machine, then the
-        name. None when nothing fits."""
+        that has any of their non-burstable families (naming compute families leaves the
+        database list alone); a burstable family named there is allowed wherever it fits, and
+        restricts nothing. t4g types also with ``burstable`` "auto", no families restricting the
+        list, and the part's ``busy`` passing the credit check. Ties go to the
+        smaller machine, then the name. None when nothing fits."""
         items = self.skus.get(category) or ()
-        if not any(s.family in families for s in items):
-            families = ()
+        named = set(families)
+        restrict = {s.family for s in items if not s.burstable and s.family in named}
+        bursts = {s.family for s in items if s.burstable and s.family in named}
+
+        def allowed(s: Sku) -> bool:
+            if not s.burstable:
+                return not restrict or s.family in restrict
+            if burstable == "never":
+                return False
+            return s.family in bursts or (
+                s.family in AUTO_BURSTABLE and not restrict and credit_check(s, busy)
+            )
+
         fits = [
             s
             for s in items
             if s.vcpu >= (cpu or 0) - 1e-9
             and s.memory_gib >= (memory_gib or 0) - 1e-9
             and s.price(option) is not None
-            and (not families or s.family in families)
-            and (not s.burstable or s.family in families)
+            and allowed(s)
             and (not engine or not s.engines or engine in s.engines)
         ]
         if not fits:
             return None
         return min(fits, key=lambda s: (s.price(option), s.vcpu, s.memory_gib, s.sku))
+
+    def find(self, category: Category, name: str, engine: str | None = None) -> Sku | None:
+        """The SKU of ``category`` named ``name`` (that runs ``engine``), or None."""
+        for s in self.skus.get(category) or ():
+            if s.sku == name and (not engine or not s.engines or engine in s.engines):
+                return s
+        return None
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -188,12 +310,14 @@ class Snapshot:
 @dataclass(frozen=True)
 class Machine:
     """The instance type a part runs on in a snapshot. ``sku`` is None when no type covers the
-    size; ``self_managed`` when the engine has no managed offering there (it runs on VMs)."""
+    size; ``self_managed`` when the engine has no managed offering there (it runs on VMs);
+    ``named`` when it is the part's own ``instanceType``."""
 
     category: Category
     engine: str | None
     sku: Sku | None
     self_managed: bool = False
+    named: bool = False
 
 
 def machine_kind(node_type: str, cfg: dict[str, Any]) -> tuple[Category, str | None] | None:
@@ -223,21 +347,39 @@ def choose_machine(
     memory_gib: float | None,
     option: str = "on_demand",
     families: list[str] | tuple[str, ...] = (),
+    busy: Busy | None = None,
+    burstable: str = "auto",
 ) -> Machine | None:
-    """The cheapest instance type for a part of this size (None: not billed per machine, or the
-    snapshot has no shapes). A database, cache or stream engine the snapshot has no managed
-    type for runs on compute instances (self-managed)."""
+    """The instance type a part of this size runs on (None: not billed per machine, or the
+    snapshot has no shapes): its own ``instanceType`` while that is in the snapshot and covers
+    the size, else the cheapest that does. A database, cache or stream engine the snapshot has
+    no managed type for runs on compute instances (self-managed)."""
     kind = machine_kind(node_type, cfg)
     if kind is None or not snap.has_shapes():
         return None
     category, engine = kind
-    sku = snap.cover(category, cpu, memory_gib, option, engine, families)
+    named = cfg.get("instanceType")
+    if isinstance(named, str) and named:
+        sku = snap.find(category, named, engine)
+        own_category = sku is not None
+        if sku is None and category != "compute":
+            sku = snap.find("compute", named)  # an engine run on a VM of that type
+        if (
+            sku is not None
+            and sku.vcpu >= (cpu or 0) - 1e-9
+            and sku.memory_gib >= (memory_gib or 0) - 1e-9
+            and sku.price(option) is not None
+        ):
+            if own_category:
+                return Machine(category, engine, sku, named=True)
+            return Machine("compute", engine, sku, self_managed=True, named=True)
+    sku = snap.cover(category, cpu, memory_gib, option, engine, families, busy, burstable)
     if (
         sku is None
         and category != "compute"
         and not any(engine in s.engines for s in snap.skus.get(category) or ())
     ):
-        sku = snap.cover("compute", cpu, memory_gib, option, None, families)
+        sku = snap.cover("compute", cpu, memory_gib, option, None, families, busy, burstable)
         return Machine("compute", engine, sku, self_managed=True)
     return Machine(category, engine, sku)
 
@@ -275,7 +417,15 @@ def _from_model(m: SnapshotModel, sha256: str | None = None) -> Snapshot:
     def skus(items: list[SkuModel]) -> tuple[Sku, ...]:
         return tuple(
             Sku(
-                s.sku, s.family, s.vcpu, s.memory_gib, dict(s.hourly), tuple(s.engines), s.burstable
+                s.sku,
+                s.family,
+                s.vcpu,
+                s.memory_gib,
+                dict(s.hourly),
+                tuple(s.engines),
+                s.burstable,
+                s.baseline_cpu,
+                s.credit_vcpu_hour,
             )
             for s in items
         )
@@ -293,13 +443,8 @@ def _from_model(m: SnapshotModel, sha256: str | None = None) -> Snapshot:
             "cache": skus(m.caches),
             "stream": skus(m.streams),
         },
-        rates={
-            "storageGibMonth": m.rates.storage_gib_month,
-            "serverlessGbSecond": m.rates.serverless_gb_second,
-            "serverlessPerMillionRequests": m.rates.serverless_per_million_requests,
-            "queuePerMillionRequests": m.rates.queue_per_million_requests,
-            "loadBalancerHour": m.rates.load_balancer_hour,
-        },
+        # every rate by its JSON name; None when the snapshot does not have it
+        rates=m.rates.model_dump(by_alias=True),
         sha256=sha256,
     )
 
@@ -465,9 +610,13 @@ def unknown_families(snap: Snapshot, families: list[str] | tuple[str, ...]) -> l
 
 
 __all__ = [
+    "AUTO_BURSTABLE",
+    "BURST_BASE_SHARE",
+    "BURST_PEAK_SHARE",
     "FORMAT",
     "GENERIC",
     "MANAGED_TECHNOLOGIES",
+    "Busy",
     "Machine",
     "PricingError",
     "Sku",
@@ -475,6 +624,7 @@ __all__ = [
     "available",
     "choose_machine",
     "content_sha256",
+    "credit_check",
     "default_pricing",
     "load_snapshot",
     "machine_kind",

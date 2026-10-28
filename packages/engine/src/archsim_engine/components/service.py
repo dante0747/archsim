@@ -28,8 +28,10 @@ from archsim_engine.components.resources import (
     CPU_CONTENTION,
     RESOURCES,
     Cores,
+    busy_cores_series,
     core_utilization,
     cpu_field,
+    instance_type_field,
     memory_field,
 )
 from archsim_engine.distributions import Distribution, LogNormal
@@ -155,6 +157,7 @@ class ServiceConfig(CamelModel):
         "When set, every request a replica holds (queued, running or waiting on downstream calls) "
         "uses memory; a request that would exceed it is refused (out of memory).",
     )
+    instance_type: str | None = instance_type_field("replica on a VM or Docker")
     memory_per_request_mb: float = Field(
         default=2.0,
         gt=0,
@@ -543,6 +546,8 @@ class ServiceRuntime(RuntimeComponent):
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         out: dict[str, list[float | None]] = {"inflightMean": list(self.m.inflight.mean_series())}
+        if self.core_busy is not None and self.cores:
+            out["cpuBusyCores"] = busy_cores_series(self.core_busy, self.cores[0])
         bucket_s = self.ctx.tl.bucket_ms / 1000.0
         if self.gc_cfg is not None:
             out["gcPauseMs"] = [v / bucket_s for v in self.gc_ms]

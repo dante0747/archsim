@@ -9,7 +9,8 @@ type; a cache forwards reads to its miss link at (1 - hit ratio) and absorbs wri
 in cache-aside the service's link set to ``readsOnMiss`` gets that share instead, and the cache
 one more read per miss for the write-back. First attempts
 only (no retries). Where the share is unknown (a TTL cache's misses) the parts downstream get no
-estimate, unless ``ttl_miss_share`` assumes one.
+estimate, unless ``ttl_miss_share`` assumes one or ``miss_shares`` gives it;
+:func:`ttl_miss_shares` estimates every TTL cache's share from its TTL and the key popularity.
 
 Functions here work on a *normalized* document dict (``scenarios.normalize_document``): camelCase
 keys and every node config expanded with its defaults.
@@ -142,6 +143,29 @@ def peak_rps(workload: Json) -> float:
     return rps
 
 
+def base_rps(workload: Json) -> float:
+    """The steady base rate of the workload pattern (req/s), beside :func:`peak_rps`: what a
+    part carries most of the time, for monthly per-request costs and CPU credits. A constant
+    pattern's rate; a burst's rate outside the burst; the lower end of a ramp (the traffic
+    before or after it); a trace's median over the run."""
+    p = workload.get("pattern") or {"kind": "constant"}
+    rps = float(workload["rps"])
+    if p.get("kind") == "ramp":
+        return min(float(p["startRps"]), float(p["endRps"]))
+    if p.get("kind") == "burst":
+        return rps
+    if p.get("kind") == "trace":
+        from archsim_engine.schema import TracePattern
+
+        trace = TracePattern.model_validate(p)
+        duration = float(workload.get("durationS") or 0)
+        if duration <= 0:
+            return trace.rate(0.0)
+        samples = sorted(trace.rate(duration * (i + 0.5) / 400) for i in range(400))
+        return (samples[199] + samples[200]) / 2
+    return rps
+
+
 def client_shares(nodes: list[Json], registry: ComponentRegistry) -> list[tuple[str, float]]:
     """Each client part's fraction of the workload (relative traffic shares), in document order."""
     clients = [n for n in nodes if kind_of(n["type"], registry) == "traffic"]
@@ -182,12 +206,14 @@ def estimate_load(
     *,
     miss_shares: dict[str, float] | None = None,
     edge_loads: dict[str, NodeLoad | None] | None = None,
+    rate: float | None = None,
 ) -> dict[str, NodeLoad | None]:
     """Peak load per node id; ``None`` when it cannot be estimated statically.
 
     ``miss_shares`` gives the miss share of particular TTL caches (cache id -> share), taking
     precedence over ``ttl_miss_share``. When ``edge_loads`` is given, it is filled with the first
-    attempts sent over each link (link id -> load, ``None`` when unknown)."""
+    attempts sent over each link (link id -> load, ``None`` when unknown). ``rate``: the load at
+    this arrival rate (req/s) instead of the workload's peak."""
     nodes: list[Json] = doc["architecture"]["nodes"]
     edges: list[Json] = doc["architecture"]["edges"]
     by_id = {n["id"]: n for n in nodes}
@@ -202,7 +228,7 @@ def estimate_load(
 
     load: dict[str, NodeLoad | None] = {n["id"]: NodeLoad(0.0, 0.0) for n in nodes}
     w = doc["workload"]
-    peak = peak_rps(w)
+    peak = peak_rps(w) if rate is None else rate
     r = min(1.0, max(0.0, float(w["readRatio"])))
     for cid, fraction in client_shares(nodes, registry):
         load[cid] = NodeLoad(peak * fraction * r, peak * fraction * (1 - r))
@@ -303,3 +329,110 @@ def estimate_load(
             if indeg[e["target"]] == 0:
                 queue.append(e["target"])
     return load
+
+
+# ---------------------------------------------------------------------------------------------
+# TTL caches: their hit ratio from the TTL and the key popularity
+# ---------------------------------------------------------------------------------------------
+
+
+def ttl_hit_ratio(
+    read_rps: float,
+    write_rps: float,
+    keys: int,
+    skew: float,
+    ttl_s: float,
+    capacity_keys: int | None = None,
+) -> float:
+    """Expected hit ratio of a TTL cache for Zipf(skew) key popularity.
+
+    A key read after it expired (or after a write invalidated it) misses and is cached again;
+    reads in the next ``min(TTL, time to the next write)`` hit. Per key with read rate r and write
+    rate w that window lasts W = (1 - e^(-w·TTL)) ÷ w on average, so its hit ratio is
+    r·W ÷ (1 + r·W). A cache whose memory holds fewer keys than the keyspace (``capacity_keys``)
+    keeps roughly the most popular ones (least recently used are evicted): hits are summed over
+    the top ``capacity_keys`` keys, and reads of the others miss."""
+    if read_rps <= 0 or keys <= 0 or ttl_s <= 0:
+        return 0.0
+    held = keys if capacity_keys is None else max(0, min(keys, int(capacity_keys)))
+    exact = min(keys, 2000)
+
+    def weight(k: float) -> float:
+        return k**-skew
+
+    def mass(a: float, b: float) -> float:
+        """∫ x^-s dx from a to b (the popularity of keys a+0.5 ... b-0.5)."""
+        if abs(skew - 1.0) < 1e-9:
+            return math.log(b / a)
+        return (b ** (1 - skew) - a ** (1 - skew)) / (1 - skew)
+
+    # (weight of each key, keys in the bucket, rank of its first key - 1), most popular first
+    buckets: list[tuple[float, float, int]] = [(weight(k), 1.0, k - 1) for k in range(1, exact + 1)]
+    lo = exact
+    while lo < keys:
+        hi = min(keys, max(lo + 1, math.ceil(lo * 1.05)))
+        count = hi - lo
+        buckets.append((mass(lo + 0.5, hi + 0.5) / count, float(count), lo))
+        lo = hi
+    total = sum(w * n for w, n, _ in buckets)
+    if total <= 0:
+        return 0.0
+    hits = 0.0
+    for w, n, first in buckets:
+        cached = min(n, max(0.0, held - first))
+        if cached <= 0:
+            break
+        share = w / total
+        r = read_rps * share
+        wr = write_rps * share
+        window = ttl_s if wr * ttl_s < 1e-9 else -math.expm1(-wr * ttl_s) / wr
+        hits += cached * share * (r * window / (1 + r * window))
+    return min(1.0, max(0.0, hits))
+
+
+def ttl_capacity_keys(cfg: Json, registry: ComponentRegistry) -> int | None:
+    """Keys a TTL cache's memory holds over all its shards, or None when memory is not set."""
+    try:
+        config = registry.get("cache").parse_config(cfg)
+    except Exception:  # invalid configs are reported by validation
+        return None
+    per_shard = config.capacity_keys()  # type: ignore[attr-defined]
+    return None if per_shard is None else int(per_shard) * max(1, int(config.shards))  # type: ignore[attr-defined]
+
+
+def ttl_miss_shares(
+    doc: Json, registry: ComponentRegistry, rate: float | None = None
+) -> dict[str, float]:
+    """The estimated share of reads each TTL cache misses (cache id -> share), from the reads and
+    writes that reach it, its TTL, the key popularity and the keys its memory holds. A cache whose
+    load depends on another TTL cache upstream is estimated after it; one whose load cannot be
+    estimated at all is left out. ``rate``: at this arrival rate instead of the peak."""
+    nodes: list[Json] = doc["architecture"]["nodes"]
+    workload = doc["workload"]
+    ttl = [
+        n
+        for n in nodes
+        if n["type"] == "cache"
+        and (n.get("config") or {}).get("hitModel") == "ttl_keyspace"
+        and "cache" in registry
+    ]
+    shares: dict[str, float] = {}
+    for _ in range(len(ttl) + 1):
+        loads = estimate_load(doc, registry, miss_shares=shares, rate=rate)
+        pending = [n for n in ttl if n["id"] not in shares and loads.get(n["id"]) is not None]
+        if not pending:
+            break
+        for n in pending:
+            ld = loads[n["id"]]
+            assert ld is not None
+            cfg = {**registry.get("cache").default_config(), **(n.get("config") or {})}
+            hit = ttl_hit_ratio(
+                ld.read,
+                ld.write,
+                int(workload["keyCount"]),
+                float(workload["keySkew"]),
+                float(num(cfg.get("ttlSeconds")) or 0.0),
+                ttl_capacity_keys(cfg, registry),
+            )
+            shares[n["id"]] = 1 - hit
+    return shares

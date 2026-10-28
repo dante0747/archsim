@@ -98,7 +98,7 @@ def test_compose_maps_infrastructure_and_lists_what_it_guessed() -> None:
         "note": "deploy.replicas",
     }
     assert doc["provenance"]["nodes/db/maxConnections"]["note"] == "from the container command"
-    assert doc["schemaVersion"] == "1.3"
+    assert doc["schemaVersion"] == "1.4"
 
 
 def test_kubernetes_reads_autoscalers_ingresses_and_resources() -> None:
@@ -123,6 +123,8 @@ def test_terraform_sizes_from_instance_types_and_suggests_links() -> None:
     # db.r6g.large: 2 vCPU, memory-optimised (8 GiB per vCPU), from AWS's instance types
     assert (db["cpuCores"], db["memoryGib"]) == (2, 16)
     assert "db.r6g.large" in doc["provenance"]["nodes/orders-db/cpuCores"]["note"]
+    # and it runs on that type: priced as it while it covers its CPU and memory (schema 1.4)
+    assert db["instanceType"] == "db.r6g.large"
     assert db["readReplicas"] == 1
     # the only link Terraform states: the event source mapping (queue -> function)
     links = {(e["source"], e["target"]) for e in doc["architecture"]["edges"]}

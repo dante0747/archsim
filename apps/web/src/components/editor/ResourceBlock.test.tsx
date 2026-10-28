@@ -44,6 +44,21 @@ describe("ResourceBlock", () => {
   });
   afterEach(cleanup);
 
+  it("shows what a part needs beside what its instance has", () => {
+    show("api");
+    const lines = screen.getByTestId("need-vs-instance").textContent ?? "";
+    // memory: the typical need, the most with full queues, and the instance's real memory
+    expect(lines).toMatch(/needs \d+ MiB \(up to \d+ MiB when queues are full\) · c6g\.xlarge has 8 GiB/);
+    expect(lines).toMatch(/needs 3\.39 vCPU \(2\.03 busy at the peak, at a 60% target\) · c6g\.xlarge has 4 vCPU/);
+  });
+
+  it("picking a size clears an instance type set on the part", () => {
+    useEditor.getState().setNodeConfig("api", "instanceType", "m7g.2xlarge");
+    show("api");
+    fireEvent.click(screen.getByRole("button", { name: "2·4" }));
+    expect(node("api").data.config).toMatchObject({ cpuCores: 2, memoryGib: 4, instanceType: null });
+  });
+
   it("starts unset and applies a common size in one step", () => {
     show("api");
     expect(screen.getByLabelText(/CPU/)).toHaveProperty("value", "");
@@ -105,7 +120,7 @@ describe("ResourceBlock", () => {
     expect(screen.getByText(/req\/s per replica at peak/)).toBeTruthy();
     // the starter pins AWS prices: the auto size is a real instance type, priced from the snapshot
     expect(screen.getByText("c6g.xlarge")).toBeTruthy();
-    expect(screen.getByText(/on-demand, aws us-east-1, prices of 2026-10-27/)).toBeTruthy();
+    expect(screen.getByText(/on-demand, aws us-east-1, prices of 2026-10-28/)).toBeTruthy();
     cleanup();
     // at generic rates, the size's illustrative price
     useEditor.getState().setAnalysis(genericAnalysis());

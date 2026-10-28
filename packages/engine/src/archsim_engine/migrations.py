@@ -101,3 +101,11 @@ def _cache_aside_links(doc: dict[str, Any]) -> dict[str, Any]:
     default, as before) and lets a cache leave its misses to its callers; a 1.2 document needs
     no change."""
     return doc
+
+
+@migration("1.3", "1.4")
+def _instance_type(doc: dict[str, Any]) -> dict[str, Any]:
+    """1.4 adds the optional part setting ``instanceType`` (the instance type a part runs on, kept
+    while it covers the part's CPU and memory; empty: the cheapest that does, as before); a 1.3
+    document needs no change."""
+    return doc

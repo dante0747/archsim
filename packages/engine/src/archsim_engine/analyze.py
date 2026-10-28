@@ -19,7 +19,7 @@ from archsim_engine.registry import ComponentRegistry
 from archsim_engine.review import REVIEW_RULES, count_by_severity, review_design
 from archsim_engine.scenarios import load_document, resolve_scenario_sized, simulation_input
 from archsim_engine.schema import ArchitectureDocument
-from archsim_engine.sizing import sizing_summary
+from archsim_engine.sizing import base_busy, sizing_summary
 
 
 def analyze_document(
@@ -39,13 +39,16 @@ def analyze_document(
     return {
         "scenarioId": scenario.id if scenario else None,
         "peakRps": peak_rps(snapshot["workload"]),
-        "sizing": sizing_summary(doc, resolved, sizes, registry),
+        "sizing": sizing_summary(doc, resolved, sizes, registry, estimate),
         "cost": estimate_cost(
             snapshot["architecture"]["nodes"],
             registry,
             None,
             snapshot.get("pricing"),
             {k: v.kind for k, v in resolved.provenance.items()},
+            base_busy(sizes),
+            document=snapshot,
+            estimate=estimate,
         ),
         "review": review,
         "reviewCounts": count_by_severity(review),

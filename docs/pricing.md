@@ -3,14 +3,14 @@
 A design says where its prices come from:
 
 ```json
-"pricing": {"provider": "generic", "region": null, "purchaseOption": "on_demand", "families": []}
+"pricing": {"provider": "generic", "region": null, "purchaseOption": "on_demand", "families": [], "burstable": "auto"}
 ```
 
-With a snapshot, a design normally also pins its date (`"snapshotDate": "2026-10-27"`, see
+With a snapshot, a design normally also pins its date (`"snapshotDate": "2026-10-28"`, see
 [Pinning a snapshot](#pinning-a-snapshot)); the editor does that when you choose a snapshot.
 
 **Templates and new projects** start with AWS us-east-1 prices, pinned to the newest AWS
-snapshot ArchSim ships: `{"provider": "aws", "region": "us-east-1", "snapshotDate": "2026-10-27"}`.
+snapshot ArchSim ships: `{"provider": "aws", "region": "us-east-1", "snapshotDate": "2026-10-28"}`.
 The schema's default is still `generic`, so a document saved without `pricing` (every design
 made before this) keeps its illustrative rates and its results; choose a snapshot under
 **Prices** in Design to move it to real prices.
@@ -29,17 +29,30 @@ made before this) keeps its illustrative rates and its results; choose a snapsho
   us-east-1 · Oct 2026").
 
 **Burstable types** (AWS's t families: t3, t4g, db.t4g, cache.t4g, kafka.t3) run on CPU
-credits: a t4g.micro sustains 10% of its two vCPUs. Auto-sizing aims at 60% CPU at the peak and
-the engine simulates every vCPU at full speed, so snapping never picks a burstable type unless
-the design names its family in `families` (for example `["t4g"]` for a dev environment).
+credits: each vCPU can use its baseline (a t4g.micro 10%, a t4g.large 30%) all the time, earns
+credits below it and spends them above it. Auto-sizing picks a **t4g** type for a light part
+when it passes the **credit check**: its CPU at the workload's steady base load (the rate
+outside a burst, the low end of a ramp, a trace's median) stays under 80% of the type's
+baseline, so it earns credits all month, and its CPU at the peak stays under 60% of the type's
+vCPUs, the target auto-sizing aims at; the engine then simulates every vCPU at full speed, as
+the credits allow. The explanation says so ("burstable: 0.02 cores busy at the base load stay
+under 80% of its baseline..."). EC2 and RDS run t types in unlimited mode, so the risk is a
+charge, not throttling: when a part on a burstable type would keep more than its baseline busy
+at the base load (a type named on the part, or a run busier than the estimate), its cost line
+adds the surplus CPU credits (t4g $0.04, db.t4g $0.075 per vCPU-hour above the baseline);
+ElastiCache's t types have no surplus credits and are throttled to their baseline instead,
+which the cost line notes. `pricing.burstable` is `auto` (the default) or `never` (many teams
+ban t types in production). Naming a burstable family in `families` (`["t4g"]`) allows it
+wherever it is the cheapest fit, credit check or not, without restricting the other lists.
 
 Pods on a Kubernetes cluster and serverless functions are not machines of their own (their
 machines are the cluster's nodes and the provider's), so they keep their computed size with or
 without a snapshot.
 
 `families` limits snapping to some instance families (for example `["m7g", "c7g", "r7g"]`). It
-restricts a price list only when that list has one of the families, so naming compute families
-leaves the database and cache lists alone. A family the snapshot does not have restricts nothing
+restricts a price list only when that list has one of the (non-burstable) families, so naming
+compute families leaves the database and cache lists alone, and naming only `t4g` restricts
+none (before engine 0.13 it forced every list onto t4g). A family the snapshot does not have restricts nothing
 and gets a validation warning (`pricing.unknown_family`). `purchaseOption` is on-demand only:
 savings plans and reserved terms are not modeled yet.
 
@@ -51,10 +64,35 @@ compute instances and the cost line says "self-managed". Services on Kubernetes 
 through their cluster's nodes; serverless services, managed queues (SQS-style, Pub/Sub-style)
 and managed load balancers (ALB-style) use the snapshot's per-request and per-hour rates where it
 has them. Managed services (ALB-, SQS-, Pub/Sub-, DynamoDB-style, CDN, API gateways) never snap to
-an instance type. API gateways are billed per request by the providers, a rate snapshots do not
-carry yet, so they keep an illustrative price and their cost line says so. Storage is priced at
-the snapshot's block storage rate. Not included: discounts, data transfer, load balancer capacity
-units, licences, multi-AZ or replica pricing beyond the instance count.
+an instance type; the inspector shows no size price for them or for serverless functions, which
+are billed per use. Storage is priced at the snapshot's block storage rate, a managed database's
+at its own (RDS gp3). Not included: discounts, Multi-AZ, reserved instances and savings plans,
+data transfer and NAT, free tiers, licences (the cost panel says so).
+
+**Managed and per-request lines** (with a snapshot that has the rate), each listing what it
+prices with its unit price (`items`, shown in the cost panel as "394.20 M requests × $3.50/M"):
+
+| Part | Priced as |
+|---|---|
+| Application load balancer (`aws_alb`) | hours, plus capacity units: requests/s at the base load × 10 KB processed each (assumed: request and response; new connections and rule evaluations are assumed to need fewer), 1 LCU per GB an hour |
+| API gateway | requests at the base load × `apiGatewayPerMillion` |
+| Serverless function | invocations × `serverlessPerMillionRequests`, plus GB-seconds: invocations × its duration at the base load (in flight ÷ arrivals over the run's base-load time buckets; before a run, the instant estimate's time in the part) × its memory |
+| SQS-style queue | three requests per message (send, receive, delete) × `queuePerMillionRequests` |
+| DynamoDB | provisioned: RCU and WCU × hours; on demand: read and write request units at the base load (a read is half a unit per 4 KB when eventually consistent, a write one per KB); plus storage (`dataSizeGib`, else keys × item size) |
+| Services on Kubernetes without a cluster in the design | implied nodes: each pod's share of the cheapest general node type that fits it at 90% allocatable (not burstable, HPC or bare-metal types), plus one managed control plane (`kubernetesControlPlaneHour`). A cluster in the design also pays for its control plane. |
+
+Per-request lines are priced at the workload's steady **base** load as if it lasted the whole
+month (a burst's or a ramp's peak is not billed all month): after a run, each part's rate
+measured while the offered load was at the base, scaled to it exactly, so fan-out, cache misses
+and retries are kept but a burst's retries are not; before one, the static load estimate at the
+base rate, so a design is priced before it runs.
+
+**Checked by hand**, the serverless template (150 req/s with a burst to 1,500): DynamoDB with
+100 RCU and 60 WCU provisioned is 100 × $0.00013 × 730 + 60 × $0.00065 × 730 = $37.96 a month;
+the function at 150 invocations/s, 1,769 MB (1 vCPU) and about 40 ms each at the base load is
+394.2 M invocations × $0.20/M + 394.2 M × 0.04 s × 1.7275 GB × $0.0000166667 ≈ $530 a month, and
+the cost line agrees within a few percent (it uses the measured duration and rate);
+`test_cost_managed.py` keeps it within 10%.
 
 ## Which price a part gets
 
@@ -86,7 +124,9 @@ path separator), in the format `archsim.prices/1`:
   "format": "archsim.prices/1",
   "provider": "aws", "region": "us-east-1", "currency": "USD", "snapshotDate": "2026-10-01",
   "sources": [{"name": "AWS Price List bulk API", "url": "https://pricing.us-east-1.amazonaws.com/..."}],
-  "compute":   [{"sku": "m7g.large", "family": "m7g", "vcpu": 2, "memoryGib": 8, "hourly": {"on_demand": 0.0}}],
+  "compute":   [{"sku": "m7g.large", "family": "m7g", "vcpu": 2, "memoryGib": 8, "hourly": {"on_demand": 0.0}},
+                {"sku": "t4g.small", "family": "t4g", "vcpu": 2, "memoryGib": 2, "hourly": {"on_demand": 0.0},
+                 "burstable": true, "baselineCpu": 0.2}],
   "databases": [{"sku": "db.r7g.large", "family": "r7g", "vcpu": 2, "memoryGib": 16, "hourly": {"on_demand": 0.0}, "engines": ["postgresql"]}],
   "caches":    [], "streams": [],
   "rates": {"storageGibMonth": 0.0, "serverlessGbSecond": 0.0, "serverlessPerMillionRequests": 0.0,
@@ -94,22 +134,51 @@ path separator), in the format `archsim.prices/1`:
 }
 ```
 
-(The zeros above are placeholders, not prices.) A SKU may also carry `"burstable": true`. Every
-snapshot has a content hash, the SHA-256 of its canonical JSON (sorted keys, no whitespace), so
-reformatting a file or changing its line endings does not change it. `GET /api/v1/pricing`
-lists every snapshot on the machine with its date, hash and whether it is the newest for its
-provider and region.
+(The zeros above are placeholders, not prices.) A SKU may also carry `"burstable": true` and,
+for a burstable type, `baselineCpu`: the share of each vCPU it can use all the time without
+spending CPU credits (AWS publishes it in its instance tables, not in the price list), and
+`creditVcpuHour`: the price of a vCPU-hour above the baseline when the type runs in unlimited
+mode (EC2 t4g $0.04, RDS db.t4g $0.075). A burstable type without `creditVcpuHour` (ElastiCache's)
+is throttled to its baseline once its credits run out.
 
-### The AWS snapshot ArchSim ships
+Every rate is optional; older snapshots have fewer of them. The rates a snapshot can carry:
+
+| Rate | Unit |
+|---|---|
+| `storageGibMonth` | block storage (EBS gp3), per GiB-month |
+| `rdsStorageGibMonth` | managed database storage (RDS gp3, Single-AZ), per GiB-month |
+| `serverlessGbSecond`, `serverlessPerMillionRequests` | functions (Lambda), per GB-second and per million invocations |
+| `queuePerMillionRequests` | managed queues (SQS standard), per million requests |
+| `loadBalancerHour`, `loadBalancerLcuHour` | an application load balancer per hour, and per capacity unit-hour (LCU) |
+| `networkLoadBalancerHour`, `networkLoadBalancerLcuHour` | a network load balancer per hour, and per capacity unit-hour (NLCU) |
+| `dynamodbReadPerMillion`, `dynamodbWritePerMillion` | DynamoDB on-demand, per million read and write request units |
+| `dynamodbRcuHour`, `dynamodbWcuHour` | DynamoDB provisioned, per read and write capacity unit-hour |
+| `dynamodbStorageGibMonth` | DynamoDB table storage, per GiB-month |
+| `apiGatewayPerMillion` | an API gateway, per million requests (REST API, first tier) |
+| `kubernetesControlPlaneHour` | a managed Kubernetes cluster's control plane (EKS), per hour |
+
+Each per-request or per-unit rate is the first paid tier: not a free allowance, and not the
+cheaper tiers for very high volumes.
+
+Every snapshot has a content hash, the SHA-256 of its canonical JSON (sorted keys, no
+whitespace), so reformatting a file or changing its line endings does not change it.
+`GET /api/v1/pricing` lists every snapshot on the machine with its date, hash and whether it is
+the newest for its provider and region.
+
+### The AWS snapshots ArchSim ships
 
 | | |
 |---|---|
-| File | `aws-us-east-1-2026-10-27.json` (about 270 KB) |
+| File | `aws-us-east-1-2026-10-28.json` (about 260 KB), the newest; templates and new projects pin it |
 | Region | us-east-1 (US East, N. Virginia), USD, on-demand |
-| Read on | 2026-10-27, by `scripts/prices/aws.py` |
-| Source | [AWS Price List bulk API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-ppslong.html) (public, no account), offer files AmazonEC2 20261023221355, AmazonRDS 20261026214716, AmazonElastiCache 20261014221139, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544 (the snapshot's `note` repeats them) |
-| Contents | 1,107 EC2 types (Linux, shared tenancy), 315 RDS Single-AZ types (PostgreSQL, MySQL, MariaDB), 188 ElastiCache types (Redis, Valkey, Memcached), 16 MSK broker types; EBS gp3 per GiB-month, Lambda per GB-second and per request, SQS standard per request and Application Load Balancer per hour |
-| Left out | Outposts, Local Zone and Wavelength prices, Capacity Blocks, previous-generation types (AWS's own flag), GPU, machine-learning, FPGA and media types, Express MSK brokers, reserved and savings-plan terms, free tiers |
+| Read on | 2026-10-28, by `scripts/prices/aws.py` |
+| Source | [AWS Price List bulk API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-ppslong.html) (public, no account), offer files AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639 (the snapshot's `note` repeats them) |
+| Contents | 1,107 EC2 types (Linux, shared tenancy), 315 RDS Single-AZ types (PostgreSQL, MySQL, MariaDB), 188 ElastiCache types (Redis, Valkey, Memcached), 16 MSK broker types; the t3, t3a and t4g types with their baseline CPU and, on EC2 and RDS, their surplus-credit price; every rate in the table above |
+| Left out | Outposts, Local Zone and Wavelength prices, Capacity Blocks, previous-generation types (AWS's own flag), GPU, machine-learning, FPGA and media types, Express MSK brokers, reserved and savings-plan terms, free tiers, DynamoDB's Infrequent Access table class, API Gateway HTTP APIs and WebSockets |
+
+`aws-us-east-1-2026-10-27.json` is the first snapshot, kept unchanged because stored runs pin
+its content hash: the same instance types and prices (no price changed between the two dates),
+without baselines and with only the first five rates.
 
 **Terms.** These are AWS's published list prices, copied as facts (instance type, shape, price
 per hour) with their source and date. AWS's price list says of itself: "This pricing list is for
@@ -124,7 +193,10 @@ affiliated with or endorsed by Amazon Web Services.
 c6g.xlarge $0.136, m5.large $0.096 per hour; db.m5.large $0.178 (PostgreSQL) and $0.171 (MySQL);
 cache.m7g.large $0.158 (Redis); kafka.m5.large $0.21; gp3 $0.08 per GiB-month; Lambda $0.20 per
 million requests and $0.0000166667 per GB-second; SQS standard $0.40 per million requests; an
-Application Load Balancer $0.0225 per hour.
+Application Load Balancer $0.0225 per hour and $0.008 per LCU-hour; DynamoDB $0.00013 per
+RCU-hour, $0.00065 per WCU-hour, $0.125 and $0.625 per million on-demand read and write request
+units and $0.25 per GiB-month; API Gateway REST APIs $3.50 per million requests; RDS gp3
+$0.115 per GiB-month; the EKS control plane $0.10 per hour.
 
 ## Pinning a snapshot
 
@@ -177,9 +249,12 @@ uv run python scripts/prices/azure.py --region eastus       # Azure Retail Price
 GOOGLE_API_KEY=... uv run python scripts/prices/gcp.py --region us-central1   # Cloud Billing Catalog API
 ```
 
-- **AWS**: EC2 (Linux, shared tenancy, on-demand), RDS Single-AZ (PostgreSQL, MySQL, MariaDB),
-  ElastiCache (Redis, Valkey, Memcached), MSK standard brokers, EBS gp3 storage, Lambda, SQS
-  standard (both at their first paid tier) and Application Load Balancer hours. The EC2 file is
+- **AWS**: EC2 (Linux, shared tenancy, on-demand), RDS Single-AZ (PostgreSQL, MySQL, MariaDB)
+  and its gp3 storage, ElastiCache (Redis, Valkey, Memcached), MSK standard brokers, EBS gp3
+  storage, Lambda, SQS standard, Application and Network Load Balancers (hours and capacity
+  units), DynamoDB (request units, capacity units, storage), API Gateway REST API requests and
+  the EKS control plane, each rate at its first paid tier. Burstable types get their baseline CPU
+  from a table in the script (AWS's instance tables; the price list does not have it). The EC2 file is
   about 300 MB; downloads are cached in `.cache/aws-prices` by AWS's file version. A region's
   file also lists Outposts and Local Zone prices, Capacity Blocks and extended-support
   surcharges; only the region's own on-demand rows are kept, and the same type at two prices

@@ -38,8 +38,10 @@ from archsim_engine.components.resources import (
     CPU_CONTENTION,
     RESOURCES,
     Cores,
+    busy_cores_series,
     core_utilization,
     cpu_field,
+    instance_type_field,
     memory_field,
     storage_field,
 )
@@ -418,6 +420,7 @@ class DatabaseConfig(CamelModel):
     storage_gib: float | None = storage_field(
         "instance", "Checked against the data size: each instance stores its shard's data."
     )
+    instance_type: str | None = instance_type_field("instance")
     data_size_gib: float | None = Field(
         default=None,
         gt=0,
@@ -1025,6 +1028,8 @@ class DatabaseRuntime(RuntimeComponent):
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         m = self.m
         out: dict[str, list[float | None]] = {}
+        if self.core_busy is not None and self.groups and self.groups[0]:
+            out["cpuBusyCores"] = busy_cores_series(self.core_busy, self.groups[0][0].cores)
         for name, key in (
             ("lockWaitMs", "lockWaitMs"),
             ("commitWaitMs", "commitWaitMs"),

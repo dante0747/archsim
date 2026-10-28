@@ -24,8 +24,8 @@ from archsim_engine.estimate import (
     mmc_wait,
     moments,
     times,
-    ttl_hit_ratio,
 )
+from archsim_engine.load import ttl_hit_ratio, ttl_miss_shares
 from archsim_engine.scenarios import load_document, resolve_scenario_sized
 from engine_builders import EXAMPLES, doc, edge, load_example, node
 
@@ -99,6 +99,42 @@ def test_ttl_hit_ratio_matches_the_renewal_formula() -> None:
         (s := k**-0.9 / exact) * (1000 * s * 60 / (1 + 1000 * s * 60)) for k in range(1, 50_001)
     )
     assert ttl_hit_ratio(1000, 0, 50_000, 0.9, 60) == pytest.approx(want, rel=0.01)
+    # memory for half the keys: the most popular half is held, reads of the rest miss
+    assert ttl_hit_ratio(100, 0, 100, 0.0, 1.0, capacity_keys=50) == pytest.approx(0.25, abs=1e-6)
+    assert ttl_hit_ratio(100, 0, 100, 0.0, 1.0, capacity_keys=500) == pytest.approx(0.5, abs=1e-6)
+    top = ttl_hit_ratio(1000, 0, 50_000, 0.9, 60, capacity_keys=10_000)
+    assert top < ttl_hit_ratio(1000, 0, 50_000, 0.9, 60)
+    held = sum(
+        (s := k**-0.9 / exact) * (1000 * s * 60 / (1 + 1000 * s * 60)) for k in range(1, 10_001)
+    )
+    assert top == pytest.approx(held, rel=0.01)
+
+
+def test_the_base_rate_of_each_traffic_pattern() -> None:
+    from archsim_engine.load import base_rps
+
+    wl = {"rps": 100, "durationS": 60}
+    assert base_rps(wl) == 100
+    assert (
+        base_rps(
+            {**wl, "pattern": {"kind": "burst", "burstRps": 900, "startS": 10, "durationS": 5}}
+        )
+        == 100
+    )
+    assert base_rps({**wl, "pattern": {"kind": "ramp", "startRps": 200, "endRps": 1000}}) == 200
+    trace = {"kind": "trace", "points": [[0, 100], [10, 100], [11, 1000], [20, 1000], [21, 100]]}
+    assert base_rps({**wl, "pattern": trace}) == pytest.approx(100)
+
+
+def test_ttl_miss_shares_follow_the_load_reaching_each_cache() -> None:
+    from archsim_engine.scenarios import normalize_document
+
+    d = load_document(load_example("retry-storm-ttl-cache.json"))
+    shares = ttl_miss_shares(normalize_document(d, REGISTRY), REGISTRY)
+    assert set(shares) == {"cache"} and 0 < shares["cache"] < 1
+    # at a lower rate each key is read less often, so more reads find it expired
+    low = ttl_miss_shares(normalize_document(d, REGISTRY), REGISTRY, rate=10)
+    assert low["cache"] > shares["cache"]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -201,3 +237,17 @@ def test_estimate_ignores_scenario_free_copies() -> None:
     """The estimate is a pure function of the resolved document."""
     d = load_example("cache-aside-starter.json")
     assert estimate_of(d) == estimate_of(copy.deepcopy(d))
+
+
+def test_a_gateway_near_its_rate_limit_is_not_reported_busy() -> None:
+    """Black Friday's API gateway carries 75% of its rate limit at the peak, but hardly any of its
+    connections are busy (the simulation measures about 1%): the estimate says both, apart."""
+    estimate = analyze_document(load_example("black-friday-kubernetes.json"), REGISTRY)["estimate"]
+    gw = next(p for p in estimate["parts"] if p["id"] == "gateway")
+    assert gw["utilization"] < 0.05
+    assert gw["rateLimitShare"] == pytest.approx(0.75, abs=0.01)
+    assert gw["load"] == gw["rateLimitShare"] and gw["limitedBy"] == "rate limit"
+    assert estimate["busiest"]["id"] != "gateway"
+    assert "uses 75% of its rate limit" in estimate["summary"]
+    # the rate limit still sets where the design turns requests away
+    assert estimate["saturationRps"] == pytest.approx(estimate["atRps"] / 0.75, rel=0.01)

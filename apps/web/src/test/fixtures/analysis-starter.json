@@ -8,26 +8,37 @@
       "lb": {
         "specs": {
           "cpuCores": {
-            "value": 1.0,
+            "value": 2.0,
             "source": "auto"
           },
           "memoryGib": {
-            "value": 2.0,
+            "value": 1.0,
             "source": "auto"
           }
         },
         "auto": {
-          "cpuCores": 1.0,
-          "memoryGib": 2.0,
+          "cpuCores": 2.0,
+          "memoryGib": 1.0,
           "storageGib": null
         },
         "peakRps": 400.0,
         "why": {
-          "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative); snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
-          "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative); snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it"
+          "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative); snapped to t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.05 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.05 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest compute type has)",
+          "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative); snapped to t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.05 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.05 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest compute type has)"
         },
-        "pricePerHour": 0.034,
-        "sku": "c6g.medium"
+        "pricePerHour": 0.0084,
+        "sku": "t4g.micro",
+        "need": {
+          "busyCores": 0.048,
+          "cpuCores": 0.08,
+          "memoryGib": 0.33,
+          "baseBusyCores": 0.048
+        },
+        "needText": {
+          "cpuCores": "needs 0.08 vCPU (0.05 busy at the peak, at a 60% target) \u00b7 t4g.micro has 2 vCPU",
+          "memoryGib": "needs 338 MiB \u00b7 t4g.micro has 1 GiB"
+        },
+        "smallest": true
       },
       "api": {
         "specs": {
@@ -47,11 +58,22 @@
         },
         "peakRps": 400.0,
         "why": {
-          "cpuCores": "200 req/s per replica at peak (400 over 2) \u00d7 10.2 ms of CPU each = 2.03 cores busy; at a 60% target that is 3.39 \u2192 4 vCPU; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
-          "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB, +25% headroom; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it"
+          "cpuCores": "200 req/s per replica at peak (400 over 2) \u00d7 10.2 ms of CPU each = 2.03 cores busy; at a 60% target that is 3.39 \u2192 4 vCPU; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
+          "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
         },
         "pricePerHour": 0.136,
-        "sku": "c6g.xlarge"
+        "sku": "c6g.xlarge",
+        "need": {
+          "busyCores": 2.0339,
+          "cpuCores": 3.3898,
+          "memoryGibMax": 0.6074,
+          "baseBusyCores": 2.0339,
+          "memoryGib": 0.5073
+        },
+        "needText": {
+          "cpuCores": "needs 3.39 vCPU (2.03 busy at the peak, at a 60% target) \u00b7 c6g.xlarge has 4 vCPU",
+          "memoryGib": "needs 520 MiB (up to 622 MiB when queues are full) \u00b7 c6g.xlarge has 8 GiB"
+        }
       },
       "cache": {
         "specs": {
@@ -60,22 +82,33 @@
             "source": "auto"
           },
           "memoryGib": {
-            "value": 6.38,
+            "value": 0.5,
             "source": "auto"
           }
         },
         "auto": {
           "cpuCores": 2.0,
-          "memoryGib": 6.38,
+          "memoryGib": 0.5,
           "storageGib": null
         },
         "peakRps": 472.0,
         "why": {
-          "cpuCores": "472 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.04 \u2192 1 vCPU; snapped to cache.m6g.large (2 vCPU, 6.38 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
-          "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom; snapped to cache.m6g.large (2 vCPU, 6.38 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it"
+          "cpuCores": "472 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.04 \u2192 1 vCPU; snapped to cache.t4g.micro (2 vCPU, 512 MiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.02 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.02 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest cache type has)",
+          "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom; snapped to cache.t4g.micro (2 vCPU, 512 MiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.02 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.02 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest cache type has)"
         },
-        "pricePerHour": 0.149,
-        "sku": "cache.m6g.large"
+        "pricePerHour": 0.016,
+        "sku": "cache.t4g.micro",
+        "need": {
+          "busyCores": 0.0236,
+          "cpuCores": 0.0393,
+          "memoryGib": 0.1192,
+          "baseBusyCores": 0.0236
+        },
+        "needText": {
+          "cpuCores": "needs 0.04 vCPU (0.02 busy at the peak, at a 60% target) \u00b7 cache.t4g.micro has 2 vCPU",
+          "memoryGib": "needs 122 MiB \u00b7 cache.t4g.micro has 512 MiB"
+        },
+        "smallest": true
       },
       "db": {
         "specs": {
@@ -99,17 +132,30 @@
         },
         "peakRps": 112.0,
         "why": {
-          "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
-          "memoryGib": "4 GiB per vCPU, a common database ratio (illustrative); set a hot working set to size the buffer cache; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-27) that covers it",
+          "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest database type has)",
+          "memoryGib": "24 MiB of hot data per instance (25% of the 95 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 182 MiB for 20 connections (RDS's default: 9,531,392 bytes each) and 1 GiB in all; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest database type has)",
           "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
         },
-        "pricePerHour": 0.1601,
-        "sku": "db.m6g.large"
+        "pricePerHour": 0.1606,
+        "sku": "db.m6g.large",
+        "need": {
+          "busyCores": 0.542,
+          "cpuCores": 0.9034,
+          "memoryGib": 0.1775,
+          "storageGib": 0.0931,
+          "baseBusyCores": 0.542
+        },
+        "needText": {
+          "cpuCores": "needs 0.9 vCPU (0.54 busy at the peak, at a 60% target) \u00b7 db.m6g.large has 2 vCPU",
+          "memoryGib": "needs 182 MiB \u00b7 db.m6g.large has 8 GiB",
+          "storageGib": "stores 95 MiB \u00b7 db.m6g.large has 10 GiB"
+        },
+        "smallest": true
       }
     }
   },
   "cost": {
-    "monthly": 449.02299999999997,
+    "monthly": 333.61,
     "perMillionRequests": null,
     "byNode": [
       {
@@ -124,7 +170,7 @@
         "monthly": 198.56,
         "basis": "2 replicas",
         "sku": "c6g.xlarge",
-        "snapshotDate": "2026-10-27"
+        "snapshotDate": "2026-10-28"
       },
       {
         "id": "db",
@@ -132,13 +178,13 @@
         "type": "database",
         "technology": "postgresql",
         "instances": 1.0,
-        "unitPrice": 0.1601,
+        "unitPrice": 0.1606,
         "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 116.87299999999999,
+        "monthly": 117.238,
         "basis": "1 node",
         "sku": "db.m6g.large",
-        "snapshotDate": "2026-10-27"
+        "snapshotDate": "2026-10-28"
       },
       {
         "id": "cache",
@@ -146,13 +192,13 @@
         "type": "cache",
         "technology": "redis",
         "instances": 1.0,
-        "unitPrice": 0.149,
+        "unitPrice": 0.016,
         "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 108.77,
+        "monthly": 11.68,
         "basis": "1 node",
-        "sku": "cache.m6g.large",
-        "snapshotDate": "2026-10-27"
+        "sku": "cache.t4g.micro",
+        "snapshotDate": "2026-10-28"
       },
       {
         "id": "lb",
@@ -160,17 +206,18 @@
         "type": "load_balancer",
         "technology": "generic",
         "instances": 1.0,
-        "unitPrice": 0.034,
+        "unitPrice": 0.0084,
         "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 24.82,
+        "monthly": 6.132,
         "basis": "1 node",
-        "sku": "c6g.medium",
-        "snapshotDate": "2026-10-27"
+        "sku": "t4g.micro",
+        "snapshotDate": "2026-10-28"
       }
     ],
     "notes": [
-      "Prices: aws us-east-1, on-demand list prices of 2026-10-27 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (burstable types only when their family is named); discounts, data transfer and load balancer capacity units are not included."
+      "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+      "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
     ],
     "hasCost": true,
     "currency": "USD",
@@ -181,12 +228,23 @@
       "serverlessGbSecond": 1.66667e-05,
       "serverlessPerMillionRequests": 0.2,
       "queuePerMillionRequests": 0.4,
-      "loadBalancerHour": 0.0225
+      "loadBalancerHour": 0.0225,
+      "loadBalancerLcuHour": 0.008,
+      "networkLoadBalancerHour": 0.0225,
+      "networkLoadBalancerLcuHour": 0.006,
+      "dynamodbReadPerMillion": 0.125,
+      "dynamodbWritePerMillion": 0.625,
+      "dynamodbRcuHour": 0.00013,
+      "dynamodbWcuHour": 0.00065,
+      "dynamodbStorageGibMonth": 0.25,
+      "apiGatewayPerMillion": 3.5,
+      "rdsStorageGibMonth": 0.115,
+      "kubernetesControlPlaneHour": 0.1
     },
     "pricing": {
       "provider": "aws",
       "region": "us-east-1",
-      "snapshotDate": "2026-10-27",
+      "snapshotDate": "2026-10-28",
       "currency": "USD",
       "illustrative": false,
       "sources": [
@@ -195,8 +253,8 @@
           "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
         }
       ],
-      "note": "Offer file versions: AmazonEC2 20261023221355, AmazonRDS 20261026214716, AmazonElastiCache 20261014221139, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subject to the terms included at https://aws.amazon.com/free/",
-      "sha256": "3c2b02c1f86a7cb561b9454ea085cdddaebdede673df3f4370e66c4d5738c8dc",
+      "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+      "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
       "purchaseOption": "on_demand",
       "families": []
     }
@@ -817,9 +875,12 @@
         "utilization": 0.0008,
         "slotUtilization": 0.0008,
         "cpuUtilization": null,
+        "rateLimitShare": null,
+        "load": 0.0008,
         "limitedBy": "slots",
         "waitProbability": 0.0,
         "meanWaitMs": 0.0,
+        "meanResidenceMs": 19.601,
         "perRequestMs": 0.2
       },
       {
@@ -836,9 +897,12 @@
         "utilization": 0.6967,
         "slotUtilization": 0.6967,
         "cpuUtilization": 0.5085,
+        "rateLimitShare": null,
+        "load": 0.6967,
         "limitedBy": "slots",
         "waitProbability": 0.4236,
         "meanWaitMs": 4.867,
+        "meanResidenceMs": 18.801,
         "perRequestMs": 15.036
       },
       {
@@ -855,9 +919,12 @@
         "utilization": 0.0236,
         "slotUtilization": 0.0236,
         "cpuUtilization": 0.0118,
+        "rateLimitShare": null,
+        "load": 0.0236,
         "limitedBy": "slots",
         "waitProbability": 0.0236,
         "meanWaitMs": 0.001,
+        "meanResidenceMs": 0.051,
         "perRequestMs": 0.06
       },
       {
@@ -874,9 +941,12 @@
         "utilization": 0.2835,
         "slotUtilization": 0.0567,
         "cpuUtilization": 0.2835,
+        "rateLimitShare": null,
+        "load": 0.2835,
         "limitedBy": "cpu",
         "waitProbability": 0.0,
         "meanWaitMs": 0.0,
+        "meanResidenceMs": 10.126,
         "perRequestMs": 2.835
       }
     ],

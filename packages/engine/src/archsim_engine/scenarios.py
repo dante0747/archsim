@@ -128,6 +128,7 @@ def resolve_scenario_sized(
                 ]
             )
         base = apply_overrides(base, scenario.overrides, f"Scenario '{scenario.name}'")
+        _drop_stale_instance_types(base, doc, scenario)
     base["scenarios"] = []
     base["layout"] = {"nodes": {}}
     try:
@@ -135,6 +136,32 @@ def resolve_scenario_sized(
     except ValidationError as exc:
         raise DocumentInvalidError(pydantic_issues(exc, base)) from None
     return resolved, scenario, sizes
+
+
+def _drop_stale_instance_types(
+    resolved: dict[str, Any], doc: ArchitectureDocument, scenario: Scenario
+) -> None:
+    """A scenario that changes a part's CPU or memory gets the instance type that fits its new
+    size, not the one auto-sizing chose for the design as drawn (an instance type set on the
+    part, or by the scenario, is kept)."""
+    resized = {
+        o.target.id
+        for o in scenario.overrides
+        if o.target.kind == "node" and o.path in ("cpuCores", "memoryGib")
+    }
+    named = {
+        o.target.id
+        for o in scenario.overrides
+        if o.target.kind == "node" and o.path == "instanceType"
+    }
+    for n in resolved["architecture"]["nodes"]:
+        own = doc.node(n["id"])
+        if (
+            n["id"] in resized
+            and n["id"] not in named
+            and not (own is not None and own.config.get("instanceType"))
+        ):
+            (n.get("config") or {}).pop("instanceType", None)
 
 
 def simulation_input(resolved: ArchitectureDocument) -> dict[str, Any]:
