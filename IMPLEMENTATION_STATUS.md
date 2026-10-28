@@ -1,11 +1,30 @@
 # Implementation status
 
-State as of 2026-10-27 (engine 0.12.0, schema 1.3, report 1.14). This file separates what is
+State as of 2026-10-28 (engine 0.12.0, schema 1.3, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**CPU and memory against real stacks (2026-10-28; sizing plan W16).**
+
+- The benchmark runner reads each container's CPU time and working set (cgroup v2: memory less
+  reclaimable page cache) every 5 s inside the window k6 measures (`ResourceSampler`; from the
+  host on Linux, through `docker exec` on Docker Desktop). The benchmark designs give the service
+  and Redis a memory size that never binds, so the model reports the memory it predicts;
+  latency predictions are unchanged. `comparison.json` gains measured against predicted busy
+  cores and memory per part at every step, and median errors up to the measured knee.
+- Run 4's results recorded CPU only over the whole k6 command (4% to 67% longer than the load):
+  they are scaled to the window by the service's own CPU counter, and their predicted CPU was
+  simulated again from the stored calibration (`run.py resources`, `resources-predicted.json`;
+  `predictions.json` untouched).
+- `docs/validation.md` has a generated "Resources: CPU and memory" table and notes; `/accuracy`
+  has a "CPU and memory" section (a card per experiment, every step, what is not modelled) and a
+  line in the short version. Up to the knee, the predicted CPU was off by a median of 8%
+  (PostgreSQL, mixed) to 88% (Redis): too high for the Node.js services (37% to 75%), too low
+  for Redis (command time only). Memory needs a new benchmark run (about 1.5 hours on GitHub
+  Actions), not run yet.
 
 **Seed ranges and quick checks (2026-10-27, migration 0006, report 1.14; inspection report C-1, H-2 part).**
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -234,10 +235,8 @@ def test_committed_comparisons_are_reproduced_by_compare() -> None:
     dirs = run.result_dirs()
     assert len(dirs) == 10
     for exp, d in dirs:
-        pred = json.loads((d / "predictions.json").read_text(encoding="utf-8"))
-        meas = json.loads((d / "measured.json").read_text(encoding="utf-8"))
         committed = json.loads((d / "comparison.json").read_text(encoding="utf-8"))
-        assert run.compare(run.EXPERIMENTS[exp], pred, meas) == committed, d
+        assert run.comparison_of(exp, d) == committed, d
 
 
 def test_recompare_writes_every_comparison(tmp_path: Path) -> None:
@@ -250,6 +249,229 @@ def test_recompare_writes_every_comparison(tmp_path: Path) -> None:
     rows = {r["offeredRps"]: r for r in latest["rows"]}
     assert rows[1126]["measured"]["p95"] is None  # two of three repeats had no success
     assert rows[1126]["failedRepeats"] == 2
+
+
+# ---------------------------------------------------------------------------------------------
+# CPU and memory
+# ---------------------------------------------------------------------------------------------
+
+CGROUP = """usage_usec 2500000
+user_usec 2000000
+system_usec 500000
+anon 104857600
+file 52428800
+active_file 20971520
+inactive_file 31457280
+shmem 0
+188743680
+"""
+
+
+def test_reading_takes_the_working_set_without_reclaimable_cache() -> None:
+    r = run.reading(10.0, CGROUP)
+    assert r.usage_usec == 2_500_000
+    assert r.anon == 100 * 2**20
+    assert r.working_set == 188_743_680 - 31_457_280  # memory.current - inactive_file
+
+
+def test_reading_without_counters() -> None:
+    assert run.reading(1.0, "") == run.Reading(1.0, None, None, None)
+
+
+def test_window_resources() -> None:
+    readings = [
+        run.Reading(0.0, 0, 100 * 2**20, 80 * 2**20),
+        run.Reading(5.0, 2_000_000, 120 * 2**20, 90 * 2**20),
+        run.Reading(10.0, 6_000_000, 110 * 2**20, 85 * 2**20),
+    ]
+    assert run.window_resources(readings) == {
+        "cores": 0.6,  # 6 s of CPU over 10 s
+        "maxCores": 0.8,  # 4 s over the second 5 s
+        "workingSetMiB": 120.0,
+        "anonMiB": 90.0,
+    }
+    assert run.window_resources(readings[:1]) == {"workingSetMiB": 100.0, "anonMiB": 80.0}
+    assert run.window_resources([]) is None
+
+
+def test_run_resources_scales_old_repeats_by_the_services_own_cpu() -> None:
+    old = {
+        **repeat(2.0, sent=2000),  # 100 req/s over the 20 s window
+        "serviceCpuMsPerRequest": 3.0,  # so 0.3 busy cores
+        "containerCpuShare": {"api": 0.25, "postgres": 0.1},  # over a longer k6 command
+    }
+    res = run.run_resources(old)
+    assert res is not None and res["method"] == "scaled"
+    assert res["containers"]["api"]["cores"] == pytest.approx(0.3)
+    assert res["containers"]["postgres"]["cores"] == pytest.approx(0.12)
+    sampled = {**old, "resources": {"method": "window", "containers": {"api": {"cores": 0.31}}}}
+    assert run.run_resources(sampled) == sampled["resources"]
+    assert run.run_resources(repeat(2.0)) is None  # nothing recorded
+
+
+def test_aggregate_takes_the_median_of_each_containers_resources() -> None:
+    def sampled(cores: float, mem: float) -> dict[str, Any]:
+        containers = {"api": {"cores": cores, "workingSetMiB": mem}, "redis": {"cores": cores / 10}}
+        return {**repeat(2.0), "resources": {"method": "window", "containers": containers}}
+
+    out = run.aggregate([sampled(0.5, 90), sampled(0.7, 70), sampled(0.6, 80)])
+    assert out["resources"] == {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+            "api": {"cores": 0.6, "workingSetMiB": 80.0},
+            "redis": {"cores": 0.06},
+        },
+    }
+    assert "resources" not in run.aggregate([repeat(2.0)])
+
+
+def test_resource_sampler_reads_inside_the_measured_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(run, "WARMUP_S", 0)
+    monkeypatch.setattr(run, "DURATION_S", 2.0)  # the window ends a second early: 1 s long
+    monkeypatch.setattr(run, "SAMPLE_S", 0.5)
+    monkeypatch.setattr(run, "container", lambda service: f"id-{service}")
+    monkeypatch.setattr(run, "http_json", lambda url, method="GET": {"requests": 1})
+    start = time.time()
+
+    def read(cid: str) -> run.Reading:
+        t = time.time()
+        return run.Reading(t, int((t - start) * 400_000), 50 * 2**20, 40 * 2**20)  # 0.4 cores
+
+    monkeypatch.setattr(run, "read_cgroup", read)
+    with run.ResourceSampler(["api", "postgres"]) as sampler:
+        time.sleep(1.6)
+    res = sampler.result()
+    assert res is not None and res["method"] == "window"
+    assert res["readings"] == 3  # at 0, 0.5 and 1 s
+    assert set(res["containers"]) == {"api", "postgres"}
+    assert res["containers"]["api"]["cores"] == pytest.approx(0.4, abs=0.02)
+    assert res["containers"]["api"]["workingSetMiB"] == 50.0
+
+
+def test_resource_sampler_without_load_records_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(run, "container", lambda service: f"id-{service}")
+    monkeypatch.setattr(run, "http_json", lambda url, method="GET": {"requests": 0})
+    with run.ResourceSampler(["api"]) as sampler:
+        pass
+    assert sampler.result() is None
+
+
+def test_node_resources() -> None:
+    doc = {
+        "architecture": {
+            "nodes": [
+                {"id": "api", "config": {"cpuCores": 1, "memoryGib": 1024}},
+                {"id": "db", "config": {"cpuCores": 2}},
+                {"id": "cache", "config": {"cpuCores": 1, "itemSizeKb": 1.0}},
+                {"id": "kafka", "config": {}},
+            ]
+        }
+    }
+    result = {
+        "nodes": [
+            {"id": "api", "summary": {"cpuCoreUtilization": 0.5, "memoryPeakGiB": 0.25}},
+            {"id": "db", "summary": {"cpuCoreUtilization": 0.1}},
+            {"id": "cache", "summary": {"cpuCoreUtilization": 0.02, "keysCached": 2048}},
+            {"id": "kafka", "summary": {}},
+        ]
+    }
+    assert run.node_resources(doc, result) == {
+        "api": {"cores": 0.5, "memoryMiB": 256.0},
+        "db": {"cores": 0.2},
+        "cache": {"cores": 0.02, "memoryMiB": 2.0},
+    }
+
+
+def with_resources(row: dict[str, Any], api: float, db: float) -> dict[str, Any]:
+    containers = {"api": {"cores": api, "workingSetMiB": 100.0}, "postgres": {"cores": db}}
+    return {**row, "resources": {"method": "window", "containers": containers}}
+
+
+def test_compare_resources() -> None:
+    predictions, measured = synthetic()
+    for i, s in enumerate(predictions["steps"]):
+        s["resources"] = {"api": {"cores": 0.2 * (i + 1), "memoryMiB": 260.0}, "db": {"cores": 0.1}}
+    for i, step in enumerate(measured["steps"]):
+        step["runs"] = [with_resources(r, 0.1 * (i + 1), 0.1) for r in step["runs"]]
+    c = run.compare(PG_MIXED, predictions, measured)
+    rows = {r["offeredRps"]: r for r in c["rows"]}
+    api = rows[100]["resources"]["api"]
+    assert api["measured"] == {"cores": 0.2, "memoryMiB": 100.0}
+    assert api["predicted"] == {"cores": 0.4, "memoryMiB": 260.0}
+    assert api["error"]["cores"] == pytest.approx(1.0)
+    assert api["error"]["memory"] == pytest.approx(1.6)
+    assert rows[100]["resources"]["postgres"]["error"]["cores"] == pytest.approx(0.0)
+    assert c["resources"]["measuredBy"] == "window"
+    assert c["resources"]["predictedBy"] == "predictions"
+    below = c["resources"]["belowKnee"]  # the four steps at or below the 300 req/s knee
+    assert below["api"]["steps"] == 4
+    assert below["api"]["medianAbsCoresError"] == pytest.approx(1.0)
+    assert below["postgres"]["medianAbsCoresError"] == pytest.approx(0.0)
+    assert below["postgres"]["medianAbsMemoryError"] is None
+
+
+def test_compare_resources_from_a_later_simulation() -> None:
+    predictions, measured = synthetic()
+    for step in measured["steps"]:
+        step["runs"] = [with_resources(r, 0.5, 0.1) for r in step["runs"]]
+    later = {
+        "engineVersion": "9.9.9",
+        "at": "2026-10-28T00:00:00Z",
+        "how": "simulated again",
+        "steps": [
+            {"offeredRps": s["offeredRps"], "resources": {"api": {"cores": 0.25}}}
+            for s in predictions["steps"]
+        ],
+    }
+    c = run.compare(PG_MIXED, predictions, measured, later)
+    assert c["resources"]["predictedBy"] == {
+        "engineVersion": "9.9.9",
+        "at": "2026-10-28T00:00:00Z",
+        "how": "simulated again",
+    }
+    assert c["rows"][0]["resources"]["api"]["error"]["cores"] == pytest.approx(-0.5)
+    assert c["rows"][0]["resources"]["postgres"]["predicted"]["cores"] is None
+    # without any prediction of CPU or memory: latency alone, as for the older kept runs
+    bare = run.compare(PG_MIXED, predictions, measured)
+    assert "resources" not in bare and all("resources" not in r for r in bare["rows"])
+
+
+def test_resources_on_the_committed_results() -> None:
+    data = report.accuracy()
+    assert data is not None
+    by = {x["id"]: x["resources"] for x in data["experiments"]}
+    assert all(r is not None and r["measuredBy"] == "scaled" for r in by.values())
+    assert all(r["predictedBy"] == "re-simulated" and not r["memoryMeasured"] for r in by.values())
+    parts = {p["container"]: p for p in by["cache-aside"]["parts"]}
+    assert list(parts) == ["api", "postgres", "redis"]
+    assert by["cache-aside"]["topRps"] == 3795
+    assert parts["redis"]["top"]["text"]["coresError"] == "-87%"
+    kafka = {p["container"]: p for p in by["kafka"]["parts"]}
+    assert not kafka["kafka"]["modelled"]["cores"]
+    assert kafka["kafka"]["notModelled"]["cores"] == report.NOT_MODELLED["kafka"]
+    assert kafka["postgres"]["notModelled"]["memory"] == report.NO_MEMORY_MODEL["postgres"]
+    cmps = [c for e in report.ORDER if (c := report.load(e, "comparison"))]
+    block = report.resources_block(cmps)
+    assert "| [cache-aside](#cache-aside) | Redis | 3,795 | 0.16 | 0.02 | -87% | 88% (6) |" in block
+    assert "Memory measured" not in block  # no memory was measured in these runs
+
+
+def test_resources_block_shows_memory_once_measured() -> None:
+    predictions, measured = synthetic()
+    for s in predictions["steps"]:
+        s["resources"] = {"api": {"cores": 0.4, "memoryMiB": 260.0}}
+    for step in measured["steps"]:
+        step["runs"] = [with_resources(r, 0.2, 0.1) for r in step["runs"]]
+    block = report.resources_block([run.compare(PG_MIXED, predictions, measured)])
+    assert "| Memory measured | Memory predicted | Error |" in block
+    assert (
+        "| [pg-mixed](#pg-mixed) | Node.js service | 300 | 0.20 | 0.40 | +100% | 100% (4) "
+        "| 100 MiB | 260 MiB | +160% |"
+    ) in block
+    assert "| PostgreSQL | 300 | 0.10 | - | - | - | - | - | - |" in block
 
 
 # ---------------------------------------------------------------------------------------------

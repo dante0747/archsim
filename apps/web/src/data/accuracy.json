@@ -441,6 +441,427 @@
           }
         }
       ],
+      "resources": {
+        "measuredBy": "scaled",
+        "measuredByText": "each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured)",
+        "predictedBy": "re-simulated",
+        "predictedByText": "simulated again with engine 0.12.0 on 2026-10-28 from each run's calibration alone, because the original predictions did not record CPU or memory (the latency predictions are the original ones)",
+        "predictedEngineVersion": "0.12.0",
+        "memoryMeasured": false,
+        "topRps": 2268,
+        "parts": [
+          {
+            "container": "api",
+            "name": "Node.js service",
+            "modelled": {
+              "cores": true,
+              "memory": true
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": null
+            },
+            "belowKnee": {
+              "steps": 6,
+              "medianAbsCoresError": 0.6508397154086933,
+              "maxAbsCoresError": 1.3077634011090573,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.6327,
+              "predictedCores": 1.0,
+              "coresError": 0.5805278963173699,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": 10118.1,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.63",
+                "predictedCores": "1.00",
+                "coresError": "+58%",
+                "measuredMemory": "-",
+                "predictedMemory": "9.9 GiB",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "65%",
+              "maxAbsCoresError": "131%",
+              "medianAbsMemoryError": "-"
+            }
+          },
+          {
+            "container": "postgres",
+            "name": "PostgreSQL",
+            "modelled": {
+              "cores": true,
+              "memory": false
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": "the model has no database memory figure yet"
+            },
+            "belowKnee": {
+              "steps": 6,
+              "medianAbsCoresError": 0.0777091160533488,
+              "maxAbsCoresError": 0.5114155251141552,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.5837,
+              "predictedCores": 0.5314,
+              "coresError": -0.0896008223402433,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": null,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.58",
+                "predictedCores": "0.53",
+                "coresError": "-9%",
+                "measuredMemory": "-",
+                "predictedMemory": "-",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "8%",
+              "maxAbsCoresError": "51%",
+              "medianAbsMemoryError": "-"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "offeredRps": 516,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "516"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.144,
+                "predictedCores": 0.2501,
+                "coresError": 0.7368055555555556,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 262.1,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.14",
+                  "predictedCores": "0.25",
+                  "coresError": "+74%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "262 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1077,
+                "predictedCores": 0.1324,
+                "coresError": 0.2293407613741874,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.11",
+                  "predictedCores": "0.13",
+                  "coresError": "+23%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1031,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "1,031"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.2164,
+                "predictedCores": 0.4994,
+                "coresError": 1.3077634011090573,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 266.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.22",
+                  "predictedCores": "0.50",
+                  "coresError": "+131%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "266 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1752,
+                "predictedCores": 0.2648,
+                "coresError": 0.5114155251141552,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.18",
+                  "predictedCores": "0.26",
+                  "coresError": "+51%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1546,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "1,546"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.4916,
+                "predictedCores": 0.7459,
+                "coresError": 0.5172904800650936,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 270.3,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.49",
+                  "predictedCores": "0.75",
+                  "coresError": "+52%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "270 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.4239,
+                "predictedCores": 0.396,
+                "coresError": -0.06581740976645431,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.42",
+                  "predictedCores": "0.40",
+                  "coresError": "-7%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1856,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "1,856"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.5389,
+                "predictedCores": 0.8961,
+                "coresError": 0.6628316941918722,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 283.6,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.54",
+                  "predictedCores": "0.90",
+                  "coresError": "+66%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "284 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.4759,
+                "predictedCores": 0.476,
+                "coresError": 0.00021012817818867198,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.48",
+                  "predictedCores": "0.48",
+                  "coresError": "+0%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 2062,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "2,062"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.6075,
+                "predictedCores": 0.9956,
+                "coresError": 0.6388477366255144,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 409.6,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.61",
+                  "predictedCores": "1.00",
+                  "coresError": "+64%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "410 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.5293,
+                "predictedCores": 0.529,
+                "coresError": -0.0005667863215567107,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.53",
+                  "predictedCores": "0.53",
+                  "coresError": "-0%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 2268,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "2,268"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.6327,
+                "predictedCores": 1.0,
+                "coresError": 0.5805278963173699,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 10118.1,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.63",
+                  "predictedCores": "1.00",
+                  "coresError": "+58%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "9.9 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.5837,
+                "predictedCores": 0.5314,
+                "coresError": -0.0896008223402433,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.58",
+                  "predictedCores": "0.53",
+                  "coresError": "-9%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 2578,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "2,578"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.7112,
+                "predictedCores": 1.0,
+                "coresError": 0.4060742407199099,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 25616.4,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.71",
+                  "predictedCores": "1.00",
+                  "coresError": "+41%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "25.0 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.8169,
+                "predictedCores": 0.5314,
+                "coresError": -0.3494919818827274,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.82",
+                  "predictedCores": "0.53",
+                  "coresError": "-35%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 3093,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "3,093"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.8542,
+                "predictedCores": 1.0,
+                "coresError": 0.17068602200889726,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 51365.9,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.85",
+                  "predictedCores": "1.00",
+                  "coresError": "+17%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "50.2 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.8542,
+                "predictedCores": 0.5314,
+                "coresError": -0.377897447904472,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.85",
+                  "predictedCores": "0.53",
+                  "coresError": "-38%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          }
+        ]
+      },
       "environment": {
         "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
         "os": "Windows-11-10.0.26200-SP0",
@@ -883,6 +1304,509 @@
           }
         }
       ],
+      "resources": {
+        "measuredBy": "scaled",
+        "measuredByText": "each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured)",
+        "predictedBy": "re-simulated",
+        "predictedByText": "simulated again with engine 0.12.0 on 2026-10-28 from each run's calibration alone, because the original predictions did not record CPU or memory (the latency predictions are the original ones)",
+        "predictedEngineVersion": "0.12.0",
+        "memoryMeasured": false,
+        "topRps": 222,
+        "parts": [
+          {
+            "container": "api",
+            "name": "Node.js service",
+            "modelled": {
+              "cores": true,
+              "memory": true
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": null
+            },
+            "belowKnee": {
+              "steps": 2,
+              "medianAbsCoresError": 0.26632528094521973,
+              "maxAbsCoresError": 0.44910941475826976,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.0802,
+              "predictedCores": 0.0869,
+              "coresError": 0.08354114713216973,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": 260.1,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.08",
+                "predictedCores": "0.09",
+                "coresError": "+8%",
+                "measuredMemory": "-",
+                "predictedMemory": "260 MiB",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "27%",
+              "maxAbsCoresError": "45%",
+              "medianAbsMemoryError": "-"
+            }
+          },
+          {
+            "container": "postgres",
+            "name": "PostgreSQL",
+            "modelled": {
+              "cores": true,
+              "memory": false
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": "the model has no database memory figure yet"
+            },
+            "belowKnee": {
+              "steps": 2,
+              "medianAbsCoresError": 0.5788549595743135,
+              "maxAbsCoresError": 0.7244546498277841,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.0854,
+              "predictedCores": 0.0484,
+              "coresError": -0.43325526932084313,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": null,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.09",
+                "predictedCores": "0.05",
+                "coresError": "-43%",
+                "measuredMemory": "-",
+                "predictedMemory": "-",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "58%",
+              "maxAbsCoresError": "72%",
+              "medianAbsMemoryError": "-"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "offeredRps": 111,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "111"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.0786,
+                "predictedCores": 0.0433,
+                "coresError": -0.44910941475826976,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 258.0,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.08",
+                  "predictedCores": "0.04",
+                  "coresError": "-45%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "258 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.0871,
+                "predictedCores": 0.024,
+                "coresError": -0.7244546498277841,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.09",
+                  "predictedCores": "0.02",
+                  "coresError": "-72%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 222,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "222"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.0802,
+                "predictedCores": 0.0869,
+                "coresError": 0.08354114713216973,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 260.1,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.08",
+                  "predictedCores": "0.09",
+                  "coresError": "+8%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "260 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.0854,
+                "predictedCores": 0.0484,
+                "coresError": -0.43325526932084313,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.09",
+                  "predictedCores": "0.05",
+                  "coresError": "-43%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 333,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "333"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.1512,
+                "predictedCores": 0.1318,
+                "coresError": -0.1283068783068783,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 260.1,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.15",
+                  "predictedCores": "0.13",
+                  "coresError": "-13%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "260 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1849,
+                "predictedCores": 0.0728,
+                "coresError": -0.6062736614386155,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.18",
+                  "predictedCores": "0.07",
+                  "coresError": "-61%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 400,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "400"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.1065,
+                "predictedCores": 0.1584,
+                "coresError": 0.487323943661972,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 264.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.11",
+                  "predictedCores": "0.16",
+                  "coresError": "+49%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "264 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.107,
+                "predictedCores": 0.0878,
+                "coresError": -0.17943925233644856,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.11",
+                  "predictedCores": "0.09",
+                  "coresError": "-18%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 444,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "444"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.1219,
+                "predictedCores": 0.1752,
+                "coresError": 0.4372436423297785,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 304.1,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.12",
+                  "predictedCores": "0.18",
+                  "coresError": "+44%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "304 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.125,
+                "predictedCores": 0.0976,
+                "coresError": -0.21919999999999995,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.12",
+                  "predictedCores": "0.10",
+                  "coresError": "-22%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 488,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "488"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.1226,
+                "predictedCores": 0.1923,
+                "coresError": 0.5685154975530179,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 2469.9,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.12",
+                  "predictedCores": "0.19",
+                  "coresError": "+57%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "2.4 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1237,
+                "predictedCores": 0.0978,
+                "coresError": -0.20937752627324177,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.12",
+                  "predictedCores": "0.10",
+                  "coresError": "-21%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 555,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "555"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.1409,
+                "predictedCores": 0.2195,
+                "coresError": 0.5578424414478353,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 5820.4,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.14",
+                  "predictedCores": "0.22",
+                  "coresError": "+56%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "5.7 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1461,
+                "predictedCores": 0.0978,
+                "coresError": -0.3305954825462013,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.15",
+                  "predictedCores": "0.10",
+                  "coresError": "-33%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 666,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "666"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.1516,
+                "predictedCores": 0.2635,
+                "coresError": 0.738126649076517,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 11370.5,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.15",
+                  "predictedCores": "0.26",
+                  "coresError": "+74%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "11.1 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1547,
+                "predictedCores": 0.0978,
+                "coresError": -0.367808661926309,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.15",
+                  "predictedCores": "0.10",
+                  "coresError": "-37%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 866,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "866"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.2004,
+                "predictedCores": 0.3429,
+                "coresError": 0.7110778443113772,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 21369.9,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.20",
+                  "predictedCores": "0.34",
+                  "coresError": "+71%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "20.9 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.2211,
+                "predictedCores": 0.0978,
+                "coresError": -0.5576662143826323,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.22",
+                  "predictedCores": "0.10",
+                  "coresError": "-56%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1126,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "1,126"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.5447,
+                "predictedCores": 0.4438,
+                "coresError": -0.18523958142096567,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 34367.5,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.54",
+                  "predictedCores": "0.44",
+                  "coresError": "-19%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "33.6 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.6566,
+                "predictedCores": 0.0978,
+                "coresError": -0.8510508681084374,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.66",
+                  "predictedCores": "0.10",
+                  "coresError": "-85%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          }
+        ]
+      },
       "environment": {
         "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
         "os": "Windows-11-10.0.26200-SP0",
@@ -1272,6 +2196,652 @@
           }
         }
       ],
+      "resources": {
+        "measuredBy": "scaled",
+        "measuredByText": "each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured)",
+        "predictedBy": "re-simulated",
+        "predictedByText": "simulated again with engine 0.12.0 on 2026-10-28 from each run's calibration alone, because the original predictions did not record CPU or memory (the latency predictions are the original ones)",
+        "predictedEngineVersion": "0.12.0",
+        "memoryMeasured": false,
+        "topRps": 3795,
+        "parts": [
+          {
+            "container": "api",
+            "name": "Node.js service",
+            "modelled": {
+              "cores": true,
+              "memory": true
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": null
+            },
+            "belowKnee": {
+              "steps": 6,
+              "medianAbsCoresError": 0.36843837703042803,
+              "maxAbsCoresError": 0.5080303030303029,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.6944,
+              "predictedCores": 1.0,
+              "coresError": 0.4400921658986175,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": 16747.5,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.69",
+                "predictedCores": "1.00",
+                "coresError": "+44%",
+                "measuredMemory": "-",
+                "predictedMemory": "16.4 GiB",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "37%",
+              "maxAbsCoresError": "51%",
+              "medianAbsMemoryError": "-"
+            }
+          },
+          {
+            "container": "postgres",
+            "name": "PostgreSQL",
+            "modelled": {
+              "cores": true,
+              "memory": false
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": "the model has no database memory figure yet"
+            },
+            "belowKnee": {
+              "steps": 6,
+              "medianAbsCoresError": 0.3942325905108428,
+              "maxAbsCoresError": 0.43654822335025384,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.2009,
+              "predictedCores": 0.1192,
+              "coresError": -0.4066699850671976,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": null,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.20",
+                "predictedCores": "0.12",
+                "coresError": "-41%",
+                "measuredMemory": "-",
+                "predictedMemory": "-",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "39%",
+              "maxAbsCoresError": "44%",
+              "medianAbsMemoryError": "-"
+            }
+          },
+          {
+            "container": "redis",
+            "name": "Redis",
+            "modelled": {
+              "cores": true,
+              "memory": true
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": null
+            },
+            "belowKnee": {
+              "steps": 6,
+              "medianAbsCoresError": 0.8806751803063719,
+              "maxAbsCoresError": 0.9047619047619048,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.1578,
+              "predictedCores": 0.0202,
+              "coresError": -0.8719898605830165,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": 23.8,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.16",
+                "predictedCores": "0.02",
+                "coresError": "-87%",
+                "measuredMemory": "-",
+                "predictedMemory": "24 MiB",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "88%",
+              "maxAbsCoresError": "90%",
+              "medianAbsMemoryError": "-"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "offeredRps": 862,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "862"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.2241,
+                "predictedCores": 0.2499,
+                "coresError": 0.11512717536813931,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 260.1,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.22",
+                  "predictedCores": "0.25",
+                  "coresError": "+12%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "260 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.0767,
+                "predictedCores": 0.0446,
+                "coresError": -0.4185136897001304,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.08",
+                  "predictedCores": "0.04",
+                  "coresError": "-42%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.0588,
+                "predictedCores": 0.0056,
+                "coresError": -0.9047619047619048,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 8.0,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.06",
+                  "predictedCores": "0.01",
+                  "coresError": "-90%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "8 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1725,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "1,725"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.3617,
+                "predictedCores": 0.4975,
+                "coresError": 0.3754492673486314,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 264.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.36",
+                  "predictedCores": "0.50",
+                  "coresError": "+38%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "264 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1169,
+                "predictedCores": 0.074,
+                "coresError": -0.36698032506415745,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.12",
+                  "predictedCores": "0.07",
+                  "coresError": "-37%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.0883,
+                "predictedCores": 0.0105,
+                "coresError": -0.8810872027180069,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 13.6,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.09",
+                  "predictedCores": "0.01",
+                  "coresError": "-88%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "14 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 2588,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "2,588"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.5577,
+                "predictedCores": 0.7465,
+                "coresError": 0.3385332616101848,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 270.3,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.56",
+                  "predictedCores": "0.75",
+                  "coresError": "+34%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "270 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.1582,
+                "predictedCores": 0.0978,
+                "coresError": -0.381795195954488,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.16",
+                  "predictedCores": "0.10",
+                  "coresError": "-38%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.1358,
+                "predictedCores": 0.0154,
+                "coresError": -0.88659793814433,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 18.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.14",
+                  "predictedCores": "0.02",
+                  "coresError": "-89%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "18 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 3105,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "3,105"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.6585,
+                "predictedCores": 0.8965,
+                "coresError": 0.36142748671222474,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 279.6,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.66",
+                  "predictedCores": "0.90",
+                  "coresError": "+36%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "280 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.197,
+                "predictedCores": 0.111,
+                "coresError": -0.43654822335025384,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.20",
+                  "predictedCores": "0.11",
+                  "coresError": "-44%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.152,
+                "predictedCores": 0.0182,
+                "coresError": -0.8802631578947369,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 20.8,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.15",
+                  "predictedCores": "0.02",
+                  "coresError": "-88%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "21 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 3450,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "3,450"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.66,
+                "predictedCores": 0.9953,
+                "coresError": 0.5080303030303029,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 384.0,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.66",
+                  "predictedCores": "1.00",
+                  "coresError": "+51%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "384 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.189,
+                "predictedCores": 0.1188,
+                "coresError": -0.37142857142857144,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.19",
+                  "predictedCores": "0.12",
+                  "coresError": "-37%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.1552,
+                "predictedCores": 0.0201,
+                "coresError": -0.8704896907216494,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 22.3,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.16",
+                  "predictedCores": "0.02",
+                  "coresError": "-87%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "22 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 3795,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "3,795"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.6944,
+                "predictedCores": 1.0,
+                "coresError": 0.4400921658986175,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 16747.5,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.69",
+                  "predictedCores": "1.00",
+                  "coresError": "+44%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "16.4 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.2009,
+                "predictedCores": 0.1192,
+                "coresError": -0.4066699850671976,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.20",
+                  "predictedCores": "0.12",
+                  "coresError": "-41%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.1578,
+                "predictedCores": 0.0202,
+                "coresError": -0.8719898605830165,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 23.8,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.16",
+                  "predictedCores": "0.02",
+                  "coresError": "-87%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "24 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 4312,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "4,312"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.8184,
+                "predictedCores": 1.0,
+                "coresError": 0.22189638318670574,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 42598.4,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.82",
+                  "predictedCores": "1.00",
+                  "coresError": "+22%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "41.6 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.2552,
+                "predictedCores": 0.1192,
+                "coresError": -0.5329153605015674,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.26",
+                  "predictedCores": "0.12",
+                  "coresError": "-53%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.1683,
+                "predictedCores": 0.0202,
+                "coresError": -0.8799762329174095,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 24.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.17",
+                  "predictedCores": "0.02",
+                  "coresError": "-88%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "24 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 5175,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "5,175"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.8728,
+                "predictedCores": 1.0,
+                "coresError": 0.14573785517873508,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 85745.7,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.87",
+                  "predictedCores": "1.00",
+                  "coresError": "+15%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "83.7 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.2627,
+                "predictedCores": 0.1192,
+                "coresError": -0.5462504758279406,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.26",
+                  "predictedCores": "0.12",
+                  "coresError": "-55%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.1761,
+                "predictedCores": 0.0202,
+                "coresError": -0.8852924474730267,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 24.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.18",
+                  "predictedCores": "0.02",
+                  "coresError": "-89%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "24 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 6728,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "6,728"
+            },
+            "parts": {
+              "api": {
+                "measuredCores": 0.9408,
+                "predictedCores": 1.0,
+                "coresError": 0.06292517006802724,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 163393.5,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.94",
+                  "predictedCores": "1.00",
+                  "coresError": "+6%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "159.6 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.2867,
+                "predictedCores": 0.1192,
+                "coresError": -0.584234391349843,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.29",
+                  "predictedCores": "0.12",
+                  "coresError": "-58%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "redis": {
+                "measuredCores": 0.1591,
+                "predictedCores": 0.0202,
+                "coresError": -0.8730358265241986,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 24.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.16",
+                  "predictedCores": "0.02",
+                  "coresError": "-87%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "24 MiB",
+                  "memoryError": "-"
+                }
+              }
+            }
+          }
+        ]
+      },
       "environment": {
         "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
         "os": "Windows-11-10.0.26200-SP0",
@@ -1645,6 +3215,763 @@
           }
         }
       ],
+      "resources": {
+        "measuredBy": "scaled",
+        "measuredByText": "each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured)",
+        "predictedBy": "re-simulated",
+        "predictedByText": "simulated again with engine 0.12.0 on 2026-10-28 from each run's calibration alone, because the original predictions did not record CPU or memory (the latency predictions are the original ones)",
+        "predictedEngineVersion": "0.12.0",
+        "memoryMeasured": false,
+        "topRps": 905,
+        "parts": [
+          {
+            "container": "producer",
+            "name": "Node.js producer",
+            "modelled": {
+              "cores": true,
+              "memory": true
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": null
+            },
+            "belowKnee": {
+              "steps": 4,
+              "medianAbsCoresError": 0.7509931409137451,
+              "maxAbsCoresError": 1.2751456802634915,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.3947,
+              "predictedCores": 0.898,
+              "coresError": 1.2751456802634915,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": 285.7,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.39",
+                "predictedCores": "0.90",
+                "coresError": "+128%",
+                "measuredMemory": "-",
+                "predictedMemory": "286 MiB",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "75%",
+              "maxAbsCoresError": "128%",
+              "medianAbsMemoryError": "-"
+            }
+          },
+          {
+            "container": "consumer",
+            "name": "Node.js consumer",
+            "modelled": {
+              "cores": false,
+              "memory": false
+            },
+            "notModelled": {
+              "cores": "inside the model's queue node, which has no CPU or memory",
+              "memory": "inside the model's queue node, which has no CPU or memory"
+            },
+            "belowKnee": {
+              "steps": 4,
+              "medianAbsCoresError": null,
+              "maxAbsCoresError": null,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.32,
+              "predictedCores": null,
+              "coresError": null,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": null,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.32",
+                "predictedCores": "-",
+                "coresError": "-",
+                "measuredMemory": "-",
+                "predictedMemory": "-",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "-",
+              "maxAbsCoresError": "-",
+              "medianAbsMemoryError": "-"
+            }
+          },
+          {
+            "container": "postgres",
+            "name": "PostgreSQL",
+            "modelled": {
+              "cores": true,
+              "memory": false
+            },
+            "notModelled": {
+              "cores": null,
+              "memory": "the model has no database memory figure yet"
+            },
+            "belowKnee": {
+              "steps": 4,
+              "medianAbsCoresError": 0.3626205182223068,
+              "maxAbsCoresError": 0.6969325153374233,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 0.2842,
+              "predictedCores": 0.3588,
+              "coresError": 0.2624912033779029,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": null,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "0.28",
+                "predictedCores": "0.36",
+                "coresError": "+26%",
+                "measuredMemory": "-",
+                "predictedMemory": "-",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "36%",
+              "maxAbsCoresError": "70%",
+              "medianAbsMemoryError": "-"
+            }
+          },
+          {
+            "container": "kafka",
+            "name": "Kafka broker",
+            "modelled": {
+              "cores": false,
+              "memory": false
+            },
+            "notModelled": {
+              "cores": "the model's queue node has no CPU or memory",
+              "memory": "the model's queue node has no CPU or memory"
+            },
+            "belowKnee": {
+              "steps": 4,
+              "medianAbsCoresError": null,
+              "maxAbsCoresError": null,
+              "medianAbsMemoryError": null,
+              "maxAbsMemoryError": null
+            },
+            "top": {
+              "measuredCores": 1.1168,
+              "predictedCores": null,
+              "coresError": null,
+              "measuredMemoryMiB": null,
+              "predictedMemoryMiB": null,
+              "memoryError": null,
+              "text": {
+                "measuredCores": "1.12",
+                "predictedCores": "-",
+                "coresError": "-",
+                "measuredMemory": "-",
+                "predictedMemory": "-",
+                "memoryError": "-"
+              }
+            },
+            "text": {
+              "medianAbsCoresError": "-",
+              "maxAbsCoresError": "-",
+              "medianAbsMemoryError": "-"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "offeredRps": 252,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "252"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.1657,
+                "predictedCores": 0.2493,
+                "coresError": 0.5045262522631262,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 266.2,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.17",
+                  "predictedCores": "0.25",
+                  "coresError": "+50%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "266 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.1872,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.19",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.0913,
+                "predictedCores": 0.128,
+                "coresError": 0.4019715224534501,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.09",
+                  "predictedCores": "0.13",
+                  "coresError": "+40%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 0.7567,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.76",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 503,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "503"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.2636,
+                "predictedCores": 0.4984,
+                "coresError": 0.8907435508345979,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 270.3,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.26",
+                  "predictedCores": "0.50",
+                  "coresError": "+89%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "270 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.289,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.29",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.163,
+                "predictedCores": 0.2766,
+                "coresError": 0.6969325153374233,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.16",
+                  "predictedCores": "0.28",
+                  "coresError": "+70%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 0.9143,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.91",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 754,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "754"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.4643,
+                "predictedCores": 0.7481,
+                "coresError": 0.6112427309928925,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 276.5,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.46",
+                  "predictedCores": "0.75",
+                  "coresError": "+61%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "276 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.3184,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.32",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.2716,
+                "predictedCores": 0.3594,
+                "coresError": 0.32326951399116344,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.27",
+                  "predictedCores": "0.36",
+                  "coresError": "+32%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 1.2265,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "1.23",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 905,
+            "atOrBelowKnee": true,
+            "text": {
+              "offered": "905"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.3947,
+                "predictedCores": 0.898,
+                "coresError": 1.2751456802634915,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 285.7,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.39",
+                  "predictedCores": "0.90",
+                  "coresError": "+128%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "286 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.32,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.32",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.2842,
+                "predictedCores": 0.3588,
+                "coresError": 0.2624912033779029,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.28",
+                  "predictedCores": "0.36",
+                  "coresError": "+26%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 1.1168,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "1.12",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1006,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "1,006"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.5404,
+                "predictedCores": 0.9966,
+                "coresError": 0.8441894892672096,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 373.8,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.54",
+                  "predictedCores": "1.00",
+                  "coresError": "+84%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "374 MiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.3288,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.33",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.4062,
+                "predictedCores": 0.3586,
+                "coresError": -0.11718365337272287,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.41",
+                  "predictedCores": "0.36",
+                  "coresError": "-12%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 1.3069,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "1.31",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1107,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "1,107"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.5155,
+                "predictedCores": 1.0,
+                "coresError": 0.9398642095053348,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 5113.9,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.52",
+                  "predictedCores": "1.00",
+                  "coresError": "+94%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "5.0 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.3225,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.32",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.3848,
+                "predictedCores": 0.3586,
+                "coresError": -0.06808731808731809,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.38",
+                  "predictedCores": "0.36",
+                  "coresError": "-7%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 1.1581,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "1.16",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1258,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "1,258"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.5956,
+                "predictedCores": 1.0,
+                "coresError": 0.6789791806581598,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 12657.7,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.60",
+                  "predictedCores": "1.00",
+                  "coresError": "+68%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "12.4 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.3409,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.34",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.4869,
+                "predictedCores": 0.3588,
+                "coresError": -0.26309303758471964,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.49",
+                  "predictedCores": "0.36",
+                  "coresError": "-26%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 1.254,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "1.25",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          },
+          {
+            "offeredRps": 1509,
+            "atOrBelowKnee": false,
+            "text": {
+              "offered": "1,509"
+            },
+            "parts": {
+              "producer": {
+                "measuredCores": 0.638,
+                "predictedCores": 1.0,
+                "coresError": 0.567398119122257,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": 25203.7,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.64",
+                  "predictedCores": "1.00",
+                  "coresError": "+57%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "24.6 GiB",
+                  "memoryError": "-"
+                }
+              },
+              "consumer": {
+                "measuredCores": 0.3652,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.37",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "postgres": {
+                "measuredCores": 0.5367,
+                "predictedCores": 0.3588,
+                "coresError": -0.3314700950251536,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "0.54",
+                  "predictedCores": "0.36",
+                  "coresError": "-33%",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              },
+              "kafka": {
+                "measuredCores": 1.6513,
+                "predictedCores": null,
+                "coresError": null,
+                "measuredMemoryMiB": null,
+                "predictedMemoryMiB": null,
+                "memoryError": null,
+                "text": {
+                  "measuredCores": "1.65",
+                  "predictedCores": "-",
+                  "coresError": "-",
+                  "measuredMemory": "-",
+                  "predictedMemory": "-",
+                  "memoryError": "-"
+                }
+              }
+            }
+          }
+        ]
+      },
       "environment": {
         "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
         "os": "Windows-11-10.0.26200-SP0",

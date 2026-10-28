@@ -78,6 +78,49 @@ export interface Environment {
   text: string;
 }
 
+/** One part at one load step: busy cores (CPU seconds per second) and memory, both ways. */
+export interface ResourceCell {
+  measuredCores: number | null;
+  predictedCores: number | null;
+  coresError: number | null;
+  measuredMemoryMiB: number | null;
+  predictedMemoryMiB: number | null;
+  memoryError: number | null;
+  text: { measuredCores: string; predictedCores: string; coresError: string; measuredMemory: string; predictedMemory: string; memoryError: string };
+}
+
+/** One measured container, its model node's predictions and how far off they were up to the knee. */
+export interface ResourcePart {
+  container: string;
+  name: string;
+  modelled: { cores: boolean; memory: boolean };
+  /** Why the model has no figure of that kind for this part, when it has none. */
+  notModelled: { cores: string | null; memory: string | null };
+  belowKnee: {
+    steps: number;
+    medianAbsCoresError: number | null;
+    maxAbsCoresError: number | null;
+    medianAbsMemoryError: number | null;
+    maxAbsMemoryError: number | null;
+  };
+  /** At the highest load step at or below the measured knee. */
+  top: ResourceCell | null;
+  text: { medianAbsCoresError: string; maxAbsCoresError: string; medianAbsMemoryError: string };
+}
+
+export interface Resources {
+  measuredBy: "window" | "scaled" | "mixed" | string;
+  measuredByText: string;
+  /** "predictions": saved before measuring; "re-simulated": from the calibration, after the fact. */
+  predictedBy: "predictions" | "re-simulated";
+  predictedByText: string;
+  predictedEngineVersion: string | null;
+  memoryMeasured: boolean;
+  topRps: number | null;
+  parts: ResourcePart[];
+  steps: { offeredRps: number; atOrBelowKnee: boolean; text: { offered: string }; parts: Record<string, ResourceCell> }[];
+}
+
 export interface Experiment {
   id: string;
   name: string;
@@ -115,6 +158,8 @@ export interface Experiment {
   };
   lowLoad: LowLoadStep[];
   steps: Step[];
+  /** Predicted against measured CPU and memory; null when the run recorded neither. */
+  resources: Resources | null;
   environment: Environment;
 }
 
@@ -241,6 +286,28 @@ export function lowLoadSentence(x: Experiment): string | null {
   const where = diffs.every((d) => d > 0) ? "above" : diffs.every((d) => d < 0) ? "below" : "off from";
   const shown = where === "off from" ? range : range.replace(/[+-]/g, "");
   return `At light load (${x.lowLoad.map((s) => s.text.offered).join(" and ")} req/s), predicted p95 was ${minus(shown)} ms ${where} the measured one.`;
+}
+
+/** "2,268" for the resources' top step, from that step's own text. */
+export function topStepText(r: Resources): string | null {
+  return r.steps.find((s) => s.offeredRps === r.topRps)?.text.offered ?? null;
+}
+
+/**
+ * The CPU check in one sentence: the closest and the furthest modelled part, by median error up
+ * to the knee ("off by a median of 8% (PostgreSQL in “...”) to 88% (Redis in “...”)").
+ */
+export function cpuSentence(experiments: Experiment[]): string | null {
+  const parts = experiments.flatMap((x) =>
+    (x.resources?.parts ?? []).filter((p) => p.modelled.cores && p.belowKnee.medianAbsCoresError !== null).map((p) => ({ x, p })),
+  );
+  if (!parts.length) return null;
+  const sorted = [...parts].sort((a, b) => (a.p.belowKnee.medianAbsCoresError ?? 0) - (b.p.belowKnee.medianAbsCoresError ?? 0));
+  const label = ({ x, p }: (typeof parts)[number]) => `${p.text.medianAbsCoresError} (${p.name} in “${x.name}”)`;
+  const lo = sorted[0];
+  const hi = sorted[sorted.length - 1];
+  const range = lo === hi ? label(lo) : `${label(lo)} to ${label(hi)}`;
+  return `ArchSim's CPU predictions (busy cores) were off by a median of ${range} at the load steps up to the knee.`;
 }
 
 /** What the run-to-run spread says next to the knee error. */

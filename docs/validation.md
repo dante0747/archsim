@@ -54,7 +54,9 @@ uv run python benchmarks/report.py --json  # rewrite this page's tables, charts 
 ```
 
 `make benchmark` runs all of them. `uv run python benchmarks/run.py compare` recomputes every
-`comparison.json` from the committed measurements and predictions without Docker. Results depend
+`comparison.json` from the committed measurements and predictions without Docker;
+`run.py resources` first predicts CPU and memory for results whose predictions have none
+(see [Resources](#resources-cpu-and-memory)). Results depend
 on the machine: rerun on yours before quoting numbers. `run.py --archive` first moves each
 experiment's latest results into its next `run-N/` folder, so the history below keeps them.
 
@@ -109,7 +111,11 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    failed). Since run 4, the runner also waits (at most 60 s) between repeats until the service
    answers its health check and PostgreSQL has no query left running (except on the Kafka stack,
    which already waits for its backlog to drain); this wait has not run against the stacks yet.
-5. **Compare** step by step (`comparison.json`), and the knee.
+   Each repeat also reads every container's CPU and memory (cgroup v2: CPU time and working set)
+   every 5 s inside the measured window; this too has not run against the stacks yet (run 4
+   recorded CPU over the whole k6 command, see [Resources](#resources-cpu-and-memory)).
+5. **Compare** step by step (`comparison.json`), the knee, and each part's CPU and memory against
+   the model's.
 
 Nothing measured at steps 4 and 5 feeds back into the model: the predictions use only the
 calibration passes.
@@ -302,6 +308,73 @@ Unstable: the step's repeats' p95s differ by more than 2x across the objective (
 
 Knee: measured 945 req/s, predicted 1,006 req/s on the same steps (+6%); ArchSim's own search before measuring put it at 1,006 req/s. Data: `benchmarks/results/kafka/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: kafka -->
+
+## Resources: CPU and memory
+
+Besides latency and capacity, ArchSim predicts how busy each part's CPU is (busy cores) and, for a
+part with memory set, how much memory it holds. Auto-sizing picks instance types from those
+figures, so they are checked here against each container's own counters (cgroup v2) at every
+load step.
+
+<!-- BEGIN GENERATED: resources -->
+| Experiment | Part | Load step (req/s) | Busy cores measured | Busy cores predicted | Error | Median error up to the knee (steps) |
+| --- | --- | --- | --- | --- | --- | --- |
+| [pg-mixed](#pg-mixed) | Node.js service | 2,268 | 0.63 | 1.00 | +58% | 65% (6) |
+| [pg-mixed](#pg-mixed) | PostgreSQL | 2,268 | 0.58 | 0.53 | -9% | 8% (6) |
+| [pg-hot-row](#pg-hot-row) | Node.js service | 222 | 0.08 | 0.09 | +8% | 27% (2) |
+| [pg-hot-row](#pg-hot-row) | PostgreSQL | 222 | 0.09 | 0.05 | -43% | 58% (2) |
+| [cache-aside](#cache-aside) | Node.js service | 3,795 | 0.69 | 1.00 | +44% | 37% (6) |
+| [cache-aside](#cache-aside) | PostgreSQL | 3,795 | 0.20 | 0.12 | -41% | 39% (6) |
+| [cache-aside](#cache-aside) | Redis | 3,795 | 0.16 | 0.02 | -87% | 88% (6) |
+| [kafka](#kafka) | Node.js producer | 905 | 0.39 | 0.90 | +128% | 75% (4) |
+| [kafka](#kafka) | Node.js consumer | 905 | 0.32 | not modelled | - | - |
+| [kafka](#kafka) | PostgreSQL | 905 | 0.28 | 0.36 | +26% | 36% (4) |
+| [kafka](#kafka) | Kafka broker | 905 | 1.12 | not modelled | - | - |
+
+Each part at the highest load step at or below the measured knee. Busy cores are CPU seconds per second; errors are (predicted - measured) / measured.
+
+Measured: each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured). Predicted: simulated again with engine 0.12.0 on 2026-10-28 from each run's calibration alone, because the original predictions did not record CPU or memory (the latency predictions are the original ones).
+
+Not modelled: Node.js consumer (inside the model's queue node, which has no CPU or memory); Kafka broker (the model's queue node has no CPU or memory).
+<!-- END GENERATED: resources -->
+
+What run 4's CPU says (memory is read from the next run on):
+
+- **Node.js services: ArchSim's CPU is too high,** by a median of 37% to 75% up to the knee
+  (27% over hot-row's two light steps). The model charges every request the CPU per extra
+  request measured between the two calibration passes (50 req/s and a few hundred); the real
+  event loop gets cheaper per request as load rises. At the top step below the knee the model has
+  the service's one core 90% to 100% busy where the real one used 0.39 to 0.69 cores (pg-mixed,
+  cache-aside and Kafka). This is the same effect that makes the model's latency cliff sharper
+  than the real one (next section), and it means ArchSim sizes such a service larger than it
+  needs.
+- **PostgreSQL: within 8% (median) for the mixed workload, 36% to 58% off elsewhere:** low for
+  cache-aside (-41% at the top step) and hot-row (-43%), high for Kafka's inserts (+26%). The
+  calibration measures the database's CPU per query at one rate and one mix, and that does not
+  carry across the others.
+- **Redis: about 88% too low.** The model's Redis time per command is what Redis reports as
+  command time (`INFO commandstats`), which leaves out reading and writing the network; the
+  real Redis used about eight times that CPU. Latency is not affected (the link time carries it),
+  but a Redis node sized from this CPU would be too small.
+- **Not modelled:** the Kafka broker's CPU (about 1.1 cores at 905 req/s, over half a core even
+  at 50 req/s) and the consumers' (queue nodes have no CPU or memory).
+
+How the CPU was measured: run 4 recorded each container's CPU over the whole k6 command, which
+includes k6's own container start and stop (the command took 4% to 67% longer than its 25 s of
+load). The runner now reads CPU and memory inside the window k6 measures (`ResourceSampler`);
+the run 4 figures above are scaled to that window by the service's own CPU counter (Node's
+`process.cpuUsage`, which matched its container's CPU within 1% in every calibration pass),
+assuming the containers idle while k6 starts and stops. That holds for the services and
+PostgreSQL (about 0.02 cores of background work) but not for the Kafka broker, whose figure
+reads high. The predicted CPU was simulated again from each run's calibration (`run.py
+resources`, `resources-predicted.json`), since the original predictions did not record it; no
+measured step feeds into it.
+
+Memory, from the next run: each container's working set (memory less the page cache the kernel
+reclaims first, as Kubernetes counts it) and its anonymous memory. The model's service memory
+comes from ArchSim's defaults (256 MiB at idle plus 2 MiB per request held) and Redis's from 1 KiB
+per key; neither is calibrated yet. Past the predicted knee the model's service holds every
+queued request, so its memory there grows far beyond the real one.
 
 ## Where the model is wrong, and why
 

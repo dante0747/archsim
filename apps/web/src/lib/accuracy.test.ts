@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   type Experiment,
+  type ResourcePart,
   type Spread,
   accuracy,
   byKneeError,
+  cpuSentence,
   formatDate,
   formatTime,
   kneeScale,
@@ -12,6 +14,7 @@ import {
   minus,
   p95Sentence,
   spreadSentence,
+  topStepText,
 } from "./accuracy";
 
 // Synthetic cases built on a real entry, so these tests keep passing when the benchmarks rerun.
@@ -108,6 +111,27 @@ describe("plain-language lines", () => {
       "At light load (100 and 200 req/s), predicted p95 was −0.50 to +1.20 ms off from the measured one.",
     );
     expect(lowLoadSentence(exp({ lowLoad: [] }))).toBeNull();
+  });
+
+  it("sums up the CPU check from the closest and the furthest modelled part", () => {
+    const real = accuracy.experiments.find((x) => x.resources)?.resources;
+    expect(real).toBeTruthy();
+    if (!real) return;
+    const part = (name: string, median: number | null, modelled = true): ResourcePart => ({
+      ...real.parts[0],
+      name,
+      modelled: { cores: modelled, memory: false },
+      belowKnee: { ...real.parts[0].belowKnee, medianAbsCoresError: median },
+      text: { ...real.parts[0].text, medianAbsCoresError: median === null ? "-" : `${Math.round(median * 100)}%` },
+    });
+    const a = exp({ name: "Mixed", resources: { ...real, parts: [part("Service", 0.65), part("PostgreSQL", 0.08)] } });
+    const b = exp({ name: "Cache", resources: { ...real, parts: [part("Redis", 0.88), part("Broker", null, false)] } });
+    expect(cpuSentence([a, b])).toBe(
+      "ArchSim's CPU predictions (busy cores) were off by a median of 8% (PostgreSQL in “Mixed”) to 88% (Redis in “Cache”) at the load steps up to the knee.",
+    );
+    expect(cpuSentence([exp({ resources: null })])).toBeNull();
+    expect(topStepText({ ...real, topRps: real.steps[0].offeredRps })).toBe(real.steps[0].text.offered);
+    expect(topStepText({ ...real, topRps: null })).toBeNull();
   });
 });
 

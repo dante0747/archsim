@@ -46,6 +46,29 @@ TECHNOLOGIES = {
     "cache-aside": ("Node.js", "Redis", "PostgreSQL"),
     "kafka": ("Node.js", "Kafka", "PostgreSQL"),
 }
+# Each measured container as the resources table names it.
+PARTS = {
+    "api": "Node.js service",
+    "producer": "Node.js producer",
+    "consumer": "Node.js consumer",
+    "postgres": "PostgreSQL",
+    "redis": "Redis",
+    "kafka": "Kafka broker",
+}
+# Why a container has no predicted CPU or memory.
+NOT_MODELLED = {
+    "consumer": "inside the model's queue node, which has no CPU or memory",
+    "kafka": "the model's queue node has no CPU or memory",
+}
+NO_MEMORY_MODEL = {"postgres": "the model has no database memory figure yet"}
+MEASURED_BY = {
+    "window": "each container's CPU and working set (memory less reclaimable page cache), read "
+    f"every {bench.SAMPLE_S:g} s inside the window k6 measures",
+    "scaled": "each container's CPU over the whole k6 command, scaled to the measured window by "
+    "the service's own CPU counter (these runs predate reading CPU inside the window; memory was "
+    "not measured)",
+    "mixed": "partly inside the measured window, partly scaled from the whole k6 command",
+}
 CONTAINERS = {
     "api": "service",
     "producer": "producer",
@@ -439,6 +462,104 @@ def low_load_block(cmps: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def cores(v: float | None) -> str:
+    return "-" if v is None else f"{v:.2f}"
+
+
+def mib(v: float | None) -> str:
+    if v is None:
+        return "-"
+    return f"{v / 1024:.1f} GiB" if v >= 1024 else f"{v:,.0f} MiB"
+
+
+def predicted_by_text(by: Any) -> str:
+    if by == "predictions":
+        return "ArchSim's predictions, saved before the measurements"
+    if isinstance(by, Mapping):
+        return (
+            f"simulated again with engine {by.get('engineVersion')} on {str(by.get('at'))[:10]} "
+            "from each run's calibration alone, because the original predictions did not record "
+            "CPU or memory (the latency predictions are the original ones)"
+        )
+    return "none"
+
+
+def top_below_knee(c: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """The highest load step at or below the measured knee."""
+    below = bench.at_or_below_knee(c["rows"], c["measuredKnee"])
+    return max(below, key=lambda r: r["offeredRps"]) if below else None
+
+
+def why_not(container: str, what: str) -> str | None:
+    """Why the model has no figure of this kind (cores or memory) for the container."""
+    if container in NOT_MODELLED:
+        return NOT_MODELLED[container]
+    if what == "memory":
+        return NO_MEMORY_MODEL.get(container)
+    return None
+
+
+def memory_measured(c: Mapping[str, Any]) -> bool:
+    """Whether any step of a comparison measured a container's memory."""
+    return any(
+        cell["measured"]["memoryMiB"] is not None
+        for r in c["rows"]
+        for cell in r.get("resources", {}).values()
+    )
+
+
+def resources_block(cmps: list[dict[str, Any]]) -> str:
+    """Predicted against measured CPU (and memory, once measured) of each container: at the
+    highest step at or below the measured knee, and the median error over every step up to it."""
+    with_res = [c for c in cmps if c.get("resources")]
+    if not with_res:
+        return "_No CPU or memory recorded yet._"
+    memory = any(memory_measured(c) for c in with_res)
+    head = "| Experiment | Part | Load step (req/s) | Busy cores measured | Busy cores predicted | Error | Median error up to the knee (steps) |"
+    lines = [
+        head + (" Memory measured | Memory predicted | Error |" if memory else ""),
+        "| --- " * (7 + (3 if memory else 0)) + "|",
+    ]
+    unmodelled: dict[str, str] = {}
+    for c in with_res:
+        top = top_below_knee(c)
+        for container, s in c["resources"]["belowKnee"].items():
+            cell = (top or {}).get("resources", {}).get(container)
+            if top is None or cell is None:
+                continue
+            m, p, e = cell["measured"], cell["predicted"], cell["error"]
+            name = PARTS.get(container, container)
+            median_err = s["medianAbsCoresError"]
+            median_text = "-" if median_err is None else f"{pct(median_err, False)} ({s['steps']})"
+            if (reason := why_not(container, "cores")) is not None:
+                unmodelled[name] = reason
+            line = (
+                f"| [{c['experiment']}](#{c['experiment']}) | {name} | {rps(top['offeredRps'])} | "
+                f"{cores(m['cores'])} | {'not modelled' if reason else cores(p['cores'])} | "
+                f"{pct(e['cores'])} | {median_text} |"
+            )
+            if memory:
+                line += f" {mib(m['memoryMiB'])} | {mib(p['memoryMiB'])} | {pct(e['memory'])} |"
+            lines.append(line)
+    by = sorted({c["resources"]["measuredBy"] for c in with_res})
+    pred = sorted({predicted_by_text(c["resources"]["predictedBy"]) for c in with_res})
+    lines += [
+        "",
+        "Each part at the highest load step at or below the measured knee. Busy cores are CPU "
+        "seconds per second; errors are (predicted - measured) / measured.",
+        "",
+        f"Measured: {'; '.join(MEASURED_BY.get(b, b) for b in by)}. Predicted: {'; '.join(pred)}.",
+    ]
+    if unmodelled:
+        lines += [
+            "",
+            "Not modelled: "
+            + "; ".join(f"{name} ({why})" for name, why in unmodelled.items())
+            + ".",
+        ]
+    return "\n".join(lines)
+
+
 def tiers_block(cmps: list[dict[str, Any]], hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
     lines = [
         "| Experiment | 1. Knee error within ±25% | 2. p95 within ±100% or 3 ms at or below the measured knee | 3a. No unstable step at or below the measured knee | 3b. Reproduced on a second machine, same protocol | All three |",
@@ -669,6 +790,7 @@ def render(text: str, results: Path = RESULTS) -> tuple[str, dict[str, str]]:
     text = replace_block(text, "summary", summary_block(cmps) if cmps else "_No results yet._")
     text = replace_block(text, "history", history_block(hist) if hist else "_No results yet._")
     text = replace_block(text, "low-load", low_load_block(cmps) if cmps else "_No results yet._")
+    text = replace_block(text, "resources", resources_block(cmps))
     text = replace_block(text, "tiers", tiers_block(cmps, hist) if cmps else "_No results yet._")
     envs = {e: env for e in ORDER if (env := load(e, "environment", results))}
     text = replace_block(text, "environment", environment_block(envs))
@@ -726,6 +848,88 @@ def low_load_json(r: Mapping[str, Any], fine: float) -> dict[str, Any]:
             "diff": "-" if m is None or p is None else f"{p - m:+.2f} ms",
             "p95Error": pct(r["error"]["p95"]),
         },
+    }
+
+
+def resource_cell_json(cell: Mapping[str, Any]) -> dict[str, Any]:
+    """One container at one step: measured and predicted busy cores and memory, with the
+    resources table's text."""
+    m, p, e = cell["measured"], cell["predicted"], cell["error"]
+    return {
+        "measuredCores": m["cores"],
+        "predictedCores": p["cores"],
+        "coresError": e["cores"],
+        "measuredMemoryMiB": m["memoryMiB"],
+        "predictedMemoryMiB": p["memoryMiB"],
+        "memoryError": e["memory"],
+        "text": {
+            "measuredCores": cores(m["cores"]),
+            "predictedCores": cores(p["cores"]),
+            "coresError": pct(e["cores"]),
+            "measuredMemory": mib(m["memoryMiB"]),
+            "predictedMemory": mib(p["memoryMiB"]),
+            "memoryError": pct(e["memory"]),
+        },
+    }
+
+
+def resources_json(c: Mapping[str, Any]) -> dict[str, Any] | None:
+    """An experiment's CPU and memory, predicted against measured: per part, the highest step at
+    or below the measured knee and the errors up to it; and every step."""
+    r = c.get("resources")
+    if not r:
+        return None
+    top = top_below_knee(c)
+    below = {id(x) for x in bench.at_or_below_knee(c["rows"], c["measuredKnee"])}
+    rows = [x for x in c["rows"] if "resources" in x]
+    parts = []
+    for container, s in r["belowKnee"].items():
+        cell = (top or {}).get("resources", {}).get(container)
+        predicted_cores = any(
+            x["resources"].get(container, {}).get("predicted", {}).get("cores") is not None
+            for x in rows
+        )
+        predicted_memory = any(
+            x["resources"].get(container, {}).get("predicted", {}).get("memoryMiB") is not None
+            for x in rows
+        )
+        parts.append(
+            {
+                "container": container,
+                "name": PARTS.get(container, container),
+                "modelled": {"cores": predicted_cores, "memory": predicted_memory},
+                "notModelled": {
+                    "cores": why_not(container, "cores"),
+                    "memory": why_not(container, "memory"),
+                },
+                "belowKnee": s,
+                "top": resource_cell_json(cell) if cell else None,
+                "text": {
+                    "medianAbsCoresError": pct(s["medianAbsCoresError"], False),
+                    "maxAbsCoresError": pct(s["maxAbsCoresError"], False),
+                    "medianAbsMemoryError": pct(s["medianAbsMemoryError"], False),
+                },
+            }
+        )
+    by = r["predictedBy"]
+    return {
+        "measuredBy": r["measuredBy"],
+        "measuredByText": MEASURED_BY.get(r["measuredBy"], r["measuredBy"]),
+        "predictedBy": "predictions" if by == "predictions" else "re-simulated",
+        "predictedByText": predicted_by_text(by),
+        "predictedEngineVersion": by.get("engineVersion") if isinstance(by, Mapping) else None,
+        "memoryMeasured": memory_measured(c),
+        "topRps": top["offeredRps"] if top else None,
+        "parts": parts,
+        "steps": [
+            {
+                "offeredRps": x["offeredRps"],
+                "atOrBelowKnee": id(x) in below,
+                "text": {"offered": rps(x["offeredRps"])},
+                "parts": {k: resource_cell_json(v) for k, v in x["resources"].items()},
+            }
+            for x in rows
+        ],
     }
 
 
@@ -816,6 +1020,7 @@ def experiment_json(
         },
         "lowLoad": [low_load_json(r, c["predictedKneeFine"]) for r in low_load_rows(c)],
         "steps": [step_json(r, id(r) in below_ids) for r in c["rows"]],
+        "resources": resources_json(c),
         "environment": environment_json(exp, env),
     }
 

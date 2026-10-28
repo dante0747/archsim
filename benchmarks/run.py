@@ -5,6 +5,7 @@
     uv run python benchmarks/run.py kafka         # kafka
     uv run python benchmarks/run.py all
     uv run python benchmarks/run.py compare       # recompute every comparison.json (no Docker)
+    uv run python benchmarks/run.py resources     # predict CPU and memory for older results
     uv run python benchmarks/report.py            # rewrite docs/validation.md from the results
 
 Protocol (docs/validation.md): for each experiment the runner
@@ -20,8 +21,10 @@ Protocol (docs/validation.md): for each experiment the runner
    (the highest load with p95 <= 50 ms and >= 99% success) and every step of the load ladder
    (0.25x to 1.5x the predicted knee); predictions.json is written before step 4 starts;
 4. measures: runs k6 at each step three times (5 s warm-up, 20 s measured, WARMUP_S and
-   DURATION_S) and records p50, p95, p99, throughput and errors;
-5. compares: comparison.json with errors per step and the knee error.
+   DURATION_S) and records p50, p95, p99, throughput and errors, and each container's CPU (busy
+   cores) and memory (working set) in the measured window;
+5. compares: comparison.json with errors per step and the knee error, and the predicted against
+   the measured CPU and memory of each container the model has.
 
 Only the Python standard library, Docker and the engine are needed.
 """
@@ -37,12 +40,14 @@ import re
 import statistics
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
-from collections.abc import Iterable, Mapping
-from concurrent.futures import ProcessPoolExecutor
+from collections.abc import Iterable, Mapping, Sequence
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +79,24 @@ KAFKA_PARTITIONS = 6
 KAFKA_CONSUMERS = 3
 CACHE_TTL_S = 30
 Z95 = 1.6448536269514722
+SAMPLE_S = 5.0
+"""Seconds between readings of each container's CPU and memory in a measured window (few, so
+that reading them adds next to no load)."""
+LOAD_START_TIMEOUT_S = 120
+SERVICE_MEMORY_GIB = 1024
+"""Memory of the service node in the model. The containers have no memory limit; this one is
+large enough never to bind, so the model only reports the memory it predicts (with memory set,
+a request that would not fit is refused)."""
+CACHE_MEMORY_GIB = 4
+"""Memory of the Redis node in the model: room for every key (3.3 million at CACHE_ITEM_KIB), so
+nothing is evicted, as in the real Redis, which has no limit."""
+CACHE_ITEM_KIB = 1.0
+"""Memory per cached key in the model: ArchSim's default (not calibrated; the benchmark does not
+measure Redis's bytes per key yet)."""
+CONTAINER_NODES = {"api": "api", "producer": "api", "postgres": "db", "redis": "cache"}
+"""The model node of each container. The consumer and the Kafka broker have none: the model's
+queue node has no CPU or memory."""
+SERVICE_CONTAINERS = ("api", "producer")
 
 
 @dataclass(frozen=True)
@@ -186,6 +209,151 @@ def cpu_usec(service: str) -> int | None:
 def cpu_ms(before: int | None, after: int | None) -> float | None:
     """CPU used between two cpu_usec readings, in milliseconds."""
     return None if before is None or after is None else (after - before) / 1000
+
+
+CGROUP_FILES = ("cpu.stat", "memory.stat", "memory.current")
+
+
+@dataclass(frozen=True)
+class Reading:
+    """One container's cgroup v2 counters at one moment."""
+
+    t: float
+    """time.time() halfway through the read."""
+    usage_usec: int | None
+    working_set: int | None
+    """Bytes: memory.current minus inactive_file (the page cache the kernel would reclaim
+    first), as Kubernetes and cAdvisor count a container's working set."""
+    anon: int | None
+    """Bytes of anonymous memory (heaps and stacks): what the processes allocated."""
+
+
+def parse_cgroup(text: str) -> dict[str, int]:
+    """cpu.stat, memory.stat and memory.current, concatenated: every ``key value`` line (the
+    first of each key) and memory.current's bare number as ``current``."""
+    out: dict[str, int] = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1].isdigit():
+            out.setdefault(parts[0], int(parts[1]))
+        elif len(parts) == 1 and parts[0].isdigit():
+            out["current"] = int(parts[0])
+    return out
+
+
+def reading(t: float, text: str) -> Reading:
+    v = parse_cgroup(text)
+    current = v.get("current")
+    working = None if current is None else max(0, current - v.get("inactive_file", 0))
+    return Reading(t, v.get("usage_usec"), working, v.get("anon"))
+
+
+def cgroup_dir(cid: str) -> Path | None:
+    """A container's cgroup directory when this host can read it (Linux with cgroup v2, as on
+    GitHub's runners); None elsewhere (Docker Desktop runs containers in a VM)."""
+    for d in (
+        Path(f"/sys/fs/cgroup/system.slice/docker-{cid}.scope"),
+        Path(f"/sys/fs/cgroup/docker/{cid}"),
+    ):
+        if (d / "cpu.stat").is_file():
+            return d
+    return None
+
+
+def read_cgroup(cid: str) -> Reading:
+    """A container's CPU and memory counters now: from the host when it can see them, else
+    through ``docker exec`` (a ``cat`` in the container, about a millisecond of its CPU)."""
+    t0 = time.time()
+    d = cgroup_dir(cid)
+    if d is not None:
+        text = "\n".join((d / f).read_text() for f in CGROUP_FILES if (d / f).is_file())
+    else:
+        text = subprocess.run(
+            ["docker", "exec", cid, "cat", *(f"/sys/fs/cgroup/{f}" for f in CGROUP_FILES)],
+            text=True,
+            capture_output=True,
+            check=False,
+        ).stdout
+    return reading((t0 + time.time()) / 2, text)
+
+
+def window_resources(readings: Sequence[Reading]) -> dict[str, float] | None:
+    """One container's CPU and memory over a measured window, from its readings: busy cores (CPU
+    time over wall time between the first and the last reading), the busiest interval between
+    two readings, and the highest working set and anonymous memory (MiB)."""
+    out: dict[str, float] = {}
+    cpu = [(r.t, r.usage_usec) for r in readings if r.usage_usec is not None]
+    rates = [(u1 - u0) / 1e6 / (t1 - t0) for (t0, u0), (t1, u1) in pairwise(cpu) if t1 > t0]
+    if rates:
+        out["cores"] = round((cpu[-1][1] - cpu[0][1]) / 1e6 / (cpu[-1][0] - cpu[0][0]), 4)
+        out["maxCores"] = round(max(rates), 4)
+    working = [r.working_set for r in readings if r.working_set is not None]
+    if working:
+        out["workingSetMiB"] = round(max(working) / 2**20, 1)
+    anon = [r.anon for r in readings if r.anon is not None]
+    if anon:
+        out["anonMiB"] = round(max(anon) / 2**20, 1)
+    return out or None
+
+
+class ResourceSampler:
+    """Reads each container's CPU and memory through the window k6 measures, beside a step.
+
+    The load starts when the service first counts a finished request (its counters start at
+    /reset, which runs just before k6); the window starts WARMUP_S later and lasts DURATION_S,
+    less a second for the late detection of the start. k6's own container start and stop (several
+    seconds) are outside it, unlike containerCpuShare, which spans the whole k6 command."""
+
+    def __init__(self, services: Sequence[str]) -> None:
+        self.services = list(services)
+        self.readings: dict[str, list[Reading]] = {s: [] for s in self.services}
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def __enter__(self) -> ResourceSampler:
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._stop.set()
+        self._thread.join(timeout=60)
+
+    def _load_started(self) -> float | None:
+        deadline = time.time() + LOAD_START_TIMEOUT_S
+        while not self._stop.is_set() and time.time() < deadline:
+            try:
+                if http_json(f"{API}/stats").get("requests", 0) > 0:
+                    return time.time()
+            except OSError:
+                pass
+            self._stop.wait(0.2)
+        return None
+
+    def _run(self) -> None:
+        ids = {s: c for s in self.services if (c := container(s))}
+        start = self._load_started()
+        if start is None or not ids:
+            return
+        t, end = start + WARMUP_S, start + WARMUP_S + DURATION_S - 1
+        with ThreadPoolExecutor(max_workers=len(ids)) as pool:
+            while not self._stop.wait(max(0.0, t - time.time())):
+                for s, r in zip(ids, pool.map(read_cgroup, ids.values()), strict=True):
+                    self.readings[s].append(r)
+                if t >= end:
+                    break
+                t = min(t + SAMPLE_S, end)
+
+    def result(self) -> dict[str, Any] | None:
+        containers = {s: w for s, rs in self.readings.items() if (w := window_resources(rs))}
+        times = [r.t for rs in self.readings.values() for r in rs]
+        if not containers:
+            return None
+        return {
+            "method": "window",
+            "seconds": round(max(times) - min(times), 2),
+            "readings": max(len(rs) for rs in self.readings.values()),
+            "containers": containers,
+        }
 
 
 def http_json(url: str, method: str = "GET") -> dict[str, Any]:
@@ -717,6 +885,7 @@ def design(
                 "gcPauseMs": 0,  # measured CPU per request already includes GC
                 "warmupFactor": 1,
                 "cpuCores": 1,
+                "memoryGib": SERVICE_MEMORY_GIB,
             },
         },
     ]
@@ -756,6 +925,8 @@ def design(
                     "serviceTimeMs": v["cacheServiceTimeMs"],
                     "queueCapacity": 100_000,
                     "cpuCores": 1,
+                    "memoryGib": CACHE_MEMORY_GIB,
+                    "itemSizeKb": CACHE_ITEM_KIB,
                 },
             },
             db,
@@ -821,6 +992,7 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
         "successRate": s.get("successRate"),
         "throughputRps": s.get("throughputRps"),
         "resultDigest": r["provenance"]["resultDigest"],
+        "resources": node_resources(doc, r),
     }
     if "cache" in nodes:
         out["cacheHitRatio"] = nodes["cache"].get("hitRatio")
@@ -835,6 +1007,28 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
             "meanMessageAgeMs": k.get("meanMessageAgeMs"),
             "p95MessageAgeMs": k.get("p95MessageAgeMs"),
         }
+    return out
+
+
+def node_resources(doc: Mapping[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
+    """The model's CPU (busy cores) and memory (MiB) of each node that has them. Every node of
+    the benchmark designs is one instance, so its busy cores are its CPU utilization times its
+    cores. A service's memory is its peak (idle memory plus memory per request times the most
+    requests it held); the cache's is its keys at the end (none expire within a step) times the
+    memory per key."""
+    configs = {n["id"]: n["config"] for n in doc["architecture"]["nodes"]}
+    out: dict[str, Any] = {}
+    for n in result["nodes"]:
+        s, cfg = n["summary"], configs.get(n["id"], {})
+        res: dict[str, float] = {}
+        if (util := s.get("cpuCoreUtilization")) is not None and cfg.get("cpuCores"):
+            res["cores"] = round(util * cfg["cpuCores"] * cfg.get("replicas", 1), 4)
+        if s.get("memoryPeakGiB") is not None:
+            res["memoryMiB"] = round(s["memoryPeakGiB"] * 1024, 1)
+        if s.get("keysCached") is not None and cfg.get("itemSizeKb"):
+            res["memoryMiB"] = round(s["keysCached"] * cfg["itemSizeKb"] / 1024, 1)
+        if res:
+            out[n["id"]] = res
     return out
 
 
@@ -906,26 +1100,30 @@ def measure_once(exp: Experiment, rps: float, run: int) -> dict[str, Any]:
     cons0 = http_json(f"{CONSUMER}/stats") if exp.stack == "kafka" else None
     cpu0 = {s: cpu_usec(s) for s in services_for(exp)}
     t0 = time.time()
-    summary = k6(
-        target,
-        exp.mix,
-        rps,
-        WARMUP_S,
-        DURATION_S,
-        f"step-{exp.id}-{rps:g}-{run}",
-        exp.keys,
-        exp.skew,
-    )
+    with ResourceSampler(services_for(exp)) as sampler:
+        summary = k6(
+            target,
+            exp.mix,
+            rps,
+            WARMUP_S,
+            DURATION_S,
+            f"step-{exp.id}-{rps:g}-{run}",
+            exp.keys,
+            exp.skew,
+        )
     elapsed = time.time() - t0
     row: dict[str, Any] = {"offeredRps": rps, **k6_measured(summary, DURATION_S)}
     svc = http_json(f"{API}/stats")
     row["serviceCpuMsPerRequest"] = svc["cpuMsPerRequest"]
     cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
+    # Over the whole k6 command, its container's start and stop included (kept for older runs).
     row["containerCpuShare"] = {
         s: round((after - before) / 1e6 / elapsed, 3)
         for s, after in cpu1.items()
         if (before := cpu0.get(s)) is not None and after is not None
     }
+    if (resources := sampler.result()) is not None:
+        row["resources"] = resources
     c = svc.get("counters", {})
     if exp.stack == "cache":
         hits, misses = c.get("cache_hit:measure", 0), c.get("cache_miss:measure", 0)
@@ -1049,7 +1247,58 @@ def aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
     out["unstable"] = bool(p95s) and max(p95s) > 2 * min(p95s) and max(p95s) > OBJECTIVE_P95_MS
     out["repeats"] = len(runs)
     out["failedRepeats"] = sum(failed_repeat(r) for r in runs)
+    if (resources := aggregate_resources(runs)) is not None:
+        out["resources"] = resources
     return out
+
+
+RESOURCE_KEYS = ("cores", "maxCores", "workingSetMiB", "anonMiB")
+
+
+def run_resources(run: Mapping[str, Any]) -> dict[str, Any] | None:
+    """One repeat's CPU (and memory) per container in its measured window.
+
+    Repeats measured since the window was sampled carry it (``ResourceSampler``). Older ones
+    only have containerCpuShare, CPU over the whole k6 command, whose container start and stop
+    add several idle seconds that vary by step. Those are scaled to the window by the service's
+    own CPU, which the service counts itself (process.cpuUsage, the same as its container's CPU
+    within 1% in every calibration pass): busy cores = the service's CPU per request x the rate k6
+    sent x (the container's share / the service container's share). This assumes each container
+    is idle while k6 starts and stops; the Kafka broker is not (about half a core at rest), so its
+    figure reads high."""
+    if run.get("resources"):
+        return dict(run["resources"])
+    share = run.get("containerCpuShare") or {}
+    svc = next((c for c in SERVICE_CONTAINERS if share.get(c)), None)
+    per_request, sent = run.get("serviceCpuMsPerRequest"), run.get("sent")
+    if svc is None or not per_request or not sent:
+        return None
+    scale = per_request * sent / DURATION_S / 1000 / share[svc]
+    return {
+        "method": "scaled",
+        "containers": {
+            c: {"cores": round(v * scale, 4)} for c, v in share.items() if v is not None
+        },
+    }
+
+
+def aggregate_resources(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
+    """A step's CPU and memory per container: the median of its repeats (``run_resources``)."""
+    per = [r for r in (run_resources(x) for x in runs) if r]
+    if not per:
+        return None
+    methods = sorted({r["method"] for r in per})
+    containers: dict[str, dict[str, float]] = {}
+    for c in dict.fromkeys(c for r in per for c in r["containers"]):
+        values = {k: median(r["containers"].get(c, {}).get(k) for r in per) for k in RESOURCE_KEYS}
+        kept = {k: round(v, 4) for k, v in values.items() if v is not None}
+        if kept:
+            containers[c] = kept
+    return {
+        "method": methods[0] if len(methods) == 1 else "mixed",
+        "repeats": len(per),
+        "containers": containers,
+    }
 
 
 def measure_step(exp: Experiment, rps: float) -> dict[str, Any]:
@@ -1125,8 +1374,60 @@ def measured_steps(meas: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def compare(exp: Experiment, pred: dict[str, Any], meas: dict[str, Any]) -> dict[str, Any]:
+def resource_rows(
+    measured: Mapping[str, Any] | None, predicted: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """One step's CPU and memory per container, measured against the model's node for it."""
+    if not measured:
+        return None
+    out: dict[str, Any] = {}
+    for c, m in measured["containers"].items():
+        p = (predicted or {}).get(CONTAINER_NODES.get(c, ""), {})
+        meas = {"cores": m.get("cores"), "memoryMiB": m.get("workingSetMiB")}
+        pred = {"cores": p.get("cores"), "memoryMiB": p.get("memoryMiB")}
+        out[c] = {
+            "measured": meas,
+            "predicted": pred,
+            "error": {
+                "cores": err(pred["cores"], meas["cores"]),
+                "memory": err(pred["memoryMiB"], meas["memoryMiB"]),
+            },
+        }
+    return out
+
+
+def resources_below_knee(below: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Per container, how far the predicted CPU and memory were from the measured ones at the
+    steps at or below the measured knee (past it the model's queue holds every request the real
+    service would have timed out, so its memory grows without bound)."""
+    out: dict[str, Any] = {}
+    names = dict.fromkeys(c for r in below for c in r.get("resources", {}))
+    for c in names:
+        cells = [r["resources"][c] for r in below if c in r.get("resources", {})]
+        summary: dict[str, Any] = {"steps": len(cells)}
+        for key, name in (("cores", "Cores"), ("memory", "Memory")):
+            errs = [abs(e) for x in cells if (e := x["error"][key]) is not None]
+            summary[f"medianAbs{name}Error"] = median(errs)
+            summary[f"maxAbs{name}Error"] = max(errs) if errs else None
+        out[c] = summary
+    return out
+
+
+def compare(
+    exp: Experiment,
+    pred: dict[str, Any],
+    meas: dict[str, Any],
+    predicted_resources: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Measured against predicted, step by step. ``predicted_resources`` is
+    resources-predicted.json for results whose predictions recorded no CPU or memory; results
+    with neither (older kept runs) are compared on latency alone."""
     by = {s["offeredRps"]: s for s in pred["steps"]}
+    backfill = {
+        s["offeredRps"]: s["resources"] for s in (predicted_resources or {}).get("steps", [])
+    }
+    in_predictions = any("resources" in s for s in pred["steps"])
+    with_resources = in_predictions or bool(backfill)
     steps = measured_steps(meas)
     rows = []
     for m in steps:
@@ -1150,13 +1451,16 @@ def compare(exp: Experiment, pred: dict[str, Any], meas: dict[str, Any]) -> dict
         if "queue" in m:
             row["measured"]["queue"] = m["queue"]
             row["predicted"]["queue"] = p.get("queue")
+        predicted = p["resources"] if in_predictions else backfill.get(m["offeredRps"])
+        if with_resources and (res := resource_rows(m.get("resources"), predicted)) is not None:
+            row["resources"] = res
         rows.append(row)
     mk = grid_knee(steps)
     pk = grid_knee(pred["steps"])
     knee_err = err(pk["kneeRps"], mk["kneeRps"])
     below = at_or_below_knee(rows, mk)
     p95_errs = [abs(r["error"]["p95"]) for r in below if r["error"]["p95"] is not None]
-    return {
+    out: dict[str, Any] = {
         "experiment": exp.id,
         "title": exp.title,
         "objective": {"p95Ms": OBJECTIVE_P95_MS, "minSuccess": MIN_SUCCESS},
@@ -1171,6 +1475,19 @@ def compare(exp: Experiment, pred: dict[str, Any], meas: dict[str, Any]) -> dict
         },
         "rows": rows,
     }
+    methods = sorted({s["resources"]["method"] for s in steps if "resources" in s})
+    if with_resources and methods:
+        out["resources"] = {
+            "measuredBy": methods[0] if len(methods) == 1 else "mixed",
+            # predictions.json itself, or the later re-simulation (its engine, date and method)
+            "predictedBy": (
+                "predictions"
+                if in_predictions
+                else {k: v for k, v in (predicted_resources or {}).items() if k != "steps"}
+            ),
+            "belowKnee": resources_below_knee(below),
+        }
+    return out
 
 
 def result_dirs(results: Path = RESULTS) -> list[tuple[str, Path]]:
@@ -1210,16 +1527,69 @@ def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
+def read_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def comparison_of(exp: str, d: Path) -> dict[str, Any]:
+    """A results directory's comparison, from its predictions.json, measured.json and (when
+    there) resources-predicted.json."""
+    return compare(
+        EXPERIMENTS[exp],
+        read_json(d / "predictions.json"),
+        read_json(d / "measured.json"),
+        read_json(d / "resources-predicted.json"),
+    )
+
+
 def recompare(results: Path = RESULTS) -> list[Path]:
     """Recompute every comparison.json from its measured.json and predictions.json (no Docker)."""
     written = []
     for exp, d in result_dirs(results):
         if not (d / "predictions.json").exists():
             continue
-        pred = json.loads((d / "predictions.json").read_text(encoding="utf-8"))
-        meas = json.loads((d / "measured.json").read_text(encoding="utf-8"))
-        write_json(d / "comparison.json", compare(EXPERIMENTS[exp], pred, meas))
+        write_json(d / "comparison.json", comparison_of(exp, d))
         written.append(d / "comparison.json")
+    return written
+
+
+RESIMULATED = (
+    "Simulated again after the measurements, from calibration.json's inputs only (the inputs "
+    "predictions.json used; no measured step is used), because the predictions of these results "
+    "recorded no CPU or memory. The latency predictions are predictions.json's, unchanged."
+)
+
+
+def predict_resources(results: Path = RESULTS) -> list[Path]:
+    """resources-predicted.json for each experiment's latest results whose predictions recorded
+    no CPU or memory: every predicted step simulated again with this engine (no Docker)."""
+    from archsim_engine.version import ENGINE_VERSION
+
+    written = []
+    for exp_id in EXPERIMENTS:
+        d = results / exp_id
+        pred, cal = read_json(d / "predictions.json"), read_json(d / "calibration.json")
+        if not (pred and cal) or any("resources" in s for s in pred["steps"]):
+            continue
+        exp = EXPERIMENTS[exp_id]
+        steps = [s["offeredRps"] for s in pred["steps"]]
+        log(f"{exp_id}: simulating {len(steps)} steps again for their CPU and memory")
+        with ProcessPoolExecutor(max_workers=min(len(steps), os.cpu_count() or 2)) as pool:
+            sims = list(pool.map(simulate, [design(exp, cal["inputs"], s) for s in steps]))
+        write_json(
+            d / "resources-predicted.json",
+            {
+                "experiment": exp_id,
+                "at": now(),
+                "engineVersion": ENGINE_VERSION,
+                "how": RESIMULATED,
+                "steps": [
+                    {"offeredRps": s, "resources": r["resources"]}
+                    for s, r in zip(steps, sims, strict=True)
+                ],
+            },
+        )
+        written.append(d / "resources-predicted.json")
     return written
 
 
@@ -1279,6 +1649,8 @@ def run_experiment(exp: Experiment) -> None:
     save(exp.id, "calibration", calibration)
     predictions = predict(exp, calibration)
     save(exp.id, "predictions", predictions)  # written before any measured step runs
+    # These predictions carry CPU and memory: a re-simulation left by older results is stale.
+    (RESULTS / exp.id / "resources-predicted.json").unlink(missing_ok=True)
     measured: dict[str, Any] = {"experiment": exp.id, "at": now(), "steps": []}
     for step in [s["offeredRps"] for s in predictions["steps"]]:
         measured["steps"].append(measure_step(exp, step))
@@ -1319,8 +1691,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "stack",
-        choices=[*STACKS, "all", "compare"],
-        help="a stack to run, all of them, or 'compare': recompute every comparison.json",
+        choices=[*STACKS, "all", "compare", "resources"],
+        help="a stack to run, all of them, 'compare': recompute every comparison.json, or "
+        "'resources': predict CPU and memory for results whose predictions have none, then compare",
     )
     ap.add_argument("--keep", action="store_true", help="leave the stack running afterwards")
     ap.add_argument("--only", choices=list(EXPERIMENTS), help="run one experiment of the stack")
@@ -1330,7 +1703,10 @@ def main(argv: list[str] | None = None) -> int:
         help="first move each experiment's latest results into its next run-N/ (kept history)",
     )
     args = ap.parse_args(argv)
-    if args.stack == "compare":
+    if args.stack == "resources":
+        for path in predict_resources():
+            log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
+    if args.stack in ("compare", "resources"):
         for path in recompare():
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
         return 0

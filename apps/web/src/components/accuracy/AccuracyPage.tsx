@@ -15,6 +15,7 @@ import {
   type Experiment,
   VALIDATION_DOC,
   byKneeError,
+  cpuSentence,
   formatDate,
   formatTime,
   kneeSentence,
@@ -22,6 +23,7 @@ import {
   minus,
   p95Sentence,
   spreadSentence,
+  topStepText,
 } from "@/lib/accuracy";
 import { cn } from "@/lib/utils";
 
@@ -179,6 +181,166 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
   );
 }
 
+const th = "py-1.5 pr-2 font-medium sm:pr-3";
+const num = "py-1.5 pr-2 text-right sm:pr-3";
+
+/** One experiment's CPU (and memory, once measured): each part at the top step below the knee. */
+function ResourcesCard({ x, memory }: { x: Experiment; memory: boolean }) {
+  const r = x.resources;
+  if (!r) return null;
+  const top = topStepText(r);
+  return (
+    <article aria-labelledby={`${x.id}-resources`} className="min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow)] sm:p-6">
+      <h3 id={`${x.id}-resources`} className="text-[15px] font-semibold leading-snug text-ink">
+        {x.name}
+      </h3>
+      <p className="mt-1 text-[13px] text-ink-3">
+        {top ? `Busy cores at ${top} req/s, the highest load step at or below the measured knee` : "No load step was at or below the measured knee"}
+      </p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[300px] text-left text-[13px]">
+          <caption className="sr-only">{x.name}: busy cores measured and predicted for each part</caption>
+          <thead className="text-ink-3">
+            <tr className="border-b border-line align-bottom">
+              <th scope="col" className={th}>
+                Part
+              </th>
+              <th scope="col" className={cn(th, "text-right")}>
+                Meas.
+              </th>
+              <th scope="col" className={cn(th, "text-right")}>
+                Pred.
+              </th>
+              <th scope="col" className={cn(th, "text-right")}>
+                Error
+              </th>
+              <th scope="col" className={cn(th, "text-right", memory ? "" : "pr-0 sm:pr-0")}>
+                Typical error<span className="sr-only"> (median up to the knee)</span>
+              </th>
+              {memory && (
+                <th scope="col" className="py-1.5 text-right font-medium">
+                  Memory meas. / pred.
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="tabular text-ink">
+            {r.parts.map((p) => (
+              <tr key={p.container} className="border-b border-line last:border-0">
+                <th scope="row" className="py-1.5 pr-2 font-sans font-normal sm:pr-3">
+                  {p.name}
+                </th>
+                <td className={num}>{p.top?.text.measuredCores ?? "-"}</td>
+                <td className={num}>{p.modelled.cores ? (p.top?.text.predictedCores ?? "-") : <span className="font-sans text-ink-3">not modelled</span>}</td>
+                <td className={num}>{p.modelled.cores ? minus(p.top?.text.coresError ?? "-") : "-"}</td>
+                <td className={cn(num, memory ? "" : "pr-0 sm:pr-0")}>{p.modelled.cores ? p.text.medianAbsCoresError : "-"}</td>
+                {memory && (
+                  <td className="whitespace-nowrap py-1.5 text-right">
+                    {p.top?.text.measuredMemory ?? "-"} / {p.modelled.memory ? (p.top?.text.predictedMemory ?? "-") : "-"}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <details className="group mt-3">
+        <summary className="cursor-pointer select-none text-[13px] font-medium text-ink-2 hover:text-ink">Every load step ({r.steps.length})</summary>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-left text-[12.5px]">
+            <caption className="sr-only">{x.name}: busy cores measured and predicted for each part at each offered load</caption>
+            <thead className="text-ink-3">
+              <tr className="border-b border-line align-bottom">
+                <th scope="col" className={th}>
+                  req/s
+                </th>
+                {r.parts.map((p) => (
+                  <th key={p.container} scope="col" className={cn(th, "text-right last:pr-0")}>
+                    {p.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="tabular text-ink">
+              {r.steps.map((s) => (
+                <tr key={s.offeredRps} className={cn("border-b border-line last:border-0", !s.atOrBelowKnee && "text-ink-3")}>
+                  <td className="py-1.5 pr-2 sm:pr-3">{s.text.offered}</td>
+                  {r.parts.map((p) => {
+                    const c = s.parts[p.container];
+                    return (
+                      <td key={p.container} className={cn(num, "whitespace-nowrap last:pr-0")}>
+                        {c ? `${c.text.measuredCores} / ${p.modelled.cores ? c.text.predictedCores : "-"}` : "-"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-[12px] text-ink-3">Busy cores measured / predicted. Greyed rows are above the measured knee.</p>
+        </div>
+      </details>
+    </article>
+  );
+}
+
+function ResourcesSection({ data }: { data: Accuracy }) {
+  const withRes = data.experiments.filter((x) => x.resources);
+  if (!withRes.length) return null;
+  const memory = withRes.some((x) => x.resources?.memoryMeasured);
+  const measured = [...new Set(withRes.map((x) => x.resources?.measuredByText ?? ""))];
+  const predicted = [...new Set(withRes.map((x) => x.resources?.predictedByText ?? ""))];
+  const unmodelled = new Map<string, string>();
+  for (const x of withRes) for (const p of x.resources?.parts ?? []) if (p.notModelled.cores) unmodelled.set(p.name, p.notModelled.cores);
+  const sentence = cpuSentence(data.experiments);
+  return (
+    <Section
+      id="resources"
+      title="CPU and memory"
+      lead={
+        <>
+          ArchSim also predicts how busy each part&apos;s CPU is and how much memory it holds, and picks instance sizes from those figures. Here they
+          are against each container&apos;s own counters. {sentence}
+        </>
+      }
+    >
+      <div className="grid gap-5 md:grid-cols-2">
+        {withRes.map((x) => (
+          <ResourcesCard key={x.id} x={x} memory={memory} />
+        ))}
+      </div>
+      <div className="mt-6 max-w-3xl space-y-2 text-[13px] leading-relaxed text-ink-2">
+        <p>
+          Busy cores are CPU seconds per second: 0.5 is half of one core busy on average. Error is (predicted − measured) ÷ measured; the typical
+          error is the median over the load steps up to the measured knee.
+        </p>
+        <p>
+          <span className="font-medium text-ink">Measured:</span> {measured.join("; ")}.
+        </p>
+        <p>
+          <span className="font-medium text-ink">Predicted:</span> {predicted.join("; ")}.
+        </p>
+        {unmodelled.size > 0 && (
+          <p>
+            <span className="font-medium text-ink">Not modelled:</span>{" "}
+            {[...unmodelled].map(([name, why]) => `${name} (${why})`).join("; ")}.
+          </p>
+        )}
+        {!memory && (
+          <p>
+            <span className="font-medium text-ink">Memory</span> is not on this page yet: these runs did not measure it. The benchmark runner now reads
+            each container&apos;s working set, so the next run adds it beside ArchSim&apos;s prediction.
+          </p>
+        )}
+        <p>
+          What the gaps mean and where they come from is under &ldquo;Resources: CPU and memory&rdquo; in <RepoFile path={VALIDATION_DOC} small /> in
+          the repository.
+        </p>
+      </div>
+    </Section>
+  );
+}
+
 function HistoryTable({ id, data }: { id: string; data: Accuracy }) {
   const runs = data.history[id] ?? [];
   const name = data.experiments.find((x) => x.id === id)?.name ?? id;
@@ -240,6 +402,7 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
   const machines = s.machines.length;
   const protocolList = [...new Set(Object.values(data.history).flatMap((runs) => runs.map((r) => r.protocol)))].sort();
   const protocols = protocolList.length <= 1 ? (protocolList[0] ?? "-") : `${protocolList.slice(0, -1).join(", ")} and ${protocolList[protocolList.length - 1]}`;
+  const cpu = cpuSentence(data.experiments);
 
   return (
     <div className="min-h-full overflow-x-clip bg-page [--meas:var(--series-1)] [--pred:#c26a00] dark:[--pred:#d07400]">
@@ -322,6 +485,18 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
                 </span>
               </li>
             )}
+            {cpu && (
+              <li className="flex gap-3">
+                <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
+                <span>
+                  {cpu} See{" "}
+                  <a href="#resources" className="font-medium text-ink hover:underline">
+                    CPU and memory
+                  </a>
+                  .
+                </span>
+              </li>
+            )}
             <li className="flex gap-3">
               {s.validated.length ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <X className="mt-1 size-4 shrink-0 text-critical" aria-hidden />}
               <span>
@@ -377,6 +552,8 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
             ))}
           </div>
         </Section>
+
+        <ResourcesSection data={data} />
 
         <Section id="read" title="How to read these numbers">
           <dl className="grid max-w-3xl gap-5 text-[15px] leading-relaxed">

@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AccuracyPage } from "@/components/accuracy/AccuracyPage";
-import { CALIBRATION_DOC, VALIDATION_DOC, accuracy, kneeSentence, minus, spreadSentence } from "@/lib/accuracy";
+import { CALIBRATION_DOC, VALIDATION_DOC, accuracy, cpuSentence, kneeSentence, minus, spreadSentence, topStepText } from "@/lib/accuracy";
 
 // Expectations come from the data, so this keeps passing when the benchmarks rerun.
 describe("AccuracyPage", () => {
@@ -26,8 +26,28 @@ describe("AccuracyPage", () => {
       }
     }
 
+    // CPU and memory: one card per experiment that recorded them, every part with its numbers
+    const withResources = accuracy.experiments.filter((x) => x.resources);
+    expect(screen.getByRole("heading", { level: 2, name: "CPU and memory" })).toBeInTheDocument();
+    const cpu = cpuSentence(accuracy.experiments);
+    if (cpu) expect(text).toContain(cpu);
+    for (const x of withResources) {
+      const r = x.resources;
+      if (!r) continue;
+      const card = container.querySelector(`article[aria-labelledby="${x.id}-resources"]`) as HTMLElement | null;
+      expect(card, x.id).not.toBeNull();
+      const top = topStepText(r);
+      if (top) expect(card?.textContent).toContain(`Busy cores at ${top} req/s`);
+      for (const p of r.parts) {
+        const row = within(card as HTMLElement).getByRole("rowheader", { name: p.name }).closest("tr") as HTMLElement;
+        if (p.top) expect(row.textContent).toContain(p.top.text.measuredCores);
+        expect(row.textContent).toContain(p.modelled.cores ? (p.top?.text.predictedCores ?? "-") : "not modelled");
+      }
+    }
+
     const runs = Object.values(accuracy.history).flat();
-    expect(screen.getAllByRole("table").length).toBe(accuracy.experiments.length * 2); // each card's steps + each history table
+    // each card's steps + each history table + each resources card's summary and steps
+    expect(screen.getAllByRole("table").length).toBe(accuracy.experiments.length * 2 + withResources.length * 2);
     expect(text).toContain(`${runs.length} runs `);
     for (const r of runs) expect(text).toContain(r.machine);
     expect(screen.getByRole("heading", { name: "How to calibrate your own design" })).toBeInTheDocument();
