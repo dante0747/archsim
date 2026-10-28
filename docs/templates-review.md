@@ -1,10 +1,19 @@
 # Template review
 
-The ten built-in templates (`examples/*.json`) are the first designs most people simulate, so a
+The built-in templates (`examples/*.json`) are the first designs most people simulate, so a
 modelling mistake in one of them is the fastest way to lose the engineers ArchSim wants to
 convince. The October 2026 inspection found one (H-4: the starter modelled Redis as reading
-PostgreSQL by itself). This page records the audit of all ten that followed (workstream W5): what
-was checked, what changed and why, and a line for outside experts to sign.
+PostgreSQL by itself). This page records the audit of the first ten that followed (workstream W5):
+what was checked, what changed and why, and a line for outside experts to sign.
+
+Five more were added on 28 October 2026 to show what the first ten did not: several client
+groups with their own timeouts and retries, a circuit breaker and an egress proxy's route timeout,
+a rate limit that acts on one client group, a third-party dependency that fills a thread pool,
+PostgreSQL row-lock contention, Kafka dead letters and a hot partition key, SQS visibility
+timeouts, RabbitMQ flow control, a network-latency fault, a hot key on a Redis Cluster shard
+against Memcached's threads, Elasticsearch as a CQRS read model, and a design whose scenarios are
+sizing options for the cost and speed map and the breaking point. Their sections
+([below](#added-on-28-october-2026)) use the same checklist.
 
 How the numbers were made: engine 0.12.0 (0.11.0 plus the analysis changes below), prices from the AWS
 us-east-1 snapshot of 2026-10-27, each template's own seed. Every scenario was simulated with
@@ -409,6 +418,262 @@ Results (engine 0.12.0, seed as in the template):
 
 Reviewed by: ______________________ (name, role, date)
 
+## Added on 28 October 2026
+
+These five were built against this page's checklist rather than audited afterwards: every
+scenario was simulated while the template was tuned, each description's numbers come from those
+runs, and what was changed on the way is listed under "Tuned while building". Same conditions as
+above: engine 0.12.0, the AWS us-east-1 snapshot of 2026-10-27, each template's own seed. Like the
+others, they are illustrative designs; the costs will move when auto-sizing and instance selection
+change (the stories should not).
+
+## Event-driven CQRS with Kafka: `cqrs-kafka-read-model`
+
+A Go command service commits orders to PostgreSQL and publishes them to a 12-partition Kafka topic
+keyed by merchant; a Java projector indexes them into Elasticsearch, which a Node.js query service
+searches. 1,000 req/s, a quarter of them orders, with a 15 s flash sale at 2,500 req/s in every
+scenario.
+
+**Checked.** Request paths (commands only write: PostgreSQL first, then the publish; queries only
+read Elasticsearch), the partition key (the merchant, so each merchant's events stay in order),
+consumers against partitions (12 and 12; the projector's 32 workers cover them), redelivery (3
+deliveries, then the dead-letter count), timeouts (a command waits at most 500 ms in the queue, 1 s for
+PostgreSQL and 500 ms for Kafka: together the users' 2 s), every search
+scattered over Elasticsearch's 3 shards with one replica each.
+
+**Tuned while building.**
+- The flash sale is in the baseline, so auto-sizing sizes every part for its peak. As a scenario
+  of its own, the burst ran into CPU the auto-sizer had not given the query service, which then
+  became the bottleneck and hid the story.
+- The hot merchant is Zipf 1.15. At 1.3 that merchant's row lock in PostgreSQL also saturated the
+  command service during the sale (26 ms of lock wait per write), which mixed two stories; at 1.15
+  the lock costs about 2 ms and only the partition falls behind.
+- An Elasticsearch slowdown scenario became a projector slowdown: it failed searches but showed
+  nothing about the asynchronous side that the outage scenarios do not already show.
+
+**For reviewers.** The publish after the commit is a dual write; production would use a
+transactional outbox, which the engine does not model. A failed delivery goes back to the end of
+its partition, closer to a retry topic than to a consumer that retries in place: is that a fair
+model of "gives up after three deliveries"? Is 48 partitions a fair "more partitions" reflex for
+about 250 events a second?
+
+Results (engine 0.12.0, seed as in the template):
+
+| Scenario | Success | p95 | Headline finding | Per month |
+| --- | --- | --- | --- | --- |
+| Baseline (12 partitions, flash sale at 25–40 s) | 100% | 37 ms | No component is saturated | $3,111 |
+| One merchant places a sixth of the orders | 100% | 38 ms | order-events topic's backlog grew (consumers 66% busy) | $3,111 |
+| Hot merchant with 48 partitions | 100% | 38 ms | order-events topic's backlog grew (consumers 18% busy) | $3,547 |
+| Projector 8× slower for 25 s (50–75 s) | 100% | 37 ms | order-events topic's backlog grew (consumers 91% busy) | $3,111 |
+| Read model down for 15 s, the projector gives up | 87.7% | 37 ms | order-events topic's backlog grew (consumers 91% busy) | $3,111 |
+| Read model down for 15 s, the projector retries with backoff | 87.7% | 37 ms | order-events topic's backlog grew (consumers 91% busy) | $3,111 |
+
+What the request path does not show (the topic's numbers in the same runs): the baseline's lag
+peaks at 3,334 events (p95 event age 7.5 s) and drains; the hot merchant's partition ends the run
+with 1,524 events still waiting (p95 age 25.6 s); with 48 partitions the peak lag halves (2,390) but
+the hot partition still ends 320 behind (p95 age 21.0 s); the projector slowdown peaks at 5,497
+(p95 age 20.6 s); the outage dead-letters 2,870 events when the projector gives up and none when
+it retries with backoff (peak lag 5,527). Inside the outage window success is 25%, which is the
+orders: every one of them succeeds.
+
+Reviewed by: ______________________ (name, role, date)
+
+## Public API: three clients, one slow dependency: `public-api-slow-dependency`
+
+A Java orders API (4 pods, 32 threads each) behind an ALB for the web and mobile apps and a Kong
+gateway for partners, which enforces their plan's 450 req/s. Every new order is scored by a
+third-party fraud API through an Envoy egress proxy, then committed to PostgreSQL; reads touch only
+PostgreSQL. 1,500 req/s, a quarter of them orders.
+
+**Checked.** Client groups (web 40%: one attempt, 10 s; mobile 35%: two attempts, 10 s, 500 ms
+backoff; partners 25%: three attempts, 5 s, 200 ms backoff, the API-consumer defaults), the
+timeout chain (1 s per fraud attempt, and Envoy's route timeout is also 1 s, so the proxy does not
+hold calls the API has given up on; three attempts plus backoff is 3.3 s, plus the API's 1 s queue
+wait, inside every client's timeout), the circuit breaker (64 calls in flight, half the API's
+128 threads; the baseline needs about 40), failing open (`continueOnFailure` on the fraud call),
+the partner quota against the partners' 375 req/s. The design review's one high finding, "Up to 9
+attempts reach Egress proxy per request" (the partners' 3 attempts times the API's 3), is the
+multiplication the scenarios are about.
+
+**Tuned while building.**
+- Partners first had a 3 s timeout, shorter than the API's own worst case for one order (3.3 s):
+  the checklist's nesting rule. They now have the API-consumer default of 5 s.
+- Partners first shared the public gateway, whose rate limit (one bucket for all clients) never
+  acted. With a gateway of their own, the quota acts on the retries of exactly the clients that
+  send them.
+- The breaker is 64, not lower: at 32 the baseline's own in-flight calls (about 40) would trip it.
+
+**For reviewers.** One attempt per fraud call helps much less than intuition says (46% succeed in
+the window against 36%): is the Little's-law explanation in the scenario convincing? The breaker
+scenario's headline names the partner gateway, because rate limiting reads as overload (see
+Follow-ups). Would you fail open on fraud scoring, or queue unscored orders for review?
+
+Results (engine 0.12.0, seed as in the template):
+
+| Scenario | Success | p95 | Headline finding | Per month |
+| --- | --- | --- | --- | --- |
+| Baseline | 100% | 264 ms | No component is saturated | $971 |
+| Fraud API 8× slower (40–70 s), as drawn | 76.4% | 1,635 ms | Orders API is the primary bottleneck | $971 |
+| Fraud API slow, one attempt per call | 80.0% | 1,572 ms | Orders API is the primary bottleneck | $971 |
+| Fraud API slow, one attempt, circuit breaker | 92.1% | 298 ms | Partner gateway is the primary bottleneck | $971 |
+| Fraud API slow, circuit breaker, fail open | 100% | 286 ms | No component is saturated | $971 |
+
+Per client and inside the fault window: as drawn, 35.8% of requests succeed in the window; over the
+run the web app keeps 72.8%, the mobile app 80.5% (1.27 attempts per request) and partners 76.6%
+(1.59 attempts; the partner gateway turns away 32% of what they send). With one attempt per call
+the window's success is 45.6%. With the breaker it is 79.3%: 89,307 of 89,559 reads succeed and
+nearly every failure is an order. Failing open, every request succeeds and about 8,400 orders
+(about three in four during the slowdown) are accepted without a score.
+
+Reviewed by: ______________________ (name, role, date)
+
+## Flash sale: one hot row, two queues: `flash-sale-order-flow`
+
+A Java checkout API reserves stock and inserts the order in one PostgreSQL transaction, then
+enqueues the payment on SQS; a Go payment worker charges the card and publishes to RabbitMQ, where a
+fulfilment worker buys a shipping label from a carrier API. 600 req/s with a 20 s sale at 2,400;
+15% of requests are orders.
+
+**Checked.** Request paths (orders: the stock row and the order in PostgreSQL, then the enqueue;
+product pages: PostgreSQL reads, half of them on the replica), the stock key (the SKU: every order
+of a SKU updates the same row, which `rowLocks` models), the payment worker's retries (3 attempts
+of 5 s with 500 ms backoff: 16.5 s in the worst case, inside SQS's 30 s visibility timeout; the
+charge carries an idempotency key, so retrying it is safe), RabbitMQ's memory watermark (40% of
+0.25 GiB at 64 KB a message: about 1,640 messages), the carrier call (2 attempts of 5 s), every
+consumer of both queues actually consuming (SQS and RabbitMQ are one shared queue each).
+
+**Tuned while building.**
+- Both queues first had the generic default of 8 partitions, which left 72 SQS consumers idle (a
+  validation warning said so); they now have their presets' 10,000 and 1,000.
+- A 10× carrier *slowdown* set off RabbitMQ's memory alarm, but each block lasted about 7 s, never
+  long enough to outlive the visibility timeout. The chaos scenario is a network-latency fault
+  (+3 s each way) instead: every label call times out, fulfilment drains a few messages a second,
+  and the publishers stay blocked for more than 30 s.
+- Orders are 15% of requests (first 10%) and the deal is Zipf 1.6, so the hot row is clearly over
+  its capacity at the sale's peak rather than borderline.
+
+**For reviewers.** Do your AMQP publishers block while a broker raises a memory alarm, as modelled
+here, or time out? Is 0.25 GiB with a 40% watermark a fair small broker? Would you shorten the
+locked transaction, as the fix here does, or reserve stock through a queue?
+
+Results (engine 0.12.0, seed as in the template):
+
+| Scenario | Success | p95 | Headline finding | Per month |
+| --- | --- | --- | --- | --- |
+| Baseline (the sale opens at 20 s) | 100% | 37 ms | No component is saturated | $1,319 |
+| Deal of the day: 44% of orders for one SKU | 93.3% | 584 ms | Checkout API is the primary bottleneck | $1,309 |
+| Deal of the day, shorter stock transaction | 100% | 33 ms | No component is saturated | $1,319 |
+| Carrier API hangs for 40 s (50–90 s) | 100% | 37 ms | fulfilment (RabbitMQ)'s backlog grew (consumers 95% busy) | $1,319 |
+| Carrier hangs, 5-minute visibility timeout | 100% | 37 ms | fulfilment (RabbitMQ)'s backlog grew (consumers 95% busy) | $1,319 |
+| Carrier hangs, RabbitMQ with 4 GiB | 100% | 37 ms | fulfilment (RabbitMQ)'s backlog grew (consumers 95% busy) | $1,323 |
+
+Behind the headlines: the deal makes writes wait 106 ms on average for the stock row while the
+database's connections are 10% busy (the lock-contention finding); the shorter transaction cuts
+that to 0.8 ms. When the carrier hangs, RabbitMQ raises its memory alarm twice and SQS redelivers
+80 payment messages (one per blocked consumer; the payments API sees them twice); with the 300 s
+visibility timeout it redelivers none and its backlog peaks at 4,249; with 4 GiB the alarm never
+fires, payments carry on (SQS back to its baseline peak, 3,066) and the fulfilment backlog peaks at
+5,866 instead.
+
+Reviewed by: ______________________ (name, role, date)
+
+## Social feed: a celebrity hot key: `social-feed-hot-key`
+
+A Go feed API reads each author's recent posts from a six-shard Redis Cluster (cache-aside, TTL
+model) and Cassandra on a miss; likes and replies update Cassandra and invalidate the cached list.
+Mobile (70%, one retry) and web (30%) clients, 2,000 req/s over a million authors.
+
+**Checked.** The cache pattern (cache-aside: Cassandra is linked with `readsOnMiss`, the 20 ms
+lookup carries on if it fails, writes go to Cassandra first and then invalidate), Redis executing
+commands on one thread per shard however many vCPUs a node has (the cache is auto-sized; the
+Memcached scenario gives each node 4 vCPUs for its 4 threads), keys hashing to shards in both Redis and Cassandra, client timeouts (mobile 5 s with one
+retry, web 8 s), the Feed API's CPU (set to 4 vCPU per pod so the celebrity spike does not run out
+of CPU the auto-sizer would give it for the baseline).
+
+**Tuned while building.**
+- The first version also had a Kafka fan-out-on-write path, a small-cache eviction scenario and an
+  RDB snapshot scenario. Fan-out on write needs one post to become many timeline writes, which the
+  engine cannot do (see Follow-ups), and its writes were keyed by author, which made a misleading
+  hot shard. A 60 s run never fills a realistic Redis node's memory (about 41,000 keys were cached
+  against room for over a million), so eviction and snapshot forks showed nothing. All three are
+  gone.
+- The celebrity spike first exhausted the Feed API's auto-sized CPU before the hot Redis shard;
+  the API's CPU is set now. The cache's CPU and memory were set too, but with both set the size
+  the analysis reports without a price snapshot is not a standard shape (`test_pricing`, see
+  Follow-ups), so the cache is auto-sized and only the Memcached scenario sets its CPU. Redis commands take 0.4 ms (64 KB lists), so one shard does about
+  2,500 commands a second and the hot key is decisively over it.
+
+**For reviewers.** The cache's own numbers stay calm in the celebrity scenario (about 20% busy, no
+saturation) because a cache's metrics are not split by shard; the hot shard shows only through
+Cassandra's hot-shard finding (see Follow-ups). Is 0.4 ms per command fair for 64 KB values? Is
+Zipf 1.5 with a 3.5× spike a fair "celebrity posts"?
+
+Results (engine 0.12.0, seed as in the template):
+
+| Scenario | Success | p95 | Headline finding | Per month |
+| --- | --- | --- | --- | --- |
+| Baseline (2,000 req/s, a million authors) | 100% | 185 ms | No component is saturated | $1,734 |
+| Celebrity post: 7,000 req/s, one author gets 38% | 68.1% | 1,239 ms | Posts (Cassandra) is the primary bottleneck | $1,734 |
+| Celebrity post, 12 cache shards | 69.1% | 1,215 ms | Posts (Cassandra) is the primary bottleneck | $1,734 |
+| Celebrity post, no fallback to Cassandra | 72.0% | 189 ms | Posts cache (Redis Cluster) is the primary bottleneck | $1,734 |
+| Celebrity post on Memcached | 100% | 185 ms | No component is saturated | $1,734 |
+
+Behind the headlines: with the fallback, Cassandra's shard 1 gets 74% of its requests (the
+hot-shard finding) and the Feed API's queue overflows while its CPU is 22% busy; per client, the web
+app (no retries) keeps 60% and the mobile app 72% (1.41 attempts per request). Failing fast keeps
+both at 72% and Cassandra's hot shard at 38%. Memcached's 4 threads per node absorb the same spike.
+
+Reviewed by: ______________________ (name, role, date)
+
+## Right-size a catalog API: `right-size-catalog-api`
+
+A Node.js catalog API on three 2 vCPU VMs and PostgreSQL on 2 vCPU and 8 GiB, at 1,800 req/s (90%
+reads). The six scenarios are sizing options for Results → Compare → Cost vs. speed and the
+Breaking point tab, not incidents; this template has no chaos scenario on purpose, so the map
+compares like with like.
+
+**Checked.** The API's event loops (2 processes on 2 vCPU per VM; non-blocking calls), the
+database's connection pool (8, the most the validator accepts for 2 vCPU without a warning:
+PostgreSQL peaks at a few active connections per core), the buffer cache (a 10 GiB hot working set
+against 75% of 8 GiB: 60% of reads from memory), the sizes (CPU set on the API and CPU and memory
+on the database, so the options do not depend on auto-sizing; the API's memory is auto), the
+prices (each option snaps to an AWS type: c6g.large API VMs, db.m6g.large, db.r6g.large and
+db.m6g.xlarge).
+
+**Tuned while building.**
+- The clients' network was first a realistic 10 ms (p95 30 ms) each way, which put every option at
+  about 60 ms p95 and hid the servers. It is 1 ms now, and the description says so.
+- The load is 1,800 req/s (first 1,500), where the database is near its knee, so the options
+  differ.
+- The pool was 100 connections, then 20; the validator warned about both.
+- The API's memory is no longer set: with both CPU and memory set, the size the analysis would
+  pick without a price snapshot is not a standard shape, which `test_pricing` checks for every
+  template (see Follow-ups). Memory is not one of this template's levers.
+
+**For reviewers.** Is a 2 vCPU database at 93% CPU for 1,800 simple catalog queries a second
+plausible (each query is about 1.7 ms, half of it on CPU)? Should the map's options include a
+Redis cache in front, which would need a cache part in every option?
+
+Results (engine 0.12.0, seed as in the template):
+
+| Scenario | Success | p95 | Headline finding | Per month |
+| --- | --- | --- | --- | --- |
+| As drawn: 3 API VMs, database 2 vCPU / 8 GiB | 100% | 35 ms | Catalog DB is running hot (90% busy) | $289 |
+| Cheapest: 2 API VMs | 100% | 43 ms | Catalog DB is running hot (90% busy) | $240 |
+| Scale the API: 5 VMs | 100% | 37 ms | Catalog DB is running hot (90% busy) | $389 |
+| More database memory: 16 GiB | 100% | 32 ms | Catalog DB is running hot (CPU 93% busy) | $338 |
+| Bigger database: 4 vCPU / 16 GiB | 100% | 15 ms | No component is saturated | $406 |
+| Read replica: 2 × 2 vCPU | 100% | 17 ms | No component is saturated | $414 |
+
+The 25 ms objective passes for the bigger database and the read replica only. The frontier runs
+from the two-VM option through the drawn design and the extra memory to the bigger database; five
+API VMs and the replica sit off it. Breaking point (8 steps from 1,000 to 5,500 req/s, 20 s each):
+as drawn, the design holds 1,645 req/s within the objectives and saturates around 2,285 at the
+database; the bigger database holds 2,285 and saturates around 3,570 at the API; the replica holds
+2,285, and latency climbs sharply around 2,930 at the API.
+
+Reviewed by: ______________________ (name, role, date)
+
 ## Follow-ups outside this audit
 
 - **DynamoDB cost.** The table is priced as an instance at the catalog's illustrative $0.35 an
@@ -419,6 +684,46 @@ Reviewed by: ______________________ (name, role, date)
   same work whatever level the client asks for; only the coordinator waits longer.
 - **Rate limiting reads as overload.** A gateway that rate-limits is "saturated" and becomes "a
   consequence of" the service behind it (Black Friday, "Gateway rate limit 900 req/s"), although
-  the limit is a policy, not a symptom.
+  the limit is a policy, not a symptom. It also takes the headline: the public API's breaker
+  scenario says "Partner gateway is the primary bottleneck" for the partners' quota, and the
+  finding's advice is "Raise the balancer's connection limit or scale it out" although 0% of its
+  connections were busy.
 - **docs/performance.md** lists each template's request count and run time; the Kafka, MongoDB
-  and serverless templates now generate different loads, so its table needs a fresh run.
+  and serverless templates now generate different loads, so its table needs a fresh run, and the
+  five new templates are not in it. The README's gallery screenshot and its alt text still say 10
+  templates and 45 scenarios (now 15 and 73).
+
+Found while building the five templates of 28 October (none fixed here: engine code was out of
+scope):
+
+- **Exports drop client groups.** `roundtrip.NOT_DEPLOYED` lists `traffic_source` and
+  `kubernetes_cluster` but not `mobile_app`, `web_client` or `api_consumer`, so a docker-compose or
+  Kubernetes export of the public API or the social feed loses its clients, and importing it back
+  adds one generic Clients part. The fix is those three types in that tuple.
+  `test_import.py::test_every_template_round_trips` marks the two templates as strict expected
+  failures until then.
+- **No objective for freshness.** Objectives cover the request path only, so the CQRS template
+  "meets its objectives" while the hot merchant's events wait 26 s (p95). A consumer-lag or
+  event-age objective would let the verdict say so.
+- **A lagging topic is blamed for its producer.** At Zipf 1.3 (an early CQRS draft), the findings
+  said "Order commands is saturated as a consequence of order-events topic", although a publish is
+  acknowledged at once and the cause was PostgreSQL's row lock (the lock-contention finding said
+  so). The symptom rule should not look through a message queue.
+- **A hot cache shard is invisible.** Cache metrics are not split by shard and the hot-shard
+  finding covers databases only, so in the social feed's celebrity scenario the Redis Cluster
+  reports about 20% busy and "ok" while one shard's thread is the root cause; only Cassandra's
+  hot-shard finding (74% of its requests) points at it.
+- **Fan-out on write.** One message cannot become N writes (one post, one write per follower), so
+  the social feed models fan-out on read only. A per-message multiplier on a consumer's link would
+  allow it.
+- **Retry budgets and per-client rate limits.** Retries are a fixed attempt count per link; a
+  budget (a share of requests, as in Envoy's retry budgets or gRPC retry throttling) is not
+  modelled. A gateway's rate limit is one bucket for all callers, which is why the public API gives
+  partners a gateway of their own.
+- **Replicas serving cache reads** are not modelled (simulation-model.md says so), which rules out
+  the usual alternative fix for a hot Redis key.
+- **Sizes of fully specified parts without a snapshot.** When a VM part sets both CPU and memory,
+  the size the analysis reports for it without a price snapshot is not rounded to a standard shape
+  (2 vCPU and 2 GiB for the right-size template's API, 1 vCPU and 16 GiB for the social feed's
+  cache), which `test_pricing` checks for every template; those templates leave the memory, or
+  the whole cache, on auto. Worth a look in the sizing rework.

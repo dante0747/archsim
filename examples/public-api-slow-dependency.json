@@ -1,0 +1,541 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Public API: three clients, one slow dependency",
+    "description": "An orders API with three kinds of clients: a React web app (one attempt, 10 s timeout), a mobile app (two attempts) and partner integrations, which call through their own Kong gateway that enforces their plan's 450 req/s quota (their SDK makes three attempts with a 5 s timeout). Every new order is scored by a third-party fraud API, through an Envoy egress proxy, before it is committed to PostgreSQL; reads only touch PostgreSQL. The API is a Java service with a fixed thread pool, so a slow dependency holds threads that reads need too. The scenarios slow the fraud API 8\u00d7 for 30 s and then add one defence at a time: fewer retries, a circuit breaker, failing open. The results show each client group separately. The fraud provider's fees are left out of the cost. All numbers are illustrative assumptions.",
+    "tags": [
+      "retries",
+      "circuit-breaker",
+      "client-groups",
+      "rate-limiting",
+      "third-party",
+      "envoy",
+      "kong"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web app",
+        "description": null,
+        "config": {
+          "technology": "react",
+          "timeoutMs": 10000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 40
+        }
+      },
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "react_native",
+          "timeoutMs": 10000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 500,
+          "trafficShare": 35
+        }
+      },
+      {
+        "id": "partners",
+        "type": "api_consumer",
+        "label": "Partner integrations",
+        "description": null,
+        "config": {
+          "technology": "rest",
+          "timeoutMs": 5000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 200,
+          "trafficShare": 25
+        }
+      },
+      {
+        "id": "gateway",
+        "type": "load_balancer",
+        "label": "Public load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "partner-gw",
+        "type": "load_balancer",
+        "label": "Partner gateway",
+        "description": null,
+        "config": {
+          "technology": "kong",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.8
+          },
+          "maxConnections": 10000,
+          "rateLimitRps": 450,
+          "rateLimitBurst": 100
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Orders API",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 32,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 15
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "Orders DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 60,
+          "readReplicas": 0,
+          "queueCapacity": 300,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 8
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 15
+          }
+        }
+      },
+      {
+        "id": "egress",
+        "type": "load_balancer",
+        "label": "Egress proxy",
+        "description": null,
+        "config": {
+          "technology": "envoy",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.3
+          },
+          "maxConnections": 10000,
+          "upstreamTimeoutMs": 1000
+        }
+      },
+      {
+        "id": "fraud",
+        "type": "external_api",
+        "label": "Fraud-scoring API",
+        "description": null,
+        "config": {
+          "technology": "generic",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 80,
+            "p95": 300
+          },
+          "errorRate": 0.002,
+          "rateLimitRps": 1500,
+          "costPerMillionRequests": 0
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "web-gateway",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "gateway",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "mobile-gateway",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "gateway",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "partners-gateway",
+        "source": "partners",
+        "sourcePort": "out",
+        "target": "partner-gw",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "gateway-api",
+        "source": "gateway",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "partner-gw-api",
+        "source": "partner-gw",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "api-fraud",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "egress",
+        "targetPort": "in",
+        "label": "score the order (3 attempts)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "egress-fraud",
+        "source": "egress",
+        "sourcePort": "out",
+        "target": "fraud",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": "read orders, commit new ones",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 1000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1500,
+    "durationS": 90,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.75,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 100000,
+    "keySkew": 0.8,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline",
+      "description": "The document as drawn: 1,500 req/s, a quarter of them new orders. Every client group gets all its requests through; the fraud API's own latency (median 80 ms) is most of an order's time.",
+      "overrides": []
+    },
+    {
+      "id": "fraud-slow",
+      "name": "Fraud API 8\u00d7 slower (40\u201370 s), as drawn",
+      "description": "Chaos: the fraud API slows to a median of about 640 ms and many calls pass the API's 1 s timeout. Each order then holds a Java thread for up to three attempts, the thread pool fills, and reads queue behind orders: only about a third of all requests succeed inside the window, reads included. Retrying clients get more through than the web app, which does not retry, and partners' retries also run into their 450 req/s plan at their gateway (HTTP 429).",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "fraud-slow",
+              "kind": "slowdown",
+              "target": "fraud",
+              "startS": 40,
+              "durationS": 30,
+              "factor": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retry-budget",
+      "name": "Fraud API slow, one attempt per call",
+      "description": "The same slowdown, with the API calling the fraud API once instead of up to three times. It helps less than you might expect (inside the window 46% succeed instead of 36%): even without retries, 375 orders a second that each wait up to a second need more threads than four replicas have (Little's law). Retries multiply the load; the timeout times the traffic is what fills the pool.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "fraud-slow",
+              "kind": "slowdown",
+              "target": "fraud",
+              "startS": 40,
+              "durationS": 30,
+              "factor": 8
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "api-fraud"
+          },
+          "path": "maxAttempts",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "circuit-breaker",
+      "name": "Fraud API slow, one attempt, circuit breaker",
+      "description": "Envoy now answers 503 at once when 64 calls are already in flight to the fraud API (its circuit breaker; the default is 1,024). Orders beyond that fail fast instead of holding threads, so reads keep working: nearly every failure is now an order, and about four requests in five succeed inside the window. Partners' SDK retries each 503 and runs into its plan's quota, which is why their gateway tops the findings.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "fraud-slow",
+              "kind": "slowdown",
+              "target": "fraud",
+              "startS": 40,
+              "durationS": 30,
+              "factor": 8
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "api-fraud"
+          },
+          "path": "maxAttempts",
+          "value": 1
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "egress"
+          },
+          "path": "circuitBreakerMaxRequests",
+          "value": 64
+        }
+      ]
+    },
+    {
+      "id": "fail-open",
+      "name": "Fraud API slow, circuit breaker, fail open",
+      "description": "The API now carries on when the fraud call fails or is refused and accepts the order unscored (in production it would flag it for review). Every request succeeds and p95 stays under the objective. The cost is a business one: during the slowdown about three orders in four were accepted without a score. Whether that is acceptable is the risk team's call, not the simulator's.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "fraud-slow",
+              "kind": "slowdown",
+              "target": "fraud",
+              "startS": 40,
+              "durationS": 30,
+              "factor": 8
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "api-fraud"
+          },
+          "path": "maxAttempts",
+          "value": 1
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "egress"
+          },
+          "path": "circuitBreakerMaxRequests",
+          "value": 64
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "api-fraud"
+          },
+          "path": "continueOnFailure",
+          "value": true
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 400,
+    "latencyP99Ms": null,
+    "availability": 0.995,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "web": {
+        "x": 0,
+        "y": 0
+      },
+      "mobile": {
+        "x": 0,
+        "y": 200
+      },
+      "partners": {
+        "x": 0,
+        "y": 400
+      },
+      "gateway": {
+        "x": 330,
+        "y": 100
+      },
+      "partner-gw": {
+        "x": 330,
+        "y": 400
+      },
+      "api": {
+        "x": 660,
+        "y": 200
+      },
+      "db": {
+        "x": 1030,
+        "y": 60
+      },
+      "egress": {
+        "x": 1030,
+        "y": 340
+      },
+      "fraud": {
+        "x": 1400,
+        "y": 340
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

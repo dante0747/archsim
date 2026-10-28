@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import starterJson from "@/test/fixtures/starter.json";
 import { FEATURED, orderTemplates, reviewedByLine, templateFacts, templateMeta } from "@/components/templates/templates-meta";
@@ -10,8 +12,20 @@ describe("templates", () => {
     expect(FEATURED[0]).toBe("black-friday-kubernetes");
   });
 
+  it("has a card for every template in examples/", () => {
+    // vitest runs in apps/web (under jsdom, import.meta.url is not a file URL)
+    const dir = resolve(process.cwd(), "../../examples");
+    const ids = readdirSync(dir)
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => f.replace(/\.json$/, ""));
+    expect(ids.length).toBeGreaterThanOrEqual(15);
+    for (const id of ids) expect(templateMeta({ id, tags: [] }).insight, id).not.toMatch(/press Simulate/);
+  });
+
   it("knows each built-in template and falls back for unknown ones", () => {
     expect(templateMeta({ id: "mongodb-hot-shard", tags: [] }).category).toBe("Data");
+    expect(templateMeta({ id: "cqrs-kafka-read-model", tags: [] }).category).toBe("Async");
+    expect(templateMeta({ id: "right-size-catalog-api", tags: [] }).category).toBe("Learn");
     expect(templateMeta({ id: "something-new", tags: ["education"] }).category).toBe("Learn");
     expect(templateMeta({ id: "something-new", tags: [] }).insight).toMatch(/Simulate/);
   });

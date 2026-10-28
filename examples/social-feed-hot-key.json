@@ -1,0 +1,438 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Social feed: a celebrity hot key",
+    "description": "A social app's feed API. Opening an author's profile reads their recent posts from a six-shard Redis Cluster (cache-aside, with the hit rate worked out from a 120 s TTL and the keyspace) and falls back to Cassandra on a miss; likes and replies update Cassandra and invalidate the author's cached list. As in most feeds, big accounts are read on demand instead of being fanned out to every follower's timeline, so a celebrity's list is one very hot key: each shard of the cluster runs its commands on one thread, and a key cannot be split across shards. Mobile clients (70% of traffic) retry once; the web app does not. All numbers are illustrative assumptions.",
+    "tags": [
+      "social",
+      "hot-key",
+      "redis-cluster",
+      "memcached",
+      "cassandra",
+      "cache-aside"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "react_native",
+          "timeoutMs": 5000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 300,
+          "trafficShare": 70
+        }
+      },
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web app",
+        "description": null,
+        "config": {
+          "technology": "nextjs",
+          "timeoutMs": 8000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 30
+        }
+      },
+      {
+        "id": "edge",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 50000
+        }
+      },
+      {
+        "id": "feed",
+        "type": "service",
+        "label": "Feed API",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 8,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 8
+          },
+          "blockingDownstream": true,
+          "cpuCores": 4,
+          "memoryGib": 2
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Posts cache (Redis Cluster)",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "shards": 6,
+          "hitModel": "ttl_keyspace",
+          "ttlSeconds": 120,
+          "populateOnMiss": true,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.4
+          },
+          "concurrency": 1,
+          "itemSizeKb": 64,
+          "queueCapacity": 5000,
+          "queueTimeoutMs": null
+        }
+      },
+      {
+        "id": "posts-db",
+        "type": "database",
+        "label": "Posts (Cassandra)",
+        "description": null,
+        "config": {
+          "technology": "cassandra",
+          "shards": 6,
+          "replicationFactor": 3,
+          "consistency": "one",
+          "maxConnections": 64,
+          "queueCapacity": 500,
+          "queueTimeoutMs": 300,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 12
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 6
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "mobile-edge",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "edge",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "web-edge",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "edge",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "edge-feed",
+        "source": "edge",
+        "sourcePort": "out",
+        "target": "feed",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "feed-db",
+        "source": "feed",
+        "sourcePort": "out",
+        "target": "posts-db",
+        "targetPort": "in",
+        "label": "likes and replies; reads on a miss",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 500,
+          "readsOnMiss": true
+        }
+      },
+      {
+        "id": "feed-cache",
+        "source": "feed",
+        "sourcePort": "out",
+        "target": "cache",
+        "targetPort": "in",
+        "label": "author's recent posts (cache-aside)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.25
+          },
+          "order": 1,
+          "timeoutMs": 20,
+          "continueOnFailure": true
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 2000,
+    "durationS": 60,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.95,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 1000000,
+    "keySkew": 1.0,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (2,000 req/s, a million authors)",
+      "description": "The document as drawn: popularity follows Zipf 1.0 over a million authors. The cache serves about 63% of reads (the TTL model works the rate out from the keyspace, including the cold start), every shard is lightly loaded, and p95 is about 185 ms, most of it the mobile network.",
+      "overrides": []
+    },
+    {
+      "id": "celebrity",
+      "name": "Celebrity post: 7,000 req/s, one author gets 38%",
+      "description": "A celebrity posts: traffic jumps to 7,000 req/s for 15 s and popularity concentrates (Zipf 1.5, so one author gets about 38% of requests). That author's key lives on one Redis shard, whose single command thread cannot keep up, so lookups wait past their 20 ms timeout and fall back to Cassandra, where the same key sits on one partition (the hot-shard finding: 74% of its requests). Feed API threads wait on it and the API's queue overflows: about two requests in three succeed. The cache's own numbers look calm (about 20% busy) because they average the hot shard with five quiet ones.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.5
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 7000,
+            "startS": 25,
+            "durationS": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "celebrity-12-shards",
+      "name": "Celebrity post, 12 cache shards",
+      "description": "The reflex fix: twice the shards. The other keys spread thinner, but one key always lives on one shard, so the hot shard is as busy as before and the results barely move.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.5
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 7000,
+            "startS": 25,
+            "durationS": 15
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "shards",
+          "value": 12
+        }
+      ]
+    },
+    {
+      "id": "celebrity-fail-fast",
+      "name": "Celebrity post, no fallback to Cassandra",
+      "description": "The Feed API now fails a read whose cache lookup fails instead of reading Cassandra. Requests for keys on the hot shard fail at once and the cache tops the findings, but Cassandra stays quiet and the Feed API healthy: success is a little higher (about 72%) and the requests that succeed are as fast as on a normal day. The fallback had turned one cache shard's problem into a database problem.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.5
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 7000,
+            "startS": 25,
+            "durationS": 15
+          }
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "feed-cache"
+          },
+          "path": "continueOnFailure",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": "celebrity-memcached",
+      "name": "Celebrity post on Memcached",
+      "description": "The same cluster run as Memcached, which executes commands on 4 threads per node (on 4 vCPU nodes here). The hot key's node now has four times the command capacity and absorbs the spike: every request succeeds. Valkey would not help here, since it too executes commands on one thread. Replicas serving the hot key's reads, another common fix, are not modelled.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.5
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 7000,
+            "startS": 25,
+            "durationS": 15
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "technology",
+          "value": "memcached"
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "concurrency",
+          "value": 4
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "cpuCores",
+          "value": 4
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 300,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "mobile": {
+        "x": 0,
+        "y": 40
+      },
+      "web": {
+        "x": 0,
+        "y": 300
+      },
+      "edge": {
+        "x": 330,
+        "y": 170
+      },
+      "feed": {
+        "x": 660,
+        "y": 170
+      },
+      "cache": {
+        "x": 1030,
+        "y": 40
+      },
+      "posts-db": {
+        "x": 1030,
+        "y": 300
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}
