@@ -110,6 +110,22 @@ def test_ttl_hit_ratio_matches_the_renewal_formula() -> None:
     assert top == pytest.approx(held, rel=0.01)
 
 
+def test_the_base_rate_of_each_traffic_pattern() -> None:
+    from archsim_engine.load import base_rps
+
+    wl = {"rps": 100, "durationS": 60}
+    assert base_rps(wl) == 100
+    assert (
+        base_rps(
+            {**wl, "pattern": {"kind": "burst", "burstRps": 900, "startS": 10, "durationS": 5}}
+        )
+        == 100
+    )
+    assert base_rps({**wl, "pattern": {"kind": "ramp", "startRps": 200, "endRps": 1000}}) == 200
+    trace = {"kind": "trace", "points": [[0, 100], [10, 100], [11, 1000], [20, 1000], [21, 100]]}
+    assert base_rps({**wl, "pattern": trace}) == pytest.approx(100)
+
+
 def test_ttl_miss_shares_follow_the_load_reaching_each_cache() -> None:
     from archsim_engine.scenarios import normalize_document
 

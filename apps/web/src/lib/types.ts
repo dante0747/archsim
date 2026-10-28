@@ -247,6 +247,9 @@ export interface Pricing {
   purchaseOption?: "on_demand";
   /** Instance families to snap to; empty: any in the snapshot. */
   families?: string[];
+  /** "auto" (default): a light part may run on a burstable t4g type its CPU keeps in credit; "never": none
+   * (schema 1.4). */
+  burstable?: "auto" | "never";
   /** Pins the snapshot of this date (YYYY-MM-DD): exactly that one is used, never a newer one. */
   snapshotDate?: string | null;
   /** With snapshotDate: the snapshot's content hash (a run's input records it). */
@@ -819,6 +822,8 @@ export interface NodeCost {
   priceSource: "set" | "snapshot" | "preset" | "size" | "default" | null;
   /** The instance type priced (with a price snapshot), and the snapshot's date. */
   sku?: string;
+  /** A burstable type above its baseline at the base load: the surplus CPU credits included in `monthly`. */
+  creditsMonthly?: number;
   snapshotDate?: string | null;
   unit: "hour" | "million";
   monthly: number;

@@ -199,12 +199,14 @@ def test_a_database_is_sized_by_its_connections_and_hot_data() -> None:
     # the TTL cache's hit ratio is estimated (not 100% misses), and 10 connections x 50% CPU
     # can keep at most 5 cores busy: no 32-vCPU instance
     assert "capped at 5 because 10 connections × 50% CPU" in db["why"]["cpuCores"]
-    assert db["sku"] == "db.m6g.2xlarge"
+    assert db["sku"] in ("db.m6g.2xlarge", "db.t4g.2xlarge")  # 8 vCPU, not 32
     assert db["need"]["busyCores"] < 5
     # memory from its hot data (an illustrative 25% of what it stores), at least 1 GiB; no
     # longer 4 GiB per vCPU
     assert "of hot data per instance (25% of the" in db["why"]["memoryGib"]
-    assert "at least 1 GiB" in db["why"]["memoryGib"] and db["need"]["memoryGib"] < 1
+    assert "and 1 GiB in all" in db["why"]["memoryGib"] and db["need"]["memoryGib"] < 1
+    # enough memory for its connections: RDS's default is one per 9,531,392 bytes
+    assert "for 10 connections (RDS's default: 9,531,392 bytes each)" in db["why"]["memoryGib"]
     # with a hot working set, the buffer cache holds it
     sizes = auto_sizes(
         norm(

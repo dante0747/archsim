@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
-from archsim_engine import cost, sizing, validation
+from archsim_engine import cost, pricing, sizing, validation
 from archsim_engine.components import cache as cache_model
 from archsim_engine.components import create_default_registry
 from archsim_engine.components import database as database_model
@@ -34,6 +34,10 @@ _DYNAMO_BURST = (
 )
 _KAFKA_RETENTION = "https://kafka.apache.org/documentation/#brokerconfigs_log.retention.hours"
 _LAMBDA_MEMORY = "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"
+_RDS_CONNECTIONS = "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.MaxConnections"
+_T4G_BASELINE = (
+    "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/burstable-credits-baseline-concepts.html"
+)
 
 
 @dataclass(frozen=True)
@@ -53,7 +57,7 @@ def _pct(v: float) -> str:
 
 def constants() -> list[Constant]:
     """The engine-wide constants behind sizing, prices and component models."""
-    s, c, db, ch = sizing, cost, database_model, cache_model
+    s, c, db, ch, p = sizing, cost, database_model, cache_model, pricing
     return [
         Constant("Auto-sizing", "CPU utilisation a part is sized for at its peak", _pct(s.TARGET_CPU), "sizing.TARGET_CPU"),
         Constant("Auto-sizing", "Memory headroom over what the model needs", "+" + _pct(s.MEMORY_HEADROOM - 1), "sizing.MEMORY_HEADROOM"),
@@ -66,6 +70,9 @@ def constants() -> list[Constant]:
         Constant("Auto-sizing", "Broker memory per vCPU", f"{s.BROKER_GIB_PER_VCPU} GiB", "sizing.BROKER_GIB_PER_VCPU"),
         Constant("Auto-sizing", "Share of a database's data read often, when no hot working set is set", _pct(s.DB_HOT_SHARE), "sizing.DB_HOT_SHARE"),
         Constant("Auto-sizing", "Smallest auto memory of a database instance", f"{s.DB_MIN_MEMORY_GIB:g} GiB", "sizing.DB_MIN_MEMORY_GIB"),
+        Constant("Auto-sizing", "Database memory per connection", f"{s.DB_BYTES_PER_CONNECTION:,} bytes", "sizing.DB_BYTES_PER_CONNECTION", _RDS_CONNECTIONS),
+        Constant("Auto-sizing", "A burstable type's CPU at the base load, at most", f"{_pct(p.BURST_BASE_SHARE)} of its baseline", "pricing.BURST_BASE_SHARE", _T4G_BASELINE),
+        Constant("Auto-sizing", "A burstable type's CPU at the peak, at most", f"{_pct(p.BURST_PEAK_SHARE)} of its vCPUs", "pricing.BURST_PEAK_SHARE"),
         Constant("Auto-sizing", "Memory of a VM's operating system", f"{s.OS_MEMORY_GIB:g} GiB", "sizing.OS_MEMORY_GIB"),
         Constant("Auto-sizing", "Serverless function memory per vCPU", f"{s.LAMBDA_MB_PER_VCPU:,} MB", "sizing.LAMBDA_MB_PER_VCPU", _LAMBDA_MEMORY),
         Constant("Auto-sizing", "Backlog a delete-on-ack broker keeps room for", f"{s.BACKLOG_S // 60:g} minutes of peak publishes", "sizing.BACKLOG_S"),

@@ -694,6 +694,9 @@ Numbers built into the sizing, cost and component models. Design review threshol
 | Auto-sizing | Broker memory per vCPU | 2 GiB | illustrative | `sizing.BROKER_GIB_PER_VCPU` |
 | Auto-sizing | Share of a database's data read often, when no hot working set is set | 25% | illustrative | `sizing.DB_HOT_SHARE` |
 | Auto-sizing | Smallest auto memory of a database instance | 1 GiB | illustrative | `sizing.DB_MIN_MEMORY_GIB` |
+| Auto-sizing | Database memory per connection | 9,531,392 bytes | documented: [aws.amazon.com](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.MaxConnections) | `sizing.DB_BYTES_PER_CONNECTION` |
+| Auto-sizing | A burstable type's CPU at the base load, at most | 80% of its baseline | documented: [aws.amazon.com](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/burstable-credits-baseline-concepts.html) | `pricing.BURST_BASE_SHARE` |
+| Auto-sizing | A burstable type's CPU at the peak, at most | 60% of its vCPUs | illustrative | `pricing.BURST_PEAK_SHARE` |
 | Auto-sizing | Memory of a VM's operating system | 0.25 GiB | illustrative | `sizing.OS_MEMORY_GIB` |
 | Auto-sizing | Serverless function memory per vCPU | 1,769 MB | documented: [aws.amazon.com](https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html) | `sizing.LAMBDA_MB_PER_VCPU` |
 | Auto-sizing | Backlog a delete-on-ack broker keeps room for | 60 minutes of peak publishes | illustrative | `sizing.BACKLOG_S` |

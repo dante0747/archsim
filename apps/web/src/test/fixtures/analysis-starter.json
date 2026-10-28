@@ -8,34 +8,37 @@
       "lb": {
         "specs": {
           "cpuCores": {
-            "value": 1.0,
+            "value": 2.0,
             "source": "auto"
           },
           "memoryGib": {
-            "value": 2.0,
+            "value": 1.0,
             "source": "auto"
           }
         },
         "auto": {
-          "cpuCores": 1.0,
-          "memoryGib": 2.0,
+          "cpuCores": 2.0,
+          "memoryGib": 1.0,
           "storageGib": null
         },
         "peakRps": 400.0,
         "why": {
-          "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative); snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
-          "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative); snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
+          "cpuCores": "400 req/s at peak at about 5,000 req/s per vCPU (illustrative); snapped to t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.05 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.05 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest compute type has)",
+          "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative); snapped to t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.05 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.05 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest compute type has)"
         },
-        "pricePerHour": 0.034,
-        "sku": "c6g.medium",
+        "pricePerHour": 0.0084,
+        "sku": "t4g.micro",
         "need": {
+          "busyCores": 0.048,
           "cpuCores": 0.08,
-          "memoryGib": 0.33
+          "memoryGib": 0.33,
+          "baseBusyCores": 0.048
         },
         "needText": {
-          "cpuCores": "needs 0.08 vCPU \u00b7 c6g.medium has 1 vCPU",
-          "memoryGib": "needs 338 MiB \u00b7 c6g.medium has 2 GiB"
-        }
+          "cpuCores": "needs 0.08 vCPU (0.05 busy at the peak, at a 60% target) \u00b7 t4g.micro has 2 vCPU",
+          "memoryGib": "needs 338 MiB \u00b7 t4g.micro has 1 GiB"
+        },
+        "smallest": true
       },
       "api": {
         "specs": {
@@ -64,6 +67,7 @@
           "busyCores": 2.0339,
           "cpuCores": 3.3898,
           "memoryGibMax": 0.6055,
+          "baseBusyCores": 2.0339,
           "memoryGib": 0.5073
         },
         "needText": {
@@ -78,31 +82,33 @@
             "source": "auto"
           },
           "memoryGib": {
-            "value": 6.38,
+            "value": 0.5,
             "source": "auto"
           }
         },
         "auto": {
           "cpuCores": 2.0,
-          "memoryGib": 6.38,
+          "memoryGib": 0.5,
           "storageGib": null
         },
         "peakRps": 472.0,
         "why": {
-          "cpuCores": "472 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.04 \u2192 1 vCPU; snapped to cache.m6g.large (2 vCPU, 6.38 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
-          "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom; snapped to cache.m6g.large (2 vCPU, 6.38 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
+          "cpuCores": "472 commands/s per node \u00d7 0.05 ms = 0.02 cores busy; at a 60% target that is 0.04 \u2192 1 vCPU; snapped to cache.t4g.micro (2 vCPU, 512 MiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.02 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.02 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest cache type has)",
+          "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom; snapped to cache.t4g.micro (2 vCPU, 512 MiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.02 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.02 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest cache type has)"
         },
-        "pricePerHour": 0.149,
-        "sku": "cache.m6g.large",
+        "pricePerHour": 0.016,
+        "sku": "cache.t4g.micro",
         "need": {
           "busyCores": 0.0236,
           "cpuCores": 0.0393,
-          "memoryGib": 0.1192
+          "memoryGib": 0.1192,
+          "baseBusyCores": 0.0236
         },
         "needText": {
-          "cpuCores": "needs 0.04 vCPU (0.02 busy at the peak, at a 60% target) \u00b7 cache.m6g.large has 2 vCPU",
-          "memoryGib": "needs 122 MiB \u00b7 cache.m6g.large has 6.38 GiB"
-        }
+          "cpuCores": "needs 0.04 vCPU (0.02 busy at the peak, at a 60% target) \u00b7 cache.t4g.micro has 2 vCPU",
+          "memoryGib": "needs 122 MiB \u00b7 cache.t4g.micro has 512 MiB"
+        },
+        "smallest": true
       },
       "db": {
         "specs": {
@@ -126,8 +132,8 @@
         },
         "peakRps": 112.0,
         "why": {
-          "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
-          "memoryGib": "24 MiB of hot data per instance (25% of the 95 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 1 GiB for the engine and its connections; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it",
+          "cpuCores": "Each primary: 72 reads/s \u00d7 7.13 ms + 40 writes/s \u00d7 14.3 ms, 50% of it CPU = 0.54 cores busy; at a 60% target that is 0.9 \u2192 1 vCPU; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest database type has)",
+          "memoryGib": "24 MiB of hot data per instance (25% of the 95 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 182 MiB for 20 connections (RDS's default: 9,531,392 bytes each) and 1 GiB in all; snapped to db.m6g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest database type has)",
           "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
         },
         "pricePerHour": 0.1601,
@@ -135,19 +141,21 @@
         "need": {
           "busyCores": 0.542,
           "cpuCores": 0.9034,
-          "memoryGib": 0.031,
-          "storageGib": 0.0931
+          "memoryGib": 0.1775,
+          "storageGib": 0.0931,
+          "baseBusyCores": 0.542
         },
         "needText": {
           "cpuCores": "needs 0.9 vCPU (0.54 busy at the peak, at a 60% target) \u00b7 db.m6g.large has 2 vCPU",
-          "memoryGib": "needs 32 MiB \u00b7 db.m6g.large has 8 GiB",
+          "memoryGib": "needs 182 MiB \u00b7 db.m6g.large has 8 GiB",
           "storageGib": "stores 95 MiB \u00b7 db.m6g.large has 10 GiB"
-        }
+        },
+        "smallest": true
       }
     }
   },
   "cost": {
-    "monthly": 449.02299999999997,
+    "monthly": 333.245,
     "perMillionRequests": null,
     "byNode": [
       {
@@ -184,12 +192,12 @@
         "type": "cache",
         "technology": "redis",
         "instances": 1.0,
-        "unitPrice": 0.149,
+        "unitPrice": 0.016,
         "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 108.77,
+        "monthly": 11.68,
         "basis": "1 node",
-        "sku": "cache.m6g.large",
+        "sku": "cache.t4g.micro",
         "snapshotDate": "2026-10-28"
       },
       {
@@ -198,17 +206,17 @@
         "type": "load_balancer",
         "technology": "generic",
         "instances": 1.0,
-        "unitPrice": 0.034,
+        "unitPrice": 0.0084,
         "priceSource": "snapshot",
         "unit": "hour",
-        "monthly": 24.82,
+        "monthly": 6.132,
         "basis": "1 node",
-        "sku": "c6g.medium",
+        "sku": "t4g.micro",
         "snapshotDate": "2026-10-28"
       }
     ],
     "notes": [
-      "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (burstable types only when their family is named); discounts, data transfer and load balancer capacity units are not included."
+      "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named); discounts, data transfer and load balancer capacity units are not included."
     ],
     "hasCost": true,
     "currency": "USD",

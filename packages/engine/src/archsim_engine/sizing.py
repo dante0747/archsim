@@ -18,6 +18,9 @@ auto-sized part is not the bottleneck at the peak it was sized for:
 - Storage: the data per instance kept under 70% full.
 - With a price snapshot (``pricing`` names a provider), CPU and memory then snap to the cheapest
   instance type that covers them (``pricing.choose_machine``), so sizes are real machine shapes.
+  A light part may get a burstable type (t4g) when it passes the credit check: its CPU at the
+  workload's steady base load (``load.base_rps``) under 80% of the type's baseline, and at the
+  peak under 60% of its vCPUs (``pricing.burstable``: auto, or never).
 - Without one (generic rates), CPU and memory are rounded up together to a standard shape of 2,
   4 or 8 GiB per vCPU (the compute, general-purpose and memory-optimised ratios every large
   cloud sells), the cheapest at generic rates, so a part never asks for "4 vCPU, 0.5 GiB".
@@ -45,6 +48,7 @@ from archsim_engine.components.cache import KEY_MEMORY_SHARE
 from archsim_engine.components.database import BUFFER_CACHE_SHARE
 from archsim_engine.load import (
     Json,
+    base_rps,
     estimate_load,
     js_num,
     mean_ms,
@@ -54,10 +58,13 @@ from archsim_engine.load import (
     ttl_miss_shares,
 )
 from archsim_engine.pricing import (
+    BURST_BASE_SHARE,
+    BURST_PEAK_SHARE,
     GENERIC,
     GENERIC_GIB_HOUR,
     GENERIC_VCPU_HOUR,
     MANAGED_TECHNOLOGIES,
+    Busy,
     PricingError,
     Snapshot,
     choose_machine,
@@ -95,6 +102,9 @@ MIN_STORAGE_GIB = 10.0
 DB_MIN_MEMORY_GIB = 1.0
 """Illustrative: the smallest auto memory of a database instance (the engine and its
 connections)."""
+DB_BYTES_PER_CONNECTION = 9_531_392
+"""Memory per connection of a database instance: RDS for PostgreSQL sets max_connections to its
+memory ÷ 9,531,392 bytes by default (a db.t4g.micro's 1 GiB: about 112 connections)."""
 LAMBDA_MB_PER_VCPU = 1769
 """AWS Lambda gives a function one vCPU per 1,769 MB of memory (CPU scales with memory)."""
 PROXY_GIB_PER_VCPU = 1
@@ -129,6 +139,14 @@ class PartSize:
     memory_model: tuple[float, float, float] | None = None
     """A service's memory as (fixed GiB, GiB per request held, pools): its typical memory is
     fixed + per request × the requests one pool holds (λ·W, from the instant estimate)."""
+    smallest: bool = False
+    """Its CPU need is below the smallest size it can get (1 vCPU, or the smallest instance type
+    of its kind): a lightly used part cannot shrink further."""
+
+    def busy(self) -> Busy | None:
+        """CPU cores one instance keeps busy at the peak and at the base load (None: unknown)."""
+        peak, base = self.need.get("busyCores"), self.need.get("baseBusyCores")
+        return Busy(peak, base) if peak is not None and base is not None else None
 
     def get(self, key: str) -> float | None:
         return {
@@ -151,6 +169,8 @@ class PartSize:
             out["sku"] = self.sku
         if self.need:
             out["need"] = rounded_need(self.need)
+        if self.smallest:
+            out["smallest"] = True
         return out
 
 
@@ -385,8 +405,14 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
     # memory: its hot data in a buffer cache of 75% of memory (the working set, else an
     # illustrative share of the data it stores)
     hot = ws / shards if ws is not None else DB_HOT_SHARE * per_instance
-    mem = _mem_for(hot / BUFFER_CACHE_SHARE, DB_MIN_MEMORY_GIB)
-    floor = f", at least {js_num(DB_MIN_MEMORY_GIB)} GiB for the engine and its connections"
+    # and enough for its connections (RDS's default max_connections formula)
+    for_conns = conns * DB_BYTES_PER_CONNECTION / 2**30
+    need_mem = max(hot / BUFFER_CACHE_SHARE, for_conns)
+    mem = _mem_for(need_mem, DB_MIN_MEMORY_GIB)
+    floor = (
+        f", at least {_gib(for_conns)} for {conns} connections (RDS's default: "
+        f"{DB_BYTES_PER_CONNECTION:,} bytes each) and {js_num(DB_MIN_MEMORY_GIB)} GiB in all"
+    )
     if ws is not None:
         mem_why = (
             f"{_gib(hot)} of hot data per instance in a buffer cache of "
@@ -401,7 +427,7 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
     need = {
         "busyCores": busy,
         "cpuCores": busy / TARGET_CPU,
-        "memoryGib": hot / BUFFER_CACHE_SHARE,
+        "memoryGib": need_mem,
         "storageGib": per_instance,
     }
     return PartSize(
@@ -461,6 +487,7 @@ def _size_balancer(total: float) -> PartSize:
             "memoryGib": f"{PROXY_GIB_PER_VCPU} GiB per vCPU: a proxy keeps little state (illustrative)",
         },
         need={
+            "busyCores": need_cpu * TARGET_CPU,
             "cpuCores": need_cpu,
             "memoryGib": PROXY_GIB_PER_VCPU * need_cpu + OS_MEMORY_GIB,
         },
@@ -502,6 +529,7 @@ def _size_queue(cfg: Json, total: float, workload: Json, on_vm: bool = False) ->
             "storageGib": storage_why,
         },
         need={
+            "busyCores": need_cpu * TARGET_CPU,
             "cpuCores": need_cpu,
             "memoryGib": BROKER_GIB_PER_VCPU * need_cpu + (OS_MEMORY_GIB if on_vm else 0.0),
             "storageGib": stored,
@@ -551,9 +579,9 @@ def _fit_node(
     return size
 
 
-def pricing_of(doc: Json) -> tuple[Snapshot, str, tuple[str, ...]]:
-    """The price snapshot, purchase option and families a document names (generic when its
-    snapshot is not available here; validation says so)."""
+def pricing_of(doc: Json) -> tuple[Snapshot, str, tuple[str, ...], str]:
+    """The price snapshot, purchase option, families and burstable policy a document names
+    (generic when its snapshot is not available here; validation says so)."""
     pricing = doc.get("pricing") or {}
     try:
         snap = snapshot_for(pricing)
@@ -563,6 +591,7 @@ def pricing_of(doc: Json) -> tuple[Snapshot, str, tuple[str, ...]]:
         snap,
         str(pricing.get("purchaseOption") or "on_demand"),
         tuple(pricing.get("families") or ()),
+        "never" if pricing.get("burstable") == "never" else "auto",
     )
 
 
@@ -573,15 +602,18 @@ def _snap(
     snap: Snapshot,
     option: str,
     families: tuple[str, ...],
+    burstable: str = "auto",
 ) -> None:
     """Snap CPU and memory up to the cheapest instance type covering them (a value set on the
-    part counts as the need for that spec)."""
+    part counts as the need for that spec); a burstable type when the part passes the credit
+    check."""
     set_cpu, set_mem = num(cfg.get("cpuCores")), num(cfg.get("memoryGib"))
     cpu = set_cpu if set_cpu is not None else size.cpu_cores
     mem = set_mem if set_mem is not None else size.memory_gib
     if cpu is None and mem is None:
         return
-    m = choose_machine(snap, node_type, cfg, cpu, mem, option, families)
+    busy = size.busy()
+    m = choose_machine(snap, node_type, cfg, cpu, mem, option, families, busy, burstable)
     if m is None:
         return
     if m.sku is None:
@@ -605,6 +637,30 @@ def _snap(
         )
         if isinstance(named, str) and named:
             how += f" ({named}, the type set on the part, is not in it or is too small)"
+        if sku.burstable and sku.baseline_cpu is not None and busy is not None:
+            how += (
+                f"; burstable: {fmt(busy.base)} cores busy at the base load stay under "
+                f"{_pct(BURST_BASE_SHARE)} of its baseline ({fmt(sku.baseline_cpu * sku.vcpu)} "
+                f"cores, {_pct(sku.baseline_cpu)} of each vCPU), so it earns CPU credits, and "
+                f"{fmt(busy.peak)} at the peak stay under {_pct(BURST_PEAK_SHARE)} of its vCPUs"
+            )
+    # the CPU need is below the smallest type of its kind: it cannot shrink further
+    need_cpu = size.need.get("cpuCores")
+    smallest = min(
+        (
+            x.vcpu
+            for x in snap.skus.get(m.category) or ()
+            if not m.engine or not x.engines or m.engine in x.engines
+        ),
+        default=sku.vcpu,
+    )
+    if (
+        need_cpu is not None
+        and need_cpu <= max(1.0, smallest) + 1e-9
+        and sku.vcpu <= max(smallest, 2.0)
+    ):
+        size.smallest = True
+        how += f" (it needs less CPU than the smallest {m.category} type has)"
     if size.cpu_cores is not None:
         size.why["cpuCores"] = size.why.get("cpuCores", "") + f"; snapped to {how}"
         size.cpu_cores = float(sku.vcpu)
@@ -660,15 +716,49 @@ def _shape(size: PartSize, node_type: str, cfg: Json) -> None:
         size.memory_gib = gib
 
 
+def _size_part(
+    n: Json,
+    config: Any,
+    cfg: Json,
+    load: Any,
+    workload: Json,
+    clusters: dict[str, tuple[str, float, float]],
+    on_vm: bool,
+) -> PartSize | None:
+    """The size of one part for one load (read and write requests per second)."""
+    read, write = load.read, load.write
+    total = read + write
+    if n["type"] == "service":
+        return _fit_node(_size_service(config, cfg, total, on_vm), config, clusters)
+    if n["type"] == "database":
+        return _size_database(config, cfg, read, write, workload)
+    if n["type"] == "cache":
+        return _size_cache(config, cfg, total, workload)
+    if n["type"] == "load_balancer":
+        return _size_balancer(total)
+    if n["type"] == "message_queue":
+        return _size_queue(cfg, total, workload, on_vm)
+    return None
+
+
 def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
     """The auto size of every part that has resource specs, from a normalized document dict."""
     nodes: list[Json] = doc["architecture"]["nodes"]
     workload = doc["workload"]
-    snap, option, families = pricing_of(doc)
+    snap, option, families, burstable = pricing_of(doc)
     # a TTL cache's misses from its TTL and the key popularity (all of them when its load
     # cannot be estimated)
     loads = estimate_load(
         doc, registry, ttl_miss_share=1.0, miss_shares=ttl_miss_shares(doc, registry)
+    )
+    # and at the steady base load, for CPU credits (the hit ratios at that rate too)
+    base = base_rps(workload)
+    base_loads = estimate_load(
+        doc,
+        registry,
+        ttl_miss_share=1.0,
+        miss_shares=ttl_miss_shares(doc, registry, rate=base),
+        rate=base,
     )
     clusters = _clusters(nodes, registry)
     out: dict[str, PartSize] = {}
@@ -699,25 +789,22 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
                 None, None, None, total, skipped="Its load cannot be estimated before a run."
             )
             continue
-        size: PartSize | None = None
         on_vm = (machine_kind(n["type"], cfg) or ("", None))[0] == "compute"
-        if n["type"] == "service":
-            size = _size_service(config, cfg, total, on_vm)
-            size = _fit_node(size, config, clusters)
-        elif n["type"] == "database":
-            size = _size_database(config, cfg, read, write, workload)
-        elif n["type"] == "cache":
-            size = _size_cache(config, cfg, total, workload)
-        elif n["type"] == "load_balancer":
-            size = _size_balancer(total)
-        elif n["type"] == "message_queue":
-            size = _size_queue(cfg, total, workload, on_vm)
+        size = _size_part(n, config, cfg, load, workload, clusters, on_vm)
         if size is None:
             continue
+        at_base = base_loads.get(n["id"])
+        base_size = (
+            _size_part(n, config, cfg, at_base, workload, clusters, on_vm) if at_base else None
+        )
+        if base_size is not None and "busyCores" in base_size.need:
+            size.need["baseBusyCores"] = base_size.need["busyCores"]
         if snap.has_shapes():
-            _snap(size, n["type"], cfg, snap, option, families)
+            _snap(size, n["type"], cfg, snap, option, families, burstable)
         else:
             _shape(size, n["type"], cfg)
+            need_cpu = size.need.get("cpuCores")
+            size.smallest = need_cpu is not None and need_cpu <= 1.0 + 1e-9
         # only the specs the part has
         out[n["id"]] = PartSize(
             size.cpu_cores if "cpuCores" in has else None,
@@ -728,13 +815,25 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             sku=size.sku,
             need={k: v for k, v in size.need.items() if _need_spec(k) in has},
             memory_model=size.memory_model if "memoryGib" in has else None,
+            smallest=size.smallest,
         )
     return out
 
 
 def _need_spec(key: str) -> str:
     """The spec a need belongs to: busyCores -> cpuCores, memoryGibMax -> memoryGib."""
-    return {"busyCores": "cpuCores", "memoryGibMax": "memoryGib"}.get(key, key)
+    return {"busyCores": "cpuCores", "baseBusyCores": "cpuCores", "memoryGibMax": "memoryGib"}.get(
+        key, key
+    )
+
+
+def base_busy(sizes: dict[str, PartSize]) -> dict[str, float]:
+    """CPU cores one instance of each auto-sized part keeps busy at the steady base load."""
+    return {
+        nid: size.need["baseBusyCores"]
+        for nid, size in sizes.items()
+        if "baseBusyCores" in size.need
+    }
 
 
 def apply_auto_sizes(doc: Json, registry: ComponentRegistry) -> tuple[Json, dict[str, PartSize]]:
@@ -830,7 +929,7 @@ def sizing_summary(
     used (its instance type with a price snapshot)."""
     from archsim_engine.cost import quote
 
-    snap, option, families = pricing_of(resolved.to_json_dict())
+    snap, option, families, _ = pricing_of(resolved.to_json_dict())
 
     raw = {n.id: n.config for n in document.architecture.nodes}
     rows = {r["id"]: r for r in (estimate or {}).get("parts") or []}
@@ -879,6 +978,8 @@ def sizing_summary(
             }
             if texts:
                 entry["needText"] = texts
+        if size.smallest:
+            entry["smallest"] = True
         if size.skipped:
             entry["skipped"] = size.skipped
         nodes[n.id] = entry

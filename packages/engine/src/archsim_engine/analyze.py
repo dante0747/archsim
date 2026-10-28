@@ -19,7 +19,7 @@ from archsim_engine.registry import ComponentRegistry
 from archsim_engine.review import REVIEW_RULES, count_by_severity, review_design
 from archsim_engine.scenarios import load_document, resolve_scenario_sized, simulation_input
 from archsim_engine.schema import ArchitectureDocument
-from archsim_engine.sizing import sizing_summary
+from archsim_engine.sizing import base_busy, sizing_summary
 
 
 def analyze_document(
@@ -46,6 +46,7 @@ def analyze_document(
             None,
             snapshot.get("pricing"),
             {k: v.kind for k, v in resolved.provenance.items()},
+            base_busy(sizes),
         ),
         "review": review,
         "reviewCounts": count_by_severity(review),

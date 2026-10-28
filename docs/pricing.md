@@ -3,7 +3,7 @@
 A design says where its prices come from:
 
 ```json
-"pricing": {"provider": "generic", "region": null, "purchaseOption": "on_demand", "families": []}
+"pricing": {"provider": "generic", "region": null, "purchaseOption": "on_demand", "families": [], "burstable": "auto"}
 ```
 
 With a snapshot, a design normally also pins its date (`"snapshotDate": "2026-10-28"`, see
@@ -29,17 +29,30 @@ made before this) keeps its illustrative rates and its results; choose a snapsho
   us-east-1 · Oct 2026").
 
 **Burstable types** (AWS's t families: t3, t4g, db.t4g, cache.t4g, kafka.t3) run on CPU
-credits: a t4g.micro sustains 10% of its two vCPUs. Auto-sizing aims at 60% CPU at the peak and
-the engine simulates every vCPU at full speed, so snapping never picks a burstable type unless
-the design names its family in `families` (for example `["t4g"]` for a dev environment).
+credits: each vCPU can use its baseline (a t4g.micro 10%, a t4g.large 30%) all the time, earns
+credits below it and spends them above it. Auto-sizing picks a **t4g** type for a light part
+when it passes the **credit check**: its CPU at the workload's steady base load (the rate
+outside a burst, the low end of a ramp, a trace's median) stays under 80% of the type's
+baseline, so it earns credits all month, and its CPU at the peak stays under 60% of the type's
+vCPUs, the target auto-sizing aims at; the engine then simulates every vCPU at full speed, as
+the credits allow. The explanation says so ("burstable: 0.02 cores busy at the base load stay
+under 80% of its baseline..."). EC2 and RDS run t types in unlimited mode, so the risk is a
+charge, not throttling: when a part on a burstable type would keep more than its baseline busy
+at the base load (a type named on the part, or a run busier than the estimate), its cost line
+adds the surplus CPU credits (t4g $0.04, db.t4g $0.075 per vCPU-hour above the baseline);
+ElastiCache's t types have no surplus credits and are throttled to their baseline instead,
+which the cost line notes. `pricing.burstable` is `auto` (the default) or `never` (many teams
+ban t types in production). Naming a burstable family in `families` (`["t4g"]`) allows it
+wherever it is the cheapest fit, credit check or not, without restricting the other lists.
 
 Pods on a Kubernetes cluster and serverless functions are not machines of their own (their
 machines are the cluster's nodes and the provider's), so they keep their computed size with or
 without a snapshot.
 
 `families` limits snapping to some instance families (for example `["m7g", "c7g", "r7g"]`). It
-restricts a price list only when that list has one of the families, so naming compute families
-leaves the database and cache lists alone. A family the snapshot does not have restricts nothing
+restricts a price list only when that list has one of the (non-burstable) families, so naming
+compute families leaves the database and cache lists alone, and naming only `t4g` restricts
+none (before engine 0.13 it forced every list onto t4g). A family the snapshot does not have restricts nothing
 and gets a validation warning (`pricing.unknown_family`). `purchaseOption` is on-demand only:
 savings plans and reserved terms are not modeled yet.
 

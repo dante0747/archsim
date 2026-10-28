@@ -31,7 +31,7 @@ from archsim_engine.provenance import input_provenance, provenance_counts
 from archsim_engine.registry import ComponentRegistry
 from archsim_engine.review import review_design
 from archsim_engine.scenarios import simulation_input
-from archsim_engine.sizing import sizing_summary
+from archsim_engine.sizing import base_busy, sizing_summary
 from archsim_engine.technology import TIER_NOTE
 from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION, SCHEMA_VERSION
 
@@ -640,6 +640,7 @@ def build_report(
         report,
         input_snapshot.get("pricing"),
         {k: v.kind for k, v in resolved.provenance.items()},
+        base_busy(prep.sizes),
     )
     report["review"] = review_design(input_snapshot, registry)
     report["estimate"] = estimate

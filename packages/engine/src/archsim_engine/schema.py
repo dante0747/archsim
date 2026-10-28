@@ -579,7 +579,20 @@ class Pricing(CamelModel):
     families: list[Annotated[str, Field(pattern=r"^[A-Za-z0-9._-]{1,40}$")]] = Field(
         default_factory=list,
         max_length=20,
-        description="Instance families to snap to (e.g. m7g, r7g); empty: any in the snapshot",
+        description=(
+            "Instance families to snap to (e.g. m7g, r7g); empty: any in the snapshot. Naming a "
+            "burstable family (t4g) allows it everywhere it fits, without restricting the lists"
+        ),
+    )
+    # left out of the JSON when "auto" (the default), so documents serialize as before
+    burstable: Literal["auto", "never"] = Field(
+        default="auto",
+        exclude_if=lambda v: v == "auto",
+        description=(
+            "auto: a light part may run on a burstable type (t4g) when its CPU at the base load "
+            "stays under 80% of the type's baseline and its peak under 60% of its vCPUs. never: "
+            "no burstable types (many teams ban them in production)."
+        ),
     )
     # left out of the JSON when unset, so documents without a pin serialize as before
     snapshot_date: str | None = Field(

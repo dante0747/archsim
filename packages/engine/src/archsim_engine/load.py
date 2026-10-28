@@ -143,6 +143,29 @@ def peak_rps(workload: Json) -> float:
     return rps
 
 
+def base_rps(workload: Json) -> float:
+    """The steady base rate of the workload pattern (req/s), beside :func:`peak_rps`: what a
+    part carries most of the time, for monthly per-request costs and CPU credits. A constant
+    pattern's rate; a burst's rate outside the burst; the lower end of a ramp (the traffic
+    before or after it); a trace's median over the run."""
+    p = workload.get("pattern") or {"kind": "constant"}
+    rps = float(workload["rps"])
+    if p.get("kind") == "ramp":
+        return min(float(p["startRps"]), float(p["endRps"]))
+    if p.get("kind") == "burst":
+        return rps
+    if p.get("kind") == "trace":
+        from archsim_engine.schema import TracePattern
+
+        trace = TracePattern.model_validate(p)
+        duration = float(workload.get("durationS") or 0)
+        if duration <= 0:
+            return trace.rate(0.0)
+        samples = sorted(trace.rate(duration * (i + 0.5) / 400) for i in range(400))
+        return (samples[199] + samples[200]) / 2
+    return rps
+
+
 def client_shares(nodes: list[Json], registry: ComponentRegistry) -> list[tuple[str, float]]:
     """Each client part's fraction of the workload (relative traffic shares), in document order."""
     clients = [n for n in nodes if kind_of(n["type"], registry) == "traffic"]

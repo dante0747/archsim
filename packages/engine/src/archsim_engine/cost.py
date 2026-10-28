@@ -35,6 +35,7 @@ from archsim_engine.pricing import (
     GENERIC_STORAGE_GIB_MONTH,
     GENERIC_VCPU_HOUR,
     PricingError,
+    Sku,
     Snapshot,
     choose_machine,
     snapshot_for,
@@ -179,6 +180,38 @@ def hourly_price(node: Json, registry: ComponentRegistry) -> tuple[float | None,
     return q.price, q.source
 
 
+def sku_named(snap: Snapshot, name: str | None) -> Sku | None:
+    """The snapshot's SKU of that name, in any of its price lists."""
+    if not name:
+        return None
+    return next((s for items in snap.skus.values() for s in items if s.sku == name), None)
+
+
+def surplus_credits(
+    sku: Sku | None, base_busy: float | None, instances: float
+) -> tuple[float, str] | None:
+    """A burstable type whose CPU at the base load is above its baseline: the monthly cost of the
+    surplus CPU credits (unlimited mode: EC2 and RDS), or a note that it is throttled to its
+    baseline when its credits run out (standard mode: no credit price). None when it stays under."""
+    if sku is None or not sku.burstable or sku.baseline_cpu is None or base_busy is None:
+        return None
+    baseline = sku.baseline_cpu * sku.vcpu
+    over = base_busy - baseline
+    if over <= 1e-9:
+        return None
+    what = (
+        f"{fixed(base_busy, 2)} cores busy at the base load, over its baseline of "
+        f"{fixed(baseline, 2)} ({js_num(round_half_up(sku.baseline_cpu * 100))}% of each vCPU)"
+    )
+    if sku.credit_vcpu_hour is None:
+        return 0.0, f"{what}: it is throttled to its baseline when its CPU credits run out"
+    monthly = over * sku.credit_vcpu_hour * HOURS_PER_MONTH * instances
+    return monthly, (
+        f"+ ${fixed(monthly, 2)} a month of surplus CPU credits: {what}, "
+        f"{fixed(over, 2)} vCPU × ${js_num(sku.credit_vcpu_hour)} per vCPU-hour"
+    )
+
+
 def _plural(n: float, word: str) -> str:
     shown = js_num(n) if float(n).is_integer() else fixed(n, 1)
     return f"{shown} {word}{'' if n == 1 else 's'}"
@@ -255,10 +288,13 @@ def estimate_cost(
     report: Json | None = None,
     pricing: Json | None = None,
     provenance: dict[str, str] | None = None,
+    base_busy: dict[str, float] | None = None,
 ) -> Json:
     """Monthly cost of ``nodes`` (a normalized design, or a run's ``input.architecture.nodes``)
     with the prices ``pricing`` names (generic when unset). ``provenance``: the document's
-    provenance kind by path (a price marked measured or assumed is the user's).
+    provenance kind by path (a price marked measured or assumed is the user's). ``base_busy``:
+    the CPU cores one instance of each part keeps busy at the steady base load, so a burstable
+    type above its baseline is charged its surplus CPU credits.
 
     With a report, third-party calls are priced at the measured call rate, autoscaled services
     at their average active instances, and the cost per million successful requests is derived.
@@ -360,6 +396,13 @@ def estimate_cost(
             note = (
                 f"{note}; " if note else ""
             ) + "an API gateway is billed per request, which the price snapshot does not cover"
+        credits = (
+            surplus_credits(sku_named(snap, q.sku), (base_busy or {}).get(n["id"]), count)
+            if q.source == "snapshot"
+            else None
+        )
+        if credits is not None:
+            note = (f"{note}; " if note else "") + credits[1]
         line: Json = {
             "id": n["id"],
             "label": label,
@@ -369,9 +412,12 @@ def estimate_cost(
             "unitPrice": q.price,
             "priceSource": q.source,
             "unit": "hour",
-            "monthly": q.price * count * HOURS_PER_MONTH if q.price is not None else 0.0,
+            "monthly": (q.price * count * HOURS_PER_MONTH if q.price is not None else 0.0)
+            + (credits[0] if credits else 0.0),
             "basis": basis + (f"; {note}" if note else ""),
         }
+        if credits and credits[0] > 0:
+            line["creditsMonthly"] = credits[0]
         if q.sku:
             line["sku"] = q.sku
             line["snapshotDate"] = snap.snapshot_date
@@ -389,7 +435,8 @@ def estimate_cost(
         notes.append(
             f"Prices: {snap.provider} {snap.region}, {option.replace('_', '-')} list prices of "
             f"{snap.snapshot_date} ({names}). Each part runs on the cheapest instance type that "
-            "covers its CPU and memory (burstable types only when their family is named); "
+            "covers its CPU and memory (a burstable t4g type only when its CPU at the base load "
+            "stays under its baseline, or when its family is named); "
             "discounts, data transfer and load balancer capacity units are not included."
         )
     if preset_kept:

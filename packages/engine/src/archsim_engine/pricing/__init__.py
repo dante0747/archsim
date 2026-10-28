@@ -18,9 +18,13 @@ here calls a network. This package ships AWS us-east-1 snapshots (``aws-us-east-
 templates and new documents pin the newest of them (``default_pricing``), while a document
 without ``pricing`` keeps the generic rates, as before.
 
-Burstable types (``burstable``: AWS's t families) run on CPU credits rather than full cores, and
-the engine simulates every vCPU at full speed, so snapping never picks one unless the design
-names its family in ``families``.
+Burstable types (``burstable``: AWS's t families) run on CPU credits rather than full cores: each
+vCPU can use its ``baselineCpu`` share all the time and earns credits below it, which it spends
+above it. Snapping picks one for a light part (``pricing.burstable`` "auto", the default) only when
+the part's CPU at the base load stays under 80% of the baseline (so it earns credits and pays
+for no surplus) and its peak under 60% of the vCPUs (the auto-sizing target), the credit check;
+the engine then simulates every vCPU at full speed, as the credits allow. ``never`` leaves them
+out; naming a burstable family in ``families`` allows it wherever it fits, credit check or not.
 """
 
 from __future__ import annotations
@@ -51,6 +55,36 @@ DEFAULT_REGION = "us-east-1"
 
 MANAGED_TECHNOLOGIES = frozenset({"aws_alb", "api_gateway", "cdn", "dynamodb", "sqs", "pubsub"})
 """Managed services: the provider sizes them, so they never run on an instance type."""
+
+BURST_BASE_SHARE = 0.8
+"""A burstable type is picked only when the part's CPU at the base load stays under this share
+of the type's baseline: it then earns credits all the time and spends them only in peaks."""
+BURST_PEAK_SHARE = 0.6
+"""... and when its CPU at the peak stays under this share of the type's vCPUs (the target
+auto-sizing aims at)."""
+Burstable = Literal["auto", "never"]
+AUTO_BURSTABLE = frozenset({"t4g"})
+"""Burstable families auto-sizing may pick by itself (Graviton t4g: EC2, RDS db.t4g and
+ElastiCache cache.t4g, the cheapest of their kind); others only when named in ``families``."""
+
+
+@dataclass(frozen=True)
+class Busy:
+    """CPU cores one instance of a part keeps busy: at the peak and at the steady base load."""
+
+    peak: float
+    base: float
+
+
+def credit_check(sku: Sku, busy: Busy | None) -> bool:
+    """A burstable type can run the part on its credits: its CPU at the base load stays under
+    80% of the type's baseline, and at the peak under 60% of its vCPUs."""
+    if not sku.burstable or sku.baseline_cpu is None or busy is None:
+        return False
+    return (
+        busy.base <= BURST_BASE_SHARE * sku.baseline_cpu * sku.vcpu + 1e-12
+        and busy.peak <= BURST_PEAK_SHARE * sku.vcpu + 1e-12
+    )
 
 
 class _M(BaseModel):
@@ -216,23 +250,37 @@ class Snapshot:
         option: str = "on_demand",
         engine: str | None = None,
         families: list[str] | tuple[str, ...] = (),
+        busy: Busy | None = None,
+        burstable: str = "auto",
     ) -> Sku | None:
         """The cheapest SKU of ``category`` with at least ``cpu`` vCPU and ``memory_gib`` GiB (a
         database, cache or stream SKU must run ``engine``). ``families`` restrict a price list
-        that has any of them (naming compute families leaves the database list alone). Burstable
-        types are left out unless their family is named. Ties go to the smaller machine, then the
-        name. None when nothing fits."""
+        that has any of their non-burstable families (naming compute families leaves the
+        database list alone); a burstable family named there is allowed wherever it fits, and
+        restricts nothing. t4g types also with ``burstable`` "auto", no families restricting the
+        list, and the part's ``busy`` passing the credit check. Ties go to the
+        smaller machine, then the name. None when nothing fits."""
         items = self.skus.get(category) or ()
-        if not any(s.family in families for s in items):
-            families = ()
+        named = set(families)
+        restrict = {s.family for s in items if not s.burstable and s.family in named}
+        bursts = {s.family for s in items if s.burstable and s.family in named}
+
+        def allowed(s: Sku) -> bool:
+            if not s.burstable:
+                return not restrict or s.family in restrict
+            if burstable == "never":
+                return False
+            return s.family in bursts or (
+                s.family in AUTO_BURSTABLE and not restrict and credit_check(s, busy)
+            )
+
         fits = [
             s
             for s in items
             if s.vcpu >= (cpu or 0) - 1e-9
             and s.memory_gib >= (memory_gib or 0) - 1e-9
             and s.price(option) is not None
-            and (not families or s.family in families)
-            and (not s.burstable or s.family in families)
+            and allowed(s)
             and (not engine or not s.engines or engine in s.engines)
         ]
         if not fits:
@@ -299,6 +347,8 @@ def choose_machine(
     memory_gib: float | None,
     option: str = "on_demand",
     families: list[str] | tuple[str, ...] = (),
+    busy: Busy | None = None,
+    burstable: str = "auto",
 ) -> Machine | None:
     """The instance type a part of this size runs on (None: not billed per machine, or the
     snapshot has no shapes): its own ``instanceType`` while that is in the snapshot and covers
@@ -323,13 +373,13 @@ def choose_machine(
             if own_category:
                 return Machine(category, engine, sku, named=True)
             return Machine("compute", engine, sku, self_managed=True, named=True)
-    sku = snap.cover(category, cpu, memory_gib, option, engine, families)
+    sku = snap.cover(category, cpu, memory_gib, option, engine, families, busy, burstable)
     if (
         sku is None
         and category != "compute"
         and not any(engine in s.engines for s in snap.skus.get(category) or ())
     ):
-        sku = snap.cover("compute", cpu, memory_gib, option, None, families)
+        sku = snap.cover("compute", cpu, memory_gib, option, None, families, busy, burstable)
         return Machine("compute", engine, sku, self_managed=True)
     return Machine(category, engine, sku)
 
@@ -560,9 +610,13 @@ def unknown_families(snap: Snapshot, families: list[str] | tuple[str, ...]) -> l
 
 
 __all__ = [
+    "AUTO_BURSTABLE",
+    "BURST_BASE_SHARE",
+    "BURST_PEAK_SHARE",
     "FORMAT",
     "GENERIC",
     "MANAGED_TECHNOLOGIES",
+    "Busy",
     "Machine",
     "PricingError",
     "Sku",
@@ -570,6 +624,7 @@ __all__ = [
     "available",
     "choose_machine",
     "content_sha256",
+    "credit_check",
     "default_pricing",
     "load_snapshot",
     "machine_kind",
