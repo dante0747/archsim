@@ -501,6 +501,13 @@ def estimate_design(
                     extra = times(miss / here.read, wait + shape.own["read"])
             own_time[nid][op] = mine + extra
             resid[nid][op] = mine + d + extra
+        # how long a request stays in the part (waiting, working and in its own calls): with
+        # the arrival rate, the requests it holds at once (Little's law), e.g. for memory
+        stays = [(r, resid[nid][op]) for op, r in (("read", here.read), ("write", here.write))]
+        if here.total > 0 and all(m is not None for r, m in stays if r > 0):
+            row["meanResidenceMs"] = _round(
+                sum(r * m.mean for r, m in stays if r > 0 and m is not None) / here.total
+            )
 
     # clients: each request type's path, mixed by traffic share
     components: list[tuple[float, Moments]] = []

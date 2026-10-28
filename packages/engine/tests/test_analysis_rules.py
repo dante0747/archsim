@@ -160,6 +160,34 @@ def test_service_cpu_is_sized_for_its_peak_share_and_memory_for_what_it_holds() 
     assert "150 req/s per replica" in s.why["cpuCores"]
 
 
+def test_parts_record_what_they_need_beside_the_instance_they_get() -> None:
+    import json
+
+    from archsim_engine.analyze import analyze_document
+    from engine_builders import EXAMPLES
+
+    doc = json.loads((EXAMPLES / "cache-aside-starter.json").read_text(encoding="utf-8"))
+    nodes = analyze_document(doc, REG)["sizing"]["nodes"]
+    api = nodes["api"]
+    # 200 req/s per replica x 10.2 ms = 2.03 cores busy; at a 60% target, 3.39 vCPU needed
+    assert api["need"]["busyCores"] == pytest.approx(2.03, abs=0.01)
+    assert api["need"]["cpuCores"] == pytest.approx(api["need"]["busyCores"] / 0.6, rel=1e-3)
+    # memory: what it typically holds (lambda x W) and the most, with every queue full, plus the
+    # VM's operating system; both well under what the instance has
+    typical, most = api["need"]["memoryGib"], api["need"]["memoryGibMax"]
+    assert 0.25 < typical < most < 1
+    assert api["specs"]["memoryGib"]["value"] >= most
+    assert api["needText"]["memoryGib"].startswith("needs ")
+    assert "when queues are full) · c6g.xlarge has 8 GiB" in api["needText"]["memoryGib"]
+    assert "2.03 busy at the peak" in api["needText"]["cpuCores"]
+    # a cache needs its keyspace; a database its hot data; storage the data it keeps
+    assert nodes["cache"]["need"]["memoryGib"] == pytest.approx(100_000 / 1024**2 / 0.8, rel=1e-3)
+    assert nodes["db"]["need"]["storageGib"] == pytest.approx(100_000 * 1000 / 2**30, rel=1e-3)
+    assert nodes["db"]["needText"]["storageGib"].startswith("stores ")
+    # cpuCores and memoryGib stay the instance's real capacity
+    assert api["specs"]["cpuCores"]["value"] == 4 and api["specs"]["memoryGib"]["value"] == 8
+
+
 def test_autoscaling_full_scale_worker_cap_and_floor() -> None:
     sizes = auto_sizes(
         norm(

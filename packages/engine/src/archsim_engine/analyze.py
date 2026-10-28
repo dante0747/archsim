@@ -39,7 +39,7 @@ def analyze_document(
     return {
         "scenarioId": scenario.id if scenario else None,
         "peakRps": peak_rps(snapshot["workload"]),
-        "sizing": sizing_summary(doc, resolved, sizes, registry),
+        "sizing": sizing_summary(doc, resolved, sizes, registry, estimate),
         "cost": estimate_cost(
             snapshot["architecture"]["nodes"],
             registry,

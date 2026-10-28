@@ -27,7 +27,15 @@
           "memoryGib": "1 GiB per vCPU: a proxy keeps little state (illustrative); snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
         },
         "pricePerHour": 0.034,
-        "sku": "c6g.medium"
+        "sku": "c6g.medium",
+        "need": {
+          "cpuCores": 0.08,
+          "memoryGib": 0.33
+        },
+        "needText": {
+          "cpuCores": "needs 0.08 vCPU \u00b7 c6g.medium has 1 vCPU",
+          "memoryGib": "needs 338 MiB \u00b7 c6g.medium has 2 GiB"
+        }
       },
       "api": {
         "specs": {
@@ -51,7 +59,17 @@
           "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) \u00d7 2 MiB = 364 MiB, +25% headroom; snapped to c6g.xlarge (4 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
         },
         "pricePerHour": 0.136,
-        "sku": "c6g.xlarge"
+        "sku": "c6g.xlarge",
+        "need": {
+          "busyCores": 2.0339,
+          "cpuCores": 3.3898,
+          "memoryGibMax": 0.6055,
+          "memoryGib": 0.5073
+        },
+        "needText": {
+          "cpuCores": "needs 3.39 vCPU (2.03 busy at the peak, at a 60% target) \u00b7 c6g.xlarge has 4 vCPU",
+          "memoryGib": "needs 520 MiB (up to 620 MiB when queues are full) \u00b7 c6g.xlarge has 8 GiB"
+        }
       },
       "cache": {
         "specs": {
@@ -75,7 +93,16 @@
           "memoryGib": "100,000 keys \u00d7 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom; snapped to cache.m6g.large (2 vCPU, 6.38 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it"
         },
         "pricePerHour": 0.149,
-        "sku": "cache.m6g.large"
+        "sku": "cache.m6g.large",
+        "need": {
+          "busyCores": 0.0236,
+          "cpuCores": 0.0393,
+          "memoryGib": 0.1192
+        },
+        "needText": {
+          "cpuCores": "needs 0.04 vCPU (0.02 busy at the peak, at a 60% target) \u00b7 cache.m6g.large has 2 vCPU",
+          "memoryGib": "needs 122 MiB \u00b7 cache.m6g.large has 6.38 GiB"
+        }
       },
       "db": {
         "specs": {
@@ -104,7 +131,18 @@
           "storageGib": "100,000 keys \u00d7 1 KB \u2248 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
         },
         "pricePerHour": 0.1601,
-        "sku": "db.m6g.large"
+        "sku": "db.m6g.large",
+        "need": {
+          "busyCores": 0.542,
+          "cpuCores": 0.9034,
+          "memoryGib": 0.031,
+          "storageGib": 0.0931
+        },
+        "needText": {
+          "cpuCores": "needs 0.9 vCPU (0.54 busy at the peak, at a 60% target) \u00b7 db.m6g.large has 2 vCPU",
+          "memoryGib": "needs 32 MiB \u00b7 db.m6g.large has 8 GiB",
+          "storageGib": "stores 95 MiB \u00b7 db.m6g.large has 10 GiB"
+        }
       }
     }
   },
@@ -831,6 +869,7 @@
         "limitedBy": "slots",
         "waitProbability": 0.0,
         "meanWaitMs": 0.0,
+        "meanResidenceMs": 19.601,
         "perRequestMs": 0.2
       },
       {
@@ -850,6 +889,7 @@
         "limitedBy": "slots",
         "waitProbability": 0.4236,
         "meanWaitMs": 4.867,
+        "meanResidenceMs": 18.801,
         "perRequestMs": 15.036
       },
       {
@@ -869,6 +909,7 @@
         "limitedBy": "slots",
         "waitProbability": 0.0236,
         "meanWaitMs": 0.001,
+        "meanResidenceMs": 0.051,
         "perRequestMs": 0.06
       },
       {
@@ -888,6 +929,7 @@
         "limitedBy": "cpu",
         "waitProbability": 0.0,
         "meanWaitMs": 0.0,
+        "meanResidenceMs": 10.126,
         "perRequestMs": 2.835
       }
     ],

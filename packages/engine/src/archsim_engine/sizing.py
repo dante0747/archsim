@@ -19,6 +19,13 @@ auto-sized part is not the bottleneck at the peak it was sized for:
   Parts that do not run on their own machines (pods on a Kubernetes cluster, serverless
   functions, managed services) keep their computed size, with a snapshot or without.
 
+Each part also records what it **needs** (``need``), beside the instance it gets: the CPU cores
+busy at the peak and the cores that keeps at the 60% target, the memory it uses (a service: the
+requests it typically holds, from the instant estimate's λ·W, and the most it can hold when every
+queue is full; a cache: its keys; a database: its hot data in the buffer cache; plus the
+operating system on a VM of its own) and the data it stores. ``cpuCores`` and ``memoryGib`` stay
+the instance's real capacity, which is what the simulation runs on.
+
 A few ratios have no measured basis in the model (proxy throughput per vCPU, broker memory per
 vCPU, database memory without a working set); their explanations say "illustrative".
 """
@@ -82,6 +89,10 @@ BACKLOG_S = 3600
 GIB_PER_VCPU = (2, 4, 8)
 """Standard shapes without a price snapshot: 2, 4 or 8 GiB per vCPU (compute, general purpose,
 memory optimised)."""
+OS_MEMORY_GIB = 0.25
+"""Illustrative: memory the operating system of a VM uses besides the part's own process."""
+DB_HOT_SHARE = 0.25
+"""Illustrative: share of a database's data that is read often, when no hot working set is set."""
 
 
 @dataclass
@@ -94,6 +105,13 @@ class PartSize:
     skipped: str | None = None
     sku: str | None = None
     """The instance type the size snapped to (with a price snapshot)."""
+    need: dict[str, float] = field(default_factory=dict)
+    """What the part needs, before rounding to an instance: ``busyCores`` (CPU busy at the peak),
+    ``cpuCores`` (that at the target utilization), ``memoryGib`` and ``memoryGibMax`` (a service:
+    the most it holds when every queue is full), ``storageGib`` (the data it stores)."""
+    memory_model: tuple[float, float, float] | None = None
+    """A service's memory as (fixed GiB, GiB per request held, pools): its typical memory is
+    fixed + per request × the requests one pool holds (λ·W, from the instant estimate)."""
 
     def get(self, key: str) -> float | None:
         return {
@@ -114,7 +132,13 @@ class PartSize:
             out["skipped"] = self.skipped
         if self.sku:
             out["sku"] = self.sku
+        if self.need:
+            out["need"] = rounded_need(self.need)
         return out
+
+
+def rounded_need(need: dict[str, float]) -> dict[str, float]:
+    return {k: round(v, 4) for k, v in need.items()}
 
 
 def _step_up(x: float, steps: list[float] | list[int]) -> float:
@@ -176,7 +200,7 @@ def _disk_for(need: float) -> float:
     return min(1_000_000.0, _step_up(max(need, MIN_STORAGE_GIB), DISK_STEPS))
 
 
-def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
+def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> PartSize:
     baseline = num(cfg.get("memoryBaselineMb"))
     baseline = 256.0 if baseline is None else baseline
     per_req = num(cfg.get("memoryPerRequestMb"))
@@ -191,6 +215,7 @@ def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
                 "cpuCores": "One request per instance: 1 vCPU runs it at full speed",
                 "memoryGib": f"{fmt(baseline)} MiB base + 1 request × {fmt(per_req)} MiB, {_headroom()}",
             },
+            need={"cpuCores": 1.0, "memoryGib": mb / 1024, "memoryGibMax": mb / 1024},
         )
     autoscaling = cfg.get("autoscaling") is True
     replicas_set = num(cfg.get("replicas")) or 1.0
@@ -202,8 +227,9 @@ def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
     handlers = int(config.slots_per_replica())
     ms = mean_ms(cfg.get("serviceTimeMs"))
     per_replica = total / replicas
+    busy = per_replica * ms / 1000
     cpu, why = _cpu_for(
-        per_replica * ms / 1000,
+        busy,
         f"{fmt(per_replica)} req/s per replica at peak ({fmt(total)} over {js_num(replicas)}"
         f"{' at full scale' if autoscaling else ''}) × {fmt(ms)} ms of CPU each",
     )
@@ -225,6 +251,13 @@ def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
     mb = baseline + held * per_req
     wanted = _mem_for(mb * MEMORY_HEADROOM / 1024, 0.5)
     mem = min(wanted, float(MAX_SERVICE_MEMORY_GIB))
+    os = OS_MEMORY_GIB if on_vm else 0.0
+    need = {
+        "busyCores": busy,
+        "cpuCores": busy / TARGET_CPU,
+        "memoryGibMax": mb / 1024 + os,
+    }
+    memory_model = (baseline / 1024 + os, per_req / 1024, replicas)
     mem_why = (
         f"{fmt(baseline)} MiB base + {fmt(held)} requests held ({working} working, {fmt(queue)} "
         f"queued) × {fmt(per_req)} MiB = {_gib(mb / 1024)}, {_headroom()}"
@@ -235,7 +268,14 @@ def _size_service(config: Any, cfg: Json, total: float) -> PartSize:
             f"{mem_why}; capped at {MAX_SERVICE_MEMORY_GIB} GiB, so past about {fmt(refuse_at)} "
             "requests held it refuses (out of memory)"
         )
-    return PartSize(cpu, mem, None, why={"cpuCores": why, "memoryGib": mem_why})
+    return PartSize(
+        cpu,
+        mem,
+        None,
+        why={"cpuCores": why, "memoryGib": mem_why},
+        need=need,
+        memory_model=memory_model,
+    )
 
 
 def _size_database(config: Any, cfg: Json, read: float, write: float, workload: Json) -> PartSize:
@@ -298,8 +338,21 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
         else f"{fmt(int(workload['keyCount']))} keys × {fmt(item_kb)} KB ≈ {_gib(data)} (set the data size for a better estimate)"
     )
     storage_why = f"{source}{f' over {shards} shards' if shards > 1 else ''}, {_fill()} (at least {js_num(MIN_STORAGE_GIB)} GiB)"
+    # memory it needs: its hot data in the buffer cache (the working set, else an illustrative
+    # share of the data it stores)
+    hot = ws / shards if ws is not None else DB_HOT_SHARE * per_instance
+    need = {
+        "busyCores": busy,
+        "cpuCores": busy / TARGET_CPU,
+        "memoryGib": hot / BUFFER_CACHE_SHARE,
+        "storageGib": per_instance,
+    }
     return PartSize(
-        cpu, mem, disk, why={"cpuCores": why, "memoryGib": mem_why, "storageGib": storage_why}
+        cpu,
+        mem,
+        disk,
+        why={"cpuCores": why, "memoryGib": mem_why, "storageGib": storage_why},
+        need=need,
     )
 
 
@@ -308,9 +361,8 @@ def _size_cache(config: Any, cfg: Json, total: float, workload: Json) -> PartSiz
     executors = max(1, int(config.executors()))
     ms = mean_ms(cfg.get("serviceTimeMs"))
     per_shard = total / shards
-    cpu, why = _cpu_for(
-        per_shard * ms / 1000, f"{fmt(per_shard)} commands/s per node × {fmt(ms)} ms"
-    )
+    busy = per_shard * ms / 1000
+    cpu, why = _cpu_for(busy, f"{fmt(per_shard)} commands/s per node × {fmt(ms)} ms")
     cpu, why = _cap_cpu(
         cpu,
         why,
@@ -332,11 +384,17 @@ def _size_cache(config: Any, cfg: Json, total: float, workload: Json) -> PartSiz
                 f"= {_gib(data)} per node; {_pct(KEY_MEMORY_SHARE)} of memory holds keys, {_headroom()}"
             ),
         },
+        need={
+            "busyCores": busy,
+            "cpuCores": busy / TARGET_CPU,
+            "memoryGib": data / KEY_MEMORY_SHARE,
+        },
     )
 
 
 def _size_balancer(total: float) -> PartSize:
     cpu = min(512.0, _step_up(max(1.0, total / PROXY_RPS_PER_VCPU), CPU_STEPS))
+    need_cpu = total / PROXY_RPS_PER_VCPU
     return PartSize(
         cpu,
         _mem_for(PROXY_GIB_PER_VCPU * cpu, 1),
@@ -345,12 +403,17 @@ def _size_balancer(total: float) -> PartSize:
             "cpuCores": f"{fmt(total)} req/s at peak at about {fmt(PROXY_RPS_PER_VCPU)} req/s per vCPU (illustrative)",
             "memoryGib": f"{PROXY_GIB_PER_VCPU} GiB per vCPU: a proxy keeps little state (illustrative)",
         },
+        need={
+            "cpuCores": need_cpu,
+            "memoryGib": PROXY_GIB_PER_VCPU * need_cpu + OS_MEMORY_GIB,
+        },
     )
 
 
-def _size_queue(cfg: Json, total: float, workload: Json) -> PartSize:
+def _size_queue(cfg: Json, total: float, workload: Json, on_vm: bool = False) -> PartSize:
     brokers = max(1, int(num(cfg.get("brokers")) or 1))
-    cpu = min(512.0, _step_up(max(1.0, total / brokers / BROKER_MSGS_PER_VCPU), CPU_STEPS))
+    need_cpu = total / brokers / BROKER_MSGS_PER_VCPU
+    cpu = min(512.0, _step_up(max(1.0, need_cpu), CPU_STEPS))
     msg_kb = num(cfg.get("messageSizeKb"))
     msg_kb = 1.0 if msg_kb is None else msg_kb
     log = str(cfg.get("technology")) in LOG_BROKERS
@@ -380,6 +443,11 @@ def _size_queue(cfg: Json, total: float, workload: Json) -> PartSize:
             "cpuCores": f"{fmt(total / brokers)} messages/s per broker at peak at about {fmt(BROKER_MSGS_PER_VCPU)} per vCPU (illustrative)",
             "memoryGib": f"{BROKER_GIB_PER_VCPU} GiB per vCPU for buffers and page cache (illustrative)",
             "storageGib": storage_why,
+        },
+        need={
+            "cpuCores": need_cpu,
+            "memoryGib": BROKER_GIB_PER_VCPU * need_cpu + (OS_MEMORY_GIB if on_vm else 0.0),
+            "storageGib": stored,
         },
     )
 
@@ -564,8 +632,9 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             )
             continue
         size: PartSize | None = None
+        on_vm = (machine_kind(n["type"], cfg) or ("", None))[0] == "compute"
         if n["type"] == "service":
-            size = _size_service(config, cfg, total)
+            size = _size_service(config, cfg, total, on_vm)
             size = _fit_node(size, config, clusters)
         elif n["type"] == "database":
             size = _size_database(config, cfg, read, write, workload)
@@ -574,7 +643,7 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
         elif n["type"] == "load_balancer":
             size = _size_balancer(total)
         elif n["type"] == "message_queue":
-            size = _size_queue(cfg, total, workload)
+            size = _size_queue(cfg, total, workload, on_vm)
         if size is None:
             continue
         if snap.has_shapes():
@@ -589,8 +658,15 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             total,
             why={k: v for k, v in size.why.items() if k in has},
             sku=size.sku,
+            need={k: v for k, v in size.need.items() if _need_spec(k) in has},
+            memory_model=size.memory_model if "memoryGib" in has else None,
         )
     return out
+
+
+def _need_spec(key: str) -> str:
+    """The spec a need belongs to: busyCores -> cpuCores, memoryGibMax -> memoryGib."""
+    return {"busyCores": "cpuCores", "memoryGibMax": "memoryGib"}.get(key, key)
 
 
 def apply_auto_sizes(doc: Json, registry: ComponentRegistry) -> tuple[Json, dict[str, PartSize]]:
@@ -612,20 +688,81 @@ def apply_auto_sizes(doc: Json, registry: ComponentRegistry) -> tuple[Json, dict
     return doc, sizes
 
 
+def _typical_memory(size: PartSize, row: Json | None) -> float | None:
+    """A service's typical memory: its fixed memory plus the requests one replica holds on
+    average at the peak (arrival rate times the time in the part, Little's law, from the estimate)."""
+    if size.memory_model is None or row is None:
+        return None
+    rps, stay = row.get("arrivalRps"), row.get("meanResidenceMs")
+    if not isinstance(rps, int | float) or not isinstance(stay, int | float):
+        return None
+    fixed_gib, per_request, pools = size.memory_model
+    held = rps / max(1.0, pools) * stay / 1000
+    return fixed_gib + held * per_request
+
+
+def need_text(key: str, need: dict[str, float], value: float | None, holder: str) -> str | None:
+    """One line: what the part needs against what its instance has, e.g. "needs 0.3 GiB (up to
+    0.5 when queues are full) · c6g.xlarge has 8 GiB"."""
+    has = (
+        f" · {holder} has {_gib(value) if key != 'cpuCores' else js_num(value) + ' vCPU'}"
+        if value is not None
+        else ""
+    )
+    if key == "cpuCores" and "cpuCores" in need:
+        busy = need.get("busyCores")
+        why = (
+            f" ({fmt(busy)} busy at the peak, at a {_pct(TARGET_CPU)} target)"
+            if busy is not None
+            else ""
+        )
+        return f"needs {fmt(need['cpuCores'])} vCPU{why}{has}"
+    if key == "memoryGib":
+        typical, most = need.get("memoryGib"), need.get("memoryGibMax")
+        if typical is not None and most is not None and most > typical + 0.005:
+            return f"needs {_gib(typical)} (up to {_gib(most)} when queues are full){has}"
+        one = typical if typical is not None else most
+        if one is not None:
+            return f"needs {_gib(one)}{has}"
+    if key == "storageGib" and "storageGib" in need:
+        return f"stores {_gib(need['storageGib'])}{has}"
+    return None
+
+
+def _holder(node_type: str, cfg: Json) -> str:
+    """What holds a part's resources when there is no instance type: a pod, a function, a node."""
+    if node_type == "service":
+        platform = cfg.get("platform")
+        return {"kubernetes": "each pod", "serverless": "each function instance"}.get(
+            str(platform), "each replica"
+        )
+    if node_type == "database":
+        return "each instance"
+    if node_type in ("cache", "load_balancer"):
+        return "each node"
+    if node_type == "message_queue":
+        return "each broker"
+    return "each instance"
+
+
 def sizing_summary(
     document: ArchitectureDocument,
     resolved: ArchitectureDocument,
     sizes: dict[str, PartSize],
     registry: ComponentRegistry,
+    estimate: Json | None = None,
 ) -> Json:
     """Per part: the CPU, memory and storage it is simulated with and where each came from (set on
     the part, auto-sized, or a scenario override), its auto sizes with how they were worked out,
-    and the price of the size used (its instance type with a price snapshot)."""
+    what it needs against what its instance has (``need``, ``needText``; a service's typical
+    memory comes from ``estimate``, the instant estimate, when given), and the price of the size
+    used (its instance type with a price snapshot)."""
     from archsim_engine.cost import quote
 
     snap, option, families = pricing_of(resolved.to_json_dict())
 
     raw = {n.id: n.config for n in document.architecture.nodes}
+    rows = {r["id"]: r for r in (estimate or {}).get("parts") or []}
     nodes: Json = {}
     for n in resolved.architecture.nodes:
         size = sizes.get(n.id)
@@ -657,6 +794,20 @@ def sizing_summary(
             "pricePerHour": priced.price,
             "sku": priced.sku,
         }
+        need = dict(size.need)
+        typical = _typical_memory(size, rows.get(n.id))
+        if typical is not None:
+            need["memoryGib"] = min(typical, need.get("memoryGibMax", typical))
+        if need:
+            entry["need"] = rounded_need(need)
+            holder = priced.sku or _holder(n.type, n.config)
+            texts = {
+                k: t
+                for k in SPEC_KEYS
+                if k in specs and (t := need_text(k, need, specs[k]["value"], holder)) is not None
+            }
+            if texts:
+                entry["needText"] = texts
         if size.skipped:
             entry["skipped"] = size.skipped
         nodes[n.id] = entry

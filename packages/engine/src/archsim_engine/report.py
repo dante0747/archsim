@@ -630,7 +630,8 @@ def build_report(
         },
         "validationWarnings": [i.to_dict() for i in prep.validation.warnings],
     }
-    report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes, registry)
+    estimate = estimate_design(resolved, registry, input_snapshot, configs)
+    report["sizing"] = sizing_summary(prep.document, resolved, prep.sizes, registry, estimate)
     report["input"] = input_snapshot
     # priced and reviewed on what was simulated (auto sizes filled in, scenario applied)
     report["cost"] = estimate_cost(
@@ -641,7 +642,7 @@ def build_report(
         {k: v.kind for k, v in resolved.provenance.items()},
     )
     report["review"] = review_design(input_snapshot, registry)
-    report["estimate"] = estimate_design(resolved, registry, input_snapshot, configs)
+    report["estimate"] = estimate
     report["confidence"] = report_confidence(
         report,
         user_inputs,
