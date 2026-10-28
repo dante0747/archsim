@@ -1,0 +1,840 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Checkout call chain: deadlines and retries per hop",
+    "description": "A checkout behind an Envoy ingress, across four services that each own their data: a Node.js storefront BFF, a Java orders service (200 Tomcat threads per pod), a Python pricing service that stores each quote in PostgreSQL, and a Go inventory service that reserves stock in DynamoDB. Orders keeps order history in PostgreSQL behind a Redis cache. A web shop (45%) and a mobile app (55%) send 600 req/s; a quarter are checkouts, which call pricing through an Envoy sidecar's route, then inventory, then commit the order. Order-history reads never touch pricing. As drawn, three rules hold: deadlines shrink at every hop (the apps 8 s and 5 s, the ingress 3 s, BFF \u2192 orders 2.5 s, pricing 800 ms, 500 ms for each store), only the outermost caller retries (the mobile app, once, with an idempotency key on checkouts), and every call has a timeout. The engine calls a service's dependencies one after another, as this code does; parallel fan-out is not modelled. The scenarios make pricing answer 5 s late for 30 s and break one rule at a time. All numbers are illustrative assumptions.",
+    "tags": [
+      "microservices",
+      "timeouts",
+      "retries",
+      "circuit-breaker",
+      "envoy",
+      "deadlines",
+      "client-groups"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web shop",
+        "description": null,
+        "config": {
+          "technology": "react",
+          "timeoutMs": 8000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 45
+        }
+      },
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "react_native",
+          "timeoutMs": 5000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 500,
+          "trafficShare": 55
+        }
+      },
+      {
+        "id": "envoy",
+        "type": "load_balancer",
+        "label": "Ingress (Envoy)",
+        "description": null,
+        "config": {
+          "technology": "envoy",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.3
+          },
+          "maxConnections": 20000,
+          "upstreamTimeoutMs": 3000
+        }
+      },
+      {
+        "id": "bff",
+        "type": "service",
+        "label": "Storefront BFF",
+        "description": null,
+        "config": {
+          "technology": "nodejs",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "processesPerReplica": 1,
+          "workersPerReplica": 1,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": false
+        }
+      },
+      {
+        "id": "orders",
+        "type": "service",
+        "label": "Orders",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 200,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 12
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "pricing-route",
+        "type": "load_balancer",
+        "label": "Pricing route (Envoy sidecar)",
+        "description": null,
+        "config": {
+          "technology": "envoy",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.2
+          },
+          "maxConnections": 10000,
+          "upstreamTimeoutMs": 800
+        }
+      },
+      {
+        "id": "pricing",
+        "type": "service",
+        "label": "Pricing",
+        "description": null,
+        "config": {
+          "technology": "python",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 8,
+          "queueCapacity": 64,
+          "queueTimeoutMs": 300,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 12,
+            "p95": 35
+          },
+          "blockingDownstream": true,
+          "cpuCores": 2
+        }
+      },
+      {
+        "id": "inventory",
+        "type": "service",
+        "label": "Inventory",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 200,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "orders-db",
+        "type": "database",
+        "label": "Orders DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "cpuCores": 2,
+          "maxConnections": 8,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 200,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 12
+          }
+        }
+      },
+      {
+        "id": "orders-cache",
+        "type": "cache",
+        "label": "Order history cache",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "hitModel": "fixed_ratio",
+          "hitRatio": 0.85,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 0.2,
+            "p95": 0.6
+          },
+          "populateOnMiss": true
+        }
+      },
+      {
+        "id": "pricing-db",
+        "type": "database",
+        "label": "Quotes DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "cpuCores": 2,
+          "maxConnections": 8,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 100,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 9
+          }
+        }
+      },
+      {
+        "id": "inventory-db",
+        "type": "database",
+        "label": "Stock table",
+        "description": null,
+        "config": {
+          "technology": "dynamodb",
+          "maxConnections": 5000,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 100,
+          "capacityMode": "on_demand",
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 8
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 12
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "web-envoy",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "envoy",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "mobile-envoy",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "envoy",
+        "targetPort": "in",
+        "label": "checkout carries an idempotency key",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "envoy-bff",
+        "source": "envoy",
+        "sourcePort": "out",
+        "target": "bff",
+        "targetPort": "in",
+        "label": "route timeout 3 s",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 3000
+        }
+      },
+      {
+        "id": "bff-orders",
+        "source": "bff",
+        "sourcePort": "out",
+        "target": "orders",
+        "targetPort": "in",
+        "label": "2.5 s",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 2500
+        }
+      },
+      {
+        "id": "orders-pricing",
+        "source": "orders",
+        "sourcePort": "out",
+        "target": "pricing-route",
+        "targetPort": "in",
+        "label": "quote the cart (800 ms)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 800
+        }
+      },
+      {
+        "id": "route-pricing",
+        "source": "pricing-route",
+        "sourcePort": "out",
+        "target": "pricing",
+        "targetPort": "in",
+        "label": "route timeout 800 ms",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 800
+        }
+      },
+      {
+        "id": "orders-inventory",
+        "source": "orders",
+        "sourcePort": "out",
+        "target": "inventory",
+        "targetPort": "in",
+        "label": "reserve stock (500 ms)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 500
+        }
+      },
+      {
+        "id": "orders-db",
+        "source": "orders",
+        "sourcePort": "out",
+        "target": "orders-db",
+        "targetPort": "in",
+        "label": "history on a miss; insert the order",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 2,
+          "timeoutMs": 500,
+          "readsOnMiss": true
+        }
+      },
+      {
+        "id": "orders-cache",
+        "source": "orders",
+        "sourcePort": "out",
+        "target": "orders-cache",
+        "targetPort": "in",
+        "label": "look up; invalidate after the insert",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 3,
+          "timeoutMs": 50,
+          "continueOnFailure": true
+        }
+      },
+      {
+        "id": "pricing-db",
+        "source": "pricing",
+        "sourcePort": "out",
+        "target": "pricing-db",
+        "targetPort": "in",
+        "label": "store the quote",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 300
+        }
+      },
+      {
+        "id": "inventory-db",
+        "source": "inventory",
+        "sourcePort": "out",
+        "target": "inventory-db",
+        "targetPort": "in",
+        "label": "conditional update",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 200
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 600,
+    "durationS": 100,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.75,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 200000,
+    "keySkew": 0.6,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (deadline budget, one retry layer)",
+      "description": "The document as drawn: 600 req/s, a quarter of them checkouts. Every request succeeds. p95 is about 200 ms; a checkout, which calls pricing, inventory, the database and the cache in turn, takes about 230 ms at p95. The busiest part is the BFF at about half its CPU.",
+      "overrides": []
+    },
+    {
+      "id": "pricing-hangs",
+      "name": "Pricing answers 5 s late (40\u201370 s), as drawn",
+      "description": "Chaos: from 40 to 70 s every call to pricing takes 5 s longer (a latency fault on its link, as a stuck connection pool or an overloaded node would cause). Orders gives up after 800 ms, so every checkout in the window fails within a second, and the mobile app's one retry fails the same way. Order history is untouched: every read succeeds, and success in the window is 75.5%, which is the reads. The deadline budget keeps the failure where it started.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "pricing-hangs",
+              "kind": "latency",
+              "target": "route-pricing",
+              "startS": 40,
+              "durationS": 30,
+              "extraMs": 2500,
+              "label": "pricing answers 5 s late"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retry-every-hop",
+      "name": "Pricing late, retries at every hop",
+      "description": "The same hang with three attempts at every hop (the ingress, BFF \u2192 orders, the pricing route, orders \u2192 inventory; 100 ms backoff) on top of the app's own retry. The design review flags it before the run: up to 54 attempts reach pricing per checkout. Pricing was only slow; the retries overload it. It receives about four times its normal traffic (593 req/s against 152) and turns away 62% of it. Requests stay in flight so long that the ingress's circuit breaker (Envoy's default, 1,024 per target) opens, and order-history reads start failing too. Success in the window falls to 67.9%.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "pricing-hangs",
+              "kind": "latency",
+              "target": "route-pricing",
+              "startS": 40,
+              "durationS": 30,
+              "extraMs": 2500,
+              "label": "pricing answers 5 s late"
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "envoy-bff"
+          },
+          "path": "maxAttempts",
+          "value": 3
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "envoy-bff"
+          },
+          "path": "retryBackoffMs",
+          "value": 100
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "bff-orders"
+          },
+          "path": "maxAttempts",
+          "value": 3
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "bff-orders"
+          },
+          "path": "retryBackoffMs",
+          "value": 100
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "route-pricing"
+          },
+          "path": "maxAttempts",
+          "value": 3
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "route-pricing"
+          },
+          "path": "retryBackoffMs",
+          "value": 100
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "orders-inventory"
+          },
+          "path": "maxAttempts",
+          "value": 3
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "orders-inventory"
+          },
+          "path": "retryBackoffMs",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "id": "inverted",
+      "name": "Pricing late, inverted timeouts",
+      "description": "The same hang with the deadlines turned around: the services wait longer than the apps (the ingress back to Envoy's 15 s default, BFF \u2192 orders and the pricing route 10 s), while the apps keep 8 s and 5 s. Checkouts now complete, in about 5 s. The web shop waits for them (its p95 becomes 5.1 s); the mobile app gives up at 5 s and retries while its first attempt carries on. 21% of the work inventory completed was for attempts the app had already abandoned (the wasted-work finding): about 2,900 checkouts went through after the app had shown an error, and only the idempotency key stops the retry placing a second order. Orders' threads are held 5 s per checkout, its queue overflows and the ingress's circuit breaker opens, so reads fail too: 70.6% succeed in the window.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "pricing-hangs",
+              "kind": "latency",
+              "target": "route-pricing",
+              "startS": 40,
+              "durationS": 30,
+              "extraMs": 2500,
+              "label": "pricing answers 5 s late"
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "envoy"
+          },
+          "path": "upstreamTimeoutMs",
+          "value": null
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "envoy-bff"
+          },
+          "path": "timeoutMs",
+          "value": 15000
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "bff-orders"
+          },
+          "path": "timeoutMs",
+          "value": 10000
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "orders-pricing"
+          },
+          "path": "timeoutMs",
+          "value": 10000
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "pricing-route"
+          },
+          "path": "upstreamTimeoutMs",
+          "value": 10000
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "route-pricing"
+          },
+          "path": "timeoutMs",
+          "value": 10000
+        }
+      ]
+    },
+    {
+      "id": "no-timeout",
+      "name": "Pricing late, no timeout on orders \u2192 pricing",
+      "description": "The budget as drawn except one hop: orders calls pricing with no timeout, and the pricing route keeps Envoy's 15 s default, longer than the hang. Each checkout now holds a Java thread for the full 5 s: at 150 checkouts a second that is about 750 of orders' 800 threads (Little's law), and with the app's retries the pool fills. Order-history reads queue behind the checkouts: about 3,500 requests are turned away by orders' queue and the BFF gives up on about 3,000 more after 2.5 s. Success in the window falls to 62.3%, the worst of the six, from one missing setting.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "pricing-hangs",
+              "kind": "latency",
+              "target": "route-pricing",
+              "startS": 40,
+              "durationS": 30,
+              "extraMs": 2500,
+              "label": "pricing answers 5 s late"
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "orders-pricing"
+          },
+          "path": "timeoutMs",
+          "value": null
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "pricing-route"
+          },
+          "path": "upstreamTimeoutMs",
+          "value": null
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "route-pricing"
+          },
+          "path": "timeoutMs",
+          "value": 15000
+        }
+      ]
+    },
+    {
+      "id": "breaker",
+      "name": "Pricing late, no timeout, circuit breaker",
+      "description": "The same missing timeout with a circuit breaker on the pricing route: its Envoy answers 503 at once when 64 calls are already in flight to pricing (Envoy's default is 1,024). At most 64 of orders' threads wait on pricing, every other checkout fails immediately, and order history is untouched again: every read succeeds and 74.6% of requests succeed in the window, as with the timeout. A breaker caps how much of a pool one dependency can take; it is the backstop for a timeout someone forgot.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "pricing-hangs",
+              "kind": "latency",
+              "target": "route-pricing",
+              "startS": 40,
+              "durationS": 30,
+              "extraMs": 2500,
+              "label": "pricing answers 5 s late"
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "orders-pricing"
+          },
+          "path": "timeoutMs",
+          "value": null
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "pricing-route"
+          },
+          "path": "upstreamTimeoutMs",
+          "value": null
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "route-pricing"
+          },
+          "path": "timeoutMs",
+          "value": 15000
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "pricing-route"
+          },
+          "path": "circuitBreakerMaxRequests",
+          "value": 64
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 400,
+    "latencyP99Ms": null,
+    "availability": 0.995,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "web": {
+        "x": 0,
+        "y": 120
+      },
+      "mobile": {
+        "x": 0,
+        "y": 320
+      },
+      "envoy": {
+        "x": 350,
+        "y": 220
+      },
+      "bff": {
+        "x": 700,
+        "y": 220
+      },
+      "orders": {
+        "x": 1050,
+        "y": 220
+      },
+      "orders-cache": {
+        "x": 1400,
+        "y": 0
+      },
+      "orders-db": {
+        "x": 1400,
+        "y": 160
+      },
+      "pricing-route": {
+        "x": 1400,
+        "y": 320
+      },
+      "pricing": {
+        "x": 1750,
+        "y": 320
+      },
+      "pricing-db": {
+        "x": 2100,
+        "y": 320
+      },
+      "inventory": {
+        "x": 1400,
+        "y": 480
+      },
+      "inventory-db": {
+        "x": 1750,
+        "y": 480
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

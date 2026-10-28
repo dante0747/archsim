@@ -1,0 +1,506 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "API auth: token introspection vs local JWT checks",
+    "description": "An accounts API (balances, orders, transfers) used by a mobile app (55% of traffic; one retry), a web app (30%) and partner integrations (15%; three attempts), behind a Kong gateway. Every request carries an OAuth access token. The Go API checks it with the identity provider's introspection endpoint, which allows 200 calls a second, and caches the answer in Redis for 60 s, keyed by token (cache-aside; the hit rate is worked out from the TTL and how often each of 5,000 active users calls). Writes that move money always ask the identity provider again (step-up), so a revoked token cannot move money; they carry an idempotency key, so clients may retry them. Traffic ramps from 150 to 1,350 req/s over the run. The scenarios take the cache away, shorten its TTL, take the identity provider down, and check JWTs locally for reads. The identity provider is usually priced per active user, so its fees are left out of the cost. All numbers are illustrative assumptions.",
+    "tags": [
+      "auth",
+      "oauth",
+      "jwt",
+      "rate-limiting",
+      "third-party",
+      "cache-aside",
+      "client-groups",
+      "kong"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "react_native",
+          "timeoutMs": 10000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 500,
+          "trafficShare": 55
+        }
+      },
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web app",
+        "description": null,
+        "config": {
+          "technology": "react",
+          "timeoutMs": 10000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 30
+        }
+      },
+      {
+        "id": "partners",
+        "type": "api_consumer",
+        "label": "Partner integrations",
+        "description": null,
+        "config": {
+          "technology": "rest",
+          "timeoutMs": 5000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 200,
+          "trafficShare": 15
+        }
+      },
+      {
+        "id": "gateway",
+        "type": "load_balancer",
+        "label": "API gateway",
+        "description": null,
+        "config": {
+          "technology": "kong",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Accounts API",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 128,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": true,
+          "cpuCores": 2
+        }
+      },
+      {
+        "id": "cache",
+        "type": "cache",
+        "label": "Token cache (Redis)",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "hitModel": "ttl_keyspace",
+          "ttlSeconds": 60,
+          "populateOnMiss": true,
+          "serviceTimeMs": {
+            "kind": "exponential",
+            "mean": 0.1
+          },
+          "queueCapacity": 10000,
+          "queueTimeoutMs": null
+        }
+      },
+      {
+        "id": "idp",
+        "type": "external_api",
+        "label": "Identity provider (introspection)",
+        "description": null,
+        "config": {
+          "technology": "identity",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 80,
+            "p95": 250
+          },
+          "errorRate": 0.0005,
+          "rateLimitRps": 200,
+          "costPerMillionRequests": 0
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "Accounts DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 8,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 5
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 15
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "mobile-gateway",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "gateway",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "web-gateway",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "gateway",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "partners-gateway",
+        "source": "partners",
+        "sourcePort": "out",
+        "target": "gateway",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "gateway-api",
+        "source": "gateway",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 4000
+        }
+      },
+      {
+        "id": "api-idp",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "idp",
+        "targetPort": "in",
+        "label": "introspect the token (reads: on a cache miss; writes: always)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 10
+          },
+          "order": 0,
+          "timeoutMs": 1000,
+          "readsOnMiss": true
+        }
+      },
+      {
+        "id": "api-cache",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "cache",
+        "targetPort": "in",
+        "label": "token checked in the last minute? (cache-aside)",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.25
+          },
+          "order": 1,
+          "timeoutMs": 50,
+          "continueOnFailure": true
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": "accounts, orders, transfers",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 2,
+          "timeoutMs": 1000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 750,
+    "durationS": 150,
+    "warmupS": 20,
+    "seed": 42,
+    "readRatio": 0.96,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "ramp",
+      "startRps": 150,
+      "endRps": 1350
+    },
+    "keyCount": 5000,
+    "keySkew": 0.6,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (token checks cached for 60 s)",
+      "description": "The document as drawn. The cache answers about 91% of token checks, so the identity provider sees the misses plus every write: about 150 calls a second at the peak, three quarters of its quota. Every request succeeds and p95 is about 235 ms; the introspection call (about 100 ms) is the slowest step of a miss or a write.",
+      "overrides": []
+    },
+    {
+      "id": "no-cache",
+      "name": "Introspect every call",
+      "description": "Every token check goes to the identity provider: the cache never hits, as if it were not there. Traffic passes the provider's 200 calls a second within seconds and it refuses the excess with HTTP 429: about half the requests fail at about 400 req/s and 84% at the peak. Over the run a quarter succeed. Mobile and partner retries add 71% more attempts, which the quota refuses too (partners send 2.6 attempts per request). A rate-limited third party on every request's path caps the whole API at its quota, however many replicas the API runs. The headline says no component is saturated because none of your own parts is busy; the throttling finding (86% of calls refused) is the story.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "hitModel",
+          "value": "fixed_ratio"
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "hitRatio",
+          "value": 0.0
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "populateOnMiss",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": "short-ttl",
+      "name": "Token cache TTL 10 s",
+      "description": "A shorter TTL so that revoked tokens stop working sooner. Most tokens now expire before their user's next call, so only about 40% of checks hit, and the identity provider's quota is crossed at about 400 req/s, a fifth of the way up the ramp. The failures then feed themselves: a refused introspection is not cached, so that token's next request misses too. About three requests in four succeed over the run and two in three at the peak. With a cache in front of a quota, the TTL decides how much of the quota you use, not only how long a revoked token keeps working.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "ttlSeconds",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "id": "idp-down",
+      "name": "Identity provider down for 30 s (80\u2013110 s)",
+      "description": "Chaos at 800 to 1,000 req/s. Writes fail closed: a money-moving call without a fresh check is refused. Reads carry on while their token's cached check lasts, but entries expire during the outage and cannot be renewed, so more reads fail every second: two requests in three succeed inside the window. When the provider is back, the tokens that expired all miss at once and run into its quota (9% of its calls are refused over the run), so recovery takes another 14 s.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "idp-down",
+              "kind": "outage",
+              "target": "idp",
+              "startS": 80,
+              "durationS": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "local-jwt-idp-down",
+      "name": "Local JWT checks for reads, identity provider down",
+      "description": "Reads now verify the token's signature with the provider's published keys (fetched once and cached) and check a revocation deny-list in Redis, which always answers; only writes still introspect. That adds about 0.2 ms of CPU per request and takes the identity provider off the read path: it sees only the writes (about 55 calls a second at the peak, a quarter of its quota). In the same outage every read succeeds and only the writes fail (95.8% succeed in the window), and there is no storm afterwards. The trade-off moves to revocation, which is now as fast as the deny-list is updated.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "edge",
+            "id": "api-idp"
+          },
+          "path": "requestTypes",
+          "value": [
+            "write"
+          ]
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "hitModel",
+          "value": "fixed_ratio"
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "hitRatio",
+          "value": 1.0
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "cache"
+          },
+          "path": "populateOnMiss",
+          "value": false
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "api"
+          },
+          "path": "serviceTimeMs",
+          "value": {
+            "kind": "lognormal",
+            "median": 2.2,
+            "p95": 6.5
+          }
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "idp-down",
+              "kind": "outage",
+              "target": "idp",
+              "startS": 80,
+              "durationS": 30
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 300,
+    "latencyP99Ms": null,
+    "availability": 0.995,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "mobile": {
+        "x": 0,
+        "y": 0
+      },
+      "web": {
+        "x": 0,
+        "y": 200
+      },
+      "partners": {
+        "x": 0,
+        "y": 400
+      },
+      "gateway": {
+        "x": 350,
+        "y": 200
+      },
+      "api": {
+        "x": 700,
+        "y": 200
+      },
+      "cache": {
+        "x": 1050,
+        "y": 20
+      },
+      "idp": {
+        "x": 1050,
+        "y": 200
+      },
+      "db": {
+        "x": 1050,
+        "y": 380
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

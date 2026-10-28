@@ -1,0 +1,662 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Notifications: one campaign, three providers' quotas",
+    "description": "A notification service that the app's other services call for order updates, security alerts and marketing campaigns. They POST each notification, with an idempotency key so their retries are safe, to a Go notification API behind an internal load balancer. The API answers once it has queued one message per channel, each channel on its own SQS queue: every notification goes out as a push and an e-mail, and the quarter whose recipients opted in to SMS (the write request type here; reads are the rest) also as a text. Each channel has its own sender deployment, sized to stay under its provider's quota: 32 push workers for a gateway that takes 1,000 calls a second, 10 e-mail workers (about 50 sends a second) for a 50/s quota, 12 SMS workers (about 26 a second) for 30/s. The base load is 12 notifications a second; at 20 s a marketing campaign adds about 3,100 in 8 s. Callers never wait for a provider: the quotas decide how late each channel is, which the queues' message age and dead letters show. All numbers are illustrative assumptions.",
+    "tags": [
+      "notifications",
+      "sqs",
+      "fan-out",
+      "rate-limits",
+      "third-party",
+      "dead-letters",
+      "backoff"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "services",
+        "type": "api_consumer",
+        "label": "Internal services",
+        "description": null,
+        "config": {
+          "technology": "rest",
+          "timeoutMs": 5000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 200,
+          "trafficShare": 100
+        }
+      },
+      {
+        "id": "alb",
+        "type": "load_balancer",
+        "label": "Internal load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 10000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Notification API",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 32,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "push-q",
+        "type": "message_queue",
+        "label": "push queue (SQS)",
+        "description": null,
+        "config": {
+          "technology": "sqs",
+          "partitions": 10000,
+          "consumers": 32,
+          "maxDeliveries": 5,
+          "maxDepth": null,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 40
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "visibilityTimeoutS": 30
+        }
+      },
+      {
+        "id": "email-q",
+        "type": "message_queue",
+        "label": "email queue (SQS)",
+        "description": null,
+        "config": {
+          "technology": "sqs",
+          "partitions": 10000,
+          "consumers": 10,
+          "maxDeliveries": 5,
+          "maxDepth": null,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 40
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "visibilityTimeoutS": 30
+        }
+      },
+      {
+        "id": "sms-q",
+        "type": "message_queue",
+        "label": "sms queue (SQS)",
+        "description": null,
+        "config": {
+          "technology": "sqs",
+          "partitions": 10000,
+          "consumers": 12,
+          "maxDeliveries": 5,
+          "maxDepth": null,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 40
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "visibilityTimeoutS": 30
+        }
+      },
+      {
+        "id": "push-sender",
+        "type": "service",
+        "label": "Push sender",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 8,
+          "queueCapacity": 20,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "email-sender",
+        "type": "service",
+        "label": "Email sender",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 2,
+          "workersPerReplica": 5,
+          "queueCapacity": 20,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "sms-sender",
+        "type": "service",
+        "label": "SMS sender",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 4,
+          "queueCapacity": 20,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "push",
+        "type": "external_api",
+        "label": "Push gateway (FCM / APNs)",
+        "description": null,
+        "config": {
+          "technology": "generic",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 40,
+            "p95": 150
+          },
+          "errorRate": 0.002,
+          "rateLimitRps": 1000,
+          "costPerMillionRequests": 0
+        }
+      },
+      {
+        "id": "email",
+        "type": "external_api",
+        "label": "Email provider",
+        "description": null,
+        "config": {
+          "technology": "email",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 120,
+            "p95": 400
+          },
+          "errorRate": 0.001,
+          "rateLimitRps": 50,
+          "costPerMillionRequests": 1000
+        }
+      },
+      {
+        "id": "sms",
+        "type": "external_api",
+        "label": "SMS provider",
+        "description": null,
+        "config": {
+          "technology": "sms",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 300,
+            "p95": 1200
+          },
+          "errorRate": 0.005,
+          "rateLimitRps": 30,
+          "costPerMillionRequests": 7500
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "services-alb",
+        "source": "services",
+        "sourcePort": "out",
+        "target": "alb",
+        "targetPort": "in",
+        "label": "POST /notifications (idempotency key)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 3
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "alb-api",
+        "source": "alb",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "api-push-q",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "push-q",
+        "targetPort": "in",
+        "label": "enqueue the push",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "api-email-q",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "email-q",
+        "targetPort": "in",
+        "label": "enqueue the email",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "api-sms-q",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "sms-q",
+        "targetPort": "in",
+        "label": "enqueue the SMS (opted-in users only)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 2,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "push-q-sender",
+        "source": "push-q",
+        "sourcePort": "out",
+        "target": "push-sender",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "email-q-sender",
+        "source": "email-q",
+        "sourcePort": "out",
+        "target": "email-sender",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "sms-q-sender",
+        "source": "sms-q",
+        "sourcePort": "out",
+        "target": "sms-sender",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "push-sender-push",
+        "source": "push-sender",
+        "sourcePort": "out",
+        "target": "push",
+        "targetPort": "in",
+        "label": "send (3 attempts)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "order": 0,
+          "timeoutMs": 1000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 200
+        }
+      },
+      {
+        "id": "email-sender-email",
+        "source": "email-sender",
+        "sourcePort": "out",
+        "target": "email",
+        "targetPort": "in",
+        "label": "send (3 attempts, idempotency key)",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "order": 0,
+          "timeoutMs": 2000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 200
+        }
+      },
+      {
+        "id": "sms-sender-sms",
+        "source": "sms-sender",
+        "sourcePort": "out",
+        "target": "sms",
+        "targetPort": "in",
+        "label": "send (3 attempts, idempotency key)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "order": 0,
+          "timeoutMs": 3000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 200
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 12,
+    "durationS": 150,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.75,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 400,
+      "startS": 20,
+      "durationS": 8
+    },
+    "keyCount": 100000,
+    "keySkew": 0.0,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (campaign at 20\u201328 s)",
+      "description": "The document as drawn. Callers get their answer within about 90 ms at p95, whatever the providers do. The campaign becomes backlog: pushes go out within about a second (p95 message age), texts within about 25 s, and e-mail, sent at the quota's 50 a second by its 10 workers (one call in the whole run comes back 429 and is retried), needs until about 100 s: its backlog peaks near 2,800 messages and the p95 e-mail waits about 53 s. Slow, but nothing is lost. SMS is a quarter of the messages and about two thirds of the provider bill.",
+      "overrides": []
+    },
+    {
+      "id": "more-email-senders",
+      "name": "Scale the email sender to 40 workers",
+      "description": "The usual reflex when a backlog grows: 40 e-mail workers (8 pods) instead of 10. The provider still accepts 50 calls a second, so the extra calls come back as 429s: it refuses about 64% of the calls it gets, the senders' three attempts and SQS's redeliveries (about 1,800 failed deliveries) keep them coming, and 9 e-mails are dead-lettered after five deliveries. The campaign's e-mail is done no sooner (at about 100 s, as drawn), and the typical one goes out later (p95 age about 63 s against 53 s), because a message that fails three attempts goes to the back of the queue. The headline says no component is saturated; the critical throttling finding sits below it. The quota sets the pace: only a bigger one would send the campaign faster.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "email-q"
+          },
+          "path": "consumers",
+          "value": 40
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "email-sender"
+          },
+          "path": "replicas",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "id": "sms-down",
+      "name": "SMS provider down for 30 s (60\u201390 s)",
+      "description": "Chaos: the SMS provider refuses every call. Each text fails its three attempts within a second, goes back to the queue, and after five deliveries lands in the dead-letter queue: about 75 texts, most of those sent during the outage, stay unsent until someone redrives them. Push and e-mail carry on untouched, because each channel has its own queue and senders, and callers notice nothing (the fault finding says the system absorbed it).",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "sms-down",
+              "kind": "outage",
+              "target": "sms",
+              "startS": 60,
+              "durationS": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sms-down-backoff",
+      "name": "SMS provider down, sender backs off",
+      "description": "The same outage, with the SMS sender retrying each call up to 5 times with exponential backoff (0.8, 1.6, 3.2 and 6.4 s). With 3 s timeouts one delivery takes at most 27 s, inside SQS's 30 s visibility timeout, so no other worker picks the message up meanwhile. The workers wait instead of failing: the SMS backlog grows to about 75 texts and those sent during the outage go out up to about 23 s late, but none is dead-lettered.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "sms-down",
+              "kind": "outage",
+              "target": "sms",
+              "startS": 60,
+              "durationS": 30
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "sms-sender-sms"
+          },
+          "path": "maxAttempts",
+          "value": 5
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "sms-sender-sms"
+          },
+          "path": "retryBackoffMs",
+          "value": 800
+        }
+      ]
+    },
+    {
+      "id": "sms-everyone",
+      "name": "Every notification also sent as SMS",
+      "description": "Product asks for a text with every notification: four times the SMS. The 12 SMS workers send about 26 a second, under the 30/s quota, so the campaign's texts take minutes: hundreds are still queued when the run ends and the p95 text waits nearly two minutes. More workers would only reach the quota's 30 a second. The monthly cost doubles, nearly all of the increase SMS.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "readRatio",
+          "value": 0.0
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 200,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "services": {
+        "x": 0,
+        "y": 240
+      },
+      "alb": {
+        "x": 350,
+        "y": 240
+      },
+      "api": {
+        "x": 700,
+        "y": 240
+      },
+      "push-q": {
+        "x": 1050,
+        "y": 60
+      },
+      "email-q": {
+        "x": 1050,
+        "y": 240
+      },
+      "sms-q": {
+        "x": 1050,
+        "y": 420
+      },
+      "push-sender": {
+        "x": 1400,
+        "y": 60
+      },
+      "email-sender": {
+        "x": 1400,
+        "y": 240
+      },
+      "sms-sender": {
+        "x": 1400,
+        "y": 420
+      },
+      "push": {
+        "x": 1750,
+        "y": 60
+      },
+      "email": {
+        "x": 1750,
+        "y": 240
+      },
+      "sms": {
+        "x": 1750,
+        "y": 420
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

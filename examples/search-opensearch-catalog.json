@@ -1,0 +1,582 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Marketplace search on OpenSearch",
+    "description": "Product search on a marketplace. Shoppers on the web shop and the mobile app search (95% of requests); sellers edit their listings from the same apps (5%). An ALB sends searches to a Go search API, which looks the query up in a Redis query cache (cache-aside; about 40% of searches repeat a recent one) and otherwise searches OpenSearch: 3 primary shards of 30 GiB with one replica each, on six 8-vCPU nodes. Every search runs on one copy of each shard and waits for the slowest, plus the coordinating node's merge. Edits go to a Listings API, which publishes them to a Kafka topic keyed by listing; a Java indexer writes them to OpenSearch, where an index write waits until the replica has indexed the document too. 1,400 req/s. The scenarios try three classic OpenSearch questions: how many shards, how many replicas, and what a slow cluster does behind a short timeout. All numbers are illustrative assumptions.",
+    "tags": [
+      "search",
+      "opensearch",
+      "sharding",
+      "replicas",
+      "kafka",
+      "redis",
+      "cache-aside",
+      "client-groups"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "web",
+        "type": "web_client",
+        "label": "Web shop",
+        "description": null,
+        "config": {
+          "technology": "react",
+          "timeoutMs": 10000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100,
+          "trafficShare": 60
+        }
+      },
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "mobile",
+          "timeoutMs": 8000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 500,
+          "trafficShare": 40
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "search-api",
+        "type": "service",
+        "label": "Search API",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 5
+          },
+          "blockingDownstream": false,
+          "cpuCores": 2,
+          "memoryGib": 2
+        }
+      },
+      {
+        "id": "query-cache",
+        "type": "cache",
+        "label": "Query cache (Redis)",
+        "description": null,
+        "config": {
+          "technology": "redis",
+          "hitModel": "fixed_ratio",
+          "hitRatio": 0.4,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 0.15,
+            "p95": 0.5
+          },
+          "itemSizeKb": 8
+        }
+      },
+      {
+        "id": "search",
+        "type": "database",
+        "label": "Product index (OpenSearch)",
+        "description": null,
+        "config": {
+          "technology": "opensearch",
+          "shards": 3,
+          "readReplicas": 1,
+          "maxConnections": 21,
+          "queueCapacity": 200,
+          "queueTimeoutMs": null,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 13,
+            "p95": 50
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 25
+          },
+          "cpuCores": 8,
+          "cpuShare": 0.7,
+          "routerOverheadMs": 2,
+          "replicaApplyFactor": 1.0,
+          "dataSizeGib": 90
+        }
+      },
+      {
+        "id": "listings-api",
+        "type": "service",
+        "label": "Listings API",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 2,
+          "workersPerReplica": 32,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": true,
+          "cpuCores": 1
+        }
+      },
+      {
+        "id": "updates",
+        "type": "message_queue",
+        "label": "listing-updates (Kafka)",
+        "description": null,
+        "config": {
+          "technology": "kafka",
+          "partitions": 12,
+          "consumers": 12,
+          "brokers": 3,
+          "maxDeliveries": 5,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 8
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 0.5,
+            "p95": 2
+          }
+        }
+      },
+      {
+        "id": "indexer",
+        "type": "service",
+        "label": "Indexer",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 8,
+          "queueCapacity": 50,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": true,
+          "cpuCores": 1
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "web-lb",
+        "source": "web",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "mobile-lb",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-search-api",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "search-api",
+        "targetPort": "in",
+        "label": "searches",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-listings-api",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "listings-api",
+        "targetPort": "in",
+        "label": "listing edits",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "api-search",
+        "source": "search-api",
+        "sourcePort": "out",
+        "target": "search",
+        "targetPort": "in",
+        "label": "search on a cache miss",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000,
+          "readsOnMiss": true
+        }
+      },
+      {
+        "id": "api-cache",
+        "source": "search-api",
+        "sourcePort": "out",
+        "target": "query-cache",
+        "targetPort": "in",
+        "label": "cached results",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.3
+          },
+          "order": 1,
+          "timeoutMs": 50,
+          "continueOnFailure": true
+        }
+      },
+      {
+        "id": "listings-updates",
+        "source": "listings-api",
+        "sourcePort": "out",
+        "target": "updates",
+        "targetPort": "in",
+        "label": "publish keyed by listing",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "updates-indexer",
+        "source": "updates",
+        "sourcePort": "out",
+        "target": "indexer",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "indexer-search",
+        "source": "indexer",
+        "sourcePort": "out",
+        "target": "search",
+        "targetPort": "in",
+        "label": "index the listing (versioned)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 2000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 200
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1400,
+    "durationS": 80,
+    "warmupS": 30,
+    "seed": 42,
+    "readRatio": 0.95,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 300000,
+    "keySkew": 0.8,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline",
+      "description": "The document as drawn. About 40% of searches are answered by the query cache; the rest reach OpenSearch, whose CPU is about 65% busy. A search takes about 33 ms there on average (p95 about 75 ms), and p95 end to end is about 185 ms, most of it the shoppers' own network. A seller's edit is in the index about 70 ms (p95) after Kafka has it.",
+      "overrides": []
+    },
+    {
+      "id": "overshard",
+      "name": "Oversharded: 12 small shards on the same hardware",
+      "description": "The same six nodes with the index cut into 12 primary shards of about 7.5 GiB instead of 3 of 30 GiB. The engine runs each shard copy as an instance of its own, so each gets a quarter of a node (2 vCPU, 16 GiB, 6 threads) and the hardware stays the same. A shard query searches a quarter of the documents but is not four times cheaper (median 4.5 ms instead of 13 ms), and every search now runs 12 of them: at the same load OpenSearch's CPU goes from about 65% to about 91% and its search time from about 33 to about 61 ms. Shoppers hardly notice yet (p95 about 210 ms), but the headroom is gone: on Breaking point the drawn design serves every request at 2,000 req/s, the oversharded one fails one in five at 1,500.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "shards",
+          "value": 12
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "cpuCores",
+          "value": 2
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "memoryGib",
+          "value": 16
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "maxConnections",
+          "value": 6
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "readServiceTimeMs",
+          "value": {
+            "kind": "lognormal",
+            "median": 4.5,
+            "p95": 18
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "queueCapacity",
+          "value": 50
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "routerOverheadMs",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "id": "peak",
+      "name": "Evening peak: 2,400 req/s for 25 s (45\u201370 s)",
+      "description": "Traffic rises from 1,400 to 2,400 req/s for 25 s. The searches that miss the cache need more CPU than six nodes have, the search queues fill and OpenSearch turns away about a fifth of what it gets (HTTP 429, shown as 'queue full'). During the peak about 86% of requests succeed (91% over the measured 50 s, p95 about 560 ms); over the run the web shop, which does not retry, keeps about 88% and the mobile app, which retries once, about 97%. Listing updates fall behind as well, because index writes share the cluster: Kafka's lag reaches about 2,300 messages and an edit takes up to about 18 s (p95) to reach the index.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 2400,
+            "startS": 45,
+            "durationS": 25
+          }
+        }
+      ]
+    },
+    {
+      "id": "peak-replica",
+      "name": "Evening peak with a second replica",
+      "description": "The same peak with two replicas of every shard: nine nodes instead of six. Each search can use any of three copies of a shard, OpenSearch's CPU stays at about 60%, every request succeeds and p95 stays at about 190 ms. The price is half as many search nodes again, and every index write now waits until two replicas have indexed the document instead of one. Replicas add read throughput; shards do not.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 2400,
+            "startS": 45,
+            "durationS": 25
+          }
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "search"
+          },
+          "path": "readReplicas",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "slowdown",
+      "name": "OpenSearch 3\u00d7 slower for 20 s (45\u201365 s)",
+      "description": "Chaos: every OpenSearch node runs 3\u00d7 slower for 20 s (heavy segment merging after a bulk load, or long garbage-collection pauses). The search API gives a search 1 s and does not retry it, and the search queues are short (200 per node, not OpenSearch's default 1,000), so the cluster turns work away instead of piling up searches the API has already given up on. Inside the window about 56% of requests succeed: the 40% the query cache answers, and some of the rest. The cluster is back to normal about 2 s after the slowdown ends.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "merge-storm",
+              "kind": "slowdown",
+              "target": "search",
+              "startS": 45,
+              "durationS": 20,
+              "factor": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 250,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "web": {
+        "x": 0,
+        "y": 150
+      },
+      "mobile": {
+        "x": 0,
+        "y": 330
+      },
+      "lb": {
+        "x": 340,
+        "y": 240
+      },
+      "search-api": {
+        "x": 690,
+        "y": 140
+      },
+      "listings-api": {
+        "x": 690,
+        "y": 340
+      },
+      "query-cache": {
+        "x": 1040,
+        "y": 0
+      },
+      "updates": {
+        "x": 1040,
+        "y": 340
+      },
+      "indexer": {
+        "x": 1390,
+        "y": 340
+      },
+      "search": {
+        "x": 1740,
+        "y": 170
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

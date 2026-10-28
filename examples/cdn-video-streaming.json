@@ -1,0 +1,559 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Video streaming: CDN, origin shield and object storage",
+    "description": "Video on demand for a mobile app and for web and smart-TV players, at 1,500 segment requests a second (about 6,000 viewers of 4-second segments). Anycast routing sends each viewer to one of three CDN edge POPs (US East, Europe, Asia Pacific). Each POP reads through: a segment it does not hold comes from a Varnish origin shield in US East, and what the shield does not hold is packaged by a Go packager from a source fragment in S3. Segments never change, so both tiers keep them for a day; how often a request hits is not a fixed ratio but follows from that TTL and from how popular each of 100,000 segment files is (Zipf 1.2), and the caches start empty. Players retry a failed segment. Latency here is time to first byte: download time is not modelled, and the cost leaves out CDN data transfer, the largest line of a real video bill. All numbers are illustrative assumptions.",
+    "tags": [
+      "cdn",
+      "video",
+      "varnish",
+      "read-through",
+      "ttl",
+      "object-storage",
+      "client-groups"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "mobile",
+        "type": "mobile_app",
+        "label": "Mobile app",
+        "description": null,
+        "config": {
+          "technology": "mobile",
+          "timeoutMs": 8000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 500,
+          "trafficShare": 45
+        }
+      },
+      {
+        "id": "players",
+        "type": "web_client",
+        "label": "Web and smart-TV players",
+        "description": null,
+        "config": {
+          "technology": "browser",
+          "timeoutMs": 10000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 1000,
+          "trafficShare": 55
+        }
+      },
+      {
+        "id": "anycast",
+        "type": "load_balancer",
+        "label": "Anycast routing",
+        "description": null,
+        "config": {
+          "technology": "generic",
+          "policy": "random",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0
+          },
+          "maxConnections": 100000,
+          "costPerHour": 0
+        }
+      },
+      {
+        "id": "pop-us",
+        "type": "cache",
+        "label": "Edge POP, US East",
+        "description": null,
+        "config": {
+          "technology": "cdn",
+          "hitModel": "ttl_keyspace",
+          "ttlSeconds": 86400,
+          "concurrency": 1024,
+          "queueCapacity": 100000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 4
+          },
+          "costPerHour": 0.2
+        }
+      },
+      {
+        "id": "pop-eu",
+        "type": "cache",
+        "label": "Edge POP, Europe",
+        "description": null,
+        "config": {
+          "technology": "cdn",
+          "hitModel": "ttl_keyspace",
+          "ttlSeconds": 86400,
+          "concurrency": 1024,
+          "queueCapacity": 100000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 4
+          },
+          "costPerHour": 0.2
+        }
+      },
+      {
+        "id": "pop-ap",
+        "type": "cache",
+        "label": "Edge POP, Asia Pacific",
+        "description": null,
+        "config": {
+          "technology": "cdn",
+          "hitModel": "ttl_keyspace",
+          "ttlSeconds": 86400,
+          "concurrency": 1024,
+          "queueCapacity": 100000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 4
+          },
+          "costPerHour": 0.2
+        }
+      },
+      {
+        "id": "shield",
+        "type": "cache",
+        "label": "Origin shield (Varnish)",
+        "description": null,
+        "config": {
+          "technology": "varnish",
+          "hitModel": "ttl_keyspace",
+          "ttlSeconds": 86400,
+          "concurrency": 256,
+          "queueCapacity": 10000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 0.3,
+            "p95": 1.2
+          },
+          "itemSizeKb": 1500
+        }
+      },
+      {
+        "id": "packager",
+        "type": "service",
+        "label": "Packager (origin)",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 2,
+          "workersPerReplica": 128,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 15
+          },
+          "blockingDownstream": true,
+          "cpuCores": 1
+        }
+      },
+      {
+        "id": "storage",
+        "type": "external_api",
+        "label": "Segment storage (S3)",
+        "description": null,
+        "config": {
+          "technology": "object_storage",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 25,
+            "p95": 80
+          },
+          "errorRate": 0.0001,
+          "rateLimitRps": 5500,
+          "costPerMillionRequests": 0.4
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "mobile-anycast",
+        "source": "mobile",
+        "sourcePort": "out",
+        "target": "anycast",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 35,
+            "p95": 120
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "players-anycast",
+        "source": "players",
+        "sourcePort": "out",
+        "target": "anycast",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 45
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "anycast-pop-us",
+        "source": "anycast",
+        "sourcePort": "out",
+        "target": "pop-us",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "pop-us-shield",
+        "source": "pop-us",
+        "sourcePort": "miss",
+        "target": "shield",
+        "targetPort": "in",
+        "label": "cache miss: fetch from the shield",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 10
+          },
+          "order": 0,
+          "timeoutMs": 3000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "anycast-pop-eu",
+        "source": "anycast",
+        "sourcePort": "out",
+        "target": "pop-eu",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "pop-eu-shield",
+        "source": "pop-eu",
+        "sourcePort": "miss",
+        "target": "shield",
+        "targetPort": "in",
+        "label": "cache miss: fetch from the shield",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 40,
+            "p95": 55
+          },
+          "order": 0,
+          "timeoutMs": 3000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "anycast-pop-ap",
+        "source": "anycast",
+        "sourcePort": "out",
+        "target": "pop-ap",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "pop-ap-shield",
+        "source": "pop-ap",
+        "sourcePort": "miss",
+        "target": "shield",
+        "targetPort": "in",
+        "label": "cache miss: fetch from the shield",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 85,
+            "p95": 110
+          },
+          "order": 0,
+          "timeoutMs": 3000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "shield-packager",
+        "source": "shield",
+        "sourcePort": "miss",
+        "target": "packager",
+        "targetPort": "in",
+        "label": "cache miss: package the segment",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 1
+          },
+          "order": 0,
+          "timeoutMs": 2500
+        }
+      },
+      {
+        "id": "packager-storage",
+        "source": "packager",
+        "sourcePort": "out",
+        "target": "storage",
+        "targetPort": "in",
+        "label": "GET the source fragment",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 2
+          },
+          "order": 0,
+          "timeoutMs": 900,
+          "maxAttempts": 2,
+          "retryBackoffMs": 50
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1500,
+    "durationS": 100,
+    "warmupS": 30,
+    "seed": 42,
+    "readRatio": 1.0,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 100000,
+    "keySkew": 1.2,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline",
+      "description": "The document as drawn, measured after a 30 s warm-up. The POPs serve about 89% of requests from cache and the shield about 31% of what they miss, so about 8% of requests (about 120 a second) reach the packager and S3. Most of those are segments requested for the first time in the run, the long tail, which is why the origin's rate falls from about 140 to about 100 a second as the run goes on. p95 is about 230 ms, most of it the viewers' own network.",
+      "overrides": []
+    },
+    {
+      "id": "premiere",
+      "name": "Premiere: 2.5\u00d7 viewers on the new episode",
+      "description": "The evening of a premiere: viewers concentrate on the new episode (Zipf 1.35 instead of 1.2), and when it starts at 50 s they jump from 1,500 to 3,750 segment requests a second for 20 s. The POPs serve about 95% of requests. During the premiere the origin gets about 135 requests a second, under 4% of what viewers ask for, against about 70 just before it and about 120 in the baseline at the same time. The CDN takes the spike; the packager stays below half of what it can do.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "pattern",
+          "value": {
+            "kind": "burst",
+            "burstRps": 3750,
+            "startS": 50,
+            "durationS": 20
+          }
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.35
+        }
+      ]
+    },
+    {
+      "id": "short-ttl",
+      "name": "Every object cached for 2 s (live-style)",
+      "description": "The POPs and the shield keep every object for 2 s, as they would a live stream's manifests. Each POP now fetches every popular segment again every 2 s, so the POPs serve only about 45% of requests, and the packager, sized for video on demand, is asked for more than it can do: about 1,700 requests a second with retries, against the about 320 it can package. It saturates, the POPs and the players retry (1.35 attempts per request), about 5% of requests fail and p95 reaches about 3.6 s. Short-lived objects need an origin sized for them, not for the hit ratio of long-lived ones.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "pop-us"
+          },
+          "path": "ttlSeconds",
+          "value": 2
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "pop-eu"
+          },
+          "path": "ttlSeconds",
+          "value": 2
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "pop-ap"
+          },
+          "path": "ttlSeconds",
+          "value": 2
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "shield"
+          },
+          "path": "ttlSeconds",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "shield-down",
+      "name": "Origin shield down for 20 s (50\u201370 s)",
+      "description": "Chaos: the shield, a single Varnish node, refuses connections for 20 s. Every POP miss then fails, after one retry at the POP and the players' own retries, so only what the POPs already hold keeps playing: inside the window about 92% of requests succeed, close to the POPs' 89% hit ratio (a player's retry can land on another POP that has the segment). p95 inside the window is lower than before it, because the slow requests, the misses, are the ones failing. A second shield node, or an origin group that falls back to the packager, would cover the gap.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "shield-down",
+              "kind": "outage",
+              "target": "shield",
+              "startS": 50,
+              "durationS": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cold-start",
+      "name": "Cold start: the first 20 s with empty caches",
+      "description": "The first 20 s after every cache was emptied (a purge, or a new CDN configuration), measured from the first request. For the first 10 s the packager runs at its CPU limit (about 320 segments a second), its queue reaches about 200 requests and p95 averages about 1.1 s; once the popular segments are cached, p95 is back to about 250 ms. Nothing fails, because the players' timeouts are long, but viewers who start in those seconds wait about a second for a segment. Warming the cache with the most popular segments before a launch avoids it.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "durationS",
+          "value": 20
+        },
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "warmupS",
+          "value": 0
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 300,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "mobile": {
+        "x": 0,
+        "y": 130
+      },
+      "players": {
+        "x": 0,
+        "y": 310
+      },
+      "anycast": {
+        "x": 340,
+        "y": 220
+      },
+      "pop-us": {
+        "x": 690,
+        "y": 40
+      },
+      "pop-eu": {
+        "x": 690,
+        "y": 220
+      },
+      "pop-ap": {
+        "x": 690,
+        "y": 400
+      },
+      "shield": {
+        "x": 1040,
+        "y": 220
+      },
+      "packager": {
+        "x": 1390,
+        "y": 220
+      },
+      "storage": {
+        "x": 1740,
+        "y": 220
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}
