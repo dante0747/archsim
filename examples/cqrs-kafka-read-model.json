@@ -1,0 +1,536 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Event-driven CQRS with Kafka",
+    "description": "Event-driven CQRS for a marketplace's orders. Commands go to a Go service that commits the order to PostgreSQL (the write model) and then publishes OrderPlaced to a Kafka topic keyed by merchant, so each merchant's events stay in order. A Java projector consumes the topic and indexes every order into Elasticsearch, the read model that a Node.js query service searches. Writes are acknowledged once Kafka has the event, and reads never touch PostgreSQL, so each side scales and fails on its own. The price is freshness: the read model lags the write model, and the request-path objectives never see it. Watch the topic's lag and event age, especially in the 15 s flash sale to 2,500 req/s that every scenario includes. In production you would publish through a transactional outbox so the commit and the event cannot disagree; here the publish is simply the call after the commit. All numbers are illustrative assumptions.",
+    "tags": [
+      "cqrs",
+      "event-driven",
+      "kafka",
+      "elasticsearch",
+      "postgresql",
+      "eventual-consistency"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "users",
+        "type": "traffic_source",
+        "label": "Users",
+        "description": null,
+        "config": {
+          "timeoutMs": 2000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "gateway",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "commands",
+        "type": "service",
+        "label": "Order commands",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 32,
+          "queueCapacity": 100,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "orders-db",
+        "type": "database",
+        "label": "Orders DB (write model)",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 40,
+          "readReplicas": 0,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 8
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 12
+          }
+        }
+      },
+      {
+        "id": "events",
+        "type": "message_queue",
+        "label": "order-events topic",
+        "description": null,
+        "config": {
+          "technology": "kafka",
+          "partitions": 12,
+          "consumers": 12,
+          "brokers": 3,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 1,
+            "p95": 4
+          },
+          "maxDeliveries": 3
+        }
+      },
+      {
+        "id": "projector",
+        "type": "service",
+        "label": "Read-model projector",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "kubernetes",
+          "replicas": 2,
+          "workersPerReplica": 16,
+          "queueCapacity": 100,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 10,
+            "p95": 30
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "read-model",
+        "type": "database",
+        "label": "Order search (read model)",
+        "description": null,
+        "config": {
+          "technology": "elasticsearch",
+          "shards": 3,
+          "readReplicas": 1,
+          "maxConnections": 200,
+          "queueCapacity": 1000,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 20
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 6,
+            "p95": 20
+          }
+        }
+      },
+      {
+        "id": "queries",
+        "type": "service",
+        "label": "Order queries",
+        "description": null,
+        "config": {
+          "technology": "nodejs",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 5
+          },
+          "blockingDownstream": false,
+          "processesPerReplica": 4
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "users-gateway",
+        "source": "users",
+        "sourcePort": "out",
+        "target": "gateway",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "gateway-commands",
+        "source": "gateway",
+        "sourcePort": "out",
+        "target": "commands",
+        "targetPort": "in",
+        "label": "commands (POST, PATCH)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "gateway-queries",
+        "source": "gateway",
+        "sourcePort": "out",
+        "target": "queries",
+        "targetPort": "in",
+        "label": "queries (GET)",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "commands-db",
+        "source": "commands",
+        "sourcePort": "out",
+        "target": "orders-db",
+        "targetPort": "in",
+        "label": "commit the order",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "commands-events",
+        "source": "commands",
+        "sourcePort": "out",
+        "target": "events",
+        "targetPort": "in",
+        "label": "publish OrderPlaced (keyed by merchant)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 500
+        }
+      },
+      {
+        "id": "events-projector",
+        "source": "events",
+        "sourcePort": "out",
+        "target": "projector",
+        "targetPort": "in",
+        "label": "consume",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "projector-index",
+        "source": "projector",
+        "sourcePort": "out",
+        "target": "read-model",
+        "targetPort": "in",
+        "label": "index the order document",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "queries-search",
+        "source": "queries",
+        "sourcePort": "out",
+        "target": "read-model",
+        "targetPort": "in",
+        "label": "search",
+        "config": {
+          "requestTypes": [
+            "read"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1000,
+    "durationS": 80,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.75,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 2500,
+      "startS": 25,
+      "durationS": 15
+    },
+    "keyCount": 20000,
+    "keySkew": 0.5,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (12 partitions, flash sale at 25\u201340 s)",
+      "description": "The document as drawn: 1,000 req/s, a quarter of them orders, with a 15 s flash sale at 2,500 req/s. Users stay under 40 ms at p95 throughout. The 12 projector consumers fall behind during the sale (the lag peaks at about 3,300 events; p95 event age about 7.5 s) and catch up within seconds after it.",
+      "overrides": []
+    },
+    {
+      "id": "hot-key",
+      "name": "One merchant places a sixth of the orders",
+      "description": "Merchant popularity follows Zipf 1.15, so the biggest merchant places about 17% of all orders. Its events all land on one partition, which one consumer works through in order: that partition never catches up (p95 event age about 26 s, events still waiting when the run ends) while the other consumers are mostly idle. Users notice nothing, and the objectives still pass.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.15
+        }
+      ]
+    },
+    {
+      "id": "hot-key-more-partitions",
+      "name": "Hot merchant with 48 partitions",
+      "description": "The usual reflex: four times the partitions and twice the projector pods. The other merchants' events catch up faster (the peak lag halves), but the hot merchant's events still share one partition and one consumer and still fall behind (p95 event age about 21 s). The partition key decides this, not the partition count.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.15
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "partitions",
+          "value": 48
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "events"
+          },
+          "path": "consumers",
+          "value": 48
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "projector"
+          },
+          "path": "replicas",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "id": "projector-slow",
+      "name": "Projector 8\u00d7 slower for 25 s (50\u201375 s)",
+      "description": "Chaos: a bad deploy makes every projection 8 times slower. Commands and queries are untouched (the fault finding says the system absorbed it), yet the read model falls about 20 s behind (p95 event age) before it catches up. A slow consumer never slows its producers; it only makes the read side stale.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "projector-slow",
+              "kind": "slowdown",
+              "target": "projector",
+              "startS": 50,
+              "durationS": 25,
+              "factor": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "index-down",
+      "name": "Read model down for 15 s, the projector gives up",
+      "description": "Chaos: Elasticsearch refuses connections at 50\u201365 s. Every search fails (success inside the window falls to about 25%: the orders) while every order still succeeds. Each failed delivery goes back to the end of its partition, is retried within milliseconds, and after three deliveries is dead-lettered: about 2,900 events never reach the read model, which stays wrong after Elasticsearch is back until someone replays them.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "index-down",
+              "kind": "outage",
+              "target": "read-model",
+              "startS": 50,
+              "durationS": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "index-down-retry",
+      "name": "Read model down for 15 s, the projector retries with backoff",
+      "description": "The same outage, with the projector retrying each index call up to 5 times with exponential backoff (1, 2, 4 and 8 s: 15 s in all). Each consumer waits on its partition meanwhile, so the lag grows (peak about 5,500 events, p95 event age about 21 s) but nothing is dead-lettered: the read model is late, not wrong.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "index-down",
+              "kind": "outage",
+              "target": "read-model",
+              "startS": 50,
+              "durationS": 15
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "projector-index"
+          },
+          "path": "maxAttempts",
+          "value": 5
+        },
+        {
+          "target": {
+            "kind": "edge",
+            "id": "projector-index"
+          },
+          "path": "retryBackoffMs",
+          "value": 1000
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 150,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "users": {
+        "x": 0,
+        "y": 200
+      },
+      "gateway": {
+        "x": 330,
+        "y": 200
+      },
+      "commands": {
+        "x": 660,
+        "y": 40
+      },
+      "queries": {
+        "x": 660,
+        "y": 380
+      },
+      "orders-db": {
+        "x": 1030,
+        "y": 0
+      },
+      "events": {
+        "x": 1030,
+        "y": 200
+      },
+      "projector": {
+        "x": 1400,
+        "y": 200
+      },
+      "read-model": {
+        "x": 1400,
+        "y": 400
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

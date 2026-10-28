@@ -1,0 +1,596 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Flash sale: one hot row, two queues",
+    "description": "A shop's checkout on flash-sale day. The Java checkout API reserves stock and inserts the order in one PostgreSQL transaction, then hands the payment to an SQS queue, so shoppers get their answer at once. A Go payment worker charges the card through a payments API (with an idempotency key) and publishes OrderPaid to RabbitMQ, where a fulfilment worker buys the shipping label from a carrier API. Traffic jumps from 600 to 2,400 req/s for 20 s when the sale opens; 15% of requests are orders. Two things can hurt: a hot stock row, and back-pressure that travels backwards from one queue to the other. The providers' fees are left out of the cost. All numbers are illustrative assumptions.",
+    "tags": [
+      "flash-sale",
+      "postgresql",
+      "row-locks",
+      "sqs",
+      "rabbitmq",
+      "back-pressure",
+      "idempotency"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "shoppers",
+        "type": "traffic_source",
+        "label": "Shoppers",
+        "description": null,
+        "config": {
+          "timeoutMs": 3000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "nginx",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.3
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "checkout",
+        "type": "service",
+        "label": "Checkout API",
+        "description": null,
+        "config": {
+          "technology": "java",
+          "platform": "kubernetes",
+          "replicas": 4,
+          "workersPerReplica": 50,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 1000,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "shop-db",
+        "type": "database",
+        "label": "Orders & stock DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 80,
+          "readReplicas": 1,
+          "queueCapacity": 400,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 6
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 5,
+            "p95": 15
+          },
+          "replicaApplyFactor": 0.15
+        }
+      },
+      {
+        "id": "payments-q",
+        "type": "message_queue",
+        "label": "payment-requests (SQS)",
+        "description": null,
+        "config": {
+          "technology": "sqs",
+          "partitions": 10000,
+          "consumers": 80,
+          "maxDeliveries": 5,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 15,
+            "p95": 40
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "visibilityTimeoutS": 30
+        }
+      },
+      {
+        "id": "payment-worker",
+        "type": "service",
+        "label": "Payment worker",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 3,
+          "workersPerReplica": 32,
+          "queueCapacity": 50,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "payments",
+        "type": "external_api",
+        "label": "Payments API",
+        "description": null,
+        "config": {
+          "technology": "payments",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 250,
+            "p95": 900
+          },
+          "errorRate": 0.002,
+          "costPerMillionRequests": 0
+        }
+      },
+      {
+        "id": "fulfil-q",
+        "type": "message_queue",
+        "label": "fulfilment (RabbitMQ)",
+        "description": null,
+        "config": {
+          "technology": "rabbitmq",
+          "partitions": 1000,
+          "consumers": 48,
+          "maxDeliveries": 5,
+          "brokers": 1,
+          "publishTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 8
+          },
+          "consumerTimeMs": {
+            "kind": "lognormal",
+            "median": 2,
+            "p95": 6
+          },
+          "memoryGib": 0.25,
+          "messageSizeKb": 64,
+          "memoryHighWatermark": 0.4
+        }
+      },
+      {
+        "id": "fulfilment",
+        "type": "service",
+        "label": "Fulfilment worker",
+        "description": null,
+        "config": {
+          "technology": "go",
+          "platform": "kubernetes",
+          "replicas": 2,
+          "workersPerReplica": 32,
+          "queueCapacity": 50,
+          "queueTimeoutMs": null,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 3,
+            "p95": 10
+          },
+          "blockingDownstream": true
+        }
+      },
+      {
+        "id": "carrier",
+        "type": "external_api",
+        "label": "Carrier label API",
+        "description": null,
+        "config": {
+          "technology": "generic",
+          "latencyMs": {
+            "kind": "lognormal",
+            "median": 150,
+            "p95": 500
+          },
+          "errorRate": 0.002,
+          "costPerMillionRequests": 0
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "shoppers-lb",
+        "source": "shoppers",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-checkout",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "checkout",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "checkout-db",
+        "source": "checkout",
+        "sourcePort": "out",
+        "target": "shop-db",
+        "targetPort": "in",
+        "label": "product pages; reserve stock + insert order",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1500
+        }
+      },
+      {
+        "id": "checkout-payments-q",
+        "source": "checkout",
+        "sourcePort": "out",
+        "target": "payments-q",
+        "targetPort": "in",
+        "label": "enqueue the payment",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1,
+          "timeoutMs": 1000
+        }
+      },
+      {
+        "id": "payments-q-worker",
+        "source": "payments-q",
+        "sourcePort": "out",
+        "target": "payment-worker",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "worker-payments",
+        "source": "payment-worker",
+        "sourcePort": "out",
+        "target": "payments",
+        "targetPort": "in",
+        "label": "charge (idempotency key)",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 15
+          },
+          "order": 0,
+          "timeoutMs": 5000,
+          "maxAttempts": 3,
+          "retryBackoffMs": 500
+        }
+      },
+      {
+        "id": "worker-fulfil-q",
+        "source": "payment-worker",
+        "sourcePort": "out",
+        "target": "fulfil-q",
+        "targetPort": "in",
+        "label": "publish OrderPaid",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 1
+        }
+      },
+      {
+        "id": "fulfil-q-worker",
+        "source": "fulfil-q",
+        "sourcePort": "out",
+        "target": "fulfilment",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "fulfilment-carrier",
+        "source": "fulfilment",
+        "sourcePort": "out",
+        "target": "carrier",
+        "targetPort": "in",
+        "label": "buy the shipping label",
+        "config": {
+          "requestTypes": [
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 15
+          },
+          "order": 0,
+          "timeoutMs": 5000,
+          "maxAttempts": 2,
+          "retryBackoffMs": 500
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 600,
+    "durationS": 120,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.85,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "burst",
+      "burstRps": 2400,
+      "startS": 20,
+      "durationS": 20
+    },
+    "keyCount": 5000,
+    "keySkew": 0.8,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline (the sale opens at 20 s)",
+      "description": "The document as drawn: orders spread over 5,000 SKUs (Zipf 0.8). Shoppers stay under 40 ms at p95. Payments fall behind while the sale peaks (the SQS backlog reaches about 3,000 messages, p95 wait about 14 s) and catch up about half a minute after it.",
+      "overrides": []
+    },
+    {
+      "id": "deal",
+      "name": "Deal of the day: 44% of orders for one SKU",
+      "description": "SKU popularity follows Zipf 1.6, so the deal SKU gets about 44% of all orders, and every one of them updates the same stock row. PostgreSQL makes the second writer wait until the first commits, holding its connection meanwhile. At the sale's peak about 160 orders a second queue for one row that takes 7 to 8 ms per update: writes wait about 100 ms on average for the lock, checkout threads pile up and its queue overflows, while the database's connections are about 10% busy. About 7% of requests fail and p95 misses the objective.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.6
+        }
+      ]
+    },
+    {
+      "id": "deal-short-tx",
+      "name": "Deal of the day, shorter stock transaction",
+      "description": "The same deal with the locked part of the write cut from about 6 ms to about 2 ms (for example one UPDATE ... RETURNING that decrements the stock, instead of reading, updating and inserting the order in one transaction). The hot row keeps up: lock waits fall below 1 ms and every request succeeds. With a hot row, how long the lock is held matters more than how big the database is.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "keySkew",
+          "value": 1.6
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "shop-db"
+          },
+          "path": "writeServiceTimeMs",
+          "value": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "carrier-hangs",
+      "name": "Carrier API hangs for 40 s (50\u201390 s)",
+      "description": "Chaos: the network path to the carrier adds 3 s each way, so every label call times out (two attempts of 5 s). Fulfilment drains a few messages a second, RabbitMQ's backlog reaches its memory watermark (40% of 0.25 GiB at 64 KB a message, about 1,640 messages) and the broker blocks publishers. The payment workers then wait inside a publish for longer than SQS's 30 s visibility timeout, so SQS hands their messages to other consumers: about 80 payments are processed twice, one per blocked consumer. Only the idempotency key on the charge stops those becoming double charges. Shoppers notice nothing.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "carrier-hangs",
+              "kind": "latency",
+              "target": "fulfilment-carrier",
+              "startS": 50,
+              "durationS": 40,
+              "extraMs": 3000,
+              "label": "carrier network path hangs"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "carrier-hangs-visibility",
+      "name": "Carrier hangs, 5-minute visibility timeout",
+      "description": "The same fault with the payment queue's visibility timeout at 300 s. Back-pressure still stops the payment workers and the SQS backlog grows (to about 4,200 messages), but no message is handed out twice: payments are late, not duplicated.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "carrier-hangs",
+              "kind": "latency",
+              "target": "fulfilment-carrier",
+              "startS": 50,
+              "durationS": 40,
+              "extraMs": 3000,
+              "label": "carrier network path hangs"
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "payments-q"
+          },
+          "path": "visibilityTimeoutS",
+          "value": 300
+        }
+      ]
+    },
+    {
+      "id": "carrier-hangs-buffer",
+      "name": "Carrier hangs, RabbitMQ with 4 GiB",
+      "description": "The other fix: give the broker 16 times the memory, so its watermark (about 26,000 messages) is never reached in a 40 s hang. Nothing pushes back: payments carry on as normal and the fulfilment backlog absorbs the hang instead (peak about 5,900 messages, p95 wait about 42 s). A longer outage would still reach the watermark, later and with a bigger backlog to work off.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "workload"
+          },
+          "path": "faults",
+          "value": [
+            {
+              "id": "carrier-hangs",
+              "kind": "latency",
+              "target": "fulfilment-carrier",
+              "startS": 50,
+              "durationS": 40,
+              "extraMs": 3000,
+              "label": "carrier network path hangs"
+            }
+          ]
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "fulfil-q"
+          },
+          "path": "memoryGib",
+          "value": 4
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 300,
+    "latencyP99Ms": null,
+    "availability": 0.995,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "shoppers": {
+        "x": 0,
+        "y": 160
+      },
+      "lb": {
+        "x": 330,
+        "y": 160
+      },
+      "checkout": {
+        "x": 660,
+        "y": 160
+      },
+      "shop-db": {
+        "x": 1030,
+        "y": 0
+      },
+      "payments-q": {
+        "x": 1030,
+        "y": 320
+      },
+      "payment-worker": {
+        "x": 1400,
+        "y": 320
+      },
+      "payments": {
+        "x": 1770,
+        "y": 160
+      },
+      "fulfil-q": {
+        "x": 1770,
+        "y": 480
+      },
+      "fulfilment": {
+        "x": 2140,
+        "y": 480
+      },
+      "carrier": {
+        "x": 2510,
+        "y": 480
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}

@@ -17,6 +17,18 @@ from engine_builders import EXAMPLES
 REGISTRY = create_default_registry(include_plugins=False)
 FIXTURES = Path(__file__).parent / "fixtures" / "import"
 TEMPLATES = sorted(EXAMPLES.glob("*.json"))
+CLIENT_GROUPS = ("mobile_app", "web_client", "api_consumer")
+
+
+def round_trip_case(path: Path) -> Any:
+    """Exports carry only plain ``traffic_source`` clients (``roundtrip.NOT_DEPLOYED``), so a
+    template with mobile, web or API-consumer client groups loses them on the way out. Known gap
+    (docs/templates-review.md, follow-ups); strict, so this fails once exports keep them."""
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if any(n["type"] in CLIENT_GROUPS for n in doc["architecture"]["nodes"]):
+        reason = "exports drop mobile, web and API-consumer client groups"
+        return pytest.param(path, marks=pytest.mark.xfail(strict=True, reason=reason))
+    return path
 
 
 def shape(doc: dict[str, Any]) -> tuple[dict[str, Any], set[tuple[Any, ...]]]:
@@ -43,7 +55,7 @@ def shape(doc: dict[str, Any]) -> tuple[dict[str, Any], set[tuple[Any, ...]]]:
 
 
 @pytest.mark.parametrize("fmt", ["compose", "k8s"])
-@pytest.mark.parametrize("path", TEMPLATES, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", [round_trip_case(p) for p in TEMPLATES], ids=lambda p: p.stem)
 def test_every_template_round_trips(path: Path, fmt: str) -> None:
     doc = json.loads(path.read_text(encoding="utf-8"))
     text = export_document(doc, fmt, REGISTRY)

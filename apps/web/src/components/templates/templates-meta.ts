@@ -84,6 +84,31 @@ const META: Record<string, TemplateMeta> = {
     level: "Intermediate",
     insight: "A 10× spike meets cold starts, a concurrency cap and, once burst credits run out, a throttled table.",
   },
+  "cqrs-kafka-read-model": {
+    category: "Async",
+    level: "Advanced",
+    insight: "Writes stay fast while the read model falls behind; a hot partition key never catches up.",
+  },
+  "public-api-slow-dependency": {
+    category: "Resilience",
+    level: "Advanced",
+    insight: "A slow dependency fills the thread pool; a circuit breaker keeps reads alive, and retries help less than you think.",
+  },
+  "flash-sale-order-flow": {
+    category: "Data",
+    level: "Advanced",
+    insight: "One hot stock row queues every order, and RabbitMQ back-pressure makes SQS hand out payments twice.",
+  },
+  "social-feed-hot-key": {
+    category: "Scale",
+    level: "Advanced",
+    insight: "A celebrity's key pins one Redis shard; more shards don't help, Memcached's threads do.",
+  },
+  "right-size-catalog-api": {
+    category: "Learn",
+    level: "Intermediate",
+    insight: "Six ways to run one API on the cost and speed map: scaling the wrong tier buys nothing.",
+  },
 };
 
 /** Templates shown first, in this order; the rest follow alphabetically. */

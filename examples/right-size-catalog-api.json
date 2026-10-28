@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "1.3",
+  "kind": "archsim.architecture",
+  "metadata": {
+    "name": "Right-size a catalog API",
+    "description": "A Node.js catalog API on three 2 vCPU VMs in front of PostgreSQL on 2 vCPU and 8 GiB, at 1,800 req/s (90% reads). The scenarios are not incidents but six ways to run it, sized explicitly (the API's CPU and the database's CPU and memory are set rather than auto-sized) and priced at AWS us-east-1 rates. Simulate all of them, then open Results, Compare, Cost vs. speed: the map plots each option's monthly cost against its p95, draws the frontier and the 25 ms objective, and shows which options are worth paying for. The Breaking point tab then shows how much load an option takes before it misses the objectives. The clients' network is left out (1 ms) so that the servers' own time shows. All numbers are illustrative assumptions.",
+    "tags": [
+      "sizing",
+      "cost",
+      "trade-offs",
+      "breaking-point",
+      "nodejs",
+      "postgresql"
+    ]
+  },
+  "architecture": {
+    "nodes": [
+      {
+        "id": "clients",
+        "type": "traffic_source",
+        "label": "Clients",
+        "description": null,
+        "config": {
+          "timeoutMs": 2000,
+          "maxAttempts": 1,
+          "retryBackoffMs": 100
+        }
+      },
+      {
+        "id": "lb",
+        "type": "load_balancer",
+        "label": "Load balancer",
+        "description": null,
+        "config": {
+          "technology": "aws_alb",
+          "policy": "least_connections",
+          "overheadMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "maxConnections": 20000
+        }
+      },
+      {
+        "id": "api",
+        "type": "service",
+        "label": "Catalog API",
+        "description": null,
+        "config": {
+          "technology": "nodejs",
+          "platform": "vm",
+          "replicas": 3,
+          "workersPerReplica": 64,
+          "queueCapacity": 200,
+          "queueTimeoutMs": 500,
+          "serviceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.5,
+            "p95": 5
+          },
+          "blockingDownstream": false,
+          "processesPerReplica": 2,
+          "cpuCores": 2
+        }
+      },
+      {
+        "id": "db",
+        "type": "database",
+        "label": "Catalog DB",
+        "description": null,
+        "config": {
+          "technology": "postgresql",
+          "maxConnections": 8,
+          "readReplicas": 0,
+          "queueCapacity": 500,
+          "queueTimeoutMs": 1000,
+          "readServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 1.2,
+            "p95": 5
+          },
+          "writeServiceTimeMs": {
+            "kind": "lognormal",
+            "median": 4,
+            "p95": 12
+          },
+          "cpuCores": 2,
+          "memoryGib": 8,
+          "workingSetGib": 10,
+          "storageGib": 100
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "clients-lb",
+        "source": "clients",
+        "sourcePort": "out",
+        "target": "lb",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 1
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "lb-api",
+        "source": "lb",
+        "sourcePort": "out",
+        "target": "api",
+        "targetPort": "in",
+        "label": null,
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0
+        }
+      },
+      {
+        "id": "api-db",
+        "source": "api",
+        "sourcePort": "out",
+        "target": "db",
+        "targetPort": "in",
+        "label": "product queries",
+        "config": {
+          "requestTypes": [
+            "read",
+            "write"
+          ],
+          "latencyMs": {
+            "kind": "constant",
+            "value": 0.5
+          },
+          "order": 0,
+          "timeoutMs": 1000
+        }
+      }
+    ]
+  },
+  "workload": {
+    "rps": 1800,
+    "durationS": 60,
+    "warmupS": 10,
+    "seed": 42,
+    "readRatio": 0.9,
+    "arrivalProcess": "poisson",
+    "pattern": {
+      "kind": "constant"
+    },
+    "keyCount": 200000,
+    "keySkew": 0.7,
+    "faults": []
+  },
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "As drawn: 3 API VMs, database 2 vCPU / 8 GiB",
+      "description": "The database's CPU is about 93% busy, so queries wait for a core and p95 is about 35 ms, over the 25 ms objective; the API is about 59% busy. Open the Breaking point tab to see how much load this design holds within its objectives, and where it saturates.",
+      "overrides": []
+    },
+    {
+      "id": "two-api",
+      "name": "Cheapest: 2 API VMs",
+      "description": "One API VM fewer. Its event loops run about 88% busy on top of the busy database and p95 rises to about 43 ms: the cheapest option, and the slowest.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "api"
+          },
+          "path": "replicas",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "five-api",
+      "name": "Scale the API: 5 VMs",
+      "description": "The usual reflex. The API drops to about 35% busy, but the database still runs at 93% CPU and p95 stays where it was (about 37 ms). More money for no gain: on the map this option sits off the frontier.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "api"
+          },
+          "path": "replicas",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "id": "db-memory",
+      "name": "More database memory: 16 GiB",
+      "description": "The 10 GiB hot working set now fits in the buffer cache, so the 40% of reads that went to disk no longer do. p95 hardly moves (about 32 ms): this database is short of CPU, not memory.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "memoryGib",
+          "value": 16
+        }
+      ]
+    },
+    {
+      "id": "big-db",
+      "name": "Bigger database: 4 vCPU / 16 GiB",
+      "description": "Twice the CPU and memory on one instance. The database drops to about 47% CPU and p95 halves to about 15 ms, inside the objective.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "cpuCores",
+          "value": 4
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "memoryGib",
+          "value": 16
+        }
+      ]
+    },
+    {
+      "id": "replica",
+      "name": "Read replica: 2 \u00d7 2 vCPU",
+      "description": "A second 2 vCPU instance takes half the reads. p95 falls to about 17 ms, also inside the objective, for about what the bigger database costs, and you get a standby. The price: replica reads can be stale (a few reads found a row the replica had not replayed yet).",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "db"
+          },
+          "path": "readReplicas",
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "objectives": {
+    "latencyP95Ms": 25,
+    "latencyP99Ms": null,
+    "availability": 0.999,
+    "minThroughputRps": null
+  },
+  "layout": {
+    "nodes": {
+      "clients": {
+        "x": 0,
+        "y": 120
+      },
+      "lb": {
+        "x": 330,
+        "y": 120
+      },
+      "api": {
+        "x": 660,
+        "y": 120
+      },
+      "db": {
+        "x": 1030,
+        "y": 120
+      }
+    },
+    "viewport": null
+  },
+  "pricing": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "snapshotDate": "2026-10-27"
+  }
+}
