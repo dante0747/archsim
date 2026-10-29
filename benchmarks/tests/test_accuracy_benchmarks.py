@@ -233,7 +233,7 @@ def test_at_or_below_knee() -> None:
 
 def test_committed_comparisons_are_reproduced_by_compare() -> None:
     dirs = run.result_dirs()
-    assert len(dirs) == 10
+    assert len(dirs) == 11
     for exp, d in dirs:
         committed = json.loads((d / "comparison.json").read_text(encoding="utf-8"))
         assert run.comparison_of(exp, d) == committed, d
@@ -443,8 +443,15 @@ def test_resources_on_the_committed_results() -> None:
     data = report.accuracy()
     assert data is not None
     by = {x["id"]: x["resources"] for x in data["experiments"]}
-    assert all(r is not None and r["measuredBy"] == "scaled" for r in by.values())
-    assert all(r["predictedBy"] == "re-simulated" and not r["memoryMeasured"] for r in by.values())
+    assert {k: (r["measuredBy"], r["predictedBy"], r["memoryMeasured"]) for k, r in by.items()} == {
+        "pg-mixed": ("window", "predictions", True),
+        "pg-hot-row": ("scaled", "re-simulated", False),
+        "cache-aside": ("scaled", "re-simulated", False),
+        "kafka": ("scaled", "re-simulated", False),
+    }
+    service = {p["container"]: p for p in by["pg-mixed"]["parts"]}["api"]
+    assert service["top"]["text"]["measuredMemory"] == "188 MiB"
+    assert service["top"]["text"]["predictedMemory"] == "550 MiB"
     parts = {p["container"]: p for p in by["cache-aside"]["parts"]}
     assert list(parts) == ["api", "postgres", "redis"]
     assert by["cache-aside"]["topRps"] == 3795
@@ -455,8 +462,15 @@ def test_resources_on_the_committed_results() -> None:
     assert kafka["postgres"]["notModelled"]["memory"] == report.NO_MEMORY_MODEL["postgres"]
     cmps = [c for e in report.ORDER if (c := report.load(e, "comparison"))]
     block = report.resources_block(cmps)
-    assert "| [cache-aside](#cache-aside) | Redis | 3,795 | 0.16 | 0.02 | -87% | 88% (6) |" in block
-    assert "Memory measured" not in block  # no memory was measured in these runs
+    assert (
+        "| [pg-mixed](#pg-mixed) | Node.js service | 2,238 | 0.46 | 1.00 | +116% | 116% (5) | 188 MiB | 550 MiB | +192% |"
+        in block
+    )
+    # memory is shown only where it was measured, never a prediction alone
+    assert (
+        "| [cache-aside](#cache-aside) | Redis | 3,795 | 0.16 | 0.02 | -87% | 88% (6) | - | - | - |"
+        in block
+    )
 
 
 def test_resources_block_shows_memory_once_measured() -> None:
@@ -598,18 +612,25 @@ def test_criteria_on_the_committed_results() -> None:
         c = report.load(exp, "comparison")
         assert c is not None
         got[exp] = report.criteria(c, hist[exp])
-    assert got["pg-mixed"]["p95"]["misses"] == [2062, 2268]
+    assert got["pg-mixed"]["p95"]["misses"] == [2238]
     assert got["cache-aside"]["p95"]["misses"] == [3450, 3795]
     assert got["kafka"]["p95"]["misses"] == [252, 503, 905]
     assert got["pg-hot-row"]["p95"]["pass"] and not got["pg-hot-row"]["knee"]["pass"]
-    assert got["pg-mixed"]["stable"]["unstable"] == [2268]
+    assert got["pg-mixed"]["stable"]["unstable"] == []
     assert [exp for exp, k in got.items() if k["knee"]["pass"]] == [
         "pg-mixed",
         "cache-aside",
         "kafka",
     ]
     assert not any(k["all"] for k in got.values())
-    assert all(k["reproduced"]["runs"] == 1 for k in got.values())
+    # pg-mixed ran twice under v4 (runs 4 and 5), on the same machine
+    assert {exp: k["reproduced"]["runs"] for exp, k in got.items()} == {
+        "pg-mixed": 2,
+        "pg-hot-row": 1,
+        "cache-aside": 1,
+        "kafka": 1,
+    }
+    assert not got["pg-mixed"]["reproduced"]["pass"]  # a second machine is needed
 
 
 # ---------------------------------------------------------------------------------------------
@@ -629,8 +650,8 @@ def test_validation_page_is_generated_from_the_committed_results() -> None:
 
 def test_experiment_block_names_the_real_calibration_rates() -> None:
     block = report.experiment_block("pg-mixed")
-    assert "calibration passes at 50 and 265 req/s" in block
-    assert "Measured in the calibration pass at 265 req/s" in block
+    assert "calibration passes at 50 and 346 req/s" in block
+    assert "Measured in the calibration pass at 346 req/s" in block
     assert "(50 req/s):" not in block and "Measured at 50 req/s" not in block
     assert "calibration pass at 143 req/s" in report.experiment_block("kafka")
 
@@ -721,29 +742,29 @@ def test_accuracy_json_on_the_committed_results() -> None:
     assert s["inSample"] == ["pg-mixed", "pg-hot-row"]
     assert s["withSpread"] == ["pg-mixed", "pg-hot-row"]
     assert s["spreadExceedsError"] == ["pg-mixed"]  # +/-25% against -10%; hot-row +/-72% < 97%
-    assert s["runs"] == 10 and len(s["machines"]) == 1
+    assert s["runs"] == 11 and len(s["machines"]) == 1
     by = {x["id"]: x for x in data["experiments"]}
     mixed = by["pg-mixed"]
     assert mixed["knee"]["text"] == {
-        "measured": "2,291",
-        "predicted": "2,064",
-        "error": "-10%",
-        "absError": "10%",
+        "measured": "2,430",
+        "predicted": "2,238",
+        "error": "-8%",
+        "absError": "8%",
     }
     assert mixed["spread"]["text"] == "1,895 to 3,162 req/s"
     assert mixed["spread"]["plusMinusText"] == "±25%"
-    assert [v["run"] for v in mixed["spread"]["values"]] == ["run-2/", "run-3/", "latest"]
+    assert [v["run"] for v in mixed["spread"]["values"]] == ["run-2/", "run-3/", "run-4/", "latest"]
     assert by["pg-hot-row"]["spread"]["text"] == "132 to 819 req/s"
     assert by["pg-hot-row"]["spread"]["runs"] == 4
     assert by["cache-aside"]["spread"] is None and by["kafka"]["spread"] is None
-    assert mixed["p95BelowKnee"]["within"] == 4 and mixed["p95BelowKnee"]["steps"] == 6
-    assert mixed["p95BelowKnee"]["worst"]["text"]["offered"] == "2,268"
+    assert mixed["p95BelowKnee"]["within"] == 4 and mixed["p95BelowKnee"]["steps"] == 5
+    assert mixed["p95BelowKnee"]["worst"]["text"]["offered"] == "2,238"
     assert by["kafka"]["p95BelowKnee"]["misses"] == [252, 503, 905]
-    assert mixed["date"] == "2026-10-26" and mixed["engineVersion"] == "0.7.0"
+    assert mixed["date"] == "2026-10-28" and mixed["engineVersion"] == "0.13.0"
     assert mixed["environment"]["dockerCpus"] == 8
     assert mixed["environment"]["dockerMemoryGiB"] == 7.6
-    assert not mixed["environment"]["cpusetsRecorded"]
-    assert sum(1 for x in mixed["steps"] if x["atOrBelowKnee"]) == 6
+    assert mixed["environment"]["cpusetsRecorded"]
+    assert sum(1 for x in mixed["steps"] if x["atOrBelowKnee"]) == 5
 
 
 def test_knee_spread() -> None:

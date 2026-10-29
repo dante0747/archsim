@@ -236,7 +236,10 @@ function ResourcesCard({ x, memory }: { x: Experiment; memory: boolean }) {
                 <td className={cn(num, memory ? "" : "pr-0 sm:pr-0")}>{p.modelled.cores ? p.text.medianAbsCoresError : "-"}</td>
                 {memory && (
                   <td className="whitespace-nowrap py-1.5 text-right">
-                    {p.top?.text.measuredMemory ?? "-"} / {p.modelled.memory ? (p.top?.text.predictedMemory ?? "-") : "-"}
+                    {/* a prediction alone, with nothing measured, is not shown */}
+                    {p.top?.measuredMemoryMiB != null
+                      ? `${p.top.text.measuredMemory} / ${p.modelled.memory ? p.top.text.predictedMemory : "-"}`
+                      : "-"}
                   </td>
                 )}
               </tr>

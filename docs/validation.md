@@ -12,7 +12,7 @@ k6 summaries themselves are scratch output and are not committed.
 <!-- BEGIN GENERATED: summary -->
 | Experiment | Knee measured | Knee predicted | Knee error | p95 error at or below the measured knee (median / worst) |
 | --- | --- | --- | --- | --- |
-| [pg-mixed](#pg-mixed) | 2,291 req/s | 2,064 req/s | -10% | 67% / 18316% (6 steps) |
+| [pg-mixed](#pg-mixed) | 2,430 req/s | 2,238 req/s | -8% | 81% / 216% (5 steps) |
 | [pg-hot-row](#pg-hot-row) | 225 req/s | 444 req/s | +97% | 29% / 55% (2 steps) |
 | [cache-aside](#cache-aside) | 4,016 req/s | 3,457 req/s | -14% | 29% / 101649% (6 steps) |
 | [kafka](#kafka) | 945 req/s | 1,006 req/s | +6% | 211% / 332% (4 steps) |
@@ -26,16 +26,17 @@ the measured knee: error = (predicted - measured) / measured.
 Read these numbers as one run on one laptop, not as a measure of ArchSim's accuracy:
 
 - **One run each, inside run-to-run noise.** Every row is a single run under the final protocol
-  (v4). The measured knee itself moves from run to run on the same machine: pg-mixed's was 1,895,
-  3,162 and 2,291 req/s in runs 2, 3 and 4 (see [Protocol history](#protocol-history)), a spread
-  far wider than the -10% error of run 4; pg-hot-row's ranged from 132 to 819 req/s over runs 1
-  to 4.
+  (v4): pg-mixed's is run 5 (2026-10-28, UTC), the others run 4. The measured knee itself moves from
+  run to run on the same machine: pg-mixed's was 1,895, 3,162, 2,291 and 2,430 req/s in runs 2
+  to 5 (see [Protocol history](#protocol-history)), a spread far wider than the -8% error of run
+  5; pg-hot-row's ranged from 132 to 819 req/s over runs 1 to 4.
 - **pg-mixed and pg-hot-row are in-sample.** The protocol was revised (v2, then v3, then v4)
   after the high-load results of those two experiments had been seen. Each revision fixed a flaw
   in the calibration, but it was chosen with their data in view. cache-aside and Kafka were first
   run under the final protocol, so only their numbers are out-of-sample.
-- **Latency at low load is high in every experiment, and far off for Kafka**: p95 +0.1 to
-  +1.4 ms for pg-mixed, pg-hot-row and cache-aside, about +8.7 ms (+303% and +332%) for Kafka
+- **Latency at low load is high, and far off for Kafka**: p95 +0.1 to +1.4 ms for pg-mixed,
+  pg-hot-row and cache-aside (all but pg-mixed's lowest step), about +8.7 ms (+303% and +332%)
+  for Kafka
   (see [below](#where-the-model-is-wrong-and-why)).
 - **Nothing is validated.** No experiment meets the [proposed tier
   thresholds](#proposed-tier-thresholds), which are computed from this data.
@@ -132,7 +133,8 @@ high-load results in view, so those two experiments are in-sample for the final 
 | 1 | one pass at 50 req/s, CPU per request as measured | At 50 req/s a laptop's cores sit in low-power states, so CPU per request came out about 4x what it costs under load. |
 | 2 | two passes, CPU per request from the slope (v2) | Fixed CPU cancels out; but the database driver's CPU was counted twice (in the CPU per request and inside the measured query time), so the model started about 2x too slow. Measured steps overlapped with other work on the machine. |
 | 3 | v2 plus the anchor at the calibration rate (v3) | pg-mixed's first pass met the post-load autovacuum (p95 280 ms at 50 req/s), which inflated CPU per request 3x and sent every input wrong; hot-row's single-row lock turned short host stalls (package installs and test runs in other work) into seconds-long queues. Neither run measured the model. |
-| 4 | v3 plus settling and disturbed-pass retries (v4), machine otherwise idle | This page's numbers. |
+| 4 | v3 plus settling and disturbed-pass retries (v4), machine otherwise idle | This page's numbers for pg-hot-row, cache-aside and Kafka. |
+| 5 | v4; CPU and memory read inside the measured window; engine 0.13.0 | pg-mixed: this page's numbers, knee 2,430 req/s against 2,238 predicted (-8%). The run of the other three was discarded: other work on the machine (video rendering) took its memory, so pg-hot-row's calibration measured a commit-flush p95 of 417 ms and Docker stalled for 20 minutes during cache-aside; Kafka did not run. They are to be run again on an idle machine. |
 
 Every kept run, compared the same way (`run.py compare`):
 
@@ -142,7 +144,8 @@ Every kept run, compared the same way (`run.py compare`):
 | pg-mixed | `run-1/` | v1 | 2026-10-26T08:00:55Z | > 1,359 req/s | 906 req/s | - |
 | pg-mixed | `run-2/` | v2 | 2026-10-26T08:23:18Z | 1,895 req/s | 2,314 req/s | +22% |
 | pg-mixed | `run-3/` | v3 | 2026-10-26T09:46:26Z | 3,162 req/s | 808 req/s | -74% |
-| pg-mixed | latest (`results/pg-mixed/`) | v4 | 2026-10-26T11:13:41Z | 2,291 req/s | 2,064 req/s | -10% |
+| pg-mixed | `run-4/` | v4 | 2026-10-26T11:13:41Z | 2,291 req/s | 2,064 req/s | -10% |
+| pg-mixed | latest (`results/pg-mixed/`) | v4 | 2026-10-28T23:21:36Z | 2,430 req/s | 2,238 req/s | -8% |
 | pg-hot-row | `run-1/` | v1 | 2026-10-26T08:11:06Z | 303 req/s | 403 req/s | +33% |
 | pg-hot-row | `run-2/` | v2 | 2026-10-26T08:42:10Z | 819 req/s | 418 req/s | -49% |
 | pg-hot-row | `run-3/` | v3 | 2026-10-26T10:11:09Z | 132 req/s | 504 req/s | +281% |
@@ -166,37 +169,37 @@ machine was doing other work and the database was not settled first.
 ## pg-mixed
 
 <!-- BEGIN GENERATED: pg-mixed -->
-**Node.js + PostgreSQL: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-10-26T11:13:41Z, predicted 2026-10-26T11:15:51Z (engine 0.7.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+**Node.js + PostgreSQL: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-10-28T23:21:36Z, predicted 2026-10-28T23:23:09Z (engine 0.13.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
 
 ![pg-mixed: predicted and measured p95 and throughput](validation/pg-mixed.svg)
 
-Model inputs from the calibration passes at 50 and 265 req/s (timings from the 265 req/s pass, CPU per request from the slope between the two):
+Model inputs from the calibration passes at 50 and 346 req/s (timings from the 346 req/s pass, CPU per request from the slope between the two):
 
 | Input | Value | How it was measured |
 | --- | --- | --- |
-| `serviceTimeMs` | lognormal, median 0.4236 ms, p95 0.985 ms | mean = Node's CPU per extra request between the passes: (4532 - 1415 ms) / (7951 - 1501 requests) = 0.4832 ms (at 50 req/s alone: 0.9430 ms); shape (p95/median 0.0351/0.0151 ms) from the handler's own time |
-| `clientLinkLatencyMs` | 0 ms | anchored: (measured median 0.972 ms - the model's median without it 1.013 ms at 265 req/s) / 2, one way, at least 0 |
-| `readServiceTimeMs` | lognormal, median 0.4911 ms, p95 1.1314 ms | SELECT by key as the service sees it (round trip): median 0.491, p95 1.131 ms |
-| `writeServiceTimeMs` | lognormal, median 0.6525 ms, p95 1.4308 ms | UPDATE with synchronous_commit off (no WAL flush wait): median 0.652, p95 1.431 ms |
-| `commitFlushMs` | lognormal, median 1.0968 ms, p95 2.2908 ms | UPDATE with synchronous_commit on minus off: median 1.749 - 0.652 ms, p95 3.722 - 1.431 ms |
-| `dbCpuShare` | 0.4458 | PostgreSQL CPU per extra query between the passes (0.3314 ms) / mean query time (0.744 ms) |
+| `serviceTimeMs` | lognormal, median 0.377 ms, p95 0.9837 ms | mean = Node's CPU per extra request between the passes: (5052 - 1083 ms) / (10381 - 1500 requests) = 0.4469 ms (at 50 req/s alone: 0.7218 ms); shape (p95/median 0.0289/0.0111 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0 ms | anchored: (measured median 0.856 ms - the model's median without it 0.936 ms at 346 req/s) / 2, one way, at least 0 |
+| `readServiceTimeMs` | lognormal, median 0.4295 ms, p95 1.2444 ms | SELECT by key as the service sees it (round trip): median 0.430, p95 1.244 ms |
+| `writeServiceTimeMs` | lognormal, median 0.3595 ms, p95 0.7843 ms | UPDATE with synchronous_commit off (no WAL flush wait): median 0.359, p95 0.784 ms |
+| `commitFlushMs` | lognormal, median 1.2799 ms, p95 2.4407 ms | UPDATE with synchronous_commit on minus off: median 1.639 - 0.359 ms, p95 3.225 - 0.784 ms |
+| `dbCpuShare` | 0.4701 | PostgreSQL CPU per extra query between the passes (0.3434 ms) / mean query time (0.730 ms) |
 
-Measured in the calibration pass at 265 req/s: p50 0.97 ms, p95 2.74 ms.
+Measured in the calibration pass at 346 req/s: p50 0.86 ms, p95 2.53 ms.
 
 | Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
 | --- | --- | --- | --- | --- | --- | --- |
-| 516 | 0.53 / 1.01 | 1.57 / 2.47 | +58% | 2.22 / 3.39 | 100% / 100% | 516 / 516 |
-| 1,031 | 0.46 / 1.03 | 1.44 / 2.52 | +75% | 2.27 / 3.60 | 100% / 100% | 1,031 / 1,031 |
-| 1,546 | 0.76 / 1.14 | 4.18 / 2.73 | -35% | 20.9 / 3.82 | 100% / 100% | 1,546 / 1,546 |
-| 1,856 | 0.72 / 1.45 | 3.98 / 3.74 | -6% | 11.4 / 5.24 | 100% / 100% | 1,856 / 1,856 |
-| 2,062 | 0.80 / 11.6 | 12.4 / 27.7 | +123% | 37.6 / 34.4 | 100% / 100% | 2,058 / 2,064 |
-| 2,268 (unstable) | 0.75 / 1,264 | 10.4 / 1,916 | +18316% | 34.0 / 1,994 | 100% / 79% | 2,260 / 1,835 |
-| 2,578 (unstable) | 4.54 / 1,635 | 116 / 1,954 | +1585% | 144 / 1,994 | 91% / 15% | 2,335 / 519 |
-| 3,093 (unstable) | 8.62 / - | 101 / - | - | 128 / - | 93% / 0% | 2,867 / 108 |
+| 560 | 0.83 / 0.94 | 5.18 / 2.42 | -53% | 30.4 / 3.26 | 100% / 100% | 560 / 560 |
+| 1,119 | 0.60 / 0.95 | 1.96 / 2.52 | +29% | 4.51 / 3.46 | 100% / 100% | 1,119 / 1,119 |
+| 1,678 | 0.48 / 1.10 | 1.57 / 2.84 | +81% | 2.76 / 3.90 | 100% / 100% | 1,678 / 1,678 |
+| 2,014 | 0.48 / 1.51 | 1.72 / 4.22 | +145% | 4.43 / 5.90 | 100% / 100% | 2,014 / 2,014 |
+| 2,238 | 0.50 / 27.1 | 15.0 / 47.2 | +216% | 69.2 / 61.1 | 100% / 100% | 2,231 / 2,239 |
+| 2,462 | 0.93 / 1,290 | 45.9 / 1,954 | +4162% | 86.1 / 1,994 | 99% / 75% | 2,434 / 1,914 |
+| 2,798 (unstable) | 1.04 / 1,635 | 89.7 / 1,954 | +2079% | 144 / 1,994 | 95% / 14% | 2,666 / 530 |
+| 3,357 (unstable) | 1.43 / - | 133 / - | - | 173 / - | 89% / 0% | 2,980 / 108 |
 
 Unstable: the step's repeats' p95s differ by more than 2x across the objective (a repeat with no successful request counts as slower than any).
 
-Knee: measured 2,291 req/s, predicted 2,064 req/s on the same steps (-10%); ArchSim's own search before measuring put it at 2,062 req/s. Data: `benchmarks/results/pg-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Knee: measured 2,430 req/s, predicted 2,238 req/s on the same steps (-8%); ArchSim's own search before measuring put it at 2,238 req/s. Data: `benchmarks/results/pg-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: pg-mixed -->
 
 ## pg-hot-row
@@ -317,41 +320,45 @@ figures, so they are checked here against each container's own counters (cgroup 
 load step.
 
 <!-- BEGIN GENERATED: resources -->
-| Experiment | Part | Load step (req/s) | Busy cores measured | Busy cores predicted | Error | Median error up to the knee (steps) |
-| --- | --- | --- | --- | --- | --- | --- |
-| [pg-mixed](#pg-mixed) | Node.js service | 2,268 | 0.63 | 1.00 | +58% | 65% (6) |
-| [pg-mixed](#pg-mixed) | PostgreSQL | 2,268 | 0.58 | 0.53 | -9% | 8% (6) |
-| [pg-hot-row](#pg-hot-row) | Node.js service | 222 | 0.08 | 0.09 | +8% | 27% (2) |
-| [pg-hot-row](#pg-hot-row) | PostgreSQL | 222 | 0.09 | 0.05 | -43% | 58% (2) |
-| [cache-aside](#cache-aside) | Node.js service | 3,795 | 0.69 | 1.00 | +44% | 37% (6) |
-| [cache-aside](#cache-aside) | PostgreSQL | 3,795 | 0.20 | 0.12 | -41% | 39% (6) |
-| [cache-aside](#cache-aside) | Redis | 3,795 | 0.16 | 0.02 | -87% | 88% (6) |
-| [kafka](#kafka) | Node.js producer | 905 | 0.39 | 0.90 | +128% | 75% (4) |
-| [kafka](#kafka) | Node.js consumer | 905 | 0.32 | not modelled | - | - |
-| [kafka](#kafka) | PostgreSQL | 905 | 0.28 | 0.36 | +26% | 36% (4) |
-| [kafka](#kafka) | Kafka broker | 905 | 1.12 | not modelled | - | - |
+| Experiment | Part | Load step (req/s) | Busy cores measured | Busy cores predicted | Error | Median error up to the knee (steps) | Memory measured | Memory predicted | Error |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [pg-mixed](#pg-mixed) | Node.js service | 2,238 | 0.46 | 1.00 | +116% | 116% (5) | 188 MiB | 550 MiB | +192% |
+| [pg-mixed](#pg-mixed) | PostgreSQL | 2,238 | 0.40 | 0.54 | +36% | 36% (5) | 95 MiB | - | - |
+| [pg-hot-row](#pg-hot-row) | Node.js service | 222 | 0.08 | 0.09 | +8% | 27% (2) | - | - | - |
+| [pg-hot-row](#pg-hot-row) | PostgreSQL | 222 | 0.09 | 0.05 | -43% | 58% (2) | - | - | - |
+| [cache-aside](#cache-aside) | Node.js service | 3,795 | 0.69 | 1.00 | +44% | 37% (6) | - | - | - |
+| [cache-aside](#cache-aside) | PostgreSQL | 3,795 | 0.20 | 0.12 | -41% | 39% (6) | - | - | - |
+| [cache-aside](#cache-aside) | Redis | 3,795 | 0.16 | 0.02 | -87% | 88% (6) | - | - | - |
+| [kafka](#kafka) | Node.js producer | 905 | 0.39 | 0.90 | +128% | 75% (4) | - | - | - |
+| [kafka](#kafka) | Node.js consumer | 905 | 0.32 | not modelled | - | - | - | - | - |
+| [kafka](#kafka) | PostgreSQL | 905 | 0.28 | 0.36 | +26% | 36% (4) | - | - | - |
+| [kafka](#kafka) | Kafka broker | 905 | 1.12 | not modelled | - | - | - | - | - |
 
 Each part at the highest load step at or below the measured knee. Busy cores are CPU seconds per second; errors are (predicted - measured) / measured.
 
-Measured: each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured). Predicted: simulated again with engine 0.12.0 on 2026-10-28 from each run's calibration alone, because the original predictions did not record CPU or memory (the latency predictions are the original ones).
+Measured: each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured); each container's CPU and working set (memory less reclaimable page cache), read every 5 s inside the window k6 measures. Predicted: ArchSim's predictions, saved before the measurements; simulated again with engine 0.12.0 on 2026-10-28 from each run's calibration alone, because the original predictions did not record CPU or memory (the latency predictions are the original ones).
 
 Not modelled: Node.js consumer (inside the model's queue node, which has no CPU or memory); Kafka broker (the model's queue node has no CPU or memory).
 <!-- END GENERATED: resources -->
 
-What run 4's CPU says (memory is read from the next run on):
+What the numbers say. pg-mixed's are from run 5, which read CPU and memory inside the measured
+window; the other three are run 4's CPU, scaled as described below. Memory is measured for
+pg-mixed only so far.
 
-- **Node.js services: ArchSim's CPU is too high,** by a median of 37% to 75% up to the knee
-  (27% over hot-row's two light steps). The model charges every request the CPU per extra
-  request measured between the two calibration passes (50 req/s and a few hundred); the real
-  event loop gets cheaper per request as load rises. At the top step below the knee the model has
-  the service's one core 90% to 100% busy where the real one used 0.39 to 0.69 cores (pg-mixed,
-  cache-aside and Kafka). This is the same effect that makes the model's latency cliff sharper
-  than the real one (next section), and it means ArchSim sizes such a service larger than it
-  needs.
-- **PostgreSQL: within 8% (median) for the mixed workload, 36% to 58% off elsewhere:** low for
-  cache-aside (-41% at the top step) and hot-row (-43%), high for Kafka's inserts (+26%). The
-  calibration measures the database's CPU per query at one rate and one mix, and that does not
-  carry across the others.
+- **Node.js services: ArchSim's CPU is right at light load and too high under load.** In
+  pg-mixed the service used 0.27 cores at 560 req/s (ArchSim: 0.25) but only 0.46 at 2,238 req/s,
+  where ArchSim had its one core fully busy: its CPU per request fell from 0.48 to 0.21 ms as the
+  load rose. The model charges every request the CPU per extra request measured between the two
+  calibration passes (50 req/s and a few hundred); the real event loop gets cheaper per request
+  as load rises. The median error up to the knee is 116% in pg-mixed and 37% to 75% in the other
+  three (27% over hot-row's two light steps). This is the same effect that makes the model's
+  latency cliff sharper than the real one (next section), and it means ArchSim sizes such a
+  service larger than it needs.
+- **PostgreSQL: 36% to 58% off (median).** In pg-mixed ArchSim's figure was 30% low at
+  560 req/s and 36% high near the knee: the real CPU grows more slowly with load than the
+  straight line the calibration draws. Run 4's scaled figures had put pg-mixed within 8%; read inside the
+  window, it is not, so treat the other three's scaled figures as rough. Run 4 has cache-aside
+  (-41% at the top step) and hot-row (-43%) low and Kafka's inserts (+26%) high.
 - **Redis: about 88% too low.** The model's Redis time per command is what Redis reports as
   command time (`INFO commandstats`), which leaves out reading and writing the network; the
   real Redis used about eight times that CPU. Latency is not affected (the link time carries it),
@@ -359,10 +366,11 @@ What run 4's CPU says (memory is read from the next run on):
 - **Not modelled:** the Kafka broker's CPU (about 1.1 cores at 905 req/s, over half a core even
   at 50 req/s) and the consumers' (queue nodes have no CPU or memory).
 
-How the CPU was measured: run 4 recorded each container's CPU over the whole k6 command, which
-includes k6's own container start and stop (the command took 4% to 67% longer than its 25 s of
-load). The runner now reads CPU and memory inside the window k6 measures (`ResourceSampler`);
-the run 4 figures above are scaled to that window by the service's own CPU counter (Node's
+How the CPU was measured: run 5 reads each container's CPU and memory every 5 s inside the
+window k6 measures (`ResourceSampler`). Run 4 recorded each container's CPU over the whole k6
+command, which includes k6's own container start and stop (the command took 4% to 67% longer
+than its 25 s of load); its figures above are scaled to the window by the service's own CPU
+counter (Node's
 `process.cpuUsage`, which matched its container's CPU within 1% in every calibration pass),
 assuming the containers idle while k6 starts and stops. That holds for the services and
 PostgreSQL (about 0.02 cores of background work) but not for the Kafka broker, whose figure
@@ -370,24 +378,34 @@ reads high. The predicted CPU was simulated again from each run's calibration (`
 resources`, `resources-predicted.json`), since the original predictions did not record it; no
 measured step feeds into it.
 
-Memory, from the next run: each container's working set (memory less the page cache the kernel
-reclaims first, as Kubernetes counts it) and its anonymous memory. The model's service memory
-comes from ArchSim's defaults (256 MiB at idle plus 2 MiB per request held) and Redis's from 1 KiB
-per key; neither is calibrated yet. Past the predicted knee the model's service holds every
-queued request, so its memory there grows far beyond the real one.
+- **Memory (pg-mixed): ArchSim's service memory is 1.8x to 6x too high.** The Node.js service's
+  working set grew with the load, from 43 MiB at 560 req/s to 188 MiB at 2,238 req/s (V8's heap
+  grows with the rate it allocates at between garbage collections). ArchSim, from its defaults of
+  256 MiB at idle plus 2 MiB per request held, predicted 262 to 550 MiB: far too much at idle, and
+  growing with requests held rather than with throughput. PostgreSQL's working set stayed at about
+  95 MiB at every step; the model has no database memory figure.
+
+Memory is each container's working set: its memory less the page cache the kernel reclaims
+first, as Kubernetes counts it (anonymous memory is recorded too). The model's service memory
+comes from ArchSim's defaults and Redis's from 1 KiB per key; neither is calibrated yet. Past the
+predicted knee the model's service holds every queued request, so its memory there grows far
+beyond the real one (11 to 56 GiB in pg-mixed); errors count only steps up to the measured knee.
 
 ## Where the model is wrong, and why
 
-From run 4 (protocol v4, 2026-10-26, one Windows laptop with Docker Desktop):
+From run 4 (protocol v4, 2026-10-26) and, for pg-mixed, run 5 (2026-10-28), on one Windows laptop
+with Docker Desktop:
 
-- **Capacity (knee error): pg-mixed -10%, cache-aside -14%, Kafka +6% (the client side: publish
+- **Capacity (knee error): pg-mixed -8% (-10% in run 4), cache-aside -14%, Kafka +6% (the client side: publish
   latency), pg-hot-row +97%** (not reliably measurable here, below). One run each: pg-mixed's
   error is inside its own run-to-run spread and in-sample (see the headline). The pg-mixed and
   cache-aside misses are on the safe side: ArchSim predicted less capacity than the system had.
 - **Low-load latency is high, by different amounts per experiment.** At the ladder's low steps
   (a quarter and half of the predicted knee; table after this list) ArchSim's p95 is above the
-  measured one at every step: by 0.1 to 1.4 ms (+3% to +75%) for pg-mixed, pg-hot-row and
-  cache-aside, and by about 8.7 ms (+303% and +332%) for Kafka. For the PostgreSQL and Redis
+  measured one at every step but pg-mixed's lowest: by 0.1 to 1.4 ms (+3% to +55%) for pg-mixed,
+  pg-hot-row and cache-aside, and by about 8.7 ms (+303% and +332%) for Kafka. At pg-mixed's
+  560 req/s the step's median repeat measured 5.2 ms (the first repeat stalled at 32 ms, the
+  third measured 2.4 ms) against 2.4 ms predicted. For the PostgreSQL and Redis
   experiments the relative errors look large because the latencies are small; the likely cause
   is the calibration: CPU per request is measured at 50 req/s and a few hundred req/s, where the
   laptop's cores are clocked down, and the model keeps that cost at every rate (run 1 showed the
@@ -421,8 +439,8 @@ p95 at the ladder's low steps (at most half the predicted knee):
 <!-- BEGIN GENERATED: low-load -->
 | Experiment | Offered req/s | p95 measured (ms) | p95 predicted (ms) | Predicted - measured |
 | --- | --- | --- | --- | --- |
-| pg-mixed | 516 (0.25x the predicted knee) | 1.57 | 2.47 | +0.90 ms (+58%) |
-| pg-mixed | 1,031 (0.5x the predicted knee) | 1.44 | 2.52 | +1.08 ms (+75%) |
+| pg-mixed | 560 (0.25x the predicted knee) | 5.18 | 2.42 | -2.76 ms (-53%) |
+| pg-mixed | 1,119 (0.5x the predicted knee) | 1.96 | 2.52 | +0.56 ms (+29%) |
 | pg-hot-row | 111 (0.25x the predicted knee) | 3.73 | 3.82 | +0.09 ms (+3%) |
 | pg-hot-row | 222 (0.5x the predicted knee) | 2.51 | 3.90 | +1.38 ms (+55%) |
 | cache-aside | 862 (0.25x the predicted knee) | 1.00 | 1.31 | +0.31 ms (+32%) |
@@ -463,7 +481,7 @@ split: 3a stability, 3b a second run under the same protocol on another machine)
 <!-- BEGIN GENERATED: tiers -->
 | Experiment | 1. Knee error within ±25% | 2. p95 within ±100% or 3 ms at or below the measured knee | 3a. No unstable step at or below the measured knee | 3b. Reproduced on a second machine, same protocol | All three |
 | --- | --- | --- | --- | --- | --- |
-| pg-mixed | yes (-10%) | no: 2,062 and 2,268 req/s miss (4 of 6 steps within) | no: 2,268 req/s unstable | no: 1 run under v4, on 1 machine | no |
+| pg-mixed | yes (-8%) | no: 2,238 req/s miss (4 of 5 steps within) | yes | no: 2 runs under v4, on 1 machine | no |
 | pg-hot-row | no (+97%) | yes (2 of 2 steps) | yes | no: 1 run under v4, on 1 machine | no |
 | cache-aside | yes (-14%) | no: 3,450 and 3,795 req/s miss (4 of 6 steps within) | yes | no: 1 run under v4, on 1 machine | no |
 | kafka | yes (+6%) | no: 252, 503 and 905 req/s miss (1 of 4 steps within) | yes | no: 1 run under v4, on 1 machine | no |

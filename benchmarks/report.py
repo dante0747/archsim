@@ -538,8 +538,10 @@ def resources_block(cmps: list[dict[str, Any]]) -> str:
                 f"{cores(m['cores'])} | {'not modelled' if reason else cores(p['cores'])} | "
                 f"{pct(e['cores'])} | {median_text} |"
             )
-            if memory:
+            if memory and m["memoryMiB"] is not None:
                 line += f" {mib(m['memoryMiB'])} | {mib(p['memoryMiB'])} | {pct(e['memory'])} |"
+            elif memory:  # a prediction alone, with nothing measured, is not shown
+                line += " - | - | - |"
             lines.append(line)
     by = sorted({c["resources"]["measuredBy"] for c in with_res})
     pred = sorted({predicted_by_text(c["resources"]["predictedBy"]) for c in with_res})
