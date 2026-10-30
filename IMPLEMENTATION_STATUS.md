@@ -1,11 +1,38 @@
 # Implementation status
 
-State as of 2026-10-28 (engine 0.13.0, schema 1.4, report 1.14). This file separates what is
+State as of 2026-10-30 (engine 0.14.0, schema 1.5, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Measured CPU and memory inputs (2026-10-30, engine 0.14.0, schema 1.5; sizing plan W17).**
+
+- Services get `cpuShare` (the share of service time that needs a core, default 1) and
+  `memoryPerRpsMb` (memory that follows the request rate, default 0; a no-op migration).
+  Garbage-collected runtimes hold the garbage made between collections, so their memory follows
+  the rate: it counts in the memory peak and in sizing, not in the out-of-memory limit.
+- Calibration fits them: `cpuPerRequest` sets `cpuShare`; `memoryWorkingSet` sets memory at
+  idle, per req/s and per request held (a term not fitted is set to zero); a size gauge with a
+  `unit` sets `workingSetGib`; traces set `cpuShare` where spans record CPU time. The replay
+  check also compares each fitted part's CPU and memory, and `cpuShare` counts as a primary
+  measured input in confidence. `docs/calibration.md` has a "CPU and memory" section with
+  example PromQL.
+- On pg-mixed run 5 (`benchmarks/tests/test_resource_fit.py`), the Node.js service's CPU at the
+  knee goes from 1.00 to 0.52 cores (measured 0.46) and its memory from 550 to 182 MiB (measured
+  188); simulated latency is unchanged. CPU per request falling with load is a known limit
+  (below) that calibration reports when the quiet and busy quarters of the range differ by more
+  than 25%.
+
+**Benchmark run 6 (2026-10-30).** pg-hot-row, cache-aside and Kafka measured again with CPU and
+memory read inside the window, on the same laptop after a Windows update (build 26300, new WSL
+kernel) that made the stacks faster. Knees measured / predicted: pg-hot-row 814 / 519 (-36%),
+cache-aside 4,848 / 2,352 (-51%), Kafka 2,040 / 1,602 (-21%); with pg-mixed's -8% (run 5), all
+four under-predict capacity, and for three of them the predicted knee is one core divided by the
+calibrated CPU per request. The report now counts a machine by its CPU (an OS update is not a
+second machine), keeps the knee spread to runs on one OS build, and compares CPU and memory up
+to both knees (past the model's own knee its queue holds every request).
 
 **Sizing and pricing that match reality (2026-10-28, engine 0.13.0, schema 1.4; sizing plan W14).**
 
@@ -43,8 +70,8 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   has a "CPU and memory" section (a card per experiment, every step, what is not modelled) and a
   line in the short version. Up to the knee, the predicted CPU was off by a median of 8%
   (PostgreSQL, mixed) to 88% (Redis): too high for the Node.js services (37% to 75%), too low
-  for Redis (command time only). Memory needs a new benchmark run (about 1.5 hours on GitHub
-  Actions), not run yet.
+  for Redis (command time only). Memory was measured in runs 5 and 6 (above): ArchSim's
+  service memory was 2x to 9x the real working set before W17's fitted inputs.
 
 **Seed ranges and quick checks (2026-10-27, migration 0006, report 1.14; inspection report C-1, H-2 part).**
 
@@ -1114,6 +1141,13 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Known limitations
 
+- A service's CPU per request is one number at every rate, but a real Node.js event loop gets
+  cheaper per request as load rises (0.48 to 0.21 ms in pg-mixed). W17's fit weights it toward
+  the busiest times, so light-load CPU reads low (0.13 cores against 0.27 at 560 req/s), and in
+  the benchmarks the predicted knee is one core divided by the calibrated cost, which is why
+  three of four under-predict capacity. Calibration notes when the quiet and busy quarters of
+  the range differ by more than 25%. Caches have no CPU share yet (Redis used about 8x its
+  command time).
 - Still open after the review fixes: sampled mode checks the
   2M request limit against the full run, so the CLI and MCP refuse the 6M-request design
   (`scripts/perf.py` runs it with the limit raised). A price someone types that equals a
@@ -1194,22 +1228,25 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. Rerun the benchmarks on a quieter Linux host (or the hosted-runner workflow) to reproduce
-   run 4 and measure hot-row, then decide tier thresholds (the owner; a proposal is in
-   docs/validation.md). Model changes the data supports: CPU per request that falls with load,
-   group commit, a gradual saturation regime.
-2. Move to TypeScript 7 and ESLint 10 once typescript-eslint supports TypeScript 7 and
+1. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured
+   CPU and memory, apply with one click, verify over 5 seeds.
+2. Rerun the benchmarks on a second machine (a quieter Linux host or the hosted-runner
+   workflow, which has not completed a run yet) to reproduce runs 5 and 6, then decide tier
+   thresholds (the owner; a proposal is in docs/validation.md). Model changes the data
+   supports: CPU per request that falls with load, group commit, a gradual saturation regime;
+   the benchmark designs could also use W17's fitted inputs.
+3. Move to TypeScript 7 and ESLint 10 once typescript-eslint supports TypeScript 7 and
    eslint-config-next's plugins accept ESLint 10; `.github/dependabot.yml` ignores both until
    then (the rest of Dependabot's PR #4 is merged: React 19.3.1, simple-icons 16.35.0,
    jsdom 30, @types/node 26).
-3. Total client deadline across retries, retry budgets / circuit breaker component, and
+4. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
-4. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
+5. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-5. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
+6. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
    dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
    [docs/roadmap.md](docs/roadmap.md)).
-6. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
+7. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
    group rebalancing, adaptive capacity, per-key hot-row splitting.
 
 ## Bugs per week
