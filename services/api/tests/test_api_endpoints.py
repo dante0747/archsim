@@ -23,7 +23,7 @@ API = "/api/v1"
 def test_meta_catalog_examples_schema(client: TestClient) -> None:
     assert client.get(f"{API}/health").json() == {"status": "ok", "database": "ok"}
     meta = client.get(f"{API}/meta").json()
-    assert meta["engineVersion"] and meta["schemaVersion"] == "1.4"
+    assert meta["engineVersion"] and meta["schemaVersion"] == "1.5"
     assert meta["database"] in ("sqlite", "postgresql")
     cat = client.get(f"{API}/components").json()
     types = {c["type"] for c in cat["components"]}
@@ -249,7 +249,7 @@ def test_run_lifecycle_report_and_reproduce(client: TestClient) -> None:
 
     runs = client.get(f"{API}/projects/{p['id']}/runs").json()
     assert {r["id"] for r in runs} == {done["id"], again["id"]}
-    assert client.get(f"{API}/runs/{done['id']}/input").json()["schemaVersion"] == "1.4"
+    assert client.get(f"{API}/runs/{done['id']}/input").json()["schemaVersion"] == "1.5"
 
 
 def test_run_with_unsaved_document_snapshot(client: TestClient) -> None:

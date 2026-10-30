@@ -149,8 +149,19 @@ class ServiceConfig(CamelModel):
     # -- resources ------------------------------------------------------------------------
     cpu_cores: float | None = cpu_field(
         "replica",
-        CPU_CONTENTION + " Service time is treated as CPU work. Serverless: one request per "
-        "instance, so only values below 1 matter.",
+        CPU_CONTENTION + " The CPU share of the service time is CPU work. Serverless: one "
+        "request per instance, so only values below 1 matter.",
+    )
+    cpu_share: float = Field(
+        default=1.0,
+        ge=0,
+        le=1,
+        description=(
+            "Share of service time that needs a CPU core; the rest waits (I/O inside the "
+            "handler) on the worker without one. Only used when CPU is set. Calibration fits it "
+            "from CPU per request (CPU seconds ÷ requests)."
+        ),
+        json_schema_extra=ui(label="CPU share of service time", group=RESOURCES, step=0.05),
     )
     memory_gib: float | None = memory_field(
         "replica",
@@ -173,6 +184,19 @@ class ServiceConfig(CamelModel):
         le=1_048_576,
         description="Memory a replica uses before any request (runtime, heap, caches) (MiB). Only used when memory is set.",
         json_schema_extra=ui(label="Memory at idle", unit="MiB", group=RESOURCES, assumption=True),
+    )
+    memory_per_rps_mb: float = Field(
+        default=0.0,
+        ge=0,
+        le=65_536,
+        description=(
+            "Memory that grows with throughput, per request per second a replica serves (MiB). "
+            "Garbage-collected runtimes keep what requests allocate until the next collection, "
+            "so their heap grows with the request rate rather than with requests held. It counts "
+            "in the memory a replica uses and is sized for, not in the out-of-memory limit (a "
+            "collector reclaims it under pressure). 0: not modelled. Only used when memory is set."
+        ),
+        json_schema_extra=ui(label="Memory per req/s", unit="MiB", group=RESOURCES, step=0.01),
     )
     # -- autoscaling (HPA-like) -----------------------------------------------------------
     autoscaling: bool = Field(
@@ -402,6 +426,11 @@ class ServiceConfig(CamelModel):
         free = self.memory_gib * 1024.0 - self.memory_baseline_mb
         return max(0, math.floor(free / self.memory_per_request_mb + 1e-9))
 
+    def cpu_fraction(self) -> float:
+        """The share of service time that needs a core: ``cpuShare`` when CPU is set, else all
+        of it (without a CPU size nothing waits for a core and the share changes nothing)."""
+        return self.cpu_share if self.cpu_cores is not None else 1.0
+
 
 class ServiceRuntime(RuntimeComponent):
     """Fixed number of replicas; each replica is a worker pool with its own queue."""
@@ -416,6 +445,7 @@ class ServiceRuntime(RuntimeComponent):
         self.core_busy = Gauge(ctx.tl) if config.cpu_cores is not None else None
         self.mem_slots = config.memory_slots()
         self.peak_load = 0
+        self.cpu_frac = config.cpu_fraction()
         self.blocking = config.blocks()
         self.gc_cfg = config.gc()
         self.warm_cfg = config.warmup()
@@ -513,6 +543,26 @@ class ServiceRuntime(RuntimeComponent):
     def replicas_mean(self) -> float:
         return float(len(self.pools))
 
+    def replicas_series(self) -> list[float]:
+        """Replicas taking traffic in each time bucket."""
+        return [float(len(self.pools))] * self.ctx.tl.n
+
+    def peak_rps_per_replica(self) -> float:
+        """The highest rate of requests one replica handled (completed or failed downstream) in
+        a time bucket of the measurement window: what throughput-driven memory follows."""
+        tl = self.ctx.tl
+        b = tl.bucket_ms
+        done = self.m.completed.buckets
+        failed = self.m.failed_downstream.buckets
+        replicas = self.replicas_series()
+        peak = 0.0
+        for i in range(tl.n):
+            mid = (i + 0.5) * b
+            if not tl.window_start <= mid < tl.window_end or replicas[i] <= 0:
+                continue
+            peak = max(peak, (done[i] + failed[i]) * 1000.0 / b / replicas[i])
+        return peak
+
     def finalize(self, t_end: float) -> None:
         super().finalize(t_end)
         self.warming.finalize(t_end)
@@ -525,8 +575,8 @@ class ServiceRuntime(RuntimeComponent):
         cfg: ServiceConfig = self.config
         out: dict[str, float] = {}
         replicas = self.replicas_mean()
-        if cfg.cpu_cores is not None and service_ms:
-            out["cpu"] = cfg.cpu_cores * replicas * 1000.0 / service_ms
+        if cfg.cpu_cores is not None and service_ms and cfg.cpu_share > 0:
+            out["cpu"] = cfg.cpu_cores * replicas * 1000.0 / (service_ms * cfg.cpu_share)
         if self.mem_slots is not None and self.mem_slots < cfg.workers_per_replica and hold_ms:
             out["memory"] = self.mem_slots * replicas * 1000.0 / hold_ms
         return out
@@ -539,6 +589,8 @@ class ServiceRuntime(RuntimeComponent):
             out["cpuCoreUtilization"] = core_utilization(self.core_busy, n * self.replicas_mean())
         if self.mem_slots is not None:
             peak_mb = cfg.memory_baseline_mb + self.peak_load * cfg.memory_per_request_mb
+            if cfg.memory_per_rps_mb > 0:
+                peak_mb += cfg.memory_per_rps_mb * self.peak_rps_per_replica()
             out["memoryPeakGiB"] = round(min(peak_mb / 1024.0, cfg.memory_gib or 0.0), 3)
         if self.gc_cfg is not None:
             out["gcPauses"] = self.m.extra["gcPauses"].window if "gcPauses" in self.m.extra else 0
@@ -583,7 +635,12 @@ class ServiceRuntime(RuntimeComponent):
                     f"{num(self.replicas_mean())} × {self.per_replica} × 1000 ÷ {num(svc, 2)} ms",
                     loops * 1000.0 / svc,
                     "req/s",
-                    note="Only the CPU part of a request occupies the loop; time waiting on downstream calls does not count.",
+                    note="Only the CPU part of a request occupies the loop; time waiting on downstream calls does not count."
+                    + (
+                        f" The whole service time holds the loop; {cfg.cpu_share:.0%} of it (the CPU share) counts as CPU use."
+                        if cfg.cpu_cores is not None and cfg.cpu_share < 1
+                        else ""
+                    ),
                     metric="eventLoopLagMs",
                 )
             )
@@ -654,7 +711,10 @@ class ServiceRuntime(RuntimeComponent):
         start = env.now
         st = self.sample_time(cfg.service_time_ms, self.rng) * self._warm_factor(index, start)
         m.cpu.add(1, start)
-        yield from self._cpu(req, index, st)
+        cpu = st * self.cpu_frac
+        yield from self._cpu(req, index, cpu)
+        if st > cpu:  # the rest of the handler time waits (I/O) on the worker without a core
+            yield env.timeout(st - cpu)
         m.cpu.add(-1, env.now)
         m.service.record(env.now, st)
         span(req, self.id, "service", start, env.now, None)
@@ -921,6 +981,9 @@ class AutoscalingServiceRuntime(ServiceRuntime):
     def replicas_mean(self) -> float:
         return self.active.window_mean()
 
+    def replicas_series(self) -> list[float]:
+        return list(self.active.mean_series())
+
     def explain(self, summary: dict[str, Any]) -> list[dict[str, Any]]:
         out = super().explain(summary)
         if self.cluster is None:
@@ -1036,8 +1099,12 @@ class ServerlessRuntime(RuntimeComponent):
         if w is not None and born > 0 and env.now - born < w[1]:
             st *= 1.0 + (w[0] - 1.0) * (1.0 - (env.now - born) / w[1])
         m.cpu.add(1, env.now)
-        # one request per instance: only a fractional vCPU (below 1) slows the CPU work
-        cpu_ms = st / cfg.cpu_cores if cfg.cpu_cores is not None and cfg.cpu_cores < 1 else st
+        # one request per instance: only a fractional vCPU (below 1) slows the CPU work, and
+        # only the CPU share of the service time is CPU work
+        cpu_ms = st
+        if cfg.cpu_cores is not None and cfg.cpu_cores < 1:
+            cpu = st * cfg.cpu_share
+            cpu_ms = cpu / cfg.cpu_cores + (st - cpu)
         if cpu_ms > 0:
             yield env.timeout(cpu_ms)
         m.cpu.add(-1, env.now)
@@ -1191,11 +1258,12 @@ class ServiceModel(ComponentModel):
         "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
         "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
         "Serverless (platform): one request per instance, cold starts, concurrency limit and scale-out rate (throttling), idle reclaim",
-        "CPU cores (when set): service time needs a core; with fewer cores than workers, work queues for a core",
-        "Memory (when set): requests held by a replica use memory; past the limit new requests are refused",
+        "CPU cores (when set): the CPU share of service time needs a core; with fewer cores than workers, work queues for a core",
+        "Memory (when set): requests held by a replica use memory; past the limit new requests are refused; memory per req/s adds memory that follows throughput (reported and sized, reclaimable)",
     )
     not_modeled = (
         "OOM kills and restarts (memory is a refusal limit instead); concurrent GC CPU overhead",
+        "CPU per request that changes with load (one value per request: calibration fits it where load is highest)",
         "Parallel fan-out calls (dependencies are called one after another)",
         "Node/cluster capacity limits for new pods, readiness probe failures",
         "Serverless memory-to-CPU scaling (set CPU directly) and provisioned concurrency",

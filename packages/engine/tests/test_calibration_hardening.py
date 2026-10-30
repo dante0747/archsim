@@ -353,7 +353,7 @@ def test_measured_only_while_the_value_is_the_fitted_one() -> None:
     report = run_simulation(copy.deepcopy(doc), scenario_id="low-hits")
     user = {(e["id"], e["field"]): e["provenance"] for e in report["assumptions"]["userInputs"]}
     assert user[("cache", "hitRatio")]["kind"] == "assumed"
-    assert report["assumptions"]["provenanceCounts"]["measured"] == 6
+    assert report["assumptions"]["provenanceCounts"]["measured"] == 12
     # a direct edit (the CLI, MCP, an API PUT or a sweep keep the provenance record)
     edited = copy.deepcopy(doc)
     nodes = {n["id"]: n for n in edited["architecture"]["nodes"]}

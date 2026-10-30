@@ -710,7 +710,9 @@ def review_design(doc: Json, registry: ComponentRegistry) -> list[Json]:
         if cores is not None and load is not None and load.total > 0:
             busy: tuple[float, str] | None = None
             if n["type"] == "service" and cfg.get("platform") != "serverless":
-                ms = mean_ms(cfg.get("serviceTimeMs"))
+                share = num(cfg.get("cpuShare"))
+                share = 1.0 if share is None else share
+                ms = mean_ms(cfg.get("serviceTimeMs")) * share
                 reps = num(cfg.get("replicas")) or 1.0
                 replicas = (
                     max(num(cfg.get("maxReplicas")) or 1.0, reps)

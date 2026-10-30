@@ -196,7 +196,9 @@ def _shape(node: NodeSpec, cfg: Any, load: NodeLoad, registry: ComponentRegistry
             replicas = max(cfg.max_replicas, cfg.replicas)
         cpu = None
         if cfg.cpu_cores and not serverless:
-            cpu = load.total * own.mean / (1000.0 * cfg.cpu_cores * max(1, replicas))
+            cpu = (
+                load.total * own.mean * cfg.cpu_share / (1000.0 * cfg.cpu_cores * max(1, replicas))
+            )
         if serverless:
             return _Shape({"read": own, "write": own}, 1, cfg.concurrency_limit, False, True)
         return _Shape(

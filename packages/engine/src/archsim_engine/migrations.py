@@ -109,3 +109,11 @@ def _instance_type(doc: dict[str, Any]) -> dict[str, Any]:
     while it covers the part's CPU and memory; empty: the cheapest that does, as before); a 1.3
     document needs no change."""
     return doc
+
+
+@migration("1.4", "1.5")
+def _measured_cpu_and_memory(doc: dict[str, Any]) -> dict[str, Any]:
+    """1.5 adds the service settings ``cpuShare`` (the share of service time that needs a CPU
+    core; 1 by default, as before) and ``memoryPerRpsMb`` (memory that grows with throughput; 0
+    by default, as before); a 1.4 document needs no change."""
+    return doc

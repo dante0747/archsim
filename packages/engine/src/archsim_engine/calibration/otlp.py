@@ -6,11 +6,17 @@ span's duration minus the time covered by its outgoing CLIENT and PRODUCER spans
 the read and write times (CLIENT spans with ``db.system``, split by ``db.operation`` or the
 statement's first word), and the observed call graph (which service calls which). Services and
 databases map to parts by an explicit mapping or by matching a part's id or label.
+
+Where spans allow it, a service's CPU share too: when the mapping names a span attribute that
+holds the CPU time a SERVER span used (``cpuTime: {attribute, unit}``; OpenTelemetry has no
+standard one, so it is whatever the instrumentation records), the share is the spans' CPU time
+over their own time. Spans carry no memory, so memory comes from metrics (Prometheus) only.
 """
 
 from __future__ import annotations
 
 import json
+import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,6 +37,8 @@ MAX_PARENT_DEPTH = 1000
 REPLAY_MAX_DURATION_S = 300.0
 """Longest replay run: the replay compares latency at the traced rate, which needs minutes at
 most, and the API runs it inside a request."""
+CPU_UNITS_MS = {"s": 1000.0, "ms": 1.0, "us": 1e-3, "ns": 1e-6}
+"""Milliseconds per unit of a CPU-time span attribute."""
 
 
 @dataclass
@@ -58,6 +66,8 @@ class TraceSummary:
     calls: dict[tuple[str, str], int] = field(default_factory=lambda: defaultdict(int))
     roots: list[float] = field(default_factory=list)
     server_ms: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
+    cpu: dict[str, list[tuple[float, float]]] = field(default_factory=lambda: defaultdict(list))
+    """Per service, (CPU ms, own ms) of the SERVER spans that carry the CPU-time attribute."""
     start_ns: int = 0
     end_ns: int = 0
     spans: int = 0
@@ -121,7 +131,22 @@ def _covered(intervals: list[tuple[int, int]], lo: int, hi: int) -> int:
     return total
 
 
-def summarize(spans: list[Span]) -> TraceSummary:
+def _cpu_ms(span: Span, cpu_time: tuple[str, float] | None) -> float | None:
+    """The CPU time a span records in the named attribute (ms), or None."""
+    if cpu_time is None:
+        return None
+    raw = span.attrs.get(cpu_time[0])
+    if isinstance(raw, bool) or raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return value * cpu_time[1] if math.isfinite(value) and value >= 0 else None
+
+
+def summarize(spans: list[Span], cpu_time: tuple[str, float] | None = None) -> TraceSummary:
+    """``cpu_time``: the span attribute that holds a SERVER span's CPU time, and ms per unit."""
     out = TraceSummary()
     if not spans:
         return out
@@ -176,7 +201,11 @@ def summarize(spans: list[Span]) -> TraceSummary:
         if s.kind == "SERVER":
             out.server_ms[s.service].append(s.ms)
             busy = _covered(outgoing.get((s.trace_id, s.span_id), []), s.start_ns, s.end_ns)
-            out.services[s.service].append(max(0, (s.end_ns - s.start_ns) - busy) / 1e6)
+            own_ms = max(0, (s.end_ns - s.start_ns) - busy) / 1e6
+            out.services[s.service].append(own_ms)
+            cpu_ms = _cpu_ms(s, cpu_time)
+            if cpu_ms is not None:
+                out.cpu[s.service].append((cpu_ms, own_ms))
     return out
 
 
@@ -194,12 +223,13 @@ def calibrate_otlp(
     document: Json,
     traces: Json | str | Path,
     registry: ComponentRegistry,
-    mapping: dict[str, dict[str, str]] | None = None,
+    mapping: dict[str, Any] | None = None,
     min_samples: int = 20,
     limits: SimulationLimits | None = None,
 ) -> Outcome:
     """Set service and database times of ``document`` from an OTLP JSON trace export
-    (``traces``: the parsed export, or a path to read it from). ``limits`` bound the replay run
+    (``traces``: the parsed export, or a path to read it from), and services' CPU share when
+    the mapping names a CPU-time span attribute. ``limits`` bound the replay run
     (``SimulationLimitError`` when it would exceed them)."""
     data = (
         json.loads(Path(traces).read_text(encoding="utf-8"))
@@ -215,13 +245,13 @@ def calibrate_otlp(
         spans = parse_otlp(data)
     except (AttributeError, TypeError) as exc:
         raise ValueError(f"not an OTLP JSON export ({type(exc).__name__})") from None
-    summary = summarize(spans)
+    services_map, db_map, cpu_time = _check_mapping(mapping)
+    summary = summarize(spans, cpu_time)
     doc = load_document(document).to_json_dict()
     out = Outcome(doc)
     if not summary.spans:
         out.notes.append("the file has no spans")
         return out
-    services_map, db_map = _check_mapping(mapping)
     if summary.parent_loops:
         out.notes.append(
             f"{summary.parent_loops} spans have parent links that loop back on themselves: "
@@ -277,6 +307,8 @@ def calibrate_otlp(
             samples,
             f"SERVER spans of {service}, minus their outgoing calls",
         )
+    if cpu_time is not None:
+        _cpu_shares(summary, cpu_time[0], doc, services_map, min_samples, label, rng, prov, out)
     for db in sorted(set(summary.db_reads) | set(summary.db_writes)):
         node_id = _match(db, doc, db_map, ("database",))
         if node_id is None:
@@ -321,9 +353,70 @@ def calibrate_otlp(
     return out
 
 
-def load_otlp_mapping(source: str | dict[str, Any] | None) -> dict[str, dict[str, str]] | None:
-    """An OTLP mapping (``services``, ``databases``: name -> part id) from YAML/JSON text or a
-    dict. A string is always the mapping's text, never a path."""
+def _cpu_shares(
+    summary: TraceSummary,
+    attribute: str,
+    doc: Json,
+    services_map: dict[str, str],
+    min_samples: int,
+    label: str,
+    rng: str,
+    prov: Json,
+    out: Outcome,
+) -> None:
+    """Each mapped service's CPU share: its SERVER spans' CPU time over their own time."""
+    nodes = {n["id"]: n for n in doc["architecture"]["nodes"]}
+    if not summary.cpu:
+        out.notes.append(
+            f"no SERVER span carries the CPU-time attribute '{attribute}': CPU shares unchanged"
+        )
+    for service, pairs in sorted(summary.cpu.items()):
+        node_id = _match(service, doc, services_map, ("service",))
+        if node_id is None:
+            continue  # reported with its service time
+        what = f"SERVER spans of {service}: '{attribute}' ÷ own time"
+        if len(pairs) < min_samples:
+            out.notes.append(
+                f"{what}: only {len(pairs)} spans (need {min_samples}); {node_id}.cpuShare unchanged"
+            )
+            continue
+        cpu_ms = sum(c for c, _ in pairs)
+        own_ms = sum(o for _, o in pairs)
+        if own_ms <= 0:
+            continue
+        raw = cpu_ms / own_ms
+        share = round(min(1.0, raw), 4)
+        note = (
+            f"{cpu_ms / len(pairs):.4g} ms of CPU over {own_ms / len(pairs):.4g} ms of own time "
+            f"per span, {len(pairs):,} spans"
+        )
+        if raw > 1:
+            note += (
+                "; more CPU than own time (CPU outside the handler: parsing, drivers, garbage "
+                "collection): the share is at most 1, so the model under-counts CPU"
+            )
+            out.notes.append(f"{node_id}.cpuShare: {note}")
+        node = nodes[node_id]
+        before = node["config"].get("cpuShare", 1.0)
+        node["config"]["cpuShare"] = share
+        path = node_path(node_id, "cpuShare")
+        prov[path] = {
+            "kind": "measured",
+            "source": label,
+            "query": what,
+            "timeRange": rng,
+            "fittedAt": now_iso(),
+            "note": note[:500],
+        }
+        out.changes.append(
+            Change(path, f"{node.get('label') or node_id}: cpuShare", before, share, None, what)
+        )
+
+
+def load_otlp_mapping(source: str | dict[str, Any] | None) -> dict[str, Any] | None:
+    """An OTLP mapping (``services``, ``databases``: name -> part id; optional ``cpuTime``:
+    ``{attribute, unit}``, the span attribute with a SERVER span's CPU time) from YAML/JSON text
+    or a dict. A string is always the mapping's text, never a path."""
     if source is None:
         return None
     data: Any = source
@@ -340,16 +433,29 @@ def load_otlp_mapping(source: str | dict[str, Any] | None) -> dict[str, dict[str
             ) from None
     if data is None:
         return None
-    services, databases = _check_mapping(data)
-    return {"services": services, "databases": databases}
+    services, databases, cpu_time = _check_mapping(data)
+    out: dict[str, Any] = {"services": services, "databases": databases}
+    if cpu_time is not None:
+        unit = next(u for u, f in CPU_UNITS_MS.items() if f == cpu_time[1])
+        out["cpuTime"] = {"attribute": cpu_time[0], "unit": unit}
+    return out
 
 
-def _check_mapping(mapping: Any) -> tuple[dict[str, str], dict[str, str]]:
-    """``services`` and ``databases`` of an OTLP mapping, each name -> part id."""
+def _check_mapping(
+    mapping: Any,
+) -> tuple[dict[str, str], dict[str, str], tuple[str, float] | None]:
+    """``services`` and ``databases`` of an OTLP mapping, each name -> part id, and the CPU-time
+    attribute with its milliseconds per unit (None: not given)."""
     if mapping is None:
-        return {}, {}
+        return {}, {}, None
     if not isinstance(mapping, dict):
         raise ValueError("the OTLP mapping must be an object: {services: {...}, databases: {...}}")
+    unknown = {str(k) for k in mapping} - {"services", "databases", "cpuTime"}
+    if unknown:
+        raise ValueError(
+            f"the OTLP mapping has unknown keys ({', '.join(sorted(unknown))[:200]}): "
+            "it takes services, databases and cpuTime"
+        )
     out: list[dict[str, str]] = []
     for key in ("services", "databases"):
         section = mapping.get(key) or {}
@@ -358,7 +464,21 @@ def _check_mapping(mapping: Any) -> tuple[dict[str, str], dict[str, str]]:
         ):
             raise ValueError(f"the OTLP mapping's '{key}' must map names to part ids")
         out.append(section)
-    return out[0], out[1]
+    cpu = mapping.get("cpuTime")
+    if cpu is None:
+        return out[0], out[1], None
+    if (
+        not isinstance(cpu, dict)
+        or set(cpu) - {"attribute", "unit"}
+        or not isinstance(cpu.get("attribute"), str)
+        or not cpu["attribute"].strip()
+        or len(cpu["attribute"]) > 200
+        or cpu.get("unit", "ms") not in CPU_UNITS_MS
+    ):
+        raise ValueError(
+            "the OTLP mapping's 'cpuTime' is {attribute: <span attribute name>, unit: s|ms|us|ns}"
+        )
+    return out[0], out[1], (cpu["attribute"], CPU_UNITS_MS[cpu.get("unit", "ms")])
 
 
 def _replay(

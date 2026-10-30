@@ -139,9 +139,10 @@ class PartSize:
     """What the part needs, before rounding to an instance: ``busyCores`` (CPU busy at the peak),
     ``cpuCores`` (that at the target utilization), ``memoryGib`` and ``memoryGibMax`` (a service:
     the most it holds when every queue is full), ``storageGib`` (the data it stores)."""
-    memory_model: tuple[float, float, float] | None = None
-    """A service's memory as (fixed GiB, GiB per request held, pools): its typical memory is
-    fixed + per request × the requests one pool holds (λ·W, from the instant estimate)."""
+    memory_model: tuple[float, float, float, float] | None = None
+    """A service's memory as (fixed GiB, GiB per request held, pools, GiB per req/s): its typical
+    memory is fixed + per request × the requests one pool holds (λ·W, from the instant estimate)
+    + per req/s × the rate one pool serves."""
     smallest: bool = False
     """Its CPU need is below the smallest size it can get (1 vCPU, or the smallest instance type
     of its kind): a lightly used part cannot shrink further."""
@@ -297,12 +298,17 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
     event_loop = bool(config.event_loop())
     handlers = int(config.slots_per_replica())
     ms = mean_ms(cfg.get("serviceTimeMs"))
+    share = num(cfg.get("cpuShare"))
+    share = 1.0 if share is None else min(1.0, max(0.0, share))
     per_replica = total / replicas
-    busy = per_replica * ms / 1000
+    busy = per_replica * ms * share / 1000
+    of_cpu = (
+        f"{fmt(ms)} ms of CPU each" if share == 1.0 else f"{fmt(ms)} ms × {_pct(share)} CPU share"
+    )
     cpu, why = _cpu_for(
         busy,
         f"{fmt(per_replica)} req/s per replica at peak ({fmt(total)} over {js_num(replicas)}"
-        f"{' at full scale' if autoscaling else ''}) × {fmt(ms)} ms of CPU each",
+        f"{' at full scale' if autoscaling else ''}) × {of_cpu}",
     )
     what = "event loop" if event_loop else "worker"
     cpu, why = _cap_cpu(
@@ -319,7 +325,9 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
     working = workers * processes if event_loop else handlers
     queue = max(0.0, num(cfg.get("queueCapacity")) or 0.0)
     held = working + queue
-    mb = baseline + held * per_req
+    per_rps = max(0.0, num(cfg.get("memoryPerRpsMb")) or 0.0)
+    flowing = per_rps * per_replica  # memory that follows throughput (garbage between collections)
+    mb = baseline + held * per_req + flowing
     os = OS_MEMORY_GIB if on_vm else 0.0
     wanted = _mem_for((mb / 1024 + os) * MEMORY_HEADROOM, 0.5)
     mem = min(wanted, float(MAX_SERVICE_MEMORY_GIB))
@@ -329,11 +337,12 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
         # every request it can hold, and the one arriving when it is full (read, then refused)
         "memoryGibMax": (mb + per_req) / 1024 + os,
     }
-    memory_model = (baseline / 1024 + os, per_req / 1024, replicas)
+    memory_model = (baseline / 1024 + os, per_req / 1024, replicas, per_rps / 1024)
     on_os = f" + {_gib(os)} for the operating system" if os else ""
+    on_rate = f" + {fmt(per_replica)} req/s × {fmt(per_rps)} MiB per req/s" if flowing > 0 else ""
     mem_why = (
         f"{fmt(baseline)} MiB base + {fmt(held)} requests held ({working} working, {fmt(queue)} "
-        f"queued) × {fmt(per_req)} MiB = {_gib(mb / 1024)}{on_os}, {_headroom()}"
+        f"queued) × {fmt(per_req)} MiB{on_rate} = {_gib(mb / 1024)}{on_os}, {_headroom()}"
     )
     if mem < wanted:
         refuse_at = math.floor((mem * 1024 - baseline) / max(per_req, 1e-9))
@@ -884,9 +893,10 @@ def _typical_memory(size: PartSize, row: Json | None) -> float | None:
     rps, stay = row.get("arrivalRps"), row.get("meanResidenceMs")
     if not isinstance(rps, int | float) or not isinstance(stay, int | float):
         return None
-    fixed_gib, per_request, pools = size.memory_model
-    held = rps / max(1.0, pools) * stay / 1000
-    return fixed_gib + held * per_request
+    fixed_gib, per_request, pools, per_rps = size.memory_model
+    per_pool = rps / max(1.0, pools)
+    held = per_pool * stay / 1000
+    return fixed_gib + held * per_request + per_pool * per_rps
 
 
 def need_text(key: str, need: dict[str, float], value: float | None, holder: str) -> str | None:

@@ -647,7 +647,7 @@ def test_an_autoscaled_bottleneck_counts_its_workers_in_words() -> None:
     from archsim_engine import run_simulation
 
     doc = {
-        "schemaVersion": "1.4",
+        "schemaVersion": "1.5",
         "kind": "archsim.architecture",
         "architecture": {
             "nodes": [

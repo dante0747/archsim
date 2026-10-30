@@ -47,8 +47,8 @@ def test_calibrate_from_recorded_prometheus_and_otlp(client: TestClient) -> None
         "2026-10-01T00:00:00Z"
     )
     assert any("the recording covers" in n for n in out["notes"])
-    assert len(out["changes"]) == 7
-    assert out["document"]["schemaVersion"] == "1.4"
+    assert len(out["changes"]) == 13
+    assert out["document"]["schemaVersion"] == "1.5"
     assert out["document"]["provenance"]["nodes/api/serviceTimeMs"]["kind"] == "measured"
     assert out["summary"].startswith("This model reproduces the observed p95")
     # the calibrated document is valid input for the rest of the API

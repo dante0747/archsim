@@ -168,10 +168,11 @@ def test_schema_1_1_documents_migrate_to_1_2() -> None:
     raw = starter()
     raw["schemaVersion"] = "1.1"
     out, notes = migrate_document(raw)
-    assert out["schemaVersion"] == "1.4" and notes == [
+    assert out["schemaVersion"] == "1.5" and notes == [
         "migrated schema 1.1 -> 1.2",
         "migrated schema 1.2 -> 1.3",
         "migrated schema 1.3 -> 1.4",
+        "migrated schema 1.4 -> 1.5",
     ]
     assert load_document(raw).pricing.provider == "generic"
     from archsim_engine import DocumentInvalidError
@@ -620,7 +621,7 @@ def test_a_run_records_its_instance_types_and_its_input_reproduces_them() -> Non
     doc = _short(_aws_starter())
     first = run_simulation(copy.deepcopy(doc))
     inp = first["input"]
-    assert inp["schemaVersion"] == "1.4"
+    assert inp["schemaVersion"] == "1.5"
     types = {n["id"]: n["config"].get("instanceType") for n in inp["architecture"]["nodes"]}
     assert types["api"] == first["sizing"]["nodes"]["api"]["sku"] == "c6g.xlarge"
     # running the input again: the same types, cost and result
@@ -682,5 +683,8 @@ def test_schema_1_3_documents_open_unchanged() -> None:
     doc = _aws_starter()
     assert doc["schemaVersion"] == "1.3"
     out, notes = migrate_document(doc)
-    assert out["schemaVersion"] == "1.4" and notes == ["migrated schema 1.3 -> 1.4"]
+    assert out["schemaVersion"] == "1.5" and notes == [
+        "migrated schema 1.3 -> 1.4",
+        "migrated schema 1.4 -> 1.5",
+    ]
     assert out["architecture"] == doc["architecture"]

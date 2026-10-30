@@ -2,8 +2,10 @@
 
 The responses are **generated**, not recorded from a live server: component latency histograms
 come from known lognormal distributions (the "truth" below), cache hits and misses from a known
-hit ratio, the arrival rate from a known wave, and the end-to-end latency and throughput that the
-replay check compares against come from simulating the truth. Calibrating the starter from this
+hit ratio, the arrival rate from a known wave, CPU from known CPU shares, the API's working set
+from known memory at idle and per req/s, the database's size from a known working set, and the
+end-to-end latency and throughput that the replay check compares against come from simulating
+the truth. Calibrating the starter from this
 fixture should therefore recover the truth and replay it closely; the test checks both.
 
 Usage: uv run python scripts/make_calibration_fixture.py
@@ -20,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from archsim_engine import run_simulation
+from archsim_engine.load import mean_ms
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "packages" / "engine" / "tests" / "fixtures" / "calibration"
@@ -70,6 +73,11 @@ TRUTH = {
     "dbWrite": {"median": 9.0, "p95": 30.0},
     "hitRatio": 0.85,
     "apiDbOneWayMs": 0.4,
+    "apiCpuShare": 0.6,
+    "apiMemoryBaselineMb": 300.0,
+    "apiMemoryPerRpsMb": 0.4,
+    "dbCpuShare": 0.4,
+    "dbWorkingSetGib": 2.0,
 }
 
 Q = {
@@ -83,6 +91,12 @@ Q = {
     "e2e": "sum by (le) (rate(client_request_duration_seconds_bucket[1m]))",
     "ok": 'sum(rate(http_requests_total{job="lb",code=~"2.."}[1m]))',
     "dbObserved": 'sum by (le) (rate(pg_query_duration_seconds_bucket{job="postgres"}[1m]))',
+    "apiCpu": 'sum(rate(container_cpu_usage_seconds_total{container="api"}[1m]))',
+    "apiRequests": 'sum(rate(http_server_handler_duration_seconds_count{job="api"}[1m]))',
+    "apiMemory": 'sum(container_memory_working_set_bytes{container="api"})',
+    "dbCpu": 'sum(rate(container_cpu_usage_seconds_total{container="postgres"}[1m]))',
+    "dbQueries": 'sum(rate(pg_query_duration_seconds_count{job="postgres"}[1m]))',
+    "dbSize": 'max(pg_database_size_bytes{datname="app"})',
 }
 
 
@@ -142,6 +156,16 @@ def truth_document() -> dict[str, Any]:
     nodes["db"]["config"]["readServiceTimeMs"] = {"kind": "lognormal", **TRUTH["dbRead"]}
     nodes["db"]["config"]["writeServiceTimeMs"] = {"kind": "lognormal", **TRUTH["dbWrite"]}
     nodes["cache"]["config"]["hitRatio"] = TRUTH["hitRatio"]
+    nodes["api"]["config"].update(
+        {
+            "cpuShare": TRUTH["apiCpuShare"],
+            "memoryBaselineMb": TRUTH["apiMemoryBaselineMb"],
+            "memoryPerRpsMb": TRUTH["apiMemoryPerRpsMb"],
+            "memoryPerRequestMb": 0.01,  # what a fit against the rate alone sets
+        }
+    )
+    nodes["db"]["config"]["cpuShare"] = TRUTH["dbCpuShare"]
+    nodes["db"]["config"]["workingSetGib"] = TRUTH["dbWorkingSetGib"]
     for e in doc["architecture"]["edges"]:
         if e["id"] == "api-db":
             e["config"]["latencyMs"] = {"kind": "constant", "value": TRUTH["apiDbOneWayMs"]}
@@ -163,6 +187,18 @@ def main() -> None:
     e2e = report["summary"]["latencyMs"]
     db = next(n for n in report["nodes"] if n["id"] == "db")["summary"]["latencyMs"]
     read_share = truth["workload"]["readRatio"]
+    api_cfg = next(n for n in truth["architecture"]["nodes"] if n["id"] == "api")["config"]
+    replicas = api_cfg["replicas"]
+    api_ms = mean_ms({"kind": "lognormal", **TRUTH["api"]})
+    db_reads = read_share * (1 - TRUTH["hitRatio"])  # per request: misses read the database
+    db_writes = 1 - read_share
+    read_ms = mean_ms({"kind": "lognormal", **TRUTH["dbRead"]})
+    write_ms = mean_ms({"kind": "lognormal", **TRUTH["dbWrite"]})
+
+    def api_bytes(t: int) -> float:
+        mib = replicas * TRUTH["apiMemoryBaselineMb"] + TRUTH["apiMemoryPerRpsMb"] * rate_at(t)
+        return mib * 2**20
+
     responses = {
         Q["api"]: histogram(lambda x: lognormal_cdf(x, **TRUTH["api"]), 1.0),
         Q["dbRead"]: histogram(
@@ -179,6 +215,19 @@ def main() -> None:
         Q["e2e"]: histogram(lambda x: piecewise_cdf(x, e2e), 1.0),
         Q["ok"]: gauge(lambda t: report["summary"]["throughputRps"]),
         Q["dbObserved"]: histogram(lambda x: piecewise_cdf(x, db), 1.0),
+        Q["apiCpu"]: gauge(lambda t: rate_at(t) * api_ms * TRUTH["apiCpuShare"] / 1000),
+        Q["apiRequests"]: gauge(rate_at),
+        Q["apiMemory"]: gauge(api_bytes),
+        Q["dbCpu"]: gauge(
+            lambda t: (
+                rate_at(t)
+                * (db_reads * read_ms + db_writes * write_ms)
+                * TRUTH["dbCpuShare"]
+                / 1000
+            )
+        ),
+        Q["dbQueries"]: gauge(lambda t: rate_at(t) * (db_reads + db_writes)),
+        Q["dbSize"]: gauge(lambda t: TRUTH["dbWorkingSetGib"] * 2**30),
     }
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "starter-prometheus.json").write_text(
@@ -202,12 +251,16 @@ range: {{start: "2026-10-01T00:00:00Z", end: "2026-10-01T00:02:00Z", step: {STEP
 nodes:
   api:
     serviceTimeMs: {{histogram: '{Q["api"]}', unit: s}}
+    cpuPerRequest: {{cpu: '{Q["apiCpu"]}', requests: '{Q["apiRequests"]}'}}
+    memoryWorkingSet: {{workingSet: '{Q["apiMemory"]}', requests: '{Q["apiRequests"]}'}}
   cache:
     hitRatio:
       ratio: {{hits: '{Q["hits"]}', misses: '{Q["misses"]}'}}
   db:
     readServiceTimeMs: {{histogram: '{Q["dbRead"]}', unit: s}}
     writeServiceTimeMs: {{histogram: '{Q["dbWrite"]}', unit: s}}
+    cpuPerRequest: {{cpu: '{Q["dbCpu"]}', requests: '{Q["dbQueries"]}'}}
+    workingSetGib: {{gauge: '{Q["dbSize"]}', unit: bytes, reduce: max}}
 edges:
   api-db:
     latencyMs: {{client: '{Q["dbClient"]}', server: '{Q["dbRead"]}', unit: s}}

@@ -125,16 +125,17 @@ def test_trace_pattern_rates_arrivals_and_a_run() -> None:
 def test_schema_1_0_documents_migrate_and_newer_ones_are_refused() -> None:
     raw = {**starter(), "schemaVersion": "1.0"}  # the starter as a 1.0 document
     migrated, notes = migrate_document(raw)
-    assert migrated["schemaVersion"] == "1.4"
+    assert migrated["schemaVersion"] == "1.5"
     assert notes == [
         "migrated schema 1.0 -> 1.1",
         "migrated schema 1.1 -> 1.2",
         "migrated schema 1.2 -> 1.3",
         "migrated schema 1.3 -> 1.4",
+        "migrated schema 1.4 -> 1.5",
     ]
     doc = load_document(raw)
     assert doc.provenance == {} and doc.calibration is None
-    newer = {**raw, "schemaVersion": "1.5"}
+    newer = {**raw, "schemaVersion": "1.6"}
     from archsim_engine import DocumentInvalidError
 
     with pytest.raises(DocumentInvalidError):
@@ -188,7 +189,7 @@ def test_starter_calibrates_from_the_recorded_fixture_and_replays_within_15_perc
     assert nodes["cache"]["config"]["hitRatio"] == pytest.approx(truth["hitRatio"], abs=0.001)
     assert doc["workload"]["pattern"]["kind"] == "trace"
     # every changed input is measured, with its query, range and fit error
-    assert len(result["changes"]) == 7
+    assert len(result["changes"]) == 13
     for change in result["changes"]:
         prov = doc["provenance"][change["path"]]
         assert (
@@ -204,8 +205,78 @@ def test_starter_calibrates_from_the_recorded_fixture_and_replays_within_15_perc
     load_document(doc)  # still a valid document
     # reports carry the provenance and the calibration
     report = run_simulation(doc)
-    assert report["assumptions"]["provenanceCounts"]["measured"] == 7
+    assert report["assumptions"]["provenanceCounts"]["measured"] == 13
     assert report["assumptions"]["calibration"]["source"] == record["source"]
+
+
+def test_cpu_and_memory_are_fitted_and_replayed() -> None:
+    """CPU per request sets the CPU share (services and databases), the working set sets the
+    memory at idle and per req/s (and per request held: its floor, since the fit was against the
+    rate alone), a database size gauge in bytes sets the working set in GiB, and the replay
+    compares the simulated CPU and memory with what was observed."""
+    result = calibrated_starter()
+    doc = result["document"]
+    truth = json.loads((FIXTURES / "starter-prometheus.json").read_text(encoding="utf-8"))["truth"]
+    cfg = {n["id"]: n["config"] for n in doc["architecture"]["nodes"]}
+    # the API's share comes from its fitted service time, whose p95 is 3% high: within 2%
+    assert cfg["api"]["cpuShare"] == pytest.approx(truth["apiCpuShare"], rel=0.02)
+    assert cfg["db"]["cpuShare"] == pytest.approx(truth["dbCpuShare"], rel=0.02)
+    assert cfg["api"]["memoryBaselineMb"] == pytest.approx(truth["apiMemoryBaselineMb"], rel=1e-3)
+    assert cfg["api"]["memoryPerRpsMb"] == pytest.approx(truth["apiMemoryPerRpsMb"], rel=1e-3)
+    assert cfg["api"]["memoryPerRequestMb"] == 0.01
+    assert cfg["db"]["workingSetGib"] == pytest.approx(truth["dbWorkingSetGib"])
+    prov = doc["provenance"]
+    for key in ("cpuShare", "memoryBaselineMb", "memoryPerRpsMb", "memoryPerRequestMb"):
+        assert prov[f"nodes/api/{key}"]["kind"] == "measured"
+        assert prov[f"nodes/api/{key}"]["fitError"] < 0.01
+    assert "ms of CPU per request" in prov["nodes/api/cpuShare"]["note"]
+    assert "fitted against the request rate" in prov["nodes/api/memoryPerRpsMb"]["note"]
+    checks = {(c["id"], c["metric"]): c for c in doc["calibration"]["replay"]}
+    for key in (("api", "cpuCores"), ("db", "cpuCores"), ("api", "memoryMiB")):
+        assert checks[key]["simulated"] is not None and abs(checks[key]["error"]) < 0.1, key
+    # the inputs count as measured: confidence weighs them like any measured input
+    report = run_simulation(doc)
+    user = {(e["id"], e["field"]): e for e in report["assumptions"]["userInputs"]}
+    assert user[("api", "cpuShare")]["provenance"]["kind"] == "measured"
+    assert user[("api", "memoryPerRpsMb")]["provenance"]["kind"] == "measured"
+    assert user[("db", "workingSetGib")]["provenance"]["kind"] == "measured"
+
+
+def test_cpu_and_memory_sources_need_the_right_shape_and_part() -> None:
+    from archsim_engine.calibration import MappingError, load_mapping
+
+    with pytest.raises(MappingError, match="cpuPerRequest needs"):
+        load_mapping({"nodes": {"api": {"cpuPerRequest": {"gauge": "x"}}}})
+    with pytest.raises(MappingError, match="go under 'cpuPerRequest'"):
+        load_mapping({"nodes": {"api": {"cpuShare": {"cpu": "a", "requests": "b"}}}})
+    with pytest.raises(MappingError, match="needs 'requests'"):
+        load_mapping({"nodes": {"api": {"memoryWorkingSet": {"workingSet": "w"}}}})
+    with pytest.raises(MappingError, match="a node entry is one of"):
+        load_mapping({"nodes": {"api": {"serviceTimeMs": {"buckets": "x"}}}})
+    # a cache has no CPU share, and a unit only converts memory and size settings
+    mapping = load_mapping(
+        {
+            "nodes": {
+                "cache": {"cpuPerRequest": {"cpu": "c", "requests": "r"}},
+                "api": {"workersPerReplica": {"gauge": "w", "unit": "bytes"}},
+            }
+        }
+    )
+    flat = {
+        "status": "success",
+        "data": {"resultType": "matrix", "result": [{"metric": {}, "values": [[1, "4"]]}]},
+    }
+    client = RecordedPrometheus({"c": flat, "r": flat, "w": flat})
+    out = calibrate_prometheus(
+        starter(),
+        mapping,
+        client,
+        REGISTRY,
+        parse_range("2026-10-01T00:00:00Z/2026-10-01T00:02:00Z"),
+    )
+    assert not out.changes
+    assert any("does not have: skipped" in n for n in out.notes)
+    assert any("only for memory and size settings" in n for n in out.notes)
 
 
 def test_replay_is_deterministic() -> None:
@@ -268,7 +339,7 @@ def test_cli_calibrates_from_a_recording(tmp_path: Path) -> None:
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schemaVersion"] == "1.4" and doc["calibration"]["inputs"] == 7
+    assert doc["schemaVersion"] == "1.5" and doc["calibration"]["inputs"] == 13
 
 
 # -- OpenTelemetry --------------------------------------------------------------------------------
@@ -290,3 +361,32 @@ def test_otlp_traces_give_own_service_time_database_times_and_the_call_graph() -
     replay = doc["calibration"]["replay"]
     assert replay and all(c["scope"] == "component" and c["id"] == "api" for c in replay)
     load_document(doc)
+    # without a CPU-time attribute in the mapping, the CPU share is left alone
+    assert "cpuShare" not in nodes["api"]["config"]
+
+
+def test_otlp_spans_that_record_cpu_time_give_the_cpu_share() -> None:
+    from archsim_engine.calibration import load_otlp_mapping
+
+    mapping = load_otlp_mapping((FIXTURES / "otlp-mapping.yaml").read_text(encoding="utf-8"))
+    assert mapping is not None and mapping["cpuTime"] == {
+        "attribute": "app.cpu_time_ms",
+        "unit": "ms",
+    }
+    out = calibrate_otlp(starter(), FIXTURES / "checkout-traces.otlp.json", REGISTRY, mapping)
+    api = next(n for n in out.document["architecture"]["nodes"] if n["id"] == "api")
+    assert api["config"]["cpuShare"] == pytest.approx(0.7, abs=0.001)  # generated at 70%
+    prov = out.document["provenance"]["nodes/api/cpuShare"]
+    assert prov["kind"] == "measured" and "400 spans" in prov["note"]
+    # an attribute no span carries: noted, nothing set
+    other = {**mapping, "cpuTime": {"attribute": "not.there"}}
+    out = calibrate_otlp(starter(), FIXTURES / "checkout-traces.otlp.json", REGISTRY, other)
+    assert not any(c.path.endswith("cpuShare") for c in out.changes)
+    assert any("not.there" in n for n in out.notes)
+    for bad in (
+        {"cpuTime": {"attribute": "x", "unit": "minutes"}},
+        {"cpuTime": "x"},
+        {"other": {}},
+    ):
+        with pytest.raises(ValueError):
+            load_otlp_mapping(bad)

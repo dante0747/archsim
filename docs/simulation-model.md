@@ -96,9 +96,11 @@ result).
 Calibration from Prometheus or OpenTelemetry ([calibration.md](calibration.md)) can set any
 distribution to an `empirical` quantile table (sampled by interpolating a uniform draw from the
 seeded generator, so runs stay reproducible) and the workload to a `trace` pattern: the
-observed rate curve, sampled by thinning like the ramp and burst patterns. Every input carries
-its provenance in the document (measured, assumed, illustrative) and in reports and `/analyze`,
-which add a fourth, derived kind: documented (below).
+observed rate curve, sampled by thinning like the ramp and burst patterns. It also sets the CPU
+share of services and databases from CPU per request, a service's memory at idle, per req/s and
+per request held from its working set, and a database's hot working set (schema 1.5). Every
+input carries its provenance in the document (measured, assumed, illustrative) and in reports
+and `/analyze`, which add a fourth, derived kind: documented (below).
 
 ### Technology tiers and where defaults come from
 
@@ -423,7 +425,7 @@ behaves as if it had unlimited CPU and memory. Set, a spec has these effects:
 
 | Component | CPU cores | Memory | Storage |
 | --- | --- | --- | --- |
-| Service | `serviceTimeMs` is CPU work: at most `floor(cpuCores)` handlers per replica run it at once, the rest wait for a core; below 1 core the work runs `1 / cpuCores` times slower. Serverless: only a fraction below 1 matters (one request per instance). | Each request a replica holds (queued, running, or waiting on downstream calls) uses `memoryPerRequestMb` on top of `memoryBaselineMb`; a request that would exceed `memoryGib` is refused (`out_of_memory`). | - |
+| Service | `cpuShare` (default 1) of `serviceTimeMs` is CPU work: at most `floor(cpuCores)` handlers per replica run it at once, the rest wait for a core; below 1 core the work runs `1 / cpuCores` times slower. The rest of the service time (I/O inside the handler) holds the worker (or the event loop) without a core, so the CPU share changes CPU use and contention, not latency. Serverless: only a fraction below 1 matters (one request per instance). | Each request a replica holds (queued, running, or waiting on downstream calls) uses `memoryPerRequestMb` on top of `memoryBaselineMb`; a request that would exceed `memoryGib` is refused (`out_of_memory`). `memoryPerRpsMb` (default 0) adds memory that follows throughput: garbage-collected runtimes keep what requests allocate until the next collection. It counts in `memoryPeakGiB` (per replica, at its busiest time bucket in the window) and in the size, not in the refusal limit, since a collector reclaims it under pressure. | - |
 | Database | `cpuShare` of each query's time needs a core (the rest is I/O, locks, network); queries queue for cores per instance. | With `workingSetGib`: 75% of memory is buffer cache; reads are served from memory with probability `min(1, 0.75 x memoryGib / (workingSetGib / shards))`, the others add `diskReadMs`. | Checked against `dataSizeGib / shards` per instance (error when it does not fit, warning above 85%). |
 | Cache | Command execution queues for cores when `concurrency` exceeds them. | TTL model: 80% of memory holds keys of `itemSizeKb`; when full, the least recently used key is evicted. Fixed ratio: a warning when the workload's keyspace does not fit. | - |
 | Load balancer, message queue | Shown and priced only. | Shown and priced only. | Shown and priced only (queues). |
@@ -457,7 +459,7 @@ the effects in the table above:
 
 | Part | CPU | Memory | Storage |
 | --- | --- | --- | --- |
-| Service | peak req/s per replica (at full scale when autoscaling) x mean `serviceTimeMs` / 60%, never more than its handlers (workers, or event loops for Node.js) can use: capped at exactly that count; on a Kubernetes cluster, never more than one node can allocate; serverless: 1 vCPU (with memory set: memory / 1,769 MB, AWS Lambda's coupling) | `memoryBaselineMb` + (requests in flight + `queueCapacity`) x `memoryPerRequestMb`, plus 0.25 GiB for the operating system on a VM of its own, +25%, at most 64 GiB; serverless: at least 1,769 MB per vCPU | - |
+| Service | peak req/s per replica (at full scale when autoscaling) x mean `serviceTimeMs` x `cpuShare` / 60%, never more than its handlers (workers, or event loops for Node.js) can use: capped at exactly that count; on a Kubernetes cluster, never more than one node can allocate; serverless: 1 vCPU (with memory set: memory / 1,769 MB, AWS Lambda's coupling) | `memoryBaselineMb` + (requests in flight + `queueCapacity`) x `memoryPerRequestMb` + peak req/s per replica x `memoryPerRpsMb`, plus 0.25 GiB for the operating system on a VM of its own, +25%, at most 64 GiB; serverless: at least 1,769 MB per vCPU | - |
 | Database | the busiest primary's CPU work (its share of reads, every scattered read for Elasticsearch-style search, every write; RF and consistency for rings) x `cpuShare` / 60%, never more than its connections x `cpuShare` can keep busy | hot data per instance / 0.75 (the buffer cache share): the working set, else an illustrative 25% of the data it stores; at least its connections x 9,531,392 bytes (RDS's default `max_connections` formula) and 1 GiB | data per instance (`dataSizeGib`, else keys x item size) kept under 70% full, at least 10 GiB |
 | Cache | commands per node x `serviceTimeMs` / 60%, never more than the commands it runs at once (1 for single-threaded Redis-style caches) | keyspace x item size per node / 0.8, +25% | - |
 | Load balancer | 5,000 req/s per vCPU (illustrative) | 1 GiB per vCPU (illustrative) | - |
@@ -826,6 +828,12 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
 
 - Disk and network bandwidth contention; concurrent GC CPU overhead; CPU interference between
   pods on one node (a pod's CPU is its own once scheduled).
+- CPU per request that changes with load: a request costs `cpuShare` x its service time at any
+  rate. Measured stacks spend less CPU per request as load rises (the pg-mixed benchmark's
+  Node.js service: 0.48 ms at 560 req/s, 0.21 ms at 2,231 req/s), so a share calibrated over a
+  range (weighted to its busiest times) under-counts CPU at quiet times; calibration says when
+  the range shows it ([calibration.md](calibration.md#cpu-and-memory)). CPU spent outside the
+  service time (more than 1 x the service time) is not counted either.
 - Health checks and automatic failover, deployments and rollouts; faults are the three kinds
   above (outage, slowdown, link latency), scheduled by you, not random failures.
 - Autoscaling cooldowns and stabilization windows beyond the simple rules above; node

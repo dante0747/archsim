@@ -10,9 +10,17 @@ YAML (or JSON). Parts and links are addressed by their ids in the design::
           unit: s                     # bucket bounds in seconds (s) or milliseconds (ms)
           fit: lognormal              # or empirical
         workersPerReplica: {gauge: max(tomcat_threads_config_max{job="api"}), reduce: max}
+        cpuPerRequest:                # CPU cores in use over requests per second -> cpuShare
+          cpu: sum(rate(container_cpu_usage_seconds_total{container="api"}[5m]))
+          requests: sum(rate(http_requests_total{job="api"}[5m]))
+        memoryWorkingSet:             # -> memoryBaselineMb, memoryPerRpsMb, memoryPerRequestMb
+          workingSet: sum(container_memory_working_set_bytes{container="api"})
+          requests: sum(rate(http_requests_total{job="api"}[5m]))   # and/or inflight: <requests held>
       cache:
         hitRatio:
           ratio: {hits: sum(rate(redis_keyspace_hits_total[5m])), misses: sum(rate(redis_keyspace_misses_total[5m]))}
+      db:
+        workingSetGib: {gauge: max(pg_database_size_bytes{datname="app"}), unit: bytes, reduce: max}
     edges:
       e-api-db:
         latencyMs: {client: <client-side histogram>, server: <server-side histogram>, unit: s}
@@ -27,9 +35,17 @@ YAML (or JSON). Parts and links are addressed by their ids in the design::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    Tag,
+    ValidationError,
+    model_validator,
+)
 
 
 class _M(BaseModel):
@@ -48,10 +64,19 @@ class HistogramSource(_M):
     fit: Literal["lognormal", "empirical"] = "lognormal"
 
 
+MemoryUnit = Literal["bytes", "KiB", "MiB", "GiB"]
+BYTES: dict[str, float] = {"bytes": 1.0, "KiB": 2.0**10, "MiB": 2.0**20, "GiB": 2.0**30}
+"""Bytes per unit, for memory and data sizes."""
+
+
 class GaugeSource(_M):
     gauge: str
     reduce: Literal["mean", "max", "min", "last"] = "mean"
     round: bool = False
+    unit: MemoryUnit | None = Field(
+        default=None,
+        description="The gauge's unit, for memory and size settings (converted to theirs)",
+    )
 
 
 class RatioSource(_M):
@@ -61,6 +86,35 @@ class RatioSource(_M):
     def _check(self) -> RatioSource:
         if set(self.ratio) != {"hits", "misses"}:
             raise ValueError("ratio needs exactly 'hits' and 'misses' queries")
+        return self
+
+
+class CpuPerRequestSource(_M):
+    """CPU per request, from CPU in use and the rate of requests (sets ``cpuShare``)."""
+
+    cpu: str = Field(description="CPU cores in use: the rate of CPU seconds, summed over replicas")
+    requests: str = Field(description="Requests per second the part serves (queries: a database)")
+
+
+class WorkingSetSource(_M):
+    """The working set fitted against the request rate and/or requests held (sets
+    ``memoryBaselineMb``, ``memoryPerRpsMb`` and ``memoryPerRequestMb``)."""
+
+    working_set: str = Field(alias="workingSet", description="Memory in use, summed over replicas")
+    unit: MemoryUnit = "bytes"
+    requests: str | None = Field(default=None, description="Requests per second, summed")
+    inflight: str | None = Field(default=None, description="Requests held, summed over replicas")
+    replicas: str | None = Field(
+        default=None, description="Replicas over time (default: the design's replica count)"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> WorkingSetSource:
+        if self.requests is None and self.inflight is None:
+            raise ValueError(
+                "memoryWorkingSet needs 'requests' (the request rate), 'inflight' (requests "
+                "held) or both, to fit the working set against"
+            )
         return self
 
 
@@ -86,7 +140,53 @@ class Replay(_M):
     components: dict[str, ReplayTarget] = Field(default_factory=dict)
 
 
-NodeSource = HistogramSource | GaugeSource | RatioSource
+_SOURCE_KEYS = (
+    ("histogram", "histogram"),
+    ("gauge", "gauge"),
+    ("ratio", "ratio"),
+    ("cpu", "cpu"),
+    ("workingSet", "workingSet"),
+    ("working_set", "workingSet"),
+)
+
+
+def _source_kind(v: Any) -> str | None:
+    """Which source a node entry is, by the key that names it (one clear error per entry)."""
+    if isinstance(v, BaseModel):
+        return {
+            HistogramSource: "histogram",
+            GaugeSource: "gauge",
+            RatioSource: "ratio",
+            CpuPerRequestSource: "cpu",
+            WorkingSetSource: "workingSet",
+        }.get(type(v))
+    if isinstance(v, dict):
+        return next((tag for key, tag in _SOURCE_KEYS if key in v), None)
+    return None
+
+
+NodeSource = Annotated[
+    Annotated[HistogramSource, Tag("histogram")]
+    | Annotated[GaugeSource, Tag("gauge")]
+    | Annotated[RatioSource, Tag("ratio")]
+    | Annotated[CpuPerRequestSource, Tag("cpu")]
+    | Annotated[WorkingSetSource, Tag("workingSet")],
+    Discriminator(
+        _source_kind,
+        custom_error_type="source_kind",
+        custom_error_message=(
+            "a node entry is one of {histogram}, {gauge}, {ratio}, {cpu, requests} or "
+            "{workingSet, requests|inflight}"
+        ),
+    ),
+]
+
+DERIVED: dict[str, type[_M]] = {
+    "cpuPerRequest": CpuPerRequestSource,
+    "memoryWorkingSet": WorkingSetSource,
+}
+"""Node keys that are not settings: each is fitted into settings (``cpuPerRequest`` into
+``cpuShare``; ``memoryWorkingSet`` into the memory at idle, per req/s and per request held)."""
 
 
 class Mapping(_M):
@@ -95,6 +195,28 @@ class Mapping(_M):
     edges: dict[str, dict[str, LinkLatencySource]] = Field(default_factory=dict)
     workload: dict[Literal["rps"], RateSource] = Field(default_factory=dict)
     replay: Replay | None = None
+
+    @model_validator(mode="after")
+    def _derived(self) -> Mapping:
+        for node_id, fields in self.nodes.items():
+            for key, src in fields.items():
+                want = DERIVED.get(key)
+                if want is not None and not isinstance(src, want):
+                    raise ValueError(f"nodes.{node_id}.{key} needs {_shape(want)}")
+                if want is None and isinstance(src, CpuPerRequestSource | WorkingSetSource):
+                    name = next(k for k, v in DERIVED.items() if isinstance(src, v))
+                    raise ValueError(
+                        f"nodes.{node_id}.{key}: CPU and working-set sources go under '{name}'"
+                    )
+        return self
+
+
+def _shape(model: type[_M]) -> str:
+    return (
+        "{"
+        + ", ".join(f.alias or n for n, f in model.model_fields.items() if f.is_required())
+        + "}"
+    )
 
 
 class MappingError(ValueError):
