@@ -1366,6 +1366,17 @@ def at_or_below_knee(rows: list[dict[str, Any]], knee: Mapping[str, Any]) -> lis
     return list(rows) if knee.get("bound") == "above" else []
 
 
+def at_or_below_both_knees(
+    rows: list[dict[str, Any]], measured: Mapping[str, Any], predicted: Mapping[str, Any]
+) -> list[dict[str, Any]]:
+    """The steps at or below both the measured knee and the model's own, where CPU and memory are
+    compared. Past the model's knee its queue holds every request the real service would have
+    timed out, so its CPU reads fully busy and its memory grows without bound: that is the knee's
+    error, counted there, not the resource model's."""
+    model = {id(r) for r in at_or_below_knee(rows, predicted)}
+    return [r for r in at_or_below_knee(rows, measured) if id(r) in model]
+
+
 def measured_steps(meas: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Each measured step aggregated from its repeats (``aggregate``), so that results recorded
     before a fix to the aggregation are compared the way new ones are. Steps of run 1 had no
@@ -1399,8 +1410,7 @@ def resource_rows(
 
 def resources_below_knee(below: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Per container, how far the predicted CPU and memory were from the measured ones at the
-    steps at or below the measured knee (past it the model's queue holds every request the real
-    service would have timed out, so its memory grows without bound)."""
+    given steps (``at_or_below_both_knees``)."""
     out: dict[str, Any] = {}
     names = dict.fromkeys(c for r in below for c in r.get("resources", {}))
     for c in names:
@@ -1486,7 +1496,8 @@ def compare(
                 if in_predictions
                 else {k: v for k, v in (predicted_resources or {}).items() if k != "steps"}
             ),
-            "belowKnee": resources_below_knee(below),
+            # the key keeps its name: steps at or below both knees (at_or_below_both_knees)
+            "belowKnee": resources_below_knee(at_or_below_both_knees(rows, mk, pk)),
         }
     return out
 

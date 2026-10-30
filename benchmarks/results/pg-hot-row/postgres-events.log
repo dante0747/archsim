@@ -1,42 +1,30 @@
-postgres-1  | 2026-10-26 11:10:24.490 UTC [47] LOG:  checkpoint starting: shutdown immediate
-postgres-1  | 2026-10-26 11:10:24.696 UTC [47] LOG:  checkpoint complete: wrote 3028 buffers (9.2%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.146 s, sync=0.047 s, total=0.209 s; sync files=309, longest=0.007 s, average=0.001 s; distance=28023 kB, estimate=28023 kB; lsn=0/3054F38, redo lsn=0/3054F38
-postgres-1  | 2026-10-26 11:10:28.728 UTC [68] LOG:  checkpoint starting: immediate force wait
-postgres-1  | 2026-10-26 11:10:28.772 UTC [68] LOG:  checkpoint complete: wrote 114 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.007 s, sync=0.025 s, total=0.044 s; sync files=43, longest=0.014 s, average=0.001 s; distance=701 kB, estimate=701 kB; lsn=0/31044B0, redo lsn=0/3104478
-postgres-1  | 2026-10-26 11:10:44.910 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_type"
-postgres-1  | 2026-10-26 11:10:44.921 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_attribute"
-postgres-1  | 2026-10-26 11:10:44.929 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_class"
-postgres-1  | 2026-10-26 11:10:44.938 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_constraint"
-postgres-1  | 2026-10-26 11:10:44.941 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_rewrite"
-postgres-1  | 2026-10-26 11:10:44.946 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_description"
-postgres-1  | 2026-10-26 11:10:44.951 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_depend"
-postgres-1  | 2026-10-26 11:10:44.952 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_ts_config_map"
-postgres-1  | 2026-10-26 11:10:44.954 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_init_privs"
-postgres-1  | 2026-10-26 11:10:44.957 UTC [147] LOG:  automatic analyze of table "template1.pg_catalog.pg_collation"
-postgres-1  | 2026-10-26 11:10:44.961 UTC [147] LOG:  automatic analyze of table "template1.information_schema.sql_features"
-postgres-1  | 2026-10-26 11:11:04.890 UTC [219] LOG:  automatic vacuum of table "bench.pg_catalog.pg_statistic": index scans: 1
-postgres-1  | 2026-10-26 11:14:05.384 UTC [881] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:19:05.076 UTC [2044] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:21:05.114 UTC [2523] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:23:05.173 UTC [3019] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:25:05.178 UTC [3495] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:27:05.249 UTC [3970] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:29:05.306 UTC [4432] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:30:05.392 UTC [4668] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:30:40.877 UTC [68] LOG:  checkpoint starting: immediate force wait
-postgres-1  | 2026-10-26 11:30:41.107 UTC [68] LOG:  checkpoint complete: wrote 2337 buffers (7.1%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.192 s, sync=0.015 s, total=0.231 s; sync files=23, longest=0.006 s, average=0.001 s; distance=38934 kB, estimate=38934 kB; lsn=0/5709FC8, redo lsn=0/5709F90
-postgres-1  | 2026-10-26 11:31:05.185 UTC [4892] LOG:  automatic vacuum of table "bench.pg_catalog.pg_statistic": index scans: 1
-postgres-1  | 2026-10-26 11:34:05.442 UTC [5564] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:37:05.375 UTC [6269] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:38:05.338 UTC [6512] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:39:05.427 UTC [6749] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:40:05.409 UTC [6996] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:41:05.375 UTC [7240] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:42:05.406 UTC [7502] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:43:05.411 UTC [7756] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:44:05.424 UTC [8005] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:45:05.440 UTC [8246] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:46:05.456 UTC [8494] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:47:05.472 UTC [8728] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:48:05.486 UTC [8963] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:49:05.539 UTC [9203] LOG:  automatic analyze of table "bench.public.items"
-postgres-1  | 2026-10-26 11:50:05.659 UTC [9420] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:29:59.528 UTC [47] LOG:  checkpoint starting: shutdown immediate
+postgres-1  | 2026-10-30 10:29:59.792 UTC [47] LOG:  checkpoint complete: wrote 3028 buffers (9.2%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.060 s, sync=0.191 s, total=0.267 s; sync files=309, longest=0.016 s, average=0.001 s; distance=28023 kB, estimate=28023 kB; lsn=0/3054F38, redo lsn=0/3054F38
+postgres-1  | 2026-10-30 10:30:02.532 UTC [62] LOG:  checkpoint starting: immediate force wait
+postgres-1  | 2026-10-30 10:30:02.594 UTC [62] LOG:  checkpoint complete: wrote 114 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.006 s, sync=0.044 s, total=0.063 s; sync files=43, longest=0.015 s, average=0.002 s; distance=701 kB, estimate=701 kB; lsn=0/31044B0, redo lsn=0/3104478
+postgres-1  | 2026-10-30 10:30:19.897 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_type"
+postgres-1  | 2026-10-30 10:30:19.910 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_attribute"
+postgres-1  | 2026-10-30 10:30:19.917 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_class"
+postgres-1  | 2026-10-30 10:30:19.926 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_constraint"
+postgres-1  | 2026-10-30 10:30:19.929 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_rewrite"
+postgres-1  | 2026-10-30 10:30:19.934 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_description"
+postgres-1  | 2026-10-30 10:30:19.939 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_depend"
+postgres-1  | 2026-10-30 10:30:19.941 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_ts_config_map"
+postgres-1  | 2026-10-30 10:30:19.942 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_init_privs"
+postgres-1  | 2026-10-30 10:30:19.945 UTC [155] LOG:  automatic analyze of table "template1.pg_catalog.pg_collation"
+postgres-1  | 2026-10-30 10:30:19.949 UTC [155] LOG:  automatic analyze of table "template1.information_schema.sql_features"
+postgres-1  | 2026-10-30 10:30:39.890 UTC [235] LOG:  automatic vacuum of table "bench.pg_catalog.pg_statistic": index scans: 1
+postgres-1  | 2026-10-30 10:32:39.997 UTC [692] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:35:40.047 UTC [1563] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:36:40.067 UTC [1871] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:37:40.084 UTC [2198] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:38:40.103 UTC [2510] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:39:40.125 UTC [2824] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:40:40.149 UTC [3136] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:41:40.154 UTC [3447] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:42:40.167 UTC [3762] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:43:40.188 UTC [4079] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:44:40.212 UTC [4392] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:45:40.229 UTC [4697] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:46:40.245 UTC [4992] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-10-30 10:47:40.289 UTC [5295] LOG:  automatic analyze of table "bench.public.items"

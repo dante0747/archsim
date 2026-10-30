@@ -231,9 +231,19 @@ def test_at_or_below_knee() -> None:
     assert run.at_or_below_knee(rows, {"kneeRps": None, "bound": "below"}) == []
 
 
+def test_at_or_below_both_knees() -> None:
+    rows = [{"offeredRps": 100}, {"offeredRps": 200}, {"offeredRps": 300}]
+    above = {"kneeRps": None, "bound": "above"}
+    # the model's knee is the lower one: past it the model's queue grows without bound
+    assert run.at_or_below_both_knees(rows, {"kneeRps": 250.0}, {"kneeRps": 150.0}) == rows[:1]
+    assert run.at_or_below_both_knees(rows, {"kneeRps": 150.0}, {"kneeRps": 250.0}) == rows[:1]
+    assert run.at_or_below_both_knees(rows, above, {"kneeRps": 250.0}) == rows[:2]
+    assert run.at_or_below_both_knees(rows, above, above) == rows
+
+
 def test_committed_comparisons_are_reproduced_by_compare() -> None:
     dirs = run.result_dirs()
-    assert len(dirs) == 11
+    assert len(dirs) == 14
     for exp, d in dirs:
         committed = json.loads((d / "comparison.json").read_text(encoding="utf-8"))
         assert run.comparison_of(exp, d) == committed, d
@@ -244,9 +254,9 @@ def test_recompare_writes_every_comparison(tmp_path: Path) -> None:
     for f in (tmp_path / "pg-hot-row").rglob("comparison.json"):
         f.unlink()
     written = run.recompare(tmp_path)
-    assert [p.parent.name for p in written] == ["run-1", "run-2", "run-3", "pg-hot-row"]
-    latest = json.loads(written[-1].read_text(encoding="utf-8"))
-    rows = {r["offeredRps"]: r for r in latest["rows"]}
+    assert [p.parent.name for p in written] == ["run-1", "run-2", "run-3", "run-4", "pg-hot-row"]
+    run4 = json.loads(written[-2].read_text(encoding="utf-8"))
+    rows = {r["offeredRps"]: r for r in run4["rows"]}
     assert rows[1126]["measured"]["p95"] is None  # two of three repeats had no success
     assert rows[1126]["failedRepeats"] == 2
 
@@ -444,18 +454,17 @@ def test_resources_on_the_committed_results() -> None:
     assert data is not None
     by = {x["id"]: x["resources"] for x in data["experiments"]}
     assert {k: (r["measuredBy"], r["predictedBy"], r["memoryMeasured"]) for k, r in by.items()} == {
-        "pg-mixed": ("window", "predictions", True),
-        "pg-hot-row": ("scaled", "re-simulated", False),
-        "cache-aside": ("scaled", "re-simulated", False),
-        "kafka": ("scaled", "re-simulated", False),
+        exp: ("window", "predictions", True) for exp in report.ORDER
     }
     service = {p["container"]: p for p in by["pg-mixed"]["parts"]}["api"]
     assert service["top"]["text"]["measuredMemory"] == "188 MiB"
     assert service["top"]["text"]["predictedMemory"] == "550 MiB"
     parts = {p["container"]: p for p in by["cache-aside"]["parts"]}
     assert list(parts) == ["api", "postgres", "redis"]
-    assert by["cache-aside"]["topRps"] == 3795
-    assert parts["redis"]["top"]["text"]["coresError"] == "-87%"
+    # the top step at or below both knees: the model's (2,352 req/s), not the measured (4,848)
+    assert by["cache-aside"]["topRps"] == 2350
+    assert parts["redis"]["top"]["text"]["coresError"] == "-88%"
+    assert parts["api"]["top"]["text"]["predictedMemory"] == "498 MiB"
     kafka = {p["container"]: p for p in by["kafka"]["parts"]}
     assert not kafka["kafka"]["modelled"]["cores"]
     assert kafka["kafka"]["notModelled"]["cores"] == report.NOT_MODELLED["kafka"]
@@ -466,9 +475,13 @@ def test_resources_on_the_committed_results() -> None:
         "| [pg-mixed](#pg-mixed) | Node.js service | 2,238 | 0.46 | 1.00 | +116% | 116% (5) | 188 MiB | 550 MiB | +192% |"
         in block
     )
+    assert (
+        "| [cache-aside](#cache-aside) | Redis | 2,350 | 0.14 | 0.02 | -88% | 88% (5) | 11 MiB | "
+        "17 MiB | +50% |" in block
+    )
     # memory is shown only where it was measured, never a prediction alone
     assert (
-        "| [cache-aside](#cache-aside) | Redis | 3,795 | 0.16 | 0.02 | -87% | 88% (6) | - | - | - |"
+        "| [kafka](#kafka) | Node.js consumer | 1,600 | 0.27 | not modelled | - | - | 170 MiB | - | - |"
         in block
     )
 
@@ -613,24 +626,20 @@ def test_criteria_on_the_committed_results() -> None:
         assert c is not None
         got[exp] = report.criteria(c, hist[exp])
     assert got["pg-mixed"]["p95"]["misses"] == [2238]
-    assert got["cache-aside"]["p95"]["misses"] == [3450, 3795]
-    assert got["kafka"]["p95"]["misses"] == [252, 503, 905]
-    assert got["pg-hot-row"]["p95"]["pass"] and not got["pg-hot-row"]["knee"]["pass"]
+    assert got["pg-hot-row"]["p95"]["misses"] == [518, 570, 648, 777]
+    assert got["cache-aside"]["p95"]["misses"] == [2350, 2585, 2938, 3525, 4582]
+    assert got["kafka"]["p95"]["misses"] == [1760, 2000]
     assert got["pg-mixed"]["stable"]["unstable"] == []
-    assert [exp for exp, k in got.items() if k["knee"]["pass"]] == [
-        "pg-mixed",
-        "cache-aside",
-        "kafka",
-    ]
+    assert got["pg-hot-row"]["stable"]["unstable"] == [518]
+    assert [exp for exp, k in got.items() if k["knee"]["pass"]] == ["pg-mixed", "kafka"]
     assert not any(k["all"] for k in got.values())
-    # pg-mixed ran twice under v4 (runs 4 and 5), on the same machine
-    assert {exp: k["reproduced"]["runs"] for exp, k in got.items()} == {
-        "pg-mixed": 2,
-        "pg-hot-row": 1,
-        "cache-aside": 1,
-        "kafka": 1,
-    }
-    assert not got["pg-mixed"]["reproduced"]["pass"]  # a second machine is needed
+    # each ran twice under v4 (runs 4 and 5 or 6) on the same laptop, before and after a Windows
+    # update: an OS update is not a second machine
+    assert {exp: k["reproduced"]["runs"] for exp, k in got.items()} == dict.fromkeys(
+        report.ORDER, 2
+    )
+    assert all(k["reproduced"]["machines"] == 1 for k in got.values())
+    assert not any(k["reproduced"]["pass"] for k in got.values())  # a second machine is needed
 
 
 # ---------------------------------------------------------------------------------------------
@@ -653,11 +662,13 @@ def test_experiment_block_names_the_real_calibration_rates() -> None:
     assert "calibration passes at 50 and 346 req/s" in block
     assert "Measured in the calibration pass at 346 req/s" in block
     assert "(50 req/s):" not in block and "Measured at 50 req/s" not in block
-    assert "calibration pass at 143 req/s" in report.experiment_block("kafka")
+    assert "calibration pass at 164 req/s" in report.experiment_block("kafka")
 
 
-def test_experiment_block_explains_failed_repeats() -> None:
-    block = report.experiment_block("pg-hot-row")
+def test_experiment_block_explains_failed_repeats(tmp_path: Path) -> None:
+    # run 4 of pg-hot-row, where two repeats at 1,126 req/s had no successful request
+    shutil.copytree(run.RESULTS / "pg-hot-row" / "run-4", tmp_path / "pg-hot-row")
+    block = report.experiment_block("pg-hot-row", tmp_path)
     assert "| 1,126 (unstable) | - / - | - / - |" in block
     assert "At 1,126 req/s, 2 of 3 repeats had no successful request" in block
     assert "0.00" not in block
@@ -670,7 +681,16 @@ def test_environment_block_shows_each_stacks_pinning() -> None:
         block
     )
     assert "k6 4 (`0,3,6,7`)" in block and "k6 2 (`6,7`)" in block
-    assert "runner's defaults" in block
+    assert "runner's defaults" not in block  # every latest run recorded its cpusets
+    # pg-mixed ran before a Windows update, the other three after: one line per machine
+    assert "- CPU for pg-mixed: 11th Gen Intel(R) Core(TM) i7-1165G7" in block
+    assert (
+        "- CPU for pg-hot-row, cache-aside and kafka: 11th Gen Intel(R) Core(TM) i7-1165G7" in block
+    )
+    assert block.count("Windows-11-10.0.26300-SP0") == 1
+    # runs that predate recording the cpusets show the runner's defaults, and say so
+    old = {k: v for k, v in envs["pg-mixed"].items() if k != "cpusets"}
+    assert "runner's defaults" in report.environment_block({"pg-mixed": old})
 
 
 def test_environment_block_uses_recorded_cpusets() -> None:
@@ -736,13 +756,14 @@ def test_accuracy_json_on_the_committed_results() -> None:
     data = report.accuracy()
     assert data is not None
     s = data["summary"]
-    assert s["kneeErrorRangeText"] == "-14% to +97%"
-    assert s["kneeWithinTolerance"] == ["pg-mixed", "cache-aside", "kafka"]
+    assert s["kneeErrorRangeText"] == "-51% to -8%"
+    assert s["kneeWithinTolerance"] == ["pg-mixed", "kafka"]
     assert s["validated"] == [] and not any(t["validated"] for t in s["technologies"])
     assert s["inSample"] == ["pg-mixed", "pg-hot-row"]
-    assert s["withSpread"] == ["pg-mixed", "pg-hot-row"]
-    assert s["spreadExceedsError"] == ["pg-mixed"]  # +/-25% against -10%; hot-row +/-72% < 97%
-    assert s["runs"] == 11 and len(s["machines"]) == 1
+    # the other three's latest runs are the only ones on the new OS build
+    assert s["withSpread"] == ["pg-mixed"]
+    assert s["spreadExceedsError"] == ["pg-mixed"]  # +/-25% against -8%
+    assert s["runs"] == 14 and len(s["machines"]) == 1
     by = {x["id"]: x for x in data["experiments"]}
     mixed = by["pg-mixed"]
     assert mixed["knee"]["text"] == {
@@ -754,12 +775,11 @@ def test_accuracy_json_on_the_committed_results() -> None:
     assert mixed["spread"]["text"] == "1,895 to 3,162 req/s"
     assert mixed["spread"]["plusMinusText"] == "±25%"
     assert [v["run"] for v in mixed["spread"]["values"]] == ["run-2/", "run-3/", "run-4/", "latest"]
-    assert by["pg-hot-row"]["spread"]["text"] == "132 to 819 req/s"
-    assert by["pg-hot-row"]["spread"]["runs"] == 4
-    assert by["cache-aside"]["spread"] is None and by["kafka"]["spread"] is None
+    assert by["pg-hot-row"]["runs"] == 5 and by["kafka"]["runs"] == 2
+    assert all(by[e]["spread"] is None for e in ("pg-hot-row", "cache-aside", "kafka"))
     assert mixed["p95BelowKnee"]["within"] == 4 and mixed["p95BelowKnee"]["steps"] == 5
     assert mixed["p95BelowKnee"]["worst"]["text"]["offered"] == "2,238"
-    assert by["kafka"]["p95BelowKnee"]["misses"] == [252, 503, 905]
+    assert by["kafka"]["p95BelowKnee"]["misses"] == [1760, 2000]
     assert mixed["date"] == "2026-10-28" and mixed["engineVersion"] == "0.13.0"
     assert mixed["environment"]["dockerCpus"] == 8
     assert mixed["environment"]["dockerMemoryGiB"] == 7.6
@@ -768,12 +788,15 @@ def test_accuracy_json_on_the_committed_results() -> None:
 
 
 def test_knee_spread() -> None:
-    def hist_run(knee: float | None, machine: str = "a", bound: str = "interpolated") -> dict:
+    def hist_run(
+        knee: float | None, machine: str = "a", bound: str = "interpolated", os: str = "x"
+    ) -> dict:
         return {
             "dir": "latest",
             "protocol": "v4",
             "calibratedAt": None,
             "machine": machine,
+            "os": os,
             "measuredKnee": {"kneeRps": knee, "bound": bound},
         }
 
@@ -788,6 +811,8 @@ def test_knee_spread() -> None:
     # only runs on the latest run's machine: another machine's knee is not run-to-run noise
     s = report.knee_spread([hist_run(9000.0, "b"), hist_run(1000.0), hist_run(1200.0)])
     assert s is not None and s["maxRps"] == 1200.0
+    # nor is the same machine's knee on another OS build
+    assert report.knee_spread([hist_run(900.0, os="old"), hist_run(2000.0, os="new")]) is None
 
 
 def test_accuracy_without_older_runs_has_no_spread(tmp_path: Path) -> None:

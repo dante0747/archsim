@@ -111,11 +111,14 @@ def rps(v: float | None) -> str:
     return "-" if v is None else f"{v:,.0f}"
 
 
+def and_list(items: Sequence[str]) -> str:
+    """a, b and c"""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+
+
 def rps_list(values: list[float]) -> str:
     """1,000, 2,000 and 3,000 req/s"""
-    items = [rps(v) for v in values]
-    text = items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
-    return f"{text} req/s"
+    return f"{and_list([rps(v) for v in values])} req/s"
 
 
 def knee_text(k: Mapping[str, Any]) -> str:
@@ -155,7 +158,9 @@ def history(results: Path = RESULTS) -> dict[str, list[dict[str, Any]]]:
                 "dir": f"{d.name}/" if d.name != exp else "latest",
                 "protocol": protocol_of(cal),
                 "calibratedAt": (cal or {}).get("at"),
-                "machine": f"{env.get('cpu')}; {env.get('os')}",
+                # the hardware: an OS update on the same laptop is not a second machine
+                "machine": str(env.get("cpu")),
+                "os": env.get("os"),
                 "measuredKnee": cmp_["measuredKnee"],
                 "predictedKnee": cmp_["predictedKnee"],
                 "kneeError": cmp_["kneeError"],
@@ -225,16 +230,18 @@ def technology_status(met: Mapping[str, bool]) -> list[dict[str, Any]]:
 
 def knee_spread(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
     """How far the measured knee moved between the kept runs of one experiment (``history``) on
-    the latest run's machine, or None with fewer than two such runs that measured one. Every
+    the latest run's machine and OS build, or None with fewer than two such runs that measured
+    one. An OS update is not run-to-run noise: Windows build 26300 and its WSL kernel moved
+    Kafka's knee from 945 to 2,040 req/s on the same laptop. Every
     protocol counts, as in docs/validation.md's headline: the protocols differ in the
     calibration, and the knee is found the same way in each (run 1 measured each step once
     rather than three times). ``plusMinus`` is half the range over its middle: 1,000 to 3,000
     req/s is +/-50%."""
-    machine = runs[-1]["machine"] if runs else None
+    where = (runs[-1]["machine"], runs[-1].get("os")) if runs else None
     knees = [
         (r, r["measuredKnee"]["kneeRps"])
         for r in runs
-        if r["machine"] == machine and r["measuredKnee"].get("kneeRps") is not None
+        if (r["machine"], r.get("os")) == where and r["measuredKnee"].get("kneeRps") is not None
     ]
     if len(knees) < 2:
         return None
@@ -484,9 +491,14 @@ def predicted_by_text(by: Any) -> str:
     return "none"
 
 
-def top_below_knee(c: Mapping[str, Any]) -> Mapping[str, Any] | None:
-    """The highest load step at or below the measured knee."""
-    below = bench.at_or_below_knee(c["rows"], c["measuredKnee"])
+def resource_steps(c: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The load steps where CPU and memory are compared: at or below both knees."""
+    return bench.at_or_below_both_knees(c["rows"], c["measuredKnee"], c["predictedKnee"])
+
+
+def top_below_knees(c: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """The highest load step at or below both knees (``resource_steps``)."""
+    below = resource_steps(c)
     return max(below, key=lambda r: r["offeredRps"]) if below else None
 
 
@@ -510,19 +522,19 @@ def memory_measured(c: Mapping[str, Any]) -> bool:
 
 def resources_block(cmps: list[dict[str, Any]]) -> str:
     """Predicted against measured CPU (and memory, once measured) of each container: at the
-    highest step at or below the measured knee, and the median error over every step up to it."""
+    highest step at or below both knees, and the median error over every step up to it."""
     with_res = [c for c in cmps if c.get("resources")]
     if not with_res:
         return "_No CPU or memory recorded yet._"
     memory = any(memory_measured(c) for c in with_res)
-    head = "| Experiment | Part | Load step (req/s) | Busy cores measured | Busy cores predicted | Error | Median error up to the knee (steps) |"
+    head = "| Experiment | Part | Load step (req/s) | Busy cores measured | Busy cores predicted | Error | Median error up to both knees (steps) |"
     lines = [
         head + (" Memory measured | Memory predicted | Error |" if memory else ""),
         "| --- " * (7 + (3 if memory else 0)) + "|",
     ]
     unmodelled: dict[str, str] = {}
     for c in with_res:
-        top = top_below_knee(c)
+        top = top_below_knees(c)
         for container, s in c["resources"]["belowKnee"].items():
             cell = (top or {}).get("resources", {}).get(container)
             if top is None or cell is None:
@@ -547,8 +559,11 @@ def resources_block(cmps: list[dict[str, Any]]) -> str:
     pred = sorted({predicted_by_text(c["resources"]["predictedBy"]) for c in with_res})
     lines += [
         "",
-        "Each part at the highest load step at or below the measured knee. Busy cores are CPU "
-        "seconds per second; errors are (predicted - measured) / measured.",
+        "Each part at the highest load step at or below both knees, the measured one and the "
+        "model's: past the model's own knee its queue holds every request the real service would "
+        "time out, so its CPU reads fully busy and its memory grows without bound, and the knee "
+        "error already counts that. Busy cores are CPU seconds per second; errors are "
+        "(predicted - measured) / measured.",
         "",
         f"Measured: {'; '.join(MEASURED_BY.get(b, b) for b in by)}. Predicted: {'; '.join(pred)}.",
     ]
@@ -639,13 +654,20 @@ def machine_text(env: Mapping[str, Any]) -> str:
 
 
 def environment_block(envs: Mapping[str, dict[str, Any]]) -> str:
-    """The machine (from the first experiment's environment.json) and the CPU pinning of each
-    stack (recorded in environment.json since it was added; before that, the runner's
-    defaults)."""
+    """The machine of each experiment's latest run (one line while they all ran on the same one)
+    and the CPU pinning of each stack (recorded in environment.json since it was added; before
+    that, the runner's defaults)."""
     if not envs:
         return "_No results yet._"
     env = next(iter(envs.values()))
     imgs = env.get("images", {})
+    machines: dict[str, list[str]] = {}
+    for exp, e in envs.items():
+        machines.setdefault(machine_text(e), []).append(exp)
+    if len(machines) == 1:
+        machine_lines = [f"- CPU: {next(iter(machines))}."]
+    else:
+        machine_lines = [f"- CPU for {and_list(exps)}: {text}." for text, exps in machines.items()]
     stacks: dict[tuple[str, str], list[str]] = {}
     recorded = True
     for exp, e in envs.items():
@@ -653,7 +675,7 @@ def environment_block(envs: Mapping[str, dict[str, Any]]) -> str:
         sets, was_recorded = stack_cpusets(exp, e)
         recorded = recorded and was_recorded
         stacks.setdefault((stack, cpus_text(sets)), []).append(exp)
-    pinning = "; ".join(f"{' and '.join(exps)}: {text}" for (_, text), exps in stacks.items())
+    pinning = "; ".join(f"{and_list(exps)}: {text}" for (_, text), exps in stacks.items())
     note = (
         ""
         if recorded
@@ -662,7 +684,7 @@ def environment_block(envs: Mapping[str, dict[str, Any]]) -> str:
     )
     return "\n".join(
         [
-            f"- CPU: {machine_text(env)}.",
+            *machine_lines,
             f"- Images: {', '.join(f'{k} `{v}`' for k, v in imgs.items())}.",
             f"- CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): {pinning}.{note}",
         ]
@@ -877,12 +899,13 @@ def resource_cell_json(cell: Mapping[str, Any]) -> dict[str, Any]:
 
 def resources_json(c: Mapping[str, Any]) -> dict[str, Any] | None:
     """An experiment's CPU and memory, predicted against measured: per part, the highest step at
-    or below the measured knee and the errors up to it; and every step."""
+    or below both knees and the errors up to it; and every step (``atOrBelowKnee``: at or below
+    both)."""
     r = c.get("resources")
     if not r:
         return None
-    top = top_below_knee(c)
-    below = {id(x) for x in bench.at_or_below_knee(c["rows"], c["measuredKnee"])}
+    top = top_below_knees(c)
+    below = {id(x) for x in resource_steps(c)}
     rows = [x for x in c["rows"] if "resources" in x]
     parts = []
     for container, s in r["belowKnee"].items():

@@ -167,7 +167,9 @@ export interface HistoryRun {
   dir: string;
   protocol: string;
   calibratedAt: string | null;
+  /** The hardware (its CPU); an OS update on it is not a second machine. */
   machine: string;
+  os: string | null;
   measuredKnee: Knee;
   predictedKnee: Knee;
   kneeError: number | null;
@@ -295,7 +297,7 @@ export function topStepText(r: Resources): string | null {
 
 /**
  * The CPU check in one sentence: the closest and the furthest modelled part, by median error up
- * to the knee ("off by a median of 8% (PostgreSQL in “...”) to 88% (Redis in “...”)").
+ * to both knees ("off by a median of 8% (PostgreSQL in “...”) to 88% (Redis in “...”)").
  */
 export function cpuSentence(experiments: Experiment[]): string | null {
   const parts = experiments.flatMap((x) =>
@@ -307,13 +309,13 @@ export function cpuSentence(experiments: Experiment[]): string | null {
   const lo = sorted[0];
   const hi = sorted[sorted.length - 1];
   const range = lo === hi ? label(lo) : `${label(lo)} to ${label(hi)}`;
-  return `ArchSim's CPU predictions (busy cores) were off by a median of ${range} at the load steps up to the knee.`;
+  return `ArchSim's CPU predictions (busy cores) were off by a median of ${range} at the load steps up to both knees.`;
 }
 
 /** What the run-to-run spread says next to the knee error. */
 export function spreadSentence(x: Experiment): string {
   const s = x.spread;
-  if (!s) return x.runs > 1 ? "No second run measured a knee on this machine yet, so its run-to-run spread is unknown." : "Measured once so far, so its run-to-run spread is unknown.";
+  if (!s) return x.runs > 1 ? "No second run measured a knee on this machine and OS build yet, so its run-to-run spread is unknown." : "Measured once so far, so its run-to-run spread is unknown.";
   const head = `The measured knee ranged from ${s.text} over ${s.runs} runs on this machine (${s.plusMinusText} around the middle)`;
   if (x.knee.error === null) return `${head}.`;
   return x.spreadExceedsError

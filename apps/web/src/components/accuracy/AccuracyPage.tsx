@@ -184,7 +184,7 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
 const th = "py-1.5 pr-2 font-medium sm:pr-3";
 const num = "py-1.5 pr-2 text-right sm:pr-3";
 
-/** One experiment's CPU (and memory, once measured): each part at the top step below the knee. */
+/** One experiment's CPU (and memory, once measured): each part at the top step below both knees. */
 function ResourcesCard({ x, memory }: { x: Experiment; memory: boolean }) {
   const r = x.resources;
   if (!r) return null;
@@ -195,7 +195,7 @@ function ResourcesCard({ x, memory }: { x: Experiment; memory: boolean }) {
         {x.name}
       </h3>
       <p className="mt-1 text-[13px] text-ink-3">
-        {top ? `Busy cores at ${top} req/s, the highest load step at or below the measured knee` : "No load step was at or below the measured knee"}
+        {top ? `Busy cores at ${top} req/s, the highest load step at or below both knees` : "No load step was at or below both knees"}
       </p>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[300px] text-left text-[13px]">
@@ -215,7 +215,7 @@ function ResourcesCard({ x, memory }: { x: Experiment; memory: boolean }) {
                 Error
               </th>
               <th scope="col" className={cn(th, "text-right", memory ? "" : "pr-0 sm:pr-0")}>
-                Typical error<span className="sr-only"> (median up to the knee)</span>
+                Typical error<span className="sr-only"> (median up to both knees)</span>
               </th>
               {memory && (
                 <th scope="col" className="py-1.5 text-right font-medium">
@@ -280,7 +280,7 @@ function ResourcesCard({ x, memory }: { x: Experiment; memory: boolean }) {
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-[12px] text-ink-3">Busy cores measured / predicted. Greyed rows are above the measured knee.</p>
+          <p className="mt-2 text-[12px] text-ink-3">Busy cores measured / predicted. Greyed rows are above the measured knee or the model&apos;s.</p>
         </div>
       </details>
     </article>
@@ -315,7 +315,9 @@ function ResourcesSection({ data }: { data: Accuracy }) {
       <div className="mt-6 max-w-3xl space-y-2 text-[13px] leading-relaxed text-ink-2">
         <p>
           Busy cores are CPU seconds per second: 0.5 is half of one core busy on average. Error is (predicted − measured) ÷ measured; the typical
-          error is the median over the load steps up to the measured knee.
+          error is the median over the load steps up to both knees, the measured one and the model&apos;s. Past the model&apos;s own knee its queue
+          holds every request the real service would time out, so its CPU reads fully busy and its memory grows without bound; the knee error
+          already counts that.
         </p>
         <p>
           <span className="font-medium text-ink">Measured:</span> {measured.join("; ")}.

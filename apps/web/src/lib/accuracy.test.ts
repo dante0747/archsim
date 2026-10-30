@@ -127,7 +127,7 @@ describe("plain-language lines", () => {
     const a = exp({ name: "Mixed", resources: { ...real, parts: [part("Service", 0.65), part("PostgreSQL", 0.08)] } });
     const b = exp({ name: "Cache", resources: { ...real, parts: [part("Redis", 0.88), part("Broker", null, false)] } });
     expect(cpuSentence([a, b])).toBe(
-      "ArchSim's CPU predictions (busy cores) were off by a median of 8% (PostgreSQL in “Mixed”) to 88% (Redis in “Cache”) at the load steps up to the knee.",
+      "ArchSim's CPU predictions (busy cores) were off by a median of 8% (PostgreSQL in “Mixed”) to 88% (Redis in “Cache”) at the load steps up to both knees.",
     );
     expect(cpuSentence([exp({ resources: null })])).toBeNull();
     expect(topStepText({ ...real, topRps: real.steps[0].offeredRps })).toBe(real.steps[0].text.offered);

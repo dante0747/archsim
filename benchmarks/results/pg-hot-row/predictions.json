@@ -1,28 +1,28 @@
 {
   "experiment": "pg-hot-row",
-  "at": "2026-10-26T11:34:16Z",
-  "engineVersion": "0.7.0",
-  "reportVersion": "1.8",
+  "at": "2026-10-30T10:33:21Z",
+  "engineVersion": "0.13.0",
+  "reportVersion": "1.14",
   "objective": {
     "p95Ms": 50.0,
     "minSuccess": 0.99
   },
   "knee": {
-    "kneeRps": 444,
+    "kneeRps": 518,
     "tried": [
       {
         "offeredRps": 100.0,
-        "p95": 3.8192,
+        "p95": 3.0716,
         "successRate": 1.0
       },
       {
         "offeredRps": 200.0,
-        "p95": 3.8956,
+        "p95": 3.0716,
         "successRate": 1.0
       },
       {
         "offeredRps": 400.0,
-        "p95": 5.0393,
+        "p95": 3.1331,
         "successRate": 1.0
       },
       {
@@ -32,145 +32,214 @@
       },
       {
         "offeredRps": 600,
-        "p95": 1993.544,
-        "successRate": 0.0328
+        "p95": 1954.4549,
+        "successRate": 0.3917
       },
       {
         "offeredRps": 500,
-        "p95": 1916.1322,
-        "successRate": 0.5514
-      },
-      {
-        "offeredRps": 450,
-        "p95": 335.4365,
+        "p95": 5.1401,
         "successRate": 1.0
       },
       {
-        "offeredRps": 425,
-        "p95": 7.3414,
+        "offeredRps": 550,
+        "p95": 1452.1887,
         "successRate": 1.0
       },
       {
-        "offeredRps": 438,
-        "p95": 14.9756,
+        "offeredRps": 525,
+        "p95": 292.0177,
         "successRate": 1.0
       },
       {
-        "offeredRps": 444,
-        "p95": 39.5177,
+        "offeredRps": 512,
+        "p95": 9.1281,
         "successRate": 1.0
       },
       {
-        "offeredRps": 447,
-        "p95": 171.0821,
+        "offeredRps": 518,
+        "p95": 17.8972,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 522,
+        "p95": 151.916,
         "successRate": 1.0
       }
     ]
   },
   "steps": [
     {
-      "offeredRps": 111,
-      "p50": 2.7821,
-      "p95": 3.8192,
-      "p99": 4.4748,
-      "mean": 2.8768,
+      "offeredRps": 130,
+      "p50": 2.3745,
+      "p95": 3.0716,
+      "p99": 3.4592,
+      "mean": 2.4155,
       "successRate": 1.0,
-      "throughputRps": 111.0,
-      "resultDigest": "a2d9702fa1c7cfc1451300e4b7d62a49bb88325a6cdc24546b91aac0dca142d0"
+      "throughputRps": 130.0,
+      "resultDigest": "450c6d3df1cf3fbb6dd0fe0e8cf74ccbc5713d3364b39ec2bf9c5c6cd935669d",
+      "resources": {
+        "api": {
+          "cores": 0.0547,
+          "memoryMiB": 258.0
+        },
+        "db": {
+          "cores": 0.0134
+        }
+      }
     },
     {
-      "offeredRps": 222,
-      "p50": 2.7821,
-      "p95": 3.8956,
-      "p99": 4.4748,
-      "mean": 2.8766,
+      "offeredRps": 259,
+      "p50": 2.3745,
+      "p95": 3.0716,
+      "p99": 3.4592,
+      "mean": 2.4105,
       "successRate": 1.0,
-      "throughputRps": 222.0,
-      "resultDigest": "d7dd14168604a7da8a6460646a942dae49c5d0f35003acc2d47bcb695277e835"
+      "throughputRps": 259.0,
+      "resultDigest": "5accf80049868c3c60bacad1646255a188ff6369463785e62931673f0e6e6120",
+      "resources": {
+        "api": {
+          "cores": 0.1092,
+          "memoryMiB": 260.1
+        },
+        "db": {
+          "cores": 0.0268
+        }
+      }
     },
     {
-      "offeredRps": 333,
-      "p50": 2.8377,
-      "p95": 4.053,
-      "p99": 4.7487,
-      "mean": 2.9385,
+      "offeredRps": 388,
+      "p50": 2.3745,
+      "p95": 3.1331,
+      "p99": 3.5989,
+      "mean": 2.4336,
       "successRate": 1.0,
-      "throughputRps": 332.95,
-      "resultDigest": "36aaccf1708a9aa3f35a0b9c9c0c0cc6c35d084ba31cd38fd5f3afc3a95b2229"
+      "throughputRps": 387.95,
+      "resultDigest": "4058817681449f227ce349c39a16c539f0eaac0b1c09aaaf4df31510ffa01648",
+      "resources": {
+        "api": {
+          "cores": 0.1639,
+          "memoryMiB": 260.1
+        },
+        "db": {
+          "cores": 0.0402
+        }
+      }
     },
     {
-      "offeredRps": 400,
-      "p50": 3.1331,
-      "p95": 5.0393,
-      "p99": 6.2658,
-      "mean": 3.3098,
+      "offeredRps": 466,
+      "p50": 2.5198,
+      "p95": 3.5283,
+      "p99": 4.301,
+      "mean": 2.6021,
       "successRate": 1.0,
-      "throughputRps": 399.95,
-      "resultDigest": "a306c947c5e5d010a09dce513a06fda654ce6f68c0a95ba6c0050c113ecc7319"
+      "throughputRps": 466.0,
+      "resultDigest": "c6970afe3e3f444c9baf8846aa0584f18ad7cc3096a98debca0a72d145f9880f",
+      "resources": {
+        "api": {
+          "cores": 0.1964,
+          "memoryMiB": 262.1
+        },
+        "db": {
+          "cores": 0.0484
+        }
+      }
     },
     {
-      "offeredRps": 444,
-      "p50": 15.5806,
-      "p95": 39.5177,
-      "p99": 45.3934,
-      "mean": 18.3968,
+      "offeredRps": 518,
+      "p50": 9.8805,
+      "p95": 17.8972,
+      "p99": 20.5582,
+      "mean": 10.0016,
       "successRate": 1.0,
-      "throughputRps": 443.05,
-      "resultDigest": "940993c87ef30333b66d7fd87cbc3a49fb3e2536ef1c9a06f3ee6ff816cf7cb3"
+      "throughputRps": 518.0,
+      "resultDigest": "6b443c6a1f75eaf5fed443808d3f12e71b7ff3c4ff3a70d641d006f428ac0908",
+      "resources": {
+        "api": {
+          "cores": 0.2185,
+          "memoryMiB": 281.6
+        },
+        "db": {
+          "cores": 0.0538
+        }
+      }
     },
     {
-      "offeredRps": 488,
+      "offeredRps": 570,
       "p50": 1239.4291,
       "p95": 1916.1322,
       "p99": 1993.544,
-      "mean": 1244.5924,
-      "successRate": 0.7602,
-      "throughputRps": 381.85,
-      "resultDigest": "e9a80f3d3bbf0c8af4641af42553090eb17e449d2bb59d9ec00f1c3e615830b9"
+      "mean": 1247.862,
+      "successRate": 0.7623,
+      "throughputRps": 447.5,
+      "resultDigest": "a52f124ef6a5a28a68ca1587d5705157573caeb65af19490a55a605797bce5ba",
+      "resources": {
+        "api": {
+          "cores": 0.2405,
+          "memoryMiB": 2816.0
+        },
+        "db": {
+          "cores": 0.054
+        }
+      }
     },
     {
-      "offeredRps": 555,
-      "p50": 1635.4004,
+      "offeredRps": 648,
+      "p50": 1603.3337,
       "p95": 1954.4549,
       "p99": 1993.544,
-      "mean": 1630.4217,
+      "mean": 1625.2202,
       "successRate": 0.1503,
-      "throughputRps": 111.0,
-      "resultDigest": "cf6242ac370a102813b2473be186d86fc4f3242c2bbd75d8b867cc0b6b04ffd1"
+      "throughputRps": 129.9,
+      "resultDigest": "bb57622527d5fcd280ce328ea2341e4cd31ce0e6c37d1ffdfd6a3d43d7d30124",
+      "resources": {
+        "api": {
+          "cores": 0.2736,
+          "memoryMiB": 6716.4
+        },
+        "db": {
+          "cores": 0.054
+        }
+      }
     },
     {
-      "offeredRps": 666,
+      "offeredRps": 777,
       "p50": null,
       "p95": null,
       "p99": null,
       "mean": null,
       "successRate": 0.0,
-      "throughputRps": 22.2,
-      "resultDigest": "415f7e645023356bd3b9cd58f9e5c48942ab76b6a9ff70be95d74033c918b6a1"
+      "throughputRps": 25.5,
+      "resultDigest": "6e8d637de61a55f81d99cb3a9f7ae49a5fa56fefefe122d7d1b3ef4a1c8a8cfb",
+      "resources": {
+        "api": {
+          "cores": 0.328,
+          "memoryMiB": 13163.5
+        },
+        "db": {
+          "cores": 0.054
+        }
+      }
     },
     {
-      "offeredRps": 866,
+      "offeredRps": 1010,
       "p50": null,
       "p95": null,
       "p99": null,
       "mean": null,
       "successRate": 0.0,
       "throughputRps": 0.0,
-      "resultDigest": "d8198f5b190776fb0a9fc9ab4f99d9d606bf4ca3dae59d93afd60aeb745f4526",
+      "resultDigest": "4584f90f34d5d4dd37bfe3cae64059a6503b6c9b75b4c856645446a932c04672",
+      "resources": {
+        "api": {
+          "cores": 0.4263,
+          "memoryMiB": 24813.6
+        },
+        "db": {
+          "cores": 0.054
+        }
+      },
       "extension": true,
-      "at": "2026-10-26T11:47:12Z"
-    },
-    {
-      "offeredRps": 1126,
-      "p50": null,
-      "p95": null,
-      "p99": null,
-      "mean": null,
-      "successRate": 0.0,
-      "throughputRps": 0.0,
-      "resultDigest": "41932ea06e6719eb88f92890479226016a2dcde9264eea83d2ee55c32dec83d4",
-      "extension": true,
-      "at": "2026-10-26T11:48:52Z"
+      "at": "2026-10-30T10:46:13Z"
     }
   ],
   "design": {
@@ -203,12 +272,13 @@
             "queueTimeoutMs": null,
             "serviceTimeMs": {
               "kind": "lognormal",
-              "median": 0.3443,
-              "p95": 0.8089
+              "median": 0.4051,
+              "p95": 0.6428
             },
             "gcPauseMs": 0,
             "warmupFactor": 1,
-            "cpuCores": 1
+            "cpuCores": 1,
+            "memoryGib": 1024
           }
         },
         {
@@ -221,16 +291,16 @@
             "queueCapacity": 100000,
             "queueTimeoutMs": null,
             "cpuCores": 2,
-            "cpuShare": 0.2644,
+            "cpuShare": 0.1637,
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 0.7592,
-              "p95": 1.5531
+              "median": 0.6039,
+              "p95": 1.0147
             },
             "commitFlushMs": {
               "kind": "lognormal",
-              "median": 1.3784,
-              "p95": 2.0806
+              "median": 1.2625,
+              "p95": 1.8312
             }
           }
         }
@@ -249,7 +319,7 @@
             ],
             "latencyMs": {
               "kind": "constant",
-              "value": 0.1191
+              "value": 0.0328
             }
           }
         },
@@ -274,7 +344,7 @@
       "autoSize": false
     },
     "workload": {
-      "rps": 444,
+      "rps": 518,
       "durationS": 25,
       "warmupS": 5,
       "readRatio": 0.0,
