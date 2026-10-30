@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/overlays";
 import { type CalibrateResult, api } from "@/lib/api";
+import { REPLAY_METRICS } from "@/lib/document";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 
@@ -235,7 +236,10 @@ function CalibrationPreview({ result, onApply }: { result: CalibrateResult; onAp
               {replay.map((r, i) => (
                 <tr key={i}>
                   <td className="px-3 py-1.5 text-ink">{r.label}</td>
-                  <td className="px-2 py-1.5 text-ink-2">{r.metric}</td>
+                  <td className="px-2 py-1.5 text-ink-2">
+                    {REPLAY_METRICS[r.metric]?.word ?? r.metric}
+                    <span className="text-ink-3"> ({REPLAY_METRICS[r.metric]?.unit ?? ""})</span>
+                  </td>
                   <td className="px-2 py-1.5 tabular">{num(r.observed)}</td>
                   <td className="px-2 py-1.5 tabular">{num(r.simulated)}</td>
                   <td className="px-3 py-1.5 tabular">{pct(r.error)}</td>

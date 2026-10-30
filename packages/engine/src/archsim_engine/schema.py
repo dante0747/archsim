@@ -1,4 +1,4 @@
-"""Versioned architecture document schema (``schemaVersion`` 1.4).
+"""Versioned architecture document schema (``schemaVersion`` 1.5).
 
 The document deliberately separates four concerns:
 
@@ -24,7 +24,7 @@ from pydantic.alias_generators import to_camel
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.version import SCHEMA_VERSION
 
-assert SCHEMA_VERSION == "1.4", "update ArchitectureDocument.schema_version and add a migration"
+assert SCHEMA_VERSION == "1.5", "update ArchitectureDocument.schema_version and add a migration"
 
 RequestType = Literal["read", "write"]
 REQUEST_TYPES: tuple[RequestType, ...] = ("read", "write")
@@ -527,7 +527,12 @@ class ReplayCheck(CamelModel):
     scope: Literal["end_to_end", "component"]
     id: str | None = None
     label: str = Field(max_length=200)
-    metric: Literal["p50", "p95", "p99", "throughputRps"]
+    metric: Literal["p50", "p95", "p99", "throughputRps", "cpuCores", "memoryMiB"] = Field(
+        description=(
+            "Latency quantiles (ms), throughput (req/s), CPU in use (mean cores over all "
+            "replicas, schema 1.5) or the memory peak per replica (MiB, schema 1.5)"
+        )
+    )
     observed: float
     simulated: float | None = None
     error: float | None = Field(default=None, description="(simulated - observed) / observed")
@@ -618,7 +623,7 @@ class Pricing(CamelModel):
 class ArchitectureDocument(CamelModel):
     """Top-level interchange document. Serialize with ``to_json_dict()``."""
 
-    schema_version: Literal["1.4"] = "1.4"
+    schema_version: Literal["1.5"] = "1.5"
     kind: Literal["archsim.architecture"] = "archsim.architecture"
     metadata: Metadata = Field(default_factory=Metadata)
     architecture: Architecture = Field(default_factory=Architecture)

@@ -14,6 +14,7 @@ import type {
   NodeConfig,
   Objectives,
   Pricing,
+  ReplayCheck,
   Scenario,
   Workload,
 } from "./types";
@@ -76,7 +77,7 @@ export interface DocExtras {
   pricing?: Pricing | null;
 }
 
-export const SCHEMA_VERSION = "1.4";
+export const SCHEMA_VERSION = "1.5";
 
 /** The provenance of an input, or undefined (then it is assumed or illustrative). */
 export function provenanceOf(extras: DocExtras | undefined, path: string): InputProvenance | undefined {
@@ -103,6 +104,16 @@ export function stillMeasured(p: InputProvenance | undefined, current: unknown):
   return p?.kind === "measured" && (p.value === undefined || p.value === null || sameValue(p.value, current));
 }
 
+/** How a replay check's metric reads, and its unit. */
+export const REPLAY_METRICS: Record<ReplayCheck["metric"], { word: string; unit: string }> = {
+  p50: { word: "p50", unit: "ms" },
+  p95: { word: "p95", unit: "ms" },
+  p99: { word: "p99", unit: "ms" },
+  throughputRps: { word: "throughput", unit: "req/s" },
+  cpuCores: { word: "CPU", unit: "cores" },
+  memoryMiB: { word: "memory", unit: "MiB" },
+};
+
 /** One line on a calibration's replay: the end-to-end p95 and always the largest of all errors
  * (a close p95 can hide a poor p99 or part). Empty when nothing was compared. */
 export function replayVerdict(record: CalibrationRecord | null | undefined): string {
@@ -110,7 +121,7 @@ export function replayVerdict(record: CalibrationRecord | null | undefined): str
   if (!checks.length) return "";
   const pct = (e: number) => `${e > 0 ? "+" : ""}${Math.round(e * 100)}%`;
   const worst = checks.reduce((w, c) => (Math.abs(c.error ?? 0) > Math.abs(w.error ?? 0) ? c : w));
-  const metric = worst.metric === "throughputRps" ? "throughput" : worst.metric;
+  const metric = REPLAY_METRICS[worst.metric]?.word ?? worst.metric;
   const largest = `the largest of ${checks.length} replay errors is ${pct(worst.error ?? 0)} (${worst.label} ${metric})`;
   const e2e = checks.find((c) => c.scope === "end_to_end" && c.metric === "p95");
   if (!e2e || e2e.error == null) return `${largest[0].toUpperCase()}${largest.slice(1)}.`;

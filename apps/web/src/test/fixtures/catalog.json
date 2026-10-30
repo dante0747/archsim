@@ -1132,7 +1132,7 @@
           "label": "CPU",
           "kind": "number",
           "nullable": true,
-          "description": "vCPU per replica. Empty = not modelled. When set, CPU work waits for a free core while more handlers than cores want the CPU (CPU contention); below 1 (e.g. 0.5) CPU work runs proportionally slower. Service time is treated as CPU work. Serverless: one request per instance, so only values below 1 matter.",
+          "description": "vCPU per replica. Empty = not modelled. When set, CPU work waits for a free core while more handlers than cores want the CPU (CPU contention); below 1 (e.g. 0.5) CPU work runs proportionally slower. The CPU share of the service time is CPU work. Serverless: one request per instance, so only values below 1 matter.",
           "default": null,
           "assumption": false,
           "headline": false,
@@ -1142,6 +1142,20 @@
           "unit": "vCPU",
           "group": "Resources",
           "step": 0.5
+        },
+        {
+          "key": "cpuShare",
+          "label": "CPU share of service time",
+          "kind": "number",
+          "nullable": false,
+          "description": "Share of service time that needs a CPU core; the rest waits (I/O inside the handler) on the worker without one. Only used when CPU is set. Calibration fits it from CPU per request (CPU seconds \u00f7 requests).",
+          "default": 1.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 1,
+          "group": "Resources",
+          "step": 0.05
         },
         {
           "key": "memoryGib",
@@ -1198,6 +1212,21 @@
           "max": 1048576,
           "unit": "MiB",
           "group": "Resources"
+        },
+        {
+          "key": "memoryPerRpsMb",
+          "label": "Memory per req/s",
+          "kind": "number",
+          "nullable": false,
+          "description": "Memory that grows with throughput, per request per second a replica serves (MiB). Garbage-collected runtimes keep what requests allocate until the next collection, so their heap grows with the request rate rather than with requests held. It counts in the memory a replica uses and is sized for, not in the out-of-memory limit (a collector reclaims it under pressure). 0: not modelled. Only used when memory is set.",
+          "default": 0.0,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "max": 65536,
+          "unit": "MiB",
+          "group": "Resources",
+          "step": 0.01
         },
         {
           "key": "autoscaling",
@@ -1485,8 +1514,10 @@
           "p95": 25.0
         },
         "blockingDownstream": true,
+        "cpuShare": 1.0,
         "memoryPerRequestMb": 2.0,
         "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
         "autoscaling": false,
         "minReplicas": 1,
         "maxReplicas": 10,
@@ -1507,11 +1538,12 @@
         "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
         "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
         "Serverless (platform): one request per instance, cold starts, concurrency limit and scale-out rate (throttling), idle reclaim",
-        "CPU cores (when set): service time needs a core; with fewer cores than workers, work queues for a core",
-        "Memory (when set): requests held by a replica use memory; past the limit new requests are refused"
+        "CPU cores (when set): the CPU share of service time needs a core; with fewer cores than workers, work queues for a core",
+        "Memory (when set): requests held by a replica use memory; past the limit new requests are refused; memory per req/s adds memory that follows throughput (reported and sized, reclaimable)"
       ],
       "notModeled": [
         "OOM kills and restarts (memory is a refusal limit instead); concurrent GC CPU overhead",
+        "CPU per request that changes with load (one value per request: calibration fits it where load is highest)",
         "Parallel fan-out calls (dependencies are called one after another)",
         "Node/cluster capacity limits for new pods, readiness probe failures",
         "Serverless memory-to-CPU scaling (set CPU directly) and provisioned concurrency"

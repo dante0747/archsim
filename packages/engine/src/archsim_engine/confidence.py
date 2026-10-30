@@ -54,9 +54,12 @@ PRIMARY = frozenset(
         "publishTimeMs",
         "consumerTimeMs",
         "commitFlushMs",
+        "cpuShare",
     }
 )
-"""Inputs that move latency and capacity most: listed first among the drivers."""
+"""Inputs that move latency and capacity most: listed first among the drivers. ``cpuShare``
+(services and databases) sets how much CPU a request needs, so it moves CPU capacity as the
+service time does; calibrated from CPU per request, it counts as measured like any input."""
 
 
 def _key(entry: Json) -> Key | None:

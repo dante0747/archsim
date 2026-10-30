@@ -70,7 +70,9 @@ export interface ReplayCheck {
   scope: "end_to_end" | "component";
   id: string | null;
   label: string;
-  metric: "p50" | "p95" | "p99" | "throughputRps";
+  /** Latency quantiles (ms), throughput (req/s), CPU in use (mean cores over all replicas) or
+   * the memory peak per replica (MiB): the last two since schema 1.5. */
+  metric: "p50" | "p95" | "p99" | "throughputRps" | "cpuCores" | "memoryMiB";
   observed: number;
   simulated: number | null;
   error: number | null;
@@ -265,7 +267,7 @@ export interface Pricing {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */

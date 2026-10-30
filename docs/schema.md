@@ -17,7 +17,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.4",                 // required; drives migrations
+  "schemaVersion": "1.5",                 // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -67,7 +67,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.4"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.5"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
@@ -76,7 +76,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 | `objectives` | object | Service-level objectives (see below). Optional; defaults apply. |
 | `layout` | object | `nodes: {id: {x, y}}`, optional `edges: {id: {sourceSide, targetSide}}` (each `top`, `right`, `bottom` or `left`; where a link attaches on the canvas) and optional `viewport: {x, y, zoom}`. Rendering only. |
 | `provenance` | object | 1.1. Where inputs came from, keyed by path: `nodes/<id>/<config key>`, `edges/<id>/<config key>` or `workload/<field>`. Each: `kind` (`measured`, `assumed`, `illustrative`), `source`, `query`, `timeRange`, `fitError`, `fittedAt`, `note`. Inputs without an entry are assumed when they differ from the default (and the technology preset), illustrative otherwise. See [calibration.md](calibration.md). |
-| `calibration` | object or null | 1.1. The last calibration from telemetry: `at`, `source`, `timeRange`, `inputs` (how many were set), `replay` (observed against simulated: `scope`, `id`, `label`, `metric`, `observed`, `simulated`, `error`), `replayDigest`, `notes`. |
+| `calibration` | object or null | 1.1. The last calibration from telemetry: `at`, `source`, `timeRange`, `inputs` (how many were set), `replay` (observed against simulated: `scope`, `id`, `label`, `metric` (`p50`, `p95`, `p99`, `throughputRps`; 1.5 adds `cpuCores`, the mean CPU in use over all replicas, and `memoryMiB`, the memory peak per replica), `observed`, `simulated`, `error`), `replayDigest`, `notes`. |
 | `pricing` | object | 1.2. Where prices come from: `provider` (`generic`, the default: illustrative rates; or a price snapshot's provider), `region`, `purchaseOption` (`on_demand`), `families` (instance families to snap to), `burstable` (`auto`, the default, left out of the JSON: a light part may run on a t4g type that its CPU keeps in credit; `never`: none), `snapshotDate` (optional `YYYY-MM-DD`: use exactly that snapshot, never a newer one), `snapshotSha256` (optional, with `snapshotDate`: the snapshot's content hash). With a snapshot, auto sizes snap to the cheapest instance type that covers them and cost lines cite it; a run's `input.pricing` records the snapshot used (date and hash). Unset `snapshotDate`/`snapshotSha256` are left out of the JSON. See [pricing.md](pricing.md). |
 
 ## Nodes
@@ -183,10 +183,18 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.4`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `SCHEMA_VERSION` (currently `1.5`). 1.0 to 1.1 only adds optional fields (`provenance`,
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
-  `pricing`, 1.2 to 1.3 the cache-aside link settings, and 1.3 to 1.4 a part's optional
-  `instanceType`, so older documents load unchanged.
+  `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
+  `instanceType`, and 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, so older
+  documents load unchanged.
+- `cpuShare` and `memoryPerRpsMb` (1.5; services). `cpuShare` (0 to 1, default 1, as before) is
+  the share of service time that needs a CPU core, like a database's: the rest waits on the
+  worker without one. `memoryPerRpsMb` (MiB per req/s per replica, default 0, as before) is
+  memory that follows throughput (a garbage-collected heap); it counts in the memory a replica
+  uses and is sized for, not in the out-of-memory limit. Calibration fits both from CPU and
+  working-set metrics ([calibration.md](calibration.md#cpu-and-memory)); a calibration record's
+  replay checks may compare CPU (`cpuCores`) and memory (`memoryMiB`).
 - `instanceType` (1.4; services on VMs or Docker, databases, caches, load balancers and queues):
   the instance type a part runs on in the design's price snapshot (e.g. `c6g.xlarge`). It is
   used while it covers the part's CPU and memory; empty, too small or not in the snapshot (a

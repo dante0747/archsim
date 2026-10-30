@@ -26,7 +26,7 @@ describe("documents keep what the editor does not edit", () => {
   it("round-trips provenance, the calibration record, pricing and autoSize false", () => {
     const doc = calibrated();
     const back = toDocument(fromDocument(doc));
-    expect(back.schemaVersion).toBe("1.4");
+    expect(back.schemaVersion).toBe("1.5");
     expect(back.provenance).toEqual(doc.provenance);
     expect(back.pricing).toEqual(doc.pricing);
     expect(back.calibration).toEqual(doc.calibration);
@@ -112,5 +112,9 @@ describe("the replay verdict", () => {
     expect(replayVerdict(record)).toBe("The model reproduces the observed p95 within 5% (under); the largest of 2 replay errors is -14% (PostgreSQL p99).");
     expect(replayVerdict({ ...record, replay: [check("component", "API", "throughputRps", 0.4)] })).toBe("The largest of 1 replay errors is +40% (API throughput).");
     expect(replayVerdict({ ...record, replay: [] })).toBe("");
+    // CPU and memory checks (schema 1.5) read as words
+    expect(replayVerdict({ ...record, replay: [check("component", "API", "cpuCores", 0.12), check("component", "API", "memoryMiB", -0.03)] })).toBe(
+      "The largest of 2 replay errors is +12% (API CPU).",
+    );
   });
 });

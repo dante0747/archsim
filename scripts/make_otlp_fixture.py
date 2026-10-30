@@ -3,7 +3,9 @@
 Traces of a "checkout-api" service: each request is a SERVER span whose own work is lognormal
 (median 6 ms, p95 18 ms) around a CLIENT span to the "orders" PostgreSQL database (reads
 median 4 / p95 14 ms, writes median 9 / p95 30 ms); one in ten also calls an "inventory"
-service the starter design does not have.
+service the starter design does not have. Each SERVER span of checkout-api records the CPU time
+it used (``app.cpu_time_ms``: 70% of its own time), which calibration reads as the CPU share
+when the mapping names it (``cpuTime``).
 
 Usage: uv run python scripts/make_otlp_fixture.py
 """
@@ -21,6 +23,7 @@ OUT = ROOT / "packages" / "engine" / "tests" / "fixtures" / "calibration"
 START_NS = 1790812800 * 10**9  # 2026-10-01T00:00:00Z
 TRACES = 400
 Z95 = 1.6448536269514722
+CPU_SHARE = 0.7  # of a SERVER span's own time
 
 
 def lognormal(rng: random.Random, median: float, p95: float) -> float:
@@ -28,7 +31,13 @@ def lognormal(rng: random.Random, median: float, p95: float) -> float:
 
 
 def attr(key: str, value: Any) -> dict[str, Any]:
-    v = {"intValue": str(value)} if isinstance(value, int) else {"stringValue": str(value)}
+    v: dict[str, Any]
+    if isinstance(value, int):
+        v = {"intValue": str(value)}
+    elif isinstance(value, float):
+        v = {"doubleValue": value}
+    else:
+        v = {"stringValue": str(value)}
     return {"key": key, "value": v}
 
 
@@ -59,7 +68,10 @@ def main() -> None:
                 "kind": 2,
                 "startTimeUnixNano": str(t0),
                 "endTimeUnixNano": str(end),
-                "attributes": [attr("http.request.method", "POST" if write else "GET")],
+                "attributes": [
+                    attr("http.request.method", "POST" if write else "GET"),
+                    attr("app.cpu_time_ms", round(own * CPU_SHARE, 4)),
+                ],
             }
         )
         api_spans.append(
@@ -120,7 +132,9 @@ def main() -> None:
     (OUT / "otlp-mapping.yaml").write_text(
         "# OpenTelemetry names -> parts of examples/cache-aside-starter.json\n"
         "services:\n  checkout-api: api\n"
-        "databases:\n  orders: db\n",
+        "databases:\n  orders: db\n"
+        "# the span attribute in which checkout-api records each request's CPU time\n"
+        "cpuTime: {attribute: app.cpu_time_ms, unit: ms}\n",
         encoding="utf-8",
         newline="\n",
     )

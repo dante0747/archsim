@@ -205,3 +205,61 @@ def test_capacity_figures_follow_cpu_and_memory() -> None:
 def test_database_cpu_capacity_uses_the_cpu_share() -> None:
     s = node_by_id(run_simulation(db_doc(cpuCores=1, cpuShare=0.5)), "db")["summary"]
     assert s["cpuCapacityRps"] == pytest.approx(1000 / (5 * 0.5), rel=0.01)
+
+
+# -- measured CPU and memory inputs (schema 1.5) ---------------------------------------------------
+
+
+def test_service_cpu_share_needs_fewer_cores_and_keeps_latency() -> None:
+    # 2 cores, 10 ms of service time: 200 req/s when all of it is CPU, 400 req/s at half
+    r = run_simulation(svc_doc(300, cpuCores=2, cpuShare=0.5))
+    s = node_by_id(r, "svc")["summary"]
+    assert r["summary"]["throughputRps"] == pytest.approx(300, rel=0.06)
+    assert s["cpuCoreUtilization"] == pytest.approx(300 * 0.010 * 0.5 / 2, abs=0.03)
+    assert s["cpuCapacityRps"] == pytest.approx(400, rel=0.01)
+    estimated = next(p for p in r["estimate"]["parts"] if p["id"] == "svc")
+    assert estimated["cpuUtilization"] == pytest.approx(0.75, abs=0.01)
+    assert_accounting(r)
+    # the rest of the service time still holds the worker: the same latency without contention
+    whole = run_simulation(svc_doc(20, cpuCores=8))
+    half = run_simulation(svc_doc(20, cpuCores=8, cpuShare=0.5))
+    assert half["summary"]["latencyMs"] == whole["summary"]["latencyMs"]
+    busy = node_by_id(half, "svc")["summary"]["cpuCoreUtilization"]
+    assert busy == pytest.approx(
+        node_by_id(whole, "svc")["summary"]["cpuCoreUtilization"] / 2, rel=0.05
+    )
+
+
+def test_a_fractional_core_slows_only_the_cpu_share() -> None:
+    # 5 ms of CPU work at half speed (10 ms) + 5 ms that needs no core
+    r = run_simulation(svc_doc(5, cpuCores=0.5, cpuShare=0.5))
+    assert r["summary"]["latencyMs"]["p50"] == pytest.approx(15, abs=0.5)
+
+
+def test_memory_per_rps_counts_in_the_peak_not_in_the_out_of_memory_limit() -> None:
+    base = {"memoryGib": 1, "memoryBaselineMb": 100, "memoryPerRequestMb": 1}
+    plain = node_by_id(run_simulation(svc_doc(400, **base)), "svc")["summary"]
+    flowing = node_by_id(run_simulation(svc_doc(400, **base, memoryPerRpsMb=1)), "svc")["summary"]
+    # one replica at about 400 req/s (its busiest time bucket a little more): about 400 MiB more
+    extra = (flowing["memoryPeakGiB"] - plain["memoryPeakGiB"]) * 1024
+    assert 380 < extra < 480
+    # more than the memory: the peak is capped at it, and the collector's garbage refuses nothing
+    heavy = run_simulation(svc_doc(400, **base, memoryPerRpsMb=5))
+    s = node_by_id(heavy, "svc")["summary"]
+    assert s["memoryPeakGiB"] == 1.0 and not s["rejected"].get("out_of_memory")
+
+
+def test_sizing_counts_the_cpu_share_and_memory_per_rps() -> None:
+    from archsim_engine.components import create_default_registry
+    from archsim_engine.scenarios import load_document
+    from archsim_engine.sizing import auto_sizes
+
+    registry = create_default_registry(include_plugins=False)
+
+    def need(**svc: Any) -> dict[str, float]:
+        d = load_document(svc_doc(300, **svc)).to_json_dict()
+        return auto_sizes(d, registry)["svc"].need
+
+    whole, part = need(), need(cpuShare=0.5, memoryPerRpsMb=1)
+    assert part["busyCores"] == pytest.approx(whole["busyCores"] / 2)
+    assert part["memoryGibMax"] - whole["memoryGibMax"] == pytest.approx(300 / 1024)
