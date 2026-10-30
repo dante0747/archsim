@@ -4,7 +4,16 @@
 # Each container is pinned to its own CPUs (cpuset, not a CPU quota: quotas throttle in 100 ms
 # periods and add latency spikes the model does not have). The ArchSim model of each stack uses
 # the same CPU counts. The defaults assume Docker with at least 8 CPUs; on a smaller machine set
-# BENCH_CPUS_POSTGRES, _REDIS, _KAFKA, _SERVICE, _CONSUMER and _K6 (results are then noisier).
+# BENCH_CPUS_POSTGRES, _REDIS, _REDIS_TTL, _KAFKA, _SERVICE, _CONSUMER, _GATEWAY, _CHAIN_API,
+# _JAVA, _GO, _PYTHON and _K6 (results are then noisier).
+#
+# Held-out stacks (docs/validation.md, "Held-out experiments"; sealed: only `run.py smoke` runs
+# them until a frozen engine has predicted them): java-mixed, go-mixed and python-mixed run
+# pg-mixed's workload on Spring Boot, Go and Flask/gunicorn, each on CPUs 2,3 (one physical core
+# of the laptop: hyperthread siblings); chain puts a Node.js gateway in front of the Node.js API;
+# cache-ttl is a Node.js cache-aside service with a 5 s TTL over 1,000,000 keys. On the laptop
+# (siblings 0-1, 2-3, 4-5, 6-7) no container of these stacks shares a physical core with k6 or
+# another container: chain and cache-ttl leave CPUs 1 and 3 idle and give k6 one core (6,7).
 name: archsim-bench
 
 x-service: &service
@@ -18,15 +27,30 @@ x-service: &service
     postgres:
       condition: service_healthy
 
+# Another runtime behind the same HTTP contract as ./service (each sets its own build and image).
+x-runtime: &runtime
+  restart: on-failure
+  environment: &runtime-env
+    DATABASE_URL: postgresql://bench:bench@postgres:5432/bench
+    PG_POOL: "10"
+  depends_on:
+    postgres:
+      condition: service_healthy
+  ports:
+    - "127.0.0.1:18080:8080"
+
 services:
   postgres:
     image: postgres:16-alpine
-    profiles: [postgres, cache, kafka]
+    profiles: [postgres, cache, kafka, java-mixed, go-mixed, python-mixed, chain, cache-ttl]
     cpuset: "${BENCH_CPUS_POSTGRES:-4,5}"
     environment:
       POSTGRES_USER: bench
       POSTGRES_PASSWORD: bench
       POSTGRES_DB: bench
+      # rows in items: init.sql loads 100,000 and extra-rows.sh the rest (run.py sets it per
+      # stack: 1,000,000 for cache-ttl's keyspace)
+      BENCH_ITEMS: "${BENCH_ITEMS:-100000}"
     # Checkpoints are deferred past a run (the model has no checkpoints; see docs/validation.md);
     # checkpoints and autovacuum are logged so stalls can be traced.
     command:
@@ -45,8 +69,11 @@ services:
       - log_autovacuum_min_duration=0
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./db/extra-rows.sh:/docker-entrypoint-initdb.d/zz-extra-rows.sh:ro
+    # Over TCP: while the init scripts run, the image's temporary server answers on its socket
+    # only, so a socket check would pass before the data is loaded.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bench -d bench"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U bench -d bench"]
       interval: 2s
       timeout: 2s
       retries: 30
@@ -55,6 +82,12 @@ services:
     image: redis:7-alpine
     profiles: [cache]
     cpuset: "${BENCH_CPUS_REDIS:-1}"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  redis-ttl:
+    image: redis:7-alpine
+    profiles: [cache-ttl]
+    cpuset: "${BENCH_CPUS_REDIS_TTL:-0}"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
 
   kafka:
@@ -124,6 +157,73 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:18081:8080"
+
+  # ---- held-out stacks (sealed) -----------------------------------------------------------------
+
+  api-java:
+    <<: *runtime
+    build: ./service-java
+    image: archsim-bench-java:1
+    profiles: [java-mixed]
+    cpuset: "${BENCH_CPUS_JAVA:-2,3}"
+
+  api-go:
+    <<: *runtime
+    build: ./service-go
+    image: archsim-bench-go:1
+    profiles: [go-mixed]
+    cpuset: "${BENCH_CPUS_GO:-2,3}"
+    environment:
+      <<: *runtime-env
+      GOMAXPROCS: "2"
+
+  api-python:
+    <<: *runtime
+    build: ./service-python
+    image: archsim-bench-python:1
+    profiles: [python-mixed]
+    cpuset: "${BENCH_CPUS_PYTHON:-2,3}"
+    environment:
+      <<: *runtime-env
+      WEB_WORKERS: "10"
+
+  gateway:
+    <<: *service
+    profiles: [chain]
+    cpuset: "${BENCH_CPUS_GATEWAY:-0}"
+    environment:
+      <<: *service-env
+      ROLE: gateway
+      UPSTREAM: http://chain-api:8080
+    depends_on:
+      chain-api:
+        condition: service_started
+    ports:
+      - "127.0.0.1:18080:8080"
+
+  chain-api:
+    <<: *service
+    profiles: [chain]
+    cpuset: "${BENCH_CPUS_CHAIN_API:-2}"
+    ports:
+      - "127.0.0.1:18081:8080"
+
+  api-ttl:
+    <<: *service
+    profiles: [cache-ttl]
+    cpuset: "${BENCH_CPUS_SERVICE:-2}"
+    environment:
+      <<: *service-env
+      REDIS_URL: redis://redis-ttl:6379
+      CACHE_TTL_S: "5"
+      REDIS_STATS: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-ttl:
+        condition: service_started
+    ports:
+      - "127.0.0.1:18080:8080"
 
   k6:
     image: grafana/k6:1.3.0
