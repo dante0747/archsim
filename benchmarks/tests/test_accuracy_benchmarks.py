@@ -511,13 +511,105 @@ def test_cpu_count() -> None:
     assert run.cpu_count("0-3") == 4
     assert run.cpu_count("2") == 1
     assert run.cpu_count("0-1,4") == 3
+    assert run.cpu_list("0-1,4") == [0, 1, 4]
+
+
+# the laptop's Docker VM: four physical cores, two hyperthreads each
+LAPTOP_SIBLINGS = {c: [c - c % 2, c - c % 2 + 1] for c in range(8)}
+
+
+def test_topology_finds_containers_sharing_a_physical_core() -> None:
+    # the layout of runs up to 6: k6's five CPUs span three cores, one of them the service's
+    old = {"api": "2", "postgres": "4,5", "k6": "0,1,3,6,7"}
+    t = run.topology(old, LAPTOP_SIBLINGS)
+    assert t["physicalCores"] == {"api": 1, "postgres": 1, "k6": 3}  # PostgreSQL's 2 CPUs: 1 core
+    assert t["sharedCores"] == [{"containers": ["api", "k6"], "cores": [[2, 3]]}]
+    # the runner's layouts now leave the service's sibling idle
+    for stack in ("postgres", "cache"):
+        shared = run.topology(run.cpusets(stack, env={}), LAPTOP_SIBLINGS)["sharedCores"]
+        assert not any("api" in s["containers"] for s in shared), stack
+    kafka = run.topology(run.cpusets("kafka", env={}), LAPTOP_SIBLINGS)
+    assert {"containers": ["producer", "consumer"], "cores": [[2, 3]]} in kafka["sharedCores"]
+    alone = run.topology({"api": "2", "k6": "0,1,6,7"}, LAPTOP_SIBLINGS)
+    assert alone["sharedCores"] == []
+    assert run.core_of(5, {}) == (5,)  # no topology known: each CPU its own core
+
+
+def test_machine_id_names_the_cpu_not_the_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BENCH_MACHINE", raising=False)
+    assert run.machine_id("11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz") == "i7-1165g7"
+    assert run.machine_id("AMD EPYC 7763 64-Core Processor") == "epyc-7763-64-core"
+    assert run.machine_id("") == "unknown"
+    monkeypatch.setenv("BENCH_MACHINE", "ci-linux-8cpu")
+    assert run.machine_id("anything") == "ci-linux-8cpu"
+
+
+def test_provenance_names_the_engine_and_harness_by_git_object() -> None:
+    p = run.provenance()
+    assert set(p) == {"commit", "engineTree", "harnessHash", "dirty", "machineId"}
+    assert p["engineTree"] and len(p["engineTree"]) == 40
+    assert len(p["harnessHash"]) == 64 and isinstance(p["dirty"], bool)
+
+
+def test_vm_cpu_times_reads_steal(monkeypatch: pytest.MonkeyPatch) -> None:
+    stat = "cpu  100 0 50 800 10 0 5 35 0 0\ncpu0 1 2 3 4 5 6 7 8 0 0\n"
+    monkeypatch.setattr(run, "compose", lambda *a, **k: stat)
+    assert run.vm_cpu_times() == (35, 1000)
+
+
+def test_split_inputs_reproduce_every_latest_calibration() -> None:
+    # one function per part, then anchored again: the very inputs each latest run used
+    for exp in report.ORDER:
+        cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
+        assert run.rederive_inputs(run.EXPERIMENTS[exp], cal) == cal["inputs"], exp
+
+
+def test_simulate_reports_what_the_database_did() -> None:
+    cal = json.loads((run.RESULTS / "pg-mixed" / "calibration.json").read_text(encoding="utf-8"))
+    r = run.simulate(run.design(PG_MIXED, cal["inputs"], 500, warm=2, duration=5))
+    assert set(r["database"]) == {"commitsPerFlush", "meanLockWaitMs", "meanCommitWaitMs"}
+    assert r["database"]["commitsPerFlush"] >= 1
+
+
+def test_dev_checks_reproduce_the_committed_predictions() -> None:
+    # engine 0.14.0 against every kept run: the protocols since v3 derive the same inputs
+    # today, and then simulate exactly what their predictions said, step by step
+    checks = report.dev_checks()["0.14.0"]
+    assert sorted(checks) == sorted(report.ORDER)
+    rows = [c for runs in checks.values() for c in runs.values()]
+    assert len(rows) == 12  # 14 kept runs less the two calibrated from one pass
+    for c in rows:
+        assert c["kind"] == run.DEV_KIND and c["designedAfterMeasurements"]
+        same = c["sameLatencyAsPredictions"]
+        if c["inputsAsCalibrated"]:
+            assert same["steps"] == same["of"], c["results"]
+    assert sorted(c["results"] for c in rows if not c["inputsAsCalibrated"]) == [
+        "pg-hot-row/run-2",
+        "pg-mixed/run-2",
+    ]  # v2 had no anchor
+
+
+def test_dev_path_names_a_check_by_its_calibration(tmp_path: Path) -> None:
+    check = {"calibratedAt": "2026-10-30T10:32:56Z", "results": "pg-hot-row"}
+    path = run.dev_path(tmp_path, "0.15.0", "pg-hot-row", check)
+    assert path == tmp_path / "dev" / "0.15.0" / "pg-hot-row" / "2026-10-30T10-32-56Z.json"
+
+
+def test_dev_checks_page_is_generated_from_the_committed_checks() -> None:
+    text = report.dev_text()
+    assert report.DEV_DOC.read_text(encoding="utf-8") == text, (
+        "docs/validation/dev-checks.md is stale: run benchmarks/report.py --dev"
+    )
+    assert "| pg-hot-row | `pg-hot-row/` | 2026-10-30T10:32:56Z | yes | 814 | 519 (-36%) |" in text
+    assert "Engine 0.14.0: median absolute knee error 29% over the latest run" in text
+    assert "_No development checks yet._" in report.dev_text(Path("nowhere"))
 
 
 def test_cpusets_follow_compose_and_the_runner() -> None:
     declared = run.compose_cpusets()
     assert {s for services in run.STACK_SERVICES.values() for s in services} <= set(declared)
-    assert run.cpusets("postgres", env={}) == {"api": "2", "postgres": "4,5", "k6": "0,1,3,6,7"}
-    assert run.cpusets("cache", env={})["k6"] == "0,3,6,7"
+    assert run.cpusets("postgres", env={}) == {"api": "2", "postgres": "4,5", "k6": "0,1,6,7"}
+    assert run.cpusets("cache", env={})["k6"] == "0,6,7"
     assert run.cpusets("kafka", env={})["k6"] == "6,7"
     custom = run.cpusets("kafka", env={"BENCH_CPUS_POSTGRES": "0-3", "BENCH_CPUS_K6": "4-7"})
     assert (custom["postgres"], custom["k6"]) == ("0-3", "4-7")

@@ -32,6 +32,7 @@ Only the Python standard library, Docker and the engine are needed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -452,9 +453,12 @@ def k6_measured(summary: dict[str, Any], duration: int) -> dict[str, Any]:
 # ---------------------------------------------------------------------------------------------
 
 
-K6_CPUS = {"postgres": "0,1,3,6,7", "cache": "0,3,6,7", "kafka": "6,7"}
-"""k6's cpuset per stack: every CPU the stack's other containers leave free (compose.yaml's
-default for k6 is only used when the runner is bypassed)."""
+K6_CPUS = {"postgres": "0,1,6,7", "cache": "0,6,7", "kafka": "6,7"}
+"""k6's cpuset per stack: the CPUs the stack's other containers leave free, except the service's
+hyperthread sibling (CPU 3 on the 4-core, 8-thread laptop), which stays idle. On the laptop
+k6 on that sibling cost the service 10-15% more CPU per request and raised p95 at 1,600 req/s
+from 1.4 to 2.2 ms (run.py envcheck, 30 Oct; runs up to 6 used 0,1,3,6,7 and 0,3,6,7).
+compose.yaml's default for k6 is only used when the runner is bypassed."""
 USER_K6_CPUS = os.environ.get("BENCH_CPUS_K6")
 STACK_SERVICES = {
     "postgres": ["api", "postgres"],
@@ -490,13 +494,62 @@ def cpusets(stack: str, env: Mapping[str, str] | None = None) -> dict[str, str]:
     return out
 
 
-def cpu_count(cpuset: str) -> int:
-    """How many CPUs a cpuset ("0,1,3" or "0-3") names."""
-    n = 0
+def cpu_list(cpuset: str) -> list[int]:
+    """The CPUs a cpuset ("0,1,3" or "0-3") names."""
+    out: list[int] = []
     for part in cpuset.split(","):
         lo, _, hi = part.strip().partition("-")
-        n += int(hi) - int(lo) + 1 if hi else 1
-    return n
+        out += list(range(int(lo), int(hi) + 1)) if hi else [int(lo)]
+    return out
+
+
+def cpu_count(cpuset: str) -> int:
+    """How many CPUs a cpuset ("0,1,3" or "0-3") names."""
+    return len(cpu_list(cpuset))
+
+
+def cpu_siblings() -> dict[int, list[int]] | None:
+    """Each CPU of Docker's VM and the CPUs on its physical core (itself included: hyperthread
+    siblings), as the kernel inside the VM reports them; None when Docker cannot say."""
+    script = (
+        "for c in /sys/devices/system/cpu/cpu[0-9]*; do "
+        'echo "${c##*cpu} $(cat $c/topology/thread_siblings_list)"; done'
+    )
+    proc = subprocess.run(
+        ["docker", "run", "--rm", "--entrypoint", "sh", "postgres:16-alpine", "-c", script],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    out: dict[int, list[int]] = {}
+    for line in proc.stdout.splitlines():
+        cpu, _, sib = line.strip().partition(" ")
+        if cpu.isdigit() and sib:
+            out[int(cpu)] = cpu_list(sib)
+    return out or None
+
+
+def core_of(cpu: int, siblings: Mapping[int, Sequence[int]]) -> tuple[int, ...]:
+    """A CPU's physical core, named by its CPUs."""
+    return tuple(sorted(siblings.get(cpu, [cpu])))
+
+
+def topology(sets: Mapping[str, str], siblings: Mapping[int, Sequence[int]]) -> dict[str, Any]:
+    """How a stack's cpusets fall on physical cores: each container's physical cores, and the
+    pairs of containers that share one (hyperthread siblings slow each other down)."""
+    cores = {name: {core_of(c, siblings) for c in cpu_list(s)} for name, s in sets.items()}
+    names = list(sets)
+    shared = [
+        {"containers": [a, b], "cores": [list(c) for c in sorted(cores[a] & cores[b])]}
+        for i, a in enumerate(names)
+        for b in names[i + 1 :]
+        if cores[a] & cores[b]
+    ]
+    return {
+        "siblings": {str(c): list(s) for c, s in sorted(siblings.items())},
+        "physicalCores": {name: len(c) for name, c in cores.items()},
+        "sharedCores": shared,
+    }
 
 
 def stack_up(stack: str) -> None:
@@ -720,7 +773,20 @@ def slope(low: float | None, high: float | None, n_low: float, n_high: float) ->
 
 
 def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """Every model input with the measured numbers and the formula it came from."""
+    """Every model input with the measured numbers and the formula it came from: the service's,
+    then the queue's (Kafka), the database's and the cache's. Each part's inputs come from a
+    function of their own, so a change to one part's calibration leaves the others alone."""
+    out = service_inputs(exp, passes)
+    if exp.stack == "kafka":
+        out |= queue_inputs(exp, passes)
+    out |= database_inputs(exp, passes)
+    if exp.stack == "cache":
+        out |= cache_inputs(exp, passes)
+    return out
+
+
+def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """The service's CPU per request, the client-to-service latency and the low-load reference."""
     low, high = passes["low"], passes["high"]
     svc, svc_low = high["service"], low["service"]
     own = timing(svc, "own")
@@ -728,7 +794,7 @@ def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     demand = slope(svc_low["cpuMs"], svc["cpuMs"], svc_low["requests"], svc["requests"])
     if demand is None or demand <= 0:
         demand = svc["cpuMsPerRequest"]
-    out: dict[str, Any] = {
+    return {
         "serviceTimeMs": {
             "value": lognormal_with_mean(demand, own),
             "how": (
@@ -745,36 +811,56 @@ def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         "measuredLowLoad": {"rateRps": high["rateRps"], **high["k6"]},
     }
 
-    def db_share(q_low: float, q_high: float, mean_ms: float) -> None:
-        pg = slope(
-            low["containerCpuMs"].get("postgres"),
-            high["containerCpuMs"].get("postgres"),
-            q_low,
-            q_high,
-        )
-        if pg is None or pg <= 0 or mean_ms <= 0:
-            return
-        out["dbCpuShare"] = {
-            "value": round(min(1.0, max(0.02, pg / mean_ms)), 4),
-            "how": f"PostgreSQL CPU per extra query between the passes ({pg:.4f} ms) / mean query time ({mean_ms:.3f} ms)",
-        }
 
+def db_cpu_share(
+    passes: dict[str, Any], q_low: float, q_high: float, mean_ms: float
+) -> dict[str, Any] | None:
+    """PostgreSQL's CPU per extra query between the passes over the mean query time, or None
+    without a usable slope."""
+    pg = slope(
+        passes["low"]["containerCpuMs"].get("postgres"),
+        passes["high"]["containerCpuMs"].get("postgres"),
+        q_low,
+        q_high,
+    )
+    if pg is None or pg <= 0 or mean_ms <= 0:
+        return None
+    return {
+        "value": round(min(1.0, max(0.02, pg / mean_ms)), 4),
+        "how": f"PostgreSQL CPU per extra query between the passes ({pg:.4f} ms) / mean query time ({mean_ms:.3f} ms)",
+    }
+
+
+def queue_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """Kafka: the producer's publish time and the consumer's own time per message."""
+    high = passes["high"]
+    consume_own = timing(high["consumer"], "consume_own")
+    send = timing(high["service"], "kafka_send")
+    return {
+        "publishTimeMs": {
+            "value": lognormal(send["median"], send["p95"]),
+            "how": f"producer.send with acks=all on one broker: median {send['median']:.3f}, p95 {send['p95']:.3f} ms",
+        },
+        "consumerTimeMs": {
+            "value": lognormal(consume_own["median"], consume_own["p95"]),
+            "how": f"consumer's own time per message (handling minus the INSERT): median {consume_own['median']:.3f}, p95 {consume_own['p95']:.3f} ms",
+        },
+    }
+
+
+def database_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """PostgreSQL: query times, the WAL flush per commit and the CPU share of a query. On the
+    Kafka stack the queries are the consumer's INSERTs."""
+    low, high = passes["low"], passes["high"]
+    svc, svc_low = high["service"], low["service"]
+    out: dict[str, Any] = {}
+    share: dict[str, Any] | None
     if exp.stack == "kafka":
         cons, cons_low = high["consumer"], low["consumer"]
         insert = timing(cons, "db_insert")
-        consume_own = timing(cons, "consume_own")
-        send = timing(svc, "kafka_send")
         sync = timing(passes["write:1"]["service"], "db_write")
         async_ = timing(passes["write_async:1"]["service"], "db_write_async")
         flush_med = max(0.01, sync["median"] - async_["median"])
-        out["publishTimeMs"] = {
-            "value": lognormal(send["median"], send["p95"]),
-            "how": f"producer.send with acks=all on one broker: median {send['median']:.3f}, p95 {send['p95']:.3f} ms",
-        }
-        out["consumerTimeMs"] = {
-            "value": lognormal(consume_own["median"], consume_own["p95"]),
-            "how": f"consumer's own time per message (handling minus the INSERT): median {consume_own['median']:.3f}, p95 {consume_own['p95']:.3f} ms",
-        }
         out["commitFlushMs"] = {
             "value": lognormal(flush_med, max(flush_med * 1.01, sync["p95"] - async_["p95"])),
             "how": (
@@ -788,7 +874,7 @@ def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
             ),
             "how": f"consumer's INSERT time (median {insert['median']:.3f}, p95 {insert['p95']:.3f} ms) minus the flush median",
         }
-        db_share(cons_low["consumed"], cons["consumed"], insert["mean"])
+        share = db_cpu_share(passes, cons_low["consumed"], cons["consumed"], insert["mean"])
     else:
         t, t_low = svc["timings"], svc_low["timings"]
         names = [n for n in ("db_read", "db_write") if n in t]
@@ -816,23 +902,31 @@ def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
                     f"p95 {w['p95']:.3f} - {a['p95']:.3f} ms"
                 ),
             }
-        db_share(q_low, q_high, mean_q)
-    if exp.stack == "cache":
-        rs = high["redis"]
-        get = rs.get("get", {"calls": 0, "usec": 0})
-        set_ = rs.get("set", {"calls": 0, "usec": 0})
-        calls = get["calls"] + set_["calls"]
-        server_ms = (get["usec"] + set_["usec"]) / max(calls, 1) / 1000
-        app_get = timing(svc, "redis_get")
-        out["cacheServiceTimeMs"] = {
+        share = db_cpu_share(passes, q_low, q_high, mean_q)
+    if share is not None:
+        out["dbCpuShare"] = share
+    return out
+
+
+def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """Redis: its own time per command and the service-to-Redis latency."""
+    high = passes["high"]
+    rs = high["redis"]
+    get = rs.get("get", {"calls": 0, "usec": 0})
+    set_ = rs.get("set", {"calls": 0, "usec": 0})
+    calls = get["calls"] + set_["calls"]
+    server_ms = (get["usec"] + set_["usec"]) / max(calls, 1) / 1000
+    app_get = timing(high["service"], "redis_get")
+    return {
+        "cacheServiceTimeMs": {
             "value": {"kind": "exponential", "mean": round(max(server_ms, 0.001), 5)},
             "how": f"Redis INFO commandstats: {get['usec'] + set_['usec']:.0f} us over {calls:.0f} GET/SET calls",
-        }
-        out["cacheLinkLatencyMs"] = {
+        },
+        "cacheLinkLatencyMs": {
             "value": round(max(0.0, (app_get["median"] - server_ms) / 2), 4),
             "how": f"(GET round trip median {app_get['median']:.3f} ms - Redis's own time {server_ms:.4f} ms) / 2, one way",
-        }
-    return out
+        },
+    }
 
 
 # ---------------------------------------------------------------------------------------------
@@ -856,41 +950,31 @@ def _edge(
     }
 
 
-def design(
-    exp: Experiment,
-    inputs: dict[str, Any],
-    rps: float,
-    warm: int = WARMUP_S,
-    duration: int = DURATION_S,
-) -> dict[str, Any]:
-    v = {k: x["value"] for k, x in inputs.items() if isinstance(x, dict) and "value" in x}
-    nodes: list[dict[str, Any]] = [
-        {
-            "id": "clients",
-            "type": "traffic_source",
-            "label": "k6",
-            "config": {"timeoutMs": TIMEOUT_MS, "maxAttempts": 1},
+def service_node(v: Mapping[str, Any]) -> dict[str, Any]:
+    """The Node.js service: one event loop on one CPU."""
+    return {
+        "id": "api",
+        "type": "service",
+        "label": "Node.js service",
+        "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 1,
+            "processesPerReplica": 1,
+            "queueCapacity": 100_000,
+            "queueTimeoutMs": None,
+            "serviceTimeMs": v["serviceTimeMs"],
+            "gcPauseMs": 0,  # measured CPU per request already includes GC
+            "warmupFactor": 1,
+            "cpuCores": 1,
+            "memoryGib": SERVICE_MEMORY_GIB,
         },
-        {
-            "id": "api",
-            "type": "service",
-            "label": "Node.js service",
-            "config": {
-                "technology": "nodejs",
-                "platform": "docker",
-                "replicas": 1,
-                "processesPerReplica": 1,
-                "queueCapacity": 100_000,
-                "queueTimeoutMs": None,
-                "serviceTimeMs": v["serviceTimeMs"],
-                "gcPauseMs": 0,  # measured CPU per request already includes GC
-                "warmupFactor": 1,
-                "cpuCores": 1,
-                "memoryGib": SERVICE_MEMORY_GIB,
-            },
-        },
-    ]
-    db = {
+    }
+
+
+def database_node(v: Mapping[str, Any]) -> dict[str, Any]:
+    """PostgreSQL behind the service's pool of connections."""
+    return {
         "id": "db",
         "type": "database",
         "label": "PostgreSQL",
@@ -908,55 +992,80 @@ def design(
             **({"commitFlushMs": v["commitFlushMs"]} if "commitFlushMs" in v else {}),
         },
     }
+
+
+def cache_node(v: Mapping[str, Any]) -> dict[str, Any]:
+    """Redis with a TTL over the keyspace, filled on a miss."""
+    return {
+        "id": "cache",
+        "type": "cache",
+        "label": "Redis",
+        "config": {
+            "technology": "redis",
+            "hitModel": "ttl_keyspace",
+            "ttlSeconds": CACHE_TTL_S,
+            "populateOnMiss": True,
+            "serviceTimeMs": v["cacheServiceTimeMs"],
+            "queueCapacity": 100_000,
+            "cpuCores": 1,
+            "memoryGib": CACHE_MEMORY_GIB,
+            "itemSizeKb": CACHE_ITEM_KIB,
+        },
+    }
+
+
+def queue_node(v: Mapping[str, Any]) -> dict[str, Any]:
+    """Kafka: one broker, the partitions and consumers of the real stack."""
+    return {
+        "id": "kafka",
+        "type": "message_queue",
+        "label": "Kafka",
+        "config": {
+            "technology": "kafka",
+            "partitions": KAFKA_PARTITIONS,
+            "consumers": KAFKA_CONSUMERS,
+            "brokers": 1,
+            "maxDepth": None,
+            "acks": "leader",  # one broker: acks=all is the leader's write
+            "lingerMs": 0,  # kafkajs sends each message at once
+            "publishTimeMs": v["publishTimeMs"],
+            "consumerTimeMs": v["consumerTimeMs"],
+            "maxDeliveries": 1,
+        },
+    }
+
+
+def design(
+    exp: Experiment,
+    inputs: dict[str, Any],
+    rps: float,
+    warm: int = WARMUP_S,
+    duration: int = DURATION_S,
+) -> dict[str, Any]:
+    """The ArchSim design of an experiment's stack at one offered load, from its model inputs.
+    Each part's node comes from a function of its own."""
+    v = {k: x["value"] for k, x in inputs.items() if isinstance(x, dict) and "value" in x}
+    nodes: list[dict[str, Any]] = [
+        {
+            "id": "clients",
+            "type": "traffic_source",
+            "label": "k6",
+            "config": {"timeoutMs": TIMEOUT_MS, "maxAttempts": 1},
+        },
+        service_node(v),
+    ]
     edges = [_edge("e-clients", "clients", "api", v["clientLinkLatencyMs"])]
     if exp.stack == "postgres":
-        nodes.append(db)
+        nodes.append(database_node(v))
         edges.append(_edge("e-db", "api", "db", 0.0))
     elif exp.stack == "cache":
-        nodes += [
-            {
-                "id": "cache",
-                "type": "cache",
-                "label": "Redis",
-                "config": {
-                    "technology": "redis",
-                    "hitModel": "ttl_keyspace",
-                    "ttlSeconds": CACHE_TTL_S,
-                    "populateOnMiss": True,
-                    "serviceTimeMs": v["cacheServiceTimeMs"],
-                    "queueCapacity": 100_000,
-                    "cpuCores": 1,
-                    "memoryGib": CACHE_MEMORY_GIB,
-                    "itemSizeKb": CACHE_ITEM_KIB,
-                },
-            },
-            db,
-        ]
+        nodes += [cache_node(v), database_node(v)]
         edges += [
             _edge("e-cache", "api", "cache", v["cacheLinkLatencyMs"], types=["read"]),
             _edge("e-miss", "cache", "db", 0.0, port="miss", types=["read"]),
         ]
     else:  # kafka
-        nodes += [
-            {
-                "id": "kafka",
-                "type": "message_queue",
-                "label": "Kafka",
-                "config": {
-                    "technology": "kafka",
-                    "partitions": KAFKA_PARTITIONS,
-                    "consumers": KAFKA_CONSUMERS,
-                    "brokers": 1,
-                    "maxDepth": None,
-                    "acks": "leader",  # one broker: acks=all is the leader's write
-                    "lingerMs": 0,  # kafkajs sends each message at once
-                    "publishTimeMs": v["publishTimeMs"],
-                    "consumerTimeMs": v["consumerTimeMs"],
-                    "maxDeliveries": 1,
-                },
-            },
-            db,
-        ]
+        nodes += [queue_node(v), database_node(v)]
         edges += [_edge("e-kafka", "api", "kafka", 0.0), _edge("e-db", "kafka", "db", 0.0)]
     return {
         "schemaVersion": "1.0",
@@ -995,6 +1104,12 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
         "resultDigest": r["provenance"]["resultDigest"],
         "resources": node_resources(doc, r),
     }
+    if "db" in nodes:
+        # how much the model's commits shared a WAL flush, and what it made them wait for
+        db = nodes["db"]
+        out["database"] = {
+            k: db.get(k) for k in ("commitsPerFlush", "meanLockWaitMs", "meanCommitWaitMs")
+        }
     if "cache" in nodes:
         out["cacheHitRatio"] = nodes["cache"].get("hitRatio")
     if "kafka" in nodes:
@@ -1080,6 +1195,7 @@ def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
         "at": now(),
         "engineVersion": ENGINE_VERSION,
         "reportVersion": REPORT_VERSION,
+        "provenance": provenance(),
         "objective": {"p95Ms": OBJECTIVE_P95_MS, "minSuccess": MIN_SUCCESS},
         "knee": knee,
         "steps": results,
@@ -1606,24 +1722,229 @@ def predict_resources(results: Path = RESULTS) -> list[Path]:
 
 
 # ---------------------------------------------------------------------------------------------
+# development checks: today's model against kept measurements (in-sample, never a prediction)
+# ---------------------------------------------------------------------------------------------
+
+DEV_KIND = "in-sample re-simulation"
+DEV_HOW = (
+    "Inputs derived again from this run's calibration passes with today's run.py, and its "
+    "measured load steps simulated with today's engine. It is designed after the measurements "
+    "were seen, so it checks a model change against data the change may have been tuned on: it "
+    "is never a prediction and never shown as one."
+)
+LATENCY_FIELDS = ("p50", "p95", "p99", "successRate", "throughputRps")
+
+
+def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str, Any]:
+    """A run's model inputs derived again from its calibration passes alone, and anchored again,
+    as calibrate() would with today's code."""
+    passes = calibration["passes"]
+    inputs = model_inputs(exp, passes)
+    anchor(exp, inputs, passes["high"])
+    return inputs
+
+
+def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] | None:
+    """One kept run checked with today's model: its inputs derived again, its measured ladder
+    and the knee simulated, and the comparison with what it measured. None for a run whose
+    calibration today's code cannot read (run 1 had one pass, not two)."""
+    from archsim_engine.version import ENGINE_VERSION
+
+    exp = EXPERIMENTS[exp_id]
+    cal, meas = read_json(d / "calibration.json"), read_json(d / "measured.json")
+    if not (cal and meas) or not {"low", "high"} <= set(cal.get("passes", {})):
+        return None
+    try:
+        inputs = rederive_inputs(exp, cal)
+    except (KeyError, SystemExit) as e:  # an early protocol lacks a pass today's code reads
+        log(f"{exp_id} ({d.name}): today's inputs cannot be derived from it ({e})")
+        return None
+    sims = [simulate(design(exp, inputs, s["offeredRps"])) for s in meas["steps"]]
+    knee = predicted_knee(exp, inputs)
+    committed = read_json(d / "predictions.json") or {}
+    by = {s["offeredRps"]: s for s in committed.get("steps", [])}
+    same = [
+        s["offeredRps"] in by
+        and all(s.get(k) == by[s["offeredRps"]].get(k) for k in LATENCY_FIELDS)
+        for s in sims
+    ]
+    return {
+        "experiment": exp_id,
+        "results": d.relative_to(results).as_posix(),
+        "calibratedAt": cal.get("at"),
+        "calibrationMethod": cal.get("method"),
+        "kind": DEV_KIND,
+        "designedAfterMeasurements": True,
+        "how": DEV_HOW,
+        "at": now(),
+        "engineVersion": ENGINE_VERSION,
+        "provenance": provenance(),
+        # True when today's run.py derives the very inputs the run's predictions used
+        "inputsAsCalibrated": inputs == cal.get("inputs"),
+        "sameLatencyAsPredictions": {
+            "steps": sum(same),
+            "of": len(sims),
+            "predictedWith": committed.get("engineVersion"),
+        },
+        "inputs": inputs,
+        "knee": knee,
+        "steps": sims,
+        "comparison": compare(exp, {"knee": knee, "steps": sims}, meas),
+    }
+
+
+def dev_path(results: Path, engine: str, exp_id: str, check: Mapping[str, Any]) -> Path:
+    """results/dev/<engine>/<experiment>/<calibrated at>.json: named by the calibration, which
+    stays with the run when a newer run moves it into run-N/."""
+    name = str(check.get("calibratedAt") or check["results"].replace("/", "_"))
+    return results / "dev" / engine / exp_id / f"{name.replace(':', '-')}.json"
+
+
+def resimulate(results: Path = RESULTS, only: str | None = None) -> list[Path]:
+    """A development check of every kept run (``dev_check``), written under results/dev/. One
+    process per run; no Docker."""
+    from archsim_engine.version import ENGINE_VERSION
+
+    runs = [(e, d) for e, d in result_dirs(results) if only in (None, e)]
+    log(f"checking {len(runs)} kept runs with engine {ENGINE_VERSION} (in-sample)")
+    with ProcessPoolExecutor(max_workers=min(len(runs) or 1, os.cpu_count() or 2)) as pool:
+        checks = list(
+            pool.map(dev_check, [e for e, _ in runs], [d for _, d in runs], [results] * len(runs))
+        )
+    written = []
+    for (exp_id, d), check in zip(runs, checks, strict=True):
+        if check is None:
+            log(f"{exp_id} ({d.name}): skipped, no two-pass calibration")
+            continue
+        path = dev_path(results, ENGINE_VERSION, exp_id, check)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_json(path, check)
+        written.append(path)
+        c = check["comparison"]
+        log(
+            f"{exp_id} ({d.name}): knee measured {c['measuredKnee'].get('kneeRps')}, "
+            f"simulated {c['predictedKnee'].get('kneeRps')} (error {c['kneeError']}); "
+            f"inputs as calibrated: {check['inputsAsCalibrated']}"
+        )
+    return written
+
+
+# ---------------------------------------------------------------------------------------------
+# environment check: the machine itself, before a run is trusted (no prediction)
+# ---------------------------------------------------------------------------------------------
+
+ENVCHECK_RATES = (50, 100, 200, 400, 800, 1600)
+ENVCHECK_S = 15
+TIMER_TICK_MS = 15.625
+"""Windows' default timer interval: latencies that pile up near it come from the host."""
+
+
+def vm_cpu_times() -> tuple[int, int] | None:
+    """(steal, total) jiffies of Docker's VM, from /proc/stat inside the stack's PostgreSQL."""
+    text = compose("exec", "-T", "postgres", "cat", "/proc/stat", capture=True, check=False)
+    for line in text.splitlines():
+        if line.startswith("cpu "):
+            v = [int(x) for x in line.split()[1:]]
+            return (v[7] if len(v) > 7 else 0), sum(v[:8])
+    return None
+
+
+def sweep_step(exp: Experiment, rate: float) -> dict[str, Any]:
+    """One rate of the environment check: 5 s warm-up, statistics reset, ENVCHECK_S recorded."""
+    target = target_for(exp)
+    log(f"envcheck: {rate:g} req/s (k6 on CPUs {os.environ.get('BENCH_CPUS_K6')})")
+    k6(target, exp.mix, rate, 0, 5, "env-warm", exp.keys, exp.skew)
+    http_json(f"{API}/reset", "POST")
+    cpu0 = {s: cpu_usec(s) for s in services_for(exp)}
+    t0 = vm_cpu_times()
+    summary = k6(target, exp.mix, rate, 0, ENVCHECK_S, "env", exp.keys, exp.skew)
+    t1 = vm_cpu_times()
+    cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
+    svc = http_json(f"{API}/stats")
+    m = k6_measured(summary, ENVCHECK_S)
+    pg_ms = cpu_ms(cpu0.get("postgres"), cpu1.get("postgres"))
+    requests = svc.get("requests") or 0
+    return {
+        "rateRps": rate,
+        "k6": {k: m.get(k) for k in ("p50", "p95", "p99", "successRate")},
+        "serviceCpuMsPerRequest": svc.get("cpuMsPerRequest"),
+        "postgresCpuMsPerRequest": round(pg_ms / requests, 4) if pg_ms and requests else None,
+        "nearTimerTick": [
+            k for k in ("p95", "p99") if m.get(k) and abs(m[k] - TIMER_TICK_MS) <= 1.5
+        ],
+        "vmSteal": (round((t1[0] - t0[0]) / max(t1[1] - t0[1], 1), 4) if t0 and t1 else None),
+    }
+
+
+def envcheck(results: Path = RESULTS) -> Path:
+    """Characterise the machine on pg-mixed's workload: which CPUs share a physical core, how
+    much CPU Docker's VM loses to steal, and the service's and PostgreSQL's CPU per request and
+    the latency across rates, with k6 on the CPUs the runner gives it and again with the
+    service's physical core left to the service alone. Writes results/envcheck/<at>.json."""
+    exp = EXPERIMENTS["pg-mixed"]
+    siblings = cpu_siblings() or {}
+    default = cpusets("postgres")
+    service_core = {c for cpu in cpu_list(default["api"]) for c in core_of(cpu, siblings)}
+    alone = ",".join(str(c) for c in cpu_list(default["k6"]) if c not in service_core)
+    layouts = {"runner": default["k6"], "serviceCoreAlone": alone}
+    started = now()
+    stack_up("postgres")
+    try:
+        settle(exp)
+        sweeps: dict[str, dict[str, Any]] = {}
+        for name, k6_cpus in layouts.items():
+            os.environ["BENCH_CPUS_K6"] = k6_cpus
+            sweeps[name] = {
+                "k6Cpus": k6_cpus,
+                "topology": topology({**default, "k6": k6_cpus}, siblings),
+                "steps": [sweep_step(exp, r) for r in ENVCHECK_RATES],
+            }
+    finally:
+        stack_down("postgres")
+    out = {
+        "at": started,
+        "environment": environment(),
+        "workload": exp.id,
+        "how": (
+            f"each rate: 5 s warm-up, then {ENVCHECK_S} s recorded; CPU per request from the "
+            "service's own counter and PostgreSQL's cgroup; steal from the VM's /proc/stat"
+        ),
+        "layouts": sweeps,
+    }
+    path = results / "envcheck" / f"{started.replace(':', '-')}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(path, out)
+    for name, sw in sweeps.items():
+        for s in sw["steps"]:
+            log(
+                f"{name:16} {s['rateRps']:>5} req/s: service {s['serviceCpuMsPerRequest']} ms, "
+                f"postgres {s['postgresCpuMsPerRequest']} ms per request, p95 {s['k6']['p95']}, "
+                f"steal {s['vmSteal']}{' NEAR TIMER TICK' if s['nearTimerTick'] else ''}"
+            )
+    return path
+
+
+# ---------------------------------------------------------------------------------------------
 
 
 def now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def environment() -> dict[str, Any]:
-    def run(*cmd: str) -> str:
-        return subprocess.run(cmd, text=True, capture_output=True, check=False).stdout.strip()
+def _run(*cmd: str) -> str:
+    return subprocess.run(cmd, text=True, capture_output=True, check=False).stdout.strip()
 
+
+def cpu_name() -> str:
+    """The host's CPU model, as the OS names it."""
     cpu = platform.processor()
     if sys.platform == "win32":
-        cpu = (
-            run("powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_Processor).Name")
+        return (
+            _run("powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_Processor).Name")
             or cpu
         )
-    elif Path("/proc/cpuinfo").exists():
-        cpu = next(
+    if Path("/proc/cpuinfo").exists():
+        return next(
             (
                 ln.split(":", 1)[1].strip()
                 for ln in Path("/proc/cpuinfo").read_text().splitlines()
@@ -1631,14 +1952,71 @@ def environment() -> dict[str, Any]:
             ),
             cpu,
         )
+    return cpu
+
+
+def machine_id(cpu: str | None = None) -> str:
+    """A short name for the machine a run measured on: BENCH_MACHINE when set, else the CPU
+    model ("11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz" -> "i7-1165g7"). Never the host
+    name, which can identify a person."""
+    if named := os.environ.get("BENCH_MACHINE"):
+        return named
+    text = (cpu if cpu is not None else cpu_name()).lower()
+    # vendor words go; a word inside a model name ("64-core") stays
+    text = re.sub(
+        r"@.*|\(r\)|\(tm\)|\b\d+(st|nd|rd|th) gen\b|(?<![\w-])(intel|amd|core|cpu|processor)(?![\w-])",
+        " ",
+        text,
+    )
+    return "-".join(text.split()) or "unknown"
+
+
+HARNESS = (
+    "benchmarks/run.py",
+    "benchmarks/compose.yaml",
+    "benchmarks/service",
+    "benchmarks/k6",
+    "benchmarks/db",
+)
+"""What turns calibration passes into predictions and measurements, besides the engine."""
+
+
+def git(*args: str) -> str | None:
+    try:
+        proc = subprocess.run(
+            ["git", *args], cwd=HERE.parent, text=True, capture_output=True, check=False
+        )
+    except OSError:
+        return None
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def provenance() -> dict[str, Any]:
+    """What produced a prediction: the commit, the engine's source tree and the harness's (git
+    object ids, so the same on every machine and line-ending setting), whether either had
+    uncommitted changes (then the ids do not describe what ran), and the machine."""
+    parts = [f"{p} {git('rev-parse', f'HEAD:{p}')}" for p in HARNESS]
+    status = git("status", "--porcelain", "--", "packages/engine", *HARNESS)
+    return {
+        "commit": git("rev-parse", "HEAD"),
+        "engineTree": git("rev-parse", "HEAD:packages/engine"),
+        "harnessHash": hashlib.sha256("\n".join(parts).encode()).hexdigest(),
+        "dirty": None if status is None else bool(status),
+        "machineId": machine_id(),
+    }
+
+
+def environment() -> dict[str, Any]:
+    cpu = cpu_name()
     return {
         "cpu": cpu,
+        "machineId": machine_id(cpu),
         "os": platform.platform(),
-        "docker": run(
+        "docker": _run(
             "docker", "version", "--format", "{{.Server.Version}} ({{.Server.Os}}/{{.Server.Arch}})"
         ),
-        "dockerCpus": run("docker", "info", "--format", "{{.NCPU}}"),
-        "dockerMemory": run("docker", "info", "--format", "{{.MemTotal}}"),
+        "dockerCpus": _run("docker", "info", "--format", "{{.NCPU}}"),
+        "dockerMemory": _run("docker", "info", "--format", "{{.MemTotal}}"),
         "images": {
             "postgres": "postgres:16-alpine",
             "redis": "redis:7-alpine",
@@ -1661,9 +2039,17 @@ def run_experiment(exp: Experiment) -> None:
     save(exp.id, "calibration", calibration)
     predictions = predict(exp, calibration)
     save(exp.id, "predictions", predictions)  # written before any measured step runs
+    # Its fingerprint goes to the log and into measured.json before the first measured step.
+    sealed = hashlib.sha256((RESULTS / exp.id / "predictions.json").read_bytes()).hexdigest()
+    log(f"{exp.id}: predictions saved, sha256 {sealed}")
     # These predictions carry CPU and memory: a re-simulation left by older results is stale.
     (RESULTS / exp.id / "resources-predicted.json").unlink(missing_ok=True)
-    measured: dict[str, Any] = {"experiment": exp.id, "at": now(), "steps": []}
+    measured: dict[str, Any] = {
+        "experiment": exp.id,
+        "at": now(),
+        "predictionsSha256": sealed,
+        "steps": [],
+    }
     for step in [s["offeredRps"] for s in predictions["steps"]]:
         measured["steps"].append(measure_step(exp, step))
         save(exp.id, "measured", measured)
@@ -1703,9 +2089,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "stack",
-        choices=[*STACKS, "all", "compare", "resources"],
-        help="a stack to run, all of them, 'compare': recompute every comparison.json, or "
-        "'resources': predict CPU and memory for results whose predictions have none, then compare",
+        choices=[*STACKS, "all", "compare", "resources", "resimulate", "envcheck"],
+        help="a stack to run, all of them, 'compare': recompute every comparison.json, "
+        "'resources': predict CPU and memory for results whose predictions have none, then "
+        "compare, 'resimulate': check today's model against every kept run (in-sample, written "
+        "under results/dev/), or 'envcheck': characterise this machine (CPU siblings, steal, CPU "
+        "per request across rates; about 8 minutes of Docker)",
     )
     ap.add_argument("--keep", action="store_true", help="leave the stack running afterwards")
     ap.add_argument("--only", choices=list(EXPERIMENTS), help="run one experiment of the stack")
@@ -1715,6 +2104,13 @@ def main(argv: list[str] | None = None) -> int:
         help="first move each experiment's latest results into its next run-N/ (kept history)",
     )
     args = ap.parse_args(argv)
+    if args.stack == "resimulate":
+        for path in resimulate(only=args.only):
+            log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
+        return 0
+    if args.stack == "envcheck":
+        log(f"wrote {envcheck().relative_to(HERE.parent).as_posix()}")
+        return 0
     if args.stack == "resources":
         for path in predict_resources():
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
@@ -1724,6 +2120,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     stacks = list(STACKS) if args.stack == "all" else [args.stack]
     env = environment()
+    siblings = cpu_siblings()
     for stack in stacks:
         stack_up(stack)
         try:
@@ -1732,7 +2129,16 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 if args.archive and (kept := archive(exp_id)):
                     log(f"{exp_id}: kept the previous results in {kept.relative_to(HERE.parent)}")
-                save(exp_id, "environment", {**env, "cpusets": cpusets(stack)})
+                sets = cpusets(stack)
+                save(
+                    exp_id,
+                    "environment",
+                    {
+                        **env,
+                        "cpusets": sets,
+                        **({"topology": topology(sets, siblings)} if siblings else {}),
+                    },
+                )
                 run_experiment(EXPERIMENTS[exp_id])
         finally:
             if not args.keep:

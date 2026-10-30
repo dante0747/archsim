@@ -7,6 +7,26 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**Benchmark harness, environment check and provenance (2026-10-30; accuracy plan W18).**
+
+- `run.py resimulate` derives every kept run's inputs again from its calibration passes and
+  simulates its measured steps with today's engine (`results/dev/<engine>/`); `report.py --dev`
+  writes `docs/validation/dev-checks.md`. In-sample, never on the validation page or /accuracy.
+  With engine 0.14.0 it reproduces every run calibrated under v3 or v4 exactly, inputs and
+  latency at every step (including predictions first made with engine 0.7.0); the median
+  absolute knee error is 29%.
+- `model_inputs()` and `design()` are split into one function per part (service, queue,
+  database, cache), so the model changes that follow edit separate functions; `simulate()` also
+  reports the database's commits per flush, lock wait and commit wait.
+- `run.py envcheck` characterises the machine: CPU siblings inside Docker's VM, steal, and CPU
+  per request and p95 across 50 to 1,600 req/s in two layouts. On the laptop (30 Oct) the
+  service's CPU per request fell from 0.96 ms at 50 req/s to 0.21 ms at 1,600, and PostgreSQL's
+  from 0.93 to 0.19, settling only from about 800 req/s: the calibration passes sit where the
+  cost is highest. k6 on the service's hyperthread sibling cost 10-15% more CPU per request, so
+  the runner now leaves that sibling idle. Each run's `environment.json` records its topology.
+- `predictions.json` records its provenance (commit, engine and harness git object ids, a dirty
+  flag, `machineId`); its sha256 is logged and stored in `measured.json` before the first step.
+
 **Measured CPU and memory inputs (2026-10-30, engine 0.14.0, schema 1.5; sizing plan W17).**
 
 - Services get `cpuShare` (the share of service time that needs a core, default 1) and
