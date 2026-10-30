@@ -224,6 +224,200 @@ def test_compare() -> None:
     assert c["belowKnee"]["maxAbsP95Error"] == pytest.approx(1.0)
 
 
+# ---------------------------------------------------------------------------------------------
+# protocol v5: staircase, replicates and the predicted range
+# ---------------------------------------------------------------------------------------------
+
+
+def laptop_cpu(rate: float) -> float:
+    """CPU per request that falls with load, as on the laptop (0.2 ms plus 40 ms per second)."""
+    return 0.2 + 40 / rate
+
+
+def fake_pass(mix: str, rate: float, idle_ms_per_s: float = 1.0) -> dict[str, Any]:
+    n = int(rate * run.CALIBRATION_S)
+    cpu = laptop_cpu(rate)
+
+    def t(mean: float, share: float = 1.0) -> dict[str, float]:
+        count = round(n * share)
+        return {
+            "count": count,
+            "mean": mean,
+            "median": mean * 0.9,
+            "p95": mean * 2,
+            "p99": mean * 3,
+        }
+
+    return {
+        "mix": mix,
+        "rateRps": rate,
+        "k6": {"p50": 1.0, "p95": 2.0, "p99": 3.0, "mean": 1.2, "sent": n, "succeeded": n},
+        "service": {
+            "cpuMs": cpu * n + idle_ms_per_s * run.CALIBRATION_S,
+            "cpuMsPerRequest": cpu,
+            "requests": n,
+            "timings": {
+                "own": t(0.02),
+                "handler": t(0.8),
+                "db_read": t(0.5, 0.9),
+                "db_write": t(2.0, 0.1),
+                "db_write_async": t(0.7),
+            },
+        },
+        "containerCpuMs": {"api": cpu * n, "postgres": 0.15 * n + 2.0 * run.CALIBRATION_S},
+    }
+
+
+IDLE = {
+    "seconds": run.IDLE_S,
+    "containerCpuMsPerSecond": {"api": 1.0, "postgres": 2.0},
+    "serviceCpuMsPerSecond": 1.0,
+}
+
+
+def fake_calibration(monkeypatch: pytest.MonkeyPatch) -> tuple[dict[str, Any], list[str]]:
+    labels: list[str] = []
+
+    def steady(exp: Any, mix: str, rate: float, label: str, discarded: list[Any]) -> Any:
+        labels.append(f"{mix.split(':')[0]} {label} @{rate:g}")
+        return fake_pass(mix, rate)
+
+    monkeypatch.setattr(run, "settle", lambda exp: {"at": "t"})
+    monkeypatch.setattr(run, "idle_pass", lambda exp: IDLE)
+    monkeypatch.setattr(run, "steady_pass", steady)
+    monkeypatch.setattr(run, "anchor", lambda exp, inputs, high: None)
+    return run.calibrate(PG_MIXED), labels
+
+
+def test_staircase_climbs_to_a_third_of_the_core_then_down_and_up(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cal, labels = fake_calibration(monkeypatch)
+    # 50 req/s at 1.0 ms: the next rate is 35% of a core (350); at 0.31 ms half the capacity
+    # bound or 35% of the core, whichever is lower (1,114), then 1,484, then no more rises
+    assert cal["staircaseRps"] == [50, 350, 1114, 1484]
+    assert cal["protocol"] == "v5" and "(v5)" in cal["method"]
+    main = [x for x in labels if x.startswith("read")]
+    assert main == [
+        "read up 1 @50", "read up 2 @350", "read up 3 @1114", "read up 4 @1484",
+        "read down 4 @1484", "read down 3 @1114", "read down 2 @350", "read down 1 @50",
+        "read top 3 @1484",
+    ]  # fmt: skip
+    # the auxiliary mix right after each top pass, at the same rate
+    assert [x for x in labels if x.startswith("write_async")] == [
+        "write_async write_async 1 @1484",
+        "write_async write_async 2 @1484",
+        "write_async write_async 3 @1484",
+    ]
+    assert len(cal["replicates"]) == len(cal["inputReplicates"]) == run.REPLICATES
+    assert [p["passes"] for p in cal["cpuByLoad"]] == [2, 2, 2, 3]
+    by_rate = {p["rateRps"]: p["serviceCpuMsPerRequest"] for p in cal["cpuByLoad"]}
+    assert by_rate[50] == pytest.approx(laptop_cpu(50), abs=1e-4)  # net of the idle 1 ms/s
+    assert by_rate[1484] == pytest.approx(laptop_cpu(1484), abs=1e-4)
+
+
+def test_a_disturbed_top_pass_is_replaced_not_used(monkeypatch: pytest.MonkeyPatch) -> None:
+    # the first pass at the top rate stalls even on its retry (as pg-mixed's did in the trial)
+    labels: list[str] = []
+
+    def steady(exp: Any, mix: str, rate: float, label: str, discarded: list[Any]) -> Any:
+        labels.append(label)
+        entry = fake_pass(mix, rate)
+        if label == "up 4":
+            entry["k6"] |= {"p50": 3.3, "p95": 46.0}  # 14x the median
+        return entry
+
+    monkeypatch.setattr(run, "settle", lambda exp: {"at": "t"})
+    monkeypatch.setattr(run, "idle_pass", lambda exp: IDLE)
+    monkeypatch.setattr(run, "steady_pass", steady)
+    monkeypatch.setattr(run, "anchor", lambda exp, inputs, high: None)
+    cal = run.calibrate(PG_MIXED)
+    # the stalled pass also stopped the staircase from rising further
+    assert [x for x in labels if x.startswith(("top", "down 4"))] == ["down 4", "top 3", "top 4"]
+    assert len(cal["inputReplicates"]) == run.REPLICATES
+    assert [p["k6"]["p95"] for p in cal["disturbedReplicates"]] == [46.0]
+    assert "median of 3 replicates" in cal["method"]
+
+
+def test_v5_cpu_per_request_is_the_top_pass_net_of_idle(monkeypatch: pytest.MonkeyPatch) -> None:
+    cal, _ = fake_calibration(monkeypatch)
+    how = cal["inputs"]["serviceTimeMs"]["how"]
+    assert how.startswith("the median of 3 replicates (")
+    assert "mean = Node's CPU per request at 1484 req/s net of idle" in how
+    assert f"= {laptop_cpu(1484):.4f} ms" in how
+    # PostgreSQL: 0.15 ms per query once its 2 ms/s at rest is taken off, over the mean query
+    queries = 0.9 * 0.5 + 0.1 * 2.0  # every request is one read or one write
+    assert cal["inputs"]["dbCpuShare"]["value"] == pytest.approx(0.15 / queries, abs=1e-3)
+
+
+def test_staircase_stops_on_a_slow_pass() -> None:
+    slow = fake_pass("read:0.9,write:0.1", 50)
+    slow["k6"]["p95"] = run.STAIRCASE_P95_CAP_MS + 1
+    assert run.next_rise(PG_MIXED, slow) is None
+    flat = fake_pass("read:0.9,write:0.1", 50)
+    flat["service"]["cpuMsPerRequest"] = 10.0  # 35% of a core is 35 req/s: no rise
+    assert run.next_rise(PG_MIXED, flat) is None
+
+
+def test_staircase_caps_a_share_of_every_cpu_the_service_has(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = fake_pass("read:0.9,write:0.1", 50)
+    entry["service"]["cpuMsPerRequest"] = 2.0  # 35% of one CPU: 175 req/s
+    assert run.service_cpus(PG_MIXED) == 1
+    assert run.next_rise(PG_MIXED, entry) == 175
+    monkeypatch.setenv("BENCH_CPUS_SERVICE", "2,3")  # a service with two CPUs: twice as far
+    assert run.service_cpus(PG_MIXED) == 2
+    assert run.next_rise(PG_MIXED, entry) == 350
+
+
+def test_median_inputs_takes_each_input_from_its_median_replicate() -> None:
+    reps = [
+        {
+            "serviceTimeMs": {
+                "value": {"kind": "lognormal", "median": m, "p95": p},
+                "how": f"rep {i}",
+            },
+            "clientLinkLatencyMs": {"value": c, "how": "x"},
+            "measuredLowLoad": {"rateRps": 1483, "p50": c * 2},
+        }
+        for i, (m, p, c) in enumerate([(0.2, 0.5, 0.1), (0.3, 0.4, 0.3), (0.25, 0.9, 0.2)])
+    ]
+    out = run.median_inputs(reps)
+    # each input whole from the replicate whose median is the median: its p95 comes with it
+    assert out["serviceTimeMs"]["value"] == {"kind": "lognormal", "median": 0.25, "p95": 0.9}
+    assert out["serviceTimeMs"]["how"] == "the median of 3 replicates (third): rep 2"
+    assert out["clientLinkLatencyMs"]["value"] == 0.2
+    assert out["measuredLowLoad"] == {"rateRps": 1483, "p50": 0.4}  # number by number
+    # a disturbed replicate (a slow outlier) never sets an input
+    reps[0]["serviceTimeMs"] = {
+        "value": {"kind": "lognormal", "median": 0.9, "p95": 9.0},
+        "how": "x",
+    }
+    assert run.median_inputs(reps)["serviceTimeMs"]["value"]["median"] == 0.3
+    assert (
+        run.primary({"kind": "exponential", "mean": 0.005}) == 0.005 and run.primary(True) is None
+    )
+
+
+def test_knee_range_and_whether_it_holds_the_measured_knee() -> None:
+    assert run.knee_range_of(1000, [950]) is None  # one replicate is no range
+    r = run.knee_range_of(1000, [900, 1100, 1000])
+    assert r is not None
+    assert (r["lowRps"], r["highRps"], r["nominalCoverage"]) == (900, 1100, 0.5)
+    assert run.in_range(r, {"kneeRps": 950.0}) is True
+    assert run.in_range(r, {"kneeRps": 1200.0}) is False
+    assert run.in_range(r, {"kneeRps": None, "bound": "above", "aboveRps": 1050}) is True
+    assert run.in_range(r, {"kneeRps": None, "bound": "above", "aboveRps": 1200}) is False
+    assert run.in_range(None, {"kneeRps": 950.0}) is None
+    predictions, measured = synthetic()  # the measured knee is 300 req/s
+    predictions["kneeRange"] = run.knee_range_of(340, [280, 360, 330])
+    c = run.compare(PG_MIXED, predictions, measured)
+    assert c["kneeRange"]["containsMeasured"] is True
+    predictions["kneeRange"] = run.knee_range_of(340, [320, 360, 330])
+    assert run.compare(PG_MIXED, predictions, measured)["kneeRange"]["containsMeasured"] is False
+
+
 def test_at_or_below_knee() -> None:
     rows = [{"offeredRps": 100}, {"offeredRps": 200}]
     assert run.at_or_below_knee(rows, {"kneeRps": 150.0}) == [{"offeredRps": 100}]
@@ -658,17 +852,74 @@ def cmp_row(rps: float, meas: float | None, pred: float | None, unstable: bool =
     }
 
 
+def passing_run(machine: str = "a", error: float = -0.2, **kw: Any) -> dict[str, Any]:
+    """A kept run as history() records it, which met criteria 2 and 3a."""
+    checks = {"kneeError": error, "steps": 2, "misses": [], "unstable": []}
+    checks |= {"p95Pass": True, "stablePass": True} | kw
+    return {"protocol": "v5", "machine": machine, "checks": checks, "kneeError": error}
+
+
 def test_criteria_all_met() -> None:
     c = {
         "kneeError": -0.2,
         "measuredKnee": {"kneeRps": 250.0},
         "rows": [cmp_row(100, 1.0, 2.5), cmp_row(200, 10.0, 15.0), cmp_row(300, 80.0, 900.0, True)],
     }
-    runs = [{"protocol": "v4", "machine": "a"}, {"protocol": "v4", "machine": "b"}]
+    # three runs on machine a (the last is the one compared), one on machine b
+    runs = [passing_run("b"), passing_run(), passing_run(), {"protocol": "v5", "machine": "a"}]
     k = report.criteria(c, runs)
     assert k["all"]
-    assert k["p95"] == {"pass": True, "steps": 2, "misses": []}
-    assert k["reproduced"] == {"pass": True, "protocol": "v4", "runs": 2, "machines": 2}
+    assert k["knee"] == {"pass": True, "error": -0.2, "runs": 3, "thisRun": -0.2}
+    assert k["p95"] == {"pass": True, "steps": 2, "misses": [], "runs": 3, "runsPassing": 3}
+    assert k["reproduced"] == {"pass": True, "protocol": "v5", "runs": 4, "machines": 2}
+
+
+def test_criteria_judge_the_median_over_repeated_runs() -> None:
+    c = {"kneeError": -0.1, "measuredKnee": {"kneeRps": 150.0}, "rows": [cmp_row(100, 1.0, 1.0)]}
+    runs = [passing_run(error=-0.4), passing_run(error=-0.3), {"protocol": "v5", "machine": "a"}]
+    k = report.criteria(c, runs)
+    assert (k["knee"]["error"], k["knee"]["pass"]) == (-0.3, False)  # median of -0.4, -0.3, -0.1
+    # criteria 2 and 3a hold in 2 of 3 runs: met
+    runs = [passing_run(p95Pass=False), passing_run(), {"protocol": "v5", "machine": "a"}]
+    k = report.criteria(c, runs)
+    assert k["p95"]["pass"] and k["p95"]["runsPassing"] == 2 and k["knee"]["pass"]
+    # in 1 of 3: not met
+    runs = [
+        passing_run(p95Pass=False),
+        passing_run(p95Pass=False),
+        {"protocol": "v5", "machine": "a"},
+    ]
+    assert not report.criteria(c, runs)["p95"]["pass"]
+    # fewer than three runs never meet them, whatever the error
+    k = report.criteria(c, [passing_run(), {"protocol": "v5", "machine": "a"}])
+    assert k["knee"]["runs"] == 2 and not k["knee"]["pass"] and not k["p95"]["pass"]
+
+
+def test_comparable_runs_repeat_protocol_machine_os_and_engine() -> None:
+    def r(**kw: Any) -> dict[str, Any]:
+        return {"protocol": "v5", "machine": "a", "os": "w1", "engineVersion": "0.15.0"} | kw
+
+    runs = [r(protocol="v4"), r(os="w0"), r(engineVersion="0.14.0"), r(machine="b"), r(), r()]
+    assert report.comparable(runs) == [r(), r()]
+    assert report.comparable([]) == []
+
+
+def test_repeatability_counts_the_runs_inside_the_predicted_range() -> None:
+    def r(error: float, inside: bool | None) -> dict[str, Any]:
+        rng = None if inside is None else {"nominalCoverage": 0.5, "containsMeasured": inside}
+        return {"protocol": "v5", "machine": "a", "kneeError": error, "kneeRange": rng}
+
+    rep = report.repeatability([r(-0.3, True), r(-0.1, False), r(-0.2, True)])
+    assert rep is not None
+    assert (rep["runs"], rep["medianError"], rep["inRange"], rep["withRange"]) == (3, -0.2, 2, 3)
+    assert rep["text"] == {"medianError": "-20%", "errors": "-30% to -10%", "coverage": "2 of 3"}
+    one = report.repeatability([r(-0.08, None)])
+    assert one is not None and one["text"] == {
+        "medianError": "-8%",
+        "errors": "-8%",
+        "coverage": "-",
+    }
+    assert report.repeatability([]) is None
 
 
 def test_criteria_failures() -> None:
@@ -677,9 +928,9 @@ def test_criteria_failures() -> None:
         "measuredKnee": {"kneeRps": 250.0},
         "rows": [cmp_row(100, 1.0, 5.0), cmp_row(200, 10.0, 15.0, True)],
     }
-    runs = [{"protocol": "v4", "machine": "a"}, {"protocol": "v4", "machine": "a"}]
+    runs = [{"protocol": "v5", "machine": "a"}, {"protocol": "v5", "machine": "a"}]
     k = report.criteria(c, runs)
-    assert not k["knee"]["pass"]
+    assert not k["knee"]["pass"] and k["knee"]["runs"] == 1  # earlier runs without their checks
     assert k["p95"]["misses"] == [100]
     assert k["stable"]["unstable"] == [200]
     assert not k["reproduced"]["pass"]  # two runs, one machine
@@ -723,7 +974,13 @@ def test_criteria_on_the_committed_results() -> None:
     assert got["kafka"]["p95"]["misses"] == [1760, 2000]
     assert got["pg-mixed"]["stable"]["unstable"] == []
     assert got["pg-hot-row"]["stable"]["unstable"] == [518]
-    assert [exp for exp, k in got.items() if k["knee"]["pass"]] == ["pg-mixed", "kafka"]
+    # each latest run is the only one under its protocol, machine, OS and engine: criterion 1
+    # needs three, so none meets it, whatever its error
+    assert all(k["knee"]["runs"] == 1 and not k["knee"]["pass"] for k in got.values())
+    assert {exp: k["knee"]["thisRun"] for exp, k in got.items()} == pytest.approx(
+        {"pg-mixed": -0.0790, "pg-hot-row": -0.3627, "cache-aside": -0.5149, "kafka": -0.2148},
+        abs=1e-4,
+    )
     assert not any(k["all"] for k in got.values())
     # each ran twice under v4 (runs 4 and 5 or 6) on the same laptop, before and after a Windows
     # update: an OS update is not a second machine

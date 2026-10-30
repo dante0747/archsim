@@ -18,6 +18,19 @@ k6 summaries themselves are scratch output and are not committed.
 | [kafka](#kafka) | 2,040 req/s | 1,602 req/s | -21% | 77% / 6176% (7 steps) |
 <!-- END GENERATED: summary -->
 
+Runs that repeat each experiment's latest conditions:
+
+<!-- BEGIN GENERATED: repeatability -->
+| Experiment | Runs repeating the latest | Median knee error | Knee errors | Measured knee inside the predicted range |
+| --- | --- | --- | --- | --- |
+| [pg-mixed](#pg-mixed) | 1 (v4, engine 0.13.0) | -8% | -8% | no range (protocol v5 adds it) |
+| [pg-hot-row](#pg-hot-row) | 1 (v4, engine 0.13.0) | -36% | -36% | no range (protocol v5 adds it) |
+| [cache-aside](#cache-aside) | 1 (v4, engine 0.13.0) | -51% | -51% | no range (protocol v5 adds it) |
+| [kafka](#kafka) | 1 (v4, engine 0.13.0) | -21% | -21% | no range (protocol v5 adds it) |
+
+The tier criteria below judge the median over at least 3 such runs. Protocol v5 predicts a range for the knee from its replicate calibration sets; with R sets a new run's knee should fall inside it (R - 1) / (R + 1) of the time (50% for 3), the nominal coverage.
+<!-- END GENERATED: repeatability -->
+
 The knee is the highest load that still meets the objective (p95 at most 50 ms with at least 99%
 of requests successful), interpolated between the two measured steps around it; the predicted
 knee uses the same steps and the same interpolation. The p95 error covers the steps at or below
@@ -57,6 +70,7 @@ shows up in the measurements (see the protocol history):
 uv run python benchmarks/run.py postgres   # pg-mixed and pg-hot-row
 uv run python benchmarks/run.py cache      # cache-aside
 uv run python benchmarks/run.py kafka      # kafka
+uv run python benchmarks/run.py all --runs 3  # three independent runs of each, rotating
 uv run python benchmarks/report.py --json  # rewrite this page's tables, charts and accuracy.json
 ```
 
@@ -110,20 +124,29 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
 1. **Settle** (protocol v4): after the data load, `VACUUM ANALYZE` and a checkpoint, then a
    discarded 30 s warm-up at the calibration rate, so autovacuum and cold caches do not land in a
    calibration pass.
-2. **Calibrate** in two passes of the experiment's traffic: 50 req/s, then a quarter of the most
-   pessimistic capacity the first pass implies (still low load). The service records its CPU per
-   request (Node's process CPU, including garbage collection and driver work), its own time per
-   request (handler minus awaited calls) and the time of every PostgreSQL, Redis and Kafka call;
-   the runner reads PostgreSQL's and Redis's own CPU and command time. CPU per request is the
-   slope between the passes (the fixed CPU a process burns at any rate cancels out); timings come
-   from the second pass, and the one input not measured directly (the client-to-service
-   latency) is set so the model reproduces the second pass's median. A pass whose p95 is more
-   than 10 times its median was disturbed: it is recorded, discarded and run again. Each input is
-   derived by a formula recorded next to it in `calibration.json`.
+2. **Calibrate** (protocol v5): 20 s at rest, which gives each container's idle CPU, then a
+   staircase of the experiment's traffic: 50 req/s, then each pass at half the capacity the one
+   before implies, but never more than 35% of the service's core, and no higher once a pass's
+   p95 passes 10 ms (at most three rises). The staircase then comes down again and the top rate
+   runs once more: every rate twice, the top three times, so drift on the machine shows. The
+   service records its CPU per request (Node's process CPU, including garbage collection and
+   driver work), its own time per request (handler minus awaited calls) and the time of every
+   PostgreSQL, Redis and Kafka call; the runner reads PostgreSQL's and Redis's own CPU and
+   command time. Each top pass, with the auxiliary mixes run right after it, gives one replicate
+   set of model inputs: CPU per request is the pass's CPU net of what the process burns at rest,
+   timings come from the pass, and the one input not measured directly (the client-to-service
+   latency) is set so the model reproduces the pass's median. The inputs are the replicates'
+   medians; `cpuByLoad` keeps every rate's CPU per request. A pass whose p95 is more than 10 times
+   its median was disturbed: it is recorded, discarded and run again. Each input is derived by a
+   formula recorded next to it in `calibration.json`. Protocol v4 (runs up to 6) calibrated in
+   two passes, 50 req/s and a quarter of the pessimistic capacity, and took CPU per request as
+   the slope between them; the machine check above shows why that read the cost too high.
 3. **Predict**: the runner builds the ArchSim design (one Node.js event loop on 1 vCPU, a pool of
    10 database connections, PostgreSQL on 2 vCPU, and so on), searches the knee, and simulates
    every step of the ladder: 0.25, 0.5, 0.75, 0.9, 1.0, 1.1, 1.25 and 1.5 times the predicted
-   knee. `predictions.json` is written before the first measured step, with its provenance:
+   knee. It also searches the knee of each replicate set: the lowest to the highest is the
+   predicted range, which a new run's knee should fall inside about half the time with three
+   sets ((R - 1) / (R + 1)). `predictions.json` is written before the first measured step, with its provenance:
    the commit, the engine's and the harness's git object ids, whether either had uncommitted
    changes, and the machine. Its sha256 goes to the log and into `measured.json` before the
    first step is measured. When the system still
@@ -538,12 +561,12 @@ Computed by `benchmarks/report.py` from each experiment's latest run and its kep
 split: 3a stability, 3b a second run under the same protocol on another machine):
 
 <!-- BEGIN GENERATED: tiers -->
-| Experiment | 1. Knee error within ±25% | 2. p95 within ±100% or 3 ms at or below the measured knee | 3a. No unstable step at or below the measured knee | 3b. Reproduced on a second machine, same protocol | All three |
+| Experiment | 1. Median knee error within ±25% (3+ runs) | 2. p95 within ±100% or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |
 | --- | --- | --- | --- | --- | --- |
-| pg-mixed | yes (-8%) | no: 2,238 req/s miss (4 of 5 steps within) | yes | no: 2 runs under v4, on 1 machine | no |
-| pg-hot-row | no (-36%) | no: 518, 570, 648 and 777 req/s miss (4 of 8 steps within) | no: 518 req/s unstable | no: 2 runs under v4, on 1 machine | no |
-| cache-aside | no (-51%) | no: 2,350, 2,585, 2,938, 3,525 and 4,582 req/s miss (4 of 9 steps within) | yes | no: 2 runs under v4, on 1 machine | no |
-| kafka | yes (-21%) | no: 1,760 and 2,000 req/s miss (5 of 7 steps within) | no: 1,760 req/s unstable | no: 2 runs under v4, on 1 machine | no |
+| pg-mixed | no: 1 run, 3 needed (this run -8%) | no: 2,238 req/s miss (4 of 5 steps within); 1 run, 3 needed | no: none unstable; 1 run, 3 needed | no: 2 runs under v4, on 1 machine | no |
+| pg-hot-row | no: 1 run, 3 needed (this run -36%) | no: 518, 570, 648 and 777 req/s miss (4 of 8 steps within); 1 run, 3 needed | no: 518 req/s unstable; 1 run, 3 needed | no: 2 runs under v4, on 1 machine | no |
+| cache-aside | no: 1 run, 3 needed (this run -51%) | no: 2,350, 2,585, 2,938, 3,525 and 4,582 req/s miss (4 of 9 steps within); 1 run, 3 needed | no: none unstable; 1 run, 3 needed | no: 2 runs under v4, on 1 machine | no |
+| kafka | no: 1 run, 3 needed (this run -21%) | no: 1,760 and 2,000 req/s miss (5 of 7 steps within); 1 run, 3 needed | no: 1,760 req/s unstable; 1 run, 3 needed | no: 2 runs under v4, on 1 machine | no |
 
 A technology meets the thresholds when every experiment that exercises it meets all three: Node.js (pg-mixed, pg-hot-row, cache-aside, kafka); PostgreSQL (pg-mixed, pg-hot-row, cache-aside, kafka); Redis (cache-aside); Kafka (kafka). None meets them on this data.
 <!-- END GENERATED: tiers -->

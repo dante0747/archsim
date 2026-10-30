@@ -22,6 +22,7 @@ import {
   lowLoadSentence,
   minus,
   p95Sentence,
+  repeatSentence,
   spreadSentence,
   topStepText,
 } from "@/lib/accuracy";
@@ -97,7 +98,9 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
         </div>
         <div>
           <dt className="text-[12px] font-medium uppercase tracking-wide text-ink-3">Run to run</dt>
-          <dd className="mt-1 text-ink">{spreadSentence(x)}</dd>
+          <dd className="mt-1 text-ink">
+            {spreadSentence(x)} {repeatSentence(x)}
+          </dd>
         </div>
         <div>
           <dt className="text-[12px] font-medium uppercase tracking-wide text-ink-3">Latency below the knee</dt>
@@ -114,11 +117,13 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
       <div className="mt-5 rounded-xl bg-surface-2 p-4">
         <p className="text-[13px] font-medium text-ink">Proposed thresholds for &ldquo;validated&rdquo;</p>
         <ul className="mt-2 grid gap-1.5 text-[13px] text-ink-2 sm:grid-cols-2">
-          <YesNo ok={c.knee.pass}>Knee within ±{Math.round(t.kneeError * 100)}%:</YesNo>
-          <YesNo ok={c.p95.pass}>
-            p95 within ±{Math.round(t.p95Error * 100)}% or {t.p95Ms} ms below the knee:
+          <YesNo ok={c.knee.pass}>
+            Median knee error within ±{Math.round(t.kneeError * 100)}% over 3+ runs ({c.knee.runs} so far):
           </YesNo>
-          <YesNo ok={c.stable.pass}>No unstable step below the knee:</YesNo>
+          <YesNo ok={c.p95.pass}>
+            p95 within ±{Math.round(t.p95Error * 100)}% or {t.p95Ms} ms below the knee, in 2 of 3 runs:
+          </YesNo>
+          <YesNo ok={c.stable.pass}>No unstable step below the knee, in 2 of 3 runs:</YesNo>
           <YesNo ok={c.reproduced.pass}>
             Reproduced on a second machine ({c.reproduced.runs} run{c.reproduced.runs === 1 ? "" : "s"} under {c.reproduced.protocol}):
           </YesNo>

@@ -57,10 +57,11 @@ export interface LowLoadStep {
   text: { offered: string; fraction: string; measuredP95: string; predictedP95: string; diff: string; p95Error: string };
 }
 
+/** Criteria 1, 2 and 3a are judged over the runs that repeat the latest (`runs` of them, 3 needed). */
 export interface Criteria {
-  knee: { pass: boolean; error: number | null };
-  p95: { pass: boolean; steps: number; misses: number[] };
-  stable: { pass: boolean; unstable: number[] };
+  knee: { pass: boolean; error: number | null; runs: number; thisRun: number | null };
+  p95: { pass: boolean; steps: number; misses: number[]; runs: number; runsPassing: number };
+  stable: { pass: boolean; unstable: number[]; runs: number; runsPassing: number };
   reproduced: { pass: boolean; protocol: string | null; runs: number; machines: number };
   all: boolean;
 }
@@ -121,6 +122,30 @@ export interface Resources {
   steps: { offeredRps: number; atOrBelowKnee: boolean; text: { offered: string }; parts: Record<string, ResourceCell> }[];
 }
 
+export interface KneeRange {
+  lowRps: number;
+  highRps: number;
+  nominalRps: number;
+  values: number[];
+  replicates: number;
+  nominalCoverage: number;
+  containsMeasured: boolean | null;
+}
+
+export interface Repeatability {
+  runs: number;
+  protocol: string | null;
+  engineVersion: string | null;
+  errors: number[];
+  medianError: number | null;
+  minError: number | null;
+  maxError: number | null;
+  withRange: number;
+  inRange: number;
+  nominalCoverage: number | null;
+  text: { medianError: string; errors: string; coverage: string };
+}
+
 export interface Experiment {
   id: string;
   name: string;
@@ -144,6 +169,10 @@ export interface Experiment {
     withinTolerance: boolean;
     text: { measured: string; predicted: string; error: string; absError: string };
   };
+  /** ArchSim's predicted range for the knee (protocol v5: one knee per replicate calibration set). */
+  kneeRange: KneeRange | null;
+  /** The runs that repeat this one: same protocol, machine, OS build and engine. */
+  repeatability: Repeatability | null;
   spread: Spread | null;
   spreadExceedsError: boolean;
   p95BelowKnee: {
@@ -170,9 +199,11 @@ export interface HistoryRun {
   /** The hardware (its CPU); an OS update on it is not a second machine. */
   machine: string;
   os: string | null;
+  engineVersion: string | null;
   measuredKnee: Knee;
   predictedKnee: Knee;
   kneeError: number | null;
+  kneeRange: { lowRps: number; highRps: number; nominalCoverage: number; containsMeasured: boolean | null } | null;
   text: { measuredKnee: string; predictedKnee: string; kneeError: string };
 }
 
@@ -195,6 +226,9 @@ export interface Accuracy {
     withSpread: string[];
     spreadExceedsError: string[];
     inSample: string[];
+    /** Experiments whose latest conditions ran at least 3 times. */
+    repeated: string[];
+    coverage: { withRange: number; inRange: number };
     technologies: { name: string; experiments: string[]; validated: boolean }[];
   };
   experiments: Experiment[];
@@ -310,6 +344,20 @@ export function cpuSentence(experiments: Experiment[]): string | null {
   const hi = sorted[sorted.length - 1];
   const range = lo === hi ? label(lo) : `${label(lo)} to ${label(hi)}`;
   return `ArchSim's CPU predictions (busy cores) were off by a median of ${range} at the load steps up to both knees.`;
+}
+
+/** How the latest run's conditions repeated, and how often the predicted range held the measured knee. */
+export function repeatSentence(x: Experiment, minRuns = 3): string {
+  const r = x.repeatability;
+  if (!r) return "";
+  const where = `protocol ${r.protocol ?? "-"}, engine ${r.engineVersion ?? "-"}`;
+  const head =
+    r.runs < minRuns
+      ? `${r.runs} run${r.runs === 1 ? "" : "s"} under these conditions (${where}); the thresholds need ${minRuns}.`
+      : `Over ${r.runs} runs under these conditions (${where}) the knee error had a median of ${minus(r.text.medianError)} (${minus(r.text.errors)}).`;
+  if (!r.withRange) return head;
+  const nominal = r.nominalCoverage === null ? "" : ` (expected about ${Math.round(r.nominalCoverage * 100)}%)`;
+  return `${head} The measured knee fell inside ArchSim's predicted range in ${r.text.coverage} runs${nominal}.`;
 }
 
 /** What the run-to-run spread says next to the knee error. */

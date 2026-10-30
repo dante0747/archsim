@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type Experiment,
+  type Repeatability,
   type ResourcePart,
   type Spread,
   accuracy,
@@ -13,6 +14,7 @@ import {
   lowLoadSentence,
   minus,
   p95Sentence,
+  repeatSentence,
   spreadSentence,
   topStepText,
 } from "./accuracy";
@@ -132,6 +134,45 @@ describe("plain-language lines", () => {
     expect(cpuSentence([exp({ resources: null })])).toBeNull();
     expect(topStepText({ ...real, topRps: real.steps[0].offeredRps })).toBe(real.steps[0].text.offered);
     expect(topStepText({ ...real, topRps: null })).toBeNull();
+  });
+});
+
+describe("repeated runs", () => {
+  const rep = (over: Partial<Repeatability>): Repeatability => ({
+    runs: 1,
+    protocol: "v5",
+    engineVersion: "0.15.0",
+    errors: [-0.1],
+    medianError: -0.1,
+    minError: -0.1,
+    maxError: -0.1,
+    withRange: 0,
+    inRange: 0,
+    nominalCoverage: null,
+    text: { medianError: "-10%", errors: "-10%", coverage: "-" },
+    ...over,
+  });
+
+  it("says how many runs the thresholds still need", () => {
+    expect(repeatSentence(exp({ repeatability: rep({}) }))).toBe("1 run under these conditions (protocol v5, engine 0.15.0); the thresholds need 3.");
+  });
+
+  it("gives the median over repeated runs and how often the predicted range held", () => {
+    const r = rep({
+      runs: 3,
+      withRange: 3,
+      inRange: 2,
+      nominalCoverage: 0.5,
+      text: { medianError: "-12%", errors: "-20% to -5%", coverage: "2 of 3" },
+    });
+    expect(repeatSentence(exp({ repeatability: r }))).toBe(
+      "Over 3 runs under these conditions (protocol v5, engine 0.15.0) the knee error had a median of −12% (−20% to −5%). " +
+        "The measured knee fell inside ArchSim's predicted range in 2 of 3 runs (expected about 50%).",
+    );
+  });
+
+  it("says nothing without a record of runs", () => {
+    expect(repeatSentence(exp({ repeatability: null }))).toBe("");
   });
 });
 
