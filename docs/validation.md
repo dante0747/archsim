@@ -67,6 +67,23 @@ uv run python benchmarks/report.py --json  # rewrite this page's tables, charts 
 on the machine: rerun on yours before quoting numbers. `run.py --archive` first moves each
 experiment's latest results into its next `run-N/` folder, so the history below keeps them.
 
+Two commands check the model and the machine rather than measure accuracy:
+
+- `run.py resimulate` derives every kept run's inputs again from its calibration passes, with
+  today's code, and simulates its measured steps with today's engine (no Docker, about 10
+  minutes). It writes `results/dev/<engine>/`, and `report.py --dev` turns that into
+  [`docs/validation/dev-checks.md`](validation/dev-checks.md): each run's knee, measured and
+  simulated by every engine checked. These checks are in-sample, designed after the
+  measurements were seen, so they show what a model change does without claiming accuracy; this
+  page's tables never use them. With engine 0.14.0 they reproduce every run calibrated under v3
+  or v4 exactly, step by step, which shows the re-simulation itself is faithful.
+- `run.py envcheck` characterises the machine (about 8 minutes of Docker): which CPUs share a
+  physical core inside Docker's VM, how much CPU the VM loses to steal, and the service's and
+  PostgreSQL's CPU per request and p95 across 50 to 1,600 req/s, with k6 on the CPUs the runner
+  gives it and again with the service's physical core left to the service alone. It writes
+  `results/envcheck/<time>.json`. Each run's `environment.json` also records how its cpusets fall
+  on physical cores (`topology`).
+
 `report.py --json` also writes the same numbers as data, to `docs/validation/accuracy.json` and a
 copy in `apps/web/src/data/` (the web image is built from `apps/web` alone; a test keeps the two
 equal). The web app's public `/accuracy` page is built from that copy.
@@ -106,7 +123,10 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
 3. **Predict**: the runner builds the ArchSim design (one Node.js event loop on 1 vCPU, a pool of
    10 database connections, PostgreSQL on 2 vCPU, and so on), searches the knee, and simulates
    every step of the ladder: 0.25, 0.5, 0.75, 0.9, 1.0, 1.1, 1.25 and 1.5 times the predicted
-   knee. `predictions.json` is written before the first measured step. When the system still
+   knee. `predictions.json` is written before the first measured step, with its provenance:
+   the commit, the engine's and the harness's git object ids, whether either had uncommitted
+   changes, and the machine. Its sha256 goes to the log and into `measured.json` before the
+   first step is measured. When the system still
    meets the objective at the top of the ladder, the runner climbs by 30% (at most four times),
    predicting and saving each new step before measuring it.
 4. **Measure** each step three times: 5 s of warm-up, then 20 s measured, 2 s client timeout;
@@ -179,6 +199,23 @@ latest run's OS build.
 - Images: postgres `postgres:16-alpine`, redis `redis:7-alpine`, kafka `apache/kafka:3.8.0`, k6 `grafana/k6:1.3.0`, service `node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4`.
 - CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): pg-mixed and pg-hot-row: service 1 (`2`), PostgreSQL 2 (`4,5`), k6 5 (`0,1,3,6,7`); cache-aside: service 1 (`2`), PostgreSQL 2 (`4,5`), Redis 1 (`1`), k6 4 (`0,3,6,7`); kafka: producer 1 (`2`), consumer 1 (`3`), PostgreSQL 2 (`4,5`), Kafka 2 (`0,1`), k6 2 (`6,7`).
 <!-- END GENERATED: environment -->
+
+**What the machine itself does** (`run.py envcheck`, 30 Oct, Windows build 26300, pg-mixed's
+workload, `results/envcheck/`):
+
+- **CPU per request falls steeply with the rate, in every container.** The Node.js service used
+  0.96 ms per request at 50 req/s, 0.42 at 200, 0.29 at 400 and 0.21 to 0.22 from 800 to 1,600;
+  PostgreSQL 0.93, 0.33, 0.21 and 0.19 ms. The cost settles only from about 800 req/s. The
+  calibration passes (50 req/s and a quarter of the pessimistic capacity, a few hundred req/s)
+  sit where it is highest and still changing, which is why the model's CPU per request is about
+  twice the real one near the knee (see [Resources](#resources-cpu-and-memory)). It looks like
+  the host (cores idling into power-saving states at light load) rather than the application.
+- **k6 on the service's hyperthread sibling** (CPUs 2 and 3 are one physical core in Docker's
+  VM) cost the service 10% to 15% more CPU per request and raised p95 at 1,600 req/s from 1.4 to
+  2.2 ms. From the next run the runner leaves that sibling idle (k6 on `0,1,6,7` for the
+  PostgreSQL stack and `0,6,7` for the cache stack). PostgreSQL's two CPUs (`4,5`) are one
+  physical core too, though the model gives it two cores; its CPU never came close to binding.
+- **No CPU steal** in Docker's VM, and no p95 near Windows' 15.6 ms timer tick at these rates.
 
 ## pg-mixed
 

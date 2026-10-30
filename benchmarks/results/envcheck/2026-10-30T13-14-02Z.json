@@ -1,0 +1,286 @@
+{
+  "at": "2026-10-30T13:14:02Z",
+  "environment": {
+    "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+    "machineId": "i7-1165g7",
+    "os": "Windows-11-10.0.26300-SP0",
+    "docker": "29.1.3 (linux/amd64)",
+    "dockerCpus": "8",
+    "dockerMemory": "8170176512",
+    "images": {
+      "postgres": "postgres:16-alpine",
+      "redis": "redis:7-alpine",
+      "kafka": "apache/kafka:3.8.0",
+      "k6": "grafana/k6:1.3.0",
+      "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+    },
+    "python": "3.12.13"
+  },
+  "workload": "pg-mixed",
+  "how": "each rate: 5 s warm-up, then 15 s recorded; CPU per request from the service's own counter and PostgreSQL's cgroup; steal from the VM's /proc/stat",
+  "layouts": {
+    "runner": {
+      "k6Cpus": "0,1,3,6,7",
+      "topology": {
+        "siblings": {
+          "0": [
+            0,
+            1
+          ],
+          "1": [
+            0,
+            1
+          ],
+          "2": [
+            2,
+            3
+          ],
+          "3": [
+            2,
+            3
+          ],
+          "4": [
+            4,
+            5
+          ],
+          "5": [
+            4,
+            5
+          ],
+          "6": [
+            6,
+            7
+          ],
+          "7": [
+            6,
+            7
+          ]
+        },
+        "physicalCores": {
+          "api": 1,
+          "postgres": 1,
+          "k6": 3
+        },
+        "sharedCores": [
+          {
+            "containers": [
+              "api",
+              "k6"
+            ],
+            "cores": [
+              [
+                2,
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "rateRps": 50,
+          "k6": {
+            "p50": 1.697638,
+            "p95": 5.113752949999997,
+            "p99": 6.81533177,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.9599293333333333,
+          "postgresCpuMsPerRequest": 0.9293,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 100,
+          "k6": {
+            "p50": 1.265724,
+            "p95": 3.5880898499999994,
+            "p99": 5.324088479999999,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.6747593333333334,
+          "postgresCpuMsPerRequest": 0.5967,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 200,
+          "k6": {
+            "p50": 0.7506955,
+            "p95": 2.3301038999999997,
+            "p99": 4.1296163499999965,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.4165243333333334,
+          "postgresCpuMsPerRequest": 0.3268,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 400,
+          "k6": {
+            "p50": 0.5246765,
+            "p95": 1.6957408000000003,
+            "p99": 3.541439090000001,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.28528416666666667,
+          "postgresCpuMsPerRequest": 0.213,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 800,
+          "k6": {
+            "p50": 0.455305,
+            "p95": 1.47618,
+            "p99": 2.234841,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.2217743521373219,
+          "postgresCpuMsPerRequest": 0.1945,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 1600,
+          "k6": {
+            "p50": 0.488195,
+            "p95": 2.162641,
+            "p99": 8.085194,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.2146764718136744,
+          "postgresCpuMsPerRequest": 0.1941,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        }
+      ]
+    },
+    "serviceCoreAlone": {
+      "k6Cpus": "0,1,6,7",
+      "topology": {
+        "siblings": {
+          "0": [
+            0,
+            1
+          ],
+          "1": [
+            0,
+            1
+          ],
+          "2": [
+            2,
+            3
+          ],
+          "3": [
+            2,
+            3
+          ],
+          "4": [
+            4,
+            5
+          ],
+          "5": [
+            4,
+            5
+          ],
+          "6": [
+            6,
+            7
+          ],
+          "7": [
+            6,
+            7
+          ]
+        },
+        "physicalCores": {
+          "api": 1,
+          "postgres": 1,
+          "k6": 2
+        },
+        "sharedCores": []
+      },
+      "steps": [
+        {
+          "rateRps": 50,
+          "k6": {
+            "p50": 1.90261,
+            "p95": 4.541683,
+            "p99": 6.719154,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.8299853528628495,
+          "postgresCpuMsPerRequest": 0.8664,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 100,
+          "k6": {
+            "p50": 1.362734,
+            "p95": 3.478453,
+            "p99": 5.496757,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.6455682878081279,
+          "postgresCpuMsPerRequest": 0.5899,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 200,
+          "k6": {
+            "p50": 0.662942,
+            "p95": 2.057283,
+            "p99": 4.045671,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.34512529156947686,
+          "postgresCpuMsPerRequest": 0.3107,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 400,
+          "k6": {
+            "p50": 0.51556,
+            "p95": 1.636125,
+            "p99": 2.930622,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.2510583236127312,
+          "postgresCpuMsPerRequest": 0.2219,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 800,
+          "k6": {
+            "p50": 0.421423,
+            "p95": 1.303788,
+            "p99": 1.792862,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.19851254062161489,
+          "postgresCpuMsPerRequest": 0.1633,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        },
+        {
+          "rateRps": 1600,
+          "k6": {
+            "p50": 0.435717,
+            "p95": 1.365927,
+            "p99": 2.289457,
+            "successRate": 1.0
+          },
+          "serviceCpuMsPerRequest": 0.18032544477313445,
+          "postgresCpuMsPerRequest": 0.1559,
+          "nearTimerTick": [],
+          "vmSteal": 0.0
+        }
+      ]
+    }
+  }
+}
