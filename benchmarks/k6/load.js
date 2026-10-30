@@ -20,15 +20,47 @@ const MIX = (__ENV.MIX || "read:1").split(",").map((p) => {
   return { name, share: Number(share) };
 });
 
-// cumulative Zipf weights over ranks 1..KEYS
-const CDF = new Float64Array(KEYS);
+// Up to TABLE_KEYS keys: cumulative Zipf weights over ranks 1..KEYS, searched per request. Every
+// VU builds its own copy, so a larger keyspace (cache-ttl's 1,000,000 keys: 8 MB and a million
+// powers per VU) is sampled by rejection-inversion instead, which draws exactly the same
+// distribution without a table (Hormann and Derflinger 1996, as in Apache Commons RNG).
+const TABLE_KEYS = 200000;
+const TABLE = KEYS <= TABLE_KEYS || SKEW === 0;
+const CDF = new Float64Array(TABLE ? KEYS : 0);
 let total = 0;
-for (let k = 1; k <= KEYS; k++) {
-  total += SKEW === 0 ? 1 : Math.pow(k, -SKEW);
-  CDF[k - 1] = total;
+if (TABLE) {
+  for (let k = 1; k <= KEYS; k++) {
+    total += SKEW === 0 ? 1 : Math.pow(k, -SKEW);
+    CDF[k - 1] = total;
+  }
+}
+
+const helper1 = (x) => (Math.abs(x) > 1e-8 ? Math.log1p(x) / x : 1 - x * (0.5 - x * (1 / 3 - 0.25 * x)));
+const helper2 = (x) => (Math.abs(x) > 1e-8 ? Math.expm1(x) / x : 1 + x * 0.5 * (1 + (x / 3) * (1 + 0.25 * x)));
+const zH = (x) => Math.exp(-SKEW * Math.log(x));
+const zHIntegral = (x) => {
+  const logX = Math.log(x);
+  return helper2((1 - SKEW) * logX) * logX;
+};
+const zHIntegralInverse = (x) => {
+  const t = Math.max(-1, x * (1 - SKEW));
+  return Math.exp(helper1(t) * x);
+};
+const Z_X1 = zHIntegral(1.5) - 1;
+const Z_N = zHIntegral(KEYS + 0.5);
+const Z_S = 2 - zHIntegralInverse(zHIntegral(2.5) - zH(2));
+
+function sampleRejectionInversion() {
+  for (;;) {
+    const u = Z_N + Math.random() * (Z_X1 - Z_N);
+    const x = zHIntegralInverse(u);
+    const k = Math.min(KEYS, Math.max(1, Math.floor(x + 0.5)));
+    if (k - x <= Z_S || u >= zHIntegral(k + 0.5) - zH(k)) return k;
+  }
 }
 
 function sampleKey() {
+  if (!TABLE) return sampleRejectionInversion();
   const x = Math.random() * total;
   let lo = 0;
   let hi = KEYS - 1;

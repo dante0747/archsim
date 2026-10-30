@@ -33,18 +33,32 @@ CHARTS = ROOT / "docs" / "validation"
 JSON_OUT = CHARTS / "accuracy.json"
 WEB_JSON = ROOT / "apps" / "web" / "src" / "data" / "accuracy.json"
 ORDER = ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
+# The held-out experiments (run.py, Experiment.held_out), sealed until a frozen engine has
+# predicted them. They join ORDER, the page's tables and accuracy.json once they have results.
+HELD_OUT = [e for e, x in bench.EXPERIMENTS.items() if x.held_out is not None]
+ENGINES = bench.ENGINES
 # Plain names for the web page (the comparison's title has the details).
 NAMES = {
     "pg-mixed": "PostgreSQL, mixed reads and writes",
     "pg-hot-row": "PostgreSQL, every request updating one row",
     "cache-aside": "Redis cache in front of PostgreSQL",
     "kafka": "Kafka queue feeding PostgreSQL",
+    "java-mixed": "Spring Boot and PostgreSQL, mixed reads and writes",
+    "go-mixed": "Go and PostgreSQL, mixed reads and writes",
+    "python-mixed": "Flask on gunicorn and PostgreSQL, mixed reads and writes",
+    "chain": "A gateway in front of an API, then PostgreSQL",
+    "cache-ttl": "Redis cache with a 5 s TTL in front of PostgreSQL",
 }
 TECHNOLOGIES = {
     "pg-mixed": ("Node.js", "PostgreSQL"),
     "pg-hot-row": ("Node.js", "PostgreSQL"),
     "cache-aside": ("Node.js", "Redis", "PostgreSQL"),
     "kafka": ("Node.js", "Kafka", "PostgreSQL"),
+    "java-mixed": ("Java (Spring Boot)", "PostgreSQL"),
+    "go-mixed": ("Go", "PostgreSQL"),
+    "python-mixed": ("Python (Flask, gunicorn)", "PostgreSQL"),
+    "chain": ("Node.js", "PostgreSQL"),
+    "cache-ttl": ("Node.js", "Redis", "PostgreSQL"),
 }
 # Each measured container as the resources table names it.
 PARTS = {
@@ -54,6 +68,13 @@ PARTS = {
     "postgres": "PostgreSQL",
     "redis": "Redis",
     "kafka": "Kafka broker",
+    "api-java": "Spring Boot service",
+    "api-go": "Go service",
+    "api-python": "Flask service (gunicorn)",
+    "gateway": "Node.js gateway",
+    "chain-api": "Node.js API",
+    "api-ttl": "Node.js service",
+    "redis-ttl": "Redis",
 }
 # Why a container has no predicted CPU or memory.
 NOT_MODELLED = {
@@ -77,6 +98,13 @@ CONTAINERS = {
     "redis": "Redis",
     "kafka": "Kafka",
     "k6": "k6",
+    "api-java": "service",
+    "api-go": "service",
+    "api-python": "service",
+    "gateway": "gateway",
+    "chain-api": "API",
+    "api-ttl": "service",
+    "redis-ttl": "Redis",
 }
 
 # Proposed tier thresholds (docs/validation.md, "Proposed tier thresholds").
@@ -119,6 +147,31 @@ def and_list(items: Sequence[str]) -> str:
 def rps_list(values: list[float]) -> str:
     """1,000, 2,000 and 3,000 req/s"""
     return f"{and_list([rps(v) for v in values])} req/s"
+
+
+def engines(path: Path = ENGINES) -> list[dict[str, Any]]:
+    """benchmarks/engines.json: each engine version, its source tree, when it was frozen (its
+    tag) and the experiments it was tuned on."""
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+
+
+def sample_label(
+    engine: str | None, exp: str, entries: Sequence[Mapping[str, Any]] | None = None
+) -> str:
+    """Whether an engine's predictions of an experiment are out of sample: "held-out" for a
+    held-out experiment and an engine frozen in engines.json (frozenAt and tag) that does not
+    list it in tunedOn (the runner measures a held-out experiment only once a frozen engine
+    predicts it), else "tuned-on": the original four were seen while the model was built, and an
+    engine that was never frozen could have been tuned on anything measured before it."""
+    x = bench.EXPERIMENTS.get(exp)
+    if x is None or x.held_out is None:
+        return "tuned-on"
+    entry = next(
+        (e for e in (engines() if entries is None else entries) if e.get("version") == engine), None
+    )
+    if entry is None or not (entry.get("frozenAt") and entry.get("tag")):
+        return "tuned-on"
+    return "tuned-on" if exp in entry.get("tunedOn", []) else "held-out"
 
 
 def knee_text(k: Mapping[str, Any]) -> str:
@@ -846,6 +899,7 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
     if not (cal and pred and cmp_):
         return f"_No results for {exp} yet: run `uv run python benchmarks/run.py`._"
     low = cal["inputs"].get("measuredLowLoad", {})
+    cache = bench.EXPERIMENTS[exp].stack in bench.CACHE_STACKS
     passes = cal.get("passes", {})
     rate_low = passes.get("low", {}).get("rateRps")
     rate_high = passes.get("high", {}).get("rateRps", low.get("rateRps"))
@@ -887,12 +941,12 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
         f"p50 {ms(low.get('p50'))} ms, p95 {ms(low.get('p95'))} ms.",
         "",
         "| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |"
-        + (" Hit ratio meas / pred |" if exp == "cache-aside" else "")
+        + (" Hit ratio meas / pred |" if cache else "")
         + (
             " Consumed/s meas / pred | Message age p95 meas / pred (ms) |" if exp == "kafka" else ""
         ),
         "| --- | --- | --- | --- | --- | --- | --- |"
-        + (" --- |" if exp == "cache-aside" else "")
+        + (" --- |" if cache else "")
         + (" --- | --- |" if exp == "kafka" else ""),
     ]
     for r in cmp_["rows"]:
@@ -903,7 +957,7 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
             f"{pct(e['p95'])} | {ms(m['p99'])} / {ms(p['p99'])} | {pct(m['successRate'], False)} / "
             f"{pct(p['successRate'], False)} | {rps(m['throughputRps'])} / {rps(p['throughputRps'])} |"
         )
-        if exp == "cache-aside":
+        if cache:
             line += (
                 f" {pct(m.get('cacheHitRatio'), False)} / {pct(p.get('cacheHitRatio'), False)} |"
             )
@@ -1169,6 +1223,8 @@ def experiment_json(
         "calibratedAt": cal["at"],
         "predictedAt": pred["at"],
         "engineVersion": pred.get("engineVersion"),
+        # out of sample for the engine that predicted it, or not (sample_label)
+        "sample": sample_label(pred.get("engineVersion"), exp),
         "protocol": protocol,
         "runs": len(runs),
         # Earlier runs under another protocol: the protocol was revised with this experiment's
@@ -1277,6 +1333,7 @@ def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
                 "withRange": sum((x["repeatability"] or {}).get("withRange", 0) for x in exps),
                 "inRange": sum((x["repeatability"] or {}).get("inRange", 0) for x in exps),
             },
+            "heldOut": [x["id"] for x in exps if x["sample"] == "held-out"],
             "technologies": technology_status({x["id"]: x["criteria"]["all"] for x in exps}),
         },
         "experiments": exps,

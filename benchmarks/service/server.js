@@ -1,8 +1,11 @@
-// ArchSim benchmark service: a small Node.js HTTP API (ROLE=api) and a Kafka consumer
-// (ROLE=consumer). It does the minimum each benchmark needs and records the timings that
-// calibrate the ArchSim model: CPU per request on the event loop, and the time of each
-// PostgreSQL, Redis and Kafka call as seen from the service. GET /stats returns them,
-// POST /reset clears them. No framework, so the event loop does nothing we did not write.
+// ArchSim benchmark service: a small Node.js HTTP API (ROLE=api), a gateway in front of another
+// API (ROLE=gateway: each /read and /write is forwarded to UPSTREAM over keep-alive connections)
+// and a Kafka consumer (ROLE=consumer). It does the minimum each benchmark needs and records the
+// timings that calibrate the ArchSim model: CPU per request on the event loop, and the time of
+// each PostgreSQL, Redis, Kafka and upstream call as seen from the service. GET /stats returns
+// them, POST /reset clears them; a gateway's include its upstream's (``upstream``), and with
+// REDIS_STATS=1 they include Redis's own time per command (``redis``, INFO commandstats). No
+// framework, so the event loop does nothing we did not write.
 "use strict";
 
 const http = require("node:http");
@@ -16,6 +19,8 @@ const TTL_S = Number(process.env.CACHE_TTL_S || 30);
 const TOPIC = process.env.KAFKA_TOPIC || "events";
 const PARTITIONS = Number(process.env.KAFKA_PARTITIONS || 6);
 const CONSUMERS = Number(process.env.KAFKA_CONSUMERS || 3);
+const UPSTREAM = process.env.UPSTREAM ? new URL(process.env.UPSTREAM) : null;
+const REDIS_STATS = process.env.REDIS_STATS === "1";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: POOL });
 // Same database, commits without waiting for the WAL flush: calibration only (write time
@@ -125,7 +130,70 @@ async function connectKafka() {
   }
 }
 
+// ---- upstream (ROLE=gateway) -------------------------------------------------------------------
+// One keep-alive agent, so the gateway reuses its connections to the upstream as a production
+// gateway or service mesh would (no TCP handshake per request).
+const agent = new http.Agent({ keepAlive: true, maxSockets: Infinity });
+
+// A JSON response already serialised (the upstream's body, passed through as it is).
+class Raw {
+  constructor(text) {
+    this.text = text;
+  }
+}
+
+function upstream(method, path, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      { host: UPSTREAM.hostname, port: UPSTREAM.port || 80, method, path, agent, headers },
+      (res) => {
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          const body = Buffer.concat(chunks).toString();
+          if (res.statusCode !== 200) reject(new Error(`upstream ${res.statusCode}: ${body}`));
+          else resolve(body);
+        });
+        res.on("error", reject);
+      },
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+// ---- what /stats adds and /reset clears beyond this process's own numbers ---------------------
+function parseCommandstats(text) {
+  const out = {};
+  for (const line of text.split("\n")) {
+    const m = /^cmdstat_([^:]+):(.*)$/.exec(line.trim()); // INFO ends each line with \r\n
+    if (!m) continue;
+    const fields = Object.fromEntries(m[2].split(",").map((kv) => kv.split("=")));
+    out[m[1]] = { calls: Number(fields.calls), usec: Number(fields.usec) };
+  }
+  return out;
+}
+
+async function extraStats() {
+  const out = {};
+  if (UPSTREAM) out.upstream = JSON.parse(await upstream("GET", "/stats"));
+  if (REDIS_STATS) out.redis = parseCommandstats(await redis.sendCommand(["INFO", "commandstats"]));
+  return out;
+}
+
+async function resetExtras() {
+  if (UPSTREAM) await upstream("POST", "/reset");
+  if (REDIS_STATS) await redis.sendCommand(["CONFIG", "RESETSTAT"]);
+}
+
 // ---- API --------------------------------------------------------------------------------------
+async function gatewayRoute(req, url, io) {
+  if (url.pathname !== "/read" && url.pathname !== "/write") return null;
+  const headers = req.headers["x-bench-phase"] ? { "x-bench-phase": req.headers["x-bench-phase"] } : {};
+  const body = await timed("upstream", () => upstream(req.method, url.pathname + url.search, headers), io);
+  return new Raw(body);
+}
+
 async function route(req, url, io) {
   const id = Number(url.searchParams.get("id") || 1);
   const phase = req.headers["x-bench-phase"] || "none";
@@ -170,10 +238,19 @@ async function route(req, url, io) {
 function serve(handler) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
-    if (url.pathname === "/stats") return send(res, 200, stats());
+    if (url.pathname === "/stats") {
+      const own = stats();
+      return extraStats().then(
+        (extra) => send(res, 200, { ...own, ...extra }),
+        (err) => send(res, 502, { error: err.message }),
+      );
+    }
     if (url.pathname === "/reset") {
       reset();
-      return send(res, 200, { ok: true });
+      return resetExtras().then(
+        () => send(res, 200, { ok: true }),
+        (err) => send(res, 502, { error: err.message }),
+      );
     }
     if (url.pathname === "/health") return send(res, 200, { ok: true });
     const t = performance.now();
@@ -195,7 +272,7 @@ function serve(handler) {
 }
 
 function send(res, status, body) {
-  const data = JSON.stringify(body);
+  const data = body instanceof Raw ? body.text : JSON.stringify(body);
   res.writeHead(status, { "content-type": "application/json", "content-length": Buffer.byteLength(data) });
   res.end(data);
 }
@@ -229,7 +306,7 @@ async function main() {
     serve(async () => null);
     await runConsumer();
   } else {
-    serve(route);
+    serve(ROLE === "gateway" ? gatewayRoute : route);
   }
 }
 

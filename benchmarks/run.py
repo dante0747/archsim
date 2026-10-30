@@ -4,6 +4,7 @@
     uv run python benchmarks/run.py cache         # cache-aside
     uv run python benchmarks/run.py kafka         # kafka
     uv run python benchmarks/run.py all
+    uv run python benchmarks/run.py smoke chain   # start a stack, 20 req/s for 10 s, keep nothing
     uv run python benchmarks/run.py compare       # recompute every comparison.json (no Docker)
     uv run python benchmarks/run.py resources     # predict CPU and memory for older results
     uv run python benchmarks/run.py resimulate    # today's model against every kept run
@@ -30,6 +31,11 @@ Protocol v5 (docs/validation.md): for each experiment the runner
    cores) and memory (working set) in the measured window;
 5. compares: comparison.json with errors per step and the knee error, and the predicted against
    the measured CPU and memory of each container the model has.
+
+Held-out experiments (java-mixed, go-mixed, python-mixed, chain, cache-ttl; docs/validation.md)
+are sealed: until the engine running is a frozen one (benchmarks/engines.json) and nothing is
+uncommitted, the runner refuses to calibrate or measure them, and only ``smoke`` starts their
+stacks (it checks that every request succeeds and is counted, and keeps no latency or results).
 
 Only the Python standard library, Docker and the engine are needed.
 """
@@ -112,10 +118,77 @@ nothing is evicted, as in the real Redis, which has no limit."""
 CACHE_ITEM_KIB = 1.0
 """Memory per cached key in the model: ArchSim's default (not calibrated; the benchmark does not
 measure Redis's bytes per key yet)."""
-CONTAINER_NODES = {"api": "api", "producer": "api", "postgres": "db", "redis": "cache"}
+CONTAINER_NODES = {
+    "api": "api",
+    "producer": "api",
+    "postgres": "db",
+    "redis": "cache",
+    "api-java": "api",
+    "api-go": "api",
+    "api-python": "api",
+    "gateway": "gateway",
+    "chain-api": "api",
+    "api-ttl": "api",
+    "redis-ttl": "cache",
+}
 """The model node of each container. The consumer and the Kafka broker have none: the model's
 queue node has no CPU or memory."""
 SERVICE_CONTAINERS = ("api", "producer")
+ENGINES = HERE / "engines.json"
+"""Engine versions and what each was tuned on; a frozen one (frozenAt and tag set) may run
+held-out experiments."""
+SMOKE_RPS = 20
+SMOKE_S = 10
+
+
+@dataclass(frozen=True)
+class HeldOut:
+    """An experiment registered before any engine was tuned on it: it stays sealed (smoke tests
+    only) until a frozen engine has predicted it."""
+
+    registered: str
+    """The date it was registered."""
+    commit: str
+    """The commit that registered it (its stack, workload and model)."""
+
+
+@dataclass(frozen=True)
+class Runtime:
+    """How a stack's service runs, as its container runs it and as the ArchSim node models it."""
+
+    technology: str
+    """ArchSim's runtime profile (technology.py SERVICE_PROFILES)."""
+    label: str
+    cpu_cores: int
+    """The container's CPUs (its cpuset)."""
+    workers: int | None = None
+    """Requests served at once (threads or worker processes); None for an event loop."""
+    image: str = "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+
+
+PYTHON_WORKERS = 10
+"""gunicorn's sync workers (compose.yaml WEB_WORKERS), each with a pool of 1 connection: the
+same 10 connections as the other stacks."""
+RUNTIMES = {
+    "nodejs": Runtime("nodejs", "Node.js service", 1),
+    # Tomcat's thread pool as Spring Boot ships it (server.tomcat.threads.max)
+    "java": Runtime(
+        "java",
+        "Spring Boot service",
+        2,
+        200,
+        "eclipse-temurin:21-jre-alpine + Spring Boot 3.5.7 (Tomcat, HikariCP), G1, 1 GiB heap",
+    ),
+    # a goroutine per request, without a limit: the model's largest pool
+    "go": Runtime("go", "Go service", 2, 4096, "alpine:3.22 + Go 1.25 net/http, pgx 5.7.6"),
+    "python": Runtime(
+        "python",
+        "Flask service (gunicorn)",
+        2,
+        PYTHON_WORKERS,
+        "python:3.13-slim + gunicorn 23.0.0 (sync), Flask 3.1.2, psycopg 3.2.10",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -128,6 +201,15 @@ class Experiment:
     keys: int
     skew: float
     calibration: tuple[str, ...]
+    runtime: str = "nodejs"
+    """The service's runtime (RUNTIMES); chain's gateway and API are both Node.js."""
+    ttl_s: int = CACHE_TTL_S
+    """The cache's TTL (cache stacks)."""
+    held_out: HeldOut | None = None
+
+
+REGISTERED = HeldOut("2026-10-30", "90f067d6d40d9dae0ee7549907a562cf88bd2beb")
+"""The five held-out experiments' registration (W19): the commit that added them."""
 
 
 EXPERIMENTS = {
@@ -173,13 +255,84 @@ EXPERIMENTS = {
             0.0,
             ("event:1", "write:1", "write_async:1"),
         ),
+        # ---- held out (sealed; docs/validation.md, "Held-out experiments") ----------------------
+        Experiment(
+            "java-mixed",
+            "java-mixed",
+            "Spring Boot (Tomcat, HikariCP) + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+            "read:0.9,write:0.1",
+            0.9,
+            100_000,
+            0.0,
+            ("read:0.9,write:0.1", "write_async:1"),
+            runtime="java",
+            held_out=REGISTERED,
+        ),
+        Experiment(
+            "go-mixed",
+            "go-mixed",
+            "Go (net/http, pgx) + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+            "read:0.9,write:0.1",
+            0.9,
+            100_000,
+            0.0,
+            ("read:0.9,write:0.1", "write_async:1"),
+            runtime="go",
+            held_out=REGISTERED,
+        ),
+        Experiment(
+            "python-mixed",
+            "python-mixed",
+            "Flask on gunicorn (10 sync workers) + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+            "read:0.9,write:0.1",
+            0.9,
+            100_000,
+            0.0,
+            ("read:0.9,write:0.1", "write_async:1"),
+            runtime="python",
+            held_out=REGISTERED,
+        ),
+        Experiment(
+            "chain",
+            "chain",
+            "Node.js gateway, Node.js API, PostgreSQL in a chain: 90% reads, 10% writes over 100,000 rows",
+            "read:0.9,write:0.1",
+            0.9,
+            100_000,
+            0.0,
+            ("read:0.9,write:0.1", "write_async:1"),
+            held_out=REGISTERED,
+        ),
+        Experiment(
+            "cache-ttl",
+            "cache-ttl",
+            "Cache-aside: Node.js, Redis (5 s TTL) and PostgreSQL; Zipf 1.1 over 1,000,000 keys",
+            "cached:1",
+            1.0,
+            1_000_000,
+            # Zipf 1.1, not the 0.8 first proposed: over 1,000,000 keys with a 5 s TTL, 0.8 gives a
+            # hit ratio of 9% to 24% (250 to 4,000 req/s); 1.1 gives the intended 52% to 69%,
+            # rising with load (sum of p_k x_k / (1 + x_k), x_k = rate x TTL x p_k).
+            1.1,
+            ("cached:1",),
+            ttl_s=5,
+            held_out=REGISTERED,
+        ),
     )
 }
 STACKS = {
     "postgres": ["pg-mixed", "pg-hot-row"],
     "cache": ["cache-aside"],
     "kafka": ["kafka"],
+    "java-mixed": ["java-mixed"],
+    "go-mixed": ["go-mixed"],
+    "python-mixed": ["python-mixed"],
+    "chain": ["chain"],
+    "cache-ttl": ["cache-ttl"],
 }
+DB_STACKS = ("postgres", "java-mixed", "go-mixed", "python-mixed", "chain")
+"""Stacks whose service calls PostgreSQL directly (one service, or chain's API)."""
+CACHE_STACKS = ("cache", "cache-ttl")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -471,18 +624,49 @@ def k6_measured(summary: dict[str, Any], duration: int) -> dict[str, Any]:
 # ---------------------------------------------------------------------------------------------
 
 
-K6_CPUS = {"postgres": "0,1,6,7", "cache": "0,6,7", "kafka": "6,7"}
+K6_CPUS = {
+    "postgres": "0,1,6,7",
+    "cache": "0,6,7",
+    "kafka": "6,7",
+    "java-mixed": "0,1,6,7",
+    "go-mixed": "0,1,6,7",
+    "python-mixed": "0,1,6,7",
+    "chain": "6,7",
+    "cache-ttl": "6,7",
+}
 """k6's cpuset per stack: the CPUs the stack's other containers leave free, except the service's
 hyperthread sibling (CPU 3 on the 4-core, 8-thread laptop), which stays idle. On the laptop
 k6 on that sibling cost the service 10-15% more CPU per request and raised p95 at 1,600 req/s
 from 1.4 to 2.2 ms (run.py envcheck, 30 Oct; runs up to 6 used 0,1,3,6,7 and 0,3,6,7).
-compose.yaml's default for k6 is only used when the runner is bypassed."""
+The held-out stacks give no container a physical core shared with k6 or another container:
+chain and cache-ttl leave CPUs 1 and 3 idle (their second service, or Redis, takes CPU 0) and
+give k6 one core. compose.yaml's default for k6 is only used when the runner is bypassed."""
 USER_K6_CPUS = os.environ.get("BENCH_CPUS_K6")
 STACK_SERVICES = {
     "postgres": ["api", "postgres"],
     "cache": ["api", "postgres", "redis"],
     "kafka": ["producer", "consumer", "postgres", "kafka"],
+    "java-mixed": ["api-java", "postgres"],
+    "go-mixed": ["api-go", "postgres"],
+    "python-mixed": ["api-python", "postgres"],
+    # chain: the gateway first, the hop k6 calls and whose /stats (port 18080) calibration reads.
+    # Both hops have one CPU; the API's CPU per request is in the gateway's /stats as `upstream`,
+    # so a CPU cap should take the busier of the two.
+    "chain": ["gateway", "chain-api", "postgres"],
+    "cache-ttl": ["api-ttl", "postgres", "redis-ttl"],
 }
+"""Each stack's containers, the service under test first (the one k6 calls, ENTRY)."""
+ENTRY = {
+    "kafka": "producer",
+    "java-mixed": "api-java",
+    "go-mixed": "api-go",
+    "python-mixed": "api-python",
+    "chain": "gateway",
+    "cache-ttl": "api-ttl",
+}
+"""The container k6 calls and API (port 18080) reaches, when it is not ``api``."""
+DEFAULT_ITEMS = 100_000
+"""Rows init.sql loads; a stack whose keyspace is larger gets the rest (db/extra-rows.sh)."""
 
 
 def compose_cpusets() -> dict[str, tuple[str, str]]:
@@ -570,12 +754,18 @@ def topology(sets: Mapping[str, str], siblings: Mapping[int, Sequence[int]]) -> 
     }
 
 
+def stack_items(stack: str) -> int:
+    """Rows of items PostgreSQL loads for a stack: enough for every key its experiments name."""
+    return max(DEFAULT_ITEMS, *(EXPERIMENTS[e].keys for e in STACKS[stack]))
+
+
 def stack_up(stack: str) -> None:
     os.environ["BENCH_CPUS_K6"] = cpusets(stack)["k6"]
     if stack == "cache":
         os.environ["BENCH_REDIS_URL"] = "redis://redis:6379"
     else:
         os.environ["BENCH_REDIS_URL"] = ""
+    os.environ["BENCH_ITEMS"] = str(stack_items(stack))
     log(f"starting stack '{stack}'")
     compose("--profile", stack, "down", "-v", "--remove-orphans", check=False, capture=True)
     compose("--profile", stack, "up", "-d", "--build", "--wait", capture=True)
@@ -591,7 +781,7 @@ def stack_down(stack: str) -> None:
 
 
 def target_for(exp: Experiment) -> str:
-    return "http://producer:8080" if exp.stack == "kafka" else "http://api:8080"
+    return f"http://{ENTRY.get(exp.stack, 'api')}:8080"
 
 
 def services_for(exp: Experiment) -> list[str]:
@@ -684,15 +874,21 @@ def calibration_pass(exp: Experiment, mix: str, rate: float, label: str) -> dict
     return entry
 
 
+def hops(svc: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """The service's own stats and, behind chain's gateway, the API's (``upstream``)."""
+    return [svc, *([svc["upstream"]] if svc.get("upstream") else [])]
+
+
 def capacity_bound(exp: Experiment, low: Mapping[str, Any]) -> float:
-    """The most pessimistic capacity the low pass implies (req/s): the service's CPU at its
+    """The most pessimistic capacity the low pass implies (req/s): each hop's CPU at its
     low-load cost per request, the connection pool, the hot row's lock, the consumers."""
     svc = low["service"]
     t = svc["timings"]
-    bounds = [1000 * service_cpus(exp) / svc["cpuMsPerRequest"]]
-    for name in ("db_read", "db_write"):
-        if name in t:
-            bounds.append(PG_POOL * 1000 / t[name]["mean"])
+    bounds = [1000 * service_cpus(exp) / h["cpuMsPerRequest"] for h in hops(svc)]
+    for h in hops(svc):
+        for name in ("db_read", "db_write"):
+            if name in h["timings"]:
+                bounds.append(PG_POOL * 1000 / h["timings"][name]["mean"])
     if exp.id == "pg-hot-row":
         bounds.append(1000 / t["db_write"]["mean"])  # one row: one write at a time
     if exp.stack == "kafka":
@@ -737,7 +933,7 @@ def next_rise(exp: Experiment, entry: Mapping[str, Any]) -> float | None:
     p95 = entry["k6"].get("p95")
     if p95 is not None and p95 > STAIRCASE_P95_CAP_MS:
         return None
-    cpu = entry["service"]["cpuMsPerRequest"]
+    cpu = max(h["cpuMsPerRequest"] for h in hops(entry["service"]))  # chain: the busier hop
     cap = STAIRCASE_CPU_CAP * 1000 * service_cpus(exp) / max(cpu, 1e-6)
     nxt = min(0.5 * capacity_bound(exp, entry), cap)
     return float(round(nxt)) if nxt >= rate * STAIRCASE_MIN_RISE else None
@@ -979,17 +1175,19 @@ def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     if exp.stack == "kafka":
         out |= queue_inputs(exp, passes)
     out |= database_inputs(exp, passes)
-    if exp.stack == "cache":
+    if exp.stack in CACHE_STACKS:
         out |= cache_inputs(exp, passes)
     return out
 
 
 def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """The service's CPU per request, the client-to-service latency and the low-load reference."""
+    """The service's CPU per request, the client-to-service latency and the low-load reference;
+    for Java and Go its garbage collection, and for chain the API behind the gateway."""
     low, high = passes["low"], passes["high"]
     svc, svc_low = high["service"], low["service"]
     own = timing(svc, "own")
     handler = timing(svc, "handler")
+    who = "Node" if exp.runtime == "nodejs" else f"the {RUNTIMES[exp.runtime].label}"
     shape = (
         f"shape (p95/median {own['p95']:.4f}/{own['median']:.4f} ms) from the handler's own time"
     )
@@ -999,7 +1197,7 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         if demand <= 0:
             demand = svc["cpuMsPerRequest"]
         how = (
-            f"mean = Node's CPU per request at {high['rateRps']:g} req/s net of idle: "
+            f"mean = {who}'s CPU per request at {high['rateRps']:g} req/s net of idle: "
             f"({svc['cpuMs']:.0f} - {rest:.0f} ms at rest) / {svc['requests']} requests = "
             f"{demand:.4f} ms; {shape}"
         )
@@ -1007,12 +1205,12 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         slope_ms = slope(svc_low["cpuMs"], svc["cpuMs"], svc_low["requests"], svc["requests"])
         demand = slope_ms if slope_ms is not None and slope_ms > 0 else svc["cpuMsPerRequest"]
         how = (
-            f"mean = Node's CPU per extra request between the passes: ({svc['cpuMs']:.0f} - "
+            f"mean = {who}'s CPU per extra request between the passes: ({svc['cpuMs']:.0f} - "
             f"{svc_low['cpuMs']:.0f} ms) / ({svc['requests']} - {svc_low['requests']} requests) = "
             f"{demand:.4f} ms (at {low['rateRps']:g} req/s alone: {svc_low['cpuMsPerRequest']:.4f} ms); "
             f"{shape}"
         )
-    return {
+    out = {
         "serviceTimeMs": {"value": lognormal_with_mean(demand, own), "how": how},
         "clientLinkLatencyMs": {
             "value": round(max(0.0, (high["k6"]["p50"] - handler["median"]) / 2), 4),
@@ -1020,6 +1218,89 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         },
         "measuredLowLoad": {"rateRps": high["rateRps"], **high["k6"]},
     }
+    if exp.runtime != "nodejs":
+        out |= gc_inputs(exp, svc)
+    if exp.stack == "chain":
+        out |= chain_inputs(passes)
+    return out
+
+
+def gc_inputs(exp: Experiment, stats: Mapping[str, Any]) -> dict[str, Any]:
+    """Stop-the-world garbage collection as the runtime counted it in the pass: the pause the
+    model samples (lognormal, p95 2.5x its median, so the median is set to give the measured
+    mean) and the requests between collections. Their CPU is already in the CPU per request; the
+    pause adds the stall every request on the replica waits through. gunicorn's workers are
+    processes of their own whose collections stall only their own request, which the model's
+    replica-wide pause would overstate, so Python's are left out."""
+    if exp.runtime == "python":
+        return {
+            "gcPauseMs": {
+                "value": 0,
+                "how": "not modelled as a pause: each gunicorn worker collects on its own and stalls only its own request; the collections' CPU is in the CPU per request",
+            }
+        }
+    gc = stats.get("gc") or {}
+    n, pause = gc.get("collections") or 0, gc.get("pauseMs") or 0.0
+    requests = stats.get("requests") or 0
+    if n <= 0 or pause <= 0 or requests <= 0:
+        return {
+            "gcPauseMs": {
+                "value": 0,
+                "how": f"no stop-the-world pause in the pass ({n} collections, {pause:g} ms)",
+            }
+        }
+    mean = pause / n
+    sigma = math.log(2.5) / Z95
+    return {
+        "gcPauseMs": {
+            "value": round(mean / math.exp(sigma**2 / 2), 4),
+            "how": (
+                f"the runtime's stop-the-world pauses in the pass: {pause:.2f} ms over {n} "
+                f"collections, a mean of {mean:.4f} ms (the model's median: mean / 1.17)"
+            ),
+        },
+        "gcEveryRequests": {
+            "value": max(1, round(requests / n)),
+            "how": f"{requests} requests / {n} collections in the pass",
+        },
+    }
+
+
+def chain_inputs(passes: dict[str, Any]) -> dict[str, Any]:
+    """chain's API behind the gateway (its /stats are in the gateway's, as ``upstream``): its CPU
+    per request, found as the gateway's is, and the gateway-to-API latency."""
+    low, high = passes["low"], passes["high"]
+    api, api_low = high["service"]["upstream"], low["service"]["upstream"]
+    own = timing(api, "own")
+    handler = timing(api, "handler")
+    call = timing(high["service"], "upstream")
+    demand = slope(api_low["cpuMs"], api["cpuMs"], api_low["requests"], api["requests"])
+    if demand is None or demand <= 0:
+        demand = api["cpuMsPerRequest"]
+    return {
+        "apiServiceTimeMs": {
+            "value": lognormal_with_mean(demand, own),
+            "how": (
+                f"mean = the API's CPU per extra request between the passes: ({api['cpuMs']:.0f} - "
+                f"{api_low['cpuMs']:.0f} ms) / ({api['requests']} - {api_low['requests']} requests) = "
+                f"{demand:.4f} ms; shape (p95/median {own['p95']:.4f}/{own['median']:.4f} ms) from its handler's own time"
+            ),
+        },
+        "apiLinkLatencyMs": {
+            "value": round(max(0.0, (call["median"] - handler["median"]) / 2), 4),
+            "how": (
+                f"(the gateway's call to the API, median {call['median']:.3f} ms - the API's handler "
+                f"median {handler['median']:.3f} ms) / 2, one way"
+            ),
+        },
+    }
+
+
+def db_client(exp: Experiment, entry: Mapping[str, Any]) -> dict[str, Any]:
+    """The /stats of the service that calls PostgreSQL in a calibration pass: chain's API (inside
+    the gateway's), else the service k6 calls."""
+    svc: dict[str, Any] = entry["service"]
+    return svc["upstream"] if exp.stack == "chain" else svc
 
 
 def db_cpu_share(
@@ -1066,9 +1347,9 @@ def queue_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
 
 def database_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     """PostgreSQL: query times, the WAL flush per commit and the CPU share of a query. On the
-    Kafka stack the queries are the consumer's INSERTs."""
+    Kafka stack the queries are the consumer's INSERTs; on chain, the API's (behind the gateway)."""
     low, high = passes["low"], passes["high"]
-    svc, svc_low = high["service"], low["service"]
+    svc, svc_low = db_client(exp, high), db_client(exp, low)
     out: dict[str, Any] = {}
     share: dict[str, Any] | None
     if exp.stack == "kafka":
@@ -1105,7 +1386,7 @@ def database_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
             }
         if "db_write" in t:
             w = timing(svc, "db_write")
-            a = timing(passes["write_async:1"]["service"], "db_write_async")
+            a = timing(db_client(exp, passes["write_async:1"]), "db_write_async")
             flush_med = max(0.01, w["median"] - a["median"])
             out["writeServiceTimeMs"] = {
                 "value": lognormal(a["median"], a["p95"]),
@@ -1125,9 +1406,10 @@ def database_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
 
 
 def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """Redis: its own time per command and the service-to-Redis latency."""
+    """Redis: its own time per command and the service-to-Redis latency. cache-ttl's service
+    reports Redis's command statistics in its own /stats (REDIS_STATS=1)."""
     high = passes["high"]
-    rs = high["redis"]
+    rs = high["redis"] if "redis" in high else high["service"]["redis"]
     get = rs.get("get", {"calls": 0, "usec": 0})
     set_ = rs.get("set", {"calls": 0, "usec": 0})
     calls = get["calls"] + set_["calls"]
@@ -1166,23 +1448,54 @@ def _edge(
     }
 
 
-def service_node(v: Mapping[str, Any]) -> dict[str, Any]:
-    """The Node.js service: one event loop on one CPU."""
+def service_node(
+    v: Mapping[str, Any],
+    runtime: str = "nodejs",
+    node_id: str = "api",
+    time_key: str = "serviceTimeMs",
+    label: str | None = None,
+) -> dict[str, Any]:
+    """A service on its runtime's ArchSim profile: Node.js is one event loop on one CPU; Java
+    (Tomcat's 200 threads), Go (a goroutine per request) and Python (gunicorn's sync workers) are
+    a pool of workers that each wait for their own PostgreSQL calls, on the container's 2 CPUs.
+    Their garbage collection is calibrated (``gc_inputs``); the JIT warm-up of the Java profile
+    applies only to replicas started during a run, so it does not apply here."""
+    rt = RUNTIMES[runtime]
+    if rt.workers is None:
+        return {
+            "id": node_id,
+            "type": "service",
+            "label": label or rt.label,
+            "config": {
+                "technology": rt.technology,
+                "platform": "docker",
+                "replicas": 1,
+                "processesPerReplica": 1,
+                "queueCapacity": 100_000,
+                "queueTimeoutMs": None,
+                "serviceTimeMs": v[time_key],
+                "gcPauseMs": 0,  # measured CPU per request already includes GC
+                "warmupFactor": 1,
+                "cpuCores": rt.cpu_cores,
+                "memoryGib": SERVICE_MEMORY_GIB,
+            },
+        }
     return {
-        "id": "api",
+        "id": node_id,
         "type": "service",
-        "label": "Node.js service",
+        "label": label or rt.label,
         "config": {
-            "technology": "nodejs",
+            "technology": rt.technology,
             "platform": "docker",
             "replicas": 1,
-            "processesPerReplica": 1,
+            "workersPerReplica": rt.workers,
+            "blockingDownstream": True,
             "queueCapacity": 100_000,
             "queueTimeoutMs": None,
-            "serviceTimeMs": v["serviceTimeMs"],
-            "gcPauseMs": 0,  # measured CPU per request already includes GC
-            "warmupFactor": 1,
-            "cpuCores": 1,
+            "serviceTimeMs": v[time_key],
+            "gcPauseMs": v.get("gcPauseMs", 0),
+            **({"gcEveryRequests": v["gcEveryRequests"]} if "gcEveryRequests" in v else {}),
+            "cpuCores": rt.cpu_cores,
             "memoryGib": SERVICE_MEMORY_GIB,
         },
     }
@@ -1210,7 +1523,7 @@ def database_node(v: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def cache_node(v: Mapping[str, Any]) -> dict[str, Any]:
+def cache_node(v: Mapping[str, Any], ttl_s: int = CACHE_TTL_S) -> dict[str, Any]:
     """Redis with a TTL over the keyspace, filled on a miss."""
     return {
         "id": "cache",
@@ -1219,7 +1532,7 @@ def cache_node(v: Mapping[str, Any]) -> dict[str, Any]:
         "config": {
             "technology": "redis",
             "hitModel": "ttl_keyspace",
-            "ttlSeconds": CACHE_TTL_S,
+            "ttlSeconds": ttl_s,
             "populateOnMiss": True,
             "serviceTimeMs": v["cacheServiceTimeMs"],
             "queueCapacity": 100_000,
@@ -1268,14 +1581,24 @@ def design(
             "label": "k6",
             "config": {"timeoutMs": TIMEOUT_MS, "maxAttempts": 1},
         },
-        service_node(v),
     ]
-    edges = [_edge("e-clients", "clients", "api", v["clientLinkLatencyMs"])]
-    if exp.stack == "postgres":
+    if exp.stack == "chain":  # the gateway calls the API, which calls PostgreSQL, one after another
+        nodes += [
+            service_node(v, node_id="gateway", label="Node.js gateway"),
+            service_node(v, time_key="apiServiceTimeMs", label="Node.js API"),
+        ]
+        edges = [
+            _edge("e-clients", "clients", "gateway", v["clientLinkLatencyMs"]),
+            _edge("e-api", "gateway", "api", v["apiLinkLatencyMs"]),
+        ]
+    else:
+        nodes.append(service_node(v, exp.runtime))
+        edges = [_edge("e-clients", "clients", "api", v["clientLinkLatencyMs"])]
+    if exp.stack in DB_STACKS:
         nodes.append(database_node(v))
         edges.append(_edge("e-db", "api", "db", 0.0))
-    elif exp.stack == "cache":
-        nodes += [cache_node(v), database_node(v)]
+    elif exp.stack in CACHE_STACKS:
+        nodes += [cache_node(v, exp.ttl_s), database_node(v)]
         edges += [
             _edge("e-cache", "api", "cache", v["cacheLinkLatencyMs"], types=["read"]),
             _edge("e-miss", "cache", "db", 0.0, port="miss", types=["read"]),
@@ -1464,8 +1787,9 @@ def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
 def measure_once(exp: Experiment, rps: float, run: int) -> dict[str, Any]:
     target = target_for(exp)
     log(f"measuring {exp.id} at {rps:g} req/s (run {run})")
-    if exp.stack == "cache":
-        compose("exec", "-T", "redis", "redis-cli", "FLUSHALL", capture=True)
+    if exp.stack in CACHE_STACKS:
+        redis = "redis-ttl" if exp.stack == "cache-ttl" else "redis"
+        compose("exec", "-T", redis, "redis-cli", "FLUSHALL", capture=True)
     http_json(f"{API}/reset", "POST")
     cons0 = http_json(f"{CONSUMER}/stats") if exp.stack == "kafka" else None
     cpu0 = {s: cpu_usec(s) for s in services_for(exp)}
@@ -1495,7 +1819,7 @@ def measure_once(exp: Experiment, rps: float, run: int) -> dict[str, Any]:
     if (resources := sampler.result()) is not None:
         row["resources"] = resources
     c = svc.get("counters", {})
-    if exp.stack == "cache":
+    if exp.stack in CACHE_STACKS:
         hits, misses = c.get("cache_hit:measure", 0), c.get("cache_miss:measure", 0)
         row["cacheHitRatio"] = hits / (hits + misses) if hits + misses else None
     if exp.stack == "kafka":
@@ -2233,6 +2557,9 @@ HARNESS = (
     "benchmarks/run.py",
     "benchmarks/compose.yaml",
     "benchmarks/service",
+    "benchmarks/service-java",
+    "benchmarks/service-go",
+    "benchmarks/service-python",
     "benchmarks/k6",
     "benchmarks/db",
 )
@@ -2280,7 +2607,7 @@ def environment() -> dict[str, Any]:
             "redis": "redis:7-alpine",
             "kafka": "apache/kafka:3.8.0",
             "k6": "grafana/k6:1.3.0",
-            "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4",
+            "service": RUNTIMES["nodejs"].image,
         },
         "python": platform.python_version(),
     }
@@ -2292,7 +2619,139 @@ def save(exp_id: str, name: str, data: dict[str, Any]) -> None:
     write_json(d / f"{name}.json", data)
 
 
+# ---------------------------------------------------------------------------------------------
+# held-out experiments: sealed until a frozen engine predicts them
+# ---------------------------------------------------------------------------------------------
+
+
+def frozen_engines(path: Path | None = None) -> list[dict[str, Any]]:
+    """The engines in engines.json frozen for prospective predictions: frozenAt and tag set."""
+    return [
+        e
+        for e in read_json(ENGINES if path is None else path) or []
+        if e.get("frozenAt") and e.get("tag") and e.get("engineTree")
+    ]
+
+
+def seal(
+    exp: Experiment,
+    prov: Mapping[str, Any] | None = None,
+    engines: Sequence[Mapping[str, Any]] | None = None,
+) -> str | None:
+    """Why a held-out experiment may not be calibrated or measured now, or None when it may:
+    the engine here must be one frozen in engines.json (its source tree, as provenance() names
+    it), with nothing uncommitted in the engine or the harness, so that the prediction saved
+    before the first measurement is the frozen engine's. Other experiments are never sealed."""
+    if exp.held_out is None:
+        return None
+    prov = provenance() if prov is None else prov
+    frozen = frozen_engines() if engines is None else engines
+    tree = prov.get("engineTree")
+    sealed = (
+        f"{exp.id} is a held-out experiment (registered {exp.held_out.registered}, commit "
+        f"{exp.held_out.commit[:12]}) and stays sealed"
+    )
+    if not any(e.get("engineTree") == tree for e in frozen):
+        return (
+            f"{sealed}: this engine (tree {str(tree)[:12]}) is not frozen in "
+            f"benchmarks/engines.json, so it may not be calibrated or measured. "
+            f"`run.py smoke {exp.id}` checks its stack without measuring it."
+        )
+    if prov.get("dirty") is not False:
+        return (
+            f"{sealed}: packages/engine or the harness has uncommitted changes (or git cannot "
+            "tell), so the frozen engine's tree does not describe what would run."
+        )
+    return None
+
+
+def require_unsealed(exp: Experiment) -> None:
+    if (why := seal(exp)) is not None:
+        raise SystemExit(why)
+
+
+def smoke_problems(exp: Experiment, sent: Mapping[str, Any], stats: Mapping[str, Any]) -> list[str]:
+    """What a smoke test found wrong (none: it passed). ``sent``: k6_measured of the run;
+    ``stats``: the service's /stats after it. Every request k6 meant to send was sent and
+    succeeded, and the service counted each one: as a request, in its handler and PostgreSQL
+    timings (on chain, at the gateway and at the API behind it), as a cache hit or miss, or as
+    a produced message."""
+    want = SMOKE_RPS * SMOKE_S
+    n = sent.get("sent") or 0
+    out = []
+    if n < 0.95 * want:
+        out.append(f"k6 sent {n} requests of the {want} it should have")
+    if sent.get("dropped"):
+        out.append(f"k6 dropped {sent['dropped']} requests (no VU free to send them)")
+    if sent.get("failed") or sent.get("succeeded") != n:
+        out.append(f"{n - (sent.get('succeeded') or 0)} of {n} requests failed")
+    services = [("the service", dict(stats))]
+    if exp.stack == "chain":
+        services.append(("the API behind the gateway", dict(stats.get("upstream") or {})))
+    for who, s in services:
+        if s.get("requests") != n:
+            out.append(f"{who} counted {s.get('requests')} requests, k6 sent {n}")
+        handled = (s.get("timings", {}).get("handler") or {}).get("count")
+        if handled != n:
+            out.append(f"{who} timed {handled} handlers, k6 sent {n}")
+        if not s.get("cpuMs"):
+            out.append(f"{who} reported no CPU time")
+    if exp.stack in DB_STACKS:
+        timings = db_client(exp, {"service": stats}).get("timings", {})
+        queries = sum((timings.get(q) or {}).get("count", 0) for q in ("db_read", "db_write"))
+        if queries != n:
+            out.append(f"PostgreSQL calls timed: {queries}, k6 sent {n}")
+    counters = stats.get("counters") or {}
+    if exp.stack in CACHE_STACKS:
+        looked = counters.get("cache_hit:measure", 0) + counters.get("cache_miss:measure", 0)
+        if looked != n:
+            out.append(f"the cache counted {looked} hits and misses, k6 sent {n}")
+    if exp.stack == "cache-ttl":  # Redis's own command statistics, through the service's /stats
+        gets = ((stats.get("redis") or {}).get("get") or {}).get("calls")
+        if gets != n:
+            out.append(f"Redis counted {gets} GET commands, k6 sent {n}")
+    if exp.runtime != "nodejs" and "collections" not in (stats.get("gc") or {}):
+        out.append("the service reported no garbage collection counts")
+    if exp.runtime == "python" and stats.get("workers") != PYTHON_WORKERS:
+        out.append(
+            f"{stats.get('workers')} gunicorn workers hold a statistics slot, not {PYTHON_WORKERS}"
+        )
+    if exp.stack == "kafka" and counters.get("produced:measure", 0) != n:
+        out.append(
+            f"the producer counted {counters.get('produced:measure', 0)} messages, k6 sent {n}"
+        )
+    return out
+
+
+def smoke(exp: Experiment, keep: bool = False) -> list[str]:
+    """Start an experiment's stack, send its traffic at SMOKE_RPS req/s for SMOKE_S s (no settle,
+    no calibration, no warm-up) and check it (``smoke_problems``). Nothing is kept: no latency is
+    shown or written, and k6's summary is deleted. The one way to run a sealed experiment's
+    stack. Returns the problems found."""
+    stack_up(exp.stack)
+    try:
+        http_json(f"{API}/reset", "POST")
+        try:
+            summary = k6(
+                target_for(exp), exp.mix, SMOKE_RPS, 0, SMOKE_S, "smoke", exp.keys, exp.skew
+            )
+        finally:
+            (K6_OUT / "smoke.json").unlink(missing_ok=True)
+        problems = smoke_problems(exp, k6_measured(summary, SMOKE_S), http_json(f"{API}/stats"))
+        if problems:
+            logs = compose(
+                "logs", "--no-color", "--tail", "30", *STACK_SERVICES[exp.stack],
+                capture=True, check=False,
+            )  # fmt: skip
+            print(logs, flush=True)
+    finally:
+        if not keep:
+            stack_down(exp.stack)
+    return problems
+
+
 def run_experiment(exp: Experiment) -> None:
+    require_unsealed(exp)  # a held-out experiment: only with a frozen engine and a clean tree
     calibration = calibrate(exp)
     save(exp.id, "calibration", calibration)
     predictions = predict(exp, calibration)
@@ -2341,19 +2800,49 @@ def run_experiment(exp: Experiment) -> None:
     )
 
 
+def runnable(
+    stacks: Sequence[str], only: str | None = None, refuse: bool = True
+) -> dict[str, list[str]]:
+    """The experiments to run on each stack, before any stack starts. A sealed held-out
+    experiment (``seal``) stops the run (``refuse``: it was asked for by its stack) or is left
+    out, saying why (``all``). Stacks with nothing to run are left out."""
+    plan: dict[str, list[str]] = {}
+    for stack in stacks:
+        for exp_id in STACKS[stack]:
+            if only and exp_id != only:
+                continue
+            if (why := seal(EXPERIMENTS[exp_id])) is not None:
+                if refuse:
+                    raise SystemExit(why)
+                log(f"leaving out {exp_id}: {why}")
+                continue
+            plan.setdefault(stack, []).append(exp_id)
+    return plan
+
+
+def exp_image(exp: Experiment) -> str:
+    """The service image of an experiment's stack, as environment.json records it."""
+    if exp.stack == "chain":
+        return f"{RUNTIMES['nodejs'].image} (gateway and API)"
+    return RUNTIMES[exp.runtime].image
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument(
         "stack",
-        choices=[*STACKS, "all", "compare", "resources", "resimulate", "envcheck"],
-        help="a stack to run, all of them, 'compare': recompute every comparison.json, "
+        choices=[*STACKS, "all", "smoke", "compare", "resources", "resimulate", "envcheck"],
+        help="a stack to run, all of them (held-out experiments only with a frozen engine), "
+        "'smoke' EXPERIMENT: start its stack, send 20 req/s for 10 s and check every request "
+        "succeeded and was counted (keeps nothing), 'compare': recompute every comparison.json, "
         "'resources': predict CPU and memory for results whose predictions have none, then "
         "compare, 'resimulate': check today's model against every kept run (in-sample, written "
         "under results/dev/), or 'envcheck': characterise this machine (CPU siblings, steal, CPU "
         "per request across rates; about 8 minutes of Docker)",
     )
+    ap.add_argument("experiment", nargs="?", help="with smoke: the experiment to smoke-test")
     ap.add_argument("--keep", action="store_true", help="leave the stack running afterwards")
     ap.add_argument("--only", choices=list(EXPERIMENTS), help="run one experiment of the stack")
     ap.add_argument(
@@ -2369,6 +2858,16 @@ def main(argv: list[str] | None = None) -> int:
         "experiments; with more than one, every run first archives the one before",
     )
     args = ap.parse_args(argv)
+    if (args.experiment is not None) != (args.stack == "smoke"):
+        ap.error("an experiment is named with smoke, and only with smoke")
+    if args.stack == "smoke":
+        if args.experiment not in EXPERIMENTS:
+            ap.error(f"smoke: no experiment '{args.experiment}' (one of {', '.join(EXPERIMENTS)})")
+        problems = smoke(EXPERIMENTS[args.experiment], keep=args.keep)
+        for p in problems:
+            log(f"smoke {args.experiment}: {p}")
+        log(f"smoke {args.experiment}: {'FAILED' if problems else 'passed'}")
+        return 1 if problems else 0
     if args.stack == "resimulate":
         for path in resimulate(only=args.only):
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
@@ -2384,17 +2883,16 @@ def main(argv: list[str] | None = None) -> int:
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
         return 0
     stacks = list(STACKS) if args.stack == "all" else [args.stack]
+    plan = runnable(stacks, args.only, refuse=args.stack != "all")
     env = environment()
     siblings = cpu_siblings()
     # Several runs rotate through the experiments (run 1 of each, then run 2, ...), so slow drift
     # on the machine spreads over all of them; each run starts its stack afresh.
     for run_no in range(1, args.runs + 1):
-        for stack in stacks:
+        for stack, exp_ids in plan.items():
             stack_up(stack)
             try:
-                for exp_id in STACKS[stack]:
-                    if args.only and exp_id != args.only:
-                        continue
+                for exp_id in exp_ids:
                     if (args.archive or args.runs > 1) and (kept := archive(exp_id)):
                         log(
                             f"{exp_id}: kept the previous results in {kept.relative_to(HERE.parent)}"
@@ -2407,6 +2905,7 @@ def main(argv: list[str] | None = None) -> int:
                         "environment",
                         {
                             **env,
+                            "images": {**env["images"], "service": exp_image(EXPERIMENTS[exp_id])},
                             "cpusets": sets,
                             **({"topology": topology(sets, siblings)} if siblings else {}),
                         },

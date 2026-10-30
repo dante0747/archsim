@@ -544,6 +544,53 @@ summaries are not kept, only the numbers taken from them. It suggests the model'
 estimates err on the safe side on this machine, by 8% to 51%; it does not show they hold across
 runs, for other technologies, larger machines or real applications.
 
+## Held-out experiments
+
+The four experiments above are in-sample: the model and the calibration protocol were revised
+with their results in view. Five more were registered on 30 Oct 2026 in commit `90f067d`
+(`benchmarks/run.py`, `Experiment.held_out`) to test ArchSim on stacks it was never
+tuned on. They are **sealed** until an engine frozen in `benchmarks/engines.json` has predicted
+them:
+
+- `run.py` refuses to calibrate or measure one unless the engine's source tree
+  (`git rev-parse HEAD:packages/engine`) matches a frozen entry and nothing in the engine or the
+  harness is uncommitted. Its predictions are then saved before the first measured step, as for
+  every experiment, so no model change can be tuned on its results first.
+- Until then `run.py smoke <experiment>` is the only way to start their stacks: 20 req/s for
+  10 s, checking that every request succeeded and that the services counted it. It keeps no
+  latency and no results.
+- `report.py` labels each pair of engine and experiment `held-out` or `tuned-on`. An experiment
+  is held out for a frozen engine that does not list it in `tunedOn`. The held-out experiments
+  join this page's tables once they are measured.
+
+| Experiment | What it tests | Stack |
+| --- | --- | --- |
+| java-mixed | The `java` profile: a thread pool that waits on its own database calls, and stop-the-world GC | Spring Boot 3.5 (Tomcat's 200 threads, HikariCP), Java 21 with G1 |
+| go-mixed | The `go` profile: a goroutine per request, short GC pauses | net/http and a pgx pool, GOMAXPROCS 2 |
+| python-mixed | The `python` profile: worker processes that serve one request each | Flask on gunicorn, 10 sync workers with a pool of 1 connection each |
+| chain | Two services called one after the other | Node.js gateway (keep-alive) → Node.js API → PostgreSQL |
+| cache-ttl | A TTL cache whose hit ratio rises with load, scored at every step | Node.js, Redis with a 5 s TTL, PostgreSQL; Zipf 1.1 over 1,000,000 keys |
+
+Otherwise each uses pg-mixed's setup: 90% reads and 10% writes over 100,000 rows, a pool of 10
+connections and PostgreSQL 16 on CPUs 4,5.
+
+- **CPUs.** The three runtimes run on CPUs 2,3, which are the two hyperthreads of one physical
+  core on the laptop. The model gives them 2 cores, a gap the results will show. chain's gateway
+  and API get one CPU each (0 and 2), as does cache-ttl's Redis (0). No container shares a
+  physical core with k6 or with another container. The cost: chain and cache-ttl leave CPUs 1
+  and 3 idle and give k6 one core (6,7), so their ladders need watching for dropped iterations.
+- **Service statistics.** Every service exposes the same `/stats` as the Node.js one: CPU per
+  request, own time, call timings and garbage collection.
+  - gunicorn's workers add theirs up in shared memory and take CPU from the container's cgroup.
+  - Java's and Go's GC pauses are calibrated from the runtime's own counters.
+  - Python's GC stays in the CPU per request: a gunicorn worker's collection stalls only its own
+    request, while a pause in the model would stall all ten.
+- **Fan-out.** Parallel fan-out is not modelled, so `chain` calls one service after the other.
+- **cache-ttl's skew is 1.1, not 0.8.** With Zipf 0.8 over a million keys and a 5 s TTL, the hit
+  ratio would be 9% to 24%. With 1.1 it rises from about 52% at 250 req/s to 69% at 4,000 req/s.
+  k6 draws keys from a keyspace this large by rejection-inversion, which gives exactly the same
+  distribution without a table in every VU.
+
 ## Proposed tier thresholds
 
 The owner decides tiers (docs/prompts/how-to-win.md); this is a proposal, not applied anywhere.

@@ -359,6 +359,18 @@ def test_staircase_stops_on_a_slow_pass() -> None:
     assert run.next_rise(PG_MIXED, flat) is None
 
 
+def test_staircase_caps_the_busier_hop_of_a_chain() -> None:
+    entry = fake_pass("read:0.9,write:0.1", 50)
+    entry["service"]["cpuMsPerRequest"] = 1.0  # the gateway
+    entry["service"]["upstream"] = {
+        "cpuMsPerRequest": 2.0,  # the API behind it, the busier hop
+        "timings": entry["service"]["timings"],
+    }
+    assert [h["cpuMsPerRequest"] for h in run.hops(entry["service"])] == [1.0, 2.0]
+    assert run.next_rise(PG_MIXED, entry) == 175  # 35% of one CPU at the API's 2 ms
+    assert run.capacity_bound(PG_MIXED, entry) == 500  # 1 CPU / 2 ms
+
+
 def test_staircase_caps_a_share_of_every_cpu_the_service_has(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

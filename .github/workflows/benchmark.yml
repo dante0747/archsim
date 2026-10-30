@@ -67,7 +67,7 @@ jobs:
         # box, where compose.yaml's defaults pin each to its own CPUs).
         run: |
           cpus="0-$(( $(nproc) - 1 ))"
-          for name in POSTGRES REDIS KAFKA SERVICE CONSUMER K6; do export "BENCH_CPUS_$name=$cpus"; done
+          for name in POSTGRES REDIS REDIS_TTL KAFKA SERVICE CONSUMER GATEWAY CHAIN_API JAVA GO PYTHON K6; do export "BENCH_CPUS_$name=$cpus"; done
           echo "every container shares CPUs $cpus"
           uv run python benchmarks/run.py "$STACK" --archive
       - name: Report

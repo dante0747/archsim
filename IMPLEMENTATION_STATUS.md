@@ -7,6 +7,19 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**Held-out experiments, sealed (2026-10-30; accuracy plan W19).**
+
+- Five experiments ArchSim was never tuned on, registered in `90f067d`: java-mixed (Spring Boot
+  on Tomcat, HikariCP), go-mixed (net/http, pgx), python-mixed (Flask on 10 gunicorn sync
+  workers), chain (Node.js gateway → API → PostgreSQL) and cache-ttl (5 s TTL, Zipf 1.1 over
+  1M keys: 0.8 would give only a 9-24% hit ratio).
+- Sealed: `run.py` calibrates or measures them only with an engine frozen in
+  `benchmarks/engines.json` (none yet) and a clean tree; `run.py smoke` (20 req/s, keeps nothing)
+  passes on all five. `report.py` labels each engine and experiment held-out or tuned-on.
+- Java and Go GC pauses are calibrated from the runtimes' counters; no container shares a
+  physical core with k6 or another (chain and cache-ttl give k6 one core). The staircase caps the
+  service under test (listed first in each stack) by its CPUs, and chain by its busier hop.
+
 **Calibration protocol v5: staircase, replicates, predicted ranges (2026-10-30; accuracy plan W20).**
 
 - Calibration measures 20 s at rest, then climbs a staircase from 50 req/s (each pass at half the
