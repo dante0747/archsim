@@ -59,6 +59,17 @@ def test_the_held_out_experiments_are_registered() -> None:
     assert (ttl.mix, ttl.keys, ttl.skew, ttl.ttl_s) == ("cached:1", 1_000_000, 1.1, 5)
 
 
+def test_the_registration_commit_added_them() -> None:
+    commit = run.REGISTERED.commit
+    assert len(commit) == 40 and all(c in "0123456789abcdef" for c in commit)
+    if run.git("cat-file", "-e", f"{commit}^{{commit}}") is None:
+        pytest.skip("the registration commit is not in this clone (shallow)")
+    then = run.git("show", f"{commit}:benchmarks/run.py") or ""
+    before = run.git("show", f"{commit}~1:benchmarks/run.py") or ""
+    for e in HELD_OUT:
+        assert f'"{e}",' in then and f'"{e}",' not in before, e
+
+
 def test_engines_json_has_no_frozen_engine_yet() -> None:
     entries = report.engines()
     assert run.frozen_engines() == []

@@ -524,8 +524,8 @@ runs, for other technologies, larger machines or real applications.
 ## Held-out experiments
 
 The four experiments above are in-sample: the model and the calibration protocol were revised
-with their results in view. Five more were registered on 30 Oct 2026 (`benchmarks/run.py`,
-`Experiment.held_out`, with the commit that added them) to test ArchSim on stacks it was never
+with their results in view. Five more were registered on 30 Oct 2026 in commit `90f067d`
+(`benchmarks/run.py`, `Experiment.held_out`) to test ArchSim on stacks it was never
 tuned on. They are **sealed** until an engine frozen in `benchmarks/engines.json` has predicted
 them:
 
