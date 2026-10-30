@@ -7,6 +7,27 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**Calibration protocol v5: staircase, replicates, predicted ranges (2026-10-30; accuracy plan W20).**
+
+- Calibration measures 20 s at rest, then climbs a staircase from 50 req/s (each pass at half the
+  capacity the last implies, at most 35% of the service's core, stopping once p95 passes 10 ms),
+  comes down again and repeats the top rate: every rate twice, the top three times. Each top
+  pass gives a replicate set of inputs (CPU per request net of idle; a pass still disturbed
+  after its retry is replaced); each input comes whole from its median replicate. `cpuByLoad`
+  keeps every rate's CPU per request for the CPU-by-load model (W21). v4 calibrations keep
+  their formulas, so every kept run still re-simulates exactly.
+- Each replicate's knee is predicted too: `kneeRange` (nominal coverage (R - 1) / (R + 1)) and
+  `containsMeasured` in the comparison. `run.py --runs N` runs each experiment N times, each on
+  a fresh stack, rotating between experiments.
+- report.py judges criteria 1, 2 and 3a over the runs that repeat the latest (same protocol,
+  machine, OS build and engine), at least 3 of them: the median knee error within ±25%, p95 and
+  stability in 2 of 3 runs. A new "Runs repeating the latest" table, and on /accuracy the
+  predicted range on each knee chart and the repeat runs in "Run to run".
+- A trial calibration of pg-mixed on the real stack (`benchmarks/results/trials/`) measured the
+  service at 0.23 ms per request at 1,193 req/s (v4 read 0.45): with it, engine 0.14.0 predicts a
+  knee of 4,375 req/s against about 2,430 measured, so the other limits (tail latency, GC,
+  PostgreSQL's real cores) are what W21 to W24 must model.
+
 **Benchmark harness, environment check and provenance (2026-10-30; accuracy plan W18).**
 
 - `run.py resimulate` derives every kept run's inputs again from its calibration passes and

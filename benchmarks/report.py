@@ -153,6 +153,9 @@ def history(results: Path = RESULTS) -> dict[str, list[dict[str, Any]]]:
         cal_path, env_path = d / "calibration.json", d / "environment.json"
         cal = json.loads(cal_path.read_text(encoding="utf-8")) if cal_path.exists() else None
         env = json.loads(env_path.read_text(encoding="utf-8")) if env_path.exists() else {}
+        pred_path = d / "predictions.json"
+        pred = json.loads(pred_path.read_text(encoding="utf-8")) if pred_path.exists() else {}
+        rng = cmp_.get("kneeRange")
         out.setdefault(exp, []).append(
             {
                 "dir": f"{d.name}/" if d.name != exp else "latest",
@@ -161,12 +164,90 @@ def history(results: Path = RESULTS) -> dict[str, list[dict[str, Any]]]:
                 # the hardware: an OS update on the same laptop is not a second machine
                 "machine": str(env.get("cpu")),
                 "os": env.get("os"),
+                "engineVersion": pred.get("engineVersion"),
                 "measuredKnee": cmp_["measuredKnee"],
                 "predictedKnee": cmp_["predictedKnee"],
                 "kneeError": cmp_["kneeError"],
+                "kneeRange": (
+                    {
+                        k: rng.get(k)
+                        for k in ("lowRps", "highRps", "nominalCoverage", "containsMeasured")
+                    }
+                    if rng
+                    else None
+                ),
+                "checks": run_checks(cmp_),
             }
         )
     return out
+
+
+MIN_RUNS = 3
+"""Criteria 1, 2 and 3a need at least this many runs under the same protocol, machine, OS build
+and engine."""
+REPEAT_SHARE = 2 / 3
+"""Criteria 2 and 3a must hold in at least this share of those runs (2 of 3, 4 of 5)."""
+
+
+def run_checks(cmp_: Mapping[str, Any]) -> dict[str, Any]:
+    """One run's own knee error and criteria 2 and 3a: at or below its measured knee, the steps
+    whose p95 missed and the unstable ones."""
+    below = bench.at_or_below_knee(cmp_["rows"], cmp_["measuredKnee"])
+    misses = [
+        r["offeredRps"]
+        for r in below
+        if not p95_within(r["measured"]["p95"], r["predicted"]["p95"])
+    ]
+    unstable = [r["offeredRps"] for r in below if r.get("unstable")]
+    return {
+        "kneeError": cmp_["kneeError"],
+        "steps": len(below),
+        "misses": misses,
+        "unstable": unstable,
+        "p95Pass": bool(below) and not misses,
+        "stablePass": bool(below) and not unstable,
+    }
+
+
+def comparable(runs: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """The kept runs that repeat the latest one: same protocol, machine, OS build and engine.
+    Their spread is run-to-run noise; across any of those it is not."""
+    if not runs:
+        return []
+    last = runs[-1]
+    keys = ("protocol", "machine", "os", "engineVersion")
+    return [r for r in runs if all(r.get(k) == last.get(k) for k in keys)]
+
+
+def repeatability(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
+    """How the latest run's conditions repeated (``comparable``): the knee errors, their median
+    and range, and how often the measured knee fell inside the predicted range."""
+    group = comparable(runs)
+    if not group:
+        return None
+    errs = [r["kneeError"] for r in group if r.get("kneeError") is not None]
+    ranged = [r["kneeRange"] for r in group if r.get("kneeRange")]
+    hits = sum(1 for g in ranged if g.get("containsMeasured"))
+    med = bench.median(errs)
+    lo, hi = (min(errs), max(errs)) if errs else (None, None)
+    last = group[-1]
+    return {
+        "runs": len(group),
+        "protocol": last.get("protocol"),
+        "engineVersion": last.get("engineVersion"),
+        "errors": errs,
+        "medianError": med,
+        "minError": lo,
+        "maxError": hi,
+        "withRange": len(ranged),
+        "inRange": hits,
+        "nominalCoverage": ranged[-1].get("nominalCoverage") if ranged else None,
+        "text": {
+            "medianError": pct(med),
+            "errors": pct(lo) if len(errs) == 1 else f"{pct(lo)} to {pct(hi)}",
+            "coverage": f"{hits} of {len(ranged)}" if ranged else "-",
+        },
+    }
 
 
 def p95_within(measured: float | None, predicted: float | None) -> bool:
@@ -179,30 +260,48 @@ def p95_within(measured: float | None, predicted: float | None) -> bool:
 
 def criteria(cmp_: Mapping[str, Any], runs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """The proposed tier criteria for one experiment, from its comparison and its kept runs
-    (``history``; the last is the one compared):
+    (``history``; the last is the one compared). Criteria 1, 2 and 3a are judged over the runs
+    that repeat it (``comparable``), at least MIN_RUNS of them:
 
-    1. knee error within +/-25%;
-    2. at or below the measured knee, every step's p95 within +/-100% or 3 ms (``p95_within``);
-    3. no unstable step at or below the measured knee (3a), reproduced in a second run under the
-       same protocol on another machine (3b)."""
-    below = bench.at_or_below_knee(cmp_["rows"], cmp_["measuredKnee"])
-    knee_error = cmp_["kneeError"]
-    misses = [
-        r["offeredRps"]
-        for r in below
-        if not p95_within(r["measured"]["p95"], r["predicted"]["p95"])
-    ]
-    unstable = [r["offeredRps"] for r in below if r.get("unstable")]
+    1. the median knee error within +/-25%;
+    2. at or below the measured knee, every step's p95 within +/-100% or 3 ms (``p95_within``),
+       in at least REPEAT_SHARE of the runs;
+    3. no unstable step at or below the measured knee, in at least REPEAT_SHARE of the runs (3a);
+       reproduced in a second run under the same protocol on another machine (3b).
+
+    The misses and unstable steps listed are the compared run's."""
+    this = run_checks(cmp_)
+    group = comparable(runs)
+    checks = [*(r["checks"] for r in group[:-1] if "checks" in r), this]
+    n = len(checks)
+    errs = [c["kneeError"] for c in checks if c["kneeError"] is not None]
+    med = bench.median(errs)
+    need = math.ceil(REPEAT_SHARE * n)
+    p95_runs = sum(1 for c in checks if c["p95Pass"])
+    stable_runs = sum(1 for c in checks if c["stablePass"])
     protocol = runs[-1]["protocol"] if runs else None
     same = [r for r in runs if r["protocol"] == protocol]
     machines = len({r["machine"] for r in same})
     out: dict[str, Any] = {
         "knee": {
-            "pass": knee_error is not None and abs(knee_error) <= KNEE_TOLERANCE,
-            "error": knee_error,
+            "pass": n >= MIN_RUNS and med is not None and abs(med) <= KNEE_TOLERANCE,
+            "error": med,
+            "runs": n,
+            "thisRun": cmp_["kneeError"],
         },
-        "p95": {"pass": bool(below) and not misses, "steps": len(below), "misses": misses},
-        "stable": {"pass": bool(below) and not unstable, "unstable": unstable},
+        "p95": {
+            "pass": n >= MIN_RUNS and p95_runs >= need,
+            "steps": this["steps"],
+            "misses": this["misses"],
+            "runs": n,
+            "runsPassing": p95_runs,
+        },
+        "stable": {
+            "pass": n >= MIN_RUNS and stable_runs >= need,
+            "unstable": this["unstable"],
+            "runs": n,
+            "runsPassing": stable_runs,
+        },
         "reproduced": {
             "pass": len(same) >= 2 and machines >= 2,
             "protocol": protocol,
@@ -434,6 +533,36 @@ def summary_block(cmps: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def repeatability_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
+    """Each experiment's runs that repeat its latest one (same protocol, machine, OS build and
+    engine): the median knee error, the errors' range, and the predicted range's coverage."""
+    lines = [
+        "| Experiment | Runs repeating the latest | Median knee error | Knee errors | Measured knee inside the predicted range |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for exp in ORDER:
+        r = repeatability(hist.get(exp, []))
+        if not r:
+            continue
+        cov = (
+            f"{r['text']['coverage']} runs (nominal {pct(r['nominalCoverage'], False)})"
+            if r["withRange"]
+            else "no range (protocol v5 adds it)"
+        )
+        lines.append(
+            f"| [{exp}](#{exp}) | {r['runs']} ({r['protocol']}, engine {r['engineVersion']}) | "
+            f"{r['text']['medianError']} | {r['text']['errors']} | {cov} |"
+        )
+    lines += [
+        "",
+        f"The tier criteria below judge the median over at least {MIN_RUNS} such runs. Protocol "
+        "v5 predicts a range for the knee from its replicate calibration sets; with R sets a "
+        "new run's knee should fall inside it (R - 1) / (R + 1) of the time (50% for 3), the "
+        "nominal coverage.",
+    ]
+    return "\n".join(lines)
+
+
 def history_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
     lines = [
         "| Experiment | Results | Protocol | Calibrated (UTC) | Knee measured | Knee predicted | Knee error |",
@@ -579,7 +708,7 @@ def resources_block(cmps: list[dict[str, Any]]) -> str:
 
 def tiers_block(cmps: list[dict[str, Any]], hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
     lines = [
-        "| Experiment | 1. Knee error within ±25% | 2. p95 within ±100% or 3 ms at or below the measured knee | 3a. No unstable step at or below the measured knee | 3b. Reproduced on a second machine, same protocol | All three |",
+        f"| Experiment | 1. Median knee error within ±25% ({MIN_RUNS}+ runs) | 2. p95 within ±100% or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     met: dict[str, bool] = {}
@@ -587,24 +716,35 @@ def tiers_block(cmps: list[dict[str, Any]], hist: Mapping[str, Sequence[Mapping[
         exp = c["experiment"]
         k = criteria(c, hist.get(exp, []))
         met[exp] = k["all"]
-        knee = f"{'yes' if k['knee']['pass'] else 'no'} ({pct(k['knee']['error'])})"
+        n = k["knee"]["runs"]
+        few = f"{n} run{'s' if n != 1 else ''}, {MIN_RUNS} needed"
+        if n < MIN_RUNS:
+            knee = f"no: {few} (this run {pct(k['knee']['thisRun'])})"
+        else:
+            knee = f"{'yes' if k['knee']['pass'] else 'no'} (median {pct(k['knee']['error'])} over {n} runs)"
         p = k["p95"]
         if not p["steps"]:
             p95 = "no: no step at or below the measured knee"
-        elif p["pass"]:
-            p95 = f"yes ({p['steps']} of {p['steps']} steps)"
-        else:
+        elif p["misses"]:
             p95 = (
-                f"no: {rps_list(p['misses'])} miss ({p['steps'] - len(p['misses'])} of "
+                f"{rps_list(p['misses'])} miss ({p['steps'] - len(p['misses'])} of "
                 f"{p['steps']} steps within)"
             )
+        else:
+            p95 = f"{p['steps']} of {p['steps']} steps within"
+        p95 = f"{'yes' if p['pass'] else 'no'}: {p95}" + (
+            f"; {few}" if n < MIN_RUNS else f"; {p['runsPassing']} of {n} runs pass"
+        )
         s = k["stable"]
         stable = (
-            "yes"
-            if s["pass"]
-            else f"no: {rps_list(s['unstable'])} unstable"
+            f"{rps_list(s['unstable'])} unstable"
             if s["unstable"]
-            else "no: no step at or below the measured knee"
+            else "none unstable"
+            if p["steps"]
+            else "no step at or below the measured knee"
+        )
+        stable = f"{'yes' if s['pass'] else 'no'}: {stable}" + (
+            f"; {few}" if n < MIN_RUNS else f"; {s['runsPassing']} of {n} runs pass"
         )
         r = k["reproduced"]
         runs = f"{r['runs']} run{'s' if r['runs'] != 1 else ''} under {r['protocol']}, on {r['machines']} machine{'s' if r['machines'] != 1 else ''}"
@@ -709,13 +849,22 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
     passes = cal.get("passes", {})
     rate_low = passes.get("low", {}).get("rateRps")
     rate_high = passes.get("high", {}).get("rateRps", low.get("rateRps"))
-    source = (
-        f"Model inputs from the calibration passes at {rate_low:g} and {rate_high:g} req/s "
-        f"(timings from the {rate_high:g} req/s pass, CPU per request from the slope between "
-        "the two):"
-        if rate_low is not None and rate_high is not None
-        else f"Model inputs from the calibration pass at {rate_high:g} req/s:"
-    )
+    if (stairs := cal.get("staircaseRps")) is not None:  # protocol v5
+        n = len(cal.get("inputReplicates") or [])
+        source = (
+            f"Model inputs from a staircase of calibration passes at {rps_list(stairs)} (each "
+            f"rate up and down again): the median of {n} replicate sets from the "
+            f"{rps(stairs[-1])} req/s passes, CPU per request net of the "
+            f"{cal['idle']['seconds']:g} s at rest:"
+        )
+    elif rate_low is not None and rate_high is not None:
+        source = (
+            f"Model inputs from the calibration passes at {rate_low:g} and {rate_high:g} req/s "
+            f"(timings from the {rate_high:g} req/s pass, CPU per request from the slope between "
+            "the two):"
+        )
+    else:
+        source = f"Model inputs from the calibration pass at {rate_high:g} req/s:"
     out = [
         f"**{cmp_['title']}.** Calibrated {cal['at']}, predicted {pred['at']} (engine {pred['engineVersion']}), "
         f"measured afterwards. Objective: p95 <= {cmp_['objective']['p95Ms']:g} ms with >= "
@@ -787,12 +936,21 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
     if notes:
         out += ["", *notes]
     mk, pk = cmp_["measuredKnee"], cmp_["predictedKnee"]
+    rng = cmp_.get("kneeRange")
+    range_text = (
+        f" Its predicted range, from the {rng['replicates']} replicate sets, was "
+        f"{rps(rng['lowRps'])} to {rps(rng['highRps'])} req/s: the measured knee fell "
+        f"{'inside' if rng.get('containsMeasured') else 'outside'} it."
+        if rng
+        else ""
+    )
     out += [
         "",
         f"Knee: measured {knee_text(mk)} req/s, predicted {knee_text(pk)} req/s on the same steps "
         f"({pct(cmp_['kneeError'])}); ArchSim's own search before measuring put it at "
-        f"{rps(cmp_['predictedKneeFine'])} req/s. Data: `benchmarks/results/{exp}/` (each "
-        "repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).",
+        f"{rps(cmp_['predictedKneeFine'])} req/s.{range_text} Data: `benchmarks/results/{exp}/` "
+        "(each repeat's numbers as extracted from k6's summary; the summaries themselves are not "
+        "kept).",
     ]
     return "\n".join(out)
 
@@ -812,6 +970,9 @@ def render(text: str, results: Path = RESULTS) -> tuple[str, dict[str, str]]:
     cmps = [c for c in (load(e, "comparison", results) for e in ORDER) if c]
     hist = history(results)
     text = replace_block(text, "summary", summary_block(cmps) if cmps else "_No results yet._")
+    text = replace_block(
+        text, "repeatability", repeatability_block(hist) if hist else "_No results yet._"
+    )
     text = replace_block(text, "history", history_block(hist) if hist else "_No results yet._")
     text = replace_block(text, "low-load", low_load_block(cmps) if cmps else "_No results yet._")
     text = replace_block(text, "resources", resources_block(cmps))
@@ -1020,7 +1181,8 @@ def experiment_json(
             "predicted": pk,
             "searchedRps": c["predictedKneeFine"],
             "error": e,
-            "withinTolerance": k["knee"]["pass"],
+            # this run's error; the criterion itself is the median over repeated runs
+            "withinTolerance": e is not None and abs(e) <= KNEE_TOLERANCE,
             "text": {
                 "measured": knee_text(mk),
                 "predicted": knee_text(pk),
@@ -1028,6 +1190,8 @@ def experiment_json(
                 "absError": pct(abs(e) if e is not None else None, False),
             },
         },
+        "kneeRange": c.get("kneeRange"),
+        "repeatability": repeatability(runs),
         "spread": spread,
         "spreadExceedsError": bool(spread and e is not None and spread["plusMinus"] > abs(e)),
         "p95BelowKnee": {
@@ -1105,6 +1269,14 @@ def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
             "withSpread": [x["id"] for x in exps if x["spread"]],
             "spreadExceedsError": [x["id"] for x in exps if x["spreadExceedsError"]],
             "inSample": [x["id"] for x in exps if x["inSample"]],
+            # experiments whose latest conditions ran at least MIN_RUNS times
+            "repeated": [
+                x["id"] for x in exps if (x["repeatability"] or {}).get("runs", 0) >= MIN_RUNS
+            ],
+            "coverage": {
+                "withRange": sum((x["repeatability"] or {}).get("withRange", 0) for x in exps),
+                "inRange": sum((x["repeatability"] or {}).get("inRange", 0) for x in exps),
+            },
             "technologies": technology_status({x["id"]: x["criteria"]["all"] for x in exps}),
         },
         "experiments": exps,

@@ -1,8 +1,9 @@
 /**
  * One experiment's capacity knee on a load axis: the measured knee (blue dot), ArchSim's
- * prediction (orange diamond), and, when the experiment was run more than once on the same
- * machine, the range the measured knee moved over (grey band, a tick per run). Plain HTML, so the
- * labels stay readable at any width; each mark has a native tooltip.
+ * prediction (orange diamond) and its predicted range (orange band, from the replicate
+ * calibration sets), and, when the experiment was run more than once on the same machine, the
+ * range the measured knee moved over (grey band, a tick per run). Plain HTML, so the labels stay
+ * readable at any width; each mark has a native tooltip.
  */
 import { type Experiment, kneeScale } from "@/lib/accuracy";
 import { cn } from "@/lib/utils";
@@ -27,13 +28,15 @@ export function KneeScale({ x }: { x: Experiment }) {
   const meas = x.knee.measured.kneeRps;
   const pred = x.knee.predicted.kneeRps;
   const runs = x.spread?.values ?? [];
-  const values = [meas, pred, ...runs.map((r) => r.kneeRps)].filter((v): v is number => v !== null);
+  const range = x.kneeRange;
+  const values = [meas, pred, range?.highRps ?? null, ...runs.map((r) => r.kneeRps)].filter((v): v is number => v !== null);
   if (!values.length) return null;
   const { max, ticks } = kneeScale(Math.max(...values));
   const at = (v: number) => (v / max) * 100;
   const label = [
     meas !== null ? `Measured knee ${x.knee.text.measured} req/s` : null,
     pred !== null ? `ArchSim predicted ${x.knee.text.predicted} req/s` : null,
+    range ? `predicted range ${fmt(range.lowRps)} to ${fmt(range.highRps)} req/s` : null,
     x.spread ? `over ${x.spread.runs} runs the measured knee ranged from ${x.spread.text}` : null,
   ]
     .filter(Boolean)
@@ -47,6 +50,13 @@ export function KneeScale({ x }: { x: Experiment }) {
             title={`Measured knee over ${x.spread.runs} runs: ${x.spread.text}`}
             className="absolute top-[30px] h-4 rounded-[4px] bg-ink/10"
             style={{ left: `${at(x.spread.minRps)}%`, width: `${Math.max(at(x.spread.maxRps) - at(x.spread.minRps), 0.5)}%` }}
+          />
+        )}
+        {range && (
+          <div
+            title={`ArchSim's predicted range: ${fmt(range.lowRps)} to ${fmt(range.highRps)} req/s (from ${range.replicates} replicate calibration sets)`}
+            className="absolute top-[34px] h-2 rounded-full bg-[var(--pred)] opacity-30"
+            style={{ left: `${at(range.lowRps)}%`, width: `${Math.max(at(range.highRps) - at(range.lowRps), 0.5)}%` }}
           />
         )}
         <div className="absolute inset-x-0 top-[38px] h-px bg-line-strong" aria-hidden />
@@ -100,6 +110,9 @@ export function KneeLegend() {
       </li>
       <li className="flex items-center gap-2">
         <span className="mx-px size-2.5 rotate-45 bg-[var(--pred)]" aria-hidden /> ArchSim&apos;s prediction, made before measuring
+      </li>
+      <li className="flex items-center gap-2">
+        <span className="h-2 w-6 rounded-full bg-[var(--pred)] opacity-30" aria-hidden /> Its predicted range (from protocol v5)
       </li>
       <li className="flex items-center gap-2">
         <span className="relative h-3 w-6 rounded-[3px] bg-ink/10" aria-hidden>

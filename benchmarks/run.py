@@ -6,20 +6,25 @@
     uv run python benchmarks/run.py all
     uv run python benchmarks/run.py compare       # recompute every comparison.json (no Docker)
     uv run python benchmarks/run.py resources     # predict CPU and memory for older results
+    uv run python benchmarks/run.py resimulate    # today's model against every kept run
+    uv run python benchmarks/run.py envcheck      # characterise this machine
+    uv run python benchmarks/run.py all --runs 3  # three independent runs of each experiment
     uv run python benchmarks/report.py            # rewrite docs/validation.md from the results
 
-Protocol (docs/validation.md): for each experiment the runner
+Protocol v5 (docs/validation.md): for each experiment the runner
 1. starts the stack (benchmarks/compose.yaml) and settles it: VACUUM ANALYZE and a checkpoint
    after the data load (run 3's first calibration pass met the post-load autovacuum), then a
    discarded 30 s warm-up at the calibration rate;
-2. calibrates in two passes of the experiment's traffic, 50 req/s and then a quarter of the most
-   pessimistic capacity the first pass implies, and reads what the service measured (CPU per
-   request on the event loop, the time of each PostgreSQL, Redis and Kafka call, the database's
-   CPU per query, Redis's own command time); every model input is derived from these numbers by
-   a formula recorded in calibration.json;
+2. calibrates: 20 s at rest (each container's idle CPU), then a staircase of the experiment's
+   traffic from 50 req/s up to about a third of the service's core, down again and the top rate
+   once more, reading what the service measured (CPU per request on the event loop, the time of
+   each PostgreSQL, Redis and Kafka call, the database's CPU per query, Redis's own command
+   time); each top pass gives one replicate set of model inputs, derived by formulas recorded in
+   calibration.json, and the inputs are their medians;
 3. predicts: builds the ArchSim design from the calibration and simulates it, finding the knee
-   (the highest load with p95 <= 50 ms and >= 99% success) and every step of the load ladder
-   (0.25x to 1.5x the predicted knee); predictions.json is written before step 4 starts;
+   (the highest load with p95 <= 50 ms and >= 99% success), the knee of each replicate set (the
+   predicted range) and every step of the load ladder (0.25x to 1.5x the predicted knee);
+   predictions.json is written, and its sha256 logged, before step 4 starts;
 4. measures: runs k6 at each step three times (5 s warm-up, 20 s measured, WARMUP_S and
    DURATION_S) and records p50, p95, p99, throughput and errors, and each container's CPU (busy
    cores) and memory (working set) in the measured window;
@@ -68,6 +73,19 @@ MIN_SUCCESS = 0.99
 CALIBRATION_RPS = 50
 CALIBRATION_S = 30
 CALIBRATION_UTILIZATION = 0.25
+"""Protocol v4's second pass: this share of the pessimistic capacity the first pass implies."""
+IDLE_S = 20
+"""Protocol v5: seconds of no load before the staircase, to measure each container's idle CPU."""
+STAIRCASE_CPU_CAP = 0.35
+"""Protocol v5: a rising calibration pass may use at most this share of the service's core."""
+STAIRCASE_P95_CAP_MS = 10.0
+"""Protocol v5: the staircase stops rising once a pass's p95 exceeds this."""
+STAIRCASE_MAX_RISES = 3
+STAIRCASE_MIN_RISE = 1.25
+"""Protocol v5: a next step must be at least this many times the last, or the staircase stops."""
+REPLICATES = 3
+"""Protocol v5: passes at the staircase's top rate (up, down, up again): each gives its own
+model inputs and predicted knee, hence the predicted range."""
 DISTURBED_TAIL = 10.0
 """A calibration pass whose p95 is more than this many times its median was disturbed (a stall
 the low load cannot explain); it is recorded, discarded and run once more."""
@@ -666,12 +684,12 @@ def calibration_pass(exp: Experiment, mix: str, rate: float, label: str) -> dict
     return entry
 
 
-def capacity_bound(exp: Experiment, low: dict[str, Any]) -> float:
+def capacity_bound(exp: Experiment, low: Mapping[str, Any]) -> float:
     """The most pessimistic capacity the low pass implies (req/s): the service's CPU at its
     low-load cost per request, the connection pool, the hot row's lock, the consumers."""
     svc = low["service"]
     t = svc["timings"]
-    bounds = [1000 / svc["cpuMsPerRequest"]]
+    bounds = [1000 * service_cpus(exp) / svc["cpuMsPerRequest"]]
     for name in ("db_read", "db_write"):
         if name in t:
             bounds.append(PG_POOL * 1000 / t[name]["mean"])
@@ -683,36 +701,217 @@ def capacity_bound(exp: Experiment, low: dict[str, Any]) -> float:
     return min(bounds)
 
 
+def idle_pass(exp: Experiment) -> dict[str, Any]:
+    """IDLE_S of no load: each container's CPU, and the service's own counter, at rest. Protocol
+    v5 takes it off every pass's CPU, so CPU per request is what requests cost."""
+    log(f"calibrating {exp.id}: {IDLE_S} s idle")
+    http_json(f"{API}/reset", "POST")
+    cpu0 = {s: cpu_usec(s) for s in services_for(exp)}
+    time.sleep(IDLE_S)
+    cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
+    svc = http_json(f"{API}/stats")
+    return {
+        "seconds": IDLE_S,
+        "containerCpuMsPerSecond": {
+            s: (round(ms / IDLE_S, 4) if (ms := cpu_ms(cpu0[s], cpu1[s])) is not None else None)
+            for s in cpu0
+        },
+        "serviceCpuMsPerSecond": round((svc.get("cpuMs") or 0.0) / IDLE_S, 4),
+    }
+
+
+def service_cpus(exp: Experiment) -> int:
+    """The CPUs of the service the staircase caps: the stack's first container (STACK_SERVICES
+    lists the service under test first). A Node.js event loop uses one of them however many it
+    has, which its cpuset of one CPU reflects."""
+    return cpu_count(cpusets(exp.stack)[STACK_SERVICES[exp.stack][0]])
+
+
+def next_rise(exp: Experiment, entry: Mapping[str, Any]) -> float | None:
+    """The staircase's next rate after a pass, or None to stop: half the most pessimistic
+    capacity the pass implies, but no more than STAIRCASE_CPU_CAP of the service's CPUs at the
+    pass's CPU per request (the whole process's: every thread or worker); stop when the pass's p95
+    is above STAIRCASE_P95_CAP_MS or the next rate would not be STAIRCASE_MIN_RISE times this
+    one."""
+    rate = entry["rateRps"]
+    p95 = entry["k6"].get("p95")
+    if p95 is not None and p95 > STAIRCASE_P95_CAP_MS:
+        return None
+    cpu = entry["service"]["cpuMsPerRequest"]
+    cap = STAIRCASE_CPU_CAP * 1000 * service_cpus(exp) / max(cpu, 1e-6)
+    nxt = min(0.5 * capacity_bound(exp, entry), cap)
+    return float(round(nxt)) if nxt >= rate * STAIRCASE_MIN_RISE else None
+
+
 def calibrate(exp: Experiment) -> dict[str, Any]:
-    """Two passes of the experiment's traffic: 50 req/s, then at most a quarter of the most
-    pessimistic capacity the first pass implies (still low load). CPU per request is the slope
-    between them (service demand: the fixed CPU a process burns at any rate cancels out);
-    timings come from the second pass. Auxiliary mixes (writes without the WAL flush) run at the
-    second pass's rate."""
+    """Protocol v5. After settling and IDLE_S at rest, a staircase of the experiment's traffic:
+    50 req/s, then each pass at half the capacity the previous one implies, up to
+    STAIRCASE_CPU_CAP of the service's core (at most STAIRCASE_MAX_RISES rises). Then down
+    again, and the top rate once more: every rate twice, the top REPLICATES times. Each top pass,
+    with the auxiliary mixes (writes without the WAL flush) run right after it at the same rate,
+    gives one replicate set of model inputs (CPU per request net of idle, timings from the pass);
+    the inputs are their medians. ``cpuByLoad`` keeps each rate's CPU per request."""
     main_mix = exp.calibration[0]
     settled = settle(exp)
+    idle = idle_pass(exp)
     discarded: list[dict[str, Any]] = []
-    low = steady_pass(exp, main_mix, CALIBRATION_RPS, "low", discarded)
-    bound = capacity_bound(exp, low)
-    rate2 = max(CALIBRATION_RPS + 25, round(CALIBRATION_UTILIZATION * bound))
-    passes: dict[str, Any] = {
-        "low": low,
-        "high": steady_pass(exp, main_mix, rate2, "high", discarded),
-    }
-    for mix in exp.calibration[1:]:
-        passes[mix] = steady_pass(exp, mix, rate2, mix.split(":")[0], discarded)
-    inputs = model_inputs(exp, passes)
-    anchor(exp, inputs, passes["high"])
+    rates: list[float] = []
+    runs: list[dict[str, Any]] = []
+    rate: float | None = CALIBRATION_RPS
+    while rate is not None:
+        rates.append(rate)
+        entry = steady_pass(exp, main_mix, rate, f"up {len(rates)}", discarded)
+        runs.append({**entry, "label": f"up {len(rates)}"})
+        rate = next_rise(exp, entry) if len(rates) <= STAIRCASE_MAX_RISES else None
+    top = rates[-1]
+
+    def top_set(entry: dict[str, Any], i: int) -> dict[str, Any]:
+        aux = {
+            mix: steady_pass(exp, mix, top, f"{mix.split(':')[0]} {i}", discarded)
+            for mix in exp.calibration[1:]
+        }
+        return {"low": runs[0], "high": entry, "idle": idle, **aux}
+
+    sets = [top_set(runs[-1], 1)]
+    for r in reversed(rates):
+        entry = steady_pass(exp, main_mix, r, f"down {rates.index(r) + 1}", discarded)
+        runs.append({**entry, "label": f"down {rates.index(r) + 1}"})
+        if r == top:
+            sets.append(top_set(entry, len(sets) + 1))
+
+    # A top pass still disturbed after its retry gives no replicate: run another in its place
+    # (at most two more), so one stall cannot set an input or widen the range.
+    def clean() -> list[dict[str, Any]]:
+        return [s for s in sets if not disturbed(s["high"])]
+
+    while len(clean()) < REPLICATES and len(sets) < REPLICATES + 2:
+        entry = steady_pass(exp, main_mix, top, f"top {len(sets) + 1}", discarded)
+        runs.append({**entry, "label": f"top {len(sets) + 1}"})
+        sets.append(top_set(entry, len(sets) + 1))
+    used = clean() if len(clean()) >= 2 else sets
+    replicate_inputs = []
+    for s in used:
+        inputs = model_inputs(exp, s)
+        anchor(exp, inputs, s["high"])
+        replicate_inputs.append(inputs)
     return {
         "experiment": exp.id,
         "at": now(),
-        "method": "two-pass slope, anchored at the calibration rate, settled first (v4)",
+        "protocol": "v5",
+        "method": (
+            "staircase up and down, CPU per request net of idle at the top rate, median of "
+            f"{len(used)} replicates, anchored at the top rate, settled first (v5)"
+        ),
         "settle": settled,
-        "capacityBoundRps": round(bound, 1),
-        "passes": passes,
+        "idle": idle,
+        "staircaseRps": rates,
+        "capacityBoundRps": round(capacity_bound(exp, runs[0]), 1),
+        # one view the v4 readers (report.py, the low-load reference) understand
+        "passes": used[0],
+        "staircase": runs,
+        "replicates": [{k: v for k, v in s.items() if k not in ("low", "idle")} for s in used],
+        # top passes still disturbed after their retry, kept for the record only
+        "disturbedReplicates": [s["high"] for s in sets if s not in used],
         "discardedPasses": discarded,
-        "inputs": inputs,
+        "cpuByLoad": cpu_by_load(runs, idle),
+        "inputReplicates": replicate_inputs,
+        "inputs": median_inputs(replicate_inputs),
     }
+
+
+def net_cpu_ms(entry: Mapping[str, Any], idle: Mapping[str, Any], container: str) -> float | None:
+    """A container's CPU in a pass less what it burns at rest over the pass (protocol v5)."""
+    ms = entry["containerCpuMs"].get(container)
+    rest = idle["containerCpuMsPerSecond"].get(container)
+    if ms is None:
+        return None
+    return max(0.0, ms - (rest or 0.0) * CALIBRATION_S)
+
+
+def cpu_by_load(runs: Sequence[Mapping[str, Any]], idle: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Each staircase rate's CPU per request (median over its passes), net of idle: the
+    service's own counter and each container's cgroup."""
+    out = []
+    for rate in sorted({r["rateRps"] for r in runs}):
+        at = [r for r in runs if r["rateRps"] == rate]
+        svc_rest = idle["serviceCpuMsPerSecond"] * CALIBRATION_S
+        service = [
+            max(0.0, r["service"]["cpuMs"] - svc_rest) / max(r["service"]["requests"], 1)
+            for r in at
+        ]
+        containers = {
+            c: median(
+                (ms / max(r["service"]["requests"], 1))
+                if (ms := net_cpu_ms(r, idle, c)) is not None
+                else None
+                for r in at
+            )
+            for c in at[0]["containerCpuMs"]
+        }
+        out.append(
+            {
+                "rateRps": rate,
+                "passes": len(at),
+                "serviceCpuMsPerRequest": round(median(service) or 0.0, 4),
+                "containerCpuMsPerRequest": {
+                    c: (round(v, 4) if v is not None else None) for c, v in containers.items()
+                },
+            }
+        )
+    return out
+
+
+def primary(value: Any) -> float | None:
+    """The number an input is ranked by across replicates: itself, or a distribution's median
+    (its mean when it has no median)."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, dict):
+        for k in ("median", "mean", "value"):
+            if isinstance(value.get(k), int | float):
+                return float(value[k])
+    return None
+
+
+def median_inputs(replicates: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """The model inputs from the replicate sets. Each input is taken whole from the replicate
+    whose value is the median (by ``primary``), so a distribution's median and p95 come from the
+    same pass and its formula is that pass's; a disturbed pass falls to the edge and drops out.
+    Records without a value (the low-load reference, the anchor) take each number's median."""
+
+    def merge(values: list[Any]) -> Any:
+        first = values[0]
+        if isinstance(first, bool) or not isinstance(first, int | float | dict):
+            return first
+        if isinstance(first, dict):
+            return {k: merge([v[k] for v in values if k in v]) for k in first}
+        nums = [v for v in values if isinstance(v, int | float)]
+        m = median(nums)
+        return round(m, 4) if isinstance(m, float) else m
+
+    out: dict[str, Any] = {}
+    n = len(replicates)
+    for key, first in replicates[0].items():
+        items = [r[key] for r in replicates if key in r]
+        if isinstance(first, dict) and "value" in first:
+            ranked = sorted(
+                (i for i, x in enumerate(items) if primary(x["value"]) is not None),
+                key=lambda i: primary(items[i]["value"]) or 0.0,
+            )
+            pick = items[ranked[(len(ranked) - 1) // 2]] if ranked else first
+            out[key] = {
+                **pick,
+                "how": f"the median of {n} replicates ({ordinal(items.index(pick))}): {pick['how']}",
+            }
+        else:
+            out[key] = merge(items)
+    return out
+
+
+def ordinal(i: int) -> str:
+    return ("first", "second", "third", "fourth", "fifth")[i] if i < 5 else f"number {i + 1}"
 
 
 def anchor(exp: Experiment, inputs: dict[str, Any], high: dict[str, Any]) -> None:
@@ -791,19 +990,30 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     svc, svc_low = high["service"], low["service"]
     own = timing(svc, "own")
     handler = timing(svc, "handler")
-    demand = slope(svc_low["cpuMs"], svc["cpuMs"], svc_low["requests"], svc["requests"])
-    if demand is None or demand <= 0:
-        demand = svc["cpuMsPerRequest"]
+    shape = (
+        f"shape (p95/median {own['p95']:.4f}/{own['median']:.4f} ms) from the handler's own time"
+    )
+    if (idle := passes.get("idle")) is not None:  # protocol v5: the top pass, net of idle
+        rest = idle["serviceCpuMsPerSecond"] * CALIBRATION_S
+        demand = max(svc["cpuMs"] - rest, 0.0) / max(svc["requests"], 1)
+        if demand <= 0:
+            demand = svc["cpuMsPerRequest"]
+        how = (
+            f"mean = Node's CPU per request at {high['rateRps']:g} req/s net of idle: "
+            f"({svc['cpuMs']:.0f} - {rest:.0f} ms at rest) / {svc['requests']} requests = "
+            f"{demand:.4f} ms; {shape}"
+        )
+    else:  # protocol v2 to v4: the slope between two passes
+        slope_ms = slope(svc_low["cpuMs"], svc["cpuMs"], svc_low["requests"], svc["requests"])
+        demand = slope_ms if slope_ms is not None and slope_ms > 0 else svc["cpuMsPerRequest"]
+        how = (
+            f"mean = Node's CPU per extra request between the passes: ({svc['cpuMs']:.0f} - "
+            f"{svc_low['cpuMs']:.0f} ms) / ({svc['requests']} - {svc_low['requests']} requests) = "
+            f"{demand:.4f} ms (at {low['rateRps']:g} req/s alone: {svc_low['cpuMsPerRequest']:.4f} ms); "
+            f"{shape}"
+        )
     return {
-        "serviceTimeMs": {
-            "value": lognormal_with_mean(demand, own),
-            "how": (
-                f"mean = Node's CPU per extra request between the passes: ({svc['cpuMs']:.0f} - "
-                f"{svc_low['cpuMs']:.0f} ms) / ({svc['requests']} - {svc_low['requests']} requests) = "
-                f"{demand:.4f} ms (at {low['rateRps']:g} req/s alone: {svc_low['cpuMsPerRequest']:.4f} ms); "
-                f"shape (p95/median {own['p95']:.4f}/{own['median']:.4f} ms) from the handler's own time"
-            ),
-        },
+        "serviceTimeMs": {"value": lognormal_with_mean(demand, own), "how": how},
         "clientLinkLatencyMs": {
             "value": round(max(0.0, (high["k6"]["p50"] - handler["median"]) / 2), 4),
             "how": f"(k6 median {high['k6']['p50']:.3f} ms - handler median {handler['median']:.3f} ms) / 2, one way",
@@ -815,19 +1025,25 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
 def db_cpu_share(
     passes: dict[str, Any], q_low: float, q_high: float, mean_ms: float
 ) -> dict[str, Any] | None:
-    """PostgreSQL's CPU per extra query between the passes over the mean query time, or None
-    without a usable slope."""
-    pg = slope(
-        passes["low"]["containerCpuMs"].get("postgres"),
-        passes["high"]["containerCpuMs"].get("postgres"),
-        q_low,
-        q_high,
-    )
+    """PostgreSQL's CPU per query over the mean query time, or None without a usable figure:
+    at the top pass net of idle (protocol v5), else per extra query between the two passes."""
+    if (idle := passes.get("idle")) is not None:
+        net = net_cpu_ms(passes["high"], idle, "postgres")
+        pg = net / q_high if net is not None and q_high > 0 else None
+        what = f"PostgreSQL CPU per query at the top pass net of idle ({pg or 0:.4f} ms)"
+    else:
+        pg = slope(
+            passes["low"]["containerCpuMs"].get("postgres"),
+            passes["high"]["containerCpuMs"].get("postgres"),
+            q_low,
+            q_high,
+        )
+        what = f"PostgreSQL CPU per extra query between the passes ({pg or 0:.4f} ms)"
     if pg is None or pg <= 0 or mean_ms <= 0:
         return None
     return {
         "value": round(min(1.0, max(0.02, pg / mean_ms)), 4),
-        "how": f"PostgreSQL CPU per extra query between the passes ({pg:.4f} ms) / mean query time ({mean_ms:.3f} ms)",
+        "how": f"{what} / mean query time ({mean_ms:.3f} ms)",
     }
 
 
@@ -1179,13 +1395,49 @@ def predicted_knee(exp: Experiment, inputs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def knee_range_of(nominal: float, values: Sequence[float]) -> dict[str, Any] | None:
+    """The predicted range of the knee: the knees of the replicate input sets, lowest to highest
+    (None with fewer than two). With R replicates a new draw from the same spread falls inside
+    their range with probability (R - 1) / (R + 1): the nominal coverage."""
+    if len(values) < 2:
+        return None
+    r = len(values)
+    return {
+        "lowRps": min(values),
+        "highRps": max(values),
+        "nominalRps": nominal,
+        "values": list(values),
+        "replicates": r,
+        "nominalCoverage": round((r - 1) / (r + 1), 4),
+    }
+
+
+def in_range(knee_range: Mapping[str, Any] | None, measured: Mapping[str, Any]) -> bool | None:
+    """Whether the measured knee fell inside the predicted range; None without a range or a
+    measured knee (one above the ladder is inside when the range reaches past the top step)."""
+    if not knee_range:
+        return None
+    lo, hi = knee_range["lowRps"], knee_range["highRps"]
+    if measured.get("kneeRps") is not None:
+        return bool(lo <= measured["kneeRps"] <= hi)
+    if measured.get("bound") == "above" and measured.get("aboveRps") is not None:
+        return bool(hi >= measured["aboveRps"])
+    if measured.get("bound") == "below" and measured.get("belowRps") is not None:
+        return bool(lo <= measured["belowRps"])
+    return None
+
+
 def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
     from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION
 
     inputs = calibration["inputs"]
-    log(f"predicting {exp.id}: searching the knee")
-    knee = predicted_knee(exp, inputs)
+    replicates = calibration.get("inputReplicates") or []
+    log(f"predicting {exp.id}: searching the knee ({len(replicates)} replicates for the range)")
+    with ProcessPoolExecutor(max_workers=min(len(replicates) + 1, os.cpu_count() or 2)) as pool:
+        knees = list(pool.map(predicted_knee, [exp] * (len(replicates) + 1), [inputs, *replicates]))
+    knee = knees[0]
     k = knee["kneeRps"]
+    knee_range = knee_range_of(k, [x["kneeRps"] for x in knees[1:]])
     steps = sorted({max(10, round(k * f)) for f in STEP_FRACTIONS})
     log(f"predicted knee {k:g} req/s; steps {steps}")
     with ProcessPoolExecutor(max_workers=min(len(steps), os.cpu_count() or 2)) as pool:
@@ -1198,6 +1450,7 @@ def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
         "provenance": provenance(),
         "objective": {"p95Ms": OBJECTIVE_P95_MS, "minSuccess": MIN_SUCCESS},
         "knee": knee,
+        **({"kneeRange": knee_range} if knee_range else {}),
         "steps": results,
         "design": design(exp, inputs, k),
     }
@@ -1602,6 +1855,11 @@ def compare(
         },
         "rows": rows,
     }
+    if pred.get("kneeRange"):
+        out["kneeRange"] = {
+            **pred["kneeRange"],
+            "containsMeasured": in_range(pred["kneeRange"], mk),
+        }
     methods = sorted({s["resources"]["method"] for s in steps if "resources" in s})
     if with_resources and methods:
         out["resources"] = {
@@ -2103,6 +2361,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="first move each experiment's latest results into its next run-N/ (kept history)",
     )
+    ap.add_argument(
+        "--runs",
+        type=int,
+        default=1,
+        help="independent runs of each experiment, each on a fresh stack, rotating through the "
+        "experiments; with more than one, every run first archives the one before",
+    )
     args = ap.parse_args(argv)
     if args.stack == "resimulate":
         for path in resimulate(only=args.only):
@@ -2121,28 +2386,35 @@ def main(argv: list[str] | None = None) -> int:
     stacks = list(STACKS) if args.stack == "all" else [args.stack]
     env = environment()
     siblings = cpu_siblings()
-    for stack in stacks:
-        stack_up(stack)
-        try:
-            for exp_id in STACKS[stack]:
-                if args.only and exp_id != args.only:
-                    continue
-                if args.archive and (kept := archive(exp_id)):
-                    log(f"{exp_id}: kept the previous results in {kept.relative_to(HERE.parent)}")
-                sets = cpusets(stack)
-                save(
-                    exp_id,
-                    "environment",
-                    {
-                        **env,
-                        "cpusets": sets,
-                        **({"topology": topology(sets, siblings)} if siblings else {}),
-                    },
-                )
-                run_experiment(EXPERIMENTS[exp_id])
-        finally:
-            if not args.keep:
-                stack_down(stack)
+    # Several runs rotate through the experiments (run 1 of each, then run 2, ...), so slow drift
+    # on the machine spreads over all of them; each run starts its stack afresh.
+    for run_no in range(1, args.runs + 1):
+        for stack in stacks:
+            stack_up(stack)
+            try:
+                for exp_id in STACKS[stack]:
+                    if args.only and exp_id != args.only:
+                        continue
+                    if (args.archive or args.runs > 1) and (kept := archive(exp_id)):
+                        log(
+                            f"{exp_id}: kept the previous results in {kept.relative_to(HERE.parent)}"
+                        )
+                    if args.runs > 1:
+                        log(f"{exp_id}: run {run_no} of {args.runs}")
+                    sets = cpusets(stack)
+                    save(
+                        exp_id,
+                        "environment",
+                        {
+                            **env,
+                            "cpusets": sets,
+                            **({"topology": topology(sets, siblings)} if siblings else {}),
+                        },
+                    )
+                    run_experiment(EXPERIMENTS[exp_id])
+            finally:
+                if not args.keep or run_no < args.runs:
+                    stack_down(stack)
     return 0
 
 
