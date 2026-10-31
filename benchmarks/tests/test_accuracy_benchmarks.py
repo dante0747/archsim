@@ -810,8 +810,16 @@ def test_dev_checks_page_is_generated_from_the_committed_checks() -> None:
     assert report.DEV_DOC.read_text(encoding="utf-8") == text, (
         "docs/validation/dev-checks.md is stale: run benchmarks/report.py --dev"
     )
-    assert "| pg-hot-row | `pg-hot-row/` | 2026-10-30T10:32:56Z | yes | 814 | 519 (-36%) |" in text
-    assert "Engine 0.14.0: median absolute knee error 29% over the latest run" in text
+    row = (
+        "| pg-hot-row | `pg-hot-row/run-5/` | 2026-10-30T10:32:56Z | yes | 814 | yes | 519 (-36%) |"
+    )
+    assert row in text
+    # disturbed runs are listed but left out of the medians: 19 of the 26 count
+    assert "| `pg-mixed/run-6/` | 2026-10-30T21:30:44Z | yes | 1,089 | no: disturbed |" in text
+    assert (
+        "Engine 0.14.0: median absolute knee error 20% over the latest run of each experiment, "
+        "24% over all 19 counted runs." in text
+    )
     assert "_No development checks yet._" in report.dev_text(Path("nowhere"))
 
 

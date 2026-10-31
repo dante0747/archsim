@@ -1440,10 +1440,10 @@ def dev_text(results: Path = RESULTS) -> str:
         return "\n".join([*head, "_No development checks yet._", ""])
     engines = sorted(checks, key=version_key)
     lines = [
-        "| Experiment | Results | Calibrated (UTC) | Inputs as calibrated | Knee measured | "
+        "| Experiment | Results | Calibrated (UTC) | Inputs as calibrated | Knee measured | Counted | "
         + " | ".join(f"Engine {e}: knee (error)" for e in engines)
         + " |",
-        "| --- " * (5 + len(engines)) + "|",
+        "| --- " * (6 + len(engines)) + "|",
     ]
     errors: dict[str, dict[str, list[float]]] = {e: {"latest": [], "all": []} for e in engines}
     for exp in ORDER:
@@ -1451,6 +1451,8 @@ def dev_text(results: Path = RESULTS) -> str:
         for at in runs:
             any_check = next(checks[e][exp][at] for e in engines if at in checks[e].get(exp, {}))
             cmp_ = any_check["comparison"]
+            # the measured ladder is the run's own: a disturbed run is no measure of any engine
+            disturbed = disturbed_steps(cmp_["rows"])
             cells = []
             for e in engines:
                 c = checks[e].get(exp, {}).get(at)
@@ -1459,19 +1461,21 @@ def dev_text(results: Path = RESULTS) -> str:
                     continue
                 k = c["comparison"]
                 cells.append(f"{knee_text(k['predictedKnee'])} ({pct(k['kneeError'])})")
-                if k["kneeError"] is not None:
+                if k["kneeError"] is not None and not disturbed:
                     errors[e]["all"].append(abs(k["kneeError"]))
                     if at == runs[-1]:
                         errors[e]["latest"].append(abs(k["kneeError"]))
             lines.append(
                 f"| {exp} | `{any_check['results']}/` | {at} | "
                 f"{'yes' if any_check['inputsAsCalibrated'] else 'no'} | "
-                f"{knee_text(cmp_['measuredKnee'])} | " + " | ".join(cells) + " |"
+                f"{knee_text(cmp_['measuredKnee'])} | {'no: disturbed' if disturbed else 'yes'} | "
+                + " | ".join(cells)
+                + " |"
             )
     summary = [
         f"- Engine {e}: median absolute knee error {pct(bench.median(v['latest']), False)} over "
         f"the latest run of each experiment, {pct(bench.median(v['all']), False)} over all "
-        f"{len(v['all'])} runs."
+        f"{len(v['all'])} counted runs."
         for e, v in errors.items()
     ]
     notes = [
@@ -1482,7 +1486,9 @@ def dev_text(results: Path = RESULTS) -> str:
         "",
         '"Inputs as calibrated: no" marks a run whose protocol derived its inputs differently '
         "from today's code (v2 had no anchoring of the client latency), so its row is today's "
-        "reading of the same passes. Runs calibrated from one pass (run 1) are left out.",
+        "reading of the same passes. Runs calibrated from one pass (run 1) are left out. A "
+        "disturbed run missed the objective at one load step and met it at a higher one "
+        "(docs/validation.md, protocol step 5): it is listed, but left out of the medians.",
         "",
     ]
     return "\n".join([*head, *lines, *notes])

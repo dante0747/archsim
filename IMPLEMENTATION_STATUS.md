@@ -25,7 +25,10 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   afterwards, with a note saying when it was checked.
 - `run.rederive_inputs` now re-derives a v5 calibration's replicate sets and takes their medians,
   as `calibrate()` does, so `run.py resimulate` reproduces v5 runs too (before, it used the
-  first replicate set only).
+  first replicate set only). All 24 kept runs calibrated under v3, v4 or v5 now re-simulate
+  exactly (inputs and every step), and `docs/validation/dev-checks.md` leaves disturbed runs
+  out of its medians: engine 0.14.0 is 24% off (median absolute knee error) over the 19 counted
+  runs.
 - Findings for W21 to W24: v5 gets the Node.js services' CPU within 4% to 34% (v4: 32% to 116%);
   pg-mixed's p95 rises well before its core fills (8.7 ms at 3,712 req/s against 1.8 predicted);
   the predicted range held the measured knee in 1 of 12 runs (nominal 50%), because calibration
