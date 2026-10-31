@@ -191,6 +191,9 @@ def test_no_memory_inputs_from_calibrations_without_readings() -> None:
 def test_one_point_or_one_rate_fits_nothing() -> None:
     one = {"staircase": staircase("api", [400.0, 400.0], lambda r: 60.0)}
     assert run.memory_inputs(PG_MIXED, one) == {}
+    # rest and one rate: a staircase that never rose (the host was busy) fits nothing either
+    stuck = {**one, "idle": {"workingSetMiB": {"api": 24.0}}}
+    assert run.memory_inputs(PG_MIXED, stuck) == {}
 
 
 def test_calibrated_memory_moves_no_latency() -> None:

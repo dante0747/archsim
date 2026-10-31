@@ -1506,6 +1506,11 @@ def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+MEMORY_MIN_RATES = 2
+"""Staircase rates (besides rest) the memory fit needs: memory per req/s from rest and one rate
+alone would rest on two readings."""
+
+
 def memory_containers(exp: Experiment) -> dict[str, str]:
     """The services whose memory is calibrated: their input prefix (``service_node``'s
     ``memory``) and the container measured for it. The service k6 calls, and chain's API."""
@@ -1536,14 +1541,15 @@ def memory_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     ``fit_memory``, non-negative least squares) to its container's working set over the
     staircase and at rest. A garbage-collected heap grows with the rate it allocates at, not
     with requests held, so the fit is against the rate; it explains the whole working set, so
-    memory per request held is its floor. Nothing without points at two rates or more: the model
-    keeps its defaults (256 MiB at idle, 2 MiB per request held)."""
+    memory per request held is its floor. Nothing without passes at MEMORY_MIN_RATES rates or
+    more (a staircase that did not rise): the model keeps its defaults (256 MiB at idle, 2 MiB per
+    request held)."""
     from archsim_engine.calibration.resources import fit_memory
 
     out: dict[str, Any] = {}
     for prefix, name in memory_containers(exp).items():
         pts = memory_points(passes, name)
-        if len({r for r, _ in pts}) < 2:
+        if len({r for r, _ in pts if r > 0}) < MEMORY_MIN_RATES:
             continue
         fit = fit_memory([w for _, w in pts], rate=[r for r, _ in pts])
         if fit is None:
