@@ -15,6 +15,7 @@ import {
   type Experiment,
   VALIDATION_DOC,
   byKneeError,
+  coverageSentence,
   cpuSentence,
   formatDate,
   formatTime,
@@ -380,22 +381,43 @@ function HistoryTable({ id, data }: { id: string; data: Accuracy }) {
             </tr>
           </thead>
           <tbody className="text-ink">
-            {runs.map((r) => (
-              <tr key={r.dir} className="border-b border-line last:border-0">
-                <td className="py-1.5 pr-3">
-                  {r.dir === "latest" ? "latest" : r.dir.replace("/", "")} <span className="text-ink-3">· {r.protocol}</span>
-                </td>
-                <td className="py-1.5 pr-3 text-ink-2">{formatTime(r.calibratedAt)}</td>
-                <td className="tabular py-1.5 pr-3 text-right">{r.text.measuredKnee}</td>
-                <td className="tabular py-1.5 pr-3 text-right">{r.text.predictedKnee}</td>
-                <td className="tabular py-1.5 text-right">{minus(r.text.kneeError)}</td>
-              </tr>
-            ))}
+            {runs.map((r) => {
+              const disturbed = r.checks?.disturbed ?? [];
+              return (
+                <tr key={r.dir} className="border-b border-line last:border-0">
+                  <td className="py-1.5 pr-3">
+                    {r.dir === "latest" ? "latest" : r.dir.replace("/", "")} <span className="text-ink-3">· {r.protocol}</span>
+                  </td>
+                  <td className="py-1.5 pr-3 text-ink-2">{formatTime(r.calibratedAt)}</td>
+                  <td className="tabular py-1.5 pr-3 text-right">{r.text.measuredKnee}</td>
+                  <td className="tabular py-1.5 pr-3 text-right">{r.text.predictedKnee}</td>
+                  <td className="tabular py-1.5 text-right">
+                    {disturbed.length ? (
+                      <span className="text-ink-3" title={disturbedTitle(disturbed)}>
+                        {minus(r.text.kneeError)} <span className="whitespace-nowrap">(not counted)</span>
+                      </span>
+                    ) : (
+                      minus(r.text.kneeError)
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+      {runs.some((r) => r.checks?.disturbed?.length) && (
+        <p className="mt-2 text-[12px] text-ink-3">
+          Not counted: a disturbed run missed the objective at one load step and met it at a higher one. A stable stack does not get faster with more load, so its knee is not the stack&rsquo;s.
+        </p>
+      )}
     </div>
   );
+}
+
+function disturbedTitle(steps: number[]): string {
+  const list = steps.map((v) => Math.round(v).toLocaleString("en-US")).join(", ");
+  return `Missed the objective at ${list} req/s but met it at a higher load step`;
 }
 
 export function AccuracyPage({ data }: { data: Accuracy }) {
@@ -413,6 +435,8 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
   const protocolList = [...new Set(Object.values(data.history).flatMap((runs) => runs.map((r) => r.protocol)))].sort();
   const protocols = protocolList.length <= 1 ? (protocolList[0] ?? "-") : `${protocolList.slice(0, -1).join(", ")} and ${protocolList[protocolList.length - 1]}`;
   const cpu = cpuSentence(data.experiments);
+  const coverage = coverageSentence(s);
+  const allInSample = s.inSample.length === n;
 
   return (
     <div className="min-h-full overflow-x-clip bg-page [--meas:var(--series-1)] [--pred:#c26a00] dark:[--pred:#d07400]">
@@ -495,6 +519,12 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
                 </span>
               </li>
             )}
+            {coverage && (
+              <li className="flex gap-3">
+                <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
+                <span>{coverage}</span>
+              </li>
+            )}
             {cpu && (
               <li className="flex gap-3">
                 <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
@@ -522,8 +552,10 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
               <TriangleAlert className="size-4 text-warning" aria-hidden /> Knees move between runs
             </p>
             <p className="mt-2 text-[14px] leading-relaxed text-ink">
-              The measured knee is not one fixed number: run the same experiment again on the same machine and it moves, sometimes by more than
-              ArchSim&apos;s error.
+              The measured knee is not one fixed number: run the same experiment again on the same machine and it moves
+              {s.spreadExceedsError.length
+                ? ", sometimes by more than ArchSim's error."
+                : ". Under the latest conditions it moved less than ArchSim's error, so the errors below are the model's, not noise."}
             </p>
             <ul className="mt-3 space-y-2 text-[14px] leading-relaxed text-ink">
               {data.experiments
@@ -540,7 +572,8 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
               )}
             </ul>
             <p className="mt-3 text-[14px] leading-relaxed text-ink">
-              Read each error as one sample from {machines === 1 ? "one machine" : `${machines} machines`}, not as ArchSim&apos;s accuracy in general.
+              Read these errors as results from {machines === 1 ? "one machine" : `${machines} machines`}
+              {allInSample ? ", on experiments the model was tuned on," : ","} not as ArchSim&apos;s accuracy in general.
             </p>
           </div>
         </Section>
@@ -573,12 +606,16 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
                 `The highest load that still meets the objective (p95 at most ${obj.p95Ms} ms, at least ${Math.round(obj.minSuccess * 100)}% success). k6 measures a ladder of load steps, three repeats each; the knee is interpolated between the last step that meets the objective and the first that does not. The predicted knee uses the same steps.`,
               ],
               [
+                "Disturbed run",
+                "A run that missed the objective at one load step and met it at a higher one. A stable system does not get faster with more load, so its knee is not the system's: it is listed, but not counted in the medians, the spread or the thresholds.",
+              ],
+              [
                 "Knee error",
                 "(predicted − measured) ÷ measured. Negative means ArchSim promised less capacity than the system had, which is the safe side; positive means it promised more.",
               ],
               [
                 "Latency below the knee",
-                `At each load step up to the measured knee, a prediction counts as close when it is within ±${Math.round(t.p95Error * 100)}% or ${t.p95Ms} ms of the measured p95, whichever is larger. Latencies of a millisecond or two make percentages look large: 1.0 ms predicted as 2.0 ms is +100%.`,
+                `At each load step up to the measured knee, a prediction counts as close when it is within ±${Math.round(t.p95Error * 100)}% or ${t.p95Ms} ms of the measured p95, whichever is larger. Latencies of a millisecond or two make percentages look large: 1.0 ms predicted as 2.0 ms is +100%. The test is lenient one way: a prediction that is too low can never be more than 100% below, so it always counts as close.`,
               ],
               [
                 "Unstable step",
@@ -586,17 +623,17 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
               ],
               [
                 "Validated",
-                `A proposed bar, not applied anywhere yet: knee within ±${Math.round(t.kneeError * 100)}%, latency close at every step below the knee, no unstable step there, and the result reproduced on a second machine. A technology is validated when every experiment that uses it is.`,
+                `A proposed bar, not applied anywhere yet: over at least three counted runs, a median knee error within ±${Math.round(t.kneeError * 100)}%; latency close at every step below the knee, and no unstable step there, in two of three runs; and a run on a second machine. A technology is validated when every experiment that uses it is.`,
               ],
               [
                 "In-sample",
                 s.inSample.length
-                  ? `${names(data, s.inSample)} ${s.inSample.length === 1 ? "is" : "are"} in-sample: the calibration protocol was revised after their earlier results had been seen, so those numbers may flatter the model. The others were first run under the final protocol.`
+                  ? `${allInSample ? "Every experiment here" : names(data, s.inSample)} ${s.inSample.length === 1 ? "is" : "are"} in-sample: the calibration protocol was revised after their earlier results had been seen, so those numbers may flatter the model. ${allInSample ? "Held-out experiments, sealed until a frozen engine has predicted them, will test ArchSim on stacks it was not tuned on." : "The others were first run under the current protocol."}`
                   : "Every experiment was first run under the current protocol, so none of them shaped it.",
               ],
               [
                 "Predicted first",
-                "Each experiment calibrates the model from two runs at low load, then ArchSim predicts every higher step and the predictions are saved before the first step is measured. Nothing measured afterwards feeds back into the model.",
+                "Each experiment calibrates the model from a staircase of runs well below the knee, then ArchSim predicts every higher step and the predictions are saved before the first step is measured. Nothing measured afterwards feeds back into the model.",
               ],
             ].map(([term, text]) => (
               <div key={term} className="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
@@ -613,7 +650,8 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
           lead={
             <>
               {s.runs} runs {s.firstDate === s.latestDate ? `on ${formatDate(s.latestDate)}` : `between ${formatDate(s.firstDate)} and ${formatDate(s.latestDate)}`},
-              under calibration protocols {protocols}.{" "}
+              under calibration protocols {protocols}
+              {s.disturbedRuns ? `; ${s.disturbedRuns} of them were disturbed and are not counted` : ""}.{" "}
               What changed between protocols, and why, is under &ldquo;Protocol history&rdquo; in <RepoFile path={VALIDATION_DOC} /> in the repository.
               Knees are in req/s.
             </>

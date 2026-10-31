@@ -1,11 +1,39 @@
 # Implementation status
 
-State as of 2026-10-30 (engine 0.14.0, schema 1.5, report 1.14). This file separates what is
+State as of 2026-10-31 (engine 0.14.0, schema 1.5, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
+
+- Three runs of each of the four experiments with engine 0.14.0 (tag `bench-baseline-0.14.0`),
+  Windows on Best performance, held-out experiments sealed. Median knee error over three counted
+  runs: Kafka +4%, pg-hot-row -16%, pg-mixed +24%, cache-aside -34%. pg-mixed and Kafka meet
+  criteria 1, 2 and 3a (3b needs a second machine). The measured knee moved less between runs
+  than the error in every experiment (pg-mixed 3,783 to 4,160 req/s).
+- `report.py` leaves out disturbed runs: a ladder that misses the objective at one step and meets
+  it at a higher one (a stable stack does not get faster with more load). Added after pg-mixed's
+  first two campaign runs stalled at 2,112 and 2,550 req/s and then met the objective at 3,169
+  and 5,100; pg-mixed ran twice more. Disturbed runs stay in the history (/accuracy marks them
+  "not counted"); the rule also flags six of the 14 earlier runs.
+- `environment.json` records Windows' power mode (`run.power_mode()`); runs under different
+  modes are not compared. Best performance moved pg-mixed's knee from 2,430 to about 4,000 req/s
+  and cache-aside's from 4,848 to about 7,000. The campaign's 14 v5 runs had it filled in
+  afterwards, with a note saying when it was checked.
+- `run.rederive_inputs` now re-derives a v5 calibration's replicate sets and takes their medians,
+  as `calibrate()` does, so `run.py resimulate` reproduces v5 runs too (before, it used the
+  first replicate set only). All 24 kept runs calibrated under v3, v4 or v5 now re-simulate
+  exactly (inputs and every step), and `docs/validation/dev-checks.md` leaves disturbed runs
+  out of its medians: engine 0.14.0 is 24% off (median absolute knee error) over the 19 counted
+  runs.
+- Findings for W21 to W24: v5 gets the Node.js services' CPU within 4% to 34% (v4: 32% to 116%);
+  pg-mixed's p95 rises well before its core fills (8.7 ms at 3,712 req/s against 1.8 predicted);
+  the predicted range held the measured knee in 1 of 12 runs (nominal 50%), because calibration
+  moves more between runs than between replicates; criterion 2 (p95 within ±100%) can never fail
+  an under-prediction, which is how pg-mixed and Kafka pass it.
 
 **Held-out experiments, sealed (2026-10-30; accuracy plan W19).**
 
@@ -1282,25 +1310,30 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured
+1. Accuracy plan W21 to W24, tuned on the four in-sample experiments only: GC pauses and CPU
+   per request that falls with load (W21), database inputs timed inside PostgreSQL (W22),
+   Kafka's publish tail, fetch cycle and message-age clock (W23), Redis CPU and service memory
+   (W24); then a predicted range that includes run-to-run calibration variation. Then freeze
+   engine 0.15.0, run the prospective campaign (both engines predict the five held-out
+   experiments before they are measured) and W25 (accuracy over time on /accuracy).
+2. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured
    CPU and memory, apply with one click, verify over 5 seeds.
-2. Rerun the benchmarks on a second machine (a quieter Linux host or the hosted-runner
-   workflow, which has not completed a run yet) to reproduce runs 5 and 6, then decide tier
-   thresholds (the owner; a proposal is in docs/validation.md). Model changes the data
-   supports: CPU per request that falls with load, group commit, a gradual saturation regime;
-   the benchmark designs could also use W17's fitted inputs.
-3. Move to TypeScript 7 and ESLint 10 once typescript-eslint supports TypeScript 7 and
+3. Decide the tier thresholds (the owner; a proposal is in docs/validation.md), including
+   whether criterion 2 should be symmetric (within a factor of two), and rerun on a second
+   machine (a quieter Linux host or the hosted-runner workflow, which has not completed a run
+   yet) for criterion 3b.
+4. Move to TypeScript 7 and ESLint 10 once typescript-eslint supports TypeScript 7 and
    eslint-config-next's plugins accept ESLint 10; `.github/dependabot.yml` ignores both until
    then (the rest of Dependabot's PR #4 is merged: React 19.3.1, simple-icons 16.35.0,
    jsdom 30, @types/node 26).
-4. Total client deadline across retries, retry budgets / circuit breaker component, and
+5. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
-5. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
+6. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-6. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
+7. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
    dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
    [docs/roadmap.md](docs/roadmap.md)).
-7. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
+8. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
    group rebalancing, adaptive capacity, per-key hot-row splitting.
 
 ## Bugs per week

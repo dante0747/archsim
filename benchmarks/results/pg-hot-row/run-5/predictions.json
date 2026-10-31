@@ -1,0 +1,358 @@
+{
+  "experiment": "pg-hot-row",
+  "at": "2026-10-30T10:33:21Z",
+  "engineVersion": "0.13.0",
+  "reportVersion": "1.14",
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "knee": {
+    "kneeRps": 518,
+    "tried": [
+      {
+        "offeredRps": 100.0,
+        "p95": 3.0716,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 200.0,
+        "p95": 3.0716,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 400.0,
+        "p95": 3.1331,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": null,
+        "successRate": 0.0
+      },
+      {
+        "offeredRps": 600,
+        "p95": 1954.4549,
+        "successRate": 0.3917
+      },
+      {
+        "offeredRps": 500,
+        "p95": 5.1401,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 550,
+        "p95": 1452.1887,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 525,
+        "p95": 292.0177,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 512,
+        "p95": 9.1281,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 518,
+        "p95": 17.8972,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 522,
+        "p95": 151.916,
+        "successRate": 1.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "offeredRps": 130,
+      "p50": 2.3745,
+      "p95": 3.0716,
+      "p99": 3.4592,
+      "mean": 2.4155,
+      "successRate": 1.0,
+      "throughputRps": 130.0,
+      "resultDigest": "450c6d3df1cf3fbb6dd0fe0e8cf74ccbc5713d3364b39ec2bf9c5c6cd935669d",
+      "resources": {
+        "api": {
+          "cores": 0.0547,
+          "memoryMiB": 258.0
+        },
+        "db": {
+          "cores": 0.0134
+        }
+      }
+    },
+    {
+      "offeredRps": 259,
+      "p50": 2.3745,
+      "p95": 3.0716,
+      "p99": 3.4592,
+      "mean": 2.4105,
+      "successRate": 1.0,
+      "throughputRps": 259.0,
+      "resultDigest": "5accf80049868c3c60bacad1646255a188ff6369463785e62931673f0e6e6120",
+      "resources": {
+        "api": {
+          "cores": 0.1092,
+          "memoryMiB": 260.1
+        },
+        "db": {
+          "cores": 0.0268
+        }
+      }
+    },
+    {
+      "offeredRps": 388,
+      "p50": 2.3745,
+      "p95": 3.1331,
+      "p99": 3.5989,
+      "mean": 2.4336,
+      "successRate": 1.0,
+      "throughputRps": 387.95,
+      "resultDigest": "4058817681449f227ce349c39a16c539f0eaac0b1c09aaaf4df31510ffa01648",
+      "resources": {
+        "api": {
+          "cores": 0.1639,
+          "memoryMiB": 260.1
+        },
+        "db": {
+          "cores": 0.0402
+        }
+      }
+    },
+    {
+      "offeredRps": 466,
+      "p50": 2.5198,
+      "p95": 3.5283,
+      "p99": 4.301,
+      "mean": 2.6021,
+      "successRate": 1.0,
+      "throughputRps": 466.0,
+      "resultDigest": "c6970afe3e3f444c9baf8846aa0584f18ad7cc3096a98debca0a72d145f9880f",
+      "resources": {
+        "api": {
+          "cores": 0.1964,
+          "memoryMiB": 262.1
+        },
+        "db": {
+          "cores": 0.0484
+        }
+      }
+    },
+    {
+      "offeredRps": 518,
+      "p50": 9.8805,
+      "p95": 17.8972,
+      "p99": 20.5582,
+      "mean": 10.0016,
+      "successRate": 1.0,
+      "throughputRps": 518.0,
+      "resultDigest": "6b443c6a1f75eaf5fed443808d3f12e71b7ff3c4ff3a70d641d006f428ac0908",
+      "resources": {
+        "api": {
+          "cores": 0.2185,
+          "memoryMiB": 281.6
+        },
+        "db": {
+          "cores": 0.0538
+        }
+      }
+    },
+    {
+      "offeredRps": 570,
+      "p50": 1239.4291,
+      "p95": 1916.1322,
+      "p99": 1993.544,
+      "mean": 1247.862,
+      "successRate": 0.7623,
+      "throughputRps": 447.5,
+      "resultDigest": "a52f124ef6a5a28a68ca1587d5705157573caeb65af19490a55a605797bce5ba",
+      "resources": {
+        "api": {
+          "cores": 0.2405,
+          "memoryMiB": 2816.0
+        },
+        "db": {
+          "cores": 0.054
+        }
+      }
+    },
+    {
+      "offeredRps": 648,
+      "p50": 1603.3337,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1625.2202,
+      "successRate": 0.1503,
+      "throughputRps": 129.9,
+      "resultDigest": "bb57622527d5fcd280ce328ea2341e4cd31ce0e6c37d1ffdfd6a3d43d7d30124",
+      "resources": {
+        "api": {
+          "cores": 0.2736,
+          "memoryMiB": 6716.4
+        },
+        "db": {
+          "cores": 0.054
+        }
+      }
+    },
+    {
+      "offeredRps": 777,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 25.5,
+      "resultDigest": "6e8d637de61a55f81d99cb3a9f7ae49a5fa56fefefe122d7d1b3ef4a1c8a8cfb",
+      "resources": {
+        "api": {
+          "cores": 0.328,
+          "memoryMiB": 13163.5
+        },
+        "db": {
+          "cores": 0.054
+        }
+      }
+    },
+    {
+      "offeredRps": 1010,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 0.0,
+      "resultDigest": "4584f90f34d5d4dd37bfe3cae64059a6503b6c9b75b4c856645446a932c04672",
+      "resources": {
+        "api": {
+          "cores": 0.4263,
+          "memoryMiB": 24813.6
+        },
+        "db": {
+          "cores": 0.054
+        }
+      },
+      "extension": true,
+      "at": "2026-10-30T10:46:13Z"
+    }
+  ],
+  "design": {
+    "schemaVersion": "1.0",
+    "kind": "archsim.architecture",
+    "metadata": {
+      "name": "benchmark pg-hot-row"
+    },
+    "architecture": {
+      "nodes": [
+        {
+          "id": "clients",
+          "type": "traffic_source",
+          "label": "k6",
+          "config": {
+            "timeoutMs": 2000,
+            "maxAttempts": 1
+          }
+        },
+        {
+          "id": "api",
+          "type": "service",
+          "label": "Node.js service",
+          "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 1,
+            "processesPerReplica": 1,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.4051,
+              "p95": 0.6428
+            },
+            "gcPauseMs": 0,
+            "warmupFactor": 1,
+            "cpuCores": 1,
+            "memoryGib": 1024
+          }
+        },
+        {
+          "id": "db",
+          "type": "database",
+          "label": "PostgreSQL",
+          "config": {
+            "technology": "postgresql",
+            "maxConnections": 10,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "cpuCores": 2,
+            "cpuShare": 0.1637,
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.6039,
+              "p95": 1.0147
+            },
+            "commitFlushMs": {
+              "kind": "lognormal",
+              "median": 1.2625,
+              "p95": 1.8312
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e-clients",
+          "source": "clients",
+          "sourcePort": "out",
+          "target": "api",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0328
+            }
+          }
+        },
+        {
+          "id": "e-db",
+          "source": "api",
+          "sourcePort": "out",
+          "target": "db",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0
+            }
+          }
+        }
+      ],
+      "autoSize": false
+    },
+    "workload": {
+      "rps": 518,
+      "durationS": 25,
+      "warmupS": 5,
+      "readRatio": 0.0,
+      "keyCount": 1,
+      "keySkew": 0.0,
+      "seed": 42,
+      "arrivalProcess": "deterministic"
+    },
+    "scenarios": []
+  }
+}
