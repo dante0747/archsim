@@ -98,7 +98,7 @@ def test_compose_maps_infrastructure_and_lists_what_it_guessed() -> None:
         "note": "deploy.replicas",
     }
     assert doc["provenance"]["nodes/db/maxConnections"]["note"] == "from the container command"
-    assert doc["schemaVersion"] == "1.5"
+    assert doc["schemaVersion"] == "1.6"
 
 
 def test_kubernetes_reads_autoscalers_ingresses_and_resources() -> None:

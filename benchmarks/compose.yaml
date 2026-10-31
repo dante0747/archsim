@@ -107,8 +107,12 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    # The check starts a JVM, so it runs only until it first succeeds; then a marker file answers.
+    # Until run 7 it ran every 3 s for the stack's whole life: about 0.5 cores of JVM start-ups on
+    # the broker's one physical core, which grew the publish tail with load (client p95 41 ms at
+    # 1,890 req/s against 5 ms without it; W23 trial, results/trials/2026-10-31-kafka-w23/).
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "test -f /tmp/ready || (/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 && touch /tmp/ready)"]
       interval: 3s
       timeout: 10s
       retries: 40

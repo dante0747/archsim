@@ -119,6 +119,28 @@ class MessageQueueConfig(CamelModel):
             label="Consumer time", unit="ms", group="Performance", assumption=True
         ),
     )
+    consumer_concurrency: int | None = Field(
+        default=None,
+        ge=1,
+        le=10_000,
+        description=(
+            "Messages one consumer processes at once (kafkajs partitionsConsumedConcurrently, a "
+            "consumer's worker threads); a partition's messages still go one at a time. Set, "
+            "consumers poll in cycles (see fetch overhead). Empty = one at a time."
+        ),
+        json_schema_extra=ui(label="Consumer concurrency", group="Capacity"),
+    )
+    fetch_overhead_ms: Distribution | None = Field(
+        default=None,
+        description=(
+            "A consumer's time per poll beyond processing its messages: the fetch round trip and "
+            "the offset commit (ms). Set, a consumer polls in cycles: it takes its partitions' "
+            "whole backlog (a shared queue: one message per slot), processes it, pays this, then "
+            "polls again, so messages that arrive meanwhile wait for the next poll. Empty = each "
+            "message is taken as soon as a consumer is free."
+        ),
+        json_schema_extra=ui(label="Fetch overhead", unit="ms", group="Performance"),
+    )
     max_deliveries: int = Field(
         default=3,
         ge=1,
@@ -248,6 +270,23 @@ class MessageQueueConfig(CamelModel):
     def partitioned(self) -> bool:
         return self.setting("partitioning", "none") in ("key", "round_robin")
 
+    def fetch_cycles(self) -> bool:
+        """Consumers poll in cycles (fetch overhead or a concurrency above one set) rather than
+        taking each message as soon as they are free."""
+        return self.fetch_overhead_ms is not None or (self.consumer_concurrency or 1) > 1
+
+    def consumer_slots(self) -> int:
+        """Messages all consumers process at once: each of min(consumers, partitions) consumers
+        has ``consumerConcurrency`` slots, and on a partitioned queue no more than the
+        partitions it owns (consumer i owns partitions p with p mod consumers = i)."""
+        c = min(self.consumers, self.partitions)
+        n = self.consumer_concurrency or 1
+        if n == 1:
+            return c
+        if not self.partitioned():
+            return c * n
+        return sum(min(n, len(range(i, self.partitions, c))) for i in range(c))
+
     def flow_threshold(self) -> float | None:
         """Backlog (messages) at which the memory alarm blocks publishers, or None."""
         if self.setting("flow_control", "off") != "on" or not self.memory_gib:
@@ -259,7 +298,8 @@ class MessageQueueConfig(CamelModel):
 class Message:
     op: str
     key: int
-    published_at: float
+    published_at: float  # acknowledged: the backlog wait starts here
+    created_at: float  # the publish started: the message's age starts here
     measured: bool
     rid: int
     deliveries: int = 0
@@ -271,10 +311,14 @@ class Message:
 class MessageQueueRuntime(RuntimeComponent):
     def __init__(self, ctx: SimContext, node: NodeSpec, config: MessageQueueConfig) -> None:
         self.effective_consumers = min(config.consumers, config.partitions)
-        super().__init__(ctx, node, config, self.effective_consumers)
+        self.cycles = config.fetch_cycles()
+        self.concurrency = config.consumer_concurrency or 1
+        self.consumer_slots = config.consumer_slots()
+        super().__init__(ctx, node, config, self.consumer_slots)
         env = ctx.env
         self.rng = ctx.rng(f"node:{node.id}:publish")
         self.consumer_rng = ctx.rng(f"node:{node.id}:consumer")
+        self.fetch_rng = ctx.rng(f"node:{node.id}:fetch") if self.cycles else None
         self.age = MeanAccumulator(ctx.tl)
         self.age_hist = LatencyHistogram()
         self.depth = 0
@@ -303,12 +347,18 @@ class MessageQueueRuntime(RuntimeComponent):
             self.wake: list[simpy.Event] = [env.event() for _ in range(c)]
             self.rr_part = 0
             for i in range(c):
-                env.process(self._partition_consumer(i, [p for p in range(n) if p % c == i]))
+                mine = [p for p in range(n) if p % c == i]
+                env.process(
+                    self._cycle_consumer(i, mine) if self.cycles else self._partition_consumer(i, mine)
+                )
         else:
             self.parts = None
             self.store: simpy.Store = simpy.Store(env)
-            for _ in range(self.effective_consumers):
-                env.process(self._shared_consumer())
+            # fetch cycles on a shared queue: the backlog, and consumers waiting for a message
+            self.shared: deque[Message] = deque()
+            self.idle: deque[simpy.Event] = deque()
+            for i in range(self.effective_consumers):
+                env.process(self._cycle_consumer(i, None) if self.cycles else self._shared_consumer())
 
     def deps_for(self, op: str) -> list[EdgeRuntime]:
         d = self._deps.get(op)
@@ -359,7 +409,14 @@ class MessageQueueRuntime(RuntimeComponent):
             m.count("dropped", env.now)
         else:
             msg = Message(
-                req.op, req.key, env.now, req.measured, req.id, trace=req.trace, depth=req.depth
+                req.op,
+                req.key,
+                env.now,
+                start,
+                req.measured,
+                req.id,
+                trace=req.trace,
+                depth=req.depth,
             )
             self._enqueue(msg, env.now)
         m.hold.record(env.now, env.now - start)
@@ -387,6 +444,13 @@ class MessageQueueRuntime(RuntimeComponent):
             w = self.wake[self.owner[p]]
             if not w.triggered:
                 w.succeed()
+        elif self.cycles:
+            self.shared.append(msg)
+            while self.idle:  # wake one waiting consumer
+                w = self.idle.popleft()
+                if not w.triggered:
+                    w.succeed()
+                    break
         else:
             self.store.put(msg)
         if self.threshold is not None and not self.blocked and self.depth >= self.threshold:
@@ -428,6 +492,58 @@ class MessageQueueRuntime(RuntimeComponent):
                 continue
             yield from self._process(msg)
 
+    def _cycle_consumer(
+        self, index: int, mine: list[int] | None
+    ) -> Generator[simpy.Event, Any, None]:
+        """A consumer that polls in cycles, as Kafka's consumers do: it takes the backlog of its
+        partitions (``mine``; on a shared queue up to one message per slot), processes it in
+        ``consumerConcurrency`` slots, each partition's messages one after another, waits until
+        all are done, pays the fetch overhead (the fetch and the offset commit), then polls
+        again. Messages that arrive meanwhile wait for the next poll; with no backlog it waits
+        for the next message and takes it at once."""
+        env = self.env
+        overhead = self.config.fetch_overhead_ms
+        while True:
+            work = self._poll(mine)
+            if not work:
+                ev = env.event()
+                if mine is None:
+                    self.idle.append(ev)
+                else:
+                    self.wake[index] = ev
+                yield ev
+                continue
+            slots = [env.process(self._slot(work)) for _ in range(min(self.concurrency, len(work)))]
+            yield env.all_of(slots)
+            if overhead is not None:
+                assert self.fetch_rng is not None
+                d = self.sample_time(overhead, self.fetch_rng)
+                if d > 0:
+                    yield env.timeout(d)
+
+    def _poll(self, mine: list[int] | None) -> deque[list[Message]]:
+        """One poll's batches: each owned partition's whole backlog, or on a shared queue one
+        message per slot."""
+        work: deque[list[Message]] = deque()
+        if mine is None:
+            while self.shared and len(work) < self.concurrency:
+                work.append([self.shared.popleft()])
+            return work
+        assert self.parts is not None
+        for p in mine:
+            q = self.parts[p]
+            if q:
+                work.append(list(q))
+                q.clear()
+        return work
+
+    def _slot(self, work: deque[list[Message]]) -> Generator[simpy.Event, Any, None]:
+        """One slot of a polling consumer: the poll's batches in turn, a batch's messages in
+        order."""
+        while work:
+            for msg in work.popleft():
+                yield from self._process(msg)
+
     def _visibility(self, msg: Message, lease: object) -> Generator[simpy.Event, Any, None]:
         assert self.visibility_ms is not None
         yield self.env.timeout(self.visibility_ms)
@@ -439,6 +555,7 @@ class MessageQueueRuntime(RuntimeComponent):
                 msg.op,
                 msg.key,
                 msg.published_at,
+                msg.created_at,
                 msg.measured,
                 msg.rid,
                 msg.deliveries,
@@ -496,7 +613,7 @@ class MessageQueueRuntime(RuntimeComponent):
         msg.deliveries += 1
         if outcome.ok:
             m.count("processed", end)
-            age = end - msg.published_at
+            age = end - msg.created_at  # from the start of the publish, as a producer stamps it
             self.age.record(end, age)
             if m.tl.window_start <= end < m.tl.window_end:
                 self.age_hist.record(age)
@@ -527,6 +644,7 @@ class MessageQueueRuntime(RuntimeComponent):
         p95 = self.age_hist.percentile(95)
         out = {
             "effectiveConsumers": self.effective_consumers,
+            **({"consumerSlots": self.consumer_slots} if self.concurrency > 1 else {}),
             "backlogAtEnd": self.depth,
             "meanMessageAgeMs": round(mean_age, 4) if mean_age is not None else None,
             "p95MessageAgeMs": round(p95, 4) if p95 is not None else None,
@@ -564,19 +682,44 @@ class MessageQueueRuntime(RuntimeComponent):
                 metric="utilization",
             )
         )
+        slots = self.consumer_slots
+        if self.concurrency > 1:
+            out.append(
+                formula(
+                    "consumer_slots",
+                    "Consumer slots",
+                    "slots = Σ over consumers of min(concurrency, partitions it owns)"
+                    if self.parts is not None
+                    else "slots = effective consumers × concurrency",
+                    f"{c} consumers × up to {self.concurrency} messages at once",
+                    float(slots),
+                    "slots",
+                    note="A partition's messages go one at a time, so a consumer uses at most one slot per partition it owns.",
+                    metric="utilization",
+                )
+            )
         if mean_proc:
+            what = "consumer slots" if self.concurrency > 1 else "effective consumers"
+            note = (
+                f"Publishes: {num(summary.get('arrivalRps'), 2)}/s. When they exceed the "
+                "consumer throughput the backlog (lag) grows."
+            )
+            if self.cycles:
+                note += (
+                    " Consumers poll in cycles: each poll also costs the fetch overhead, spread "
+                    "over more messages per poll as the backlog grows, so the throughput "
+                    "approaches this limit only under load; below it, a message waits for the "
+                    "next poll."
+                )
             out.append(
                 formula(
                     "drain_rate",
                     "Consumer throughput",
-                    "messages/s = effective consumers × 1000 ÷ mean processing time",
-                    f"{c} × 1000 ÷ {num(mean_proc, 2)} ms",
-                    c * 1000.0 / mean_proc,
+                    f"messages/s = {what} × 1000 ÷ mean processing time",
+                    f"{slots} × 1000 ÷ {num(mean_proc, 2)} ms",
+                    slots * 1000.0 / mean_proc,
                     "msg/s",
-                    note=(
-                        f"Publishes: {num(summary.get('arrivalRps'), 2)}/s. When they exceed the "
-                        "consumer throughput the backlog (lag) grows."
-                    ),
+                    note=note,
                     metric="lag",
                 )
             )
@@ -662,6 +805,7 @@ class MessageQueueModel(ComponentModel):
     modeled = (
         "Publish acknowledgement latency (plus replication wait and batching linger) and a bounded backlog",
         "Partitioned logs: key-hashed ordered partitions, one consumer each (hot partitions lag)",
+        "Fetch cycles: a consumer polls its partitions' backlog, processes it in parallel slots (each partition in order), pays the fetch and commit overhead, then polls again",
         "Shared queues: competing consumers, FIFO",
         "Redelivery of failed messages up to max deliveries, then dead-lettering",
         "Visibility timeouts / ack deadlines: slow processing is delivered again (duplicates)",
@@ -811,7 +955,7 @@ class MessageQueueModel(ComponentModel):
     )
 
     def capacity_slots(self, config: Any) -> int | None:
-        return int(min(config.consumers, config.partitions))
+        return int(config.consumer_slots())
 
     def uses_keys(self, config: Any) -> bool:
         return bool(config.setting("partitioning", "none") == "key" and config.partitions > 1)
@@ -836,6 +980,20 @@ class MessageQueueModel(ComponentModel):
                     f"{config.consumers - config.partitions} consumers stay idle.",
                     node_id=node.id,
                     hint="Add partitions or reduce consumers.",
+                )
+            )
+        n = config.consumer_concurrency or 1
+        owned = -(-config.partitions // min(config.consumers, config.partitions))
+        if n > 1 and config.partitioned() and n > owned:
+            issues.append(
+                warning(
+                    "queue.idle_slots",
+                    f"{name} lets each consumer process {n} messages at once, but a consumer owns "
+                    f"at most {owned} partitions and a partition's messages go one at a time; "
+                    f"{n - owned} slots per consumer stay idle.",
+                    node_id=node.id,
+                    path="consumerConcurrency",
+                    hint="Add partitions or lower the consumer concurrency.",
                 )
             )
         if config.setting("flow_control", "off") == "on" and not config.memory_gib:

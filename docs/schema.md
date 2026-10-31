@@ -17,7 +17,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.5",                 // required; drives migrations
+  "schemaVersion": "1.6",                 // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -67,7 +67,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.5"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.6"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
@@ -183,11 +183,17 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.5`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `SCHEMA_VERSION` (currently `1.6`). 1.0 to 1.1 only adds optional fields (`provenance`,
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
   `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
-  `instanceType`, and 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, so older
-  documents load unchanged.
+  `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, and 1.5 to
+  1.6 the message-queue settings `consumerConcurrency` and `fetchOverheadMs`, so older documents
+  load unchanged.
+- `consumerConcurrency` and `fetchOverheadMs` (1.6; message queues, both empty by default, as
+  before): set either, and consumers poll in fetch cycles. Each takes its partitions' backlog in
+  one poll, processes up to `consumerConcurrency` partitions at once (a partition's messages one
+  after another), then pays `fetchOverheadMs` (the fetch and the offset commit) before polling
+  again ([simulation-model.md](simulation-model.md#message-queue-message_queue)).
 - `cpuShare` and `memoryPerRpsMb` (1.5; services). `cpuShare` (0 to 1, default 1, as before) is
   the share of service time that needs a CPU core, like a database's: the rest waits on the
   worker without one. `memoryPerRpsMb` (MiB per req/s per replica, default 0, as before) is

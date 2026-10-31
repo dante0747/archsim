@@ -7,6 +7,30 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**Kafka: message age, fetch cycles, and a publish tail that was the harness's (2026-10-31; accuracy plan W23).**
+
+- Message age now starts when the publish starts (`Message.created_at`), as the benchmark's
+  producer stamps it; until now it started at the acknowledgement. `queueWaitMs` is unchanged.
+- Message queues gain `consumerConcurrency` and `fetchOverheadMs` (schema 1.6, both empty by
+  default, as before). Set either and consumers poll in cycles, as kafkajs does: take the
+  partitions' whole backlog, process it in N slots (a partition's messages one after another),
+  wait for all, pay the fetch and commit overhead, poll again (`consumerSlots`; warning
+  `queue.idle_slots`; the instant estimate counts slots). The Kafka benchmark design is one
+  consumer with concurrency 3, as the real stack. Example digests (all 25 templates, 8 s runs):
+  17 unchanged; the 8 with a queue change only in their message age.
+- The benchmark service reports kafkajs's fetch cycle (`cycle_overhead`, `cycle_fetch`,
+  `cycle_after`, batches) and the producer's sends in flight; `run.py` calibrates
+  `fetchOverheadMs` from it. Kept runs lack it and take the W23 trial's figure (median 0.93 ms,
+  p95 3.88 ms per poll at 569 req/s).
+- The publish tail that grew with load (client p95 42 ms at 1,890 req/s) was the benchmark's:
+  the broker's healthcheck started a JVM every 3 s on the broker's one physical core (about 0.5
+  cores). Run once, the stack's p95 was 5.0 ms at 1,890 req/s, which engine 0.14.0 predicted
+  (4.9 ms); GC (1 to 4 pauses per pass) and the producer's single connection were ruled out.
+  `compose.yaml` now runs the check only until it first succeeds. All five kept Kafka runs (v4
+  and v5) ran with it, so their measured knees are harness-limited. Trial data:
+  `benchmarks/results/trials/2026-10-31-kafka-w23/` (development data, not on /accuracy).
+- RESULTS-PLACEHOLDER
+
 **Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
 
 - Three runs of each of the four experiments with engine 0.14.0 (tag `bench-baseline-0.14.0`),

@@ -530,13 +530,17 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
     CPU (2,100 req/s at 0.47 ms per request), which is 31% high at that load (above). The real
     knee comes from a latency tail that grows with load: the client's p95, which waits for the
     publish, rose from 4.6 ms at 525 req/s to 42 ms at 1,890, while the model's stayed between
-    3.3 and 4.9 ms. The first run's +33% came from its calibration: its staircase topped at
+    3.3 and 4.9 ms. That tail was the benchmark's, not Kafka's: the broker's healthcheck started
+    a JVM every 3 s on the broker's one physical core (about 0.5 cores of CPU). Without it the
+    stack's p95 was 5.0 ms at 1,890 req/s (W23 trial, `benchmarks/results/trials/2026-10-31-kafka-w23/`);
+    `compose.yaml` runs the check only until it first succeeds from run 8 on, so the kept runs'
+    knee is not Kafka's. The first run's +33% came from its calibration: its staircase topped at
     726 req/s rather than about 570, and read 0.35 ms per request rather than 0.46 to 0.47
     (predicted knee 2,829 req/s), the falling cost again.
 - **Low-load latency is within 1 ms, except Kafka's.** At a quarter and half of the predicted
   knee (table after this list) ArchSim's p95 is 0.09 to 0.89 ms off for pg-mixed, hot-row and
   cache-aside. Kafka's measured p95 was 4.6 ms at 525 req/s and 10.5 ms at 1,050 against the
-  model's 3.3 and 3.4 ms; the model has no publish tail that grows with load.
+  model's 3.3 and 3.4 ms: the healthcheck's tail (above), which the model rightly does not have.
 - **Criterion 2 hides under-predicted latency.** It allows ±100% of the measured p95, and a
   prediction that is too low can never be more than 100% below. pg-mixed's 3,712 req/s step
   (1.8 ms predicted, 8.7 measured) and Kafka's steps from 1,050 req/s (3.4 to 4.9 ms against
@@ -577,8 +581,9 @@ experiments only and then tested on the held-out ones):
 2. CPU per request that falls with load, from the calibration staircase (W21).
 3. Database inputs timed inside PostgreSQL rather than from the service, and the commit flush
    measured under load (W22); then PostgreSQL's CPU.
-4. Kafka: the publish tail as load rises, the consumers' fetch cycle, and the message-age clock,
-   which starts after the publish delay (W23).
+4. Kafka: the consumers' fetch cycle, and the message-age clock, which starts after the publish
+   delay (W23). The publish tail that grows with load was the benchmark's healthcheck, fixed in
+   `compose.yaml` rather than modelled (W23).
 5. Redis's CPU per command including its network work, and the services' memory from the
    calibration passes (W24).
 6. A predicted range that includes the calibration's run-to-run variation.
