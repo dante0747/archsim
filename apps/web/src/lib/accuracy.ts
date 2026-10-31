@@ -331,9 +331,11 @@ export function lowLoadSentence(x: Experiment): string | null {
   const diffs = x.lowLoad.map((s) => s.diffMs).filter((d): d is number => d !== null);
   if (!diffs.length) return null;
   const texts = x.lowLoad.filter((s) => s.diffMs !== null).map((s) => s.text.diff.replace(" ms", ""));
-  const sorted = [...texts].sort((a, b) => Number(a) - Number(b));
-  const range = sorted.length === 1 || sorted[0] === sorted[sorted.length - 1] ? sorted[0] : `${sorted[0]} to ${sorted[sorted.length - 1]}`;
   const where = diffs.every((d) => d > 0) ? "above" : diffs.every((d) => d < 0) ? "below" : "off from";
+  // "0.16 to 0.44 ms below", smallest gap first, as "above" reads
+  const key = (t: string) => (where === "below" ? Math.abs(Number(t)) : Number(t));
+  const sorted = [...texts].sort((a, b) => key(a) - key(b));
+  const range = sorted.length === 1 || sorted[0] === sorted[sorted.length - 1] ? sorted[0] : `${sorted[0]} to ${sorted[sorted.length - 1]}`;
   const shown = where === "off from" ? range : range.replace(/[+-]/g, "");
   return `At light load (${x.lowLoad.map((s) => s.text.offered).join(" and ")} req/s), predicted p95 was ${minus(shown)} ms ${where} the measured one.`;
 }
