@@ -1,0 +1,2956 @@
+{
+  "experiment": "cache-aside",
+  "at": "2026-10-31T13:39:44Z",
+  "protocol": "v5",
+  "method": "staircase up and down, CPU per request net of idle at the top rate, median of 3 replicates, anchored at the top rate, settled first (v5)",
+  "settle": {
+    "at": "2026-10-31T13:31:06Z",
+    "seconds": 33.3,
+    "steps": [
+      "VACUUM ANALYZE",
+      "CHECKPOINT",
+      "30 s warm-up at 50 req/s"
+    ]
+  },
+  "idle": {
+    "seconds": 20,
+    "containerCpuMsPerSecond": {
+      "api": 0.7939,
+      "postgres": 14.2778,
+      "redis": 7.251
+    },
+    "serviceCpuMsPerSecond": 0.1361,
+    "workingSetMiB": {
+      "api": 65.4,
+      "postgres": 66.4,
+      "redis": 6.7
+    }
+  },
+  "staircaseRps": [
+    50,
+    384.0,
+    783.0,
+    1212.0
+  ],
+  "capacityBoundRps": 1097.5,
+  "passes": {
+    "low": {
+      "mix": "cached:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 1.579573,
+        "p95": 2.942646,
+        "p99": 4.302877,
+        "mean": 1.6623164850099912,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 1501,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 37977.46359300001,
+        "cpuMs": 1367.614,
+        "cpuMsPerRequest": 0.9111352431712192,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_miss:measure": 870,
+          "cache_hit:measure": 631
+        },
+        "timings": {
+          "redis_get": {
+            "count": 1501,
+            "mean": 0.41699245702875126,
+            "median": 0.34626900000148453,
+            "p95": 0.6977009999973234,
+            "p99": 1.2415110000001732
+          },
+          "db_read": {
+            "count": 870,
+            "mean": 0.712912011494838,
+            "median": 0.6286540000000969,
+            "p95": 1.1907090000022436,
+            "p99": 1.7246160000067903
+          },
+          "redis_set": {
+            "count": 870,
+            "mean": 0.26243553793098945,
+            "median": 0.21084099999279715,
+            "p95": 0.45066899999801535,
+            "p99": 0.900417999990168
+          },
+          "handler": {
+            "count": 1501,
+            "mean": 1.0158998081281143,
+            "median": 1.0324070000060601,
+            "p95": 2.147723000001861,
+            "p99": 3.1833199999964563
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.033582655562741016,
+            "median": 0.028855999989900738,
+            "p95": 0.04902399999264162,
+            "p99": 0.11410000000614673
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 1507.971,
+        "postgres": 893.558,
+        "redis": 525.564
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.02,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.0489,
+            "maxCores": 0.0515,
+            "workingSetMiB": 66.9,
+            "anonMiB": 61.0
+          },
+          "postgres": {
+            "cores": 0.0263,
+            "maxCores": 0.0288,
+            "workingSetMiB": 71.0,
+            "anonMiB": 7.1
+          },
+          "redis": {
+            "cores": 0.0156,
+            "maxCores": 0.0176,
+            "workingSetMiB": 7.6,
+            "anonMiB": 4.8
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 1501.0,
+          "usec": 9389.0
+        },
+        "set": {
+          "calls": 870.0,
+          "usec": 8193.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 59.0
+        }
+      },
+      "label": "up 1"
+    },
+    "high": {
+      "mix": "cached:1",
+      "rateRps": 1212.0,
+      "k6": {
+        "p50": 0.446733,
+        "p95": 1.43719,
+        "p99": 2.826482600000003,
+        "mean": 0.6508480287945925,
+        "sent": 36361,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 36361,
+        "successRate": 1.0,
+        "throughputRps": 1212.0333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 36361,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39703.16525600001,
+        "cpuMs": 8716.192,
+        "cpuMsPerRequest": 0.23971265916778964,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_hit:measure": 24747,
+          "cache_miss:measure": 11614
+        },
+        "timings": {
+          "redis_get": {
+            "count": 36361,
+            "mean": 0.17136681991699493,
+            "median": 0.13299400001415052,
+            "p95": 0.3164939999987837,
+            "p99": 0.7553360000019893
+          },
+          "handler": {
+            "count": 36361,
+            "mean": 0.36083038271778667,
+            "median": 0.17568399998708628,
+            "p95": 0.938356999977259,
+            "p99": 1.9497580000024755
+          },
+          "own": {
+            "count": 36361,
+            "mean": 0.012663998349858508,
+            "median": 0.006342000007862225,
+            "p95": 0.05156100000021979,
+            "p99": 0.09658899999340065
+          },
+          "db_read": {
+            "count": 11614,
+            "mean": 0.40685807086286335,
+            "median": 0.31153800000902265,
+            "p95": 0.7916089999780525,
+            "p99": 1.6235630000010133
+          },
+          "redis_set": {
+            "count": 11614,
+            "mean": 0.14666431272594188,
+            "median": 0.12008899997454137,
+            "p95": 0.24767499999143183,
+            "p99": 0.5453459999989718
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 8870.698,
+        "postgres": 3280.091,
+        "redis": 2248.321
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.02,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.2915,
+            "maxCores": 0.3126,
+            "workingSetMiB": 47.2,
+            "anonMiB": 41.6
+          },
+          "postgres": {
+            "cores": 0.1039,
+            "maxCores": 0.1103,
+            "workingSetMiB": 92.9,
+            "anonMiB": 18.3
+          },
+          "redis": {
+            "cores": 0.0721,
+            "maxCores": 0.0772,
+            "workingSetMiB": 10.6,
+            "anonMiB": 6.0
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 36361.0,
+          "usec": 98357.0
+        },
+        "set": {
+          "calls": 11614.0,
+          "usec": 62441.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 34.0
+        }
+      },
+      "label": "up 4"
+    },
+    "idle": {
+      "seconds": 20,
+      "containerCpuMsPerSecond": {
+        "api": 0.7939,
+        "postgres": 14.2778,
+        "redis": 7.251
+      },
+      "serviceCpuMsPerSecond": 0.1361,
+      "workingSetMiB": {
+        "api": 65.4,
+        "postgres": 66.4,
+        "redis": 6.7
+      }
+    },
+    "staircase": [
+      {
+        "mix": "cached:1",
+        "rateRps": 50,
+        "k6": {
+          "p50": 1.579573,
+          "p95": 2.942646,
+          "p99": 4.302877,
+          "mean": 1.6623164850099912,
+          "sent": 1501,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 1501,
+          "successRate": 1.0,
+          "throughputRps": 50.03333333333333
+        },
+        "service": {
+          "role": "api",
+          "requests": 1501,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 37977.46359300001,
+          "cpuMs": 1367.614,
+          "cpuMsPerRequest": 0.9111352431712192,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_miss:measure": 870,
+            "cache_hit:measure": 631
+          },
+          "timings": {
+            "redis_get": {
+              "count": 1501,
+              "mean": 0.41699245702875126,
+              "median": 0.34626900000148453,
+              "p95": 0.6977009999973234,
+              "p99": 1.2415110000001732
+            },
+            "db_read": {
+              "count": 870,
+              "mean": 0.712912011494838,
+              "median": 0.6286540000000969,
+              "p95": 1.1907090000022436,
+              "p99": 1.7246160000067903
+            },
+            "redis_set": {
+              "count": 870,
+              "mean": 0.26243553793098945,
+              "median": 0.21084099999279715,
+              "p95": 0.45066899999801535,
+              "p99": 0.900417999990168
+            },
+            "handler": {
+              "count": 1501,
+              "mean": 1.0158998081281143,
+              "median": 1.0324070000060601,
+              "p95": 2.147723000001861,
+              "p99": 3.1833199999964563
+            },
+            "own": {
+              "count": 1501,
+              "mean": 0.033582655562741016,
+              "median": 0.028855999989900738,
+              "p95": 0.04902399999264162,
+              "p99": 0.11410000000614673
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 1507.971,
+          "postgres": 893.558,
+          "redis": 525.564
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.02,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.0489,
+              "maxCores": 0.0515,
+              "workingSetMiB": 66.9,
+              "anonMiB": 61.0
+            },
+            "postgres": {
+              "cores": 0.0263,
+              "maxCores": 0.0288,
+              "workingSetMiB": 71.0,
+              "anonMiB": 7.1
+            },
+            "redis": {
+              "cores": 0.0156,
+              "maxCores": 0.0176,
+              "workingSetMiB": 7.6,
+              "anonMiB": 4.8
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 1501.0,
+            "usec": 9389.0
+          },
+          "set": {
+            "calls": 870.0,
+            "usec": 8193.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 59.0
+          }
+        },
+        "label": "up 1"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 384.0,
+        "k6": {
+          "p50": 0.713646,
+          "p95": 1.837654,
+          "p99": 3.1137893999999973,
+          "mean": 0.870483152243729,
+          "sent": 11521,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 11521,
+          "successRate": 1.0,
+          "throughputRps": 384.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "requests": 11521,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 38472.70245,
+          "cpuMs": 5152.766,
+          "cpuMsPerRequest": 0.4472498915024737,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_hit:measure": 6757,
+            "cache_miss:measure": 4764
+          },
+          "timings": {
+            "redis_get": {
+              "count": 11521,
+              "mean": 0.2150831881779238,
+              "median": 0.17058500001439825,
+              "p95": 0.39097799999581184,
+              "p99": 0.893750999995973
+            },
+            "handler": {
+              "count": 11521,
+              "mean": 0.5133362060584848,
+              "median": 0.2844920000061393,
+              "p95": 1.194229999993695,
+              "p99": 2.249446000001626
+            },
+            "own": {
+              "count": 11521,
+              "mean": 0.01798612820093761,
+              "median": 0.013438000023597851,
+              "p95": 0.0363200000138022,
+              "p99": 0.08673600002657622
+            },
+            "db_read": {
+              "count": 4764,
+              "mean": 0.4980319880349723,
+              "median": 0.437357000017073,
+              "p95": 0.820330999995349,
+              "p99": 1.6516950000077486
+            },
+            "redis_set": {
+              "count": 4764,
+              "mean": 0.1797503033166109,
+              "median": 0.15515700000105426,
+              "p95": 0.2754480000003241,
+              "p99": 0.5544689999951515
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 5311.219,
+          "postgres": 1919.483,
+          "redis": 1312.435
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.1739,
+              "maxCores": 0.1969,
+              "workingSetMiB": 36.9,
+              "anonMiB": 32.0
+            },
+            "postgres": {
+              "cores": 0.0596,
+              "maxCores": 0.0699,
+              "workingSetMiB": 80.2,
+              "anonMiB": 11.3
+            },
+            "redis": {
+              "cores": 0.0414,
+              "maxCores": 0.0435,
+              "workingSetMiB": 10.5,
+              "anonMiB": 6.0
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 11521.0,
+            "usec": 41133.0
+          },
+          "set": {
+            "calls": 4764.0,
+            "usec": 33625.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 36.0
+          }
+        },
+        "label": "up 2"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 783.0,
+        "k6": {
+          "p50": 0.4300255,
+          "p95": 1.3575540499999996,
+          "p99": 2.516662490000007,
+          "mean": 0.6235140849723303,
+          "sent": 23490,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 23490,
+          "successRate": 1.0,
+          "throughputRps": 783.0
+        },
+        "service": {
+          "role": "api",
+          "requests": 23490,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39007.59079299998,
+          "cpuMs": 6781.584,
+          "cpuMsPerRequest": 0.2887008939974457,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_miss:measure": 8284,
+            "cache_hit:measure": 15206
+          },
+          "timings": {
+            "redis_get": {
+              "count": 23490,
+              "mean": 0.1583573826309633,
+              "median": 0.13156700000399724,
+              "p95": 0.27389499999117106,
+              "p99": 0.6497659999877214
+            },
+            "handler": {
+              "count": 23490,
+              "mean": 0.3556160398467055,
+              "median": 0.1676749999751337,
+              "p95": 0.901795999991009,
+              "p99": 1.7783409999974538
+            },
+            "own": {
+              "count": 23490,
+              "mean": 0.009520531502658289,
+              "median": 0.006542999966768548,
+              "p95": 0.020929999998770654,
+              "p99": 0.06492699999944307
+            },
+            "db_read": {
+              "count": 8284,
+              "mean": 0.38863100555279645,
+              "median": 0.30578999998397194,
+              "p95": 0.7159539999847766,
+              "p99": 1.526806999987457
+            },
+            "redis_set": {
+              "count": 8284,
+              "mean": 0.14371672175289404,
+              "median": 0.12453000000095926,
+              "p95": 0.23515300001599826,
+              "p99": 0.4776199999905657
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 6935.144,
+          "postgres": 2514.585,
+          "redis": 1900.277
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.2293,
+              "maxCores": 0.2375,
+              "workingSetMiB": 41.6,
+              "anonMiB": 36.2
+            },
+            "postgres": {
+              "cores": 0.079,
+              "maxCores": 0.087,
+              "workingSetMiB": 88.6,
+              "anonMiB": 14.8
+            },
+            "redis": {
+              "cores": 0.0611,
+              "maxCores": 0.0625,
+              "workingSetMiB": 9.6,
+              "anonMiB": 5.1
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 23490.0,
+            "usec": 67482.0
+          },
+          "set": {
+            "calls": 8284.0,
+            "usec": 48041.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 30.0
+          }
+        },
+        "label": "up 3"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 1212.0,
+        "k6": {
+          "p50": 0.446733,
+          "p95": 1.43719,
+          "p99": 2.826482600000003,
+          "mean": 0.6508480287945925,
+          "sent": 36361,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 36361,
+          "successRate": 1.0,
+          "throughputRps": 1212.0333333333333
+        },
+        "service": {
+          "role": "api",
+          "requests": 36361,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39703.16525600001,
+          "cpuMs": 8716.192,
+          "cpuMsPerRequest": 0.23971265916778964,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_hit:measure": 24747,
+            "cache_miss:measure": 11614
+          },
+          "timings": {
+            "redis_get": {
+              "count": 36361,
+              "mean": 0.17136681991699493,
+              "median": 0.13299400001415052,
+              "p95": 0.3164939999987837,
+              "p99": 0.7553360000019893
+            },
+            "handler": {
+              "count": 36361,
+              "mean": 0.36083038271778667,
+              "median": 0.17568399998708628,
+              "p95": 0.938356999977259,
+              "p99": 1.9497580000024755
+            },
+            "own": {
+              "count": 36361,
+              "mean": 0.012663998349858508,
+              "median": 0.006342000007862225,
+              "p95": 0.05156100000021979,
+              "p99": 0.09658899999340065
+            },
+            "db_read": {
+              "count": 11614,
+              "mean": 0.40685807086286335,
+              "median": 0.31153800000902265,
+              "p95": 0.7916089999780525,
+              "p99": 1.6235630000010133
+            },
+            "redis_set": {
+              "count": 11614,
+              "mean": 0.14666431272594188,
+              "median": 0.12008899997454137,
+              "p95": 0.24767499999143183,
+              "p99": 0.5453459999989718
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 8870.698,
+          "postgres": 3280.091,
+          "redis": 2248.321
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.02,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.2915,
+              "maxCores": 0.3126,
+              "workingSetMiB": 47.2,
+              "anonMiB": 41.6
+            },
+            "postgres": {
+              "cores": 0.1039,
+              "maxCores": 0.1103,
+              "workingSetMiB": 92.9,
+              "anonMiB": 18.3
+            },
+            "redis": {
+              "cores": 0.0721,
+              "maxCores": 0.0772,
+              "workingSetMiB": 10.6,
+              "anonMiB": 6.0
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 36361.0,
+            "usec": 98357.0
+          },
+          "set": {
+            "calls": 11614.0,
+            "usec": 62441.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 34.0
+          }
+        },
+        "label": "up 4"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 1212.0,
+        "k6": {
+          "p50": 0.4747665,
+          "p95": 1.6070965999999949,
+          "p99": 2.998359549999963,
+          "mean": 0.6785829876237637,
+          "sent": 36360,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 36360,
+          "successRate": 1.0,
+          "throughputRps": 1212.0
+        },
+        "service": {
+          "role": "api",
+          "requests": 36360,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39460.190472999995,
+          "cpuMs": 9133.23,
+          "cpuMsPerRequest": 0.25118894389438945,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_miss:measure": 11680,
+            "cache_hit:measure": 24680
+          },
+          "timings": {
+            "redis_get": {
+              "count": 36360,
+              "mean": 0.17765702951024057,
+              "median": 0.13565200002631173,
+              "p95": 0.35902299999725074,
+              "p99": 0.8406149999937043
+            },
+            "db_read": {
+              "count": 11680,
+              "mean": 0.4327166744858989,
+              "median": 0.3198899999842979,
+              "p95": 0.9778450000449084,
+              "p99": 1.689576999982819
+            },
+            "redis_set": {
+              "count": 11680,
+              "mean": 0.1587102176367097,
+              "median": 0.12292499997420236,
+              "p95": 0.29895500000566244,
+              "p99": 0.6800439999788068
+            },
+            "handler": {
+              "count": 36360,
+              "mean": 0.3816941034928058,
+              "median": 0.18530700000701472,
+              "p95": 1.0669270000071265,
+              "p99": 2.0694499999517575
+            },
+            "own": {
+              "count": 36360,
+              "mean": 0.014051757701155212,
+              "median": 0.006500000017695129,
+              "p95": 0.054918000008910894,
+              "p99": 0.1122040000045672
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 9287.969,
+          "postgres": 3487.665,
+          "redis": 2339.176
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.03,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.3054,
+              "maxCores": 0.3336,
+              "workingSetMiB": 66.9,
+              "anonMiB": 60.5
+            },
+            "postgres": {
+              "cores": 0.1102,
+              "maxCores": 0.1219,
+              "workingSetMiB": 89.9,
+              "anonMiB": 15.5
+            },
+            "redis": {
+              "cores": 0.0751,
+              "maxCores": 0.0803,
+              "workingSetMiB": 11.3,
+              "anonMiB": 6.4
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 36360.0,
+            "usec": 105544.0
+          },
+          "set": {
+            "calls": 11680.0,
+            "usec": 68706.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 39.0
+          }
+        },
+        "label": "down 4"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 783.0,
+        "k6": {
+          "p50": 0.638113,
+          "p95": 3.503772,
+          "p99": 17.606694399999995,
+          "mean": 1.3925539934868647,
+          "sent": 23491,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 23491,
+          "successRate": 1.0,
+          "throughputRps": 783.0333333333333
+        },
+        "service": {
+          "role": "api",
+          "requests": 23491,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39745.68638099998,
+          "cpuMs": 8735.98,
+          "cpuMsPerRequest": 0.3718862543101613,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_hit:measure": 15073,
+            "cache_miss:measure": 8418
+          },
+          "timings": {
+            "redis_get": {
+              "count": 23491,
+              "mean": 0.32300293278292974,
+              "median": 0.15087199996924028,
+              "p95": 0.775430999987293,
+              "p99": 4.217654999985825
+            },
+            "handler": {
+              "count": 23491,
+              "mean": 0.7799214717977485,
+              "median": 0.2558580000186339,
+              "p95": 1.9895360000082292,
+              "p99": 10.055403000034858
+            },
+            "own": {
+              "count": 23491,
+              "mean": 0.05024544114768873,
+              "median": 0.00809000013396144,
+              "p95": 0.07483400002820417,
+              "p99": 0.3743980000144802
+            },
+            "db_read": {
+              "count": 8418,
+              "mean": 0.8269964678067626,
+              "median": 0.3998550000251271,
+              "p95": 1.717248999979347,
+              "p99": 8.25597800000105
+            },
+            "redis_set": {
+              "count": 8418,
+              "mean": 0.30785239676876014,
+              "median": 0.1444480000063777,
+              "p95": 0.6152489999658428,
+              "p99": 4.201854000042658
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 8923.235,
+          "postgres": 3462.255,
+          "redis": 2361.136
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 28.99,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.2956,
+              "maxCores": 0.4443,
+              "workingSetMiB": 87.2,
+              "anonMiB": 79.9
+            },
+            "postgres": {
+              "cores": 0.1078,
+              "maxCores": 0.1742,
+              "workingSetMiB": 95.9,
+              "anonMiB": 20.8
+            },
+            "redis": {
+              "cores": 0.0762,
+              "maxCores": 0.1084,
+              "workingSetMiB": 10.8,
+              "anonMiB": 6.1
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 23491.0,
+            "usec": 93655.0
+          },
+          "set": {
+            "calls": 8418.0,
+            "usec": 64273.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 44.0
+          }
+        },
+        "label": "down 3"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 384.0,
+        "k6": {
+          "p50": 0.727688,
+          "p95": 1.875323,
+          "p99": 2.995092599999981,
+          "mean": 0.8359796529815107,
+          "sent": 11521,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 11521,
+          "successRate": 1.0,
+          "throughputRps": 384.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "requests": 11521,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 38537.32191900001,
+          "cpuMs": 4506.418,
+          "cpuMsPerRequest": 0.3911481642218557,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_hit:measure": 6767,
+            "cache_miss:measure": 4754
+          },
+          "timings": {
+            "redis_get": {
+              "count": 11521,
+              "mean": 0.2159640764691318,
+              "median": 0.16638299997430295,
+              "p95": 0.42896200000541285,
+              "p99": 0.7329929999541491
+            },
+            "handler": {
+              "count": 11521,
+              "mean": 0.49653538399401215,
+              "median": 0.3070479999878444,
+              "p95": 1.2913580000167713,
+              "p99": 2.0796039999695495
+            },
+            "own": {
+              "count": 11521,
+              "mean": 0.012493561235367927,
+              "median": 0.008631000004243106,
+              "p95": 0.028873999952338636,
+              "p99": 0.05119500000728294
+            },
+            "db_read": {
+              "count": 4754,
+              "mean": 0.46382459360601414,
+              "median": 0.3777579999878071,
+              "p95": 0.8637769999913871,
+              "p99": 1.432948999979999
+            },
+            "redis_set": {
+              "count": 4754,
+              "mean": 0.18584383613766967,
+              "median": 0.1560499999905005,
+              "p95": 0.3152659999905154,
+              "p99": 0.6241890000528656
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 4651.293,
+          "postgres": 1864.459,
+          "redis": 1334.42
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.01,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.1531,
+              "maxCores": 0.1673,
+              "workingSetMiB": 89.2,
+              "anonMiB": 81.9
+            },
+            "postgres": {
+              "cores": 0.0581,
+              "maxCores": 0.0663,
+              "workingSetMiB": 84.3,
+              "anonMiB": 10.8
+            },
+            "redis": {
+              "cores": 0.0422,
+              "maxCores": 0.0441,
+              "workingSetMiB": 10.4,
+              "anonMiB": 5.7
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 11521.0,
+            "usec": 43333.0
+          },
+          "set": {
+            "calls": 4754.0,
+            "usec": 32751.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 50.0
+          }
+        },
+        "label": "down 2"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 50,
+        "k6": {
+          "p50": 1.718903,
+          "p95": 3.190465,
+          "p99": 5.601158,
+          "mean": 1.8588424783477693,
+          "sent": 1501,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 1501,
+          "successRate": 1.0,
+          "throughputRps": 50.03333333333333
+        },
+        "service": {
+          "role": "api",
+          "requests": 1501,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 38682.50985099998,
+          "cpuMs": 1597.684,
+          "cpuMsPerRequest": 1.064413057961359,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_miss:measure": 873,
+            "cache_hit:measure": 628
+          },
+          "timings": {
+            "redis_get": {
+              "count": 1501,
+              "mean": 0.47964572418290474,
+              "median": 0.4098109999904409,
+              "p95": 0.7928979999851435,
+              "p99": 1.4401569999754429
+            },
+            "db_read": {
+              "count": 873,
+              "mean": 0.7844666162666301,
+              "median": 0.6997350000310689,
+              "p95": 1.2608350000227802,
+              "p99": 1.9406750000198372
+            },
+            "redis_set": {
+              "count": 873,
+              "mean": 0.2838028568149313,
+              "median": 0.23154200002318248,
+              "p95": 0.4743039999739267,
+              "p99": 1.1801160000031814
+            },
+            "handler": {
+              "count": 1501,
+              "mean": 1.1406734703524926,
+              "median": 1.1181809999980032,
+              "p95": 2.253573000023607,
+              "p99": 3.90069300000323
+            },
+            "own": {
+              "count": 1501,
+              "mean": 0.03970912525006542,
+              "median": 0.030713000043760985,
+              "p95": 0.06421500002034009,
+              "p99": 0.122107999981381
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 1739.597,
+          "postgres": 998.372,
+          "redis": 568.517
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.02,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.0568,
+              "maxCores": 0.0627,
+              "workingSetMiB": 88.8,
+              "anonMiB": 81.3
+            },
+            "postgres": {
+              "cores": 0.0297,
+              "maxCores": 0.034,
+              "workingSetMiB": 80.0,
+              "anonMiB": 7.1
+            },
+            "redis": {
+              "cores": 0.0168,
+              "maxCores": 0.0177,
+              "workingSetMiB": 10.2,
+              "anonMiB": 5.4
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 1501.0,
+            "usec": 10213.0
+          },
+          "set": {
+            "calls": 873.0,
+            "usec": 9293.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 29.0
+          }
+        },
+        "label": "down 1"
+      },
+      {
+        "mix": "cached:1",
+        "rateRps": 1212.0,
+        "k6": {
+          "p50": 0.45886150000000003,
+          "p95": 1.5557484999999989,
+          "p99": 3.1510772099999915,
+          "mean": 0.670478621589658,
+          "sent": 36360,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 36360,
+          "successRate": 1.0,
+          "throughputRps": 1212.0
+        },
+        "service": {
+          "role": "api",
+          "requests": 36360,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39299.79359699995,
+          "cpuMs": 9085.156,
+          "cpuMsPerRequest": 0.2498667766776678,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_miss:measure": 11588,
+            "cache_hit:measure": 24772
+          },
+          "timings": {
+            "redis_get": {
+              "count": 36360,
+              "mean": 0.1757464888063237,
+              "median": 0.13394400000106543,
+              "p95": 0.350468999997247,
+              "p99": 0.7141570000094362
+            },
+            "handler": {
+              "count": 36360,
+              "mean": 0.37257034914742626,
+              "median": 0.17946800001664087,
+              "p95": 1.0582750000758097,
+              "p99": 1.8492170000099577
+            },
+            "own": {
+              "count": 36360,
+              "mean": 0.014216104785628257,
+              "median": 0.006570999918039888,
+              "p95": 0.05274700000882149,
+              "p99": 0.10603599983733147
+            },
+            "db_read": {
+              "count": 11588,
+              "mean": 0.41715740300309906,
+              "median": 0.3093219998991117,
+              "p95": 0.875620000064373,
+              "p99": 1.4343709999811836
+            },
+            "redis_set": {
+              "count": 11588,
+              "mean": 0.15581618967873087,
+              "median": 0.12061799998627976,
+              "p95": 0.2977110000210814,
+              "p99": 0.617182000016328
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 9238.136,
+          "postgres": 3335.285,
+          "redis": 2283.932
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.3057,
+              "maxCores": 0.3303,
+              "workingSetMiB": 47.9,
+              "anonMiB": 42.3
+            },
+            "postgres": {
+              "cores": 0.106,
+              "maxCores": 0.1243,
+              "workingSetMiB": 91.3,
+              "anonMiB": 16.9
+            },
+            "redis": {
+              "cores": 0.0734,
+              "maxCores": 0.0763,
+              "workingSetMiB": 11.3,
+              "anonMiB": 6.3
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 36360.0,
+            "usec": 101341.0
+          },
+          "set": {
+            "calls": 11588.0,
+            "usec": 66310.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 63.0
+          }
+        },
+        "label": "top 3"
+      }
+    ]
+  },
+  "staircase": [
+    {
+      "mix": "cached:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 1.579573,
+        "p95": 2.942646,
+        "p99": 4.302877,
+        "mean": 1.6623164850099912,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 1501,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 37977.46359300001,
+        "cpuMs": 1367.614,
+        "cpuMsPerRequest": 0.9111352431712192,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_miss:measure": 870,
+          "cache_hit:measure": 631
+        },
+        "timings": {
+          "redis_get": {
+            "count": 1501,
+            "mean": 0.41699245702875126,
+            "median": 0.34626900000148453,
+            "p95": 0.6977009999973234,
+            "p99": 1.2415110000001732
+          },
+          "db_read": {
+            "count": 870,
+            "mean": 0.712912011494838,
+            "median": 0.6286540000000969,
+            "p95": 1.1907090000022436,
+            "p99": 1.7246160000067903
+          },
+          "redis_set": {
+            "count": 870,
+            "mean": 0.26243553793098945,
+            "median": 0.21084099999279715,
+            "p95": 0.45066899999801535,
+            "p99": 0.900417999990168
+          },
+          "handler": {
+            "count": 1501,
+            "mean": 1.0158998081281143,
+            "median": 1.0324070000060601,
+            "p95": 2.147723000001861,
+            "p99": 3.1833199999964563
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.033582655562741016,
+            "median": 0.028855999989900738,
+            "p95": 0.04902399999264162,
+            "p99": 0.11410000000614673
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 1507.971,
+        "postgres": 893.558,
+        "redis": 525.564
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.02,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.0489,
+            "maxCores": 0.0515,
+            "workingSetMiB": 66.9,
+            "anonMiB": 61.0
+          },
+          "postgres": {
+            "cores": 0.0263,
+            "maxCores": 0.0288,
+            "workingSetMiB": 71.0,
+            "anonMiB": 7.1
+          },
+          "redis": {
+            "cores": 0.0156,
+            "maxCores": 0.0176,
+            "workingSetMiB": 7.6,
+            "anonMiB": 4.8
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 1501.0,
+          "usec": 9389.0
+        },
+        "set": {
+          "calls": 870.0,
+          "usec": 8193.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 59.0
+        }
+      },
+      "label": "up 1"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 384.0,
+      "k6": {
+        "p50": 0.713646,
+        "p95": 1.837654,
+        "p99": 3.1137893999999973,
+        "mean": 0.870483152243729,
+        "sent": 11521,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 11521,
+        "successRate": 1.0,
+        "throughputRps": 384.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "requests": 11521,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 38472.70245,
+        "cpuMs": 5152.766,
+        "cpuMsPerRequest": 0.4472498915024737,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_hit:measure": 6757,
+          "cache_miss:measure": 4764
+        },
+        "timings": {
+          "redis_get": {
+            "count": 11521,
+            "mean": 0.2150831881779238,
+            "median": 0.17058500001439825,
+            "p95": 0.39097799999581184,
+            "p99": 0.893750999995973
+          },
+          "handler": {
+            "count": 11521,
+            "mean": 0.5133362060584848,
+            "median": 0.2844920000061393,
+            "p95": 1.194229999993695,
+            "p99": 2.249446000001626
+          },
+          "own": {
+            "count": 11521,
+            "mean": 0.01798612820093761,
+            "median": 0.013438000023597851,
+            "p95": 0.0363200000138022,
+            "p99": 0.08673600002657622
+          },
+          "db_read": {
+            "count": 4764,
+            "mean": 0.4980319880349723,
+            "median": 0.437357000017073,
+            "p95": 0.820330999995349,
+            "p99": 1.6516950000077486
+          },
+          "redis_set": {
+            "count": 4764,
+            "mean": 0.1797503033166109,
+            "median": 0.15515700000105426,
+            "p95": 0.2754480000003241,
+            "p99": 0.5544689999951515
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 5311.219,
+        "postgres": 1919.483,
+        "redis": 1312.435
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.1739,
+            "maxCores": 0.1969,
+            "workingSetMiB": 36.9,
+            "anonMiB": 32.0
+          },
+          "postgres": {
+            "cores": 0.0596,
+            "maxCores": 0.0699,
+            "workingSetMiB": 80.2,
+            "anonMiB": 11.3
+          },
+          "redis": {
+            "cores": 0.0414,
+            "maxCores": 0.0435,
+            "workingSetMiB": 10.5,
+            "anonMiB": 6.0
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 11521.0,
+          "usec": 41133.0
+        },
+        "set": {
+          "calls": 4764.0,
+          "usec": 33625.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 36.0
+        }
+      },
+      "label": "up 2"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 783.0,
+      "k6": {
+        "p50": 0.4300255,
+        "p95": 1.3575540499999996,
+        "p99": 2.516662490000007,
+        "mean": 0.6235140849723303,
+        "sent": 23490,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 23490,
+        "successRate": 1.0,
+        "throughputRps": 783.0
+      },
+      "service": {
+        "role": "api",
+        "requests": 23490,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39007.59079299998,
+        "cpuMs": 6781.584,
+        "cpuMsPerRequest": 0.2887008939974457,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_miss:measure": 8284,
+          "cache_hit:measure": 15206
+        },
+        "timings": {
+          "redis_get": {
+            "count": 23490,
+            "mean": 0.1583573826309633,
+            "median": 0.13156700000399724,
+            "p95": 0.27389499999117106,
+            "p99": 0.6497659999877214
+          },
+          "handler": {
+            "count": 23490,
+            "mean": 0.3556160398467055,
+            "median": 0.1676749999751337,
+            "p95": 0.901795999991009,
+            "p99": 1.7783409999974538
+          },
+          "own": {
+            "count": 23490,
+            "mean": 0.009520531502658289,
+            "median": 0.006542999966768548,
+            "p95": 0.020929999998770654,
+            "p99": 0.06492699999944307
+          },
+          "db_read": {
+            "count": 8284,
+            "mean": 0.38863100555279645,
+            "median": 0.30578999998397194,
+            "p95": 0.7159539999847766,
+            "p99": 1.526806999987457
+          },
+          "redis_set": {
+            "count": 8284,
+            "mean": 0.14371672175289404,
+            "median": 0.12453000000095926,
+            "p95": 0.23515300001599826,
+            "p99": 0.4776199999905657
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 6935.144,
+        "postgres": 2514.585,
+        "redis": 1900.277
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.2293,
+            "maxCores": 0.2375,
+            "workingSetMiB": 41.6,
+            "anonMiB": 36.2
+          },
+          "postgres": {
+            "cores": 0.079,
+            "maxCores": 0.087,
+            "workingSetMiB": 88.6,
+            "anonMiB": 14.8
+          },
+          "redis": {
+            "cores": 0.0611,
+            "maxCores": 0.0625,
+            "workingSetMiB": 9.6,
+            "anonMiB": 5.1
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 23490.0,
+          "usec": 67482.0
+        },
+        "set": {
+          "calls": 8284.0,
+          "usec": 48041.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 30.0
+        }
+      },
+      "label": "up 3"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 1212.0,
+      "k6": {
+        "p50": 0.446733,
+        "p95": 1.43719,
+        "p99": 2.826482600000003,
+        "mean": 0.6508480287945925,
+        "sent": 36361,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 36361,
+        "successRate": 1.0,
+        "throughputRps": 1212.0333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 36361,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39703.16525600001,
+        "cpuMs": 8716.192,
+        "cpuMsPerRequest": 0.23971265916778964,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_hit:measure": 24747,
+          "cache_miss:measure": 11614
+        },
+        "timings": {
+          "redis_get": {
+            "count": 36361,
+            "mean": 0.17136681991699493,
+            "median": 0.13299400001415052,
+            "p95": 0.3164939999987837,
+            "p99": 0.7553360000019893
+          },
+          "handler": {
+            "count": 36361,
+            "mean": 0.36083038271778667,
+            "median": 0.17568399998708628,
+            "p95": 0.938356999977259,
+            "p99": 1.9497580000024755
+          },
+          "own": {
+            "count": 36361,
+            "mean": 0.012663998349858508,
+            "median": 0.006342000007862225,
+            "p95": 0.05156100000021979,
+            "p99": 0.09658899999340065
+          },
+          "db_read": {
+            "count": 11614,
+            "mean": 0.40685807086286335,
+            "median": 0.31153800000902265,
+            "p95": 0.7916089999780525,
+            "p99": 1.6235630000010133
+          },
+          "redis_set": {
+            "count": 11614,
+            "mean": 0.14666431272594188,
+            "median": 0.12008899997454137,
+            "p95": 0.24767499999143183,
+            "p99": 0.5453459999989718
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 8870.698,
+        "postgres": 3280.091,
+        "redis": 2248.321
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.02,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.2915,
+            "maxCores": 0.3126,
+            "workingSetMiB": 47.2,
+            "anonMiB": 41.6
+          },
+          "postgres": {
+            "cores": 0.1039,
+            "maxCores": 0.1103,
+            "workingSetMiB": 92.9,
+            "anonMiB": 18.3
+          },
+          "redis": {
+            "cores": 0.0721,
+            "maxCores": 0.0772,
+            "workingSetMiB": 10.6,
+            "anonMiB": 6.0
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 36361.0,
+          "usec": 98357.0
+        },
+        "set": {
+          "calls": 11614.0,
+          "usec": 62441.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 34.0
+        }
+      },
+      "label": "up 4"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 1212.0,
+      "k6": {
+        "p50": 0.4747665,
+        "p95": 1.6070965999999949,
+        "p99": 2.998359549999963,
+        "mean": 0.6785829876237637,
+        "sent": 36360,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 36360,
+        "successRate": 1.0,
+        "throughputRps": 1212.0
+      },
+      "service": {
+        "role": "api",
+        "requests": 36360,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39460.190472999995,
+        "cpuMs": 9133.23,
+        "cpuMsPerRequest": 0.25118894389438945,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_miss:measure": 11680,
+          "cache_hit:measure": 24680
+        },
+        "timings": {
+          "redis_get": {
+            "count": 36360,
+            "mean": 0.17765702951024057,
+            "median": 0.13565200002631173,
+            "p95": 0.35902299999725074,
+            "p99": 0.8406149999937043
+          },
+          "db_read": {
+            "count": 11680,
+            "mean": 0.4327166744858989,
+            "median": 0.3198899999842979,
+            "p95": 0.9778450000449084,
+            "p99": 1.689576999982819
+          },
+          "redis_set": {
+            "count": 11680,
+            "mean": 0.1587102176367097,
+            "median": 0.12292499997420236,
+            "p95": 0.29895500000566244,
+            "p99": 0.6800439999788068
+          },
+          "handler": {
+            "count": 36360,
+            "mean": 0.3816941034928058,
+            "median": 0.18530700000701472,
+            "p95": 1.0669270000071265,
+            "p99": 2.0694499999517575
+          },
+          "own": {
+            "count": 36360,
+            "mean": 0.014051757701155212,
+            "median": 0.006500000017695129,
+            "p95": 0.054918000008910894,
+            "p99": 0.1122040000045672
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 9287.969,
+        "postgres": 3487.665,
+        "redis": 2339.176
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.03,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.3054,
+            "maxCores": 0.3336,
+            "workingSetMiB": 66.9,
+            "anonMiB": 60.5
+          },
+          "postgres": {
+            "cores": 0.1102,
+            "maxCores": 0.1219,
+            "workingSetMiB": 89.9,
+            "anonMiB": 15.5
+          },
+          "redis": {
+            "cores": 0.0751,
+            "maxCores": 0.0803,
+            "workingSetMiB": 11.3,
+            "anonMiB": 6.4
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 36360.0,
+          "usec": 105544.0
+        },
+        "set": {
+          "calls": 11680.0,
+          "usec": 68706.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 39.0
+        }
+      },
+      "label": "down 4"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 783.0,
+      "k6": {
+        "p50": 0.638113,
+        "p95": 3.503772,
+        "p99": 17.606694399999995,
+        "mean": 1.3925539934868647,
+        "sent": 23491,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 23491,
+        "successRate": 1.0,
+        "throughputRps": 783.0333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 23491,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39745.68638099998,
+        "cpuMs": 8735.98,
+        "cpuMsPerRequest": 0.3718862543101613,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_hit:measure": 15073,
+          "cache_miss:measure": 8418
+        },
+        "timings": {
+          "redis_get": {
+            "count": 23491,
+            "mean": 0.32300293278292974,
+            "median": 0.15087199996924028,
+            "p95": 0.775430999987293,
+            "p99": 4.217654999985825
+          },
+          "handler": {
+            "count": 23491,
+            "mean": 0.7799214717977485,
+            "median": 0.2558580000186339,
+            "p95": 1.9895360000082292,
+            "p99": 10.055403000034858
+          },
+          "own": {
+            "count": 23491,
+            "mean": 0.05024544114768873,
+            "median": 0.00809000013396144,
+            "p95": 0.07483400002820417,
+            "p99": 0.3743980000144802
+          },
+          "db_read": {
+            "count": 8418,
+            "mean": 0.8269964678067626,
+            "median": 0.3998550000251271,
+            "p95": 1.717248999979347,
+            "p99": 8.25597800000105
+          },
+          "redis_set": {
+            "count": 8418,
+            "mean": 0.30785239676876014,
+            "median": 0.1444480000063777,
+            "p95": 0.6152489999658428,
+            "p99": 4.201854000042658
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 8923.235,
+        "postgres": 3462.255,
+        "redis": 2361.136
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 28.99,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.2956,
+            "maxCores": 0.4443,
+            "workingSetMiB": 87.2,
+            "anonMiB": 79.9
+          },
+          "postgres": {
+            "cores": 0.1078,
+            "maxCores": 0.1742,
+            "workingSetMiB": 95.9,
+            "anonMiB": 20.8
+          },
+          "redis": {
+            "cores": 0.0762,
+            "maxCores": 0.1084,
+            "workingSetMiB": 10.8,
+            "anonMiB": 6.1
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 23491.0,
+          "usec": 93655.0
+        },
+        "set": {
+          "calls": 8418.0,
+          "usec": 64273.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 44.0
+        }
+      },
+      "label": "down 3"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 384.0,
+      "k6": {
+        "p50": 0.727688,
+        "p95": 1.875323,
+        "p99": 2.995092599999981,
+        "mean": 0.8359796529815107,
+        "sent": 11521,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 11521,
+        "successRate": 1.0,
+        "throughputRps": 384.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "requests": 11521,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 38537.32191900001,
+        "cpuMs": 4506.418,
+        "cpuMsPerRequest": 0.3911481642218557,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_hit:measure": 6767,
+          "cache_miss:measure": 4754
+        },
+        "timings": {
+          "redis_get": {
+            "count": 11521,
+            "mean": 0.2159640764691318,
+            "median": 0.16638299997430295,
+            "p95": 0.42896200000541285,
+            "p99": 0.7329929999541491
+          },
+          "handler": {
+            "count": 11521,
+            "mean": 0.49653538399401215,
+            "median": 0.3070479999878444,
+            "p95": 1.2913580000167713,
+            "p99": 2.0796039999695495
+          },
+          "own": {
+            "count": 11521,
+            "mean": 0.012493561235367927,
+            "median": 0.008631000004243106,
+            "p95": 0.028873999952338636,
+            "p99": 0.05119500000728294
+          },
+          "db_read": {
+            "count": 4754,
+            "mean": 0.46382459360601414,
+            "median": 0.3777579999878071,
+            "p95": 0.8637769999913871,
+            "p99": 1.432948999979999
+          },
+          "redis_set": {
+            "count": 4754,
+            "mean": 0.18584383613766967,
+            "median": 0.1560499999905005,
+            "p95": 0.3152659999905154,
+            "p99": 0.6241890000528656
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 4651.293,
+        "postgres": 1864.459,
+        "redis": 1334.42
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.01,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.1531,
+            "maxCores": 0.1673,
+            "workingSetMiB": 89.2,
+            "anonMiB": 81.9
+          },
+          "postgres": {
+            "cores": 0.0581,
+            "maxCores": 0.0663,
+            "workingSetMiB": 84.3,
+            "anonMiB": 10.8
+          },
+          "redis": {
+            "cores": 0.0422,
+            "maxCores": 0.0441,
+            "workingSetMiB": 10.4,
+            "anonMiB": 5.7
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 11521.0,
+          "usec": 43333.0
+        },
+        "set": {
+          "calls": 4754.0,
+          "usec": 32751.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 50.0
+        }
+      },
+      "label": "down 2"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 1.718903,
+        "p95": 3.190465,
+        "p99": 5.601158,
+        "mean": 1.8588424783477693,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 1501,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 38682.50985099998,
+        "cpuMs": 1597.684,
+        "cpuMsPerRequest": 1.064413057961359,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_miss:measure": 873,
+          "cache_hit:measure": 628
+        },
+        "timings": {
+          "redis_get": {
+            "count": 1501,
+            "mean": 0.47964572418290474,
+            "median": 0.4098109999904409,
+            "p95": 0.7928979999851435,
+            "p99": 1.4401569999754429
+          },
+          "db_read": {
+            "count": 873,
+            "mean": 0.7844666162666301,
+            "median": 0.6997350000310689,
+            "p95": 1.2608350000227802,
+            "p99": 1.9406750000198372
+          },
+          "redis_set": {
+            "count": 873,
+            "mean": 0.2838028568149313,
+            "median": 0.23154200002318248,
+            "p95": 0.4743039999739267,
+            "p99": 1.1801160000031814
+          },
+          "handler": {
+            "count": 1501,
+            "mean": 1.1406734703524926,
+            "median": 1.1181809999980032,
+            "p95": 2.253573000023607,
+            "p99": 3.90069300000323
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.03970912525006542,
+            "median": 0.030713000043760985,
+            "p95": 0.06421500002034009,
+            "p99": 0.122107999981381
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 1739.597,
+        "postgres": 998.372,
+        "redis": 568.517
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.02,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.0568,
+            "maxCores": 0.0627,
+            "workingSetMiB": 88.8,
+            "anonMiB": 81.3
+          },
+          "postgres": {
+            "cores": 0.0297,
+            "maxCores": 0.034,
+            "workingSetMiB": 80.0,
+            "anonMiB": 7.1
+          },
+          "redis": {
+            "cores": 0.0168,
+            "maxCores": 0.0177,
+            "workingSetMiB": 10.2,
+            "anonMiB": 5.4
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 1501.0,
+          "usec": 10213.0
+        },
+        "set": {
+          "calls": 873.0,
+          "usec": 9293.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 29.0
+        }
+      },
+      "label": "down 1"
+    },
+    {
+      "mix": "cached:1",
+      "rateRps": 1212.0,
+      "k6": {
+        "p50": 0.45886150000000003,
+        "p95": 1.5557484999999989,
+        "p99": 3.1510772099999915,
+        "mean": 0.670478621589658,
+        "sent": 36360,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 36360,
+        "successRate": 1.0,
+        "throughputRps": 1212.0
+      },
+      "service": {
+        "role": "api",
+        "requests": 36360,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39299.79359699995,
+        "cpuMs": 9085.156,
+        "cpuMsPerRequest": 0.2498667766776678,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_miss:measure": 11588,
+          "cache_hit:measure": 24772
+        },
+        "timings": {
+          "redis_get": {
+            "count": 36360,
+            "mean": 0.1757464888063237,
+            "median": 0.13394400000106543,
+            "p95": 0.350468999997247,
+            "p99": 0.7141570000094362
+          },
+          "handler": {
+            "count": 36360,
+            "mean": 0.37257034914742626,
+            "median": 0.17946800001664087,
+            "p95": 1.0582750000758097,
+            "p99": 1.8492170000099577
+          },
+          "own": {
+            "count": 36360,
+            "mean": 0.014216104785628257,
+            "median": 0.006570999918039888,
+            "p95": 0.05274700000882149,
+            "p99": 0.10603599983733147
+          },
+          "db_read": {
+            "count": 11588,
+            "mean": 0.41715740300309906,
+            "median": 0.3093219998991117,
+            "p95": 0.875620000064373,
+            "p99": 1.4343709999811836
+          },
+          "redis_set": {
+            "count": 11588,
+            "mean": 0.15581618967873087,
+            "median": 0.12061799998627976,
+            "p95": 0.2977110000210814,
+            "p99": 0.617182000016328
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 9238.136,
+        "postgres": 3335.285,
+        "redis": 2283.932
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api": {
+            "cores": 0.3057,
+            "maxCores": 0.3303,
+            "workingSetMiB": 47.9,
+            "anonMiB": 42.3
+          },
+          "postgres": {
+            "cores": 0.106,
+            "maxCores": 0.1243,
+            "workingSetMiB": 91.3,
+            "anonMiB": 16.9
+          },
+          "redis": {
+            "cores": 0.0734,
+            "maxCores": 0.0763,
+            "workingSetMiB": 11.3,
+            "anonMiB": 6.3
+          }
+        }
+      },
+      "redis": {
+        "get": {
+          "calls": 36360.0,
+          "usec": 101341.0
+        },
+        "set": {
+          "calls": 11588.0,
+          "usec": 66310.0
+        },
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 63.0
+        }
+      },
+      "label": "top 3"
+    }
+  ],
+  "replicates": [
+    {
+      "high": {
+        "mix": "cached:1",
+        "rateRps": 1212.0,
+        "k6": {
+          "p50": 0.446733,
+          "p95": 1.43719,
+          "p99": 2.826482600000003,
+          "mean": 0.6508480287945925,
+          "sent": 36361,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 36361,
+          "successRate": 1.0,
+          "throughputRps": 1212.0333333333333
+        },
+        "service": {
+          "role": "api",
+          "requests": 36361,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39703.16525600001,
+          "cpuMs": 8716.192,
+          "cpuMsPerRequest": 0.23971265916778964,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_hit:measure": 24747,
+            "cache_miss:measure": 11614
+          },
+          "timings": {
+            "redis_get": {
+              "count": 36361,
+              "mean": 0.17136681991699493,
+              "median": 0.13299400001415052,
+              "p95": 0.3164939999987837,
+              "p99": 0.7553360000019893
+            },
+            "handler": {
+              "count": 36361,
+              "mean": 0.36083038271778667,
+              "median": 0.17568399998708628,
+              "p95": 0.938356999977259,
+              "p99": 1.9497580000024755
+            },
+            "own": {
+              "count": 36361,
+              "mean": 0.012663998349858508,
+              "median": 0.006342000007862225,
+              "p95": 0.05156100000021979,
+              "p99": 0.09658899999340065
+            },
+            "db_read": {
+              "count": 11614,
+              "mean": 0.40685807086286335,
+              "median": 0.31153800000902265,
+              "p95": 0.7916089999780525,
+              "p99": 1.6235630000010133
+            },
+            "redis_set": {
+              "count": 11614,
+              "mean": 0.14666431272594188,
+              "median": 0.12008899997454137,
+              "p95": 0.24767499999143183,
+              "p99": 0.5453459999989718
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 8870.698,
+          "postgres": 3280.091,
+          "redis": 2248.321
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.02,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.2915,
+              "maxCores": 0.3126,
+              "workingSetMiB": 47.2,
+              "anonMiB": 41.6
+            },
+            "postgres": {
+              "cores": 0.1039,
+              "maxCores": 0.1103,
+              "workingSetMiB": 92.9,
+              "anonMiB": 18.3
+            },
+            "redis": {
+              "cores": 0.0721,
+              "maxCores": 0.0772,
+              "workingSetMiB": 10.6,
+              "anonMiB": 6.0
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 36361.0,
+            "usec": 98357.0
+          },
+          "set": {
+            "calls": 11614.0,
+            "usec": 62441.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 34.0
+          }
+        },
+        "label": "up 4"
+      }
+    },
+    {
+      "high": {
+        "mix": "cached:1",
+        "rateRps": 1212.0,
+        "k6": {
+          "p50": 0.4747665,
+          "p95": 1.6070965999999949,
+          "p99": 2.998359549999963,
+          "mean": 0.6785829876237637,
+          "sent": 36360,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 36360,
+          "successRate": 1.0,
+          "throughputRps": 1212.0
+        },
+        "service": {
+          "role": "api",
+          "requests": 36360,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39460.190472999995,
+          "cpuMs": 9133.23,
+          "cpuMsPerRequest": 0.25118894389438945,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_miss:measure": 11680,
+            "cache_hit:measure": 24680
+          },
+          "timings": {
+            "redis_get": {
+              "count": 36360,
+              "mean": 0.17765702951024057,
+              "median": 0.13565200002631173,
+              "p95": 0.35902299999725074,
+              "p99": 0.8406149999937043
+            },
+            "db_read": {
+              "count": 11680,
+              "mean": 0.4327166744858989,
+              "median": 0.3198899999842979,
+              "p95": 0.9778450000449084,
+              "p99": 1.689576999982819
+            },
+            "redis_set": {
+              "count": 11680,
+              "mean": 0.1587102176367097,
+              "median": 0.12292499997420236,
+              "p95": 0.29895500000566244,
+              "p99": 0.6800439999788068
+            },
+            "handler": {
+              "count": 36360,
+              "mean": 0.3816941034928058,
+              "median": 0.18530700000701472,
+              "p95": 1.0669270000071265,
+              "p99": 2.0694499999517575
+            },
+            "own": {
+              "count": 36360,
+              "mean": 0.014051757701155212,
+              "median": 0.006500000017695129,
+              "p95": 0.054918000008910894,
+              "p99": 0.1122040000045672
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 9287.969,
+          "postgres": 3487.665,
+          "redis": 2339.176
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.03,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.3054,
+              "maxCores": 0.3336,
+              "workingSetMiB": 66.9,
+              "anonMiB": 60.5
+            },
+            "postgres": {
+              "cores": 0.1102,
+              "maxCores": 0.1219,
+              "workingSetMiB": 89.9,
+              "anonMiB": 15.5
+            },
+            "redis": {
+              "cores": 0.0751,
+              "maxCores": 0.0803,
+              "workingSetMiB": 11.3,
+              "anonMiB": 6.4
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 36360.0,
+            "usec": 105544.0
+          },
+          "set": {
+            "calls": 11680.0,
+            "usec": 68706.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 39.0
+          }
+        }
+      }
+    },
+    {
+      "high": {
+        "mix": "cached:1",
+        "rateRps": 1212.0,
+        "k6": {
+          "p50": 0.45886150000000003,
+          "p95": 1.5557484999999989,
+          "p99": 3.1510772099999915,
+          "mean": 0.670478621589658,
+          "sent": 36360,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 36360,
+          "successRate": 1.0,
+          "throughputRps": 1212.0
+        },
+        "service": {
+          "role": "api",
+          "requests": 36360,
+          "produced": 0,
+          "consumed": 0,
+          "wallMs": 39299.79359699995,
+          "cpuMs": 9085.156,
+          "cpuMsPerRequest": 0.2498667766776678,
+          "cpuMsPerMessage": null,
+          "counters": {
+            "cache_miss:measure": 11588,
+            "cache_hit:measure": 24772
+          },
+          "timings": {
+            "redis_get": {
+              "count": 36360,
+              "mean": 0.1757464888063237,
+              "median": 0.13394400000106543,
+              "p95": 0.350468999997247,
+              "p99": 0.7141570000094362
+            },
+            "handler": {
+              "count": 36360,
+              "mean": 0.37257034914742626,
+              "median": 0.17946800001664087,
+              "p95": 1.0582750000758097,
+              "p99": 1.8492170000099577
+            },
+            "own": {
+              "count": 36360,
+              "mean": 0.014216104785628257,
+              "median": 0.006570999918039888,
+              "p95": 0.05274700000882149,
+              "p99": 0.10603599983733147
+            },
+            "db_read": {
+              "count": 11588,
+              "mean": 0.41715740300309906,
+              "median": 0.3093219998991117,
+              "p95": 0.875620000064373,
+              "p99": 1.4343709999811836
+            },
+            "redis_set": {
+              "count": 11588,
+              "mean": 0.15581618967873087,
+              "median": 0.12061799998627976,
+              "p95": 0.2977110000210814,
+              "p99": 0.617182000016328
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api": 9238.136,
+          "postgres": 3335.285,
+          "redis": 2283.932
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api": {
+              "cores": 0.3057,
+              "maxCores": 0.3303,
+              "workingSetMiB": 47.9,
+              "anonMiB": 42.3
+            },
+            "postgres": {
+              "cores": 0.106,
+              "maxCores": 0.1243,
+              "workingSetMiB": 91.3,
+              "anonMiB": 16.9
+            },
+            "redis": {
+              "cores": 0.0734,
+              "maxCores": 0.0763,
+              "workingSetMiB": 11.3,
+              "anonMiB": 6.3
+            }
+          }
+        },
+        "redis": {
+          "get": {
+            "calls": 36360.0,
+            "usec": 101341.0
+          },
+          "set": {
+            "calls": 11588.0,
+            "usec": 66310.0
+          },
+          "config|resetstat": {
+            "calls": 1.0,
+            "usec": 63.0
+          }
+        }
+      }
+    }
+  ],
+  "disturbedReplicates": [],
+  "discardedPasses": [],
+  "cpuByLoad": [
+    {
+      "rateRps": 50,
+      "passes": 2,
+      "serviceCpuMsPerRequest": 0.9851,
+      "containerCpuMsPerRequest": {
+        "api": 1.0659,
+        "postgres": 0.3449,
+        "redis": 0.2195
+      }
+    },
+    {
+      "rateRps": 384.0,
+      "passes": 2,
+      "serviceCpuMsPerRequest": 0.4188,
+      "containerCpuMsPerRequest": {
+        "api": 0.4303,
+        "postgres": 0.127,
+        "redis": 0.096
+      }
+    },
+    {
+      "rateRps": 783.0,
+      "passes": 2,
+      "serviceCpuMsPerRequest": 0.3301,
+      "containerCpuMsPerRequest": {
+        "api": 0.3365,
+        "postgres": 0.109,
+        "redis": 0.0814
+      }
+    },
+    {
+      "rateRps": 1212.0,
+      "passes": 3,
+      "serviceCpuMsPerRequest": 0.2498,
+      "containerCpuMsPerRequest": {
+        "api": 0.2534,
+        "postgres": 0.0799,
+        "redis": 0.0568
+      }
+    }
+  ],
+  "inputReplicates": [
+    {
+      "serviceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.1064,
+          "p95": 0.8652
+        },
+        "how": "mean = Node's CPU per request at 1212 req/s net of idle: (8716 - 4 ms at rest) / 36361 requests = 0.2396 ms; shape (p95/median 0.0516/0.0063 ms) from the handler's own time"
+      },
+      "clientLinkLatencyMs": {
+        "value": 0.0196,
+        "how": "anchored: (measured median 0.447 ms - the model's median without it 0.407 ms at 1212 req/s) / 2, one way, at least 0"
+      },
+      "measuredLowLoad": {
+        "rateRps": 1212.0,
+        "p50": 0.446733,
+        "p95": 1.43719,
+        "p99": 2.826482600000003,
+        "mean": 0.6508480287945925,
+        "sent": 36361,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 36361,
+        "successRate": 1.0,
+        "throughputRps": 1212.0333333333333
+      },
+      "readServiceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.3115,
+          "p95": 0.7916
+        },
+        "how": "SELECT by key as the service sees it (round trip): median 0.312, p95 0.792 ms"
+      },
+      "dbCpuShare": {
+        "value": 0.6035,
+        "how": "PostgreSQL CPU per query at the top pass net of idle (0.2455 ms) / mean query time (0.407 ms)"
+      },
+      "cacheServiceTimeMs": {
+        "value": {
+          "kind": "exponential",
+          "mean": 0.04233
+        },
+        "how": "mean = Redis's CPU per command at 1212 req/s net of idle: (2248 - 218 ms at rest) / 47975 GET/SET calls = 0.0423 ms (its command time alone, INFO commandstats: 160798 us over 47975 GET/SET calls = 0.0034 ms; the rest is reading requests and writing replies)"
+      },
+      "cacheLinkLatencyMs": {
+        "value": 0.0518,
+        "how": "(GET round trip median 0.133 ms - the command time's median 0.0293 ms) / 2, one way"
+      },
+      "serviceMemoryBaselineMb": {
+        "value": 63.8,
+        "how": "at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+      },
+      "serviceMemoryPerRpsMb": {
+        "value": 0.0,
+        "how": "per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+      },
+      "serviceMemoryPerRequestMb": {
+        "value": 0.01,
+        "how": "per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+      },
+      "anchor": {
+        "rateRps": 1212.0,
+        "measuredP50": 0.446733,
+        "modelP50WithoutClientLatency": 0.4075,
+        "residualMs": 0.0
+      }
+    },
+    {
+      "serviceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.1082,
+          "p95": 0.9143
+        },
+        "how": "mean = Node's CPU per request at 1212 req/s net of idle: (9133 - 4 ms at rest) / 36360 requests = 0.2511 ms; shape (p95/median 0.0549/0.0065 ms) from the handler's own time"
+      },
+      "clientLinkLatencyMs": {
+        "value": 0.0295,
+        "how": "anchored: (measured median 0.475 ms - the model's median without it 0.416 ms at 1212 req/s) / 2, one way, at least 0"
+      },
+      "measuredLowLoad": {
+        "rateRps": 1212.0,
+        "p50": 0.4747665,
+        "p95": 1.6070965999999949,
+        "p99": 2.998359549999963,
+        "mean": 0.6785829876237637,
+        "sent": 36360,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 36360,
+        "successRate": 1.0,
+        "throughputRps": 1212.0
+      },
+      "readServiceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.3199,
+          "p95": 0.9778
+        },
+        "how": "SELECT by key as the service sees it (round trip): median 0.320, p95 0.978 ms"
+      },
+      "dbCpuShare": {
+        "value": 0.6053,
+        "how": "PostgreSQL CPU per query at the top pass net of idle (0.2619 ms) / mean query time (0.433 ms)"
+      },
+      "cacheServiceTimeMs": {
+        "value": {
+          "kind": "exponential",
+          "mean": 0.04416
+        },
+        "how": "mean = Redis's CPU per command at 1212 req/s net of idle: (2339 - 218 ms at rest) / 48040 GET/SET calls = 0.0442 ms (its command time alone, INFO commandstats: 174250 us over 48040 GET/SET calls = 0.0036 ms; the rest is reading requests and writing replies)"
+      },
+      "cacheLinkLatencyMs": {
+        "value": 0.0525,
+        "how": "(GET round trip median 0.136 ms - the command time's median 0.0306 ms) / 2, one way"
+      },
+      "serviceMemoryBaselineMb": {
+        "value": 63.8,
+        "how": "at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+      },
+      "serviceMemoryPerRpsMb": {
+        "value": 0.0,
+        "how": "per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+      },
+      "serviceMemoryPerRequestMb": {
+        "value": 0.01,
+        "how": "per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+      },
+      "anchor": {
+        "rateRps": 1212.0,
+        "measuredP50": 0.4747665,
+        "modelP50WithoutClientLatency": 0.4157,
+        "residualMs": 0.0
+      }
+    },
+    {
+      "serviceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.112,
+          "p95": 0.8993
+        },
+        "how": "mean = Node's CPU per request at 1212 req/s net of idle: (9085 - 4 ms at rest) / 36360 requests = 0.2498 ms; shape (p95/median 0.0527/0.0066 ms) from the handler's own time"
+      },
+      "clientLinkLatencyMs": {
+        "value": 0.0216,
+        "how": "anchored: (measured median 0.459 ms - the model's median without it 0.416 ms at 1212 req/s) / 2, one way, at least 0"
+      },
+      "measuredLowLoad": {
+        "rateRps": 1212.0,
+        "p50": 0.45886150000000003,
+        "p95": 1.5557484999999989,
+        "p99": 3.1510772099999915,
+        "mean": 0.670478621589658,
+        "sent": 36360,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 36360,
+        "successRate": 1.0,
+        "throughputRps": 1212.0
+      },
+      "readServiceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.3093,
+          "p95": 0.8756
+        },
+        "how": "SELECT by key as the service sees it (round trip): median 0.309, p95 0.876 ms"
+      },
+      "dbCpuShare": {
+        "value": 0.6014,
+        "how": "PostgreSQL CPU per query at the top pass net of idle (0.2509 ms) / mean query time (0.417 ms)"
+      },
+      "cacheServiceTimeMs": {
+        "value": {
+          "kind": "exponential",
+          "mean": 0.0431
+        },
+        "how": "mean = Redis's CPU per command at 1212 req/s net of idle: (2284 - 218 ms at rest) / 47948 GET/SET calls = 0.0431 ms (its command time alone, INFO commandstats: 167651 us over 47948 GET/SET calls = 0.0035 ms; the rest is reading requests and writing replies)"
+      },
+      "cacheLinkLatencyMs": {
+        "value": 0.052,
+        "how": "(GET round trip median 0.134 ms - the command time's median 0.0299 ms) / 2, one way"
+      },
+      "serviceMemoryBaselineMb": {
+        "value": 63.8,
+        "how": "at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+      },
+      "serviceMemoryPerRpsMb": {
+        "value": 0.0,
+        "how": "per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+      },
+      "serviceMemoryPerRequestMb": {
+        "value": 0.01,
+        "how": "per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+      },
+      "anchor": {
+        "rateRps": 1212.0,
+        "measuredP50": 0.45886150000000003,
+        "modelP50WithoutClientLatency": 0.4157,
+        "residualMs": 0.0
+      }
+    }
+  ],
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.1082,
+        "p95": 0.9143
+      },
+      "how": "the median of 3 replicates (second): mean = Node's CPU per request at 1212 req/s net of idle: (9133 - 4 ms at rest) / 36360 requests = 0.2511 ms; shape (p95/median 0.0549/0.0065 ms) from the handler's own time"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.0216,
+      "how": "the median of 3 replicates (third): anchored: (measured median 0.459 ms - the model's median without it 0.416 ms at 1212 req/s) / 2, one way, at least 0"
+    },
+    "measuredLowLoad": {
+      "rateRps": 1212.0,
+      "p50": 0.4589,
+      "p95": 1.5557,
+      "p99": 2.9984,
+      "mean": 0.6705,
+      "sent": 36360,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 36360,
+      "successRate": 1.0,
+      "throughputRps": 1212.0
+    },
+    "readServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.3115,
+        "p95": 0.7916
+      },
+      "how": "the median of 3 replicates (first): SELECT by key as the service sees it (round trip): median 0.312, p95 0.792 ms"
+    },
+    "dbCpuShare": {
+      "value": 0.6035,
+      "how": "the median of 3 replicates (first): PostgreSQL CPU per query at the top pass net of idle (0.2455 ms) / mean query time (0.407 ms)"
+    },
+    "cacheServiceTimeMs": {
+      "value": {
+        "kind": "exponential",
+        "mean": 0.0431
+      },
+      "how": "the median of 3 replicates (third): mean = Redis's CPU per command at 1212 req/s net of idle: (2284 - 218 ms at rest) / 47948 GET/SET calls = 0.0431 ms (its command time alone, INFO commandstats: 167651 us over 47948 GET/SET calls = 0.0035 ms; the rest is reading requests and writing replies)"
+    },
+    "cacheLinkLatencyMs": {
+      "value": 0.052,
+      "how": "the median of 3 replicates (third): (GET round trip median 0.134 ms - the command time's median 0.0299 ms) / 2, one way"
+    },
+    "serviceMemoryBaselineMb": {
+      "value": 63.8,
+      "how": "the median of 3 replicates (first): at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+    },
+    "serviceMemoryPerRpsMb": {
+      "value": 0.0,
+      "how": "the median of 3 replicates (first): per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 1,212 req/s), by non-negative least squares: 63.8 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 53%; memory did not grow with the request rate over the range"
+    },
+    "serviceMemoryPerRequestMb": {
+      "value": 0.01,
+      "how": "the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+    },
+    "anchor": {
+      "rateRps": 1212.0,
+      "measuredP50": 0.4589,
+      "modelP50WithoutClientLatency": 0.4157,
+      "residualMs": 0.0
+    }
+  }
+}

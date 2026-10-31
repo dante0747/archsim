@@ -318,3 +318,38 @@ def test_calibrate_hands_the_staircase_to_the_fit_and_saves_it_once(
     assert {k: v["value"] for k, v in again.items()} == {
         k: v["value"] for k, v in cal["inputs"].items() if "Memory" in k
     }
+
+
+# ---------------------------------------------------------------------------------------------
+# the W24 trial: memory fitted from calibration passes only, against the latest kept runs
+# ---------------------------------------------------------------------------------------------
+
+TRIAL = run.RESULTS / "trials"
+SERVICE = {"pg-mixed": "api", "pg-hot-row": "api", "cache-aside": "api", "kafka": "producer"}
+
+
+@pytest.mark.parametrize("exp_id", list(SERVICE))
+def test_memory_fitted_in_the_trial_is_closer_than_the_defaults(exp_id: str) -> None:
+    # 31 Oct trial: calibration passes only, nothing measured. Against the latest kept run's
+    # steps at or below both knees, the fit is within 66% of the measured working set at every
+    # step where ArchSim's defaults (256 MiB + 2 MiB per request held) were 59% to 485% high.
+    # It is low at the top step (-25% to -65%): the staircase stops at a third of the knee, and
+    # V8's heap grows faster than the rate beyond it, which a line through the staircase misses.
+    cal = json.loads((TRIAL / f"2026-10-31-{exp_id}-w24" / "calibration.json").read_text("utf-8"))
+    fit = run.memory_inputs(
+        run.EXPERIMENTS[exp_id], {"idle": cal["idle"], "staircase": cal["staircase"]}
+    )
+    # the trial's own inputs are this fit (every replicate fits the same staircase)
+    assert {k: v["value"] for k, v in fit.items()} == {
+        k: v["value"] for k, v in cal["inputs"].items() if "Memory" in k
+    }
+    base, per_rps = fit["serviceMemoryBaselineMb"]["value"], fit["serviceMemoryPerRpsMb"]["value"]
+    cmp_ = json.loads((run.RESULTS / exp_id / "comparison.json").read_text(encoding="utf-8"))
+    rows = run.at_or_below_both_knees(cmp_["rows"], cmp_["measuredKnee"], cmp_["predictedKnee"])
+    cells = [(r["offeredRps"], r["resources"][SERVICE[exp_id]]) for r in rows]
+    assert len(cells) >= 3
+    before = [c["error"]["memory"] for _, c in cells]
+    after = [(base + per_rps * rps) / c["measured"]["memoryMiB"] - 1 for rps, c in cells]
+    assert min(before) > 0.5  # the defaults: far too high everywhere
+    assert max(abs(e) for e in after) < 0.7
+    assert -0.7 < after[-1] < -0.2  # low at the top step: the known limit
