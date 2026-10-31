@@ -17,7 +17,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.5",                 // required; drives migrations
+  "schemaVersion": "1.6",                 // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -67,7 +67,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.5"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.6"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
@@ -183,11 +183,18 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.5`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `SCHEMA_VERSION` (currently `1.6`). 1.0 to 1.1 only adds optional fields (`provenance`,
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
   `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
-  `instanceType`, and 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, so older
-  documents load unchanged.
+  `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, and 1.5 to
+  1.6 the service setting `serviceTimeByLoad`, so older documents load unchanged.
+- `serviceTimeByLoad` (1.6; services): a list of `{"rps": ..., "factor": ...}` points (rate above
+  0 per replica, factor above 0 and at most 100). At that many requests per second on a replica
+  its service time is `serviceTimeMs` times the factor; between points the factor is
+  interpolated in log(rate), outside them it stays at the nearest point's. Empty (the default,
+  left out of the JSON) means the same service time at every load, as before. Calibration fits
+  it from CPU per request ([calibration.md](calibration.md#cpu-and-memory)); see
+  [simulation-model.md](simulation-model.md) for how the simulation and the estimates use it.
 - `cpuShare` and `memoryPerRpsMb` (1.5; services). `cpuShare` (0 to 1, default 1, as before) is
   the share of service time that needs a CPU core, like a database's: the rest waits on the
   worker without one. `memoryPerRpsMb` (MiB per req/s per replica, default 0, as before) is

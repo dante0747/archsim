@@ -63,7 +63,7 @@ def test_layout_records_link_sides_without_affecting_the_model() -> None:
 
 def test_json_schema_is_exported() -> None:
     schema = document_json_schema()
-    assert schema["properties"]["schemaVersion"]["const"] == "1.5"
+    assert schema["properties"]["schemaVersion"]["const"] == "1.6"
     assert "workload" in schema["properties"]
 
 

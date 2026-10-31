@@ -1117,6 +1117,17 @@
           "group": "Performance"
         },
         {
+          "key": "serviceTimeByLoad",
+          "label": "Service time by load",
+          "kind": "loadCurve",
+          "nullable": false,
+          "description": "How the service time changes with load: points of (req/s one replica receives, factor). At that rate the service time is the one above times the factor; between points it is interpolated in log(req/s), and outside them it stays at the nearest point's factor (never extrapolated). The rate is the replica's arrivals over the last second. Calibration fits it from CPU per request at several loads. Empty = the same service time at every load.",
+          "default": [],
+          "assumption": false,
+          "headline": false,
+          "group": "Performance"
+        },
+        {
           "key": "blockingDownstream",
           "label": "Workers block on downstream calls",
           "kind": "boolean",
@@ -6005,10 +6016,6 @@
       "default": [],
       "assumption": false,
       "headline": false,
-      "options": [
-        "read",
-        "write"
-      ],
       "group": "Chaos",
       "hidden": true
     }

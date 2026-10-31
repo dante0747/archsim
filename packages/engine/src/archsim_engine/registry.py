@@ -165,14 +165,19 @@ def describe_fields(model: type[BaseModel]) -> list[dict[str, Any]]:
         raw_ui = extra.get("x-ui", {})
         meta: dict[str, Any] = dict(raw_ui) if isinstance(raw_ui, dict) else {}
         if "kind" in meta:
+            if meta["kind"] != kind:  # e.g. a list that is not request types: no such options
+                options = None
             kind = meta.pop("kind")
+        default = defaults.get(key)
+        if default is None and info.default_factory is list:  # left out of the JSON when empty
+            default = []
         desc: dict[str, Any] = {
             "key": key,
             "label": meta.pop("label", None) or _humanize(key),
             "kind": kind,
             "nullable": nullable,
             "description": info.description or "",
-            "default": defaults.get(key),
+            "default": default,
             "assumption": meta.pop("assumption", False),
             "headline": meta.pop("headline", False),
         }

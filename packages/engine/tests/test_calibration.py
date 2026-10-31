@@ -125,17 +125,18 @@ def test_trace_pattern_rates_arrivals_and_a_run() -> None:
 def test_schema_1_0_documents_migrate_and_newer_ones_are_refused() -> None:
     raw = {**starter(), "schemaVersion": "1.0"}  # the starter as a 1.0 document
     migrated, notes = migrate_document(raw)
-    assert migrated["schemaVersion"] == "1.5"
+    assert migrated["schemaVersion"] == "1.6"
     assert notes == [
         "migrated schema 1.0 -> 1.1",
         "migrated schema 1.1 -> 1.2",
         "migrated schema 1.2 -> 1.3",
         "migrated schema 1.3 -> 1.4",
         "migrated schema 1.4 -> 1.5",
+        "migrated schema 1.5 -> 1.6",
     ]
     doc = load_document(raw)
     assert doc.provenance == {} and doc.calibration is None
-    newer = {**raw, "schemaVersion": "1.6"}
+    newer = {**raw, "schemaVersion": "1.7"}
     from archsim_engine import DocumentInvalidError
 
     with pytest.raises(DocumentInvalidError):
@@ -339,7 +340,7 @@ def test_cli_calibrates_from_a_recording(tmp_path: Path) -> None:
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schemaVersion"] == "1.5" and doc["calibration"]["inputs"] == 13
+    assert doc["schemaVersion"] == "1.6" and doc["calibration"]["inputs"] == 13
 
 
 # -- OpenTelemetry --------------------------------------------------------------------------------

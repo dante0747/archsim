@@ -235,7 +235,23 @@ SDKs.
     never hold it. `thread_pool` (everything else) gives each worker one request.
   - Garbage collection: every `gcEveryRequests` requests a replica pauses all its CPU work for
     a lognormal pause around `gcPauseMs` (Java about 12 ms, .NET 6, Node.js 2, Go 0.1, Rust
-    none; illustrative). CPU work running when a pause starts is delayed by the pause.
+    none; illustrative). CPU work running when a pause starts is delayed by the pause. A pause
+    holds the replica's work without counting as CPU use, so a calibrated service time should
+    not also contain it (the benchmarks take the modelled pauses off the CPU per request).
+- **Service time by load** (`serviceTimeByLoad`, schema 1.6; empty by default): points of
+  `{rps, factor}` for one replica. Each request's service time is multiplied by the factor at
+  the replica's own arrival rate over the last second (an exponentially weighted count with a
+  1 s time constant, corrected for the time observed so the first second reads right; a
+  serverless function: its rate over the instances busy at that moment). Between points the
+  factor is interpolated linearly in log(rate); below the first and above the last it stays at
+  that point's factor, so a cost measured to fall up to some rate is never assumed to keep
+  falling past it. The factor applies to the whole service time, of which `cpuShare` counts as
+  CPU, so CPU per request follows the curve. Every analytic copy uses it: a replica's CPU or
+  event-loop capacity is the rate where its cores or loops fill at that rate's factor (a fixed
+  point: the report's `capacityRps`, the event-loop explanation and the review's CPU finding);
+  the instant estimate and sizing take the factor at the rate per replica they reason about.
+  The explanation adds "Service time at this load". Calibration fits it from CPU per request at
+  several loads ([calibration.md](calibration.md#cpu-and-memory)).
   - JIT warm-up: replicas started during the run (autoscaling) and new serverless instances run
     `warmupFactor` times slower at first, fading linearly over `warmupS` (Java 2.5x over 45 s,
     .NET 1.5x over 20 s; illustrative).
@@ -828,12 +844,13 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
 
 - Disk and network bandwidth contention; concurrent GC CPU overhead; CPU interference between
   pods on one node (a pod's CPU is its own once scheduled).
-- CPU per request that changes with load: a request costs `cpuShare` x its service time at any
-  rate. Measured stacks spend less CPU per request as load rises (the pg-mixed benchmark's
-  Node.js service: 0.48 ms at 560 req/s, 0.21 ms at 2,231 req/s), so a share calibrated over a
-  range (weighted to its busiest times) under-counts CPU at quiet times; calibration says when
-  the range shows it ([calibration.md](calibration.md#cpu-and-memory)). CPU spent outside the
-  service time (more than 1 x the service time) is not counted either.
+- CPU per request that changes with load beyond the measured range: `serviceTimeByLoad` keeps
+  its last point's factor at higher rates, so a service measured only at light load is charged
+  that load's cost up to saturation, although measured stacks often keep getting cheaper (the
+  cache-aside benchmark's Node.js service: 0.21 ms at 1,335 req/s, the top of its calibration,
+  and 0.16 ms at 4,850). Without the setting a request costs `cpuShare` x its service time at
+  any rate. CPU spent outside the service time (more than 1 x the service time) is not counted
+  either.
 - Health checks and automatic failover, deployments and rollouts; faults are the three kinds
   above (outage, slowdown, link latency), scheduled by you, not random failures.
 - Autoscaling cooldowns and stabilization windows beyond the simple rules above; node

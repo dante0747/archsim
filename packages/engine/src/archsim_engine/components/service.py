@@ -24,6 +24,15 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field, model_validator
 
+from archsim_engine.components.load_curve import (
+    LoadPoint,
+    RateMeter,
+    capacity_rps,
+    curve_of,
+    describe,
+    load_factor,
+    rate_filling,
+)
 from archsim_engine.components.resources import (
     CPU_CONTENTION,
     RESOURCES,
@@ -37,7 +46,7 @@ from archsim_engine.components.resources import (
 from archsim_engine.distributions import Distribution, LogNormal
 from archsim_engine.explain import formula, num
 from archsim_engine.issues import Issue, error, warning
-from archsim_engine.metrics import Gauge
+from archsim_engine.metrics import Gauge, MeanAccumulator
 from archsim_engine.ratelimit import TokenBucket
 from archsim_engine.registry import ComponentModel, GraphView, PortSpec, Preset, ui
 from archsim_engine.runtime import (
@@ -137,6 +146,20 @@ class ServiceConfig(CamelModel):
         json_schema_extra=ui(
             label="Service time", unit="ms", group="Performance", assumption=True, headline=True
         ),
+    )
+    service_time_by_load: list[LoadPoint] = Field(
+        default_factory=list,
+        # left out of the JSON when empty, so documents and reports read as before
+        exclude_if=lambda v: not v,
+        description=(
+            "How the service time changes with load: points of (req/s one replica receives, "
+            "factor). At that rate the service time is the one above times the factor; between "
+            "points it is interpolated in log(req/s), and outside them it stays at the nearest "
+            "point's factor (never extrapolated). The rate is the replica's arrivals over the last "
+            "second. Calibration fits it from CPU per request at several loads. Empty = the same "
+            "service time at every load."
+        ),
+        json_schema_extra=ui(label="Service time by load", group="Performance", kind="loadCurve"),
     )
     blocking_downstream: bool = Field(
         default=True,
@@ -426,6 +449,10 @@ class ServiceConfig(CamelModel):
         free = self.memory_gib * 1024.0 - self.memory_baseline_mb
         return max(0, math.floor(free / self.memory_per_request_mb + 1e-9))
 
+    def load_curve(self) -> list[tuple[float, float]]:
+        """``serviceTimeByLoad`` as sorted (req/s, factor) points; empty: no change with load."""
+        return curve_of(self.service_time_by_load)
+
     def cpu_fraction(self) -> float:
         """The share of service time that needs a core: ``cpuShare`` when CPU is set, else all
         of it (without a CPU size nothing waits for a core and the share changes nothing)."""
@@ -449,6 +476,10 @@ class ServiceRuntime(RuntimeComponent):
         self.blocking = config.blocks()
         self.gc_cfg = config.gc()
         self.warm_cfg = config.warmup()
+        self.curve = config.load_curve()
+        # each replica's arrivals over the last second, when the service time follows load
+        self.meters = [RateMeter(0.0) for _ in range(n)] if self.curve else []
+        self.factors = MeanAccumulator(ctx.tl) if self.curve else None
         self.pools = [self._new_pool() for _ in range(n)]
         self.cores = [self._new_cores() for _ in range(n)]
         self.load = [0] * n
@@ -477,6 +508,8 @@ class ServiceRuntime(RuntimeComponent):
         self.born.append(now)
         self.served.append(0)
         self.pause.append([0.0, -1.0, -1.0])
+        if self.curve:
+            self.meters.append(RateMeter(now))
         if self.warm_cfg is not None:
             self.warming.add(1, now)
             self.env.process(self._warm_done(self.warm_cfg[1]))
@@ -493,6 +526,13 @@ class ServiceRuntime(RuntimeComponent):
         f, dur = w
         left = 1.0 - (now - born) / dur
         return 1.0 + (f - 1.0) * left if left > 0 else 1.0
+
+    def _load_factor(self, index: int, now: float) -> float:
+        """The service-time factor at replica ``index``'s rate over the last second."""
+        f = load_factor(self.curve, self.meters[index].rps(now))
+        if self.factors is not None:
+            self.factors.record(now, f)
+        return f
 
     def _cpu(self, req: Request, index: int, work: float) -> Generator[simpy.Event, Any, None]:
         """CPU work on replica ``index``, stalled by stop-the-world GC pauses."""
@@ -576,10 +616,34 @@ class ServiceRuntime(RuntimeComponent):
         out: dict[str, float] = {}
         replicas = self.replicas_mean()
         if cfg.cpu_cores is not None and service_ms and cfg.cpu_share > 0:
-            out["cpu"] = cfg.cpu_cores * replicas * 1000.0 / (service_ms * cfg.cpu_share)
+            # the rate at which a replica's cores fill, at the factor of that rate
+            per_replica = (
+                cfg.cpu_cores * 1000.0 / (self._base_service_ms(service_ms) * cfg.cpu_share)
+            )
+            out["cpu"] = capacity_rps(self.curve, per_replica) * replicas
         if self.mem_slots is not None and self.mem_slots < cfg.workers_per_replica and hold_ms:
             out["memory"] = self.mem_slots * replicas * 1000.0 / hold_ms
         return out
+
+    def slot_capacity(self, slots: float, hold_ms: float, service_ms: float | None) -> float:
+        if not self.curve or not service_ms:
+            return super().slot_capacity(slots, hold_ms, service_ms)
+        # the rate where a replica's handlers fill, its own work at that rate's factor (the
+        # rest of the time a request holds one, its downstream calls, does not follow the curve)
+        replicas = max(1.0, self.replicas_mean())
+        per_replica = rate_filling(
+            self.curve,
+            self._base_service_ms(service_ms),
+            slots / replicas * 1000.0,
+            max(0.0, hold_ms - service_ms),
+        )
+        return per_replica * replicas
+
+    def _base_service_ms(self, service_ms: float) -> float:
+        """The mean service time at factor 1: the observed mean over the mean load factor the
+        window's requests were served at (the observed mean itself without a load curve)."""
+        mean_f = self.factors.window_mean() if self.factors is not None else None
+        return service_ms / mean_f if mean_f else service_ms
 
     def extra_summary(self) -> dict[str, Any]:
         cfg: ServiceConfig = self.config
@@ -625,15 +689,41 @@ class ServiceRuntime(RuntimeComponent):
         cfg: ServiceConfig = self.config
         out: list[dict[str, Any]] = []
         svc = summary.get("meanServiceMs")
+        if svc and self.curve:
+            base = self._base_service_ms(svc)
+            lam = (summary.get("arrivalRps") or 0.0) / max(1.0, self.replicas_mean())
+            f = load_factor(self.curve, lam)
+            out.append(
+                formula(
+                    "load_curve",
+                    "Service time at this load",
+                    "service time = service time at factor 1 × factor(req/s per replica)",
+                    f"{num(base, 3)} ms × {num(f, 3)} at {num(lam, 1)} req/s per replica",
+                    base * f,
+                    "ms",
+                    note=(
+                        f"The factor follows each replica's arrivals over the last second: "
+                        f"{describe(self.curve)}, interpolated in log(req/s) and flat outside the "
+                        "points."
+                    ),
+                )
+            )
         if cfg.event_loop() and svc:
             loops = self.per_replica * self.replicas_mean()
+            per_loop = capacity_rps(self.curve, 1000.0 / self._base_service_ms(svc))
+            at = (
+                f" (at the factor of that rate, ×{num(load_factor(self.curve, per_loop), 3)})"
+                if self.curve
+                else ""
+            )
             out.append(
                 formula(
                     "event_loop",
                     "Event-loop capacity",
-                    "capacity = replicas × processes × 1000 ÷ CPU time per request",
-                    f"{num(self.replicas_mean())} × {self.per_replica} × 1000 ÷ {num(svc, 2)} ms",
-                    loops * 1000.0 / svc,
+                    "capacity = replicas × processes × 1000 ÷ CPU time per request" + at,
+                    f"{num(self.replicas_mean())} × {self.per_replica} × 1000 ÷ "
+                    f"{num(1000.0 / per_loop, 2)} ms",
+                    loops * per_loop,
                     "req/s",
                     note="Only the CPU part of a request occupies the loop; time waiting on downstream calls does not count."
                     + (
@@ -694,6 +784,8 @@ class ServiceRuntime(RuntimeComponent):
         m = self.m
         cfg: ServiceConfig = self.config
         m.arrive(env.now)
+        if self.curve:
+            self.meters[index].arrive(env.now)
         if self.mem_slots is not None and self.load[index] >= self.mem_slots:
             m.reject("out_of_memory", env.now)
             span(req, self.id, "rejected", env.now, env.now, "out of memory")
@@ -710,6 +802,8 @@ class ServiceRuntime(RuntimeComponent):
             return rejected(reason or "rejected", self.id)
         start = env.now
         st = self.sample_time(cfg.service_time_ms, self.rng) * self._warm_factor(index, start)
+        if self.curve:
+            st *= self._load_factor(index, start)
         m.cpu.add(1, start)
         cpu = st * self.cpu_frac
         yield from self._cpu(req, index, cpu)
@@ -1038,6 +1132,9 @@ class ServerlessRuntime(RuntimeComponent):
         self.cold_dist = config.cold_start()
         self.warm_cfg = config.warmup()
         self.scale_bucket = TokenBucket(config.scale_out_rate / 10.0, float(config.scale_out_rate))
+        # the function's arrivals over the last second, when the service time follows load
+        self.curve = config.load_curve()
+        self.meter = RateMeter(0.0) if self.curve else None
         ctx.env.process(self._reaper())
 
     def deps_for(self, op: str) -> list[EdgeRuntime]:
@@ -1071,6 +1168,8 @@ class ServerlessRuntime(RuntimeComponent):
         cfg: ServiceConfig = self.config
         now = env.now
         m.arrive(now)
+        if self.meter is not None:
+            self.meter.arrive(now)
         self._reclaim(now)
         cold = False
         born = 0.0
@@ -1095,6 +1194,10 @@ class ServerlessRuntime(RuntimeComponent):
                 yield env.timeout(c)
             span(req, self.id, "cold_start", start, env.now, "starting a new instance")
         st = self.sample_time(cfg.service_time_ms, self.rng)
+        if self.meter is not None:
+            # per instance: the warmest instance is reused first, so the function's rate is
+            # spread over the instances busy now, not every one kept warm
+            st *= load_factor(self.curve, self.meter.rps(env.now) / max(1, m.busy.value))
         w = self.warm_cfg
         if w is not None and born > 0 and env.now - born < w[1]:
             st *= 1.0 + (w[0] - 1.0) * (1.0 - (env.now - born) / w[1])

@@ -765,10 +765,15 @@ def test_vm_cpu_times_reads_steal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_split_inputs_reproduce_every_latest_calibration() -> None:
-    # one function per part, then anchored again: the very inputs each latest run used
+    # one function per part, then anchored again: the very inputs each latest run used, and
+    # since W21 how the service time changes with load (the staircase's CPU per request; it
+    # leaves the top rate, where the anchor simulates, unchanged). The kept runs' services did
+    # not report their garbage collection, so no GC input is derived from them.
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
-        assert run.rederive_inputs(run.EXPERIMENTS[exp], cal) == cal["inputs"], exp
+        inputs = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
+        assert inputs.pop("serviceTimeByLoad")["value"][-1]["factor"] == 1.0, exp
+        assert inputs == cal["inputs"], exp
 
 
 def test_simulate_reports_what_the_database_did() -> None:

@@ -117,3 +117,11 @@ def _measured_cpu_and_memory(doc: dict[str, Any]) -> dict[str, Any]:
     core; 1 by default, as before) and ``memoryPerRpsMb`` (memory that grows with throughput; 0
     by default, as before); a 1.4 document needs no change."""
     return doc
+
+
+@migration("1.5", "1.6")
+def _service_time_by_load(doc: dict[str, Any]) -> dict[str, Any]:
+    """1.6 adds the service setting ``serviceTimeByLoad`` (how the service time changes with the
+    load on a replica; empty by default: the same at every load, as before); a 1.5 document needs
+    no change."""
+    return doc

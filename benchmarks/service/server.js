@@ -4,12 +4,14 @@
 // timings that calibrate the ArchSim model: CPU per request on the event loop, and the time of
 // each PostgreSQL, Redis, Kafka and upstream call as seen from the service. GET /stats returns
 // them, POST /reset clears them; a gateway's include its upstream's (``upstream``), and with
-// REDIS_STATS=1 they include Redis's own time per command (``redis``, INFO commandstats). No
-// framework, so the event loop does nothing we did not write.
+// REDIS_STATS=1 they include Redis's own time per command (``redis``, INFO commandstats). They
+// also count V8's garbage collections (``gc``: the main thread's pause of each, from the
+// 'gc' performance entries), as the Java and Go services count theirs. No framework, so the
+// event loop does nothing we did not write.
 "use strict";
 
 const http = require("node:http");
-const { performance } = require("node:perf_hooks");
+const { performance, PerformanceObserver, constants } = require("node:perf_hooks");
 const { Pool } = require("pg");
 
 const ROLE = process.env.ROLE || "api";
@@ -36,6 +38,51 @@ let consumed = 0;
 let produced = 0;
 let cpu0 = process.cpuUsage();
 let wall0 = performance.now();
+
+// ---- garbage collection -------------------------------------------------------------------------
+// Each 'gc' entry is one collection; its duration is the time the main thread (the event loop)
+// spent in it, which stalls every request on the loop. Scavenges (minor) are frequent and short;
+// mark-compact (major) is rare and long; incremental marking steps and weak callbacks are short.
+const GC_KINDS = {
+  [constants.NODE_PERFORMANCE_GC_MINOR]: "minor",
+  [constants.NODE_PERFORMANCE_GC_MAJOR]: "major",
+  [constants.NODE_PERFORMANCE_GC_INCREMENTAL]: "incremental",
+  [constants.NODE_PERFORMANCE_GC_WEAKCB]: "weakcb",
+};
+let gcPauses = {};
+// when each pause other than a scavenge started (ms since the last reset) and how long it took:
+// whether a mark-compact's incremental-marking step and its final pause come together or apart
+const MAX_LONG = 1000;
+let gcLong = [];
+
+new PerformanceObserver((list) => {
+  for (const e of list.getEntries()) {
+    const kind = GC_KINDS[e.detail ? e.detail.kind : e.kind] || "other";
+    const a = (gcPauses[kind] ||= []);
+    if (a.length < MAX_SAMPLES) a.push(e.duration);
+    if (kind !== "minor" && gcLong.length < MAX_LONG) {
+      gcLong.push({ kind, atMs: Math.round((e.startTime - wall0) * 1000) / 1000, ms: Math.round(e.duration * 1000) / 1000 });
+    }
+  }
+}).observe({ entryTypes: ["gc"] });
+
+function pauseStats(a) {
+  const s = [...a].sort((x, y) => x - y);
+  return {
+    collections: s.length,
+    pauseMs: s.reduce((t, v) => t + v, 0),
+    median: quantile(s, 0.5),
+    p95: quantile(s, 0.95),
+    p99: quantile(s, 0.99),
+    max: s.length ? s[s.length - 1] : null,
+  };
+}
+
+function gcStats() {
+  const all = Object.values(gcPauses).flat();
+  const byKind = Object.fromEntries(Object.entries(gcPauses).map(([k, a]) => [k, pauseStats(a)]));
+  return { ...pauseStats(all), byKind, long: gcLong };
+}
 
 function record(name, ms) {
   const a = (samples[name] ||= []);
@@ -66,6 +113,7 @@ function stats() {
     cpuMsPerRequest: requests ? cpuMs / requests : null,
     cpuMsPerMessage: consumed ? cpuMs / consumed : null,
     counters,
+    gc: gcStats(),
     timings: {},
   };
   for (const [name, a] of Object.entries(samples)) {
@@ -87,6 +135,8 @@ function reset() {
   requests = 0;
   consumed = 0;
   produced = 0;
+  gcPauses = {};
+  gcLong = [];
   cpu0 = process.cpuUsage();
   wall0 = performance.now();
 }

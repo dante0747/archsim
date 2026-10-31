@@ -390,7 +390,7 @@ def build_report(
         limits = rt.resource_capacity(hold, svc)
         ceilings: dict[str, float] = dict(limits)
         if pool_based and slots and hold:
-            ceilings["slots"] = slots * 1000.0 / hold
+            ceilings["slots"] = rt.slot_capacity(slots, hold, svc)
         cap_by = min(ceilings, key=lambda k: ceilings[k]) if ceilings else None
         if cap_by == "slots":
             # At saturation the slot ceiling reflects time spent waiting for a core (or memory);
@@ -400,7 +400,7 @@ def build_report(
                 cap_by = min(near, key=lambda k: limits[k])
         only: list[float] = [v for k, v in limits.items() if k == "cpu"]
         if pool_based and slots and svc:
-            only.append(slots * 1000.0 / svc)
+            only.append(rt.slot_capacity(slots, svc, svc))
         counters = {name: c.window for name, c in sorted(m.extra.items())}
         hits, misses = counters.get("hits"), counters.get("misses")
         hit_ratio = (

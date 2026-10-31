@@ -26,7 +26,7 @@ describe("documents keep what the editor does not edit", () => {
   it("round-trips provenance, the calibration record, pricing and autoSize false", () => {
     const doc = calibrated();
     const back = toDocument(fromDocument(doc));
-    expect(back.schemaVersion).toBe("1.5");
+    expect(back.schemaVersion).toBe("1.6");
     expect(back.provenance).toEqual(doc.provenance);
     expect(back.pricing).toEqual(doc.pricing);
     expect(back.calibration).toEqual(doc.calibration);

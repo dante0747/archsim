@@ -267,7 +267,7 @@ export interface Pricing {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */
@@ -302,7 +302,9 @@ export type FieldKind =
   | "string"
   | "object"
   /** Points at another part of the design (e.g. a service's Kubernetes cluster); see refType. */
-  | "nodeRef";
+  | "nodeRef"
+  /** A service's service time by load: [{rps, factor}] (schema 1.6). */
+  | "loadCurve";
 
 export interface FieldDescriptor {
   key: string;
