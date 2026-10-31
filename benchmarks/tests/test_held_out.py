@@ -350,9 +350,14 @@ def test_held_out_inputs(exp_id: str) -> None:
     # CPU per request: the slope between the passes, (4500 - 900) / (12000 - 1500)
     assert "0.3429 ms" in inputs["serviceTimeMs"]["how"]
     if exp.stack in run.DB_STACKS:
+        # two passes and no rest (before protocol v5): no CPU figure for the writes without
+        # their flush, so PostgreSQL's times are the round trips, with no link to add
         assert inputs["readServiceTimeMs"]["value"]["median"] == 0.6
         assert inputs["writeServiceTimeMs"]["value"]["median"] == 0.8
-        assert inputs["commitFlushMs"]["value"]["median"] == 1.2  # 2.0 - 0.8
+        assert inputs["dbLinkLatencyMs"]["value"] == 0.0
+        # the commit's wait, 2.0 - 0.8 ms, less what the model's writes queue at 400 req/s
+        assert inputs["commitFlushMs"]["value"]["median"] == pytest.approx(1.2, rel=0.05)
+        assert inputs["commitFlushMs"]["value"]["median"] < 1.2
         assert inputs["dbCpuShare"]["value"] > 0
     if exp.runtime in ("java", "go"):
         # 18 ms over 6 collections: a 3 ms mean, a median of 3 / 1.17; 12,000 requests / 6
