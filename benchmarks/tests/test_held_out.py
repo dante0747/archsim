@@ -213,8 +213,17 @@ def test_smoke_problems() -> None:
 
 def test_smoke_problems_on_chain_and_cache_ttl() -> None:
     chain = run.EXPERIMENTS["chain"]
-    gateway = {**counted(200, upstream=200), "upstream": counted(200, db_read=180, db_write=20)}
+    node_gc = {"gc": {"collections": 3, "pauseMs": 2.0, "byKind": {}}}  # server.js since W21
+    gateway = {
+        **counted(200, upstream=200),
+        "upstream": counted(200, db_read=180, db_write=20),
+        **node_gc,
+    }
     assert run.smoke_problems(chain, k6_result(), gateway) == []
+    no_gc = {k: v for k, v in gateway.items() if k != "gc"}
+    assert run.smoke_problems(chain, k6_result(), no_gc) == [
+        "the service reported no garbage collection counts"
+    ]
     lost = {**gateway, "upstream": counted(150, db_read=140, db_write=10)}
     found = run.smoke_problems(chain, k6_result(), lost)
     assert "the API behind the gateway counted 150 requests, k6 sent 200" in found
@@ -222,7 +231,7 @@ def test_smoke_problems_on_chain_and_cache_ttl() -> None:
     ttl = run.EXPERIMENTS["cache-ttl"]
     hits = {"cache_hit:measure": 120, "cache_miss:measure": 80}
     redis = {"get": {"calls": 200, "usec": 1200}, "set": {"calls": 80, "usec": 500}}
-    ok = {**counted(200), "counters": hits, "redis": redis}
+    ok = {**counted(200), "counters": hits, "redis": redis, **node_gc}
     assert run.smoke_problems(ttl, k6_result(), ok) == []
     assert run.smoke_problems(ttl, k6_result(), {**ok, "counters": {}}) == [
         "the cache counted 0 hits and misses, k6 sent 200"

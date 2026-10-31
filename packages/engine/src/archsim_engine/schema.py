@@ -1,4 +1,4 @@
-"""Versioned architecture document schema (``schemaVersion`` 1.5).
+"""Versioned architecture document schema (``schemaVersion`` 1.6).
 
 The document deliberately separates four concerns:
 

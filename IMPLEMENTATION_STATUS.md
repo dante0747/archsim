@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-10-31 (engine 0.14.0, schema 1.5, report 1.14). This file separates what is
+State as of 2026-10-31 (engine 0.14.0, schema 1.6, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
@@ -103,6 +103,58 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 - **Redis is now slightly high** at the top step (+14% to +19%): its CPU per command falls with
   load (0.043 ms at 1,212 req/s in the trial, about 0.03 ms at 4,850), the effect W21 models for
   services.
+
+**Service CPU that follows load, and Node.js garbage collection (2026-10-31, schema 1.6;
+accuracy plan W21).**
+
+- **`serviceTimeByLoad`** (services, schema 1.6, no-op migration; left out of the JSON when
+  empty, so documents and result digests are unchanged): `{rps, factor}` points per replica.
+  Each request's service time is multiplied by the factor at its replica's arrival rate over
+  the last second (bias-corrected EWMA; serverless: the function's rate over its busy
+  instances), interpolated in log(rate) and flat outside the points: a fall measured up to some
+  rate is never extrapolated. Helpers in `components/load_curve.py`; every analytic copy uses
+  them: the report's capacity and the event-loop explanation solve where the cores or loops fill
+  at that rate's factor (a fixed point, through a new `slot_capacity` hook), as does the
+  review's CPU finding; the instant estimate and sizing take the factor at their rate per
+  replica. The web inspector edits it as "req/s: factor" pairs.
+- **Calibration:** `load_dependence` became `fit_load_curve` (up to 6 quantile bins by rate per
+  replica, never rising with rate, relative to CPU per request over the range); Prometheus
+  calibration sets the table on a service when it spans more than 10%, and notes it for a
+  database, an autoscaled or a serverless service. On pg-mixed run 5 every step below the knee
+  is within 15% with it (the share alone: 51% low at 560 req/s).
+- **Benchmarks:** the curve comes from the staircase's `cpuByLoad` (relative to the top rate).
+  `server.js` reports V8's collections by kind (PerformanceObserver 'gc': main-thread pause,
+  and when each pause other than a scavenge starts). A mark-compact cycle (its
+  incremental-marking step and final pause, about 10 ms apart) becomes the model's GC pause
+  (`gcPauseMs`, `gcEveryRequests`) and its time comes off the CPU per request, which held it,
+  so nothing is counted twice; scavenges, frequent and about 1 ms, stay in the CPU per request.
+  Kept runs reported no GC: `resimulate` takes it from four calibration-only trials
+  (`results/trials/2026-10-31-*-w21/`, W21-README.md). The harness allows a simulation 1 h of
+  wall clock (the engine's 300 s default stopped an overloaded pg-mixed step on a shared CPU).
+- **Result: no knee moved.** Median knee error over the three counted v5 runs (in-sample
+  re-simulation, `docs/validation/dev-checks.md`), engine 0.14.0 → this branch: pg-mixed
+  +24% → +24%; pg-hot-row -16% → -16%; cache-aside -34% → -34%; Kafka +4% → +4%. Every knee lies 3
+  to 5 times above its staircase's top rate, where the curve is flat by design, and the GC
+  pauses are small: 0.1% to 0.45% of the event loop's time, a 4 to 16 ms mark-compact every
+  7,500 (Kafka's producer) to 58,000 requests. pg-mixed's p95 at 2,475 / 3,712 / 4,455 req/s
+  (measured 2.04 / 8.67 / 65.1 ms): engine 0.14.0 1.60 / 1.80 / 2.28 ms, this branch 1.63 /
+  1.84 / 2.47 ms. The predicted knees moved by at most 1 req/s. What changed is CPU at light
+  load: the Node.js services' predicted CPU at the ladder's lowest step went from -22% to -1%
+  (hot-row), -12% to -8% (cache-aside) and -10% to -7% (pg-mixed).
+- **GC does not explain pg-mixed's early latency rise.** In the quiet trial pg-mixed's p95 at
+  3,712 req/s was 1.74 ms (the baseline step: 8.67 ms; predicted 1.80). At 4,455 req/s the
+  stack overloaded with Node 89% busy and PostgreSQL saturating its two CPUs, hyperthread
+  siblings of one core (1.0 core busy, CPU per query 0.162 → 0.257 ms, the service's reads
+  waiting 34 ms): pg-mixed's knee looks set by PostgreSQL's CPU (W22). cache-aside's CPU per
+  request kept falling above its staircase (0.22-0.25 ms at the top, 0.170 at 4,850 req/s),
+  which the curve, flat above its last point, leaves out: its -34% stays.
+- **Checks:** all 25 examples give the same result digest as main (59d7bc3) with the new setting
+  empty; the 25-template sizing audit passes; the engine simulates an overloaded pg-mixed step
+  as fast as before (17.9 s against 18.1 s). `uv run pytest` (the one failure, the engine label
+  in the generated docs/assumptions.md, regenerated), ruff, mypy, and in apps/web build, lint,
+  vitest (323), tsc and Playwright (6, on 3002/8002) pass. Checked in the browser: the inspector
+  edits the curve, a run carries it, and the explanation reads "Service time at this load:
+  10.18 ms x 2.2831 at 201 req/s per replica".
 
 **Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
 

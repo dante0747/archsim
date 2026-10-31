@@ -153,12 +153,19 @@ median rate.
 - **CPU per request falls as load rises** on real stacks: requests share event-loop wake-ups,
   system calls and driver work. On the pg-mixed benchmark (run 5: Node.js pinned to one CPU,
   PostgreSQL to two) the Node.js service used 0.48 ms per request at 560 req/s and 0.21 ms at
-  2,231 req/s. ArchSim keeps one cost per request, so a share fitted over a range under-counts CPU at quiet
-  times. When CPU per request at the quietest quarter of the range differs from the busiest
-  quarter by more than 25%, calibration says so (in the notes and the input's provenance). On
-  pg-mixed, the share fitted below the knee predicts the CPU at the knee within 12% (before
-  calibration ArchSim predicted a full core where 0.46 was used, +116%) and is 51% low at
-  560 req/s. Pick a range around the load you size for.
+  2,231 req/s. Calibration fits that curve and, for a service, sets it as `serviceTimeByLoad`
+  (schema 1.6): the points are sorted by the rate per replica (the part's rate over the design's
+  replicas) into up to 6 bins of equal count, each bin's CPU per request is its CPU over its
+  rate, and the closest curve that never rises with rate is kept (a rise is noise or contention,
+  and a falling cost must not be extrapolated from it). Its factors are relative to the CPU per
+  request over the whole range, the one `cpuShare` comes from. It is set only when the factors
+  span more than 10%; the fit error is how far the never-rising curve is from a bin. On
+  pg-mixed, the share alone predicts the CPU at the knee within 12% (before calibration ArchSim
+  predicted a full core where 0.46 was used, +116%) and is 51% low at 560 req/s; with the curve
+  every step below the knee is within 15%. The simulation keeps the last bin's factor above the
+  range, so pick a range that reaches the load you size for. A service that autoscales, or runs
+  serverless, gets a note instead (its rate per replica is not known), and so does a database
+  (it has no such setting).
 - **More CPU than service time.** CPU spent outside the handler time you measured (HTTP parsing,
   drivers, garbage collection) makes CPU per request larger than the service time. The share is
   then 1, a note says by how much the model under-counts, and the fit error shows it. Use a

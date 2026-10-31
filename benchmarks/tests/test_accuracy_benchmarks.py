@@ -766,9 +766,12 @@ def test_vm_cpu_times_reads_steal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_split_inputs_reproduce_every_latest_calibration() -> None:
     # one function per part, then anchored again: the very inputs each latest run used, but for
-    # those a model change since derives differently. W23: Kafka gains two inputs its
-    # calibrations predate (the fetch-cycle report). W24: Redis's command time is its CPU per
-    # command, so the Redis link and the anchored client latency are derived again too.
+    # those a model change since derives differently. W21: how the service time changes with load
+    # (the staircase's CPU per request; it leaves the top rate, where the anchor simulates,
+    # unchanged; the kept runs' services did not report GC, so no GC input is derived). W23:
+    # Kafka gains two inputs its calibrations predate (the fetch-cycle report). W24: Redis's
+    # command time is its CPU per command, so the Redis link and the anchored client latency are
+    # derived again too.
     added = {"kafka": {"consumerConcurrency", "fetchOverheadMs"}}
     changed = {
         "cache-aside": {"cacheServiceTimeMs", "cacheLinkLatencyMs", "clientLinkLatencyMs", "anchor"}
@@ -776,6 +779,7 @@ def test_split_inputs_reproduce_every_latest_calibration() -> None:
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
         again = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
+        assert again.pop("serviceTimeByLoad")["value"][-1]["factor"] == 1.0, exp
         if exp == "kafka":
             assert again["consumerConcurrency"]["value"] == run.KAFKA_CONSUMERS
             assert "not recorded in this run" in again["fetchOverheadMs"]["how"]

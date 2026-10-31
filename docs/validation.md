@@ -160,7 +160,12 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    `INFO commandstats`' own time, which leaves out its network reads and writes), and each
    service's memory at idle and per req/s is fitted to its working set over the staircase (W24;
    calibrations without the readings keep ArchSim's defaults). The inputs are the replicates'
-   medians; `cpuByLoad` keeps every rate's CPU per request. A pass whose p95 is more than 10 times
+   medians; `cpuByLoad` keeps every rate's CPU per request, which since W21 (engine 0.15.0)
+   becomes the service's `serviceTimeByLoad`, relative to the top rate and kept at the top
+   rate's cost above it. Since W21 the Node.js service also reports V8's garbage collections:
+   its mark-compact cycles in the top pass become the model's GC pauses (`gcPauseMs`,
+   `gcEveryRequests`), and their time comes off the CPU per request, which already held it;
+   the frequent short scavenges stay in the CPU per request. A pass whose p95 is more than 10 times
    its median was disturbed: it is recorded, discarded and run again. Each input is derived by a
    formula recorded next to it in `calibration.json`. Protocol v4 (runs up to 6) calibrated in
    two passes, 50 req/s and a quarter of the pessimistic capacity, and took CPU per request as
@@ -520,10 +525,13 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
   - *pg-mixed (+20% to +25% in each run): latency rises before the CPU fills.* The model's CPU is
     right (above), and its knee is where the event loop's core fills: 4,950 req/s. The real
     service's p95 climbs well before that: 2.0 ms at 2,475 req/s, 8.7 ms at 3,712 (with the
-    service 77% busy) and 65 ms at 4,455, where the model predicts 1.6, 1.8 and 2.3 ms. A likely
-    cause is garbage collection: the benchmark designs turn the model's GC pauses off
-    (`gcPauseMs` 0), since the service did not report them, while its working set grew from 45
-    to 145 MiB over those steps. Not confirmed yet.
+    service 77% busy) and 65 ms at 4,455, where the model predicts 1.6, 1.8 and 2.3 ms. Garbage
+    collection, the first suspect, is not the cause: a calibration-only trial with the service
+    reporting it (W21, `results/trials/W21-README.md`) found V8's pauses take 0.1% to 0.45% of
+    the event loop's time, and its p95 at 3,712 req/s was 1.74 ms. At 4,455 req/s that trial
+    overloaded with Node 89% busy and PostgreSQL saturating its two CPUs (hyperthread siblings
+    of one physical core), its CPU per query up from 0.16 to 0.26 ms, so PostgreSQL's CPU is the
+    likely cause (W22).
   - *cache-aside (-26% to -34%): the CPU per request falls with load.* The predicted knee is one
     core at the calibrated 0.20 ms per request (4,850 req/s); the real cost fell to 0.16 ms by
     then and kept falling, and the real knee was about 7,000 req/s.
@@ -583,8 +591,10 @@ p95 at the ladder's low steps (at most half the predicted knee):
 What would make the model better, in order (the plan's W21 to W24, each tuned on these four
 experiments only and then tested on the held-out ones):
 
-1. Latency that rises before saturation: calibrate the service's GC pauses (W21).
-2. CPU per request that falls with load, from the calibration staircase (W21).
+1. Latency that rises before saturation: calibrate the service's GC pauses (W21; done, and too
+   small to move a knee: pg-mixed's rise looks like PostgreSQL's CPU).
+2. CPU per request that falls with load, from the calibration staircase (W21; done, flat above
+   the staircase's top rate, so it fixes CPU at light load but no knee).
 3. Database inputs timed inside PostgreSQL rather than from the service, and the commit flush
    measured under load (W22); then PostgreSQL's CPU.
 4. Kafka: the consumers' fetch cycle, and the message-age clock, which starts after the publish

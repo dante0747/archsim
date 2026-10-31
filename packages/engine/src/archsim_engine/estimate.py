@@ -35,6 +35,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from archsim_engine.components.load_curve import load_factor
 from archsim_engine.distributions import Constant, Empirical, Exponential, LogNormal, Uniform
 from archsim_engine.explain import erlang_c
 from archsim_engine.load import (
@@ -194,6 +195,14 @@ def _shape(node: NodeSpec, cfg: Any, load: NodeLoad, registry: ComponentRegistry
         replicas = cfg.replicas
         if cfg.autoscaling:
             replicas = max(cfg.max_replicas, cfg.replicas)
+        if curve := cfg.load_curve():
+            # its own time at the factor of the rate one replica gets (a function instance:
+            # back to back, at most one request at a time)
+            per = load.total / max(1, replicas)
+            if serverless and own.mean > 0:
+                per = min(load.total, 1000.0 / own.mean)
+            f = load_factor(curve, per)
+            own = Moments(own.mean * f, own.var * f * f)
         cpu = None
         if cfg.cpu_cores and not serverless:
             cpu = (

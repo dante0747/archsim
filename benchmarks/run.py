@@ -139,6 +139,10 @@ ENGINES = HERE / "engines.json"
 held-out experiments."""
 SMOKE_RPS = 20
 SMOKE_S = 10
+SIM_WALL_S = 3600.0
+"""Wall-clock limit of one simulation here (the engine's default, 300 s, guards the API server).
+An overloaded ladder step holds up to 100,000 queued requests, which takes minutes when other
+work shares the CPU; the limit only decides whether a run finishes, never what it returns."""
 
 
 @dataclass(frozen=True)
@@ -1000,9 +1004,10 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
         runs.append({**entry, "label": f"top {len(sets) + 1}"})
         sets.append(top_set(entry, len(sets) + 1))
     used = clean() if len(clean()) >= 2 else sets
+    by_load = cpu_by_load(runs, idle)
     replicate_inputs = []
     for s in used:
-        inputs = model_inputs(exp, s)
+        inputs = model_inputs(exp, {**s, "cpuByLoad": by_load})
         anchor(exp, inputs, s["high"])
         replicate_inputs.append(inputs)
     return {
@@ -1026,7 +1031,7 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
         # top passes still disturbed after their retry, kept for the record only
         "disturbedReplicates": [s["high"] for s in sets if s not in used],
         "discardedPasses": discarded,
-        "cpuByLoad": cpu_by_load(runs, idle),
+        "cpuByLoad": by_load,
         "inputReplicates": replicate_inputs,
         "inputs": median_inputs(replicate_inputs),
     }
@@ -1201,7 +1206,9 @@ def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
 
 def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     """The service's CPU per request, the client-to-service latency and the low-load reference;
-    for Java and Go its garbage collection, and for chain the API behind the gateway."""
+    how its CPU per request changed over the staircase (``service_time_by_load``); its garbage
+    collection (``gc_inputs``; Node.js: ``node_gc_inputs``, whose pauses come off the CPU per
+    request); and for chain the API behind the gateway."""
     low, high = passes["low"], passes["high"]
     svc, svc_low = high["service"], low["service"]
     own = timing(svc, "own")
@@ -1218,7 +1225,7 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         how = (
             f"mean = {who}'s CPU per request at {high['rateRps']:g} req/s net of idle: "
             f"({svc['cpuMs']:.0f} - {rest:.0f} ms at rest) / {svc['requests']} requests = "
-            f"{demand:.4f} ms; {shape}"
+            f"{demand:.4f} ms"
         )
     else:  # protocol v2 to v4: the slope between two passes
         slope_ms = slope(svc_low["cpuMs"], svc["cpuMs"], svc_low["requests"], svc["requests"])
@@ -1226,9 +1233,18 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         how = (
             f"mean = {who}'s CPU per extra request between the passes: ({svc['cpuMs']:.0f} - "
             f"{svc_low['cpuMs']:.0f} ms) / ({svc['requests']} - {svc_low['requests']} requests) = "
-            f"{demand:.4f} ms (at {low['rateRps']:g} req/s alone: {svc_low['cpuMsPerRequest']:.4f} ms); "
-            f"{shape}"
+            f"{demand:.4f} ms (at {low['rateRps']:g} req/s alone: {svc_low['cpuMsPerRequest']:.4f} ms)"
         )
+    gc, gc_per_request = node_gc_inputs(svc) if exp.runtime == "nodejs" else ({}, 0.0)
+    if gc_per_request > 0:
+        # the pauses the model adds were on the event loop, inside the CPU per request
+        net = max(demand - gc_per_request, 0.5 * demand)
+        how += (
+            f", less the {gc_per_request:.4f} ms per request of the pauses modelled as GC "
+            f"(gcPauseMs) = {net:.4f} ms"
+        )
+        demand = net
+    how += f"; {shape}"
     out = {
         "serviceTimeMs": {"value": lognormal_with_mean(demand, own), "how": how},
         "clientLinkLatencyMs": {
@@ -1237,11 +1253,101 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         },
         "measuredLowLoad": {"rateRps": high["rateRps"], **high["k6"]},
     }
-    if exp.runtime != "nodejs":
-        out |= gc_inputs(exp, svc)
+    if (curve := service_time_by_load(passes.get("cpuByLoad"))) is not None:
+        out["serviceTimeByLoad"] = curve
+    out |= gc if exp.runtime == "nodejs" else gc_inputs(exp, svc)
     if exp.stack == "chain":
         out |= chain_inputs(passes)
     return out
+
+
+def service_time_by_load(by_load: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+    """How the service's CPU per request changed with load over the calibration staircase
+    (``cpuByLoad``: each rate's CPU per request net of idle, the median of its passes), as
+    ``serviceTimeByLoad``: the engine's never-rising fit (``fit_load_curve``, one bin per rate),
+    relative to the top rate, whose CPU per request the service time is. The engine keeps the
+    top rate's factor (1) at every higher load: the curve says nothing about loads above the
+    staircase, which stops at a third of the core. None without a staircase (protocols before
+    v5), or when the fit spans no more than MIN_CURVE_CHANGE."""
+    from archsim_engine.calibration.resources import MIN_CURVE_CHANGE, fit_load_curve
+
+    pts = [
+        (float(b["rateRps"]), b["rateRps"] * b["serviceCpuMsPerRequest"] / 1000.0)
+        for b in by_load or []
+        if b.get("serviceCpuMsPerRequest")
+    ]
+    fit = fit_load_curve(pts, max_bins=len(pts)) if len(pts) >= 2 else None
+    if fit is None or fit.span <= MIN_CURVE_CHANGE:
+        return None
+    top = fit.points[-1][1]
+    table = [{"rps": round(r, 1), "factor": round(f / top, 4)} for r, f in fit.points]
+    measured = ", ".join(f"{m:.4f} ms at {r:g}" for r, m in fit.measured)
+    return {
+        "value": table,
+        "how": (
+            f"the staircase's CPU per request net of idle ({measured} req/s), fitted never "
+            f"rising with rate and divided by the top rate's ({fit.measured[-1][1]:.4f} ms); "
+            "flat outside the staircase"
+        ),
+    }
+
+
+GC_SCAVENGE = "minor"
+"""V8's scavenges of the young generation: short and frequent (about 1 ms every 150 requests in
+the W21 trial), left in the CPU per request rather than modelled as pauses."""
+
+
+def node_gc_inputs(stats: Mapping[str, Any]) -> tuple[dict[str, Any], float]:
+    """Node.js's garbage collection from the service's /stats (``gc``: V8's 'gc' performance
+    entries, the main thread's time in each collection by kind) and the pause per request the
+    model adds, to take off the CPU per request (the event loop's pauses are in it, and the
+    model's pause stalls the loop without counting as CPU).
+
+    The model's pause is the mark-compact cycle: its final pause and the incremental-marking and
+    weak-callback steps of the pass, per mark-compact (``gcEveryRequests`` requests apart). They
+    are rare and long (10 to 45 ms in the W21 trial), which is what stalls a busy event loop
+    long enough to move p95. Scavenges (``GC_SCAVENGE``) stay in the CPU per request: a model
+    pause has one size, and averaging them in would shrink it to about 2 ms. The median is set
+    from the mean as for Java and Go (``gc_inputs``: lognormal with p95 2.5x its median)."""
+    gc = stats.get("gc")
+    if not gc or not gc.get("byKind"):  # a service before W21: none modelled, as then
+        return {}, 0.0
+    kinds = gc["byKind"]
+    source = f" ({gc['source']})" if gc.get("source") else ""
+    scav = kinds.get(GC_SCAVENGE) or {}
+    cycles = float((kinds.get("major") or {}).get("collections") or 0)
+    pause = sum(float(v.get("pauseMs") or 0.0) for k, v in kinds.items() if k != GC_SCAVENGE)
+    requests = stats.get("requests") or 0
+    left = (
+        f"{scav.get('collections', 0):g} scavenges, {float(scav.get('pauseMs') or 0):.1f} ms, "
+        "left in the CPU per request"
+    )
+    if cycles <= 0 or pause <= 0 or requests <= 0:
+        return {
+            "gcPauseMs": {
+                "value": 0,
+                "how": f"no mark-compact in the pass{source}; {left}",
+            }
+        }, 0.0
+    mean = pause / cycles
+    sigma = math.log(2.5) / Z95
+    steps = ", ".join(
+        f"{k} {float(v.get('pauseMs') or 0):.1f} ms" for k, v in kinds.items() if k != GC_SCAVENGE
+    )
+    return {
+        "gcPauseMs": {
+            "value": round(mean / math.exp(sigma**2 / 2), 4),
+            "how": (
+                f"V8's mark-compact cycles in the pass{source}: {pause:.1f} ms ({steps}) over "
+                f"{cycles:g} cycles, a mean of {mean:.3f} ms (the model's median: mean / 1.17); "
+                f"{left}"
+            ),
+        },
+        "gcEveryRequests": {
+            "value": max(1, round(requests / cycles)),
+            "how": f"{requests} requests / {cycles:g} mark-compact cycles in the pass{source}",
+        },
+    }, pause / requests
 
 
 def gc_inputs(exp: Experiment, stats: Mapping[str, Any]) -> dict[str, Any]:
@@ -1676,9 +1782,12 @@ def service_node(
     """A service on its runtime's ArchSim profile: Node.js is one event loop on one CPU; Java
     (Tomcat's 200 threads), Go (a goroutine per request) and Python (gunicorn's sync workers) are
     a pool of workers that each wait for their own PostgreSQL calls, on the container's 2 CPUs.
-    Their garbage collection is calibrated (``gc_inputs``); the JIT warm-up of the Java profile
-    applies only to replicas started during a run, so it does not apply here. Memory comes from
-    the ``<memory>Memory*`` inputs when calibrated (``memory_inputs``), else ArchSim's defaults."""
+    Their garbage collection is calibrated (``gc_inputs``, and ``node_gc_inputs`` for Node.js's
+    mark-compact pauses), and so is how the service time changes with load
+    (``service_time_by_load``); both apply to the service under test (``serviceTimeMs``), not to
+    chain's API behind the gateway. The JIT warm-up of the Java profile applies only to replicas
+    started during a run, so it does not apply here. Memory comes from the ``<memory>Memory*``
+    inputs when calibrated (``memory_inputs``), else ArchSim's defaults."""
     rt = RUNTIMES[runtime]
     mem = service_memory(v, memory)
     if rt.workers is None:
@@ -1694,7 +1803,18 @@ def service_node(
                 "queueCapacity": 100_000,
                 "queueTimeoutMs": None,
                 "serviceTimeMs": v[time_key],
-                "gcPauseMs": 0,  # measured CPU per request already includes GC
+                # V8's mark-compact pauses (node_gc_inputs); 0 when calibration measured none
+                "gcPauseMs": v.get("gcPauseMs", 0) if time_key == "serviceTimeMs" else 0,
+                **(
+                    {"gcEveryRequests": v["gcEveryRequests"]}
+                    if time_key == "serviceTimeMs" and "gcEveryRequests" in v
+                    else {}
+                ),
+                **(
+                    {"serviceTimeByLoad": v["serviceTimeByLoad"]}
+                    if time_key == "serviceTimeMs" and "serviceTimeByLoad" in v
+                    else {}
+                ),
                 "warmupFactor": 1,
                 "cpuCores": rt.cpu_cores,
                 "memoryGib": SERVICE_MEMORY_GIB,
@@ -1714,6 +1834,7 @@ def service_node(
             "queueCapacity": 100_000,
             "queueTimeoutMs": None,
             "serviceTimeMs": v[time_key],
+            **({"serviceTimeByLoad": v["serviceTimeByLoad"]} if "serviceTimeByLoad" in v else {}),
             "gcPauseMs": v.get("gcPauseMs", 0),
             **({"gcEveryRequests": v["gcEveryRequests"]} if "gcEveryRequests" in v else {}),
             "cpuCores": rt.cpu_cores,
@@ -1852,8 +1973,9 @@ def design(
 
 def simulate(doc: dict[str, Any]) -> dict[str, Any]:
     from archsim_engine import run_simulation
+    from archsim_engine.engine import SimulationLimits
 
-    r = run_simulation(doc)
+    r = run_simulation(doc, limits=SimulationLimits(max_wall_seconds=SIM_WALL_S))
     s = r["summary"]
     lat = s["latencyMs"]
     nodes = {n["id"]: n["summary"] for n in r["nodes"]}
@@ -2545,8 +2667,8 @@ LATENCY_FIELDS = ("p50", "p95", "p99", "successRate", "throughputRps")
 def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str, Any]:
     """A run's model inputs derived again from its calibration passes alone, and anchored again,
     as calibrate() would with today's code: under protocol v5 one set per replicate (each top
-    pass with its auxiliary mixes, the staircase's first pass, the idle pass and the whole
-    staircase for the memory fit), and their medians (``median_inputs``)."""
+    pass with its auxiliary mixes, the staircase's first pass, the idle pass, the whole staircase
+    for the memory fit and the staircase's CPU by load), and their medians (``median_inputs``)."""
     passes = calibration["passes"]
     sets = [
         {
@@ -2554,6 +2676,7 @@ def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str
             "low": passes["low"],
             "idle": passes.get("idle", calibration.get("idle")),
             "staircase": calibration.get("staircase") or [],
+            "cpuByLoad": calibration.get("cpuByLoad"),
         }
         for r in calibration.get("replicates") or []
     ]
@@ -2565,16 +2688,84 @@ def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str
     return median_inputs(derived) if sets else derived[0]
 
 
+GC_TRIALS = {
+    "pg-mixed": "2026-10-31-pg-mixed-w21",
+    "pg-hot-row": "2026-10-31-pg-hot-row-w21",
+    "cache-aside": "2026-10-31-cache-aside-w21",
+    "kafka": "2026-10-31-kafka-w21",
+}
+"""Calibration-only trials (results/trials/) whose Node.js service reported its garbage
+collection (W21). The kept runs' services did not, so a development check takes the GC per
+request a trial measured at the top of its staircase (``trial_gc``); a calibration from now on
+reads its own."""
+
+
+def trial_gc(exp_id: str, results: Path = RESULTS) -> dict[str, Any] | None:
+    """The GC per request of the experiment's trial: each kind's collections and pause over
+    every top pass of its staircase, per request (None without a trial or a reported GC)."""
+    name = GC_TRIALS.get(exp_id)
+    cal = read_json(results / "trials" / name / "calibration.json") if name else None
+    if not cal:
+        return None
+    tops = [r["high"]["service"] for r in cal.get("replicates") or []]
+    tops = [t for t in tops if (t.get("gc") or {}).get("byKind")]
+    requests = sum(t["requests"] for t in tops)
+    if not requests:
+        return None
+    kinds: dict[str, dict[str, float]] = {}
+    for t in tops:
+        for k, v in t["gc"]["byKind"].items():
+            acc = kinds.setdefault(k, {"collections": 0.0, "pauseMs": 0.0})
+            acc["collections"] += v["collections"]
+            acc["pauseMs"] += v["pauseMs"]
+    return {
+        "trial": name,
+        "rateRps": cal["staircaseRps"][-1],
+        "requests": requests,
+        "perRequest": {
+            k: {"collections": v["collections"] / requests, "pauseMs": v["pauseMs"] / requests}
+            for k, v in kinds.items()
+        },
+    }
+
+
+def with_trial_gc(calibration: Mapping[str, Any], gc: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy of a calibration whose top passes' service stats carry the trial's GC per request
+    scaled to their own requests (marked with the trial's name), where they report none."""
+
+    def give(entry: Mapping[str, Any]) -> dict[str, Any]:
+        svc = entry["service"]
+        if svc.get("gc"):
+            return dict(entry)
+        n = svc["requests"]
+        by_kind = {
+            k: {"collections": v["collections"] * n, "pauseMs": v["pauseMs"] * n}
+            for k, v in gc["perRequest"].items()
+        }
+        source = f"per request as trial {gc['trial']} measured at {gc['rateRps']:g} req/s"
+        return {**entry, "service": {**svc, "gc": {"byKind": by_kind, "source": source}}}
+
+    out = dict(calibration)
+    out["replicates"] = [
+        {**r, "high": give(r["high"])} for r in calibration.get("replicates") or []
+    ]
+    out["passes"] = {**calibration["passes"], "high": give(calibration["passes"]["high"])}
+    return out
+
+
 def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] | None:
     """One kept run checked with today's model: its inputs derived again, its measured ladder
     and the knee simulated, and the comparison with what it measured. None for a run whose
-    calibration today's code cannot read (run 1 had one pass, not two)."""
+    calibration today's code cannot read (run 1 had one pass, not two). A Node.js service that
+    did not report its garbage collection gets its trial's (``trial_gc``)."""
     from archsim_engine.version import ENGINE_VERSION
 
     exp = EXPERIMENTS[exp_id]
     cal, meas = read_json(d / "calibration.json"), read_json(d / "measured.json")
     if not (cal and meas) or not {"low", "high"} <= set(cal.get("passes", {})):
         return None
+    if exp.runtime == "nodejs" and (gc := trial_gc(exp_id, results)) is not None:
+        cal = with_trial_gc(cal, gc)
     try:
         inputs = rederive_inputs(exp, cal)
     except (KeyError, SystemExit) as e:  # an early protocol lacks a pass today's code reads
@@ -2976,7 +3167,7 @@ def smoke_problems(exp: Experiment, sent: Mapping[str, Any], stats: Mapping[str,
         gets = ((stats.get("redis") or {}).get("get") or {}).get("calls")
         if gets != n:
             out.append(f"Redis counted {gets} GET commands, k6 sent {n}")
-    if exp.runtime != "nodejs" and "collections" not in (stats.get("gc") or {}):
+    if "collections" not in (stats.get("gc") or {}):
         out.append("the service reported no garbage collection counts")
     if exp.runtime == "python" and stats.get("workers") != PYTHON_WORKERS:
         out.append(

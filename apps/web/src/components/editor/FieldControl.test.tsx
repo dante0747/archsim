@@ -36,6 +36,33 @@ describe("FieldControl", () => {
     expect(onChange).toHaveBeenCalledWith(1000);
   });
 
+  it("edits a service time by load as req/s: factor pairs (schema 1.6)", () => {
+    const onChange = vi.fn();
+    const f = field(serviceFields, "serviceTimeByLoad");
+    expect(f.kind).toBe("loadCurve");
+    const value = [
+      { rps: 50, factor: 3.6 },
+      { rps: 1674, factor: 1 },
+    ];
+    wrap(<FieldControl field={f} value={value} onChange={onChange} idPrefix="t" />);
+    const input = screen.getByLabelText("Service time by load");
+    expect(input).toHaveValue("50: 3.6, 1674: 1");
+    expect(screen.getByText("×3.6 at 50 req/s to ×1 at 1,674 req/s")).toBeInTheDocument();
+    // a pair that does not read is flagged and not saved
+    fireEvent.change(input, { target: { value: "50: 3.6, 1674" } });
+    fireEvent.blur(input);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("req/s: factor pairs");
+    fireEvent.change(input, { target: { value: "50: 3, 500: 1.5, 1674: 1" } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenLastCalledWith([
+      { rps: 50, factor: 3 },
+      { rps: 500, factor: 1.5 },
+      { rps: 1674, factor: 1 },
+    ]);
+    expect(describeValue(f, value)).toBe("×3.6 at 50 req/s to ×1 at 1,674 req/s");
+  });
+
   it("marks assumptions", () => {
     wrap(<FieldControl field={field(serviceFields, "serviceTimeMs")} value={{ kind: "lognormal", median: 8, p95: 25 }} onChange={() => {}} idPrefix="t" />);
     expect(screen.getByLabelText("assumption")).toBeInTheDocument();

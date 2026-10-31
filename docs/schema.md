@@ -187,8 +187,15 @@ overrides in `provenance`.
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
   `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
   `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, and 1.5 to
-  1.6 the message-queue settings `consumerConcurrency` and `fetchOverheadMs`, so older documents
-  load unchanged.
+  1.6 the service setting `serviceTimeByLoad` and the message-queue settings `consumerConcurrency`
+  and `fetchOverheadMs`, so older documents load unchanged.
+- `serviceTimeByLoad` (1.6; services): a list of `{"rps": ..., "factor": ...}` points (rate above
+  0 per replica, factor above 0 and at most 100). At that many requests per second on a replica
+  its service time is `serviceTimeMs` times the factor; between points the factor is
+  interpolated in log(rate), outside them it stays at the nearest point's. Empty (the default,
+  left out of the JSON) means the same service time at every load, as before. Calibration fits
+  it from CPU per request ([calibration.md](calibration.md#cpu-and-memory)); see
+  [simulation-model.md](simulation-model.md) for how the simulation and the estimates use it.
 - `consumerConcurrency` and `fetchOverheadMs` (1.6; message queues, both empty by default, as
   before): set either, and consumers poll in fetch cycles. Each takes its partitions' backlog in
   one poll, processes up to `consumerConcurrency` partitions at once (a partition's messages one

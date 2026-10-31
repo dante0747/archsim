@@ -302,7 +302,9 @@ export type FieldKind =
   | "string"
   | "object"
   /** Points at another part of the design (e.g. a service's Kubernetes cluster); see refType. */
-  | "nodeRef";
+  | "nodeRef"
+  /** A service's service time by load: [{rps, factor}] (schema 1.6). */
+  | "loadCurve";
 
 export interface FieldDescriptor {
   key: string;

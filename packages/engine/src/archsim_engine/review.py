@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from archsim_engine.components.load_curve import capacity_rps, curve_of, load_factor
 from archsim_engine.load import (
     Json,
     estimate_load,
@@ -720,7 +721,11 @@ def review_design(doc: Json, registry: ComponentRegistry) -> list[Json]:
                     else max(1.0, reps)
                 )
                 if ms:
-                    cap = cores * replicas * 1000 / ms
+                    # the rate where a replica's cores fill, each request at that rate's factor
+                    curve = curve_of(cfg.get("serviceTimeByLoad"))
+                    per_replica = capacity_rps(curve, cores * 1000 / ms)
+                    cap = per_replica * replicas
+                    ms *= load_factor(curve, per_replica)
                     busy = (
                         load.total / cap,
                         f"{_js_num_or_q(cores)} vCPU × {_js_num_or_q(replicas)} replica{'' if replicas == 1 else 's'} "

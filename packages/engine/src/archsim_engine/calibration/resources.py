@@ -6,10 +6,16 @@ benchmark tests on measured stacks.
 **CPU per request → ``cpuShare``.** CPU per request is the rate of CPU seconds over the rate of
 requests, summed over the range (mean cores ÷ mean request rate): the busiest times weigh most,
 which is where a part is sized. ``cpuShare`` is that over the mean service time, at most 1. The
-model keeps one CPU cost per request; on real stacks it falls as load rises (requests share event
-loop wake-ups, system calls and driver work), so ``load_dependence`` measures CPU per request at
-the quietest and busiest quarters of the range and calibration says when they differ. The fit
-error is the largest relative error of the fitted CPU at and above the median rate.
+fit error is the largest relative error of the fitted CPU at and above the median rate.
+
+**CPU per request against load → ``serviceTimeByLoad``.** On real stacks CPU per request falls as
+load rises (requests share event-loop wake-ups, system calls and driver work). ``fit_load_curve``
+sorts the points by the rate one replica gets into up to ``MAX_BINS`` bins of equal count
+(quantiles), takes each bin's CPU per request (its cores over its rate) and fits the closest curve
+that never rises with rate (pool adjacent violators): a rise is noise or contention, which a
+falling cost must not be extrapolated from. Its factors are relative to the CPU per request over
+the whole range, the one ``cpuShare`` is fitted from, so the table rescales the calibrated
+service time around it.
 
 **Working set → memory at idle, per req/s and per request held.** The working set per replica is
 fitted by non-negative least squares against what the mapping gives: the request rate, requests
@@ -29,36 +35,16 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-LOAD_DEPENDENCE = 0.25
-"""CPU per request at the quietest and busiest quarters of the range differing by more than
-this share is reported."""
 MIN_SPREAD = 1.5
-"""The busiest quarter's rate must be at least this multiple of the quietest's to compare them."""
+"""The busiest bin's rate must be at least this multiple of the quietest's to fit a curve."""
+MAX_BINS = 6
+"""Most bins by rate a CPU-by-load curve has (``fit_load_curve``)."""
+MIN_CURVE_CHANGE = 0.10
+"""A fitted CPU-by-load curve is set as ``serviceTimeByLoad`` only when its factors span more
+than this share (less is within the noise of CPU counters)."""
 MIN_PER_REQUEST_MB = 0.01
 """Smallest memory per request held calibration sets (the setting must be above zero): requests
 held that add no measurable memory get this (10 KiB, about a socket's buffers)."""
-
-
-@dataclass(frozen=True)
-class LoadDependence:
-    """CPU per request (ms) at the quietest and busiest quarters of the range."""
-
-    quiet_rps: float
-    quiet_ms: float
-    busy_rps: float
-    busy_ms: float
-
-    @property
-    def change(self) -> float:
-        """Relative change from quiet to busy (negative: it falls as load rises)."""
-        return (self.busy_ms - self.quiet_ms) / self.quiet_ms if self.quiet_ms > 0 else 0.0
-
-    def text(self) -> str:
-        way = "falls" if self.busy_ms < self.quiet_ms else "rises"
-        return (
-            f"CPU per request {way} with load: {self.quiet_ms:.3g} ms at about "
-            f"{self.quiet_rps:,.0f} req/s, {self.busy_ms:.3g} ms at about {self.busy_rps:,.0f} req/s"
-        )
 
 
 @dataclass(frozen=True)
@@ -71,7 +57,8 @@ class CpuFit:
     capped: bool
     """CPU per request exceeded the service time: the share is 1 and the model under-counts CPU."""
     error: float | None
-    load: LoadDependence | None
+    curve: LoadCurve | None
+    """CPU per request against the rate per replica (``fit_load_curve``), or None."""
     points: int
     notes: tuple[str, ...] = ()
 
@@ -95,28 +82,102 @@ def _max_rel_error(pairs: list[tuple[float, float]]) -> float | None:
     return round(max(errs), 4) if errs else None
 
 
-def load_dependence(points: Sequence[tuple[float, float]]) -> LoadDependence | None:
-    """CPU per request at the quietest and busiest quarters of ``points`` ((req/s, cores)), or
-    None with fewer than 4 points or too little spread in the rate."""
-    pts = sorted((r, c) for r, c in points if r > 0 and c >= 0)
-    if len(pts) < 4:
+@dataclass(frozen=True)
+class LoadCurve:
+    """CPU per request against the rate one replica gets: ``serviceTimeByLoad`` before it is
+    turned into service-time factors."""
+
+    points: tuple[tuple[float, float], ...]
+    """(req/s per replica, CPU per request as a multiple of ``reference_ms``), rising rates,
+    never-rising factors."""
+    reference_ms: float
+    """The CPU per request a factor of 1 stands for (ms)."""
+    measured: tuple[tuple[float, float], ...]
+    """(req/s per replica, CPU per request in ms) of each bin, before the never-rising fit."""
+    error: float | None
+    """Largest relative difference between a bin's measured CPU per request and the fit."""
+
+    @property
+    def span(self) -> float:
+        """How far the factors spread: the largest over the smallest, less 1."""
+        fs = [f for _, f in self.points]
+        return max(fs) / min(fs) - 1.0 if min(fs) > 0 else 0.0
+
+    def table(self) -> list[dict[str, float]]:
+        """``serviceTimeByLoad``. The engine scales the whole service time by the factor and
+        charges the CPU share of it as CPU, so the factors are the CPU's: CPU per request then
+        follows what was measured (a share below 1 also scales the time without a core)."""
+        return [{"rps": round(r, 1), "factor": round(f, 4)} for r, f in self.points]
+
+    def text(self) -> str:
+        (r0, m0), (r1, m1) = self.measured[0], self.measured[-1]
+        return (
+            f"CPU per request {m0:.3g} ms at about {r0:,.0f} req/s per replica, {m1:.3g} ms at "
+            f"about {r1:,.0f} req/s ({len(self.measured)} bins by rate, fitted never rising)"
+        )
+
+
+def _never_rising(values: list[float], weights: list[float]) -> list[float]:
+    """The weighted least-squares fit to ``values`` that never rises (pool adjacent violators):
+    where a later value is higher, the run is replaced by its weighted mean."""
+    blocks: list[list[float]] = []  # [mean, weight, count]
+    for v, w in zip(values, weights, strict=True):
+        blocks.append([v, w, 1])
+        while len(blocks) > 1 and blocks[-1][0] > blocks[-2][0]:
+            v2, w2, n2 = blocks.pop()
+            v1, w1, n1 = blocks.pop()
+            blocks.append([(v1 * w1 + v2 * w2) / (w1 + w2), w1 + w2, n1 + n2])
+    out: list[float] = []
+    for mean, _, count in blocks:
+        out += [mean] * int(count)
+    return out
+
+
+def fit_load_curve(
+    points: Sequence[tuple[float, float]],
+    reference_ms: float | None = None,
+    max_bins: int = MAX_BINS,
+) -> LoadCurve | None:
+    """CPU per request as it changes with load, from (req/s, cores) points of one replica: the
+    points sorted by rate into up to ``max_bins`` bins of equal count (quantiles of the rate),
+    each bin's CPU per request (its cores over its rate, so busy points weigh most), then the
+    closest curve that never rises with rate. Factors are relative to ``reference_ms`` (default:
+    CPU per request over the whole range, as ``fit_cpu_share`` measures it). None with fewer
+    than 2 points, or when the busiest bin's rate is under ``MIN_SPREAD`` times the quietest's."""
+    pts = sorted(
+        (r, c) for r, c in points if math.isfinite(r) and math.isfinite(c) and r > 0 and c >= 0
+    )
+    if len(pts) < 2:
         return None
-    k = max(1, len(pts) // 4)
-    quiet, busy = pts[:k], pts[-k:]
-    q_rate, b_rate = sum(r for r, _ in quiet), sum(r for r, _ in busy)
-    if b_rate / len(busy) < MIN_SPREAD * q_rate / len(quiet):
+    k = max(2, min(max_bins, len(pts)))
+    bins = [pts[i * len(pts) // k : (i + 1) * len(pts) // k] for i in range(k)]
+    bins = [b for b in bins if b]
+    rates = [sum(r for r, _ in b) for b in bins]
+    rps = [s / len(b) for s, b in zip(rates, bins, strict=True)]
+    if rps[-1] < MIN_SPREAD * rps[0]:
         return None
-    return LoadDependence(
-        q_rate / len(quiet),
-        1000.0 * sum(c for _, c in quiet) / q_rate,
-        b_rate / len(busy),
-        1000.0 * sum(c for _, c in busy) / b_rate,
+    ms = [1000.0 * sum(c for _, c in b) / s for s, b in zip(rates, bins, strict=True)]
+    fitted = _never_rising(ms, rates)
+    ref = reference_ms if reference_ms and reference_ms > 0 else 0.0
+    if not ref:  # CPU per request over the whole range: busy bins weigh most
+        ref = sum(m * w for m, w in zip(ms, rates, strict=True)) / sum(rates)
+    if ref <= 0:
+        return None
+    error = _max_rel_error([(f, m) for f, m in zip(fitted, ms, strict=True)])
+    return LoadCurve(
+        tuple((r, f / ref) for r, f in zip(rps, fitted, strict=True)),
+        ref,
+        tuple(zip(rps, ms, strict=True)),
+        error,
     )
 
 
-def fit_cpu_share(points: Sequence[tuple[float, float]], service_ms: float) -> CpuFit | None:
-    """``cpuShare`` from (req/s, cores) points and the mean service time (ms); None when there is
-    no traffic or no service time."""
+def fit_cpu_share(
+    points: Sequence[tuple[float, float]], service_ms: float, replicas: float = 1.0
+) -> CpuFit | None:
+    """``cpuShare`` from (req/s, cores) points of the whole part and the mean service time (ms),
+    and CPU per request against the rate per replica (the part's rate over ``replicas``); None
+    when there is no traffic or no service time."""
     pts = [(r, c) for r, c in points if math.isfinite(r) and math.isfinite(c) and r >= 0 and c >= 0]
     total_rate = sum(r for r, _ in pts)
     if not pts or total_rate <= 0 or service_ms <= 0:
@@ -133,18 +194,12 @@ def fit_cpu_share(points: Sequence[tuple[float, float]], service_ms: float) -> C
             "garbage collection). The CPU share is at most 1, so the model under-counts CPU; "
             "use a service time that covers the CPU per request"
         )
-    load = load_dependence(pts)
-    if load is not None and abs(load.change) > LOAD_DEPENDENCE:
-        notes.append(
-            f"{load.text()}. ArchSim keeps one CPU cost per request, weighted to the busiest "
-            "times, so it "
-            + ("under-counts" if load.change < 0 else "over-counts")
-            + " CPU at quiet times"
-        )
+    n = max(1.0, replicas)
+    curve = fit_load_curve([(r / n, c / n) for r, c in pts], cpu_ms)
     busy = _busy_half([r for r, _ in pts])
     per_core = service_ms * share / 1000.0
     error = _max_rel_error([(pts[i][0] * per_core, pts[i][1]) for i in busy])
-    return CpuFit(share, cpu_ms, service_ms, capped, error, load, len(pts), tuple(notes))
+    return CpuFit(share, cpu_ms, service_ms, capped, error, curve, len(pts), tuple(notes))
 
 
 @dataclass(frozen=True)
