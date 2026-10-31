@@ -7,6 +7,58 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**Kafka: message age, fetch cycles, and a publish tail that was the harness's (2026-10-31; accuracy plan W23).**
+
+- Message age now starts when the publish starts (`Message.created_at`), as the benchmark's
+  producer stamps it; until now it started at the acknowledgement. `queueWaitMs` is unchanged.
+- Message queues gain `consumerConcurrency` and `fetchOverheadMs` (schema 1.6, both empty by
+  default, as before). Set either and consumers poll in cycles, as kafkajs does: take the
+  partitions' whole backlog, process it in N slots (a partition's messages one after another),
+  wait for all, pay the fetch and commit overhead, poll again (`consumerSlots`; warning
+  `queue.idle_slots`; the instant estimate counts slots). The Kafka benchmark design is one
+  consumer with concurrency 3, as the real stack. Example digests (all 25 templates, 8 s runs):
+  17 unchanged; the 8 with a queue change only in their message age.
+- The benchmark service reports kafkajs's fetch cycle (`cycle_overhead`, `cycle_fetch`,
+  `cycle_after`, batches) and the producer's sends in flight; `run.py` calibrates
+  `fetchOverheadMs` from it. Kept runs lack it and take the W23 trial's figure (median 0.93 ms,
+  p95 3.88 ms per poll at 569 req/s).
+- The publish tail that grew with load (client p95 42 ms at 1,890 req/s) was the benchmark's:
+  the broker's healthcheck started a JVM every 3 s on the broker's one physical core (about 0.5
+  cores). Run once, the stack's p95 was 5.0 ms at 1,890 req/s, which engine 0.14.0 predicted
+  (4.9 ms); GC (1 to 4 pauses per pass) and the producer's single connection were ruled out.
+  `compose.yaml` now runs the check only until it first succeeds. All five kept Kafka runs (v4
+  and v5) ran with it, so their measured knees are harness-limited. Trial data:
+  `benchmarks/results/trials/2026-10-31-kafka-w23/` (development data, not on /accuracy).
+- In-sample re-simulation of the kept Kafka runs (`docs/validation/dev-checks.md`), engine
+  0.14.0 against this branch, latest run (525 / 1,050 / 1,575 / 1,890 req/s):
+
+  | | measured | engine 0.14.0 | W23 |
+  | --- | --- | --- | --- |
+  | median knee error, 3 counted v5 runs | | +4% | +4% (unchanged: the client's path is) |
+  | client p95 (ms) | 4.6 / 10.5 / 22.4 / 42.5 | 3.3 / 3.4 / 3.7 / 4.9 | 3.3 / 3.4 / 3.7 / 4.9 |
+  | consumed per second, 1,890 req/s and above | 1,568 to 1,671 | 1,383 | 1,360 to 1,372 |
+  | message age p95 (ms) | 14 / 132 / 2,660 / 7,440 | 3.9 / 10.1 / 2,904 / 6,413 | 10.3 / 29.4 / 4,067 / 8,631 |
+
+  The measured p95 is the healthcheck's (the fixed stack: 1.7 / 3.3 / 5.2 / 5.0 ms). Message age
+  at light load moves from a quarter to three quarters of the measured; at 1,050 req/s it stays
+  4.5x short (rare consumer stalls of 0.2 to 0.8 s set the real p95). The consumer's cap stays
+  low: the model's INSERT takes 2.1 ms (0.89 ms write, 1.2 ms waiting for the WAL flush) where
+  the consumer measured 1.73 ms, a database input (W22). In the trial the real consumer kept up
+  with only 1,320 to 1,440/s.
+- Kafka's knee with W21: the producer's CPU 30% cheaper at high load puts the predicted knee at
+  3,000 / 3,050 / 4,050 req/s (latest, run 4, run 3): +48% median against the kept runs, whose
+  knees are the harness's, and -9% to +35% against the fixed stack's knee (about 3,000 to
+  3,300 req/s, where the producer's core fills; single trial passes). Judge W21's Kafka effect
+  on the prospective campaign's new measurements, not on the kept runs.
+- Engine label `0.15.0-w23`, schema 1.6 (a no-op 1.5 -> 1.6 migration, as on W21's branch). The
+  Kafka design now carries 1.6 settings, which engine 0.14.0 refuses: its baseline predictions
+  need the 0.14.0 harness. Checks: pytest (870 passed in a full run on a host other sessions held
+  at 100% CPU; of its 11 failures, 5 passed when run again (timing and process tests, a Node
+  crash under load, and a provenance check that saw files change during the run) and 6 were
+  this change's, now updated: the CI snapshot's engine label (4), and the Kafka design and
+  inputs that W19's and W18's tests pin), ruff, mypy, web lint, vitest 319, build, tsc,
+  Playwright 6.
+
 **Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
 
 - Three runs of each of the four experiments with engine 0.14.0 (tag `bench-baseline-0.14.0`),

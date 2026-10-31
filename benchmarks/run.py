@@ -1328,8 +1328,20 @@ def db_cpu_share(
     }
 
 
+KAFKA_FETCH_FALLBACK = {"median": 0.93, "p95": 3.88, "polls": 17577}
+"""The consumer's fetch overhead per poll (ms) for runs calibrated before the service reported
+kafkajs's fetch cycle (W23, 31 Oct 2026): what the W23 trial measured on the same laptop at
+569 req/s, the top of the kept runs' calibration staircases, with the stack as benchmarked
+(benchmarks/results/trials/2026-10-31-kafka-w23/diagnostics.json: two passes, medians 1.00
+and 0.86 ms, p95 4.19 and 3.56 ms; their means)."""
+MIN_POLLS = 50
+"""Fewest fetch cycles a pass must record for its fetch overhead to be used."""
+
+
 def queue_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """Kafka: the producer's publish time and the consumer's own time per message."""
+    """Kafka: the producer's publish time; the consumer's own time per message, how many
+    partitions it processes at once and what each poll costs beyond the messages (the fetch and
+    the offset commit)."""
     high = passes["high"]
     consume_own = timing(high["consumer"], "consume_own")
     send = timing(high["service"], "kafka_send")
@@ -1342,6 +1354,43 @@ def queue_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
             "value": lognormal(consume_own["median"], consume_own["p95"]),
             "how": f"consumer's own time per message (handling minus the INSERT): median {consume_own['median']:.3f}, p95 {consume_own['p95']:.3f} ms",
         },
+        "consumerConcurrency": {
+            "value": KAFKA_CONSUMERS,
+            "how": (
+                f"the stack's setting, not measured: one kafkajs consumer processes {KAFKA_CONSUMERS} "
+                f"of its {KAFKA_PARTITIONS} partitions at once (partitionsConsumedConcurrently)"
+            ),
+        },
+        "fetchOverheadMs": fetch_overhead(high["consumer"]),
+    }
+
+
+def fetch_overhead(cons: Mapping[str, Any]) -> dict[str, Any]:
+    """What each of the consumer's polls costs beyond processing its messages: per fetch cycle
+    the cycle less its batches' least possible span on the consumer's workers (the service's
+    ``cycle_overhead``: the fetch, the last batch's offset commit and kafkajs's bookkeeping).
+    Runs calibrated before the service reported it take the W23 trial's figure."""
+    t = cons["timings"].get("cycle_overhead")
+    if t and t["count"] >= MIN_POLLS:
+        fetch = cons["timings"].get("cycle_fetch") or {}
+        after = cons["timings"].get("cycle_after") or {}
+        return {
+            "value": lognormal(max(t["median"], 0.01), max(t["p95"], 0.02)),
+            "how": (
+                f"kafkajs's fetch cycle in the pass ({t['count']} polls): each cycle less its "
+                f"batches' least span on {KAFKA_CONSUMERS} workers, median {t['median']:.3f}, p95 "
+                f"{t['p95']:.3f} ms (the fetch: median {fetch.get('median') or 0:.3f} ms; the last "
+                f"batch's commit: median {after.get('median') or 0:.3f} ms)"
+            ),
+        }
+    f = KAFKA_FETCH_FALLBACK
+    return {
+        "value": lognormal(f["median"], f["p95"]),
+        "how": (
+            "not recorded in this run (the service reports kafkajs's fetch cycle since W23): the "
+            f"W23 trial's top calibration passes on the same laptop ({f['polls']} polls), median "
+            f"{f['median']:.3f}, p95 {f['p95']:.3f} ms"
+        ),
     }
 
 
@@ -1544,7 +1593,8 @@ def cache_node(v: Mapping[str, Any], ttl_s: int = CACHE_TTL_S) -> dict[str, Any]
 
 
 def queue_node(v: Mapping[str, Any]) -> dict[str, Any]:
-    """Kafka: one broker, the partitions and consumers of the real stack."""
+    """Kafka: one broker and the real stack's partitions, read by one kafkajs consumer that polls
+    in fetch cycles and processes its partitions ``consumerConcurrency`` at a time."""
     return {
         "id": "kafka",
         "type": "message_queue",
@@ -1552,7 +1602,9 @@ def queue_node(v: Mapping[str, Any]) -> dict[str, Any]:
         "config": {
             "technology": "kafka",
             "partitions": KAFKA_PARTITIONS,
-            "consumers": KAFKA_CONSUMERS,
+            "consumers": 1,
+            "consumerConcurrency": v["consumerConcurrency"],
+            "fetchOverheadMs": v["fetchOverheadMs"],
             "brokers": 1,
             "maxDepth": None,
             "acks": "leader",  # one broker: acks=all is the leader's write

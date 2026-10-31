@@ -335,6 +335,19 @@ Technology behaviour (settings with `auto` defaults):
   partitions; consumer i owns partitions p with p mod c = i (c = min(consumers, partitions))
   and processes them one message at a time, so a hot key backs up its partition while other
   consumers idle (`partitionLagMax`). `none` is one shared FIFO with competing consumers.
+- Fetch cycles (schema 1.6; off unless `fetchOverheadMs` is set or `consumerConcurrency` is
+  above 1): a consumer polls, takes its partitions' whole backlog (a shared queue: one message
+  per slot), processes it in `consumerConcurrency` slots (each partition's messages one after
+  another, as kafkajs's `partitionsConsumedConcurrently` does), waits until all are done, pays
+  `fetchOverheadMs` (the fetch round trip and the offset commit) and polls again. Messages that
+  arrive meanwhile wait for the next poll; with no backlog it takes the next message as soon as
+  it arrives. The overhead is spread over more messages per poll as the backlog grows, so
+  throughput approaches slots × 1000 ÷ processing time only under load (`consumerSlots`; a
+  consumer uses at most one slot per partition it owns). `partitionLagMax` counts messages not
+  yet fetched; `lag` also counts fetched messages not yet processed.
+- Message age (`meanMessageAgeMs`, `p95MessageAgeMs`) runs from the start of the publish to the
+  end of processing, as a producer that stamps a message before sending it sees it; until engine
+  0.15 it started at the acknowledgement. `queueWaitMs` still starts at the acknowledgement.
 - `acks: all` adds `replicationMs` to every publish; `lingerMs` adds a uniform share of the
   producer's batching delay (Kafka 4.0: 5 ms).
 - `flowControl` (RabbitMQ): once the backlog uses `memoryHighWatermark` of `memoryGib` (at
