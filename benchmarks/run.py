@@ -475,10 +475,16 @@ class ResourceSampler:
     The load starts when the service first counts a finished request (its counters start at
     /reset, which runs just before k6); the window starts WARMUP_S later and lasts DURATION_S,
     less a second for the late detection of the start. k6's own container start and stop (several
-    seconds) are outside it, unlike containerCpuShare, which spans the whole k6 command."""
+    seconds) are outside it, unlike containerCpuShare, which spans the whole k6 command. A
+    calibration pass, which k6 records from its start, is sampled from the start (``warm`` 0)
+    for CALIBRATION_S."""
 
-    def __init__(self, services: Sequence[str]) -> None:
+    def __init__(
+        self, services: Sequence[str], warm: float | None = None, duration: float | None = None
+    ) -> None:
         self.services = list(services)
+        self.warm = WARMUP_S if warm is None else warm
+        self.duration = DURATION_S if duration is None else duration
         self.readings: dict[str, list[Reading]] = {s: [] for s in self.services}
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -507,7 +513,7 @@ class ResourceSampler:
         start = self._load_started()
         if start is None or not ids:
             return
-        t, end = start + WARMUP_S, start + WARMUP_S + DURATION_S - 1
+        t, end = start + self.warm, start + self.warm + self.duration - 1
         with ThreadPoolExecutor(max_workers=len(ids)) as pool:
             while not self._stop.wait(max(0.0, t - time.time())):
                 for s, r in zip(ids, pool.map(read_cgroup, ids.values()), strict=True):
@@ -857,7 +863,11 @@ def calibration_pass(exp: Experiment, mix: str, rate: float, label: str) -> dict
     if exp.stack == "kafka":
         http_json(f"{CONSUMER}/reset", "POST")
     cpu0 = {s: cpu_usec(s) for s in services_for(exp)}
-    summary = k6(target, mix, rate, 0, CALIBRATION_S, f"cal-{exp.id}-{label}", exp.keys, exp.skew)
+    # each container's memory (and CPU) inside the pass, for the memory fit (memory_inputs)
+    with ResourceSampler(services_for(exp), warm=0, duration=CALIBRATION_S) as sampler:
+        summary = k6(
+            target, mix, rate, 0, CALIBRATION_S, f"cal-{exp.id}-{label}", exp.keys, exp.skew
+        )
     time.sleep(2)  # let the consumer finish the last messages
     cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
     entry: dict[str, Any] = {
@@ -867,6 +877,8 @@ def calibration_pass(exp: Experiment, mix: str, rate: float, label: str) -> dict
         "service": http_json(f"{API}/stats"),
         "containerCpuMs": {s: cpu_ms(cpu0[s], cpu1[s]) for s in cpu0},
     }
+    if (resources := sampler.result()) is not None:
+        entry["resources"] = resources
     if exp.stack == "kafka":
         entry["consumer"] = http_json(f"{CONSUMER}/stats")
     if exp.stack == "cache":
@@ -906,6 +918,8 @@ def idle_pass(exp: Experiment) -> dict[str, Any]:
     time.sleep(IDLE_S)
     cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
     svc = http_json(f"{API}/stats")
+    # each container's working set at rest: the memory fit's point at 0 req/s (memory_inputs)
+    rest = {s: read_cgroup(c).working_set for s in cpu0 if (c := container(s))}
     return {
         "seconds": IDLE_S,
         "containerCpuMsPerSecond": {
@@ -913,6 +927,7 @@ def idle_pass(exp: Experiment) -> dict[str, Any]:
             for s in cpu0
         },
         "serviceCpuMsPerSecond": round((svc.get("cpuMs") or 0.0) / IDLE_S, 4),
+        "workingSetMiB": {s: round(b / 2**20, 1) for s, b in rest.items() if b is not None},
     }
 
 
@@ -966,7 +981,7 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
             mix: steady_pass(exp, mix, top, f"{mix.split(':')[0]} {i}", discarded)
             for mix in exp.calibration[1:]
         }
-        return {"low": runs[0], "high": entry, "idle": idle, **aux}
+        return {"low": runs[0], "high": entry, "idle": idle, "staircase": runs, **aux}
 
     sets = [top_set(runs[-1], 1)]
     for r in reversed(rates):
@@ -1005,7 +1020,9 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
         # one view the v4 readers (report.py, the low-load reference) understand
         "passes": used[0],
         "staircase": runs,
-        "replicates": [{k: v for k, v in s.items() if k not in ("low", "idle")} for s in used],
+        "replicates": [
+            {k: v for k, v in s.items() if k not in ("low", "idle", "staircase")} for s in used
+        ],
         # top passes still disturbed after their retry, kept for the record only
         "disturbedReplicates": [s["high"] for s in sets if s not in used],
         "discardedPasses": discarded,
@@ -1169,14 +1186,16 @@ def slope(low: float | None, high: float | None, n_low: float, n_high: float) ->
 
 def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     """Every model input with the measured numbers and the formula it came from: the service's,
-    then the queue's (Kafka), the database's and the cache's. Each part's inputs come from a
-    function of their own, so a change to one part's calibration leaves the others alone."""
+    then the queue's (Kafka), the database's, the cache's and the services' memory. Each part's
+    inputs come from a function of their own, so a change to one part's calibration leaves the
+    others alone. The memory fit reads the whole staircase (``passes["staircase"]``)."""
     out = service_inputs(exp, passes)
     if exp.stack == "kafka":
         out |= queue_inputs(exp, passes)
     out |= database_inputs(exp, passes)
     if exp.stack in CACHE_STACKS:
         out |= cache_inputs(exp, passes)
+    out |= memory_inputs(exp, passes)
     return out
 
 
@@ -1454,26 +1473,158 @@ def database_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """Redis: its own time per command and the service-to-Redis latency. cache-ttl's service
-    reports Redis's command statistics in its own /stats (REDIS_STATS=1)."""
+def redis_commands(entry: Mapping[str, Any]) -> tuple[float, float]:
+    """A pass's GET and SET calls and their command time (us) from Redis's INFO commandstats.
+    cache-ttl's service reports them in its own /stats (REDIS_STATS=1)."""
+    rs = entry["redis"] if "redis" in entry else entry["service"]["redis"]
+    cmds = [rs.get(c, {"calls": 0, "usec": 0}) for c in ("get", "set")]
+    return sum(c["calls"] for c in cmds), sum(c["usec"] for c in cmds)
+
+
+def redis_cpu_per_command(exp: Experiment, passes: Mapping[str, Any]) -> tuple[float, str] | None:
+    """Redis's CPU per GET or SET (ms) and how it was found, or None without a usable figure: its
+    container's CPU at the top pass net of idle (protocol v5), else per extra command between
+    the two passes. Redis runs commands and its network reads and writes on one thread, so this
+    is what one command keeps that thread busy for."""
+    container_name = "redis-ttl" if exp.stack == "cache-ttl" else "redis"
     high = passes["high"]
-    rs = high["redis"] if "redis" in high else high["service"]["redis"]
-    get = rs.get("get", {"calls": 0, "usec": 0})
-    set_ = rs.get("set", {"calls": 0, "usec": 0})
-    calls = get["calls"] + set_["calls"]
-    server_ms = (get["usec"] + set_["usec"]) / max(calls, 1) / 1000
+    calls, _ = redis_commands(high)
+    if (idle := passes.get("idle")) is not None:
+        net = net_cpu_ms(high, idle, container_name)
+        if net is None or calls <= 0 or net <= 0:
+            return None
+        rest = (idle["containerCpuMsPerSecond"].get(container_name) or 0.0) * CALIBRATION_S
+        cpu = net / calls
+        return cpu, (
+            f"Redis's CPU per command at {high['rateRps']:g} req/s net of idle: "
+            f"({high['containerCpuMs'][container_name]:.0f} - {rest:.0f} ms at rest) / "
+            f"{calls:.0f} GET/SET calls = {cpu:.4f} ms"
+        )
+    low = passes["low"]
+    calls_low, _ = redis_commands(low)
+    cpu_slope = slope(
+        low["containerCpuMs"].get(container_name),
+        high["containerCpuMs"].get(container_name),
+        calls_low,
+        calls,
+    )
+    if cpu_slope is None or cpu_slope <= 0:
+        return None
+    return cpu_slope, (
+        f"Redis's CPU per extra command between the passes: "
+        f"({high['containerCpuMs'][container_name]:.0f} - "
+        f"{low['containerCpuMs'][container_name]:.0f} ms) / ({calls:.0f} - {calls_low:.0f} "
+        f"GET/SET calls) = {cpu_slope:.4f} ms"
+    )
+
+
+def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """Redis: the time a command keeps its one thread busy, and the service-to-Redis latency.
+
+    The command time is Redis's CPU per command (``redis_cpu_per_command``): INFO commandstats'
+    own time leaves out reading the request and writing the reply, about nine tenths of Redis's
+    CPU (cache-aside's latest calibration: 0.003 ms of 0.036 ms). The link latency is what is left of the GET round trip's
+    median after the command time's median, so the calibrated latency does not move. Without a
+    CPU figure the command time is commandstats' own time, as before."""
+    high = passes["high"]
+    calls, usec = redis_commands(high)
+    own_ms = usec / max(calls, 1) / 1000
     app_get = timing(high["service"], "redis_get")
+    cpu = redis_cpu_per_command(exp, passes)
+    own = f"INFO commandstats: {usec:.0f} us over {calls:.0f} GET/SET calls = {own_ms:.4f} ms"
+    if cpu is not None:
+        mean = cpu[0]
+        how = f"mean = {cpu[1]} (its command time alone, {own}; the rest is reading requests and writing replies)"
+    else:
+        mean = own_ms
+        how = f"Redis {own} (no CPU figure for its container)"
+    mean = round(max(mean, 0.001), 5)
+    command_median = mean * math.log(2)  # the median of an exponential
     return {
         "cacheServiceTimeMs": {
-            "value": {"kind": "exponential", "mean": round(max(server_ms, 0.001), 5)},
-            "how": f"Redis INFO commandstats: {get['usec'] + set_['usec']:.0f} us over {calls:.0f} GET/SET calls",
+            "value": {"kind": "exponential", "mean": mean},
+            "how": how,
         },
         "cacheLinkLatencyMs": {
-            "value": round(max(0.0, (app_get["median"] - server_ms) / 2), 4),
-            "how": f"(GET round trip median {app_get['median']:.3f} ms - Redis's own time {server_ms:.4f} ms) / 2, one way",
+            "value": round(max(0.0, (app_get["median"] - command_median) / 2), 4),
+            "how": (
+                f"(GET round trip median {app_get['median']:.3f} ms - the command time's median "
+                f"{command_median:.4f} ms) / 2, one way"
+            ),
         },
     }
+
+
+MEMORY_MIN_RATES = 2
+"""Staircase rates (besides rest) the memory fit needs: memory per req/s from rest and one rate
+alone would rest on two readings."""
+
+
+def memory_containers(exp: Experiment) -> dict[str, str]:
+    """The services whose memory is calibrated: their input prefix (``service_node``'s
+    ``memory``) and the container measured for it. The service k6 calls, and chain's API."""
+    out = {"service": STACK_SERVICES[exp.stack][0]}
+    if exp.stack == "chain":
+        out["api"] = "chain-api"
+    return out
+
+
+def memory_points(passes: Mapping[str, Any], container_name: str) -> list[tuple[float, float]]:
+    """(req/s, MiB) for one container: its working set at rest (the idle pass) and the highest
+    reading in each staircase pass (calibration_pass's ``resources``), against the rate k6
+    achieved. Calibrations before W24 recorded neither, and give no points."""
+    pts: list[tuple[float, float]] = []
+    rest = ((passes.get("idle") or {}).get("workingSetMiB") or {}).get(container_name)
+    if rest is not None:
+        pts.append((0.0, float(rest)))
+    for p in passes.get("staircase") or []:
+        c = ((p.get("resources") or {}).get("containers") or {}).get(container_name) or {}
+        rate = p["k6"].get("throughputRps") or p["rateRps"]
+        if c.get("workingSetMiB") is not None and rate is not None:
+            pts.append((float(rate), float(c["workingSetMiB"])))
+    return pts
+
+
+def memory_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """Each service's memory: at idle, per req/s and per request held, fitted (W17's
+    ``fit_memory``, non-negative least squares) to its container's working set over the
+    staircase and at rest. A garbage-collected heap grows with the rate it allocates at, not
+    with requests held, so the fit is against the rate; it explains the whole working set, so
+    memory per request held is its floor. Nothing without passes at MEMORY_MIN_RATES rates or
+    more (a staircase that did not rise): the model keeps its defaults (256 MiB at idle, 2 MiB per
+    request held)."""
+    from archsim_engine.calibration.resources import fit_memory
+
+    out: dict[str, Any] = {}
+    for prefix, name in memory_containers(exp).items():
+        pts = memory_points(passes, name)
+        if len({r for r, _ in pts if r > 0}) < MEMORY_MIN_RATES:
+            continue
+        fit = fit_memory([w for _, w in pts], rate=[r for r, _ in pts])
+        if fit is None:
+            continue
+        rates = [r for r, _ in pts if r > 0]
+        error = f"{fit.error:.0%}" if fit.error is not None else "-"
+        what = (
+            f"the {name} container's working set (the highest reading in each pass) against "
+            f"req/s over {len(pts)} points ({'at rest and ' if len(rates) < len(pts) else ''}"
+            f"{len(rates)} passes, {min(rates):,.0f} to {max(rates):,.0f} req/s), by "
+            f"non-negative least squares: {fit.baseline_mb:.1f} MiB + {fit.per_rps_mb:.4f} MiB "
+            f"per req/s, largest error at and above the median rate {error}"
+            + "".join(f"; {n}" for n in fit.notes)
+        )
+        out |= {
+            f"{prefix}MemoryBaselineMb": {"value": fit.baseline_mb, "how": f"at idle: {what}"},
+            f"{prefix}MemoryPerRpsMb": {"value": fit.per_rps_mb, "how": f"per req/s: {what}"},
+            f"{prefix}MemoryPerRequestMb": {
+                "value": fit.per_request_mb,
+                "how": (
+                    "per request held: the floor, since the fit against req/s explains the "
+                    "whole working set (held requests' memory would count twice otherwise)"
+                ),
+            },
+        }
+    return out
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1497,19 +1648,39 @@ def _edge(
     }
 
 
+MEMORY_KEYS = {
+    "memoryBaselineMb": "MemoryBaselineMb",
+    "memoryPerRpsMb": "MemoryPerRpsMb",
+    "memoryPerRequestMb": "MemoryPerRequestMb",
+}
+"""A service node's memory settings and the suffix of the inputs (``memory_inputs``) they
+come from."""
+
+
+def service_memory(v: Mapping[str, Any], memory: str) -> dict[str, Any]:
+    """A service node's calibrated memory settings, or none (ArchSim's defaults) when its
+    memory was not calibrated."""
+    if f"{memory}MemoryBaselineMb" not in v:
+        return {}
+    return {key: v[f"{memory}{suffix}"] for key, suffix in MEMORY_KEYS.items()}
+
+
 def service_node(
     v: Mapping[str, Any],
     runtime: str = "nodejs",
     node_id: str = "api",
     time_key: str = "serviceTimeMs",
     label: str | None = None,
+    memory: str = "service",
 ) -> dict[str, Any]:
     """A service on its runtime's ArchSim profile: Node.js is one event loop on one CPU; Java
     (Tomcat's 200 threads), Go (a goroutine per request) and Python (gunicorn's sync workers) are
     a pool of workers that each wait for their own PostgreSQL calls, on the container's 2 CPUs.
     Their garbage collection is calibrated (``gc_inputs``); the JIT warm-up of the Java profile
-    applies only to replicas started during a run, so it does not apply here."""
+    applies only to replicas started during a run, so it does not apply here. Memory comes from
+    the ``<memory>Memory*`` inputs when calibrated (``memory_inputs``), else ArchSim's defaults."""
     rt = RUNTIMES[runtime]
+    mem = service_memory(v, memory)
     if rt.workers is None:
         return {
             "id": node_id,
@@ -1527,6 +1698,7 @@ def service_node(
                 "warmupFactor": 1,
                 "cpuCores": rt.cpu_cores,
                 "memoryGib": SERVICE_MEMORY_GIB,
+                **mem,
             },
         }
     return {
@@ -1546,6 +1718,7 @@ def service_node(
             **({"gcEveryRequests": v["gcEveryRequests"]} if "gcEveryRequests" in v else {}),
             "cpuCores": rt.cpu_cores,
             "memoryGib": SERVICE_MEMORY_GIB,
+            **mem,
         },
     }
 
@@ -1637,7 +1810,7 @@ def design(
     if exp.stack == "chain":  # the gateway calls the API, which calls PostgreSQL, one after another
         nodes += [
             service_node(v, node_id="gateway", label="Node.js gateway"),
-            service_node(v, time_key="apiServiceTimeMs", label="Node.js API"),
+            service_node(v, time_key="apiServiceTimeMs", label="Node.js API", memory="api"),
         ]
         edges = [
             _edge("e-clients", "clients", "gateway", v["clientLinkLatencyMs"]),
@@ -1720,9 +1893,9 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
 def node_resources(doc: Mapping[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
     """The model's CPU (busy cores) and memory (MiB) of each node that has them. Every node of
     the benchmark designs is one instance, so its busy cores are its CPU utilization times its
-    cores. A service's memory is its peak (idle memory plus memory per request times the most
-    requests it held); the cache's is its keys at the end (none expire within a step) times the
-    memory per key."""
+    cores. A service's memory is its peak (idle memory, plus memory per request times the most
+    requests it held, plus memory per req/s times its busiest rate); the cache's is its keys at
+    the end (none expire within a step) times the memory per key."""
     configs = {n["id"]: n["config"] for n in doc["architecture"]["nodes"]}
     out: dict[str, Any] = {}
     for n in result["nodes"]:
@@ -2372,11 +2545,16 @@ LATENCY_FIELDS = ("p50", "p95", "p99", "successRate", "throughputRps")
 def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str, Any]:
     """A run's model inputs derived again from its calibration passes alone, and anchored again,
     as calibrate() would with today's code: under protocol v5 one set per replicate (each top
-    pass with its auxiliary mixes, the staircase's first pass and the idle pass), and their
-    medians (``median_inputs``)."""
+    pass with its auxiliary mixes, the staircase's first pass, the idle pass and the whole
+    staircase for the memory fit), and their medians (``median_inputs``)."""
     passes = calibration["passes"]
     sets = [
-        {**r, "low": passes["low"], "idle": passes.get("idle", calibration.get("idle"))}
+        {
+            **r,
+            "low": passes["low"],
+            "idle": passes.get("idle", calibration.get("idle")),
+            "staircase": calibration.get("staircase") or [],
+        }
         for r in calibration.get("replicates") or []
     ]
     derived = []

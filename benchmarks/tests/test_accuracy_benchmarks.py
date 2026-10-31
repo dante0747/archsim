@@ -765,17 +765,24 @@ def test_vm_cpu_times_reads_steal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_split_inputs_reproduce_every_latest_calibration() -> None:
-    # one function per part, then anchored again: the very inputs each latest run used, and for
-    # Kafka the two that W23 added (its calibrations predate the fetch-cycle report)
-    w23 = ("consumerConcurrency", "fetchOverheadMs")
+    # one function per part, then anchored again: the very inputs each latest run used, but for
+    # those a model change since derives differently. W23: Kafka gains two inputs its
+    # calibrations predate (the fetch-cycle report). W24: Redis's command time is its CPU per
+    # command, so the Redis link and the anchored client latency are derived again too.
+    added = {"kafka": {"consumerConcurrency", "fetchOverheadMs"}}
+    changed = {
+        "cache-aside": {"cacheServiceTimeMs", "cacheLinkLatencyMs", "clientLinkLatencyMs", "anchor"}
+    }
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
-        inputs = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
+        again = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
         if exp == "kafka":
-            assert inputs["consumerConcurrency"]["value"] == run.KAFKA_CONSUMERS
-            assert "not recorded in this run" in inputs["fetchOverheadMs"]["how"]
-            inputs = {k: v for k, v in inputs.items() if k not in w23}
-        assert inputs == cal["inputs"], exp
+            assert again["consumerConcurrency"]["value"] == run.KAFKA_CONSUMERS
+            assert "not recorded in this run" in again["fetchOverheadMs"]["how"]
+        skip = changed.get(exp, set()) | added.get(exp, set())
+        assert {k: v for k, v in again.items() if k not in skip} == {
+            k: v for k, v in cal["inputs"].items() if k not in skip
+        }, exp
 
 
 def test_simulate_reports_what_the_database_did() -> None:

@@ -59,6 +59,51 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   inputs that W19's and W18's tests pin), ruff, mypy, web lint, vitest 319, build, tsc,
   Playwright 6.
 
+**Sizing inputs from what the containers use: Redis CPU, service memory (2026-10-31; accuracy plan W24).**
+
+- **Redis's command time is its CPU per command**, at the top calibration pass net of idle
+  (`run.cache_inputs`; v4 calibrations: per extra command between the two passes): 0.032 to
+  0.038 ms per GET or SET in the v5 runs, where `INFO commandstats` reported 0.002 to 0.003 ms.
+  Commandstats leaves out reading requests and writing replies, which Redis does on the same
+  thread. The Redis link is what is left of the GET round trip's median, and the anchor derives
+  the client latency again, so each calibrated p50 is still reproduced exactly (residual 0 ms).
+  ArchSim's own Redis default (0.035 ms) was already this size; only the benchmark under-counted.
+- **Service memory is fitted at calibration**: every calibration pass and the idle pass read each
+  container's working set (`ResourceSampler`, from the pass's start), and each service's memory
+  at idle and per req/s is W17's `fit_memory` over rest and the whole staircase
+  (`run.memory_inputs` → `service_node`; chain fits its gateway and API apart; memory per request
+  held is the 0.01 MiB floor). A calibration without the readings, or whose staircase never rose
+  to two rates, keeps ArchSim's defaults, so every kept run's design is unchanged.
+- No engine change (`0.15.0-w24` is a label for the dev checks), so the example `resultDigest`s
+  and the 25-template sizing audit are untouched. **No predicted knee moved** on any of the 26
+  re-simulated runs (`results/dev/0.15.0-w24/`; median knee error 20% latest, 24% over the 19
+  counted runs, as with 0.14.0). pg-mixed, pg-hot-row and Kafka simulate identically at every
+  step. Cache-aside's p50, p95 or p99 moved by one histogram bucket (2%, 0.01 to 0.08 ms) at some
+  steps, from the longer Redis command time's spread; its success rates are unchanged.
+- The kept runs have no memory readings, so a calibration-only trial (31 Oct, quiet host,
+  `benchmarks/results/trials/2026-10-31-*-w24/`, development data) supplied each service's fit,
+  scored against every counted kept run's measured working set (`test_sizing_inputs.py`).
+
+| Part (3 counted v5 runs each) | Latest run's top step | Measured | Before (0.14.0) | After (W24) | Top-step error, counted runs | Median error up to both knees |
+| --- | --- | --- | --- | --- | --- | --- |
+| Redis busy cores (cache-aside) | 4,850 req/s | 0.18 | 0.018 (-90%) | 0.21 (+19%) | -90% to -92% → +14% to +19% | 91%-93% → 10%-14% |
+| Node.js API memory (pg-mixed) | 3,712 req/s | 145 MiB | 278 MiB (+91%) | 109 MiB (-25%) | +76% to +91% → -25% to -34% | 199%-282% → 20%-27% |
+| Node.js API memory (pg-hot-row) | 782 req/s | 66 MiB | 320 MiB (+386%) | 44 MiB (-33%) | +57% to +487% → -11% to -76% | 41%-501% → 2%-76% |
+| Node.js API memory (cache-aside) | 4,850 req/s | 182 MiB | 920 MiB (+407%) | 68 MiB (-63%) | +358% to +412% → -63% to -64% | 312%-328% → 32%-59% |
+| Node.js producer memory (Kafka) | 1,890 req/s | 179 MiB | 292 MiB (+63%) | 138 MiB (-23%) | +63% to +86% → -10% to -23% | 76%-138% → 15%-26% |
+
+- **Memory is now low near the knee.** It is far closer than the defaults (256 MiB at idle plus 2
+  MiB per request held) at almost every step, but 10% to 76% low at the top step. The staircase
+  stops at 35% of the service's core, a third to a sixth of the knee, and V8's heap grows faster
+  than the rate beyond it (pg-mixed measured 45, 70 and 145 MiB at 1,238, 2,475 and 3,712 req/s).
+  The heap also lags the rate (it is collected lazily): cache-aside's warm-up heap at rest
+  (65 MiB) pinned its fit flat at 0 MiB per req/s. And hot-row's run 7 measured 187 MiB because
+  it ran on the Node.js process pg-mixed's ladder had just used. A design sized on these figures
+  would be too small near the knee, where the defaults made it 1.6x to 5.9x too large.
+- **Redis is now slightly high** at the top step (+14% to +19%): its CPU per command falls with
+  load (0.043 ms at 1,212 req/s in the trial, about 0.03 ms at 4,850), the effect W21 models for
+  services.
+
 **Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
 
 - Three runs of each of the four experiments with engine 0.14.0 (tag `bench-baseline-0.14.0`),

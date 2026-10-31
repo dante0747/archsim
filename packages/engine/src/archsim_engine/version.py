@@ -1,6 +1,6 @@
 """Version constants recorded in every simulation report for provenance."""
 
-ENGINE_VERSION = "0.15.0-w23"
+ENGINE_VERSION = "0.15.0"
 """Version of the simulation engine. Bump when simulation semantics change."""
 
 SCHEMA_VERSION = "1.6"
