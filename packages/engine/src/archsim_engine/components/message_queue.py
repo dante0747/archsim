@@ -349,7 +349,9 @@ class MessageQueueRuntime(RuntimeComponent):
             for i in range(c):
                 mine = [p for p in range(n) if p % c == i]
                 env.process(
-                    self._cycle_consumer(i, mine) if self.cycles else self._partition_consumer(i, mine)
+                    self._cycle_consumer(i, mine)
+                    if self.cycles
+                    else self._partition_consumer(i, mine)
                 )
         else:
             self.parts = None
@@ -358,7 +360,9 @@ class MessageQueueRuntime(RuntimeComponent):
             self.shared: deque[Message] = deque()
             self.idle: deque[simpy.Event] = deque()
             for i in range(self.effective_consumers):
-                env.process(self._cycle_consumer(i, None) if self.cycles else self._shared_consumer())
+                env.process(
+                    self._cycle_consumer(i, None) if self.cycles else self._shared_consumer()
+                )
 
     def deps_for(self, op: str) -> list[EdgeRuntime]:
         d = self._deps.get(op)

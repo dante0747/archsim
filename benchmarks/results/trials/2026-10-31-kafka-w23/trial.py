@@ -6,10 +6,15 @@ Takes the benchmark lock (C:/Users/abarg/.archsim-bench-lock) as soon as it is f
 host's load and the other jobs running, and runs three variants back to back:
 
 1. The stack as benchmarked: two passes at 569 req/s (the top of the kept runs' calibration
-   staircases), then 1,050, 1,575 and 1,890 req/s (the latest run's measured steps).
+   staircases), then 1,050, 1,575 and 1,890 req/s (the latest run's measured steps). It ran with
+   compose.yaml before W23 fixed its healthcheck; run again now, it gets the fixed one.
 2. The broker's healthcheck made cheap once the broker is ready (it starts a JVM every 3 s
    otherwise) and the broker's JMX on: rest, then 525, 1,050, 1,575 and 1,890 req/s.
 3. As 2 with four producer connections (KAFKA_PRODUCERS=4) instead of one: 1,050 to 1,890.
+
+With ``--knee``, only the stack as compose.yaml now has it (the healthcheck fixed), at 1,890 to
+3,300 req/s, into knee.json. ``--after TEXT`` takes the lock only once a holder whose note
+contains TEXT has released it (the main session's lock order).
 
 Each pass is a calibration pass (10 s warm-up, 30 s recorded; the instrumented service reports
 kafkajs's fetch cycle and the producer's sends in flight) plus the broker JVM's CPU by thread,

@@ -29,7 +29,35 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   `compose.yaml` now runs the check only until it first succeeds. All five kept Kafka runs (v4
   and v5) ran with it, so their measured knees are harness-limited. Trial data:
   `benchmarks/results/trials/2026-10-31-kafka-w23/` (development data, not on /accuracy).
-- RESULTS-PLACEHOLDER
+- In-sample re-simulation of the kept Kafka runs (`docs/validation/dev-checks.md`), engine
+  0.14.0 against this branch, latest run (525 / 1,050 / 1,575 / 1,890 req/s):
+
+  | | measured | engine 0.14.0 | W23 |
+  | --- | --- | --- | --- |
+  | median knee error, 3 counted v5 runs | | +4% | +4% (unchanged: the client's path is) |
+  | client p95 (ms) | 4.6 / 10.5 / 22.4 / 42.5 | 3.3 / 3.4 / 3.7 / 4.9 | 3.3 / 3.4 / 3.7 / 4.9 |
+  | consumed per second, 1,890 req/s and above | 1,568 to 1,671 | 1,383 | 1,360 to 1,372 |
+  | message age p95 (ms) | 14 / 132 / 2,660 / 7,440 | 3.9 / 10.1 / 2,904 / 6,413 | 10.3 / 29.4 / 4,067 / 8,631 |
+
+  The measured p95 is the healthcheck's (the fixed stack: 1.7 / 3.3 / 5.2 / 5.0 ms). Message age
+  at light load moves from a quarter to three quarters of the measured; at 1,050 req/s it stays
+  4.5x short (rare consumer stalls of 0.2 to 0.8 s set the real p95). The consumer's cap stays
+  low: the model's INSERT takes 2.1 ms (0.89 ms write, 1.2 ms waiting for the WAL flush) where
+  the consumer measured 1.73 ms, a database input (W22). In the trial the real consumer kept up
+  with only 1,320 to 1,440/s.
+- Kafka's knee with W21: the producer's CPU 30% cheaper at high load puts the predicted knee at
+  3,000 / 3,050 / 4,050 req/s (latest, run 4, run 3): +48% median against the kept runs, whose
+  knees are the harness's, and -9% to +35% against the fixed stack's knee (about 3,000 to
+  3,300 req/s, where the producer's core fills; single trial passes). Judge W21's Kafka effect
+  on the prospective campaign's new measurements, not on the kept runs.
+- Engine label `0.15.0-w23`, schema 1.6 (a no-op 1.5 -> 1.6 migration, as on W21's branch). The
+  Kafka design now carries 1.6 settings, which engine 0.14.0 refuses: its baseline predictions
+  need the 0.14.0 harness. Checks: pytest (870 passed in a full run on a host other sessions held
+  at 100% CPU; of its 11 failures, 5 passed when run again (timing and process tests, a Node
+  crash under load, and a provenance check that saw files change during the run) and 6 were
+  this change's, now updated: the CI snapshot's engine label (4), and the Kafka design and
+  inputs that W19's and W18's tests pin), ruff, mypy, web lint, vitest 319, build, tsc,
+  Playwright 6.
 
 **Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
 

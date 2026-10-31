@@ -419,13 +419,40 @@ def test_held_out_designs(exp_id: str) -> None:
         assert 0 < r["cacheHitRatio"] < 1
 
 
+W23_CONSUMER = ("consumers", "consumerConcurrency", "fetchOverheadMs")
+"""The Kafka queue's consumer settings W23 changed: one kafkajs consumer that polls in fetch
+cycles, three partitions at a time, instead of three consumers taking one message each."""
+
+
+def without_consumer(doc: dict[str, Any]) -> dict[str, Any]:
+    out = json.loads(json.dumps(doc))
+    for n in out["architecture"]["nodes"]:
+        if n["type"] == "message_queue":
+            for k in W23_CONSUMER:
+                n["config"].pop(k, None)
+    return out
+
+
 def test_the_tuned_on_designs_are_unchanged() -> None:
-    # the node builders' defaults keep the original four's designs exactly as predicted
+    # the node builders' defaults keep the original four's designs exactly as predicted, but for
+    # the Kafka consumer W23 remodelled (its calibrations predate the inputs it needs)
     for e in TUNED_ON:
         pred = json.loads((run.RESULTS / e / "predictions.json").read_text(encoding="utf-8"))
         cal = json.loads((run.RESULTS / e / "calibration.json").read_text(encoding="utf-8"))
         knee = pred["knee"]["kneeRps"]
-        assert run.design(run.EXPERIMENTS[e], cal["inputs"], knee) == pred["design"], e
+        if e != "kafka":
+            assert run.design(run.EXPERIMENTS[e], cal["inputs"], knee) == pred["design"], e
+            continue
+        inputs = {
+            **cal["inputs"],
+            "consumerConcurrency": {"value": run.KAFKA_CONSUMERS},
+            "fetchOverheadMs": run.fetch_overhead({"timings": {}}),
+        }
+        doc = run.design(run.EXPERIMENTS[e], inputs, knee)
+        assert without_consumer(doc) == without_consumer(pred["design"])
+        queue = next(n for n in doc["architecture"]["nodes"] if n["id"] == "kafka")["config"]
+        assert queue["consumers"] == 1 and queue["consumerConcurrency"] == run.KAFKA_CONSUMERS
+        assert queue["fetchOverheadMs"]["median"] == run.KAFKA_FETCH_FALLBACK["median"]
 
 
 def test_container_nodes_and_report_names_cover_every_stack() -> None:

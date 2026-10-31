@@ -1,0 +1,1724 @@
+{
+ "at": "2026-10-31T14:49:44Z",
+ "environment": {
+  "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+  "machineId": "i7-1165g7",
+  "os": "Windows-11-10.0.26300-SP0",
+  "powerMode": "Best performance",
+  "docker": "29.1.3 (linux/amd64)",
+  "dockerCpus": "8",
+  "dockerMemory": "8170176512",
+  "images": {
+   "postgres": "postgres:16-alpine",
+   "redis": "redis:7-alpine",
+   "kafka": "apache/kafka:3.8.0",
+   "k6": "grafana/k6:1.3.0",
+   "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+  },
+  "python": "3.12.13"
+ },
+ "atStart": {
+  "hostLoad": [
+   6.0,
+   11.0,
+   15.0
+  ],
+  "otherJobs": [
+   "C:\\Users\\abarg\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe C:\\Users\\abarg\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules\\@oai\\artifact-tool\\d"
+  ]
+ },
+ "variants": {
+  "fixed-healthcheck": {
+   "passes": [
+    {
+     "mix": "event:1",
+     "rateRps": 1890,
+     "k6": {
+      "p50": 1.029449,
+      "p95": 36.59417899999998,
+      "p99": 89.78536531999998,
+      "mean": 6.276693789073515,
+      "sent": 56285,
+      "dropped": 390,
+      "failed": 0,
+      "succeeded": 56285,
+      "successRate": 0.9931186590207323,
+      "throughputRps": 1876.1666666666667
+     },
+     "service": {
+      "role": "api",
+      "requests": 56285,
+      "produced": 56285,
+      "consumed": 0,
+      "wallMs": 40499.239180000004,
+      "cpuMs": 21420.738,
+      "cpuMsPerRequest": 0.38057631695833705,
+      "cpuMsPerMessage": null,
+      "counters": {
+       "produced:measure": 56285
+      },
+      "timings": {
+       "kafka_inflight": {
+        "count": 56285,
+        "mean": 6.406200586301857,
+        "median": 1,
+        "p95": 38,
+        "p99": 113
+       },
+       "kafka_produce_request": {
+        "count": 56285,
+        "mean": 3.2610819934263127,
+        "median": 1,
+        "p95": 18,
+        "p99": 59
+       },
+       "kafka_send": {
+        "count": 56285,
+        "mean": 3.5116703308341535,
+        "median": 0.5734640000009676,
+        "p95": 18.85953000000154,
+        "p99": 59.10351499999524
+       },
+       "handler": {
+        "count": 56285,
+        "mean": 3.5938575577863134,
+        "median": 0.5827879999997094,
+        "p95": 19.64245299999311,
+        "p99": 59.396607000002405
+       },
+       "own": {
+        "count": 56285,
+        "mean": 0.0821872269521569,
+        "median": 0.007622999997693114,
+        "p95": 0.28067099998588674,
+        "p99": 1.511069000000134
+       }
+      }
+     },
+     "containerCpuMs": {
+      "producer": 21354.995,
+      "consumer": 10210.808,
+      "postgres": 15731.126,
+      "kafka": 17869.952
+     },
+     "consumer": {
+      "role": "consumer",
+      "requests": 0,
+      "produced": 0,
+      "consumed": 53291,
+      "wallMs": 40583.666259000005,
+      "cpuMs": 10843.612,
+      "cpuMsPerRequest": null,
+      "cpuMsPerMessage": 0.20347923664408624,
+      "counters": {
+       "consumed:measure": 53291
+      },
+      "timings": {
+       "db_insert": {
+        "count": 53291,
+        "mean": 2.0061389357489885,
+        "median": 1.790022000001045,
+        "p95": 2.975269999995362,
+        "p99": 4.80109999999695
+       },
+       "consume": {
+        "count": 53291,
+        "mean": 2.015799776603909,
+        "median": 1.7986430000019027,
+        "p95": 2.9927019999886397,
+        "p99": 4.826736000002711
+       },
+       "consume_own": {
+        "count": 53291,
+        "mean": 0.009660840854913767,
+        "median": 0.007849000015994534,
+        "p95": 0.01882300000579562,
+        "p99": 0.03740499999548774
+       },
+       "end_to_end:measure": {
+        "count": 53291,
+        "mean": 4601.665271809498,
+        "median": 4477,
+        "p95": 10596,
+        "p99": 11682
+       },
+       "kafka_request:Heartbeat": {
+        "count": 13,
+        "mean": 0.5384615384615384,
+        "median": 0,
+        "p95": 3,
+        "p99": 3
+       },
+       "batch": {
+        "count": 133,
+        "mean": 769.7221133533837,
+        "median": 270.2684289999961,
+        "p95": 3323.654614999992,
+        "p99": 4527.553379999998
+       },
+       "batch_gap_per_message": {
+        "count": 133,
+        "mean": 0.020035606622370725,
+        "median": 0.0180019629629829,
+        "p95": 0.03160333333410866,
+        "p99": 0.0435754501723778
+       },
+       "kafka_request:OffsetCommit": {
+        "count": 133,
+        "mean": 0.8421052631578947,
+        "median": 1,
+        "p95": 3,
+        "p99": 3
+       },
+       "cycle": {
+        "count": 23,
+        "mean": 1524.568985956522,
+        "median": 606.914122000002,
+        "p95": 5545.071192999996,
+        "p99": 7320.459192000009
+       },
+       "cycle_fetch": {
+        "count": 23,
+        "mean": 165.56121873912977,
+        "median": 6.266673999998602,
+        "p95": 75.3427340000053,
+        "p99": 3533.453972999996
+       },
+       "cycle_after": {
+        "count": 23,
+        "mean": 0.9741878695665788,
+        "median": 0.8915930000002845,
+        "p95": 1.6944389999989653,
+        "p99": 2.1426920000085374
+       },
+       "cycle_work": {
+        "count": 23,
+        "mean": 4001.994219260872,
+        "median": 1511.148684000007,
+        "p95": 16362.177731000003,
+        "p99": 21548.768144999995
+       },
+       "cycle_overhead": {
+        "count": 23,
+        "mean": 190.3430996231878,
+        "median": 25.4576476666698,
+        "p95": 137.53647700001147,
+        "p99": 3534.38590999999
+       },
+       "cycle_messages": {
+        "count": 23,
+        "mean": 1934.8260869565217,
+        "median": 847,
+        "p95": 7631,
+        "p99": 10488
+       },
+       "cycle_batches": {
+        "count": 23,
+        "mean": 5.782608695652174,
+        "median": 6,
+        "p95": 6,
+        "p99": 6
+       },
+       "kafka_request:Fetch": {
+        "count": 23,
+        "mean": 155.47826086956522,
+        "median": 1,
+        "p95": 6,
+        "p99": 3534
+       },
+       "fetch": {
+        "count": 23,
+        "mean": 167.11951052173802,
+        "median": 6.266673999998602,
+        "p95": 75.3427340000053,
+        "p99": 3533.453972999996
+       },
+       "batch_size": {
+        "count": 133,
+        "mean": 411.65413533834584,
+        "median": 154,
+        "p95": 1832,
+        "p99": 2306
+       }
+      }
+     },
+     "broker": {
+      "jvmCpuMs": 26380,
+      "threadCpuMs": {
+       "data-plane-kafk": 21540,
+       "C2 CompilerThre": 4010,
+       "C1 CompilerThre": 170,
+       "kafka-1-raft-io": 140,
+       "GC Thread": 110,
+       "quorum-controll": 70,
+       "ExpirationReape": 60,
+       "metrics-meter-t": 60,
+       "kafka-scheduler": 30,
+       "broker-1-to-con": 30,
+       "VM Periodic Tas": 20,
+       "VM Thread": 20,
+       "kafka-1-metadat": 20,
+       "client-metrics-": 10,
+       "kafka-log-clean": 10,
+       "raft-expiration": 10,
+       "G1 Refine": 10
+      },
+      "gcLog": [
+       "[2026-10-31T14:50:45.201+0000][gc,start    ] GC(4) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:50:45.201+0000][gc,task     ] GC(4) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:50:45.208+0000][gc,phases   ] GC(4)   Pre Evacuate Collection Set: 0.2ms",
+       "[2026-10-31T14:50:45.208+0000][gc,phases   ] GC(4)   Merge Heap Roots: 0.1ms",
+       "[2026-10-31T14:50:45.208+0000][gc,phases   ] GC(4)   Evacuate Collection Set: 6.2ms",
+       "[2026-10-31T14:50:45.208+0000][gc,phases   ] GC(4)   Post Evacuate Collection Set: 0.5ms",
+       "[2026-10-31T14:50:45.208+0000][gc,phases   ] GC(4)   Other: 0.1ms",
+       "[2026-10-31T14:50:45.208+0000][gc,heap     ] GC(4) Eden regions: 47->0(66)",
+       "[2026-10-31T14:50:45.208+0000][gc,heap     ] GC(4) Survivor regions: 4->6(7)",
+       "[2026-10-31T14:50:45.208+0000][gc,heap     ] GC(4) Old regions: 20->20",
+       "[2026-10-31T14:50:45.208+0000][gc,heap     ] GC(4) Humongous regions: 138->138",
+       "[2026-10-31T14:50:45.208+0000][gc,metaspace] GC(4) Metaspace: 8729K(8960K)->8729K(8960K) NonClass: 7736K(7872K)->7736K(7872K) Class: 993K(1088K)->993K(1088K)",
+       "[2026-10-31T14:50:45.208+0000][gc          ] GC(4) Pause Young (Normal) (G1 Evacuation Pause) 208M->162M(1024M) 7.216ms",
+       "[2026-10-31T14:50:45.208+0000][gc,cpu      ] GC(4) User=0.01s Sys=0.00s Real=0.00s",
+       "[2026-10-31T14:50:47.783+0000][gc,start    ] GC(5) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:50:47.783+0000][gc,task     ] GC(5) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:50:47.812+0000][gc,phases   ] GC(5)   Pre Evacuate Collection Set: 0.2ms",
+       "[2026-10-31T14:50:47.812+0000][gc,phases   ] GC(5)   Merge Heap Roots: 0.0ms",
+       "[2026-10-31T14:50:47.812+0000][gc,phases   ] GC(5)   Evacuate Collection Set: 27.4ms",
+       "[2026-10-31T14:50:47.812+0000][gc,phases   ] GC(5)   Post Evacuate Collection Set: 0.7ms",
+       "[2026-10-31T14:50:47.812+0000][gc,phases   ] GC(5)   Other: 0.1ms",
+       "[2026-10-31T14:50:47.812+0000][gc,heap     ] GC(5) Eden regions: 71->0(215)",
+       "[2026-10-31T14:50:47.812+0000][gc,heap     ] GC(5) Survivor regions: 6->6(10)",
+       "[2026-10-31T14:50:47.812+0000][gc,heap     ] GC(5) Old regions: 20->20",
+       "[2026-10-31T14:50:47.812+0000][gc,heap     ] GC(5) Humongous regions: 138->138",
+       "[2026-10-31T14:50:47.812+0000][gc,metaspace] GC(5) Metaspace: 8747K(8960K)->8747K(8960K) NonClass: 7752K(7872K)->7752K(7872K) Class: 994K(1088K)->994K(1088K)",
+       "[2026-10-31T14:50:47.812+0000][gc          ] GC(5) Pause Young (Normal) (G1 Evacuation Pause) 233M->163M(1024M) 28.677ms",
+       "[2026-10-31T14:50:47.812+0000][gc,cpu      ] GC(5) User=0.04s Sys=0.00s Real=0.03s",
+       "[2026-10-31T14:51:03.043+0000][gc,start    ] GC(6) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:51:03.043+0000][gc,task     ] GC(6) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:51:03.055+0000][gc,phases   ] GC(6)   Pre Evacuate Collection Set: 0.2ms",
+       "[2026-10-31T14:51:03.055+0000][gc,phases   ] GC(6)   Merge Heap Roots: 0.1ms",
+       "[2026-10-31T14:51:03.055+0000][gc,phases   ] GC(6)   Evacuate Collection Set: 10.7ms",
+       "[2026-10-31T14:51:03.055+0000][gc,phases   ] GC(6)   Post Evacuate Collection Set: 0.8ms",
+       "[2026-10-31T14:51:03.055+0000][gc,phases   ] GC(6)   Other: 0.1ms",
+       "[2026-10-31T14:51:03.055+0000][gc,heap     ] GC(6) Eden regions: 226->0(606)",
+       "[2026-10-31T14:51:03.055+0000][gc,heap     ] GC(6) Survivor regions: 6->8(29)",
+       "[2026-10-31T14:51:03.055+0000][gc,heap     ] GC(6) Old regions: 20->20",
+       "[2026-10-31T14:51:03.055+0000][gc,heap     ] GC(6) Humongous regions: 138->138",
+       "[2026-10-31T14:51:03.055+0000][gc,metaspace] GC(6) Metaspace: 8828K(9088K)->8828K(9088K) NonClass: 7831K(8000K)->7831K(8000K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:51:03.055+0000][gc          ] GC(6) Pause Young (Normal) (G1 Evacuation Pause) 389M->164M(1024M) 12.151ms",
+       "[2026-10-31T14:51:03.055+0000][gc,cpu      ] GC(6) User=0.03s Sys=0.00s Real=0.02s",
+       "[2026-10-31T14:51:28.919+0000][gc,start    ] GC(7) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:51:28.920+0000][gc,task     ] GC(7) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:51:28.953+0000][gc,phases   ] GC(7)   Pre Evacuate Collection Set: 3.5ms",
+       "[2026-10-31T14:51:28.953+0000][gc,phases   ] GC(7)   Merge Heap Roots: 0.4ms",
+       "[2026-10-31T14:51:28.953+0000][gc,phases   ] GC(7)   Evacuate Collection Set: 28.5ms",
+       "[2026-10-31T14:51:28.953+0000][gc,phases   ] GC(7)   Post Evacuate Collection Set: 1.0ms",
+       "[2026-10-31T14:51:28.953+0000][gc,phases   ] GC(7)   Other: 0.3ms",
+       "[2026-10-31T14:51:28.953+0000][gc,heap     ] GC(7) Eden regions: 606->0(605)",
+       "[2026-10-31T14:51:28.953+0000][gc,heap     ] GC(7) Survivor regions: 8->9(77)",
+       "[2026-10-31T14:51:28.953+0000][gc,heap     ] GC(7) Old regions: 20->20",
+       "[2026-10-31T14:51:28.953+0000][gc,heap     ] GC(7) Humongous regions: 138->138",
+       "[2026-10-31T14:51:28.953+0000][gc,metaspace] GC(7) Metaspace: 8903K(9152K)->8903K(9152K) NonClass: 7905K(8064K)->7905K(8064K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:51:28.954+0000][gc          ] GC(7) Pause Young (Normal) (G1 Evacuation Pause) 770M->165M(1024M) 34.171ms",
+       "[2026-10-31T14:51:28.954+0000][gc,cpu      ] GC(7) User=0.03s Sys=0.02s Real=0.04s"
+      ],
+      "gc": {
+       "count": 4,
+       "totalMs": 82.22,
+       "medianMs": 28.677,
+       "maxMs": 34.171
+      }
+     },
+     "hostLoadBefore": 7.0
+    },
+    {
+     "mix": "event:1",
+     "rateRps": 2100,
+     "k6": {
+      "p50": 0.938423,
+      "p95": 13.183086999999988,
+      "p99": 38.4103794399998,
+      "mean": 2.9962830716207596,
+      "sent": 62817,
+      "dropped": 184,
+      "failed": 0,
+      "succeeded": 62817,
+      "successRate": 0.9970794114379137,
+      "throughputRps": 2093.9
+     },
+     "service": {
+      "role": "api",
+      "requests": 62817,
+      "produced": 62817,
+      "consumed": 0,
+      "wallMs": 41379.726205,
+      "cpuMs": 21659.756,
+      "cpuMsPerRequest": 0.3448072337106198,
+      "cpuMsPerMessage": null,
+      "counters": {
+       "produced:measure": 62817
+      },
+      "timings": {
+       "kafka_inflight": {
+        "count": 62817,
+        "mean": 3.4760335577948642,
+        "median": 1,
+        "p95": 18,
+        "p99": 48
+       },
+       "kafka_produce_request": {
+        "count": 62817,
+        "mean": 1.575306047725934,
+        "median": 0,
+        "p95": 7,
+        "p99": 24
+       },
+       "kafka_send": {
+        "count": 62817,
+        "mean": 1.7592697157617156,
+        "median": 0.5077370000071824,
+        "p95": 7.682012000004761,
+        "p99": 24.134124000003794
+       },
+       "handler": {
+        "count": 62817,
+        "mean": 1.784521241558784,
+        "median": 0.5163879999890924,
+        "p95": 7.813146000000415,
+        "p99": 24.216654000018025
+       },
+       "own": {
+        "count": 62817,
+        "mean": 0.025251525797068474,
+        "median": 0.0067449999623931944,
+        "p95": 0.10429199998907279,
+        "p99": 0.3302770000009332
+       }
+      }
+     },
+     "containerCpuMs": {
+      "producer": 21578.002,
+      "consumer": 10530.774,
+      "postgres": 17034.545,
+      "kafka": 17288.013
+     },
+     "consumer": {
+      "role": "consumer",
+      "requests": 0,
+      "produced": 0,
+      "consumed": 57943,
+      "wallMs": 41486.398048999996,
+      "cpuMs": 11246.732,
+      "cpuMsPerRequest": null,
+      "cpuMsPerMessage": 0.1940999257891376,
+      "counters": {
+       "consumed:measure": 57943
+      },
+      "timings": {
+       "db_insert": {
+        "count": 57943,
+        "mean": 1.9993210601625198,
+        "median": 1.8081569999922067,
+        "p95": 2.9540989999950398,
+        "p99": 4.327825999993365
+       },
+       "consume": {
+        "count": 57943,
+        "mean": 2.0088725485390206,
+        "median": 1.817219999997178,
+        "p95": 2.9706639999931213,
+        "p99": 4.3584049999917625
+       },
+       "consume_own": {
+        "count": 57943,
+        "mean": 0.009551488376500827,
+        "median": 0.007868000015150756,
+        "p95": 0.01870499999495223,
+        "p99": 0.03642499999841675
+       },
+       "end_to_end:measure": {
+        "count": 57943,
+        "mean": 5519.253369690903,
+        "median": 5279,
+        "p95": 10289,
+        "p99": 15313
+       },
+       "batch": {
+        "count": 106,
+        "mean": 1121.7166073490575,
+        "median": 407.0820040000108,
+        "p95": 4669.38498100001,
+        "p99": 6115.542436999996
+       },
+       "batch_gap_per_message": {
+        "count": 106,
+        "mean": 0.0222749516945724,
+        "median": 0.020067139826465772,
+        "p95": 0.03513699998438824,
+        "p99": 0.0827830000052927
+       },
+       "kafka_request:OffsetCommit": {
+        "count": 106,
+        "mean": 0.8113207547169812,
+        "median": 1,
+        "p95": 2,
+        "p99": 3
+       },
+       "batch_size": {
+        "count": 106,
+        "mean": 605.4245283018868,
+        "median": 199,
+        "p95": 3186,
+        "p99": 3291
+       },
+       "kafka_request:Heartbeat": {
+        "count": 14,
+        "mean": 0.5714285714285714,
+        "median": 1,
+        "p95": 1,
+        "p99": 1
+       },
+       "cycle": {
+        "count": 18,
+        "mean": 1988.5497396111111,
+        "median": 822.3173740000057,
+        "p95": 9342.328236000001,
+        "p99": 9342.328236000001
+       },
+       "cycle_fetch": {
+        "count": 18,
+        "mean": 89.05012077778035,
+        "median": 4.120481000005384,
+        "p95": 1452.1889170000068,
+        "p99": 1452.1889170000068
+       },
+       "cycle_after": {
+        "count": 18,
+        "mean": 1.0618941666665098,
+        "median": 0.8247490000067046,
+        "p95": 3.5947570000134874,
+        "p99": 3.5947570000134874
+       },
+       "cycle_work": {
+        "count": 18,
+        "mean": 5584.768246166673,
+        "median": 1545.3653329999797,
+        "p95": 27825.382351000037,
+        "p99": 27825.382351000037
+       },
+       "cycle_overhead": {
+        "count": 18,
+        "mean": 126.86790070370165,
+        "median": 36.5398606666713,
+        "p95": 1453.4796940000087,
+        "p99": 1453.4796940000087
+       },
+       "cycle_messages": {
+        "count": 18,
+        "mean": 2686,
+        "median": 646,
+        "p95": 12638,
+        "p99": 12638
+       },
+       "cycle_batches": {
+        "count": 18,
+        "mean": 5.722222222222222,
+        "median": 6,
+        "p95": 6,
+        "p99": 6
+       },
+       "kafka_request:Fetch": {
+        "count": 18,
+        "mean": 82.05555555555556,
+        "median": 1,
+        "p95": 1451,
+        "p99": 1451
+       },
+       "fetch": {
+        "count": 18,
+        "mean": 90.79170538889109,
+        "median": 4.120481000005384,
+        "p95": 1452.1889170000068,
+        "p99": 1452.1889170000068
+       }
+      }
+     },
+     "broker": {
+      "jvmCpuMs": 22920,
+      "threadCpuMs": {
+       "data-plane-kafk": 21700,
+       "C2 CompilerThre": 480,
+       "kafka-1-raft-io": 160,
+       "C1 CompilerThre": 150,
+       "ExpirationReape": 70,
+       "metrics-meter-t": 60,
+       "quorum-controll": 60,
+       "broker-1-to-con": 40,
+       "VM Periodic Tas": 30,
+       "kafka-1-metadat": 30,
+       "GC Thread": 20,
+       "G1 Refine": 20,
+       "kafka-scheduler": 10,
+       "client-metrics-": 10,
+       "Monitor Deflati": 10,
+       "broker-1-lifecy": 10,
+       "kafka-log-clean": 10,
+       "kafka-1-raft-ou": 10
+      },
+      "gcLog": [
+       "[2026-10-31T14:52:11.766+0000][gc,start    ] GC(8) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:52:11.767+0000][gc,task     ] GC(8) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:52:11.783+0000][gc,phases   ] GC(8)   Pre Evacuate Collection Set: 0.8ms",
+       "[2026-10-31T14:52:11.783+0000][gc,phases   ] GC(8)   Merge Heap Roots: 0.5ms",
+       "[2026-10-31T14:52:11.783+0000][gc,phases   ] GC(8)   Evacuate Collection Set: 13.4ms",
+       "[2026-10-31T14:52:11.783+0000][gc,phases   ] GC(8)   Post Evacuate Collection Set: 1.7ms",
+       "[2026-10-31T14:52:11.783+0000][gc,phases   ] GC(8)   Other: 0.2ms",
+       "[2026-10-31T14:52:11.783+0000][gc,heap     ] GC(8) Eden regions: 605->0(604)",
+       "[2026-10-31T14:52:11.783+0000][gc,heap     ] GC(8) Survivor regions: 9->10(77)",
+       "[2026-10-31T14:52:11.783+0000][gc,heap     ] GC(8) Old regions: 20->20",
+       "[2026-10-31T14:52:11.783+0000][gc,heap     ] GC(8) Humongous regions: 138->138",
+       "[2026-10-31T14:52:11.783+0000][gc,metaspace] GC(8) Metaspace: 9145K(9344K)->9145K(9344K) NonClass: 8147K(8256K)->8147K(8256K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:52:11.784+0000][gc          ] GC(8) Pause Young (Normal) (G1 Evacuation Pause) 770M->166M(1024M) 17.045ms",
+       "[2026-10-31T14:52:11.784+0000][gc,cpu      ] GC(8) User=0.02s Sys=0.01s Real=0.02s"
+      ],
+      "gc": {
+       "count": 1,
+       "totalMs": 17.05,
+       "medianMs": 17.045,
+       "maxMs": 17.045
+      }
+     },
+     "hostLoadBefore": 30.0
+    },
+    {
+     "mix": "event:1",
+     "rateRps": 2400,
+     "k6": {
+      "p50": 0.9555635,
+      "p95": 14.9702147,
+      "p99": 37.587671460000024,
+      "mean": 3.215418230759613,
+      "sent": 71932,
+      "dropped": 68,
+      "failed": 0,
+      "succeeded": 71932,
+      "successRate": 0.9990555555555556,
+      "throughputRps": 2397.733333333333
+     },
+     "service": {
+      "role": "api",
+      "requests": 71932,
+      "produced": 71932,
+      "consumed": 0,
+      "wallMs": 41875.743977000006,
+      "cpuMs": 23623.774,
+      "cpuMsPerRequest": 0.3284181449146416,
+      "cpuMsPerMessage": null,
+      "counters": {
+       "produced:measure": 71932
+      },
+      "timings": {
+       "kafka_inflight": {
+        "count": 71932,
+        "mean": 4.111132736473336,
+        "median": 1,
+        "p95": 19,
+        "p99": 56
+       },
+       "kafka_produce_request": {
+        "count": 71932,
+        "mean": 1.5087443696824778,
+        "median": 0,
+        "p95": 7,
+        "p99": 21
+       },
+       "kafka_send": {
+        "count": 71932,
+        "mean": 1.6932145811878188,
+        "median": 0.5079050000058487,
+        "p95": 6.9268710000033025,
+        "p99": 21.27970000001369
+       },
+       "handler": {
+        "count": 71932,
+        "mean": 1.730352001876698,
+        "median": 0.5184909999952652,
+        "p95": 7.149508000002243,
+        "p99": 21.410983999987366
+       },
+       "own": {
+        "count": 71932,
+        "mean": 0.03713742068887917,
+        "median": 0.006793000007746741,
+        "p95": 0.163312999997288,
+        "p99": 0.5077719999826513
+       }
+      }
+     },
+     "containerCpuMs": {
+      "producer": 23548.288,
+      "consumer": 10922.653,
+      "postgres": 17479.545,
+      "kafka": 17889.463
+     },
+     "consumer": {
+      "role": "consumer",
+      "requests": 0,
+      "produced": 0,
+      "consumed": 60355,
+      "wallMs": 41974.343574,
+      "cpuMs": 11606.952,
+      "cpuMsPerRequest": null,
+      "cpuMsPerMessage": 0.1923113577996852,
+      "counters": {
+       "consumed:measure": 60355
+      },
+      "timings": {
+       "db_insert": {
+        "count": 60355,
+        "mean": 1.994353105740994,
+        "median": 1.7989660000021104,
+        "p95": 2.981935000017984,
+        "p99": 4.4373560000094585
+       },
+       "consume": {
+        "count": 60355,
+        "mean": 2.003715818258624,
+        "median": 1.8079480000014883,
+        "p95": 2.999313999986043,
+        "p99": 4.451037999999244
+       },
+       "consume_own": {
+        "count": 60355,
+        "mean": 0.009362712517630134,
+        "median": 0.007796000019880012,
+        "p95": 0.018154999997932464,
+        "p99": 0.036604000022634864
+       },
+       "end_to_end:measure": {
+        "count": 60355,
+        "mean": 7045.977466655621,
+        "median": 5814,
+        "p95": 16586,
+        "p99": 17144
+       },
+       "kafka_request:Heartbeat": {
+        "count": 14,
+        "mean": 0.2857142857142857,
+        "median": 0,
+        "p95": 1,
+        "p99": 1
+       },
+       "batch": {
+        "count": 89,
+        "mean": 1255.1279879101123,
+        "median": 321.8468129999819,
+        "p95": 4577.069242000027,
+        "p99": 8250.433724000002
+       },
+       "batch_gap_per_message": {
+        "count": 89,
+        "mean": 0.024267451419629667,
+        "median": 0.020715250005499303,
+        "p95": 0.04915199999231845,
+        "p99": 0.06178533332422376
+       },
+       "kafka_request:OffsetCommit": {
+        "count": 89,
+        "mean": 0.9101123595505618,
+        "median": 1,
+        "p95": 2,
+        "p99": 3
+       },
+       "cycle": {
+        "count": 16,
+        "mean": 2058.4427805625,
+        "median": 444.12452800001483,
+        "p95": 9111.975430999999,
+        "p99": 9111.975430999999
+       },
+       "cycle_fetch": {
+        "count": 16,
+        "mean": 36.279991687499205,
+        "median": 4.159488999983296,
+        "p95": 439.8240280000027,
+        "p99": 439.8240280000027
+       },
+       "cycle_after": {
+        "count": 16,
+        "mean": 1.2047705000022688,
+        "median": 0.9374680000182707,
+        "p95": 3.6360810000041965,
+        "p99": 3.6360810000041965
+       },
+       "cycle_work": {
+        "count": 16,
+        "mean": 5943.334507187499,
+        "median": 1012.2251369999722,
+        "p95": 27057.06274100003,
+        "p99": 27057.06274100003
+       },
+       "cycle_overhead": {
+        "count": 16,
+        "mean": 77.19934802083364,
+        "median": 55.425313000014285,
+        "p95": 442.1039030000102,
+        "p99": 442.1039030000102
+       },
+       "cycle_messages": {
+        "count": 16,
+        "mean": 2918.8125,
+        "median": 529,
+        "p95": 12865,
+        "p99": 12865
+       },
+       "cycle_batches": {
+        "count": 16,
+        "mean": 5.5625,
+        "median": 6,
+        "p95": 6,
+        "p99": 6
+       },
+       "kafka_request:Fetch": {
+        "count": 16,
+        "mean": 28.875,
+        "median": 1,
+        "p95": 439,
+        "p99": 439
+       },
+       "fetch": {
+        "count": 16,
+        "mean": 38.827001312498396,
+        "median": 4.159488999983296,
+        "p95": 439.8240280000027,
+        "p99": 439.8240280000027
+       },
+       "batch_size": {
+        "count": 89,
+        "mean": 693.1123595505618,
+        "median": 163,
+        "p95": 3611,
+        "p99": 3727
+       }
+      }
+     },
+     "broker": {
+      "jvmCpuMs": 23870,
+      "threadCpuMs": {
+       "data-plane-kafk": 22940,
+       "C2 CompilerThre": 250,
+       "kafka-1-raft-io": 140,
+       "ExpirationReape": 110,
+       "C1 CompilerThre": 90,
+       "metrics-meter-t": 70,
+       "GC Thread": 70,
+       "quorum-controll": 60,
+       "VM Periodic Tas": 30,
+       "controller-1-to": 20,
+       "broker-1-to-con": 20,
+       "kafka-1-metadat": 20,
+       "kafka-scheduler": 10,
+       "client-metrics-": 10,
+       "VM Thread": 10,
+       "raft-expiration": 10,
+       "G1 Refine": 10,
+       "controller-1-Th": 10
+      },
+      "gcLog": [
+       "[2026-10-31T14:52:48.214+0000][gc,start    ] GC(9) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:52:48.214+0000][gc,task     ] GC(9) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:52:48.228+0000][gc,phases   ] GC(9)   Pre Evacuate Collection Set: 0.3ms",
+       "[2026-10-31T14:52:48.228+0000][gc,phases   ] GC(9)   Merge Heap Roots: 0.1ms",
+       "[2026-10-31T14:52:48.228+0000][gc,phases   ] GC(9)   Evacuate Collection Set: 12.4ms",
+       "[2026-10-31T14:52:48.228+0000][gc,phases   ] GC(9)   Post Evacuate Collection Set: 1.1ms",
+       "[2026-10-31T14:52:48.228+0000][gc,phases   ] GC(9)   Other: 0.1ms",
+       "[2026-10-31T14:52:48.228+0000][gc,heap     ] GC(9) Eden regions: 604->0(603)",
+       "[2026-10-31T14:52:48.228+0000][gc,heap     ] GC(9) Survivor regions: 10->11(77)",
+       "[2026-10-31T14:52:48.228+0000][gc,heap     ] GC(9) Old regions: 20->20",
+       "[2026-10-31T14:52:48.228+0000][gc,heap     ] GC(9) Humongous regions: 138->138",
+       "[2026-10-31T14:52:48.228+0000][gc,metaspace] GC(9) Metaspace: 9268K(9472K)->9268K(9472K) NonClass: 8270K(8384K)->8270K(8384K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:52:48.228+0000][gc          ] GC(9) Pause Young (Normal) (G1 Evacuation Pause) 770M->167M(1024M) 14.166ms",
+       "[2026-10-31T14:52:48.228+0000][gc,cpu      ] GC(9) User=0.02s Sys=0.00s Real=0.01s",
+       "[2026-10-31T14:53:15.672+0000][gc,start    ] GC(10) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:53:15.672+0000][gc,task     ] GC(10) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:53:15.686+0000][gc,phases   ] GC(10)   Pre Evacuate Collection Set: 0.3ms",
+       "[2026-10-31T14:53:15.686+0000][gc,phases   ] GC(10)   Merge Heap Roots: 0.1ms",
+       "[2026-10-31T14:53:15.686+0000][gc,phases   ] GC(10)   Evacuate Collection Set: 12.8ms",
+       "[2026-10-31T14:53:15.686+0000][gc,phases   ] GC(10)   Post Evacuate Collection Set: 0.9ms",
+       "[2026-10-31T14:53:15.686+0000][gc,phases   ] GC(10)   Other: 0.1ms",
+       "[2026-10-31T14:53:15.686+0000][gc,heap     ] GC(10) Eden regions: 603->0(603)",
+       "[2026-10-31T14:53:15.686+0000][gc,heap     ] GC(10) Survivor regions: 11->11(77)",
+       "[2026-10-31T14:53:15.686+0000][gc,heap     ] GC(10) Old regions: 20->20",
+       "[2026-10-31T14:53:15.686+0000][gc,heap     ] GC(10) Humongous regions: 138->138",
+       "[2026-10-31T14:53:15.686+0000][gc,metaspace] GC(10) Metaspace: 9310K(9472K)->9310K(9472K) NonClass: 8312K(8384K)->8312K(8384K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:53:15.687+0000][gc          ] GC(10) Pause Young (Normal) (G1 Evacuation Pause) 770M->167M(1024M) 14.441ms",
+       "[2026-10-31T14:53:15.687+0000][gc,cpu      ] GC(10) User=0.02s Sys=0.00s Real=0.01s"
+      ],
+      "gc": {
+       "count": 2,
+       "totalMs": 28.61,
+       "medianMs": 14.441,
+       "maxMs": 14.441
+      }
+     },
+     "hostLoadBefore": 40.0
+    },
+    {
+     "mix": "event:1",
+     "rateRps": 2700,
+     "k6": {
+      "p50": 1.066832,
+      "p95": 26.131700400000042,
+      "p99": 65.63396394000006,
+      "mean": 5.124512624418625,
+      "sent": 80635,
+      "dropped": 370,
+      "failed": 0,
+      "succeeded": 80635,
+      "successRate": 0.9954323807172397,
+      "throughputRps": 2687.8333333333335
+     },
+     "service": {
+      "role": "api",
+      "requests": 80635,
+      "produced": 80635,
+      "consumed": 0,
+      "wallMs": 42435.601185999985,
+      "cpuMs": 24690.818,
+      "cpuMsPerRequest": 0.3062047249953494,
+      "cpuMsPerMessage": null,
+      "counters": {
+       "produced:measure": 80635
+      },
+      "timings": {
+       "kafka_inflight": {
+        "count": 80635,
+        "mean": 6.741787065170212,
+        "median": 1,
+        "p95": 34,
+        "p99": 107
+       },
+       "kafka_produce_request": {
+        "count": 80635,
+        "mean": 2.2847274756619336,
+        "median": 1,
+        "p95": 10,
+        "p99": 47
+       },
+       "kafka_send": {
+        "count": 80635,
+        "mean": 2.4960886047994566,
+        "median": 0.536759999988135,
+        "p95": 10.620677000028081,
+        "p99": 47.15743099999963
+       },
+       "handler": {
+        "count": 80635,
+        "mean": 2.5428106260185186,
+        "median": 0.5496270000003278,
+        "p95": 10.86348200001521,
+        "p99": 47.24680100000114
+       },
+       "own": {
+        "count": 80635,
+        "mean": 0.046722021219061736,
+        "median": 0.006642000022111461,
+        "p95": 0.19779200002085418,
+        "p99": 0.6977239999978337
+       }
+      }
+     },
+     "containerCpuMs": {
+      "producer": 24616.779,
+      "consumer": 11231.778,
+      "postgres": 18143.16,
+      "kafka": 19026.027
+     },
+     "consumer": {
+      "role": "consumer",
+      "requests": 0,
+      "produced": 0,
+      "consumed": 61581,
+      "wallMs": 42559.22775600001,
+      "cpuMs": 11880.14,
+      "cpuMsPerRequest": null,
+      "cpuMsPerMessage": 0.19291891979669054,
+      "counters": {
+       "consumed:measure": 61581
+      },
+      "timings": {
+       "db_insert": {
+        "count": 61581,
+        "mean": 2.011609039752479,
+        "median": 1.8189159999892581,
+        "p95": 2.9399759999942034,
+        "p99": 4.489375000004657
+       },
+       "consume": {
+        "count": 61581,
+        "mean": 2.0208802254265184,
+        "median": 1.8276389999955427,
+        "p95": 2.958958999981405,
+        "p99": 4.52339899999788
+       },
+       "consume_own": {
+        "count": 61581,
+        "mean": 0.009271185674039334,
+        "median": 0.007722999987890944,
+        "p95": 0.017728000006172806,
+        "p99": 0.03579499997431412
+       },
+       "end_to_end:measure": {
+        "count": 61581,
+        "mean": 12470.081551127783,
+        "median": 11439,
+        "p95": 22447,
+        "p99": 22674
+       },
+       "batch": {
+        "count": 20,
+        "mean": 5793.315893449995,
+        "median": 5158.366890999983,
+        "p95": 10864.906730999966,
+        "p99": 10918.475205999974
+       },
+       "batch_gap_per_message": {
+        "count": 20,
+        "mean": 0.01984635922018298,
+        "median": 0.02036871393798085,
+        "p95": 0.0222960010732653,
+        "p99": 0.02268656285388366
+       },
+       "kafka_request:OffsetCommit": {
+        "count": 20,
+        "mean": 0.85,
+        "median": 1,
+        "p95": 2,
+        "p99": 2
+       },
+       "batch_size": {
+        "count": 20,
+        "mean": 3235.75,
+        "median": 2715,
+        "p95": 5198,
+        "p99": 5225
+       },
+       "kafka_request:Heartbeat": {
+        "count": 14,
+        "mean": 0.7857142857142857,
+        "median": 1,
+        "p95": 3,
+        "p99": 3
+       },
+       "cycle": {
+        "count": 3,
+        "mean": 9992.493022,
+        "median": 9916.677226,
+        "p95": 11521.130707000004,
+        "p99": 11521.130707000004
+       },
+       "cycle_fetch": {
+        "count": 3,
+        "mean": 64.76296033333831,
+        "median": 77.49176400000579,
+        "p95": 78.15497600001981,
+        "p99": 78.15497600001981
+       },
+       "cycle_after": {
+        "count": 3,
+        "mean": 1.4838706666584283,
+        "median": 1.0576899999869056,
+        "p95": 2.7389949999924283,
+        "p99": 2.7389949999924283
+       },
+       "cycle_work": {
+        "count": 3,
+        "mean": 29341.45686533331,
+        "median": 28764.14840699997,
+        "p95": 34159.46561299998,
+        "p99": 34159.46561299998
+       },
+       "cycle_overhead": {
+        "count": 3,
+        "mean": 212.0074002222294,
+        "median": 172.75227433333384,
+        "p95": 328.6277570000093,
+        "p99": 328.6277570000093
+       },
+       "cycle_messages": {
+        "count": 3,
+        "mean": 14368,
+        "median": 14162,
+        "p95": 16630,
+        "p99": 16630
+       },
+       "cycle_batches": {
+        "count": 3,
+        "mean": 6,
+        "median": 6,
+        "p95": 6,
+        "p99": 6
+       },
+       "kafka_request:Fetch": {
+        "count": 3,
+        "mean": 4.333333333333333,
+        "median": 4,
+        "p95": 6,
+        "p99": 6
+       },
+       "fetch": {
+        "count": 3,
+        "mean": 76.9284996666732,
+        "median": 78.15497600001981,
+        "p95": 113.98838200001046,
+        "p99": 113.98838200001046
+       }
+      }
+     },
+     "broker": {
+      "jvmCpuMs": 25000,
+      "threadCpuMs": {
+       "data-plane-kafk": 24190,
+       "C2 CompilerThre": 170,
+       "kafka-1-raft-io": 130,
+       "ExpirationReape": 80,
+       "metrics-meter-t": 70,
+       "C1 CompilerThre": 50,
+       "GC Thread": 50,
+       "quorum-controll": 50,
+       "kafka-scheduler": 40,
+       "VM Periodic Tas": 30,
+       "kafka-1-metadat": 30,
+       "broker-1-to-con": 20,
+       "raft-expiration": 20,
+       "G1 Refine": 20,
+       "controller-1-Th": 20,
+       "broker-1-lifecy": 10,
+       "kafka-log-clean": 10
+      },
+      "gcLog": [
+       "[2026-10-31T14:53:50.126+0000][gc,start    ] GC(11) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:53:50.126+0000][gc,task     ] GC(11) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:53:50.142+0000][gc,phases   ] GC(11)   Pre Evacuate Collection Set: 0.4ms",
+       "[2026-10-31T14:53:50.142+0000][gc,phases   ] GC(11)   Merge Heap Roots: 0.1ms",
+       "[2026-10-31T14:53:50.142+0000][gc,phases   ] GC(11)   Evacuate Collection Set: 13.8ms",
+       "[2026-10-31T14:53:50.142+0000][gc,phases   ] GC(11)   Post Evacuate Collection Set: 1.1ms",
+       "[2026-10-31T14:53:50.142+0000][gc,phases   ] GC(11)   Other: 0.1ms",
+       "[2026-10-31T14:53:50.142+0000][gc,heap     ] GC(11) Eden regions: 603->0(602)",
+       "[2026-10-31T14:53:50.142+0000][gc,heap     ] GC(11) Survivor regions: 11->12(77)",
+       "[2026-10-31T14:53:50.142+0000][gc,heap     ] GC(11) Old regions: 20->20",
+       "[2026-10-31T14:53:50.142+0000][gc,heap     ] GC(11) Humongous regions: 138->138",
+       "[2026-10-31T14:53:50.142+0000][gc,metaspace] GC(11) Metaspace: 9331K(9536K)->9331K(9536K) NonClass: 8333K(8448K)->8333K(8448K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:53:50.142+0000][gc          ] GC(11) Pause Young (Normal) (G1 Evacuation Pause) 770M->168M(1024M) 15.866ms",
+       "[2026-10-31T14:53:50.142+0000][gc,cpu      ] GC(11) User=0.03s Sys=0.01s Real=0.01s",
+       "[2026-10-31T14:54:15.910+0000][gc,start    ] GC(12) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:54:15.910+0000][gc,task     ] GC(12) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:54:15.924+0000][gc,phases   ] GC(12)   Pre Evacuate Collection Set: 0.4ms",
+       "[2026-10-31T14:54:15.924+0000][gc,phases   ] GC(12)   Merge Heap Roots: 0.2ms",
+       "[2026-10-31T14:54:15.924+0000][gc,phases   ] GC(12)   Evacuate Collection Set: 12.0ms",
+       "[2026-10-31T14:54:15.924+0000][gc,phases   ] GC(12)   Post Evacuate Collection Set: 1.1ms",
+       "[2026-10-31T14:54:15.924+0000][gc,phases   ] GC(12)   Other: 0.1ms",
+       "[2026-10-31T14:54:15.924+0000][gc,heap     ] GC(12) Eden regions: 602->0(602)",
+       "[2026-10-31T14:54:15.924+0000][gc,heap     ] GC(12) Survivor regions: 12->12(77)",
+       "[2026-10-31T14:54:15.924+0000][gc,heap     ] GC(12) Old regions: 20->20",
+       "[2026-10-31T14:54:15.924+0000][gc,heap     ] GC(12) Humongous regions: 138->138",
+       "[2026-10-31T14:54:15.924+0000][gc,metaspace] GC(12) Metaspace: 9416K(9600K)->9416K(9600K) NonClass: 8418K(8512K)->8418K(8512K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:54:15.924+0000][gc          ] GC(12) Pause Young (Normal) (G1 Evacuation Pause) 770M->168M(1024M) 14.025ms",
+       "[2026-10-31T14:54:15.924+0000][gc,cpu      ] GC(12) User=0.03s Sys=0.00s Real=0.01s"
+      ],
+      "gc": {
+       "count": 2,
+       "totalMs": 29.89,
+       "medianMs": 15.866,
+       "maxMs": 15.866
+      }
+     },
+     "hostLoadBefore": 32.0
+    },
+    {
+     "mix": "event:1",
+     "rateRps": 3000,
+     "k6": {
+      "p50": 1.2917095,
+      "p95": 31.488727799999978,
+      "p99": 70.78073888000002,
+      "mean": 6.220153020916339,
+      "sent": 89404,
+      "dropped": 596,
+      "failed": 0,
+      "succeeded": 89404,
+      "successRate": 0.9933777777777778,
+      "throughputRps": 2980.133333333333
+     },
+     "service": {
+      "role": "api",
+      "requests": 89404,
+      "produced": 89404,
+      "consumed": 0,
+      "wallMs": 43172.449173,
+      "cpuMs": 26207.563,
+      "cpuMsPerRequest": 0.29313635855219006,
+      "cpuMsPerMessage": null,
+      "counters": {
+       "produced:measure": 89404
+      },
+      "timings": {
+       "kafka_inflight": {
+        "count": 89404,
+        "mean": 8.791373987741041,
+        "median": 2,
+        "p95": 46,
+        "p99": 122
+       },
+       "kafka_produce_request": {
+        "count": 89404,
+        "mean": 2.6806518723994452,
+        "median": 1,
+        "p95": 14,
+        "p99": 43
+       },
+       "kafka_send": {
+        "count": 89404,
+        "mean": 2.87936178311937,
+        "median": 0.6037820000201464,
+        "p95": 14.546885000017937,
+        "p99": 43.67680499999551
+       },
+       "handler": {
+        "count": 89404,
+        "mean": 2.9473147919331626,
+        "median": 0.6263710000202991,
+        "p95": 14.945334999996703,
+        "p99": 43.73700899997493
+       },
+       "own": {
+        "count": 89404,
+        "mean": 0.06795300881379243,
+        "median": 0.006749999942258,
+        "p95": 0.26218699995661154,
+        "p99": 0.7651450000121258
+       }
+      }
+     },
+     "containerCpuMs": {
+      "producer": 26121.882,
+      "consumer": 11520.042,
+      "postgres": 18617.604,
+      "kafka": 20901.228
+     },
+     "consumer": {
+      "role": "consumer",
+      "requests": 0,
+      "produced": 0,
+      "consumed": 61950,
+      "wallMs": 43313.434959999984,
+      "cpuMs": 12273.126,
+      "cpuMsPerRequest": null,
+      "cpuMsPerMessage": 0.19811341404358354,
+      "counters": {
+       "consumed:measure": 61950
+      },
+      "timings": {
+       "db_insert": {
+        "count": 61950,
+        "mean": 2.0409886377400914,
+        "median": 1.8295250000082888,
+        "p95": 3.0355199999758042,
+        "p99": 4.825691999983974
+       },
+       "consume": {
+        "count": 61950,
+        "mean": 2.05069888728017,
+        "median": 1.8383340000291355,
+        "p95": 3.0536859999992885,
+        "p99": 4.836382000008598
+       },
+       "consume_own": {
+        "count": 61950,
+        "mean": 0.00971024954007883,
+        "median": 0.00822600000537932,
+        "p95": 0.018586000020150095,
+        "p99": 0.03703700000187382
+       },
+       "end_to_end:measure": {
+        "count": 61950,
+        "mean": 24005.81312348668,
+        "median": 20780,
+        "p95": 33534,
+        "p99": 33653
+       },
+       "kafka_request:Heartbeat": {
+        "count": 14,
+        "mean": 0.42857142857142855,
+        "median": 0,
+        "p95": 1,
+        "p99": 1
+       },
+       "batch": {
+        "count": 9,
+        "mean": 10488.790379000005,
+        "median": 10278.574395000003,
+        "p95": 11350.532011999981,
+        "p99": 11350.532011999981
+       },
+       "batch_gap_per_message": {
+        "count": 9,
+        "mean": 0.019909972109502343,
+        "median": 0.02017273834987025,
+        "p95": 0.02140379609853016,
+        "p99": 0.02140379609853016
+       },
+       "kafka_request:OffsetCommit": {
+        "count": 9,
+        "mean": 0.8888888888888888,
+        "median": 1,
+        "p95": 1,
+        "p99": 1
+       },
+       "cycle": {
+        "count": 2,
+        "mean": 22323.387304500007,
+        "median": 20514.718634999997,
+        "p95": 24132.055974000017,
+        "p99": 24132.055974000017
+       },
+       "cycle_fetch": {
+        "count": 2,
+        "mean": 133.45895700002438,
+        "median": 116.60739900002955,
+        "p95": 150.31051500001922,
+        "p99": 150.31051500001922
+       },
+       "cycle_after": {
+        "count": 2,
+        "mean": 0.9876644999894779,
+        "median": 0.7523389999987558,
+        "p95": 1.2229899999802,
+        "p99": 1.2229899999802
+       },
+       "cycle_work": {
+        "count": 2,
+        "mean": 66248.27267700003,
+        "median": 60622.099930000084,
+        "p95": 71874.44542399998,
+        "p99": 71874.44542399998
+       },
+       "cycle_overhead": {
+        "count": 2,
+        "mean": 240.62974549999853,
+        "median": 173.90749933335974,
+        "p95": 307.35199166663733,
+        "p99": 307.35199166663733
+       },
+       "cycle_messages": {
+        "count": 2,
+        "mean": 30997.5,
+        "median": 29000,
+        "p95": 32995,
+        "p99": 32995
+       },
+       "cycle_batches": {
+        "count": 2,
+        "mean": 6,
+        "median": 6,
+        "p95": 6,
+        "p99": 6
+       },
+       "kafka_request:Metadata": {
+        "count": 1,
+        "mean": 2,
+        "median": 2,
+        "p95": 2,
+        "p99": 2
+       },
+       "kafka_request:Fetch": {
+        "count": 2,
+        "mean": 8,
+        "median": 6,
+        "p95": 10,
+        "p99": 10
+       },
+       "fetch": {
+        "count": 2,
+        "mean": 166.86459750001086,
+        "median": 150.31051500001922,
+        "p95": 183.4186800000025,
+        "p99": 183.4186800000025
+       },
+       "batch_size": {
+        "count": 9,
+        "mean": 6092.111111111111,
+        "median": 4871,
+        "p95": 8611,
+        "p99": 8611
+       }
+      }
+     },
+     "broker": {
+      "jvmCpuMs": 27610,
+      "threadCpuMs": {
+       "data-plane-kafk": 26500,
+       "C2 CompilerThre": 420,
+       "kafka-1-raft-io": 130,
+       "ExpirationReape": 100,
+       "GC Thread": 100,
+       "metrics-meter-t": 80,
+       "C1 CompilerThre": 40,
+       "VM Periodic Tas": 40,
+       "quorum-controll": 40,
+       "broker-1-to-con": 20,
+       "G1 Refine": 20,
+       "kafka-scheduler": 10,
+       "client-metrics-": 10,
+       "Monitor Deflati": 10,
+       "broker-1-lifecy": 10,
+       "kafka-log-clean": 10,
+       "VM Thread": 10,
+       "kafka-1-raft-ou": 10,
+       "kafka-1-metadat": 10,
+       "raft-expiration": 10
+      },
+      "gcLog": [
+       "[2026-10-31T14:54:49.034+0000][gc,start    ] GC(13) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:54:49.034+0000][gc,task     ] GC(13) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:54:49.053+0000][gc,phases   ] GC(13)   Pre Evacuate Collection Set: 0.4ms",
+       "[2026-10-31T14:54:49.053+0000][gc,phases   ] GC(13)   Merge Heap Roots: 0.2ms",
+       "[2026-10-31T14:54:49.053+0000][gc,phases   ] GC(13)   Evacuate Collection Set: 16.7ms",
+       "[2026-10-31T14:54:49.053+0000][gc,phases   ] GC(13)   Post Evacuate Collection Set: 1.0ms",
+       "[2026-10-31T14:54:49.053+0000][gc,phases   ] GC(13)   Other: 0.1ms",
+       "[2026-10-31T14:54:49.053+0000][gc,heap     ] GC(13) Eden regions: 602->0(602)",
+       "[2026-10-31T14:54:49.053+0000][gc,heap     ] GC(13) Survivor regions: 12->12(77)",
+       "[2026-10-31T14:54:49.053+0000][gc,heap     ] GC(13) Old regions: 20->20",
+       "[2026-10-31T14:54:49.053+0000][gc,heap     ] GC(13) Humongous regions: 138->138",
+       "[2026-10-31T14:54:49.053+0000][gc,metaspace] GC(13) Metaspace: 9426K(9600K)->9426K(9600K) NonClass: 8428K(8512K)->8428K(8512K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:54:49.053+0000][gc          ] GC(13) Pause Young (Normal) (G1 Evacuation Pause) 770M->169M(1024M) 18.668ms",
+       "[2026-10-31T14:54:49.053+0000][gc,cpu      ] GC(13) User=0.03s Sys=0.00s Real=0.02s",
+       "[2026-10-31T14:55:13.988+0000][gc,start    ] GC(14) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:55:13.988+0000][gc,task     ] GC(14) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:55:14.005+0000][gc,phases   ] GC(14)   Pre Evacuate Collection Set: 0.4ms",
+       "[2026-10-31T14:55:14.005+0000][gc,phases   ] GC(14)   Merge Heap Roots: 0.1ms",
+       "[2026-10-31T14:55:14.005+0000][gc,phases   ] GC(14)   Evacuate Collection Set: 15.2ms",
+       "[2026-10-31T14:55:14.005+0000][gc,phases   ] GC(14)   Post Evacuate Collection Set: 0.9ms",
+       "[2026-10-31T14:55:14.005+0000][gc,phases   ] GC(14)   Other: 0.1ms",
+       "[2026-10-31T14:55:14.005+0000][gc,heap     ] GC(14) Eden regions: 602->0(601)",
+       "[2026-10-31T14:55:14.005+0000][gc,heap     ] GC(14) Survivor regions: 12->13(77)",
+       "[2026-10-31T14:55:14.005+0000][gc,heap     ] GC(14) Old regions: 20->20",
+       "[2026-10-31T14:55:14.005+0000][gc,heap     ] GC(14) Humongous regions: 138->138",
+       "[2026-10-31T14:55:14.005+0000][gc,metaspace] GC(14) Metaspace: 9429K(9600K)->9429K(9600K) NonClass: 8431K(8512K)->8431K(8512K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:55:14.005+0000][gc          ] GC(14) Pause Young (Normal) (G1 Evacuation Pause) 771M->169M(1024M) 16.888ms",
+       "[2026-10-31T14:55:14.005+0000][gc,cpu      ] GC(14) User=0.03s Sys=0.01s Real=0.02s",
+       "[2026-10-31T14:55:30.347+0000][gc,start    ] GC(15) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:55:30.347+0000][gc,task     ] GC(15) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:55:30.370+0000][gc,phases   ] GC(15)   Pre Evacuate Collection Set: 0.5ms",
+       "[2026-10-31T14:55:30.370+0000][gc,phases   ] GC(15)   Merge Heap Roots: 0.2ms",
+       "[2026-10-31T14:55:30.370+0000][gc,phases   ] GC(15)   Evacuate Collection Set: 20.5ms",
+       "[2026-10-31T14:55:30.370+0000][gc,phases   ] GC(15)   Post Evacuate Collection Set: 1.4ms",
+       "[2026-10-31T14:55:30.370+0000][gc,phases   ] GC(15)   Other: 0.1ms",
+       "[2026-10-31T14:55:30.370+0000][gc,heap     ] GC(15) Eden regions: 601->0(601)",
+       "[2026-10-31T14:55:30.370+0000][gc,heap     ] GC(15) Survivor regions: 13->13(77)",
+       "[2026-10-31T14:55:30.370+0000][gc,heap     ] GC(15) Old regions: 20->20",
+       "[2026-10-31T14:55:30.370+0000][gc,heap     ] GC(15) Humongous regions: 138->138",
+       "[2026-10-31T14:55:30.370+0000][gc,metaspace] GC(15) Metaspace: 9441K(9664K)->9441K(9664K) NonClass: 8443K(8576K)->8443K(8576K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:55:30.370+0000][gc          ] GC(15) Pause Young (Normal) (G1 Evacuation Pause) 770M->170M(1024M) 23.042ms",
+       "[2026-10-31T14:55:30.370+0000][gc,cpu      ] GC(15) User=0.04s Sys=0.00s Real=0.02s"
+      ],
+      "gc": {
+       "count": 3,
+       "totalMs": 58.6,
+       "medianMs": 18.668,
+       "maxMs": 23.042
+      }
+     },
+     "hostLoadBefore": 37.0
+    },
+    {
+     "mix": "event:1",
+     "rateRps": 3300,
+     "k6": {
+      "p50": 1.809162,
+      "p95": 41.796236799999974,
+      "p99": 76.01234227999997,
+      "mean": 8.834791240148782,
+      "sent": 97323,
+      "dropped": 1678,
+      "failed": 0,
+      "succeeded": 97323,
+      "successRate": 0.9830506762557953,
+      "throughputRps": 3244.1
+     },
+     "service": {
+      "role": "api",
+      "requests": 97323,
+      "produced": 97323,
+      "consumed": 0,
+      "wallMs": 43459.777853999985,
+      "cpuMs": 26701.982,
+      "cpuMsPerRequest": 0.2743645592511534,
+      "cpuMsPerMessage": null,
+      "counters": {
+       "produced:measure": 97323
+      },
+      "timings": {
+       "kafka_inflight": {
+        "count": 97323,
+        "mean": 11.530152173689672,
+        "median": 2,
+        "p95": 57,
+        "p99": 129
+       },
+       "kafka_produce_request": {
+        "count": 97323,
+        "mean": 3.01343978299066,
+        "median": 1,
+        "p95": 15,
+        "p99": 36
+       },
+       "kafka_send": {
+        "count": 97323,
+        "mean": 3.2073467436577157,
+        "median": 0.7293269999790937,
+        "p95": 15.590374999970663,
+        "p99": 35.83426800003508
+       },
+       "handler": {
+        "count": 97323,
+        "mean": 3.2867973843284464,
+        "median": 0.7608799999579787,
+        "p95": 16.04578099999344,
+        "p99": 35.94000200001756
+       },
+       "own": {
+        "count": 97323,
+        "mean": 0.07945064067073043,
+        "median": 0.007152999984100461,
+        "p95": 0.3275949999806471,
+        "p99": 0.8920809999690391
+       }
+      }
+     },
+     "containerCpuMs": {
+      "producer": 26604.148,
+      "consumer": 11554.616,
+      "postgres": 18815.126,
+      "kafka": 21720.087
+     },
+     "consumer": {
+      "role": "consumer",
+      "requests": 0,
+      "produced": 0,
+      "consumed": 62891,
+      "wallMs": 43414.39379200002,
+      "cpuMs": 12331.291,
+      "cpuMsPerRequest": null,
+      "cpuMsPerMessage": 0.19607401694996104,
+      "counters": {
+       "consumed:measure": 62891
+      },
+      "timings": {
+       "db_insert": {
+        "count": 62891,
+        "mean": 2.030167660778166,
+        "median": 1.8264479999779724,
+        "p95": 3.0068089999840595,
+        "p99": 4.636691999970935
+       },
+       "consume": {
+        "count": 62891,
+        "mean": 2.0403011822676826,
+        "median": 1.8357229999965057,
+        "p95": 3.0275389999733306,
+        "p99": 4.6615250000031665
+       },
+       "consume_own": {
+        "count": 62891,
+        "mean": 0.010133521489516654,
+        "median": 0.008503999968525022,
+        "p95": 0.019504999974742532,
+        "p99": 0.038084000058006495
+       },
+       "end_to_end:measure": {
+        "count": 62891,
+        "mean": 43504.31573675088,
+        "median": 41907,
+        "p95": 57666,
+        "p99": 57962
+       },
+       "kafka_request:Heartbeat": {
+        "count": 15,
+        "mean": 0.6,
+        "median": 1,
+        "p95": 1,
+        "p99": 1
+       },
+       "batch": {
+        "count": 6,
+        "mean": 17785.09203233334,
+        "median": 17429.150854999956,
+        "p95": 18150.479686000035,
+        "p99": 18150.479686000035
+       },
+       "batch_gap_per_message": {
+        "count": 6,
+        "mean": 0.02066728227500461,
+        "median": 0.019460900360046458,
+        "p95": 0.021992584088208526,
+        "p99": 0.021992584088208526
+       },
+       "kafka_request:OffsetCommit": {
+        "count": 6,
+        "mean": 0.5,
+        "median": 0,
+        "p95": 1,
+        "p99": 1
+       },
+       "batch_size": {
+        "count": 6,
+        "mean": 8610.166666666666,
+        "median": 8610,
+        "p95": 8611,
+        "p99": 8611
+       },
+       "cycle": {
+        "count": 1,
+        "mean": 35788.94906999997,
+        "median": 35788.94906999997,
+        "p95": 35788.94906999997,
+        "p99": 35788.94906999997
+       },
+       "cycle_fetch": {
+        "count": 1,
+        "mean": 212.5902139999671,
+        "median": 212.5902139999671,
+        "p95": 212.5902139999671,
+        "p99": 212.5902139999671
+       },
+       "cycle_after": {
+        "count": 1,
+        "mean": 0.8910269999760203,
+        "median": 0.8910269999760203,
+        "p95": 0.8910269999760203,
+        "p99": 0.8910269999760203
+       },
+       "cycle_work": {
+        "count": 1,
+        "mean": 106710.55219400005,
+        "median": 106710.55219400005,
+        "p95": 106710.55219400005,
+        "p99": 106710.55219400005
+       },
+       "cycle_overhead": {
+        "count": 1,
+        "mean": 218.7650053332909,
+        "median": 218.7650053332909,
+        "p95": 218.7650053332909,
+        "p99": 218.7650053332909
+       },
+       "cycle_messages": {
+        "count": 1,
+        "mean": 51661,
+        "median": 51661,
+        "p95": 51661,
+        "p99": 51661
+       },
+       "cycle_batches": {
+        "count": 1,
+        "mean": 6,
+        "median": 6,
+        "p95": 6,
+        "p99": 6
+       },
+       "kafka_request:Fetch": {
+        "count": 1,
+        "mean": 18,
+        "median": 18,
+        "p95": 18,
+        "p99": 18
+       },
+       "fetch": {
+        "count": 1,
+        "mean": 204.89895599999,
+        "median": 204.89895599999,
+        "p95": 204.89895599999,
+        "p99": 204.89895599999
+       }
+      }
+     },
+     "broker": {
+      "jvmCpuMs": 28480,
+      "threadCpuMs": {
+       "data-plane-kafk": 27590,
+       "C2 CompilerThre": 190,
+       "kafka-1-raft-io": 120,
+       "GC Thread": 100,
+       "ExpirationReape": 80,
+       "quorum-controll": 60,
+       "metrics-meter-t": 50,
+       "kafka-scheduler": 30,
+       "VM Periodic Tas": 30,
+       "C1 CompilerThre": 20,
+       "broker-1-to-con": 20,
+       "kafka-1-metadat": 20,
+       "raft-expiration": 20,
+       "G1 Refine": 20,
+       "broker-1-Thrott": 10,
+       "client-metrics-": 10,
+       "Monitor Deflati": 10,
+       "G1 Service": 10,
+       "controller-1-Th": 10
+      },
+      "gcLog": [
+       "[2026-10-31T14:56:02.107+0000][gc,start    ] GC(16) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:56:02.107+0000][gc,task     ] GC(16) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:56:02.125+0000][gc,phases   ] GC(16)   Pre Evacuate Collection Set: 0.4ms",
+       "[2026-10-31T14:56:02.125+0000][gc,phases   ] GC(16)   Merge Heap Roots: 0.2ms",
+       "[2026-10-31T14:56:02.125+0000][gc,phases   ] GC(16)   Evacuate Collection Set: 16.5ms",
+       "[2026-10-31T14:56:02.125+0000][gc,phases   ] GC(16)   Post Evacuate Collection Set: 0.8ms",
+       "[2026-10-31T14:56:02.125+0000][gc,phases   ] GC(16)   Other: 0.1ms",
+       "[2026-10-31T14:56:02.125+0000][gc,heap     ] GC(16) Eden regions: 601->0(601)",
+       "[2026-10-31T14:56:02.125+0000][gc,heap     ] GC(16) Survivor regions: 13->13(77)",
+       "[2026-10-31T14:56:02.125+0000][gc,heap     ] GC(16) Old regions: 20->20",
+       "[2026-10-31T14:56:02.125+0000][gc,heap     ] GC(16) Humongous regions: 138->138",
+       "[2026-10-31T14:56:02.125+0000][gc,metaspace] GC(16) Metaspace: 9442K(9664K)->9442K(9664K) NonClass: 8444K(8576K)->8444K(8576K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:56:02.125+0000][gc          ] GC(16) Pause Young (Normal) (G1 Evacuation Pause) 771M->170M(1024M) 18.168ms",
+       "[2026-10-31T14:56:02.125+0000][gc,cpu      ] GC(16) User=0.03s Sys=0.00s Real=0.02s",
+       "[2026-10-31T14:56:25.698+0000][gc,start    ] GC(17) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:56:25.698+0000][gc,task     ] GC(17) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:56:25.718+0000][gc,phases   ] GC(17)   Pre Evacuate Collection Set: 0.4ms",
+       "[2026-10-31T14:56:25.718+0000][gc,phases   ] GC(17)   Merge Heap Roots: 0.1ms",
+       "[2026-10-31T14:56:25.718+0000][gc,phases   ] GC(17)   Evacuate Collection Set: 18.1ms",
+       "[2026-10-31T14:56:25.718+0000][gc,phases   ] GC(17)   Post Evacuate Collection Set: 1.2ms",
+       "[2026-10-31T14:56:25.718+0000][gc,phases   ] GC(17)   Other: 0.1ms",
+       "[2026-10-31T14:56:25.718+0000][gc,heap     ] GC(17) Eden regions: 601->0(602)",
+       "[2026-10-31T14:56:25.718+0000][gc,heap     ] GC(17) Survivor regions: 13->12(77)",
+       "[2026-10-31T14:56:25.718+0000][gc,heap     ] GC(17) Old regions: 20->22",
+       "[2026-10-31T14:56:25.718+0000][gc,heap     ] GC(17) Humongous regions: 138->138",
+       "[2026-10-31T14:56:25.718+0000][gc,metaspace] GC(17) Metaspace: 9445K(9664K)->9445K(9664K) NonClass: 8447K(8576K)->8447K(8576K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:56:25.718+0000][gc          ] GC(17) Pause Young (Normal) (G1 Evacuation Pause) 771M->171M(1024M) 20.253ms",
+       "[2026-10-31T14:56:25.718+0000][gc,cpu      ] GC(17) User=0.04s Sys=0.00s Real=0.02s",
+       "[2026-10-31T14:56:40.819+0000][gc,start    ] GC(18) Pause Young (Normal) (G1 Evacuation Pause)",
+       "[2026-10-31T14:56:40.819+0000][gc,task     ] GC(18) Using 2 workers of 2 for evacuation",
+       "[2026-10-31T14:56:40.842+0000][gc,phases   ] GC(18)   Pre Evacuate Collection Set: 0.4ms",
+       "[2026-10-31T14:56:40.842+0000][gc,phases   ] GC(18)   Merge Heap Roots: 0.2ms",
+       "[2026-10-31T14:56:40.842+0000][gc,phases   ] GC(18)   Evacuate Collection Set: 21.0ms",
+       "[2026-10-31T14:56:40.842+0000][gc,phases   ] GC(18)   Post Evacuate Collection Set: 1.0ms",
+       "[2026-10-31T14:56:40.842+0000][gc,phases   ] GC(18)   Other: 0.1ms",
+       "[2026-10-31T14:56:40.842+0000][gc,heap     ] GC(18) Eden regions: 602->0(603)",
+       "[2026-10-31T14:56:40.842+0000][gc,heap     ] GC(18) Survivor regions: 12->11(77)",
+       "[2026-10-31T14:56:40.842+0000][gc,heap     ] GC(18) Old regions: 22->24",
+       "[2026-10-31T14:56:40.842+0000][gc,heap     ] GC(18) Humongous regions: 138->138",
+       "[2026-10-31T14:56:40.842+0000][gc,metaspace] GC(18) Metaspace: 9449K(9664K)->9449K(9664K) NonClass: 8451K(8576K)->8451K(8576K) Class: 997K(1088K)->997K(1088K)",
+       "[2026-10-31T14:56:40.842+0000][gc          ] GC(18) Pause Young (Normal) (G1 Evacuation Pause) 773M->171M(1024M) 22.983ms",
+       "[2026-10-31T14:56:40.842+0000][gc,cpu      ] GC(18) User=0.02s Sys=0.02s Real=0.02s"
+      ],
+      "gc": {
+       "count": 3,
+       "totalMs": 61.4,
+       "medianMs": 20.253,
+       "maxMs": 22.983
+      }
+     },
+     "hostLoadBefore": 34.0
+    }
+   ]
+  }
+ }
+}

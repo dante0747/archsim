@@ -15,7 +15,9 @@ the repo); `override.yaml` is what variants 2 and 3 added to `compose.yaml`.
   2. The broker's healthcheck run only until it first succeeds, and the broker's JMX on: rest,
      525, 1,050, 1,575 and 1,890 req/s.
   3. As 2 with four producer connections (`KAFKA_PRODUCERS=4`) instead of one: 1,050 to 1,890.
-- `knee.json`: the stack with compose.yaml's fixed healthcheck, 1,890 to 3,300 req/s (see below).
+- `knee.json` (15:49 to 15:57): the stack with compose.yaml's fixed healthcheck, one pass each at
+  1,890 to 3,300 req/s, after a 30 s warm-up at 50 req/s; host at 6% to 15% CPU when the lock was
+  taken (nothing else running: the main session's lock order) and 7% to 40% before each pass.
 
 A first attempt at 11:50 (a full protocol v5 calibration plus these passes) was stopped: the host
 was at 100% CPU from other sessions' re-simulations and tests, and the staircase stopped at
@@ -48,6 +50,27 @@ stack's whole life, on the broker's cpuset (CPUs 0 and 1: one physical core).
 
 So the publish tail in the kept runs is the benchmark's environment. It is not modelled;
 compose.yaml's healthcheck now stops starting JVMs once the broker is ready.
+
+Every kept Kafka run had the repeated check (it is in compose.yaml since the first benchmark
+commit, 4a2e9c6): run 1 and run 2 (v4), run 3, run 4 and the latest (v5). Each shows the broker's
+container at 0.74 to 1.08 cores at every step, 0.74 already at 252 req/s; the v5 runs' rest
+passes 0.42 to 0.43 cores. Their measured knees (945 req/s before the Windows update, then 2,040,
+2,132, 2,087 and 2,028) are the harness's, not Kafka's.
+
+With the check fixed (`knee.json`):
+
+| Offered req/s | 1,890 (first pass) | 2,100 | 2,400 | 2,700 | 3,000 | 3,300 |
+| --- | --- | --- | --- | --- | --- | --- |
+| client p95 (ms) | 36.6 | 13.2 | 15.0 | 26.1 | 31.5 | 41.8 |
+| success | 99.3% | 99.7% | 99.9% | 99.5% | 99.3% | 98.3% |
+| producer CPU (cores) | 0.71 | 0.72 | 0.78 | 0.82 | 0.87 | 0.89 |
+| producer CPU per request (ms) | 0.38 | 0.35 | 0.33 | 0.31 | 0.29 | 0.27 |
+
+The objective (p95 at most 50 ms, at least 99% success) held up to 3,000 req/s and failed at
+3,300 on success (k6 dropped 1,678 of the requests it had no free virtual user for), with the
+producer's event loop near its core: the fixed stack's knee is about 3,000 to 3,300 req/s. The
+first pass, the stack's first under load, was slower than the next one at a higher rate (the
+JIT warming up). Single 30 s passes, not the protocol's three repeats: a guide, not a result.
 
 ## The consumer's fetch cycle
 

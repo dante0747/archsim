@@ -130,5 +130,5 @@ def test_the_explanation_counts_slots_and_mentions_the_poll() -> None:
     r = run_simulation(queue(1000, consumerConcurrency=3, fetchOverheadMs=CONST(4)))
     ex = {e["id"]: e for e in node_by_id(r, "q")["explain"]}
     assert ex["consumer_slots"]["result"] == 3
-    assert ex["drain_rate"]["substituted"].startswith("3 × 1000")
+    assert ex["drain_rate"]["substituted"].startswith("3 \N{MULTIPLICATION SIGN} 1000")
     assert "poll" in ex["drain_rate"]["note"]

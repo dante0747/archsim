@@ -765,10 +765,17 @@ def test_vm_cpu_times_reads_steal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_split_inputs_reproduce_every_latest_calibration() -> None:
-    # one function per part, then anchored again: the very inputs each latest run used
+    # one function per part, then anchored again: the very inputs each latest run used, and for
+    # Kafka the two that W23 added (its calibrations predate the fetch-cycle report)
+    w23 = ("consumerConcurrency", "fetchOverheadMs")
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
-        assert run.rederive_inputs(run.EXPERIMENTS[exp], cal) == cal["inputs"], exp
+        inputs = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
+        if exp == "kafka":
+            assert inputs["consumerConcurrency"]["value"] == run.KAFKA_CONSUMERS
+            assert "not recorded in this run" in inputs["fetchOverheadMs"]["how"]
+            inputs = {k: v for k, v in inputs.items() if k not in w23}
+        assert inputs == cal["inputs"], exp
 
 
 def test_simulate_reports_what_the_database_did() -> None:
