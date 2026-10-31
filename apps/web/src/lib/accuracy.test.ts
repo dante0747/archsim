@@ -114,6 +114,10 @@ describe("plain-language lines", () => {
     expect(lowLoadSentence(exp({ lowLoad: [step("100", -0.5, "-0.50 ms"), step("200", 1.2, "+1.20 ms")] }))).toBe(
       "At light load (100 and 200 req/s), predicted p95 was −0.50 to +1.20 ms off from the measured one.",
     );
+    // all below: smallest gap first, as for "above"
+    expect(lowLoadSentence(exp({ lowLoad: [step("1,238", -0.16, "-0.16 ms"), step("2,475", -0.44, "-0.44 ms")] }))).toBe(
+      "At light load (1,238 and 2,475 req/s), predicted p95 was 0.16 to 0.44 ms below the measured one.",
+    );
     expect(lowLoadSentence(exp({ lowLoad: [] }))).toBeNull();
   });
 
