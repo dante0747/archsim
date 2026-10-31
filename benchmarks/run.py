@@ -180,13 +180,13 @@ RUNTIMES = {
         "eclipse-temurin:21-jre-alpine + Spring Boot 3.5.7 (Tomcat, HikariCP), G1, 1 GiB heap",
     ),
     # a goroutine per request, without a limit: the model's largest pool
-    "go": Runtime("go", "Go service", 2, 4096, "alpine:3.22 + Go 1.25 net/http, pgx 5.7.6"),
+    "go": Runtime("go", "Go service", 2, 4096, "alpine:3.22 + Go 1.25 net/http, pgx 5.9.2"),
     "python": Runtime(
         "python",
         "Flask service (gunicorn)",
         2,
         PYTHON_WORKERS,
-        "python:3.13-slim + gunicorn 23.0.0 (sync), Flask 3.1.2, psycopg 3.2.10",
+        "python:3.13-slim + gunicorn 23.0.0 (sync), Flask 3.1.3, psycopg 3.2.10",
     ),
 }
 

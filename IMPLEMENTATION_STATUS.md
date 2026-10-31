@@ -45,7 +45,10 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   `benchmarks/engines.json` (none yet) and a clean tree; `run.py smoke` (20 req/s, keeps nothing)
   passes on all five. `report.py` labels each engine and experiment held-out or tuned-on.
 - Java and Go GC pauses are calibrated from the runtimes' counters; no container shares a
-  physical core with k6 or another (chain and cache-ttl give k6 one core). The staircase caps the
+  physical core with k6 or another (chain and cache-ttl give k6 one core).
+- 31 Oct, before any measurement: go-mixed's pgx 5.7.6 -> 5.9.2 (drops `golang.org/x/crypto`)
+  and python-mixed's Flask 3.1.2 -> 3.1.3, clearing GitHub's 19 dependency alerts, none of which
+  was reachable (docs/validation.md, "Held-out experiments"). The staircase caps the
   service under test (listed first in each stack) by its CPUs, and chain by its busier hop.
 
 **Calibration protocol v5: staircase, replicates, predicted ranges (2026-10-30; accuracy plan W20).**
