@@ -52,10 +52,18 @@ Read these numbers as three runs on one laptop, all of them in-sample:
   Under protocol v4 the latest runs all under-predicted, because calibration read the CPU per
   request too high; v5 reads it at load and gets the service's CPU right (pg-mixed's within 4%,
   see [Resources](#resources-cpu-and-memory)), which shows what the CPU had been hiding: the real
-  service's p95 starts climbing well before its core is full, and the model's does not.
+  service's p95 starts climbing well before its core is full, and the model's does not. Garbage
+  collection does not explain it (0.1% to 0.4% of the event loop's time, W21 trial); in a quiet
+  trial both Node's and PostgreSQL's CPU per request rose by about a third near the knee, once
+  the whole machine was busy (W21, W22).
 - **pg-mixed and Kafka meet every threshold one machine can test** (criteria 1, 2 and 3a under
   [Proposed tier thresholds](#proposed-tier-thresholds)); the fourth needs a second machine.
-  Criterion 2 is lenient one way, though: within ±100% of the measured p95 never fails a
+  **Kafka's measurements are not evidence, though:** every Kafka run so far had a broker
+  healthcheck that started a Java tool every 3 s on the broker's core, about half a core all
+  the time. Without it the same stack held the objective up to about 3,000 req/s (W23 trial,
+  31 Oct), against 2,028 to 2,132 measured, so the +4% is where the model's knee happened to
+  meet the healthcheck's. Fixed in `compose.yaml`; the next campaign measures Kafka again.
+  Criterion 2 is lenient one way too: within ±100% of the measured p95 never fails a
   prediction that is too low, and both pass it with p95s predicted 3 to 9 times too low near
   their knee.
 - **ArchSim's predicted range is far too narrow.** It held the measured knee in 1 of 12 runs,
@@ -65,12 +73,20 @@ Read these numbers as three runs on one laptop, all of them in-sample:
 - **The power mode moves the real knee.** Under Best performance (and with k6 moved off the
   service's hyperthread sibling, worth 10% to 15% of the service's CPU) pg-mixed's knee was
   about 4,000 req/s, where run 5 measured 2,430 under an unrecorded mode, and cache-aside's about
-  7,000 against 4,848; hot-row's rose less (814 to 819-960) and Kafka's not at all. Runs under different power modes are not
+  7,000 against 4,848; hot-row's rose less (814 to 819-960) and Kafka's not at all (the
+  healthcheck held it). Runs under different power modes are not
   compared with each other, and since this campaign `environment.json` records the mode.
 - **All four are in-sample.** The protocol (up to v5) and engine 0.14.0 were developed with
   these four experiments' results in view. The five [held-out
   experiments](#held-out-experiments) are the test of how ArchSim does on stacks it was not
   tuned on.
+- **Engine 0.15.0 (31 Oct) moves one knee, in-sample.** Its model changes (W21 to W24, see
+  [below](#where-the-model-is-wrong-and-why)), re-simulated on every kept run
+  ([`docs/validation/dev-checks.md`](validation/dev-checks.md)), take pg-hot-row's median knee
+  error from -16% to -7%; pg-mixed (+24%), cache-aside (-34%) and Kafka (+4%) stay where they
+  were. PostgreSQL's predicted CPU is now 4% to 11% low (was 16% to 70%) and Redis's 14% to 19%
+  high (was about 90% low). These are re-simulations of runs the changes were tuned on, not
+  predictions: every table on this page is still engine 0.14.0's, predicted before measuring.
 - **Latency at low load is within 1 ms, except Kafka's**: at a quarter and half of the predicted
   knee ArchSim's p95 is 0.09 to 0.89 ms off for pg-mixed, hot-row and cache-aside; for Kafka 1.3
   and 7.2 ms below the measured one (see [below](#where-the-model-is-wrong-and-why)).
@@ -439,6 +455,8 @@ Measured in the calibration pass at 569 req/s: p50 0.86 ms, p95 3.54 ms.
 | 3,150 | 19.5 / - | 133 / - | - | 220 / - | 85% / 0% | 2,682 / 106 | 1,568 / 1,383 | 12,189 / 8,295 |
 
 Knee: measured 2,028 req/s, predicted 2,102 req/s on the same steps (+4%); ArchSim's own search before measuring put it at 2,100 req/s. Its predicted range, from the 3 replicate sets, was 2,075 to 2,200 req/s: the measured knee fell outside it. Data: `benchmarks/results/kafka/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+
+**Harness caveat.** Every Kafka run so far was measured with a broker healthcheck that started a Java tool every 3 s on the broker's own core (about half a core, all the time). Without it the same stack held the objective up to about 3,000 req/s in a trial on 31 Oct, so these measured knees are the benchmark's limit, not Kafka's. The healthcheck is fixed in compose.yaml; the next campaign measures Kafka again.
 <!-- END GENERATED: kafka -->
 
 ## Resources: CPU and memory
@@ -544,9 +562,13 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
     collection, the first suspect, is not the cause: a calibration-only trial with the service
     reporting it (W21, `results/trials/W21-README.md`) found V8's pauses take 0.1% to 0.45% of
     the event loop's time, and its p95 at 3,712 req/s was 1.74 ms. At 4,455 req/s that trial
-    overloaded with Node 89% busy and PostgreSQL saturating its two CPUs (hyperthread siblings
-    of one physical core), its CPU per query up from 0.16 to 0.26 ms, so PostgreSQL's CPU is the
-    likely cause (W22).
+    overloaded with Node 89% busy and its CPU per request up 31%, and PostgreSQL saturating its
+    two CPUs (hyperthread siblings of one physical core) with its CPU per query up from 0.16 to
+    0.26 ms. So the likely cause is a CPU cost that rises near full load, in both processes at
+    once: on this laptop probably its power and turbo limits once every core is busy. Giving the
+    model's PostgreSQL its one physical core instead of two logical CPUs does not move the
+    model's knee, which stays Node's (W22's what-if); a cost per request that rises near full
+    load is not modelled yet.
   - *cache-aside (-26% to -34%): the CPU per request falls with load.* The predicted knee is one
     core at the calibrated 0.20 ms per request (4,850 req/s); the real cost fell to 0.16 ms by
     then and kept falling, and the real knee was about 7,000 req/s.
@@ -618,24 +640,37 @@ p95 at the ladder's low steps (at most half the predicted knee):
 | kafka | 1,050 (0.5x the predicted knee) | 10.5 | 3.39 | -7.15 ms (-68%) |
 <!-- END GENERATED: low-load -->
 
-What would make the model better, in order (the plan's W21 to W24, each tuned on these four
-experiments only and then tested on the held-out ones):
+What engine 0.15.0 changed (the plan's W21 to W24, 31 Oct 2026, each tuned on these four
+experiments only; in-sample re-simulation of every kept run in
+[`docs/validation/dev-checks.md`](validation/dev-checks.md)):
 
-1. Latency that rises before saturation: calibrate the service's GC pauses (W21; done, and too
-   small to move a knee: pg-mixed's rise looks like PostgreSQL's CPU).
-2. CPU per request that falls with load, from the calibration staircase (W21; done, flat above
-   the staircase's top rate, so it fixes CPU at light load but no knee).
-3. Database inputs timed inside PostgreSQL rather than from the service, and the commit flush
-   measured under load (W22, engine 0.15.0: PostgreSQL's time per query is its CPU per query,
-   the link takes the rest of the round trip, the flush is PostgreSQL's own); still open: a
-   flush and a CPU per query that fall with load, and a query's server time outside its row
-   lock.
-4. Kafka: the consumers' fetch cycle, and the message-age clock, which starts after the publish
-   delay (W23). The publish tail that grows with load was the benchmark's healthcheck, fixed in
-   `compose.yaml` rather than modelled (W23).
-5. Redis's CPU per command including its network work, and the services' memory from the
-   calibration passes (W24).
-6. A predicted range that includes the calibration's run-to-run variation.
+1. **Service CPU that follows load** (`serviceTimeByLoad`, W21), fitted from the calibration
+   staircase. It stays flat above the staircase's top rate, about a third of the knee, so it
+   corrects CPU at light load but moves no knee.
+2. **Node.js garbage collection** calibrated from the service's own report (W21): too small to
+   move a knee.
+3. **Database inputs timed inside PostgreSQL** (W22): a query's time in the database is its CPU
+   per query, the rest of the measured round trip is the link, and the WAL flush is PostgreSQL's
+   own. PostgreSQL's predicted busy cores at the top step went from 16% to 70% low to 4% to 11%
+   low, and hot-row's median knee error from -16% to -7%.
+4. **Kafka** (W23): message age from the start of the publish, and consumers that poll in
+   cycles as kafkajs does. The publish tail that grew with load was the benchmark's healthcheck,
+   fixed in `compose.yaml` rather than modelled.
+5. **Sizing inputs** (W24): Redis's CPU per command including its network work (from 90% low to
+   14% to 19% high) and each service's memory fitted over the staircase (from 1.6 to 5.9 times
+   too high to 10% to 76% too low near the knee).
+
+What would make it better next, in order:
+
+1. A CPU cost per request that rises near full load (pg-mixed's +24%), and how hyperthreaded
+   vCPUs turn into capacity, for services and databases alike: a cloud vCPU is a hyperthread
+   too.
+2. A CPU per request that keeps falling with load above the calibration staircase
+   (cache-aside's -34%): calibrate higher, or model the event loop's batching under load.
+3. A predicted range that includes the calibration's run-to-run variation (it held the
+   measured knee in 1 of 12 runs).
+4. Memory near the knee (a Node.js heap grows faster than linearly with load), a flush and a CPU
+   per query that fall with load, and Kafka's rare consumer stalls (message age at mid load).
 
 Limits of this evidence: one machine, three counted runs per experiment under protocol v5,
 Windows with Docker Desktop (a virtual machine between the containers and the hardware) whose

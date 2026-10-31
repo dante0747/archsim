@@ -44,6 +44,9 @@
       "cache-aside",
       "kafka"
     ],
+    "caveats": [
+      "kafka"
+    ],
     "repeated": [
       "pg-mixed",
       "pg-hot-row",
@@ -114,6 +117,7 @@
       "protocol": "v5",
       "runs": 10,
       "inSample": true,
+      "caveat": null,
       "tier": "not-validated",
       "criteria": {
         "knee": {
@@ -970,6 +974,7 @@
       "protocol": "v5",
       "runs": 8,
       "inSample": true,
+      "caveat": null,
       "tier": "not-validated",
       "criteria": {
         "knee": {
@@ -1833,6 +1838,7 @@
       "protocol": "v5",
       "runs": 5,
       "inSample": true,
+      "caveat": null,
       "tier": "not-validated",
       "criteria": {
         "knee": {
@@ -2955,6 +2961,7 @@
       "protocol": "v5",
       "runs": 5,
       "inSample": true,
+      "caveat": "Every Kafka run so far was measured with a broker healthcheck that started a Java tool every 3 s on the broker's own core (about half a core, all the time). Without it the same stack held the objective up to about 3,000 req/s in a trial on 31 Oct, so these measured knees are the benchmark's limit, not Kafka's. The healthcheck is fixed in compose.yaml; the next campaign measures Kafka again.",
       "tier": "not-validated",
       "criteria": {
         "knee": {

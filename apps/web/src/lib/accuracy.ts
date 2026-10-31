@@ -165,6 +165,8 @@ export interface Experiment {
   protocol: string;
   runs: number;
   inSample: boolean;
+  /** A flaw of the benchmark that limited this run's measurements, fixed since; null when none. */
+  caveat: string | null;
   tier: "validated" | "not-validated";
   criteria: Criteria;
   knee: {
@@ -238,6 +240,8 @@ export interface Accuracy {
     withSpread: string[];
     spreadExceedsError: string[];
     inSample: string[];
+    /** Experiments whose latest run carries a harness caveat. */
+    caveats: string[];
     /** Experiments whose latest conditions ran at least 3 times. */
     repeated: string[];
     coverage: { withRange: number; inRange: number };

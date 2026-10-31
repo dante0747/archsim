@@ -808,6 +808,7 @@ def test_split_inputs_reproduce_every_latest_calibration() -> None:
         }, exp
         assert {"dbLinkLatencyMs", "dbCpuShare"} <= set(again), exp
 
+
 def test_database_inputs_keep_the_measured_round_trip() -> None:
     # pg-mixed's latest top pass: PostgreSQL's CPU per query becomes its time in the model, the
     # rest of each round trip the service measured becomes the link, and the share is the CPU
@@ -943,7 +944,6 @@ def test_pg_process_kind() -> None:
     assert run.pg_process_kind("postgres -c shared_buffers=256MB") == "background"
     assert run.pg_process_kind("postgres: bench bench [local] SELECT") is None  # the probe
     assert run.pg_process_kind("sh -c for d in /proc") is None
-
 
 
 def test_simulate_reports_what_the_database_did() -> None:
@@ -1494,6 +1494,17 @@ def test_knee_spread() -> None:
     best = [hist_run(7000.0) | {"powerMode": "Best performance"} for _ in range(2)]
     s = report.knee_spread([hist_run(4800.0), *best])
     assert s is not None and (s["runs"], s["minRps"]) == (2, 7000.0)
+
+
+def test_harness_caveat_until_the_fix() -> None:
+    # every kept Kafka run predates the healthcheck fix of 31 Oct; a run after it has no caveat
+    assert "healthcheck" in (report.harness_caveat("kafka", "2026-10-31T03:26:27Z") or "")
+    assert report.harness_caveat("kafka", "2026-11-01T22:00:00Z") is None
+    assert report.harness_caveat("pg-mixed", "2026-10-31T03:26:27Z") is None
+    assert report.harness_caveat("kafka", None) is None
+    data = report.accuracy()
+    assert data is not None and data["summary"]["caveats"] == ["kafka"]
+    assert "**Harness caveat.**" in report.experiment_block("kafka")
 
 
 def test_pct_never_prints_minus_zero() -> None:

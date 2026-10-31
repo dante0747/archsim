@@ -90,6 +90,15 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
         </span>
       </div>
 
+      {x.caveat && (
+        <p role="note" className="mt-4 flex gap-2 rounded-xl border border-line bg-warning-soft p-3 text-[13.5px] leading-relaxed text-ink">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+          <span>
+            <span className="font-semibold">Measured with a benchmark flaw.</span> {x.caveat}
+          </span>
+        </p>
+      )}
+
       <KneeScale x={x} />
 
       <dl className="mt-5 grid gap-x-8 gap-y-4 text-[14px] leading-relaxed md:grid-cols-2">
@@ -506,6 +515,16 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
                     {x.name}
                   </a>
                   : {kneeSentence(x)}
+                  {x.caveat && (
+                    <span className="text-ink-2">
+                      {" "}
+                      But its measured knee was limited by a flaw in the benchmark, since fixed (
+                      <a href={`#${x.id}`} className="underline">
+                        see its card
+                      </a>
+                      ).
+                    </span>
+                  )}
                 </span>
               </li>
             ))}

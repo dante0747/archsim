@@ -1,11 +1,28 @@
 # Implementation status
 
-State as of 2026-10-31 (engine 0.14.0, schema 1.6, report 1.14). This file separates what is
+State as of 2026-10-31 (engine 0.15.0, schema 1.6, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Engine 0.15.0: the accuracy plan's four model changes together (2026-10-31; W21 to W24).**
+
+- The four workstreams below, merged on one branch: a single 1.5 -> 1.6 migration covers W21's
+  `serviceTimeByLoad` and W23's `consumerConcurrency` and `fetchOverheadMs`; each calibration
+  pass keeps W24's resource readings and W22's PostgreSQL statistics; each re-derived replicate
+  carries both the staircase (W24's memory fit) and `cpuByLoad` (W21).
+- In-sample re-simulation of every kept run with engine 0.15.0 (`docs/validation/dev-checks.md`,
+  clean tree at `83e1824`, a column per workstream and one for all four): median knee error over
+  the counted v5 runs pg-mixed +24%, pg-hot-row -7% (was -16%), cache-aside -34%, Kafka +4%;
+  median absolute knee error over the latest runs 20% -> 15% (24% over all 19 counted runs, as
+  before). These are runs the changes were tuned on, not predictions.
+- `report.py` flags a harness caveat (`HARNESS_CAVEATS`): every kept Kafka run had the broker
+  healthcheck W23 found, so its measured knees are the benchmark's. /accuracy shows the caveat
+  on Kafka's card and in the short version, and docs/validation.md in Kafka's section, until a
+  Kafka run is calibrated after the fix.
+- Not frozen in `benchmarks/engines.json` yet: the held-out experiments stay sealed.
 
 **Kafka: message age, fetch cycles, and a publish tail that was the harness's (2026-10-31; accuracy plan W23).**
 
@@ -1524,12 +1541,13 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. Accuracy plan W21 to W24, tuned on the four in-sample experiments only: GC pauses and CPU
-   per request that falls with load (W21), database inputs timed inside PostgreSQL (W22),
-   Kafka's publish tail, fetch cycle and message-age clock (W23), Redis CPU and service memory
-   (W24); then a predicted range that includes run-to-run calibration variation. Then freeze
-   engine 0.15.0, run the prospective campaign (both engines predict the five held-out
-   experiments before they are measured) and W25 (accuracy over time on /accuracy).
+1. Accuracy: freeze an engine in `benchmarks/engines.json` and run the prospective campaign
+   (0.14.0 and the frozen engine predict the five held-out experiments before they are
+   measured; the four in-sample ones are measured again, Kafka on the fixed stack), then W25
+   (accuracy over time on /accuracy). Open model work the campaign would test, in order: a CPU
+   cost that rises near full load (pg-mixed +24%) and how hyperthreaded vCPUs become capacity; a
+   CPU per request that keeps falling above the calibration staircase (cache-aside -34%); a
+   predicted range that includes run-to-run calibration variation (1 of 12 runs inside it).
 2. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured
    CPU and memory, apply with one click, verify over 5 seeds.
 3. Decide the tier thresholds (the owner; a proposal is in docs/validation.md), including
