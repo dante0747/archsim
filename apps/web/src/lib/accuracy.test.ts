@@ -14,6 +14,7 @@ import {
   lowLoadSentence,
   minus,
   p95Sentence,
+  coverageSentence,
   repeatSentence,
   spreadSentence,
   topStepText,
@@ -39,6 +40,7 @@ function exp(over: Partial<Experiment> & { error?: number | null; within?: boole
 
 const spread: Spread = {
   runs: 3,
+  disturbed: 0,
   minRps: 1895,
   maxRps: 3162.3,
   plusMinus: 0.25,
@@ -140,6 +142,7 @@ describe("plain-language lines", () => {
 describe("repeated runs", () => {
   const rep = (over: Partial<Repeatability>): Repeatability => ({
     runs: 1,
+    disturbed: 0,
     protocol: "v5",
     engineVersion: "0.15.0",
     errors: [-0.1],
@@ -154,7 +157,23 @@ describe("repeated runs", () => {
   });
 
   it("says how many runs the thresholds still need", () => {
-    expect(repeatSentence(exp({ repeatability: rep({}) }))).toBe("1 run under these conditions (protocol v5, engine 0.15.0); the thresholds need 3.");
+    expect(repeatSentence(exp({ repeatability: rep({}) }))).toBe("1 counted run under these conditions (protocol v5, engine 0.15.0); the thresholds need 3.");
+  });
+
+  it("says which runs were disturbed and left out", () => {
+    expect(repeatSentence(exp({ repeatability: rep({ disturbed: 2 }) }))).toBe(
+      "1 counted run under these conditions (protocol v5, engine 0.15.0); the thresholds need 3. " +
+        "2 disturbed runs are not counted: each missed the objective at one load step and met it at a higher one.",
+    );
+    const r = rep({ runs: 3, disturbed: 1, withRange: 3, inRange: 1, nominalCoverage: 0.5, text: { medianError: "+4%", errors: "+3% to +20%", coverage: "1 of 3" } });
+    expect(repeatSentence(exp({ repeatability: r }))).toBe(
+      "Over 3 runs under these conditions (protocol v5, engine 0.15.0) the knee error had a median of +4% (+3% to +20%). " +
+        "1 disturbed run is not counted: it missed the objective at one load step and met it at a higher one. " +
+        "The measured knee fell inside ArchSim's predicted range in 1 of 3 runs (expected about 50%).",
+    );
+    expect(spreadSentence(exp({ error: -0.1, spread: { ...spread, disturbed: 2 }, spreadExceedsError: true }))).toContain(
+      "over 3 runs on this machine (±25% around the middle, leaving out 2 disturbed runs)",
+    );
   });
 
   it("gives the median over repeated runs and how often the predicted range held", () => {
@@ -169,6 +188,15 @@ describe("repeated runs", () => {
       "Over 3 runs under these conditions (protocol v5, engine 0.15.0) the knee error had a median of −12% (−20% to −5%). " +
         "The measured knee fell inside ArchSim's predicted range in 2 of 3 runs (expected about 50%).",
     );
+  });
+
+  it("says how often the predicted range held the measured knee, and when it is too narrow", () => {
+    const summary = (withRange: number, inRange: number) => ({ ...accuracy.summary, coverage: { withRange, inRange } });
+    expect(coverageSentence(summary(12, 1))).toBe(
+      "ArchSim's predicted range for the knee held the measured one in 1 of 12 runs, where about 50% was expected: the range is too narrow.",
+    );
+    expect(coverageSentence(summary(12, 5))).toBe("ArchSim's predicted range for the knee held the measured one in 5 of 12 runs, where about 50% was expected.");
+    expect(coverageSentence(summary(0, 0))).toBeNull();
   });
 
   it("says nothing without a record of runs", () => {

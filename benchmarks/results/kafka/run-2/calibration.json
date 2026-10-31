@@ -1,0 +1,425 @@
+{
+  "experiment": "kafka",
+  "at": "2026-10-30T11:20:01Z",
+  "method": "two-pass slope, anchored at the calibration rate, settled first (v4)",
+  "settle": {
+    "at": "2026-10-30T11:16:33Z",
+    "seconds": 33.8,
+    "steps": [
+      "VACUUM ANALYZE",
+      "CHECKPOINT",
+      "30 s warm-up at 50 req/s"
+    ]
+  },
+  "capacityBoundRps": 657.0,
+  "passes": {
+    "low": {
+      "mix": "event:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 1.670355,
+        "p95": 3.984587,
+        "p99": 7.622855,
+        "mean": 1.9921791898734185,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 1501,
+        "produced": 1501,
+        "consumed": 0,
+        "wallMs": 38997.22969,
+        "cpuMs": 2284.489,
+        "cpuMsPerRequest": 1.5219780146568955,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "produced:measure": 1501
+        },
+        "timings": {
+          "kafka_send": {
+            "count": 1501,
+            "mean": 1.4361380659557652,
+            "median": 1.1263169999947422,
+            "p95": 3.3165069999959087,
+            "p99": 7.091910999995889
+          },
+          "handler": {
+            "count": 1501,
+            "mean": 1.461608983344548,
+            "median": 1.1497680000029504,
+            "p95": 3.3397660000046017,
+            "p99": 7.111594000001787
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.025470917388782807,
+            "median": 0.023145999999542255,
+            "p95": 0.03930300001229625,
+            "p99": 0.06264600000577047
+          }
+        }
+      },
+      "containerCpuMs": {
+        "producer": 2209.481,
+        "consumer": 2627.254,
+        "postgres": 1073.241,
+        "kafka": 19733.377
+      },
+      "consumer": {
+        "role": "consumer",
+        "requests": 0,
+        "produced": 0,
+        "consumed": 1501,
+        "wallMs": 38999.02596499999,
+        "cpuMs": 2709.873,
+        "cpuMsPerRequest": null,
+        "cpuMsPerMessage": 1.8053784143904064,
+        "counters": {
+          "consumed:measure": 1501
+        },
+        "timings": {
+          "db_insert": {
+            "count": 1501,
+            "mean": 1.7826658560957969,
+            "median": 1.721006000007037,
+            "p95": 2.273959999998624,
+            "p99": 2.5683719999942696
+          },
+          "consume": {
+            "count": 1501,
+            "mean": 1.8015891219186837,
+            "median": 1.7370519999967655,
+            "p95": 2.2970290000084788,
+            "p99": 2.6108920000115177
+          },
+          "consume_own": {
+            "count": 1501,
+            "mean": 0.01892326582288675,
+            "median": 0.016323000003467314,
+            "p95": 0.03062500001396984,
+            "p99": 0.05105400000320515
+          },
+          "end_to_end:measure": {
+            "count": 1501,
+            "mean": 3.603597601598934,
+            "median": 3,
+            "p95": 6,
+            "p99": 10
+          }
+        }
+      }
+    },
+    "high": {
+      "mix": "event:1",
+      "rateRps": 164,
+      "k6": {
+        "p50": 1.155804,
+        "p95": 3.301773,
+        "p99": 6.6004048000000015,
+        "mean": 1.4667288022759595,
+        "sent": 4921,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 4921,
+        "successRate": 1.0,
+        "throughputRps": 164.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 4921,
+        "produced": 4921,
+        "consumed": 0,
+        "wallMs": 38971.35243299999,
+        "cpuMs": 4418.965,
+        "cpuMsPerRequest": 0.897981101402154,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "produced:measure": 4921
+        },
+        "timings": {
+          "kafka_send": {
+            "count": 4921,
+            "mean": 1.0062755543587028,
+            "median": 0.7236569999950007,
+            "p95": 2.598828999995021,
+            "p99": 5.723400000002584
+          },
+          "handler": {
+            "count": 4921,
+            "mean": 1.031273071327026,
+            "median": 0.7488010000088252,
+            "p95": 2.6309300000139046,
+            "p99": 5.755517999990843
+          },
+          "own": {
+            "count": 4921,
+            "mean": 0.02499751696832313,
+            "median": 0.02218400000128895,
+            "p95": 0.038512000028276816,
+            "p99": 0.06225899999844842
+          }
+        }
+      },
+      "containerCpuMs": {
+        "producer": 4361.388,
+        "consumer": 5184.536,
+        "postgres": 2309.545,
+        "kafka": 23278.608
+      },
+      "consumer": {
+        "role": "consumer",
+        "requests": 0,
+        "produced": 0,
+        "consumed": 4921,
+        "wallMs": 38975.936439,
+        "cpuMs": 5239.056,
+        "cpuMsPerRequest": null,
+        "cpuMsPerMessage": 1.0646323917902865,
+        "counters": {
+          "consumed:measure": 4921
+        },
+        "timings": {
+          "db_insert": {
+            "count": 4921,
+            "mean": 1.5735607843934878,
+            "median": 1.448231999995187,
+            "p95": 2.140956000002916,
+            "p99": 3.010500000003958
+          },
+          "consume": {
+            "count": 4921,
+            "mean": 1.5909144944114706,
+            "median": 1.4648440000019036,
+            "p95": 2.1634670000057667,
+            "p99": 3.0336999999999534
+          },
+          "consume_own": {
+            "count": 4921,
+            "mean": 0.017353710017982697,
+            "median": 0.01515599999402184,
+            "p95": 0.024883000005502254,
+            "p99": 0.04402599998866208
+          },
+          "end_to_end:measure": {
+            "count": 4921,
+            "mean": 3.1099370046738466,
+            "median": 2,
+            "p95": 7,
+            "p99": 13
+          }
+        }
+      }
+    },
+    "write:1": {
+      "mix": "write:1",
+      "rateRps": 164,
+      "k6": {
+        "p50": 1.866603,
+        "p95": 2.789335,
+        "p99": 4.0684436,
+        "mean": 2.0108381507823587,
+        "sent": 4921,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 4921,
+        "successRate": 1.0,
+        "throughputRps": 164.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 4921,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 38998.75156600002,
+        "cpuMs": 3247.254,
+        "cpuMsPerRequest": 0.6598768542979069,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {
+          "db_write": {
+            "count": 4921,
+            "mean": 1.596841274334515,
+            "median": 1.4717129999771714,
+            "p95": 2.147228999994695,
+            "p99": 3.144934000010835
+          },
+          "handler": {
+            "count": 4921,
+            "mean": 1.6149454551920066,
+            "median": 1.490178999985801,
+            "p95": 2.1752099999866914,
+            "p99": 3.1917580000008456
+          },
+          "own": {
+            "count": 4921,
+            "mean": 0.018104180857491436,
+            "median": 0.016101000015623868,
+            "p95": 0.02769699998316355,
+            "p99": 0.04312899999786168
+          }
+        }
+      },
+      "containerCpuMs": {
+        "producer": 3194.163,
+        "consumer": 956.501,
+        "postgres": 2472.969,
+        "kafka": 15217.572
+      },
+      "consumer": {
+        "role": "consumer",
+        "requests": 0,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39006.232284,
+        "cpuMs": 1012.631,
+        "cpuMsPerRequest": null,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {}
+      }
+    },
+    "write_async:1": {
+      "mix": "write_async:1",
+      "rateRps": 164,
+      "k6": {
+        "p50": 0.926594,
+        "p95": 1.462257,
+        "p99": 2.0189064000000023,
+        "mean": 0.9658387352164199,
+        "sent": 4921,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 4921,
+        "successRate": 1.0,
+        "throughputRps": 164.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 4921,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39212.05104400002,
+        "cpuMs": 3105.815,
+        "cpuMsPerRequest": 0.6311349319244056,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {
+          "db_write_async": {
+            "count": 4921,
+            "mean": 0.5525598356024908,
+            "median": 0.5219609999912791,
+            "p95": 0.8377310000068974,
+            "p99": 1.201708000007784
+          },
+          "handler": {
+            "count": 4921,
+            "mean": 0.568639889656403,
+            "median": 0.5377220000082161,
+            "p95": 0.867394000000786,
+            "p99": 1.2321539999975357
+          },
+          "own": {
+            "count": 4921,
+            "mean": 0.0160800540539123,
+            "median": 0.014469000016106293,
+            "p95": 0.026149999990593642,
+            "p99": 0.03678499997477047
+          }
+        }
+      },
+      "containerCpuMs": {
+        "producer": 3034.817,
+        "consumer": 980.081,
+        "postgres": 2144.562,
+        "kafka": 15306.985
+      },
+      "consumer": {
+        "role": "consumer",
+        "requests": 0,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 39217.222947,
+        "cpuMs": 1057.056,
+        "cpuMsPerRequest": null,
+        "cpuMsPerMessage": null,
+        "counters": {},
+        "timings": {}
+      }
+    }
+  },
+  "discardedPasses": [],
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.59,
+        "p95": 1.0242
+      },
+      "how": "mean = Node's CPU per extra request between the passes: (4419 - 2284 ms) / (4921 - 1501 requests) = 0.6241 ms (at 50 req/s alone: 1.5220 ms); shape (p95/median 0.0385/0.0222 ms) from the handler's own time"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.0,
+      "how": "anchored: (measured median 1.156 ms - the model's median without it 1.364 ms at 164 req/s) / 2, one way, at least 0"
+    },
+    "measuredLowLoad": {
+      "rateRps": 164,
+      "p50": 1.155804,
+      "p95": 3.301773,
+      "p99": 6.6004048000000015,
+      "mean": 1.4667288022759595,
+      "sent": 4921,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 4921,
+      "successRate": 1.0,
+      "throughputRps": 164.03333333333333
+    },
+    "publishTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.7237,
+        "p95": 2.5988
+      },
+      "how": "producer.send with acks=all on one broker: median 0.724, p95 2.599 ms"
+    },
+    "consumerTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.0152,
+        "p95": 0.0249
+      },
+      "how": "consumer's own time per message (handling minus the INSERT): median 0.015, p95 0.025 ms"
+    },
+    "commitFlushMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.9498,
+        "p95": 1.3095
+      },
+      "how": "UPDATE with synchronous_commit on minus off: median 1.472 - 0.522 ms, p95 2.147 - 0.838 ms"
+    },
+    "writeServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.4985,
+        "p95": 1.1912
+      },
+      "how": "consumer's INSERT time (median 1.448, p95 2.141 ms) minus the flush median"
+    },
+    "dbCpuShare": {
+      "value": 0.2297,
+      "how": "PostgreSQL CPU per extra query between the passes (0.3615 ms) / mean query time (1.574 ms)"
+    },
+    "anchor": {
+      "rateRps": 164,
+      "measuredP50": 1.155804,
+      "modelP50WithoutClientLatency": 1.3638,
+      "residualMs": 0.208
+    }
+  }
+}

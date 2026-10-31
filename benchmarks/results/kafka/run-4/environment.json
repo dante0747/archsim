@@ -1,0 +1,82 @@
+{
+  "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+  "machineId": "i7-1165g7",
+  "os": "Windows-11-10.0.26300-SP0",
+  "powerMode": "Best performance",
+  "powerModeNote": "recorded afterwards, on 31 Oct 2026: the owner set Best performance before the baseline campaign, and it read Best performance just before the campaign started (22:19 on 30 Oct, Western European time) and again at 00:44 and 04:50 on 31 Oct",
+  "docker": "29.1.3 (linux/amd64)",
+  "dockerCpus": "8",
+  "dockerMemory": "8170176512",
+  "images": {
+    "postgres": "postgres:16-alpine",
+    "redis": "redis:7-alpine",
+    "kafka": "apache/kafka:3.8.0",
+    "k6": "grafana/k6:1.3.0",
+    "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+  },
+  "python": "3.12.13",
+  "cpusets": {
+    "producer": "2",
+    "consumer": "3",
+    "postgres": "4,5",
+    "kafka": "0,1",
+    "k6": "6,7"
+  },
+  "topology": {
+    "siblings": {
+      "0": [
+        0,
+        1
+      ],
+      "1": [
+        0,
+        1
+      ],
+      "2": [
+        2,
+        3
+      ],
+      "3": [
+        2,
+        3
+      ],
+      "4": [
+        4,
+        5
+      ],
+      "5": [
+        4,
+        5
+      ],
+      "6": [
+        6,
+        7
+      ],
+      "7": [
+        6,
+        7
+      ]
+    },
+    "physicalCores": {
+      "producer": 1,
+      "consumer": 1,
+      "postgres": 1,
+      "kafka": 1,
+      "k6": 1
+    },
+    "sharedCores": [
+      {
+        "containers": [
+          "producer",
+          "consumer"
+        ],
+        "cores": [
+          [
+            2,
+            3
+          ]
+        ]
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 """Fitted CPU and memory inputs against what pg-mixed run 5 measured, read from the committed
-results (benchmarks/results/pg-mixed); nothing starts Docker.
+results (benchmarks/results/pg-mixed/run-5); nothing starts Docker.
 
 Calibration fits the CPU share from CPU per request and memory from the working set
 (archsim_engine.calibration.resources). On the steps below the measured knee, as a calibration
@@ -28,7 +28,8 @@ from archsim_engine import run_simulation
 from archsim_engine.calibration.resources import MIN_PER_REQUEST_MB, fit_cpu_share, fit_memory
 from archsim_engine.load import mean_ms
 
-RESULTS = Path(__file__).resolve().parents[1] / "results" / "pg-mixed"
+# run 5 (protocol v4, 28 Oct 2026), kept in run-5/ since the baseline campaign of 30 Oct
+RESULTS = Path(__file__).resolve().parents[1] / "results" / "pg-mixed" / "run-5"
 
 
 def _load(name: str) -> Any:

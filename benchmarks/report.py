@@ -126,6 +126,8 @@ def load(exp: str, name: str, results: Path = RESULTS) -> dict[str, Any] | None:
 def pct(v: float | None, signed: bool = True) -> str:
     if v is None:
         return "-"
+    if signed and round(v * 100) == 0:  # not "-0%"
+        return "0%"
     return f"{v * 100:+.0f}%" if signed else f"{v * 100:.0f}%"
 
 
@@ -217,6 +219,8 @@ def history(results: Path = RESULTS) -> dict[str, list[dict[str, Any]]]:
                 # the hardware: an OS update on the same laptop is not a second machine
                 "machine": str(env.get("cpu")),
                 "os": env.get("os"),
+                # Windows' power mode, recorded since 31 Oct 2026 (None before: unknown)
+                "powerMode": env.get("powerMode"),
                 "engineVersion": pred.get("engineVersion"),
                 "measuredKnee": cmp_["measuredKnee"],
                 "predictedKnee": cmp_["predictedKnee"],
@@ -242,9 +246,21 @@ REPEAT_SHARE = 2 / 3
 """Criteria 2 and 3a must hold in at least this share of those runs (2 of 3, 4 of 5)."""
 
 
+def disturbed_steps(rows: Sequence[Mapping[str, Any]]) -> list[float]:
+    """The load steps that missed the objective below a higher step that met it. A stable stack
+    does not get faster with more load, so such a miss was a disturbance, not the stack's limit:
+    in pg-mixed's first two runs of 30 October every container's CPU per request rose 2-3x at
+    once while none was more than half busy. The knee is set by the first miss
+    (``run.grid_knee``), so a run with one is not a measurement of the stack: it is kept and
+    shown, but not counted (``counted``)."""
+    rows = sorted(rows, key=lambda r: r["offeredRps"])
+    met = [bench.meets({k: r["measured"].get(k) for k in ("p95", "successRate")}) for r in rows]
+    return [r["offeredRps"] for i, r in enumerate(rows) if not met[i] and any(met[i + 1 :])]
+
+
 def run_checks(cmp_: Mapping[str, Any]) -> dict[str, Any]:
     """One run's own knee error and criteria 2 and 3a: at or below its measured knee, the steps
-    whose p95 missed and the unstable ones."""
+    whose p95 missed and the unstable ones; and its disturbed steps (``disturbed_steps``)."""
     below = bench.at_or_below_knee(cmp_["rows"], cmp_["measuredKnee"])
     misses = [
         r["offeredRps"]
@@ -259,33 +275,43 @@ def run_checks(cmp_: Mapping[str, Any]) -> dict[str, Any]:
         "unstable": unstable,
         "p95Pass": bool(below) and not misses,
         "stablePass": bool(below) and not unstable,
+        "disturbed": disturbed_steps(cmp_["rows"]),
     }
 
 
+def counted(run: Mapping[str, Any]) -> bool:
+    """Whether a kept run (``history``) counts towards the criteria, the repeatability and the
+    spread: not when it was disturbed (``disturbed_steps``)."""
+    return not (run.get("checks") or {}).get("disturbed")
+
+
 def comparable(runs: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
-    """The kept runs that repeat the latest one: same protocol, machine, OS build and engine.
-    Their spread is run-to-run noise; across any of those it is not."""
+    """The kept runs that repeat the latest one: same protocol, machine, OS build, power mode and
+    engine. Their spread is run-to-run noise; across any of those it is not."""
     if not runs:
         return []
     last = runs[-1]
-    keys = ("protocol", "machine", "os", "engineVersion")
+    keys = ("protocol", "machine", "os", "powerMode", "engineVersion")
     return [r for r in runs if all(r.get(k) == last.get(k) for k in keys)]
 
 
 def repeatability(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
-    """How the latest run's conditions repeated (``comparable``): the knee errors, their median
-    and range, and how often the measured knee fell inside the predicted range."""
-    group = comparable(runs)
-    if not group:
+    """How the latest run's conditions repeated (``comparable``, without the disturbed runs):
+    the knee errors, their median and range, and how often the measured knee fell inside the
+    predicted range."""
+    alike = comparable(runs)
+    if not alike:
         return None
+    group = [r for r in alike if counted(r)]
     errs = [r["kneeError"] for r in group if r.get("kneeError") is not None]
     ranged = [r["kneeRange"] for r in group if r.get("kneeRange")]
     hits = sum(1 for g in ranged if g.get("containsMeasured"))
     med = bench.median(errs)
     lo, hi = (min(errs), max(errs)) if errs else (None, None)
-    last = group[-1]
+    last = alike[-1]
     return {
         "runs": len(group),
+        "disturbed": len(alike) - len(group),
         "protocol": last.get("protocol"),
         "engineVersion": last.get("engineVersion"),
         "errors": errs,
@@ -297,7 +323,7 @@ def repeatability(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
         "nominalCoverage": ranged[-1].get("nominalCoverage") if ranged else None,
         "text": {
             "medianError": pct(med),
-            "errors": pct(lo) if len(errs) == 1 else f"{pct(lo)} to {pct(hi)}",
+            "errors": pct(lo) if len(errs) <= 1 else f"{pct(lo)} to {pct(hi)}",
             "coverage": f"{hits} of {len(ranged)}" if ranged else "-",
         },
     }
@@ -322,10 +348,12 @@ def criteria(cmp_: Mapping[str, Any], runs: Sequence[Mapping[str, Any]]) -> dict
     3. no unstable step at or below the measured knee, in at least REPEAT_SHARE of the runs (3a);
        reproduced in a second run under the same protocol on another machine (3b).
 
-    The misses and unstable steps listed are the compared run's."""
+    Disturbed runs (``disturbed_steps``) are not counted. The misses and unstable steps listed
+    are the compared run's."""
     this = run_checks(cmp_)
     group = comparable(runs)
-    checks = [*(r["checks"] for r in group[:-1] if "checks" in r), this]
+    alike = [*(r["checks"] for r in group[:-1] if "checks" in r), this]
+    checks = [c for c in alike if not c.get("disturbed")]
     n = len(checks)
     errs = [c["kneeError"] for c in checks if c["kneeError"] is not None]
     med = bench.median(errs)
@@ -340,6 +368,7 @@ def criteria(cmp_: Mapping[str, Any], runs: Sequence[Mapping[str, Any]]) -> dict
             "pass": n >= MIN_RUNS and med is not None and abs(med) <= KNEE_TOLERANCE,
             "error": med,
             "runs": n,
+            "disturbedRuns": len(alike) - n,
             "thisRun": cmp_["kneeError"],
         },
         "p95": {
@@ -384,23 +413,28 @@ def knee_spread(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
     """How far the measured knee moved between the kept runs of one experiment (``history``) on
     the latest run's machine and OS build, or None with fewer than two such runs that measured
     one. An OS update is not run-to-run noise: Windows build 26300 and its WSL kernel moved
-    Kafka's knee from 945 to 2,040 req/s on the same laptop. Every
+    Kafka's knee from 945 to 2,040 req/s on the same laptop. Nor is the power mode: Best
+    performance moved cache-aside's from 4,848 to about 7,000, so the runs must share it too (an
+    unrecorded mode is not the same as a recorded one). Every
     protocol counts, as in docs/validation.md's headline: the protocols differ in the
     calibration, and the knee is found the same way in each (run 1 measured each step once
-    rather than three times). ``plusMinus`` is half the range over its middle: 1,000 to 3,000
-    req/s is +/-50%."""
-    where = (runs[-1]["machine"], runs[-1].get("os")) if runs else None
-    knees = [
-        (r, r["measuredKnee"]["kneeRps"])
-        for r in runs
-        if (r["machine"], r.get("os")) == where and r["measuredKnee"].get("kneeRps") is not None
-    ]
+    rather than three times). Disturbed runs (``disturbed_steps``) are left out: their knee is not
+    the stack's. ``plusMinus`` is half the range over its middle: 1,000 to 3,000 req/s is
+    +/-50%."""
+
+    def at(r: Mapping[str, Any]) -> tuple[Any, ...]:
+        return (r["machine"], r.get("os"), r.get("powerMode"))
+
+    where = at(runs[-1]) if runs else None
+    here = [r for r in runs if at(r) == where and r["measuredKnee"].get("kneeRps") is not None]
+    knees = [(r, r["measuredKnee"]["kneeRps"]) for r in here if counted(r)]
     if len(knees) < 2:
         return None
     lo, hi = min(k for _, k in knees), max(k for _, k in knees)
     plus_minus = (hi - lo) / (hi + lo)
     return {
         "runs": len(knees),
+        "disturbed": len(here) - len(knees),
         "minRps": lo,
         "maxRps": hi,
         "plusMinus": plus_minus,
@@ -602,24 +636,34 @@ def repeatability_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
             if r["withRange"]
             else "no range (protocol v5 adds it)"
         )
+        disturbed = f"; {r['disturbed']} disturbed, not counted" if r["disturbed"] else ""
         lines.append(
-            f"| [{exp}](#{exp}) | {r['runs']} ({r['protocol']}, engine {r['engineVersion']}) | "
-            f"{r['text']['medianError']} | {r['text']['errors']} | {cov} |"
+            f"| [{exp}](#{exp}) | {r['runs']} ({r['protocol']}, engine {r['engineVersion']}"
+            f"{disturbed}) | {r['text']['medianError']} | {r['text']['errors']} | {cov} |"
         )
     lines += [
         "",
         f"The tier criteria below judge the median over at least {MIN_RUNS} such runs. Protocol "
         "v5 predicts a range for the knee from its replicate calibration sets; with R sets a "
         "new run's knee should fall inside it (R - 1) / (R + 1) of the time (50% for 3), the "
-        "nominal coverage.",
+        "nominal coverage. A disturbed run missed the objective at one load step and met it at "
+        "a higher one; it is kept and listed under the run history, but not counted.",
     ]
     return "\n".join(lines)
 
 
+def counted_text(r: Mapping[str, Any]) -> str:
+    """The history table's "Counted" cell: no for a disturbed run, with the steps it missed."""
+    steps = (r.get("checks") or {}).get("disturbed")
+    if not steps:
+        return "yes"
+    return f"no: missed at {rps_list(steps)}, met higher"
+
+
 def history_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
     lines = [
-        "| Experiment | Results | Protocol | Calibrated (UTC) | Knee measured | Knee predicted | Knee error |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Experiment | Results | Protocol | Calibrated (UTC) | Knee measured | Knee predicted | Knee error | Counted |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for exp in ORDER:
         for r in hist.get(exp, []):
@@ -627,7 +671,7 @@ def history_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
             lines.append(
                 f"| {exp} | {where} | {r['protocol']} | {r['calibratedAt'] or '-'} | "
                 f"{knee_text(r['measuredKnee'])} req/s | {knee_text(r['predictedKnee'])} req/s | "
-                f"{pct(r['kneeError'])} |"
+                f"{pct(r['kneeError'])} | {counted_text(r)} |"
             )
     return "\n".join(lines)
 
@@ -771,10 +815,12 @@ def tiers_block(cmps: list[dict[str, Any]], hist: Mapping[str, Sequence[Mapping[
         met[exp] = k["all"]
         n = k["knee"]["runs"]
         few = f"{n} run{'s' if n != 1 else ''}, {MIN_RUNS} needed"
+        d = k["knee"]["disturbedRuns"]
+        left_out = f"; {d} disturbed run{'s' if d != 1 else ''} not counted" if d else ""
         if n < MIN_RUNS:
-            knee = f"no: {few} (this run {pct(k['knee']['thisRun'])})"
+            knee = f"no: {few} (this run {pct(k['knee']['thisRun'])}){left_out}"
         else:
-            knee = f"{'yes' if k['knee']['pass'] else 'no'} (median {pct(k['knee']['error'])} over {n} runs)"
+            knee = f"{'yes' if k['knee']['pass'] else 'no'} (median {pct(k['knee']['error'])} over {n} runs{left_out})"
         p = k["p95"]
         if not p["steps"]:
             p95 = "no: no step at or below the measured knee"
@@ -839,10 +885,11 @@ def stack_cpusets(exp: str, env: Mapping[str, Any]) -> tuple[dict[str, str], boo
 
 
 def machine_text(env: Mapping[str, Any]) -> str:
-    """CPU; Docker version with its CPUs and memory; OS."""
+    """CPU; Docker version with its CPUs and memory; OS (and its power mode, when recorded)."""
+    mode = f" ({env['powerMode']})" if env.get("powerMode") else ""
     return (
         f"{env.get('cpu')}; Docker {env.get('docker')} with {env.get('dockerCpus')} CPUs and "
-        f"{int(env.get('dockerMemory') or 0) / 2**30:.1f} GiB; {env.get('os')}"
+        f"{int(env.get('dockerMemory') or 0) / 2**30:.1f} GiB; {env.get('os')}{mode}"
     )
 
 
@@ -937,7 +984,7 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
         out.append(f"| `{name}` | {input_value(name, item['value'])} | {item['how']} |")
     out += [
         "",
-        f"Measured in the calibration pass at {low.get('rateRps', rate_high):g} req/s: "
+        f"Measured in the calibration pass at {rps(low.get('rateRps', rate_high))} req/s: "
         f"p50 {ms(low.get('p50'))} ms, p95 {ms(low.get('p95'))} ms.",
         "",
         "| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |"
@@ -1179,6 +1226,7 @@ def environment_json(exp: str, env: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "cpu": env.get("cpu"),
         "os": env.get("os"),
+        "powerMode": env.get("powerMode"),
         "docker": env.get("docker"),
         "dockerCpus": int(cpus) if isinstance(cpus, str) and cpus.isdigit() else cpus,
         "dockerMemoryGiB": round(int(env.get("dockerMemory") or 0) / 2**30, 1),
@@ -1247,6 +1295,8 @@ def experiment_json(
             },
         },
         "kneeRange": c.get("kneeRange"),
+        # the steps this run missed below one it met: then it is not counted (disturbed_steps)
+        "disturbed": disturbed_steps(c["rows"]),
         "repeatability": repeatability(runs),
         "spread": spread,
         "spreadExceedsError": bool(spread and e is not None and spread["plusMinus"] > abs(e)),
@@ -1333,6 +1383,8 @@ def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
                 "withRange": sum((x["repeatability"] or {}).get("withRange", 0) for x in exps),
                 "inRange": sum((x["repeatability"] or {}).get("inRange", 0) for x in exps),
             },
+            # kept runs left out of the criteria, the repeatability and the spread
+            "disturbedRuns": sum(1 for r in all_runs if not counted(r)),
             "heldOut": [x["id"] for x in exps if x["sample"] == "held-out"],
             "technologies": technology_status({x["id"]: x["criteria"]["all"] for x in exps}),
         },

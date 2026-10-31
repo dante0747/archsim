@@ -1,0 +1,246 @@
+{
+  "experiment": "cache-aside",
+  "at": "2026-10-30T10:50:27Z",
+  "method": "two-pass slope, anchored at the calibration rate, settled first (v4)",
+  "settle": {
+    "at": "2026-10-30T10:48:40Z",
+    "seconds": 33.0,
+    "steps": [
+      "VACUUM ANALYZE",
+      "CHECKPOINT",
+      "30 s warm-up at 50 req/s"
+    ]
+  },
+  "capacityBoundRps": 890.2,
+  "passes": {
+    "low": {
+      "mix": "cached:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 1.744163,
+        "p95": 3.761635,
+        "p99": 5.146405,
+        "mean": 1.9381984610259801,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 1501,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 38072.621788000004,
+        "cpuMs": 1686.125,
+        "cpuMsPerRequest": 1.1233344437041972,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_miss:measure": 897,
+          "cache_hit:measure": 604
+        },
+        "timings": {
+          "redis_get": {
+            "count": 1501,
+            "mean": 0.46147461558948505,
+            "median": 0.3941800000029616,
+            "p95": 0.8506449999986216,
+            "p99": 1.530892999988282
+          },
+          "db_read": {
+            "count": 897,
+            "mean": 0.8652327056855453,
+            "median": 0.7084669999894686,
+            "p95": 1.656604999996489,
+            "p99": 2.5852750000049127
+          },
+          "redis_set": {
+            "count": 897,
+            "mean": 0.32220895094748186,
+            "median": 0.25840099999913946,
+            "p95": 0.6881830000056652,
+            "p99": 1.3406519999989541
+          },
+          "handler": {
+            "count": 1501,
+            "mean": 1.2106868694203758,
+            "median": 1.1150979999947594,
+            "p95": 2.770219999998517,
+            "p99": 3.923011000006227
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.039595221186103736,
+            "median": 0.03308800000377232,
+            "p95": 0.07364200001757126,
+            "p99": 0.1231060000063735
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 1705.453,
+        "postgres": 991.062,
+        "redis": 503.169
+      },
+      "redis": {
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 32.0
+        },
+        "get": {
+          "calls": 1501.0,
+          "usec": 9629.0
+        },
+        "set": {
+          "calls": 897.0,
+          "usec": 10675.0
+        }
+      }
+    },
+    "high": {
+      "mix": "cached:1",
+      "rateRps": 223,
+      "k6": {
+        "p50": 0.927499,
+        "p95": 2.0874935,
+        "p99": 3.685763500000004,
+        "mean": 1.061746743237186,
+        "sent": 6691,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 6691,
+        "successRate": 1.0,
+        "throughputRps": 223.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "requests": 6691,
+        "produced": 0,
+        "consumed": 0,
+        "wallMs": 38428.647110000005,
+        "cpuMs": 3893.88,
+        "cpuMsPerRequest": 0.5819578538335077,
+        "cpuMsPerMessage": null,
+        "counters": {
+          "cache_hit:measure": 3625,
+          "cache_miss:measure": 3066
+        },
+        "timings": {
+          "redis_get": {
+            "count": 6691,
+            "mean": 0.26279648512929443,
+            "median": 0.21286699999473058,
+            "p95": 0.47199199999158736,
+            "p99": 1.0443240000022342
+          },
+          "handler": {
+            "count": 6691,
+            "mean": 0.6249448181138352,
+            "median": 0.45543699999689125,
+            "p95": 1.4043779999919934,
+            "p99": 2.4503229999972973
+          },
+          "own": {
+            "count": 6691,
+            "mean": 0.02091867209676593,
+            "median": 0.016860999996424653,
+            "p95": 0.03925600000366103,
+            "p99": 0.08049599999503698
+          },
+          "db_read": {
+            "count": 3066,
+            "mean": 0.5420335691453558,
+            "median": 0.5037870000087423,
+            "p95": 0.8280099999974482,
+            "p99": 1.495574000000488
+          },
+          "redis_set": {
+            "count": 3066,
+            "mean": 0.20263951011103729,
+            "median": 0.17378399999870453,
+            "p95": 0.33553899999242276,
+            "p99": 0.7355670000106329
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api": 3905.869,
+        "postgres": 1416.164,
+        "redis": 921.42
+      },
+      "redis": {
+        "config|resetstat": {
+          "calls": 1.0,
+          "usec": 41.0
+        },
+        "get": {
+          "calls": 6691.0,
+          "usec": 29425.0
+        },
+        "set": {
+          "calls": 3066.0,
+          "usec": 25341.0
+        }
+      }
+    }
+  },
+  "discardedPasses": [],
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.3728,
+        "p95": 0.8679
+      },
+      "how": "mean = Node's CPU per extra request between the passes: (3894 - 1686 ms) / (6691 - 1501 requests) = 0.4254 ms (at 50 req/s alone: 1.1233 ms); shape (p95/median 0.0393/0.0169 ms) from the handler's own time"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.0398,
+      "how": "anchored: (measured median 0.927 ms - the model's median without it 0.848 ms at 223 req/s) / 2, one way, at least 0"
+    },
+    "measuredLowLoad": {
+      "rateRps": 223,
+      "p50": 0.927499,
+      "p95": 2.0874935,
+      "p99": 3.685763500000004,
+      "mean": 1.061746743237186,
+      "sent": 6691,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 6691,
+      "successRate": 1.0,
+      "throughputRps": 223.03333333333333
+    },
+    "readServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.5038,
+        "p95": 0.828
+      },
+      "how": "SELECT by key as the service sees it (round trip): median 0.504, p95 0.828 ms"
+    },
+    "dbCpuShare": {
+      "value": 0.3616,
+      "how": "PostgreSQL CPU per extra query between the passes (0.1960 ms) / mean query time (0.542 ms)"
+    },
+    "cacheServiceTimeMs": {
+      "value": {
+        "kind": "exponential",
+        "mean": 0.00561
+      },
+      "how": "Redis INFO commandstats: 54766 us over 9757 GET/SET calls"
+    },
+    "cacheLinkLatencyMs": {
+      "value": 0.1036,
+      "how": "(GET round trip median 0.213 ms - Redis's own time 0.0056 ms) / 2, one way"
+    },
+    "anchor": {
+      "rateRps": 223,
+      "measuredP50": 0.927499,
+      "modelP50WithoutClientLatency": 0.8479,
+      "residualMs": 0.0
+    }
+  }
+}

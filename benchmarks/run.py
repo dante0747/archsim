@@ -2319,11 +2319,20 @@ LATENCY_FIELDS = ("p50", "p95", "p99", "successRate", "throughputRps")
 
 def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str, Any]:
     """A run's model inputs derived again from its calibration passes alone, and anchored again,
-    as calibrate() would with today's code."""
+    as calibrate() would with today's code: under protocol v5 one set per replicate (each top
+    pass with its auxiliary mixes, the staircase's first pass and the idle pass), and their
+    medians (``median_inputs``)."""
     passes = calibration["passes"]
-    inputs = model_inputs(exp, passes)
-    anchor(exp, inputs, passes["high"])
-    return inputs
+    sets = [
+        {**r, "low": passes["low"], "idle": passes.get("idle", calibration.get("idle"))}
+        for r in calibration.get("replicates") or []
+    ]
+    derived = []
+    for s in sets or [passes]:
+        inputs = model_inputs(exp, s)
+        anchor(exp, inputs, s["high"])
+        derived.append(inputs)
+    return median_inputs(derived) if sets else derived[0]
 
 
 def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] | None:
@@ -2591,12 +2600,39 @@ def provenance() -> dict[str, Any]:
     }
 
 
+POWER_MODES = {
+    "961cc777-2547-4f9d-8174-7d86181b8a7a": "Best power efficiency",
+    "00000000-0000-0000-0000-000000000000": "Balanced",
+    "ded574b5-45a0-4f42-8737-46345c09c238": "Best performance",
+}
+"""Windows 11's power modes (Settings > System > Power), by the overlay scheme each sets."""
+
+
+def power_mode() -> str | None:
+    """Windows' power mode on mains power, or None elsewhere or when it cannot be read. It moves
+    the knee: on the laptop, Best performance raised pg-mixed's from 2,430 to about 4,000 req/s
+    and cache-aside's from 4,848 to about 7,000 (docs/validation.md), so runs under different
+    modes are not repeats of each other."""
+    if sys.platform != "win32":
+        return None
+    import winreg
+
+    key = r"SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key) as k:
+            guid, _ = winreg.QueryValueEx(k, "ActiveOverlayAcPowerScheme")
+    except OSError:
+        return None
+    return POWER_MODES.get(str(guid).lower(), str(guid))
+
+
 def environment() -> dict[str, Any]:
     cpu = cpu_name()
     return {
         "cpu": cpu,
         "machineId": machine_id(cpu),
         "os": platform.platform(),
+        "powerMode": power_mode(),
         "docker": _run(
             "docker", "version", "--format", "{{.Server.Version}} ({{.Server.Os}}/{{.Server.Arch}})"
         ),

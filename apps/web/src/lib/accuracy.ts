@@ -40,6 +40,8 @@ export interface SpreadRun {
 
 export interface Spread {
   runs: number;
+  /** Runs on this machine, OS build and power mode left out because they were disturbed. */
+  disturbed: number;
   minRps: number;
   maxRps: number;
   plusMinus: number;
@@ -59,7 +61,7 @@ export interface LowLoadStep {
 
 /** Criteria 1, 2 and 3a are judged over the runs that repeat the latest (`runs` of them, 3 needed). */
 export interface Criteria {
-  knee: { pass: boolean; error: number | null; runs: number; thisRun: number | null };
+  knee: { pass: boolean; error: number | null; runs: number; disturbedRuns: number; thisRun: number | null };
   p95: { pass: boolean; steps: number; misses: number[]; runs: number; runsPassing: number };
   stable: { pass: boolean; unstable: number[]; runs: number; runsPassing: number };
   reproduced: { pass: boolean; protocol: string | null; runs: number; machines: number };
@@ -69,6 +71,8 @@ export interface Criteria {
 export interface Environment {
   cpu: string | null;
   os: string | null;
+  /** Windows' power mode, recorded since 31 Oct 2026. */
+  powerMode: string | null;
   docker: string | null;
   dockerCpus: number | string | null;
   dockerMemoryGiB: number;
@@ -133,7 +137,9 @@ export interface KneeRange {
 }
 
 export interface Repeatability {
+  /** Counted runs: the disturbed ones are left out. */
   runs: number;
+  disturbed: number;
   protocol: string | null;
   engineVersion: string | null;
   errors: number[];
@@ -171,7 +177,9 @@ export interface Experiment {
   };
   /** ArchSim's predicted range for the knee (protocol v5: one knee per replicate calibration set). */
   kneeRange: KneeRange | null;
-  /** The runs that repeat this one: same protocol, machine, OS build and engine. */
+  /** Load steps this run missed below one it met: then it was disturbed and is not counted. */
+  disturbed: number[];
+  /** The runs that repeat this one: same protocol, machine, OS build, power mode and engine. */
   repeatability: Repeatability | null;
   spread: Spread | null;
   spreadExceedsError: boolean;
@@ -199,11 +207,15 @@ export interface HistoryRun {
   /** The hardware (its CPU); an OS update on it is not a second machine. */
   machine: string;
   os: string | null;
+  /** Windows' power mode, recorded since 31 Oct 2026; null when unknown. */
+  powerMode: string | null;
   engineVersion: string | null;
   measuredKnee: Knee;
   predictedKnee: Knee;
   kneeError: number | null;
   kneeRange: { lowRps: number; highRps: number; nominalCoverage: number; containsMeasured: boolean | null } | null;
+  /** The run's own checks; `disturbed` lists the steps it missed below one it met (then it is not counted). */
+  checks: { kneeError: number | null; disturbed: number[] };
   text: { measuredKnee: string; predictedKnee: string; kneeError: string };
 }
 
@@ -229,6 +241,8 @@ export interface Accuracy {
     /** Experiments whose latest conditions ran at least 3 times. */
     repeated: string[];
     coverage: { withRange: number; inRange: number };
+    /** Kept runs left out of the criteria, repeatability and spread because they were disturbed. */
+    disturbedRuns: number;
     technologies: { name: string; experiments: string[]; validated: boolean }[];
   };
   experiments: Experiment[];
@@ -353,18 +367,34 @@ export function repeatSentence(x: Experiment, minRuns = 3): string {
   const where = `protocol ${r.protocol ?? "-"}, engine ${r.engineVersion ?? "-"}`;
   const head =
     r.runs < minRuns
-      ? `${r.runs} run${r.runs === 1 ? "" : "s"} under these conditions (${where}); the thresholds need ${minRuns}.`
+      ? `${r.runs} counted run${r.runs === 1 ? "" : "s"} under these conditions (${where}); the thresholds need ${minRuns}.`
       : `Over ${r.runs} runs under these conditions (${where}) the knee error had a median of ${minus(r.text.medianError)} (${minus(r.text.errors)}).`;
-  if (!r.withRange) return head;
+  const left = r.disturbed
+    ? ` ${r.disturbed} disturbed run${r.disturbed === 1 ? " is" : "s are"} not counted: ${r.disturbed === 1 ? "it" : "each"} missed the objective at one load step and met it at a higher one.`
+    : "";
+  if (!r.withRange) return head + left;
   const nominal = r.nominalCoverage === null ? "" : ` (expected about ${Math.round(r.nominalCoverage * 100)}%)`;
-  return `${head} The measured knee fell inside ArchSim's predicted range in ${r.text.coverage} runs${nominal}.`;
+  return `${head}${left} The measured knee fell inside ArchSim's predicted range in ${r.text.coverage} runs${nominal}.`;
+}
+
+/**
+ * How often ArchSim's predicted range held the measured knee, over every experiment's runs under its latest conditions,
+ * against the nominal coverage (about half, with three replicate sets). Null before any run had a range.
+ */
+export function coverageSentence(s: Accuracy["summary"], nominal = 0.5): string | null {
+  const { withRange, inRange } = s.coverage;
+  if (!withRange) return null;
+  const head = `ArchSim's predicted range for the knee held the measured one in ${inRange} of ${withRange} runs, where about ${Math.round(nominal * 100)}% was expected`;
+  // under half the nominal share is unlikely by chance: with 12 runs at 50%, 2 or fewer happen about 2% of the time
+  return inRange / withRange < nominal / 2 ? `${head}: the range is too narrow.` : `${head}.`;
 }
 
 /** What the run-to-run spread says next to the knee error. */
 export function spreadSentence(x: Experiment): string {
   const s = x.spread;
-  if (!s) return x.runs > 1 ? "No second run measured a knee on this machine and OS build yet, so its run-to-run spread is unknown." : "Measured once so far, so its run-to-run spread is unknown.";
-  const head = `The measured knee ranged from ${s.text} over ${s.runs} runs on this machine (${s.plusMinusText} around the middle)`;
+  if (!s) return x.runs > 1 ? "No second run measured a knee on this machine, OS build and power mode yet, so its run-to-run spread is unknown." : "Measured once so far, so its run-to-run spread is unknown.";
+  const left = s.disturbed ? `, leaving out ${s.disturbed} disturbed run${s.disturbed === 1 ? "" : "s"}` : "";
+  const head = `The measured knee ranged from ${s.text} over ${s.runs} runs on this machine (${s.plusMinusText} around the middle${left})`;
   if (x.knee.error === null) return `${head}.`;
   return x.spreadExceedsError
     ? `${head}: wider than the ${minus(x.knee.text.error)} error, which is inside run-to-run noise.`
