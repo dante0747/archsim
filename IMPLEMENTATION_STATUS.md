@@ -156,6 +156,68 @@ accuracy plan W21).**
   edits the curve, a run carries it, and the explanation reads "Service time at this load:
   10.18 ms x 2.2831 at 201 req/s per replica".
 
+**Database inputs from PostgreSQL's own statistics (2026-10-31; accuracy plan W22, label
+0.15.0-w22).**
+
+- In-sample, re-simulated on the counted v5 runs (three each; `docs/validation/dev-checks.md`
+  for the knees). PostgreSQL busy cores: the error at the highest load step at or below both
+  knees, median of the runs.
+
+  | Experiment | Median knee error, 0.14.0 → W22 | PostgreSQL busy cores, 0.14.0 → W22 |
+  | --- | --- | --- |
+  | pg-mixed | +24% → +24% (each run moved 0%) | -39% → -11% |
+  | pg-hot-row | -16% → -7% (runs: -19/0/-16% → -11/+10/-7%) | -70% → -11% |
+  | cache-aside | -34% → -34% (each run moved 0%) | -16% → -8% |
+  | Kafka | +4% → +4% (each run moved 0%) | -50% → -4% |
+
+  Median absolute knee error: 20% → 15% over the latest run of each experiment, 24% → 24% over
+  all 19 counted runs. Runs before protocol v5 have no CPU figure for the pass without the
+  flush, so their database keeps the measured round trips, as in 0.14.0, and only the flush is
+  fitted: their knees are 0.14.0's within 1%, except pg-mixed run 3 (808 → 873 req/s), whose
+  flush's p95 was 14 times its median. The engine is unchanged (only the label), so example
+  `resultDigest`s are too.
+
+- **PostgreSQL's CPU (fixed).** `dbCpuShare` was PostgreSQL's CPU per query over the mean
+  query time the service measured, a write's WAL flush and the measured tail included, while
+  the model spends the share of the time it samples (writes without the flush, which uses no
+  CPU, from a lognormal whose mean is lower). It now divides by the model's own mean
+  (`mean_ms`, the engine's `expected()`), as `calibration/apply.py` already did for customers.
+- **A query's time in PostgreSQL is its CPU per query** (net of idle, shaped like the measured
+  round trip), and the rest of the round trip (Node's driver, the network) is a new input,
+  `dbLinkLatencyMs`, on the service-to-database edges: two lognormal legs that keep the round
+  trip's mean and variance, so the model's round trip is unchanged. W22's trial found the
+  backends busy on the CPU for nearly all of PostgreSQL's time (the WAL writer and other
+  processes use under 0.01 ms per query). hot-row's row lock is no longer held for the driver
+  and network time; the share comes out at about 1.
+- **The WAL flush.** With PostgreSQL's statistics, `commitFlushMs` is pg_stat_wal's mean flush
+  time (write + sync per sync) on the top pass. Without them (every kept run), it is fitted in
+  a PostgreSQL-only copy of the model (`fit_flush`) so the model's writes wait as long for
+  their row lock and flush as the service measured (synchronous_commit on minus off, from the
+  medians: a mean takes in Node's stalls). On the trial's passes PostgreSQL's flush was 3% to
+  16% longer than the fitted one (hot-row 0.79 against 0.73 ms), so kept runs score slightly
+  better than calibrations with the statistics will. The model's commits per flush are kept
+  next to PostgreSQL's in `calibration.json` (both about 1.0 at every top pass).
+- **Calibration reads PostgreSQL's own statistics** (`compose.yaml` loads `pg_stat_statements`
+  and sets `track_wal_io_timing`; `init.sql` creates the extension): each pass records the
+  statements' executor time, the WAL flushes and their time, commits, the backends' active
+  time and each kind of PostgreSQL process's CPU (`pg_begin`, `pg_end`). Statements are matched
+  by what they do, not their text, so the held-out services' drivers are read too.
+- **Trial** (`benchmarks/results/trials/2026-10-31-*-w22/`, development data): the UPDATE takes
+  0.03 to 0.06 ms in the executor and its flush 0.79 ms, while PostgreSQL's CPU per UPDATE is
+  0.19 to 0.23 ms; the flush falls with load (1.6 ms at 50 req/s, 1.06 at 196, 0.79 from about
+  400); Kafka's INSERTs share flushes as load rises (1.5 commits per flush at 1,200 req/s).
+- Not improved: Kafka's consumer cap (1,383 → 1,404 messages/s against about 1,650 measured;
+  W23's fetch cycle), pg-mixed's +24% (the model's knee is Node's CPU, W21), hot-row's lock
+  still held for PostgreSQL's own protocol work (about 0.15 ms per UPDATE: the engine has no
+  server time outside a row lock), and a flush and CPU per query that fall with load.
+- Hyperthreads (W21's trial: at 4,455 req/s PostgreSQL used 1.0 of its two CPUs, hyperthread
+  siblings, at 0.257 ms per query against 0.162 at 3,712): giving the model's PostgreSQL its one
+  physical core instead of two CPUs moves pg-mixed's p95 by 0.07 to 0.5 ms at 3,712 to 4,950
+  req/s and not its knee, which is Node's CPU in the model (0.90 cores at 4,455, 1.00 at 4,950).
+  How vCPUs that are hyperthreads become capacity is an engine question for services and
+  databases alike (the held-out services also run on one sibling pair), so it is left to a
+  workstream of its own.
+
 **Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
 
 - Three runs of each of the four experiments with engine 0.14.0 (tag `bench-baseline-0.14.0`),

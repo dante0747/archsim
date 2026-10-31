@@ -1,5 +1,8 @@
 -- Schema and data for ArchSim's accuracy benchmarks: 100,000 rows read and updated by key, and
--- an events table the Kafka consumer writes to.
+-- an events table the Kafka consumer writes to. pg_stat_statements (loaded by compose.yaml) gives
+-- calibration each statement's time inside PostgreSQL.
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
 CREATE TABLE items (
   id integer PRIMARY KEY,
   value bigint NOT NULL DEFAULT 0,
