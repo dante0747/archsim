@@ -765,10 +765,19 @@ def test_vm_cpu_times_reads_steal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_split_inputs_reproduce_every_latest_calibration() -> None:
-    # one function per part, then anchored again: the very inputs each latest run used
+    # one function per part, then anchored again: the very inputs each latest run used, but for
+    # those a model change since derives differently. W24: Redis's command time is its CPU per
+    # command, so the Redis link and the anchored client latency are derived again too.
+    changed = {
+        "cache-aside": {"cacheServiceTimeMs", "cacheLinkLatencyMs", "clientLinkLatencyMs", "anchor"}
+    }
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
-        assert run.rederive_inputs(run.EXPERIMENTS[exp], cal) == cal["inputs"], exp
+        again = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
+        skip = changed.get(exp, set())
+        assert {k: v for k, v in again.items() if k not in skip} == {
+            k: v for k, v in cal["inputs"].items() if k not in skip
+        }, exp
 
 
 def test_simulate_reports_what_the_database_did() -> None:

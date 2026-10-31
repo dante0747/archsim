@@ -261,7 +261,11 @@ cache (a warning).
 - Every command (lookup, invalidation, repopulation) runs on a pool of executors per shard
   taking `serviceTimeMs`, with its own queue. **Redis and Valkey execute commands on one thread
   per shard** whatever `concurrency` or the CPU says (`singleThreaded`, auto); Memcached, CDN
-  and Varnish run `concurrency` executors in parallel (Memcached's default is 4 threads).
+  and Varnish run `concurrency` executors in parallel (Memcached's default is 4 threads). For
+  Redis, `serviceTimeMs` is what one command keeps that thread busy, reading the request and
+  writing the reply included: its CPU per command, which sets both a shard's capacity and its
+  CPU. `INFO commandstats` reports only the command's own share of it, about a tenth on the
+  benchmark stack (0.003 of 0.032 to 0.038 ms per GET or SET).
 - `shards` (Redis Cluster, Memcached servers): keys hash to a shard; each shard has its own
   executors, queue and memory, so a hot key loads one shard.
 - **Writes** perform one command and invalidate the key (TTL model). They never use the

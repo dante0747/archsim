@@ -151,10 +151,15 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    service records its CPU per request (Node's process CPU, including garbage collection and
    driver work), its own time per request (handler minus awaited calls) and the time of every
    PostgreSQL, Redis and Kafka call; the runner reads PostgreSQL's and Redis's own CPU and
-   command time. Each top pass, with the auxiliary mixes run right after it, gives one replicate
-   set of model inputs: CPU per request is the pass's CPU net of what the process burns at rest,
-   timings come from the pass, and the one input not measured directly (the client-to-service
-   latency) is set so the model reproduces the pass's median. The inputs are the replicates'
+   command time and, since W24 (after every kept run), each container's working set at rest and
+   in every pass (`ResourceSampler`, every 5 s). Each top pass, with the auxiliary mixes run
+   right after it, gives one replicate set of model inputs: CPU per request is the pass's CPU
+   net of what the process burns at rest, timings come from the pass, and the one input not
+   measured directly (the client-to-service latency) is set so the model reproduces the pass's
+   median. Redis's command time is its container's CPU per command, net of idle (W24; before,
+   `INFO commandstats`' own time, which leaves out its network reads and writes), and each
+   service's memory at idle and per req/s is fitted to its working set over the staircase (W24;
+   calibrations without the readings keep ArchSim's defaults). The inputs are the replicates'
    medians; `cpuByLoad` keeps every rate's CPU per request. A pass whose p95 is more than 10 times
    its median was disturbed: it is recorded, discarded and run again. Each input is derived by a
    formula recorded next to it in `calibration.json`. Protocol v4 (runs up to 6) calibrated in
@@ -488,8 +493,9 @@ run (run 7, protocol v5, 31 Oct), against ArchSim's predictions saved before the
   (0.30 to 0.33 cores); queue nodes have no CPU or memory.
 
 Memory is each container's working set: its memory less the page cache the kernel reclaims
-first, as Kubernetes counts it (anonymous memory is recorded too). The model's service memory
-comes from ArchSim's defaults and Redis's from 1 KiB per key; neither is calibrated yet. Past the
+first, as Kubernetes counts it (anonymous memory is recorded too). In these runs the model's
+service memory came from ArchSim's defaults (calibration fits it since W24, after these runs) and
+Redis's from 1 KiB per key, which is not calibrated. Past the
 model's own knee its service holds every queued request, so its memory there grows far beyond
 the real one; errors count only steps up to both knees.
 
