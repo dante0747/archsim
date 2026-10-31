@@ -611,6 +611,12 @@ them:
 - `report.py` labels each pair of engine and experiment `held-out` or `tuned-on`. An experiment
   is held out for a frozen engine that does not list it in `tunedOn`. The held-out experiments
   join this page's tables once they are measured.
+- **Changed after registration, before any measurement (31 Oct 2026):** two library updates to
+  clear GitHub's dependency alerts. go-mixed's PostgreSQL driver pgx went from 5.7.6 to 5.9.2,
+  which also drops `golang.org/x/crypto`, and python-mixed's Flask from 3.1.2 to 3.1.3. None of
+  the flagged code could be reached (the SSH packages were never compiled in, the pgx bug is on
+  the server side of the protocol, and the service does not use Flask's sessions). No held-out
+  experiment had been calibrated or measured, so no result depends on the old versions.
 
 | Experiment | What it tests | Stack |
 | --- | --- | --- |
