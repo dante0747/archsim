@@ -139,6 +139,10 @@ ENGINES = HERE / "engines.json"
 held-out experiments."""
 SMOKE_RPS = 20
 SMOKE_S = 10
+SIM_WALL_S = 3600.0
+"""Wall-clock limit of one simulation here (the engine's default, 300 s, guards the API server).
+An overloaded ladder step holds up to 100,000 queued requests, which takes minutes when other
+work shares the CPU; the limit only decides whether a run finishes, never what it returns."""
 
 
 @dataclass(frozen=True)
@@ -475,10 +479,16 @@ class ResourceSampler:
     The load starts when the service first counts a finished request (its counters start at
     /reset, which runs just before k6); the window starts WARMUP_S later and lasts DURATION_S,
     less a second for the late detection of the start. k6's own container start and stop (several
-    seconds) are outside it, unlike containerCpuShare, which spans the whole k6 command."""
+    seconds) are outside it, unlike containerCpuShare, which spans the whole k6 command. A
+    calibration pass, which k6 records from its start, is sampled from the start (``warm`` 0)
+    for CALIBRATION_S."""
 
-    def __init__(self, services: Sequence[str]) -> None:
+    def __init__(
+        self, services: Sequence[str], warm: float | None = None, duration: float | None = None
+    ) -> None:
         self.services = list(services)
+        self.warm = WARMUP_S if warm is None else warm
+        self.duration = DURATION_S if duration is None else duration
         self.readings: dict[str, list[Reading]] = {s: [] for s in self.services}
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -507,7 +517,7 @@ class ResourceSampler:
         start = self._load_started()
         if start is None or not ids:
             return
-        t, end = start + WARMUP_S, start + WARMUP_S + DURATION_S - 1
+        t, end = start + self.warm, start + self.warm + self.duration - 1
         with ThreadPoolExecutor(max_workers=len(ids)) as pool:
             while not self._stop.wait(max(0.0, t - time.time())):
                 for s, r in zip(ids, pool.map(read_cgroup, ids.values()), strict=True):
@@ -856,8 +866,13 @@ def calibration_pass(exp: Experiment, mix: str, rate: float, label: str) -> dict
     http_json(f"{API}/reset", "POST")
     if exp.stack == "kafka":
         http_json(f"{CONSUMER}/reset", "POST")
+    pg0 = pg_begin()
     cpu0 = {s: cpu_usec(s) for s in services_for(exp)}
-    summary = k6(target, mix, rate, 0, CALIBRATION_S, f"cal-{exp.id}-{label}", exp.keys, exp.skew)
+    # each container's memory (and CPU) inside the pass, for the memory fit (memory_inputs)
+    with ResourceSampler(services_for(exp), warm=0, duration=CALIBRATION_S) as sampler:
+        summary = k6(
+            target, mix, rate, 0, CALIBRATION_S, f"cal-{exp.id}-{label}", exp.keys, exp.skew
+        )
     time.sleep(2)  # let the consumer finish the last messages
     cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
     entry: dict[str, Any] = {
@@ -867,6 +882,10 @@ def calibration_pass(exp: Experiment, mix: str, rate: float, label: str) -> dict
         "service": http_json(f"{API}/stats"),
         "containerCpuMs": {s: cpu_ms(cpu0[s], cpu1[s]) for s in cpu0},
     }
+    if (resources := sampler.result()) is not None:
+        entry["resources"] = resources
+    if (pg := pg_end(pg0)) is not None:
+        entry["postgres"] = pg
     if exp.stack == "kafka":
         entry["consumer"] = http_json(f"{CONSUMER}/stats")
     if exp.stack == "cache":
@@ -906,6 +925,8 @@ def idle_pass(exp: Experiment) -> dict[str, Any]:
     time.sleep(IDLE_S)
     cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
     svc = http_json(f"{API}/stats")
+    # each container's working set at rest: the memory fit's point at 0 req/s (memory_inputs)
+    rest = {s: read_cgroup(c).working_set for s in cpu0 if (c := container(s))}
     return {
         "seconds": IDLE_S,
         "containerCpuMsPerSecond": {
@@ -913,6 +934,7 @@ def idle_pass(exp: Experiment) -> dict[str, Any]:
             for s in cpu0
         },
         "serviceCpuMsPerSecond": round((svc.get("cpuMs") or 0.0) / IDLE_S, 4),
+        "workingSetMiB": {s: round(b / 2**20, 1) for s, b in rest.items() if b is not None},
     }
 
 
@@ -966,7 +988,7 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
             mix: steady_pass(exp, mix, top, f"{mix.split(':')[0]} {i}", discarded)
             for mix in exp.calibration[1:]
         }
-        return {"low": runs[0], "high": entry, "idle": idle, **aux}
+        return {"low": runs[0], "high": entry, "idle": idle, "staircase": runs, **aux}
 
     sets = [top_set(runs[-1], 1)]
     for r in reversed(rates):
@@ -985,9 +1007,10 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
         runs.append({**entry, "label": f"top {len(sets) + 1}"})
         sets.append(top_set(entry, len(sets) + 1))
     used = clean() if len(clean()) >= 2 else sets
+    by_load = cpu_by_load(runs, idle)
     replicate_inputs = []
     for s in used:
-        inputs = model_inputs(exp, s)
+        inputs = model_inputs(exp, {**s, "cpuByLoad": by_load})
         anchor(exp, inputs, s["high"])
         replicate_inputs.append(inputs)
     return {
@@ -1005,11 +1028,13 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
         # one view the v4 readers (report.py, the low-load reference) understand
         "passes": used[0],
         "staircase": runs,
-        "replicates": [{k: v for k, v in s.items() if k not in ("low", "idle")} for s in used],
+        "replicates": [
+            {k: v for k, v in s.items() if k not in ("low", "idle", "staircase")} for s in used
+        ],
         # top passes still disturbed after their retry, kept for the record only
         "disturbedReplicates": [s["high"] for s in sets if s not in used],
         "discardedPasses": discarded,
-        "cpuByLoad": cpu_by_load(runs, idle),
+        "cpuByLoad": by_load,
         "inputReplicates": replicate_inputs,
         "inputs": median_inputs(replicate_inputs),
     }
@@ -1169,20 +1194,24 @@ def slope(low: float | None, high: float | None, n_low: float, n_high: float) ->
 
 def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     """Every model input with the measured numbers and the formula it came from: the service's,
-    then the queue's (Kafka), the database's and the cache's. Each part's inputs come from a
-    function of their own, so a change to one part's calibration leaves the others alone."""
+    then the queue's (Kafka), the database's, the cache's and the services' memory. Each part's
+    inputs come from a function of their own, so a change to one part's calibration leaves the
+    others alone. The memory fit reads the whole staircase (``passes["staircase"]``)."""
     out = service_inputs(exp, passes)
     if exp.stack == "kafka":
         out |= queue_inputs(exp, passes)
     out |= database_inputs(exp, passes)
     if exp.stack in CACHE_STACKS:
         out |= cache_inputs(exp, passes)
+    out |= memory_inputs(exp, passes)
     return out
 
 
 def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     """The service's CPU per request, the client-to-service latency and the low-load reference;
-    for Java and Go its garbage collection, and for chain the API behind the gateway."""
+    how its CPU per request changed over the staircase (``service_time_by_load``); its garbage
+    collection (``gc_inputs``; Node.js: ``node_gc_inputs``, whose pauses come off the CPU per
+    request); and for chain the API behind the gateway."""
     low, high = passes["low"], passes["high"]
     svc, svc_low = high["service"], low["service"]
     own = timing(svc, "own")
@@ -1199,7 +1228,7 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         how = (
             f"mean = {who}'s CPU per request at {high['rateRps']:g} req/s net of idle: "
             f"({svc['cpuMs']:.0f} - {rest:.0f} ms at rest) / {svc['requests']} requests = "
-            f"{demand:.4f} ms; {shape}"
+            f"{demand:.4f} ms"
         )
     else:  # protocol v2 to v4: the slope between two passes
         slope_ms = slope(svc_low["cpuMs"], svc["cpuMs"], svc_low["requests"], svc["requests"])
@@ -1207,9 +1236,18 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         how = (
             f"mean = {who}'s CPU per extra request between the passes: ({svc['cpuMs']:.0f} - "
             f"{svc_low['cpuMs']:.0f} ms) / ({svc['requests']} - {svc_low['requests']} requests) = "
-            f"{demand:.4f} ms (at {low['rateRps']:g} req/s alone: {svc_low['cpuMsPerRequest']:.4f} ms); "
-            f"{shape}"
+            f"{demand:.4f} ms (at {low['rateRps']:g} req/s alone: {svc_low['cpuMsPerRequest']:.4f} ms)"
         )
+    gc, gc_per_request = node_gc_inputs(svc) if exp.runtime == "nodejs" else ({}, 0.0)
+    if gc_per_request > 0:
+        # the pauses the model adds were on the event loop, inside the CPU per request
+        net = max(demand - gc_per_request, 0.5 * demand)
+        how += (
+            f", less the {gc_per_request:.4f} ms per request of the pauses modelled as GC "
+            f"(gcPauseMs) = {net:.4f} ms"
+        )
+        demand = net
+    how += f"; {shape}"
     out = {
         "serviceTimeMs": {"value": lognormal_with_mean(demand, own), "how": how},
         "clientLinkLatencyMs": {
@@ -1218,11 +1256,101 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         },
         "measuredLowLoad": {"rateRps": high["rateRps"], **high["k6"]},
     }
-    if exp.runtime != "nodejs":
-        out |= gc_inputs(exp, svc)
+    if (curve := service_time_by_load(passes.get("cpuByLoad"))) is not None:
+        out["serviceTimeByLoad"] = curve
+    out |= gc if exp.runtime == "nodejs" else gc_inputs(exp, svc)
     if exp.stack == "chain":
         out |= chain_inputs(passes)
     return out
+
+
+def service_time_by_load(by_load: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+    """How the service's CPU per request changed with load over the calibration staircase
+    (``cpuByLoad``: each rate's CPU per request net of idle, the median of its passes), as
+    ``serviceTimeByLoad``: the engine's never-rising fit (``fit_load_curve``, one bin per rate),
+    relative to the top rate, whose CPU per request the service time is. The engine keeps the
+    top rate's factor (1) at every higher load: the curve says nothing about loads above the
+    staircase, which stops at a third of the core. None without a staircase (protocols before
+    v5), or when the fit spans no more than MIN_CURVE_CHANGE."""
+    from archsim_engine.calibration.resources import MIN_CURVE_CHANGE, fit_load_curve
+
+    pts = [
+        (float(b["rateRps"]), b["rateRps"] * b["serviceCpuMsPerRequest"] / 1000.0)
+        for b in by_load or []
+        if b.get("serviceCpuMsPerRequest")
+    ]
+    fit = fit_load_curve(pts, max_bins=len(pts)) if len(pts) >= 2 else None
+    if fit is None or fit.span <= MIN_CURVE_CHANGE:
+        return None
+    top = fit.points[-1][1]
+    table = [{"rps": round(r, 1), "factor": round(f / top, 4)} for r, f in fit.points]
+    measured = ", ".join(f"{m:.4f} ms at {r:g}" for r, m in fit.measured)
+    return {
+        "value": table,
+        "how": (
+            f"the staircase's CPU per request net of idle ({measured} req/s), fitted never "
+            f"rising with rate and divided by the top rate's ({fit.measured[-1][1]:.4f} ms); "
+            "flat outside the staircase"
+        ),
+    }
+
+
+GC_SCAVENGE = "minor"
+"""V8's scavenges of the young generation: short and frequent (about 1 ms every 150 requests in
+the W21 trial), left in the CPU per request rather than modelled as pauses."""
+
+
+def node_gc_inputs(stats: Mapping[str, Any]) -> tuple[dict[str, Any], float]:
+    """Node.js's garbage collection from the service's /stats (``gc``: V8's 'gc' performance
+    entries, the main thread's time in each collection by kind) and the pause per request the
+    model adds, to take off the CPU per request (the event loop's pauses are in it, and the
+    model's pause stalls the loop without counting as CPU).
+
+    The model's pause is the mark-compact cycle: its final pause and the incremental-marking and
+    weak-callback steps of the pass, per mark-compact (``gcEveryRequests`` requests apart). They
+    are rare and long (10 to 45 ms in the W21 trial), which is what stalls a busy event loop
+    long enough to move p95. Scavenges (``GC_SCAVENGE``) stay in the CPU per request: a model
+    pause has one size, and averaging them in would shrink it to about 2 ms. The median is set
+    from the mean as for Java and Go (``gc_inputs``: lognormal with p95 2.5x its median)."""
+    gc = stats.get("gc")
+    if not gc or not gc.get("byKind"):  # a service before W21: none modelled, as then
+        return {}, 0.0
+    kinds = gc["byKind"]
+    source = f" ({gc['source']})" if gc.get("source") else ""
+    scav = kinds.get(GC_SCAVENGE) or {}
+    cycles = float((kinds.get("major") or {}).get("collections") or 0)
+    pause = sum(float(v.get("pauseMs") or 0.0) for k, v in kinds.items() if k != GC_SCAVENGE)
+    requests = stats.get("requests") or 0
+    left = (
+        f"{scav.get('collections', 0):g} scavenges, {float(scav.get('pauseMs') or 0):.1f} ms, "
+        "left in the CPU per request"
+    )
+    if cycles <= 0 or pause <= 0 or requests <= 0:
+        return {
+            "gcPauseMs": {
+                "value": 0,
+                "how": f"no mark-compact in the pass{source}; {left}",
+            }
+        }, 0.0
+    mean = pause / cycles
+    sigma = math.log(2.5) / Z95
+    steps = ", ".join(
+        f"{k} {float(v.get('pauseMs') or 0):.1f} ms" for k, v in kinds.items() if k != GC_SCAVENGE
+    )
+    return {
+        "gcPauseMs": {
+            "value": round(mean / math.exp(sigma**2 / 2), 4),
+            "how": (
+                f"V8's mark-compact cycles in the pass{source}: {pause:.1f} ms ({steps}) over "
+                f"{cycles:g} cycles, a mean of {mean:.3f} ms (the model's median: mean / 1.17); "
+                f"{left}"
+            ),
+        },
+        "gcEveryRequests": {
+            "value": max(1, round(requests / cycles)),
+            "how": f"{requests} requests / {cycles:g} mark-compact cycles in the pass{source}",
+        },
+    }, pause / requests
 
 
 def gc_inputs(exp: Experiment, stats: Mapping[str, Any]) -> dict[str, Any]:
@@ -1296,6 +1424,178 @@ def chain_inputs(passes: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# PostgreSQL's own statistics over a calibration pass (compose.yaml loads pg_stat_statements and
+# times the WAL's I/O): each statement's time inside the server, the WAL flushes and their time,
+# the commits, the time backends spent active, and the CPU of each kind of PostgreSQL process.
+
+PG_STATS_SQL = """
+SELECT json_build_object(
+  'statements', (
+    SELECT coalesce(json_agg(json_build_object(
+      'query', s.query, 'calls', s.calls, 'rows', s.rows,
+      'meanExecMs', s.mean_exec_time, 'stddevExecMs', s.stddev_exec_time,
+      'minExecMs', s.min_exec_time, 'maxExecMs', s.max_exec_time) ORDER BY s.calls DESC), '[]')
+    FROM pg_stat_statements s JOIN pg_database d ON d.oid = s.dbid
+    WHERE d.datname = current_database() AND s.query !~* 'pg_stat'),
+  'wal', (SELECT json_build_object(
+    'records', wal_records, 'bytes', wal_bytes, 'buffersFull', wal_buffers_full,
+    'writes', wal_write, 'syncs', wal_sync, 'writeMs', wal_write_time,
+    'syncMs', wal_sync_time) FROM pg_stat_wal),
+  'database', (SELECT json_build_object(
+    'commits', xact_commit, 'rollbacks', xact_rollback, 'activeMs', active_time,
+    'sessionMs', session_time) FROM pg_stat_database WHERE datname = current_database()))
+"""
+PG_PROCESSES_SH = (
+    'for d in /proc/[0-9]*; do printf "%s\\t%s\\n" "$(tr "\\0" " " < "$d/cmdline" 2>/dev/null)" '
+    '"$(cat "$d/stat" 2>/dev/null)"; done'
+)
+CLOCK_TICKS = 100
+"""Linux's USER_HZ: /proc/<pid>/stat counts CPU time in hundredths of a second."""
+
+
+def pg_process_kind(cmdline: str) -> str | None:
+    """A PostgreSQL process by its title: the client backends (connections from the services),
+    the WAL writer, the other background processes, or None for this probe's own processes."""
+    t = cmdline.strip()
+    if not t.startswith("postgres"):
+        return None  # sh, cat, psql: the probe
+    if "[local]" in t:
+        return None  # the probe's own backend
+    if t.startswith("postgres: walwriter"):
+        return "walWriter"
+    if re.match(r"postgres: \S+ \S+ \d", t):
+        return "backends"
+    return "background"
+
+
+def pg_processes() -> dict[str, tuple[str, int]] | None:
+    """Each PostgreSQL process's CPU so far (ticks), by pid: its kind and utime + stime. A backend
+    that ends during a pass (a pool closing an idle connection) is missing from the pass's
+    figures, so the backends' total can fall short; the background processes' does not."""
+    proc = subprocess.run(
+        ["docker", "compose", "-f", str(HERE / "compose.yaml"), "exec", "-T", "postgres",
+         "sh", "-c", PG_PROCESSES_SH],
+        cwd=HERE, text=True, capture_output=True, check=False,
+    )  # fmt: skip
+    if proc.returncode != 0:
+        return None
+    out: dict[str, tuple[str, int]] = {}
+    for line in proc.stdout.splitlines():
+        cmd, _, stat = line.partition("\t")
+        kind = pg_process_kind(cmd)
+        if kind is None or ")" not in stat:
+            continue
+        pid = stat.split(" ", 1)[0]
+        fields = stat.rsplit(")", 1)[1].split()  # from field 3 (state): utime is 14, stime 15
+        out[pid] = (kind, int(fields[11]) + int(fields[12]))
+    return out
+
+
+def pg_snapshot() -> dict[str, Any] | None:
+    """PostgreSQL's statistics now (PG_STATS_SQL) and its processes' CPU, or None when the
+    stack's PostgreSQL has no pg_stat_statements (stacks started before compose.yaml loaded it)."""
+    proc = subprocess.run(
+        ["docker", "compose", "-f", str(HERE / "compose.yaml"), "exec", "-T", "postgres",
+         "psql", "-U", "bench", "-d", "bench", "-At", "-c", PG_STATS_SQL],
+        cwd=HERE, text=True, capture_output=True, check=False,
+    )  # fmt: skip
+    if proc.returncode != 0 or not proc.stdout.strip():
+        log(f"no PostgreSQL statistics: {(proc.stderr or proc.stdout).strip()[-300:]}")
+        return None
+    return {"stats": json.loads(proc.stdout), "processes": pg_processes()}
+
+
+def pg_begin() -> dict[str, Any] | None:
+    """Before a calibration pass: clear pg_stat_statements (its means then cover the pass alone)
+    and read the counters the pass is measured against."""
+    compose(
+        "exec", "-T", "postgres", "psql", "-U", "bench", "-d", "bench", "-qAt",
+        "-c", "SELECT pg_stat_statements_reset()",
+        check=False, capture=True,
+    )  # fmt: skip
+    return pg_snapshot()
+
+
+def statement_kind(query: str) -> str | None:
+    """What a benchmark statement does, whatever the service's driver made of its text: a read by
+    key, an update by key, or the consumer's insert; None for anything else (BEGIN, pool checks)."""
+    q = " ".join(query.lower().split())
+    if q.startswith("select") and " from items" in q:
+        return "read"
+    if q.startswith("update items"):
+        return "write"
+    if q.startswith("insert into events"):
+        return "insert"
+    return None
+
+
+def pg_end(before: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """After a calibration pass: what PostgreSQL did during it. ``statements`` are
+    pg_stat_statements since ``pg_begin`` (the time each statement executed, from start to end
+    of the executor: planning, the commit and its WAL flush are not in it); ``wal``,
+    ``database`` and ``cpuMsByProcess`` are counted from ``before``. Counters that backends
+    flush to the statistics once a second can lag by up to a second at either end, alike at
+    both ends of a steady pass."""
+    after = pg_snapshot() if before is not None else None
+    if before is None or after is None:
+        return None
+    return pg_window(before, after)
+
+
+def pg_window(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, Any]:
+    """What PostgreSQL did between two ``pg_snapshot``s (``pg_end``)."""
+    b, a = before["stats"], after["stats"]
+    statements = [
+        {"kind": statement_kind(s["query"]), **s}
+        for s in a["statements"]
+        if s["calls"] > 0 and statement_kind(s["query"]) is not None
+    ]
+    out: dict[str, Any] = {
+        "statements": statements,
+        "wal": {k: round(a["wal"][k] - b["wal"][k], 4) for k in a["wal"]},
+        "database": {k: round(a["database"][k] - b["database"][k], 4) for k in a["database"]},
+    }
+    p0, p1 = before.get("processes"), after.get("processes")
+    if p0 is not None and p1 is not None:
+        cpu: dict[str, float] = {}
+        for pid, (kind, ticks) in p1.items():
+            cpu[kind] = (
+                cpu.get(kind, 0.0) + (ticks - p0.get(pid, (kind, 0))[1]) * 1000 / CLOCK_TICKS
+            )
+        out["cpuMsByProcess"] = {k: round(v, 1) for k, v in sorted(cpu.items())}
+    return out
+
+
+def pg_statement(entry: Mapping[str, Any], kind: str) -> dict[str, Any] | None:
+    """A pass's statement of one kind (``statement_kind``) as pg_stat_statements timed it, all
+    its forms together (calls-weighted mean), or None when the pass recorded none."""
+    rows = [s for s in (entry.get("postgres") or {}).get("statements", []) if s["kind"] == kind]
+    calls = sum(s["calls"] for s in rows)
+    if not calls:
+        return None
+    return {
+        "calls": calls,
+        "meanExecMs": sum(s["meanExecMs"] * s["calls"] for s in rows) / calls,
+    }
+
+
+def pg_flush(entry: Mapping[str, Any]) -> dict[str, float] | None:
+    """A pass's WAL flushes: their number, each one's time (writing the WAL and syncing it, which
+    run one after another under the WAL write lock) and the commits that shared one, or None
+    without a flush or the statistics."""
+    pg = entry.get("postgres") or {}
+    wal = pg.get("wal") or {}
+    if not wal.get("syncs") or not wal.get("syncMs"):  # no flush, or track_wal_io_timing off
+        return None
+    commits = sum(s["calls"] for s in pg["statements"] if s["kind"] in ("write", "insert"))
+    return {
+        "syncs": wal["syncs"],
+        "flushMs": (wal["writeMs"] + wal["syncMs"]) / wal["syncs"],
+        "syncMs": wal["syncMs"] / wal["syncs"],
+        "commitsPerFlush": commits / wal["syncs"],
+    }
+
+
 def db_client(exp: Experiment, entry: Mapping[str, Any]) -> dict[str, Any]:
     """The /stats of the service that calls PostgreSQL in a calibration pass: chain's API (inside
     the gateway's), else the service k6 calls."""
@@ -1303,11 +1603,25 @@ def db_client(exp: Experiment, entry: Mapping[str, Any]) -> dict[str, Any]:
     return svc["upstream"] if exp.stack == "chain" else svc
 
 
+def mean_ms(dist: Mapping[str, Any]) -> float:
+    """The mean of a model input's distribution as the engine samples it (ms)."""
+    from pydantic import TypeAdapter
+
+    from archsim_engine.distributions import Distribution
+
+    return float(TypeAdapter(Distribution).validate_python(dict(dist)).expected())
+
+
 def db_cpu_share(
-    passes: dict[str, Any], q_low: float, q_high: float, mean_ms: float
+    passes: dict[str, Any], q_low: float, q_high: float, model_ms: float, model_how: str
 ) -> dict[str, Any] | None:
-    """PostgreSQL's CPU per query over the mean query time, or None without a usable figure:
-    at the top pass net of idle (protocol v5), else per extra query between the two passes."""
+    """PostgreSQL's CPU per query over the mean time the model gives a query, or None without a
+    usable figure: at the top pass net of idle (protocol v5), else per extra query between the
+    two passes. The model spends ``cpuShare`` x each query's sampled time on a core, so the
+    share is taken against the mean of the times it samples (``model_ms``: writes without their
+    WAL flush, which uses no CPU in the model), not against the mean the service measured
+    (engine 0.14.0 did, which counted the flush and the measured tail and left PostgreSQL's busy
+    cores 16% to 69% low)."""
     if (idle := passes.get("idle")) is not None:
         net = net_cpu_ms(passes["high"], idle, "postgres")
         pg = net / q_high if net is not None and q_high > 0 else None
@@ -1320,16 +1634,28 @@ def db_cpu_share(
             q_high,
         )
         what = f"PostgreSQL CPU per extra query between the passes ({pg or 0:.4f} ms)"
-    if pg is None or pg <= 0 or mean_ms <= 0:
+    if pg is None or pg <= 0 or model_ms <= 0:
         return None
     return {
-        "value": round(min(1.0, max(0.02, pg / mean_ms)), 4),
-        "how": f"{what} / mean query time ({mean_ms:.3f} ms)",
+        "value": round(min(1.0, max(0.02, pg / model_ms)), 4),
+        "how": f"{what} / the model's mean time per query ({model_how})",
     }
 
 
+KAFKA_FETCH_FALLBACK = {"median": 0.93, "p95": 3.88, "polls": 17577}
+"""The consumer's fetch overhead per poll (ms) for runs calibrated before the service reported
+kafkajs's fetch cycle (W23, 31 Oct 2026): what the W23 trial measured on the same laptop at
+569 req/s, the top of the kept runs' calibration staircases, with the stack as benchmarked
+(benchmarks/results/trials/2026-10-31-kafka-w23/diagnostics.json: two passes, medians 1.00
+and 0.86 ms, p95 4.19 and 3.56 ms; their means)."""
+MIN_POLLS = 50
+"""Fewest fetch cycles a pass must record for its fetch overhead to be used."""
+
+
 def queue_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """Kafka: the producer's publish time and the consumer's own time per message."""
+    """Kafka: the producer's publish time; the consumer's own time per message, how many
+    partitions it processes at once and what each poll costs beyond the messages (the fetch and
+    the offset commit)."""
     high = passes["high"]
     consume_own = timing(high["consumer"], "consume_own")
     send = timing(high["service"], "kafka_send")
@@ -1342,89 +1668,537 @@ def queue_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
             "value": lognormal(consume_own["median"], consume_own["p95"]),
             "how": f"consumer's own time per message (handling minus the INSERT): median {consume_own['median']:.3f}, p95 {consume_own['p95']:.3f} ms",
         },
+        "consumerConcurrency": {
+            "value": KAFKA_CONSUMERS,
+            "how": (
+                f"the stack's setting, not measured: one kafkajs consumer processes {KAFKA_CONSUMERS} "
+                f"of its {KAFKA_PARTITIONS} partitions at once (partitionsConsumedConcurrently)"
+            ),
+        },
+        "fetchOverheadMs": fetch_overhead(high["consumer"]),
     }
 
 
+def fetch_overhead(cons: Mapping[str, Any]) -> dict[str, Any]:
+    """What each of the consumer's polls costs beyond processing its messages: per fetch cycle
+    the cycle less its batches' least possible span on the consumer's workers (the service's
+    ``cycle_overhead``: the fetch, the last batch's offset commit and kafkajs's bookkeeping).
+    Runs calibrated before the service reported it take the W23 trial's figure."""
+    t = cons["timings"].get("cycle_overhead")
+    if t and t["count"] >= MIN_POLLS:
+        fetch = cons["timings"].get("cycle_fetch") or {}
+        after = cons["timings"].get("cycle_after") or {}
+        return {
+            "value": lognormal(max(t["median"], 0.01), max(t["p95"], 0.02)),
+            "how": (
+                f"kafkajs's fetch cycle in the pass ({t['count']} polls): each cycle less its "
+                f"batches' least span on {KAFKA_CONSUMERS} workers, median {t['median']:.3f}, p95 "
+                f"{t['p95']:.3f} ms (the fetch: median {fetch.get('median') or 0:.3f} ms; the last "
+                f"batch's commit: median {after.get('median') or 0:.3f} ms)"
+            ),
+        }
+    f = KAFKA_FETCH_FALLBACK
+    return {
+        "value": lognormal(f["median"], f["p95"]),
+        "how": (
+            "not recorded in this run (the service reports kafkajs's fetch cycle since W23): the "
+            f"W23 trial's top calibration passes on the same laptop ({f['polls']} polls), median "
+            f"{f['median']:.3f}, p95 {f['p95']:.3f} ms"
+        ),
+    }
+
+
+FLUSH_FIT_S = 15
+"""Simulated seconds (after 2 s of warm-up) of each step of ``fit_flush``, longer when needed for
+FLUSH_FIT_COMMITS commits (at most FLUSH_FIT_MAX_S)."""
+FLUSH_FIT_COMMITS = 1000
+FLUSH_FIT_MAX_S = 120
+
+
+def database_only(
+    exp: Experiment, v: Mapping[str, Any], rate: float, read_ratio: float, seconds: float
+) -> dict[str, Any]:
+    """A design of PostgreSQL alone: the pass's queries sent at its rate over the
+    service-to-database link (``fit_flush``)."""
+    return {
+        "schemaVersion": "1.0",
+        "kind": "archsim.architecture",
+        "metadata": {"name": f"benchmark {exp.id}: PostgreSQL alone"},
+        "architecture": {
+            "nodes": [
+                {
+                    "id": "clients",
+                    "type": "traffic_source",
+                    "label": "service",
+                    "config": {"timeoutMs": TIMEOUT_MS, "maxAttempts": 1},
+                },
+                database_node(v),
+            ],
+            "edges": [_edge("e-db", "clients", "db", v.get("dbLinkLatencyMs", 0.0))],
+            "autoSize": False,
+        },
+        "workload": {
+            "rps": rate,
+            "durationS": 2 + seconds,
+            "warmupS": 2,
+            "readRatio": read_ratio,
+            "keyCount": exp.keys,
+            "keySkew": exp.skew,
+            "seed": SEED,
+            "arrivalProcess": "deterministic",
+        },
+        "scenarios": [],
+    }
+
+
+def fit_flush(
+    exp: Experiment,
+    v: Mapping[str, Any],
+    rate: float,
+    read_ratio: float,
+    wait_ms: float,
+    shape: float,
+) -> tuple[float, dict[str, Any]]:
+    """The median WAL flush (p95/median ``shape``) with which the model's writes wait
+    ``wait_ms`` on average for their row lock and their flush, at the pass's rate and mix
+    (``database_only``), and the model's database there. What the service measured as that
+    wait (synchronous_commit on minus off) already includes the other commits' flushes it
+    queued behind (group commit) and, on one row, the writes ahead of it holding the lock; the
+    model adds both again, so the measured wait itself is too long a flush. Engine 0.14.0 used
+    it: on Kafka's write pass (569 commits/s, run 7) the model's commits then waited 1.09 ms
+    where the service's had waited 0.92."""
+    sigma = math.log(max(shape, 1.01)) / Z95
+    median = wait_ms / math.exp(sigma**2 / 2)  # a flush alone, with nothing to wait for
+    # enough commits that their flushes' mean is the distribution's, not one sample's
+    writes = rate * (1 - read_ratio)
+    seconds = min(FLUSH_FIT_MAX_S, max(FLUSH_FIT_S, FLUSH_FIT_COMMITS / max(writes, 1e-9)))
+    lo, hi = 0.0, math.inf  # the wait only grows with the flush: keep the answer bracketed
+    db: dict[str, Any] = {}
+    for _ in range(12):
+        flush = lognormal(median, median * shape)
+        db = simulate(database_only(exp, {**v, "commitFlushMs": flush}, rate, read_ratio, seconds))[
+            "database"
+        ]
+        waited = (db.get("meanLockWaitMs") or 0.0) + (db.get("meanCommitWaitMs") or 0.0)
+        if waited <= 0 or abs(waited / wait_ms - 1) < 2e-3:
+            break
+        lo, hi = (lo, median) if waited > wait_ms else (median, hi)
+        nxt = median * wait_ms / waited
+        median = nxt if lo < nxt < hi else (lo + hi) / 2 if hi < math.inf else 2 * median
+    return median, db
+
+
+def lognormal_moments(dist: Mapping[str, Any]) -> tuple[float, float]:
+    """Mean and variance of a lognormal model input (ms, ms^2)."""
+    sigma = math.log(dist["p95"] / dist["median"]) / Z95
+    mean = dist["median"] * math.exp(sigma**2 / 2)
+    return mean, mean**2 * (math.exp(sigma**2) - 1)
+
+
+def pg_cpu_per_query(
+    passes: Mapping[str, Any],
+    entry: Mapping[str, Any],
+    queries: float,
+    low: Mapping[str, Any] | None = None,
+    queries_low: float = 0.0,
+) -> float | None:
+    """PostgreSQL's CPU per query in a pass (ms): net of its CPU at rest (protocol v5), else per
+    extra query over ``low`` (protocols v2 to v4); None without either (a pass's own CPU over
+    its queries would count PostgreSQL's CPU at rest too)."""
+    if (idle := passes.get("idle")) is not None:
+        net = net_cpu_ms(entry, idle, "postgres")
+        return net / queries if net is not None and queries > 0 and net > 0 else None
+    if low is None:
+        return None
+    per = slope(
+        low["containerCpuMs"].get("postgres"),
+        entry["containerCpuMs"].get("postgres"),
+        queries_low,
+        queries,
+    )
+    return per if per is not None and per > 0 else None
+
+
+def server_how(what: str, cpu_ms: float | None, rt_words: str, note: str = "") -> str:
+    """How a query's time in PostgreSQL was found (``server_time``)."""
+    if cpu_ms is None:
+        return f"no usable PostgreSQL CPU per {what} in the pass: {rt_words} as the service measured it"
+    return f"PostgreSQL's CPU per {what} ({cpu_ms:.4f} ms{note}), shaped like {rt_words}"
+
+
+def server_time(cpu_ms: float | None, rt: Mapping[str, float]) -> dict[str, Any]:
+    """A query's time inside PostgreSQL: its CPU per query (calibration on 31 Oct found the
+    backends busy on the CPU for nearly all of it: statement, parse, plan and the protocol
+    around them), shaped like the round trip the service measured, and never longer than that
+    round trip. Without a CPU figure, the round trip itself (engine 0.14.0)."""
+    whole = lognormal(rt["median"], rt["p95"])
+    if cpu_ms is None:
+        return whole
+    return lognormal_with_mean(min(cpu_ms, mean_ms(whole)), dict(rt))
+
+
+def link_leg(rt: Mapping[str, float], server: Mapping[str, Any]) -> float | dict[str, Any]:
+    """One way of the service-to-database link: the round trip less the server's time, split
+    into two equal legs that keep the round trip's mean and variance (each leg a lognormal of
+    half the mean and half the variance, Fenton-Wilkinson), or 0 when nothing is left."""
+    m_rt, v_rt = lognormal_moments(lognormal(rt["median"], rt["p95"]))
+    m_s, v_s = lognormal_moments(server)
+    m, v = (m_rt - m_s) / 2, max(0.0, v_rt - v_s) / 2
+    if m < 0.001:
+        return 0.0
+    if v <= 0:
+        return round(m, 4)
+    s2 = math.log(1 + v / m**2)
+    median = m / math.exp(s2 / 2)
+    return lognormal(median, median * math.exp(Z95 * math.sqrt(s2)))
+
+
+def describe(dist: float | Mapping[str, Any]) -> str:
+    """A link latency in words."""
+    if isinstance(dist, Mapping):
+        return f"median {dist['median']:.4f}, p95 {dist['p95']:.4f} ms"
+    return f"{dist:.4f} ms"
+
+
+def commit_flush(
+    exp: Experiment,
+    v: Mapping[str, Any],
+    high: Mapping[str, Any],
+    sync_pass: Mapping[str, Any],
+    sync: Mapping[str, float],
+    async_: Mapping[str, float],
+    read_ratio: float,
+) -> dict[str, Any]:
+    """``commitFlushMs``: the time of one WAL flush.
+
+    With PostgreSQL's own statistics in the top pass (``pg_flush``, since 31 Oct), the mean
+    time of its flushes there (writing the WAL and syncing it), shaped like the commit wait the
+    service measured. Without them (earlier runs), the flush with which the model's writes wait
+    as long for their lock and flush as the service's did (``fit_flush``): synchronous_commit on
+    minus off in ``sync_pass`` and the pass without the flush at the same rate, from the
+    medians and p95s (a mean takes in the service's own stalls: one of Kafka's write passes on
+    31 Oct had a mean of 2.65 ms and a median of 0.82). On the trial of 31 Oct the two agreed
+    within 5% (hot-row: 0.80 ms per flush measured by PostgreSQL, 0.81 waited)."""
+    med = max(0.01, sync["median"] - async_["median"])
+    shape = max(1.01, (sync["p95"] - async_["p95"]) / med)
+    waited = mean_ms(lognormal(med, med * shape))
+    measured = pg_flush(high)
+    if measured is not None:
+        flush = lognormal_with_mean(measured["flushMs"], {"median": 1.0, "p95": shape})
+        db = simulate(
+            database_only(
+                exp, {**v, "commitFlushMs": flush}, high["rateRps"], read_ratio, FLUSH_FIT_S
+            )
+        )["database"]
+        how = (
+            f"PostgreSQL's own WAL flushes at {high['rateRps']:g} req/s (pg_stat_wal): "
+            f"{measured['syncs']:.0f} flushes of {measured['flushMs']:.3f} ms on average, "
+            f"{measured['commitsPerFlush']:.2f} commits per flush (the model: "
+            f"{db.get('commitsPerFlush') or 0:.2f}); shaped like the commit wait the service "
+            f"measured (p95/median {shape:.2f}, mean {waited:.3f} ms)"
+        )
+    else:
+        rate = sync_pass["rateRps"]
+        median, db = fit_flush(exp, v, rate, read_ratio, waited, shape)
+        flush = lognormal(median, median * shape)
+        how = (
+            f"fitted so that the model's writes wait as long for their lock and flush as the "
+            f"service's did at {rate:g} req/s (synchronous_commit on minus off: median "
+            f"{sync['median']:.3f} - {async_['median']:.3f} ms, p95/median {shape:.2f}, a mean "
+            f"of {waited:.3f} ms); in the model there: lock {db.get('meanLockWaitMs') or 0:.3f} "
+            f"ms, flush {db.get('meanCommitWaitMs') or 0:.3f} ms, "
+            f"{db.get('commitsPerFlush') or 0:.2f} commits per flush"
+        )
+    out: dict[str, Any] = {
+        "value": flush,
+        "how": how,
+        "model": {k: db.get(k) for k in ("meanLockWaitMs", "meanCommitWaitMs", "commitsPerFlush")},
+    }
+    if measured is not None:
+        out["postgres"] = {k: round(x, 4) for k, x in measured.items()}
+    return out
+
+
 def database_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """PostgreSQL: query times, the WAL flush per commit and the CPU share of a query. On the
-    Kafka stack the queries are the consumer's INSERTs; on chain, the API's (behind the gateway)."""
+    """PostgreSQL: the time a query spends in the server, the service-to-database link, the WAL
+    flush per commit and the CPU share of a query. On the Kafka stack the queries are the
+    consumer's INSERTs; on chain, the API's (behind the gateway).
+
+    A query's time in the server is PostgreSQL's CPU per query (``server_time``), so a write
+    holds its row lock for that and its flush only; the rest of the round trip the service
+    measured (its driver, the network) is the link (``dbLinkLatencyMs``, each way). Engine
+    0.14.0 put the whole round trip in the database, under the row lock: hot-row's lock was
+    held for Node's driver and network time too."""
     low, high = passes["low"], passes["high"]
     svc, svc_low = db_client(exp, high), db_client(exp, low)
     out: dict[str, Any] = {}
     share: dict[str, Any] | None
+    leg: float | dict[str, Any] = 0.0
     if exp.stack == "kafka":
         cons, cons_low = high["consumer"], low["consumer"]
         insert = timing(cons, "db_insert")
-        sync = timing(passes["write:1"]["service"], "db_write")
+        sync_pass = passes["write:1"]
+        sync = timing(sync_pass["service"], "db_write")
         async_ = timing(passes["write_async:1"]["service"], "db_write_async")
-        flush_med = max(0.01, sync["median"] - async_["median"])
-        out["commitFlushMs"] = {
-            "value": lognormal(flush_med, max(flush_med * 1.01, sync["p95"] - async_["p95"])),
-            "how": (
-                f"UPDATE with synchronous_commit on minus off: median {sync['median']:.3f} - {async_['median']:.3f} ms, "
-                f"p95 {sync['p95']:.3f} - {async_['p95']:.3f} ms"
-            ),
+        wait_med = sync["median"] - async_["median"]
+        rt = {  # the INSERT without its commit wait
+            "median": max(0.01, insert["median"] - wait_med),
+            "p95": max(0.02, insert["p95"] - wait_med),
         }
+        cpu = pg_cpu_per_query(passes, high, cons["consumed"], low, cons_low["consumed"])
+        s = server_time(cpu, rt)
         out["writeServiceTimeMs"] = {
-            "value": lognormal(
-                max(0.01, insert["median"] - flush_med), max(0.02, insert["p95"] - flush_med)
+            "value": s,
+            "how": server_how(
+                "INSERT",
+                cpu,
+                f"the consumer's INSERT less its commit wait (median {insert['median']:.3f} - "
+                f"{wait_med:.3f} ms, p95 {insert['p95']:.3f} - {wait_med:.3f} ms)",
             ),
-            "how": f"consumer's INSERT time (median {insert['median']:.3f}, p95 {insert['p95']:.3f} ms) minus the flush median",
         }
-        share = db_cpu_share(passes, cons_low["consumed"], cons["consumed"], insert["mean"])
+        leg = link_leg(rt, s)
+        ins_ms = mean_ms(s)
+        share = db_cpu_share(
+            passes, cons_low["consumed"], cons["consumed"], ins_ms, f"the INSERT, {ins_ms:.3f} ms"
+        )
     else:
         t, t_low = svc["timings"], svc_low["timings"]
         names = [n for n in ("db_read", "db_write") if n in t]
         q_high = sum(t[n]["count"] for n in names)
         q_low = sum(t_low[n]["count"] for n in names if n in t_low)
-        mean_q = sum(t[n]["mean"] * t[n]["count"] for n in names) / max(q_high, 1)
-        if "db_read" in t:
-            r = timing(svc, "db_read")
-            out["readServiceTimeMs"] = {
-                "value": lognormal(r["median"], r["p95"]),
-                "how": f"SELECT by key as the service sees it (round trip): median {r['median']:.3f}, p95 {r['p95']:.3f} ms",
-            }
+        n_w = t["db_write"]["count"] if "db_write" in t else 0
+        cpu_all = pg_cpu_per_query(passes, high, q_high, low, q_low)
+        cpu_w = None
         if "db_write" in t:
             w = timing(svc, "db_write")
-            a = timing(db_client(exp, passes["write_async:1"]), "db_write_async")
-            flush_med = max(0.01, w["median"] - a["median"])
+            async_pass = passes["write_async:1"]
+            a = timing(db_client(exp, async_pass), "db_write_async")
+            cpu_w = pg_cpu_per_query(passes, async_pass, a["count"])
+        if cpu_all is None or ("db_write" in t and cpu_w is None):
+            # a CPU figure for each kind of query, or none: the reads would set a link that the
+            # writes' whole round trips would then pay again (protocols before v5 have no CPU
+            # figure for the pass without the flush)
+            cpu_all = cpu_w = None
+        if "db_write" in t:
+            s_w = server_time(cpu_w, a)
             out["writeServiceTimeMs"] = {
-                "value": lognormal(a["median"], a["p95"]),
-                "how": f"UPDATE with synchronous_commit off (no WAL flush wait): median {a['median']:.3f}, p95 {a['p95']:.3f} ms",
-            }
-            out["commitFlushMs"] = {
-                "value": lognormal(flush_med, max(flush_med * 1.01, w["p95"] - a["p95"])),
-                "how": (
-                    f"UPDATE with synchronous_commit on minus off: median {w['median']:.3f} - {a['median']:.3f} ms, "
-                    f"p95 {w['p95']:.3f} - {a['p95']:.3f} ms"
+                "value": s_w,
+                "how": server_how(
+                    "UPDATE with synchronous_commit off",
+                    cpu_w,
+                    f"its round trip (median {a['median']:.3f}, p95 {a['p95']:.3f} ms)",
                 ),
             }
-        share = db_cpu_share(passes, q_low, q_high, mean_q)
+            leg = link_leg(a, s_w)
+        if "db_read" in t:
+            r = timing(svc, "db_read")
+            cpu_r = cpu_all
+            if cpu_all is not None and cpu_w is not None and n_w:  # the reads' share of the CPU
+                cpu_r = max(0.25 * cpu_all, (cpu_all * q_high - cpu_w * n_w) / max(r["count"], 1))
+            s_r = server_time(cpu_r, r)
+            out["readServiceTimeMs"] = {
+                "value": s_r,
+                "how": server_how(
+                    "SELECT",
+                    cpu_r,
+                    f"its round trip (median {r['median']:.3f}, p95 {r['p95']:.3f} ms)",
+                    ", the pass's less its UPDATEs'" if cpu_r != cpu_all else "",
+                ),
+            }
+            leg = link_leg(r, s_r)  # most queries are reads: they set the link
+        mix = [
+            (t[n]["count"], mean_ms(out[k]["value"]), what)
+            for n, k, what in (
+                ("db_read", "readServiceTimeMs", "reads"),
+                ("db_write", "writeServiceTimeMs", "writes without their flush"),
+            )
+            if n in t
+        ]
+        model_ms = sum(c * ms for c, ms, _ in mix) / max(q_high, 1)
+        share = db_cpu_share(
+            passes,
+            q_low,
+            q_high,
+            model_ms,
+            " and ".join(f"{c} {what} at {ms:.3f} ms" for c, ms, what in mix)
+            + f": {model_ms:.3f} ms",
+        )
+    out["dbLinkLatencyMs"] = {
+        "value": leg,
+        "how": (
+            "each way: the round trip the service measured less PostgreSQL's time, in two legs "
+            f"that keep its mean and variance ({describe(leg)})"
+        ),
+    }
     if share is not None:
         out["dbCpuShare"] = share
+    for key, entry, kind in (  # PostgreSQL's executor time, next to the model's (a check)
+        ("readServiceTimeMs", high, "read"),
+        ("writeServiceTimeMs", passes.get("write_async:1", {}), "write"),
+        ("writeServiceTimeMs", high, "insert"),
+    ):
+        if key in out and (st := pg_statement(entry, kind)) is not None:
+            out[key]["postgres"] = {"executorMs": round(st["meanExecMs"], 4)}
+    v = {k: x["value"] for k, x in out.items()}
+    if exp.stack == "kafka":  # the write pass: UPDATEs over the keys at its own rate
+        out["commitFlushMs"] = commit_flush(exp, v, high, sync_pass, sync, async_, 0.0)
+    elif "db_write" in svc["timings"]:
+        out["commitFlushMs"] = commit_flush(exp, v, high, high, w, a, exp.read_ratio)
     return out
 
 
-def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
-    """Redis: its own time per command and the service-to-Redis latency. cache-ttl's service
-    reports Redis's command statistics in its own /stats (REDIS_STATS=1)."""
+def redis_commands(entry: Mapping[str, Any]) -> tuple[float, float]:
+    """A pass's GET and SET calls and their command time (us) from Redis's INFO commandstats.
+    cache-ttl's service reports them in its own /stats (REDIS_STATS=1)."""
+    rs = entry["redis"] if "redis" in entry else entry["service"]["redis"]
+    cmds = [rs.get(c, {"calls": 0, "usec": 0}) for c in ("get", "set")]
+    return sum(c["calls"] for c in cmds), sum(c["usec"] for c in cmds)
+
+
+def redis_cpu_per_command(exp: Experiment, passes: Mapping[str, Any]) -> tuple[float, str] | None:
+    """Redis's CPU per GET or SET (ms) and how it was found, or None without a usable figure: its
+    container's CPU at the top pass net of idle (protocol v5), else per extra command between
+    the two passes. Redis runs commands and its network reads and writes on one thread, so this
+    is what one command keeps that thread busy for."""
+    container_name = "redis-ttl" if exp.stack == "cache-ttl" else "redis"
     high = passes["high"]
-    rs = high["redis"] if "redis" in high else high["service"]["redis"]
-    get = rs.get("get", {"calls": 0, "usec": 0})
-    set_ = rs.get("set", {"calls": 0, "usec": 0})
-    calls = get["calls"] + set_["calls"]
-    server_ms = (get["usec"] + set_["usec"]) / max(calls, 1) / 1000
+    calls, _ = redis_commands(high)
+    if (idle := passes.get("idle")) is not None:
+        net = net_cpu_ms(high, idle, container_name)
+        if net is None or calls <= 0 or net <= 0:
+            return None
+        rest = (idle["containerCpuMsPerSecond"].get(container_name) or 0.0) * CALIBRATION_S
+        cpu = net / calls
+        return cpu, (
+            f"Redis's CPU per command at {high['rateRps']:g} req/s net of idle: "
+            f"({high['containerCpuMs'][container_name]:.0f} - {rest:.0f} ms at rest) / "
+            f"{calls:.0f} GET/SET calls = {cpu:.4f} ms"
+        )
+    low = passes["low"]
+    calls_low, _ = redis_commands(low)
+    cpu_slope = slope(
+        low["containerCpuMs"].get(container_name),
+        high["containerCpuMs"].get(container_name),
+        calls_low,
+        calls,
+    )
+    if cpu_slope is None or cpu_slope <= 0:
+        return None
+    return cpu_slope, (
+        f"Redis's CPU per extra command between the passes: "
+        f"({high['containerCpuMs'][container_name]:.0f} - "
+        f"{low['containerCpuMs'][container_name]:.0f} ms) / ({calls:.0f} - {calls_low:.0f} "
+        f"GET/SET calls) = {cpu_slope:.4f} ms"
+    )
+
+
+def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """Redis: the time a command keeps its one thread busy, and the service-to-Redis latency.
+
+    The command time is Redis's CPU per command (``redis_cpu_per_command``): INFO commandstats'
+    own time leaves out reading the request and writing the reply, about nine tenths of Redis's
+    CPU (cache-aside's latest calibration: 0.003 ms of 0.036 ms). The link latency is what is left of the GET round trip's
+    median after the command time's median, so the calibrated latency does not move. Without a
+    CPU figure the command time is commandstats' own time, as before."""
+    high = passes["high"]
+    calls, usec = redis_commands(high)
+    own_ms = usec / max(calls, 1) / 1000
     app_get = timing(high["service"], "redis_get")
+    cpu = redis_cpu_per_command(exp, passes)
+    own = f"INFO commandstats: {usec:.0f} us over {calls:.0f} GET/SET calls = {own_ms:.4f} ms"
+    if cpu is not None:
+        mean = cpu[0]
+        how = f"mean = {cpu[1]} (its command time alone, {own}; the rest is reading requests and writing replies)"
+    else:
+        mean = own_ms
+        how = f"Redis {own} (no CPU figure for its container)"
+    mean = round(max(mean, 0.001), 5)
+    command_median = mean * math.log(2)  # the median of an exponential
     return {
         "cacheServiceTimeMs": {
-            "value": {"kind": "exponential", "mean": round(max(server_ms, 0.001), 5)},
-            "how": f"Redis INFO commandstats: {get['usec'] + set_['usec']:.0f} us over {calls:.0f} GET/SET calls",
+            "value": {"kind": "exponential", "mean": mean},
+            "how": how,
         },
         "cacheLinkLatencyMs": {
-            "value": round(max(0.0, (app_get["median"] - server_ms) / 2), 4),
-            "how": f"(GET round trip median {app_get['median']:.3f} ms - Redis's own time {server_ms:.4f} ms) / 2, one way",
+            "value": round(max(0.0, (app_get["median"] - command_median) / 2), 4),
+            "how": (
+                f"(GET round trip median {app_get['median']:.3f} ms - the command time's median "
+                f"{command_median:.4f} ms) / 2, one way"
+            ),
         },
     }
+
+
+MEMORY_MIN_RATES = 2
+"""Staircase rates (besides rest) the memory fit needs: memory per req/s from rest and one rate
+alone would rest on two readings."""
+
+
+def memory_containers(exp: Experiment) -> dict[str, str]:
+    """The services whose memory is calibrated: their input prefix (``service_node``'s
+    ``memory``) and the container measured for it. The service k6 calls, and chain's API."""
+    out = {"service": STACK_SERVICES[exp.stack][0]}
+    if exp.stack == "chain":
+        out["api"] = "chain-api"
+    return out
+
+
+def memory_points(passes: Mapping[str, Any], container_name: str) -> list[tuple[float, float]]:
+    """(req/s, MiB) for one container: its working set at rest (the idle pass) and the highest
+    reading in each staircase pass (calibration_pass's ``resources``), against the rate k6
+    achieved. Calibrations before W24 recorded neither, and give no points."""
+    pts: list[tuple[float, float]] = []
+    rest = ((passes.get("idle") or {}).get("workingSetMiB") or {}).get(container_name)
+    if rest is not None:
+        pts.append((0.0, float(rest)))
+    for p in passes.get("staircase") or []:
+        c = ((p.get("resources") or {}).get("containers") or {}).get(container_name) or {}
+        rate = p["k6"].get("throughputRps") or p["rateRps"]
+        if c.get("workingSetMiB") is not None and rate is not None:
+            pts.append((float(rate), float(c["workingSetMiB"])))
+    return pts
+
+
+def memory_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
+    """Each service's memory: at idle, per req/s and per request held, fitted (W17's
+    ``fit_memory``, non-negative least squares) to its container's working set over the
+    staircase and at rest. A garbage-collected heap grows with the rate it allocates at, not
+    with requests held, so the fit is against the rate; it explains the whole working set, so
+    memory per request held is its floor. Nothing without passes at MEMORY_MIN_RATES rates or
+    more (a staircase that did not rise): the model keeps its defaults (256 MiB at idle, 2 MiB per
+    request held)."""
+    from archsim_engine.calibration.resources import fit_memory
+
+    out: dict[str, Any] = {}
+    for prefix, name in memory_containers(exp).items():
+        pts = memory_points(passes, name)
+        if len({r for r, _ in pts if r > 0}) < MEMORY_MIN_RATES:
+            continue
+        fit = fit_memory([w for _, w in pts], rate=[r for r, _ in pts])
+        if fit is None:
+            continue
+        rates = [r for r, _ in pts if r > 0]
+        error = f"{fit.error:.0%}" if fit.error is not None else "-"
+        what = (
+            f"the {name} container's working set (the highest reading in each pass) against "
+            f"req/s over {len(pts)} points ({'at rest and ' if len(rates) < len(pts) else ''}"
+            f"{len(rates)} passes, {min(rates):,.0f} to {max(rates):,.0f} req/s), by "
+            f"non-negative least squares: {fit.baseline_mb:.1f} MiB + {fit.per_rps_mb:.4f} MiB "
+            f"per req/s, largest error at and above the median rate {error}"
+            + "".join(f"; {n}" for n in fit.notes)
+        )
+        out |= {
+            f"{prefix}MemoryBaselineMb": {"value": fit.baseline_mb, "how": f"at idle: {what}"},
+            f"{prefix}MemoryPerRpsMb": {"value": fit.per_rps_mb, "how": f"per req/s: {what}"},
+            f"{prefix}MemoryPerRequestMb": {
+                "value": fit.per_request_mb,
+                "how": (
+                    "per request held: the floor, since the fit against req/s explains the "
+                    "whole working set (held requests' memory would count twice otherwise)"
+                ),
+            },
+        }
+    return out
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1433,8 +2207,15 @@ def cache_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
 
 
 def _edge(
-    eid: str, src: str, dst: str, latency: float, port: str = "out", types: list[str] | None = None
+    eid: str,
+    src: str,
+    dst: str,
+    latency: float | Mapping[str, Any],
+    port: str = "out",
+    types: list[str] | None = None,
 ) -> dict[str, Any]:
+    """A link; ``latency`` (ms, each way) is a constant or a distribution."""
+    dist = dict(latency) if isinstance(latency, Mapping) else {"kind": "constant", "value": latency}
     return {
         "id": eid,
         "source": src,
@@ -1443,9 +2224,26 @@ def _edge(
         "targetPort": "in",
         "config": {
             "requestTypes": types or ["read", "write"],
-            "latencyMs": {"kind": "constant", "value": latency},
+            "latencyMs": dist,
         },
     }
+
+
+MEMORY_KEYS = {
+    "memoryBaselineMb": "MemoryBaselineMb",
+    "memoryPerRpsMb": "MemoryPerRpsMb",
+    "memoryPerRequestMb": "MemoryPerRequestMb",
+}
+"""A service node's memory settings and the suffix of the inputs (``memory_inputs``) they
+come from."""
+
+
+def service_memory(v: Mapping[str, Any], memory: str) -> dict[str, Any]:
+    """A service node's calibrated memory settings, or none (ArchSim's defaults) when its
+    memory was not calibrated."""
+    if f"{memory}MemoryBaselineMb" not in v:
+        return {}
+    return {key: v[f"{memory}{suffix}"] for key, suffix in MEMORY_KEYS.items()}
 
 
 def service_node(
@@ -1454,13 +2252,19 @@ def service_node(
     node_id: str = "api",
     time_key: str = "serviceTimeMs",
     label: str | None = None,
+    memory: str = "service",
 ) -> dict[str, Any]:
     """A service on its runtime's ArchSim profile: Node.js is one event loop on one CPU; Java
     (Tomcat's 200 threads), Go (a goroutine per request) and Python (gunicorn's sync workers) are
     a pool of workers that each wait for their own PostgreSQL calls, on the container's 2 CPUs.
-    Their garbage collection is calibrated (``gc_inputs``); the JIT warm-up of the Java profile
-    applies only to replicas started during a run, so it does not apply here."""
+    Their garbage collection is calibrated (``gc_inputs``, and ``node_gc_inputs`` for Node.js's
+    mark-compact pauses), and so is how the service time changes with load
+    (``service_time_by_load``); both apply to the service under test (``serviceTimeMs``), not to
+    chain's API behind the gateway. The JIT warm-up of the Java profile applies only to replicas
+    started during a run, so it does not apply here. Memory comes from the ``<memory>Memory*``
+    inputs when calibrated (``memory_inputs``), else ArchSim's defaults."""
     rt = RUNTIMES[runtime]
+    mem = service_memory(v, memory)
     if rt.workers is None:
         return {
             "id": node_id,
@@ -1474,10 +2278,22 @@ def service_node(
                 "queueCapacity": 100_000,
                 "queueTimeoutMs": None,
                 "serviceTimeMs": v[time_key],
-                "gcPauseMs": 0,  # measured CPU per request already includes GC
+                # V8's mark-compact pauses (node_gc_inputs); 0 when calibration measured none
+                "gcPauseMs": v.get("gcPauseMs", 0) if time_key == "serviceTimeMs" else 0,
+                **(
+                    {"gcEveryRequests": v["gcEveryRequests"]}
+                    if time_key == "serviceTimeMs" and "gcEveryRequests" in v
+                    else {}
+                ),
+                **(
+                    {"serviceTimeByLoad": v["serviceTimeByLoad"]}
+                    if time_key == "serviceTimeMs" and "serviceTimeByLoad" in v
+                    else {}
+                ),
                 "warmupFactor": 1,
                 "cpuCores": rt.cpu_cores,
                 "memoryGib": SERVICE_MEMORY_GIB,
+                **mem,
             },
         }
     return {
@@ -1493,10 +2309,12 @@ def service_node(
             "queueCapacity": 100_000,
             "queueTimeoutMs": None,
             "serviceTimeMs": v[time_key],
+            **({"serviceTimeByLoad": v["serviceTimeByLoad"]} if "serviceTimeByLoad" in v else {}),
             "gcPauseMs": v.get("gcPauseMs", 0),
             **({"gcEveryRequests": v["gcEveryRequests"]} if "gcEveryRequests" in v else {}),
             "cpuCores": rt.cpu_cores,
             "memoryGib": SERVICE_MEMORY_GIB,
+            **mem,
         },
     }
 
@@ -1544,7 +2362,8 @@ def cache_node(v: Mapping[str, Any], ttl_s: int = CACHE_TTL_S) -> dict[str, Any]
 
 
 def queue_node(v: Mapping[str, Any]) -> dict[str, Any]:
-    """Kafka: one broker, the partitions and consumers of the real stack."""
+    """Kafka: one broker and the real stack's partitions, read by one kafkajs consumer that polls
+    in fetch cycles and processes its partitions ``consumerConcurrency`` at a time."""
     return {
         "id": "kafka",
         "type": "message_queue",
@@ -1552,7 +2371,9 @@ def queue_node(v: Mapping[str, Any]) -> dict[str, Any]:
         "config": {
             "technology": "kafka",
             "partitions": KAFKA_PARTITIONS,
-            "consumers": KAFKA_CONSUMERS,
+            "consumers": 1,
+            "consumerConcurrency": v["consumerConcurrency"],
+            "fetchOverheadMs": v["fetchOverheadMs"],
             "brokers": 1,
             "maxDepth": None,
             "acks": "leader",  # one broker: acks=all is the leader's write
@@ -1585,7 +2406,7 @@ def design(
     if exp.stack == "chain":  # the gateway calls the API, which calls PostgreSQL, one after another
         nodes += [
             service_node(v, node_id="gateway", label="Node.js gateway"),
-            service_node(v, time_key="apiServiceTimeMs", label="Node.js API"),
+            service_node(v, time_key="apiServiceTimeMs", label="Node.js API", memory="api"),
         ]
         edges = [
             _edge("e-clients", "clients", "gateway", v["clientLinkLatencyMs"]),
@@ -1596,16 +2417,21 @@ def design(
         edges = [_edge("e-clients", "clients", "api", v["clientLinkLatencyMs"])]
     if exp.stack in DB_STACKS:
         nodes.append(database_node(v))
-        edges.append(_edge("e-db", "api", "db", 0.0))
+        edges.append(_edge("e-db", "api", "db", v.get("dbLinkLatencyMs", 0.0)))
     elif exp.stack in CACHE_STACKS:
         nodes += [cache_node(v, exp.ttl_s), database_node(v)]
         edges += [
             _edge("e-cache", "api", "cache", v["cacheLinkLatencyMs"], types=["read"]),
-            _edge("e-miss", "cache", "db", 0.0, port="miss", types=["read"]),
+            _edge(
+                "e-miss", "cache", "db", v.get("dbLinkLatencyMs", 0.0), port="miss", types=["read"]
+            ),
         ]
     else:  # kafka
         nodes += [queue_node(v), database_node(v)]
-        edges += [_edge("e-kafka", "api", "kafka", 0.0), _edge("e-db", "kafka", "db", 0.0)]
+        edges += [
+            _edge("e-kafka", "api", "kafka", 0.0),
+            _edge("e-db", "kafka", "db", v.get("dbLinkLatencyMs", 0.0)),
+        ]
     return {
         "schemaVersion": "1.0",
         "kind": "archsim.architecture",
@@ -1627,8 +2453,9 @@ def design(
 
 def simulate(doc: dict[str, Any]) -> dict[str, Any]:
     from archsim_engine import run_simulation
+    from archsim_engine.engine import SimulationLimits
 
-    r = run_simulation(doc)
+    r = run_simulation(doc, limits=SimulationLimits(max_wall_seconds=SIM_WALL_S))
     s = r["summary"]
     lat = s["latencyMs"]
     nodes = {n["id"]: n["summary"] for n in r["nodes"]}
@@ -1668,9 +2495,9 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
 def node_resources(doc: Mapping[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
     """The model's CPU (busy cores) and memory (MiB) of each node that has them. Every node of
     the benchmark designs is one instance, so its busy cores are its CPU utilization times its
-    cores. A service's memory is its peak (idle memory plus memory per request times the most
-    requests it held); the cache's is its keys at the end (none expire within a step) times the
-    memory per key."""
+    cores. A service's memory is its peak (idle memory, plus memory per request times the most
+    requests it held, plus memory per req/s times its busiest rate); the cache's is its keys at
+    the end (none expire within a step) times the memory per key."""
     configs = {n["id"]: n["config"] for n in doc["architecture"]["nodes"]}
     out: dict[str, Any] = {}
     for n in result["nodes"]:
@@ -2320,11 +3147,17 @@ LATENCY_FIELDS = ("p50", "p95", "p99", "successRate", "throughputRps")
 def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str, Any]:
     """A run's model inputs derived again from its calibration passes alone, and anchored again,
     as calibrate() would with today's code: under protocol v5 one set per replicate (each top
-    pass with its auxiliary mixes, the staircase's first pass and the idle pass), and their
-    medians (``median_inputs``)."""
+    pass with its auxiliary mixes, the staircase's first pass, the idle pass, the whole staircase
+    for the memory fit and the staircase's CPU by load), and their medians (``median_inputs``)."""
     passes = calibration["passes"]
     sets = [
-        {**r, "low": passes["low"], "idle": passes.get("idle", calibration.get("idle"))}
+        {
+            **r,
+            "low": passes["low"],
+            "idle": passes.get("idle", calibration.get("idle")),
+            "staircase": calibration.get("staircase") or [],
+            "cpuByLoad": calibration.get("cpuByLoad"),
+        }
         for r in calibration.get("replicates") or []
     ]
     derived = []
@@ -2335,16 +3168,84 @@ def rederive_inputs(exp: Experiment, calibration: Mapping[str, Any]) -> dict[str
     return median_inputs(derived) if sets else derived[0]
 
 
+GC_TRIALS = {
+    "pg-mixed": "2026-10-31-pg-mixed-w21",
+    "pg-hot-row": "2026-10-31-pg-hot-row-w21",
+    "cache-aside": "2026-10-31-cache-aside-w21",
+    "kafka": "2026-10-31-kafka-w21",
+}
+"""Calibration-only trials (results/trials/) whose Node.js service reported its garbage
+collection (W21). The kept runs' services did not, so a development check takes the GC per
+request a trial measured at the top of its staircase (``trial_gc``); a calibration from now on
+reads its own."""
+
+
+def trial_gc(exp_id: str, results: Path = RESULTS) -> dict[str, Any] | None:
+    """The GC per request of the experiment's trial: each kind's collections and pause over
+    every top pass of its staircase, per request (None without a trial or a reported GC)."""
+    name = GC_TRIALS.get(exp_id)
+    cal = read_json(results / "trials" / name / "calibration.json") if name else None
+    if not cal:
+        return None
+    tops = [r["high"]["service"] for r in cal.get("replicates") or []]
+    tops = [t for t in tops if (t.get("gc") or {}).get("byKind")]
+    requests = sum(t["requests"] for t in tops)
+    if not requests:
+        return None
+    kinds: dict[str, dict[str, float]] = {}
+    for t in tops:
+        for k, v in t["gc"]["byKind"].items():
+            acc = kinds.setdefault(k, {"collections": 0.0, "pauseMs": 0.0})
+            acc["collections"] += v["collections"]
+            acc["pauseMs"] += v["pauseMs"]
+    return {
+        "trial": name,
+        "rateRps": cal["staircaseRps"][-1],
+        "requests": requests,
+        "perRequest": {
+            k: {"collections": v["collections"] / requests, "pauseMs": v["pauseMs"] / requests}
+            for k, v in kinds.items()
+        },
+    }
+
+
+def with_trial_gc(calibration: Mapping[str, Any], gc: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy of a calibration whose top passes' service stats carry the trial's GC per request
+    scaled to their own requests (marked with the trial's name), where they report none."""
+
+    def give(entry: Mapping[str, Any]) -> dict[str, Any]:
+        svc = entry["service"]
+        if svc.get("gc"):
+            return dict(entry)
+        n = svc["requests"]
+        by_kind = {
+            k: {"collections": v["collections"] * n, "pauseMs": v["pauseMs"] * n}
+            for k, v in gc["perRequest"].items()
+        }
+        source = f"per request as trial {gc['trial']} measured at {gc['rateRps']:g} req/s"
+        return {**entry, "service": {**svc, "gc": {"byKind": by_kind, "source": source}}}
+
+    out = dict(calibration)
+    out["replicates"] = [
+        {**r, "high": give(r["high"])} for r in calibration.get("replicates") or []
+    ]
+    out["passes"] = {**calibration["passes"], "high": give(calibration["passes"]["high"])}
+    return out
+
+
 def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] | None:
     """One kept run checked with today's model: its inputs derived again, its measured ladder
     and the knee simulated, and the comparison with what it measured. None for a run whose
-    calibration today's code cannot read (run 1 had one pass, not two)."""
+    calibration today's code cannot read (run 1 had one pass, not two). A Node.js service that
+    did not report its garbage collection gets its trial's (``trial_gc``)."""
     from archsim_engine.version import ENGINE_VERSION
 
     exp = EXPERIMENTS[exp_id]
     cal, meas = read_json(d / "calibration.json"), read_json(d / "measured.json")
     if not (cal and meas) or not {"low", "high"} <= set(cal.get("passes", {})):
         return None
+    if exp.runtime == "nodejs" and (gc := trial_gc(exp_id, results)) is not None:
+        cal = with_trial_gc(cal, gc)
     try:
         inputs = rederive_inputs(exp, cal)
     except (KeyError, SystemExit) as e:  # an early protocol lacks a pass today's code reads
@@ -2746,7 +3647,7 @@ def smoke_problems(exp: Experiment, sent: Mapping[str, Any], stats: Mapping[str,
         gets = ((stats.get("redis") or {}).get("get") or {}).get("calls")
         if gets != n:
             out.append(f"Redis counted {gets} GET commands, k6 sent {n}")
-    if exp.runtime != "nodejs" and "collections" not in (stats.get("gc") or {}):
+    if "collections" not in (stats.get("gc") or {}):
         out.append("the service reported no garbage collection counts")
     if exp.runtime == "python" and stats.get("workers") != PYTHON_WORKERS:
         out.append(

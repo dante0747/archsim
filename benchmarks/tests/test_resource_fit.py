@@ -7,9 +7,9 @@ over normal operation would see them:
 
 - the CPU share predicts the API's CPU at the knee within 15%, where ArchSim predicted a full
   core before (it counted the whole service time as CPU). CPU per request falls with load (about
-  0.48 ms at 560 req/s, 0.21 ms at 2,231 req/s); ArchSim keeps one cost per request, weighted to
-  the busiest times, so it under-counts CPU at quiet times. That is the known limit, and the fit
-  reports it;
+  0.48 ms at 560 req/s, 0.21 ms at 2,231 req/s); one cost per request, weighted to the busiest
+  times, under-counts CPU at quiet times by more than 40%, and the curve the fit also gives
+  (``serviceTimeByLoad``, since W21) brings every step within 15%;
 - memory fitted against the request rate predicts every step within 30%. Fitted against requests
   held (the plan's first idea) it is off by more than 100%, and before calibration (256 MiB at
   idle + 2 MiB per request held) ArchSim predicted about 3x the memory at the knee. Over the whole
@@ -100,13 +100,22 @@ def test_cpu_share_from_cpu_per_request_predicts_the_cpu_at_the_knee() -> None:
     assert rel(before(top)["cores"], measured) > 1.0  # a full core where 0.46 was used
 
 
-def test_cpu_per_request_falls_with_load_and_the_fit_says_so() -> None:
+def test_cpu_per_request_falls_with_load_and_the_curve_follows_it() -> None:
+    from archsim_engine.components.load_curve import curve_of, load_factor
+
     cpu, _ = fitted()
-    assert cpu.load is not None and cpu.load.quiet_ms > 2 * cpu.load.busy_ms
-    assert any("falls with load" in n and "under-counts" in n for n in cpu.notes)
-    # the known limit: one cost per request, weighted to the busiest times, is low at quiet times
+    curve = cpu.curve
+    assert curve is not None and curve.measured[0][1] > 2 * curve.measured[-1][1]
+    factors = [f for _, f in curve.points]
+    assert factors == sorted(factors, reverse=True) and factors[0] > 2
+    # one cost per request, weighted to the busiest times, is low at quiet times ...
     low = steps()[0]
     assert rel(cpu.predict(low["throughputRps"]), used(low, "api")["cores"]) < -0.4
+    # ... and the curve's factor at each step's rate brings every step within 15%
+    table = curve_of(curve.table())
+    for s in steps():
+        cores = cpu.predict(s["throughputRps"]) * load_factor(table, s["throughputRps"])
+        assert abs(rel(cores, used(s, "api")["cores"])) < 0.15, s["offeredRps"]
 
 
 def test_memory_follows_the_request_rate_not_requests_held() -> None:

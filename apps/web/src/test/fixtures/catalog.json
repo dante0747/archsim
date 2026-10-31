@@ -1117,6 +1117,17 @@
           "group": "Performance"
         },
         {
+          "key": "serviceTimeByLoad",
+          "label": "Service time by load",
+          "kind": "loadCurve",
+          "nullable": false,
+          "description": "How the service time changes with load: points of (req/s one replica receives, factor). At that rate the service time is the one above times the factor; between points it is interpolated in log(req/s), and outside them it stays at the nearest point's factor (never extrapolated). The rate is the replica's arrivals over the last second. Calibration fits it from CPU per request at several loads. Empty = the same service time at every load.",
+          "default": [],
+          "assumption": false,
+          "headline": false,
+          "group": "Performance"
+        },
+        {
           "key": "blockingDownstream",
           "label": "Workers block on downstream calls",
           "kind": "boolean",
@@ -4484,6 +4495,31 @@
           "group": "Performance"
         },
         {
+          "key": "consumerConcurrency",
+          "label": "Consumer concurrency",
+          "kind": "integer",
+          "nullable": true,
+          "description": "Messages one consumer processes at once (kafkajs partitionsConsumedConcurrently, a consumer's worker threads); a partition's messages still go one at a time. Set, consumers poll in cycles (see fetch overhead). Empty = one at a time.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 1,
+          "max": 10000,
+          "group": "Capacity"
+        },
+        {
+          "key": "fetchOverheadMs",
+          "label": "Fetch overhead",
+          "kind": "distribution",
+          "nullable": true,
+          "description": "A consumer's time per poll beyond processing its messages: the fetch round trip and the offset commit (ms). Set, a consumer polls in cycles: it takes its partitions' whole backlog (a shared queue: one message per slot), processes it, pays this, then polls again, so messages that arrive meanwhile wait for the next poll. Empty = each message is taken as soon as a consumer is free.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "unit": "ms",
+          "group": "Performance"
+        },
+        {
           "key": "maxDeliveries",
           "label": "Max deliveries",
           "kind": "integer",
@@ -4789,6 +4825,7 @@
       "modeled": [
         "Publish acknowledgement latency (plus replication wait and batching linger) and a bounded backlog",
         "Partitioned logs: key-hashed ordered partitions, one consumer each (hot partitions lag)",
+        "Fetch cycles: a consumer polls its partitions' backlog, processes it in parallel slots (each partition in order), pays the fetch and commit overhead, then polls again",
         "Shared queues: competing consumers, FIFO",
         "Redelivery of failed messages up to max deliveries, then dead-lettering",
         "Visibility timeouts / ack deadlines: slow processing is delivered again (duplicates)",
@@ -6005,10 +6042,6 @@
       "default": [],
       "assumption": false,
       "headline": false,
-      "options": [
-        "read",
-        "write"
-      ],
       "group": "Chaos",
       "hidden": true
     }

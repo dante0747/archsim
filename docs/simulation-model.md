@@ -235,7 +235,23 @@ SDKs.
     never hold it. `thread_pool` (everything else) gives each worker one request.
   - Garbage collection: every `gcEveryRequests` requests a replica pauses all its CPU work for
     a lognormal pause around `gcPauseMs` (Java about 12 ms, .NET 6, Node.js 2, Go 0.1, Rust
-    none; illustrative). CPU work running when a pause starts is delayed by the pause.
+    none; illustrative). CPU work running when a pause starts is delayed by the pause. A pause
+    holds the replica's work without counting as CPU use, so a calibrated service time should
+    not also contain it (the benchmarks take the modelled pauses off the CPU per request).
+- **Service time by load** (`serviceTimeByLoad`, schema 1.6; empty by default): points of
+  `{rps, factor}` for one replica. Each request's service time is multiplied by the factor at
+  the replica's own arrival rate over the last second (an exponentially weighted count with a
+  1 s time constant, corrected for the time observed so the first second reads right; a
+  serverless function: its rate over the instances busy at that moment). Between points the
+  factor is interpolated linearly in log(rate); below the first and above the last it stays at
+  that point's factor, so a cost measured to fall up to some rate is never assumed to keep
+  falling past it. The factor applies to the whole service time, of which `cpuShare` counts as
+  CPU, so CPU per request follows the curve. Every analytic copy uses it: a replica's CPU or
+  event-loop capacity is the rate where its cores or loops fill at that rate's factor (a fixed
+  point: the report's `capacityRps`, the event-loop explanation and the review's CPU finding);
+  the instant estimate and sizing take the factor at the rate per replica they reason about.
+  The explanation adds "Service time at this load". Calibration fits it from CPU per request at
+  several loads ([calibration.md](calibration.md#cpu-and-memory)).
   - JIT warm-up: replicas started during the run (autoscaling) and new serverless instances run
     `warmupFactor` times slower at first, fading linearly over `warmupS` (Java 2.5x over 45 s,
     .NET 1.5x over 20 s; illustrative).
@@ -261,7 +277,11 @@ cache (a warning).
 - Every command (lookup, invalidation, repopulation) runs on a pool of executors per shard
   taking `serviceTimeMs`, with its own queue. **Redis and Valkey execute commands on one thread
   per shard** whatever `concurrency` or the CPU says (`singleThreaded`, auto); Memcached, CDN
-  and Varnish run `concurrency` executors in parallel (Memcached's default is 4 threads).
+  and Varnish run `concurrency` executors in parallel (Memcached's default is 4 threads). For
+  Redis, `serviceTimeMs` is what one command keeps that thread busy, reading the request and
+  writing the reply included: its CPU per command, which sets both a shard's capacity and its
+  CPU. `INFO commandstats` reports only the command's own share of it, about a tenth on the
+  benchmark stack (0.003 of 0.032 to 0.038 ms per GET or SET).
 - `shards` (Redis Cluster, Memcached servers): keys hash to a shard; each shard has its own
   executors, queue and memory, so a hot key loads one shard.
 - **Writes** perform one command and invalidate the key (TTL model). They never use the
@@ -335,6 +355,19 @@ Technology behaviour (settings with `auto` defaults):
   partitions; consumer i owns partitions p with p mod c = i (c = min(consumers, partitions))
   and processes them one message at a time, so a hot key backs up its partition while other
   consumers idle (`partitionLagMax`). `none` is one shared FIFO with competing consumers.
+- Fetch cycles (schema 1.6; off unless `fetchOverheadMs` is set or `consumerConcurrency` is
+  above 1): a consumer polls, takes its partitions' whole backlog (a shared queue: one message
+  per slot), processes it in `consumerConcurrency` slots (each partition's messages one after
+  another, as kafkajs's `partitionsConsumedConcurrently` does), waits until all are done, pays
+  `fetchOverheadMs` (the fetch round trip and the offset commit) and polls again. Messages that
+  arrive meanwhile wait for the next poll; with no backlog it takes the next message as soon as
+  it arrives. The overhead is spread over more messages per poll as the backlog grows, so
+  throughput approaches slots × 1000 ÷ processing time only under load (`consumerSlots`; a
+  consumer uses at most one slot per partition it owns). `partitionLagMax` counts messages not
+  yet fetched; `lag` also counts fetched messages not yet processed.
+- Message age (`meanMessageAgeMs`, `p95MessageAgeMs`) runs from the start of the publish to the
+  end of processing, as a producer that stamps a message before sending it sees it; until engine
+  0.15 it started at the acknowledgement. `queueWaitMs` still starts at the acknowledgement.
 - `acks: all` adds `replicationMs` to every publish; `lingerMs` adds a uniform share of the
   producer's batching delay (Kafka 4.0: 5 ms).
 - `flowControl` (RabbitMQ): once the backlog uses `memoryHighWatermark` of `memoryGib` (at
@@ -828,12 +861,13 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
 
 - Disk and network bandwidth contention; concurrent GC CPU overhead; CPU interference between
   pods on one node (a pod's CPU is its own once scheduled).
-- CPU per request that changes with load: a request costs `cpuShare` x its service time at any
-  rate. Measured stacks spend less CPU per request as load rises (the pg-mixed benchmark's
-  Node.js service: 0.48 ms at 560 req/s, 0.21 ms at 2,231 req/s), so a share calibrated over a
-  range (weighted to its busiest times) under-counts CPU at quiet times; calibration says when
-  the range shows it ([calibration.md](calibration.md#cpu-and-memory)). CPU spent outside the
-  service time (more than 1 x the service time) is not counted either.
+- CPU per request that changes with load beyond the measured range: `serviceTimeByLoad` keeps
+  its last point's factor at higher rates, so a service measured only at light load is charged
+  that load's cost up to saturation, although measured stacks often keep getting cheaper (the
+  cache-aside benchmark's Node.js service: 0.21 ms at 1,335 req/s, the top of its calibration,
+  and 0.16 ms at 4,850). Without the setting a request costs `cpuShare` x its service time at
+  any rate. CPU spent outside the service time (more than 1 x the service time) is not counted
+  either.
 - Health checks and automatic failover, deployments and rollouts; faults are the three kinds
   above (outage, slowdown, link latency), scheduled by you, not random failures.
 - Autoscaling cooldowns and stabilization windows beyond the simple rules above; node

@@ -46,6 +46,7 @@ from typing import TYPE_CHECKING, Any
 
 from archsim_engine.components.cache import KEY_MEMORY_SHARE
 from archsim_engine.components.database import BUFFER_CACHE_SHARE
+from archsim_engine.components.load_curve import load_factor
 from archsim_engine.load import (
     Json,
     base_rps,
@@ -301,10 +302,14 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
     share = num(cfg.get("cpuShare"))
     share = 1.0 if share is None else min(1.0, max(0.0, share))
     per_replica = total / replicas
-    busy = per_replica * ms * share / 1000
+    curve = config.load_curve()
+    factor = load_factor(curve, per_replica)
+    busy = per_replica * ms * factor * share / 1000
     of_cpu = (
         f"{fmt(ms)} ms of CPU each" if share == 1.0 else f"{fmt(ms)} ms × {_pct(share)} CPU share"
     )
+    if curve:
+        of_cpu += f" × {fmt(factor)} at that rate (service time by load)"
     cpu, why = _cpu_for(
         busy,
         f"{fmt(per_replica)} req/s per replica at peak ({fmt(total)} over {js_num(replicas)}"

@@ -1,0 +1,14 @@
+# W23 trial only (trial.py): the broker's healthcheck runs the JVM tool until it first succeeds,
+# then only checks a marker file, so it stops starting a JVM in the broker's container every 3 s;
+# the broker serves JMX on 9999 inside its container (trial.py reads its request metrics); and the
+# producer takes KAFKA_PRODUCERS from BENCH_KAFKA_PRODUCERS (default 1).
+services:
+  kafka:
+    environment:
+      KAFKA_JMX_PORT: "9999"
+      KAFKA_JMX_HOSTNAME: localhost
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/ready || (/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 && touch /tmp/ready)"]
+  producer:
+    environment:
+      KAFKA_PRODUCERS: "${BENCH_KAFKA_PRODUCERS:-1}"

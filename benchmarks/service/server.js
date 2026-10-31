@@ -4,12 +4,14 @@
 // timings that calibrate the ArchSim model: CPU per request on the event loop, and the time of
 // each PostgreSQL, Redis, Kafka and upstream call as seen from the service. GET /stats returns
 // them, POST /reset clears them; a gateway's include its upstream's (``upstream``), and with
-// REDIS_STATS=1 they include Redis's own time per command (``redis``, INFO commandstats). No
-// framework, so the event loop does nothing we did not write.
+// REDIS_STATS=1 they include Redis's own time per command (``redis``, INFO commandstats). They
+// also count V8's garbage collections (``gc``: the main thread's pause of each, from the
+// 'gc' performance entries), as the Java and Go services count theirs. No framework, so the
+// event loop does nothing we did not write.
 "use strict";
 
 const http = require("node:http");
-const { performance } = require("node:perf_hooks");
+const { performance, PerformanceObserver, constants } = require("node:perf_hooks");
 const { Pool } = require("pg");
 
 const ROLE = process.env.ROLE || "api";
@@ -36,6 +38,51 @@ let consumed = 0;
 let produced = 0;
 let cpu0 = process.cpuUsage();
 let wall0 = performance.now();
+
+// ---- garbage collection -------------------------------------------------------------------------
+// Each 'gc' entry is one collection; its duration is the time the main thread (the event loop)
+// spent in it, which stalls every request on the loop. Scavenges (minor) are frequent and short;
+// mark-compact (major) is rare and long; incremental marking steps and weak callbacks are short.
+const GC_KINDS = {
+  [constants.NODE_PERFORMANCE_GC_MINOR]: "minor",
+  [constants.NODE_PERFORMANCE_GC_MAJOR]: "major",
+  [constants.NODE_PERFORMANCE_GC_INCREMENTAL]: "incremental",
+  [constants.NODE_PERFORMANCE_GC_WEAKCB]: "weakcb",
+};
+let gcPauses = {};
+// when each pause other than a scavenge started (ms since the last reset) and how long it took:
+// whether a mark-compact's incremental-marking step and its final pause come together or apart
+const MAX_LONG = 1000;
+let gcLong = [];
+
+new PerformanceObserver((list) => {
+  for (const e of list.getEntries()) {
+    const kind = GC_KINDS[e.detail ? e.detail.kind : e.kind] || "other";
+    const a = (gcPauses[kind] ||= []);
+    if (a.length < MAX_SAMPLES) a.push(e.duration);
+    if (kind !== "minor" && gcLong.length < MAX_LONG) {
+      gcLong.push({ kind, atMs: Math.round((e.startTime - wall0) * 1000) / 1000, ms: Math.round(e.duration * 1000) / 1000 });
+    }
+  }
+}).observe({ entryTypes: ["gc"] });
+
+function pauseStats(a) {
+  const s = [...a].sort((x, y) => x - y);
+  return {
+    collections: s.length,
+    pauseMs: s.reduce((t, v) => t + v, 0),
+    median: quantile(s, 0.5),
+    p95: quantile(s, 0.95),
+    p99: quantile(s, 0.99),
+    max: s.length ? s[s.length - 1] : null,
+  };
+}
+
+function gcStats() {
+  const all = Object.values(gcPauses).flat();
+  const byKind = Object.fromEntries(Object.entries(gcPauses).map(([k, a]) => [k, pauseStats(a)]));
+  return { ...pauseStats(all), byKind, long: gcLong };
+}
 
 function record(name, ms) {
   const a = (samples[name] ||= []);
@@ -66,6 +113,7 @@ function stats() {
     cpuMsPerRequest: requests ? cpuMs / requests : null,
     cpuMsPerMessage: consumed ? cpuMs / consumed : null,
     counters,
+    gc: gcStats(),
     timings: {},
   };
   for (const [name, a] of Object.entries(samples)) {
@@ -87,6 +135,9 @@ function reset() {
   requests = 0;
   consumed = 0;
   produced = 0;
+  events = [];
+  gcPauses = {};
+  gcLong = [];
   cpu0 = process.cpuUsage();
   wall0 = performance.now();
 }
@@ -115,7 +166,13 @@ async function connectRedis() {
 }
 
 let kafka = null;
-let producer = null;
+// One producer, so one connection to the broker, as the benchmark has always run. KAFKA_PRODUCERS
+// > 1 spreads the sends over that many producers (connections) in turn: a diagnostic only (the
+// broker handles one request per connection at a time).
+const PRODUCERS = Number(process.env.KAFKA_PRODUCERS || 1);
+const producers = [];
+let nextProducer = 0;
+let inflight = 0;
 async function connectKafka() {
   if (!process.env.KAFKA_BROKERS) return;
   const { Kafka, logLevel } = require("kafkajs");
@@ -125,9 +182,86 @@ async function connectKafka() {
   await admin.createTopics({ topics: [{ topic: TOPIC, numPartitions: PARTITIONS, replicationFactor: 1 }] }).catch(() => {});
   await admin.disconnect();
   if (ROLE === "api") {
-    producer = kafka.producer({ allowAutoTopicCreation: false });
-    await producer.connect();
+    for (let i = 0; i < PRODUCERS; i++) {
+      const p = kafka.producer({ allowAutoTopicCreation: false });
+      // kafkajs's own round trip of each Produce request (ms, whole milliseconds)
+      p.on(p.events.REQUEST, ({ payload }) => {
+        if (payload.apiName === "Produce") record("kafka_produce_request", payload.duration);
+      });
+      await p.connect();
+      producers.push(p);
+    }
   }
+}
+
+// ---- Kafka consumer's fetch cycle (kafkajs instrumentation events) ------------------------------
+// kafkajs 2 fetches every assigned partition's backlog from a broker in one request, hands each
+// partition's batch to one of CONSUMERS workers (partitionsConsumedConcurrently; a batch's
+// messages one after another), commits a batch's offsets when it is done and fetches again once
+// every batch of the fetch is done. Recorded per cycle with at least one batch (ms, from
+// performance.now()): `cycle` (one fetch's start to the next's), `cycle_fetch` (the fetch),
+// `cycle_after` (the last batch's end to the next fetch: its commit), `cycle_work` (the batches'
+// processing summed), `cycle_overhead` (the cycle less its batches' least possible span on
+// CONSUMERS workers: the larger of the work over the workers it could use and the longest batch,
+// so what fetching and committing cost), `cycle_messages` and `cycle_batches` (counts); per batch `batch`,
+// `batch_size` (messages) and `batch_gap_per_message` (kafkajs's own time per message: the
+// batch's time less its messages' handling). GET /events returns the raw events (trials only).
+const MAX_EVENTS = 400000;
+let events = [];
+let cycle = null;
+
+function event(...e) {
+  if (events.length < MAX_EVENTS) events.push([Math.round(performance.now() * 1000) / 1000, ...e]);
+}
+
+function newCycle(t) {
+  return { start: t, fetched: t, batches: 0, messages: 0, work: 0, longest: 0, lastEnd: t, open: {} };
+}
+
+function instrumentConsumer(consumer) {
+  const ev = consumer.events;
+  consumer.on(ev.FETCH_START, () => {
+    const t = performance.now();
+    if (cycle && cycle.batches) {
+      record("cycle", t - cycle.start);
+      record("cycle_fetch", cycle.fetched - cycle.start);
+      record("cycle_after", t - cycle.lastEnd);
+      record("cycle_work", cycle.work);
+      const span = Math.max(cycle.work / Math.min(CONSUMERS, cycle.batches), cycle.longest);
+      record("cycle_overhead", t - cycle.start - span);
+      record("cycle_messages", cycle.messages);
+      record("cycle_batches", cycle.batches);
+    }
+    cycle = newCycle(t);
+    event("fetch_start");
+  });
+  consumer.on(ev.FETCH, () => {
+    if (!cycle) return;
+    cycle.fetched = performance.now();
+    record("fetch", cycle.fetched - cycle.start);
+    event("fetch");
+  });
+  consumer.on(ev.START_BATCH_PROCESS, ({ payload }) => {
+    if (!cycle) return;
+    cycle.open[payload.partition] = { start: performance.now(), consume: 0, size: payload.batchSize };
+    cycle.batches++;
+    cycle.messages += payload.batchSize;
+    record("batch_size", payload.batchSize);
+    event("batch_start", payload.partition, payload.batchSize);
+  });
+  consumer.on(ev.END_BATCH_PROCESS, ({ payload }) => {
+    const b = cycle && cycle.open[payload.partition];
+    if (!b) return;
+    const t = performance.now();
+    cycle.work += t - b.start;
+    cycle.longest = Math.max(cycle.longest, t - b.start);
+    cycle.lastEnd = t;
+    record("batch", t - b.start);
+    record("batch_gap_per_message", (t - b.start - b.consume) / Math.max(b.size, 1));
+    event("batch_end", payload.partition, payload.batchSize);
+  });
+  // kafkajs's own round trip of each request (ms, whole milliseconds): Fetch, OffsetCommit, ...
+  consumer.on(ev.REQUEST, ({ payload }) => record(`kafka_request:${payload.apiName}`, payload.duration));
 }
 
 // ---- upstream (ROLE=gateway) -------------------------------------------------------------------
@@ -223,9 +357,16 @@ async function route(req, url, io) {
       return { value, cached: false };
     }
     case "/event": {
-      await timed("kafka_send", () =>
-        producer.send({ topic: TOPIC, acks: -1, messages: [{ key: String(id), value: JSON.stringify({ id, at: Date.now(), phase }) }] }), io,
-      );
+      const producer = producers[nextProducer++ % producers.length];
+      record("kafka_inflight", inflight); // sends still waiting for their acknowledgement
+      inflight++;
+      try {
+        await timed("kafka_send", () =>
+          producer.send({ topic: TOPIC, acks: -1, messages: [{ key: String(id), value: JSON.stringify({ id, at: Date.now(), phase }) }] }), io,
+        );
+      } finally {
+        inflight--;
+      }
       produced++;
       count(`produced:${phase}`);
       return { ok: true };
@@ -253,6 +394,7 @@ function serve(handler) {
       );
     }
     if (url.pathname === "/health") return send(res, 200, { ok: true });
+    if (url.pathname === "/events") return send(res, 200, { events });
     const t = performance.now();
     const io = { ms: 0 };
     handler(req, url, io).then(
@@ -280,16 +422,19 @@ function send(res, status, body) {
 // ---- consumer -----------------------------------------------------------------------------------
 async function runConsumer() {
   const consumer = kafka.consumer({ groupId: "bench-writers" });
+  instrumentConsumer(consumer);
   await consumer.connect();
   await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
   await consumer.run({
     partitionsConsumedConcurrently: CONSUMERS,
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ partition, message }) => {
       const t = performance.now();
       const io = { ms: 0 };
       const body = JSON.parse(message.value.toString());
       await timed("db_insert", () => pool.query("INSERT INTO events (item_id, produced_at) VALUES ($1, to_timestamp($2 / 1000.0))", [body.id, body.at]), io);
       const ms = performance.now() - t;
+      const b = cycle && cycle.open[partition];
+      if (b) b.consume += ms;
       record("consume", ms);
       record("consume_own", ms - io.ms);
       record(`end_to_end:${body.phase || "none"}`, Date.now() - body.at);

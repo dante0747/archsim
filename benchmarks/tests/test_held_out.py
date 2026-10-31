@@ -213,8 +213,17 @@ def test_smoke_problems() -> None:
 
 def test_smoke_problems_on_chain_and_cache_ttl() -> None:
     chain = run.EXPERIMENTS["chain"]
-    gateway = {**counted(200, upstream=200), "upstream": counted(200, db_read=180, db_write=20)}
+    node_gc = {"gc": {"collections": 3, "pauseMs": 2.0, "byKind": {}}}  # server.js since W21
+    gateway = {
+        **counted(200, upstream=200),
+        "upstream": counted(200, db_read=180, db_write=20),
+        **node_gc,
+    }
     assert run.smoke_problems(chain, k6_result(), gateway) == []
+    no_gc = {k: v for k, v in gateway.items() if k != "gc"}
+    assert run.smoke_problems(chain, k6_result(), no_gc) == [
+        "the service reported no garbage collection counts"
+    ]
     lost = {**gateway, "upstream": counted(150, db_read=140, db_write=10)}
     found = run.smoke_problems(chain, k6_result(), lost)
     assert "the API behind the gateway counted 150 requests, k6 sent 200" in found
@@ -222,7 +231,7 @@ def test_smoke_problems_on_chain_and_cache_ttl() -> None:
     ttl = run.EXPERIMENTS["cache-ttl"]
     hits = {"cache_hit:measure": 120, "cache_miss:measure": 80}
     redis = {"get": {"calls": 200, "usec": 1200}, "set": {"calls": 80, "usec": 500}}
-    ok = {**counted(200), "counters": hits, "redis": redis}
+    ok = {**counted(200), "counters": hits, "redis": redis, **node_gc}
     assert run.smoke_problems(ttl, k6_result(), ok) == []
     assert run.smoke_problems(ttl, k6_result(), {**ok, "counters": {}}) == [
         "the cache counted 0 hits and misses, k6 sent 200"
@@ -350,9 +359,14 @@ def test_held_out_inputs(exp_id: str) -> None:
     # CPU per request: the slope between the passes, (4500 - 900) / (12000 - 1500)
     assert "0.3429 ms" in inputs["serviceTimeMs"]["how"]
     if exp.stack in run.DB_STACKS:
+        # two passes and no rest (before protocol v5): no CPU figure for the writes without
+        # their flush, so PostgreSQL's times are the round trips, with no link to add
         assert inputs["readServiceTimeMs"]["value"]["median"] == 0.6
         assert inputs["writeServiceTimeMs"]["value"]["median"] == 0.8
-        assert inputs["commitFlushMs"]["value"]["median"] == 1.2  # 2.0 - 0.8
+        assert inputs["dbLinkLatencyMs"]["value"] == 0.0
+        # the commit's wait, 2.0 - 0.8 ms, less what the model's writes queue at 400 req/s
+        assert inputs["commitFlushMs"]["value"]["median"] == pytest.approx(1.2, rel=0.05)
+        assert inputs["commitFlushMs"]["value"]["median"] < 1.2
         assert inputs["dbCpuShare"]["value"] > 0
     if exp.runtime in ("java", "go"):
         # 18 ms over 6 collections: a 3 ms mean, a median of 3 / 1.17; 12,000 requests / 6
@@ -419,13 +433,40 @@ def test_held_out_designs(exp_id: str) -> None:
         assert 0 < r["cacheHitRatio"] < 1
 
 
+W23_CONSUMER = ("consumers", "consumerConcurrency", "fetchOverheadMs")
+"""The Kafka queue's consumer settings W23 changed: one kafkajs consumer that polls in fetch
+cycles, three partitions at a time, instead of three consumers taking one message each."""
+
+
+def without_consumer(doc: dict[str, Any]) -> dict[str, Any]:
+    out = json.loads(json.dumps(doc))
+    for n in out["architecture"]["nodes"]:
+        if n["type"] == "message_queue":
+            for k in W23_CONSUMER:
+                n["config"].pop(k, None)
+    return out
+
+
 def test_the_tuned_on_designs_are_unchanged() -> None:
-    # the node builders' defaults keep the original four's designs exactly as predicted
+    # the node builders' defaults keep the original four's designs exactly as predicted, but for
+    # the Kafka consumer W23 remodelled (its calibrations predate the inputs it needs)
     for e in TUNED_ON:
         pred = json.loads((run.RESULTS / e / "predictions.json").read_text(encoding="utf-8"))
         cal = json.loads((run.RESULTS / e / "calibration.json").read_text(encoding="utf-8"))
         knee = pred["knee"]["kneeRps"]
-        assert run.design(run.EXPERIMENTS[e], cal["inputs"], knee) == pred["design"], e
+        if e != "kafka":
+            assert run.design(run.EXPERIMENTS[e], cal["inputs"], knee) == pred["design"], e
+            continue
+        inputs = {
+            **cal["inputs"],
+            "consumerConcurrency": {"value": run.KAFKA_CONSUMERS},
+            "fetchOverheadMs": run.fetch_overhead({"timings": {}}),
+        }
+        doc = run.design(run.EXPERIMENTS[e], inputs, knee)
+        assert without_consumer(doc) == without_consumer(pred["design"])
+        queue = next(n for n in doc["architecture"]["nodes"] if n["id"] == "kafka")["config"]
+        assert queue["consumers"] == 1 and queue["consumerConcurrency"] == run.KAFKA_CONSUMERS
+        assert queue["fetchOverheadMs"]["median"] == run.KAFKA_FETCH_FALLBACK["median"]
 
 
 def test_container_nodes_and_report_names_cover_every_stack() -> None:

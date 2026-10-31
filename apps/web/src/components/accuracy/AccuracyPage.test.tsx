@@ -21,6 +21,8 @@ describe("AccuracyPage", () => {
       expect(card, x.id).not.toBeNull();
       expect(within(card as HTMLElement).getByText(x.name)).toBeInTheDocument();
       expect(card?.textContent).toContain(x.environment.text);
+      // a run measured with a since-fixed flaw of the benchmark says so on its card
+      if (x.caveat) expect(within(card as HTMLElement).getByRole("note")).toHaveTextContent("Measured with a benchmark flaw.");
       if (x.knee.measured.kneeRps !== null) {
         expect(within(card as HTMLElement).getByRole("img", { name: new RegExp(`Measured knee ${x.knee.text.measured} req/s`) })).toBeInTheDocument();
       }

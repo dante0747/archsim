@@ -1,11 +1,239 @@
 # Implementation status
 
-State as of 2026-10-31 (engine 0.14.0, schema 1.5, report 1.14). This file separates what is
+State as of 2026-10-31 (engine 0.15.0, schema 1.6, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Engine 0.15.0: the accuracy plan's four model changes together (2026-10-31; W21 to W24).**
+
+- The four workstreams below, merged on one branch: a single 1.5 -> 1.6 migration covers W21's
+  `serviceTimeByLoad` and W23's `consumerConcurrency` and `fetchOverheadMs`; each calibration
+  pass keeps W24's resource readings and W22's PostgreSQL statistics; each re-derived replicate
+  carries both the staircase (W24's memory fit) and `cpuByLoad` (W21).
+- In-sample re-simulation of every kept run with engine 0.15.0 (`docs/validation/dev-checks.md`,
+  clean tree at `83e1824`, a column per workstream and one for all four): median knee error over
+  the counted v5 runs pg-mixed +24%, pg-hot-row -7% (was -16%), cache-aside -34%, Kafka +4%;
+  median absolute knee error over the latest runs 20% -> 15% (24% over all 19 counted runs, as
+  before). These are runs the changes were tuned on, not predictions.
+- `report.py` flags a harness caveat (`HARNESS_CAVEATS`): every kept Kafka run had the broker
+  healthcheck W23 found, so its measured knees are the benchmark's. /accuracy shows the caveat
+  on Kafka's card and in the short version, and docs/validation.md in Kafka's section, until a
+  Kafka run is calibrated after the fix.
+- Not frozen in `benchmarks/engines.json` yet: the held-out experiments stay sealed.
+
+**Kafka: message age, fetch cycles, and a publish tail that was the harness's (2026-10-31; accuracy plan W23).**
+
+- Message age now starts when the publish starts (`Message.created_at`), as the benchmark's
+  producer stamps it; until now it started at the acknowledgement. `queueWaitMs` is unchanged.
+- Message queues gain `consumerConcurrency` and `fetchOverheadMs` (schema 1.6, both empty by
+  default, as before). Set either and consumers poll in cycles, as kafkajs does: take the
+  partitions' whole backlog, process it in N slots (a partition's messages one after another),
+  wait for all, pay the fetch and commit overhead, poll again (`consumerSlots`; warning
+  `queue.idle_slots`; the instant estimate counts slots). The Kafka benchmark design is one
+  consumer with concurrency 3, as the real stack. Example digests (all 25 templates, 8 s runs):
+  17 unchanged; the 8 with a queue change only in their message age.
+- The benchmark service reports kafkajs's fetch cycle (`cycle_overhead`, `cycle_fetch`,
+  `cycle_after`, batches) and the producer's sends in flight; `run.py` calibrates
+  `fetchOverheadMs` from it. Kept runs lack it and take the W23 trial's figure (median 0.93 ms,
+  p95 3.88 ms per poll at 569 req/s).
+- The publish tail that grew with load (client p95 42 ms at 1,890 req/s) was the benchmark's:
+  the broker's healthcheck started a JVM every 3 s on the broker's one physical core (about 0.5
+  cores). Run once, the stack's p95 was 5.0 ms at 1,890 req/s, which engine 0.14.0 predicted
+  (4.9 ms); GC (1 to 4 pauses per pass) and the producer's single connection were ruled out.
+  `compose.yaml` now runs the check only until it first succeeds. All five kept Kafka runs (v4
+  and v5) ran with it, so their measured knees are harness-limited. Trial data:
+  `benchmarks/results/trials/2026-10-31-kafka-w23/` (development data, not on /accuracy).
+- In-sample re-simulation of the kept Kafka runs (`docs/validation/dev-checks.md`), engine
+  0.14.0 against this branch, latest run (525 / 1,050 / 1,575 / 1,890 req/s):
+
+  | | measured | engine 0.14.0 | W23 |
+  | --- | --- | --- | --- |
+  | median knee error, 3 counted v5 runs | | +4% | +4% (unchanged: the client's path is) |
+  | client p95 (ms) | 4.6 / 10.5 / 22.4 / 42.5 | 3.3 / 3.4 / 3.7 / 4.9 | 3.3 / 3.4 / 3.7 / 4.9 |
+  | consumed per second, 1,890 req/s and above | 1,568 to 1,671 | 1,383 | 1,360 to 1,372 |
+  | message age p95 (ms) | 14 / 132 / 2,660 / 7,440 | 3.9 / 10.1 / 2,904 / 6,413 | 10.3 / 29.4 / 4,067 / 8,631 |
+
+  The measured p95 is the healthcheck's (the fixed stack: 1.7 / 3.3 / 5.2 / 5.0 ms). Message age
+  at light load moves from a quarter to three quarters of the measured; at 1,050 req/s it stays
+  4.5x short (rare consumer stalls of 0.2 to 0.8 s set the real p95). The consumer's cap stays
+  low: the model's INSERT takes 2.1 ms (0.89 ms write, 1.2 ms waiting for the WAL flush) where
+  the consumer measured 1.73 ms, a database input (W22). In the trial the real consumer kept up
+  with only 1,320 to 1,440/s.
+- Kafka's knee with W21: the producer's CPU 30% cheaper at high load puts the predicted knee at
+  3,000 / 3,050 / 4,050 req/s (latest, run 4, run 3): +48% median against the kept runs, whose
+  knees are the harness's, and -9% to +35% against the fixed stack's knee (about 3,000 to
+  3,300 req/s, where the producer's core fills; single trial passes). Judge W21's Kafka effect
+  on the prospective campaign's new measurements, not on the kept runs.
+- Engine label `0.15.0-w23`, schema 1.6 (a no-op 1.5 -> 1.6 migration, as on W21's branch). The
+  Kafka design now carries 1.6 settings, which engine 0.14.0 refuses: its baseline predictions
+  need the 0.14.0 harness. Checks: pytest (870 passed in a full run on a host other sessions held
+  at 100% CPU; of its 11 failures, 5 passed when run again (timing and process tests, a Node
+  crash under load, and a provenance check that saw files change during the run) and 6 were
+  this change's, now updated: the CI snapshot's engine label (4), and the Kafka design and
+  inputs that W19's and W18's tests pin), ruff, mypy, web lint, vitest 319, build, tsc,
+  Playwright 6.
+
+**Sizing inputs from what the containers use: Redis CPU, service memory (2026-10-31; accuracy plan W24).**
+
+- **Redis's command time is its CPU per command**, at the top calibration pass net of idle
+  (`run.cache_inputs`; v4 calibrations: per extra command between the two passes): 0.032 to
+  0.038 ms per GET or SET in the v5 runs, where `INFO commandstats` reported 0.002 to 0.003 ms.
+  Commandstats leaves out reading requests and writing replies, which Redis does on the same
+  thread. The Redis link is what is left of the GET round trip's median, and the anchor derives
+  the client latency again, so each calibrated p50 is still reproduced exactly (residual 0 ms).
+  ArchSim's own Redis default (0.035 ms) was already this size; only the benchmark under-counted.
+- **Service memory is fitted at calibration**: every calibration pass and the idle pass read each
+  container's working set (`ResourceSampler`, from the pass's start), and each service's memory
+  at idle and per req/s is W17's `fit_memory` over rest and the whole staircase
+  (`run.memory_inputs` → `service_node`; chain fits its gateway and API apart; memory per request
+  held is the 0.01 MiB floor). A calibration without the readings, or whose staircase never rose
+  to two rates, keeps ArchSim's defaults, so every kept run's design is unchanged.
+- No engine change (`0.15.0-w24` is a label for the dev checks), so the example `resultDigest`s
+  and the 25-template sizing audit are untouched. **No predicted knee moved** on any of the 26
+  re-simulated runs (`results/dev/0.15.0-w24/`; median knee error 20% latest, 24% over the 19
+  counted runs, as with 0.14.0). pg-mixed, pg-hot-row and Kafka simulate identically at every
+  step. Cache-aside's p50, p95 or p99 moved by one histogram bucket (2%, 0.01 to 0.08 ms) at some
+  steps, from the longer Redis command time's spread; its success rates are unchanged.
+- The kept runs have no memory readings, so a calibration-only trial (31 Oct, quiet host,
+  `benchmarks/results/trials/2026-10-31-*-w24/`, development data) supplied each service's fit,
+  scored against every counted kept run's measured working set (`test_sizing_inputs.py`).
+
+| Part (3 counted v5 runs each) | Latest run's top step | Measured | Before (0.14.0) | After (W24) | Top-step error, counted runs | Median error up to both knees |
+| --- | --- | --- | --- | --- | --- | --- |
+| Redis busy cores (cache-aside) | 4,850 req/s | 0.18 | 0.018 (-90%) | 0.21 (+19%) | -90% to -92% → +14% to +19% | 91%-93% → 10%-14% |
+| Node.js API memory (pg-mixed) | 3,712 req/s | 145 MiB | 278 MiB (+91%) | 109 MiB (-25%) | +76% to +91% → -25% to -34% | 199%-282% → 20%-27% |
+| Node.js API memory (pg-hot-row) | 782 req/s | 66 MiB | 320 MiB (+386%) | 44 MiB (-33%) | +57% to +487% → -11% to -76% | 41%-501% → 2%-76% |
+| Node.js API memory (cache-aside) | 4,850 req/s | 182 MiB | 920 MiB (+407%) | 68 MiB (-63%) | +358% to +412% → -63% to -64% | 312%-328% → 32%-59% |
+| Node.js producer memory (Kafka) | 1,890 req/s | 179 MiB | 292 MiB (+63%) | 138 MiB (-23%) | +63% to +86% → -10% to -23% | 76%-138% → 15%-26% |
+
+- **Memory is now low near the knee.** It is far closer than the defaults (256 MiB at idle plus 2
+  MiB per request held) at almost every step, but 10% to 76% low at the top step. The staircase
+  stops at 35% of the service's core, a third to a sixth of the knee, and V8's heap grows faster
+  than the rate beyond it (pg-mixed measured 45, 70 and 145 MiB at 1,238, 2,475 and 3,712 req/s).
+  The heap also lags the rate (it is collected lazily): cache-aside's warm-up heap at rest
+  (65 MiB) pinned its fit flat at 0 MiB per req/s. And hot-row's run 7 measured 187 MiB because
+  it ran on the Node.js process pg-mixed's ladder had just used. A design sized on these figures
+  would be too small near the knee, where the defaults made it 1.6x to 5.9x too large.
+- **Redis is now slightly high** at the top step (+14% to +19%): its CPU per command falls with
+  load (0.043 ms at 1,212 req/s in the trial, about 0.03 ms at 4,850), the effect W21 models for
+  services.
+
+**Service CPU that follows load, and Node.js garbage collection (2026-10-31, schema 1.6;
+accuracy plan W21).**
+
+- **`serviceTimeByLoad`** (services, schema 1.6, no-op migration; left out of the JSON when
+  empty, so documents and result digests are unchanged): `{rps, factor}` points per replica.
+  Each request's service time is multiplied by the factor at its replica's arrival rate over
+  the last second (bias-corrected EWMA; serverless: the function's rate over its busy
+  instances), interpolated in log(rate) and flat outside the points: a fall measured up to some
+  rate is never extrapolated. Helpers in `components/load_curve.py`; every analytic copy uses
+  them: the report's capacity and the event-loop explanation solve where the cores or loops fill
+  at that rate's factor (a fixed point, through a new `slot_capacity` hook), as does the
+  review's CPU finding; the instant estimate and sizing take the factor at their rate per
+  replica. The web inspector edits it as "req/s: factor" pairs.
+- **Calibration:** `load_dependence` became `fit_load_curve` (up to 6 quantile bins by rate per
+  replica, never rising with rate, relative to CPU per request over the range); Prometheus
+  calibration sets the table on a service when it spans more than 10%, and notes it for a
+  database, an autoscaled or a serverless service. On pg-mixed run 5 every step below the knee
+  is within 15% with it (the share alone: 51% low at 560 req/s).
+- **Benchmarks:** the curve comes from the staircase's `cpuByLoad` (relative to the top rate).
+  `server.js` reports V8's collections by kind (PerformanceObserver 'gc': main-thread pause,
+  and when each pause other than a scavenge starts). A mark-compact cycle (its
+  incremental-marking step and final pause, about 10 ms apart) becomes the model's GC pause
+  (`gcPauseMs`, `gcEveryRequests`) and its time comes off the CPU per request, which held it,
+  so nothing is counted twice; scavenges, frequent and about 1 ms, stay in the CPU per request.
+  Kept runs reported no GC: `resimulate` takes it from four calibration-only trials
+  (`results/trials/2026-10-31-*-w21/`, W21-README.md). The harness allows a simulation 1 h of
+  wall clock (the engine's 300 s default stopped an overloaded pg-mixed step on a shared CPU).
+- **Result: no knee moved.** Median knee error over the three counted v5 runs (in-sample
+  re-simulation, `docs/validation/dev-checks.md`), engine 0.14.0 → this branch: pg-mixed
+  +24% → +24%; pg-hot-row -16% → -16%; cache-aside -34% → -34%; Kafka +4% → +4%. Every knee lies 3
+  to 5 times above its staircase's top rate, where the curve is flat by design, and the GC
+  pauses are small: 0.1% to 0.45% of the event loop's time, a 4 to 16 ms mark-compact every
+  7,500 (Kafka's producer) to 58,000 requests. pg-mixed's p95 at 2,475 / 3,712 / 4,455 req/s
+  (measured 2.04 / 8.67 / 65.1 ms): engine 0.14.0 1.60 / 1.80 / 2.28 ms, this branch 1.63 /
+  1.84 / 2.47 ms. The predicted knees moved by at most 1 req/s. What changed is CPU at light
+  load: the Node.js services' predicted CPU at the ladder's lowest step went from -22% to -1%
+  (hot-row), -12% to -8% (cache-aside) and -10% to -7% (pg-mixed).
+- **GC does not explain pg-mixed's early latency rise.** In the quiet trial pg-mixed's p95 at
+  3,712 req/s was 1.74 ms (the baseline step: 8.67 ms; predicted 1.80). At 4,455 req/s the
+  stack overloaded with Node 89% busy and PostgreSQL saturating its two CPUs, hyperthread
+  siblings of one core (1.0 core busy, CPU per query 0.162 → 0.257 ms, the service's reads
+  waiting 34 ms): pg-mixed's knee looks set by PostgreSQL's CPU (W22). cache-aside's CPU per
+  request kept falling above its staircase (0.22-0.25 ms at the top, 0.170 at 4,850 req/s),
+  which the curve, flat above its last point, leaves out: its -34% stays.
+- **Checks:** all 25 examples give the same result digest as main (59d7bc3) with the new setting
+  empty; the 25-template sizing audit passes; the engine simulates an overloaded pg-mixed step
+  as fast as before (17.9 s against 18.1 s). `uv run pytest` (the one failure, the engine label
+  in the generated docs/assumptions.md, regenerated), ruff, mypy, and in apps/web build, lint,
+  vitest (323), tsc and Playwright (6, on 3002/8002) pass. Checked in the browser: the inspector
+  edits the curve, a run carries it, and the explanation reads "Service time at this load:
+  10.18 ms x 2.2831 at 201 req/s per replica".
+
+**Database inputs from PostgreSQL's own statistics (2026-10-31; accuracy plan W22, label
+0.15.0-w22).**
+
+- In-sample, re-simulated on the counted v5 runs (three each; `docs/validation/dev-checks.md`
+  for the knees). PostgreSQL busy cores: the error at the highest load step at or below both
+  knees, median of the runs.
+
+  | Experiment | Median knee error, 0.14.0 → W22 | PostgreSQL busy cores, 0.14.0 → W22 |
+  | --- | --- | --- |
+  | pg-mixed | +24% → +24% (each run moved 0%) | -39% → -11% |
+  | pg-hot-row | -16% → -7% (runs: -19/0/-16% → -11/+10/-7%) | -70% → -11% |
+  | cache-aside | -34% → -34% (each run moved 0%) | -16% → -8% |
+  | Kafka | +4% → +4% (each run moved 0%) | -50% → -4% |
+
+  Median absolute knee error: 20% → 15% over the latest run of each experiment, 24% → 24% over
+  all 19 counted runs. Runs before protocol v5 have no CPU figure for the pass without the
+  flush, so their database keeps the measured round trips, as in 0.14.0, and only the flush is
+  fitted: their knees are 0.14.0's within 1%, except pg-mixed run 3 (808 → 873 req/s), whose
+  flush's p95 was 14 times its median. The engine is unchanged (only the label), so example
+  `resultDigest`s are too.
+
+- **PostgreSQL's CPU (fixed).** `dbCpuShare` was PostgreSQL's CPU per query over the mean
+  query time the service measured, a write's WAL flush and the measured tail included, while
+  the model spends the share of the time it samples (writes without the flush, which uses no
+  CPU, from a lognormal whose mean is lower). It now divides by the model's own mean
+  (`mean_ms`, the engine's `expected()`), as `calibration/apply.py` already did for customers.
+- **A query's time in PostgreSQL is its CPU per query** (net of idle, shaped like the measured
+  round trip), and the rest of the round trip (Node's driver, the network) is a new input,
+  `dbLinkLatencyMs`, on the service-to-database edges: two lognormal legs that keep the round
+  trip's mean and variance, so the model's round trip is unchanged. W22's trial found the
+  backends busy on the CPU for nearly all of PostgreSQL's time (the WAL writer and other
+  processes use under 0.01 ms per query). hot-row's row lock is no longer held for the driver
+  and network time; the share comes out at about 1.
+- **The WAL flush.** With PostgreSQL's statistics, `commitFlushMs` is pg_stat_wal's mean flush
+  time (write + sync per sync) on the top pass. Without them (every kept run), it is fitted in
+  a PostgreSQL-only copy of the model (`fit_flush`) so the model's writes wait as long for
+  their row lock and flush as the service measured (synchronous_commit on minus off, from the
+  medians: a mean takes in Node's stalls). On the trial's passes PostgreSQL's flush was 3% to
+  16% longer than the fitted one (hot-row 0.79 against 0.73 ms), so kept runs score slightly
+  better than calibrations with the statistics will. The model's commits per flush are kept
+  next to PostgreSQL's in `calibration.json` (both about 1.0 at every top pass).
+- **Calibration reads PostgreSQL's own statistics** (`compose.yaml` loads `pg_stat_statements`
+  and sets `track_wal_io_timing`; `init.sql` creates the extension): each pass records the
+  statements' executor time, the WAL flushes and their time, commits, the backends' active
+  time and each kind of PostgreSQL process's CPU (`pg_begin`, `pg_end`). Statements are matched
+  by what they do, not their text, so the held-out services' drivers are read too.
+- **Trial** (`benchmarks/results/trials/2026-10-31-*-w22/`, development data): the UPDATE takes
+  0.03 to 0.06 ms in the executor and its flush 0.79 ms, while PostgreSQL's CPU per UPDATE is
+  0.19 to 0.23 ms; the flush falls with load (1.6 ms at 50 req/s, 1.06 at 196, 0.79 from about
+  400); Kafka's INSERTs share flushes as load rises (1.5 commits per flush at 1,200 req/s).
+- Not improved: Kafka's consumer cap (1,383 → 1,404 messages/s against about 1,650 measured;
+  W23's fetch cycle), pg-mixed's +24% (the model's knee is Node's CPU, W21), hot-row's lock
+  still held for PostgreSQL's own protocol work (about 0.15 ms per UPDATE: the engine has no
+  server time outside a row lock), and a flush and CPU per query that fall with load.
+- Hyperthreads (W21's trial: at 4,455 req/s PostgreSQL used 1.0 of its two CPUs, hyperthread
+  siblings, at 0.257 ms per query against 0.162 at 3,712): giving the model's PostgreSQL its one
+  physical core instead of two CPUs moves pg-mixed's p95 by 0.07 to 0.5 ms at 3,712 to 4,950
+  req/s and not its knee, which is Node's CPU in the model (0.90 cores at 4,455, 1.00 at 4,950).
+  How vCPUs that are hyperthreads become capacity is an engine question for services and
+  databases alike (the held-out services also run on one sibling pair), so it is left to a
+  workstream of its own.
 
 **Baseline campaign under protocol v5, and disturbed runs (2026-10-31; accuracy plan).**
 
@@ -1313,12 +1541,13 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. Accuracy plan W21 to W24, tuned on the four in-sample experiments only: GC pauses and CPU
-   per request that falls with load (W21), database inputs timed inside PostgreSQL (W22),
-   Kafka's publish tail, fetch cycle and message-age clock (W23), Redis CPU and service memory
-   (W24); then a predicted range that includes run-to-run calibration variation. Then freeze
-   engine 0.15.0, run the prospective campaign (both engines predict the five held-out
-   experiments before they are measured) and W25 (accuracy over time on /accuracy).
+1. Accuracy: freeze an engine in `benchmarks/engines.json` and run the prospective campaign
+   (0.14.0 and the frozen engine predict the five held-out experiments before they are
+   measured; the four in-sample ones are measured again, Kafka on the fixed stack), then W25
+   (accuracy over time on /accuracy). Open model work the campaign would test, in order: a CPU
+   cost that rises near full load (pg-mixed +24%) and how hyperthreaded vCPUs become capacity; a
+   CPU per request that keeps falling above the calibration staircase (cache-aside -34%); a
+   predicted range that includes run-to-run calibration variation (1 of 12 runs inside it).
 2. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured
    CPU and memory, apply with one click, verify over 5 seeds.
 3. Decide the tier thresholds (the owner; a proposal is in docs/validation.md), including

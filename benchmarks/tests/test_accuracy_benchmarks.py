@@ -345,9 +345,16 @@ def test_v5_cpu_per_request_is_the_top_pass_net_of_idle(monkeypatch: pytest.Monk
     assert how.startswith("the median of 3 replicates (")
     assert "mean = Node's CPU per request at 1484 req/s net of idle" in how
     assert f"= {laptop_cpu(1484):.4f} ms" in how
-    # PostgreSQL: 0.15 ms per query once its 2 ms/s at rest is taken off, over the mean query
-    queries = 0.9 * 0.5 + 0.1 * 2.0  # every request is one read or one write
-    assert cal["inputs"]["dbCpuShare"]["value"] == pytest.approx(0.15 / queries, abs=1e-3)
+    # PostgreSQL: 0.15 ms per query once its 2 ms/s at rest is taken off, over the mean time the
+    # model gives a query: the read and write times it samples (writes without their flush),
+    # not the 0.65 ms the service measured (0.9 x 0.5 + 0.1 x 2.0, the flush included)
+    i = cal["inputs"]
+    model = 0.9 * run.mean_ms(i["readServiceTimeMs"]["value"]) + 0.1 * run.mean_ms(
+        i["writeServiceTimeMs"]["value"]
+    )
+    assert model < 0.9 * 0.5 + 0.1 * 2.0
+    assert i["dbCpuShare"]["value"] == pytest.approx(0.15 / model, abs=1e-3)
+    assert "the model's mean time per query" in i["dbCpuShare"]["how"]
 
 
 def test_staircase_stops_on_a_slow_pass() -> None:
@@ -764,11 +771,179 @@ def test_vm_cpu_times_reads_steal(monkeypatch: pytest.MonkeyPatch) -> None:
     assert run.vm_cpu_times() == (35, 1000)
 
 
+DATABASE_INPUTS = {
+    "readServiceTimeMs",
+    "writeServiceTimeMs",
+    "commitFlushMs",
+    "dbCpuShare",
+    "dbLinkLatencyMs",
+}
+"""The inputs ``database_inputs`` derives anew since engine 0.15.0 (W22)."""
+
+
 def test_split_inputs_reproduce_every_latest_calibration() -> None:
-    # one function per part, then anchored again: the very inputs each latest run used
+    # one function per part, then anchored again: the very inputs each latest run used, but for
+    # those a model change since derives differently. W21: how the service time changes with load
+    # (the staircase's CPU per request; it leaves the top rate, where the anchor simulates,
+    # unchanged; the kept runs' services did not report GC, so no GC input is derived). W22: the
+    # database's inputs (PostgreSQL's CPU per query as its time, the rest of the round trip as a
+    # link) and the client latency anchored to them. W23: Kafka gains two inputs its calibrations
+    # predate (the fetch-cycle report). W24: Redis's command time is its CPU per command, so the
+    # Redis link and the anchored client latency are derived again too.
+    added = {"kafka": {"consumerConcurrency", "fetchOverheadMs"}}
+    changed = {
+        "cache-aside": {"cacheServiceTimeMs", "cacheLinkLatencyMs", "clientLinkLatencyMs", "anchor"}
+    }
+    anew = DATABASE_INPUTS | {"clientLinkLatencyMs", "anchor"}
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
-        assert run.rederive_inputs(run.EXPERIMENTS[exp], cal) == cal["inputs"], exp
+        again = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
+        assert again.pop("serviceTimeByLoad")["value"][-1]["factor"] == 1.0, exp
+        if exp == "kafka":
+            assert again["consumerConcurrency"]["value"] == run.KAFKA_CONSUMERS
+            assert "not recorded in this run" in again["fetchOverheadMs"]["how"]
+        skip = changed.get(exp, set()) | added.get(exp, set()) | anew
+        assert {k: v for k, v in again.items() if k not in skip} == {
+            k: v for k, v in cal["inputs"].items() if k not in skip
+        }, exp
+        assert {"dbLinkLatencyMs", "dbCpuShare"} <= set(again), exp
+
+
+def test_database_inputs_keep_the_measured_round_trip() -> None:
+    # pg-mixed's latest top pass: PostgreSQL's CPU per query becomes its time in the model, the
+    # rest of each round trip the service measured becomes the link, and the share is the CPU
+    cal = json.loads((run.RESULTS / "pg-mixed" / "calibration.json").read_text(encoding="utf-8"))
+    rep = {**cal["replicates"][0], "low": cal["passes"]["low"], "idle": cal["idle"]}
+    got = run.database_inputs(PG_MIXED, rep)
+    read = rep["high"]["service"]["timings"]["db_read"]
+    rt = run.mean_ms(run.lognormal(read["median"], read["p95"]))
+    s, leg = got["readServiceTimeMs"]["value"], got["dbLinkLatencyMs"]["value"]
+    assert run.mean_ms(s) + 2 * run.mean_ms(leg) == pytest.approx(rt, rel=1e-3)
+    assert run.mean_ms(s) < 0.75 * rt  # most of the round trip is PostgreSQL's
+    assert got["dbCpuShare"]["value"] == pytest.approx(1.0, abs=0.02)
+    # the writes' flush: fitted in the model to the wait the service measured (no statistics)
+    assert "fitted so that the model's writes wait" in got["commitFlushMs"]["how"]
+    assert got["commitFlushMs"]["model"]["commitsPerFlush"] == pytest.approx(1.0, abs=0.05)
+
+
+def pg_snap(calls: int, exec_ms: float, syncs: int, ticks: int) -> dict[str, Any]:
+    """What pg_snapshot reads: the statistics (PG_STATS_SQL) and the processes' CPU ticks."""
+    return {
+        "stats": {
+            "statements": [
+                {"query": "UPDATE items SET value = value + $1 WHERE id = $2", "calls": calls,
+                 "rows": calls, "meanExecMs": exec_ms, "stddevExecMs": 0.01,
+                 "minExecMs": 0.01, "maxExecMs": 1.0},
+                {"query": "BEGIN", "calls": calls, "rows": 0, "meanExecMs": 0.001,
+                 "stddevExecMs": 0.0, "minExecMs": 0.0, "maxExecMs": 0.1},
+            ],
+            "wal": {"records": 10 * syncs, "bytes": 1000 * syncs, "buffersFull": 0,
+                    "writes": syncs, "syncs": syncs, "writeMs": 0.1 * syncs,
+                    "syncMs": 0.5 * syncs},
+            "database": {"commits": calls, "rollbacks": 0, "activeMs": 0.3 * calls,
+                         "sessionMs": 1000.0},
+        },
+        "processes": {"40": ("backends", ticks), "41": ("walWriter", ticks // 10)},
+    }  # fmt: skip
+
+
+def test_pg_end_counts_the_pass_alone() -> None:
+    before, after = pg_snap(0, 0.0, 100, 500), pg_snap(9000, 0.05, 2100, 800)
+    w = run.pg_window(before, after)
+    # pg_stat_statements was cleared before the pass: its rows are the pass's own
+    assert [s["kind"] for s in w["statements"]] == ["write"]
+    assert w["wal"]["syncs"] == 2000 and w["database"]["commits"] == 9000
+    assert w["cpuMsByProcess"] == {"backends": 3000.0, "walWriter": 300.0}
+    entry = {"postgres": w}
+    assert run.pg_statement(entry, "write") == {"calls": 9000, "meanExecMs": 0.05}
+    assert run.pg_statement(entry, "read") is None
+    flush = run.pg_flush(entry)
+    assert flush is not None
+    assert flush["flushMs"] == pytest.approx(0.6) and flush["syncMs"] == pytest.approx(0.5)
+    assert flush["commitsPerFlush"] == pytest.approx(4.5)
+    assert run.pg_flush({}) is None
+
+
+def test_database_inputs_from_postgresqls_own_statistics() -> None:
+    # W22's trial (development data): the top pass recorded PostgreSQL's statistics, so the
+    # flush is PostgreSQL's own and its executor time is kept beside the model's
+    trial = run.RESULTS / "trials" / "2026-10-31-pg-hot-row-w22" / "calibration.json"
+    cal = json.loads(trial.read_text(encoding="utf-8"))
+    rep = {**cal["replicates"][0], "low": cal["passes"]["low"], "idle": cal["idle"]}
+    got = run.database_inputs(run.EXPERIMENTS["pg-hot-row"], rep)
+    flush = got["commitFlushMs"]
+    assert "pg_stat_wal" in flush["how"]
+    measured = run.pg_flush(rep["high"])
+    assert measured is not None
+    assert run.mean_ms(flush["value"]) == pytest.approx(measured["flushMs"], rel=1e-3)
+    assert flush["postgres"]["commitsPerFlush"] == pytest.approx(1.0, abs=0.05)
+    assert flush["model"]["commitsPerFlush"] == pytest.approx(1.0, abs=0.01)
+    # the UPDATE in the executor: a small part of PostgreSQL's time per UPDATE
+    executor = got["writeServiceTimeMs"]["postgres"]["executorMs"]
+    assert 0 < executor < 0.5 * run.mean_ms(got["writeServiceTimeMs"]["value"])
+
+
+def test_fit_flush_reproduces_the_measured_wait_in_the_model() -> None:
+    # writes to one row at 550/s over a link that jitters their arrival: the model's writes also
+    # queue for the row's lock, so the flush that gives a 0.9 ms wait for lock and flush
+    # together is shorter than 0.9 ms
+    hot = run.EXPERIMENTS["pg-hot-row"]
+    v = {
+        "writeServiceTimeMs": run.lognormal(0.25, 0.6),
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": run.lognormal(0.2, 1.5),
+    }
+    median, db = run.fit_flush(hot, v, 550, 0.0, 0.9, 1.5)
+    assert db["meanLockWaitMs"] > 0.05
+    assert run.mean_ms(run.lognormal(median, median * 1.5)) < 0.9 - 0.05
+    assert db["meanLockWaitMs"] + db["meanCommitWaitMs"] == pytest.approx(0.9, rel=0.005)
+    # at a rate where no write waits for another, the flush is the wait (in the mean; the model
+    # samples about 750 flushes, whose mean is within a few percent of the distribution's)
+    median, db = run.fit_flush(hot, v, 50, 0.0, 0.9, 1.5)
+    assert db["meanLockWaitMs"] == pytest.approx(0.0, abs=1e-3)
+    assert db["meanCommitWaitMs"] == pytest.approx(0.9, rel=0.005)
+    assert run.mean_ms(run.lognormal(median, median * 1.5)) == pytest.approx(0.9, rel=0.03)
+
+
+def test_server_time_and_link_keep_the_round_trip() -> None:
+    rt = {"median": 0.238, "p95": 0.593}
+    s = run.server_time(0.17, rt)
+    assert run.mean_ms(s) == pytest.approx(0.17, rel=1e-3)
+    assert s["p95"] / s["median"] == pytest.approx(0.593 / 0.238, rel=1e-3)  # its shape
+    leg = run.link_leg(rt, s)
+    assert isinstance(leg, dict)
+    (m_rt, v_rt), (m_s, v_s), (m_l, v_l) = (
+        run.lognormal_moments(run.lognormal(0.238, 0.593)),
+        run.lognormal_moments(s),
+        run.lognormal_moments(leg),
+    )
+    assert m_s + 2 * m_l == pytest.approx(m_rt, rel=1e-3)  # the round trip's mean ...
+    assert v_s + 2 * v_l == pytest.approx(v_rt, rel=1e-2)  # ... and variance
+    # never more server time than the round trip; without a CPU figure, the round trip itself
+    assert run.mean_ms(run.server_time(5.0, rt)) == pytest.approx(
+        run.mean_ms(run.lognormal(0.238, 0.593))
+    )
+    assert run.server_time(None, rt) == run.lognormal(0.238, 0.593)
+    assert run.link_leg(rt, run.server_time(None, rt)) == 0.0
+
+
+def test_statement_kind_whatever_the_driver_wrote() -> None:
+    assert run.statement_kind("SELECT value FROM items WHERE id = $1") == "read"
+    assert run.statement_kind("select value from items where id=$1") == "read"
+    assert run.statement_kind("UPDATE items SET value = value + $1 WHERE id = $2") == "write"
+    assert run.statement_kind("INSERT INTO events (item_id, produced_at) VALUES ($1, $2)") == (
+        "insert"
+    )
+    assert run.statement_kind("BEGIN") is None
+
+
+def test_pg_process_kind() -> None:
+    assert run.pg_process_kind("postgres: bench bench 172.18.0.4(43122) idle") == "backends"
+    assert run.pg_process_kind("postgres: walwriter ") == "walWriter"
+    assert run.pg_process_kind("postgres: checkpointer ") == "background"
+    assert run.pg_process_kind("postgres -c shared_buffers=256MB") == "background"
+    assert run.pg_process_kind("postgres: bench bench [local] SELECT") is None  # the probe
+    assert run.pg_process_kind("sh -c for d in /proc") is None
 
 
 def test_simulate_reports_what_the_database_did() -> None:
@@ -1319,6 +1494,17 @@ def test_knee_spread() -> None:
     best = [hist_run(7000.0) | {"powerMode": "Best performance"} for _ in range(2)]
     s = report.knee_spread([hist_run(4800.0), *best])
     assert s is not None and (s["runs"], s["minRps"]) == (2, 7000.0)
+
+
+def test_harness_caveat_until_the_fix() -> None:
+    # every kept Kafka run predates the healthcheck fix of 31 Oct; a run after it has no caveat
+    assert "healthcheck" in (report.harness_caveat("kafka", "2026-10-31T03:26:27Z") or "")
+    assert report.harness_caveat("kafka", "2026-11-01T22:00:00Z") is None
+    assert report.harness_caveat("pg-mixed", "2026-10-31T03:26:27Z") is None
+    assert report.harness_caveat("kafka", None) is None
+    data = report.accuracy()
+    assert data is not None and data["summary"]["caveats"] == ["kafka"]
+    assert "**Harness caveat.**" in report.experiment_block("kafka")
 
 
 def test_pct_never_prints_minus_zero() -> None:

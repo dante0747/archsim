@@ -38,7 +38,12 @@ from archsim_engine.calibration.prometheus import (
     reduce,
     summed,
 )
-from archsim_engine.calibration.resources import fit_cpu_share, fit_memory
+from archsim_engine.calibration.resources import (
+    MIN_CURVE_CHANGE,
+    CpuFit,
+    fit_cpu_share,
+    fit_memory,
+)
 from archsim_engine.engine import SimulationLimits
 from archsim_engine.load import estimate_load, mean_ms
 from archsim_engine.provenance import edge_path, node_path, stamp_values, workload_path
@@ -472,7 +477,11 @@ def _fit_cpu(
     cpu = dict(summed(q(src.cpu)))
     reqs = dict(summed(q(src.requests)))
     ts = sorted(cpu.keys() & reqs.keys())
-    fit = fit_cpu_share([(reqs[t], cpu[t]) for t in ts], _mean_service_ms(doc, node, registry))
+    cfg = model.parse_config(node["config"])
+    replicas = float(getattr(cfg, "replicas", 1) or 1)
+    fit = fit_cpu_share(
+        [(reqs[t], cpu[t]) for t in ts], _mean_service_ms(doc, node, registry), replicas
+    )
     if fit is None:
         notes.append(
             f"{node_id}: no requests (or no service time) in the range, so no CPU per request "
@@ -495,7 +504,53 @@ def _fit_cpu(
         " ".join([note, *fit.notes]),
     )
     notes.extend(f"{node_id}.cpuShare: {n}" for n in fit.notes)
+    _set_load_curve(fit, cfg, query, node, known, notes, set_input)
     return [(t, cpu[t]) for t in ts]
+
+
+def _set_load_curve(
+    fit: CpuFit,
+    cfg: Any,
+    query: str,
+    node: Json,
+    known: dict[str, Json],
+    notes: list[str],
+    set_input: SetInput,
+) -> None:
+    """``serviceTimeByLoad`` from how CPU per request changed with the rate per replica, when it
+    changed by more than ``MIN_CURVE_CHANGE`` (a note when the part has no such setting, or its
+    replicas change during the range)."""
+    curve = fit.curve
+    node_id = node["id"]
+    if curve is None or curve.span <= MIN_CURVE_CHANGE:
+        return
+    if "serviceTimeByLoad" not in known:
+        notes.append(
+            f"{node_id}: {curve.text()}; it keeps one CPU cost per request, weighted to the "
+            "busiest times, so it under-counts CPU at quiet times"
+        )
+        return
+    if getattr(cfg, "autoscaling", False) or getattr(cfg, "platform", None) == "serverless":
+        notes.append(
+            f"{node_id}: {curve.text()}, but its replicas change with load, so the rate per "
+            "replica is unknown: service time by load not set"
+        )
+        return
+    note = (
+        f"{curve.text()}; factors relative to {curve.reference_ms:.4g} ms (CPU per request over "
+        "the range), interpolated in log(req/s) and flat outside the bins; fit error = how far "
+        "the never-rising fit is from a bin."
+    )
+    set_input(
+        node,
+        "serviceTimeByLoad",
+        known["serviceTimeByLoad"]["label"],
+        curve.table(),
+        query,
+        curve.error,
+        note,
+    )
+    notes.append(f"{node_id}.serviceTimeByLoad: {curve.text()}")
 
 
 def _fit_working_set(

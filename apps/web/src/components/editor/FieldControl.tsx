@@ -13,6 +13,7 @@ import {
   validateDistribution,
 } from "@/lib/distributions";
 import { fmtNum } from "@/lib/format";
+import { describeLoadCurve, formatLoadCurve, loadPoints, parseLoadCurve } from "@/lib/load-curve";
 import { technologyLabel } from "@/lib/theme";
 import type { ClassifiedProvenance, Distribution, FieldDescriptor, InputProvenance, RequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -394,6 +395,40 @@ function NodeRefSelect({ id, refType, value, onChange }: { id: string; refType: 
   );
 }
 
+/** A service's service time by load: "req/s: factor" pairs, read when the field loses focus.
+ * Keyed by the stored value, so a change from elsewhere (undo, calibration) starts it afresh. */
+function LoadCurveInput({ id, value, onChange }: { id: string; value: unknown; onChange: (v: unknown) => void }) {
+  const points = loadPoints(value);
+  const stored = formatLoadCurve(points);
+  const [text, setText] = useState(stored);
+  const [invalid, setInvalid] = useState(false);
+  const commit = () => {
+    const parsed = parseLoadCurve(text);
+    if (parsed === null) return setInvalid(true);
+    setInvalid(false);
+    if (formatLoadCurve(parsed) !== stored) onChange(parsed);
+  };
+  return (
+    <div className="space-y-1">
+      <Input
+        id={id}
+        value={text}
+        placeholder="req/s: factor, e.g. 50: 3.5, 1700: 1"
+        aria-invalid={invalid ? true : undefined}
+        aria-describedby={`${id}-help`}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+        }}
+      />
+      <p id={`${id}-help`} role={invalid ? "alert" : undefined} className={cn("text-[11px]", invalid ? "text-danger-ink" : "text-ink-3")}>
+        {invalid ? "Write req/s: factor pairs, separated by commas (factors above 0, at most 100)." : describeLoadCurve(points)}
+      </p>
+    </div>
+  );
+}
+
 export function FieldControl({
   field,
   value,
@@ -538,6 +573,9 @@ export function FieldControl({
     case "nodeRef":
       control = <NodeRefSelect id={id} refType={field.refType ?? ""} value={value} onChange={onChange} />;
       break;
+    case "loadCurve":
+      control = <LoadCurveInput key={formatLoadCurve(loadPoints(value))} id={id} value={value} onChange={onChange} />;
+      break;
     default:
       control = (
         <Input id={id} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />
@@ -643,6 +681,7 @@ export function describeValue(field: FieldDescriptor | undefined, value: unknown
     return `${fmtNum(value, Number.isInteger(value) ? 0 : 2)}${field?.unit ? ` ${field.unit}` : ""}`;
   }
   if (typeof value === "string") return humanize(value);
+  if (field?.kind === "loadCurve") return describeLoadCurve(loadPoints(value)).toLowerCase();
   if (Array.isArray(value)) return value.join(" + ");
   if (typeof value === "object" && value && "kind" in value) return humanize(String((value as { kind: string }).kind));
   return JSON.stringify(value);

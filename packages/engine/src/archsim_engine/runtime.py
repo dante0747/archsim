@@ -337,6 +337,12 @@ class RuntimeComponent:
         """
         return {}
 
+    def slot_capacity(self, slots: float, hold_ms: float, service_ms: float | None) -> float:
+        """Throughput (req/s) at which ``slots`` handlers fill when each request holds one for
+        ``hold_ms`` (``service_ms`` of it its own work, both window means): ``slots`` x 1000 /
+        ``hold_ms``, unless the component's time per request changes with load."""
+        return slots * 1000.0 / hold_ms
+
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         """Component-specific per-bucket series (full timeline length) for ``nodes[].timeseries``."""
         return {}

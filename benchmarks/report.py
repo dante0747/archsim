@@ -113,6 +113,21 @@ P95_TOLERANCE = 1.0
 P95_TOLERANCE_MS = 3.0
 LOW_LOAD_FRACTION = 0.5
 
+HARNESS_CAVEATS = {
+    "kafka": {
+        "before": "2026-10-31T17:00:00Z",
+        "text": (
+            "Every Kafka run so far was measured with a broker healthcheck that started a Java tool "
+            "every 3 s on the broker's own core (about half a core, all the time). Without it the "
+            "same stack held the objective up to about 3,000 req/s in a trial on 31 Oct, so these "
+            "measured knees are the benchmark's limit, not Kafka's. The healthcheck is fixed in "
+            "compose.yaml; the next campaign measures Kafka again."
+        ),
+    },
+}
+"""Known flaws of the benchmark harness that limited a run's measurements, and when they were
+fixed: shown with an experiment whose latest run was calibrated before the fix (``before``)."""
+
 PRED = "#e8710a"  # orange: ArchSim's prediction
 MEAS = "#1a73e8"  # blue: measured
 INK = "#888888"
@@ -939,6 +954,14 @@ def input_value(name: str, v: Any) -> str:
     return f"{v:g}" + (" ms" if name.endswith("Ms") else "")
 
 
+def harness_caveat(exp: str, calibrated_at: str | None) -> str | None:
+    """``HARNESS_CAVEATS``' text for an experiment whose run was calibrated before the fix."""
+    c = HARNESS_CAVEATS.get(exp)
+    if c is None or calibrated_at is None or calibrated_at >= c["before"]:
+        return None
+    return c["text"]
+
+
 def experiment_block(exp: str, results: Path = RESULTS) -> str:
     cal = load(exp, "calibration", results)
     pred = load(exp, "predictions", results)
@@ -1053,6 +1076,8 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
         "(each repeat's numbers as extracted from k6's summary; the summaries themselves are not "
         "kept).",
     ]
+    if (caveat := harness_caveat(exp, cal.get("at"))) is not None:
+        out += ["", f"**Harness caveat.** {caveat}"]
     return "\n".join(out)
 
 
@@ -1278,6 +1303,8 @@ def experiment_json(
         # Earlier runs under another protocol: the protocol was revised with this experiment's
         # results in view, so its latest numbers are in-sample.
         "inSample": any(r["protocol"] != protocol for r in runs),
+        # a flaw of the benchmark that limited this run's measurements (HARNESS_CAVEATS)
+        "caveat": harness_caveat(exp, cal["at"]),
         "tier": "validated" if k["all"] else "not-validated",
         "criteria": k,
         "knee": {
@@ -1375,6 +1402,7 @@ def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
             "withSpread": [x["id"] for x in exps if x["spread"]],
             "spreadExceedsError": [x["id"] for x in exps if x["spreadExceedsError"]],
             "inSample": [x["id"] for x in exps if x["inSample"]],
+            "caveats": [x["id"] for x in exps if x["caveat"]],
             # experiments whose latest conditions ran at least MIN_RUNS times
             "repeated": [
                 x["id"] for x in exps if (x["repeatability"] or {}).get("runs", 0) >= MIN_RUNS
