@@ -105,7 +105,7 @@ def test_the_knees_sensitivity_to_each_input(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(run, "simulate", fake_simulate(lambda st, fl: 400.0 / st))
     knee = run.predicted_knee(PG_MIXED, INPUTS)["kneeRps"]
     jobs = run.sensitivity_jobs(PG_MIXED, INPUTS, knee)
-    assert len(jobs) == 2 * len(run.range_keys(INPUTS))
+    assert len(jobs) == 1 + len(run.range_keys(INPUTS))
     sens = run.sensitivity_of(INPUTS, [run.knee_near(*j) for j in jobs])
     assert sens["serviceTimeMs"] == pytest.approx(-1.0, abs=0.06)
     assert all(sens[k] == 0 for k in sens if k != "serviceTimeMs")
@@ -199,6 +199,11 @@ def test_variation_is_pooled_within_experiments() -> None:
     # in experiment a both inputs moved together
     assert fit["correlation"] > 0.5
     assert run.variation_fit([])["inputs"] == {}
+    # an input that never moved (a fixed default) was not seen varying: the fallback, not 0
+    fixed = [{**r, "scales": {**r["scales"], "fetchOverheadMs": 0.93}} for r in rows]
+    fit = run.variation_fit(fixed)
+    assert "fetchOverheadMs" not in fit["inputs"]
+    assert run.input_sigma(fit, "fetchOverheadMs") == fit["fallbackSigma"] > 0
 
 
 def test_the_models_error_by_maximum_likelihood() -> None:
@@ -291,3 +296,10 @@ def test_the_committed_range_fit() -> None:
         assert math.log(c["measuredKnee"]["kneeRps"] / c["knee"]) == pytest.approx(
             c["error"], abs=1e-4
         )
+
+
+def test_the_range_page_is_generated_from_the_committed_fit() -> None:
+    """docs/validation/knee-range.md is report.py --dev's rendering of benchmarks/knee-range.json."""
+    page = report.RANGE_DOC.read_text(encoding="utf-8")
+    assert page == report.range_doc_text(run.read_range_fit())
+    assert "No fit yet" in report.range_doc_text(None)

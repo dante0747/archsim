@@ -66,10 +66,15 @@ Read these numbers as three runs on one laptop, all of them in-sample:
   Criterion 2 is lenient one way too: within ±100% of the measured p95 never fails a
   prediction that is too low, and both pass it with p95s predicted 3 to 9 times too low near
   their knee.
-- **ArchSim's predicted range is far too narrow.** It held the measured knee in 1 of 12 runs,
-  where about half was expected. The range comes from the three replicate calibration sets of
-  one run, which agree closely; between runs the prediction itself moved much more (hot-row
-  663 to 958 req/s, Kafka 2,102 to 2,829, cache-aside 4,227 to 5,303).
+- **ArchSim's predicted range was far too narrow; W28 replaces it.** In these runs it held the
+  measured knee in 1 of 12, where about half was expected: it came from the three replicate
+  calibration sets of one run, which agree closely, while between runs the prediction itself
+  moved much more (hot-row 663 to 958 req/s, Kafka 2,102 to 2,829, cache-aside 4,227 to 5,303)
+  and the model's own error was larger still. Since W28 the range is an 80% one that carries
+  both ([Protocol](#protocol), step 3). Checked on the same 12 runs with today's engine it holds
+  9 of 12 in-sample and 9 of 12 when each experiment is left out of its fit (the misses are
+  cache-aside's); it is wide (pg-mixed's latest: 3,713 to 6,598 req/s around 4,950, measured
+  4,006), and the held-out campaign is its first test on data it was not fitted to.
 - **The power mode moves the real knee.** Under Best performance (and with k6 moved off the
   service's hyperthread sibling, worth 10% to 15% of the service's CPU) pg-mixed's knee was
   about 4,000 req/s, where run 5 measured 2,430 under an unrecorded mode, and cache-aside's about
@@ -203,23 +208,39 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    only (`benchmarks/knee-range.json`, written by `run.py range-fit`; the fit and its check:
    [`docs/validation/knee-range.md`](validation/knee-range.md)):
    - **What a fresh calibration on another day would give.** The inputs move between
-     calibrations of the same stack: {VARIATION} (one standard deviation, over {NCAL} v5
-     calibrations: the kept runs and the calibration-only trials, under the same machine, OS
-     build and power mode). Within one calibration the three replicate sets agree more closely
-     (the service's CPU per request to about 5%). The runner reads how much the knee moves with
-     each input (two knee searches per input, the input 22% up and 18% down) and multiplies, so
-     a knee set by a noisy input gets a wider range: {CALSPREAD}.
+     calibrations of the same stack: the service's CPU per request by about 17% (one standard
+     deviation; 13% to 14% for three experiments, 24% for hot-row), a query's time in
+     PostgreSQL by about 18%, the WAL flush by 9%, Redis's command time and Kafka's publish by
+     about 11% (over 25 v5 calibrations: the 14 kept runs and 11 calibration-only trials, all on
+     the same machine, OS build and power mode). Within one calibration the three replicate sets
+     agree more closely (the service's CPU per request to about 5%). Much of the CPU's
+     variation is where the staircase stopped, since the cost per request falls with load:
+     pg-mixed's trial that topped at 1,024 req/s read 0.29 ms, the one that topped at 1,931
+     read 0.20 ms. The same holds for the WAL flush: hot-row's staircase topped at 221 req/s in
+     run 6 and at 381 in run 7, its flush read 1.01 and 0.74 ms, and its predicted knee moved
+     from 744 to 1,062 req/s. The runner reads how much the knee moves with each input (a knee
+     search with the input 22% higher, against one without, both on 10 s simulations) and
+     multiplies, so a knee set by a noisier input gets a wider range: pg-mixed's, cache-aside's
+     and Kafka's knees fall 1% for each 1% of the service's CPU, which gives them a calibration
+     spread of 0.17 (log standard deviation, about ±17%); hot-row's is set by the flush (-0.8)
+     and the write's time (-0.26), 0.10.
    - **The model's own error.** The measured knee was further from the prediction than the
-     calibration explains, and on the same side in every run of an experiment ({BIAS}): a log
-     standard deviation of {MODEL}, fitted by maximum likelihood over the 12 counted v5 runs.
-     It is the larger part.
+     calibration explains, and on the same side in every run of an experiment (pg-mixed's 17%
+     to 20% below the prediction, cache-aside's 35% to 51% above): a log standard deviation of
+     0.15, fitted by maximum likelihood over the 12 counted v5 runs. The two parts are about
+     the same size; together they make the 80% range about x0.75 to x1.33 of the predicted
+     knee.
 
    Engine 0.14.0's runs took the range from the three replicate sets' knees, the lowest to the
    highest (nominally 50%: (R - 1) / (R + 1)); it held the measured knee in 1 of 12 runs,
    because it carried neither part. Checked on the same 12 runs with today's engine, the new
-   80% range holds {INSAMPLE} of 12 in-sample, {LOO} of 12 when the run checked is left out of
-   the fit and {LOEO} of 12 when its whole experiment is. These are runs the model was tuned
-   on; the held-out campaign is the test on data the range was not fitted to.
+   80% range holds 9 of 12 in-sample, 9 when the run checked is left out of the fit and 9 when
+   its whole experiment is (at 50% and 90% nominal: 5 and 10 of 12). The three misses are
+   cache-aside's, whose knee the model puts too low in every run. Two runs sit within 1% of an
+   end (Kafka's run 3 inside, cache-aside's run 3 outside), and 12 runs of four experiments are
+   a weak check: these are runs the model was tuned on, and the held-out campaign is the test
+   on data the range was not fitted to.
+
    `predictions.json` is written before the first measured step, with its provenance:
    the commit, the engine's and the harness's git object ids, whether either had uncommitted
    changes, and the machine. Its sha256 goes to the log and into `measured.json` before the
@@ -641,10 +662,12 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
   the other two runs). In W22's trial the consumer's INSERTs shared more WAL flushes as load
   rose (1.0 commits per flush at 237 req/s, 1.5 at 1,200 to 1,500) while each flush grew (0.94
   to about 1.2 ms); the consumers' fetch cycle is W23's.
-- **ArchSim's predicted range is too narrow.** It held the measured knee in 1 of 12 runs (nominal
-  50%). Within a run the three replicate calibration sets agree to a few percent, while the
-  calibration itself moves between runs: hot-row's prediction was 663, 958 and 783 req/s,
-  Kafka's 2,829, 2,140 and 2,102. A range that covers the knee needs that run-to-run variation.
+- **The predicted range was too narrow (fixed in W28, untested out of sample).** It held the
+  measured knee in 1 of 12 runs (nominal 50%). Within a run the three replicate calibration sets
+  agree to a few percent, while the calibration itself moves between runs (hot-row's prediction
+  was 663, 958 and 783 req/s, Kafka's 2,829, 2,140 and 2,102), and the model misses on the same
+  side in every run of an experiment. The W28 range carries both, in about equal parts, so it
+  narrows as calibrations repeat more closely and as the model improves (after a refit).
 
 p95 at the ladder's low steps (at most half the predicted knee):
 
@@ -688,8 +711,10 @@ What would make it better next, in order:
    too.
 2. A CPU per request that keeps falling with load above the calibration staircase
    (cache-aside's -34%): calibrate higher, or model the event loop's batching under load.
-3. A predicted range that includes the calibration's run-to-run variation (it held the
-   measured knee in 1 of 12 runs).
+3. A calibration whose inputs move less from run to run: much of the service's CPU variation
+   is where the staircase stopped (W26 calibrates closer to the knee). The predicted range (W28)
+   now carries that variation and the model's error; it holds 9 of the 12 runs in-sample and
+   9 leaving out each experiment, and the held-out campaign will test it.
 4. Memory near the knee (a Node.js heap grows faster than linearly with load), a flush and a CPU
    per query that fall with load, and Kafka's rare consumer stalls (message age at mid load).
 

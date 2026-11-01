@@ -7,6 +7,72 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**The knee's predicted range: run-to-run variation and the model's own error (2026-11-01; accuracy plan W28).**
+
+- The problem: engine 0.14.0's range was the lowest to highest knee of one run's three
+  replicate calibration sets (nominal 50%), and it held the measured knee in 1 of the 12
+  counted v5 runs. Within a run the replicates agree closely (the service's CPU per request to
+  about 5%), but a calibration on another day moves more, and the model misses on the same side
+  in every run of an experiment.
+- Run-to-run variation of the calibrated inputs, over 25 v5 calibrations of the four in-sample
+  experiments (14 kept runs and 11 calibration-only trials, one machine, OS build and power
+  mode), one standard deviation: the service's CPU per request about 17% (13% to 14% for
+  pg-mixed, cache-aside and Kafka, 24% for hot-row), a query's time in PostgreSQL 17% to 18%,
+  the link to PostgreSQL 22%, the WAL flush 9%, Redis's command time 12%, Kafka's publish 11%;
+  inputs move together with a common correlation of 0.49. Much of it is where the staircase
+  stopped, since costs fall with load: pg-mixed's trial that topped at 1,024 req/s read 0.29 ms
+  of CPU per request, the one that topped at 1,931 read 0.20 ms; hot-row's flush read 1.01 ms
+  at a 221 req/s top and 0.74 ms at 381, which moved its predicted knee from 744 to 1,062 req/s.
+  A calibration closer to the knee (W26) should cut it.
+- The method (`run.py` `predict`, `knee_sensitivity`, `knee_range_of`): an **80% range**, a
+  lognormal around the predicted knee whose log standard deviation adds two parts:
+  - the calibration's: how much the knee moves with each input (one knee search with the input
+    22% higher against one without, on 2 s + 8 s simulations, `RANGE_SIM_S`) times that input's
+    variation, with the common correlation: 0.17 (log standard deviation) where the service's
+    CPU sets the knee (pg-mixed, cache-aside, Kafka: the knee falls 1% per 1% of CPU), 0.10
+    for hot-row, set by the WAL flush (-0.8) and the write's time (-0.26);
+  - the model's own error: 0.15 (log standard deviation of measured over predicted knee, by
+    maximum likelihood over the 12 counted runs after each one's calibration spread).
+  The two are about the same size; the 80% range is about x0.75 to x1.33 of the knee.
+  Both are fitted on the in-sample experiments only, by `run.py range-fit`, into
+  `benchmarks/knee-range.json` (part of the harness's provenance). 80% rather than 50%: a range
+  missed every other run is no planning number, and its low end is now a load about one run in
+  ten falls below; 90% would rest on the one or two largest errors of a dozen runs. Sensitivity
+  times variation rather than random draws: the leave-one-out check refits the variation for
+  each run left out, which needs no new simulation this way, and the result is deterministic and
+  says which input moves the knee.
+- Coverage of the measured knee, the 12 counted v5 runs, engine 0.16.0-w28 (= 0.15.0's model)
+  re-deriving each run's inputs and knee from its calibration:
+
+  | Range | In-sample | Leaving out the run | Leaving out its experiment |
+  | --- | --- | --- | --- |
+  | Engine 0.14.0's (replicate sets, nominal 50%), as predicted | 1 of 12 | - | - |
+  | W28, nominal 50% | 5 of 12 | 5 of 12 | 5 of 12 |
+  | **W28, nominal 80% (the range predicted)** | **9 of 12** | **9 of 12** | **9 of 12** |
+  | W28, nominal 90% | 10 of 12 | 10 of 12 | 10 of 12 |
+
+  Slightly narrow at every level, within what 12 runs can tell (9 of 12 at 80% is "as
+  claimed" by the binomial test). The three misses at 80% are all cache-aside's, whose measured
+  knee was 35% to 51% above the prediction in every run; two runs sit within 1% of an end
+  (Kafka's run 3 inside, cache-aside's run 3 outside), so the count is fragile by one, and
+  Kafka's measured knees were limited by the broker healthcheck. Leaving out a whole experiment
+  changes no count: the others' errors set a similar model error. Per run and per input:
+  `docs/validation/knee-range.md` (`report.py --dev`).
+- Limits: the model's error is fitted on runs the model was tuned on, from four
+  experiments, so the stated 80% is an in-sample claim; the held-out campaign is the test
+  (`summary.coverageHeldOut` in accuracy.json, and a sentence on /accuracy, once they are
+  measured). The committed results keep their engine-0.14.0 ranges, so docs/validation.md's
+  tables and /accuracy still say 1 of 12 (too narrow) until runs predicted with this range exist.
+- Report and page: `repeatability` and `summary.coverage` count the hits each range's own
+  nominal coverage expects and give a verdict from the binomial tails at 5% ("too narrow", "too
+  wide", "as claimed"; with 12 runs at 50%, 2 or fewer hits are too narrow, at 80% 6 or fewer);
+  the page's coverage sentence reads them instead of a hard-coded 50%, and the knee scale's
+  tooltip says where a range came from.
+- Engine label `0.16.0-w28` (no engine or schema change: the assumptions page and the check
+  snapshot show the label only). Checks: pytest (942 passed, 24 expected failures, 1 skipped),
+  ruff check and format, mypy (engine, API, MCP; benchmarks), web lint, vitest 324, build,
+  tsc, Playwright 6.
+
 **Engine 0.15.0: the accuracy plan's four model changes together (2026-10-31; W21 to W24).**
 
 - The four workstreams below, merged on one branch: a single 1.5 -> 1.6 migration covers W21's
