@@ -19,7 +19,6 @@ measured before this code was written, and the rule was chosen with them in view
 from __future__ import annotations
 
 import argparse
-import json
 import statistics
 import sys
 from concurrent.futures import ProcessPoolExecutor
@@ -151,7 +150,7 @@ def main() -> int:
         errs = ", ".join(f"{r['kneeError']:+.0%}" for r in s["runs"] if r["kneeError"] is not None)
         run.log(f"{exp_id}: knee errors {errs}; median {s['medianKneeError']}")
     name = f"W26-score-{a.suffix}-{run.CURVE_FORM}.json"
-    (HERE / name).write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")
+    run.write_json(HERE / name, out)  # LF line endings
     return 0
 
 

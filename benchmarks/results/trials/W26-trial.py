@@ -19,7 +19,6 @@ stack if the CPU no longer boosts. Only the in-sample experiments can run here.
 from __future__ import annotations
 
 import argparse
-import json
 import statistics
 import subprocess
 import sys
@@ -168,7 +167,7 @@ def release() -> None:
 
 def save(folder: Path, name: str, data: Any) -> None:
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / f"{name}.json").write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+    run.write_json(folder / f"{name}.json", data)  # LF line endings
 
 
 def main() -> int:
