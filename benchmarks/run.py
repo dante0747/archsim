@@ -8,6 +8,7 @@
     uv run python benchmarks/run.py compare       # recompute every comparison.json (no Docker)
     uv run python benchmarks/run.py resources     # predict CPU and memory for older results
     uv run python benchmarks/run.py resimulate    # today's model against every kept run
+    uv run python benchmarks/run.py range-fit     # fit the knee's predicted range (in-sample)
     uv run python benchmarks/run.py envcheck      # characterise this machine
     uv run python benchmarks/run.py all --runs 3  # three independent runs of each experiment
     uv run python benchmarks/report.py            # rewrite docs/validation.md from the results
@@ -23,8 +24,10 @@ Protocol v5 (docs/validation.md): for each experiment the runner
    time); each top pass gives one replicate set of model inputs, derived by formulas recorded in
    calibration.json, and the inputs are their medians;
 3. predicts: builds the ArchSim design from the calibration and simulates it, finding the knee
-   (the highest load with p95 <= 50 ms and >= 99% success), the knee of each replicate set (the
-   predicted range) and every step of the load ladder (0.25x to 1.5x the predicted knee);
+   (the highest load with p95 <= 50 ms and >= 99% success), its predicted 80% range (how much
+   the knee moves with each input, times that input's run-to-run variation, and the model's own
+   error, both fitted in-sample: knee-range.json, ``run.py range-fit``) and every step of the
+   load ladder (0.25x to 1.5x the predicted knee);
    predictions.json is written, and its sha256 logged, before step 4 starts;
 4. measures: runs k6 at each step three times (5 s warm-up, 20 s measured, WARMUP_S and
    DURATION_S) and records p50, p95, p99, throughput and errors, and each container's CPU (busy
@@ -2522,21 +2525,49 @@ def meets(r: dict[str, Any]) -> bool:
     )
 
 
-def predicted_knee(exp: Experiment, inputs: dict[str, Any]) -> dict[str, Any]:
-    """Highest load meeting the objective, by doubling then bisection (to 1%)."""
+def predicted_knee(
+    exp: Experiment,
+    inputs: dict[str, Any],
+    near: float | None = None,
+    warm: int = WARMUP_S,
+    duration: int = DURATION_S,
+) -> dict[str, Any]:
+    """Highest load meeting the objective, by doubling then bisection (to 1%). With ``near`` (a
+    knee already found for nearly the same inputs) the bracket is found by 25% steps from it
+    instead of doubling from 100 req/s: fewer simulations, the same answer to within 1%.
+    ``warm`` and ``duration``: the simulated seconds of each load (the measured steps' by
+    default)."""
+
+    def sim(rps: float) -> dict[str, Any]:
+        return simulate(design(exp, inputs, rps, warm=warm, duration=duration))
+
     lo, hi = 0.0, 100.0
     tried: list[dict[str, Any]] = []
-    while True:
-        r = simulate(design(exp, inputs, hi))
+    if near:
+        r = sim(near)
         tried.append(r)
-        if not meets(r):
-            break
-        lo, hi = hi, hi * 2
-        if hi > 200_000:
-            break
+        up = meets(r)
+        lo, hi = (near, near * 1.25) if up else (near * 0.8, near)
+        while lo >= 10 and hi <= 200_000:
+            r = sim(round(hi if up else lo))
+            tried.append(r)
+            if meets(r) != up:
+                break
+            lo, hi = (hi, hi * 1.25) if up else (lo * 0.8, lo)
+        lo = 0.0 if lo < 10 else round(lo)
+        hi = round(hi)
+    else:
+        while True:
+            r = sim(hi)
+            tried.append(r)
+            if not meets(r):
+                break
+            lo, hi = hi, hi * 2
+            if hi > 200_000:
+                break
     while hi - lo > max(1.0, 0.01 * hi):
         mid = round((lo + hi) / 2)
-        r = simulate(design(exp, inputs, mid))
+        r = sim(mid)
         tried.append(r)
         lo, hi = (mid, hi) if meets(r) else (lo, mid)
     return {
@@ -2545,21 +2576,217 @@ def predicted_knee(exp: Experiment, inputs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def knee_range_of(nominal: float, values: Sequence[float]) -> dict[str, Any] | None:
-    """The predicted range of the knee: the knees of the replicate input sets, lowest to highest
-    (None with fewer than two). With R replicates a new draw from the same spread falls inside
-    their range with probability (R - 1) / (R + 1): the nominal coverage."""
-    if len(values) < 2:
+# ---------------------------------------------------------------------------------------------
+# the predicted range of the knee (W28)
+# ---------------------------------------------------------------------------------------------
+
+RANGE_COVERAGE = 0.8
+"""The predicted range's nominal coverage: the share of runs whose measured knee it should
+hold. 80%: its low end is a load to plan on that about one run in ten falls below. A 50% range
+is missed every other run, too often to plan on; a 90% range's ends would rest on the one or two
+largest errors of a dozen runs."""
+RANGE_STEP = 0.2
+"""How far each input is moved up, in log terms (x e^0.2 = +22%), to read how much the knee
+moves with it (``knee_sensitivity``): several times its run-to-run variation, so the knee
+search's 1% resolution moves the slope by at most about 0.05."""
+RANGE_SIM_S = (2, 8)
+"""Simulated seconds (warm-up, measured) of each load in the sensitivity's knee searches: a
+third of a measured step's, since a search past the knee is slow to simulate (its queue grows
+all window long). The unperturbed knee is searched the same way, so the slope compares like
+with like."""
+RANGE_FIT = HERE / "knee-range.json"
+"""The run-to-run variation and the model's error the range is built from (``range_fit``,
+written by ``run.py range-fit``)."""
+RANGE_INPUTS = (
+    "serviceTimeMs",
+    "apiServiceTimeMs",
+    "clientLinkLatencyMs",
+    "apiLinkLatencyMs",
+    "readServiceTimeMs",
+    "writeServiceTimeMs",
+    "commitFlushMs",
+    "dbCpuShare",
+    "dbLinkLatencyMs",
+    "cacheServiceTimeMs",
+    "cacheLinkLatencyMs",
+    "publishTimeMs",
+    "consumerTimeMs",
+    "fetchOverheadMs",
+)
+"""The model inputs calibration measures afresh each run, whose run-to-run variation the range
+carries: each is scaled as a whole (a distribution keeps its shape)."""
+RANGE_FIXED = (
+    "measuredLowLoad",
+    "anchor",
+    "serviceTimeByLoad",
+    "gcPauseMs",
+    "gcEveryRequests",
+    "consumerConcurrency",
+    "serviceMemoryBaselineMb",
+    "serviceMemoryPerRpsMb",
+    "serviceMemoryPerRequestMb",
+    "apiMemoryBaselineMb",
+    "apiMemoryPerRpsMb",
+    "apiMemoryPerRequestMb",
+)
+"""Inputs the range leaves as calibrated: records, settings of the real stack, relative curves,
+memory (it sets no knee), and GC pauses, which the kept runs take from one trial and which move
+no knee (W21). Every input is in one of the two lists (a test checks)."""
+RANGE_METHOD = (
+    "the knee's run-to-run variation from a fresh calibration (each input's variation between "
+    "calibrations times how much the knee moves with it) and the model's own error (the spread "
+    "of measured over predicted knees in the in-sample runs), as a lognormal around the "
+    "predicted knee"
+)
+
+
+def input_scale(value: Any) -> float | None:
+    """The number an input's run-to-run variation is measured on: itself, or the mean of a
+    distribution as the engine samples it (for the service's CPU per request, the CPU itself)."""
+    if isinstance(value, bool):
         return None
-    r = len(values)
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, Mapping) and "kind" in value:
+        return mean_ms(value)
+    return None
+
+
+def scaled(value: Any, factor: float) -> Any:
+    """A model input's value times ``factor``: a number, or every time of a distribution (its
+    shape stays)."""
+    if isinstance(value, bool) or not isinstance(value, int | float | Mapping):
+        return value
+    if isinstance(value, int | float):
+        return value * factor
+    out = dict(value)
+    for k in ("value", "mean", "median", "p95", "min", "max"):
+        if isinstance(out.get(k), int | float) and not isinstance(out[k], bool):
+            out[k] = out[k] * factor
+    if out.get("kind") == "empirical":
+        out["quantiles"] = [[p, v * factor] for p, v in value["quantiles"]]
+    return out
+
+
+def perturbed(inputs: Mapping[str, Any], key: str, factor: float) -> dict[str, Any]:
+    """A copy of the inputs with one of them times ``factor`` (dbCpuShare at most 1: it is the
+    share of the query time spent on PostgreSQL's CPU)."""
+    out = dict(inputs)
+    value = scaled(inputs[key]["value"], factor)
+    if key == "dbCpuShare":
+        value = min(value, 1.0)
+    out[key] = {**inputs[key], "value": value}
+    return out
+
+
+def range_keys(inputs: Mapping[str, Any]) -> list[str]:
+    """The inputs of a design whose variation the range carries (RANGE_INPUTS), with a scale."""
+    return [
+        k
+        for k in RANGE_INPUTS
+        if isinstance(inputs.get(k), Mapping)
+        and (s := input_scale(inputs[k].get("value"))) is not None
+        and s > 0
+    ]
+
+
+def knee_near(exp: Experiment, inputs: dict[str, Any], near: float) -> float:
+    """The knee of slightly different inputs, searched from a knee already found, on the
+    sensitivity's shorter simulations (RANGE_SIM_S)."""
+    warm, duration = RANGE_SIM_S
+    return float(predicted_knee(exp, inputs, near, warm, duration)["kneeRps"])
+
+
+def sensitivity_jobs(
+    exp: Experiment, inputs: Mapping[str, Any], knee: float
+) -> list[tuple[Experiment, dict[str, Any], float]]:
+    """The knee searches ``knee_sensitivity`` needs: the inputs as they are, then each input of
+    ``range_keys`` RANGE_STEP up, all searched from ``knee``."""
+    return [(exp, dict(inputs), knee)] + [
+        (exp, perturbed(inputs, k, math.exp(RANGE_STEP)), knee) for k in range_keys(inputs)
+    ]
+
+
+def sensitivity_of(inputs: Mapping[str, Any], knees: Sequence[float]) -> dict[str, float]:
+    """d ln(knee) / d ln(input) for each input of ``range_keys``, from the knees of
+    ``sensitivity_jobs`` (in its order): -1 when the knee falls by the share the input rose."""
+    base = knees[0]
+    out = {}
+    for i, k in enumerate(range_keys(inputs)):
+        up = knees[1 + i]
+        slope = (math.log(up) - math.log(base)) / RANGE_STEP if up > 0 and base > 0 else 0.0
+        out[k] = round(slope, 3)
+    return out
+
+
+def knee_sensitivity(exp: Experiment, inputs: dict[str, Any], knee: float) -> dict[str, float]:
+    """How much the knee moves with each input that varies between calibrations: the knee with
+    the input RANGE_STEP up against the unperturbed knee, each searched in parallel on the
+    shorter simulations (``sensitivity_of``). A linear reading in log terms, taken on the side
+    where the input costs more: where the knee switches between two limits it reads the one
+    that binds as the input grows."""
+    jobs = sensitivity_jobs(exp, inputs, knee)
+    if not jobs:
+        return {}
+    with ProcessPoolExecutor(max_workers=min(len(jobs), os.cpu_count() or 2)) as pool:
+        knees = list(pool.map(knee_near, *zip(*jobs, strict=True)))
+    return sensitivity_of(inputs, knees)
+
+
+def input_sigma(fit: Mapping[str, Any], key: str) -> float:
+    """An input's run-to-run variation (log standard deviation) in the fit, or the fit's
+    fallback (the median over the inputs it measured) for one it never saw vary."""
+    rec = (fit.get("inputs") or {}).get(key) or {}
+    sigma = rec.get("sigma")
+    return float(sigma if sigma is not None else fit["fallbackSigma"])
+
+
+def calibration_sigma(sensitivity: Mapping[str, float], fit: Mapping[str, Any]) -> float:
+    """The spread (log standard deviation) of the knee a fresh calibration would give: each
+    input's variation times the knee's sensitivity to it, with one common correlation ``rho``
+    between any two inputs (a faster or slower day moves several at once):
+    (1 - rho) * sum(a^2) + rho * (sum a)^2, a = sensitivity x variation."""
+    a = [s * input_sigma(fit, k) for k, s in sensitivity.items()]
+    rho = float(fit.get("correlation") or 0.0)
+    var = (1 - rho) * sum(x * x for x in a) + rho * sum(a) ** 2
+    return math.sqrt(max(var, 0.0))
+
+
+def knee_range_of(
+    nominal: float,
+    sensitivity: Mapping[str, float],
+    fit: Mapping[str, Any] | None,
+    coverage: float = RANGE_COVERAGE,
+) -> dict[str, Any] | None:
+    """The predicted range of the knee (None without a fit or a knee): a lognormal around the
+    predicted knee whose spread adds the calibration's run-to-run variation for this design
+    (``calibration_sigma``) and the model's own error (``fit["model"]["sigma"]``), cut at the
+    central ``coverage`` share. It holds the measured knee that share of the time if the
+    in-sample runs it was fitted on are like the runs it is used on (the held-out campaign
+    tests that)."""
+    if fit is None or not nominal:
+        return None
+    cal = calibration_sigma(sensitivity, fit)
+    model = float(fit["model"]["sigma"])
+    sigma = math.sqrt(cal**2 + model**2)
+    z = statistics.NormalDist().inv_cdf((1 + coverage) / 2)
     return {
-        "lowRps": min(values),
-        "highRps": max(values),
+        "method": RANGE_METHOD,
+        "lowRps": round(nominal * math.exp(-z * sigma)),
+        "highRps": round(nominal * math.exp(z * sigma)),
         "nominalRps": nominal,
-        "values": list(values),
-        "replicates": r,
-        "nominalCoverage": round((r - 1) / (r + 1), 4),
+        "nominalCoverage": coverage,
+        "sigma": round(sigma, 4),
+        "calibrationSigma": round(cal, 4),
+        "modelSigma": round(model, 4),
+        "sensitivity": dict(sensitivity),
+        "fit": {k: fit.get(k) for k in ("at", "engineVersion", "commit", "runs", "experiments")},
     }
+
+
+def read_range_fit(path: Path = RANGE_FIT) -> dict[str, Any] | None:
+    """The committed fit the range is built from, or None (no range is predicted then)."""
+    return read_json(path)
 
 
 def in_range(knee_range: Mapping[str, Any] | None, measured: Mapping[str, Any]) -> bool | None:
@@ -2581,13 +2808,16 @@ def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
     from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION
 
     inputs = calibration["inputs"]
-    replicates = calibration.get("inputReplicates") or []
-    log(f"predicting {exp.id}: searching the knee ({len(replicates)} replicates for the range)")
-    with ProcessPoolExecutor(max_workers=min(len(replicates) + 1, os.cpu_count() or 2)) as pool:
-        knees = list(pool.map(predicted_knee, [exp] * (len(replicates) + 1), [inputs, *replicates]))
-    knee = knees[0]
+    log(f"predicting {exp.id}: searching the knee")
+    knee = predicted_knee(exp, inputs)
     k = knee["kneeRps"]
-    knee_range = knee_range_of(k, [x["kneeRps"] for x in knees[1:]])
+    fit = read_range_fit()
+    knee_range = None
+    if fit is None:
+        log(f"no {RANGE_FIT.name}: predicting no range for the knee (run.py range-fit)")
+    elif k:
+        log(f"the knee's sensitivity to {len(range_keys(inputs))} inputs, for its range")
+        knee_range = knee_range_of(k, knee_sensitivity(exp, inputs, k), fit)
     steps = sorted({max(10, round(k * f)) for f in STEP_FRACTIONS})
     log(f"predicted knee {k:g} req/s; steps {steps}")
     with ProcessPoolExecutor(max_workers=min(len(steps), os.cpu_count() or 2)) as pool:
@@ -3322,6 +3552,432 @@ def resimulate(results: Path = RESULTS, only: str | None = None) -> list[Path]:
 
 
 # ---------------------------------------------------------------------------------------------
+# fitting the predicted range (run.py range-fit): in-sample runs only
+# ---------------------------------------------------------------------------------------------
+
+RANGE_MIN_PROTOCOL = 5
+"""The range is fitted on calibrations from protocol v5 on: earlier protocols derived the inputs
+from passes of another kind (docs/validation.md, protocol history)."""
+RANGE_MIN_SIGMA = 0.001
+"""An input whose value never moved between calibrations (a fixed default such as Kafka's fetch
+overhead in the kept runs, or a share at its cap) was not seen varying: it takes the fallback
+variation, not none."""
+RANGE_LEVELS = (0.5, 0.8, 0.9)
+"""Nominal coverages the fit's check reports, besides RANGE_COVERAGE itself."""
+RANGE_FOLDS = {
+    "inSample": "fitted on every run, then checked on each",
+    "leaveRunOut": "each run checked with a fit that left out its calibration and its error",
+    "leaveExperimentOut": (
+        "each run checked with a fit that left out every calibration and error of its experiment"
+    ),
+}
+
+
+def protocol_number(cal: Mapping[str, Any] | None) -> int:
+    """A calibration's protocol version as a number (5 for "v5"; 1 before the field existed)."""
+    m = re.fullmatch(r"v(\d+)", str((cal or {}).get("protocol") or ""))
+    if m:
+        return int(m.group(1))
+    m = re.search(r"\(v(\d+)\)", (cal or {}).get("method") or "")
+    return int(m.group(1)) if m else 1
+
+
+def conditions(env: Mapping[str, Any] | None) -> tuple[Any, ...]:
+    """What makes two calibrations comparable: the machine, its OS build and power mode."""
+    e = env or {}
+    return (e.get("cpu"), e.get("os"), e.get("powerMode"))
+
+
+def disturbed_steps(rows: Sequence[Mapping[str, Any]]) -> list[float]:
+    """The load steps of a comparison that missed the objective below a higher step that met it:
+    such a run was disturbed (docs/validation.md, protocol step 5)."""
+    rows = sorted(rows, key=lambda r: r["offeredRps"])
+    met = [meets({k: r["measured"].get(k) for k in ("p95", "successRate")}) for r in rows]
+    return [r["offeredRps"] for i, r in enumerate(rows) if not met[i] and any(met[i + 1 :])]
+
+
+def range_sources(results: Path = RESULTS) -> list[dict[str, Any]]:
+    """The calibrations the range is fitted on: for each in-sample experiment, its kept runs from
+    protocol v5 on and its calibration-only trials (results/trials/), each under the same
+    conditions (``conditions``) as the experiment's latest kept run. Held-out experiments have
+    none (they are sealed)."""
+    trials = [
+        (d, cal)
+        for d in sorted((results / "trials").glob("*"))
+        if d.is_dir() and (cal := read_json(d / "calibration.json"))
+    ]
+    out = []
+    for exp_id, exp in EXPERIMENTS.items():
+        kept = [d for e, d in result_dirs(results) if e == exp_id]
+        if exp.held_out is not None or not kept:
+            continue
+        latest = conditions(read_json(kept[-1] / "environment.json"))
+        found = [("kept", d, read_json(d / "calibration.json")) for d in kept]
+        found += [("trial", d, cal) for d, cal in trials if cal.get("experiment") == exp_id]
+        for kind, d, cal in found:
+            if not cal or protocol_number(cal) < RANGE_MIN_PROTOCOL:
+                continue
+            if conditions(read_json(d / "environment.json")) != latest:
+                continue
+            out.append(
+                {
+                    "experiment": exp_id,
+                    "kind": kind,
+                    "dir": d,
+                    "source": d.relative_to(results).as_posix(),
+                    "calibratedAt": cal.get("at"),
+                    "calibration": cal,
+                }
+            )
+    return out
+
+
+def today_inputs(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any]:
+    """A calibration's inputs derived again with today's run.py, as ``dev_check`` does (a
+    Node.js service that did not report its garbage collection gets its trial's)."""
+    exp = EXPERIMENTS[exp_id]
+    cal = read_json(d / "calibration.json")
+    if exp.runtime == "nodejs" and (gc := trial_gc(exp_id, results)) is not None:
+        cal = with_trial_gc(cal, gc)
+    return rederive_inputs(exp, cal)
+
+
+def variation_fit(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Each input's run-to-run variation over calibrations: the log standard deviation of its
+    scale (``input_scale``) around its experiment's mean, pooled over the experiments (an
+    experiment's n calibrations count n - 1 times); the median of those for inputs never
+    measured or never seen moving (``fallbackSigma``); and one common correlation between
+    inputs, the mean product of
+    two inputs' standardised deviations in the same calibration, at least 0. ``rows``: one per
+    calibration, ``{"experiment", "scales": {input: scale}}``."""
+    by_exp: dict[str, list[Mapping[str, float]]] = {}
+    for r in rows:
+        by_exp.setdefault(r["experiment"], []).append(r["scales"])
+    dev: dict[str, list[tuple[str, int, float]]] = {}  # input -> (experiment, row, deviation)
+    inputs: dict[str, Any] = {}
+    for key in RANGE_INPUTS:
+        ss, dof, exps, n = 0.0, 0, 0, 0
+        for e, scales in by_exp.items():
+            logs = [(i, math.log(s[key])) for i, s in enumerate(scales) if s.get(key, 0) > 0]
+            if len(logs) < 2:
+                continue
+            mean = statistics.fmean(x for _, x in logs)
+            dev[key] = dev.get(key, []) + [(e, i, x - mean) for i, x in logs]
+            ss += sum((x - mean) ** 2 for _, x in logs)
+            dof += len(logs) - 1
+            exps += 1
+            n += len(logs)
+        if dof and math.sqrt(ss / dof) >= RANGE_MIN_SIGMA:
+            inputs[key] = {
+                "sigma": round(math.sqrt(ss / dof), 4),
+                "calibrations": n,
+                "experiments": exps,
+            }
+    sigmas = [v["sigma"] for v in inputs.values()]
+    fallback = round(statistics.median(sigmas), 4) if sigmas else 0.0
+    # standardised deviations, each experiment's scaled up by n / (n - 1) for its own mean
+    z: dict[tuple[str, int], dict[str, float]] = {}
+    for key, devs in dev.items():
+        if key not in inputs:
+            continue
+        sigma = inputs[key]["sigma"]
+        for e, i, d in devs:
+            n = sum(1 for e2, _, _ in devs if e2 == e)
+            if sigma > 0:
+                z.setdefault((e, i), {})[key] = d / sigma * math.sqrt(n / (n - 1))
+    products = [
+        a * b
+        for vals in (list(zs.values()) for zs in z.values())
+        for j, a in enumerate(vals)
+        for b in vals[j + 1 :]
+    ]
+    rho = max(0.0, statistics.fmean(products)) if products else 0.0
+    return {
+        "inputs": inputs,
+        "fallbackSigma": fallback,
+        "correlation": round(min(rho, 1.0), 4),
+    }
+
+
+def model_sigma(errors: Sequence[float], cal_sigmas: Sequence[float]) -> float:
+    """The model's own error, by maximum likelihood: each run's ln(measured / predicted knee) a
+    normal with mean 0 and variance (its calibration spread)^2 + s^2. 0 when the calibration
+    spread alone explains the errors. A grid of 0.0005 up to 2 (a factor of e^2)."""
+    if not errors:
+        return 0.0
+
+    def nll(s: float) -> float:
+        return sum(
+            math.log(max(c * c + s * s, 1e-12)) + e * e / max(c * c + s * s, 1e-12)
+            for e, c in zip(errors, cal_sigmas, strict=True)
+        )
+
+    return min((i * 0.0005 for i in range(4001)), key=nll)
+
+
+def fold_fit(
+    scales: Sequence[Mapping[str, Any]],
+    runs: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """A range fit from some calibrations (``variation_fit``) and some runs' errors
+    (``model_sigma``, each run's calibration spread from that variation)."""
+    fit = variation_fit(scales)
+    cal = [calibration_sigma(r["sensitivity"], fit) for r in runs]
+    fit["model"] = {
+        "sigma": round(model_sigma([r["error"] for r in runs], cal), 4),
+        "runs": len(runs),
+        "experiments": len({r["experiment"] for r in runs}),
+    }
+    return fit
+
+
+def range_check(
+    scales: Sequence[Mapping[str, Any]], runs: Sequence[Mapping[str, Any]]
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Whether the range holds each run's measured knee, at each nominal coverage of
+    RANGE_LEVELS, fitted three ways (RANGE_FOLDS). Never with a run's own error in its fit
+    outside "inSample". Returns the counts per fold and level, and each run's ranges at
+    RANGE_COVERAGE."""
+    levels = sorted({*RANGE_LEVELS, RANGE_COVERAGE})
+    counts: dict[str, dict[str, list[int]]] = {
+        f: {f"{c:g}": [0, 0] for c in levels} for f in RANGE_FOLDS
+    }
+    detail: list[dict[str, Any]] = [{} for _ in runs]
+    full = fold_fit(scales, runs)
+    for fold in RANGE_FOLDS:
+        for i, run in enumerate(runs):
+            if fold == "inSample":
+                fit = full
+            elif fold == "leaveRunOut":
+                fit = fold_fit(
+                    [s for s in scales if s["source"] != run["source"]],
+                    [r for j, r in enumerate(runs) if j != i],
+                )
+            else:
+                fit = fold_fit(
+                    [s for s in scales if s["experiment"] != run["experiment"]],
+                    [r for r in runs if r["experiment"] != run["experiment"]],
+                )
+            for c in levels:
+                rng = knee_range_of(run["knee"], run["sensitivity"], fit, c)
+                holds = in_range(rng, run["measuredKnee"])
+                counts[fold][f"{c:g}"][1] += 1
+                counts[fold][f"{c:g}"][0] += int(bool(holds))
+                if c == RANGE_COVERAGE and rng is not None:
+                    detail[i][fold] = {
+                        "lowRps": rng["lowRps"],
+                        "highRps": rng["highRps"],
+                        "calibrationSigma": rng["calibrationSigma"],
+                        "modelSigma": rng["modelSigma"],
+                        "holds": holds,
+                    }
+    return counts, detail
+
+
+RANGE_FIT_HOW = (
+    "Fitted on the in-sample experiments only. Variation: each input's log standard deviation "
+    "between calibrations of the same experiment (kept runs from protocol v5 on and "
+    "calibration-only trials, under the latest kept run's conditions), pooled over experiments, "
+    "and one common correlation between inputs. Model error: the log standard deviation of "
+    "measured over predicted knee in the counted kept runs, by maximum likelihood after each "
+    "run's calibration spread (its sensitivity to each input times that input's variation). The "
+    "knees and inputs are today's run.py and engine on each run's calibration (the development "
+    "checks), so the model error is in-sample: fitted on runs the model was tuned on."
+)
+
+
+def range_cache_path(engine: str) -> Path:
+    """Where ``range_fit`` keeps the work it has finished (outside the repository), so that a
+    fit cut short starts again where it stopped."""
+    import tempfile
+
+    return Path(tempfile.gettempdir()) / f"archsim-range-fit-{engine}.json"
+
+
+def _cached_call(fn: Any, *args: Any) -> Any:
+    return fn(*args)
+
+
+def run_cached(
+    tasks: Sequence[tuple[str, Any, tuple[Any, ...]]], cache: dict[str, Any], path: Path
+) -> dict[str, Any]:
+    """Run ``(key, function, args)`` tasks on every core, skipping keys already in ``cache``;
+    each result is written to ``path`` as it arrives, with a progress line every tenth."""
+    from concurrent.futures import as_completed
+
+    todo = [t for t in tasks if t[0] not in cache]
+    if not todo:
+        return cache
+    with ProcessPoolExecutor(max_workers=min(len(todo), os.cpu_count() or 2)) as pool:
+        futures = {pool.submit(_cached_call, fn, *args): key for key, fn, args in todo}
+        for n, f in enumerate(as_completed(futures), 1):
+            cache[futures[f]] = f.result()
+            write_json(path, cache)
+            if n % 10 == 0 or n == len(todo):
+                log(f"range fit: {n} of {len(todo)} done")
+    return cache
+
+
+def range_fit(
+    results: Path = RESULTS, out: Path = RANGE_FIT, reuse: str | None = None
+) -> dict[str, Any]:
+    """Fit the predicted range (``knee_range_of``) and check its coverage, and write ``out``.
+    Inputs and knees come from the development checks (results/dev/<engine>/, ``run.py
+    resimulate``) of this engine, or of ``reuse``, a label whose run.py derived the inputs and
+    whose engine simulated exactly as today's (only the label changed since); missing ones are
+    derived here. Each counted kept run's sensitivity to its inputs is simulated (one knee
+    search per input, and one unperturbed). Finished work is kept in ``range_cache_path``."""
+    from archsim_engine.version import ENGINE_VERSION
+
+    label = reuse or ENGINE_VERSION
+    cache_path = range_cache_path(ENGINE_VERSION)
+    cache: dict[str, Any] = read_json(cache_path) or {}
+    sources = range_sources(results)
+    checks: list[dict[str, Any] | None] = []
+    for s in sources:
+        path = dev_path(results, label, s["experiment"], {**s, "results": s["source"]})
+        c = read_json(path) if s["kind"] == "kept" else None
+        checks.append(c if c and c.get("engineVersion") == label else None)
+    todo = [i for i, c in enumerate(checks) if c is None]
+    log(
+        f"range fit, engine {ENGINE_VERSION}: {len(sources)} calibrations, {len(sources) - len(todo)} "
+        f"with engine {label}'s development checks, {len(todo)} to derive (or in the cache)"
+    )
+
+    def derive_tasks(idx: Sequence[int]) -> list[tuple[str, Any, tuple[Any, ...]]]:
+        return [
+            (
+                f"inputs|{sources[i]['source']}",
+                today_inputs,
+                (sources[i]["experiment"], sources[i]["dir"], results),
+            )
+            for i in idx
+        ]
+
+    # the counted kept runs need their inputs and knee before their sensitivity
+    counted = []
+    for i, s in enumerate(sources):
+        cmp_ = read_json(s["dir"] / "comparison.json")
+        if s["kind"] == "kept" and cmp_ and not disturbed_steps(cmp_["rows"]):
+            counted.append((i, cmp_))
+    run_cached(derive_tasks([i for i, _ in counted if checks[i] is None]), cache, cache_path)
+    inputs: list[dict[str, Any] | None] = [
+        c["inputs"] if c else cache.get(f"inputs|{s['source']}")
+        for s, c in zip(sources, checks, strict=True)
+    ]
+    knee_tasks = [
+        (
+            f"knee|{sources[i]['source']}",
+            predicted_knee,
+            (EXPERIMENTS[sources[i]["experiment"]], inputs[i]),
+        )
+        for i, _ in counted
+        if checks[i] is None
+    ]
+    run_cached(knee_tasks, cache, cache_path)
+    runs: list[dict[str, Any]] = []
+    for i, cmp_ in counted:
+        s, c = sources[i], checks[i]
+        runs.append(
+            {
+                "experiment": s["experiment"],
+                "source": s["source"],
+                "calibratedAt": s["calibratedAt"],
+                "measuredKnee": cmp_["measuredKnee"],
+                "inputs": inputs[i],
+                "knee": (c["knee"] if c else cache[f"knee|{s['source']}"])["kneeRps"],
+                "before": cmp_.get("kneeRange"),
+            }
+        )
+    # the other calibrations' inputs and every counted run's sensitivity, together
+    jobs = {
+        r["source"]: sensitivity_jobs(EXPERIMENTS[r["experiment"]], r["inputs"], r["knee"])
+        for r in runs
+    }
+    tasks = derive_tasks([i for i, inp in enumerate(inputs) if inp is None])
+    tasks += [
+        (f"sens|{src}|{j}", knee_near, job) for src, js in jobs.items() for j, job in enumerate(js)
+    ]
+    log(
+        f"range fit: {len(runs)} counted runs; {sum(len(js) for js in jobs.values())} knee "
+        f"searches for their sensitivity ({sum(1 for t in tasks if t[0] in cache)} of "
+        f"{len(tasks)} tasks already done)"
+    )
+    run_cached(tasks, cache, cache_path)
+    every: list[dict[str, Any]] = [
+        inp or cache[f"inputs|{s['source']}"] for s, inp in zip(sources, inputs, strict=True)
+    ]
+    scales = [
+        {
+            "experiment": s["experiment"],
+            "source": s["source"],
+            "calibratedAt": s["calibratedAt"],
+            "scales": {
+                k: round(v, 6)
+                for k in range_keys(inp)
+                if (v := input_scale(inp[k]["value"])) is not None
+            },
+        }
+        for s, inp in zip(sources, every, strict=True)
+    ]
+    for r in runs:
+        knees = [cache[f"sens|{r['source']}|{j}"] for j in range(len(jobs[r["source"]]))]
+        r["sensitivity"] = sensitivity_of(r["inputs"], knees)
+        mk = r["measuredKnee"].get("kneeRps")
+        r["error"] = math.log(mk / r["knee"]) if mk and r["knee"] else None
+    fitted = [r for r in runs if r["error"] is not None]
+    fit = fold_fit(scales, fitted)
+    counts, detail = range_check(scales, fitted)
+    before = [r["before"] for r in fitted if r["before"]]
+    doc = {
+        "at": now(),
+        "engineVersion": ENGINE_VERSION,
+        "inputsAndKneesFrom": label,
+        "commit": git("rev-parse", "HEAD"),
+        "provenance": provenance(),
+        "how": RANGE_FIT_HOW,
+        "nominalCoverage": RANGE_COVERAGE,
+        "step": RANGE_STEP,
+        "sensitivitySimulatedS": list(RANGE_SIM_S),
+        "runs": len(fitted),
+        "experiments": len({r["experiment"] for r in fitted}),
+        **fit,
+        "check": {
+            "folds": RANGE_FOLDS,
+            "counts": counts,
+            # the range the runs were predicted with (protocol v5: the replicate sets' knees)
+            "before": {
+                "inRange": sum(1 for b in before if b.get("containsMeasured")),
+                "withRange": len(before),
+                "nominalCoverage": before[-1].get("nominalCoverage") if before else None,
+            },
+        },
+        "calibrations": scales,
+        "checked": [
+            {
+                k: r[k]
+                for k in (
+                    "experiment",
+                    "source",
+                    "calibratedAt",
+                    "measuredKnee",
+                    "knee",
+                    "sensitivity",
+                )
+            }
+            | {
+                "error": round(r["error"], 4),
+                "calibrationSigma": round(calibration_sigma(r["sensitivity"], fit), 4),
+                "ranges": d,
+            }
+            for r, d in zip(fitted, detail, strict=True)
+        ],
+    }
+    write_json(out, doc)
+    return doc
+
+
+# ---------------------------------------------------------------------------------------------
 # environment check: the machine itself, before a run is trusted (no prediction)
 # ---------------------------------------------------------------------------------------------
 
@@ -3472,6 +4128,7 @@ HARNESS = (
     "benchmarks/service-python",
     "benchmarks/k6",
     "benchmarks/db",
+    "benchmarks/knee-range.json",
 )
 """What turns calibration passes into predictions and measurements, besides the engine."""
 
@@ -3770,18 +4427,35 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "stack",
-        choices=[*STACKS, "all", "smoke", "compare", "resources", "resimulate", "envcheck"],
+        choices=[
+            *STACKS,
+            "all",
+            "smoke",
+            "compare",
+            "resources",
+            "resimulate",
+            "range-fit",
+            "envcheck",
+        ],
         help="a stack to run, all of them (held-out experiments only with a frozen engine), "
         "'smoke' EXPERIMENT: start its stack, send 20 req/s for 10 s and check every request "
         "succeeded and was counted (keeps nothing), 'compare': recompute every comparison.json, "
         "'resources': predict CPU and memory for results whose predictions have none, then "
         "compare, 'resimulate': check today's model against every kept run (in-sample, written "
-        "under results/dev/), or 'envcheck': characterise this machine (CPU siblings, steal, CPU "
-        "per request across rates; about 8 minutes of Docker)",
+        "under results/dev/), 'range-fit': fit the predicted range of the knee from the in-sample "
+        "runs and check its coverage (writes benchmarks/knee-range.json; run resimulate first to "
+        "reuse its inputs and knees), or 'envcheck': characterise this machine (CPU siblings, "
+        "steal, CPU per request across rates; about 8 minutes of Docker)",
     )
     ap.add_argument("experiment", nargs="?", help="with smoke: the experiment to smoke-test")
     ap.add_argument("--keep", action="store_true", help="leave the stack running afterwards")
     ap.add_argument("--only", choices=list(EXPERIMENTS), help="run one experiment of the stack")
+    ap.add_argument(
+        "--reuse-dev",
+        metavar="LABEL",
+        help="with range-fit: take the kept runs' inputs and knees from this engine label's "
+        "development checks (only when nothing but the label changed since)",
+    )
     ap.add_argument(
         "--archive",
         action="store_true",
@@ -3808,6 +4482,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.stack == "resimulate":
         for path in resimulate(only=args.only):
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
+        return 0
+    if args.stack == "range-fit":
+        fit = range_fit(reuse=args.reuse_dev)
+        for fold, by in fit["check"]["counts"].items():
+            hits, n = by[f"{RANGE_COVERAGE:g}"]
+            log(f"range fit: {fold}: {hits} of {n} runs inside the {RANGE_COVERAGE:.0%} range")
+        log(f"wrote {RANGE_FIT.relative_to(HERE.parent).as_posix()}")
         return 0
     if args.stack == "envcheck":
         log(f"wrote {envcheck().relative_to(HERE.parent).as_posix()}")

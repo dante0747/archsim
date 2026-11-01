@@ -420,20 +420,25 @@ def test_median_inputs_takes_each_input_from_its_median_replicate() -> None:
 
 
 def test_knee_range_and_whether_it_holds_the_measured_knee() -> None:
-    assert run.knee_range_of(1000, [950]) is None  # one replicate is no range
-    r = run.knee_range_of(1000, [900, 1100, 1000])
-    assert r is not None
-    assert (r["lowRps"], r["highRps"], r["nominalCoverage"]) == (900, 1100, 0.5)
-    assert run.in_range(r, {"kneeRps": 950.0}) is True
-    assert run.in_range(r, {"kneeRps": 1200.0}) is False
-    assert run.in_range(r, {"kneeRps": None, "bound": "above", "aboveRps": 1050}) is True
-    assert run.in_range(r, {"kneeRps": None, "bound": "above", "aboveRps": 1200}) is False
+    """compare() records whether the predicted range held the measured knee, for W28's ranges
+    and for engine 0.14.0's (the replicate sets' knees, kept in its predictions)."""
+    old = {"lowRps": 900, "highRps": 1100, "nominalCoverage": 0.5, "replicates": 3}
+    assert run.in_range(old, {"kneeRps": 950.0}) is True
+    assert run.in_range(old, {"kneeRps": 1200.0}) is False
+    assert run.in_range(old, {"kneeRps": None, "bound": "above", "aboveRps": 1050}) is True
+    assert run.in_range(old, {"kneeRps": None, "bound": "above", "aboveRps": 1200}) is False
     assert run.in_range(None, {"kneeRps": 950.0}) is None
+    fit = {
+        "inputs": {"serviceTimeMs": {"sigma": 0.05}},
+        "fallbackSigma": 0.05,
+        "model": {"sigma": 0.1},
+    }
     predictions, measured = synthetic()  # the measured knee is 300 req/s
-    predictions["kneeRange"] = run.knee_range_of(340, [280, 360, 330])
+    predictions["kneeRange"] = run.knee_range_of(340, {"serviceTimeMs": -1.0}, fit)
     c = run.compare(PG_MIXED, predictions, measured)
-    assert c["kneeRange"]["containsMeasured"] is True
-    predictions["kneeRange"] = run.knee_range_of(340, [320, 360, 330])
+    assert c["kneeRange"]["containsMeasured"] is True and c["kneeRange"]["nominalCoverage"] == 0.8
+    narrow = {**fit, "model": {"sigma": 0.0}, "inputs": {"serviceTimeMs": {"sigma": 0.01}}}
+    predictions["kneeRange"] = run.knee_range_of(340, {"serviceTimeMs": -1.0}, narrow)
     assert run.compare(PG_MIXED, predictions, measured)["kneeRange"]["containsMeasured"] is False
 
 
@@ -1204,6 +1209,7 @@ def test_repeatability_counts_the_runs_inside_the_predicted_range() -> None:
     assert rep is not None
     assert (rep["runs"], rep["medianError"], rep["inRange"], rep["withRange"]) == (3, -0.2, 2, 3)
     assert rep["text"] == {"medianError": "-20%", "errors": "-30% to -10%", "coverage": "2 of 3"}
+    assert (rep["expectedInRange"], rep["coverageVerdict"]) == (1.5, "as claimed")
     one = report.repeatability([r(-0.08, None)])
     assert one is not None and one["text"] == {
         "medianError": "-8%",
@@ -1211,6 +1217,45 @@ def test_repeatability_counts_the_runs_inside_the_predicted_range() -> None:
         "coverage": "-",
     }
     assert report.repeatability([]) is None
+
+
+def test_coverage_verdict_by_the_binomial_tails() -> None:
+    # 12 runs at 50%: 2 or fewer inside happen under 5% of the time, as do 10 or more
+    assert report.coverage_verdict(1, 12, 6.0) == "too narrow"
+    assert report.coverage_verdict(2, 12, 6.0) == "too narrow"
+    assert report.coverage_verdict(3, 12, 6.0) == "as claimed"
+    assert report.coverage_verdict(10, 12, 6.0) == "too wide"
+    # at 80%, 6 or fewer of 12 are too few, and no count is too many
+    assert report.coverage_verdict(6, 12, 9.6) == "too narrow"
+    assert report.coverage_verdict(7, 12, 9.6) == "as claimed"
+    assert report.coverage_verdict(12, 12, 9.6) == "as claimed"
+    assert report.coverage_verdict(0, 0, 0.0) is None
+    # every experiment's ranges together, with their own nominal coverages
+    reps = [
+        {"withRange": 3, "inRange": 2, "expectedInRange": 2.4, "nominalCoverage": 0.8},
+        {"withRange": 3, "inRange": 3, "expectedInRange": 2.4, "nominalCoverage": 0.8},
+        None,
+        {"withRange": 0, "inRange": 0, "expectedInRange": 0.0, "nominalCoverage": None},
+    ]
+    assert report.coverage_summary(reps) == {
+        "withRange": 6,
+        "inRange": 5,
+        "expectedInRange": 4.8,
+        "nominalCoverage": 0.8,
+        "verdict": "as claimed",
+    }
+    mixed = [
+        reps[0],
+        {"withRange": 3, "inRange": 0, "expectedInRange": 1.5, "nominalCoverage": 0.5},
+    ]
+    assert report.coverage_summary(mixed)["nominalCoverage"] is None
+
+
+def test_range_label_says_where_the_range_came_from() -> None:
+    assert report.range_label({"replicates": 3, "nominalCoverage": 0.5}) == (
+        "range, from the 3 replicate sets,"
+    )
+    assert report.range_label({"method": "...", "nominalCoverage": 0.8}) == "80% range"
 
 
 def test_criteria_failures() -> None:
@@ -1433,7 +1478,13 @@ def test_accuracy_json_on_the_committed_results() -> None:
     assert s["spreadExceedsError"] == []
     assert s["runs"] == 28 and len(s["machines"]) == 1
     # the predicted range held the measured knee in 1 of 12 runs, against a nominal 50%
-    assert s["coverage"] == {"withRange": 12, "inRange": 1}
+    assert s["coverage"] == {
+        "withRange": 12,
+        "inRange": 1,
+        "expectedInRange": 6.0,
+        "nominalCoverage": 0.5,
+        "verdict": "too narrow",
+    }
     # pg-mixed's two disturbed v5 runs and six older ones
     assert s["disturbedRuns"] == 8
     by = {x["id"]: x for x in data["experiments"]}

@@ -126,15 +126,27 @@ export interface Resources {
   steps: { offeredRps: number; atOrBelowKnee: boolean; text: { offered: string }; parts: Record<string, ResourceCell> }[];
 }
 
+/**
+ * ArchSim's predicted range for the knee. Engine 0.14.0's runs took it from their replicate calibration sets
+ * (`replicates`, `values`; nominal 50%); since W28 it is an 80% range that carries the calibration's run-to-run
+ * variation and the model's own error (`method`, `sigma`: its log standard deviation).
+ */
 export interface KneeRange {
   lowRps: number;
   highRps: number;
   nominalRps: number;
-  values: number[];
-  replicates: number;
   nominalCoverage: number;
   containsMeasured: boolean | null;
+  values?: number[];
+  replicates?: number;
+  method?: string;
+  sigma?: number;
+  calibrationSigma?: number;
+  modelSigma?: number;
 }
+
+/** "too narrow" or "too wide" when the runs inside the range would be that unlikely (under 5%) at its nominal coverage. */
+export type CoverageVerdict = "too narrow" | "too wide" | "as claimed";
 
 export interface Repeatability {
   /** Counted runs: the disturbed ones are left out. */
@@ -149,6 +161,9 @@ export interface Repeatability {
   withRange: number;
   inRange: number;
   nominalCoverage: number | null;
+  /** The runs inside the range that its nominal coverage expects. */
+  expectedInRange?: number;
+  coverageVerdict?: CoverageVerdict | null;
   text: { medianError: string; errors: string; coverage: string };
 }
 
@@ -177,7 +192,7 @@ export interface Experiment {
     withinTolerance: boolean;
     text: { measured: string; predicted: string; error: string; absError: string };
   };
-  /** ArchSim's predicted range for the knee (protocol v5: one knee per replicate calibration set). */
+  /** ArchSim's predicted range for the knee. */
   kneeRange: KneeRange | null;
   /** Load steps this run missed below one it met: then it was disturbed and is not counted. */
   disturbed: number[];
@@ -215,7 +230,7 @@ export interface HistoryRun {
   measuredKnee: Knee;
   predictedKnee: Knee;
   kneeError: number | null;
-  kneeRange: { lowRps: number; highRps: number; nominalCoverage: number; containsMeasured: boolean | null } | null;
+  kneeRange: { lowRps: number; highRps: number; nominalCoverage: number; containsMeasured: boolean | null; method?: string | null } | null;
   /** The run's own checks; `disturbed` lists the steps it missed below one it met (then it is not counted). */
   checks: { kneeError: number | null; disturbed: number[] };
   text: { measuredKnee: string; predictedKnee: string; kneeError: string };
@@ -244,7 +259,19 @@ export interface Accuracy {
     caveats: string[];
     /** Experiments whose latest conditions ran at least 3 times. */
     repeated: string[];
-    coverage: { withRange: number; inRange: number };
+    /**
+     * The predicted range over every experiment's runs under its latest conditions: the runs inside it, the hits
+     * its nominal coverage expects, that coverage when every range claims the same, and the verdict.
+     */
+    coverage: {
+      withRange: number;
+      inRange: number;
+      expectedInRange?: number;
+      nominalCoverage?: number | null;
+      verdict?: CoverageVerdict | null;
+    };
+    /** The same over the held-out experiments alone (none until they are measured): the range's out-of-sample test. */
+    coverageHeldOut?: Accuracy["summary"]["coverage"];
     /** Kept runs left out of the criteria, repeatability and spread because they were disturbed. */
     disturbedRuns: number;
     technologies: { name: string; experiments: string[]; validated: boolean }[];
@@ -383,16 +410,39 @@ export function repeatSentence(x: Experiment, minRuns = 3): string {
   return `${head}${left} The measured knee fell inside ArchSim's predicted range in ${r.text.coverage} runs${nominal}.`;
 }
 
+/** The share of runs a set of ranges should hold: their common nominal coverage, else the expected hits over the runs. */
+function expectedShare(c: Accuracy["summary"]["coverage"]): number | null {
+  if (c.nominalCoverage !== undefined && c.nominalCoverage !== null) return c.nominalCoverage;
+  if (c.expectedInRange !== undefined && c.withRange) return c.expectedInRange / c.withRange;
+  return null;
+}
+
 /**
  * How often ArchSim's predicted range held the measured knee, over every experiment's runs under its latest conditions,
- * against the nominal coverage (about half, with three replicate sets). Null before any run had a range.
+ * against its nominal coverage, and the report's verdict (a count under 5% likely at that coverage is too narrow or
+ * too wide). Null before any run had a range.
  */
-export function coverageSentence(s: Accuracy["summary"], nominal = 0.5): string | null {
-  const { withRange, inRange } = s.coverage;
-  if (!withRange) return null;
-  const head = `ArchSim's predicted range for the knee held the measured one in ${inRange} of ${withRange} runs, where about ${Math.round(nominal * 100)}% was expected`;
-  // under half the nominal share is unlikely by chance: with 12 runs at 50%, 2 or fewer happen about 2% of the time
-  return inRange / withRange < nominal / 2 ? `${head}: the range is too narrow.` : `${head}.`;
+export function coverageSentence(s: Accuracy["summary"]): string | null {
+  const c = s.coverage;
+  if (!c.withRange) return null;
+  const share = expectedShare(c);
+  const expected = share === null ? "" : `, where about ${Math.round(share * 100)}% was expected`;
+  const head = `ArchSim's predicted range for the knee held the measured one in ${c.inRange} of ${c.withRange} runs${expected}`;
+  const verdict = c.verdict === "too narrow" ? ": the range is too narrow." : c.verdict === "too wide" ? ": the range is wider than it needs to be." : ".";
+  const h = s.coverageHeldOut;
+  const heldOut = h?.withRange ? ` On the held-out experiments alone, ${h.inRange} of ${h.withRange}.` : "";
+  return `${head}${verdict}${heldOut}`;
+}
+
+/** Whether the predicted range held the measured knee about as often as it claims (false before any run had one). */
+export function coverageAsClaimed(s: Accuracy["summary"]): boolean {
+  return s.coverage.withRange > 0 && s.coverage.verdict === "as claimed";
+}
+
+/** What the predicted range is, for its tooltip: from the replicate calibration sets, or W28's nominal range. */
+export function rangeSource(r: KneeRange): string {
+  if (r.replicates) return `from ${r.replicates} replicate calibration sets`;
+  return `${Math.round(r.nominalCoverage * 100)}% range: the calibration's run-to-run variation and the model's own error`;
 }
 
 /** What the run-to-run spread says next to the knee error. */
