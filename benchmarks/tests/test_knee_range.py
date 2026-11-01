@@ -255,6 +255,15 @@ def test_disturbed_runs_are_left_out_of_the_fit() -> None:
     assert report.disturbed_steps([row(100, 5), row(200, 80), row(300, 20)]) == [200]
 
 
+def test_discarded_trials_are_left_out_of_the_fit() -> None:
+    # W26's throttled cache-aside trial (1 Nov) carries a DISCARDED file and is not fitted on
+    sources = {s["source"] for s in run.range_sources()}
+    throttled = "trials/2026-11-01-cache-aside-w26-throttled"
+    assert (run.RESULTS / throttled / "DISCARDED").exists()
+    assert throttled not in sources
+    assert any(s.startswith("trials/") for s in sources)
+
+
 def test_protocol_and_conditions() -> None:
     assert run.protocol_number({"protocol": "v5"}) == 5
     assert run.protocol_number({"protocol": "v6"}) == 6

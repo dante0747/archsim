@@ -92,6 +92,12 @@ Read these numbers as three runs on one laptop, all of them in-sample:
   were. PostgreSQL's predicted CPU is now 4% to 11% low (was 16% to 70%) and Redis's 14% to 19%
   high (was about 90% low). These are re-simulations of runs the changes were tuned on, not
   predictions: every table on this page is still engine 0.14.0's, predicted before measuring.
+- **Engine 0.16.0 (1 Nov) moves no knee yet.** It adds protocol v6, a calibration to 65% of the
+  service's CPU (W26; estimated from the kept ladders to take cache-aside from -34% to about
+  -20%), a model of parts sharing one machine and its hyperthreads (W27; off: in-sample it
+  helped pg-mixed, +24% to +11%, and hurt cache-aside and Kafka), and the 80% predicted range
+  (W28). With its defaults it re-simulates every kept run as 0.15.0 did; the v6 campaign comes
+  next.
 - **Latency at low load is within 1 ms, except Kafka's**: at a quarter and half of the predicted
   knee ArchSim's p95 is 0.09 to 0.89 ms off for pg-mixed, hot-row and cache-aside; for Kafka 1.3
   and 7.2 ms below the measured one (see [below](#where-the-model-is-wrong-and-why)).

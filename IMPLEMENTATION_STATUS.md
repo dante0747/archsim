@@ -1,11 +1,33 @@
 # Implementation status
 
-State as of 2026-10-31 (engine 0.15.0, schema 1.6, report 1.14). This file separates what is
+State as of 2026-11-01 (engine 0.16.0, schema 1.7, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Engine 0.16.0: accuracy round 2 together (2026-11-01; W26 to W28).**
+
+- **W28, an honest predicted range:** a nominal 80% range from how much a fresh calibration
+  moves the knee and from the model's own error, fitted on the in-sample runs
+  (`run.py range-fit`, `benchmarks/knee-range.json`). It holds the measured knee in 9 of the 12
+  counted v5 runs in-sample, leaving out each run and leaving out each experiment, where the old
+  replicate range held 1. The committed results keep their old ranges until runs predicted with
+  the new one exist; the held-out campaign is the real test.
+- **W26, protocol v6:** the calibration staircase climbs to 65% of the service's CPU (v5: 35%);
+  estimated from the kept ladders to take cache-aside from -34% to about -20%. The curve's
+  extension above the staircase (`extend_load_curve`) is built and off (`CURVE_FORM`) until a
+  v6 campaign's own runs support it. The trial script waits for the CPU to boost.
+- **W27, a shared machine and hyperthreads:** `architecture.host` and `siblingSpeed` (schema
+  1.7, empty by default, digests unchanged) model parts sharing one machine's threads; `run.py
+  contention` measured the laptop (its VM's hyperthread pairs are not real pairs; work slows
+  1.5x at 5.5 of 8 threads busy and 2.1x at 7.4; after about 15 minutes near full load the clock
+  fell to about 1.6 GHz). Off in the benchmark designs: in-sample it took pg-mixed from +24% to
+  +11% but cache-aside to -41% and Kafka to -22%.
+- No knee moves in-sample with the defaults: engine 0.16.0 re-simulates every kept run as 0.15.0
+  did. The v6 in-sample campaign comes next, then a decision on W26's extension and W27's host,
+  then the freeze and the held-out campaign.
 
 **The knee's predicted range: run-to-run variation and the model's own error (2026-11-01; accuracy plan W28).**
 

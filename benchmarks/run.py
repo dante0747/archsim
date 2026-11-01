@@ -2982,10 +2982,12 @@ RANGE_FIXED = (
     "apiMemoryBaselineMb",
     "apiMemoryPerRpsMb",
     "apiMemoryPerRequestMb",
+    "host",
 )
 """Inputs the range leaves as calibrated: records, settings of the real stack, relative curves,
-memory (it sets no knee), and GC pauses, which the kept runs take from one trial and which move
-no knee (W21). Every input is in one of the two lists (a test checks)."""
+memory (it sets no knee), GC pauses, which the kept runs take from one trial and which move no
+knee (W21), and the host machine (W27: a property of the machine, not of a calibration, and off
+in the benchmark designs). Every input is in one of the two lists (a test checks)."""
 RANGE_METHOD = (
     "the knee's run-to-run variation from a fresh calibration (each input's variation between "
     "calibrations times how much the knee moves with it) and the model's own error (the spread "
@@ -3954,11 +3956,15 @@ def range_sources(results: Path = RESULTS) -> list[dict[str, Any]]:
     """The calibrations the range is fitted on: for each in-sample experiment, its kept runs from
     protocol v5 on and its calibration-only trials (results/trials/), each under the same
     conditions (``conditions``) as the experiment's latest kept run. Held-out experiments have
-    none (they are sealed)."""
+    none (they are sealed). A trial folder with a ``DISCARDED`` file is left out: its calibration
+    was taken under conditions it cannot stand for (W26's cache-aside trial of 1 Nov ran with the
+    CPUs at about half their usual clock)."""
     trials = [
         (d, cal)
         for d in sorted((results / "trials").glob("*"))
-        if d.is_dir() and (cal := read_json(d / "calibration.json"))
+        if d.is_dir()
+        and not (d / "DISCARDED").exists()
+        and (cal := read_json(d / "calibration.json"))
     ]
     out = []
     for exp_id, exp in EXPERIMENTS.items():
