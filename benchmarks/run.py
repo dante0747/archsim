@@ -13,16 +13,16 @@
     uv run python benchmarks/run.py all --runs 3  # three independent runs of each experiment
     uv run python benchmarks/report.py            # rewrite docs/validation.md from the results
 
-Protocol v5 (docs/validation.md): for each experiment the runner
+Protocol v6 (docs/validation.md): for each experiment the runner
 1. starts the stack (benchmarks/compose.yaml) and settles it: VACUUM ANALYZE and a checkpoint
    after the data load (run 3's first calibration pass met the post-load autovacuum), then a
    discarded 30 s warm-up at the calibration rate;
 2. calibrates: 20 s at rest (each container's idle CPU), then a staircase of the experiment's
-   traffic from 50 req/s up to about a third of the service's core, down again and the top rate
-   once more, reading what the service measured (CPU per request on the event loop, the time of
-   each PostgreSQL, Redis and Kafka call, the database's CPU per query, Redis's own command
-   time); each top pass gives one replicate set of model inputs, derived by formulas recorded in
-   calibration.json, and the inputs are their medians;
+   traffic from 50 req/s up to about two thirds of the service's core (v5: a third), down again
+   and the top rate once more, reading what the service measured (CPU per request on the event
+   loop, the time of each PostgreSQL, Redis and Kafka call, the database's CPU per query,
+   Redis's own command time); each top pass gives one replicate set of model inputs, derived by
+   formulas recorded in calibration.json, and the inputs are their medians;
 3. predicts: builds the ArchSim design from the calibration and simulates it, finding the knee
    (the highest load with p95 <= 50 ms and >= 99% success), its predicted 80% range (how much
    the knee moves with each input, times that input's run-to-run variation, and the model's own
@@ -85,13 +85,27 @@ CALIBRATION_UTILIZATION = 0.25
 """Protocol v4's second pass: this share of the pessimistic capacity the first pass implies."""
 IDLE_S = 20
 """Protocol v5: seconds of no load before the staircase, to measure each container's idle CPU."""
-STAIRCASE_CPU_CAP = 0.35
-"""Protocol v5: a rising calibration pass may use at most this share of the service's core."""
+PROTOCOL = "v6"
+"""The calibration protocol calibrate() runs (docs/validation.md, Protocol)."""
+STAIRCASE_CPU_CAP = 0.65
+"""Protocol v6: a rising calibration pass may use at most this share of the service's CPUs (v5:
+0.35, about a third of the knee). The kept runs' ladders put the service's p95 at 1.4 to 2.2 ms
+at about half a core and 8 to 11 ms (pg-mixed) by three quarters; 0.65 is the most the
+in-sample stacks took with p95 still a few milliseconds."""
+STAIRCASE_BOUND_SHARE = 0.5
+"""A rising pass may use at most this share of every other capacity the pass before implies
+(the connection pool, the hot row's lock, the Kafka consumers), as in protocol v5: those bounds
+come from times that include the network and driver, and past them a backlog would carry into
+the next pass."""
 STAIRCASE_P95_CAP_MS = 10.0
-"""Protocol v5: the staircase stops rising once a pass's p95 exceeds this."""
-STAIRCASE_MAX_RISES = 3
-STAIRCASE_MIN_RISE = 1.25
-"""Protocol v5: a next step must be at least this many times the last, or the staircase stops."""
+"""The staircase stops rising once a pass's p95 exceeds this (v5 and v6)."""
+STAIRCASE_MAX_RISES = 5
+"""Protocol v6: at most this many rises above 50 req/s (v5: 3)."""
+STAIRCASE_MIN_RISE = 1.1
+"""Protocol v6: a next step must be at least this many times the last, or the staircase stops
+(v5: 1.25, which stopped the climb about a fifth below its cap)."""
+STAIRCASE_V5 = {"cpuCap": 0.35, "boundShare": 0.5, "p95CapMs": 10.0, "maxRises": 3, "minRise": 1.25}
+"""Protocol v5's staircase, for the record (the kept runs' calibrations ran it)."""
 REPLICATES = 3
 """Protocol v5: passes at the staircase's top rate (up, down, up again): each gives its own
 model inputs and predicted knee, hence the predicted range."""
@@ -904,9 +918,22 @@ def hops(svc: Mapping[str, Any]) -> list[Mapping[str, Any]]:
 def capacity_bound(exp: Experiment, low: Mapping[str, Any]) -> float:
     """The most pessimistic capacity the low pass implies (req/s): each hop's CPU at its
     low-load cost per request, the connection pool, the hot row's lock, the consumers."""
+    return min(cpu_bound(exp, low), other_bound(exp, low))
+
+
+def cpu_bound(exp: Experiment, entry: Mapping[str, Any]) -> float:
+    """The rate at which the service's CPUs would fill at a pass's CPU per request (req/s): the
+    whole process's, idle included, so pessimistic at low rates; chain: the busier hop."""
+    cpu = max(h["cpuMsPerRequest"] for h in hops(entry["service"]))
+    return 1000 * service_cpus(exp) / max(cpu, 1e-6)
+
+
+def other_bound(exp: Experiment, low: Mapping[str, Any]) -> float:
+    """The most pessimistic capacity a pass implies other than the CPU's (req/s): the
+    connection pool, the hot row's lock, the consumers (infinite when none applies)."""
     svc = low["service"]
     t = svc["timings"]
-    bounds = [1000 * service_cpus(exp) / h["cpuMsPerRequest"] for h in hops(svc)]
+    bounds = [math.inf]
     for h in hops(svc):
         for name in ("db_read", "db_write"):
             if name in h["timings"]:
@@ -949,26 +976,29 @@ def service_cpus(exp: Experiment) -> int:
 
 
 def next_rise(exp: Experiment, entry: Mapping[str, Any]) -> float | None:
-    """The staircase's next rate after a pass, or None to stop: half the most pessimistic
-    capacity the pass implies, but no more than STAIRCASE_CPU_CAP of the service's CPUs at the
-    pass's CPU per request (the whole process's: every thread or worker); stop when the pass's p95
-    is above STAIRCASE_P95_CAP_MS or the next rate would not be STAIRCASE_MIN_RISE times this
-    one."""
+    """The staircase's next rate after a pass, or None to stop (protocol v6):
+    STAIRCASE_CPU_CAP of the service's CPUs at the pass's CPU per request (the whole process's:
+    every thread or worker, idle included, so the climb undershoots while the cost still falls),
+    but no more than STAIRCASE_BOUND_SHARE of any other capacity the pass implies; stop when the
+    pass's p95 is above STAIRCASE_P95_CAP_MS or the next rate would not be STAIRCASE_MIN_RISE
+    times this one."""
     rate = entry["rateRps"]
     p95 = entry["k6"].get("p95")
     if p95 is not None and p95 > STAIRCASE_P95_CAP_MS:
         return None
-    cpu = max(h["cpuMsPerRequest"] for h in hops(entry["service"]))  # chain: the busier hop
-    cap = STAIRCASE_CPU_CAP * 1000 * service_cpus(exp) / max(cpu, 1e-6)
-    nxt = min(0.5 * capacity_bound(exp, entry), cap)
+    nxt = min(
+        STAIRCASE_CPU_CAP * cpu_bound(exp, entry), STAIRCASE_BOUND_SHARE * other_bound(exp, entry)
+    )
     return float(round(nxt)) if nxt >= rate * STAIRCASE_MIN_RISE else None
 
 
 def calibrate(exp: Experiment) -> dict[str, Any]:
-    """Protocol v5. After settling and IDLE_S at rest, a staircase of the experiment's traffic:
-    50 req/s, then each pass at half the capacity the previous one implies, up to
-    STAIRCASE_CPU_CAP of the service's core (at most STAIRCASE_MAX_RISES rises). Then down
-    again, and the top rate once more: every rate twice, the top REPLICATES times. Each top pass,
+    """Protocol v6. After settling and IDLE_S at rest, a staircase of the experiment's traffic:
+    50 req/s, then each pass at STAIRCASE_CPU_CAP of the service's CPUs at the previous pass's
+    cost (and at most half of any other capacity it implies; ``next_rise``), at most
+    STAIRCASE_MAX_RISES rises. Then down again, and the top rate once more: every rate twice,
+    the top REPLICATES times. Protocol v5 was the same staircase capped at a third of the core
+    (STAIRCASE_V5). Each top pass,
     with the auxiliary mixes (writes without the WAL flush) run right after it at the same rate,
     gives one replicate set of model inputs (CPU per request net of idle, timings from the pass);
     the inputs are their medians. ``cpuByLoad`` keeps each rate's CPU per request."""
@@ -1019,13 +1049,14 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
     return {
         "experiment": exp.id,
         "at": now(),
-        "protocol": "v5",
+        "protocol": PROTOCOL,
         "method": (
             "staircase up and down, CPU per request net of idle at the top rate, median of "
-            f"{len(used)} replicates, anchored at the top rate, settled first (v5)"
+            f"{len(used)} replicates, anchored at the top rate, settled first ({PROTOCOL})"
         ),
         "settle": settled,
         "idle": idle,
+        "staircaseRule": staircase_rule(),
         "staircaseRps": rates,
         "capacityBoundRps": round(capacity_bound(exp, runs[0]), 1),
         # one view the v4 readers (report.py, the low-load reference) understand
@@ -1040,6 +1071,18 @@ def calibrate(exp: Experiment) -> dict[str, Any]:
         "cpuByLoad": by_load,
         "inputReplicates": replicate_inputs,
         "inputs": median_inputs(replicate_inputs),
+    }
+
+
+def staircase_rule() -> dict[str, float | int]:
+    """The staircase's settings as calibrate() ran them, recorded in calibration.json (a v5
+    calibration has none: STAIRCASE_V5)."""
+    return {
+        "cpuCap": STAIRCASE_CPU_CAP,
+        "boundShare": STAIRCASE_BOUND_SHARE,
+        "p95CapMs": STAIRCASE_P95_CAP_MS,
+        "maxRises": STAIRCASE_MAX_RISES,
+        "minRise": STAIRCASE_MIN_RISE,
     }
 
 
@@ -1259,7 +1302,12 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         },
         "measuredLowLoad": {"rateRps": high["rateRps"], **high["k6"]},
     }
-    if (curve := service_time_by_load(passes.get("cpuByLoad"))) is not None:
+    curve = service_time_by_load(
+        passes.get("cpuByLoad"),
+        staircase_cpu(passes.get("staircase") or [], passes.get("idle")),
+        service_cpus(exp),
+    )
+    if curve is not None:
         out["serviceTimeByLoad"] = curve
     out |= gc if exp.runtime == "nodejs" else gc_inputs(exp, svc)
     if exp.stack == "chain":
@@ -1267,15 +1315,55 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def service_time_by_load(by_load: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+CURVE_FORM = "flat"
+"""How the service's CPU per request continues above the staircase's top rate: ``flat``, the top
+rate's cost (engine 0.15.0's rule, and the default); ``log``, W26's ``extend_load_curve``: the
+upper staircase's fall carried on linearly in log(rate), at most one measured stretch, up to the
+CPUs' capacity. Off by default until a protocol v6 campaign shows it helps: it was checked only
+on staircases built from the kept runs' ladders (docs/validation.md, Protocol), and on those it
+helped cache-aside and left pg-mixed alone but raised Kafka's knee, which is not the CPU's."""
+
+
+def staircase_cpu(
+    runs: Sequence[Mapping[str, Any]], idle: Mapping[str, Any] | None
+) -> list[tuple[float, float]]:
+    """Each staircase pass's (rate, the service's CPU per request net of idle in ms), as
+    ``cpu_by_load`` takes their median (empty without the idle pass: before protocol v5)."""
+    if not idle:
+        return []
+    rest = idle["serviceCpuMsPerSecond"] * CALIBRATION_S
+    return [
+        (
+            float(r["rateRps"]),
+            max(0.0, r["service"]["cpuMs"] - rest) / max(r["service"]["requests"], 1),
+        )
+        for r in runs
+        if r.get("service", {}).get("requests")
+    ]
+
+
+def service_time_by_load(
+    by_load: Sequence[Mapping[str, Any]] | None,
+    passes: Sequence[tuple[float, float]] = (),
+    cores: float = 1.0,
+    form: str | None = None,
+) -> dict[str, Any] | None:
     """How the service's CPU per request changed with load over the calibration staircase
     (``cpuByLoad``: each rate's CPU per request net of idle, the median of its passes), as
     ``serviceTimeByLoad``: the engine's never-rising fit (``fit_load_curve``, one bin per rate),
-    relative to the top rate, whose CPU per request the service time is. The engine keeps the
-    top rate's factor (1) at every higher load: the curve says nothing about loads above the
-    staircase, which stops at a third of the core. None without a staircase (protocols before
-    v5), or when the fit spans no more than MIN_CURVE_CHANGE."""
-    from archsim_engine.calibration.resources import MIN_CURVE_CHANGE, fit_load_curve
+    relative to the top rate, whose CPU per request the service time is. Above the top rate the
+    engine keeps the top rate's factor (1), unless ``form`` (default CURVE_FORM) is ``log``: then
+    the fall the upper staircase measured is carried on, at most one measured stretch, until the
+    service's ``cores`` fill (``extend_load_curve`` over each pass's CPU per request,
+    ``passes``), when the top kept the CPUs at least EXTEND_MIN_BUSY busy and the fall stands out
+    of the passes' scatter. A protocol v5 staircase stops at a third of the core, so its curve
+    stays flat above the top either way. None without a staircase (protocols before v5), or when
+    the curve spans no more than MIN_CURVE_CHANGE."""
+    from archsim_engine.calibration.resources import (
+        MIN_CURVE_CHANGE,
+        extend_load_curve,
+        fit_load_curve,
+    )
 
     pts = [
         (float(b["rateRps"]), b["rateRps"] * b["serviceCpuMsPerRequest"] / 1000.0)
@@ -1283,17 +1371,27 @@ def service_time_by_load(by_load: Sequence[Mapping[str, Any]] | None) -> dict[st
         if b.get("serviceCpuMsPerRequest")
     ]
     fit = fit_load_curve(pts, max_bins=len(pts)) if len(pts) >= 2 else None
-    if fit is None or fit.span <= MIN_CURVE_CHANGE:
+    if fit is None:
         return None
+    form = form or CURVE_FORM
+    ext = extend_load_curve(passes, cores) if passes and form == "log" else None
     top = fit.points[-1][1]
-    table = [{"rps": round(r, 1), "factor": round(f / top, 4)} for r, f in fit.points]
+    curve = [(r, f / top) for r, f in fit.points] + (ext.factors() if ext else [])
+    factors = [f for _, f in curve]
+    if max(factors) / min(factors) - 1.0 <= MIN_CURVE_CHANGE:
+        return None
+    table = [{"rps": round(r, 1), "factor": round(f, 4)} for r, f in curve]
     measured = ", ".join(f"{m:.4f} ms at {r:g}" for r, m in fit.measured)
+    # not extended: worded as engine 0.15.0 wrote it, so every kept run's inputs stay the same
+    above = (
+        f"above it {ext.reason}, then flat" if ext and ext.points else "flat outside the staircase"
+    )
     return {
         "value": table,
         "how": (
             f"the staircase's CPU per request net of idle ({measured} req/s), fitted never "
             f"rising with rate and divided by the top rate's ({fit.measured[-1][1]:.4f} ms); "
-            "flat outside the staircase"
+            f"{above}"
         ),
     }
 

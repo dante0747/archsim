@@ -73,6 +73,68 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   ruff check and format, mypy (engine, API, MCP; benchmarks), web lint, vitest 324, build,
   tsc, Playwright 6.
 
+**Calibration protocol v6, and an experimental CPU curve above the staircase (2026-11-01; accuracy plan W26, label 0.16.0-w26).**
+
+- Protocol v6 (`benchmarks/run.py`: `PROTOCOL`, `STAIRCASE_*`, `next_rise`, `cpu_bound`,
+  `other_bound`): each rise of the calibration staircase goes to 65% of the service's core at
+  the cost the pass before measured (v5: 35%), still at most half of any other capacity (pool,
+  hot row's lock, Kafka consumers), with the 10 ms p95 stop, rises of at least 10% (v5: 25%) and
+  at most five (v5: three). `calibration.json` records `"protocol": "v6"` and `staircaseRule`;
+  v5 calibrations stay readable and re-derive exactly as before. 65% is the most the in-sample
+  stacks took with p95 still a few milliseconds (kept ladders: 1.4 to 2.2 ms around half a
+  core, pg-mixed 8 to 11 ms by three quarters).
+- `extend_load_curve` (`archsim_engine.calibration.resources`) carries a clear fall of CPU per
+  request above the staircase's top: fitted against log(rate) over every pass at the rates that
+  kept the core at least 30% busy, only when the top kept it at least 45% busy and the fall
+  exceeds two standard errors of the passes' scatter, continued at most one measured stretch
+  and never past where the core fills (one more `serviceTimeByLoad` point; the engine
+  interpolates to it and stays flat beyond). **Off by default** (`run.py` `CURVE_FORM = "flat"`,
+  today's behaviour): the only evidence is in-sample staircases built from the kept ladders, not
+  a v6 calibration. A fall linear in busy share (each event-loop wake-up shared by more requests)
+  fitted cache-aside slightly better but extrapolated further, and was dropped.
+- No engine simulation change, no new setting, schema and report unchanged: the check snapshot's
+  result digest (`6f115d28853f`) is unchanged, so are every example's (the engine's simulation
+  code is untouched). Every kept v5 calibration tops out at 9% to 38% busy (47% for the
+  disturbed pg-mixed `run-7`, whose fit is flat anyway), so its `serviceTimeByLoad` is
+  byte-identical with the curve on or off. `run.py resimulate` (`results/dev/0.16.0-w26/`)
+  gives every one of the 26 kept runs it can re-derive (28 less the two one-pass runs) the same
+  inputs, simulated steps and knee as engine 0.15.0 (`docs/validation/dev-checks.md`).
+- Trials: `benchmarks/results/trials/W26-trial.py` (calibration only, holds the benchmark lock,
+  waits for a quiet host and now for a boosting CPU) and `W26-score.py` (a trial's calibration
+  against the kept runs' ladders). The one v6 trial, 1 Nov 02:13, ran on a throttled laptop
+  (busy cores at 74% to 92% of the 2.8 GHz base clock; the service's CPU per request read twice
+  its usual) and was stopped; it is kept as `2026-11-01-cache-aside-w26-throttled/`, not used.
+  No v6 calibration exists yet: Docker was down for the rest of the session.
+- Before and after, in-sample (three counted v5 runs each). "Core full" is where one core fills
+  at the model's CPU per request above the staircase's top, which is the model's knee for the
+  CPU-bound three (engine 0.15.0's simulated knees sit within 1% of it). The v6 columns replay
+  v6's rise rule on each run's own costs (its staircase, then its measured ladder above the v5
+  top): estimates from data the protocol was designed with, not measurements.
+
+  | Median over 3 runs | Engine 0.15.0 (v5), simulated knee error | W26 on the kept runs (resimulate) | v6 staircase top (replayed) | v6, flat above the top: core full vs measured knee | v6 with the log extension (ladder staircases) |
+  | --- | --- | --- | --- | --- | --- |
+  | pg-mixed | +24% | +24% (unchanged) | 3,030 to 3,130 req/s, 63% to 65% busy | +20% (+16%, +27%, +20%) | unchanged: does not fire |
+  | pg-hot-row | -7% | -7% (unchanged) | 214 to 443 req/s (half the lock's bound) | not CPU-bound; the lock's inputs come from a top 3% lower to 23% higher than v5's, effect not measured | does not fire (12% busy) |
+  | cache-aside | -34% | -34% (unchanged) | 3,120 to 3,470 req/s, 60% to 61% busy | -20% (-20%, -20%, -29%) | -10% where flat gives -18% (ladder staircases cut at 70% busy); cut at 65%, it fires in one run of three (-20% to -16%) |
+  | Kafka | +4% (healthcheck-limited knees) | +4% (unchanged) | 856 to 880 req/s, 30% to 38% busy (half the consumers' bound) | +12% (+35%, +10%, +12%) | does not fire (under 45% busy) |
+
+  CPU per request (ms) at each step of the latest run, measured / engine 0.15.0 (simulated) /
+  v6 with the flat rule (the replayed staircase's curve): cache-aside 0.233 / 0.216 / 0.253 at
+  1,212 req/s, 0.208 / 0.203 / 0.203 at 2,425, 0.183 / 0.203 / 0.193 at 3,638, 0.170 / 0.203 /
+  0.193 at 4,365, 0.164 / 0.203 / 0.193 at 4,850, 0.144 / 0.165 / 0.193 at 6,062 (past 0.15.0's
+  knee its simulated cost falls only because its queue holds requests); pg-mixed 0.223 / 0.207
+  / 0.228 at 1,238, 0.207 / 0.201 / 0.211 at 2,475, 0.209 / 0.201 / 0.208 at 3,712; Kafka's
+  producer 0.516 / 0.483 / 0.485 at 525, 0.425 / 0.475 / 0.441 at 1,050, 0.368 / 0.473 / 0.441
+  at 1,575, 0.343 / 0.474 / 0.441 at 1,890. v6's first rise jumps from 50 to about 630 req/s, so
+  its curve is coarser at light load (cache-aside +9% at 1,212 req/s, where 0.15.0 was -7%).
+- What did not improve, or is unproven: no v6 run exists, so none of the v6 numbers is measured;
+  Kafka's estimated error grows from +4% to +12% against knees the old healthcheck set (the
+  fixed stack held about 3,000 req/s, W23, which v6's 2,270 to 2,890 would under-predict by 4%
+  to 24%); hot-row's v6 top moves its lock inputs a little, untested; between half and three
+  quarters of the core pg-mixed's cost falls like cache-aside's (0% to 7% against 5% to 12%) and
+  only stops above that, so a staircase capped at two thirds cannot tell the two apart, which
+  is why the extension stays off until the v6 campaign's runs can be re-simulated with it.
+
 **Engine 0.15.0: the accuracy plan's four model changes together (2026-10-31; W21 to W24).**
 
 - The four workstreams below, merged on one branch: a single 1.5 -> 1.6 migration covers W21's

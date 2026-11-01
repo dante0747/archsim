@@ -164,11 +164,21 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
 1. **Settle** (protocol v4): after the data load, `VACUUM ANALYZE` and a checkpoint, then a
    discarded 30 s warm-up at the calibration rate, so autovacuum and cold caches do not land in a
    calibration pass.
-2. **Calibrate** (protocol v5): 20 s at rest, which gives each container's idle CPU, then a
-   staircase of the experiment's traffic: 50 req/s, then each pass at half the capacity the one
-   before implies, but never more than 35% of the service's core, and no higher once a pass's
-   p95 passes 10 ms (at most three rises). The staircase then comes down again and the top rate
-   runs once more: every rate twice, the top three times, so drift on the machine shows. The
+2. **Calibrate** (protocol v6, since W26; the kept runs ran v5): 20 s at rest, which gives each
+   container's idle CPU, then a staircase of the experiment's traffic: 50 req/s, then each pass
+   at 65% of the service's core at the CPU per request the pass before measured, but at most
+   half of any other capacity that pass implies (the connection pool, the hot row's lock, the
+   Kafka consumers: those bounds come from times that include the network and driver, and past
+   them a backlog would carry into the next pass); no higher once a pass's p95 passes 10 ms, and
+   no rise of less than 10% (at most five rises). Because each step uses the cost the pass
+   before measured, and that cost still falls, the climb ends at about 60% to 65% of the core.
+   65% is the most the in-sample stacks took with p95 still a few milliseconds: the kept runs'
+   ladders put the service at 1.4 to 2.2 ms around half a core and pg-mixed at 8 to 11 ms by
+   three quarters. Protocol v5 stopped at 35% of the core (each pass at half the capacity the
+   one before implied, at most three rises of at least 25%), about a third of the knee, so the
+   inputs and `cpuByLoad` described a third of the load range. The staircase then comes down
+   again and the top rate runs once more: every rate twice, the top three times, so drift on
+   the machine shows. `calibration.json` records the settings (`staircaseRule`). The
    service records its CPU per request (Node's process CPU, including garbage collection and
    driver work), its own time per request (handler minus awaited calls) and the time of every
    PostgreSQL, Redis and Kafka call; the runner reads PostgreSQL's and Redis's own CPU and
@@ -191,7 +201,14 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    staircase (W24; calibrations without the readings keep ArchSim's defaults). The inputs are the
    replicates' medians; `cpuByLoad` keeps every rate's CPU per request, which since W21 (engine
    0.15.0) becomes the service's `serviceTimeByLoad`, relative to the top rate and kept at the
-   top rate's cost above it. Since W21 the Node.js service also reports V8's garbage
+   top rate's cost above it. W26 added a way to carry a measured fall above the top
+   (`extend_load_curve`, `run.py` `CURVE_FORM = "log"`): fitted over every pass at the rates
+   that kept the core at least 30% busy, used only when the top kept it at least 45% busy and
+   the fall is more than twice its standard error, continued linearly in log(rate) at most as
+   far above the top as those rates span below it, and never past where the core fills. It is
+   **off by default** (`CURVE_FORM = "flat"`): it was checked only on staircases built from the
+   kept runs' measured ladders, not on a v6 calibration (see "What would make it better next").
+   Since W21 the Node.js service also reports V8's garbage
    collections: its mark-compact cycles in the top pass become the model's GC pauses
    (`gcPauseMs`, `gcEveryRequests`), and their time comes off the CPU per request, which already
    held it; the frequent short scavenges stay in the CPU per request. A pass whose p95 is more than 10 times
@@ -279,8 +296,9 @@ calibration passes.
 Earlier runs are kept in `benchmarks/results/<experiment>/run-N/` (cache-aside and Kafka were
 first run in run 4, which their `run-1/` folders hold). The protocol changed between runs, each
 time after a run exposed a flaw in the calibration. Every change was made with earlier results
-in view (the PostgreSQL experiments' for v2 to v4, all four's for v5), so all four experiments are
-in-sample for the current protocol (v5):
+in view (the PostgreSQL experiments' for v2 to v4, all four's for v5 and v6), so all four
+experiments are in-sample for the current protocol (v6; every kept run so far ran v5 or
+earlier):
 
 | Run | Protocol | What it showed |
 | --- | --- | --- |
@@ -291,6 +309,20 @@ in-sample for the current protocol (v5):
 | 5 | v4; CPU and memory read inside the measured window; engine 0.13.0 | pg-mixed: knee 2,430 req/s against 2,238 predicted (-8%). The run of the other three was discarded: other work on the machine (video rendering) took its memory, so pg-hot-row's calibration measured a commit-flush p95 of 417 ms and Docker stalled for 20 minutes during cache-aside; Kafka did not run. They were run again in run 6. |
 | 6 | v4, as run 5, after a Windows update (build 26300, with a new WSL kernel) | pg-hot-row, cache-aside and Kafka, on an otherwise idle machine (no discarded pass; commit-flush p95 1.8 ms). The update made the stacks faster: Kafka's publish p95 in calibration fell from 10.1 to 2.6 ms and its knee rose from 945 to 2,040 req/s; hot-row held 777 req/s, where run 4 stalled at 333. |
 | 7 | v5 (a staircase with replicate sets and a predicted range; CPU per request net of idle at the top rate), engine 0.14.0, Windows on Best performance, k6 off the service's hyperthread sibling; three runs of each experiment, rotating (the baseline campaign, 30-31 Oct) | This page's numbers. The stacks were faster again under Best performance: pg-mixed's knee about 4,000 req/s, cache-aside's about 7,000. pg-mixed's first two runs (22:30 to 01:05, Western European time) were disturbed, cause unknown (Windows logged no throttling, Defender scan or other event around the first stall): two of three repeats stalled at 2,112 req/s in one, and the other missed at 2,550 to 4,590 req/s and met the objective at 5,100. Both are kept and not counted, and pg-mixed ran twice more on the idle machine (`run-9/` and the latest). Calibration retried five disturbed passes, all between 00:29 and 01:08. |
+
+**Protocol v6** (W26, 1 Nov 2026; no kept run yet) climbs the staircase to about two thirds of
+the service's core instead of a third (step 2), because every v5 staircase stopped at a third
+of the knee and read the CPU per request where it was still falling: cache-aside's real cost fell
+from 0.21 ms at the v5 top to 0.13 ms near the knee. Replaying v6's rise rule on each counted
+run's own costs (its staircase, then its measured ladder) puts the climb's top at 3,000 to
+3,500 req/s for pg-mixed and cache-aside (60% to 65% of the core) and about 870 req/s for Kafka
+(held by half the consumers' capacity); the core would then fill, at the top's cost, 20% below
+cache-aside's measured knee (median; was 33%), 20% above pg-mixed's (was 24%) and 12% above
+Kafka's (was 4%; Kafka's measured knees are the old healthcheck's). These are estimates from
+data the protocol was designed with, not measurements. The first v6 trial, on 1 Nov, ran on a
+throttled laptop (busy cores at 74% to 92% of the base clock, every CPU cost about twice its
+usual) and was stopped; the trial script now waits for a boosting CPU
+(`benchmarks/results/trials/W26-trial.py`).
 
 Every kept run, compared the same way (`run.py compare`):
 
@@ -710,7 +742,17 @@ What would make it better next, in order:
    vCPUs turn into capacity, for services and databases alike: a cloud vCPU is a hyperthread
    too.
 2. A CPU per request that keeps falling with load above the calibration staircase
-   (cache-aside's -34%): calibrate higher, or model the event loop's batching under load.
+   (cache-aside's -34%). Protocol v6 (W26) calibrates to about two thirds of the core, which is
+   estimated to bring cache-aside to about -20% (protocol history, above). The rest of the fall
+   comes above that: between half and three quarters of the core pg-mixed's cost fell too (0%
+   to 7% in its ladders, like cache-aside's 5% to 12%), and only above three quarters did it stop
+   falling while cache-aside's kept going, so a staircase that stops at two thirds cannot tell
+   them apart. W26's `extend_load_curve` carries a clear fall on, at most one measured stretch;
+   on staircases built from the kept ladders it moved cache-aside's core-full rate from 18% to
+   10% below the knee (median, ladders cut at 70% of the core; cut at 65% it fired in one run
+   of three), left pg-mixed alone and does not fire on Kafka's or hot-row's v6 staircases (under
+   45% busy). It is off by default until the v6 campaign's own runs show the same
+   (`CURVE_FORM = "log"`, then `run.py resimulate`).
 3. A calibration whose inputs move less from run to run: much of the service's CPU variation
    is where the staircase stopped (W26 calibrates closer to the knee). The predicted range (W28)
    now carries that variation and the model's error; it holds 9 of the 12 runs in-sample and

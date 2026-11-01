@@ -289,31 +289,35 @@ def fake_calibration(monkeypatch: pytest.MonkeyPatch) -> tuple[dict[str, Any], l
     return run.calibrate(PG_MIXED), labels
 
 
-def test_staircase_climbs_to_a_third_of_the_core_then_down_and_up(
+def test_staircase_climbs_to_two_thirds_of_the_core_then_down_and_up(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cal, labels = fake_calibration(monkeypatch)
-    # 50 req/s at 1.0 ms: the next rate is 35% of a core (350); at 0.31 ms half the capacity
-    # bound or 35% of the core, whichever is lower (1,114), then 1,484, then no more rises
-    assert cal["staircaseRps"] == [50, 350, 1114, 1484]
-    assert cal["protocol"] == "v5" and "(v5)" in cal["method"]
+    # protocol v6: 50 req/s at 1.0 ms, so the next rate is 65% of a core (650); at 0.26 ms 65%
+    # of the core would be 2,486, just under half the pool's bound for the writes (2 ms each:
+    # 10 connections, 2,500 req/s), so 2,485; then no rise of at least 10% is left
+    assert cal["staircaseRps"] == [50, 650, 2485]
+    assert cal["protocol"] == "v6" and "(v6)" in cal["method"]
+    assert cal["staircaseRule"] == {
+        "cpuCap": 0.65, "boundShare": 0.5, "p95CapMs": 10.0, "maxRises": 5, "minRise": 1.1
+    }  # fmt: skip
     main = [x for x in labels if x.startswith("read")]
     assert main == [
-        "read up 1 @50", "read up 2 @350", "read up 3 @1114", "read up 4 @1484",
-        "read down 4 @1484", "read down 3 @1114", "read down 2 @350", "read down 1 @50",
-        "read top 3 @1484",
+        "read up 1 @50", "read up 2 @650", "read up 3 @2485",
+        "read down 3 @2485", "read down 2 @650", "read down 1 @50",
+        "read top 3 @2485",
     ]  # fmt: skip
     # the auxiliary mix right after each top pass, at the same rate
     assert [x for x in labels if x.startswith("write_async")] == [
-        "write_async write_async 1 @1484",
-        "write_async write_async 2 @1484",
-        "write_async write_async 3 @1484",
+        "write_async write_async 1 @2485",
+        "write_async write_async 2 @2485",
+        "write_async write_async 3 @2485",
     ]
     assert len(cal["replicates"]) == len(cal["inputReplicates"]) == run.REPLICATES
-    assert [p["passes"] for p in cal["cpuByLoad"]] == [2, 2, 2, 3]
+    assert [p["passes"] for p in cal["cpuByLoad"]] == [2, 2, 3]
     by_rate = {p["rateRps"]: p["serviceCpuMsPerRequest"] for p in cal["cpuByLoad"]}
     assert by_rate[50] == pytest.approx(laptop_cpu(50), abs=1e-4)  # net of the idle 1 ms/s
-    assert by_rate[1484] == pytest.approx(laptop_cpu(1484), abs=1e-4)
+    assert by_rate[2485] == pytest.approx(laptop_cpu(2485), abs=1e-4)
 
 
 def test_a_disturbed_top_pass_is_replaced_not_used(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -323,7 +327,7 @@ def test_a_disturbed_top_pass_is_replaced_not_used(monkeypatch: pytest.MonkeyPat
     def steady(exp: Any, mix: str, rate: float, label: str, discarded: list[Any]) -> Any:
         labels.append(label)
         entry = fake_pass(mix, rate)
-        if label == "up 4":
+        if label == "up 3":
             entry["k6"] |= {"p50": 3.3, "p95": 46.0}  # 14x the median
         return entry
 
@@ -333,18 +337,18 @@ def test_a_disturbed_top_pass_is_replaced_not_used(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(run, "anchor", lambda exp, inputs, high: None)
     cal = run.calibrate(PG_MIXED)
     # the stalled pass also stopped the staircase from rising further
-    assert [x for x in labels if x.startswith(("top", "down 4"))] == ["down 4", "top 3", "top 4"]
+    assert [x for x in labels if x.startswith(("top", "down 3"))] == ["down 3", "top 3", "top 4"]
     assert len(cal["inputReplicates"]) == run.REPLICATES
     assert [p["k6"]["p95"] for p in cal["disturbedReplicates"]] == [46.0]
     assert "median of 3 replicates" in cal["method"]
 
 
-def test_v5_cpu_per_request_is_the_top_pass_net_of_idle(monkeypatch: pytest.MonkeyPatch) -> None:
-    cal, _ = fake_calibration(monkeypatch)
+def test_cpu_per_request_is_the_top_pass_net_of_idle(monkeypatch: pytest.MonkeyPatch) -> None:
+    cal, _ = fake_calibration(monkeypatch)  # protocol v6 (v5 read it the same way)
     how = cal["inputs"]["serviceTimeMs"]["how"]
     assert how.startswith("the median of 3 replicates (")
-    assert "mean = Node's CPU per request at 1484 req/s net of idle" in how
-    assert f"= {laptop_cpu(1484):.4f} ms" in how
+    assert "mean = Node's CPU per request at 2485 req/s net of idle" in how
+    assert f"= {laptop_cpu(2485):.4f} ms" in how
     # PostgreSQL: 0.15 ms per query once its 2 ms/s at rest is taken off, over the mean time the
     # model gives a query: the read and write times it samples (writes without their flush),
     # not the 0.65 ms the service measured (0.9 x 0.5 + 0.1 x 2.0, the flush included)
@@ -362,7 +366,7 @@ def test_staircase_stops_on_a_slow_pass() -> None:
     slow["k6"]["p95"] = run.STAIRCASE_P95_CAP_MS + 1
     assert run.next_rise(PG_MIXED, slow) is None
     flat = fake_pass("read:0.9,write:0.1", 50)
-    flat["service"]["cpuMsPerRequest"] = 10.0  # 35% of a core is 35 req/s: no rise
+    flat["service"]["cpuMsPerRequest"] = 15.0  # 65% of a core is 43 req/s: no rise
     assert run.next_rise(PG_MIXED, flat) is None
 
 
@@ -374,7 +378,7 @@ def test_staircase_caps_the_busier_hop_of_a_chain() -> None:
         "timings": entry["service"]["timings"],
     }
     assert [h["cpuMsPerRequest"] for h in run.hops(entry["service"])] == [1.0, 2.0]
-    assert run.next_rise(PG_MIXED, entry) == 175  # 35% of one CPU at the API's 2 ms
+    assert run.next_rise(PG_MIXED, entry) == 325  # 65% of one CPU at the API's 2 ms
     assert run.capacity_bound(PG_MIXED, entry) == 500  # 1 CPU / 2 ms
 
 
@@ -382,12 +386,12 @@ def test_staircase_caps_a_share_of_every_cpu_the_service_has(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     entry = fake_pass("read:0.9,write:0.1", 50)
-    entry["service"]["cpuMsPerRequest"] = 2.0  # 35% of one CPU: 175 req/s
+    entry["service"]["cpuMsPerRequest"] = 2.0  # 65% of one CPU: 325 req/s
     assert run.service_cpus(PG_MIXED) == 1
-    assert run.next_rise(PG_MIXED, entry) == 175
+    assert run.next_rise(PG_MIXED, entry) == 325
     monkeypatch.setenv("BENCH_CPUS_SERVICE", "2,3")  # a service with two CPUs: twice as far
     assert run.service_cpus(PG_MIXED) == 2
-    assert run.next_rise(PG_MIXED, entry) == 350
+    assert run.next_rise(PG_MIXED, entry) == 650
 
 
 def test_median_inputs_takes_each_input_from_its_median_replicate() -> None:
