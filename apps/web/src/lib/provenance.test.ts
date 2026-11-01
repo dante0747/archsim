@@ -23,10 +23,12 @@ const calibrated = (): ArchitectureDocument => {
 };
 
 describe("documents keep what the editor does not edit", () => {
-  it("round-trips provenance, the calibration record, pricing and autoSize false", () => {
+  it("round-trips provenance, the calibration record, pricing, autoSize false and the host", () => {
     const doc = calibrated();
+    doc.architecture.host = { physicalCores: 4, siblingSpeed: 0.55, clientCpuMs: 0.2 };
     const back = toDocument(fromDocument(doc));
-    expect(back.schemaVersion).toBe("1.6");
+    expect(back.schemaVersion).toBe("1.7");
+    expect(back.architecture.host).toEqual(doc.architecture.host);
     expect(back.provenance).toEqual(doc.provenance);
     expect(back.pricing).toEqual(doc.pricing);
     expect(back.calibration).toEqual(doc.calibration);
@@ -38,6 +40,7 @@ describe("documents keep what the editor does not edit", () => {
     expect(plain.calibration).toBeUndefined();
     expect(plain.pricing).toEqual((starter as unknown as ArchitectureDocument).pricing);
     expect("autoSize" in plain.architecture).toBe(false);
+    expect("host" in plain.architecture).toBe(false);
     const unpriced = structuredClone(starter) as unknown as ArchitectureDocument;
     delete unpriced.pricing;
     expect(toDocument(fromDocument(unpriced)).pricing).toBeUndefined();

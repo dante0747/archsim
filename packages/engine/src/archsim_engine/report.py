@@ -553,6 +553,9 @@ def build_report(
         "nodes": nodes_out,
         "edges": edges_out,
     }
+    if (host := ctx.shared.get("host")) is not None:
+        # the design's host machine (schema 1.7): its busy threads and their speed
+        report["host"] = host.summary()
     report["findings"] = analyze(report, resolved)
     report["traces"] = _select_traces(ctx.traces, labels)
     breakdown = _latency_breakdown(ctx.traces, labels)

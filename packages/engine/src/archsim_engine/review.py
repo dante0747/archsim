@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from archsim_engine.components.host import machine_speeds
 from archsim_engine.components.load_curve import capacity_rps, curve_of, load_factor
 from archsim_engine.load import (
     Json,
@@ -702,6 +703,17 @@ def review_design(doc: Json, registry: ComponentRegistry) -> list[Json]:
     # -- resource specs: CPU at the peak load, memory against the data ------------------------
     loads = estimate_load(doc, registry)
     peak = peak_rps(workload)
+    # CPU threads that slow each other down at the peak (schema 1.7): the design's host machine
+    # or a part's own hyperthreads
+    speeds = machine_speeds(
+        doc["architecture"].get("host"),
+        {
+            n["id"]: (n["type"], c.cfg[n["id"]], ld.read, ld.write)
+            for n in c.nodes
+            if (ld := loads.get(n["id"])) is not None
+        },
+        peak,
+    )
     for n in c.nodes:
         nid = n["id"]
         cfg = c.cfg[nid]
@@ -754,6 +766,14 @@ def review_design(doc: Json, registry: ComponentRegistry) -> list[Json]:
                         need / cores,
                         f"commands need about {fixed(need, 1)} of its {_js_num_or_q(cores)} vCPU",
                     )
+            if busy is not None and (speed := speeds.get(nid)) is not None:
+                where = (
+                    "the host machine" if doc["architecture"].get("host") else "its hyperthreads"
+                )
+                busy = (
+                    busy[0] / speed,
+                    f"{busy[1]} at full speed, at {fixed(speed, 2)} of it on {where}",
+                )
             if busy is not None and busy[0] >= 0.8:
                 over = busy[0] >= 1
                 add(

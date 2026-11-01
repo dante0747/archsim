@@ -35,6 +35,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from archsim_engine.components.host import machine_speeds
 from archsim_engine.components.load_curve import load_factor
 from archsim_engine.distributions import Constant, Empirical, Exponential, LogNormal, Uniform
 from archsim_engine.explain import erlang_c
@@ -185,6 +186,21 @@ class _Shape:
     cpu: float | None = None  # CPU utilization at the peak
     limit: float | None = None  # share of a rate or throughput limit used at the peak
     populate: bool = False  # a read-through cache writes the value back after a miss
+
+
+MACHINE_TYPES = ("service", "database", "cache")
+"""Parts whose CPU work runs on a machine's threads (``components/host.py``)."""
+
+
+def _slow(shape: _Shape, cfg: Any, speed: float) -> None:
+    """A part's CPU work at ``speed`` of full speed (its machine's threads slow each other):
+    more of its CPU busy, and the CPU share of its own time longer."""
+    if shape.cpu is None or speed <= 0:
+        return
+    shape.cpu /= speed
+    share = float(getattr(cfg, "cpu_share", 1.0))
+    f = share / speed + (1.0 - share)
+    shape.own = {op: Moments(m.mean * f, m.var * f * f) for op, m in shape.own.items()}
 
 
 def _shape(node: NodeSpec, cfg: Any, load: NodeLoad, registry: ComponentRegistry) -> _Shape | None:
@@ -369,6 +385,28 @@ def estimate_design(
         )
     flows: dict[str, NodeLoad | None] = {}
     loads = estimate_load(snapshot, registry, miss_shares=miss_shares, edge_loads=flows)
+    # CPU threads that slow each other down (schema 1.7): the design's host or a part's own
+    # hyperthreads, at the estimated load
+    speeds: dict[str, float] = {}
+    if resolved.architecture.host is not None or any(
+        getattr(parsed.get(n.id), "sibling_speed", None) is not None for n in nodes
+    ):
+        speeds = machine_speeds(
+            resolved.architecture.host,
+            {
+                n.id: (
+                    n.type,
+                    parsed[n.id].model_dump(mode="json", by_alias=True),
+                    ld.read,
+                    ld.write,
+                )
+                for n in nodes
+                if n.type in MACHINE_TYPES
+                and n.id in parsed
+                and (ld := loads.get(n.id)) is not None
+            },
+            peak,
+        )
     on_path, sync_links = _sync_reach(nodes, out, kinds)
 
     link = {e.id: times(2, moments(e.config.latency_ms)) for e in edges}
@@ -434,6 +472,8 @@ def estimate_design(
         if shape is None:
             row["note"] = "No capacity model for this kind of part."
             continue
+        if (speed := speeds.get(nid)) is not None:
+            _slow(shape, cfg, speed)
         if node.type == "message_queue":
             # the producer waits for the publish only; consumers work in the background
             publish = shape.own["publish"]

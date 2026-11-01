@@ -1169,6 +1169,21 @@
           "step": 0.05
         },
         {
+          "key": "siblingSpeed",
+          "label": "Hyperthread sibling speed",
+          "kind": "number",
+          "nullable": true,
+          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work (about 0.6 on Intel and AMD cores: 1.2 cores' work). Empty: every vCPU is a full core (as before; right for Graviton and other cores without hyperthreads). Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1,
+          "group": "Resources",
+          "step": 0.05
+        },
+        {
           "key": "memoryGib",
           "label": "Memory",
           "kind": "number",
@@ -2256,6 +2271,21 @@
           "step": 0.5
         },
         {
+          "key": "siblingSpeed",
+          "label": "Hyperthread sibling speed",
+          "kind": "number",
+          "nullable": true,
+          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work (about 0.6 on Intel and AMD cores: 1.2 cores' work). Empty: every vCPU is a full core (as before; right for Graviton and other cores without hyperthreads). Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
+          "max": 1,
+          "group": "Resources",
+          "step": 0.05
+        },
+        {
           "key": "memoryGib",
           "label": "Memory",
           "kind": "number",
@@ -3108,6 +3138,21 @@
           "assumption": true,
           "headline": false,
           "min": 0,
+          "max": 1,
+          "group": "Resources",
+          "step": 0.05
+        },
+        {
+          "key": "siblingSpeed",
+          "label": "Hyperthread sibling speed",
+          "kind": "number",
+          "nullable": true,
+          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work (about 0.6 on Intel and AMD cores: 1.2 cores' work). Empty: every vCPU is a full core (as before; right for Graviton and other cores without hyperthreads). Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
+          "default": null,
+          "assumption": false,
+          "headline": false,
+          "min": 0,
+          "exclusiveMin": true,
           "max": 1,
           "group": "Resources",
           "step": 0.05

@@ -18,6 +18,7 @@ import argparse
 import json
 import math
 import re
+import statistics
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -243,7 +244,13 @@ def history(results: Path = RESULTS) -> dict[str, list[dict[str, Any]]]:
                 "kneeRange": (
                     {
                         k: rng.get(k)
-                        for k in ("lowRps", "highRps", "nominalCoverage", "containsMeasured")
+                        for k in (
+                            "lowRps",
+                            "highRps",
+                            "nominalCoverage",
+                            "containsMeasured",
+                            "method",
+                        )
                     }
                     if rng
                     else None
@@ -267,10 +274,9 @@ def disturbed_steps(rows: Sequence[Mapping[str, Any]]) -> list[float]:
     in pg-mixed's first two runs of 30 October every container's CPU per request rose 2-3x at
     once while none was more than half busy. The knee is set by the first miss
     (``run.grid_knee``), so a run with one is not a measurement of the stack: it is kept and
-    shown, but not counted (``counted``)."""
-    rows = sorted(rows, key=lambda r: r["offeredRps"])
-    met = [bench.meets({k: r["measured"].get(k) for k in ("p95", "successRate")}) for r in rows]
-    return [r["offeredRps"] for i, r in enumerate(rows) if not met[i] and any(met[i + 1 :])]
+    shown, but not counted (``counted``). The rule is ``run.disturbed_steps``, which the
+    predicted range's fit uses too."""
+    return bench.disturbed_steps(rows)
 
 
 def run_checks(cmp_: Mapping[str, Any]) -> dict[str, Any]:
@@ -321,6 +327,7 @@ def repeatability(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
     errs = [r["kneeError"] for r in group if r.get("kneeError") is not None]
     ranged = [r["kneeRange"] for r in group if r.get("kneeRange")]
     hits = sum(1 for g in ranged if g.get("containsMeasured"))
+    expected = sum(g.get("nominalCoverage") or 0.0 for g in ranged)
     med = bench.median(errs)
     lo, hi = (min(errs), max(errs)) if errs else (None, None)
     last = alike[-1]
@@ -336,12 +343,39 @@ def repeatability(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
         "withRange": len(ranged),
         "inRange": hits,
         "nominalCoverage": ranged[-1].get("nominalCoverage") if ranged else None,
+        # the hits the ranges' own nominal coverages expect, and whether the count fits them
+        "expectedInRange": round(expected, 2),
+        "coverageVerdict": coverage_verdict(hits, len(ranged), expected),
         "text": {
             "medianError": pct(med),
             "errors": pct(lo) if len(errs) <= 1 else f"{pct(lo)} to {pct(hi)}",
             "coverage": f"{hits} of {len(ranged)}" if ranged else "-",
         },
     }
+
+
+COVERAGE_ALPHA = 0.05
+"""A predicted range is called too narrow (too wide) when so few (so many) of the runs' measured
+knees inside it would happen less often than this at its nominal coverage."""
+
+
+def coverage_verdict(hits: int, runs: int, expected: float) -> str | None:
+    """Whether the predicted range held the measured knee about as often as it claims, by the
+    binomial tails at the ranges' mean nominal coverage (``expected`` hits over ``runs``):
+    "too narrow", "too wide" or "as claimed"; None without ranges. With 12 runs at 50%, 2 or
+    fewer hits are too narrow; at 80%, 6 or fewer."""
+    if not runs:
+        return None
+    p = min(max(expected / runs, 0.0), 1.0)
+
+    def prob(k: int) -> float:
+        return math.comb(runs, k) * p**k * (1 - p) ** (runs - k)
+
+    if sum(prob(k) for k in range(hits + 1)) < COVERAGE_ALPHA:
+        return "too narrow"
+    if sum(prob(k) for k in range(hits, runs + 1)) < COVERAGE_ALPHA:
+        return "too wide"
+    return "as claimed"
 
 
 def p95_within(measured: float | None, predicted: float | None) -> bool:
@@ -658,11 +692,14 @@ def repeatability_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
         )
     lines += [
         "",
-        f"The tier criteria below judge the median over at least {MIN_RUNS} such runs. Protocol "
-        "v5 predicts a range for the knee from its replicate calibration sets; with R sets a "
-        "new run's knee should fall inside it (R - 1) / (R + 1) of the time (50% for 3), the "
-        "nominal coverage. A disturbed run missed the objective at one load step and met it at "
-        "a higher one; it is kept and listed under the run history, but not counted.",
+        f"The tier criteria below judge the median over at least {MIN_RUNS} such runs. The "
+        "nominal coverage is how often the measured knee should fall inside the predicted "
+        "range. Engine 0.14.0's runs took the range from their three replicate calibration sets "
+        "((R - 1) / (R + 1) = 50%), which leaves out how much a calibration moves from one day "
+        "to the next and the model's own error; since W28 the range is an 80% one that carries "
+        "both ([Protocol](#protocol), step 3). A disturbed run missed the objective at one load "
+        "step and met it at a higher one; it is kept and listed under the run history, but not "
+        "counted.",
     ]
     return "\n".join(lines)
 
@@ -1062,9 +1099,9 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
     mk, pk = cmp_["measuredKnee"], cmp_["predictedKnee"]
     rng = cmp_.get("kneeRange")
     range_text = (
-        f" Its predicted range, from the {rng['replicates']} replicate sets, was "
-        f"{rps(rng['lowRps'])} to {rps(rng['highRps'])} req/s: the measured knee fell "
-        f"{'inside' if rng.get('containsMeasured') else 'outside'} it."
+        f" Its predicted {range_label(rng)} was {rps(rng['lowRps'])} to {rps(rng['highRps'])} "
+        f"req/s: the measured knee fell {'inside' if rng.get('containsMeasured') else 'outside'} "
+        "it."
         if rng
         else ""
     )
@@ -1079,6 +1116,14 @@ def experiment_block(exp: str, results: Path = RESULTS) -> str:
     if (caveat := harness_caveat(exp, cal.get("at"))) is not None:
         out += ["", f"**Harness caveat.** {caveat}"]
     return "\n".join(out)
+
+
+def range_label(rng: Mapping[str, Any]) -> str:
+    """What a predicted range is, in a few words: engine 0.14.0's came from the replicate
+    calibration sets, W28's carries the run-to-run variation and the model's error."""
+    if rng.get("replicates"):
+        return f"range, from the {rng['replicates']} replicate sets,"
+    return f"{pct(rng.get('nominalCoverage'), False)} range"
 
 
 def replace_block(text: str, name: str, body: str) -> str:
@@ -1347,6 +1392,25 @@ def experiment_json(
     }
 
 
+def coverage_summary(reps: Sequence[Mapping[str, Any] | None]) -> dict[str, Any]:
+    """How often the predicted range held the measured knee over every experiment's runs under
+    its latest conditions (``repeatability``): the runs with a range, those inside it, the hits
+    their nominal coverages expect, the nominal coverage when every range claims the same (else
+    None), and ``coverage_verdict``."""
+    given = [r for r in reps if r and r.get("withRange")]
+    n = sum(r["withRange"] for r in given)
+    hits = sum(r["inRange"] for r in given)
+    expected = sum(r.get("expectedInRange", 0.0) for r in given)
+    nominals = {r.get("nominalCoverage") for r in given}
+    return {
+        "withRange": n,
+        "inRange": hits,
+        "expectedInRange": round(expected, 2),
+        "nominalCoverage": nominals.pop() if len(nominals) == 1 else None,
+        "verdict": coverage_verdict(hits, n, expected),
+    }
+
+
 def history_json(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> dict[str, list[Any]]:
     """``history`` in the page's order, each run with the history table's text."""
     return {
@@ -1407,10 +1471,11 @@ def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
             "repeated": [
                 x["id"] for x in exps if (x["repeatability"] or {}).get("runs", 0) >= MIN_RUNS
             ],
-            "coverage": {
-                "withRange": sum((x["repeatability"] or {}).get("withRange", 0) for x in exps),
-                "inRange": sum((x["repeatability"] or {}).get("inRange", 0) for x in exps),
-            },
+            "coverage": coverage_summary([x["repeatability"] for x in exps]),
+            # the same over the held-out experiments alone: the range's out-of-sample test
+            "coverageHeldOut": coverage_summary(
+                [x["repeatability"] for x in exps if x["sample"] == "held-out"]
+            ),
             # kept runs left out of the criteria, the repeatability and the spread
             "disturbedRuns": sum(1 for r in all_runs if not counted(r)),
             "heldOut": [x["id"] for x in exps if x["sample"] == "held-out"],
@@ -1467,9 +1532,22 @@ def dev_text(results: Path = RESULTS) -> str:
     if not checks:
         return "\n".join([*head, "_No development checks yet._", ""])
     engines = sorted(checks, key=version_key)
+    # an engine checked with the benchmark designs on a host machine (run.py machine_inputs,
+    # BENCH_HOST=on): its column says so, and the notes say where the machine came from
+    hosts = {
+        e: next(
+            (c["inputs"]["host"]["how"] for r in checks[e].values() for c in r.values()
+             if "host" in (c.get("inputs") or {})),
+            None,
+        )
+        for e in engines
+    }  # fmt: skip
     lines = [
         "| Experiment | Results | Calibrated (UTC) | Inputs as calibrated | Knee measured | Counted | "
-        + " | ".join(f"Engine {e}: knee (error)" for e in engines)
+        + " | ".join(
+            f"Engine {e}{' with its host machine' if hosts[e] else ''}: knee (error)"
+            for e in engines
+        )
         + " |",
         "| --- " * (6 + len(engines)) + "|",
     ]
@@ -1506,11 +1584,18 @@ def dev_text(results: Path = RESULTS) -> str:
         f"{len(v['all'])} counted runs."
         for e, v in errors.items()
     ]
+    machines = [
+        f"- Engine {e} ran the designs on a host machine (`BENCH_HOST=on`, `run.py "
+        f"machine_inputs`): {how}."
+        for e, how in hosts.items()
+        if how
+    ]
     notes = [
         "",
         "Knees in req/s; error = (simulated - measured) / measured.",
         "",
         *summary,
+        *(["", *machines] if machines else []),
         "",
         '"Inputs as calibrated: no" marks a run whose protocol derived its inputs differently '
         "from today's code (v2 had no anchoring of the client latency), so its row is today's "
@@ -1520,6 +1605,120 @@ def dev_text(results: Path = RESULTS) -> str:
         "",
     ]
     return "\n".join([*head, *lines, *notes])
+
+
+RANGE_DOC = CHARTS / "knee-range.md"
+FOLD_NAMES = {
+    "inSample": "In-sample",
+    "leaveRunOut": "Leaving out the run",
+    "leaveExperimentOut": "Leaving out its experiment",
+}
+
+
+def plus_minus(sigma: float | None, z: float = 1.0) -> str:
+    """A log standard deviation as the multiplicative band it means: 0.10 -> "x0.90 to x1.11"."""
+    if sigma is None:
+        return "-"
+    return f"x{math.exp(-z * sigma):.2f} to x{math.exp(z * sigma):.2f}"
+
+
+def range_doc_text(fit: Mapping[str, Any] | None) -> str:
+    """docs/validation/knee-range.md: the predicted range's fit (benchmarks/knee-range.json) and
+    its check, in-sample and leaving out each run and each experiment."""
+    head = [
+        "# The knee's predicted range: fit and check (in-sample)",
+        "",
+        "Generated by `benchmarks/report.py --dev` from `benchmarks/knee-range.json`, which "
+        "`uv run python benchmarks/run.py range-fit` writes. The range is built as "
+        "docs/validation.md describes ([Protocol](../validation.md#protocol), step 3). Its "
+        "check here uses only the four in-sample experiments, with today's `run.py` and engine "
+        "re-deriving each run's inputs and knee from its calibration (as the [development "
+        "checks](dev-checks.md) do): the knees are not the predictions the runs made before "
+        "measuring, and the model was tuned on these runs. The held-out experiments test the "
+        "range out of sample.",
+        "",
+    ]
+    if not fit:
+        return "\n".join([*head, "_No fit yet._", ""])
+    z = statistics.NormalDist().inv_cdf((1 + fit["nominalCoverage"]) / 2)
+    counts = fit["check"]["counts"]
+    before = fit["check"]["before"]
+    lines = [
+        f"Fitted {fit['at']} with engine {fit['engineVersion']} (commit "
+        f"`{str(fit.get('commit'))[:12]}`), on {len(fit['calibrations'])} calibrations and "
+        f"{fit['runs']} counted runs of {fit['experiments']} experiments.",
+        "",
+        "## Coverage",
+        "",
+        "How many of the runs' measured knees fell inside the range, at three nominal coverages:",
+        "",
+        "| Nominal coverage | " + " | ".join(FOLD_NAMES.values()) + " |",
+        "| --- " * (1 + len(FOLD_NAMES)) + "|",
+    ]
+    for c in sorted(counts["inSample"], key=float):
+        cells = [f"{counts[f][c][0]} of {counts[f][c][1]}" for f in FOLD_NAMES]
+        lines.append(f"| {float(c):.0%} | " + " | ".join(cells) + " |")
+    lines += [
+        "",
+        f"Before W28 the same runs' ranges (their replicate calibration sets' knees, nominal "
+        f"{pct(before.get('nominalCoverage'), False)}) held {before['inRange']} of "
+        f"{before['withRange']}.",
+        "",
+        *(f"- {FOLD_NAMES[k]}: {v}." for k, v in fit["check"]["folds"].items()),
+        "",
+        "## Each input's run-to-run variation",
+        "",
+        "Between calibrations of the same experiment, pooled over the experiments; the band is "
+        "one standard deviation.",
+        "",
+        "| Input | Log standard deviation | One standard deviation | Calibrations | Experiments |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for key, v in fit["inputs"].items():
+        lines.append(
+            f"| `{key}` | {v['sigma']:.3f} | {plus_minus(v['sigma'])} | {v['calibrations']} | "
+            f"{v['experiments']} |"
+        )
+    lines += [
+        "",
+        f"An input never seen varying takes the median, {fit['fallbackSigma']:.3f}. Common "
+        f"correlation between two inputs of the same calibration: {fit['correlation']:.2f}.",
+        "",
+        "## The model's own error",
+        "",
+        f"Log standard deviation {fit['model']['sigma']:.3f} ({plus_minus(fit['model']['sigma'])} "
+        f"for one standard deviation, {plus_minus(fit['model']['sigma'], z)} for the "
+        f"{fit['nominalCoverage']:.0%} range alone), by maximum likelihood over "
+        f"{fit['model']['runs']} runs of {fit['model']['experiments']} experiments after each "
+        "run's calibration spread.",
+        "",
+        "## Each run",
+        "",
+        f"Knees in req/s; error = ln(measured / predicted); the ranges are the "
+        f"{fit['nominalCoverage']:.0%} ones, inside (yes) or not (no).",
+        "",
+        "| Experiment | Results | Knee measured | Knee predicted | Error | Calibration spread | "
+        + " | ".join(FOLD_NAMES.values())
+        + " |",
+        "| --- " * (6 + len(FOLD_NAMES)) + "|",
+    ]
+    for c in fit["checked"]:
+        cells = []
+        for f in FOLD_NAMES:
+            r = c["ranges"].get(f) or {}
+            cells.append(
+                f"{rps(r.get('lowRps'))} to {rps(r.get('highRps'))} "
+                f"({'yes' if r.get('holds') else 'no'})"
+                if r
+                else "-"
+            )
+        lines.append(
+            f"| {c['experiment']} | `{c['source']}/` | {knee_text(c['measuredKnee'])} | "
+            f"{rps(c['knee'])} | {c['error']:+.3f} | {c['calibrationSigma']:.3f} | "
+            + " | ".join(cells)
+            + " |"
+        )
+    return "\n".join([*head, *lines, ""])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1535,7 +1734,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--dev",
         action="store_true",
-        help="also write docs/validation/dev-checks.md (development checks, in-sample)",
+        help="also write docs/validation/dev-checks.md (development checks, in-sample) and "
+        "docs/validation/knee-range.md (the predicted range's fit and check)",
     )
     args = ap.parse_args(argv)
     if args.dev:
@@ -1543,6 +1743,8 @@ def main(argv: list[str] | None = None) -> int:
         dev_doc.parent.mkdir(parents=True, exist_ok=True)
         dev_doc.write_text(dev_text(), encoding="utf-8", newline="\n")
         print(f"wrote {dev_doc.relative_to(ROOT).as_posix()}")
+        RANGE_DOC.write_text(range_doc_text(bench.read_range_fit()), encoding="utf-8", newline="\n")
+        print(f"wrote {RANGE_DOC.relative_to(ROOT).as_posix()}")
     text, charts = render(DOC.read_text(encoding="utf-8"))
     DOC.write_text(text, encoding="utf-8", newline="\n")
     CHARTS.mkdir(parents=True, exist_ok=True)

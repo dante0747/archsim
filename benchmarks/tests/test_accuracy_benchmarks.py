@@ -289,31 +289,35 @@ def fake_calibration(monkeypatch: pytest.MonkeyPatch) -> tuple[dict[str, Any], l
     return run.calibrate(PG_MIXED), labels
 
 
-def test_staircase_climbs_to_a_third_of_the_core_then_down_and_up(
+def test_staircase_climbs_to_two_thirds_of_the_core_then_down_and_up(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cal, labels = fake_calibration(monkeypatch)
-    # 50 req/s at 1.0 ms: the next rate is 35% of a core (350); at 0.31 ms half the capacity
-    # bound or 35% of the core, whichever is lower (1,114), then 1,484, then no more rises
-    assert cal["staircaseRps"] == [50, 350, 1114, 1484]
-    assert cal["protocol"] == "v5" and "(v5)" in cal["method"]
+    # protocol v6: 50 req/s at 1.0 ms, so the next rate is 65% of a core (650); at 0.26 ms 65%
+    # of the core would be 2,486, just under half the pool's bound for the writes (2 ms each:
+    # 10 connections, 2,500 req/s), so 2,485; then no rise of at least 10% is left
+    assert cal["staircaseRps"] == [50, 650, 2485]
+    assert cal["protocol"] == "v6" and "(v6)" in cal["method"]
+    assert cal["staircaseRule"] == {
+        "cpuCap": 0.65, "boundShare": 0.5, "p95CapMs": 10.0, "maxRises": 5, "minRise": 1.1
+    }  # fmt: skip
     main = [x for x in labels if x.startswith("read")]
     assert main == [
-        "read up 1 @50", "read up 2 @350", "read up 3 @1114", "read up 4 @1484",
-        "read down 4 @1484", "read down 3 @1114", "read down 2 @350", "read down 1 @50",
-        "read top 3 @1484",
+        "read up 1 @50", "read up 2 @650", "read up 3 @2485",
+        "read down 3 @2485", "read down 2 @650", "read down 1 @50",
+        "read top 3 @2485",
     ]  # fmt: skip
     # the auxiliary mix right after each top pass, at the same rate
     assert [x for x in labels if x.startswith("write_async")] == [
-        "write_async write_async 1 @1484",
-        "write_async write_async 2 @1484",
-        "write_async write_async 3 @1484",
+        "write_async write_async 1 @2485",
+        "write_async write_async 2 @2485",
+        "write_async write_async 3 @2485",
     ]
     assert len(cal["replicates"]) == len(cal["inputReplicates"]) == run.REPLICATES
-    assert [p["passes"] for p in cal["cpuByLoad"]] == [2, 2, 2, 3]
+    assert [p["passes"] for p in cal["cpuByLoad"]] == [2, 2, 3]
     by_rate = {p["rateRps"]: p["serviceCpuMsPerRequest"] for p in cal["cpuByLoad"]}
     assert by_rate[50] == pytest.approx(laptop_cpu(50), abs=1e-4)  # net of the idle 1 ms/s
-    assert by_rate[1484] == pytest.approx(laptop_cpu(1484), abs=1e-4)
+    assert by_rate[2485] == pytest.approx(laptop_cpu(2485), abs=1e-4)
 
 
 def test_a_disturbed_top_pass_is_replaced_not_used(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -323,7 +327,7 @@ def test_a_disturbed_top_pass_is_replaced_not_used(monkeypatch: pytest.MonkeyPat
     def steady(exp: Any, mix: str, rate: float, label: str, discarded: list[Any]) -> Any:
         labels.append(label)
         entry = fake_pass(mix, rate)
-        if label == "up 4":
+        if label == "up 3":
             entry["k6"] |= {"p50": 3.3, "p95": 46.0}  # 14x the median
         return entry
 
@@ -333,18 +337,18 @@ def test_a_disturbed_top_pass_is_replaced_not_used(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(run, "anchor", lambda exp, inputs, high: None)
     cal = run.calibrate(PG_MIXED)
     # the stalled pass also stopped the staircase from rising further
-    assert [x for x in labels if x.startswith(("top", "down 4"))] == ["down 4", "top 3", "top 4"]
+    assert [x for x in labels if x.startswith(("top", "down 3"))] == ["down 3", "top 3", "top 4"]
     assert len(cal["inputReplicates"]) == run.REPLICATES
     assert [p["k6"]["p95"] for p in cal["disturbedReplicates"]] == [46.0]
     assert "median of 3 replicates" in cal["method"]
 
 
-def test_v5_cpu_per_request_is_the_top_pass_net_of_idle(monkeypatch: pytest.MonkeyPatch) -> None:
-    cal, _ = fake_calibration(monkeypatch)
+def test_cpu_per_request_is_the_top_pass_net_of_idle(monkeypatch: pytest.MonkeyPatch) -> None:
+    cal, _ = fake_calibration(monkeypatch)  # protocol v6 (v5 read it the same way)
     how = cal["inputs"]["serviceTimeMs"]["how"]
     assert how.startswith("the median of 3 replicates (")
-    assert "mean = Node's CPU per request at 1484 req/s net of idle" in how
-    assert f"= {laptop_cpu(1484):.4f} ms" in how
+    assert "mean = Node's CPU per request at 2485 req/s net of idle" in how
+    assert f"= {laptop_cpu(2485):.4f} ms" in how
     # PostgreSQL: 0.15 ms per query once its 2 ms/s at rest is taken off, over the mean time the
     # model gives a query: the read and write times it samples (writes without their flush),
     # not the 0.65 ms the service measured (0.9 x 0.5 + 0.1 x 2.0, the flush included)
@@ -362,7 +366,7 @@ def test_staircase_stops_on_a_slow_pass() -> None:
     slow["k6"]["p95"] = run.STAIRCASE_P95_CAP_MS + 1
     assert run.next_rise(PG_MIXED, slow) is None
     flat = fake_pass("read:0.9,write:0.1", 50)
-    flat["service"]["cpuMsPerRequest"] = 10.0  # 35% of a core is 35 req/s: no rise
+    flat["service"]["cpuMsPerRequest"] = 15.0  # 65% of a core is 43 req/s: no rise
     assert run.next_rise(PG_MIXED, flat) is None
 
 
@@ -374,7 +378,7 @@ def test_staircase_caps_the_busier_hop_of_a_chain() -> None:
         "timings": entry["service"]["timings"],
     }
     assert [h["cpuMsPerRequest"] for h in run.hops(entry["service"])] == [1.0, 2.0]
-    assert run.next_rise(PG_MIXED, entry) == 175  # 35% of one CPU at the API's 2 ms
+    assert run.next_rise(PG_MIXED, entry) == 325  # 65% of one CPU at the API's 2 ms
     assert run.capacity_bound(PG_MIXED, entry) == 500  # 1 CPU / 2 ms
 
 
@@ -382,12 +386,12 @@ def test_staircase_caps_a_share_of_every_cpu_the_service_has(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     entry = fake_pass("read:0.9,write:0.1", 50)
-    entry["service"]["cpuMsPerRequest"] = 2.0  # 35% of one CPU: 175 req/s
+    entry["service"]["cpuMsPerRequest"] = 2.0  # 65% of one CPU: 325 req/s
     assert run.service_cpus(PG_MIXED) == 1
-    assert run.next_rise(PG_MIXED, entry) == 175
+    assert run.next_rise(PG_MIXED, entry) == 325
     monkeypatch.setenv("BENCH_CPUS_SERVICE", "2,3")  # a service with two CPUs: twice as far
     assert run.service_cpus(PG_MIXED) == 2
-    assert run.next_rise(PG_MIXED, entry) == 350
+    assert run.next_rise(PG_MIXED, entry) == 650
 
 
 def test_median_inputs_takes_each_input_from_its_median_replicate() -> None:
@@ -420,20 +424,25 @@ def test_median_inputs_takes_each_input_from_its_median_replicate() -> None:
 
 
 def test_knee_range_and_whether_it_holds_the_measured_knee() -> None:
-    assert run.knee_range_of(1000, [950]) is None  # one replicate is no range
-    r = run.knee_range_of(1000, [900, 1100, 1000])
-    assert r is not None
-    assert (r["lowRps"], r["highRps"], r["nominalCoverage"]) == (900, 1100, 0.5)
-    assert run.in_range(r, {"kneeRps": 950.0}) is True
-    assert run.in_range(r, {"kneeRps": 1200.0}) is False
-    assert run.in_range(r, {"kneeRps": None, "bound": "above", "aboveRps": 1050}) is True
-    assert run.in_range(r, {"kneeRps": None, "bound": "above", "aboveRps": 1200}) is False
+    """compare() records whether the predicted range held the measured knee, for W28's ranges
+    and for engine 0.14.0's (the replicate sets' knees, kept in its predictions)."""
+    old = {"lowRps": 900, "highRps": 1100, "nominalCoverage": 0.5, "replicates": 3}
+    assert run.in_range(old, {"kneeRps": 950.0}) is True
+    assert run.in_range(old, {"kneeRps": 1200.0}) is False
+    assert run.in_range(old, {"kneeRps": None, "bound": "above", "aboveRps": 1050}) is True
+    assert run.in_range(old, {"kneeRps": None, "bound": "above", "aboveRps": 1200}) is False
     assert run.in_range(None, {"kneeRps": 950.0}) is None
+    fit = {
+        "inputs": {"serviceTimeMs": {"sigma": 0.05}},
+        "fallbackSigma": 0.05,
+        "model": {"sigma": 0.1},
+    }
     predictions, measured = synthetic()  # the measured knee is 300 req/s
-    predictions["kneeRange"] = run.knee_range_of(340, [280, 360, 330])
+    predictions["kneeRange"] = run.knee_range_of(340, {"serviceTimeMs": -1.0}, fit)
     c = run.compare(PG_MIXED, predictions, measured)
-    assert c["kneeRange"]["containsMeasured"] is True
-    predictions["kneeRange"] = run.knee_range_of(340, [320, 360, 330])
+    assert c["kneeRange"]["containsMeasured"] is True and c["kneeRange"]["nominalCoverage"] == 0.8
+    narrow = {**fit, "model": {"sigma": 0.0}, "inputs": {"serviceTimeMs": {"sigma": 0.01}}}
+    predictions["kneeRange"] = run.knee_range_of(340, {"serviceTimeMs": -1.0}, narrow)
     assert run.compare(PG_MIXED, predictions, measured)["kneeRange"]["containsMeasured"] is False
 
 
@@ -789,12 +798,16 @@ def test_split_inputs_reproduce_every_latest_calibration() -> None:
     # database's inputs (PostgreSQL's CPU per query as its time, the rest of the round trip as a
     # link) and the client latency anchored to them. W23: Kafka gains two inputs its calibrations
     # predate (the fetch-cycle report). W24: Redis's command time is its CPU per command, so the
-    # Redis link and the anchored client latency are derived again too.
+    # Redis link and the anchored client latency are derived again too. W27: with a quiet
+    # contention check of the machine, the CPU-time inputs are at full speed and the design gains
+    # its host machine.
     added = {"kafka": {"consumerConcurrency", "fetchOverheadMs"}}
     changed = {
         "cache-aside": {"cacheServiceTimeMs", "cacheLinkLatencyMs", "clientLinkLatencyMs", "anchor"}
     }
     anew = DATABASE_INPUTS | {"clientLinkLatencyMs", "anchor"}
+    if run.machine_fit() is not None:
+        anew |= {"host", *run.MACHINE_SCALED}
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
         again = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
@@ -1204,6 +1217,7 @@ def test_repeatability_counts_the_runs_inside_the_predicted_range() -> None:
     assert rep is not None
     assert (rep["runs"], rep["medianError"], rep["inRange"], rep["withRange"]) == (3, -0.2, 2, 3)
     assert rep["text"] == {"medianError": "-20%", "errors": "-30% to -10%", "coverage": "2 of 3"}
+    assert (rep["expectedInRange"], rep["coverageVerdict"]) == (1.5, "as claimed")
     one = report.repeatability([r(-0.08, None)])
     assert one is not None and one["text"] == {
         "medianError": "-8%",
@@ -1211,6 +1225,45 @@ def test_repeatability_counts_the_runs_inside_the_predicted_range() -> None:
         "coverage": "-",
     }
     assert report.repeatability([]) is None
+
+
+def test_coverage_verdict_by_the_binomial_tails() -> None:
+    # 12 runs at 50%: 2 or fewer inside happen under 5% of the time, as do 10 or more
+    assert report.coverage_verdict(1, 12, 6.0) == "too narrow"
+    assert report.coverage_verdict(2, 12, 6.0) == "too narrow"
+    assert report.coverage_verdict(3, 12, 6.0) == "as claimed"
+    assert report.coverage_verdict(10, 12, 6.0) == "too wide"
+    # at 80%, 6 or fewer of 12 are too few, and no count is too many
+    assert report.coverage_verdict(6, 12, 9.6) == "too narrow"
+    assert report.coverage_verdict(7, 12, 9.6) == "as claimed"
+    assert report.coverage_verdict(12, 12, 9.6) == "as claimed"
+    assert report.coverage_verdict(0, 0, 0.0) is None
+    # every experiment's ranges together, with their own nominal coverages
+    reps = [
+        {"withRange": 3, "inRange": 2, "expectedInRange": 2.4, "nominalCoverage": 0.8},
+        {"withRange": 3, "inRange": 3, "expectedInRange": 2.4, "nominalCoverage": 0.8},
+        None,
+        {"withRange": 0, "inRange": 0, "expectedInRange": 0.0, "nominalCoverage": None},
+    ]
+    assert report.coverage_summary(reps) == {
+        "withRange": 6,
+        "inRange": 5,
+        "expectedInRange": 4.8,
+        "nominalCoverage": 0.8,
+        "verdict": "as claimed",
+    }
+    mixed = [
+        reps[0],
+        {"withRange": 3, "inRange": 0, "expectedInRange": 1.5, "nominalCoverage": 0.5},
+    ]
+    assert report.coverage_summary(mixed)["nominalCoverage"] is None
+
+
+def test_range_label_says_where_the_range_came_from() -> None:
+    assert report.range_label({"replicates": 3, "nominalCoverage": 0.5}) == (
+        "range, from the 3 replicate sets,"
+    )
+    assert report.range_label({"method": "...", "nominalCoverage": 0.8}) == "80% range"
 
 
 def test_criteria_failures() -> None:
@@ -1433,7 +1486,13 @@ def test_accuracy_json_on_the_committed_results() -> None:
     assert s["spreadExceedsError"] == []
     assert s["runs"] == 28 and len(s["machines"]) == 1
     # the predicted range held the measured knee in 1 of 12 runs, against a nominal 50%
-    assert s["coverage"] == {"withRange": 12, "inRange": 1}
+    assert s["coverage"] == {
+        "withRange": 12,
+        "inRange": 1,
+        "expectedInRange": 6.0,
+        "nominalCoverage": 0.5,
+        "verdict": "too narrow",
+    }
     # pg-mixed's two disturbed v5 runs and six older ones
     assert s["disturbedRuns"] == 8
     by = {x["id"]: x for x in data["experiments"]}

@@ -1,11 +1,241 @@
 # Implementation status
 
-State as of 2026-10-31 (engine 0.15.0, schema 1.6, report 1.14). This file separates what is
+State as of 2026-11-01 (engine 0.16.0, schema 1.7, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Engine 0.16.0: accuracy round 2 together (2026-11-01; W26 to W28).**
+
+- **W28, an honest predicted range:** a nominal 80% range from how much a fresh calibration
+  moves the knee and from the model's own error, fitted on the in-sample runs
+  (`run.py range-fit`, `benchmarks/knee-range.json`). It holds the measured knee in 9 of the 12
+  counted v5 runs in-sample, leaving out each run and leaving out each experiment, where the old
+  replicate range held 1. The committed results keep their old ranges until runs predicted with
+  the new one exist; the held-out campaign is the real test.
+- **W26, protocol v6:** the calibration staircase climbs to 65% of the service's CPU (v5: 35%);
+  estimated from the kept ladders to take cache-aside from -34% to about -20%. The curve's
+  extension above the staircase (`extend_load_curve`) is built and off (`CURVE_FORM`) until a
+  v6 campaign's own runs support it. The trial script waits for the CPU to boost.
+- **W27, a shared machine and hyperthreads:** `architecture.host` and `siblingSpeed` (schema
+  1.7, empty by default, digests unchanged) model parts sharing one machine's threads; `run.py
+  contention` measured the laptop (its VM's hyperthread pairs are not real pairs; work slows
+  1.5x at 5.5 of 8 threads busy and 2.1x at 7.4; after about 15 minutes near full load the clock
+  fell to about 1.6 GHz). Off in the benchmark designs: in-sample it took pg-mixed from +24% to
+  +11% but cache-aside to -41% and Kafka to -22%.
+- No knee moves in-sample with the defaults: engine 0.16.0 re-simulates every kept run as 0.15.0
+  did. The v6 in-sample campaign comes next, then a decision on W26's extension and W27's host,
+  then the freeze and the held-out campaign.
+
+**The knee's predicted range: run-to-run variation and the model's own error (2026-11-01; accuracy plan W28).**
+
+- The problem: engine 0.14.0's range was the lowest to highest knee of one run's three
+  replicate calibration sets (nominal 50%), and it held the measured knee in 1 of the 12
+  counted v5 runs. Within a run the replicates agree closely (the service's CPU per request to
+  about 5%), but a calibration on another day moves more, and the model misses on the same side
+  in every run of an experiment.
+- Run-to-run variation of the calibrated inputs, over 25 v5 calibrations of the four in-sample
+  experiments (14 kept runs and 11 calibration-only trials, one machine, OS build and power
+  mode), one standard deviation: the service's CPU per request about 17% (13% to 14% for
+  pg-mixed, cache-aside and Kafka, 24% for hot-row), a query's time in PostgreSQL 17% to 18%,
+  the link to PostgreSQL 22%, the WAL flush 9%, Redis's command time 12%, Kafka's publish 11%;
+  inputs move together with a common correlation of 0.49. Much of it is where the staircase
+  stopped, since costs fall with load: pg-mixed's trial that topped at 1,024 req/s read 0.29 ms
+  of CPU per request, the one that topped at 1,931 read 0.20 ms; hot-row's flush read 1.01 ms
+  at a 221 req/s top and 0.74 ms at 381, which moved its predicted knee from 744 to 1,062 req/s.
+  A calibration closer to the knee (W26) should cut it.
+- The method (`run.py` `predict`, `knee_sensitivity`, `knee_range_of`): an **80% range**, a
+  lognormal around the predicted knee whose log standard deviation adds two parts:
+  - the calibration's: how much the knee moves with each input (one knee search with the input
+    22% higher against one without, on 2 s + 8 s simulations, `RANGE_SIM_S`) times that input's
+    variation, with the common correlation: 0.17 (log standard deviation) where the service's
+    CPU sets the knee (pg-mixed, cache-aside, Kafka: the knee falls 1% per 1% of CPU), 0.10
+    for hot-row, set by the WAL flush (-0.8) and the write's time (-0.26);
+  - the model's own error: 0.15 (log standard deviation of measured over predicted knee, by
+    maximum likelihood over the 12 counted runs after each one's calibration spread).
+  The two are about the same size; the 80% range is about x0.75 to x1.33 of the knee.
+  Both are fitted on the in-sample experiments only, by `run.py range-fit`, into
+  `benchmarks/knee-range.json` (part of the harness's provenance). 80% rather than 50%: a range
+  missed every other run is no planning number, and its low end is now a load about one run in
+  ten falls below; 90% would rest on the one or two largest errors of a dozen runs. Sensitivity
+  times variation rather than random draws: the leave-one-out check refits the variation for
+  each run left out, which needs no new simulation this way, and the result is deterministic and
+  says which input moves the knee.
+- Coverage of the measured knee, the 12 counted v5 runs, engine 0.16.0-w28 (= 0.15.0's model)
+  re-deriving each run's inputs and knee from its calibration:
+
+  | Range | In-sample | Leaving out the run | Leaving out its experiment |
+  | --- | --- | --- | --- |
+  | Engine 0.14.0's (replicate sets, nominal 50%), as predicted | 1 of 12 | - | - |
+  | W28, nominal 50% | 5 of 12 | 5 of 12 | 5 of 12 |
+  | **W28, nominal 80% (the range predicted)** | **9 of 12** | **9 of 12** | **9 of 12** |
+  | W28, nominal 90% | 10 of 12 | 10 of 12 | 10 of 12 |
+
+  Slightly narrow at every level, within what 12 runs can tell (9 of 12 at 80% is "as
+  claimed" by the binomial test). The three misses at 80% are all cache-aside's, whose measured
+  knee was 35% to 51% above the prediction in every run; two runs sit within 1% of an end
+  (Kafka's run 3 inside, cache-aside's run 3 outside), so the count is fragile by one, and
+  Kafka's measured knees were limited by the broker healthcheck. Leaving out a whole experiment
+  changes no count: the others' errors set a similar model error. Per run and per input:
+  `docs/validation/knee-range.md` (`report.py --dev`).
+- Limits: the model's error is fitted on runs the model was tuned on, from four
+  experiments, so the stated 80% is an in-sample claim; the held-out campaign is the test
+  (`summary.coverageHeldOut` in accuracy.json, and a sentence on /accuracy, once they are
+  measured). The committed results keep their engine-0.14.0 ranges, so docs/validation.md's
+  tables and /accuracy still say 1 of 12 (too narrow) until runs predicted with this range exist.
+- Report and page: `repeatability` and `summary.coverage` count the hits each range's own
+  nominal coverage expects and give a verdict from the binomial tails at 5% ("too narrow", "too
+  wide", "as claimed"; with 12 runs at 50%, 2 or fewer hits are too narrow, at 80% 6 or fewer);
+  the page's coverage sentence reads them instead of a hard-coded 50%, and the knee scale's
+  tooltip says where a range came from.
+- Engine label `0.16.0-w28` (no engine or schema change: the assumptions page and the check
+  snapshot show the label only). Checks: pytest (942 passed, 24 expected failures, 1 skipped),
+  ruff check and format, mypy (engine, API, MCP; benchmarks), web lint, vitest 324, build,
+  tsc, Playwright 6.
+
+**Calibration protocol v6, and an experimental CPU curve above the staircase (2026-11-01; accuracy plan W26, label 0.16.0-w26).**
+
+- Protocol v6 (`benchmarks/run.py`: `PROTOCOL`, `STAIRCASE_*`, `next_rise`, `cpu_bound`,
+  `other_bound`): each rise of the calibration staircase goes to 65% of the service's core at
+  the cost the pass before measured (v5: 35%), still at most half of any other capacity (pool,
+  hot row's lock, Kafka consumers), with the 10 ms p95 stop, rises of at least 10% (v5: 25%) and
+  at most five (v5: three). `calibration.json` records `"protocol": "v6"` and `staircaseRule`;
+  v5 calibrations stay readable and re-derive exactly as before. 65% is the most the in-sample
+  stacks took with p95 still a few milliseconds (kept ladders: 1.4 to 2.2 ms around half a
+  core, pg-mixed 8 to 11 ms by three quarters).
+- `extend_load_curve` (`archsim_engine.calibration.resources`) carries a clear fall of CPU per
+  request above the staircase's top: fitted against log(rate) over every pass at the rates that
+  kept the core at least 30% busy, only when the top kept it at least 45% busy and the fall
+  exceeds two standard errors of the passes' scatter, continued at most one measured stretch
+  and never past where the core fills (one more `serviceTimeByLoad` point; the engine
+  interpolates to it and stays flat beyond). **Off by default** (`run.py` `CURVE_FORM = "flat"`,
+  today's behaviour): the only evidence is in-sample staircases built from the kept ladders, not
+  a v6 calibration. A fall linear in busy share (each event-loop wake-up shared by more requests)
+  fitted cache-aside slightly better but extrapolated further, and was dropped.
+- No engine simulation change, no new setting, schema and report unchanged: the check snapshot's
+  result digest (`6f115d28853f`) is unchanged, so are every example's (the engine's simulation
+  code is untouched). Every kept v5 calibration tops out at 9% to 38% busy (47% for the
+  disturbed pg-mixed `run-7`, whose fit is flat anyway), so its `serviceTimeByLoad` is
+  byte-identical with the curve on or off. `run.py resimulate` (`results/dev/0.16.0-w26/`)
+  gives every one of the 26 kept runs it can re-derive (28 less the two one-pass runs) the same
+  inputs, simulated steps and knee as engine 0.15.0 (`docs/validation/dev-checks.md`).
+- Trials: `benchmarks/results/trials/W26-trial.py` (calibration only, holds the benchmark lock,
+  waits for a quiet host and now for a boosting CPU) and `W26-score.py` (a trial's calibration
+  against the kept runs' ladders). The one v6 trial, 1 Nov 02:13, ran on a throttled laptop
+  (busy cores at 74% to 92% of the 2.8 GHz base clock; the service's CPU per request read twice
+  its usual) and was stopped; it is kept as `2026-11-01-cache-aside-w26-throttled/`, not used.
+  No v6 calibration exists yet: Docker was down for the rest of the session.
+- Before and after, in-sample (three counted v5 runs each). "Core full" is where one core fills
+  at the model's CPU per request above the staircase's top, which is the model's knee for the
+  CPU-bound three (engine 0.15.0's simulated knees sit within 1% of it). The v6 columns replay
+  v6's rise rule on each run's own costs (its staircase, then its measured ladder above the v5
+  top): estimates from data the protocol was designed with, not measurements.
+
+  | Median over 3 runs | Engine 0.15.0 (v5), simulated knee error | W26 on the kept runs (resimulate) | v6 staircase top (replayed) | v6, flat above the top: core full vs measured knee | v6 with the log extension (ladder staircases) |
+  | --- | --- | --- | --- | --- | --- |
+  | pg-mixed | +24% | +24% (unchanged) | 3,030 to 3,130 req/s, 63% to 65% busy | +20% (+16%, +27%, +20%) | unchanged: does not fire |
+  | pg-hot-row | -7% | -7% (unchanged) | 214 to 443 req/s (half the lock's bound) | not CPU-bound; the lock's inputs come from a top 3% lower to 23% higher than v5's, effect not measured | does not fire (12% busy) |
+  | cache-aside | -34% | -34% (unchanged) | 3,120 to 3,470 req/s, 60% to 61% busy | -20% (-20%, -20%, -29%) | -10% where flat gives -18% (ladder staircases cut at 70% busy); cut at 65%, it fires in one run of three (-20% to -16%) |
+  | Kafka | +4% (healthcheck-limited knees) | +4% (unchanged) | 856 to 880 req/s, 30% to 38% busy (half the consumers' bound) | +12% (+35%, +10%, +12%) | does not fire (under 45% busy) |
+
+  CPU per request (ms) at each step of the latest run, measured / engine 0.15.0 (simulated) /
+  v6 with the flat rule (the replayed staircase's curve): cache-aside 0.233 / 0.216 / 0.253 at
+  1,212 req/s, 0.208 / 0.203 / 0.203 at 2,425, 0.183 / 0.203 / 0.193 at 3,638, 0.170 / 0.203 /
+  0.193 at 4,365, 0.164 / 0.203 / 0.193 at 4,850, 0.144 / 0.165 / 0.193 at 6,062 (past 0.15.0's
+  knee its simulated cost falls only because its queue holds requests); pg-mixed 0.223 / 0.207
+  / 0.228 at 1,238, 0.207 / 0.201 / 0.211 at 2,475, 0.209 / 0.201 / 0.208 at 3,712; Kafka's
+  producer 0.516 / 0.483 / 0.485 at 525, 0.425 / 0.475 / 0.441 at 1,050, 0.368 / 0.473 / 0.441
+  at 1,575, 0.343 / 0.474 / 0.441 at 1,890. v6's first rise jumps from 50 to about 630 req/s, so
+  its curve is coarser at light load (cache-aside +9% at 1,212 req/s, where 0.15.0 was -7%).
+- What did not improve, or is unproven: no v6 run exists, so none of the v6 numbers is measured;
+  Kafka's estimated error grows from +4% to +12% against knees the old healthcheck set (the
+  fixed stack held about 3,000 req/s, W23, which v6's 2,270 to 2,890 would under-predict by 4%
+  to 24%); hot-row's v6 top moves its lock inputs a little, untested; between half and three
+  quarters of the core pg-mixed's cost falls like cache-aside's (0% to 7% against 5% to 12%) and
+  only stops above that, so a staircase capped at two thirds cannot tell the two apart, which
+  is why the extension stays off until the v6 campaign's runs can be re-simulated with it.
+
+**CPU threads that slow each other down: a host machine and hyperthreads (2026-11-01; accuracy round 2, W27; engine label 0.16.0-w27, schema 1.7). Shipped off in the benchmark designs.**
+
+- **What the laptop does** (`run.py contention`, new; `results/envcheck/2026-11-01T00-48-59Z-contention.json`):
+  a fixed unit of V8 work on CPU 2 with burners on chosen CPUs, Windows' counters read every
+  second (each logical processor's busy share as the hypervisor sees it, actual frequency,
+  limit flags). Docker Desktop's VM numbers its CPUs as hyperthread pairs, but Windows
+  schedules them itself: the probe and its in-VM "sibling" together did 1.57 to 1.70 times one
+  CPU's work (a real pair does about 1.2), so cpusets do not decide who shares a core. What
+  sets the speed is how many of the 8 logical processors the whole machine has busy: CPU per
+  unit of work 0.85 to 1.0x at 1.8 to 3.5 busy, 1.2x at 4.6, 1.5x at 5.5, 1.9x at 6.6, 2.1x at
+  7.4, about 3x with all 8 (oversubscribed); the clock fell in a straight line from 4,050 MHz
+  (1 busy) to about 2,950 MHz (8 busy), no limit flagged. Four physical cores, that clock (x0.73)
+  and a thread sharing its core at 0.48 of its speed fit 20 conditions within 5.5% (rms, log).
+  A container's CPU time includes what Windows takes away (no steal reported), so its CPU per
+  request rises with the whole machine's load. After about 15 minutes near full load (the check
+  plus other sessions' jobs) the clock fell to 1,525 to 1,775 MHz under full load and read 2,350
+  to 2,850 MHz at a quarter to a third of it (4,000 to 4,300 before), for over an hour, still
+  with no limit flag, on mains and Best performance (W26 saw about 2.1 GHz overnight).
+- **Not measured**: k6's own CPU per request and the machine's background at rest. The short
+  check that reads them (`run.py contention --service-only`, about 4 minutes) needs a quiet,
+  cool machine and never got one (two attempts: other sessions' jobs, then throttling); its
+  first service part ran at 6 to 8 busy threads and is not used.
+- **Engine** (`components/host.py`; both settings empty by default, left out of the JSON; no-op
+  migration 1.6 -> 1.7): `architecture.host` (`physicalCores`, `threadsPerCore`, `siblingSpeed`,
+  `allCoreClock`, `otherBusyThreads`, `clientCpuMs`): every part with a CPU size shares that
+  machine's threads with its background and the CPU the clients' traffic costs on it. A thread's
+  speed = clock (straight line from 1 busy thread to all) x sharing (past one thread per core,
+  a thread sharing its core runs at `siblingSpeed`) x turns (past every thread). In the
+  simulation each piece of CPU work runs at the speed for the busy threads when it starts (part
+  executors, background, clients at that moment). `siblingSpeed` on a service, database or
+  cache: its own vCPUs as hyperthread pairs (2 vCPU at 0.6 serve 1.2 cores' work). Every
+  analytic copy uses it: `resource_capacity` (service, database, cache: the load multiple at
+  which the part's threads fill, everything growing in proportion), the event-loop `explain`
+  formula, the instant estimate, auto-sizing and the review's CPU finding. Report: a top-level
+  `host` (busy threads, mean speed) when the design has one. All 25 examples' result digests
+  (8 s runs) are identical to main's engine with the settings empty, and so is the check
+  snapshot's (`6f115d28853f`). The web editor keeps a document's `host` through edits (no form
+  for it yet); `siblingSpeed` shows as a field.
+- **Harness** (`run.py`): `machine_inputs` gives a design its host from the contention check
+  (`host_fit`) and the top pass's own machine load (every container's CPU, k6's, the
+  background): the CPU-time inputs (`serviceTimeMs`, `dbCpuShare`, `cacheServiceTimeMs`) are
+  divided out by the machine's speed during that pass; containers the model has no CPU for
+  (Kafka's broker and consumer) join the host's other load. `pass_speed(entry)` gives the
+  machine's speed for any calibration pass, for W26's curve. **Only with `BENCH_HOST=on`**
+  (default off: the designs are as before); `BENCH_HOST_FIT` takes a fit file, `BENCH_HOST_CLOCK`
+  a clock, for what-ifs.
+- **In-sample what-if** (`BENCH_HOST=on` with `results/trials/2026-11-01-w27/what-if-fit.json`:
+  the probe's fit, k6 0.25 ms per request and 0.3 background threads ASSUMED;
+  `results/dev/0.16.0-w27/`, `docs/validation/dev-checks.md`), against engine 0.15.0:
+
+  | | engine 0.15.0 | 0.16.0-w27, host on (what-if) |
+  | --- | --- | --- |
+  | pg-mixed median knee error (3 counted v5 runs) | +24% (+20, +25, +24) | +11% (+8, +13, +11) |
+  | pg-hot-row | -7% (-11, +10, -7) | -7% (-11, +10, -7) |
+  | cache-aside | -34% (-26, -34, -34) | -41% (-33, -41, -45) |
+  | Kafka | +4% (+33, +3, +4) | -22% (0, -23, -22) |
+  | pg-mixed p95 at 2,475 / 3,712 / 4,455 req/s (measured 2.04 / 8.67 / 65.1 ms) | 1.57 / 1.76 / 2.37 | 1.57 / 1.91 / 17.2 |
+  | pg-mixed busy cores there, Node (measured 0.51 / 0.77 / 0.89) | 0.50 / 0.75 / 0.90 | 0.52 / 0.80 / 0.99 |
+  | pg-mixed busy cores there, PostgreSQL (measured 0.44 / 0.73 / 0.86) | 0.42 / 0.64 / 0.76 | 0.44 / 0.70 / 0.90 |
+
+  Median absolute knee error over all 19 counted runs 24% -> 22%, over the latest runs 15% ->
+  17%. pg-mixed moves halfway toward 0 and PostgreSQL's CPU near the knee becomes right, but
+  partly for an offsetting reason: Node's CPU per request measured flat from 1,674 to 4,455
+  req/s while Windows' clock fell about 11% over that range, so its work per request fell about
+  as much (more requests per event-loop wake-up), which the model does not have above the
+  staircase; with only the machine's slowdown, Node's CPU at 4,455 req/s is 11% high and the
+  model's capacity lands near the real knee because its latency cliff is sharper than the real
+  one. Cache-aside gets worse for the same missing fall (its real CPU per request falls from
+  0.21 to 0.13 ms with load). Kafka gets worse because the broker's healthcheck JVM (0.42 cores
+  at rest) and the consumer join the machine's load, and its kept knees are the healthcheck's
+  anyway (W23). **The gate is not met, so the benchmark designs ship without a host.**
+- **What would settle it**: (1) a quiet, cool `run.py contention --service-only` (k6's CPU per
+  request and the background, instead of assumed values); (2) W26's falling cost per request
+  fitted to `cost x pass_speed(pass)` on a staircase that reaches nearer the knee, then the four
+  experiments re-simulated with `BENCH_HOST=on`; (3) for Kafka, a run after the healthcheck fix.
+  The held-out stacks are where hyperthreads matter most (java, go and python on 2 vCPU) and
+  stay sealed.
+- Checks: pytest (engine `test_host_machine.py`, harness `test_machine_inputs.py`), ruff, mypy,
+  web lint/vitest/tsc/build and Playwright.
 
 **Engine 0.15.0: the accuracy plan's four model changes together (2026-10-31; W21 to W24).**
 

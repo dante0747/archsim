@@ -15,6 +15,7 @@ import {
   type Experiment,
   VALIDATION_DOC,
   byKneeError,
+  coverageAsClaimed,
   coverageSentence,
   cpuSentence,
   formatDate,
@@ -540,7 +541,7 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
             )}
             {coverage && (
               <li className="flex gap-3">
-                <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
+                {coverageAsClaimed(s) ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />}
                 <span>{coverage}</span>
               </li>
             )}

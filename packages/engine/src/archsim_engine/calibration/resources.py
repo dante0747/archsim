@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import statistics
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -45,6 +46,17 @@ than this share (less is within the noise of CPU counters)."""
 MIN_PER_REQUEST_MB = 0.01
 """Smallest memory per request held calibration sets (the setting must be above zero): requests
 held that add no measurable memory get this (10 KiB, about a socket's buffers)."""
+EXTEND_MIN_BUSY = 0.45
+"""A CPU-by-load curve is carried above its top rate only when that rate kept the replica's CPUs
+at least this busy (``extend_load_curve``)."""
+EXTEND_BASE_BUSY = 0.30
+"""The fall carried above the top is fitted over the rates that kept the CPUs at least this busy:
+below it the cost also falls with the host's power management (cores idling into power-saving
+states between requests), which does not continue (the pg-mixed benchmark: 7% cheaper from 27%
+to 51% of a core, then flat to the knee)."""
+EXTEND_T = 2.0
+"""The fall must exceed this many standard errors of its fit (from the scatter between passes at
+the same rate), or the curve stays flat above the top."""
 
 
 @dataclass(frozen=True)
@@ -169,6 +181,125 @@ def fit_load_curve(
         ref,
         tuple(zip(rps, ms, strict=True)),
         error,
+    )
+
+
+@dataclass(frozen=True)
+class CurveExtension:
+    """How CPU per request continues above a curve's top rate (``extend_load_curve``)."""
+
+    top_rps: float
+    top_ms: float
+    """The top rate's CPU per request: the median of its passes (ms)."""
+    busy: float
+    """The share of the replica's CPUs the top rate kept busy."""
+    slope: float
+    """The fitted change of CPU per request (ms) per unit of ln(rate)."""
+    error: float | None
+    """The slope's standard error, from the passes' scatter around the fit (None: no scatter)."""
+    points: tuple[tuple[float, float], ...]
+    """(req/s per replica, CPU per request in ms) where the extension ends; empty when the curve
+    stays flat above the top."""
+    reason: str
+    """Why it was extended or not, in words."""
+
+    @property
+    def end_rps(self) -> float:
+        """Where the extension ends (the top rate when it is flat)."""
+        return self.points[-1][0] if self.points else self.top_rps
+
+    def factors(self) -> list[tuple[float, float]]:
+        """The points as multiples of the top rate's CPU per request."""
+        return [(r, m / self.top_ms) for r, m in self.points]
+
+
+def _ols(xs: Sequence[float], ys: Sequence[float]) -> tuple[float, float | None]:
+    """Least-squares slope of ys on xs and its standard error (None without residual degrees
+    of freedom or spread in xs)."""
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    if sxx <= 0:
+        return 0.0, None
+    b = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True)) / sxx
+    if n <= 2:
+        return b, None
+    sse = sum((y - (my + b * (x - mx))) ** 2 for x, y in zip(xs, ys, strict=True))
+    return b, math.sqrt(sse / (n - 2) / sxx)
+
+
+def extend_load_curve(
+    passes: Sequence[tuple[float, float]],
+    cores: float = 1.0,
+    min_busy: float = EXTEND_MIN_BUSY,
+    base_busy: float = EXTEND_BASE_BUSY,
+    t: float = EXTEND_T,
+) -> CurveExtension | None:
+    """How CPU per request continues above the top of a calibration staircase, from each pass's
+    (req/s per replica, CPU per request in ms) and the replica's CPUs. The fall over the rates
+    that kept the CPUs at least ``base_busy`` busy (the base) is fitted against log(rate) over
+    every pass at them, and continued from the top rate's median until the CPUs fill, but never
+    further above the top, in log(rate), than the base spans below it: a fall is carried at most
+    one measured stretch on. Above that one point the curve is flat. It stays flat above the top
+    (no points) unless the top kept the CPUs at least ``min_busy`` busy, the base has two rates,
+    and the fall exceeds ``t`` standard errors of the fit. None without passes."""
+    pts = sorted(
+        (float(r), float(c)) for r, c in passes if math.isfinite(r) and math.isfinite(c) and r > 0
+    )
+    pts = [(r, c) for r, c in pts if c > 0]
+    if not pts or cores <= 0:
+        return None
+    top = pts[-1][0]
+    by_rate: dict[float, list[float]] = {}
+    for r, c in pts:
+        by_rate.setdefault(r, []).append(c)
+    top_ms = statistics.median(by_rate[top])
+    fill = 1000.0 * cores
+    busy = top * top_ms / fill
+
+    def flat(reason: str, slope: float = 0.0, error: float | None = None) -> CurveExtension:
+        return CurveExtension(top, top_ms, busy, slope, error, (), reason)
+
+    if busy < min_busy:
+        return flat(f"the top rate kept the CPUs {busy:.0%} busy, under {min_busy:.0%}")
+    if busy >= 1.0:
+        return flat("the top rate filled the CPUs")
+    share = {r: r * statistics.median(cs) / fill for r, cs in by_rate.items()}
+    base = [(r, c) for r, c in pts if share[r] >= base_busy]
+    rates = sorted({r for r, _ in base})
+    if len(rates) < 2:
+        return flat(f"one rate kept the CPUs at least {base_busy:.0%} busy")
+    slope, error = _ols([math.log(r / top) for r, _ in base], [c for _, c in base])
+    if slope >= 0 or error is None or -slope <= t * error:
+        what = "no scatter to tell it from" if error is None else f"{t:g} standard errors"
+        return flat(f"no fall above the noise ({what})", slope, error)
+    # c(r) = top_ms + slope * ln(r / top). The CPUs' busy time r * c(r) rises while c > -slope:
+    # the extension ends where the CPUs fill, where busy time would stop rising, or one measured
+    # stretch above the top, whichever comes first.
+    stop = (top_ms + slope) / -slope
+    if stop <= 0:
+        return flat("a fall so steep the CPUs' busy time would shrink", slope, error)
+
+    def busy_ms(x: float) -> float:
+        return top * math.exp(x) * (top_ms + slope * x)
+
+    lo, hi = 0.0, min(stop, math.log(top / rates[0]))
+    filled = busy_ms(hi) >= fill
+    if filled:
+        for _ in range(60):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if busy_ms(mid) < fill else (lo, mid)
+    end_rps, end_ms = top * math.exp(hi), top_ms + slope * hi
+    return CurveExtension(
+        top,
+        top_ms,
+        busy,
+        slope,
+        error,
+        ((end_rps, end_ms),),
+        f"a fall of {-slope:.3g} ms per unit of ln(rate) ({-slope / error:.1f} standard errors) "
+        f"carried from {top:,.0f} to {end_rps:,.0f} req/s "
+        f"({'where the CPUs fill' if filled else 'one measured stretch on'})",
     )
 
 
