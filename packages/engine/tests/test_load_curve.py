@@ -97,7 +97,10 @@ def test_schema_1_5_documents_open_unchanged() -> None:
     d = load_example("cache-aside-starter.json")
     d["schemaVersion"] = "1.5"
     out, notes = migrate_document(d)
-    assert out["schemaVersion"] == "1.6" and notes == ["migrated schema 1.5 -> 1.6"]
+    assert out["schemaVersion"] == "1.7" and notes == [
+        "migrated schema 1.5 -> 1.6",
+        "migrated schema 1.6 -> 1.7",
+    ]
     assert out["architecture"] == d["architecture"]
 
 

@@ -1,4 +1,4 @@
-"""Versioned architecture document schema (``schemaVersion`` 1.6).
+"""Versioned architecture document schema (``schemaVersion`` 1.7).
 
 The document deliberately separates four concerns:
 
@@ -24,7 +24,7 @@ from pydantic.alias_generators import to_camel
 from archsim_engine.distributions import Constant, Distribution
 from archsim_engine.version import SCHEMA_VERSION
 
-assert SCHEMA_VERSION == "1.6", "update ArchitectureDocument.schema_version and add a migration"
+assert SCHEMA_VERSION == "1.7", "update ArchitectureDocument.schema_version and add a migration"
 
 RequestType = Literal["read", "write"]
 REQUEST_TYPES: tuple[RequestType, ...] = ("read", "write")
@@ -154,6 +154,56 @@ class EdgeSpec(CamelModel):
     config: EdgeConfig = Field(default_factory=EdgeConfig)
 
 
+class HostSpec(CamelModel):
+    """The one machine every part with a CPU size runs on (schema 1.7; see
+    ``components/host.py``). Its parts' CPU work, its own background and the CPU the clients'
+    traffic costs on it share its physical cores: past one busy thread per core, threads share
+    cores as hyperthreads, and the clock falls as more cores are busy."""
+
+    physical_cores: int = Field(
+        ge=1, le=512, description="Physical cores of the machine (not hardware threads)."
+    )
+    threads_per_core: Literal[1, 2] = Field(
+        default=2,
+        description="Hardware threads per core: 2 with hyperthreading (SMT), 1 without.",
+    )
+    sibling_speed: float = Field(
+        default=0.6,
+        gt=0,
+        le=1,
+        description=(
+            "Speed of a thread while its core's other thread is busy too, relative to running "
+            "alone: a busy pair does twice this much work (about 0.6 on Intel and AMD cores)."
+        ),
+    )
+    all_core_clock: float = Field(
+        default=1.0,
+        gt=0,
+        le=1,
+        description=(
+            "Clock with every thread busy, relative to one busy thread (turbo and power "
+            "limits; about 0.75 on a laptop, close to 1 on servers). In between it falls in a "
+            "straight line."
+        ),
+    )
+    other_busy_threads: float = Field(
+        default=0.0,
+        ge=0,
+        le=4096,
+        description="Threads busy on the machine with work outside the design (operating system, other programs).",
+    )
+    client_cpu_ms: float = Field(
+        default=0.0,
+        ge=0,
+        le=10_000,
+        description=(
+            "CPU time each request of the clients' traffic costs on the machine outside the "
+            "design's parts (ms), e.g. a load generator running on it. 0: the clients are "
+            "elsewhere."
+        ),
+    )
+
+
 class Architecture(CamelModel):
     nodes: list[NodeSpec] = Field(default_factory=list, max_length=200)
     edges: list[EdgeSpec] = Field(default_factory=list, max_length=1000)
@@ -162,6 +212,16 @@ class Architecture(CamelModel):
         description=(
             "Give parts with an empty CPU, memory or storage spec the size they need for the "
             "design's peak load (see sizing.py). false: an empty spec is not modelled."
+        ),
+    )
+    host: HostSpec | None = Field(
+        default=None,
+        # left out of the JSON when empty, so documents and reports read as before
+        exclude_if=lambda v: v is None,
+        description=(
+            "The one machine every part with a CPU size runs on (docker compose on one VM, a "
+            "benchmark on a laptop): their CPU work shares its physical cores. Empty: each "
+            "part's vCPUs are its own (as before schema 1.7)."
         ),
     )
 
@@ -623,7 +683,7 @@ class Pricing(CamelModel):
 class ArchitectureDocument(CamelModel):
     """Top-level interchange document. Serialize with ``to_json_dict()``."""
 
-    schema_version: Literal["1.6"] = "1.6"
+    schema_version: Literal["1.7"] = "1.7"
     kind: Literal["archsim.architecture"] = "archsim.architecture"
     metadata: Metadata = Field(default_factory=Metadata)
     architecture: Architecture = Field(default_factory=Architecture)

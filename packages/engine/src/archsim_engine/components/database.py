@@ -34,6 +34,7 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field
 
+from archsim_engine.components.host import machine_capacity
 from archsim_engine.components.resources import (
     CPU_CONTENTION,
     RESOURCES,
@@ -42,7 +43,9 @@ from archsim_engine.components.resources import (
     core_utilization,
     cpu_field,
     instance_type_field,
+    machine_for,
     memory_field,
+    sibling_speed_field,
     storage_field,
 )
 from archsim_engine.distributions import Distribution, LogNormal
@@ -398,6 +401,7 @@ class DatabaseConfig(CamelModel):
             label="CPU share of query time", group=RESOURCES, assumption=True, step=0.05
         ),
     )
+    sibling_speed: float | None = sibling_speed_field()
     memory_gib: float | None = memory_field(
         "instance",
         "With a working set, 75% of it is buffer cache: reads of data that does not fit go to disk.",
@@ -677,7 +681,13 @@ class DatabaseRuntime(RuntimeComponent):
                         WorkerPool(
                             env, c.max_connections, c.queue_capacity, c.queue_timeout_ms, self.m
                         ),
-                        Cores(env, c.cpu_cores, c.max_connections, self.core_busy),
+                        Cores(
+                            env,
+                            c.cpu_cores,
+                            c.max_connections,
+                            self.core_busy,
+                            machine_for(ctx, c.cpu_cores, c.sibling_speed),
+                        ),
                         simpy.Resource(env, capacity=int(rt_)) if rt_ else None,
                         simpy.Resource(env, capacity=int(wt_)) if wt_ else None,
                         replica,
@@ -1023,7 +1033,14 @@ class DatabaseRuntime(RuntimeComponent):
         # replicas add CPU only when they serve reads (not with reads on the primary, MongoDB's default)
         serving = 1 if self.read_from == "primary" else 1 + cfg.read_replicas
         instances = self.parts * serving
-        return {"cpu": cfg.cpu_cores * instances * 1000.0 / (service_ms * cfg.cpu_share)}
+        full = cfg.cpu_cores * instances * 1000.0 / (service_ms * cfg.cpu_share)
+        # ... at the speed its threads run at on their machine (schema 1.7)
+        machine = self.groups[0][0].cores.machine if self.groups and self.groups[0] else None
+        return {
+            "cpu": machine_capacity(
+                machine, full, cfg.cpu_cores * instances, self.m.arrivals.window_rate()
+            )
+        }
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         m = self.m

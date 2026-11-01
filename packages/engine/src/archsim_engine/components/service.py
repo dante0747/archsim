@@ -24,6 +24,7 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field, model_validator
 
+from archsim_engine.components.host import HostRuntime, machine_capacity
 from archsim_engine.components.load_curve import (
     LoadPoint,
     RateMeter,
@@ -41,7 +42,9 @@ from archsim_engine.components.resources import (
     core_utilization,
     cpu_field,
     instance_type_field,
+    machine_for,
     memory_field,
+    sibling_speed_field,
 )
 from archsim_engine.distributions import Distribution, LogNormal
 from archsim_engine.explain import formula, num
@@ -186,6 +189,7 @@ class ServiceConfig(CamelModel):
         ),
         json_schema_extra=ui(label="CPU share of service time", group=RESOURCES, step=0.05),
     )
+    sibling_speed: float | None = sibling_speed_field()
     memory_gib: float | None = memory_field(
         "replica",
         "When set, every request a replica holds (queued, running or waiting on downstream calls) "
@@ -501,7 +505,13 @@ class ServiceRuntime(RuntimeComponent):
 
     def _new_cores(self) -> Cores:
         cfg: ServiceConfig = self.config
-        return Cores(self.ctx.env, cfg.cpu_cores, self.per_replica, self.core_busy)
+        return Cores(
+            self.ctx.env,
+            cfg.cpu_cores,
+            self.per_replica,
+            self.core_busy,
+            machine_for(self.ctx, cfg.cpu_cores, cfg.sibling_speed),
+        )
 
     def _add_replica_state(self, now: float) -> None:
         self.load.append(0)
@@ -620,7 +630,13 @@ class ServiceRuntime(RuntimeComponent):
             per_replica = (
                 cfg.cpu_cores * 1000.0 / (self._base_service_ms(service_ms) * cfg.cpu_share)
             )
-            out["cpu"] = capacity_rps(self.curve, per_replica) * replicas
+            # ... and at the speed its threads run at on their machine (schema 1.7)
+            out["cpu"] = machine_capacity(
+                self._machine(),
+                capacity_rps(self.curve, per_replica) * replicas,
+                cfg.cpu_cores * replicas,
+                self.m.arrivals.window_rate(),
+            )
         if self.mem_slots is not None and self.mem_slots < cfg.workers_per_replica and hold_ms:
             out["memory"] = self.mem_slots * replicas * 1000.0 / hold_ms
         return out
@@ -638,6 +654,11 @@ class ServiceRuntime(RuntimeComponent):
             max(0.0, hold_ms - service_ms),
         )
         return per_replica * replicas
+
+    def _machine(self) -> HostRuntime | None:
+        """The machine the replicas' CPU work runs on (the design's host or the first replica's
+        own hyperthreads), or None."""
+        return self.cores[0].machine if self.cores else None
 
     def _base_service_ms(self, service_ms: float) -> float:
         """The mean service time at factor 1: the observed mean over the mean load factor the
@@ -716,6 +737,14 @@ class ServiceRuntime(RuntimeComponent):
                 if self.curve
                 else ""
             )
+            machine = self._machine()
+            if machine is not None and cfg.cpu_cores is not None:
+                # the loops' CPU time per request rises as their machine fills (schema 1.7)
+                arrival = (summary.get("arrivalRps") or 0.0) / max(1.0, loops)
+                slowed = machine_capacity(machine, per_loop, 1.0, arrival)
+                if per_loop > 0 and slowed < per_loop:
+                    at += f" at {num(slowed / per_loop, 3)} of full speed on its machine"
+                    per_loop = slowed
             out.append(
                 formula(
                     "event_loop",

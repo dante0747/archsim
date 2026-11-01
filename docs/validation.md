@@ -121,7 +121,7 @@ uv run python benchmarks/report.py --json  # rewrite this page's tables, charts 
 on the machine: rerun on yours before quoting numbers. `run.py --archive` first moves each
 experiment's latest results into its next `run-N/` folder, so the history below keeps them.
 
-Two commands check the model and the machine rather than measure accuracy:
+Three commands check the model and the machine rather than measure accuracy:
 
 - `run.py resimulate` derives every kept run's inputs again from its calibration passes, with
   today's code, and simulates its measured steps with today's engine (no Docker, about 10
@@ -137,6 +137,17 @@ Two commands check the model and the machine rather than measure accuracy:
   gives it and again with the service's physical core left to the service alone. It writes
   `results/envcheck/<time>.json`. Each run's `environment.json` also records how its cpusets fall
   on physical cores (`topology`).
+- `run.py contention` measures how this machine turns CPUs into capacity (about 12 minutes of
+  Docker): pg-mixed's service at rest, from a quarter of its core to past it and at half of it
+  with background work on the other CPUs, with k6's own CPU; then a fixed unit of V8 work on one
+  CPU, alone and with its hyperthread sibling, other cores or every CPU busy, and at a part of
+  its own time. Windows' counters (each logical processor's busy share as the hypervisor sees
+  it, the actual frequency, power and thermal limits) are read every second meanwhile. It writes
+  `results/envcheck/<time>-contention.json`. With `BENCH_HOST=on` the benchmark designs take
+  their host machine from it (`architecture.host`, engine 0.16.0); by default they have none,
+  as before (see [What the machine itself does](#environment)). `run.py contention
+  --service-only` takes only the machine at rest and the service at three rates (about 4
+  minutes).
 
 `report.py --json` also writes the same numbers as data, to `docs/validation/accuracy.json` and a
 copy in `apps/web/src/data/` (the web image is built from `apps/web` alone; a test keeps the two
@@ -391,6 +402,22 @@ workload, `results/envcheck/`):
   PostgreSQL stack and `0,6,7` for the cache stack). PostgreSQL's two CPUs (`4,5`) are one
   physical core too, though the model gives it two cores; its CPU never came close to binding.
 - **No CPU steal** in Docker's VM, and no p95 near Windows' 15.6 ms timer tick at these rates.
+- **Every container shares the laptop's four physical cores, whatever its cpuset says**
+  (`run.py contention`, 1 Nov, `results/envcheck/2026-11-01T00-48-59Z-contention.json`).
+  Docker's VM numbers its CPUs as hyperthread pairs (2 and 3, 4 and 5, ...), but Windows
+  schedules the VM's CPUs itself: a fixed unit of V8 work on CPU 2 with CPU 3 busy did 1.57 to
+  1.70 times one CPU's work together, where two threads of one core do about 1.2. What sets how
+  fast CPU work runs is how many of the laptop's 8 logical processors are busy, in the VM or in
+  Windows: the probe's CPU per unit of work was 0.85 to 1.0 times its cost with 1.8 to 3.5 of
+  them busy, 1.2 times with 4.6, 1.5 with 5.5, 1.9 with 6.6, 2.1 with 7.4 and about 3 with all
+  8 busy (more work than processors). The clock fell in a straight line from 4,050 MHz with one
+  busy to about 2,950 with eight, with no power or thermal limit flagged. Four physical cores,
+  that clock (x0.73) and a thread sharing its core at 0.48 of its speed reproduce the probe's 20
+  conditions below full load within 5.5% (rms, in log). A container's CPU time includes the time
+  Windows takes its processor away (the VM reports no steal), so a container's CPU per request
+  rises with the whole machine's load, not only its own. After about 15 minutes near full load
+  (this check and other work) the laptop's clock fell to about 1,600 MHz and stayed low for a
+  while, again with no limit flagged: runs need the machine cool as well as idle.
 
 ## pg-mixed
 
@@ -639,10 +666,17 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
     overloaded with Node 89% busy and its CPU per request up 31%, and PostgreSQL saturating its
     two CPUs (hyperthread siblings of one physical core) with its CPU per query up from 0.16 to
     0.26 ms. So the likely cause is a CPU cost that rises near full load, in both processes at
-    once: on this laptop probably its power and turbo limits once every core is busy. Giving the
-    model's PostgreSQL its one physical core instead of two logical CPUs does not move the
-    model's knee, which stays Node's (W22's what-if); a cost per request that rises near full
-    load is not modelled yet.
+    once: on this laptop its clock falls from about 4,050 to 2,950 MHz as its 8 logical
+    processors fill, and past one busy thread per core the threads share cores (`run.py
+    contention`, [Environment](#environment)). Giving the model's PostgreSQL its one physical
+    core instead of two logical CPUs does not move the model's knee, which stays Node's (W22's
+    what-if). Engine 0.16.0 can model a machine's threads slowing each other
+    (`architecture.host`), but the benchmark designs do not use it yet: re-simulated in-sample
+    (with k6's CPU and the machine's background assumed, not measured), it takes pg-mixed from
+    +24% to +11% and PostgreSQL's CPU near the knee from 12% low to about right, while
+    cache-aside goes from -34% to -41% and Kafka from +4% to -22% (IMPLEMENTATION_STATUS.md,
+    W27): the real CPU per request also falls with load, which the model has only up to the top
+    of the calibration staircase.
   - *cache-aside (-26% to -34%): the CPU per request falls with load.* The predicted knee is one
     core at the calibrated 0.20 ms per request (4,850 req/s); the real cost fell to 0.16 ms by
     then and kept falling, and the real knee was about 7,000 req/s.

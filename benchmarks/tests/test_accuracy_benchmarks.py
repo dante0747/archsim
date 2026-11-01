@@ -798,12 +798,16 @@ def test_split_inputs_reproduce_every_latest_calibration() -> None:
     # database's inputs (PostgreSQL's CPU per query as its time, the rest of the round trip as a
     # link) and the client latency anchored to them. W23: Kafka gains two inputs its calibrations
     # predate (the fetch-cycle report). W24: Redis's command time is its CPU per command, so the
-    # Redis link and the anchored client latency are derived again too.
+    # Redis link and the anchored client latency are derived again too. W27: with a quiet
+    # contention check of the machine, the CPU-time inputs are at full speed and the design gains
+    # its host machine.
     added = {"kafka": {"consumerConcurrency", "fetchOverheadMs"}}
     changed = {
         "cache-aside": {"cacheServiceTimeMs", "cacheLinkLatencyMs", "clientLinkLatencyMs", "anchor"}
     }
     anew = DATABASE_INPUTS | {"clientLinkLatencyMs", "anchor"}
+    if run.machine_fit() is not None:
+        anew |= {"host", *run.MACHINE_SCALED}
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
         again = run.rederive_inputs(run.EXPERIMENTS[exp], cal)

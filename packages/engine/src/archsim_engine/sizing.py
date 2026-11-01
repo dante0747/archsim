@@ -46,6 +46,7 @@ from typing import TYPE_CHECKING, Any
 
 from archsim_engine.components.cache import KEY_MEMORY_SHARE
 from archsim_engine.components.database import BUFFER_CACHE_SHARE
+from archsim_engine.components.host import machine_speeds
 from archsim_engine.components.load_curve import load_factor
 from archsim_engine.load import (
     Json,
@@ -283,7 +284,17 @@ def _size_function(cfg: Json, baseline: float, per_req: float) -> PartSize:
     )
 
 
-def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> PartSize:
+def _at_speed(busy: float, intro: str, speed: float) -> tuple[float, str]:
+    """Busy cores when the part's CPU work runs at ``speed`` of full speed (the design's host
+    machine at that load, schema 1.7), and the words for it."""
+    if speed >= 1.0:
+        return busy, intro
+    return busy / speed, f"{intro}, at {fmt(speed)} of full speed on the host machine"
+
+
+def _size_service(
+    config: Any, cfg: Json, total: float, on_vm: bool = False, speed: float = 1.0
+) -> PartSize:
     baseline = num(cfg.get("memoryBaselineMb"))
     baseline = 256.0 if baseline is None else baseline
     per_req = num(cfg.get("memoryPerRequestMb"))
@@ -310,11 +321,13 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
     )
     if curve:
         of_cpu += f" × {fmt(factor)} at that rate (service time by load)"
-    cpu, why = _cpu_for(
+    busy, intro = _at_speed(
         busy,
         f"{fmt(per_replica)} req/s per replica at peak ({fmt(total)} over {js_num(replicas)}"
         f"{' at full scale' if autoscaling else ''}) × {of_cpu}",
+        speed,
     )
+    cpu, why = _cpu_for(busy, intro)
     what = "event loop" if event_loop else "worker"
     cpu, why = _cap_cpu(
         cpu,
@@ -365,7 +378,9 @@ def _size_service(config: Any, cfg: Json, total: float, on_vm: bool = False) -> 
     )
 
 
-def _size_database(config: Any, cfg: Json, read: float, write: float, workload: Json) -> PartSize:
+def _size_database(
+    config: Any, cfg: Json, read: float, write: float, workload: Json, speed: float = 1.0
+) -> PartSize:
     shards = max(1, int(num(cfg.get("shards")) or 1))
     rf = max(1, int(num(cfg.get("replicationFactor")) or 1))
     copies = 1 + max(0, int(num(cfg.get("readReplicas")) or 0))
@@ -404,6 +419,7 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
             f"Each primary: {fmt(reads_per_shard / copies)} reads/s{scattered} × {fmt(read_ms)} ms + "
             f"{fmt(write / shards)} writes/s × {fmt(write_ms)} ms, {_pct(share)} of it CPU"
         )
+    busy, intro = _at_speed(busy, intro, speed)
     cpu, why = _cpu_for(busy, intro)
     # each connection runs one query at a time, and only its CPU share needs a core: more cores
     # than that would idle (like a service's workers)
@@ -466,13 +482,17 @@ def _size_database(config: Any, cfg: Json, read: float, write: float, workload: 
     )
 
 
-def _size_cache(config: Any, cfg: Json, total: float, workload: Json) -> PartSize:
+def _size_cache(
+    config: Any, cfg: Json, total: float, workload: Json, speed: float = 1.0
+) -> PartSize:
     shards = max(1, int(num(cfg.get("shards")) or 1))
     executors = max(1, int(config.executors()))
     ms = mean_ms(cfg.get("serviceTimeMs"))
     per_shard = total / shards
-    busy = per_shard * ms / 1000
-    cpu, why = _cpu_for(busy, f"{fmt(per_shard)} commands/s per node × {fmt(ms)} ms")
+    busy, intro = _at_speed(
+        per_shard * ms / 1000, f"{fmt(per_shard)} commands/s per node × {fmt(ms)} ms", speed
+    )
+    cpu, why = _cpu_for(busy, intro)
     cpu, why = _cap_cpu(
         cpu,
         why,
@@ -753,16 +773,18 @@ def _size_part(
     workload: Json,
     clusters: dict[str, tuple[str, float, float]],
     on_vm: bool,
+    speed: float = 1.0,
 ) -> PartSize | None:
-    """The size of one part for one load (read and write requests per second)."""
+    """The size of one part for one load (read and write requests per second); ``speed``: its
+    CPU work's speed on the design's host machine at that load (schema 1.7)."""
     read, write = load.read, load.write
     total = read + write
     if n["type"] == "service":
-        return _fit_node(_size_service(config, cfg, total, on_vm), config, clusters)
+        return _fit_node(_size_service(config, cfg, total, on_vm, speed), config, clusters)
     if n["type"] == "database":
-        return _size_database(config, cfg, read, write, workload)
+        return _size_database(config, cfg, read, write, workload, speed)
     if n["type"] == "cache":
-        return _size_cache(config, cfg, total, workload)
+        return _size_cache(config, cfg, total, workload, speed)
     if n["type"] == "load_balancer":
         return _size_balancer(total)
     if n["type"] == "message_queue":
@@ -790,6 +812,28 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
         rate=base,
     )
     clusters = _clusters(nodes, registry)
+    # the design's host machine (schema 1.7): every part's CPU work at its threads' speed
+    host = doc["architecture"].get("host")
+    speeds: dict[str, float] = {}
+    base_speeds: dict[str, float] = {}
+    if host is not None:
+
+        def parts_at(at: dict[str, Any]) -> dict[str, Any]:
+            return {
+                n["id"]: (
+                    n["type"],
+                    {**registry.get(n["type"]).default_config(), **(n.get("config") or {})},
+                    ld.read,
+                    ld.write,
+                )
+                for n in nodes
+                if n["type"] in ("service", "database", "cache")
+                and n["type"] in registry
+                and (ld := at.get(n["id"])) is not None
+            }
+
+        speeds = machine_speeds(host, parts_at(loads), peak_rps(workload), sizing=True)
+        base_speeds = machine_speeds(host, parts_at(base_loads), base, sizing=True)
     out: dict[str, PartSize] = {}
     for n in nodes:
         if n["type"] not in registry:
@@ -819,12 +863,16 @@ def auto_sizes(doc: Json, registry: ComponentRegistry) -> dict[str, PartSize]:
             )
             continue
         on_vm = (machine_kind(n["type"], cfg) or ("", None))[0] == "compute"
-        size = _size_part(n, config, cfg, load, workload, clusters, on_vm)
+        size = _size_part(n, config, cfg, load, workload, clusters, on_vm, speeds.get(n["id"], 1.0))
         if size is None:
             continue
         at_base = base_loads.get(n["id"])
         base_size = (
-            _size_part(n, config, cfg, at_base, workload, clusters, on_vm) if at_base else None
+            _size_part(
+                n, config, cfg, at_base, workload, clusters, on_vm, base_speeds.get(n["id"], 1.0)
+            )
+            if at_base
+            else None
         )
         if base_size is not None and "busyCores" in base_size.need:
             size.need["baseBusyCores"] = base_size.need["busyCores"]

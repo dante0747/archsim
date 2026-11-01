@@ -3,7 +3,7 @@
 ENGINE_VERSION = "0.16.0"
 """Version of the simulation engine. Bump when simulation semantics change."""
 
-SCHEMA_VERSION = "1.6"
+SCHEMA_VERSION = "1.7"
 """Current version of the architecture document schema."""
 
 REPORT_VERSION = "1.14"

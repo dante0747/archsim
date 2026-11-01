@@ -10,6 +10,7 @@ import type {
   Catalog,
   DocMetadata,
   EdgeConfig,
+  HostSpec,
   InputProvenance,
   NodeConfig,
   Objectives,
@@ -68,16 +69,17 @@ export interface GraphState {
   extras?: DocExtras;
 }
 
-/** Kept through edits and saves: auto-sizing off, where inputs came from, the last calibration,
- * where prices come from. */
+/** Kept through edits and saves: auto-sizing off, the host machine, where inputs came from, the
+ * last calibration, where prices come from. */
 export interface DocExtras {
   autoSize?: boolean;
+  host?: HostSpec | null;
   provenance: Record<string, InputProvenance>;
   calibration: CalibrationRecord | null;
   pricing?: Pricing | null;
 }
 
-export const SCHEMA_VERSION = "1.6";
+export const SCHEMA_VERSION = "1.7";
 
 /** The provenance of an input, or undefined (then it is assumed or illustrative). */
 export function provenanceOf(extras: DocExtras | undefined, path: string): InputProvenance | undefined {
@@ -218,6 +220,7 @@ export function fromDocument(doc: ArchitectureDocument): GraphState & { viewport
     metadata: doc.metadata ?? { name: "Untitled architecture" },
     extras: {
       autoSize: doc.architecture.autoSize,
+      host: doc.architecture.host ?? null,
       provenance: doc.provenance ?? {},
       calibration: doc.calibration ?? null,
       pricing: doc.pricing ?? null,
@@ -250,6 +253,7 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
         config: e.data?.config ?? defaultEdgeConfigFallback(),
       })),
       ...(state.extras?.autoSize === false ? { autoSize: false } : {}),
+      ...(state.extras?.host ? { host: state.extras.host } : {}),
     },
     workload: state.workload,
     scenarios: state.scenarios,

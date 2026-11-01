@@ -266,12 +266,24 @@ export interface Pricing {
   snapshotSha256?: string | null;
 }
 
+/** The one machine every part with a CPU size runs on (schema 1.7; docs/schema.md). The editor
+ * has no form for it yet: it keeps it through edits and saves. */
+export interface HostSpec {
+  physicalCores: number;
+  threadsPerCore?: 1 | 2;
+  siblingSpeed?: number;
+  allCoreClock?: number;
+  otherBusyThreads?: number;
+  clientCpuMs?: number;
+}
+
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7";
   kind: "archsim.architecture";
   metadata: DocMetadata;
-  /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine). */
-  architecture: { nodes: NodeSpec[]; edges: EdgeSpec[]; autoSize?: boolean };
+  /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine).
+   * host (1.7): the one machine every part with a CPU size runs on. */
+  architecture: { nodes: NodeSpec[]; edges: EdgeSpec[]; autoSize?: boolean; host?: HostSpec };
   workload: Workload;
   scenarios: Scenario[];
   objectives?: Objectives;
