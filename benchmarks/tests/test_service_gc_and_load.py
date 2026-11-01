@@ -130,6 +130,61 @@ def test_the_curve_is_relative_to_the_top_rate_and_never_rises() -> None:
     assert run.service_time_by_load(None) is None
 
 
+# a protocol v6 staircase whose cost keeps falling near its top (cache-aside's service, W26)
+V6 = {50: [1.0, 1.04], 650: [0.30, 0.29], 2000: [0.211, 0.206], 3000: [0.186, 0.181, 0.19]}
+
+
+def v6_passes(ms: dict[float, list[float]]) -> list[tuple[float, float]]:
+    return [(r, m) for r, v in ms.items() for m in v]
+
+
+def test_a_v6_staircase_carries_its_clear_fall_up_to_where_the_core_fills() -> None:
+    bins = by_load({r: sorted(v)[len(v) // 2] if len(v) % 2 else sum(v) / 2 for r, v in V6.items()})
+    curve = run.service_time_by_load(bins, v6_passes(V6), cores=1)
+    assert curve is not None
+    pts = curve["value"]
+    assert [p["rps"] for p in pts[:4]] == [50, 650, 2000, 3000] and pts[3]["factor"] == 1.0
+    end = pts[-1]
+    assert 0.6 < end["factor"] < 1.0
+    # one core full at the end: the rate times its CPU per request (the top's 0.186 ms x factor)
+    assert end["rps"] * 0.186 * end["factor"] == pytest.approx(1000, rel=1e-3)
+    assert "carried from 3,000 to" in curve["how"] and curve["how"].endswith("then flat")
+    # flat (engine 0.15.0's rule), or without the passes: the top rate's factor above it
+    flat = run.service_time_by_load(bins, v6_passes(V6), form="flat")
+    assert flat == run.service_time_by_load(bins)
+    assert flat is not None and flat["value"][-1] == {"rps": 3000, "factor": 1.0}
+
+
+def test_staircase_cpu_is_each_pass_net_of_idle() -> None:
+    idle = {"serviceCpuMsPerSecond": 2.0}
+    runs = [
+        {"rateRps": 50, "service": {"cpuMs": 1560.0, "requests": 1500}},
+        {"rateRps": 50, "service": {"cpuMs": 1620.0, "requests": 1500}},
+        {"rateRps": 900, "service": {"cpuMs": 5460.0, "requests": 27000}},
+    ]
+    rest = 2.0 * run.CALIBRATION_S
+    assert run.staircase_cpu(runs, idle) == [
+        (50.0, (1560 - rest) / 1500),
+        (50.0, (1620 - rest) / 1500),
+        (900.0, (5460 - rest) / 27000),
+    ]
+    assert run.staircase_cpu(runs, None) == []  # before protocol v5: no idle pass
+
+
+def test_kept_v5_calibrations_keep_the_curve_they_had() -> None:
+    # every staircase so far topped out at a third of the core: never carried on above its top
+    for exp in report.ORDER:
+        for d in [run.RESULTS / exp, *sorted((run.RESULTS / exp).glob("run-*"))]:
+            cal = json.loads((d / "calibration.json").read_text(encoding="utf-8"))
+            if cal.get("protocol") != "v5":
+                continue
+            passes = run.staircase_cpu(cal["staircase"], cal["idle"])
+            assert passes, d
+            assert run.service_time_by_load(
+                cal["cpuByLoad"], passes, run.service_cpus(run.EXPERIMENTS[exp])
+            ) == run.service_time_by_load(cal["cpuByLoad"]), d
+
+
 def test_every_latest_calibration_gets_a_falling_curve() -> None:
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))

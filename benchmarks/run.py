@@ -1299,7 +1299,12 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
         },
         "measuredLowLoad": {"rateRps": high["rateRps"], **high["k6"]},
     }
-    if (curve := service_time_by_load(passes.get("cpuByLoad"))) is not None:
+    curve = service_time_by_load(
+        passes.get("cpuByLoad"),
+        staircase_cpu(passes.get("staircase") or [], passes.get("idle")),
+        service_cpus(exp),
+    )
+    if curve is not None:
         out["serviceTimeByLoad"] = curve
     out |= gc if exp.runtime == "nodejs" else gc_inputs(exp, svc)
     if exp.stack == "chain":
@@ -1307,15 +1312,53 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def service_time_by_load(by_load: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+CURVE_FORM = "log"
+"""How the service's CPU per request continues above the staircase's top rate (W26,
+``extend_load_curve``): ``log``, the upper staircase's fall carried on linearly in log(rate) up
+to the CPUs' capacity; ``busy``, linearly in the CPUs' busy share; ``flat``, the top rate's cost
+(engine 0.15.0)."""
+
+
+def staircase_cpu(
+    runs: Sequence[Mapping[str, Any]], idle: Mapping[str, Any] | None
+) -> list[tuple[float, float]]:
+    """Each staircase pass's (rate, the service's CPU per request net of idle in ms), as
+    ``cpu_by_load`` takes their median (empty without the idle pass: before protocol v5)."""
+    if not idle:
+        return []
+    rest = idle["serviceCpuMsPerSecond"] * CALIBRATION_S
+    return [
+        (
+            float(r["rateRps"]),
+            max(0.0, r["service"]["cpuMs"] - rest) / max(r["service"]["requests"], 1),
+        )
+        for r in runs
+        if r.get("service", {}).get("requests")
+    ]
+
+
+def service_time_by_load(
+    by_load: Sequence[Mapping[str, Any]] | None,
+    passes: Sequence[tuple[float, float]] = (),
+    cores: float = 1.0,
+    form: str | None = None,
+) -> dict[str, Any] | None:
     """How the service's CPU per request changed with load over the calibration staircase
     (``cpuByLoad``: each rate's CPU per request net of idle, the median of its passes), as
     ``serviceTimeByLoad``: the engine's never-rising fit (``fit_load_curve``, one bin per rate),
-    relative to the top rate, whose CPU per request the service time is. The engine keeps the
-    top rate's factor (1) at every higher load: the curve says nothing about loads above the
-    staircase, which stops at a third of the core. None without a staircase (protocols before
-    v5), or when the fit spans no more than MIN_CURVE_CHANGE."""
-    from archsim_engine.calibration.resources import MIN_CURVE_CHANGE, fit_load_curve
+    relative to the top rate, whose CPU per request the service time is. Above the top rate
+    (W26): the fall the upper staircase measured, carried on until the service's ``cores``
+    fill (``extend_load_curve`` over each pass's CPU per request, ``passes``; ``form``, default
+    CURVE_FORM), when the top kept the CPUs at least EXTEND_MIN_BUSY busy and the fall stands
+    out of the passes' scatter; else the top rate's factor (1) at every higher load, as the
+    engine keeps the last point's. A protocol v5 staircase stops at a third of the core, so its
+    curve stays flat above the top. None without a staircase (protocols before v5), or when the
+    curve spans no more than MIN_CURVE_CHANGE."""
+    from archsim_engine.calibration.resources import (
+        MIN_CURVE_CHANGE,
+        extend_load_curve,
+        fit_load_curve,
+    )
 
     pts = [
         (float(b["rateRps"]), b["rateRps"] * b["serviceCpuMsPerRequest"] / 1000.0)
@@ -1323,17 +1366,27 @@ def service_time_by_load(by_load: Sequence[Mapping[str, Any]] | None) -> dict[st
         if b.get("serviceCpuMsPerRequest")
     ]
     fit = fit_load_curve(pts, max_bins=len(pts)) if len(pts) >= 2 else None
-    if fit is None or fit.span <= MIN_CURVE_CHANGE:
+    if fit is None:
         return None
+    form = form or CURVE_FORM
+    ext = extend_load_curve(passes, cores, form) if passes and form != "flat" else None
     top = fit.points[-1][1]
-    table = [{"rps": round(r, 1), "factor": round(f / top, 4)} for r, f in fit.points]
+    curve = [(r, f / top) for r, f in fit.points] + (ext.factors() if ext else [])
+    factors = [f for _, f in curve]
+    if max(factors) / min(factors) - 1.0 <= MIN_CURVE_CHANGE:
+        return None
+    table = [{"rps": round(r, 1), "factor": round(f, 4)} for r, f in curve]
     measured = ", ".join(f"{m:.4f} ms at {r:g}" for r, m in fit.measured)
+    # not extended: worded as engine 0.15.0 wrote it, so every kept run's inputs stay the same
+    above = (
+        f"above it {ext.reason}, then flat" if ext and ext.points else "flat outside the staircase"
+    )
     return {
         "value": table,
         "how": (
             f"the staircase's CPU per request net of idle ({measured} req/s), fitted never "
             f"rising with rate and divided by the top rate's ({fit.measured[-1][1]:.4f} ms); "
-            "flat outside the staircase"
+            f"{above}"
         ),
     }
 

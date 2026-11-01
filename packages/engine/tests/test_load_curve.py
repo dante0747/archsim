@@ -5,13 +5,19 @@ sizing, the review) and calibration's fit from CPU per request."""
 from __future__ import annotations
 
 import copy
+import math
 from itertools import pairwise
 from typing import Any
 
 import pytest
 
 from archsim_engine import run_simulation
-from archsim_engine.calibration.resources import fit_cpu_share, fit_load_curve
+from archsim_engine.calibration.resources import (
+    EXTEND_MIN_BUSY,
+    extend_load_curve,
+    fit_cpu_share,
+    fit_load_curve,
+)
 from archsim_engine.components.load_curve import (
     RateMeter,
     capacity_rps,
@@ -221,3 +227,81 @@ def test_fit_cpu_share_reports_the_curve_per_replica() -> None:
     # factors relative to CPU per request over the range (busy times weigh most)
     assert fit.curve.reference_ms == pytest.approx(fit.cpu_ms)
     assert fit.curve.table()[0]["factor"] == pytest.approx(0.8 / fit.cpu_ms, rel=1e-3)
+
+
+# -- above the top of a calibration staircase (W26) -------------------------------------------
+
+
+def staircase(ms: dict[float, list[float]]) -> list[tuple[float, float]]:
+    """(req/s, CPU per request in ms) of each pass, as a staircase gives them."""
+    return [(r, m) for r, passes in ms.items() for m in passes]
+
+
+# a cost that keeps falling near the top, as cache-aside's Node.js service did
+FALLING = {50: [1.0, 1.04], 650: [0.30, 0.29], 2000: [0.211, 0.206], 3000: [0.186, 0.181, 0.19]}
+
+
+def test_a_fall_clear_of_the_noise_continues_until_the_cpu_fills() -> None:
+    ext = extend_load_curve(staircase(FALLING), cores=1.0)
+    assert ext is not None and ext.points
+    assert ext.top_rps == 3000 and ext.top_ms == pytest.approx(0.186)
+    assert ext.busy == pytest.approx(0.558)
+    # fitted over 2,000 and 3,000 req/s only (within x3 of the top): the fall at 50 and 650
+    # req/s, the host's power management, does not count
+    assert -ext.slope == pytest.approx((0.2085 - 0.1857) / math.log(1.5), rel=0.02)
+    ((end, ms),) = ext.points
+    assert end * ms == pytest.approx(1000.0, rel=1e-6)  # where one core fills
+    assert ms == pytest.approx(0.186 + ext.slope * math.log(end / 3000), rel=1e-9)
+    assert 0.13 < ms < 0.186 and 5000 < end < 8000
+    # the engine's log-rate interpolation from the top to the end follows the same line, and
+    # its capacity is where the CPU fills
+    curve = curve_of(
+        [{"rps": 3000, "factor": 1.0}] + [{"rps": r, "factor": f} for r, f in ext.factors()]
+    )
+    mid = math.sqrt(3000 * end)
+    assert load_factor(curve, mid) * 0.186 == pytest.approx(
+        0.186 + ext.slope * math.log(mid / 3000)
+    )
+    assert capacity_rps(curve, 1000 / 0.186) == pytest.approx(end, rel=1e-6)
+
+
+def test_the_curve_stays_flat_above_the_top_without_a_clear_fall() -> None:
+    # pg-mixed: flat from 2,000 req/s up, within the passes' scatter
+    flat = {50: [0.8, 0.75], 850: [0.25, 0.24], 2000: [0.21, 0.2], 3100: [0.205, 0.21, 0.199]}
+    ext = extend_load_curve(staircase(flat))
+    assert ext is not None and not ext.points and ext.end_rps == 3100
+    assert "no fall above the noise" in ext.reason
+    # a protocol v5 staircase tops out at a third of the core: never carried on
+    v5 = extend_load_curve(
+        staircase({50: [1.0], 338: [0.4, 0.38], 831: [0.26, 0.27], 1335: [0.205, 0.208, 0.22]})
+    )
+    assert v5 is not None and not v5.points and v5.busy < EXTEND_MIN_BUSY
+    assert "under 45%" in v5.reason
+    # a fall with one pass at each rate cannot be told from noise
+    one = extend_load_curve(staircase({2000: [0.21], 3000: [0.186]}))
+    assert one is not None and not one.points and "no scatter" in one.reason
+    assert extend_load_curve([]) is None
+
+
+def test_a_fall_in_busy_share_ends_at_the_cost_of_a_full_core() -> None:
+    # an event loop whose wake-up overhead W is shared as it idles less: c = a + W (1 - busy)
+    a, w = 0.12, 0.15
+
+    def cost(r: float) -> float:
+        return (a + w) / (1 + w * r / 1000)
+
+    passes = staircase({r: [cost(r) * (1 + e) for e in (-0.01, 0.01)] for r in (2000, 3000, 3500)})
+    ext = extend_load_curve(passes, form="busy")
+    assert ext is not None and len(ext.points) == 4
+    end, ms = ext.points[-1]
+    assert ms == pytest.approx(a, rel=0.02) and end == pytest.approx(1000 / a, rel=0.02)
+    for r, m in ext.points:  # each point on the curve, below the top's cost
+        assert m == pytest.approx(cost(r), rel=0.02) and m < ext.top_ms
+
+
+def test_a_two_cpu_service_fills_both() -> None:
+    passes = staircase({r: [m * 1.01, m * 0.99] for r, m in ((4000, 0.21), (6000, 0.186))})
+    ext = extend_load_curve(passes, cores=2.0)
+    assert ext is not None and ext.points
+    end, ms = ext.points[-1]
+    assert end * ms == pytest.approx(2000.0, rel=1e-6)
