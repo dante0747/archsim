@@ -131,28 +131,34 @@ def test_the_curve_is_relative_to_the_top_rate_and_never_rises() -> None:
 
 
 # a protocol v6 staircase whose cost keeps falling near its top (cache-aside's service, W26)
-V6 = {50: [1.0, 1.04], 650: [0.30, 0.29], 2000: [0.211, 0.206], 3000: [0.186, 0.181, 0.19]}
+V6: dict[float, list[float]] = {
+    50: [1.0, 1.04],
+    650: [0.30, 0.29],
+    2000: [0.211, 0.206],
+    3000: [0.186, 0.181, 0.19],
+}
 
 
 def v6_passes(ms: dict[float, list[float]]) -> list[tuple[float, float]]:
     return [(r, m) for r, v in ms.items() for m in v]
 
 
-def test_a_v6_staircase_carries_its_clear_fall_up_to_where_the_core_fills() -> None:
+def test_a_v6_staircase_can_carry_its_clear_fall_above_the_top() -> None:
     bins = by_load({r: sorted(v)[len(v) // 2] if len(v) % 2 else sum(v) / 2 for r, v in V6.items()})
-    curve = run.service_time_by_load(bins, v6_passes(V6), cores=1)
-    assert curve is not None
-    pts = curve["value"]
-    assert [p["rps"] for p in pts[:4]] == [50, 650, 2000, 3000] and pts[3]["factor"] == 1.0
-    end = pts[-1]
-    assert 0.6 < end["factor"] < 1.0
-    # one core full at the end: the rate times its CPU per request (the top's 0.186 ms x factor)
-    assert end["rps"] * 0.186 * end["factor"] == pytest.approx(1000, rel=1e-3)
-    assert "carried from 3,000 to" in curve["how"] and curve["how"].endswith("then flat")
-    # flat (engine 0.15.0's rule), or without the passes: the top rate's factor above it
-    flat = run.service_time_by_load(bins, v6_passes(V6), form="flat")
+    # off by default (CURVE_FORM): the top rate's factor above it, as engine 0.15.0
+    assert run.CURVE_FORM == "flat"
+    flat = run.service_time_by_load(bins, v6_passes(V6), cores=1)
     assert flat == run.service_time_by_load(bins)
     assert flat is not None and flat["value"][-1] == {"rps": 3000, "factor": 1.0}
+    # the log form: one more point, as far above the top as the base (2,000 and 3,000 req/s,
+    # the rates at least 30% busy) spans below it
+    curve = run.service_time_by_load(bins, v6_passes(V6), cores=1, form="log")
+    assert curve is not None
+    pts = curve["value"]
+    assert [p["rps"] for p in pts] == [50, 650, 2000, 3000, 4500] and pts[3]["factor"] == 1.0
+    assert 0.8 < pts[-1]["factor"] < 1.0
+    assert "carried from 3,000 to 4,500 req/s (one measured stretch on)" in curve["how"]
+    assert curve["how"].endswith("then flat")
 
 
 def test_staircase_cpu_is_each_pass_net_of_idle() -> None:

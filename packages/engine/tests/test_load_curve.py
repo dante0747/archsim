@@ -241,20 +241,22 @@ def staircase(ms: dict[float, list[float]]) -> list[tuple[float, float]]:
 FALLING = {50: [1.0, 1.04], 650: [0.30, 0.29], 2000: [0.211, 0.206], 3000: [0.186, 0.181, 0.19]}
 
 
-def test_a_fall_clear_of_the_noise_continues_until_the_cpu_fills() -> None:
+def test_a_clear_fall_is_carried_one_measured_stretch_on() -> None:
     ext = extend_load_curve(staircase(FALLING), cores=1.0)
     assert ext is not None and ext.points
     assert ext.top_rps == 3000 and ext.top_ms == pytest.approx(0.186)
     assert ext.busy == pytest.approx(0.558)
-    # fitted over 2,000 and 3,000 req/s only (within x3 of the top): the fall at 50 and 650
-    # req/s, the host's power management, does not count
+    # fitted over 2,000 and 3,000 req/s, the rates that kept the core at least 30% busy: the fall
+    # at 50 and 650 req/s (the host's power management) does not count
     assert -ext.slope == pytest.approx((0.2085 - 0.1857) / math.log(1.5), rel=0.02)
+    # carried as far above the top as the base spans below it (x1.5), short of where the core
+    # would fill
     ((end, ms),) = ext.points
-    assert end * ms == pytest.approx(1000.0, rel=1e-6)  # where one core fills
-    assert ms == pytest.approx(0.186 + ext.slope * math.log(end / 3000), rel=1e-9)
-    assert 0.13 < ms < 0.186 and 5000 < end < 8000
-    # the engine's log-rate interpolation from the top to the end follows the same line, and
-    # its capacity is where the CPU fills
+    assert end == pytest.approx(4500) and "one measured stretch on" in ext.reason
+    assert ms == pytest.approx(0.186 + ext.slope * math.log(1.5))
+    assert end * ms < 1000
+    # the engine's log-rate interpolation follows the same line up to the end, flat beyond, so
+    # the capacity is where the core fills at the end's cost
     curve = curve_of(
         [{"rps": 3000, "factor": 1.0}] + [{"rps": r, "factor": f} for r, f in ext.factors()]
     )
@@ -262,7 +264,23 @@ def test_a_fall_clear_of_the_noise_continues_until_the_cpu_fills() -> None:
     assert load_factor(curve, mid) * 0.186 == pytest.approx(
         0.186 + ext.slope * math.log(mid / 3000)
     )
-    assert capacity_rps(curve, 1000 / 0.186) == pytest.approx(end, rel=1e-6)
+    assert capacity_rps(curve, 1000 / 0.186) == pytest.approx(1000 / ms, rel=1e-6)
+
+
+# a staircase that reached far up the core: the fall ends where the core fills
+NEAR_FULL = {2000: [0.27, 0.266], 3000: [0.25, 0.246], 4000: [0.232, 0.228, 0.236]}
+
+
+def test_the_extension_never_reaches_past_the_capacity() -> None:
+    ext = extend_load_curve(staircase(NEAR_FULL), cores=1.0)
+    assert ext is not None and ext.points and "where the CPUs fill" in ext.reason
+    ((end, ms),) = ext.points
+    assert end * ms == pytest.approx(1000.0, rel=1e-6)
+    assert 4000 < end < 4600 and ms < 0.232
+    # a service with two CPUs fills both, at twice the rate
+    two = extend_load_curve(staircase({2 * r: v for r, v in NEAR_FULL.items()}), cores=2.0)
+    assert two is not None and two.points
+    assert two.points[0][0] * two.points[0][1] == pytest.approx(2000.0, rel=1e-6)
 
 
 def test_the_curve_stays_flat_above_the_top_without_a_clear_fall() -> None:
@@ -271,6 +289,10 @@ def test_the_curve_stays_flat_above_the_top_without_a_clear_fall() -> None:
     ext = extend_load_curve(staircase(flat))
     assert ext is not None and not ext.points and ext.end_rps == 3100
     assert "no fall above the noise" in ext.reason
+    # pg-mixed's latest run: 7% cheaper from 27% to 51% of the core, then flat to its knee
+    low = extend_load_curve(staircase({1238: [0.224, 0.222], 2475: [0.207, 0.206, 0.208]}))
+    assert low is not None and not low.points
+    assert "one rate kept the CPUs at least 30% busy" in low.reason
     # a protocol v5 staircase tops out at a third of the core: never carried on
     v5 = extend_load_curve(
         staircase({50: [1.0], 338: [0.4, 0.38], 831: [0.26, 0.27], 1335: [0.205, 0.208, 0.22]})
@@ -281,27 +303,3 @@ def test_the_curve_stays_flat_above_the_top_without_a_clear_fall() -> None:
     one = extend_load_curve(staircase({2000: [0.21], 3000: [0.186]}))
     assert one is not None and not one.points and "no scatter" in one.reason
     assert extend_load_curve([]) is None
-
-
-def test_a_fall_in_busy_share_ends_at_the_cost_of_a_full_core() -> None:
-    # an event loop whose wake-up overhead W is shared as it idles less: c = a + W (1 - busy)
-    a, w = 0.12, 0.15
-
-    def cost(r: float) -> float:
-        return (a + w) / (1 + w * r / 1000)
-
-    passes = staircase({r: [cost(r) * (1 + e) for e in (-0.01, 0.01)] for r in (2000, 3000, 3500)})
-    ext = extend_load_curve(passes, form="busy")
-    assert ext is not None and len(ext.points) == 4
-    end, ms = ext.points[-1]
-    assert ms == pytest.approx(a, rel=0.02) and end == pytest.approx(1000 / a, rel=0.02)
-    for r, m in ext.points:  # each point on the curve, below the top's cost
-        assert m == pytest.approx(cost(r), rel=0.02) and m < ext.top_ms
-
-
-def test_a_two_cpu_service_fills_both() -> None:
-    passes = staircase({r: [m * 1.01, m * 0.99] for r, m in ((4000, 0.21), (6000, 0.186))})
-    ext = extend_load_curve(passes, cores=2.0)
-    assert ext is not None and ext.points
-    end, ms = ext.points[-1]
-    assert end * ms == pytest.approx(2000.0, rel=1e-6)

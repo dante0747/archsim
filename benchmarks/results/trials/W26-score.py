@@ -128,7 +128,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", choices=list(COUNTED))
     ap.add_argument("--date", help="the trials' date (default: the latest of each)")
-    ap.add_argument("--form", choices=["flat", "log", "busy"], help="the curve above the top")
+    ap.add_argument("--form", choices=["flat", "log"], help="the curve above the top")
     ap.add_argument(
         "--suffix", default="w26", help="the trials' folder suffix (w24: round 1's v5 trials)"
     )

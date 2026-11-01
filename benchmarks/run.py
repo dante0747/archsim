@@ -1312,11 +1312,13 @@ def service_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-CURVE_FORM = "log"
-"""How the service's CPU per request continues above the staircase's top rate (W26,
-``extend_load_curve``): ``log``, the upper staircase's fall carried on linearly in log(rate) up
-to the CPUs' capacity; ``busy``, linearly in the CPUs' busy share; ``flat``, the top rate's cost
-(engine 0.15.0)."""
+CURVE_FORM = "flat"
+"""How the service's CPU per request continues above the staircase's top rate: ``flat``, the top
+rate's cost (engine 0.15.0's rule, and the default); ``log``, W26's ``extend_load_curve``: the
+upper staircase's fall carried on linearly in log(rate), at most one measured stretch, up to the
+CPUs' capacity. Off by default until a protocol v6 campaign shows it helps: it was checked only
+on staircases built from the kept runs' ladders (docs/validation.md, Protocol), and on those it
+helped cache-aside and left pg-mixed alone but raised Kafka's knee, which is not the CPU's."""
 
 
 def staircase_cpu(
@@ -1346,14 +1348,14 @@ def service_time_by_load(
     """How the service's CPU per request changed with load over the calibration staircase
     (``cpuByLoad``: each rate's CPU per request net of idle, the median of its passes), as
     ``serviceTimeByLoad``: the engine's never-rising fit (``fit_load_curve``, one bin per rate),
-    relative to the top rate, whose CPU per request the service time is. Above the top rate
-    (W26): the fall the upper staircase measured, carried on until the service's ``cores``
-    fill (``extend_load_curve`` over each pass's CPU per request, ``passes``; ``form``, default
-    CURVE_FORM), when the top kept the CPUs at least EXTEND_MIN_BUSY busy and the fall stands
-    out of the passes' scatter; else the top rate's factor (1) at every higher load, as the
-    engine keeps the last point's. A protocol v5 staircase stops at a third of the core, so its
-    curve stays flat above the top. None without a staircase (protocols before v5), or when the
-    curve spans no more than MIN_CURVE_CHANGE."""
+    relative to the top rate, whose CPU per request the service time is. Above the top rate the
+    engine keeps the top rate's factor (1), unless ``form`` (default CURVE_FORM) is ``log``: then
+    the fall the upper staircase measured is carried on, at most one measured stretch, until the
+    service's ``cores`` fill (``extend_load_curve`` over each pass's CPU per request,
+    ``passes``), when the top kept the CPUs at least EXTEND_MIN_BUSY busy and the fall stands out
+    of the passes' scatter. A protocol v5 staircase stops at a third of the core, so its curve
+    stays flat above the top either way. None without a staircase (protocols before v5), or when
+    the curve spans no more than MIN_CURVE_CHANGE."""
     from archsim_engine.calibration.resources import (
         MIN_CURVE_CHANGE,
         extend_load_curve,
@@ -1369,7 +1371,7 @@ def service_time_by_load(
     if fit is None:
         return None
     form = form or CURVE_FORM
-    ext = extend_load_curve(passes, cores, form) if passes and form != "flat" else None
+    ext = extend_load_curve(passes, cores) if passes and form == "log" else None
     top = fit.points[-1][1]
     curve = [(r, f / top) for r, f in fit.points] + (ext.factors() if ext else [])
     factors = [f for _, f in curve]

@@ -163,7 +163,15 @@ median rate.
   pg-mixed, the share alone predicts the CPU at the knee within 12% (before calibration ArchSim
   predicted a full core where 0.46 was used, +116%) and is 51% low at 560 req/s; with the curve
   every step below the knee is within 15%. The simulation keeps the last bin's factor above the
-  range, so pick a range that reaches the load you size for. A service that autoscales, or runs
+  range, so pick a range that reaches the load you size for. `extend_load_curve` (in
+  `archsim_engine.calibration.resources`, W26, experimental) can carry a measured fall past the
+  top of the range: when the busiest rate kept the replica's CPUs at least 45% busy and the cost
+  over the rates that kept them at least 30% busy fell by more than twice the fall's standard
+  error (from the scatter of repeated measurements at each rate), it continues that fall
+  linearly in log(rate), at most as far above the top as those rates span below it and never
+  past where the CPUs fill, as one more point. Below 30% busy part of the fall is the host's
+  power management, which does not continue. Neither `archsim calibrate` nor the benchmarks use
+  it by default yet (`benchmarks/run.py`, `CURVE_FORM`). A service that autoscales, or runs
   serverless, gets a note instead (its rate per replica is not known), and so does a database
   (it has no such setting).
 - **More CPU than service time.** CPU spent outside the handler time you measured (HTTP parsing,

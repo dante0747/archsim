@@ -188,13 +188,14 @@ def main() -> int:
     siblings = run.cpu_siblings()
     try:
         for stack, exp_ids in plan.items():
+            boost = cpu_boost()
             at_start = {
                 "hostLoad": [host_load() for _ in range(3)],
-                "boostPct": cpu_boost(),
+                "boostPct": boost,
                 "otherJobs": other_jobs(),
             }
-            if at_start["boostPct"] < MIN_BOOST:
-                run.log(f"the CPU stopped boosting ({at_start['boostPct']:.0f}%): stopping here")
+            if boost < MIN_BOOST:
+                run.log(f"the CPU stopped boosting ({boost:.0f}%): stopping here")
                 return 1
             run.stack_up(stack)
             try:

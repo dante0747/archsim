@@ -865,9 +865,12 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
   its last point's factor at higher rates, so a service measured only at light load is charged
   that load's cost up to saturation, although measured stacks often keep getting cheaper (the
   cache-aside benchmark's Node.js service: 0.21 ms at 1,335 req/s, the top of its calibration,
-  and 0.16 ms at 4,850). Without the setting a request costs `cpuShare` x its service time at
-  any rate. CPU spent outside the service time (more than 1 x the service time) is not counted
-  either.
+  and 0.16 ms at 4,850). Calibrating to a higher load is the remedy: the benchmarks' protocol
+  v6 (W26) climbs to about two thirds of the core. W26's `extend_load_curve` can also add a last
+  point along a clear measured fall (experimental, off by default;
+  [calibration.md](calibration.md#cpu-and-memory)); the engine itself never extrapolates a
+  table. Without the setting a request costs `cpuShare` x its service time at any rate. CPU
+  spent outside the service time (more than 1 x the service time) is not counted either.
 - Health checks and automatic failover, deployments and rollouts; faults are the three kinds
   above (outage, slowdown, link latency), scheduled by you, not random failures.
 - Autoscaling cooldowns and stabilization windows beyond the simple rules above; node
