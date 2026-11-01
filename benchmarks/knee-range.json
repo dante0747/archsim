@@ -1,12 +1,12 @@
 {
-  "at": "2026-11-01T15:19:33Z",
+  "at": "2026-11-01T15:31:14Z",
   "engineVersion": "0.16.0",
   "inputsAndKneesFrom": "0.16.0",
-  "commit": "be92c705d1acc393361265d07a8f720c9ec1265f",
+  "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
   "provenance": {
-    "commit": "be92c705d1acc393361265d07a8f720c9ec1265f",
+    "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
     "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
-    "harnessHash": "6697df051e0aafb2b254d13be8a715c5784d5b9662fca260403ebbcd5b9fe318",
+    "harnessHash": "41e5d41d8cedd01c888413dfa5316081e497ae7fb7056f6e439058ed5f21824d",
     "dirty": false,
     "machineId": "i7-1165g7"
   },
@@ -21,8 +21,8 @@
   "experiments": 4,
   "inputs": {
     "serviceTimeMs": {
-      "sigma": 0.2073,
-      "calibrations": 26,
+      "sigma": 0.1672,
+      "calibrations": 25,
       "experiments": 4
     },
     "clientLinkLatencyMs": {
@@ -31,8 +31,8 @@
       "experiments": 2
     },
     "readServiceTimeMs": {
-      "sigma": 0.2856,
-      "calibrations": 14,
+      "sigma": 0.1746,
+      "calibrations": 13,
       "experiments": 2
     },
     "writeServiceTimeMs": {
@@ -46,18 +46,18 @@
       "experiments": 3
     },
     "dbLinkLatencyMs": {
-      "sigma": 0.4024,
-      "calibrations": 26,
+      "sigma": 0.218,
+      "calibrations": 25,
       "experiments": 4
     },
     "cacheServiceTimeMs": {
-      "sigma": 0.382,
-      "calibrations": 6,
+      "sigma": 0.1155,
+      "calibrations": 5,
       "experiments": 1
     },
     "cacheLinkLatencyMs": {
-      "sigma": 0.3163,
-      "calibrations": 6,
+      "sigma": 0.0411,
+      "calibrations": 5,
       "experiments": 1
     },
     "publishTimeMs": {
@@ -71,10 +71,10 @@
       "experiments": 1
     }
   },
-  "fallbackSigma": 0.2465,
-  "correlation": 0.5916,
+  "fallbackSigma": 0.1414,
+  "correlation": 0.4893,
   "model": {
-    "sigma": 0.0585,
+    "sigma": 0.1495,
     "runs": 12,
     "experiments": 4
   },
@@ -87,11 +87,11 @@
     "counts": {
       "inSample": {
         "0.5": [
-          3,
+          5,
           12
         ],
         "0.8": [
-          8,
+          9,
           12
         ],
         "0.9": [
@@ -101,11 +101,11 @@
       },
       "leaveRunOut": {
         "0.5": [
-          4,
+          5,
           12
         ],
         "0.8": [
-          8,
+          9,
           12
         ],
         "0.9": [
@@ -389,19 +389,6 @@
       }
     },
     {
-      "experiment": "cache-aside",
-      "source": "trials/2026-11-01-cache-aside-w26-throttled",
-      "calibratedAt": "2026-11-01T01:22:22Z",
-      "scales": {
-        "serviceTimeMs": 0.428198,
-        "readServiceTimeMs": 0.498748,
-        "dbCpuShare": 1.0,
-        "dbLinkLatencyMs": 0.346729,
-        "cacheServiceTimeMs": 0.09326,
-        "cacheLinkLatencyMs": 0.108
-      }
-    },
-    {
       "experiment": "kafka",
       "source": "kafka/run-3",
       "calibratedAt": "2026-10-30T23:00:02Z",
@@ -516,27 +503,27 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": -0.184,
-      "calibrationSigma": 0.2073,
+      "calibrationSigma": 0.1672,
       "ranges": {
         "inSample": {
-          "lowRps": 3794,
-          "highRps": 6590,
-          "calibrationSigma": 0.2073,
-          "modelSigma": 0.0585,
+          "lowRps": 3751,
+          "highRps": 6665,
+          "calibrationSigma": 0.1672,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3785,
-          "highRps": 6605,
-          "calibrationSigma": 0.2113,
-          "modelSigma": 0.0505,
+          "lowRps": 3737,
+          "highRps": 6690,
+          "calibrationSigma": 0.1702,
+          "modelSigma": 0.1505,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 3703,
-          "highRps": 6751,
-          "calibrationSigma": 0.2343,
-          "modelSigma": 0.0,
+          "lowRps": 3748,
+          "highRps": 6671,
+          "calibrationSigma": 0.1822,
+          "modelSigma": 0.132,
           "holds": true
         }
       }
@@ -564,27 +551,27 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": -0.2222,
-      "calibrationSigma": 0.2075,
+      "calibrationSigma": 0.1674,
       "ranges": {
         "inSample": {
-          "lowRps": 3584,
-          "highRps": 6229,
-          "calibrationSigma": 0.2075,
-          "modelSigma": 0.0585,
+          "lowRps": 3544,
+          "highRps": 6299,
+          "calibrationSigma": 0.1674,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3583,
-          "highRps": 6231,
-          "calibrationSigma": 0.2123,
-          "modelSigma": 0.039,
+          "lowRps": 3547,
+          "highRps": 6295,
+          "calibrationSigma": 0.1714,
+          "modelSigma": 0.144,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 3498,
-          "highRps": 6382,
-          "calibrationSigma": 0.2345,
-          "modelSigma": 0.0,
+          "lowRps": 3541,
+          "highRps": 6305,
+          "calibrationSigma": 0.1824,
+          "modelSigma": 0.132,
           "holds": true
         }
       }
@@ -612,27 +599,27 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": -0.2117,
-      "calibrationSigma": 0.2073,
+      "calibrationSigma": 0.1672,
       "ranges": {
         "inSample": {
-          "lowRps": 3756,
-          "highRps": 6524,
-          "calibrationSigma": 0.2073,
-          "modelSigma": 0.0585,
+          "lowRps": 3713,
+          "highRps": 6598,
+          "calibrationSigma": 0.1672,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3753,
-          "highRps": 6529,
-          "calibrationSigma": 0.2115,
-          "modelSigma": 0.044,
+          "lowRps": 3710,
+          "highRps": 6604,
+          "calibrationSigma": 0.1703,
+          "modelSigma": 0.147,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 3666,
-          "highRps": 6684,
-          "calibrationSigma": 0.2343,
-          "modelSigma": 0.0,
+          "lowRps": 3710,
+          "highRps": 6604,
+          "calibrationSigma": 0.1822,
+          "modelSigma": 0.132,
           "holds": true
         }
       }
@@ -658,27 +645,27 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": 0.0958,
-      "calibrationSigma": 0.1102,
+      "calibrationSigma": 0.1067,
       "ranges": {
         "inSample": {
-          "lowRps": 634,
-          "highRps": 873,
-          "calibrationSigma": 0.1102,
-          "modelSigma": 0.0585,
+          "lowRps": 588,
+          "highRps": 941,
+          "calibrationSigma": 0.1067,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 614,
-          "highRps": 901,
-          "calibrationSigma": 0.1021,
-          "modelSigma": 0.109,
+          "lowRps": 571,
+          "highRps": 969,
+          "calibrationSigma": 0.0983,
+          "modelSigma": 0.181,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 573,
-          "highRps": 966,
-          "calibrationSigma": 0.0997,
-          "modelSigma": 0.178,
+          "lowRps": 542,
+          "highRps": 1022,
+          "calibrationSigma": 0.0957,
+          "modelSigma": 0.2285,
           "holds": true
         }
       }
@@ -704,27 +691,27 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": -0.1011,
-      "calibrationSigma": 0.1032,
+      "calibrationSigma": 0.1002,
       "ranges": {
         "inSample": {
-          "lowRps": 912,
-          "highRps": 1236,
-          "calibrationSigma": 0.1032,
-          "modelSigma": 0.0585,
+          "lowRps": 843,
+          "highRps": 1337,
+          "calibrationSigma": 0.1002,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 892,
-          "highRps": 1265,
-          "calibrationSigma": 0.096,
-          "modelSigma": 0.097,
+          "lowRps": 823,
+          "highRps": 1370,
+          "calibrationSigma": 0.0931,
+          "modelSigma": 0.1755,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 821,
-          "highRps": 1374,
-          "calibrationSigma": 0.0932,
-          "modelSigma": 0.178,
+          "lowRps": 775,
+          "highRps": 1455,
+          "calibrationSigma": 0.0897,
+          "modelSigma": 0.2285,
           "holds": true
         }
       }
@@ -750,27 +737,27 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": 0.0652,
-      "calibrationSigma": 0.1084,
+      "calibrationSigma": 0.1051,
       "ranges": {
         "inSample": {
-          "lowRps": 741,
-          "highRps": 1016,
-          "calibrationSigma": 0.1084,
-          "modelSigma": 0.0585,
+          "lowRps": 687,
+          "highRps": 1097,
+          "calibrationSigma": 0.1051,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 722,
-          "highRps": 1043,
-          "calibrationSigma": 0.1114,
-          "modelSigma": 0.0905,
+          "lowRps": 675,
+          "highRps": 1117,
+          "calibrationSigma": 0.108,
+          "modelSigma": 0.1645,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 669,
-          "highRps": 1126,
-          "calibrationSigma": 0.098,
-          "modelSigma": 0.178,
+          "lowRps": 632,
+          "highRps": 1191,
+          "calibrationSigma": 0.0942,
+          "modelSigma": 0.2285,
           "holds": true
         }
       }
@@ -798,20 +785,20 @@
         "cacheLinkLatencyMs": 0.0
       },
       "error": 0.2977,
-      "calibrationSigma": 0.2152,
+      "calibrationSigma": 0.1736,
       "ranges": {
         "inSample": {
-          "lowRps": 3983,
-          "highRps": 7053,
-          "calibrationSigma": 0.2152,
-          "modelSigma": 0.0585,
+          "lowRps": 3952,
+          "highRps": 7108,
+          "calibrationSigma": 0.1736,
+          "modelSigma": 0.1495,
           "holds": false
         },
         "leaveRunOut": {
-          "lowRps": 4010,
-          "highRps": 7005,
-          "calibrationSigma": 0.2082,
-          "modelSigma": 0.0635,
+          "lowRps": 3984,
+          "highRps": 7051,
+          "calibrationSigma": 0.1716,
+          "modelSigma": 0.142,
           "holds": false
         },
         "leaveExperimentOut": {
@@ -846,20 +833,20 @@
         "cacheLinkLatencyMs": 0.0
       },
       "error": 0.4144,
-      "calibrationSigma": 0.2104,
+      "calibrationSigma": 0.1697,
       "ranges": {
         "inSample": {
-          "lowRps": 3212,
-          "highRps": 5623,
-          "calibrationSigma": 0.2104,
-          "modelSigma": 0.0585,
+          "lowRps": 3181,
+          "highRps": 5679,
+          "calibrationSigma": 0.1697,
+          "modelSigma": 0.1495,
           "holds": false
         },
         "leaveRunOut": {
-          "lowRps": 3227,
-          "highRps": 5597,
-          "calibrationSigma": 0.2149,
-          "modelSigma": 0.0,
+          "lowRps": 3283,
+          "highRps": 5502,
+          "calibrationSigma": 0.1735,
+          "modelSigma": 0.1025,
           "holds": false
         },
         "leaveExperimentOut": {
@@ -894,20 +881,20 @@
         "cacheLinkLatencyMs": 0.0
       },
       "error": 0.4122,
-      "calibrationSigma": 0.209,
+      "calibrationSigma": 0.1685,
       "ranges": {
         "inSample": {
-          "lowRps": 3673,
-          "highRps": 6405,
-          "calibrationSigma": 0.209,
-          "modelSigma": 0.0585,
+          "lowRps": 3634,
+          "highRps": 6473,
+          "calibrationSigma": 0.1685,
+          "modelSigma": 0.1495,
           "holds": false
         },
         "leaveRunOut": {
-          "lowRps": 3711,
-          "highRps": 6338,
-          "calibrationSigma": 0.2089,
-          "modelSigma": 0.0,
+          "lowRps": 3752,
+          "highRps": 6269,
+          "calibrationSigma": 0.1715,
+          "modelSigma": 0.1035,
           "holds": false
         },
         "leaveExperimentOut": {
@@ -943,27 +930,27 @@
         "fetchOverheadMs": 0.0
       },
       "error": -0.2814,
-      "calibrationSigma": 0.2077,
+      "calibrationSigma": 0.1675,
       "ranges": {
         "inSample": {
-          "lowRps": 2142,
-          "highRps": 3725,
-          "calibrationSigma": 0.2077,
-          "modelSigma": 0.0585,
-          "holds": false
+          "lowRps": 2119,
+          "highRps": 3767,
+          "calibrationSigma": 0.1675,
+          "modelSigma": 0.1495,
+          "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 2154,
-          "highRps": 3705,
-          "calibrationSigma": 0.2029,
-          "modelSigma": 0.06,
-          "holds": false
+          "lowRps": 2130,
+          "highRps": 3746,
+          "calibrationSigma": 0.1588,
+          "modelSigma": 0.1525,
+          "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 2117,
-          "highRps": 3770,
-          "calibrationSigma": 0.223,
-          "modelSigma": 0.0315,
+          "lowRps": 2076,
+          "highRps": 3844,
+          "calibrationSigma": 0.1742,
+          "modelSigma": 0.1655,
           "holds": true
         }
       }
@@ -992,27 +979,27 @@
         "fetchOverheadMs": 0.0
       },
       "error": -0.024,
-      "calibrationSigma": 0.2075,
+      "calibrationSigma": 0.1674,
       "ranges": {
         "inSample": {
-          "lowRps": 1622,
-          "highRps": 2818,
-          "calibrationSigma": 0.2075,
-          "modelSigma": 0.0585,
+          "lowRps": 1604,
+          "highRps": 2850,
+          "calibrationSigma": 0.1674,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 1609,
-          "highRps": 2841,
-          "calibrationSigma": 0.2124,
-          "modelSigma": 0.0635,
+          "lowRps": 1585,
+          "highRps": 2884,
+          "calibrationSigma": 0.1715,
+          "modelSigma": 0.1585,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 1602,
-          "highRps": 2853,
-          "calibrationSigma": 0.2228,
-          "modelSigma": 0.0315,
+          "lowRps": 1572,
+          "highRps": 2909,
+          "calibrationSigma": 0.1741,
+          "modelSigma": 0.1655,
           "holds": true
         }
       }
@@ -1041,27 +1028,27 @@
         "fetchOverheadMs": 0.0
       },
       "error": -0.0351,
-      "calibrationSigma": 0.2075,
+      "calibrationSigma": 0.1674,
       "ranges": {
         "inSample": {
-          "lowRps": 1593,
-          "highRps": 2768,
-          "calibrationSigma": 0.2075,
-          "modelSigma": 0.0585,
+          "lowRps": 1575,
+          "highRps": 2800,
+          "calibrationSigma": 0.1674,
+          "modelSigma": 0.1495,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 1581,
-          "highRps": 2790,
-          "calibrationSigma": 0.2123,
-          "modelSigma": 0.0635,
+          "lowRps": 1557,
+          "highRps": 2832,
+          "calibrationSigma": 0.1713,
+          "modelSigma": 0.1585,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 1574,
-          "highRps": 2802,
-          "calibrationSigma": 0.2228,
-          "modelSigma": 0.0315,
+          "lowRps": 1544,
+          "highRps": 2857,
+          "calibrationSigma": 0.1741,
+          "modelSigma": 0.1655,
           "holds": true
         }
       }
