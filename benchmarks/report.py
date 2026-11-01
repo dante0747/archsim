@@ -1467,9 +1467,22 @@ def dev_text(results: Path = RESULTS) -> str:
     if not checks:
         return "\n".join([*head, "_No development checks yet._", ""])
     engines = sorted(checks, key=version_key)
+    # an engine checked with the benchmark designs on a host machine (run.py machine_inputs,
+    # BENCH_HOST=on): its column says so, and the notes say where the machine came from
+    hosts = {
+        e: next(
+            (c["inputs"]["host"]["how"] for r in checks[e].values() for c in r.values()
+             if "host" in (c.get("inputs") or {})),
+            None,
+        )
+        for e in engines
+    }  # fmt: skip
     lines = [
         "| Experiment | Results | Calibrated (UTC) | Inputs as calibrated | Knee measured | Counted | "
-        + " | ".join(f"Engine {e}: knee (error)" for e in engines)
+        + " | ".join(
+            f"Engine {e}{' with its host machine' if hosts[e] else ''}: knee (error)"
+            for e in engines
+        )
         + " |",
         "| --- " * (6 + len(engines)) + "|",
     ]
@@ -1506,11 +1519,18 @@ def dev_text(results: Path = RESULTS) -> str:
         f"{len(v['all'])} counted runs."
         for e, v in errors.items()
     ]
+    machines = [
+        f"- Engine {e} ran the designs on a host machine (`BENCH_HOST=on`, `run.py "
+        f"machine_inputs`): {how}."
+        for e, how in hosts.items()
+        if how
+    ]
     notes = [
         "",
         "Knees in req/s; error = (simulated - measured) / measured.",
         "",
         *summary,
+        *(["", *machines] if machines else []),
         "",
         '"Inputs as calibrated: no" marks a run whose protocol derived its inputs differently '
         "from today's code (v2 had no anchoring of the client latency), so its row is today's "

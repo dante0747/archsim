@@ -138,9 +138,11 @@ Three commands check the model and the machine rather than measure accuracy:
   CPU, alone and with its hyperthread sibling, other cores or every CPU busy, and at a part of
   its own time. Windows' counters (each logical processor's busy share as the hypervisor sees
   it, the actual frequency, power and thermal limits) are read every second meanwhile. It writes
-  `results/envcheck/<time>-contention.json`; since engine 0.16.0 the benchmark designs take
-  their host machine from the latest quiet one (see [What the machine itself
-  does](#environment)).
+  `results/envcheck/<time>-contention.json`. With `BENCH_HOST=on` the benchmark designs take
+  their host machine from it (`architecture.host`, engine 0.16.0); by default they have none,
+  as before (see [What the machine itself does](#environment)). `run.py contention
+  --service-only` takes only the machine at rest and the service at three rates (about 4
+  minutes).
 
 `report.py --json` also writes the same numbers as data, to `docs/validation/accuracy.json` and a
 copy in `apps/web/src/data/` (the web image is built from `apps/web` alone; a test keeps the two
@@ -590,10 +592,17 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
     overloaded with Node 89% busy and its CPU per request up 31%, and PostgreSQL saturating its
     two CPUs (hyperthread siblings of one physical core) with its CPU per query up from 0.16 to
     0.26 ms. So the likely cause is a CPU cost that rises near full load, in both processes at
-    once: on this laptop probably its power and turbo limits once every core is busy. Giving the
-    model's PostgreSQL its one physical core instead of two logical CPUs does not move the
-    model's knee, which stays Node's (W22's what-if); a cost per request that rises near full
-    load is not modelled yet.
+    once: on this laptop its clock falls from about 4,050 to 2,950 MHz as its 8 logical
+    processors fill, and past one busy thread per core the threads share cores (`run.py
+    contention`, [Environment](#environment)). Giving the model's PostgreSQL its one physical
+    core instead of two logical CPUs does not move the model's knee, which stays Node's (W22's
+    what-if). Engine 0.16.0 can model a machine's threads slowing each other
+    (`architecture.host`), but the benchmark designs do not use it yet: re-simulated in-sample
+    (with k6's CPU and the machine's background assumed, not measured), it takes pg-mixed from
+    +24% to +11% and PostgreSQL's CPU near the knee from 12% low to about right, while
+    cache-aside goes from -34% to -41% and Kafka from +4% to -22% (IMPLEMENTATION_STATUS.md,
+    W27): the real CPU per request also falls with load, which the model has only up to the top
+    of the calibration staircase.
   - *cache-aside (-26% to -34%): the CPU per request falls with load.* The predicted knee is one
     core at the calibrated 0.20 ms per request (4,850 req/s); the real cost fell to 0.16 ms by
     then and kept falling, and the real knee was about 7,000 req/s.

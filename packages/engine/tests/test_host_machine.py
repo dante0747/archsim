@@ -213,3 +213,27 @@ def test_schema_1_6_documents_migrate_unchanged() -> None:
     assert out["schemaVersion"] == "1.7"
     assert out["architecture"] == doc["architecture"]
     assert notes
+
+
+def test_the_static_analyses_see_the_machine_too() -> None:
+    from archsim_engine.analyze import analyze_document
+    from archsim_engine.components import create_default_registry
+
+    registry = create_default_registry(include_plugins=False)
+
+    def cpu(doc: dict[str, Any]) -> dict[str, float]:
+        a = analyze_document(doc, registry)
+        return {r["id"]: r["cpuUtilization"] for r in a["estimate"]["parts"]}
+
+    plain = cpu(_doc(1500))
+    assert plain == {"api": pytest.approx(0.3), "db": pytest.approx(0.75)}
+    host = {"physicalCores": 2, "siblingSpeed": 0.6, "allCoreClock": 0.8}
+    slowed = cpu(_doc(1500, host=host))
+    assert slowed["api"] > plain["api"] and slowed["db"] > plain["db"]
+    # a 2-vCPU database's own hyperthreads: 1.5 busy threads of 2 share their core
+    own = cpu(_doc(1500, sibling=0.6))
+    assert own["db"] > plain["db"] and own["api"] == pytest.approx(plain["api"])
+    # the review says why its CPU is busier
+    review = analyze_document(_doc(1500, sibling=0.6), registry)["review"]
+    cpu_finding = next(f for f in review if f["rule"] == "cpu-capacity")
+    assert "of it on its hyperthreads" in cpu_finding["detail"]

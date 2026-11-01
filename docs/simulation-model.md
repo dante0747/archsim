@@ -515,11 +515,13 @@ design review and auto-sizing take the speed at the estimated peak, `busy = base
 other`, where `base` is the threads the parts' CPU work needs at full speed. Sizing on a host
 counts the parts it is about to size.
 
-The accuracy benchmarks set the host from a contention check of the machine (`run.py
+The accuracy benchmarks can set the host from a contention check of the machine (`run.py
 contention`, [validation.md](validation.md)): a fixed unit of V8 work timed with its
 hyperthread sibling, other cores or every CPU busy, Windows' own frequency and logical-processor
-counters meanwhile, and k6's CPU per request; each calibration pass's CPU per request is
-divided out by the machine's speed during that pass (`run.py machine_inputs`).
+counters meanwhile, and k6's CPU per request; each calibration pass's CPU per request is then
+divided out by the machine's speed during that pass (`run.py machine_inputs`). They do so only
+with `BENCH_HOST=on`: on in-sample re-simulation it did not yet clear the accuracy gate
+(IMPLEMENTATION_STATUS.md, W27).
 
 **Auto-sizing.** An empty spec is *Auto*: before a run the engine (`sizing.py`) gives the part
 the size it needs for the design's own peak load, so the CLI, the API and the web app simulate

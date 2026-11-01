@@ -7,6 +7,86 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**CPU threads that slow each other down: a host machine and hyperthreads (2026-11-01; accuracy round 2, W27; engine label 0.16.0-w27, schema 1.7). Shipped off in the benchmark designs.**
+
+- **What the laptop does** (`run.py contention`, new; `results/envcheck/2026-11-01T00-48-59Z-contention.json`):
+  a fixed unit of V8 work on CPU 2 with burners on chosen CPUs, Windows' counters read every
+  second (each logical processor's busy share as the hypervisor sees it, actual frequency,
+  limit flags). Docker Desktop's VM numbers its CPUs as hyperthread pairs, but Windows
+  schedules them itself: the probe and its in-VM "sibling" together did 1.57 to 1.70 times one
+  CPU's work (a real pair does about 1.2), so cpusets do not decide who shares a core. What
+  sets the speed is how many of the 8 logical processors the whole machine has busy: CPU per
+  unit of work 0.85 to 1.0x at 1.8 to 3.5 busy, 1.2x at 4.6, 1.5x at 5.5, 1.9x at 6.6, 2.1x at
+  7.4, about 3x with all 8 (oversubscribed); the clock fell in a straight line from 4,050 MHz
+  (1 busy) to about 2,950 MHz (8 busy), no limit flagged. Four physical cores, that clock (x0.73)
+  and a thread sharing its core at 0.48 of its speed fit 20 conditions within 5.5% (rms, log).
+  A container's CPU time includes what Windows takes away (no steal reported), so its CPU per
+  request rises with the whole machine's load. After about 15 minutes near full load (the check
+  plus other sessions' jobs) the clock fell to 1,525 to 1,775 MHz under full load and read 2,350
+  to 2,850 MHz at a quarter to a third of it (4,000 to 4,300 before), for over an hour, still
+  with no limit flag, on mains and Best performance (W26 saw about 2.1 GHz overnight).
+- **Not measured**: k6's own CPU per request and the machine's background at rest. The short
+  check that reads them (`run.py contention --service-only`, about 4 minutes) needs a quiet,
+  cool machine and never got one (two attempts: other sessions' jobs, then throttling); its
+  first service part ran at 6 to 8 busy threads and is not used.
+- **Engine** (`components/host.py`; both settings empty by default, left out of the JSON; no-op
+  migration 1.6 -> 1.7): `architecture.host` (`physicalCores`, `threadsPerCore`, `siblingSpeed`,
+  `allCoreClock`, `otherBusyThreads`, `clientCpuMs`): every part with a CPU size shares that
+  machine's threads with its background and the CPU the clients' traffic costs on it. A thread's
+  speed = clock (straight line from 1 busy thread to all) x sharing (past one thread per core,
+  a thread sharing its core runs at `siblingSpeed`) x turns (past every thread). In the
+  simulation each piece of CPU work runs at the speed for the busy threads when it starts (part
+  executors, background, clients at that moment). `siblingSpeed` on a service, database or
+  cache: its own vCPUs as hyperthread pairs (2 vCPU at 0.6 serve 1.2 cores' work). Every
+  analytic copy uses it: `resource_capacity` (service, database, cache: the load multiple at
+  which the part's threads fill, everything growing in proportion), the event-loop `explain`
+  formula, the instant estimate, auto-sizing and the review's CPU finding. Report: a top-level
+  `host` (busy threads, mean speed) when the design has one. All 25 examples' result digests
+  (8 s runs) are identical to main's engine with the settings empty, and so is the check
+  snapshot's (`6f115d28853f`). The web editor keeps a document's `host` through edits (no form
+  for it yet); `siblingSpeed` shows as a field.
+- **Harness** (`run.py`): `machine_inputs` gives a design its host from the contention check
+  (`host_fit`) and the top pass's own machine load (every container's CPU, k6's, the
+  background): the CPU-time inputs (`serviceTimeMs`, `dbCpuShare`, `cacheServiceTimeMs`) are
+  divided out by the machine's speed during that pass; containers the model has no CPU for
+  (Kafka's broker and consumer) join the host's other load. `pass_speed(entry)` gives the
+  machine's speed for any calibration pass, for W26's curve. **Only with `BENCH_HOST=on`**
+  (default off: the designs are as before); `BENCH_HOST_FIT` takes a fit file, `BENCH_HOST_CLOCK`
+  a clock, for what-ifs.
+- **In-sample what-if** (`BENCH_HOST=on` with `results/trials/2026-11-01-w27/what-if-fit.json`:
+  the probe's fit, k6 0.25 ms per request and 0.3 background threads ASSUMED;
+  `results/dev/0.16.0-w27/`, `docs/validation/dev-checks.md`), against engine 0.15.0:
+
+  | | engine 0.15.0 | 0.16.0-w27, host on (what-if) |
+  | --- | --- | --- |
+  | pg-mixed median knee error (3 counted v5 runs) | +24% (+20, +25, +24) | +11% (+8, +13, +11) |
+  | pg-hot-row | -7% (-11, +10, -7) | -7% (-11, +10, -7) |
+  | cache-aside | -34% (-26, -34, -34) | -41% (-33, -41, -45) |
+  | Kafka | +4% (+33, +3, +4) | -22% (0, -23, -22) |
+  | pg-mixed p95 at 2,475 / 3,712 / 4,455 req/s (measured 2.04 / 8.67 / 65.1 ms) | 1.57 / 1.76 / 2.37 | 1.57 / 1.91 / 17.2 |
+  | pg-mixed busy cores there, Node (measured 0.51 / 0.77 / 0.89) | 0.50 / 0.75 / 0.90 | 0.52 / 0.80 / 0.99 |
+  | pg-mixed busy cores there, PostgreSQL (measured 0.44 / 0.73 / 0.86) | 0.42 / 0.64 / 0.76 | 0.44 / 0.70 / 0.90 |
+
+  Median absolute knee error over all 19 counted runs 24% -> 22%, over the latest runs 15% ->
+  17%. pg-mixed moves halfway toward 0 and PostgreSQL's CPU near the knee becomes right, but
+  partly for an offsetting reason: Node's CPU per request measured flat from 1,674 to 4,455
+  req/s while Windows' clock fell about 11% over that range, so its work per request fell about
+  as much (more requests per event-loop wake-up), which the model does not have above the
+  staircase; with only the machine's slowdown, Node's CPU at 4,455 req/s is 11% high and the
+  model's capacity lands near the real knee because its latency cliff is sharper than the real
+  one. Cache-aside gets worse for the same missing fall (its real CPU per request falls from
+  0.21 to 0.13 ms with load). Kafka gets worse because the broker's healthcheck JVM (0.42 cores
+  at rest) and the consumer join the machine's load, and its kept knees are the healthcheck's
+  anyway (W23). **The gate is not met, so the benchmark designs ship without a host.**
+- **What would settle it**: (1) a quiet, cool `run.py contention --service-only` (k6's CPU per
+  request and the background, instead of assumed values); (2) W26's falling cost per request
+  fitted to `cost x pass_speed(pass)` on a staircase that reaches nearer the knee, then the four
+  experiments re-simulated with `BENCH_HOST=on`; (3) for Kafka, a run after the healthcheck fix.
+  The held-out stacks are where hyperthreads matter most (java, go and python on 2 vCPU) and
+  stay sealed.
+- Checks: pytest (engine `test_host_machine.py`, harness `test_machine_inputs.py`), ruff, mypy,
+  web lint/vitest/tsc/build and Playwright.
+
 **Engine 0.15.0: the accuracy plan's four model changes together (2026-10-31; W21 to W24).**
 
 - The four workstreams below, merged on one branch: a single 1.5 -> 1.6 migration covers W21's

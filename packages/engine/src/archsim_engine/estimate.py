@@ -387,15 +387,26 @@ def estimate_design(
     loads = estimate_load(snapshot, registry, miss_shares=miss_shares, edge_loads=flows)
     # CPU threads that slow each other down (schema 1.7): the design's host or a part's own
     # hyperthreads, at the estimated load
-    speeds = machine_speeds(
-        resolved.architecture.host,
-        {
-            n.id: (n.type, parsed[n.id].model_dump(mode="json", by_alias=True), ld.read, ld.write)
-            for n in nodes
-            if n.type in MACHINE_TYPES and n.id in parsed and (ld := loads.get(n.id)) is not None
-        },
-        peak,
-    )
+    speeds: dict[str, float] = {}
+    if resolved.architecture.host is not None or any(
+        getattr(parsed.get(n.id), "sibling_speed", None) is not None for n in nodes
+    ):
+        speeds = machine_speeds(
+            resolved.architecture.host,
+            {
+                n.id: (
+                    n.type,
+                    parsed[n.id].model_dump(mode="json", by_alias=True),
+                    ld.read,
+                    ld.write,
+                )
+                for n in nodes
+                if n.type in MACHINE_TYPES
+                and n.id in parsed
+                and (ld := loads.get(n.id)) is not None
+            },
+            peak,
+        )
     on_path, sync_links = _sync_reach(nodes, out, kinds)
 
     link = {e.id: times(2, moments(e.config.latency_ms)) for e in edges}

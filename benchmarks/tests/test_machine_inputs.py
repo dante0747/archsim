@@ -162,3 +162,21 @@ def test_the_committed_checks_are_this_machines(tmp_path: Any) -> None:
         assert data["environment"]["machineId"] == "i7-1165g7"
         assert data["probeRounds"]
     assert run.host_checks(tmp_path) == []
+
+
+def test_the_host_is_opt_in_and_a_what_if_fit_can_be_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    fit = run.host_fit(check())
+    path = tmp_path / "fit.json"
+    path.write_text(json.dumps(fit), encoding="utf-8")
+    monkeypatch.setenv("BENCH_HOST_FIT", str(path))
+    for switch, expected in (("", None), ("off", None), ("on", fit)):
+        monkeypatch.setattr(run, "_HOST_FIT", False)
+        monkeypatch.setenv("BENCH_HOST", switch)
+        assert run.machine_fit() == expected
+    monkeypatch.setattr(run, "_HOST_FIT", False)
+    monkeypatch.setenv("BENCH_HOST_CLOCK", "0.9")
+    got = run.machine_fit()
+    assert got is not None and got["allCoreClock"] == 0.9 and "what-if" in got["how"]
+    monkeypatch.setattr(run, "_HOST_FIT", False)

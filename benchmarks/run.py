@@ -2493,31 +2493,38 @@ _HOST_FIT: dict[str, Any] | bool | None = False
 
 
 HOST_SWITCH = "BENCH_HOST"
-"""``BENCH_HOST=off`` leaves the host machine out of the designs (as before engine 0.16.0);
-``BENCH_HOST_CLOCK`` (0 to 1) replaces the fitted all-core clock, for what-ifs."""
+"""The benchmark designs get a host machine only with ``BENCH_HOST=on``; by default they have
+none, as before engine 0.16.0 (the in-sample what-if did not clear the accuracy gate: see
+IMPLEMENTATION_STATUS.md, W27). ``BENCH_HOST_FIT`` names a JSON file with a fit's keys
+(``host_fit``) to use instead of the contention checks, for what-ifs; ``BENCH_HOST_CLOCK`` (0 to
+1) replaces the fitted all-core clock."""
 
 
 def machine_fit(results: Path = RESULTS) -> dict[str, Any] | None:
-    """The thread model (``host_fit``) from the latest contention check with a probe and the
-    latest quiet one with a service part, read once; None when there is none (then the designs
-    have no host machine, as before engine 0.16.0)."""
+    """With ``BENCH_HOST=on``, the thread model (``host_fit``) from the latest contention check
+    with a probe and the latest quiet one with a service part (or ``BENCH_HOST_FIT``'s), read
+    once; None otherwise (then the designs have no host machine, as before engine 0.16.0)."""
     global _HOST_FIT
     if _HOST_FIT is False:
         _HOST_FIT = None
-        if os.environ.get(HOST_SWITCH, "").lower() == "off":
+        if os.environ.get(HOST_SWITCH, "").lower() != "on":
             return None
-        checks = [read_json(p) for p in reversed(host_checks(results))]
-        probes = [c for c in checks if any(c.get("probeRounds") or [])]
-        for service in checks:
-            if probes and (fit := host_fit(probes[0], service)) is not None:
-                if clock := os.environ.get(f"{HOST_SWITCH}_CLOCK"):
-                    fit = {
-                        **fit,
-                        "allCoreClock": float(clock),
-                        "how": f"{fit['how']}; clock set to {clock} (what-if)",
-                    }
-                _HOST_FIT = fit
-                break
+        fit: dict[str, Any] | None = None
+        if given := os.environ.get(f"{HOST_SWITCH}_FIT"):
+            fit = read_json(Path(given))
+        else:
+            checks = [read_json(p) for p in reversed(host_checks(results))]
+            probes = [c for c in checks if any(c.get("probeRounds") or [])]
+            for service in checks:
+                if probes and (fit := host_fit(probes[0], service)) is not None:
+                    break
+        if fit is not None and (clock := os.environ.get(f"{HOST_SWITCH}_CLOCK")):
+            fit = {
+                **fit,
+                "allCoreClock": float(clock),
+                "how": f"{fit['how']}; clock set to {clock} (what-if)",
+            }
+        _HOST_FIT = fit
     return _HOST_FIT if isinstance(_HOST_FIT, dict) else None
 
 
