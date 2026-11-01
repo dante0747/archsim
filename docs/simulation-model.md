@@ -471,6 +471,56 @@ window), `memoryPeakGiB` (services), `bufferHitRatio` (databases) and `capacityK
 collection (GC pauses come from the technology profile, see above, not from the memory spec),
 OOM kills and restarts (memory is a refusal limit), page-cache dynamics, disk write bandwidth,
 network bandwidth.
+#### CPU threads that slow each other down (schema 1.7)
+
+A vCPU is usually a hardware thread, not a core: two threads share each physical core
+(hyperthreads), and a machine's clock falls as more of it is busy (turbo and power limits). So
+N busy vCPUs do less than N times one's work. Two optional settings model it
+(`components/host.py`); both empty, every vCPU is a full core at a fixed speed, as before:
+
+- **`architecture.host`**: the one machine every part with a CPU size runs on (docker compose on
+  one VM, a benchmark on a laptop), with `physicalCores`, `threadsPerCore` (2 with
+  hyperthreads), `siblingSpeed`, `allCoreClock`, `otherBusyThreads` (its background) and
+  `clientCpuMs` (CPU the clients' traffic costs on it outside the design's parts, such as a load
+  generator on the same machine). The parts' CPU work, the background and the clients' load all
+  count as busy threads of that machine.
+- **`siblingSpeed`** on a service, database or cache with 2 or more `cpuCores`: its own vCPUs
+  are hyperthreads, two per core (a cloud instance; leave it empty on Graviton and other cores
+  without them). Ignored on a design with a host.
+
+With `busy` threads wanting the CPU on `P` physical cores of `T` threads, a thread runs at
+`clock x sharing x turns` of its speed alone on an idle machine:
+
+- `clock = 1 - (1 - allCoreClock) x (min(busy, P x T) - 1) / (P x T - 1)`: the clock falls in a
+  straight line from one busy thread to all of them;
+- `sharing = 1 - (1 - siblingSpeed) x min(1, 2 (busy - P) / busy)` when `T = 2` and
+  `busy > P`: the scheduler gives threads idle cores first, so only past `P` do they share one,
+  and a thread sharing its core runs at `siblingSpeed`;
+- `turns = min(1, P x T / busy)`: past every thread they take turns.
+
+In the simulation a piece of CPU work starting with `busy` threads (its machine's executors
+then running, the background and `clientCpuMs` x the clients' offered rate) takes
+`work / speed(busy)` on its vCPU. The vCPU is occupied for that long, so a part's busy cores and
+CPU per request rise as the machine fills, as a container's CPU time does when the machine is
+busy. Without a host, a part's own hyperthreads use the same formula with `P = cpuCores / 2` and
+no other load: 2 vCPU at `siblingSpeed` 0.6 serve 1.2 cores' work with both busy. The report
+gains `host` (`physicalCores`, `threads`, `partsBusyThreads`, `otherBusyThreads`, `busyThreads`
+and `meanSpeed` over the window) when the design has one.
+
+The calculations around a run use the same speed at the load they reason about: the CPU
+ceiling in `capacityRps` is the load multiple at which the part's threads fill while every
+part's load and the clients' grow in proportion to the window's (own hyperthreads: every vCPU
+busy); the event-loop formula in `explain` says the speed it assumed; the instant estimate, the
+design review and auto-sizing take the speed at the estimated peak, `busy = base / speed(busy) +
+other`, where `base` is the threads the parts' CPU work needs at full speed. Sizing on a host
+counts the parts it is about to size.
+
+The accuracy benchmarks set the host from a contention check of the machine (`run.py
+contention`, [validation.md](validation.md)): a fixed unit of V8 work timed with its
+hyperthread sibling, other cores or every CPU busy, Windows' own frequency and logical-processor
+counters meanwhile, and k6's CPU per request; each calibration pass's CPU per request is
+divided out by the machine's speed during that pass (`run.py machine_inputs`).
+
 **Auto-sizing.** An empty spec is *Auto*: before a run the engine (`sizing.py`) gives the part
 the size it needs for the design's own peak load, so the CLI, the API and the web app simulate
 the same document identically (same result digest). The report's `sizing` section says, per
@@ -532,7 +582,8 @@ more traffic, fewer cache hits or a slowdown shows what those machines do.
 Specs also feed the calculations around a run:
 
 - **Capacity figures**: `capacityRps` is the lowest ceiling of the slots (`slots / meanHoldMs`),
-  the CPU (`cpuCores x instances / CPU ms per request`) and, for services, the memory (requests
+  the CPU (`cpuCores x instances / CPU ms per request`, at the speed of its machine's threads when
+  the design has a host or the part a `siblingSpeed`) and, for services, the memory (requests
   that fit x replicas / `meanHoldMs`); `capacityLimit` says which (`slots`, `cpu`, `memory`) and
   bottleneck findings name it. `serviceOnlyCapacityRps` also respects the CPU ceiling.
 - **Cost estimate (`cost.py`)**: a part's price per instance-hour is the price set on it; without one,
@@ -860,7 +911,11 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
 ## What is NOT modeled
 
 - Disk and network bandwidth contention; concurrent GC CPU overhead; CPU interference between
-  pods on one node (a pod's CPU is its own once scheduled).
+  pods on one node (a pod's CPU is its own once scheduled), and between parts of one machine
+  unless the design names it (`architecture.host`). On a host, a thread's speed is set when its
+  piece of work starts (a sibling that starts later does not slow it, one that stops does not
+  speed it up: the two errors offset on average), and threads are pooled over the machine:
+  which part shares a core with which is not modelled.
 - CPU per request that changes with load beyond the measured range: `serviceTimeByLoad` keeps
   its last point's factor at higher rates, so a service measured only at light load is charged
   that load's cost up to saturation, although measured stacks often keep getting cheaper (the

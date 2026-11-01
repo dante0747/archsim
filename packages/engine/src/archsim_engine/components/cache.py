@@ -21,6 +21,7 @@ from typing import Any, Literal
 import simpy
 from pydantic import Field
 
+from archsim_engine.components.host import machine_capacity
 from archsim_engine.components.resources import (
     CPU_CONTENTION,
     RESOURCES,
@@ -29,7 +30,9 @@ from archsim_engine.components.resources import (
     core_utilization,
     cpu_field,
     instance_type_field,
+    machine_for,
     memory_field,
+    sibling_speed_field,
 )
 from archsim_engine.distributions import Distribution, Exponential
 from archsim_engine.explain import formula, num, pct
@@ -202,6 +205,7 @@ class CacheConfig(CamelModel):
     )
     # -- resources -------------------------------------------------------------------------
     cpu_cores: float | None = cpu_field("cache node", CPU_CONTENTION)
+    sibling_speed: float | None = sibling_speed_field()
     memory_gib: float | None = memory_field(
         "cache node",
         "80% of it holds keys. TTL model: when it is full the least recently used key is evicted. "
@@ -273,7 +277,13 @@ class CacheRuntime(RuntimeComponent):
         self.shards = [
             CacheShard(
                 WorkerPool(env, self.execs, config.queue_capacity, config.queue_timeout_ms, self.m),
-                Cores(env, config.cpu_cores, self.execs, self.core_busy),
+                Cores(
+                    env,
+                    config.cpu_cores,
+                    self.execs,
+                    self.core_busy,
+                    machine_for(ctx, config.cpu_cores, config.sibling_speed),
+                ),
                 capacity,
                 capacity is not None,
             )
@@ -382,7 +392,10 @@ class CacheRuntime(RuntimeComponent):
         if cores is None or not service_ms:
             return {}
         usable = min(cores, float(self.execs)) * len(self.shards)
-        return {"cpu": usable * 1000.0 / service_ms}
+        machine = self.shards[0].cores.machine if self.shards else None
+        full = usable * 1000.0 / service_ms
+        # ... at the speed its threads run at on their machine (schema 1.7)
+        return {"cpu": machine_capacity(machine, full, usable, self.m.arrivals.window_rate())}
 
     def extra_timeseries(self) -> dict[str, list[float | None]]:
         out: dict[str, list[float | None]] = {}

@@ -127,3 +127,12 @@ def _service_time_by_load_and_fetch_cycles(doc: dict[str, Any]) -> dict[str, Any
     in cycles; empty by default: each message taken as soon as a consumer is free, as before); a
     1.5 document needs no change."""
     return doc
+
+
+@migration("1.6", "1.7")
+def _host_machine_and_hyperthreads(doc: dict[str, Any]) -> dict[str, Any]:
+    """1.7 adds ``architecture.host`` (the one machine every part with a CPU size runs on; empty
+    by default: each part's vCPUs are its own, as before) and the service, database and cache
+    setting ``siblingSpeed`` (a part's vCPUs as hyperthreads, two per physical core; empty by
+    default: every vCPU a full core, as before); a 1.6 document needs no change."""
+    return doc

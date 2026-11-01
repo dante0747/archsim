@@ -17,7 +17,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.6",                 // required; drives migrations
+  "schemaVersion": "1.7",                 // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -67,10 +67,10 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.6"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.7"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
-| `architecture` | object | `nodes` (max 200), `edges` (max 1,000). |
+| `architecture` | object | `nodes` (max 200), `edges` (max 1,000), `autoSize` (default true) and, 1.7, an optional `host`: the one machine every part with a CPU size runs on (see [Versioning and migrations](#versioning-and-migrations)). |
 | `workload` | object | See below. Every field has a default. |
 | `scenarios` | array | Max 50. |
 | `objectives` | object | Service-level objectives (see below). Optional; defaults apply. |
@@ -183,12 +183,29 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.6`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `SCHEMA_VERSION` (currently `1.7`). 1.0 to 1.1 only adds optional fields (`provenance`,
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
   `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
-  `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, and 1.5 to
+  `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, 1.5 to
   1.6 the service setting `serviceTimeByLoad` and the message-queue settings `consumerConcurrency`
-  and `fetchOverheadMs`, so older documents load unchanged.
+  and `fetchOverheadMs`, and 1.6 to 1.7 `architecture.host` and the service, database and cache
+  setting `siblingSpeed`, so older documents load unchanged.
+- `architecture.host` (1.7; empty by default, left out of the JSON: each part's vCPUs are its
+  own, as before): the one machine every part with a CPU size runs on, such as docker compose on
+  one VM or a benchmark on a laptop. `physicalCores` (required, 1 to 512), `threadsPerCore` (1 or
+  2, default 2: hyperthreads), `siblingSpeed` (above 0, at most 1, default 0.6: a thread's speed
+  while its core's other thread is busy too), `allCoreClock` (above 0, at most 1, default 1: the
+  clock with every thread busy relative to one; it falls linearly in between),
+  `otherBusyThreads` (default 0: threads busy with work outside the design) and `clientCpuMs`
+  (default 0: CPU time each request of the clients' traffic costs on the machine outside the
+  design's parts, e.g. a load generator on it). Every part's CPU work then runs at the speed of
+  a thread on that machine as it fills; see
+  [simulation-model.md](simulation-model.md#cpu-threads-that-slow-each-other-down-schema-17).
+- `siblingSpeed` (1.7; services, databases, caches; empty by default, left out of the JSON: every
+  vCPU a full core, as before): with 2 or more `cpuCores`, the part's vCPUs are hyperthreads, two
+  per physical core, and a vCPU whose core's other vCPU is busy too runs at this speed (above 0,
+  at most 1; about 0.6 on Intel and AMD cores, so 2 vCPU do about 1.2 cores' work when both are
+  busy). Ignored on a design with a `host`, whose sibling speed applies to every part.
 - `serviceTimeByLoad` (1.6; services): a list of `{"rps": ..., "factor": ...}` points (rate above
   0 per replica, factor above 0 and at most 100). At that many requests per second on a replica
   its service time is `serviceTimeMs` times the factor; between points the factor is

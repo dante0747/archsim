@@ -1,0 +1,1825 @@
+{
+  "at": "2026-11-01T00:48:59Z",
+  "environment": {
+    "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+    "machineId": "i7-1165g7",
+    "os": "Windows-11-10.0.26300-SP0",
+    "powerMode": "Best performance",
+    "docker": "29.1.3 (linux/amd64)",
+    "dockerCpus": "8",
+    "dockerMemory": "8170176512",
+    "images": {
+      "postgres": "postgres:16-alpine",
+      "redis": "redis:7-alpine",
+      "kafka": "apache/kafka:3.8.0",
+      "k6": "grafana/k6:1.3.0",
+      "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+    },
+    "python": "3.12.13"
+  },
+  "topology": {
+    "siblings": {
+      "0": [
+        0,
+        1
+      ],
+      "1": [
+        0,
+        1
+      ],
+      "2": [
+        2,
+        3
+      ],
+      "3": [
+        2,
+        3
+      ],
+      "4": [
+        4,
+        5
+      ],
+      "5": [
+        4,
+        5
+      ],
+      "6": [
+        6,
+        7
+      ],
+      "7": [
+        6,
+        7
+      ]
+    }
+  },
+  "how": "probe: 12 s of a fixed unit of V8 work (20 JSON round trips of a small record) on CPU 2, every container of a condition over the same window; burners run the same work. Service: pg-mixed, 5 s warm-up then 20 s recorded, burners at nice 19 on CPUs the stack uses. Host: Windows' Processor Information and Hyper-V logical processor counters, 1 s samples",
+  "probeRounds": [
+    [
+      {
+        "condition": "alone",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {},
+        "probe": {
+          "units": 347260,
+          "lateMs": 0,
+          "cpuUsPerUnit": 34.5474,
+          "unitsPerWallMs": 28.938,
+          "busy": 0.9997
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3739.43,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            26.23,
+            24.94,
+            41.28,
+            45.24,
+            46.57,
+            50.59,
+            58.96,
+            60.61
+          ],
+          "busyLogicalProcessors": 3.54
+        }
+      },
+      {
+        "condition": "sibling busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "3": 1.0
+        },
+        "probe": {
+          "units": 282290,
+          "lateMs": 6,
+          "cpuUsPerUnit": 42.5024,
+          "unitsPerWallMs": 23.523,
+          "busy": 0.9998
+        },
+        "burnerResults": {
+          "3": {
+            "units": 285560,
+            "lateMs": 6,
+            "cpuUsPerUnit": 42.0129,
+            "unitsPerWallMs": 23.796,
+            "busy": 0.9997
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3591.53,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            43.37,
+            41.75,
+            50.9,
+            56.84,
+            68.94,
+            64.34,
+            65.91,
+            70.54
+          ],
+          "busyLogicalProcessors": 4.63
+        }
+      },
+      {
+        "condition": "sibling half busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "3": 0.5
+        },
+        "probe": {
+          "units": 336430,
+          "lateMs": -2,
+          "cpuUsPerUnit": 35.6556,
+          "unitsPerWallMs": 28.035,
+          "busy": 0.9996
+        },
+        "burnerResults": {
+          "3": {
+            "units": 182010,
+            "lateMs": 0,
+            "cpuUsPerUnit": 37.5258,
+            "unitsPerWallMs": 15.167,
+            "busy": 0.5692
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3617.86,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            52.58,
+            34.82,
+            45.64,
+            50.35,
+            58.64,
+            54.49,
+            68.16,
+            58.28
+          ],
+          "busyLogicalProcessors": 4.23
+        }
+      },
+      {
+        "condition": "1 other core busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0
+        },
+        "probe": {
+          "units": 238260,
+          "lateMs": -2,
+          "cpuUsPerUnit": 50.3581,
+          "unitsPerWallMs": 19.854,
+          "busy": 0.9998
+        },
+        "burnerResults": {
+          "0": {
+            "units": 248200,
+            "lateMs": 6,
+            "cpuUsPerUnit": 48.3338,
+            "unitsPerWallMs": 20.683,
+            "busy": 0.9997
+          },
+          "1": {
+            "units": 233640,
+            "lateMs": -3,
+            "cpuUsPerUnit": 51.3508,
+            "unitsPerWallMs": 19.47,
+            "busy": 0.9998
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3431.77,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            55.05,
+            54.64,
+            67.76,
+            69.12,
+            72.36,
+            74.8,
+            79.89,
+            78.11
+          ],
+          "busyLogicalProcessors": 5.52
+        }
+      },
+      {
+        "condition": "2 other cores busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "probe": {
+          "units": 163320,
+          "lateMs": 10,
+          "cpuUsPerUnit": 73.4645,
+          "unitsPerWallMs": 13.609,
+          "busy": 0.9998
+        },
+        "burnerResults": {
+          "0": {
+            "units": 163230,
+            "lateMs": 4,
+            "cpuUsPerUnit": 73.4797,
+            "unitsPerWallMs": 13.602,
+            "busy": 0.9995
+          },
+          "1": {
+            "units": 159850,
+            "lateMs": 4,
+            "cpuUsPerUnit": 75.0431,
+            "unitsPerWallMs": 13.321,
+            "busy": 0.9996
+          },
+          "4": {
+            "units": 163570,
+            "lateMs": 4,
+            "cpuUsPerUnit": 73.311,
+            "unitsPerWallMs": 13.631,
+            "busy": 0.9993
+          },
+          "5": {
+            "units": 165990,
+            "lateMs": 3,
+            "cpuUsPerUnit": 72.2789,
+            "unitsPerWallMs": 13.832,
+            "busy": 0.9998
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3258.77,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            88.62,
+            89.21,
+            87.3,
+            92.06,
+            94.63,
+            95.87,
+            96.84,
+            97.34
+          ],
+          "busyLogicalProcessors": 7.42
+        }
+      },
+      {
+        "condition": "3 other cores busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0
+        },
+        "probe": {
+          "units": 111070,
+          "lateMs": -6,
+          "cpuUsPerUnit": 106.0781,
+          "unitsPerWallMs": 9.255,
+          "busy": 0.9818
+        },
+        "burnerResults": {
+          "0": {
+            "units": 95350,
+            "lateMs": 612,
+            "cpuUsPerUnit": 123.6332,
+            "unitsPerWallMs": 7.945,
+            "busy": 0.9823
+          },
+          "1": {
+            "units": 109720,
+            "lateMs": -6,
+            "cpuUsPerUnit": 108.032,
+            "unitsPerWallMs": 9.143,
+            "busy": 0.9877
+          },
+          "4": {
+            "units": 108730,
+            "lateMs": -7,
+            "cpuUsPerUnit": 107.381,
+            "unitsPerWallMs": 9.06,
+            "busy": 0.9728
+          },
+          "5": {
+            "units": 93010,
+            "lateMs": 258,
+            "cpuUsPerUnit": 126.4644,
+            "unitsPerWallMs": 7.75,
+            "busy": 0.9801
+          },
+          "6": {
+            "units": 98400,
+            "lateMs": 1276,
+            "cpuUsPerUnit": 120.5753,
+            "unitsPerWallMs": 8.2,
+            "busy": 0.9887
+          },
+          "7": {
+            "units": 98780,
+            "lateMs": 1161,
+            "cpuUsPerUnit": 119.4861,
+            "unitsPerWallMs": 8.232,
+            "busy": 0.9836
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3059.9,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            99.99
+          ],
+          "busyLogicalProcessors": 8.0
+        }
+      },
+      {
+        "condition": "3 other cores, one thread each",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "4": 1.0,
+          "6": 1.0
+        },
+        "probe": {
+          "units": 177300,
+          "lateMs": 1,
+          "cpuUsPerUnit": 67.6692,
+          "unitsPerWallMs": 14.774,
+          "busy": 0.9998
+        },
+        "burnerResults": {
+          "0": {
+            "units": 179020,
+            "lateMs": 3,
+            "cpuUsPerUnit": 66.9925,
+            "unitsPerWallMs": 14.918,
+            "busy": 0.9994
+          },
+          "4": {
+            "units": 180980,
+            "lateMs": 1,
+            "cpuUsPerUnit": 66.2903,
+            "unitsPerWallMs": 15.081,
+            "busy": 0.9998
+          },
+          "6": {
+            "units": 179860,
+            "lateMs": 2,
+            "cpuUsPerUnit": 66.703,
+            "unitsPerWallMs": 14.988,
+            "busy": 0.9998
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3097.45,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            73.66,
+            73.25,
+            79.57,
+            82.37,
+            85.09,
+            88.67,
+            89.73,
+            91.96
+          ],
+          "busyLogicalProcessors": 6.64
+        }
+      },
+      {
+        "condition": "every CPU busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0
+        },
+        "probe": {
+          "units": 95740,
+          "lateMs": 619,
+          "cpuUsPerUnit": 116.8781,
+          "unitsPerWallMs": 7.978,
+          "busy": 0.9324
+        },
+        "burnerResults": {
+          "0": {
+            "units": 87050,
+            "lateMs": 2919,
+            "cpuUsPerUnit": 132.5638,
+            "unitsPerWallMs": 7.254,
+            "busy": 0.9616
+          },
+          "1": {
+            "units": 95280,
+            "lateMs": 4,
+            "cpuUsPerUnit": 117.0438,
+            "unitsPerWallMs": 7.94,
+            "busy": 0.9293
+          },
+          "3": {
+            "units": 100120,
+            "lateMs": 1836,
+            "cpuUsPerUnit": 114.1251,
+            "unitsPerWallMs": 8.343,
+            "busy": 0.9522
+          },
+          "4": {
+            "units": 98990,
+            "lateMs": 1094,
+            "cpuUsPerUnit": 113.8628,
+            "unitsPerWallMs": 8.249,
+            "busy": 0.9392
+          },
+          "5": {
+            "units": 85840,
+            "lateMs": 2415,
+            "cpuUsPerUnit": 133.5947,
+            "unitsPerWallMs": 7.153,
+            "busy": 0.9556
+          },
+          "6": {
+            "units": 89280,
+            "lateMs": 2777,
+            "cpuUsPerUnit": 131.9346,
+            "unitsPerWallMs": 7.439,
+            "busy": 0.9815
+          },
+          "7": {
+            "units": 94360,
+            "lateMs": 3299,
+            "cpuUsPerUnit": 123.0278,
+            "unitsPerWallMs": 7.863,
+            "busy": 0.9674
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 2987.83,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            99.99,
+            99.99,
+            100.0,
+            99.98,
+            100.0,
+            100.0,
+            100.0,
+            99.99
+          ],
+          "busyLogicalProcessors": 8.0
+        }
+      },
+      {
+        "condition": "own duty 90%",
+        "probeCpu": 2,
+        "probeDuty": 0.9,
+        "burners": {},
+        "probe": {
+          "units": 288340,
+          "lateMs": 0,
+          "cpuUsPerUnit": 37.4514,
+          "unitsPerWallMs": 24.028,
+          "busy": 0.8999
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3492.26,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            37.34,
+            27.76,
+            44.98,
+            44.41,
+            48.39,
+            80.39,
+            70.4,
+            53.56
+          ],
+          "busyLogicalProcessors": 4.07
+        }
+      },
+      {
+        "condition": "own duty 50%",
+        "probeCpu": 2,
+        "probeDuty": 0.5,
+        "burners": {},
+        "probe": {
+          "units": 198630,
+          "lateMs": 0,
+          "cpuUsPerUnit": 34.143,
+          "unitsPerWallMs": 16.551,
+          "busy": 0.5651
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 10,
+          "frequencyMHz": 3715.88,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            25.73,
+            13.13,
+            27.29,
+            32.57,
+            37.78,
+            68.63,
+            60.66,
+            49.35
+          ],
+          "busyLogicalProcessors": 3.15
+        }
+      },
+      {
+        "condition": "own duty 25%",
+        "probeCpu": 2,
+        "probeDuty": 0.25,
+        "burners": {},
+        "probe": {
+          "units": 105340,
+          "lateMs": 7,
+          "cpuUsPerUnit": 32.6551,
+          "unitsPerWallMs": 8.778,
+          "busy": 0.2867
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3901.55,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            21.22,
+            17.7,
+            19.83,
+            25.76,
+            28.61,
+            48.67,
+            37.49,
+            39.81
+          ],
+          "busyLogicalProcessors": 2.39
+        }
+      },
+      {
+        "condition": "own duty 50%, 3 other cores busy",
+        "probeCpu": 2,
+        "probeDuty": 0.5,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0
+        },
+        "probe": {
+          "units": 71970,
+          "lateMs": -3,
+          "cpuUsPerUnit": 97.985,
+          "unitsPerWallMs": 5.997,
+          "busy": 0.5877
+        },
+        "burnerResults": {
+          "0": {
+            "units": 129940,
+            "lateMs": -3,
+            "cpuUsPerUnit": 91.4005,
+            "unitsPerWallMs": 10.828,
+            "busy": 0.9897
+          },
+          "1": {
+            "units": 130360,
+            "lateMs": -2,
+            "cpuUsPerUnit": 91.8602,
+            "unitsPerWallMs": 10.863,
+            "busy": 0.9979
+          },
+          "4": {
+            "units": 132010,
+            "lateMs": -3,
+            "cpuUsPerUnit": 90.6284,
+            "unitsPerWallMs": 11.001,
+            "busy": 0.997
+          },
+          "5": {
+            "units": 131480,
+            "lateMs": -3,
+            "cpuUsPerUnit": 91.1742,
+            "unitsPerWallMs": 10.956,
+            "busy": 0.9989
+          },
+          "6": {
+            "units": 129050,
+            "lateMs": -3,
+            "cpuUsPerUnit": 92.8725,
+            "unitsPerWallMs": 10.754,
+            "busy": 0.9987
+          },
+          "7": {
+            "units": 132540,
+            "lateMs": -3,
+            "cpuUsPerUnit": 90.3983,
+            "unitsPerWallMs": 11.045,
+            "busy": 0.9984
+          }
+        },
+        "host": {
+          "samples": 10,
+          "frequencyMHz": 2968.22,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            97.68,
+            98.37,
+            98.63,
+            99.34,
+            97.59,
+            98.72,
+            99.06,
+            99.22
+          ],
+          "busyLogicalProcessors": 7.89
+        }
+      }
+    ],
+    [
+      {
+        "condition": "own duty 50%, 3 other cores busy",
+        "probeCpu": 2,
+        "probeDuty": 0.5,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0
+        },
+        "probe": {
+          "units": 74240,
+          "lateMs": 260,
+          "cpuUsPerUnit": 93.8562,
+          "unitsPerWallMs": 6.186,
+          "busy": 0.5806
+        },
+        "burnerResults": {
+          "0": {
+            "units": 136660,
+            "lateMs": 3,
+            "cpuUsPerUnit": 86.6681,
+            "unitsPerWallMs": 11.388,
+            "busy": 0.987
+          },
+          "1": {
+            "units": 134450,
+            "lateMs": 3,
+            "cpuUsPerUnit": 87.8036,
+            "unitsPerWallMs": 11.204,
+            "busy": 0.9837
+          },
+          "4": {
+            "units": 136770,
+            "lateMs": 5,
+            "cpuUsPerUnit": 86.653,
+            "unitsPerWallMs": 11.397,
+            "busy": 0.9876
+          },
+          "5": {
+            "units": 140320,
+            "lateMs": 291,
+            "cpuUsPerUnit": 85.1957,
+            "unitsPerWallMs": 11.693,
+            "busy": 0.9962
+          },
+          "6": {
+            "units": 146970,
+            "lateMs": 1139,
+            "cpuUsPerUnit": 81.5514,
+            "unitsPerWallMs": 12.247,
+            "busy": 0.9988
+          },
+          "7": {
+            "units": 145950,
+            "lateMs": 1137,
+            "cpuUsPerUnit": 82.1571,
+            "unitsPerWallMs": 12.162,
+            "busy": 0.9992
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 2969.58,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            96.04,
+            96.97,
+            97.38,
+            98.03,
+            96.1,
+            97.64,
+            98.08,
+            99.44
+          ],
+          "busyLogicalProcessors": 7.8
+        }
+      },
+      {
+        "condition": "own duty 25%",
+        "probeCpu": 2,
+        "probeDuty": 0.25,
+        "burners": {},
+        "probe": {
+          "units": 111980,
+          "lateMs": 4,
+          "cpuUsPerUnit": 30.5495,
+          "unitsPerWallMs": 9.328,
+          "busy": 0.285
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 4053.44,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            14.37,
+            10.92,
+            25.93,
+            20.86,
+            19.53,
+            33.93,
+            30.95,
+            24.49
+          ],
+          "busyLogicalProcessors": 1.81
+        }
+      },
+      {
+        "condition": "own duty 50%",
+        "probeCpu": 2,
+        "probeDuty": 0.5,
+        "burners": {},
+        "probe": {
+          "units": 202690,
+          "lateMs": 0,
+          "cpuUsPerUnit": 33.4852,
+          "unitsPerWallMs": 16.889,
+          "busy": 0.5655
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 10,
+          "frequencyMHz": 3829.1,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            29.51,
+            16.99,
+            44.58,
+            38.36,
+            28.56,
+            61.04,
+            53.73,
+            43.91
+          ],
+          "busyLogicalProcessors": 3.17
+        }
+      },
+      {
+        "condition": "own duty 90%",
+        "probeCpu": 2,
+        "probeDuty": 0.9,
+        "burners": {},
+        "probe": {
+          "units": 281510,
+          "lateMs": 5,
+          "cpuUsPerUnit": 38.4523,
+          "unitsPerWallMs": 23.459,
+          "busy": 0.9021
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3434.39,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            46.14,
+            27.58,
+            41.7,
+            41.75,
+            47.6,
+            81.2,
+            66.03,
+            55.53
+          ],
+          "busyLogicalProcessors": 4.08
+        }
+      },
+      {
+        "condition": "every CPU busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0
+        },
+        "probe": {
+          "units": 103810,
+          "lateMs": 569,
+          "cpuUsPerUnit": 110.1954,
+          "unitsPerWallMs": 8.651,
+          "busy": 0.9533
+        },
+        "burnerResults": {
+          "0": {
+            "units": 77970,
+            "lateMs": 964,
+            "cpuUsPerUnit": 146.0994,
+            "unitsPerWallMs": 6.494,
+            "busy": 0.9487
+          },
+          "1": {
+            "units": 105730,
+            "lateMs": 7,
+            "cpuUsPerUnit": 109.1639,
+            "unitsPerWallMs": 8.811,
+            "busy": 0.9618
+          },
+          "3": {
+            "units": 103870,
+            "lateMs": 993,
+            "cpuUsPerUnit": 111.3582,
+            "unitsPerWallMs": 8.654,
+            "busy": 0.9637
+          },
+          "4": {
+            "units": 102170,
+            "lateMs": 18,
+            "cpuUsPerUnit": 110.5595,
+            "unitsPerWallMs": 8.512,
+            "busy": 0.9411
+          },
+          "5": {
+            "units": 79500,
+            "lateMs": 5,
+            "cpuUsPerUnit": 143.4916,
+            "unitsPerWallMs": 6.624,
+            "busy": 0.9506
+          },
+          "6": {
+            "units": 76820,
+            "lateMs": 1482,
+            "cpuUsPerUnit": 151.4692,
+            "unitsPerWallMs": 6.402,
+            "busy": 0.9696
+          },
+          "7": {
+            "units": 77150,
+            "lateMs": 911,
+            "cpuUsPerUnit": 148.8749,
+            "unitsPerWallMs": 6.429,
+            "busy": 0.9571
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 2968.42,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0
+          ],
+          "busyLogicalProcessors": 8.0
+        }
+      },
+      {
+        "condition": "3 other cores, one thread each",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "4": 1.0,
+          "6": 1.0
+        },
+        "probe": {
+          "units": 179860,
+          "lateMs": -1,
+          "cpuUsPerUnit": 66.7004,
+          "unitsPerWallMs": 14.988,
+          "busy": 0.9997
+        },
+        "burnerResults": {
+          "0": {
+            "units": 182560,
+            "lateMs": 0,
+            "cpuUsPerUnit": 65.6917,
+            "unitsPerWallMs": 15.213,
+            "busy": 0.9994
+          },
+          "4": {
+            "units": 180770,
+            "lateMs": 1,
+            "cpuUsPerUnit": 66.3707,
+            "unitsPerWallMs": 15.064,
+            "busy": 0.9998
+          },
+          "6": {
+            "units": 182500,
+            "lateMs": 0,
+            "cpuUsPerUnit": 65.7408,
+            "unitsPerWallMs": 15.208,
+            "busy": 0.9998
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3032.1,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            75.17,
+            78.09,
+            78.66,
+            80.99,
+            81.62,
+            86.66,
+            88.18,
+            91.34
+          ],
+          "busyLogicalProcessors": 6.61
+        }
+      },
+      {
+        "condition": "3 other cores busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0
+        },
+        "probe": {
+          "units": 93210,
+          "lateMs": 3,
+          "cpuUsPerUnit": 126.029,
+          "unitsPerWallMs": 7.767,
+          "busy": 0.9789
+        },
+        "burnerResults": {
+          "0": {
+            "units": 107040,
+            "lateMs": 305,
+            "cpuUsPerUnit": 108.9629,
+            "unitsPerWallMs": 8.919,
+            "busy": 0.9719
+          },
+          "1": {
+            "units": 93790,
+            "lateMs": 6,
+            "cpuUsPerUnit": 125.6991,
+            "unitsPerWallMs": 7.816,
+            "busy": 0.9824
+          },
+          "4": {
+            "units": 93040,
+            "lateMs": 21,
+            "cpuUsPerUnit": 123.4043,
+            "unitsPerWallMs": 7.753,
+            "busy": 0.9567
+          },
+          "5": {
+            "units": 106760,
+            "lateMs": 6,
+            "cpuUsPerUnit": 109.1116,
+            "unitsPerWallMs": 8.896,
+            "busy": 0.9707
+          },
+          "6": {
+            "units": 108190,
+            "lateMs": 248,
+            "cpuUsPerUnit": 107.3739,
+            "unitsPerWallMs": 9.014,
+            "busy": 0.9679
+          },
+          "7": {
+            "units": 108310,
+            "lateMs": 465,
+            "cpuUsPerUnit": 108.7814,
+            "unitsPerWallMs": 9.025,
+            "busy": 0.9818
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 2987.14,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0
+          ],
+          "busyLogicalProcessors": 8.0
+        }
+      },
+      {
+        "condition": "2 other cores busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "probe": {
+          "units": 154210,
+          "lateMs": 3,
+          "cpuUsPerUnit": 77.7925,
+          "unitsPerWallMs": 12.85,
+          "busy": 0.9996
+        },
+        "burnerResults": {
+          "0": {
+            "units": 151210,
+            "lateMs": 2,
+            "cpuUsPerUnit": 79.3174,
+            "unitsPerWallMs": 12.6,
+            "busy": 0.9994
+          },
+          "1": {
+            "units": 153440,
+            "lateMs": 3,
+            "cpuUsPerUnit": 78.1913,
+            "unitsPerWallMs": 12.786,
+            "busy": 0.9997
+          },
+          "4": {
+            "units": 154700,
+            "lateMs": 3,
+            "cpuUsPerUnit": 77.5566,
+            "unitsPerWallMs": 12.891,
+            "busy": 0.9998
+          },
+          "5": {
+            "units": 154420,
+            "lateMs": 2,
+            "cpuUsPerUnit": 77.6976,
+            "unitsPerWallMs": 12.868,
+            "busy": 0.9998
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 2999.16,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            86.02,
+            89.35,
+            91.54,
+            94.47,
+            92.44,
+            95.33,
+            96.99,
+            98.29
+          ],
+          "busyLogicalProcessors": 7.44
+        }
+      },
+      {
+        "condition": "1 other core busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "0": 1.0,
+          "1": 1.0
+        },
+        "probe": {
+          "units": 209820,
+          "lateMs": -1,
+          "cpuUsPerUnit": 57.1833,
+          "unitsPerWallMs": 17.484,
+          "busy": 0.9998
+        },
+        "burnerResults": {
+          "0": {
+            "units": 217660,
+            "lateMs": -1,
+            "cpuUsPerUnit": 55.1155,
+            "unitsPerWallMs": 18.138,
+            "busy": 0.9997
+          },
+          "1": {
+            "units": 213570,
+            "lateMs": -2,
+            "cpuUsPerUnit": 56.1761,
+            "unitsPerWallMs": 17.797,
+            "busy": 0.9998
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3109.12,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            58.58,
+            58.69,
+            72.34,
+            68.06,
+            70.6,
+            76.5,
+            81.85,
+            79.82
+          ],
+          "busyLogicalProcessors": 5.66
+        }
+      },
+      {
+        "condition": "sibling half busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "3": 0.5
+        },
+        "probe": {
+          "units": 295790,
+          "lateMs": 5,
+          "cpuUsPerUnit": 40.5597,
+          "unitsPerWallMs": 24.648,
+          "busy": 0.9997
+        },
+        "burnerResults": {
+          "3": {
+            "units": 167320,
+            "lateMs": 6,
+            "cpuUsPerUnit": 40.8035,
+            "unitsPerWallMs": 13.939,
+            "busy": 0.5687
+          }
+        },
+        "host": {
+          "samples": 10,
+          "frequencyMHz": 3354.31,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            53.5,
+            32.47,
+            53.94,
+            45.81,
+            48.27,
+            54.57,
+            70.95,
+            71.53
+          ],
+          "busyLogicalProcessors": 4.31
+        }
+      },
+      {
+        "condition": "sibling busy",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {
+          "3": 1.0
+        },
+        "probe": {
+          "units": 263200,
+          "lateMs": 4,
+          "cpuUsPerUnit": 45.5819,
+          "unitsPerWallMs": 21.933,
+          "busy": 0.9997
+        },
+        "burnerResults": {
+          "3": {
+            "units": 261200,
+            "lateMs": 5,
+            "cpuUsPerUnit": 45.9332,
+            "unitsPerWallMs": 21.766,
+            "busy": 0.9998
+          }
+        },
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3331.7,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            43.63,
+            38.18,
+            52.74,
+            52.51,
+            54.69,
+            68.61,
+            72.42,
+            69.28
+          ],
+          "busyLogicalProcessors": 4.52
+        }
+      },
+      {
+        "condition": "alone",
+        "probeCpu": 2,
+        "probeDuty": 1.0,
+        "burners": {},
+        "probe": {
+          "units": 319080,
+          "lateMs": 1,
+          "cpuUsPerUnit": 37.5996,
+          "unitsPerWallMs": 26.589,
+          "busy": 0.9997
+        },
+        "burnerResults": {},
+        "host": {
+          "samples": 11,
+          "frequencyMHz": 3522.68,
+          "performanceLimitPct": 100.0,
+          "performanceLimitFlags": [
+            0
+          ],
+          "logicalProcessorBusyPct": [
+            31.13,
+            26.08,
+            42.15,
+            45.47,
+            48.87,
+            59.49,
+            63.12,
+            66.84
+          ],
+          "busyLogicalProcessors": 3.83
+        }
+      }
+    ]
+  ],
+  "service": [
+    {
+      "condition": "as benchmarked",
+      "rateRps": 2500,
+      "burners": {},
+      "k6": {
+        "p50": 2.0353755,
+        "p95": 98.36652689999985,
+        "p99": 211.43106403000004,
+        "successRate": 0.8929821403571928,
+        "throughputRps": 2232.5
+      },
+      "serviceCpuMsPerRequest": 0.3395133706606943,
+      "serviceCores": 0.596,
+      "postgresCpuMsPerRequest": 0.3224,
+      "postgresCores": 0.5649,
+      "host": {
+        "samples": 24,
+        "frequencyMHz": 3099.64,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          86.6,
+          83.54,
+          87.69,
+          85.77,
+          86.34,
+          86.38,
+          87.96,
+          87.34
+        ],
+        "busyLogicalProcessors": 6.92
+      }
+    },
+    {
+      "condition": "service's sibling busy",
+      "rateRps": 2500,
+      "burners": {
+        "3": "normal"
+      },
+      "k6": {
+        "p50": 0.9539755000000001,
+        "p95": 37.5901216,
+        "p99": 96.30474337999996,
+        "successRate": 0.9845846246126162,
+        "throughputRps": 2462.2
+      },
+      "serviceCpuMsPerRequest": 0.28686558768580944,
+      "serviceCores": 0.5225,
+      "postgresCpuMsPerRequest": 0.3003,
+      "postgresCores": 0.5463,
+      "host": {
+        "samples": 25,
+        "frequencyMHz": 2924.94,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          89.83,
+          87.64,
+          90.3,
+          88.09,
+          91.7,
+          92.24,
+          92.98,
+          92.56
+        ],
+        "busyLogicalProcessors": 7.25
+      }
+    },
+    {
+      "condition": "k6's idle CPU taken",
+      "rateRps": 2500,
+      "burners": {
+        "0": "nice 19",
+        "1": "nice 19",
+        "6": "nice 19",
+        "7": "nice 19"
+      },
+      "k6": {
+        "p50": 0.708285,
+        "p95": 4.803466599999999,
+        "p99": 23.414781939999678,
+        "successRate": 0.999960000799984,
+        "throughputRps": 2499.95
+      },
+      "serviceCpuMsPerRequest": 0.2553089861797236,
+      "serviceCores": 0.4199,
+      "postgresCpuMsPerRequest": 0.2481,
+      "postgresCores": 0.4068,
+      "host": {
+        "samples": 29,
+        "frequencyMHz": 3130.75,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          78.84,
+          72.56,
+          81.01,
+          75.61,
+          78.66,
+          79.9,
+          83.64,
+          80.96
+        ],
+        "busyLogicalProcessors": 6.31
+      }
+    },
+    {
+      "condition": "PostgreSQL's idle CPU taken",
+      "rateRps": 2500,
+      "burners": {
+        "4": "nice 19",
+        "5": "nice 19"
+      },
+      "k6": {
+        "p50": 60.213846,
+        "p95": 125.4494604,
+        "p99": 159.94238863999996,
+        "successRate": 0.92738,
+        "throughputRps": 2318.45
+      },
+      "serviceCpuMsPerRequest": 0.2995939744225668,
+      "serviceCores": 0.5414,
+      "postgresCpuMsPerRequest": 0.2688,
+      "postgresCores": 0.485,
+      "host": {
+        "samples": 24,
+        "frequencyMHz": 3042.74,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          85.75,
+          85.08,
+          88.4,
+          89.29,
+          90.2,
+          90.7,
+          91.1,
+          91.74
+        ],
+        "busyLogicalProcessors": 7.12
+      }
+    },
+    {
+      "condition": "every idle CPU taken",
+      "rateRps": 2500,
+      "burners": {
+        "0": "nice 19",
+        "1": "nice 19",
+        "3": "normal",
+        "4": "nice 19",
+        "5": "nice 19",
+        "6": "nice 19",
+        "7": "nice 19"
+      },
+      "k6": {
+        "p50": 0.800232,
+        "p95": 32.2907913,
+        "p99": 58.696756859999994,
+        "successRate": 0.9943601127977441,
+        "throughputRps": 2485.95
+      },
+      "serviceCpuMsPerRequest": 0.27949230676401376,
+      "serviceCores": 0.3893,
+      "postgresCpuMsPerRequest": 0.2767,
+      "postgresCores": 0.3844,
+      "host": {
+        "samples": 34,
+        "frequencyMHz": 3080.79,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          88.07,
+          83.4,
+          89.21,
+          85.63,
+          88.31,
+          88.9,
+          89.39,
+          87.22
+        ],
+        "busyLogicalProcessors": 7.0
+      }
+    },
+    {
+      "condition": "as benchmarked, again",
+      "rateRps": 2500,
+      "burners": {},
+      "k6": {
+        "p50": 0.7341695,
+        "p95": 7.0608362499999995,
+        "p99": 23.17979044999996,
+        "successRate": 1.0,
+        "throughputRps": 2500.3
+      },
+      "serviceCpuMsPerRequest": 0.2685794104707435,
+      "serviceCores": 0.5579,
+      "postgresCpuMsPerRequest": 0.2438,
+      "postgresCores": 0.5055,
+      "host": {
+        "samples": 23,
+        "frequencyMHz": 3159.87,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          77.8,
+          69.79,
+          79.23,
+          73.04,
+          77.61,
+          79.5,
+          82.76,
+          81.25
+        ],
+        "busyLogicalProcessors": 6.21
+      }
+    },
+    {
+      "condition": "as benchmarked",
+      "rateRps": 3700,
+      "burners": {},
+      "k6": {
+        "p50": 9.311067,
+        "p95": 86.52485539999999,
+        "p99": 136.88553883999998,
+        "successRate": 0.9311901190524452,
+        "throughputRps": 3445.45
+      },
+      "serviceCpuMsPerRequest": 0.26215950021042245,
+      "serviceCores": 0.7013,
+      "postgresCpuMsPerRequest": 0.2779,
+      "postgresCores": 0.7423,
+      "host": {
+        "samples": 25,
+        "frequencyMHz": 3083.91,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          87.52,
+          84.29,
+          88.7,
+          86.64,
+          88.68,
+          88.51,
+          89.33,
+          90.08
+        ],
+        "busyLogicalProcessors": 7.04
+      }
+    },
+    {
+      "condition": "service's sibling busy",
+      "rateRps": 3700,
+      "burners": {
+        "3": "normal"
+      },
+      "k6": {
+        "p50": 137.716167,
+        "p95": 250.78874150000001,
+        "p99": 312.36313020000006,
+        "successRate": 0.5015745583802997,
+        "throughputRps": 1855.55
+      },
+      "serviceCpuMsPerRequest": 0.5074626930020749,
+      "serviceCores": 0.5163,
+      "postgresCpuMsPerRequest": 0.6855,
+      "postgresCores": 0.6954,
+      "host": {
+        "samples": 35,
+        "frequencyMHz": 1674.67,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          99.16,
+          98.89,
+          99.23,
+          99.32,
+          99.37,
+          99.36,
+          99.53,
+          99.58
+        ],
+        "busyLogicalProcessors": 7.94
+      }
+    },
+    {
+      "condition": "k6's idle CPU taken",
+      "rateRps": 3700,
+      "burners": {
+        "0": "nice 19",
+        "1": "nice 19",
+        "6": "nice 19",
+        "7": "nice 19"
+      },
+      "k6": {
+        "p50": 173.55053750000002,
+        "p95": 323.71111354999994,
+        "p99": 376.31515794,
+        "successRate": 0.41761597816245727,
+        "throughputRps": 1545.2
+      },
+      "serviceCpuMsPerRequest": 0.6132978578824747,
+      "serviceCores": 0.6058,
+      "postgresCpuMsPerRequest": 0.7084,
+      "postgresCores": 0.6972,
+      "host": {
+        "samples": 30,
+        "frequencyMHz": 1635.15,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          94.38,
+          93.84,
+          95.24,
+          95.92,
+          95.48,
+          95.95,
+          96.08,
+          96.48
+        ],
+        "busyLogicalProcessors": 7.63
+      }
+    },
+    {
+      "condition": "PostgreSQL's idle CPU taken",
+      "rateRps": 3700,
+      "burners": {
+        "4": "nice 19",
+        "5": "nice 19"
+      },
+      "k6": {
+        "p50": 270.269883,
+        "p95": 541.1814885000001,
+        "p99": 696.7804328599999,
+        "successRate": 0.27279361089715004,
+        "throughputRps": 1009.35
+      },
+      "serviceCpuMsPerRequest": 0.6443586466537871,
+      "serviceCores": 0.3909,
+      "postgresCpuMsPerRequest": 0.698,
+      "postgresCores": 0.422,
+      "host": {
+        "samples": 32,
+        "frequencyMHz": 1576.88,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          96.01,
+          96.42,
+          97.27,
+          97.52,
+          97.07,
+          97.45,
+          97.99,
+          98.31
+        ],
+        "busyLogicalProcessors": 7.78
+      }
+    },
+    {
+      "condition": "every idle CPU taken",
+      "rateRps": 3700,
+      "burners": {
+        "0": "nice 19",
+        "1": "nice 19",
+        "3": "normal",
+        "4": "nice 19",
+        "5": "nice 19",
+        "6": "nice 19",
+        "7": "nice 19"
+      },
+      "k6": {
+        "p50": 175.537349,
+        "p95": 301.74770825,
+        "p99": 351.10101454999995,
+        "successRate": 0.403994540614316,
+        "throughputRps": 1494.8
+      },
+      "serviceCpuMsPerRequest": 0.626511238961734,
+      "serviceCores": 0.6033,
+      "postgresCpuMsPerRequest": 0.8261,
+      "postgresCores": 0.7937,
+      "host": {
+        "samples": 29,
+        "frequencyMHz": 1525.37,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          96.03,
+          95.86,
+          97.19,
+          97.03,
+          97.02,
+          97.22,
+          97.63,
+          97.58
+        ],
+        "busyLogicalProcessors": 7.76
+      }
+    },
+    {
+      "condition": "as benchmarked, again",
+      "rateRps": 3700,
+      "burners": {},
+      "k6": {
+        "p50": 159.3163465,
+        "p95": 231.19662254999994,
+        "p99": 334.8384045799999,
+        "successRate": 0.47798307718874117,
+        "throughputRps": 1799.2
+      },
+      "serviceCpuMsPerRequest": 0.5456812472209871,
+      "serviceCores": 0.6535,
+      "postgresCpuMsPerRequest": 0.7028,
+      "postgresCores": 0.8403,
+      "host": {
+        "samples": 29,
+        "frequencyMHz": 1602.99,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          94.1,
+          94.22,
+          96.16,
+          96.31,
+          96.29,
+          96.81,
+          97.41,
+          96.89
+        ],
+        "busyLogicalProcessors": 7.68
+      }
+    }
+  ]
+}

@@ -1204,6 +1204,7 @@ def model_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     if exp.stack in CACHE_STACKS:
         out |= cache_inputs(exp, passes)
     out |= memory_inputs(exp, passes)
+    machine_inputs(exp, passes, out)
     return out
 
 
@@ -2385,6 +2386,248 @@ def queue_node(v: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------------------------
+# the machine's threads (W27, engine 0.16.0): every container of a stack, k6 and Windows share
+# the laptop's physical cores, and CPU work slows as they fill (engine: architecture.host)
+# ---------------------------------------------------------------------------------------------
+
+HOST_QUIET_THREADS = 1.0
+"""A contention check counts for the machine's model only when the machine at rest (the stack up
+and idle) had fewer busy threads than this: one taken with other work running measures that."""
+HOST_FIT_MAX_BUSY = 7.9
+"""Probe conditions with the machine's logical processors all busy are left out of the sibling
+fit: past them the demand is not seen (the processors take turns)."""
+
+
+def host_checks(results: Path = RESULTS) -> list[Path]:
+    """This machine's contention checks (``run.py contention``), oldest first."""
+    return sorted((results / "envcheck").glob("*-contention.json"))
+
+
+def host_fit(
+    check: Mapping[str, Any], service: Mapping[str, Any] | None = None
+) -> dict[str, Any] | None:
+    """The machine's thread model from a contention check's probe and (``service``, by default
+    the same check) a quiet check's service part, or None when that was not quiet or a reading
+    is missing:
+
+    * physical cores: the distinct cores of the VM's topology;
+    * all-core clock: Windows' actual frequency against the machine's busy logical processors,
+      a line through every probe condition, at 8 busy threads over 1;
+    * sibling speed: the probe's CPU per unit of work against the busy threads, given that clock
+      (``archsim_engine.components.host.Machine.speed``), least squares in log over a grid;
+    * background: the machine's busy threads with the stack up and at rest;
+    * k6's CPU per request: its container's busy cores over the rate, the median over the
+      as-benchmarked steps below 90% of the service's core."""
+    from archsim_engine.components.host import Machine
+
+    service = check if service is None else service
+    rest = service.get("serviceAtRest") or {}
+    background = rest.get("busyLogicalProcessors")
+    if background is None or background >= HOST_QUIET_THREADS:
+        return None
+    siblings = (check.get("topology") or {}).get("siblings") or {}
+    cores = len({tuple(v) for v in siblings.values()}) or None
+    threads = len(siblings) or None
+    if not cores or not threads:
+        return None
+    pts = [
+        (c["host"]["busyLogicalProcessors"], c["host"]["frequencyMHz"], c["probe"]["cpuUsPerUnit"])
+        for r in check.get("probeRounds") or []
+        for c in r
+        if c.get("probe") and c.get("host") and c["host"].get("frequencyMHz")
+    ]
+    if len(pts) < 4:
+        return None
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    mx, my = statistics.fmean(xs), statistics.fmean(ys)
+    slope_mhz = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True)) / sum(
+        (x - mx) ** 2 for x in xs
+    )
+    f1 = my + slope_mhz * (1 - mx)
+    fn = my + slope_mhz * (threads - mx)
+    clock = min(1.0, max(0.3, fn / f1))
+    fit_pts = [p for p in pts if p[0] < HOST_FIT_MAX_BUSY]
+    best: tuple[float, float, float] | None = None
+    for s100 in range(20, 101):
+        m = Machine(cores=cores, threads_per_core=threads // cores, sibling_speed=s100 / 100,
+                    all_core_clock=clock)  # fmt: skip
+        logs = [math.log(c * m.speed(d)) for d, _, c in fit_pts]
+        mid = statistics.fmean(logs)
+        err = sum((v - mid) ** 2 for v in logs)
+        if best is None or err < best[0]:
+            best = (err, s100 / 100, math.exp(mid))
+    assert best is not None
+    k6 = [
+        st["k6Cores"] * 1000.0 / st["rateRps"]
+        for st in service.get("service") or []
+        if st.get("condition") == "as benchmarked"
+        and st.get("k6Cores")
+        and (st.get("serviceCores") or 1.0) < 0.9
+    ]
+    if not k6:
+        return None
+    rms = math.sqrt(best[0] / len(fit_pts))
+    return {
+        "physicalCores": cores,
+        "threadsPerCore": threads // cores,
+        "siblingSpeed": best[1],
+        "allCoreClock": round(clock, 3),
+        "backgroundThreads": round(background, 3),
+        "k6CpuMsPerRequest": round(statistics.median(k6), 4),
+        "how": (
+            f"contention check {check.get('at')}"
+            + (f" (service part {service.get('at')})" if service is not check else "")
+            + f": {cores} physical cores of {threads} threads "
+            f"(the VM's topology); clock {f1:,.0f} MHz with 1 busy thread, {fn:,.0f} with "
+            f"{threads} (a line through {len(pts)} probe conditions) = {clock:.3f}; a thread "
+            f"sharing its core at {best[1]:.2f} of its speed alone (the probe's CPU per unit of "
+            f"work against the busy threads, {len(fit_pts)} conditions, rms {rms:.1%} in log); "
+            f"{background:.2f} threads busy at rest; k6 {statistics.median(k6):.4f} ms of CPU "
+            f"per request (median of {len(k6)} steps)"
+        ),
+    }
+
+
+_HOST_FIT: dict[str, Any] | bool | None = False
+
+
+HOST_SWITCH = "BENCH_HOST"
+"""``BENCH_HOST=off`` leaves the host machine out of the designs (as before engine 0.16.0);
+``BENCH_HOST_CLOCK`` (0 to 1) replaces the fitted all-core clock, for what-ifs."""
+
+
+def machine_fit(results: Path = RESULTS) -> dict[str, Any] | None:
+    """The thread model (``host_fit``) from the latest contention check with a probe and the
+    latest quiet one with a service part, read once; None when there is none (then the designs
+    have no host machine, as before engine 0.16.0)."""
+    global _HOST_FIT
+    if _HOST_FIT is False:
+        _HOST_FIT = None
+        if os.environ.get(HOST_SWITCH, "").lower() == "off":
+            return None
+        checks = [read_json(p) for p in reversed(host_checks(results))]
+        probes = [c for c in checks if any(c.get("probeRounds") or [])]
+        for service in checks:
+            if probes and (fit := host_fit(probes[0], service)) is not None:
+                if clock := os.environ.get(f"{HOST_SWITCH}_CLOCK"):
+                    fit = {
+                        **fit,
+                        "allCoreClock": float(clock),
+                        "how": f"{fit['how']}; clock set to {clock} (what-if)",
+                    }
+                _HOST_FIT = fit
+                break
+    return _HOST_FIT if isinstance(_HOST_FIT, dict) else None
+
+
+MACHINE_SCALED = ("serviceTimeMs", "apiServiceTimeMs", "cacheServiceTimeMs")
+"""CPU-time inputs measured at a calibration pass, which ran at the machine's thread speed then:
+the model's are at full speed (the database's is its CPU share, ``dbCpuShare``)."""
+
+
+def scale_value(value: Any, k: float) -> Any:
+    """A time input (a number or a distribution) times ``k``."""
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return round(value * k, 6)
+    if isinstance(value, dict):
+        out = dict(value)
+        for key in ("median", "p95", "mean", "value", "min", "max"):
+            if isinstance(out.get(key), int | float):
+                out[key] = round(out[key] * k, 6)
+        return out
+    return value
+
+
+def fitted_machine(fit: Mapping[str, Any]) -> Any:
+    """The engine's ``Machine`` of a contention fit (no other load)."""
+    from archsim_engine.components.host import Machine
+
+    return Machine(
+        cores=fit["physicalCores"],
+        threads_per_core=fit["threadsPerCore"],
+        sibling_speed=fit["siblingSpeed"],
+        all_core_clock=fit["allCoreClock"],
+    )
+
+
+def pass_speed(entry: Mapping[str, Any]) -> tuple[float, float] | None:
+    """(busy threads, thread speed) of the machine during one calibration pass: every
+    container's CPU over the pass, k6's (the rate times its CPU per request) and the background
+    at rest; None without a quiet contention check or the pass's CPU readings. A pass's CPU per
+    request divided by nothing else was measured at this speed: times it, at full speed."""
+    fit = machine_fit()
+    wall_s = (entry.get("service") or {}).get("wallMs", 0) / 1000.0
+    used = entry.get("containerCpuMs") or {}
+    rate = float(entry.get("rateRps") or 0.0)
+    if fit is None or wall_s <= 0 or rate <= 0 or not used:
+        return None
+    cores = sum(ms / 1000.0 / wall_s for ms in used.values() if ms is not None)
+    busy = cores + rate * fit["k6CpuMsPerRequest"] / 1000.0 + fit["backgroundThreads"]
+    return busy, fitted_machine(fit).speed(busy)
+
+
+def machine_inputs(exp: Experiment, passes: Mapping[str, Any], inputs: dict[str, Any]) -> None:
+    """The design's host machine (``architecture.host``) from the machine's contention check
+    (``machine_fit``) and this pass's own load on it, and the CPU-time inputs at full speed.
+
+    At the top pass the machine had ``D`` busy threads: every container's CPU over the pass,
+    k6's (the rate times its CPU per request) and the background at rest. The pass's CPU per
+    request was measured at ``speed(D)``, so the model's inputs are that times ``speed(D)``
+    (``MACHINE_SCALED``, ``dbCpuShare``). Containers the model gives no CPU (Kafka's broker and
+    consumer) join the host's other load: their CPU at rest as busy threads, the rest per
+    request with k6's. Without a quiet contention check nothing changes."""
+    fit = machine_fit()
+    high = passes["high"]
+    at_pass = pass_speed(high)
+    if fit is None or at_pass is None:
+        return
+    busy, speed = at_pass
+    wall_s = high["service"]["wallMs"] / 1000.0
+    rate = float(high["rateRps"])
+    idle = (passes.get("idle") or {}).get("containerCpuMsPerSecond") or {}
+    cores = {c: ms / 1000.0 / wall_s for c, ms in high["containerCpuMs"].items() if ms is not None}
+    others = [c for c in cores if c not in CONTAINER_NODES]
+    other_busy = fit["backgroundThreads"] + sum(idle.get(c, 0.0) / 1000.0 for c in others)
+    other_ms = sum(max(0.0, cores[c] - idle.get(c, 0.0) / 1000.0) * 1000.0 / rate for c in others)
+    client_ms = fit["k6CpuMsPerRequest"] + other_ms
+    at = (
+        f"x {speed:.4f}, the machine's thread speed at the pass ({busy:.2f} busy threads: the "
+        f"containers {sum(cores.values()):.2f}, k6 {rate * fit['k6CpuMsPerRequest'] / 1000:.2f}, "
+        f"at rest {fit['backgroundThreads']:.2f})"
+    )
+    for key in MACHINE_SCALED:
+        if key in inputs and "value" in inputs[key]:
+            inputs[key] = {
+                **inputs[key],
+                "value": scale_value(inputs[key]["value"], speed),
+                "how": f"{inputs[key]['how']}; {at}",
+            }
+    if "dbCpuShare" in inputs:
+        inputs["dbCpuShare"] = {
+            **inputs["dbCpuShare"],
+            "value": round(min(1.0, inputs["dbCpuShare"]["value"] * speed), 4),
+            "how": f"{inputs['dbCpuShare']['how']}; {at}",
+        }
+    unmodelled = (
+        f" and {', '.join(others)} (no CPU in the model: {sum(idle.get(c, 0.0) for c in others) / 1000:.2f} "
+        f"cores at rest, {other_ms:.4f} ms per request)"
+        if others
+        else ""
+    )
+    inputs["host"] = {
+        "value": {
+            "physicalCores": fit["physicalCores"],
+            "threadsPerCore": fit["threadsPerCore"],
+            "siblingSpeed": fit["siblingSpeed"],
+            "allCoreClock": fit["allCoreClock"],
+            "otherBusyThreads": round(other_busy, 4),
+            "clientCpuMs": round(client_ms, 4),
+        },
+        "how": f"{fit['how']}; other load: the background, k6{unmodelled}",
+    }
+
+
 def design(
     exp: Experiment,
     inputs: dict[str, Any],
@@ -2433,10 +2676,16 @@ def design(
             _edge("e-db", "kafka", "db", v.get("dbLinkLatencyMs", 0.0)),
         ]
     return {
-        "schemaVersion": "1.0",
+        "schemaVersion": "1.7" if "host" in v else "1.0",
         "kind": "archsim.architecture",
         "metadata": {"name": f"benchmark {exp.id}"},
-        "architecture": {"nodes": nodes, "edges": edges, "autoSize": False},
+        "architecture": {
+            "nodes": nodes,
+            "edges": edges,
+            "autoSize": False,
+            # the machine every container shares (machine_inputs; none without a contention check)
+            **({"host": v["host"]} if "host" in v else {}),
+        },
         "workload": {
             "rps": rps,
             "durationS": warm + duration,
@@ -3417,6 +3666,413 @@ def envcheck(results: Path = RESULTS) -> Path:
 
 
 # ---------------------------------------------------------------------------------------------
+# contention check (W27): how much slower CPU work runs when its hyperthread sibling, the rest of
+# the machine or the process itself is busy
+# ---------------------------------------------------------------------------------------------
+
+PROBE_IMAGE = "node:24-alpine"
+"""The probe's runtime: the benchmark service's base image, so the probe's work is V8's."""
+PROBE_S = 12
+PROBE_LEAD_MS = 5000
+"""Every container of a condition starts its window at the same moment, this long after launch."""
+PROBE_PREFIX = "archsim-bench-probe-"
+PROBE_JS = r"""
+const S = Number(process.env.PROBE_S), DUTY = Number(process.env.DUTY), AT = Number(process.env.START_AT);
+const PERIOD = 10;
+const item = { id: 12345, name: "item-12345", price: 19.99, tags: ["a", "b", "c"], at: "2026-11-01T00:00:00Z", nested: { x: 1, y: [1, 2, 3] } };
+let sink = 0, units = 0;
+const unit = () => { for (let i = 0; i < 20; i++) { const s = JSON.stringify(item); sink += JSON.parse(s).id + s.length; } };
+for (let i = 0; i < 20000; i++) unit();
+setTimeout(() => {
+  const t0 = performance.now(), c0 = process.cpuUsage(), end = t0 + S * 1000;
+  units = 0;
+  const burst = () => {
+    const start = performance.now();
+    const stop = DUTY >= 1 ? end : Math.min(end, start + PERIOD * DUTY);
+    do { for (let k = 0; k < 10; k++) unit(); units += 10; } while (performance.now() < stop);
+    const now = performance.now();
+    if (now >= end) {
+      const c = process.cpuUsage(c0);
+      console.log(JSON.stringify({ units, cpuMs: (c.user + c.system) / 1000, wallMs: now - t0, lateMs: Math.round(Date.now() - (now - t0) - AT), sink: sink % 7 }));
+      return;
+    }
+    setTimeout(burst, Math.max(0, start + PERIOD - now));
+  };
+  burst();
+}, Math.max(0, AT - Date.now()));
+"""
+"""A fixed unit of V8 work (20 JSON round trips of a small record, like a request's), done for
+PROBE_S seconds from START_AT, DUTY of every 10 ms (1 = all the time); it prints the units done
+and its CPU time, so CPU per unit is the probe's cost and units per wall second its speed."""
+
+# Probe conditions: (name, the probe's duty on CPU 2, {cpu: burner duty}). CPU 3 is the probe's
+# hyperthread sibling on the laptop; 0-1, 4-5 and 6-7 are the other physical cores.
+PROBE_CONDITIONS: tuple[tuple[str, float, dict[int, float]], ...] = (
+    ("alone", 1.0, {}),
+    ("sibling busy", 1.0, {3: 1.0}),
+    ("sibling half busy", 1.0, {3: 0.5}),
+    ("1 other core busy", 1.0, {0: 1.0, 1: 1.0}),
+    ("2 other cores busy", 1.0, {0: 1.0, 1: 1.0, 4: 1.0, 5: 1.0}),
+    ("3 other cores busy", 1.0, {0: 1.0, 1: 1.0, 4: 1.0, 5: 1.0, 6: 1.0, 7: 1.0}),
+    ("3 other cores, one thread each", 1.0, {0: 1.0, 4: 1.0, 6: 1.0}),
+    ("every CPU busy", 1.0, {c: 1.0 for c in (0, 1, 3, 4, 5, 6, 7)}),
+    ("own duty 90%", 0.9, {}),
+    ("own duty 50%", 0.5, {}),
+    ("own duty 25%", 0.25, {}),
+    ("own duty 50%, 3 other cores busy", 0.5, {0: 1.0, 1: 1.0, 4: 1.0, 5: 1.0, 6: 1.0, 7: 1.0}),
+)
+PROBE_CPU = 2
+PROBE_ROUNDS = int(os.environ.get("BENCH_PROBE_ROUNDS", "2"))
+"""Each round runs every condition; the second in reverse order, so drift shows."""
+
+HOST_COUNTERS_PS = r"""
+$c = @('\Processor Information(_Total)\Actual Frequency', '\Processor Information(_Total)\% Performance Limit', '\Processor Information(_Total)\Performance Limit Flags', '\Hyper-V Hypervisor Logical Processor(*)\% Total Run Time')
+while ($true) {
+  $s = Get-Counter -Counter $c -SampleInterval 1 -MaxSamples 1 -ErrorAction SilentlyContinue
+  $o = @{ t = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
+  foreach ($x in $s.CounterSamples) { $p = $x.Path.Split('\'); $o[$p[-2] + '|' + $p[-1]] = [math]::Round($x.CookedValue, 2) }
+  [Console]::Out.WriteLine(($o | ConvertTo-Json -Compress))
+  [Console]::Out.Flush()
+}
+"""
+
+
+class HostCounters:
+    """Windows' own view of the machine while a check runs, one sample a second: each logical
+    processor's busy share as the hypervisor sees it (Docker's VM and Windows itself), the cores'
+    actual frequency and whether the firmware limited it (power or thermal). Off Windows, or
+    where the counters are missing, there are no samples."""
+
+    def __init__(self) -> None:
+        self.samples: list[dict[str, Any]] = []
+        self.proc: subprocess.Popen[str] | None = None
+
+    def __enter__(self) -> HostCounters:
+        if platform.system() == "Windows":
+            self.proc = subprocess.Popen(
+                ["powershell", "-NoProfile", "-Command", HOST_COUNTERS_PS],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            threading.Thread(target=self._read, daemon=True).start()
+        return self
+
+    def _read(self) -> None:
+        assert self.proc is not None and self.proc.stdout is not None
+        for line in self.proc.stdout:
+            try:
+                self.samples.append(json.loads(line))
+            except ValueError:
+                continue
+
+    def __exit__(self, *exc: object) -> None:
+        if self.proc is not None:
+            self.proc.kill()
+
+    def window(self, t0_ms: float, t1_ms: float) -> dict[str, Any] | None:
+        """Means over the samples whose second lies inside [t0, t1] (host clock, ms)."""
+        inside = [s for s in self.samples if t0_ms + 1000 <= s["t"] <= t1_ms]
+        if not inside:
+            return None
+
+        def mean_of(key: str) -> float | None:
+            v = [s[key] for s in inside if isinstance(s.get(key), int | float)]
+            return round(statistics.fmean(v), 2) if v else None
+
+        lps = sorted(
+            {k for s in inside for k in s if k.startswith("hv lp ") or "(hv lp " in k},
+            key=lambda k: int(re.sub(r"\D", "", k.split("|")[0]) or 0),
+        )
+        busy = [mean_of(k) for k in lps if "_total" not in k]
+        flags = {
+            int(s.get("processor information(_total)|performance limit flags") or 0) for s in inside
+        }
+        return {
+            "samples": len(inside),
+            "frequencyMHz": mean_of("processor information(_total)|actual frequency"),
+            "performanceLimitPct": mean_of("processor information(_total)|% performance limit"),
+            "performanceLimitFlags": sorted(flags),
+            "logicalProcessorBusyPct": busy,
+            "busyLogicalProcessors": round(sum(b or 0 for b in busy) / 100.0, 2),
+        }
+
+
+def host_ms() -> float:
+    return time.time() * 1000.0
+
+
+def vm_clock_offset_ms() -> float:
+    """Docker's VM clock minus this host's (ms), read through a short-lived container."""
+    t0 = host_ms()
+    out = _run("docker", "run", "--rm", "--entrypoint", "node", PROBE_IMAGE, "-e",
+               "console.log(Date.now())")  # fmt: skip
+    t1 = host_ms()
+    try:
+        vm = float(out.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return 0.0
+    # the container's start dominates: its clock was read near the end of the call
+    return vm - (t0 + 0.75 * (t1 - t0))
+
+
+def probe_launch(
+    name: str, cpu: int, duty: float, seconds: float, start_at: float, nice: bool = False
+) -> None:
+    """Start one probe container pinned to ``cpu`` (``nice``: at the lowest priority, so it only
+    takes what the CPU's other work leaves idle)."""
+    cmd = ["node", "-e", PROBE_JS]
+    if nice:
+        cmd = ["nice", "-n", "19", *cmd]
+    subprocess.run(
+        ["docker", "run", "-d", "--name", f"{PROBE_PREFIX}{name}", "--cpuset-cpus", str(cpu),
+         "-e", f"PROBE_S={seconds:g}", "-e", f"DUTY={duty:g}", "-e", f"START_AT={start_at:.0f}",
+         "--entrypoint", cmd[0], PROBE_IMAGE, *cmd[1:]],
+        check=True, capture_output=True, text=True,
+    )  # fmt: skip
+
+
+def probe_collect(name: str) -> dict[str, Any] | None:
+    """Wait for a probe to finish and read its line; the container is removed either way."""
+    full = f"{PROBE_PREFIX}{name}"
+    try:
+        subprocess.run(["docker", "wait", full], check=False, capture_output=True, timeout=120)
+        out = subprocess.run(["docker", "logs", full], capture_output=True, text=True).stdout
+        line = out.strip().splitlines()[-1] if out.strip() else ""
+        return json.loads(line) if line.startswith("{") else None
+    except (subprocess.TimeoutExpired, ValueError):
+        return None
+    finally:
+        subprocess.run(["docker", "rm", "-f", full], capture_output=True, check=False)
+
+
+def probes_clear() -> None:
+    """Remove every probe container a check left behind."""
+    ids = _run("docker", "ps", "-aq", "--filter", f"name={PROBE_PREFIX}").split()
+    if ids:
+        subprocess.run(["docker", "rm", "-f", *ids], capture_output=True, check=False)
+
+
+def probe_rates(r: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not r or not r.get("units") or not r.get("cpuMs") or not r.get("wallMs"):
+        return None
+    return {
+        "units": r["units"],
+        "lateMs": r.get("lateMs"),
+        "cpuUsPerUnit": round(r["cpuMs"] * 1000.0 / r["units"], 4),
+        "unitsPerWallMs": round(r["units"] / r["wallMs"], 3),
+        "busy": round(r["cpuMs"] / r["wallMs"], 4),
+    }
+
+
+def probe_condition(
+    name: str, duty: float, burners: Mapping[int, float], offset_ms: float, host: HostCounters
+) -> dict[str, Any]:
+    """One probe condition: the probe on PROBE_CPU and a burner (the same work) on each CPU of
+    ``burners`` at its duty, all over the same PROBE_S window."""
+    probes_clear()
+    start_vm = host_ms() + offset_ms + PROBE_LEAD_MS
+    tag = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    launches = [(f"{tag}-probe", PROBE_CPU, duty)] + [
+        (f"{tag}-burn{cpu}", cpu, d) for cpu, d in burners.items()
+    ]
+    with ThreadPoolExecutor(max_workers=len(launches)) as pool:
+        list(pool.map(lambda a: probe_launch(a[0], a[1], a[2], PROBE_S, start_vm), launches))
+    probe = probe_rates(probe_collect(f"{tag}-probe"))
+    burn = {str(cpu): probe_rates(probe_collect(f"{tag}-burn{cpu}")) for cpu in burners}
+    t0 = start_vm - offset_ms
+    out = {
+        "condition": name,
+        "probeCpu": PROBE_CPU,
+        "probeDuty": duty,
+        "burners": {str(c): d for c, d in burners.items()},
+        "probe": probe,
+        "burnerResults": burn,
+        "host": (seen := host.window(t0, t0 + PROBE_S * 1000.0)),
+    }
+    log(
+        f"contention probe {name:34} cpu/unit {probe and probe['cpuUsPerUnit']} us, "
+        f"MHz {seen and seen['frequencyMHz']}, busy LPs {seen and seen['busyLogicalProcessors']}"
+    )
+    return out
+
+
+CONTENTION_LADDER = (1250, 2500, 3700, 4400, 5000)
+"""pg-mixed rates run as benchmarked, a quarter of the event loop's core to past its capacity."""
+CONTENTION_QUICK_LADDER = (1250, 2500, 3700)
+"""The ladder of ``contention --service-only``: k6's CPU and the service's, short and cool."""
+CONTENTION_RATES = (2500,)
+"""pg-mixed rates for the conditions with background work: half the event loop's core."""
+CONTENTION_S = 20
+CONTENTION_REST_S = 15
+# Service conditions: (name, {cpu: nice}): a burner on each CPU, at nice 19 where it shares the
+# CPU with the stack (it takes only what k6 or PostgreSQL leave idle), else at normal priority.
+SERVICE_CONDITIONS: tuple[tuple[str, dict[int, bool]], ...] = (
+    ("as benchmarked", {}),
+    ("service's sibling busy", {3: False}),
+    ("k6's idle CPU taken", {0: True, 1: True, 6: True, 7: True}),
+    ("PostgreSQL's idle CPU taken", {4: True, 5: True}),
+    ("every idle CPU taken", {0: True, 1: True, 3: False, 4: True, 5: True, 6: True, 7: True}),
+    ("as benchmarked, again", {}),
+)
+
+
+class K6Cpu:
+    """k6's own CPU over the middle of a measured run: its container (``compose run`` names it
+    archsim-bench-k6-run-...) read at 2 s and again 2 s before the end."""
+
+    def __init__(self, seconds: float) -> None:
+        self.seconds = seconds
+        self.cores: float | None = None
+        self.thread = threading.Thread(target=self._watch, daemon=True)
+
+    def __enter__(self) -> K6Cpu:
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.thread.join(timeout=5)
+
+    @staticmethod
+    def _usec(cid: str) -> int | None:
+        out = subprocess.run(["docker", "exec", cid, "cat", "/sys/fs/cgroup/cpu.stat"],
+                             text=True, capture_output=True, check=False).stdout  # fmt: skip
+        for line in out.splitlines():
+            if line.startswith("usage_usec"):
+                return int(line.split()[1])
+        return None
+
+    def _watch(self) -> None:
+        t_end = time.time() + 10
+        cid = ""
+        while not cid and time.time() < t_end:
+            ids = _run("docker", "ps", "-q", "--filter", "name=archsim-bench-k6-run").split()
+            cid = ids[0] if ids else ""
+            if not cid:
+                time.sleep(0.2)
+        if not cid:
+            return
+        time.sleep(2.0)
+        t0, u0 = time.time(), self._usec(cid)
+        time.sleep(max(1.0, self.seconds - 6.0))
+        t1, u1 = time.time(), self._usec(cid)
+        if u0 is not None and u1 is not None and t1 > t0:
+            self.cores = round((u1 - u0) / 1e6 / (t1 - t0), 4)
+
+
+def contention_step(
+    exp: Experiment, rate: float, name: str, burners: Mapping[int, bool], host: HostCounters
+) -> dict[str, Any]:
+    """pg-mixed at ``rate``: 5 s warm-up, statistics reset, CONTENTION_S recorded, with burners
+    running throughout; the service's and PostgreSQL's CPU per request and the host's view."""
+    probes_clear()
+    tag = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    for cpu, nice in burners.items():
+        probe_launch(f"svc-{tag}-{cpu}", cpu, 1.0, CONTENTION_S + 30, 0, nice=nice)
+    target = target_for(exp)
+    try:
+        k6(target, exp.mix, rate, 0, 5, "contention-warm", exp.keys, exp.skew)
+        http_json(f"{API}/reset", "POST")
+        cpu0 = {s: cpu_usec(s) for s in services_for(exp)}
+        t0 = host_ms()
+        with K6Cpu(CONTENTION_S) as k6cpu:
+            summary = k6(target, exp.mix, rate, 0, CONTENTION_S, "contention", exp.keys, exp.skew)
+        t1 = host_ms()
+        cpu1 = {s: cpu_usec(s) for s in services_for(exp)}
+        svc = http_json(f"{API}/stats")
+    finally:
+        probes_clear()
+    m = k6_measured(summary, CONTENTION_S)
+    requests = svc.get("requests") or 0
+    pg_ms = cpu_ms(cpu0.get("postgres"), cpu1.get("postgres"))
+    api_ms = cpu_ms(cpu0.get("api"), cpu1.get("api"))
+    seconds = (t1 - t0) / 1000.0
+    out = {
+        "condition": name,
+        "rateRps": rate,
+        "burners": {str(c): ("nice 19" if n else "normal") for c, n in burners.items()},
+        "k6": {k: m.get(k) for k in ("p50", "p95", "p99", "successRate", "throughputRps")},
+        "serviceCpuMsPerRequest": svc.get("cpuMsPerRequest"),
+        "serviceCores": round(api_ms / 1000.0 / seconds, 4) if api_ms else None,
+        "postgresCpuMsPerRequest": round(pg_ms / requests, 4) if pg_ms and requests else None,
+        "postgresCores": round(pg_ms / 1000.0 / seconds, 4) if pg_ms else None,
+        "k6Cores": k6cpu.cores,
+        "host": (seen := host.window(t0, t1)),
+    }
+    log(
+        f"contention service {rate:>5} req/s {name:30} service {out['serviceCpuMsPerRequest']} ms, "
+        f"postgres {out['postgresCpuMsPerRequest']} ms, p95 {m.get('p95')}, "
+        f"k6 {k6cpu.cores} cores, MHz {seen and seen['frequencyMHz']}, "
+        f"busy LPs {seen and seen['busyLogicalProcessors']}"
+    )
+    return out
+
+
+def contention(results: Path = RESULTS, service: bool = True, probe: bool = True) -> Path:
+    """Characterise how this machine turns CPUs into capacity: (``service``) pg-mixed's real
+    service at rest, as benchmarked from a quarter of its core to past it (CONTENTION_LADDER)
+    and at half of it with background work (SERVICE_CONDITIONS), with k6's own CPU; then a fixed
+    unit of V8 work on one CPU, alone and with its hyperthread sibling, other cores or every CPU
+    busy, and at a part of its own time (``probe``, PROBE_CONDITIONS). Without the probe, only
+    the machine at rest and CONTENTION_QUICK_LADDER, about 4 minutes. Windows' counters give the
+    cores' frequency and each logical processor's busy share meanwhile. Writes
+    results/envcheck/<at>-contention.json. About 15 minutes of Docker."""
+    siblings = cpu_siblings() or {}
+    started = now()
+    offset = vm_clock_offset_ms()
+    probe_rounds: list[list[dict[str, Any]]] = []
+    service_steps: list[dict[str, Any]] = []
+    rest: dict[str, Any] | None = None
+    with HostCounters() as host:
+        time.sleep(3)
+        try:
+            if service:
+                exp = EXPERIMENTS["pg-mixed"]
+                stack_up("postgres")
+                try:
+                    settle(exp)
+                    t0 = host_ms()
+                    time.sleep(CONTENTION_REST_S)
+                    rest = host.window(t0, host_ms())
+                    log(
+                        f"contention: machine at rest {rest and rest['busyLogicalProcessors']} busy LPs"
+                    )
+                    for rate in CONTENTION_LADDER if probe else CONTENTION_QUICK_LADDER:
+                        service_steps.append(contention_step(exp, rate, "as benchmarked", {}, host))
+                    for rate in CONTENTION_RATES if probe else ():
+                        for name, burners in SERVICE_CONDITIONS[1:-1]:
+                            service_steps.append(contention_step(exp, rate, name, burners, host))
+                finally:
+                    stack_down("postgres")
+            # the probe last: its every-CPU conditions heat the machine (a laptop throttles after
+            # about 10 minutes of it)
+            for r in range(PROBE_ROUNDS if probe else 0):
+                order = PROBE_CONDITIONS if r % 2 == 0 else tuple(reversed(PROBE_CONDITIONS))
+                probe_rounds.append([probe_condition(n, d, b, offset, host) for n, d, b in order])
+        finally:
+            probes_clear()
+    out = {
+        "at": started,
+        "environment": environment(),
+        "topology": {"siblings": {str(c): s for c, s in sorted(siblings.items())}},
+        "how": (
+            f"probe: {PROBE_S} s of a fixed unit of V8 work (20 JSON round trips of a small "
+            f"record) on CPU {PROBE_CPU}, every container of a condition over the same window; "
+            "burners run the same work. Service: pg-mixed, 5 s warm-up then "
+            f"{CONTENTION_S} s recorded, burners at nice 19 on CPUs the stack uses. Host: "
+            "Windows' Processor Information and Hyper-V logical processor counters, 1 s samples"
+        ),
+        "probeRounds": probe_rounds,
+        "serviceAtRest": rest,
+        "service": service_steps,
+    }
+    path = results / "envcheck" / f"{started.replace(':', '-')}-contention.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(path, out)
+    return path
+
+
+# ---------------------------------------------------------------------------------------------
 
 
 def now() -> str:
@@ -3770,17 +4426,36 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "stack",
-        choices=[*STACKS, "all", "smoke", "compare", "resources", "resimulate", "envcheck"],
+        choices=[
+            *STACKS,
+            "all",
+            "smoke",
+            "compare",
+            "resources",
+            "resimulate",
+            "envcheck",
+            "contention",
+        ],
         help="a stack to run, all of them (held-out experiments only with a frozen engine), "
         "'smoke' EXPERIMENT: start its stack, send 20 req/s for 10 s and check every request "
         "succeeded and was counted (keeps nothing), 'compare': recompute every comparison.json, "
         "'resources': predict CPU and memory for results whose predictions have none, then "
         "compare, 'resimulate': check today's model against every kept run (in-sample, written "
         "under results/dev/), or 'envcheck': characterise this machine (CPU siblings, steal, CPU "
-        "per request across rates; about 8 minutes of Docker)",
+        "per request across rates; about 8 minutes of Docker), or 'contention': how much "
+        "slower CPU work runs with its hyperthread sibling, other cores or itself busy (a probe, "
+        "then pg-mixed's service; about 15 minutes of Docker)",
     )
     ap.add_argument("experiment", nargs="?", help="with smoke: the experiment to smoke-test")
     ap.add_argument("--keep", action="store_true", help="leave the stack running afterwards")
+    ap.add_argument(
+        "--probe-only", action="store_true", help="with contention: the probe part only"
+    )
+    ap.add_argument(
+        "--service-only",
+        action="store_true",
+        help="with contention: the machine at rest and the service at three rates only",
+    )
     ap.add_argument("--only", choices=list(EXPERIMENTS), help="run one experiment of the stack")
     ap.add_argument(
         "--archive",
@@ -3811,6 +4486,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.stack == "envcheck":
         log(f"wrote {envcheck().relative_to(HERE.parent).as_posix()}")
+        return 0
+    if args.stack == "contention":
+        path = contention(service=not args.probe_only, probe=not args.service_only)
+        log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
         return 0
     if args.stack == "resources":
         for path in predict_resources():

@@ -20,6 +20,7 @@ import simpy
 from simpy.core import URGENT, EmptySchedule, StopSimulation
 
 from archsim_engine.components import create_default_registry
+from archsim_engine.components.host import HostRuntime, host_machine
 from archsim_engine.components.traffic_source import TrafficSourceConfig, TrafficSourceRuntime
 from archsim_engine.issues import DocumentInvalidError, error
 from archsim_engine.metrics import Timeline
@@ -485,6 +486,9 @@ def _run_full(
     ctx.shared["clusters"] = [
         n.id for n in resolved.architecture.nodes if n.type == "kubernetes_cluster"
     ]
+    # The design's host machine (schema 1.7): every part with a CPU size shares its threads
+    if (machine := host_machine(resolved.architecture.host)) is not None:
+        ctx.shared["host"] = HostRuntime(env, machine, tl, wl.rate_at)
     ctx.set_faults(list(wl.faults))
     for e in resolved.architecture.edges:
         er = EdgeRuntime(e, tl, ctx.rng(f"edge:{e.id}:latency"))
@@ -530,6 +534,8 @@ def _run_full(
     t_final = t
     for comp in ctx.components.values():
         comp.finalize(t_final)
+    if (host := ctx.shared.get("host")) is not None:
+        host.finalize(t_final)
 
     report = build_report(
         prep=prep,
