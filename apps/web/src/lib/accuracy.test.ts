@@ -14,7 +14,9 @@ import {
   lowLoadSentence,
   minus,
   p95Sentence,
+  coverageAsClaimed,
   coverageSentence,
+  rangeSource,
   repeatSentence,
   spreadSentence,
   topStepText,
@@ -194,13 +196,33 @@ describe("repeated runs", () => {
     );
   });
 
-  it("says how often the predicted range held the measured knee, and when it is too narrow", () => {
-    const summary = (withRange: number, inRange: number) => ({ ...accuracy.summary, coverage: { withRange, inRange } });
-    expect(coverageSentence(summary(12, 1))).toBe(
-      "ArchSim's predicted range for the knee held the measured one in 1 of 12 runs, where about 50% was expected: the range is too narrow.",
-    );
-    expect(coverageSentence(summary(12, 5))).toBe("ArchSim's predicted range for the knee held the measured one in 5 of 12 runs, where about 50% was expected.");
-    expect(coverageSentence(summary(0, 0))).toBeNull();
+  it("says how often the predicted range held the measured knee, against its own nominal coverage", () => {
+    type Verdict = "too narrow" | "too wide" | "as claimed";
+    const summary = (withRange: number, inRange: number, verdict: Verdict, nominal: number | null = 0.5, expectedInRange = withRange * (nominal ?? 0)) => ({
+      ...accuracy.summary,
+      coverage: { withRange, inRange, expectedInRange, nominalCoverage: nominal, verdict },
+    });
+    const head = "ArchSim's predicted range for the knee held the measured one in";
+    expect(coverageSentence(summary(12, 1, "too narrow"))).toBe(`${head} 1 of 12 runs, where about 50% was expected: the range is too narrow.`);
+    expect(coverageSentence(summary(12, 5, "as claimed"))).toBe(`${head} 5 of 12 runs, where about 50% was expected.`);
+    expect(coverageSentence(summary(12, 10, "as claimed", 0.8))).toBe(`${head} 10 of 12 runs, where about 80% was expected.`);
+    expect(coverageSentence(summary(12, 12, "too wide", 0.5))).toBe(`${head} 12 of 12 runs, where about 50% was expected: the range is wider than it needs to be.`);
+    // ranges with different nominal coverages: the share their expected hits make
+    expect(coverageSentence(summary(6, 4, "as claimed", null, 3.9))).toBe(`${head} 4 of 6 runs, where about 65% was expected.`);
+    expect(coverageSentence(summary(0, 0, "as claimed"))).toBeNull();
+    // the held-out experiments, once measured, are the range's out-of-sample test
+    const held = { ...summary(15, 12, "as claimed", 0.8), coverageHeldOut: { withRange: 5, inRange: 4, expectedInRange: 4, nominalCoverage: 0.8, verdict: "as claimed" as Verdict } };
+    expect(coverageSentence(held)).toBe(`${head} 12 of 15 runs, where about 80% was expected. On the held-out experiments alone, 4 of 5.`);
+    expect(coverageAsClaimed(summary(12, 10, "as claimed", 0.8))).toBe(true);
+    expect(coverageAsClaimed(summary(12, 1, "too narrow"))).toBe(false);
+    expect(coverageAsClaimed(summary(0, 0, "as claimed"))).toBe(false);
+  });
+
+  it("says where a predicted range came from", () => {
+    const old = { lowRps: 4800, highRps: 5000, nominalRps: 4956, nominalCoverage: 0.5, containsMeasured: false, values: [4800, 5000, 4950], replicates: 3 };
+    expect(rangeSource(old)).toBe("from 3 replicate calibration sets");
+    const w28 = { lowRps: 3700, highRps: 6600, nominalRps: 4950, nominalCoverage: 0.8, containsMeasured: true, method: "...", sigma: 0.22 };
+    expect(rangeSource(w28)).toBe("80% range: the calibration's run-to-run variation and the model's own error");
   });
 
   it("says nothing without a record of runs", () => {

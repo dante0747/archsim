@@ -1,11 +1,12 @@
 /**
  * One experiment's capacity knee on a load axis: the measured knee (blue dot), ArchSim's
- * prediction (orange diamond) and its predicted range (orange band, from the replicate
- * calibration sets), and, when the experiment was run more than once on the same machine, the
+ * prediction (orange diamond) and its predicted range (orange band: the replicate calibration
+ * sets' knees for engine 0.14.0's runs, an 80% range with the calibration's run-to-run variation
+ * and the model's own error since W28), and, when the experiment was run more than once on the same machine, the
  * range the measured knee moved over (grey band, a tick per run). Plain HTML, so the labels stay
  * readable at any width; each mark has a native tooltip.
  */
-import { type Experiment, kneeScale } from "@/lib/accuracy";
+import { type Experiment, kneeScale, rangeSource } from "@/lib/accuracy";
 import { cn } from "@/lib/utils";
 
 const fmt = (v: number) => Math.round(v).toLocaleString("en-US");
@@ -54,7 +55,7 @@ export function KneeScale({ x }: { x: Experiment }) {
         )}
         {range && (
           <div
-            title={`ArchSim's predicted range: ${fmt(range.lowRps)} to ${fmt(range.highRps)} req/s (from ${range.replicates} replicate calibration sets)`}
+            title={`ArchSim's predicted range: ${fmt(range.lowRps)} to ${fmt(range.highRps)} req/s (${rangeSource(range)})`}
             className="absolute top-[34px] h-2 rounded-full bg-[var(--pred)] opacity-30"
             style={{ left: `${at(range.lowRps)}%`, width: `${Math.max(at(range.highRps) - at(range.lowRps), 0.5)}%` }}
           />
@@ -112,7 +113,7 @@ export function KneeLegend() {
         <span className="mx-px size-2.5 rotate-45 bg-[var(--pred)]" aria-hidden /> ArchSim&apos;s prediction, made before measuring
       </li>
       <li className="flex items-center gap-2">
-        <span className="h-2 w-6 rounded-full bg-[var(--pred)] opacity-30" aria-hidden /> Its predicted range (from protocol v5)
+        <span className="h-2 w-6 rounded-full bg-[var(--pred)] opacity-30" aria-hidden /> Its predicted range
       </li>
       <li className="flex items-center gap-2">
         <span className="relative h-3 w-6 rounded-[3px] bg-ink/10" aria-hidden>

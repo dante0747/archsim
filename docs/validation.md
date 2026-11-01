@@ -28,7 +28,7 @@ Runs that repeat each experiment's latest conditions:
 | [cache-aside](#cache-aside) | 3 (v5, engine 0.14.0) | -34% | -34% to -26% | 0 of 3 runs (nominal 50%) |
 | [kafka](#kafka) | 3 (v5, engine 0.14.0) | +4% | +3% to +33% | 0 of 3 runs (nominal 50%) |
 
-The tier criteria below judge the median over at least 3 such runs. Protocol v5 predicts a range for the knee from its replicate calibration sets; with R sets a new run's knee should fall inside it (R - 1) / (R + 1) of the time (50% for 3), the nominal coverage. A disturbed run missed the objective at one load step and met it at a higher one; it is kept and listed under the run history, but not counted.
+The tier criteria below judge the median over at least 3 such runs. The nominal coverage is how often the measured knee should fall inside the predicted range. Engine 0.14.0's runs took the range from their three replicate calibration sets ((R - 1) / (R + 1) = 50%), which leaves out how much a calibration moves from one day to the next and the model's own error; since W28 the range is an 80% one that carries both ([Protocol](#protocol), step 3). A disturbed run missed the objective at one load step and met it at a higher one; it is kept and listed under the run history, but not counted.
 <!-- END GENERATED: repeatability -->
 
 The knee is the load where the ladder first misses the objective (p95 at most 50 ms with at least
@@ -197,9 +197,30 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
 3. **Predict**: the runner builds the ArchSim design (one Node.js event loop on 1 vCPU, a pool of
    10 database connections, PostgreSQL on 2 vCPU, and so on), searches the knee, and simulates
    every step of the ladder: 0.25, 0.5, 0.75, 0.9, 1.0, 1.1, 1.25 and 1.5 times the predicted
-   knee. It also searches the knee of each replicate set: the lowest to the highest is the
-   predicted range, which a new run's knee should fall inside about half the time with three
-   sets ((R - 1) / (R + 1)). `predictions.json` is written before the first measured step, with its provenance:
+   knee. Since W28 (1 Nov 2026) it also predicts an **80% range** for the knee: the measured knee
+   should fall inside it in about four runs of five. The range is a lognormal around the
+   predicted knee whose spread adds two parts, both fitted on the four in-sample experiments
+   only (`benchmarks/knee-range.json`, written by `run.py range-fit`; the fit and its check:
+   [`docs/validation/knee-range.md`](validation/knee-range.md)):
+   - **What a fresh calibration on another day would give.** The inputs move between
+     calibrations of the same stack: {VARIATION} (one standard deviation, over {NCAL} v5
+     calibrations: the kept runs and the calibration-only trials, under the same machine, OS
+     build and power mode). Within one calibration the three replicate sets agree more closely
+     (the service's CPU per request to about 5%). The runner reads how much the knee moves with
+     each input (two knee searches per input, the input 22% up and 18% down) and multiplies, so
+     a knee set by a noisy input gets a wider range: {CALSPREAD}.
+   - **The model's own error.** The measured knee was further from the prediction than the
+     calibration explains, and on the same side in every run of an experiment ({BIAS}): a log
+     standard deviation of {MODEL}, fitted by maximum likelihood over the 12 counted v5 runs.
+     It is the larger part.
+
+   Engine 0.14.0's runs took the range from the three replicate sets' knees, the lowest to the
+   highest (nominally 50%: (R - 1) / (R + 1)); it held the measured knee in 1 of 12 runs,
+   because it carried neither part. Checked on the same 12 runs with today's engine, the new
+   80% range holds {INSAMPLE} of 12 in-sample, {LOO} of 12 when the run checked is left out of
+   the fit and {LOEO} of 12 when its whole experiment is. These are runs the model was tuned
+   on; the held-out campaign is the test on data the range was not fitted to.
+   `predictions.json` is written before the first measured step, with its provenance:
    the commit, the engine's and the harness's git object ids, whether either had uncommitted
    changes, and the machine. Its sha256 goes to the log and into `measured.json` before the
    first step is measured. When the system still
