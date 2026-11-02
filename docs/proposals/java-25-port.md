@@ -55,7 +55,7 @@ archsim-model (plain Java library, usable without the simulator)
    design document records · upgrades from schema 1.0 to 1.7 · validation
 ```
 
-**Recommended stack** (each has a decision below where there's a real alternative):
+**The stack** (each choice with a real alternative has an ADR; see [Decisions](#decisions)):
 
 - **Java 25 (LTS)**: records, sealed interfaces for component types, pattern-matching `switch`,
   virtual threads for request handling.
@@ -76,9 +76,8 @@ archsim-model (plain Java library, usable without the simulator)
 - **Event-driven simulation kernel.** It's a single-threaded priority queue of timed events,
   ordered like SimPy: time, then priority, then insertion order. Each component is a state
   machine whose steps are named after the Python blocks they replace; random streams are seeded
-  per component, and component types sit behind a sealed interface. It doesn't use virtual
-  threads as coroutines: an event costs roughly 0.1–0.2 µs against 1–2 µs for a thread
-  hand-off, the same seed gives the same results, and it's easier to debug and profile.
+  per component, and component types sit behind a sealed interface. Why not virtual threads:
+  [ADR-0013](../adr/0013-event-driven-simulation-kernel.md).
 - **Quality gates in CI:**
   - formatting: Spotless with palantir-java-format;
   - null safety: Error Prone with NullAway and JSpecify annotations;
@@ -219,44 +218,32 @@ Decided order: the Python engine is frozen at 0.16.0, and the held-out campaign 
 
 ## Decisions
 
-The owner's answers, 2 Nov 2026:
+The owner decided these on 2 Nov 2026. Each has an Architecture Decision Record in
+[`docs/adr/`](../adr/README.md), which gives its reasons, the options weighed and what follows;
+the port itself is [ADR-0005](../adr/0005-port-to-java-25-in-stages.md).
 
-1. **Build tool:** Gradle with Kotlin DSL and a version catalog.
-2. **Framework:** Spring Boot 4.
-3. **Data access:** Spring's `JdbcClient` with explicit SQL, and Flyway for migrations.
-4. **Base package:** `io.archsim` (for example `io.archsim.model`, `io.archsim.app.projects`).
-5. **Benchmark harness:** it stays Python during the port and calls the Java CLI from stage 4.
-   Once the migration is complete, it's ported to Java as well (stage 7).
-6. **SQLite development mode:** dropped. Local development and tests use PostgreSQL, in Docker or
-   Testcontainers.
-7. **Order:** the held-out campaign runs on the frozen Python engine 0.16.0 before stage 4
-   starts. Stages 0–3 go ahead in the meantime. The campaign itself needs the owner's go-ahead.
+| # | Decision | ADR |
+| --- | --- | --- |
+| 1 | Build with Gradle, the Kotlin DSL and a version catalog | [0006](../adr/0006-build-with-gradle-kotlin-dsl.md) |
+| 2 | Spring Boot 4 for the application | [0007](../adr/0007-spring-boot-4.md) |
+| 3 | PostgreSQL through `JdbcClient` with explicit SQL; Flyway migrations | [0008](../adr/0008-jdbcclient-and-flyway.md) |
+| 4 | Base package `io.archsim` | [0009](../adr/0009-base-package-io-archsim.md) |
+| 5 | The benchmark harness stays Python during the port, then moves to Java (stage 7) | [0015](../adr/0015-benchmark-harness-stays-python-until-port-completes.md) |
+| 6 | No SQLite development mode: PostgreSQL only | [0016](../adr/0016-drop-sqlite-development-mode.md) |
+| 7 | The Python engine is frozen at 0.16.0; the held-out campaign runs before stage 4 | [0017](../adr/0017-freeze-python-engine-during-port.md) |
+| 8 | One Gradle build at the repository root, one folder per module | [0010](../adr/0010-gradle-build-at-repository-root.md) |
+| 9 | The app's code is organised by feature | [0011](../adr/0011-organise-application-code-by-feature.md) |
+| 10 | The design model (`archsim-model`) is a module apart from the engine | [0012](../adr/0012-separate-model-and-engine-modules.md) |
+| 11 | An event-driven, single-threaded simulation kernel | [0013](../adr/0013-event-driven-simulation-kernel.md) |
+| 12 | One deployable, `archsim-app`, started as `api`, `worker` or `migrate` | [0014](../adr/0014-one-deployable-application-with-roles.md) |
 
-Five more, the same day:
+Stage 0 proposes three more, for the owner to accept:
 
-8. **Repository layout:** one Gradle build at the repository root, with one top-level folder per
-   module: `archsim-model`, `archsim-engine`, `archsim-app`, `archsim-cli` and `archsim-mcp`, plus
-   test modules such as `archsim-api-tests`. `apps/web` doesn't change, and the Python folders go
-   stage by stage.
-9. **The app is organised by feature**, not in hexagonal layers. Each feature has one package
-   (`io.archsim.app.projects`, `.runs`, `.auth`, `.tokens`, `.shared`...), which holds its
-   controller, service and repository classes. An ArchUnit rule stops controllers from using
-   repositories directly.
-10. **Model and engine are separate modules.** `archsim-model` holds the design document's
-    records, the upgrades from schema 1.0 to 1.7 and validation. `archsim-engine` holds the
-    kernel, components, analysis, sizing, cost, pricing, calibration, importers and export. The
-    app, CLI and MCP server can use the model without the simulator.
-11. **The simulation kernel is event-driven:** a single-threaded priority queue of timed events,
-    ordered like SimPy (time, then priority, then insertion order). Components are state machines,
-    and each step is named after the Python block it replaces. Not virtual-thread coroutines,
-    for three reasons:
-    - **speed:** roughly 0.1–0.2 µs per event, against 1–2 µs per thread hand-off;
-    - **repeatability:** the same seed gives the same results;
-    - **tooling:** debugging and profiling are simpler.
-12. **One deployable:** a single Spring Boot app, `archsim-app`, replacing the separate
-    `archsim-api` and `archsim-worker` first proposed. It builds one image, started as `api`,
-    `worker` or `migrate`, as today's compose runs the Python image. The worker skips the web
-    layer through a Spring profile.
+| Decision | ADR |
+| --- | --- |
+| Black-box API tests in Java, run against any base URL | [0019](../adr/0019-black-box-api-tests-against-any-base-url.md) |
+| The frozen engine's deterministic functions recorded as golden files | [0020](../adr/0020-golden-files-of-the-frozen-engine.md) |
+| The Java build's conventions: one convention plugin, warnings as errors, JUnit 6 | [0021](../adr/0021-java-build-conventions.md) |
 
 **Rough total:** 6–10 weeks of sessions for stages 0–6, plus overnight parity runs, then the
 harness port.
