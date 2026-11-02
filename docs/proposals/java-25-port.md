@@ -1,7 +1,7 @@
 # Proposal: ArchSim on Java 25, ported in stages
 
 **Status:** approved by the owner on 2 Nov 2026, with the [decisions](#decisions) below. Stage 0
-(foundations) is under way.
+(foundations) is built; its exit check is still open (see [Stage 0](#stage-0--foundations-35-days)).
 
 **Why:** the owner works in Java and wants to maintain ArchSim. This is a port, not a redesign of
 what ArchSim does: the simulation model, the design format and the web app's behaviour stay the
@@ -117,6 +117,18 @@ doesn't change.
 - **Black-box API tests:** the 4.1k lines of API tests become HTTP tests that run against any
   base URL, so the same suite checks both the Python and the Java API.
 - **Exit:** the Java CI is green, and the black-box suite passes against today's Python API.
+- **Built (2 Nov 2026):**
+  - the Gradle build (see [Code layout](#code-layout)) and the CI job `java`;
+  - golden files in [`parity/golden/`](../../parity/README.md), checked against the engine by
+    the Python CI job;
+  - the black-box suite in [`archsim-api-tests/`](../../archsim-api-tests/README.md): 120 of
+    the 162 Python API tests, with the other 42 listed there. It needs PostgreSQL and starts the
+    Python API itself (`-Parchsim.api.start=python`).
+- **Still to run before the exit is met:**
+  - the whole black-box suite against the Python API; Docker was stopped while it ran, so 36
+    of the tests have not run yet;
+  - the golden-file check on Linux (the files were written on Windows);
+  - the CI job on GitHub (a Linux container run of its steps passed).
 
 ### Stage 1 · Design model and schema (3–5 days)
 - **Model:** `archsim-model`: Java records for the design document, with upgrades from schema 1.0
