@@ -106,6 +106,7 @@ doesn't change.
 | `build-logic/` | the convention plugin every module applies: Java 25, Spotless, Error Prone with NullAway, JUnit, JaCoCo |
 | `archsim-model/`, `archsim-engine/`, `archsim-app/`, `archsim-cli/`, `archsim-mcp/` | one module per box above, each added by the stage that needs it. Maven's standard directories inside: `src/main/java/io/archsim/<module>/` (in the app, `io.archsim.app.<feature>`), `src/main/resources`, `src/test/java` |
 | `archsim-api-tests/` | a test module: the black-box API tests (stage 0) |
+| `parity/golden/` | the frozen Python engine's golden files, the reference for stages 1 and 3 ([`parity/README.md`](../../parity/README.md)) |
 
 ## Stages
 
