@@ -70,9 +70,11 @@ Read these numbers as three runs on one laptop, all of them in-sample:
 - **Light-load latency: within 0.6 ms for pg-mixed and hot-row, 2 to 3 times too high for
   cache-aside.** At a quarter and half of the predicted knee ArchSim's p95 is 0.01 to 0.59 ms
   off for pg-mixed and hot-row. For cache-aside it is 2.9 and 4.7 ms against 1.4 and 1.5
-  measured; part of that was a harness bug in the latest run (fixed since), the rest the service
-  time's spread under v6's inputs ([below](#where-the-model-is-wrong-and-why)). Kafka's is
-  0.35 and 1.96 ms under.
+  measured; part of that was a harness bug in the latest run, the rest the service time's spread
+  under v6's inputs ([below](#where-the-model-is-wrong-and-why)). Both are fixed in the harness
+  since: re-simulated with the spread anchored to the calibration pass (W29, in-sample), the
+  three runs give 1.39 to 1.60 ms there against 1.42 to 1.54 measured, and the predictions from
+  now on use it. Kafka's is 0.35 and 1.96 ms under.
 - **All four are in-sample.** The protocol (up to v6) and the engine (up to 0.16.0) were
   developed with these four experiments' results in view. The five [held-out
   experiments](#held-out-experiments) are the test of how ArchSim does on stacks it was not
@@ -721,8 +723,19 @@ campaign's analysis, and its causes still hold:
   (W21) makes each request 1.4 to 1.7 times as costly at these rates as at the top of the
   staircase; with both the model's queue grows a tail the real event loop does not have. Without
   the curve and the pauses the model gives 1.8 to 2.1 ms at a quarter of the knee and 3.1 to
-  4.0 ms at half, still too high. Kafka's p95 at half the knee is 47% under (2.2 against
-  4.2 ms).
+  4.0 ms at half, still too high. The spread was the cause (W29, after the campaign): it came
+  from the handler's own time, under a tenth of the CPU per request, and cache-aside's own time
+  also held the wait behind Redis's batched replies, which the model simulates again (11 to 13
+  times from median to p95, against 2 to 3 for the other three). Anchored so that the model's
+  p95 - p50 at the top calibration pass is k6's ([Protocol](#protocol), step 2), the spread
+  falls to 5.1 to 5.2 times, and re-simulated (in-sample) the three runs' p95 at the first two
+  steps is 1.39 to 1.60 ms against 1.42 to 1.54 measured, and 2.0 to 2.5 against 2.1 to 2.2 at
+  about three fifths of the knee; their median p95 error below the knee falls from between
+  225% and 328% to between 8% and 23%. The knee barely moves: -1% to +6% in the model's own
+  search, at most 0.4 points of error on v6's measured ladders (one v5 run drops a whole ladder
+  step, -34% to -39%, from a 1% move). pg-mixed, hot-row and Kafka keep their inputs: their
+  model tails at the top pass are no wider than k6's. Kafka's p95 at half the knee is 47% under
+  (2.2 against 4.2 ms).
 
 From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted runs of each,
 30-31 Oct 2026), on one Windows laptop with Docker Desktop set to Best performance:

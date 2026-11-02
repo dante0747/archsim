@@ -7,6 +7,38 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 
 ## Implemented and covered by automated tests
 
+**W29: the service time's spread anchored at the calibration pass (2026-11-02; harness only,
+engine still 0.16.0).**
+
+- The cause of cache-aside's light-load p95 (2 to 3 times too high in the v6 campaign): the
+  service time's shape (p95 over median) came from the handler's own time, which is under a
+  tenth of the CPU per request, and cache-aside's also held the wait behind Redis's batched
+  replies, which the model simulates again: 11 to 13 times from median to p95, against 2 to 3
+  for the other three experiments.
+- `run.py` `anchor_spread` (called by `anchor`, before the client latency): when the model's
+  p95 - p50 at the top calibration pass is wider than k6's, the spread narrows, keeping the
+  mean (the CPU per request), until they match (bisection on the log of the ratio, 10 s per
+  try, at most 7 tries per replicate). Never widened: a tail the model misses can be the
+  database's, the broker's or the network's.
+- Re-simulated on every kept run (in-sample, `results/dev/0.16.0-w29/`): 31 of 38 checks are
+  identical to 0.16.0's (all of pg-mixed's, hot-row's and Kafka's but pg-mixed's disturbed
+  `run-3/` from 26 Oct, -72% to -78%). Cache-aside's v6 runs:
+
+  | Cache-aside, 3 v6 runs | before | after | measured |
+  | --- | --- | --- | --- |
+  | p95 at the first step (1,231 to 1,325 req/s) | 2.57 to 3.39 ms | 1.39 to 1.54 ms | 1.42 to 1.44 ms |
+  | p95 at the second step (2,462 to 2,650 req/s) | 3.32 to 4.56 ms | 1.39 to 1.60 ms | 1.50 to 1.54 ms |
+  | Median p95 error below the knee | 225% to 328% | 8% to 23% | |
+  | Knee error (median of 3) | -24.7% | -24.5% | |
+
+  The spread falls to 5.1 to 5.2 times. The knee moves -1% to +6% in the model's own search;
+  one v5 run drops a whole step of its measured ladder (-34% to -39%) from a 1% move. The
+  committed v6 predictions keep the inputs they were made with; the next predictions use it.
+- Tests: `test_service_spread.py` (narrowing keeps the mean, never widens, stops at the
+  narrowest ratio, leaves a tail the spread does not move), and
+  `test_split_inputs_reproduce_every_latest_calibration` re-derives every latest calibration
+  with it (cache-aside's spread narrowed, the other three as calibrated).
+
 **The protocol v6 campaign: engine 0.16.0 in-sample, three runs each (2026-11-02).**
 
 - The four in-sample experiments ran three times each overnight (1-2 Nov, 23:41 to 06:14,
@@ -22,7 +54,7 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 - New problem: cache-aside's p95 at a quarter and half of the knee is predicted 2 to 3 times
   too high in all three runs (2.8 to 4.7 ms against 1.4 to 1.5), from the v6 service time's
   spread (lognormal p95 11x its median) and the load curve's factor at those rates (1.4 to
-  1.7); next to look at before the freeze.
+  1.7). Fixed after the campaign in the harness (W29, above).
 - Fixed: `run.median_inputs` took its keys from the first replicate only, so when that pass
   saw no mark-compact, `gcEveryRequests` was dropped and the model paused every 1,500 requests
   (Node's default) instead of about 32,500 (cache-aside's latest run, and hot-row's `run-9/`,
