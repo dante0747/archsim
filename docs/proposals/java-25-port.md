@@ -1,7 +1,7 @@
 # Proposal: ArchSim on Java 25, ported in stages
 
 **Status:** approved by the owner on 2 Nov 2026, with the [decisions](#decisions) below. Stage 0
-is next; nothing has been built yet.
+(foundations) is under way.
 
 **Why:** the owner works in Java and wants to maintain ArchSim. This is a port, not a redesign of
 what ArchSim does: the simulation model, the design format and the web app's behaviour stay the
@@ -11,8 +11,8 @@ same. The structure and tooling become standard modern Java.
 
 | Part | Today | After the port |
 | --- | --- | --- |
-| Simulation engine, analysis, sizing, cost, calibration, importers | Python, 28.8k lines (+9.6k tests) | Java library, no framework |
-| HTTP API, sign-in, run queue, workers | Python FastAPI, 7.9k lines (+4.1k tests) | Spring Boot 4 |
+| Simulation engine, analysis, sizing, cost, calibration, importers | Python, 28.8k lines (+9.6k tests) | two Java libraries, no framework: `archsim-model` and `archsim-engine` |
+| HTTP API, sign-in, run queue, workers | Python FastAPI, 7.9k lines (+4.1k tests) | one Spring Boot 4 app, `archsim-app` |
 | MCP server for AI agents | Python, 0.5k lines | Java (official MCP Java SDK) |
 | CLI and `archsim check` GitHub Action | Python | Java (picocli) |
 | Web app | TypeScript / Next.js, 39k lines | **unchanged** |
@@ -37,38 +37,75 @@ same. The structure and tooling become standard modern Java.
 apps/web (Next.js, unchanged)
    │  HTTP + JSON (same contract)
    ▼
-archsim-api (Spring Boot 4)             archsim-worker (Spring Boot 4, no web)
-   web → application → domain ◄─ ports ─► persistence (PostgreSQL), security, jobs
-   │                                       │ claims runs from the PostgreSQL queue (SKIP LOCKED)
-   └────────────── both use ───────────────┘
-archsim-engine (plain Java library)
-   model (records, schema 1.0–1.7) · kernel (discrete-event) · components · analysis
-   sizing · cost · pricing · calibration · importers · export
+archsim-app (Spring Boot 4: one image, started as api, worker or migrate)
+   one package per feature: io.archsim.app.projects · .runs · .auth · .tokens · .shared …
+   each holds its controller, service and repository (JdbcClient, PostgreSQL)
+   worker: a Spring profile without the web layer; claims runs from the queue (SKIP LOCKED)
+
 archsim-cli (picocli)      archsim-mcp (MCP Java SDK)      benchmarks (Python → archsim-cli)
+
+   │ the app, CLI and MCP use both libraries below
+   ▼
+archsim-engine (plain Java library)
+   kernel (event-driven, single-threaded) · components · analysis · sizing · cost · pricing
+   calibration · importers · export
+   │ uses
+   ▼
+archsim-model (plain Java library, usable without the simulator)
+   design document records · upgrades from schema 1.0 to 1.7 · validation
 ```
 
 **Recommended stack** (each has a decision below where there's a real alternative):
 
 - **Java 25 (LTS)**: records, sealed interfaces for component types, pattern-matching `switch`,
   virtual threads for request handling.
-- **Gradle 9 with Kotlin DSL**, a version catalog, and one Gradle module per box above.
+- **Gradle 9 with Kotlin DSL**, a version catalog, and one Gradle module per box above, each
+  added by the stage that first needs it.
 - **Spring Boot 4** (Spring Framework 7, Jackson 3), Spring Security's OAuth2 client for GitHub
-  and Google sign-in, CSRF protection and hashed API tokens, as today.
+  and Google sign-in, CSRF protection and hashed API tokens, as today. **One app,
+  `archsim-app`**, organised by feature: one package per feature, holding that feature's
+  controller, service and repository classes. It builds one image, started as `api`, `worker`
+  or `migrate` like today's Python image; the worker is a Spring profile without the web layer.
 - **PostgreSQL** through Spring's `JdbcClient` with explicit SQL. The run queue already relies on
   `SELECT … FOR UPDATE SKIP LOCKED` and leases, which read best as plain SQL. **Flyway** takes over
   from Alembic at the current schema revision.
-- **Engine without Spring:** a small deterministic discrete-event kernel (a priority queue of
-  timed events, replacing SimPy), seeded random streams per component, and one class per component
-  type behind a sealed interface.
+- **Model and engine without Spring.** `archsim-model` holds the design document's records, the
+  upgrades from schema 1.0 to 1.7 and validation, so the app, CLI and MCP server can read and
+  check a design without the simulator. `archsim-engine` holds the rest: the kernel, components,
+  analysis, sizing, cost, pricing, calibration, importers and export.
+- **Event-driven simulation kernel.** It's a single-threaded priority queue of timed events,
+  ordered like SimPy: time, then priority, then insertion order. Each component is a state
+  machine whose steps are named after the Python blocks they replace; random streams are seeded
+  per component, and component types sit behind a sealed interface. It doesn't use virtual
+  threads as coroutines: an event costs roughly 0.1–0.2 µs against 1–2 µs for a thread
+  hand-off, the same seed gives the same results, and it's easier to debug and profile.
 - **Quality gates in CI:**
   - formatting: Spotless with palantir-java-format;
   - null safety: Error Prone with NullAway and JSpecify annotations;
-  - layering: ArchUnit rules (the domain never imports Spring or JDBC);
-  - tests: JUnit 5 and AssertJ, jqwik for engine invariants, Testcontainers for PostgreSQL;
+  - layering: ArchUnit rules (controllers never use repositories directly; the model and the
+    engine never import Spring or JDBC; the model never imports the engine);
+  - tests: JUnit and AssertJ, jqwik for engine invariants, Testcontainers for PostgreSQL. The
+    build uses JUnit 6: the same Jupiter API as JUnit 5, and the version Spring Boot 4 manages;
   - coverage: JaCoCo;
   - the web contract: an OpenAPI document generated by springdoc, checked against the web
     app's `api.ts`.
-- **Packaging:** Docker images built with Jib. `docker compose up` works as it does today.
+- **Packaging:** one Docker image of `archsim-app`, built with Jib. `docker compose up` works as
+  it does today.
+
+## Code layout
+
+One Gradle build at the repository root, with the standard multi-project layout: one top-level
+folder per module. It sits beside the Python code, whose folders go stage by stage; `apps/web`
+doesn't change.
+
+| Path | What |
+| --- | --- |
+| `settings.gradle.kts`, `gradlew`, `gradle/wrapper/` | the build and its wrapper (Gradle 9.8) |
+| `gradle/libs.versions.toml` | every version, in one place |
+| `gradle/gradle-daemon-jvm.properties` | Gradle runs on JDK 25 whatever `JAVA_HOME` says, and downloads one if none is installed |
+| `build-logic/` | the convention plugin every module applies: Java 25, Spotless, Error Prone with NullAway, JUnit, JaCoCo |
+| `archsim-model/`, `archsim-engine/`, `archsim-app/`, `archsim-cli/`, `archsim-mcp/` | one module per box above, each added by the stage that needs it. Maven's standard directories inside: `src/main/java/io/archsim/<module>/` (in the app, `io.archsim.app.<feature>`), `src/main/resources`, `src/test/java` |
+| `archsim-api-tests/` | a test module: the black-box API tests (stage 0) |
 
 ## Stages
 
@@ -81,14 +118,15 @@ archsim-cli (picocli)      archsim-mcp (MCP Java SDK)      benchmarks (Python �
 - **Exit:** the Java CI is green, and the black-box suite passes against today's Python API.
 
 ### Stage 1 · Design model and schema (3–5 days)
-- **Model:** Java records for the design document, with upgrades from schema 1.0 to 1.7.
+- **Model:** `archsim-model`: Java records for the design document, with upgrades from schema 1.0
+  to 1.7.
 - **Validation:** messages match Python's word for word, because the web app shows them.
 - **JSON Schema:** generated from the records and compared with today's.
 - **Exit:** all 25 examples and every test fixture read and write back identically, and every
   invalid fixture gives the same errors.
 
 ### Stage 2 · The API on Spring Boot, engine still Python (1–2 weeks)
-- **Endpoints:** the Java API serves all 69 of them. Same JSON, cookies, CSRF, rate limits and
+- **Endpoints:** `archsim-app` serves all 69 of them. Same JSON, cookies, CSRF, rate limits and
   outbound block, and tokens keep working because the hash format is unchanged.
 - **Simulation runs:** they keep executing in Python workers through the shared PostgreSQL queue,
   which is already the seam between the API and the workers.
@@ -100,8 +138,8 @@ archsim-cli (picocli)      archsim-mcp (MCP Java SDK)      benchmarks (Python �
   - compose switches to Java, and the FastAPI code is deleted.
 
 ### Stage 3 · The engine's deterministic parts (1–2 weeks)
-- **What it covers:** estimate, sizing, cost, pricing, design review and findings, confidence,
-  explain, compare, exports, importers and calibration fits.
+- **What it covers:** in `archsim-engine`, estimate, sizing, cost, pricing, design review and
+  findings, confidence, explain, compare, exports, importers and calibration fits.
 - **Parity bar:** the golden files from stage 0. Text must match exactly, and numbers to a relative
   1e-9.
 - **Exit:** each part moves from the Python engine service to Java when it passes. When the last
@@ -173,13 +211,39 @@ The owner's answers, 2 Nov 2026:
 1. **Build tool:** Gradle with Kotlin DSL and a version catalog.
 2. **Framework:** Spring Boot 4.
 3. **Data access:** Spring's `JdbcClient` with explicit SQL, and Flyway for migrations.
-4. **Base package:** `io.archsim` (for example `io.archsim.engine`, `io.archsim.api`).
+4. **Base package:** `io.archsim` (for example `io.archsim.model`, `io.archsim.app.projects`).
 5. **Benchmark harness:** it stays Python during the port and calls the Java CLI from stage 4.
    Once the migration is complete, it's ported to Java as well (stage 7).
 6. **SQLite development mode:** dropped. Local development and tests use PostgreSQL, in Docker or
    Testcontainers.
 7. **Order:** the held-out campaign runs on the frozen Python engine 0.16.0 before stage 4
    starts. Stages 0–3 go ahead in the meantime. The campaign itself needs the owner's go-ahead.
+
+Five more, the same day:
+
+8. **Repository layout:** one Gradle build at the repository root, with one top-level folder per
+   module: `archsim-model`, `archsim-engine`, `archsim-app`, `archsim-cli` and `archsim-mcp`, plus
+   test modules such as `archsim-api-tests`. `apps/web` doesn't change, and the Python folders go
+   stage by stage.
+9. **The app is organised by feature**, not in hexagonal layers. Each feature has one package
+   (`io.archsim.app.projects`, `.runs`, `.auth`, `.tokens`, `.shared`...), which holds its
+   controller, service and repository classes. An ArchUnit rule stops controllers from using
+   repositories directly.
+10. **Model and engine are separate modules.** `archsim-model` holds the design document's
+    records, the upgrades from schema 1.0 to 1.7 and validation. `archsim-engine` holds the
+    kernel, components, analysis, sizing, cost, pricing, calibration, importers and export. The
+    app, CLI and MCP server can use the model without the simulator.
+11. **The simulation kernel is event-driven:** a single-threaded priority queue of timed events,
+    ordered like SimPy (time, then priority, then insertion order). Components are state machines,
+    and each step is named after the Python block it replaces. Not virtual-thread coroutines,
+    for three reasons:
+    - **speed:** roughly 0.1–0.2 µs per event, against 1–2 µs per thread hand-off;
+    - **repeatability:** the same seed gives the same results;
+    - **tooling:** debugging and profiling are simpler.
+12. **One deployable:** a single Spring Boot app, `archsim-app`, replacing the separate
+    `archsim-api` and `archsim-worker` first proposed. It builds one image, started as `api`,
+    `worker` or `migrate`, as today's compose runs the Python image. The worker skips the web
+    layer through a Spring profile.
 
 **Rough total:** 6–10 weeks of sessions for stages 0–6, plus overnight parity runs, then the
 harness port.
