@@ -55,4 +55,5 @@ How it's used:
 ## More Information
 
 - [The port proposal, "Target architecture"](../proposals/java-25-port.md#target-architecture)
+- [ADR-0021](0021-java-build-conventions.md) (the conventions the build applies, with JUnit 6)
 - Gradle version catalogs: <https://docs.gradle.org/current/userguide/version_catalogs.html>

@@ -60,3 +60,6 @@ what the repository shows.
 | [0016](0016-drop-sqlite-development-mode.md) | Drop the SQLite development mode | Accepted | 2026-11-02 |
 | [0017](0017-freeze-python-engine-during-port.md) | Freeze the Python engine during the port; run the held-out campaign before stage 4 | Accepted | 2026-11-02 |
 | [0018](0018-p95-within-a-factor-of-two.md) | Judge p95 within a factor of two either way | Accepted | 2026-11-02 |
+| [0019](0019-black-box-api-tests-against-any-base-url.md) | Black-box API tests in Java, run against any base URL | Proposed | 2026-11-02 |
+| [0020](0020-golden-files-of-the-frozen-engine.md) | Record the frozen engine's deterministic functions as golden files | Proposed | 2026-11-02 |
+| [0021](0021-java-build-conventions.md) | Java build conventions: one convention plugin, warnings as errors, JUnit 6 | Proposed | 2026-11-02 |
