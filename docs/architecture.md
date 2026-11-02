@@ -1,7 +1,8 @@
 # Architecture
 
 ArchSim has three layers with stable contracts between them. Each can be developed and
-tested on its own.
+tested on its own. Why it is built this way, decision by decision, is in the
+[architecture decision records](adr/README.md).
 
 ```mermaid
 flowchart LR

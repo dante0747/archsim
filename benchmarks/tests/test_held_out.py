@@ -16,6 +16,8 @@ import pytest
 import report
 import run
 
+from archsim_engine.version import ENGINE_VERSION
+
 HELD_OUT = ["java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl"]
 TUNED_ON = ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
 TREE = "f" * 40
@@ -70,12 +72,34 @@ def test_the_registration_commit_added_them() -> None:
         assert f'"{e}",' in then and f'"{e}",' not in before, e
 
 
-def test_engines_json_has_no_frozen_engine_yet() -> None:
+def test_engine_0_16_0_is_frozen_for_the_held_out_campaign() -> None:
+    # docs/adr/0017: frozen for the held-out campaign and as the Java port's parity reference
     entries = report.engines()
-    assert run.frozen_engines() == []
-    assert {"version", "engineTree", "frozenAt", "tag", "tunedOn"} <= set(entries[0])
-    assert entries[0]["tunedOn"] == TUNED_ON
+    assert [e["version"] for e in entries] == ["0.14.0", "0.16.0"]
+    for e in entries:
+        assert {"version", "engineTree", "frozenAt", "tag", "tunedOn"} <= set(e)
+        assert e["tunedOn"] == TUNED_ON
     assert not any(set(e["tunedOn"]) & set(HELD_OUT) for e in entries)
+    (frozen,) = run.frozen_engines()
+    assert (frozen["version"], frozen["tag"]) == ("0.16.0", "engine-0.16.0")
+    tagged = run.git("rev-parse", f"{frozen['tag']}:packages/engine")
+    if tagged is not None:  # the tag is in this clone
+        assert tagged == frozen["engineTree"]
+
+
+def test_the_last_engine_entry_is_the_engine_in_this_tree() -> None:
+    """A commit under packages/engine changes its tree. It then needs a new engine version and a
+    new entry in engines.json (and a new freeze before it predicts a held-out experiment), never
+    an edit of a frozen one."""
+    head = run.git("rev-parse", "HEAD:packages/engine")
+    if head is None:
+        pytest.skip("not a git checkout")
+    last = report.engines()[-1]
+    assert last["version"] == ENGINE_VERSION
+    assert last["engineTree"] == head, (
+        f"packages/engine has changed since engine {last['version']} was recorded in "
+        "benchmarks/engines.json: give it a new version and a new entry"
+    )
 
 
 def test_frozen_engines_need_a_date_a_tag_and_a_tree(tmp_path: Path) -> None:
@@ -120,7 +144,8 @@ def test_run_experiment_refuses_a_sealed_experiment(
     monkeypatch.setattr(run, "provenance", lambda: dict(CLEAN))
     engines = tmp_path / "engines.json"
     monkeypatch.setattr(run, "ENGINES", engines)
-    # the committed engines.json: nothing is frozen, so nothing is calibrated or measured
+    # the committed engines.json freezes engine 0.16.0's tree, not this one: nothing is
+    # calibrated or measured
     engines.write_text((run.HERE / "engines.json").read_text(encoding="utf-8"), encoding="utf-8")
     for e in HELD_OUT:
         with pytest.raises(SystemExit, match="held-out experiment"):

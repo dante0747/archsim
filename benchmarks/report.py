@@ -110,7 +110,7 @@ CONTAINERS = {
 
 # Proposed tier thresholds (docs/validation.md, "Proposed tier thresholds").
 KNEE_TOLERANCE = 0.25
-P95_TOLERANCE = 1.0
+P95_FACTOR = 2.0
 P95_TOLERANCE_MS = 3.0
 LOW_LOAD_FRACTION = 0.5
 
@@ -380,12 +380,26 @@ def coverage_verdict(hits: int, runs: int, expected: float) -> str | None:
     return "as claimed"
 
 
+def p95_factor(measured: float, predicted: float) -> float:
+    """How many times too high or too low the predicted p95 is: 2.0 for both double and half the
+    measured one, infinite when one of them is zero and the other is not."""
+    if measured == predicted:
+        return 1.0
+    if measured <= 0 or predicted <= 0:
+        return math.inf
+    return max(predicted / measured, measured / predicted)
+
+
 def p95_within(measured: float | None, predicted: float | None) -> bool:
-    """Criterion 2 for one step: |predicted - measured| within 100% of the measured p95 or 3 ms,
-    whichever is larger."""
+    """Criterion 2 for one step: the predicted p95 within a factor of P95_FACTOR of the measured
+    one (from half to double), or within P95_TOLERANCE_MS of it, whichever is wider. A prediction
+    that is too low fails as surely as one that is too high (docs/adr/0018)."""
     if measured is None or predicted is None:
         return False
-    return abs(predicted - measured) <= max(P95_TOLERANCE * measured, P95_TOLERANCE_MS)
+    return (
+        abs(predicted - measured) <= P95_TOLERANCE_MS
+        or p95_factor(measured, predicted) <= P95_FACTOR
+    )
 
 
 def criteria(cmp_: Mapping[str, Any], runs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -394,8 +408,8 @@ def criteria(cmp_: Mapping[str, Any], runs: Sequence[Mapping[str, Any]]) -> dict
     that repeat it (``comparable``), at least MIN_RUNS of them:
 
     1. the median knee error within +/-25%;
-    2. at or below the measured knee, every step's p95 within +/-100% or 3 ms (``p95_within``),
-       in at least REPEAT_SHARE of the runs;
+    2. at or below the measured knee, every step's p95 within a factor of two or 3 ms
+       (``p95_within``), in at least REPEAT_SHARE of the runs;
     3. no unstable step at or below the measured knee, in at least REPEAT_SHARE of the runs (3a);
        reproduced in a second run under the same protocol on another machine (3b).
 
@@ -861,7 +875,7 @@ def resources_block(cmps: list[dict[str, Any]]) -> str:
 
 def tiers_block(cmps: list[dict[str, Any]], hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
     lines = [
-        f"| Experiment | 1. Median knee error within ±25% ({MIN_RUNS}+ runs) | 2. p95 within ±100% or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |",
+        f"| Experiment | 1. Median knee error within ±25% ({MIN_RUNS}+ runs) | 2. p95 within a factor of two or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     met: dict[str, bool] = {}
@@ -1334,7 +1348,12 @@ def experiment_json(
     below = bench.at_or_below_knee(c["rows"], mk)
     below_ids = {id(r) for r in below}
     measured = [r for r in below if r["error"]["p95"] is not None]
-    worst = max(measured, key=lambda r: abs(r["error"]["p95"]), default=None)
+    # ranked as criterion 2 judges a step: by the factor, so half counts as far off as double
+    worst = max(
+        measured,
+        key=lambda r: p95_factor(r["measured"]["p95"], r["predicted"]["p95"]),
+        default=None,
+    )
     b = c["belowKnee"]
     spread = knee_spread(runs)
     protocol = protocol_of(cal)
@@ -1454,7 +1473,7 @@ def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
         "objective": exps[0]["objective"],
         "thresholds": {
             "kneeError": KNEE_TOLERANCE,
-            "p95Error": P95_TOLERANCE,
+            "p95Factor": P95_FACTOR,
             "p95Ms": P95_TOLERANCE_MS,
             "lowLoadFraction": LOW_LOAD_FRACTION,
         },

@@ -374,6 +374,7 @@ scripts/           Developer scripts (e.g. regenerate the web test fixture)
 
 - [Implementation plan and assumptions](docs/plan.md)
 - [Architecture](docs/architecture.md)
+- [Architecture decision records: why ArchSim is built the way it is](docs/adr/README.md)
 - [Simulation model: what is and isn't modeled](docs/simulation-model.md)
 - [Assumptions: every default, documented or illustrative](docs/assumptions.md) (generated)
 - [Calibrating from Prometheus and OpenTelemetry](docs/calibration.md)

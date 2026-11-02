@@ -102,10 +102,10 @@ describe("plain-language lines", () => {
     const worst = { ...base.steps[0], text: { ...base.steps[0].text, offered: "2,268", measuredP95: "10.4", predictedP95: "1,916" } };
     const missed = exp({ p95BelowKnee: { ...base.p95BelowKnee, steps: 6, within: 4, pass: false, worst } });
     expect(p95Sentence(missed, accuracy.thresholds)).toBe(
-      "Latency (p95) within ±100% or 3 ms at 4 of 6 load steps up to the measured knee. Worst: at 2,268 req/s it predicted 1,916 ms where the system measured 10.4 ms.",
+      "Latency (p95) within a factor of 2 or 3 ms at 4 of 6 load steps up to the measured knee. Worst: at 2,268 req/s it predicted 1,916 ms where the system measured 10.4 ms.",
     );
     const met = exp({ p95BelowKnee: { ...base.p95BelowKnee, steps: 2, within: 2, pass: true, text: { medianAbsError: "29%", maxAbsError: "55%" } } });
-    expect(p95Sentence(met, accuracy.thresholds)).toBe("Latency (p95) within ±100% or 3 ms at 2 of 2 load steps up to the measured knee; the typical miss was 29%.");
+    expect(p95Sentence(met, accuracy.thresholds)).toBe("Latency (p95) within a factor of 2 or 3 ms at 2 of 2 load steps up to the measured knee; the typical miss was 29%.");
   });
 
   it("describes light load", () => {
