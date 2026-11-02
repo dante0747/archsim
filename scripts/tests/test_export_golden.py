@@ -1,10 +1,10 @@
-"""The golden-file exporter (scripts/export_golden.py): its output is deterministic, the committed
-files are what the frozen engine gives, and every recorded entry replays from its own input."""
+"""The golden-file exporter (scripts/golden): its output is deterministic, the committed files are
+what the frozen engine gives, and every recorded entry replays from its own input."""
 
 from __future__ import annotations
 
 import gzip
-import importlib.util
+import hashlib
 import json
 import os
 import subprocess
@@ -14,21 +14,25 @@ from typing import Any
 
 import pytest
 
-_spec = importlib.util.spec_from_file_location(
-    "export_golden", Path(__file__).parents[1] / "export_golden.py"
-)
-assert _spec and _spec.loader
-golden = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(golden)
+from archsim_engine.version import ENGINE_VERSION
+from golden import FORMAT, GENERATOR
+from golden.adapters import ADAPTERS, call
+from golden.build import build
+from golden.codec import error_json, lookup, resolve_refs
+from golden.compare import differences
+from golden.files import job_names
+from golden.paths import OUT
+
+SCRIPTS = Path(__file__).resolve().parents[1]
 
 SMALL = "templates/queueing-lab"
 """The smallest template: two parts, four scenarios, cheap runs."""
 
 
 def committed(name: str) -> bytes:
-    path = golden.OUT / f"{name}.json.gz"
+    path = OUT / f"{name}.json.gz"
     if not path.exists():
-        pytest.fail(f"{path} is missing: run `{golden.GENERATOR}`")
+        pytest.fail(f"{path} is missing: run `{GENERATOR}`")
     return gzip.decompress(path.read_bytes())
 
 
@@ -66,7 +70,7 @@ def refs(node: Any, *, skip_inputs: bool = False) -> list[str]:
 
 @pytest.fixture(scope="module")
 def small() -> tuple[str, bytes, dict[str, Any], float]:
-    return golden.build(SMALL)
+    return build(SMALL)
 
 
 def test_a_template_export_matches_the_committed_file(
@@ -76,9 +80,9 @@ def test_a_template_export_matches_the_committed_file(
     # library may round a float's last digit differently)
     _, data, row, _ = small
     old = committed(SMALL)
-    where = golden.differences(json.loads(old), json.loads(data))
-    assert not where, f"differs at {where}: the engine is frozen (`{golden.GENERATOR}` rewrites)"
-    manifest = json.loads((golden.OUT / "manifest.json").read_text(encoding="utf-8"))
+    where = differences(json.loads(old), json.loads(data))
+    assert not where, f"differs at {where}: the engine is frozen (`{GENERATOR}` rewrites)"
+    manifest = json.loads((OUT / "manifest.json").read_text(encoding="utf-8"))
     listed = next(r for r in manifest["files"] if r["path"] == row["path"])
     keys = row.keys() if data == old else row.keys() - {"sha256", "bytes"}
     assert {k: listed[k] for k in keys} == {k: row[k] for k in keys}
@@ -89,10 +93,10 @@ def test_the_export_is_the_same_in_another_process(
 ) -> None:
     # a different hash seed changes set and dict-of-set iteration order: nothing may depend on it
     script = (
-        "import importlib.util, sys; "
-        f"spec = importlib.util.spec_from_file_location('g', {str(golden.__file__)!r}); "
-        "g = importlib.util.module_from_spec(spec); spec.loader.exec_module(g); "
-        f"sys.stdout.buffer.write(g.build({SMALL!r})[1])"
+        "import sys; "
+        f"sys.path.insert(0, {str(SCRIPTS)!r}); "
+        "from golden.build import build; "
+        f"sys.stdout.buffer.write(build({SMALL!r})[1])"
     )
     env = {**os.environ, "PYTHONHASHSEED": "4242"}
     out = subprocess.run(
@@ -108,49 +112,36 @@ def test_every_entry_replays_from_its_recorded_input() -> None:
     found = entries(root)
     assert len(found) > 100
     for where, entry in found:
-        inputs = golden.resolve_refs(entry["input"], root)
+        inputs = resolve_refs(entry["input"], root)
         try:
-            output = golden.call(entry["fn"], inputs)
+            output = call(entry["fn"], inputs)
         except Exception as exc:
             assert "error" in entry, f"{where}: {exc}"
-            assert golden.error_json(exc) == entry["error"], where
+            assert error_json(exc) == entry["error"], where
         else:
-            assert not golden.differences(entry["output"], output), where
+            assert not differences(entry["output"], output), where
 
 
 def test_committed_files_are_well_formed() -> None:
     """Every file listed in the manifest with its hash; every entry names a known function and
     has an output or an error; references appear only in inputs and resolve."""
-    manifest = json.loads((golden.OUT / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["engineVersion"] == golden.ENGINE_VERSION
+    manifest = json.loads((OUT / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["engineVersion"] == ENGINE_VERSION
     listed = {row["path"] for row in manifest["files"]}
-    on_disk = {p.relative_to(golden.OUT).as_posix() for p in golden.OUT.glob("*/*.json.gz")}
+    on_disk = {p.relative_to(OUT).as_posix() for p in OUT.glob("*/*.json.gz")}
     assert listed == on_disk
-    assert listed == {f"{n}.json.gz" for n in golden.job_names()}
+    assert listed == {f"{n}.json.gz" for n in job_names()}
     for row in manifest["files"]:
         data = committed(row["path"].removesuffix(".json.gz"))
-        assert golden.hashlib.sha256(data).hexdigest() == row["sha256"], row["path"]
+        assert hashlib.sha256(data).hexdigest() == row["sha256"], row["path"]
         root = json.loads(data)
-        assert root["format"] == golden.FORMAT
-        assert root["engineVersion"] == golden.ENGINE_VERSION
+        assert root["format"] == FORMAT
+        assert root["engineVersion"] == ENGINE_VERSION
         found = entries(root)
         assert len(found) == row["entries"], row["path"]
         for where, entry in found:
-            assert entry["fn"] in golden.ADAPTERS, where
+            assert entry["fn"] in ADAPTERS, where
             assert ("output" in entry) != ("error" in entry), where
             for ref in refs(entry["input"]):
-                assert not is_ref(golden.lookup(root, ref)), where  # raises if nothing is there
+                assert not is_ref(lookup(root, ref)), where  # raises if nothing is there
         assert not refs(root, skip_inputs=True), row["path"]
-
-
-def test_json_conventions() -> None:
-    assert golden.pointer(("a/b", "c~d", 3)) == "/a~1b/c~0d/3"
-    root = {"x": {"a/b": [10, {"y": 2}]}, "z": {"$ref": "/x/a~1b/1"}}
-    assert golden.resolve_refs({"v": {"$ref": "/z"}}, root) == {"v": {"y": 2}}
-    assert golden.to_json({(1, 2): 3, "k": {4.0}}) == [[[1, 2], 3], ["k", [4.0]]]
-    assert golden.to_json([float("inf"), float("-inf"), float("nan")]) == [
-        "Infinity",
-        "-Infinity",
-        "NaN",
-    ]
-    assert golden.canonical({"b": "é", "a": 1}) == '{"a":1,"b":"é"}'.encode()

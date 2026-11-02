@@ -6,7 +6,8 @@ A Java test reads an entry, feeds the function the recorded input and compares i
 recorded one: text exactly, numbers to a relative 1e-9. No Python is needed, so the files stay
 after the Python engine is deleted (stage 4).
 
-They are written by [`scripts/export_golden.py`](../scripts/export_golden.py):
+They are written by [`scripts/export_golden.py`](../scripts/export_golden.py), the command line of
+the exporter package [`scripts/golden/`](../scripts/golden/__init__.py):
 
 ```sh
 uv run python scripts/export_golden.py                     # write parity/golden/ (~40 s; ~95 s in one process)
@@ -21,7 +22,13 @@ another platform's math library (`log`, `exp`, `pow`) may round the last digit o
 differently; a file that differs only there is noted, not failed. If a change to the files is
 intended, regenerate and say why in the commit.
 `scripts/tests/test_export_golden.py` checks one template against its file, replays its entries, and
-checks the manifest and the format of every file.
+checks the manifest and the format of every file; `scripts/tests/test_golden_codec.py` checks the
+JSON conventions below.
+
+The exporter's modules, from the bottom up: `paths` (where it reads and writes), `codec` (the JSON
+conventions), `adapters` (the engine functions an entry may name, one module per engine area),
+`file` (one file under construction: its entries and references), `files` (what each file records),
+`build`, `store` and `compare` (building, writing and `--check`), and `cli`.
 
 In all: 34 files and about 6,000 entries, 4.5 MB compressed (30 MB of JSON).
 
