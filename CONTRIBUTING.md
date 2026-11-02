@@ -18,6 +18,10 @@ services/api/      Python package `archsim_api`: FastAPI app, SQLAlchemy models,
 apps/web/          Next.js 16 + React Flow editor and results UI.
 examples/          Example architecture documents (served by the API, used by tests).
 docs/              Design and reference documentation.
+
+archsim-api-tests/ Java: black-box tests of the HTTP API (the Java 25 port, see
+                   docs/proposals/java-25-port.md). build-logic/ and gradle/ hold the build.
+parity/golden/     The Python engine's golden files, the reference for the Java port.
 ```
 
 ## Development setup
@@ -80,7 +84,17 @@ npm test
 npm run build
 npx playwright install chromium   # once
 npm run e2e                       # the main path in Chromium, against the build above
+
+# Java (JDK 25; Gradle finds it, or downloads one, whatever JAVA_HOME says)
+./gradlew build                   # formatting, Error Prone and NullAway, unit tests, coverage
+docker compose up -d postgres
+./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python   # black-box API tests
 ```
+
+`./gradlew spotlessApply` fixes the Java formatting. The black-box API tests start the Python
+API once per server profile, each on a fresh database of its own (`archsim_api_tests_*`) in
+the PostgreSQL above; [archsim-api-tests/README.md](archsim-api-tests/README.md) says how to
+run them against servers that are already running.
 
 `npm run e2e` starts its own API (a throwaway SQLite database under `apps/web/.e2e/`, templates
 shortened to 20 s) on :8002 and `next start` on :3002, so a stack running on :3000/:8000 is
