@@ -1,5 +1,6 @@
 package io.archsim.model.codec;
 
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Constructor;
@@ -163,7 +164,7 @@ final class Shapes {
                 component.getName(),
                 Field.snakeCase(component.getName()),
                 shape,
-                component.getAccessor(),
+                accessible(component.getAccessor()),
                 required,
                 defaultValue,
                 !required && defaultInSchema,
@@ -203,7 +204,7 @@ final class Shapes {
         RecordComponent[] components = type.getRecordComponents();
         return new TupleShape(
                 Arrays.stream(components).map(c -> of(c.getAnnotatedType())).toList(),
-                Arrays.stream(components).map(RecordComponent::getAccessor).toList(),
+                Arrays.stream(components).map(c -> accessible(c.getAccessor())).toList(),
                 constructor(type, components));
     }
 
@@ -214,11 +215,17 @@ final class Shapes {
 
     private static Constructor<?> constructor(Class<?> type, RecordComponent[] components) {
         try {
-            return type.getDeclaredConstructor(
-                    Arrays.stream(components).map(RecordComponent::getType).toArray(Class<?>[]::new));
+            return accessible(type.getDeclaredConstructor(
+                    Arrays.stream(components).map(RecordComponent::getType).toArray(Class<?>[]::new)));
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException(type + " has no canonical constructor", e);
         }
+    }
+
+    /** A record need not be public: one may be an implementation detail of its package. */
+    private static <T extends AccessibleObject> T accessible(T member) {
+        member.setAccessible(true);
+        return member;
     }
 
     private static Class<?> raw(AnnotatedType annotated) {

@@ -65,5 +65,7 @@ what the repository shows.
 | [0021](0021-java-build-conventions.md) | Java build conventions: one convention plugin, warnings as errors, JUnit 6 | Proposed | 2026-11-02 |
 | [0022](0022-records-and-a-pydantic-compatible-codec.md) | Map the design document with records and a pydantic-compatible codec over Jackson trees | Proposed | 2026-11-02 |
 | [0023](0023-upgrade-chain-on-the-json.md) | Upgrade older documents with a chain of steps on the JSON, and model only the current schema | Proposed | 2026-11-02 |
+| [0024](0024-validation-issues-with-stable-codes.md) | Report what is wrong with a design as issues with stable codes and the Python engine's words | Proposed | 2026-11-02 |
+| [0026](0026-component-specs-and-price-snapshots-in-the-model.md) | Component specifications and the price-snapshot lookup belong to the model | Proposed | 2026-11-02 |
 | [0027](0027-python-text-conventions-in-one-package.md) | Reproduce Python's text conventions for numbers and values in one package | Proposed | 2026-11-02 |
 | [0028](0028-golden-file-reader-as-test-fixtures.md) | Read the golden files with a reader shared as Gradle test fixtures | Proposed | 2026-11-02 |

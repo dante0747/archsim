@@ -2,6 +2,8 @@ package io.archsim.model;
 
 import io.archsim.model.codec.BindingException;
 import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.component.ComponentRegistry;
+import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.upgrade.UpgradeException;
 import io.archsim.model.upgrade.Upgrades;
@@ -9,6 +11,7 @@ import io.archsim.model.validation.DocumentInvalidException;
 import io.archsim.model.validation.Issue;
 import io.archsim.model.validation.SchemaIssues;
 import java.util.List;
+import java.util.Optional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -60,6 +63,27 @@ public final class DesignDocuments {
     /** The document's JSON, every field written, defaults included (the engine's {@code to_json_dict}). */
     public static ObjectNode toJson(ArchitectureDocument document) {
         return RecordCodec.write(document);
+    }
+
+    /**
+     * The document's JSON with every node's config written in full, its defaults filled in, so a
+     * scenario's override has something to change (the engine's {@code normalize_document}). A
+     * config that is not valid is left as it is; validation reports it.
+     */
+    public static ObjectNode normalize(ArchitectureDocument document, ComponentRegistry registry) {
+        ObjectNode json = toJson(document);
+        for (JsonNode node : json.path("architecture").path("nodes")) {
+            Optional<ComponentSpec<?>> spec = registry.find(node.path("type").asString(""));
+            if (spec.isEmpty() || !(node instanceof ObjectNode object)) {
+                continue;
+            }
+            try {
+                object.set("config", RecordCodec.write(spec.get().parseConfig((ObjectNode) node.get("config"))));
+            } catch (BindingException invalid) {
+                // left as it is: validation reports it
+            }
+        }
+        return json;
     }
 
     /**
