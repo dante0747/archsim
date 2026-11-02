@@ -423,6 +423,23 @@ def test_median_inputs_takes_each_input_from_its_median_replicate() -> None:
     )
 
 
+def test_median_inputs_keeps_an_input_the_first_replicate_lacks() -> None:
+    # cache-aside's latest v6 run: no mark-compact in the first replicate's pass
+    def rep(pause: float, every: int | None) -> dict[str, Any]:
+        gc: dict[str, Any] = {"gcPauseMs": {"value": pause, "how": "x"}}
+        if every is not None:
+            gc["gcEveryRequests"] = {"value": every, "how": "x"}
+        return gc
+
+    out = run.median_inputs([rep(0, None), rep(9.9517, 48766), rep(9.7368, 32510)])
+    assert out["gcPauseMs"]["value"] == 9.7368
+    assert out["gcEveryRequests"]["value"] == 32510  # of the two that saw one
+    assert out["gcEveryRequests"]["how"] == "the median of the 2 of 3 replicates with it (third): x"
+    # no pause at the median: no spacing either
+    out = run.median_inputs([rep(0, None), rep(0, None), rep(9.9166, 33500)])
+    assert out["gcPauseMs"]["value"] == 0 and "gcEveryRequests" not in out
+
+
 def test_knee_range_and_whether_it_holds_the_measured_knee() -> None:
     """compare() records whether the predicted range held the measured knee, for W28's ranges
     and for engine 0.14.0's (the replicate sets' knees, kept in its predictions)."""

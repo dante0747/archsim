@@ -1146,7 +1146,13 @@ def median_inputs(replicates: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """The model inputs from the replicate sets. Each input is taken whole from the replicate
     whose value is the median (by ``primary``), so a distribution's median and p95 come from the
     same pass and its formula is that pass's; a disturbed pass falls to the edge and drops out.
-    Records without a value (the low-load reference, the anchor) take each number's median."""
+    Records without a value (the low-load reference, the anchor) take each number's median.
+
+    An input only some replicates have is the median of those that have it: a pass without a
+    mark-compact gives no ``gcEveryRequests``, and before the v6 campaign a first replicate
+    without one dropped it altogether, so the model spaced the median pause by the runtime
+    profile's default (1,500 requests for Node.js instead of about 32,500; cache-aside's latest
+    run). It is left out when the median pause is 0."""
 
     def merge(values: list[Any]) -> Any:
         first = values[0]
@@ -1160,20 +1166,30 @@ def median_inputs(replicates: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
     out: dict[str, Any] = {}
     n = len(replicates)
-    for key, first in replicates[0].items():
-        items = [r[key] for r in replicates if key in r]
+    keys = list(dict.fromkeys(k for r in replicates for k in r))  # a key any replicate has
+    for key in keys:
+        having = [i for i, r in enumerate(replicates) if key in r]
+        items = [replicates[i][key] for i in having]
+        first = items[0]
         if isinstance(first, dict) and "value" in first:
             ranked = sorted(
                 (i for i, x in enumerate(items) if primary(x["value"]) is not None),
                 key=lambda i: primary(items[i]["value"]) or 0.0,
             )
             pick = items[ranked[(len(ranked) - 1) // 2]] if ranked else first
+            of = (
+                f"{n} replicates"
+                if len(items) == n
+                else f"the {len(items)} of {n} replicates with it"
+            )
             out[key] = {
                 **pick,
-                "how": f"the median of {n} replicates ({ordinal(items.index(pick))}): {pick['how']}",
+                "how": f"the median of {of} ({ordinal(having[items.index(pick)])}): {pick['how']}",
             }
         else:
             out[key] = merge(items)
+    if "gcEveryRequests" in out and not (out.get("gcPauseMs") or {}).get("value"):
+        del out["gcEveryRequests"]  # no pause at the median: nothing to space out
     return out
 
 
