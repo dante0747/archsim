@@ -825,6 +825,17 @@ def test_split_inputs_reproduce_every_latest_calibration() -> None:
             every = again.pop("gcEveryRequests")
             assert every["value"] == 32510
             assert every["how"].startswith("the median of the 2 of 3 replicates with it (third)")
+            # the service time's spread anchored at the top pass (anchor_spread, after the
+            # campaign): narrowed from the own time's 11x, its mean still a replicate's CPU per
+            # request, and the client latency anchored again on top of it
+            st = again.pop("serviceTimeMs")
+            assert st["value"]["p95"] / st["value"]["median"] < 7
+            assert "; spread anchored: p95/median " in st["how"]
+            means = [run.mean_ms(r["serviceTimeMs"]["value"]) for r in cal["inputReplicates"]]
+            assert min(abs(run.mean_ms(st["value"]) / m - 1) for m in means) < 0.002
+            for k in ("serviceTimeMs", "clientLinkLatencyMs", "anchor"):
+                cal["inputs"].pop(k)
+                again.pop(k, None)
         if exp == "pg-mixed":  # the same value, its replicate named right (it said "second")
             every = again.pop("gcEveryRequests")
             assert every["value"] == cal["inputs"].pop("gcEveryRequests")["value"] == 31550

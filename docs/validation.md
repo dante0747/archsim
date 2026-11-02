@@ -195,7 +195,14 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    auxiliary mixes run right after it, gives one replicate set of model inputs: CPU per request
    is the pass's CPU net of what the process burns at rest, timings come from the pass, and the
    one input not measured directly (the client-to-service latency) is set so the model
-   reproduces the pass's median. Redis's command time is its container's CPU per command, net of
+   reproduces the pass's median. Before that, the service time's spread is checked the same way
+   (W29, after the v6 campaign; `run.py` `anchor_spread`): its shape (p95 over median) comes from
+   the handler's own time, which is under a tenth of the CPU per request, and where replies come
+   back in batches (Redis's) it holds the wait behind the requests resolved ahead of it, which
+   the model then simulates again: cache-aside's spread 11 to 13 times from median to p95,
+   against 2 to 3 for the others. When the model's p95 - p50 at the pass is wider than k6's, the
+   spread narrows, keeping the mean, until they match; it is never widened, since a tail the
+   model misses can be the database's, the broker's or the network's. Redis's command time is its container's CPU per command, net of
    idle (W24; before, `INFO commandstats`' own time, which leaves out its network reads and
    writes), and each service's memory at idle and per req/s is fitted to its working set over the
    staircase (W24; calibrations without the readings keep ArchSim's defaults). The inputs are the

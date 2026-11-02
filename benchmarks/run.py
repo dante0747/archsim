@@ -1197,12 +1197,74 @@ def ordinal(i: int) -> str:
     return ("first", "second", "third", "fourth", "fifth")[i] if i < 5 else f"number {i + 1}"
 
 
+SPREAD_S = 10
+"""Seconds simulated per try when the service time's spread is anchored (``anchor_spread``)."""
+SPREAD_STEPS = 6
+"""Bisection steps of ``anchor_spread``, on the log of the p95/median ratio."""
+SPREAD_TOLERANCE = 0.05
+"""``anchor_spread`` stops once the model's p95 - p50 is within this share of k6's."""
+MIN_SPREAD = 1.01
+"""The narrowest p95/median ratio ``anchor_spread`` gives (``lognormal``'s floor)."""
+
+
+def anchor_spread(exp: Experiment, inputs: dict[str, Any], high: dict[str, Any]) -> None:
+    """Narrow the service time's spread until the model's p95 - p50 at the top calibration pass
+    is k6's, keeping its mean (the CPU per request). The spread comes from the handler's own
+    time (``service_inputs``), which is under a tenth of the CPU per request (HTTP parsing and
+    the drivers are the rest, and they vary less), and where the database's or the cache's
+    replies come in batches it holds the wait behind the requests resolved ahead of it, which
+    the model simulates again: cache-aside's own time spreads 11 to 13 times from median to p95
+    against 2 to 3 elsewhere, and the model put its p95 at a fifth of the measured knee 2 to 3
+    times too high (protocol v6). Kept when the model's p95 - p50 there is no wider than k6's
+    (pg-mixed, pg-hot-row and Kafka in v6): a tail the model misses can come from the
+    database, the broker or the network, so the spread is never widened to fit it. Bisection
+    on the log of the ratio (``SPREAD_STEPS``, ``SPREAD_TOLERANCE``), each try ``SPREAD_S``
+    seconds at the pass's rate without the client latency, which moves p95 and p50 alike."""
+    st = (inputs.get("serviceTimeMs") or {}).get("value") or {}
+    k6 = high.get("k6") or {}
+    if st.get("kind") != "lognormal" or k6.get("p95") is None or k6.get("p50") is None:
+        return
+    rate, target = high["rateRps"], k6["p95"] - k6["p50"]
+    mean, widest = mean_ms(st), st["p95"] / st["median"]
+
+    def spread(ratio: float) -> float:
+        value = lognormal_with_mean(mean, {"median": 1.0, "p95": ratio})
+        probe = {**inputs, "serviceTimeMs": {"value": value}, "clientLinkLatencyMs": {"value": 0.0}}
+        sim = simulate(design(exp, probe, rate, warm=5, duration=SPREAD_S))
+        return (sim["p95"] or 0.0) - (sim["p50"] or 0.0)
+
+    if widest <= MIN_SPREAD or (model := spread(widest)) <= target:
+        return
+    lo, hi = math.log(MIN_SPREAD), math.log(widest)
+    ratio = widest
+    for _ in range(SPREAD_STEPS):  # the closest try wins
+        mid = (lo + hi) / 2
+        got = spread(math.exp(mid))
+        if abs(got - target) < abs(model - target):
+            ratio, model = math.exp(mid), got
+        if abs(got - target) <= SPREAD_TOLERANCE * target:
+            break
+        lo, hi = (lo, mid) if got > target else (mid, hi)
+    if ratio == widest:  # no narrower spread came closer: the tail is not the service's
+        return
+    inputs["serviceTimeMs"] = {
+        "value": lognormal_with_mean(mean, {"median": 1.0, "p95": ratio}),
+        "how": (
+            f"{inputs['serviceTimeMs']['how']}; spread anchored: p95/median {ratio:.2f} instead "
+            f"of {widest:.2f}, so that the model's p95 - p50 at {rate:g} req/s is k6's: "
+            f"{model:.3f} against {target:.3f} ms"
+        ),
+    }
+
+
 def anchor(exp: Experiment, inputs: dict[str, Any], high: dict[str, Any]) -> None:
-    """Make the model reproduce the calibration pass itself. The client-to-service latency is the
-    one input not measured directly; it absorbs the difference between the measured median and
-    the model's median at that rate (simulated with no client latency), floored at zero. Without
+    """Make the model reproduce the calibration pass itself: first its spread (the service
+    time's, ``anchor_spread``), then its median. The client-to-service latency is the one input
+    not measured directly; it absorbs the difference between the measured median and the
+    model's median at that rate (simulated with no client latency), floored at zero. Without
     this the model counts the database driver's CPU twice (in the CPU per request and inside the
     measured query time) and starts about 2x too slow (run 2)."""
+    anchor_spread(exp, inputs, high)
     rate = high["rateRps"]
     probe = {**inputs, "clientLinkLatencyMs": {"value": 0.0}}
     sim = simulate(design(exp, probe, rate, warm=5, duration=CALIBRATION_S))
