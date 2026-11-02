@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+		"-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+		"https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!--
+	Where a rule does not apply, and why. Keep this list short: a rule that keeps needing exceptions
+	should change in checkstyle.xml instead.
+-->
+<suppressions>
+	<!-- Tests document themselves through their names (method_state_result); their inputs may
+	     be JSON text and literal numbers. -->
+	<suppress files="[\\/]src[\\/](test|apiTest|testFixtures)[\\/]java[\\/]"
+			checks="Javadoc.*|MissingJavadoc.*|MagicNumber"/>
+	<suppress files="[\\/]src[\\/](test|apiTest|testFixtures)[\\/]java[\\/]" id="jsonInStrings"/>
+</suppressions>

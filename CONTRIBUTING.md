@@ -88,13 +88,15 @@ npx playwright install chromium   # once
 npm run e2e                       # the main path in Chromium, against the build above
 
 # Java (JDK 25; Gradle finds it, or downloads one, whatever JAVA_HOME says)
-./gradlew build                   # formatting, Error Prone and NullAway, unit tests, coverage
+./gradlew build                   # formatting, Checkstyle, Error Prone and NullAway, tests, coverage
 ./gradlew :archsim-model:test     # the design model against the golden files
 docker compose up -d postgres
 ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python   # black-box API tests
 ```
 
-`./gradlew spotlessApply` fixes the Java formatting. The black-box API tests start the Python
+`./gradlew format` fixes the Java formatting; `./gradlew build` fails on any Checkstyle finding.
+Java code follows [docs/java-conventions.md](docs/java-conventions.md): Spring Framework's style,
+clean-code limits on size and complexity, tests named `method_state_result` and written first. The black-box API tests start the Python
 API once per server profile, each on a fresh database of its own (`archsim_api_tests_*`) in
 the PostgreSQL above; [archsim-api-tests/README.md](archsim-api-tests/README.md) says how to
 run them against servers that are already running.
@@ -108,6 +110,12 @@ records the demo GIF (it needs ffmpeg for the GIF and takes a few minutes).
 
 `uv run ruff format packages services` fixes formatting. Tests must not depend on wall-clock
 speed beyond generous limits, and simulations in tests should use short durations.
+
+## Working with AI assistants
+
+[AGENTS.md](AGENTS.md) gives AI coding assistants this project's rules, through three skills in
+`.claude/skills/`: `java-conventions`, `test-first` and `conventional-commits`. Their output is
+held to the same checks and review as anyone's.
 
 ## Pull requests
 

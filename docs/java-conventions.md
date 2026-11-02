@@ -22,8 +22,8 @@ AI assistants follow the same rules through the project's skills (see
   tabs for indentation, lines of at most 120 columns (a tab counts as 4), a blank line after a
   type's opening brace and before its closing one. Don't format by hand: run `./gradlew format`.
   IntelliJ IDEA and Eclipse have spring-javaformat plugins that format the same way on save.
-- **Imports** in Spring's order: `java.*`, `javax.*`, other libraries, `org.springframework.*`,
-  then `io.archsim.*`, each group separated by a blank line, static imports last. No wildcard
+- **Imports** in Spring's order: `java.*`, `javax.*`, other libraries (Spring included), then
+  `io.archsim.*`, each group separated by a blank line, static imports last. No wildcard
   imports, and no fully qualified names in code where an import would do.
 - **Static imports** only in tests, and only for AssertJ, BDDMockito, Spring's MockMvc builders
   and matchers, and ArchUnit's rule builders.
@@ -84,6 +84,9 @@ mirror a contract with dozens of fields.
 - **Constructor injection only** in Spring code: no field or setter injection.
 - **Fields are referred to as `this.field`** (Spring's style), so a field never looks like a
   local variable.
+- **A member only an annotation refers to is package-private**, not private: a constant named in
+  `@Description(...)` or `@DefaultFrom(...)`. Error Prone does not count an annotation's
+  reference as a use, and would report the private member as unused.
 - **Optional for a value that may be missing** in a return type; never return `null` from a
   public method. Inside a class, `@Nullable` (JSpecify) marks what may be null, and NullAway
   checks it.

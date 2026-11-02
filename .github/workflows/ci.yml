@@ -102,9 +102,10 @@ jobs:
       - run: uv run pytest services/api/tests
 
   java:
-    # the Java build (formatting, Error Prone and NullAway, unit tests, coverage), then the
-    # black-box API tests against the Python API they start on PostgreSQL; see
-    # archsim-api-tests/README.md and docs/proposals/java-25-port.md
+    # the Java build (Spring's formatting, Checkstyle, Error Prone and NullAway, unit tests,
+    # coverage; any finding fails it, see docs/java-conventions.md), then the black-box API tests
+    # against the Python API they start on PostgreSQL; see archsim-api-tests/README.md and
+    # docs/proposals/java-25-port.md
     name: Java (Gradle build, black-box API tests)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -146,6 +147,7 @@ jobs:
           path: |
             archsim-api-tests/build/reports/
             archsim-api-tests/build/api-servers/*.log
+            */build/reports/checkstyle/
           retention-days: 14
 
   archsim-check:

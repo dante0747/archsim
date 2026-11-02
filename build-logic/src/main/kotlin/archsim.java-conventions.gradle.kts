@@ -1,6 +1,8 @@
-// What every Java module of ArchSim gets: Java 25, Spring's formatter, Error Prone with NullAway
-// (JSpecify annotations), JUnit with AssertJ, and JaCoCo coverage. `./gradlew check` runs them all
-// and fails on any finding; `./gradlew format` fixes the formatting (docs/java-conventions.md).
+// What every Java module of ArchSim gets: Java 25, Spring's formatter, Checkstyle, Error Prone with
+// NullAway (JSpecify annotations), JUnit with AssertJ, and JaCoCo coverage. `./gradlew check` runs
+// them all and fails on any finding; `./gradlew format` fixes the formatting. The rules are in
+// docs/java-conventions.md and config/checkstyle/.
+import io.spring.javaformat.gradle.tasks.Format
 import net.ltgt.gradle.errorprone.CheckSeverity
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -9,6 +11,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 plugins {
     java
     jacoco
+    checkstyle
     id("io.spring.javaformat")
     id("net.ltgt.errorprone")
 }
@@ -49,6 +52,23 @@ tasks.withType<JavaCompile>().configureEach {
         option("NullAway:JSpecifyMode", "true")
     }
 }
+
+// Spring's own style and checks (tabs, `this.` for fields, ...) plus ArchSim's clean-code rules:
+// every finding fails the build, there are no warnings to ignore.
+checkstyle {
+    toolVersion = version("checkstyle")
+    configDirectory = rootProject.layout.projectDirectory.dir("config/checkstyle")
+    maxWarnings = 0
+    isIgnoreFailures = false
+}
+
+dependencies {
+    "checkstyle"(lib("spring-javaformat-checkstyle"))
+}
+
+// `./gradlew format check` formats the sources first, then compiles and checks what it wrote.
+tasks.withType<JavaCompile>().configureEach { mustRunAfter(tasks.withType<Format>()) }
+tasks.withType<Checkstyle>().configureEach { mustRunAfter(tasks.withType<Format>()) }
 
 jacoco {
     toolVersion = version("jacoco")

@@ -24,9 +24,8 @@ ArchSim's Java code is a reference for engineers. Every rule here is either chec
 
 - Tabs, 120 columns, a blank line after a type's `{` and before its `}`. `./gradlew format`
   does it.
-- Imports: `java.*`, `javax.*`, other libraries, `org.springframework.*`, `io.archsim.*`, each
-  group separated by a blank line, static imports last. No wildcards, no inline fully qualified
-  names.
+- Imports: `java.*`, `javax.*`, other libraries (Spring included), `io.archsim.*`, each group
+  separated by a blank line, static imports last. No wildcards, no inline fully qualified names.
 - Static imports only in tests: AssertJ, BDDMockito, MockMvc builders and matchers, ArchUnit
   rule builders.
 - Enums: one constant per line, each with its own `/** Javadoc. */` (the formatter joins
@@ -41,7 +40,9 @@ ArchSim's Java code is a reference for engineers. Every rule here is either chec
 - One method, one job, one level of abstraction. Guard clauses instead of nested `if`s. No flag
   arguments: two behaviours are two methods. Queries don't change state.
 - Ternaries put their condition in parentheses: `(count > 1) ? "runs" : "run"`.
-- Fields are `private final` and written `this.field`. Records for data (validate and copy in
+- Fields are `private final` and written `this.field`. A member only an annotation refers to
+  (a constant in `@Description(...)` or `@DefaultFrom(...)`) is package-private: Error Prone
+  doesn't count annotation references as uses. Records for data (validate and copy in
   the compact constructor), `final` classes for behaviour, constructor injection only.
 - Never return `null` from a public method: `Optional`. `@Nullable` (JSpecify) inside; NullAway
   checks it.
