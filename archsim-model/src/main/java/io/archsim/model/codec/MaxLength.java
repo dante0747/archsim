@@ -15,6 +15,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface MaxLength {
 
+	/**
+	 * The most characters the string may have.
+	 * @return the inclusive maximum length, in code points
+	 */
 	int value();
 
 }

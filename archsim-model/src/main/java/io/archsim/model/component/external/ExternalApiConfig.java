@@ -1,11 +1,14 @@
 package io.archsim.model.component.external;
 
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.Default;
+import io.archsim.model.codec.DefaultFrom;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.distribution.Distribution;
-import org.jspecify.annotations.Nullable;
+import io.archsim.model.distribution.LogNormal;
 
 /**
  * A third-party service: how long it answers, how often it fails, and the limits it puts
@@ -20,9 +23,13 @@ import org.jspecify.annotations.Nullable;
  */
 public record ExternalApiConfig(@Default("generic") ExternalApiTechnology technology,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 120.0, \"p95\": 500.0}") Distribution latencyMs,
+		@DefaultFrom("DEFAULT_LATENCY") Distribution latencyMs,
 
 		@Default("0.001") @Ge(0) @Le(1) double errorRate, @Gt(0) @Le(1_000_000) @Nullable Double rateLimitRps,
 		@Ge(1) @Le(100_000) @Nullable Integer concurrencyLimit,
 		@Default("0.0") @Ge(0) @Le(10_000_000) double costPerMillionRequests) {
+
+	/** The provider's default response time: 120 ms median, 500 ms p95. */
+	static final Distribution DEFAULT_LATENCY = new LogNormal(120.0, 500.0);
+
 }

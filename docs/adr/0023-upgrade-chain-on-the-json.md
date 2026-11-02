@@ -50,8 +50,8 @@ slots in without touching them.
 
 ### Confirmation
 
-`GoldenParityTest` compares `Upgrades.toCurrent` with every recorded `migrate_document`, including
-the version errors of `fixtures/migrations`; `UpgradesTest` specifies the chain's shape and
+`GoldenParityTests` compares `Upgrades.toCurrent` with every recorded `migrate_document`, including
+the version errors of `fixtures/migrations`; `UpgradesTests` specifies the chain's shape and
 refusals.
 
 ## Pros and Cons of the Options

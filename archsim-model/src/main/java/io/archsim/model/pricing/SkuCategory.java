@@ -7,7 +7,14 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum SkuCategory implements JsonEnum {
 
-	COMPUTE("compute"), DATABASE("database"), CACHE("cache"), STREAM("stream");
+	/** Virtual machine types. */
+	COMPUTE("compute"),
+	/** Managed database types. */
+	DATABASE("database"),
+	/** Managed cache types. */
+	CACHE("cache"),
+	/** Managed stream types. */
+	STREAM("stream");
 
 	private final String json;
 
@@ -17,7 +24,7 @@ public enum SkuCategory implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

@@ -5,7 +5,10 @@ import io.archsim.model.codec.JsonEnum;
 /** Whether reads of a metered table are eventually or strongly consistent. */
 public enum ConsistentReads implements JsonEnum {
 
-	EVENTUAL("eventual"), STRONG("strong");
+	/** Eventually consistent reads, at half a unit each. */
+	EVENTUAL("eventual"),
+	/** Strongly consistent reads, at a full unit each. */
+	STRONG("strong");
 
 	private final String json;
 
@@ -15,7 +18,7 @@ public enum ConsistentReads implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

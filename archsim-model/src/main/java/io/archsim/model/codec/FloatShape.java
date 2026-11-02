@@ -2,6 +2,7 @@ package io.archsim.model.codec;
 
 import java.util.Objects;
 import java.util.Optional;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -9,6 +10,8 @@ import tools.jackson.databind.node.ObjectNode;
 /**
  * A Python {@code float}, a Java {@code double}. Lax as pydantic is: an integer, a
  * boolean or a numeric string ({@code "1.5"}, {@code "inf"}) is a number too.
+ *
+ * @param bounds the bounds the number must keep to
  */
 record FloatShape(Bounds bounds) implements Shape {
 
@@ -18,7 +21,7 @@ record FloatShape(Bounds bounds) implements Shape {
 		if (number.isEmpty()) {
 			return null;
 		}
-		bounds.check(number.get(), at, errors);
+		this.bounds.check(number.get(), at, errors);
 		return number.get();
 	}
 
@@ -26,8 +29,8 @@ record FloatShape(Bounds bounds) implements Shape {
 		if (in.isNumber()) {
 			double value = in.isIntegralNumber() ? in.bigIntegerValue().doubleValue() : in.doubleValue();
 			if (in.isIntegralNumber() && Double.isInfinite(value)) {
-				errors.add("float_type", at, Messages.FLOAT_TYPE); // Python: int too
-																	// large to convert
+				// Python: int too large to convert to float
+				errors.add("float_type", at, Messages.FLOAT_TYPE);
 				return Optional.empty();
 			}
 			return Optional.of(value);
@@ -54,7 +57,7 @@ record FloatShape(Bounds bounds) implements Shape {
 	@Override
 	public ObjectNode schema(Definitions definitions) {
 		ObjectNode schema = NODES.objectNode().put("type", "number");
-		bounds.describe(schema);
+		this.bounds.describe(schema);
 		return schema;
 	}
 }

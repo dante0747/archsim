@@ -12,6 +12,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface MinItems {
 
+	/**
+	 * The fewest items the list may have.
+	 * @return the inclusive minimum count
+	 */
 	int value();
 
 }

@@ -8,7 +8,18 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum ClusterTechnology implements JsonEnum {
 
-	KUBERNETES("kubernetes"), EKS("eks"), GKE("gke"), AKS("aks"), K3S("k3s"), OPENSHIFT("openshift");
+	/** Upstream Kubernetes. */
+	KUBERNETES("kubernetes"),
+	/** Amazon Elastic Kubernetes Service. */
+	EKS("eks"),
+	/** Google Kubernetes Engine. */
+	GKE("gke"),
+	/** Azure Kubernetes Service. */
+	AKS("aks"),
+	/** K3s, a lightweight Kubernetes distribution. */
+	K3S("k3s"),
+	/** Red Hat OpenShift. */
+	OPENSHIFT("openshift");
 
 	private final String json;
 
@@ -18,7 +29,7 @@ public enum ClusterTechnology implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

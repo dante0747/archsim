@@ -5,7 +5,18 @@ import io.archsim.model.codec.JsonEnum;
 /** The cache product: Redis, Valkey, Memcached, a CDN, Varnish, or a generic cache. */
 public enum CacheTechnology implements JsonEnum {
 
-	REDIS("redis"), VALKEY("valkey"), MEMCACHED("memcached"), CDN("cdn"), VARNISH("varnish"), GENERIC("generic");
+	/** Redis, which executes commands on one thread. */
+	REDIS("redis"),
+	/** Valkey, Redis's open-source fork, which also executes commands on one thread. */
+	VALKEY("valkey"),
+	/** Memcached, which executes commands on worker threads. */
+	MEMCACHED("memcached"),
+	/** A content delivery network, caching responses at the edge. */
+	CDN("cdn"),
+	/** Varnish, an HTTP cache in front of web servers. */
+	VARNISH("varnish"),
+	/** A cache of no particular product. */
+	GENERIC("generic");
 
 	private final String json;
 
@@ -15,7 +26,7 @@ public enum CacheTechnology implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

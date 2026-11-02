@@ -1,8 +1,9 @@
 package io.archsim.model.document;
 
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.MaxLength;
-import org.jspecify.annotations.Nullable;
 
 /**
  * One comparison of a calibration's replay: what telemetry observed against what the

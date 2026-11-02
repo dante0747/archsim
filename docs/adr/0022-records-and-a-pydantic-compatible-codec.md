@@ -42,10 +42,12 @@ pydantic's error list and keeps each field's definition in one place.
 - **Jackson parses and prints;** the codec (`io.archsim.model.codec.RecordCodec`) maps Jackson
   trees to records and back. Records are the design document's types: `ArchitectureDocument`,
   `Workload`, sealed `TrafficPattern` and `Distribution`, and so on, named as the Python models are.
-- **A record declares its JSON** on its components: `@Default`, `@Ge`/`@Gt`/`@Le`/`@Lt`,
-  `@MinLength`/`@MaxLength`, `@Matches`, `@MinItems`/`@MaxItems`, `@Const`, `@OneOf`,
-  `@UniqueItems`, `@OmitWhenDefault`, `@Description`, `@SchemaExtra`; JSpecify's `@Nullable` is
-  `X | None`. A sealed interface marked `@Tagged("kind")` is a discriminated union, its records
+- **A record declares its JSON** on its components: `@Default` (or `@DefaultFrom`, naming a
+  constant for an object default), `@Ge`/`@Gt`/`@Le`/`@Lt`, `@MinLength`/`@MaxLength`,
+  `@Matches`, `@MinItems`/`@MaxItems`, `@Const`, `@Choice` (repeated, a `Literal` of integers),
+  `@UniqueItems`, `@OmitWhenDefault`, `@Description`, and `@Ui` for the editor's `x-ui` hints
+  (typed annotations, not JSON text: [ADR-0030](0030-spring-style-and-clean-code-checks.md));
+  JSpecify's `@Nullable` is `X | None`. A sealed interface marked `@Tagged("kind")` is a discriminated union, its records
   marked `@Tag`. A `JsonEnum` is a `Literal` of strings.
 - **Reading follows pydantic 2 exactly:** fields in declaration order, each by its JSON name then its
   Python name, unknown keys after them; lax coercions; bounds checked in pydantic's order; a union's
@@ -70,8 +72,8 @@ pydantic's error list and keeps each field's definition in one place.
 
 ### Confirmation
 
-`GoldenParityTest` checks `load_document` and `migrate_document` against every golden entry;
-`RecordCodecTest` specifies the pydantic rules; a jqwik property feeds random and mutated
+`GoldenParityTests` checks `load_document` and `migrate_document` against every golden entry;
+`RecordCodecTests` specifies the pydantic rules; a jqwik property feeds random and mutated
 documents and accepts only a document or a `DocumentInvalidException`.
 
 ## Pros and Cons of the Options

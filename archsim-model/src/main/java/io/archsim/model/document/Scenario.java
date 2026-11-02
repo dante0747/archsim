@@ -1,12 +1,14 @@
 package io.archsim.model.document;
 
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.MaxItems;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinLength;
-import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A named, replayable variant of the design: overrides applied in order to the base
@@ -20,6 +22,9 @@ import org.jspecify.annotations.Nullable;
 public record Scenario(@Matches(Patterns.ID) String id, @MinLength(1) @MaxLength(120) String name,
 		@MaxLength(2000) @Nullable String description, @Default("[]") @MaxItems(100) List<ScenarioOverride> overrides) {
 
+	/**
+	 * Copies the overrides, so the scenario does not change.
+	 */
 	public Scenario {
 		overrides = List.copyOf(overrides);
 	}

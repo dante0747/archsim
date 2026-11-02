@@ -47,7 +47,7 @@ tested once.
 
 ### Confirmation
 
-`PythonTextTest` and `PythonFormatTest` check Python 3.12's own outputs, and jqwik properties check
+`PythonTextTests` and `PythonFormatTests` check Python 3.12's own outputs, and jqwik properties check
 that a repr reads back as the same float and that rounding stays within half a unit; the golden
 files check the messages that use them.
 

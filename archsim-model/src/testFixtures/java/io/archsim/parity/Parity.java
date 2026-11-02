@@ -1,10 +1,11 @@
 package io.archsim.parity;
 
+import java.util.function.Function;
+
+import tools.jackson.databind.JsonNode;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-
-import java.util.function.Function;
-import tools.jackson.databind.JsonNode;
 
 /**
  * Checks a Java function against one golden entry: the same output, or the same error.
@@ -19,23 +20,15 @@ public final class Parity {
 	 * what the Python engine gave.
 	 * @param entry the recorded call
 	 * @param call the Java counterpart: the output as the golden file records it, or it
-	 * throws
-	 * @param error how a thrown exception is recorded: {@code {type, message}} and maybe
-	 * more, with the Python exception's type name
+	 * throws the {@link PythonError} the Python engine raises in its place
 	 */
-	public static void check(GoldenEntry entry, Function<GoldenEntry, JsonNode> call,
-			Function<RuntimeException, JsonNode> error) {
+	public static void check(GoldenEntry entry, Function<GoldenEntry, JsonNode> call) {
 		JsonNode actual;
 		try {
 			actual = call.apply(entry);
 		}
-		catch (RuntimeException e) {
-			if (!entry.raised()) {
-				throw new AssertionError(entry + ": the Python engine returned, Java threw " + e, e);
-			}
-			assertThat(JsonDiff.differences(entry.expectedError(), error.apply(e)))
-				.as("%s: the error differs from the Python engine's at", entry)
-				.isEmpty();
+		catch (PythonError ex) {
+			checkError(entry, ex);
 			return;
 		}
 		if (entry.raised()) {
@@ -43,6 +36,16 @@ public final class Parity {
 		}
 		assertThat(JsonDiff.differences(entry.expectedOutput(), actual))
 			.as("%s: the output differs from the Python engine's at", entry)
+			.isEmpty();
+	}
+
+	private static void checkError(GoldenEntry entry, PythonError error) {
+		if (!entry.raised()) {
+			Throwable thrown = error.getCause();
+			throw new AssertionError(entry + ": the Python engine returned, Java threw " + thrown, thrown);
+		}
+		assertThat(JsonDiff.differences(entry.expectedError(), error.error()))
+			.as("%s: the error differs from the Python engine's at", entry)
 			.isEmpty();
 	}
 

@@ -5,7 +5,14 @@ import io.archsim.model.codec.JsonEnum;
 /** The side of a component a link attaches to on the canvas. */
 public enum EdgeSide implements JsonEnum {
 
-	TOP("top"), RIGHT("right"), BOTTOM("bottom"), LEFT("left");
+	/** The component's top side. */
+	TOP("top"),
+	/** The component's right side. */
+	RIGHT("right"),
+	/** The component's bottom side. */
+	BOTTOM("bottom"),
+	/** The component's left side. */
+	LEFT("left");
 
 	private final String json;
 
@@ -15,7 +22,7 @@ public enum EdgeSide implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

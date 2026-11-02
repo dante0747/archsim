@@ -1,7 +1,8 @@
 package io.archsim.model.document;
 
-import io.archsim.model.codec.Description;
 import org.jspecify.annotations.Nullable;
+
+import io.archsim.model.codec.Description;
 
 /**
  * Which side of each component a link attaches to on the canvas. Rendering only.

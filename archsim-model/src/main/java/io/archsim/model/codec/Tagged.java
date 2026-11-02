@@ -16,7 +16,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Tagged {
 
-	/** The property that holds the tag, such as {@code kind}. */
+	/**
+	 * The property that holds the tag, such as {@code kind}.
+	 * @return the property's name
+	 */
 	String value();
 
 }

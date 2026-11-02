@@ -1,12 +1,8 @@
 package io.archsim.model.codec;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowableOfType;
-
-import io.archsim.model.text.CanonicalJson;
 import java.util.ArrayList;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,75 +11,29 @@ import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.archsim.model.codec.SampleRecords.Circle;
+import io.archsim.model.codec.SampleRecords.Curve;
+import io.archsim.model.codec.SampleRecords.Drawing;
+import io.archsim.model.codec.SampleRecords.Mode;
+import io.archsim.model.codec.SampleRecords.Part;
+import io.archsim.model.codec.SampleRecords.Point;
+import io.archsim.model.codec.SampleRecords.Sample;
+import io.archsim.model.codec.SampleRecords.Settings;
+import io.archsim.model.codec.SampleRecords.Square;
+import io.archsim.model.codec.SampleRecords.Window;
+import io.archsim.model.text.CanonicalJson;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+
 /**
  * The codec reads JSON as pydantic does: the same coercions, the same errors in the same
  * order with the same messages; it writes the JSON and the JSON Schema pydantic writes.
  * Every expected message and schema here is pydantic 2's.
  */
-class RecordCodecTest {
+class RecordCodecTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
-
-	enum Mode implements JsonEnum {
-
-		AUTO("auto"), STEADY("steady"), RAMP("ramp");
-
-		private final String json;
-
-		Mode(String json) {
-			this.json = json;
-		}
-
-		@Override
-		public String json() {
-			return json;
-		}
-
-	}
-
-	record Sample(@Default("Untitled") @MinLength(1) @MaxLength(10) String name,
-
-			@Default("1.0") @Gt(0) @Le(600_000) double rate, @Default("2") @Ge(1) @Le(10) int count,
-			@Default("false") boolean enabled, @Ge(0.1) @Nullable Double share,
-			@Default("[]") @MaxItems(2) List<@Matches("^[a-z]+$") String> tags, @Default("auto") Mode mode) {
-	}
-
-	record Part(String id, int size, @Default("0.5") double readRatio) {
-	}
-
-	@Tagged("kind")
-	sealed interface Figure permits Circle, Square {
-
-	}
-
-	@Tag("circle")
-	record Circle(@Gt(0) double radius) implements Figure {
-	}
-
-	@Tag("square")
-	record Square(@Gt(0) double side) implements Figure {
-	}
-
-	record Drawing(Figure figure) {
-	}
-
-	record Window(double start, double end) {
-		Window {
-			if (end <= start) {
-				throw new IllegalArgumentException("end must come after start");
-			}
-		}
-	}
-
-	@AsArray
-	record Point(double t, double value) {
-	}
-
-	record Curve(@MinItems(2) List<Point> points) {
-	}
-
-	record Settings(@Default("auto") @OmitWhenDefault Mode mode, @OmitWhenDefault @Nullable Double extra) {
-	}
 
 	private static JsonNode json(String text) {
 		return JSON.readTree(text);
@@ -108,19 +58,19 @@ class RecordCodecTest {
 	class Reading {
 
 		@Test
-		void fields_left_out_take_their_defaults() {
+		void read_fieldsLeftOut_takeTheirDefaults() {
 			assertThat(RecordCodec.read(json("{}"), Sample.class))
 				.isEqualTo(new Sample("Untitled", 1.0, 2, false, null, List.of(), Mode.AUTO));
 		}
 
 		@Test
-		void a_required_field_left_out_is_reported_as_required() {
+		void read_requiredFieldLeftOut_isReportedAsRequired() {
 			assertThat(errors("{}", Part.class)).containsExactly(error("missing", "id", "Field required"),
 					error("missing", "size", "Field required"));
 		}
 
 		@Test
-		void every_error_is_reported_at_once_fields_in_order_then_unknown_keys_in_the_inputs_order() {
+		void read_severalErrors_areReportedAtOnceFieldsFirstThenUnknownKeys() {
 			assertThat(errors("""
 					{"zz": 1, "count": 0, "name": "", "aa": 2, "rate": "fast"}""", Sample.class)).containsExactly(
 					error("string_too_short", "name", "String should have at least 1 character"),
@@ -132,13 +82,13 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void a_field_may_be_given_by_its_python_name_too() {
+		void read_fieldByItsPythonName_isAccepted() {
 			assertThat(RecordCodec.read(json("{\"id\": \"a\", \"size\": 1, \"read_ratio\": 0.25}"), Part.class))
 				.isEqualTo(new Part("a", 1, 0.25));
 		}
 
 		@Test
-		void given_both_names_the_json_name_wins_and_the_python_name_is_unknown() {
+		void read_bothNamesOfAField_takesTheJsonNameAndRefusesThePythonOne() {
 			assertThat(errors("{\"id\": \"a\", \"size\": 1, \"read_ratio\": 0.25, \"readRatio\": 0.5}", Part.class))
 				.containsExactly(error("extra_forbidden", "read_ratio", "Extra inputs are not permitted"));
 		}
@@ -151,7 +101,7 @@ class RecordCodecTest {
 				{"rate": true}         | 1.0
 				{"rate": 7}            | 7.0
 				""")
-		void a_number_may_be_a_numeric_string_a_boolean_or_an_integer(String input, double rate) {
+		void read_numberAsNumericStringBooleanOrInteger_isCoerced(String input, double rate) {
 			assertThat(RecordCodec.read(json(input), Sample.class).rate()).isEqualTo(rate);
 		}
 
@@ -163,20 +113,20 @@ class RecordCodecTest {
 				{"count": "7.0"}      | 7
 				{"count": true}       | 1
 				""")
-		void an_integer_may_be_a_whole_float_or_an_integer_string(String input, int count) {
+		void read_integerAsWholeFloatOrIntegerString_isCoerced(String input, int count) {
 			assertThat(RecordCodec.read(json(input), Sample.class).count()).isEqualTo(count);
 		}
 
-		@ParameterizedTest(name = "{0}: {1}")
-		@CsvSource(delimiter = '|',
-				textBlock = """
-						{"count": 5.5}    | int_from_float | Input should be a valid integer, got a number with a fractional part
-						{"count": "5.5"}  | int_parsing    | Input should be a valid integer, unable to parse string as an integer
-						{"count": "1e3"}  | int_parsing    | Input should be a valid integer, unable to parse string as an integer
-						{"count": null}   | int_type       | Input should be a valid integer
-						{"count": 1e20}   | int_parsing_size | Unable to parse input string as an integer, exceeded maximum size
-						""")
-		void an_integer_with_a_fraction_or_no_integer_at_all_is_refused(String input, String type, String message) {
+		@ParameterizedTest(name = "count {0}: {1}")
+		@CsvSource(delimiter = '|', textBlock = """
+				5.5    | int_from_float   | Input should be a valid integer, got a number with a fractional part
+				"5.5"  | int_parsing      | Input should be a valid integer, unable to parse string as an integer
+				"1e3"  | int_parsing      | Input should be a valid integer, unable to parse string as an integer
+				null   | int_type         | Input should be a valid integer
+				1e20   | int_parsing_size | Unable to parse input string as an integer, exceeded maximum size
+				""")
+		void read_integerWithFractionOrNoIntegerAtAll_isRefused(String count, String type, String message) {
+			String input = "{\"count\": " + count + "}";
 			assertThat(errors(input, Sample.class)).containsExactly(error(type, "count", message));
 		}
 
@@ -187,12 +137,12 @@ class RecordCodecTest {
 				{"enabled": 1}       | true
 				{"enabled": 0.0}     | false
 				""")
-		void a_boolean_may_be_one_of_pydantics_words_or_zero_or_one(String input, boolean enabled) {
+		void read_booleanAsPydanticWordOrZeroOrOne_isCoerced(String input, boolean enabled) {
 			assertThat(RecordCodec.read(json(input), Sample.class).enabled()).isEqualTo(enabled);
 		}
 
 		@Test
-		void other_booleans_are_refused_as_pydantic_refuses_them() {
+		void read_otherBooleans_areRefusedAsPydanticRefusesThem() {
 			assertThat(errors("{\"enabled\": 2}", Sample.class)).containsExactly(
 					error("bool_parsing", "enabled", "Input should be a valid boolean, unable to interpret input"));
 			assertThat(errors("{\"enabled\": 0.5}", Sample.class))
@@ -200,7 +150,7 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void a_bound_is_written_as_pydantic_writes_it() {
+		void read_valueOutOfBounds_isReportedAsPydanticWritesIt() {
 			assertThat(errors("{\"rate\": 0, \"share\": 0.05}", Sample.class)).containsExactly(
 					error("greater_than", "rate", "Input should be greater than 0"),
 					error("greater_than_equal", "share", "Input should be greater than or equal to 0.1"));
@@ -209,31 +159,31 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void a_string_is_only_a_string() {
+		void read_numberForString_isRefused() {
 			assertThat(errors("{\"name\": 5}", Sample.class))
 				.containsExactly(error("string_type", "name", "Input should be a valid string"));
 		}
 
 		@Test
-		void a_pattern_must_match_up_to_the_very_end_of_the_text() {
+		void read_patternMatchedBeforeTheEnd_isRefused() {
 			assertThat(errors("{\"tags\": [\"ok\", \"no\\n\"]}", Sample.class))
 				.containsExactly(error("string_pattern_mismatch", "tags.1", "String should match pattern '^[a-z]+$'"));
 		}
 
 		@Test
-		void a_list_longer_than_its_maximum_is_reported_as_that_alone() {
+		void read_listLongerThanItsMaximum_isReportedAsThatAlone() {
 			assertThat(errors("{\"tags\": [1, 2, 3]}", Sample.class))
 				.containsExactly(error("too_long", "tags", "List should have at most 2 items after validation, not 3"));
 		}
 
 		@Test
-		void a_literal_lists_what_it_accepts() {
+		void read_unknownLiteral_listsWhatItAccepts() {
 			assertThat(errors("{\"mode\": \"fast\"}", Sample.class))
 				.containsExactly(error("literal_error", "mode", "Input should be 'auto', 'steady' or 'ramp'"));
 		}
 
 		@Test
-		void a_tuple_takes_exactly_its_items() {
+		void read_tuple_takesExactlyItsItems() {
 			assertThat(RecordCodec.read(json("{\"points\": [[0, 1], [5, 2.5]]}"), Curve.class))
 				.isEqualTo(new Curve(List.of(new Point(0, 1), new Point(5, 2.5))));
 			assertThat(errors("{\"points\": [[0, 1], [1]]}", Curve.class))
@@ -245,13 +195,13 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void a_records_own_check_fails_as_a_value_error_at_the_record() {
+		void read_recordsOwnCheckFailing_isValueErrorAtTheRecord() {
 			assertThat(errors("{\"start\": 5, \"end\": 1}", Window.class))
 				.containsExactly(error("value_error", "", "Value error, end must come after start"));
 		}
 
 		@Test
-		void a_nested_record_must_be_an_object() {
+		void read_nestedRecordNotAnObject_isRefused() {
 			assertThat(errors("{\"figure\": 5}", Drawing.class)).containsExactly(error("model_attributes_type",
 					"figure", "Input should be a valid dictionary or object to extract fields from"));
 		}
@@ -263,26 +213,26 @@ class RecordCodecTest {
 	class TaggedUnions {
 
 		@Test
-		void the_tag_picks_the_record() {
+		void read_tag_picksTheRecord() {
 			assertThat(RecordCodec.read(json("{\"figure\": {\"kind\": \"square\", \"side\": 2}}"), Drawing.class))
 				.isEqualTo(new Drawing(new Square(2)));
 		}
 
 		@Test
-		void an_error_inside_a_record_is_located_under_its_tag() {
+		void read_errorInsideTaggedRecord_isLocatedUnderItsTag() {
 			assertThat(errors("{\"figure\": {\"kind\": \"circle\", \"radius\": -1}}", Drawing.class))
 				.containsExactly(error("greater_than", "figure.circle.radius", "Input should be greater than 0"));
 		}
 
 		@Test
-		void an_unknown_tag_lists_the_tags_there_are() {
+		void read_unknownTag_listsTheTagsThereAre() {
 			assertThat(errors("{\"figure\": {\"kind\": 5}}", Drawing.class)).containsExactly(error("union_tag_invalid",
 					"figure", "Input tag '5' found using 'kind' does not match any of the expected tags: 'circle',"
 							+ " 'square'"));
 		}
 
 		@Test
-		void a_missing_tag_is_reported_as_such() {
+		void read_missingTag_isReportedAsSuch() {
 			assertThat(errors("{\"figure\": {\"radius\": 1}}", Drawing.class)).containsExactly(
 					error("union_tag_not_found", "figure", "Unable to extract tag using discriminator 'kind'"));
 		}
@@ -294,7 +244,7 @@ class RecordCodecTest {
 	class Writing {
 
 		@Test
-		void a_record_is_written_with_every_field_in_order() {
+		void write_record_hasEveryFieldInOrder() {
 			assertThat(RecordCodec.write(new Sample("x", 2.0, 3, true, null, List.of("a"), Mode.RAMP)))
 				.isEqualTo(json("""
 						{"name": "x", "rate": 2.0, "count": 3, "enabled": true, "share": null,
@@ -302,19 +252,19 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void a_tagged_record_is_written_with_its_tag() {
+		void write_taggedRecord_hasItsTag() {
 			assertThat(RecordCodec.write(new Circle(1.5))).isEqualTo(json("{\"kind\": \"circle\", \"radius\": 1.5}"));
 		}
 
 		@Test
-		void a_field_marked_so_is_left_out_while_it_has_its_default() {
+		void write_fieldOmittedWhenDefault_isLeftOutWhileItHasItsDefault() {
 			assertThat(RecordCodec.write(new Settings(Mode.AUTO, null))).isEqualTo(json("{}"));
 			assertThat(RecordCodec.write(new Settings(Mode.RAMP, 2.0)))
 				.isEqualTo(json("{\"mode\": \"ramp\", \"extra\": 2.0}"));
 		}
 
 		@Test
-		void an_array_record_is_written_as_an_array() {
+		void write_arrayRecord_isAnArray() {
 			assertThat(RecordCodec.write(new Curve(List.of(new Point(0, 1), new Point(2, 3)))))
 				.isEqualTo(json("{\"points\": [[0.0, 1.0], [2.0, 3.0]]}"));
 		}
@@ -335,7 +285,7 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void a_property_is_titled_as_python_titles_its_json_name() {
+		void jsonSchema_property_isTitledAsPythonTitlesItsJsonName() {
 			assertSchema(Part.class, """
 					{"additionalProperties": false, "title": "Part", "type": "object",
 					 "properties": {
@@ -346,7 +296,7 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void bounds_defaults_and_nullable_fields_are_written_as_pydantic_writes_them_and_a_list_default_is_hidden() {
+		void jsonSchema_boundsDefaultsAndNullableFields_areAsPydanticWritesThemWithListDefaultHidden() {
 			assertSchema(Sample.class, """
 					{"additionalProperties": false, "title": "Sample", "type": "object",
 					 "properties": {
@@ -365,7 +315,7 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void a_tagged_union_is_a_discriminated_one_of_with_each_record_under_defs() {
+		void jsonSchema_taggedUnion_isDiscriminatedOneOfWithEachRecordUnderDefs() {
 			assertSchema(Drawing.class, """
 					{"additionalProperties": false, "title": "Drawing", "type": "object",
 					 "properties": {
@@ -389,16 +339,15 @@ class RecordCodecTest {
 		}
 
 		@Test
-		void an_array_record_is_a_tuple() {
-			assertSchema(Curve.class,
-					"""
-							{"additionalProperties": false, "title": "Curve", "type": "object",
-							 "properties": {
-							   "points": {
-							     "items": {"maxItems": 2, "minItems": 2, "prefixItems": [{"type": "number"}, {"type": "number"}],
-							               "type": "array"},
-							     "minItems": 2, "title": "Points", "type": "array"}},
-							 "required": ["points"]}""");
+		void jsonSchema_arrayRecord_isATuple() {
+			assertSchema(Curve.class, """
+					{"additionalProperties": false, "title": "Curve", "type": "object",
+					 "properties": {
+					   "points": {
+					     "items": {"maxItems": 2, "minItems": 2,
+					               "prefixItems": [{"type": "number"}, {"type": "number"}], "type": "array"},
+					     "minItems": 2, "title": "Points", "type": "array"}},
+					 "required": ["points"]}""");
 		}
 
 	}

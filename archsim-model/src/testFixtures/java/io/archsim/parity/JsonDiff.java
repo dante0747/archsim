@@ -3,6 +3,7 @@ package io.archsim.parity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
+
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -32,8 +33,8 @@ public final class JsonDiff {
 	}
 
 	/** Whether two numbers are equal within the tolerance. */
-	public static boolean close(double x, double y) {
-		return x == y || Math.abs(x - y) <= TOLERANCE * Math.max(Math.abs(x), Math.abs(y));
+	public static boolean close(double first, double second) {
+		return first == second || Math.abs(first - second) <= TOLERANCE * Math.max(Math.abs(first), Math.abs(second));
 	}
 
 	private static void walk(JsonNode expected, JsonNode actual, String pointer, List<String> found) {
@@ -41,25 +42,33 @@ public final class JsonDiff {
 			return;
 		}
 		if (expected.isObject() && actual.isObject()) {
-			TreeSet<String> keys = new TreeSet<>(expected.propertyNames());
-			keys.addAll(actual.propertyNames());
-			for (String key : keys) {
-				String child = pointer + "/" + key.replace("~", "~0").replace("/", "~1");
-				if (!expected.has(key) || !actual.has(key)) {
-					found.add(child + (expected.has(key) ? " (missing)" : " (unexpected)"));
-				}
-				else {
-					walk(expected.get(key), actual.get(key), child, found);
-				}
-			}
+			walkProperties(expected, actual, pointer, found);
 		}
 		else if (expected.isArray() && actual.isArray() && expected.size() == actual.size()) {
-			for (int i = 0; i < expected.size(); i++) {
-				walk(expected.get(i), actual.get(i), pointer + "/" + i, found);
-			}
+			walkItems(expected, actual, pointer, found);
 		}
 		else if (!same(expected, actual)) {
 			found.add(pointer.isEmpty() ? "/" : pointer);
+		}
+	}
+
+	private static void walkProperties(JsonNode expected, JsonNode actual, String pointer, List<String> found) {
+		TreeSet<String> keys = new TreeSet<>(expected.propertyNames());
+		keys.addAll(actual.propertyNames());
+		for (String key : keys) {
+			String child = pointer + "/" + key.replace("~", "~0").replace("/", "~1");
+			if (!expected.has(key) || !actual.has(key)) {
+				found.add(child + (expected.has(key) ? " (missing)" : " (unexpected)"));
+			}
+			else {
+				walk(expected.get(key), actual.get(key), child, found);
+			}
+		}
+	}
+
+	private static void walkItems(JsonNode expected, JsonNode actual, String pointer, List<String> found) {
+		for (int i = 0; i < expected.size(); i++) {
+			walk(expected.get(i), actual.get(i), pointer + "/" + i, found);
 		}
 	}
 

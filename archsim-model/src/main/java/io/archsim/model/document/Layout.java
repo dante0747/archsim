@@ -1,10 +1,12 @@
 package io.archsim.model.document;
 
-import io.archsim.model.codec.Default;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
 import org.jspecify.annotations.Nullable;
+
+import io.archsim.model.codec.Default;
 
 /**
  * How the design is drawn: rendering only, it never changes a result.
@@ -16,6 +18,9 @@ import org.jspecify.annotations.Nullable;
 public record Layout(@Default("{}") Map<String, Position> nodes, @Default("{}") Map<String, EdgeLayout> edges,
 		@Nullable Viewport viewport) {
 
+	/**
+	 * Copies the maps, so the layout does not change.
+	 */
 	public Layout {
 		nodes = Collections.unmodifiableMap(new LinkedHashMap<>(nodes));
 		edges = Collections.unmodifiableMap(new LinkedHashMap<>(edges));

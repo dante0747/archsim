@@ -16,7 +16,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface Matches {
 
-	/** The expression, spelled as in the Python model (error messages quote it). */
+	/**
+	 * The expression, spelled as in the Python model (error messages quote it).
+	 * @return the regular expression's source
+	 */
 	String value();
 
 }

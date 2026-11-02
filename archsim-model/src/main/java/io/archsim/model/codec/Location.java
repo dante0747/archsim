@@ -36,11 +36,11 @@ public record Location(List<Object> parts) {
 	}
 
 	public boolean isRoot() {
-		return parts.isEmpty();
+		return this.parts.isEmpty();
 	}
 
 	private Location append(Object part) {
-		List<Object> next = new ArrayList<>(parts);
+		List<Object> next = new ArrayList<>(this.parts);
 		next.add(part);
 		return new Location(next);
 	}
@@ -48,6 +48,6 @@ public record Location(List<Object> parts) {
 	/** The parts joined by dots, as Python's {@code ".".join(str(p) for p in loc)}. */
 	@Override
 	public String toString() {
-		return parts.stream().map(String::valueOf).collect(Collectors.joining("."));
+		return this.parts.stream().map(String::valueOf).collect(Collectors.joining("."));
 	}
 }

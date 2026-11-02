@@ -21,7 +21,7 @@ public enum Tier implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

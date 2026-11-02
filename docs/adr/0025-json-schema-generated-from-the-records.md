@@ -58,9 +58,9 @@ the schema is one more thing it writes from the same annotations.
 
 ### Confirmation
 
-`GoldenParityTest` compares `DesignDocuments.jsonSchema()` with the golden file
+`GoldenParityTests` compares `DesignDocuments.jsonSchema()` with the golden file
 `parity/golden/catalog/schema.json.gz`, which the Python CI job keeps equal to
-`document_json_schema()`; `RecordCodecTest` specifies the conventions on small records.
+`document_json_schema()`; `RecordCodecTests` specifies the conventions on small records.
 
 ## Pros and Cons of the Options
 

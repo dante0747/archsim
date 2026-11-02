@@ -1,12 +1,13 @@
 package io.archsim.model.document;
 
+import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.node.ObjectNode;
+
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinLength;
-import org.jspecify.annotations.Nullable;
-import tools.jackson.databind.node.ObjectNode;
 
 /**
  * A component instance in the architecture graph. Its {@code config} stays plain JSON
@@ -31,18 +32,27 @@ public record NodeSpec(@Description("Unique node id (letters, digits, _ . -)") @
 		@Default("") @MaxLength(120) String label, @MaxLength(2000) @Nullable String description,
 		@Default("{}") ObjectNode config) {
 
+	/**
+	 * Copies the config, so the node does not change.
+	 */
 	public NodeSpec {
 		config = config.deepCopy();
 	}
 
-	/** The settings, as a copy: a record does not change. */
+	/**
+	 * The settings, as a copy: a record does not change.
+	 * @return a copy of the config
+	 */
 	@Override
 	public ObjectNode config() {
-		return config.deepCopy();
+		return this.config.deepCopy();
 	}
 
-	/** The label, or the id when there is none: how messages name the node. */
+	/**
+	 * The label, or the id when there is none.
+	 * @return how messages name the node
+	 */
 	public String name() {
-		return label.isEmpty() ? id : label;
+		return this.label.isEmpty() ? this.id : this.label;
 	}
 }

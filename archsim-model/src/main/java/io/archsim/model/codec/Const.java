@@ -16,6 +16,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface Const {
 
+	/**
+	 * The one string the value may be.
+	 * @return the required string
+	 */
 	String value();
 
 }

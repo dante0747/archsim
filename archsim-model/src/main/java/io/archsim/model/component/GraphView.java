@@ -1,15 +1,16 @@
 package io.archsim.model.component;
 
-import io.archsim.model.document.EdgeSpec;
-import io.archsim.model.document.NodeSpec;
-import io.archsim.model.document.RequestType;
-import io.archsim.model.document.Workload;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
+import io.archsim.model.document.EdgeSpec;
+import io.archsim.model.document.NodeSpec;
+import io.archsim.model.document.RequestType;
+import io.archsim.model.document.Workload;
 
 /**
  * The design as component rules see it: its nodes and their parsed configs, the valid
@@ -36,33 +37,44 @@ public record GraphView(Map<String, NodeSpec> nodes, Map<String, Record> configs
 		incomingTypes = Collections.unmodifiableMap(new LinkedHashMap<>(incomingTypes));
 	}
 
-	/** The same view with the request types that reach each node. */
+	/**
+	 * The same view with the request types that reach each node.
+	 * @param types the request types that reach each node, by node id
+	 * @return a view that knows them
+	 */
 	public GraphView withIncomingTypes(Map<String, Set<RequestType>> types) {
-		return new GraphView(nodes, configs, outEdges, inEdges, workload, types);
+		return new GraphView(this.nodes, this.configs, this.outEdges, this.inEdges, this.workload, types);
 	}
 
 	public List<EdgeSpec> outEdges(String nodeId) {
-		return outEdges.getOrDefault(nodeId, List.of());
+		return this.outEdges.getOrDefault(nodeId, List.of());
 	}
 
 	public List<EdgeSpec> inEdges(String nodeId) {
-		return inEdges.getOrDefault(nodeId, List.of());
+		return this.inEdges.getOrDefault(nodeId, List.of());
 	}
 
 	public Optional<NodeSpec> node(String id) {
-		return Optional.ofNullable(nodes.get(id));
+		return Optional.ofNullable(this.nodes.get(id));
 	}
 
-	/** The ids of the nodes of a component type, in the document's order. */
+	/**
+	 * The ids of the nodes of a component type, in the document's order.
+	 * @param type the component type's name
+	 * @return the ids of its nodes
+	 */
 	public List<String> idsOfType(String type) {
-		return nodes.values().stream().filter(n -> n.type().equals(type)).map(NodeSpec::id).toList();
+		return this.nodes.values().stream().filter((node) -> node.type().equals(type)).map(NodeSpec::id).toList();
 	}
 
 	/**
 	 * How messages name a node: its label, or its id; an id with no node is its own name.
+	 * @param nodeId the node's id
+	 * @return the node's name in messages
 	 */
 	public String name(String nodeId) {
-		NodeSpec node = nodes.get(nodeId);
-		return node == null ? nodeId : node.name();
+		NodeSpec node = this.nodes.get(nodeId);
+		return (node != null) ? node.name() : nodeId;
 	}
+
 }

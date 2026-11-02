@@ -1,21 +1,23 @@
 package io.archsim.model.validation;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.groups.Tuple.tuple;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.document.RequestType;
 import io.archsim.model.issue.Issue;
-import java.util.Set;
-import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * What validation says about a small design: clients → load balancer → service →
  * database. The golden files check every template and invalid fixture word for word;
  * these show the shape of it.
  */
-class DocumentValidatorTest {
+class DocumentValidatorTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -39,7 +41,7 @@ class DocumentValidatorTest {
 	}
 
 	@Test
-	void a_sound_design_is_valid_and_its_links_carry_what_reaches_them() {
+	void validate_soundDesign_isValidAndItsLinksCarryWhatReachesThem() {
 		ValidationResult result = validate("", "");
 		assertThat(result.valid()).isTrue();
 		assertThat(result.issues()).isEmpty();
@@ -48,7 +50,7 @@ class DocumentValidatorTest {
 	}
 
 	@Test
-	void a_link_to_a_missing_node_is_an_error_naming_the_link() {
+	void validate_linkToMissingNode_isAnErrorNamingTheLink() {
 		ValidationResult result = validate("", ", {\"id\": \"api-x\", \"source\": \"api\", \"target\": \"ghost\"}");
 		assertThat(result.valid()).isFalse();
 		assertThat(result.errors()).extracting(Issue::code, Issue::message, Issue::edgeId)
@@ -57,7 +59,7 @@ class DocumentValidatorTest {
 	}
 
 	@Test
-	void a_part_no_request_reaches_is_a_warning_and_the_design_stays_valid() {
+	void validate_partNoRequestReaches_isAWarningAndTheDesignStaysValid() {
 		ValidationResult result = validate(", {\"id\": \"batch\", \"type\": \"service\"}", "");
 		assertThat(result.valid()).isTrue();
 		assertThat(result.warnings()).extracting(Issue::code, Issue::message)
@@ -66,7 +68,7 @@ class DocumentValidatorTest {
 	}
 
 	@Test
-	void a_config_error_names_the_setting_in_lower_case_words() {
+	void validate_configError_namesTheSettingInLowerCaseWords() {
 		ValidationResult result = validate(
 				", {\"id\": \"q\", \"type\": \"message_queue\", \"config\": {\"partitions\": 0}}", "");
 		assertThat(result.errors()).extracting(Issue::code, Issue::message, Issue::path)
@@ -76,7 +78,7 @@ class DocumentValidatorTest {
 	}
 
 	@Test
-	void a_loop_is_reported_once_from_where_the_search_closed_it() {
+	void validate_loop_isReportedOnceFromWhereTheSearchClosedIt() {
 		ValidationResult result = validate("", ", {\"id\": \"api-lb\", \"source\": \"api\", \"target\": \"lb\"}");
 		assertThat(result.errors()).extracting(Issue::code, Issue::message)
 			.containsExactly(tuple("graph.cycle",
@@ -84,7 +86,7 @@ class DocumentValidatorTest {
 	}
 
 	@Test
-	void the_bound_on_calls_per_request_can_be_lifted() {
+	void validate_boundOnCallsPerRequest_canBeLifted() {
 		String retries = ", \"config\": {\"maxAttempts\": 5}";
 		String design = DESIGN.formatted("", "")
 			.replace("\"target\": \"api\"}", "\"target\": \"api\"" + retries + "}")

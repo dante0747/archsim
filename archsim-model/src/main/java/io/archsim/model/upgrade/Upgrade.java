@@ -2,6 +2,7 @@ package io.archsim.model.upgrade;
 
 import java.util.Objects;
 import java.util.function.UnaryOperator;
+
 import tools.jackson.databind.node.ObjectNode;
 
 /**

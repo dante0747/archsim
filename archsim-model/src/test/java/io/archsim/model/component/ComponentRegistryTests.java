@@ -1,42 +1,44 @@
 package io.archsim.model.component;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.cache.CacheConfig;
 import io.archsim.model.component.external.ExternalApiSpec;
 import io.archsim.model.component.standard.StandardComponents;
-import java.util.List;
-import java.util.Map;
-import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ObjectNode;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * The component types a design may use, and what their configs work out from their
  * settings.
  */
-class ComponentRegistryTest {
+class ComponentRegistryTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	@Test
-	void the_standard_registry_lists_the_types_in_the_python_engines_order() {
+	void types_standardRegistry_listsThemInThePythonEnginesOrder() {
 		assertThat(StandardComponents.registry().types()).containsExactly("traffic_source", "mobile_app", "web_client",
 				"api_consumer", "load_balancer", "service", "cache", "database", "external_api", "message_queue",
 				"kubernetes_cluster");
 	}
 
 	@Test
-	void a_type_is_registered_once() {
+	void register_sameTypeTwice_isRefused() {
 		assertThatIllegalArgumentException()
 			.isThrownBy(() -> new ComponentRegistry(List.of(new ExternalApiSpec(), new ExternalApiSpec())))
 			.withMessage("component type 'external_api' is already registered");
 	}
 
 	@Test
-	void every_config_reads_from_an_empty_object_with_its_defaults() {
+	void parseConfig_emptyObject_takesEveryDefault() {
 		for (ComponentSpec<?> spec : StandardComponents.registry().specs()) {
 			Record config = spec.parseConfig(JSON.createObjectNode());
 			assertThat(RecordCodec.read(RecordCodec.write(config), spec.configType())).as(spec.type())
@@ -45,7 +47,7 @@ class ComponentRegistryTest {
 	}
 
 	@Test
-	void an_auto_setting_follows_the_technology_and_an_explicit_one_wins() {
+	void executors_autoSetting_followsTheTechnologyUnlessExplicit() {
 		CacheConfig redis = cache(Map.of("technology", "redis", "concurrency", 4));
 		CacheConfig memcached = cache(Map.of("technology", "memcached", "concurrency", 4));
 		CacheConfig forced = cache(Map.of("technology", "redis", "concurrency", 4, "singleThreaded", "off"));
@@ -55,12 +57,7 @@ class ComponentRegistryTest {
 	}
 
 	@Test
-	void a_technology_without_a_profile_is_refused_when_the_table_is_built() {
-		enum Two {
-
-			ONE, TWO
-
-		}
+	void technologyProfiles_technologyWithoutProfile_isRefused() {
 		assertThatIllegalArgumentException()
 			.isThrownBy(() -> new TechnologyProfiles<>(Two.class, Map.of(Two.ONE, TechnologyProfile.core())))
 			.withMessage("technologies without a profile: [TWO]");
@@ -69,6 +66,16 @@ class ComponentRegistryTest {
 	private static CacheConfig cache(Map<String, Object> settings) {
 		ObjectNode json = JSON.valueToTree(settings);
 		return RecordCodec.read(json, CacheConfig.class);
+	}
+
+	/** Two technologies, of which a test gives only the first a profile. */
+	private enum Two {
+
+		/** The technology with a profile. */
+		ONE,
+		/** The technology without one. */
+		TWO
+
 	}
 
 }

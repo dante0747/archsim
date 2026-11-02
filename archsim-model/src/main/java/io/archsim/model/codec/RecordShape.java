@@ -1,17 +1,21 @@
 package io.archsim.model.codec;
 
-import io.archsim.model.text.PythonText;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.RecordComponent;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.model.text.PythonText;
 
 /**
  * A pydantic model with {@code extra="forbid"}, as a Java record: a JSON object of its
@@ -26,11 +30,7 @@ import tools.jackson.databind.node.ObjectNode;
  */
 final class RecordShape implements Shape {
 
-	/**
-	 * The tag of a record in a {@link Tagged} union: the property and the record's value.
-	 */
-	record TagField(String property, String value) {
-	}
+	private final List<Field> fields;
 
 	private final String name;
 
@@ -38,85 +38,154 @@ final class RecordShape implements Shape {
 
 	private final @Nullable TagField tag;
 
-	private final List<Field> fields;
-
 	private final Constructor<?> constructor;
 
-	RecordShape(String name, @Nullable String description, @Nullable TagField tag, List<Field> fields,
-			Constructor<?> constructor) {
-		this.name = name;
-		this.description = description;
+	/**
+	 * Builds the shape of a record from its components and their annotations.
+	 * @param type the record
+	 * @param tag the record's tag in a {@link Tagged} union, or {@code null} outside one
+	 */
+	RecordShape(Class<?> type, @Nullable TagField tag) {
+		RecordComponent[] components = type.getRecordComponents();
+		if (components == null) {
+			throw new IllegalArgumentException(type + " is not a record");
+		}
+		this.fields = Arrays.stream(components).map(Field::of).toList();
+		Description declared = type.getAnnotation(Description.class);
+		this.name = modelName(type);
+		this.description = (declared != null) ? declared.value() : null;
 		this.tag = tag;
-		this.fields = List.copyOf(fields);
-		this.constructor = constructor;
+		this.constructor = Reflection.canonicalConstructor(type, components);
 	}
 
-	/** The model's name, as messages and the JSON Schema use it. */
+	/**
+	 * The model's name, as messages and the JSON Schema use it.
+	 * @return the {@link ModelName}, or else the record's simple name
+	 */
 	String name() {
-		return name;
+		return this.name;
 	}
 
 	List<Field> fields() {
-		return fields;
+		return this.fields;
 	}
 
 	@Override
 	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
 		if (!in.isObject()) {
-			errors.add("model_type", at, Messages.modelType(name));
+			errors.add("model_type", at, Messages.modelType(this.name));
 			return null;
 		}
 		int mark = errors.mark();
-		Set<String> used = new HashSet<>();
-		if (tag != null && in.has(tag.property())) {
-			used.add(tag.property());
-			JsonNode value = in.get(tag.property());
-			if (!value.isString() || !value.stringValue().equals(tag.value())) {
-				errors.add("literal_error", at.child(tag.property()),
-						Messages.literal(List.of(PythonText.repr(tag.value()))));
-			}
-		}
-		@Nullable Object[] values = new @Nullable Object[fields.size()];
-		for (int i = 0; i < fields.size(); i++) {
-			Field field = fields.get(i);
-			String key = in.has(field.name()) ? field.name() : in.has(field.pythonName()) ? field.pythonName() : null;
-			if (key != null) {
-				used.add(key);
-				values[i] = field.shape().read(in.get(key), at.child(key), errors);
-			}
-			else if (field.required()) {
-				errors.add("missing", at.child(field.name()), Messages.MISSING);
-			}
-			else {
-				Object fallback = field.defaultValue();
-				values[i] = fallback instanceof JsonNode node ? node.deepCopy() : fallback;
-			}
-		}
-		for (Map.Entry<String, JsonNode> property : in.properties()) {
-			if (!used.contains(property.getKey())) {
-				errors.add("extra_forbidden", at.child(property.getKey()), Messages.EXTRA_FORBIDDEN);
-			}
-		}
+		readTag(in, at, errors);
+		@Nullable Object[] values = readFields(in, at, errors);
+		reportExtras(in, at, errors);
 		if (errors.since(mark)) {
 			return null;
 		}
 		return construct(values, at, errors);
 	}
 
-	/** A record of these field values; a value error when the record rejects them. */
+	/**
+	 * Adds an error when the input gives the tag property a value other than the
+	 * record's.
+	 * @param in the JSON object read
+	 * @param at where the object is in the input
+	 * @param errors where the error is added
+	 */
+	private void readTag(JsonNode in, Location at, Errors errors) {
+		if (this.tag == null || !in.has(this.tag.property())) {
+			return;
+		}
+		JsonNode value = in.get(this.tag.property());
+		if (!value.isString() || !value.stringValue().equals(this.tag.value())) {
+			errors.add("literal_error", at.child(this.tag.property()),
+					Messages.literal(List.of(PythonText.repr(this.tag.value()))));
+		}
+	}
+
+	/**
+	 * The value of each field, in declaration order: read, defaulted or missing.
+	 * @param in the JSON object read
+	 * @param at where the object is in the input
+	 * @param errors where the errors in the fields are added
+	 * @return the values, {@code null} where a field is missing
+	 */
+	private @Nullable Object[] readFields(JsonNode in, Location at, Errors errors) {
+		@Nullable Object[] values = new @Nullable Object[this.fields.size()];
+		for (int i = 0; i < this.fields.size(); i++) {
+			values[i] = readField(this.fields.get(i), in, at, errors);
+		}
+		return values;
+	}
+
+	private static @Nullable Object readField(Field field, JsonNode in, Location at, Errors errors) {
+		String key = field.keyIn(in);
+		if (key != null) {
+			return field.shape().read(in.get(key), at.child(key), errors);
+		}
+		if (field.required()) {
+			errors.add("missing", at.child(field.name()), Messages.MISSING);
+			return null;
+		}
+		Object fallback = field.defaultValue();
+		return (fallback instanceof JsonNode node) ? node.deepCopy() : fallback;
+	}
+
+	/**
+	 * Adds an error for every key of the input that is neither the tag nor a field's.
+	 * @param in the JSON object read
+	 * @param at where the object is in the input
+	 * @param errors where the errors are added, in the input's order
+	 */
+	private void reportExtras(JsonNode in, Location at, Errors errors) {
+		Set<String> known = knownKeys(in);
+		for (Map.Entry<String, JsonNode> property : in.properties()) {
+			if (!known.contains(property.getKey())) {
+				errors.add("extra_forbidden", at.child(property.getKey()), Messages.EXTRA_FORBIDDEN);
+			}
+		}
+	}
+
+	/**
+	 * The keys of the input that the tag and the fields are read from.
+	 * @param in the JSON object read
+	 * @return the keys this record knows
+	 */
+	private Set<String> knownKeys(JsonNode in) {
+		Set<String> known = new HashSet<>();
+		if (this.tag != null) {
+			known.add(this.tag.property());
+		}
+		for (Field field : this.fields) {
+			String key = field.keyIn(in);
+			if (key != null) {
+				known.add(key);
+			}
+		}
+		return known;
+	}
+
+	/**
+	 * A record of these field values; a value error when the record rejects them.
+	 * @param values the field values, in declaration order
+	 * @param at where the object is in the input
+	 * @param errors where a rejection is added
+	 * @return the record, or {@code null} when it rejects the values
+	 */
 	@Nullable Object construct(@Nullable Object[] values, Location at, Errors errors) {
 		try {
-			return constructor.newInstance(values);
+			return this.constructor.newInstance(values);
 		}
-		catch (InvocationTargetException e) {
-			if (e.getCause() instanceof IllegalArgumentException rejected && rejected.getMessage() != null) {
+		catch (InvocationTargetException ex) {
+			if (ex.getCause() instanceof IllegalArgumentException rejected && rejected.getMessage() != null) {
 				errors.add("value_error", at, Messages.valueError(rejected.getMessage()));
 				return null;
 			}
-			throw new IllegalStateException("record " + name + " failed to construct", e.getCause());
+			throw new IllegalStateException("record " + this.name + " failed to construct", ex.getCause());
 		}
-		catch (ReflectiveOperationException e) {
-			throw new IllegalStateException("record " + name + " cannot be constructed", e);
+		catch (ReflectiveOperationException ex) {
+			throw new IllegalStateException("record " + this.name + " cannot be constructed", ex);
 		}
 	}
 
@@ -124,10 +193,10 @@ final class RecordShape implements Shape {
 	public JsonNode write(@Nullable Object record) {
 		Objects.requireNonNull(record);
 		ObjectNode object = NODES.objectNode();
-		if (tag != null) {
-			object.put(tag.property(), tag.value());
+		if (this.tag != null) {
+			object.put(this.tag.property(), this.tag.value());
 		}
-		for (Field field : fields) {
+		for (Field field : this.fields) {
 			Object value = Reflection.get(field.accessor(), record);
 			if (field.omitWhenDefault() && Objects.equals(value, field.defaultValue())) {
 				continue;
@@ -142,22 +211,26 @@ final class RecordShape implements Shape {
 		return definitions.reference(this);
 	}
 
-	/** The record's JSON Schema definition, as pydantic writes a model's. */
+	/**
+	 * The record's JSON Schema definition, as pydantic writes a model's.
+	 * @param definitions where the records the fields use are defined
+	 * @return the definition, for {@code $defs} or as a whole schema
+	 */
 	ObjectNode definition(Definitions definitions) {
 		ObjectNode definition = NODES.objectNode().put("additionalProperties", false);
-		if (description != null) {
-			definition.put("description", description);
+		if (this.description != null) {
+			definition.put("description", this.description);
 		}
 		ObjectNode properties = definition.putObject("properties");
-		if (tag != null) {
-			properties.putObject(tag.property())
-				.put("const", tag.value())
-				.put("default", tag.value())
-				.put("title", PythonText.title(tag.property()))
+		if (this.tag != null) {
+			properties.putObject(this.tag.property())
+				.put("const", this.tag.value())
+				.put("default", this.tag.value())
+				.put("title", PythonText.title(this.tag.property()))
 				.put("type", "string");
 		}
 		ArrayNode required = NODES.arrayNode();
-		for (Field field : fields) {
+		for (Field field : this.fields) {
 			properties.set(field.name(), property(field, definitions));
 			if (field.required()) {
 				required.add(field.name());
@@ -166,18 +239,19 @@ final class RecordShape implements Shape {
 		if (!required.isEmpty()) {
 			definition.set("required", required);
 		}
-		return definition.put("title", name).put("type", "object");
+		return definition.put("title", this.name).put("type", "object");
 	}
 
 	/**
 	 * A field's schema: its value's, with the title, description, default and extras
 	 * pydantic adds.
+	 * @param field the field
+	 * @param definitions where the records the field uses are defined
+	 * @return the field's property schema
 	 */
 	private static ObjectNode property(Field field, Definitions definitions) {
 		ObjectNode schema = field.shape().schema(definitions);
-		boolean reference = field.shape() instanceof RecordShape
-				|| field.shape() instanceof NullableShape(RecordShape inner);
-		if (!reference) {
+		if (!isReference(field.shape())) {
 			schema.put("title", PythonText.title(field.name()));
 		}
 		if (field.description() != null) {
@@ -190,6 +264,32 @@ final class RecordShape implements Shape {
 			schema.setAll(field.extra());
 		}
 		return schema;
+	}
+
+	/**
+	 * Whether a field's schema is a {@code $ref} (pydantic gives those no title).
+	 * @param shape the field's shape
+	 * @return whether it is a record's, or a nullable record's
+	 */
+	private static boolean isReference(Shape shape) {
+		if (shape instanceof NullableShape nullable) {
+			return nullable.inner() instanceof RecordShape;
+		}
+		return shape instanceof RecordShape;
+	}
+
+	private static String modelName(Class<?> type) {
+		ModelName name = type.getAnnotation(ModelName.class);
+		return (name != null) ? name.value() : type.getSimpleName();
+	}
+
+	/**
+	 * The tag of a record in a {@link Tagged} union: the property and the record's value.
+	 *
+	 * @param property the property that holds the tag, such as {@code kind}
+	 * @param value the tag that selects this record, such as {@code lognormal}
+	 */
+	record TagField(String property, String value) {
 	}
 
 }

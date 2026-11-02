@@ -1,7 +1,5 @@
 package io.archsim.model.distribution;
 
-import static io.archsim.model.distribution.Distribution.MAX_SAMPLE_MS;
-
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
@@ -11,6 +9,9 @@ import io.archsim.model.text.PythonFormat;
 /**
  * Right-skewed, given by its median and 95th percentile: a common, realistic shape for
  * request handling times, most near the median with a long tail.
+ *
+ * @param median the median (p50), in milliseconds
+ * @param p95 the 95th percentile, in milliseconds, at least the median
  */
 @Tag("lognormal")
 @Description("""
@@ -33,14 +34,14 @@ public record LogNormal(@Description("Median (p50) in ms") @Gt(0) @Le(MAX_SAMPLE
 
 	/** The mean of the underlying normal distribution: {@code ln(median)}. */
 	public double mu() {
-		return Math.log(median);
+		return Math.log(this.median);
 	}
 
 	/**
 	 * The standard deviation of the underlying normal: {@code ln(p95 / median) / 1.645}.
 	 */
 	public double sigma() {
-		return Math.log(p95 / median) / Z95;
+		return Math.log(this.p95 / this.median) / Z95;
 	}
 
 	@Override
@@ -50,7 +51,7 @@ public record LogNormal(@Description("Median (p50) in ms") @Gt(0) @Le(MAX_SAMPLE
 
 	@Override
 	public String describe() {
-		return "lognormal, p50 %s ms / p95 %s ms".formatted(PythonFormat.format(median, "g"),
-				PythonFormat.format(p95, "g"));
+		return "lognormal, p50 %s ms / p95 %s ms".formatted(PythonFormat.format(this.median, "g"),
+				PythonFormat.format(this.p95, "g"));
 	}
 }

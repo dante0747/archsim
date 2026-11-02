@@ -1,5 +1,9 @@
 package io.archsim.model.pricing;
 
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.Const;
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Ge;
@@ -7,8 +11,6 @@ import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinItems;
 import io.archsim.model.codec.ModelName;
-import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A price snapshot file as {@code scripts/prices/} writes it (format
@@ -35,9 +37,15 @@ record SnapshotFile(@Const(FORMAT) String format, @Matches(NAME) String provider
 		@Default("[]") List<Sku> databases, @Default("[]") List<Sku> caches, @Default("[]") List<Sku> streams,
 		@Default("{}") Rates rates) {
 
+	/** The format every snapshot file names. */
 	static final String FORMAT = "archsim.prices/1";
+
+	/** A provider or region, such as {@code aws} or {@code us-east-1}. */
 	static final String NAME = "^[a-z0-9-]{1,40}$";
 
+	/**
+	 * Copies the lists, so the file's record does not change.
+	 */
 	SnapshotFile {
 		sources = List.copyOf(sources);
 		compute = List.copyOf(compute);
@@ -48,6 +56,24 @@ record SnapshotFile(@Const(FORMAT) String format, @Matches(NAME) String provider
 
 	/**
 	 * A snapshot's per-unit prices; each is optional, since older snapshots have fewer.
+	 *
+	 * @param storageGibMonth block storage (EBS gp3), per GiB-month
+	 * @param serverlessGbSecond functions (Lambda), per GB-second
+	 * @param serverlessPerMillionRequests functions (Lambda), per million invocations
+	 * @param queuePerMillionRequests managed queues (SQS standard), per million requests
+	 * @param loadBalancerHour an application load balancer, per hour
+	 * @param loadBalancerLcuHour an application load balancer, per capacity unit-hour
+	 * @param networkLoadBalancerHour a network load balancer, per hour
+	 * @param networkLoadBalancerLcuHour a network load balancer, per capacity unit-hour
+	 * @param dynamodbReadPerMillion DynamoDB on-demand, per million read request units
+	 * @param dynamodbWritePerMillion DynamoDB on-demand, per million write request units
+	 * @param dynamodbRcuHour DynamoDB provisioned, per read capacity unit-hour
+	 * @param dynamodbWcuHour DynamoDB provisioned, per write capacity unit-hour
+	 * @param dynamodbStorageGibMonth DynamoDB table storage, per GiB-month
+	 * @param apiGatewayPerMillion an API gateway, per million requests
+	 * @param rdsStorageGibMonth managed database storage (RDS gp3), per GiB-month
+	 * @param kubernetesControlPlaneHour a managed Kubernetes cluster's control plane
+	 * (EKS), per hour
 	 */
 	@ModelName("RatesModel")
 	record Rates(@Ge(0) @Nullable Double storageGibMonth, @Ge(0) @Nullable Double serverlessGbSecond,

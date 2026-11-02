@@ -51,8 +51,8 @@ web app and API clients already read, and a list of values is what a validator n
 
 ### Confirmation
 
-`GoldenParityTest` checks `validate_document` on every template, every scenario's resolved
-document and every invalid fixture; `DocumentValidatorTest` shows the shape of the results.
+`GoldenParityTests` checks `validate_document` on every template, every scenario's resolved
+document and every invalid fixture; `DocumentValidatorTests` shows the shape of the results.
 
 ## More Information
 

@@ -17,10 +17,14 @@ public sealed interface Distribution permits Constant, Exponential, Uniform, Log
 	/**
 	 * The analytic mean in milliseconds, before samples are capped at
 	 * {@link #MAX_SAMPLE_MS}.
+	 * @return the mean, in milliseconds
 	 */
 	double expected();
 
-	/** A short description, such as {@code lognormal, p50 8 ms / p95 25 ms}. */
+	/**
+	 * A short description, such as {@code lognormal, p50 8 ms / p95 25 ms}.
+	 * @return the description, for people
+	 */
 	String describe();
 
 }

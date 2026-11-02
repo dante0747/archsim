@@ -21,15 +21,18 @@ public final class DocumentInvalidException extends RuntimeException {
 		this.issues = List.copyOf(issues);
 	}
 
-	/** Every issue found, in order; at least one is an error. */
+	/**
+	 * Every issue found, in order; at least one is an error.
+	 * @return the issues, warnings included
+	 */
 	public List<Issue> issues() {
-		return issues;
+		return this.issues;
 	}
 
 	private static String summary(List<Issue> issues) {
 		List<Issue> errors = issues.stream().filter(Issue::isError).toList();
 		String first = errors.isEmpty() ? "invalid document" : errors.getFirst().message();
-		return errors.size() > 1 ? "%s (+%d more)".formatted(first, errors.size() - 1) : first;
+		return (errors.size() > 1) ? "%s (+%d more)".formatted(first, errors.size() - 1) : first;
 	}
 
 }

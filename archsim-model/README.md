@@ -25,7 +25,7 @@ Each package uses only those below it, and ArchUnit checks it
 | Package | What | ADR |
 | --- | --- | --- |
 | `io.archsim.model` | `DesignDocuments`: load, parse, write, normalize, the JSON Schema | |
-| `validation` | `DocumentValidator`, its `CallGraph`, `ValidationResult` | [0024](../docs/adr/0024-validation-issues-with-stable-codes.md) |
+| `validation` | `DocumentValidator` and the checks it runs in order (ids, component types, links, the `CallGraph`, request-type flow, component rules, the workload, prices), `ValidationResult` | [0024](../docs/adr/0024-validation-issues-with-stable-codes.md) |
 | `scenario` | finding a scenario and applying its overrides | |
 | `component` | `ComponentSpec` (ports, config, routing, rules), `ComponentRegistry`, technology profiles; one package per type, and `standard` assembles ArchSim's eleven | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
 | `pricing` | price snapshots: the `archsim.prices/1` format, which there are, which a document uses | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
@@ -44,7 +44,7 @@ resources by the build while the engine exists.
 ./gradlew :archsim-model:test
 ```
 
-- `GoldenParityTest` runs every recorded call of each function this module ports, in every
+- `GoldenParityTests` runs every recorded call of each function this module ports, in every
   [golden file](../parity/README.md), and expects the same output or the same error:
   `load_document`, `migrate_document`, `validate_document`, `normalize_document`,
   `apply_overrides`, `simulation_input`, `document_json_schema`, the distributions' and the price
@@ -52,7 +52,7 @@ resources by the build while the engine exists.
 - The other tests specify the parts: the pydantic rules the codec copies, the upgrades, each
   check of validation, Python's number formats, the component types, the price snapshots; jqwik
   properties feed random and mutated documents and numbers.
-- `ArchitectureTest` checks that the model uses no framework, database or engine class, and the
+- `ArchitectureTests` checks that the model uses no framework, database or engine class, and the
   layers above.
 
 The golden-file reader (`io.archsim.parity`) is in this module's test fixtures, for the later

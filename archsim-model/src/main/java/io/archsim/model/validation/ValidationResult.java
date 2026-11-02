@@ -1,15 +1,17 @@
 package io.archsim.model.validation;
 
-import io.archsim.model.component.GraphView;
-import io.archsim.model.document.RequestType;
-import io.archsim.model.issue.Issue;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.model.component.GraphView;
+import io.archsim.model.document.RequestType;
+import io.archsim.model.issue.Issue;
 
 /**
  * What validating a design found, and what it worked out on the way: each valid node's
@@ -31,22 +33,28 @@ public record ValidationResult(List<Issue> issues, Map<String, Record> configs, 
 	}
 
 	public List<Issue> errors() {
-		return issues.stream().filter(Issue::isError).toList();
+		return this.issues.stream().filter(Issue::isError).toList();
 	}
 
 	public List<Issue> warnings() {
-		return issues.stream().filter(i -> !i.isError()).toList();
+		return this.issues.stream().filter((issue) -> !issue.isError()).toList();
 	}
 
-	/** Whether nothing stops a simulation: no errors (warnings allowed). */
+	/**
+	 * Whether nothing stops a simulation: no errors (warnings allowed).
+	 * @return {@code true} when no issue is an error
+	 */
 	public boolean valid() {
 		return errors().isEmpty();
 	}
 
-	/** {@code {valid, issues}}, as the API returns it. */
+	/**
+	 * The result as the API returns it.
+	 * @return {@code {valid, issues}}
+	 */
 	public ObjectNode toJson() {
 		ObjectNode json = JsonNodeFactory.instance.objectNode().put("valid", valid());
-		issues.stream().map(Issue::toJson).forEach(json.putArray("issues")::add);
+		this.issues.stream().map(Issue::toJson).forEach(json.putArray("issues")::add);
 		return json;
 	}
 }

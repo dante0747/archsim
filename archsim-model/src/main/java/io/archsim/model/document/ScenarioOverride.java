@@ -1,11 +1,12 @@
 package io.archsim.model.document;
 
+import tools.jackson.databind.JsonNode;
+
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinLength;
 import io.archsim.model.codec.ModelName;
-import tools.jackson.databind.JsonNode;
 
 /**
  * One value a scenario sets: at a dotted {@code path} inside a node's or edge's config,
@@ -26,13 +27,19 @@ public record ScenarioOverride(OverrideTarget target,
 
 		JsonNode value) {
 
+	/**
+	 * Copies the value, so the override does not change.
+	 */
 	public ScenarioOverride {
 		value = value.deepCopy();
 	}
 
-	/** The new value, as a copy: a record does not change. */
+	/**
+	 * The new value, as a copy: a record does not change.
+	 * @return a copy of the value
+	 */
 	@Override
 	public JsonNode value() {
-		return value.deepCopy();
+		return this.value.deepCopy();
 	}
 }

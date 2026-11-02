@@ -15,7 +15,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface UniqueItems {
 
-	/** What the error says after {@code "Value error, "}. */
+	/**
+	 * What the error says after {@code "Value error, "}.
+	 * @return the error message's text
+	 */
 	String value();
 
 }

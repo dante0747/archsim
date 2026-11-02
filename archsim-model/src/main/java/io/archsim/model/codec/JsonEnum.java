@@ -6,7 +6,10 @@ package io.archsim.model.codec;
  */
 public interface JsonEnum {
 
-	/** The JSON string of this constant. */
+	/**
+	 * The JSON string of this constant.
+	 * @return the string that stands for this constant in JSON
+	 */
 	String json();
 
 }

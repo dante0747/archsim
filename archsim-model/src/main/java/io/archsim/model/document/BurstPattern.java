@@ -19,8 +19,12 @@ import io.archsim.model.codec.Tag;
 public record BurstPattern(@Ge(0) @Le(100_000) double burstRps, @Ge(0) @Le(3600) double startS,
 		@Gt(0) @Le(3600) double durationS) implements TrafficPattern {
 
-	/** Whether the burst is on at {@code t} seconds. */
-	public boolean active(double t) {
-		return startS <= t && t < startS + durationS;
+	/**
+	 * Whether the burst is on at a moment of the run.
+	 * @param seconds the moment, in seconds from the start of the run
+	 * @return {@code true} from its start until just before its end
+	 */
+	public boolean active(double seconds) {
+		return this.startS <= seconds && seconds < this.startS + this.durationS;
 	}
 }

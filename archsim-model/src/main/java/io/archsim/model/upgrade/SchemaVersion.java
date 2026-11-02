@@ -21,12 +21,17 @@ public record SchemaVersion(String text, List<BigInteger> parts) implements Comp
 	 */
 	private static final Pattern INTEGER = Pattern.compile("[+-]?\\p{Nd}+(?:_\\p{Nd}+)*");
 
+	/** The base of the digits a version's parts are written in. */
+	private static final int DECIMAL = 10;
+
 	public SchemaVersion {
 		parts = List.copyOf(parts);
 	}
 
 	/**
 	 * The version {@code text} names.
+	 * @param text the version as written, such as {@code 1.7}
+	 * @return the version
 	 * @throws UpgradeException when a part is not an integer
 	 */
 	public static SchemaVersion parse(String text) {
@@ -41,24 +46,36 @@ public record SchemaVersion(String text, List<BigInteger> parts) implements Comp
 		return new SchemaVersion(text, parts);
 	}
 
-	/** The integer of digits in any script, as Python's {@code int()} reads them. */
+	/**
+	 * The integer of digits in any script, as Python's {@code int()} reads them.
+	 * @param text the digits, maybe after a sign, with no underscores
+	 * @return the integer they write
+	 */
 	private static BigInteger integer(String text) {
 		StringBuilder ascii = new StringBuilder(text.length());
-		text.codePoints()
-			.forEach(c -> ascii.append(Character.isDigit(c) ? (char) ('0' + Character.digit(c, 10)) : (char) c));
+		text.codePoints().forEach((codePoint) -> ascii.append(asciiDigit(codePoint)));
 		return new BigInteger(ascii.toString());
+	}
+
+	/**
+	 * A digit of any script as the ASCII digit of the same value.
+	 * @param codePoint a character of a version's part
+	 * @return the ASCII digit for a digit, the character itself for anything else
+	 */
+	private static char asciiDigit(int codePoint) {
+		return Character.isDigit(codePoint) ? (char) ('0' + Character.digit(codePoint, DECIMAL)) : (char) codePoint;
 	}
 
 	/** Python's tuple order: part by part, and a longer tuple after its own prefix. */
 	@Override
 	public int compareTo(SchemaVersion other) {
-		for (int i = 0; i < Math.min(parts.size(), other.parts.size()); i++) {
-			int c = parts.get(i).compareTo(other.parts.get(i));
-			if (c != 0) {
-				return c;
+		for (int i = 0; i < Math.min(this.parts.size(), other.parts.size()); i++) {
+			int order = this.parts.get(i).compareTo(other.parts.get(i));
+			if (order != 0) {
+				return order;
 			}
 		}
-		return Integer.compare(parts.size(), other.parts.size());
+		return Integer.compare(this.parts.size(), other.parts.size());
 	}
 
 	public boolean isNewerThan(SchemaVersion other) {
@@ -67,6 +84,6 @@ public record SchemaVersion(String text, List<BigInteger> parts) implements Comp
 
 	@Override
 	public String toString() {
-		return text;
+		return this.text;
 	}
 }

@@ -1,6 +1,7 @@
 package io.archsim.model.codec;
 
 import java.util.Objects;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;

@@ -1,22 +1,22 @@
 package io.archsim.model.component.database;
 
-import static io.archsim.model.component.Resources.INSTANCE_TYPE;
-import static io.archsim.model.component.Resources.MAX_CPU_CORES;
-import static io.archsim.model.component.Resources.MAX_MEMORY_GIB;
-import static io.archsim.model.component.Resources.MAX_STORAGE_GIB;
+import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
+import io.archsim.model.codec.DefaultFrom;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.OmitWhenDefault;
+import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
 import io.archsim.model.component.Toggle;
 import io.archsim.model.distribution.Distribution;
-import java.util.Map;
-import org.jspecify.annotations.Nullable;
+import io.archsim.model.distribution.LogNormal;
 
 /**
  * A database: its connections, query times, replicas and shards, the technology's
@@ -72,9 +72,9 @@ import org.jspecify.annotations.Nullable;
 public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technology,
 		@Default("10") @Ge(1) @Le(100_000) int maxConnections,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 5.0, \"p95\": 20.0}") Distribution readServiceTimeMs,
+		@DefaultFrom("DEFAULT_READ_SERVICE_TIME") Distribution readServiceTimeMs,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 10.0, \"p95\": 40.0}") Distribution writeServiceTimeMs,
+		@DefaultFrom("DEFAULT_WRITE_SERVICE_TIME") Distribution writeServiceTimeMs,
 
 		@Default("0") @Ge(0) @Le(15) int readReplicas, @Default("1") @Ge(1) @Le(256) int shards,
 		@Default("1") @Ge(1) @Le(7) int replicationFactor, @Default("one") Consistency consistency,
@@ -83,12 +83,12 @@ public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technolog
 		@Default("1000.0") @Gt(0) @Le(600_000) @Nullable Double queueTimeoutMs, @Default("auto") Toggle rowLocks,
 		@Default("auto") Toggle readsWaitForWrites, @Default("auto") Toggle commitFlush,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 1.0, \"p95\": 3.0}") Distribution commitFlushMs,
+		@DefaultFrom("DEFAULT_COMMIT_FLUSH") Distribution commitFlushMs,
 
 		@Default("auto") Replication replication, @Ge(1) @Le(256) @Nullable Integer replicaApplyWorkers,
 		@Default("0.5") @Gt(0) @Le(5) double replicaApplyFactor,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 0.5, \"p95\": 2.0}") Distribution replicationDelayMs,
+		@DefaultFrom("DEFAULT_REPLICATION_DELAY") Distribution replicationDelayMs,
 
 		@Default("auto") ReadFrom readFrom, @Ge(1) @Le(100_000) @Nullable Integer readTickets,
 		@Ge(1) @Le(100_000) @Nullable Integer writeTickets, @Ge(0) @Le(1) @Nullable Double scatterReads,
@@ -97,13 +97,15 @@ public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technolog
 		@Default("1000") @Gt(0) @Le(10_000_000) double readCapacityUnits,
 		@Default("500") @Gt(0) @Le(10_000_000) double writeCapacityUnits,
 		@Default("1.0") @Gt(0) @Le(400) double itemSizeKb, @Default("eventual") ConsistentReads consistentReads,
-		@Gt(0) @Le(MAX_CPU_CORES) @Nullable Double cpuCores, @Default("0.5") @Ge(0) @Le(1) double cpuShare,
+		@Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores, @Default("0.5") @Ge(0) @Le(1) double cpuShare,
 		@OmitWhenDefault @Gt(0) @Le(1) @Nullable Double siblingSpeed,
-		@Gt(0) @Le(MAX_MEMORY_GIB) @Nullable Double memoryGib, @Gt(0) @Le(10_000_000) @Nullable Double workingSetGib,
+		@Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
+		@Gt(0) @Le(10_000_000) @Nullable Double workingSetGib,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 1.0, \"p95\": 4.0}") Distribution diskReadMs,
+		@DefaultFrom("DEFAULT_DISK_READ") Distribution diskReadMs,
 
-		@Gt(0) @Le(MAX_STORAGE_GIB) @Nullable Double storageGib, @Matches(INSTANCE_TYPE) @Nullable String instanceType,
+		@Gt(0) @Le(Resources.MAX_STORAGE_GIB) @Nullable Double storageGib,
+		@Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
 		@Gt(0) @Le(100_000_000) @Nullable Double dataSizeGib, @Default("0.35") @Ge(0) @Le(100_000) double costPerHour) {
 
 	/** Read units one partition of a metered table serves per second. */
@@ -120,6 +122,21 @@ public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technolog
 
 	/** The write units an on-demand table is sized for at first. */
 	public static final double ON_DEMAND_WRITE_UNITS = 4000.0;
+
+	/** The default time of a read on a connection: 5 ms median, 20 ms p95. */
+	static final Distribution DEFAULT_READ_SERVICE_TIME = new LogNormal(5.0, 20.0);
+
+	/** The default time of a write on a connection: 10 ms median, 40 ms p95. */
+	static final Distribution DEFAULT_WRITE_SERVICE_TIME = new LogNormal(10.0, 40.0);
+
+	/** The default time of a log flush: 1 ms median, 3 ms p95. */
+	static final Distribution DEFAULT_COMMIT_FLUSH = new LogNormal(1.0, 3.0);
+
+	/** The default time a write takes to reach a replica: 0.5 ms median, 2 ms p95. */
+	static final Distribution DEFAULT_REPLICATION_DELAY = new LogNormal(0.5, 2.0);
+
+	/** The default time of a read from disk: 1 ms median, 4 ms p95. */
+	static final Distribution DEFAULT_DISK_READ = new LogNormal(1.0, 4.0);
 
 	/**
 	 * What each technology does by default (technology.py's {@code DATABASE_PROFILES}).
@@ -169,6 +186,14 @@ public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technolog
 								.with("replication", "none")
 								.with("readFrom", "all"))));
 
+	/** The threads a search engine's replica replays writes with. */
+	private static final int SEARCH_APPLY_WORKERS = 4;
+
+	/**
+	 * Taken off before rounding up, so floating-point error does not add a partition.
+	 */
+	private static final double ROUNDING_TOLERANCE = 1e-9;
+
 	private static TechnologyProfile relational(TechnologyProfile tier, String readsWaitForWrites, int applyWorkers) {
 		return tier.with("rowLocks", "on")
 			.with("readsWaitForWrites", readsWaitForWrites)
@@ -192,39 +217,55 @@ public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technolog
 			.with("rowLocks", "off")
 			.with("commitFlush", "off")
 			.with("replication", "all")
-			.with("replicaApplyWorkers", 4)
+			.with("replicaApplyWorkers", SEARCH_APPLY_WORKERS)
 			.with("readFrom", "all")
 			.with("scatterReads", 1.0)
 			.with("coordinatorMs", 1.0);
 	}
 
 	public TechnologyProfile profile() {
-		return PROFILES.of(technology);
+		return PROFILES.of(this.technology);
 	}
 
 	/**
 	 * Whether capacity is metered in units (DynamoDB-style), after the technology's
 	 * default.
+	 * @return {@code true} when capacity units limit the throughput
 	 */
 	public boolean metered() {
-		return profile().choice("capacityUnits", capacityUnits, Toggle.AUTO, Toggle.OFF) == Toggle.ON;
+		return profile().choice("capacityUnits", this.capacityUnits, Toggle.AUTO, Toggle.OFF) == Toggle.ON;
 	}
 
-	/** Which instances serve reads, after the technology's default. */
+	/**
+	 * Which instances serve reads, after the technology's default.
+	 * @return the instances that serve reads; {@link ReadFrom#AUTO} when the technology
+	 * has no default
+	 */
 	public ReadFrom effectiveReadFrom() {
-		return profile().choice("readFrom", readFrom, ReadFrom.AUTO, ReadFrom.AUTO);
+		return profile().choice("readFrom", this.readFrom, ReadFrom.AUTO, ReadFrom.AUTO);
 	}
 
-	/** The shards, or for a metered table the partitions its capacity and size need. */
+	/**
+	 * The shards, or for a metered table the partitions its capacity and size need.
+	 * @return the partitions of the keyspace, at least one
+	 */
 	public int partitions() {
 		if (!metered()) {
-			return shards;
+			return this.shards;
 		}
-		boolean provisioned = capacityMode == CapacityMode.PROVISIONED;
-		double rcu = provisioned ? readCapacityUnits : ON_DEMAND_READ_UNITS;
-		double wcu = provisioned ? writeCapacityUnits : ON_DEMAND_WRITE_UNITS;
-		int byCapacity = (int) Math.ceil(rcu / PARTITION_READ_UNITS + wcu / PARTITION_WRITE_UNITS - 1e-9);
-		int bySize = dataSizeGib != null && dataSizeGib != 0 ? (int) Math.ceil(dataSizeGib / PARTITION_GIB) : 1;
-		return Math.max(1, Math.max(byCapacity, bySize));
+		boolean provisioned = this.capacityMode == CapacityMode.PROVISIONED;
+		double readUnits = provisioned ? this.readCapacityUnits : ON_DEMAND_READ_UNITS;
+		double writeUnits = provisioned ? this.writeCapacityUnits : ON_DEMAND_WRITE_UNITS;
+		int byCapacity = (int) Math
+			.ceil(readUnits / PARTITION_READ_UNITS + writeUnits / PARTITION_WRITE_UNITS - ROUNDING_TOLERANCE);
+		return Math.max(1, Math.max(byCapacity, partitionsBySize()));
 	}
+
+	private int partitionsBySize() {
+		if (this.dataSizeGib == null || this.dataSizeGib == 0) {
+			return 1;
+		}
+		return (int) Math.ceil(this.dataSizeGib / PARTITION_GIB);
+	}
+
 }

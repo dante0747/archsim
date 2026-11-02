@@ -26,6 +26,10 @@ public final class RecordCodec {
 
 	/**
 	 * The record (or {@link Tagged} interface) {@code json} describes.
+	 * @param <T> the type to read
+	 * @param json the JSON input
+	 * @param type the record or the tagged interface
+	 * @return the record the JSON describes, its compact constructor's checks passed
 	 * @throws BindingException with every error, when the JSON does not fit
 	 */
 	public static <T> T read(JsonNode json, Class<T> type) {
@@ -37,7 +41,11 @@ public final class RecordCodec {
 		return type.cast(value);
 	}
 
-	/** The JSON of a record (or a member of a {@link Tagged} interface). */
+	/**
+	 * The JSON of a record (or a member of a {@link Tagged} interface).
+	 * @param value the record
+	 * @return its JSON object, with the tag first for a member of a tagged interface
+	 */
 	public static ObjectNode write(Record value) {
 		Class<?> type = value.getClass();
 		for (Class<?> parent : type.getInterfaces()) {
@@ -52,6 +60,8 @@ public final class RecordCodec {
 	 * The JSON Schema of a record, as pydantic's {@code model_json_schema(by_alias=True)}
 	 * writes it: the record's own definition with every record it uses under
 	 * {@code $defs}.
+	 * @param type the record
+	 * @return its JSON Schema
 	 */
 	public static ObjectNode jsonSchema(Class<? extends Record> type) {
 		Definitions definitions = new Definitions();

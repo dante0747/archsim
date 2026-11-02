@@ -1,20 +1,21 @@
 package io.archsim.model.component.loadbalancer;
 
-import static io.archsim.model.component.Resources.INSTANCE_TYPE;
-import static io.archsim.model.component.Resources.MAX_CPU_CORES;
-import static io.archsim.model.component.Resources.MAX_MEMORY_GIB;
+import java.util.Map;
+import java.util.Optional;
+
+import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
+import io.archsim.model.codec.DefaultFrom;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Matches;
+import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
+import io.archsim.model.distribution.Constant;
 import io.archsim.model.distribution.Distribution;
-import java.util.Map;
-import java.util.Optional;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A load balancer: how it picks targets, what it adds per request, and its limits.
@@ -29,23 +30,25 @@ import org.jspecify.annotations.Nullable;
  * @param upstreamTimeoutMs how long it waits for a target; {@code null}: the technology's
  * default
  * @param circuitBreakerMaxRequests requests in flight to one target before it refuses
- * more; {@code
- *     null}: the technology's default
+ * more; {@code null}: the technology's default
  * @param cpuCores vCPU per instance (for the design and prices only)
  * @param memoryGib memory per instance (for the design and prices only)
  * @param instanceType the instance type in the design's price snapshot
  * @param costPerHour the price per hour, in USD
  */
 public record LoadBalancerConfig(@Default("generic") LoadBalancerTechnology technology,
-		@Default("round_robin") BalancingPolicy policy,
-		@Default("{\"kind\": \"constant\", \"value\": 0.2}") Distribution overheadMs,
+		@Default("round_robin") BalancingPolicy policy, @DefaultFrom("DEFAULT_OVERHEAD") Distribution overheadMs,
 		@Default("10000") @Ge(1) @Le(1_000_000) int maxConnections, @Gt(0) @Le(1_000_000) @Nullable Double rateLimitRps,
 		@Gt(0) @Le(10_000_000) @Nullable Double rateLimitBurst,
 		@Gt(0) @Le(3_600_000) @Nullable Double upstreamTimeoutMs,
 		@Ge(1) @Le(1_000_000) @Nullable Integer circuitBreakerMaxRequests,
-		@Gt(0) @Le(MAX_CPU_CORES) @Nullable Double cpuCores, @Gt(0) @Le(MAX_MEMORY_GIB) @Nullable Double memoryGib,
-		@Matches(INSTANCE_TYPE) @Nullable String instanceType,
+		@Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
+		@Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
+		@Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
 		@Default("0.025") @Ge(0) @Le(10_000) double costPerHour) {
+
+	/** The time the balancer adds by default: 0.2 ms, every time. */
+	static final Distribution DEFAULT_OVERHEAD = new Constant(0.2);
 
 	/** What each technology does by default (technology.py's {@code LB_PROFILES}). */
 	static final TechnologyProfiles<LoadBalancerTechnology> PROFILES = new TechnologyProfiles<>(
@@ -63,24 +66,27 @@ public record LoadBalancerConfig(@Default("generic") LoadBalancerTechnology tech
 					TechnologyProfile.experimental(), LoadBalancerTechnology.GENERIC, TechnologyProfile.core()));
 
 	public TechnologyProfile profile() {
-		return PROFILES.of(technology);
+		return PROFILES.of(this.technology);
 	}
 
 	/**
 	 * How long the balancer waits for a target before answering 504 itself, if it gives
 	 * up at all.
+	 * @return the upstream timeout in milliseconds, set or the technology's default
 	 */
 	public Optional<Double> effectiveUpstreamTimeoutMs() {
-		return profile().number("upstreamTimeoutMs", upstreamTimeoutMs);
+		return profile().number("upstreamTimeoutMs", this.upstreamTimeoutMs);
 	}
 
 	/**
 	 * Requests in flight to one target before new ones are refused, if there is a limit.
+	 * @return the circuit breaker's limit, set or the technology's default
 	 */
 	public Optional<Integer> effectiveCircuitBreakerMaxRequests() {
 		return profile()
 			.number("circuitBreakerMaxRequests",
-					circuitBreakerMaxRequests == null ? null : (double) circuitBreakerMaxRequests)
+					(this.circuitBreakerMaxRequests == null) ? null : (double) this.circuitBreakerMaxRequests)
 			.map(Double::intValue);
 	}
+
 }

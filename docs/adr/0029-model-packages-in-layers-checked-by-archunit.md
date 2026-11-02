@@ -67,7 +67,7 @@ And no two packages, at any depth, depend on each other. Keeping that rule moved
 
 ### Confirmation
 
-`io.archsim.model.ArchitectureTest` checks four rules on every build: no framework or database
+`io.archsim.model.ArchitectureTests` checks four rules on every build: no framework or database
 classes, nothing from the engine, no package cycles, and the layers above.
 
 ## Pros and Cons of the Options

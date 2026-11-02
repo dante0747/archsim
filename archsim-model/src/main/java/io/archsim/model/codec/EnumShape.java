@@ -3,6 +3,7 @@ package io.archsim.model.codec;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -19,9 +20,13 @@ final class EnumShape implements Shape {
 		this.constants = Arrays.stream(type.getEnumConstants()).map(JsonEnum.class::cast).toList();
 	}
 
-	/** The constant whose JSON string is {@code json}, if there is one. */
+	/**
+	 * The constant whose JSON string is {@code json}, if there is one.
+	 * @param json the string read from the input
+	 * @return the constant, or {@code null} when no constant has that string
+	 */
 	@Nullable JsonEnum constant(String json) {
-		for (JsonEnum constant : constants) {
+		for (JsonEnum constant : this.constants) {
 			if (constant.json().equals(json)) {
 				return constant;
 			}
@@ -39,7 +44,7 @@ final class EnumShape implements Shape {
 	}
 
 	private List<String> strings() {
-		return constants.stream().map(JsonEnum::json).toList();
+		return this.constants.stream().map(JsonEnum::json).toList();
 	}
 
 	@Override
@@ -50,8 +55,8 @@ final class EnumShape implements Shape {
 	@Override
 	public ObjectNode schema(Definitions definitions) {
 		ObjectNode schema = NODES.objectNode();
-		if (constants.size() == 1) {
-			schema.put("const", constants.getFirst().json());
+		if (this.constants.size() == 1) {
+			schema.put("const", this.constants.getFirst().json());
 		}
 		else {
 			strings().forEach(schema.putArray("enum")::add);

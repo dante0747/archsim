@@ -7,19 +7,20 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The value a field takes when the input leaves it out. A field with neither this nor
- * {@code @Nullable} is required; a {@code @Nullable} field without it defaults to
- * {@code null}.
+ * The value a field takes when the input leaves it out. A field with neither this,
+ * {@link DefaultFrom} nor {@code @Nullable} is required; a {@code @Nullable} field
+ * without one defaults to {@code null}.
  *
  * <p>
  * For a {@link String} or {@link JsonEnum} field the value is the string itself
- * ({@code @Default("generic")}); for any other field it is JSON text
- * ({@code @Default("50.0")}, {@code @Default("[]")}, {@code @Default("{\"kind\":
- * \"constant\", \"value\": 0.5}")}). It is bound like an input, so a default that does
- * not fit its field fails when the codec first meets the record.
+ * ({@code @Default("generic")}); for a number, a boolean or an empty collection it is
+ * that value's JSON ({@code @Default("50.0")}, {@code @Default("true")},
+ * {@code @Default("[]")}). It is bound like an input, so a default that does not fit its
+ * field fails when the codec first meets the record. An object or a non-empty list is a
+ * {@link DefaultFrom} constant.
  *
  * <p>
- * A JSON object or array default is what pydantic calls a {@code default_factory}: the
+ * An empty collection's default is what pydantic calls a {@code default_factory}: the
  * JSON Schema does not show it.
  */
 @Documented
@@ -27,6 +28,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.RECORD_COMPONENT)
 public @interface Default {
 
+	/**
+	 * The default, as the string itself or as its JSON.
+	 * @return the default's text
+	 */
 	String value();
 
 }

@@ -7,7 +7,18 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum WebTechnology implements JsonEnum {
 
-	BROWSER("browser"), REACT("react"), NEXTJS("nextjs"), VUE("vue"), ANGULAR("angular"), SVELTE("svelte");
+	/** A web site of no particular framework. */
+	BROWSER("browser"),
+	/** A React app. */
+	REACT("react"),
+	/** A Next.js app. */
+	NEXTJS("nextjs"),
+	/** A Vue app. */
+	VUE("vue"),
+	/** An Angular app. */
+	ANGULAR("angular"),
+	/** A Svelte app. */
+	SVELTE("svelte");
 
 	private final String json;
 
@@ -17,7 +28,7 @@ public enum WebTechnology implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

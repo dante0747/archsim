@@ -1,5 +1,7 @@
 package io.archsim.model.component.standard;
 
+import java.util.List;
+
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.cache.CacheSpec;
 import io.archsim.model.component.client.TrafficSourceSpec;
@@ -9,7 +11,6 @@ import io.archsim.model.component.kubernetes.KubernetesClusterSpec;
 import io.archsim.model.component.loadbalancer.LoadBalancerSpec;
 import io.archsim.model.component.queue.MessageQueueSpec;
 import io.archsim.model.component.service.ServiceSpec;
-import java.util.List;
 
 /**
  * ArchSim's own component types, in the order the Python engine's default registry has
@@ -25,7 +26,10 @@ public final class StandardComponents {
 	private StandardComponents() {
 	}
 
-	/** A registry of ArchSim's own types (it is immutable, so one is shared). */
+	/**
+	 * A registry of ArchSim's own types (it is immutable, so one is shared).
+	 * @return the registry of the standard component types
+	 */
 	public static ComponentRegistry registry() {
 		return REGISTRY;
 	}

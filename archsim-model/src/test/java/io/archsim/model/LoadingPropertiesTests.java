@@ -1,16 +1,12 @@
 package io.archsim.model;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.issue.DocumentInvalidException;
-import io.archsim.parity.Repository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
@@ -22,11 +18,17 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.document.ArchitectureDocument;
+import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.parity.Repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Whatever JSON comes in, loading either reads a document or says what is wrong with it:
  * no other exception, and a document read is one that writes and reads back the same.
  */
-class LoadingPropertiesTest {
+class LoadingPropertiesTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -39,12 +41,12 @@ class LoadingPropertiesTest {
 			"families", "host", "zz");
 
 	@Property(tries = 300)
-	void any_json_loads_or_is_refused_with_issues(@ForAll("anyJson") JsonNode json) {
+	void load_anyJson_readsOrIsRefusedWithIssues(@ForAll("anyJson") JsonNode json) {
 		assertLoadsOrIsRefused(json);
 	}
 
 	@Property(tries = 300)
-	void an_example_with_one_value_replaced_loads_or_is_refused_with_issues(@ForAll("examples") JsonNode example,
+	void load_exampleWithOneValueReplaced_readsOrIsRefusedWithIssues(@ForAll("examples") JsonNode example,
 			@ForAll("anyJson") JsonNode replacement, @ForAll long seed) {
 		assertLoadsOrIsRefused(replaceOneValue(example, replacement, seed));
 	}
@@ -68,7 +70,7 @@ class LoadingPropertiesTest {
 	Arbitrary<JsonNode> examples() throws IOException {
 		List<JsonNode> examples = new ArrayList<>();
 		try (var files = Files.list(Repository.examples())) {
-			for (Path file : files.filter(p -> p.toString().endsWith(".json")).toList()) {
+			for (Path file : files.filter((path) -> path.toString().endsWith(".json")).toList()) {
 				examples.add(JSON.readTree(file.toFile()));
 			}
 		}
@@ -78,21 +80,21 @@ class LoadingPropertiesTest {
 	private static Arbitrary<JsonNode> json(int depth) {
 		Arbitrary<JsonNode> scalar = Arbitraries.oneOf(Arbitraries.just(NODES.nullNode()),
 				Arbitraries.of(true, false).map(NODES::booleanNode),
-				Arbitraries.integers().map(i -> (JsonNode) NODES.numberNode(i)),
-				Arbitraries.doubles().map(d -> (JsonNode) NODES.numberNode(d)),
+				Arbitraries.integers().map((value) -> (JsonNode) NODES.numberNode(value)),
+				Arbitraries.doubles().map((value) -> (JsonNode) NODES.numberNode(value)),
 				Arbitraries.of("", "1.7", "read", "write", "constant", "trace", "x", "-1", "5").map(NODES::stringNode));
 		if (depth == 0) {
 			return scalar;
 		}
 		Arbitrary<JsonNode> inner = json(depth - 1);
-		Arbitrary<JsonNode> array = inner.list().ofMaxSize(3).map(items -> {
+		Arbitrary<JsonNode> array = inner.list().ofMaxSize(3).map((items) -> {
 			ArrayNode node = NODES.arrayNode();
 			items.forEach(node::add);
 			return node;
 		});
 		Arbitrary<JsonNode> object = Arbitraries.maps(Arbitraries.of(KEYS), inner)
 			.ofMaxSize(4)
-			.map(LoadingPropertiesTest::object);
+			.map(LoadingPropertiesTests::object);
 		return Arbitraries.oneOf(scalar, array, object);
 	}
 
@@ -121,7 +123,7 @@ class LoadingPropertiesTest {
 	private static void collect(JsonNode node, List<JsonNode> containers) {
 		if (node.isContainer()) {
 			containers.add(node);
-			node.values().forEach(child -> collect(child, containers));
+			node.values().forEach((child) -> collect(child, containers));
 		}
 	}
 

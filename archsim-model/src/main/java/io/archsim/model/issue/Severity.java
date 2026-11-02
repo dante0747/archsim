@@ -5,7 +5,11 @@ import io.archsim.model.codec.JsonEnum;
 /** How bad an issue is: an error stops a simulation, a warning does not. */
 public enum Severity implements JsonEnum {
 
-	ERROR("error"), WARNING("warning");
+	/** The design cannot be simulated until the issue is fixed. */
+	ERROR("error"),
+
+	/** The design can be simulated, but the issue is worth knowing about. */
+	WARNING("warning");
 
 	private final String json;
 
@@ -15,7 +19,7 @@ public enum Severity implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

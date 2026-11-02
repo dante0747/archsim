@@ -1,7 +1,8 @@
 package io.archsim.model.document;
 
-import io.archsim.model.codec.Description;
 import org.jspecify.annotations.Nullable;
+
+import io.archsim.model.codec.Description;
 
 /**
  * What a scenario's override changes: a node's or an edge's config (by id), or the
@@ -14,6 +15,9 @@ public record OverrideTarget(TargetKind kind,
 
 		@Description("Node or edge id; omitted for workload") @Nullable String id) {
 
+	/**
+	 * Checks that a node or an edge target has an id.
+	 */
 	public OverrideTarget {
 		if (kind != TargetKind.WORKLOAD && (id == null || id.isEmpty())) {
 			throw new IllegalArgumentException("override target of kind '%s' requires an id".formatted(kind.json()));

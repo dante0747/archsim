@@ -1,26 +1,27 @@
 package io.archsim.model;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
-import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
-
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.library.Architectures.LayeredArchitecture;
 import org.junit.jupiter.api.Test;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 /**
  * The model's architecture, as rules the build checks: it is a plain library (ADR-0012),
  * and its packages build on each other in one direction.
  */
-class ArchitectureTest {
+class ArchitectureTests {
 
 	private static final JavaClasses MODEL = new ClassFileImporter()
 		.withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
 		.importPackages("io.archsim.model");
 
 	@Test
-	void the_model_uses_no_framework_and_no_database() {
+	void modelClasses_anyPackage_useNoFrameworkOrDatabase() {
 		noClasses().should()
 			.dependOnClassesThat()
 			.resideInAnyPackage("org.springframework..", "jakarta..", "javax.sql..", "java.sql..", "org.hibernate..")
@@ -29,7 +30,7 @@ class ArchitectureTest {
 	}
 
 	@Test
-	void the_model_never_uses_the_engine() {
+	void modelClasses_anyPackage_neverUseTheEngine() {
 		noClasses().should()
 			.dependOnClassesThat()
 			.resideInAPackage("io.archsim.engine..")
@@ -38,13 +39,39 @@ class ArchitectureTest {
 	}
 
 	@Test
-	void no_two_packages_depend_on_each_other() {
+	void modelPackages_anyTwo_doNotDependOnEachOther() {
 		slices().matching("io.archsim.model.(**)").should().beFreeOfCycles().check(MODEL);
 	}
 
 	@Test
-	void each_package_uses_only_those_below_it() {
-		layeredArchitecture().consideringOnlyDependenciesInLayers()
+	void modelPackages_eachLayer_useOnlyTheLayersBelow() {
+		modelLayers().whereLayer("Validation")
+			.mayOnlyAccessLayers("Components", "Pricing", "Issues", "Document", "Codec", "Text")
+			.whereLayer("Scenarios")
+			.mayOnlyAccessLayers("Issues", "Document", "Text")
+			.whereLayer("Components")
+			.mayOnlyAccessLayers("Issues", "Document", "Codec", "Text")
+			.whereLayer("Pricing")
+			.mayOnlyAccessLayers("Codec", "Text")
+			.whereLayer("Upgrades")
+			.mayOnlyAccessLayers("Document", "Text")
+			.whereLayer("Issues")
+			.mayOnlyAccessLayers("Codec", "Text")
+			.whereLayer("Document")
+			.mayOnlyAccessLayers("Codec", "Text")
+			.whereLayer("Codec")
+			.mayOnlyAccessLayers("Text")
+			.whereLayer("Text")
+			.mayNotAccessAnyLayer()
+			.check(MODEL);
+	}
+
+	/**
+	 * The model's packages as layers, from the API at the top to the text conventions at
+	 * the bottom.
+	 */
+	private static LayeredArchitecture modelLayers() {
+		return layeredArchitecture().consideringOnlyDependenciesInLayers()
 			.layer("Api")
 			.definedBy("io.archsim.model")
 			.layer("Validation")
@@ -64,26 +91,7 @@ class ArchitectureTest {
 			.layer("Codec")
 			.definedBy("io.archsim.model.codec..")
 			.layer("Text")
-			.definedBy("io.archsim.model.text..")
-			.whereLayer("Validation")
-			.mayOnlyAccessLayers("Components", "Pricing", "Issues", "Document", "Codec", "Text")
-			.whereLayer("Scenarios")
-			.mayOnlyAccessLayers("Issues", "Document", "Text")
-			.whereLayer("Components")
-			.mayOnlyAccessLayers("Issues", "Document", "Codec", "Text")
-			.whereLayer("Pricing")
-			.mayOnlyAccessLayers("Codec", "Text")
-			.whereLayer("Upgrades")
-			.mayOnlyAccessLayers("Document", "Text")
-			.whereLayer("Issues")
-			.mayOnlyAccessLayers("Codec", "Text")
-			.whereLayer("Document")
-			.mayOnlyAccessLayers("Codec", "Text")
-			.whereLayer("Codec")
-			.mayOnlyAccessLayers("Text")
-			.whereLayer("Text")
-			.mayNotAccessAnyLayer()
-			.check(MODEL);
+			.definedBy("io.archsim.model.text..");
 	}
 
 }

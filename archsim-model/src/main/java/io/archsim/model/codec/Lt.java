@@ -15,6 +15,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface Lt {
 
+	/**
+	 * The value the number must be below.
+	 * @return the exclusive upper bound
+	 */
 	double value();
 
 }

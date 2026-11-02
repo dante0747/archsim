@@ -16,6 +16,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface ModelName {
 
+	/**
+	 * The Python model's name.
+	 * @return the name the schema and error messages use
+	 */
 	String value();
 
 }

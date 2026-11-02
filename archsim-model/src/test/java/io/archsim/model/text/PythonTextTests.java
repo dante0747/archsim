@@ -1,7 +1,5 @@
 package io.archsim.model.text;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import org.junit.jupiter.api.Test;
@@ -9,11 +7,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.json.JsonMapper;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Python's text for values, as {@code repr()}, {@code str()} and {@code str.title()}
  * write it (Python 3.12).
  */
-class PythonTextTest {
+class PythonTextTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -37,19 +37,19 @@ class PythonTextTest {
 			0.30000000000000004     | 0.30000000000000004
 			12345.678               | 12345.678
 			""")
-	void a_float_reads_as_python_writes_it(double value, String python) {
+	void repr_float_isWhatPythonWrites(double value, String python) {
 		assertThat(PythonText.repr(value)).isEqualTo(python);
 	}
 
 	@Property
-	void a_floats_repr_reads_back_as_the_same_float(@ForAll double value) {
+	void repr_finiteFloat_readsBackAsTheSameFloat(@ForAll double value) {
 		if (Double.isFinite(value)) {
 			assertThat(Double.parseDouble(PythonText.repr(value))).isEqualTo(value);
 		}
 	}
 
 	@Test
-	void the_special_floats_are_inf_and_nan() {
+	void repr_specialFloats_areInfAndNan() {
 		assertThat(PythonText.repr(Double.POSITIVE_INFINITY)).isEqualTo("inf");
 		assertThat(PythonText.repr(Double.NEGATIVE_INFINITY)).isEqualTo("-inf");
 		assertThat(PythonText.repr(Double.NaN)).isEqualTo("nan");
@@ -65,7 +65,7 @@ class PythonTextTest {
 			["a", 1, null]       | ['a', 1, None]
 			{"a": {"b": false}}  | {'a': {'b': False}}
 			""")
-	void a_json_value_reads_as_python_writes_what_json_loads_gives(String json, String python) {
+	void str_jsonValue_isWhatPythonWritesForJsonLoads(String json, String python) {
 		assertThat(PythonText.str(JSON.readTree(json))).isEqualTo(python);
 	}
 
@@ -75,19 +75,19 @@ class PythonTextTest {
 			it's   | "it's"
 			a"b    | 'a"b'
 			""")
-	void a_string_is_quoted_as_python_quotes_it(String text, String python) {
+	void repr_string_isQuotedAsPythonQuotesIt(String text, String python) {
 		assertThat(PythonText.repr(text)).isEqualTo(python);
 	}
 
 	@Test
-	void a_control_character_is_escaped() {
+	void repr_controlCharacter_isEscaped() {
 		assertThat(PythonText.repr("tab\there")).isEqualTo("'tab\\there'");
 	}
 
 	@ParameterizedTest(name = "{0}.title() is {1}")
 	@CsvSource({ "latencyP95Ms, Latencyp95Ms", "snapshotSha256, Snapshotsha256", "autoSize, Autosize", "p95, P95",
 			"x, X" })
-	void title_capitalizes_each_run_of_letters(String text, String title) {
+	void title_camelCaseName_capitalizesEachRunOfLetters(String text, String title) {
 		assertThat(PythonText.title(text)).isEqualTo(title);
 	}
 

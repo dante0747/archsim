@@ -1,8 +1,14 @@
 package io.archsim.model.scenario;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import java.util.List;
+import java.util.stream.Stream;
+
+import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.component.ComponentRegistry;
@@ -14,14 +20,10 @@ import io.archsim.model.issue.Issue;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.GoldenFile;
 import io.archsim.parity.JsonDiff;
-import java.util.List;
-import java.util.stream.Stream;
-import org.jspecify.annotations.Nullable;
-import org.junit.jupiter.api.DynamicTest;
-import org.junit.jupiter.api.TestFactory;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.JsonNodeFactory;
-import tools.jackson.databind.node.ObjectNode;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
  * What scenario resolution says about the invalid fixtures: an unknown scenario, an
@@ -33,16 +35,16 @@ import tools.jackson.databind.node.ObjectNode;
  * sizes between normalising and applying overrides; neither can fail, and both are the
  * engine's (stage 3), so this checks the model's part of it, composed in the same order.
  */
-class ScenarioResolutionTest {
+class ScenarioResolutionTests {
 
 	private static final ComponentRegistry REGISTRY = StandardComponents.registry();
 
 	@TestFactory
-	Stream<DynamicTest> resolution_fails_where_the_python_engine_failed_and_only_there() {
+	Stream<DynamicTest> resolve_invalidFixtures_failsWhereThePythonEngineFailedAndOnlyThere() {
 		GoldenFile file = GoldenFile.read("fixtures/invalid-documents");
 		List<GoldenEntry> entries = file.entries("archsim_engine.scenarios.resolve_scenario_sized");
 		assertThat(entries).isNotEmpty();
-		return entries.stream().map(entry -> DynamicTest.dynamicTest(entry.pointer(), () -> check(entry)));
+		return entries.stream().map((entry) -> DynamicTest.dynamicTest(entry.pointer(), () -> check(entry)));
 	}
 
 	private static void check(GoldenEntry entry) {

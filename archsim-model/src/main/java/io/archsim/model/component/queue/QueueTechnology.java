@@ -8,7 +8,19 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum QueueTechnology implements JsonEnum {
 
-	KAFKA("kafka"), RABBITMQ("rabbitmq"), SQS("sqs"), PUBSUB("pubsub"), NATS("nats"), REDIS_STREAMS("redis_streams"),
+	/** Apache Kafka, a partitioned log. */
+	KAFKA("kafka"),
+	/** RabbitMQ, a message broker. */
+	RABBITMQ("rabbitmq"),
+	/** Amazon SQS, a managed queue. */
+	SQS("sqs"),
+	/** Google Cloud Pub/Sub, a managed messaging service. */
+	PUBSUB("pubsub"),
+	/** NATS, a lightweight messaging system. */
+	NATS("nats"),
+	/** Redis Streams, an append-only log in Redis. */
+	REDIS_STREAMS("redis_streams"),
+	/** A queue of no particular product. */
 	GENERIC("generic");
 
 	private final String json;
@@ -19,7 +31,7 @@ public enum QueueTechnology implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

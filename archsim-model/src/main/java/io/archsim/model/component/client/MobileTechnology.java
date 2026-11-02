@@ -8,7 +8,16 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum MobileTechnology implements JsonEnum {
 
-	MOBILE("mobile"), IOS("ios"), ANDROID("android"), REACT_NATIVE("react_native"), FLUTTER("flutter");
+	/** A mobile app of no particular platform. */
+	MOBILE("mobile"),
+	/** A native iOS app. */
+	IOS("ios"),
+	/** A native Android app. */
+	ANDROID("android"),
+	/** A React Native app. */
+	REACT_NATIVE("react_native"),
+	/** A Flutter app. */
+	FLUTTER("flutter");
 
 	private final String json;
 
@@ -18,7 +27,7 @@ public enum MobileTechnology implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

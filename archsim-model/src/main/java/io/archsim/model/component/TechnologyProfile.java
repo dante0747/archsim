@@ -1,13 +1,15 @@
 package io.archsim.model.component;
 
-import io.archsim.model.codec.JsonEnum;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+
 import org.jspecify.annotations.Nullable;
+
+import io.archsim.model.codec.JsonEnum;
 
 /**
  * What a technology does by default, for the settings a config leaves on {@code auto} (or
@@ -26,12 +28,18 @@ public record TechnologyProfile(Tier tier, Map<String, Object> values) {
 		values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
 	}
 
-	/** A profile of a core technology, to fill in with {@link #with}. */
+	/**
+	 * A profile of a core technology, to fill in with {@link #with}.
+	 * @return an empty core profile
+	 */
 	public static TechnologyProfile core() {
 		return new TechnologyProfile(Tier.CORE, Map.of());
 	}
 
-	/** A profile of an experimental technology, to fill in with {@link #with}. */
+	/**
+	 * A profile of an experimental technology, to fill in with {@link #with}.
+	 * @return an empty experimental profile
+	 */
 	public static TechnologyProfile experimental() {
 		return new TechnologyProfile(Tier.EXPERIMENTAL, Map.of());
 	}
@@ -39,27 +47,36 @@ public record TechnologyProfile(Tier tier, Map<String, Object> values) {
 	/**
 	 * This profile with a default for {@code field}: a string for a choice, a number
 	 * otherwise.
+	 * @param field the config field's JSON name
+	 * @param value the technology's default for it
+	 * @return a profile with the default added
 	 */
 	public TechnologyProfile with(String field, Object value) {
-		Map<String, Object> more = new LinkedHashMap<>(values);
+		Map<String, Object> more = new LinkedHashMap<>(this.values);
 		more.put(field, value);
-		return new TechnologyProfile(tier, more);
+		return new TechnologyProfile(this.tier, more);
 	}
 
 	/**
 	 * The choice in effect: {@code explicit}, unless it is {@code auto}; then the
 	 * technology's default, or {@code fallback} when it has none.
+	 * @param <E> the setting's choices
+	 * @param field the config field's JSON name
+	 * @param explicit the config's setting
+	 * @param auto the choice that defers to the technology
+	 * @param fallback the choice when the technology has no default
+	 * @return the choice in effect
 	 */
 	public <E extends Enum<E> & JsonEnum> E choice(String field, E explicit, E auto, E fallback) {
 		if (explicit != auto) {
 			return explicit;
 		}
-		Object value = values.get(field);
+		Object value = this.values.get(field);
 		if (value == null) {
 			return fallback;
 		}
 		return Arrays.stream(explicit.getDeclaringClass().getEnumConstants())
-			.filter(c -> c.json().equals(value))
+			.filter((constant) -> constant.json().equals(value))
 			.findFirst()
 			.orElseThrow(() -> new IllegalStateException("%s is not a %s".formatted(value, field)));
 	}
@@ -67,11 +84,15 @@ public record TechnologyProfile(Tier tier, Map<String, Object> values) {
 	/**
 	 * The number in effect: {@code explicit} when set, else the technology's default, if
 	 * any.
+	 * @param field the config field's JSON name
+	 * @param explicit the config's setting; {@code null} when it is not set
+	 * @return the number in effect, if there is one
 	 */
 	public Optional<Double> number(String field, @Nullable Double explicit) {
 		if (explicit != null) {
 			return Optional.of(explicit);
 		}
-		return Optional.ofNullable(values.get(field)).map(v -> ((Number) v).doubleValue());
+		return Optional.ofNullable(this.values.get(field)).map((value) -> ((Number) value).doubleValue());
 	}
+
 }

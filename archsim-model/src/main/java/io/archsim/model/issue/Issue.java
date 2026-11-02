@@ -1,9 +1,11 @@
 package io.archsim.model.issue;
 
-import io.archsim.model.codec.RecordCodec;
 import java.util.Objects;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.model.codec.RecordCodec;
 
 /**
  * Something wrong with a design, or worth knowing about it: a stable code, a message for
@@ -42,23 +44,23 @@ public record Issue(Severity severity, String code, String message, @Nullable St
 	}
 
 	public Issue atNode(@Nullable String id) {
-		return new Issue(severity, code, message, id, edgeId, path, hint);
+		return new Issue(this.severity, this.code, this.message, id, this.edgeId, this.path, this.hint);
 	}
 
 	public Issue atEdge(@Nullable String id) {
-		return new Issue(severity, code, message, nodeId, id, path, hint);
+		return new Issue(this.severity, this.code, this.message, this.nodeId, id, this.path, this.hint);
 	}
 
 	public Issue atPath(@Nullable String where) {
-		return new Issue(severity, code, message, nodeId, edgeId, where, hint);
+		return new Issue(this.severity, this.code, this.message, this.nodeId, this.edgeId, where, this.hint);
 	}
 
 	public Issue withHint(@Nullable String text) {
-		return new Issue(severity, code, message, nodeId, edgeId, path, text);
+		return new Issue(this.severity, this.code, this.message, this.nodeId, this.edgeId, this.path, text);
 	}
 
 	public boolean isError() {
-		return severity == Severity.ERROR;
+		return this.severity == Severity.ERROR;
 	}
 
 	/**

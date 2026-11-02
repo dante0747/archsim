@@ -8,7 +8,17 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum Category implements JsonEnum {
 
-	TRAFFIC("traffic"), NETWORK("network"), COMPUTE("compute"), STORAGE("storage"), MESSAGING("messaging"),
+	/** Client groups, which generate the workload. */
+	TRAFFIC("traffic"),
+	/** Parts that pass requests on, such as load balancers. */
+	NETWORK("network"),
+	/** Parts that run application code, such as services and the clusters they run on. */
+	COMPUTE("compute"),
+	/** Parts that hold data: caches and databases. */
+	STORAGE("storage"),
+	/** Message queues and streams. */
+	MESSAGING("messaging"),
+	/** Third-party services a design calls but does not operate. */
 	EXTERNAL("external");
 
 	private final String json;
@@ -19,7 +29,7 @@ public enum Category implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

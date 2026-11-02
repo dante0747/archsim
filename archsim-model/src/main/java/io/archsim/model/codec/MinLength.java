@@ -15,6 +15,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface MinLength {
 
+	/**
+	 * The fewest characters the string may have.
+	 * @return the inclusive minimum length, in code points
+	 */
 	int value();
 
 }

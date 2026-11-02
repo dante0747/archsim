@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
+
 import tools.jackson.core.JsonPointer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -43,8 +44,8 @@ public final class GoldenFile {
 		try (InputStream in = new GZIPInputStream(Files.newInputStream(path))) {
 			return new GoldenFile(name, JSON.readTree(in));
 		}
-		catch (IOException e) {
-			throw new UncheckedIOException("cannot read " + path, e);
+		catch (IOException ex) {
+			throw new UncheckedIOException("cannot read " + path, ex);
 		}
 	}
 
@@ -71,18 +72,18 @@ public final class GoldenFile {
 	}
 
 	public String name() {
-		return name;
+		return this.name;
 	}
 
 	public JsonNode root() {
-		return root;
+		return this.root;
 	}
 
 	/** The value at a JSON Pointer, such as {@code /document}. */
 	public JsonNode at(String pointer) {
-		JsonNode value = root.at(JsonPointer.compile(pointer));
+		JsonNode value = this.root.at(JsonPointer.compile(pointer));
 		if (value.isMissingNode()) {
-			throw new IllegalArgumentException(name + " has nothing at " + pointer);
+			throw new IllegalArgumentException(this.name + " has nothing at " + pointer);
 		}
 		return value;
 	}
@@ -90,7 +91,7 @@ public final class GoldenFile {
 	/** Every entry in the file, in the file's (sorted) order, inputs resolved. */
 	public List<GoldenEntry> entries() {
 		List<GoldenEntry> found = new ArrayList<>();
-		collect(root, "", found);
+		collect(this.root, "", found);
 		return found;
 	}
 
@@ -99,7 +100,9 @@ public final class GoldenFile {
 	 * name).
 	 */
 	public List<GoldenEntry> entries(String function) {
-		return entries().stream().filter(e -> e.fn().equals(function) || e.function().equals(function)).toList();
+		return entries().stream()
+			.filter((entry) -> entry.fn().equals(function) || entry.function().equals(function))
+			.toList();
 	}
 
 	private void collect(JsonNode node, String pointer, List<GoldenEntry> found) {
@@ -107,7 +110,7 @@ public final class GoldenFile {
 			return;
 		}
 		if (node.has("fn") && node.get("fn").isString() && node.has("input")) {
-			found.add(new GoldenEntry(name, pointer, node.get("fn").stringValue(),
+			found.add(new GoldenEntry(this.name, pointer, node.get("fn").stringValue(),
 					(ObjectNode) resolve(node.get("input")), node.get("output"), node.get("error")));
 			return;
 		}
@@ -127,12 +130,12 @@ public final class GoldenFile {
 				return resolve(at(ref.stringValue()));
 			}
 			ObjectNode copy = JsonNodeFactory.instance.objectNode();
-			value.properties().forEach(e -> copy.set(e.getKey(), resolve(e.getValue())));
+			value.properties().forEach((property) -> copy.set(property.getKey(), resolve(property.getValue())));
 			return copy;
 		}
 		if (value.isArray()) {
 			ArrayNode copy = JsonNodeFactory.instance.arrayNode();
-			value.forEach(item -> copy.add(resolve(item)));
+			value.forEach((item) -> copy.add(resolve(item)));
 			return copy;
 		}
 		return value;
@@ -144,7 +147,7 @@ public final class GoldenFile {
 
 	@Override
 	public String toString() {
-		return name;
+		return this.name;
 	}
 
 }

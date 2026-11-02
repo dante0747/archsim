@@ -5,7 +5,12 @@ import io.archsim.model.codec.JsonEnum;
 /** Whether auto-sizing may pick burstable instance types (AWS t families). */
 public enum Burstable implements JsonEnum {
 
-	AUTO("auto"), NEVER("never");
+	/**
+	 * A light part may run on a burstable type when its load fits the type's baseline.
+	 */
+	AUTO("auto"),
+	/** No part runs on a burstable type. */
+	NEVER("never");
 
 	private final String json;
 
@@ -15,7 +20,7 @@ public enum Burstable implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

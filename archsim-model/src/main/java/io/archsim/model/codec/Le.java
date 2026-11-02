@@ -15,6 +15,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface Le {
 
+	/**
+	 * The highest value allowed.
+	 * @return the inclusive upper bound
+	 */
 	double value();
 
 }

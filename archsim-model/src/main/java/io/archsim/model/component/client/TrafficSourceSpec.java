@@ -1,6 +1,13 @@
 package io.archsim.model.component.client;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import io.archsim.model.component.Category;
+import io.archsim.model.component.ComponentIdentity;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
@@ -8,11 +15,6 @@ import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.RequestType;
 import io.archsim.model.issue.Issue;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * A client group: it generates its share of the workload and sends it all to one entry
@@ -23,26 +25,36 @@ import java.util.stream.Collectors;
  */
 public final class TrafficSourceSpec<C extends Record & ClientConfig> extends ComponentSpec<C> {
 
-	/** Declared first: the specs below are built with it. */
-	private static final Port REQUESTS = Port
-		.out("out", "Requests", "Sends every generated request to one entry point (usually a load balancer).")
-		.withMinEdges(1)
-		.withMaxEdges(1);
-
+	/** Generic clients. */
 	public static final TrafficSourceSpec<TrafficSourceConfig> CLIENTS = new TrafficSourceSpec<>("traffic_source",
 			"Clients / Traffic", TrafficSourceConfig.class);
 
+	/** Users of a mobile app. */
 	public static final TrafficSourceSpec<MobileAppConfig> MOBILE_APP = new TrafficSourceSpec<>("mobile_app",
 			"Mobile app", MobileAppConfig.class);
 
+	/** Users in a web browser. */
 	public static final TrafficSourceSpec<WebClientConfig> WEB_CLIENT = new TrafficSourceSpec<>("web_client",
 			"Web browser", WebClientConfig.class);
 
+	/** Partners and other systems calling the public API. */
 	public static final TrafficSourceSpec<ApiConsumerConfig> API_CONSUMER = new TrafficSourceSpec<>("api_consumer",
 			"API consumers", ApiConsumerConfig.class);
 
 	private TrafficSourceSpec(String type, String displayName, Class<C> configType) {
-		super(type, displayName, Category.TRAFFIC, configType, List.of(REQUESTS));
+		super(new ComponentIdentity(type, displayName, Category.TRAFFIC), configType, List.of(requests()));
+	}
+
+	/**
+	 * The one port every group has. A method, not a constant: the groups above are built
+	 * before a constant declared after them would be.
+	 * @return the port the group sends its requests through
+	 */
+	private static Port requests() {
+		return Port
+			.out("out", "Requests", "Sends every generated request to one entry point (usually a load balancer).")
+			.withMinEdges(1)
+			.withMaxEdges(1);
 	}
 
 	@Override

@@ -23,33 +23,39 @@ final class LaxNumbers {
 	private LaxNumbers() {
 	}
 
-	/** Python's {@code float(s)}; empty when it would raise. */
+	/**
+	 * Python's {@code float(text)}; empty when it would raise.
+	 * @param text the string read
+	 * @return the float, or empty when the string is not one
+	 */
 	static Optional<Double> parseFloat(String text) {
-		String s = text.strip();
-		String word = s.toLowerCase(Locale.ROOT).replaceFirst("^[+-]", "");
-		if (word.equals("inf") || word.equals("infinity")) {
-			return Optional.of(s.startsWith("-") ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+		String stripped = text.strip();
+		String word = stripped.toLowerCase(Locale.ROOT).replaceFirst("^[+-]", "");
+		if ("inf".equals(word) || "infinity".equals(word)) {
+			return Optional.of(stripped.startsWith("-") ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
 		}
-		if (word.equals("nan")) {
+		if ("nan".equals(word)) {
 			return Optional.of(Double.NaN);
 		}
-		if (!FLOAT.matcher(s).matches()) {
+		if (!FLOAT.matcher(stripped).matches()) {
 			return Optional.empty();
 		}
-		return Optional.of(Double.parseDouble(s.replace("_", "")));
+		return Optional.of(Double.parseDouble(stripped.replace("_", "")));
 	}
 
 	/**
 	 * pydantic's integer from a string: digits, maybe a sign and a {@code .0}; empty
 	 * otherwise.
+	 * @param text the string read
+	 * @return the integer, or empty when the string is not one
 	 */
 	static Optional<BigInteger> parseInteger(String text) {
-		String s = text.strip();
-		if (!INTEGER.matcher(s).matches()) {
+		String stripped = text.strip();
+		if (!INTEGER.matcher(stripped).matches()) {
 			return Optional.empty();
 		}
-		int point = s.indexOf('.');
-		String digits = (point < 0 ? s : s.substring(0, point)).replace("_", "");
+		int point = stripped.indexOf('.');
+		String digits = ((point < 0) ? stripped : stripped.substring(0, point)).replace("_", "");
 		return Optional.of(new BigDecimal(digits).toBigIntegerExact());
 	}
 

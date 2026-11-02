@@ -1,11 +1,12 @@
 package io.archsim.model.document;
 
+import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
+
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.MaxLength;
-import org.jspecify.annotations.Nullable;
-import tools.jackson.databind.JsonNode;
 
 /**
  * Where one numeric input came from. A measured input was fitted from telemetry, an
@@ -29,23 +30,27 @@ import tools.jackson.databind.JsonNode;
 		they differ from the default and illustrative otherwise (``provenance.py``).""")
 public record InputProvenance(ProvenanceKind kind, @MaxLength(500) @Nullable String source,
 		@MaxLength(2000) @Nullable String query, @MaxLength(100) @Nullable String timeRange,
-
 		@Description("Largest relative error of the fit at the checked quantiles") @Ge(0) @Nullable Double fitError,
-
 		@MaxLength(40) @Nullable String fittedAt, @MaxLength(500) @Nullable String note,
+		@Default("null") @Description(VALUE) JsonNode value) {
 
-		@Default("null") @Description("The value calibration set (JSON, as stored at the path). The input counts as measured only"
-				+ " while its current value still equals this; a scenario, sweep or edit that changes"
-				+ " it makes it assumed again. Records without it (written by earlier builds) are"
-				+ " taken at their word.") JsonNode value) {
+	static final String VALUE = "The value calibration set (JSON, as stored at the path). The input counts as "
+			+ "measured only while its current value still equals this; a scenario, sweep or edit that changes it "
+			+ "makes it assumed again. Records without it (written by earlier builds) are taken at their word.";
 
+	/**
+	 * Copies the value, so the record does not change.
+	 */
 	public InputProvenance {
 		value = value.deepCopy();
 	}
 
-	/** The value calibration set, as a copy: a record does not change. */
+	/**
+	 * The value calibration set, as a copy: a record does not change.
+	 * @return a copy of the value
+	 */
 	@Override
 	public JsonNode value() {
-		return value.deepCopy();
+		return this.value.deepCopy();
 	}
 }

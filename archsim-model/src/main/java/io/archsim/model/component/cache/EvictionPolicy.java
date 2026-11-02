@@ -8,7 +8,12 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum EvictionPolicy implements JsonEnum {
 
-	AUTO("auto"), ALLKEYS_LRU("allkeys_lru"), NOEVICTION("noeviction");
+	/** Whatever the technology does by default. */
+	AUTO("auto"),
+	/** A full cache evicts the least recently used key. */
+	ALLKEYS_LRU("allkeys_lru"),
+	/** A full cache refuses new keys with an out-of-memory error. */
+	NOEVICTION("noeviction");
 
 	private final String json;
 
@@ -18,7 +23,7 @@ public enum EvictionPolicy implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

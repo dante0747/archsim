@@ -5,7 +5,12 @@ import io.archsim.model.codec.JsonEnum;
 /** What a fault does: refuse every call, slow a part down, or add latency to a link. */
 public enum FaultKind implements JsonEnum {
 
-	OUTAGE("outage"), SLOWDOWN("slowdown"), LATENCY("latency");
+	/** The target node refuses every request arriving while the fault is on. */
+	OUTAGE("outage"),
+	/** The target node's service times are multiplied by the fault's factor. */
+	SLOWDOWN("slowdown"),
+	/** Each traversal of the target edge takes the fault's extra latency longer. */
+	LATENCY("latency");
 
 	private final String json;
 
@@ -15,7 +20,7 @@ public enum FaultKind implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

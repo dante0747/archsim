@@ -1,10 +1,11 @@
 package io.archsim.model.document;
 
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.MaxLength;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A directed link from {@code source.sourcePort} to {@code target.targetPort}: requests
@@ -22,8 +23,11 @@ import org.jspecify.annotations.Nullable;
 public record EdgeSpec(@Matches(Patterns.ID) String id, String source, @Default("out") String sourcePort, String target,
 		@Default("in") String targetPort, @MaxLength(120) @Nullable String label, @Default("{}") EdgeConfig config) {
 
-	/** The label, or the id when there is none. */
+	/**
+	 * The label, or the id when there is none.
+	 * @return how messages name the link
+	 */
 	public String name() {
-		return label == null || label.isEmpty() ? id : label;
+		return (this.label == null || this.label.isEmpty()) ? this.id : this.label;
 	}
 }

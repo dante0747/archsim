@@ -1,21 +1,21 @@
 package io.archsim.model.component.queue;
 
-import static io.archsim.model.component.Resources.INSTANCE_TYPE;
-import static io.archsim.model.component.Resources.MAX_CPU_CORES;
-import static io.archsim.model.component.Resources.MAX_MEMORY_GIB;
-import static io.archsim.model.component.Resources.MAX_STORAGE_GIB;
+import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
+import io.archsim.model.codec.DefaultFrom;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Matches;
+import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
 import io.archsim.model.component.Toggle;
 import io.archsim.model.distribution.Distribution;
-import java.util.Map;
-import org.jspecify.annotations.Nullable;
+import io.archsim.model.distribution.LogNormal;
 
 /**
  * A message queue or stream: its partitions and consumers, publish and consumer times,
@@ -59,74 +59,106 @@ public record MessageQueueConfig(@Default("generic") QueueTechnology technology,
 		@Default("8") @Ge(1) @Le(10_000) int partitions, @Default("4") @Ge(1) @Le(10_000) int consumers,
 		@Default("100000") @Ge(1) @Le(100_000_000) @Nullable Integer maxDepth,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 2.0, \"p95\": 8.0}") Distribution publishTimeMs,
+		@DefaultFrom("DEFAULT_PUBLISH_TIME") Distribution publishTimeMs,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 5.0, \"p95\": 20.0}") Distribution consumerTimeMs,
+		@DefaultFrom("DEFAULT_CONSUMER_TIME") Distribution consumerTimeMs,
 
 		@Ge(1) @Le(10_000) @Nullable Integer consumerConcurrency, @Nullable Distribution fetchOverheadMs,
 		@Default("3") @Ge(1) @Le(20) int maxDeliveries, @Default("auto") Partitioning partitioning,
 		@Default("auto") Acks acks,
 
-		@Default("{\"kind\": \"lognormal\", \"median\": 2.0, \"p95\": 8.0}") Distribution replicationMs,
+		@DefaultFrom("DEFAULT_REPLICATION") Distribution replicationMs,
 
 		@Ge(0) @Le(10_000) @Nullable Double lingerMs, @Default("auto") Delivery delivery,
 		@Gt(0) @Le(43_200) @Nullable Double visibilityTimeoutS, @Default("false") boolean fifo,
 		@Default("300.0") @Gt(0) @Le(1_000_000) double fifoLimitRps, @Default("auto") Toggle flowControl,
 		@Default("0.6") @Gt(0) @Le(1) double memoryHighWatermark,
 		@Default("1.0") @Gt(0) @Le(1_048_576) double messageSizeKb, @Default("1") @Ge(1) @Le(1000) int brokers,
-		@Gt(0) @Le(MAX_CPU_CORES) @Nullable Double cpuCores, @Gt(0) @Le(MAX_MEMORY_GIB) @Nullable Double memoryGib,
-		@Gt(0) @Le(MAX_STORAGE_GIB) @Nullable Double storageGib, @Matches(INSTANCE_TYPE) @Nullable String instanceType,
+		@Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
+		@Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
+		@Gt(0) @Le(Resources.MAX_STORAGE_GIB) @Nullable Double storageGib,
+		@Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
 		@Default("0.15") @Ge(0) @Le(10_000) double costPerHour) {
+
+	/** The default time a publish takes to be acknowledged: 2 ms median, 8 ms p95. */
+	static final Distribution DEFAULT_PUBLISH_TIME = new LogNormal(2.0, 8.0);
+
+	/** The default time a consumer works on a message: 5 ms median, 20 ms p95. */
+	static final Distribution DEFAULT_CONSUMER_TIME = new LogNormal(5.0, 20.0);
+
+	/** The default time a publish takes to reach the replicas: 2 ms median, 8 ms p95. */
+	static final Distribution DEFAULT_REPLICATION = new LogNormal(2.0, 8.0);
 
 	/**
 	 * What each technology does by default (technology.py's {@code QUEUE_PROFILES}). A
 	 * visibility timeout Python lists as {@code None} is left out: the setting's fallback
 	 * is none too.
 	 */
-	static final TechnologyProfiles<QueueTechnology> PROFILES = new TechnologyProfiles<>(QueueTechnology.class, Map.of(
-			QueueTechnology.KAFKA,
-			queue(TechnologyProfile.core(), "key", "all", 5.0, "off").with("delivery", "at_least_once"),
-			QueueTechnology.RABBITMQ,
-			queue(TechnologyProfile.experimental(), "none", "leader", 0.0, "on").with("delivery", "at_least_once"),
-			QueueTechnology.SQS,
-			queue(TechnologyProfile.core(), "none", "leader", 0.0, "off").with("delivery", "at_least_once")
-				.with("visibilityTimeoutS", 30.0),
-			QueueTechnology.PUBSUB,
-			queue(TechnologyProfile.experimental(), "none", "leader", 0.0, "off").with("delivery", "at_least_once")
-				.with("visibilityTimeoutS", 10.0),
-			QueueTechnology.NATS,
-			queue(TechnologyProfile.experimental(), "none", "leader", 0.0, "off").with("delivery", "at_least_once"),
-			QueueTechnology.REDIS_STREAMS, queue(TechnologyProfile.experimental(), "none", "leader", 0.0, "off"),
-			QueueTechnology.GENERIC, queue(TechnologyProfile.core(), "none", "leader", 0.0, "off")));
+	static final TechnologyProfiles<QueueTechnology> PROFILES = new TechnologyProfiles<>(QueueTechnology.class,
+			Map.of(QueueTechnology.KAFKA,
+					TechnologyProfile.core()
+						.with("partitioning", "key")
+						.with("acks", "all")
+						.with("lingerMs", 5.0)
+						.with("flowControl", "off")
+						.with("delivery", "at_least_once"),
+					QueueTechnology.RABBITMQ,
+					unpartitioned(TechnologyProfile.experimental(), "on").with("delivery", "at_least_once"),
+					QueueTechnology.SQS,
+					unpartitioned(TechnologyProfile.core(), "off").with("delivery", "at_least_once")
+						.with("visibilityTimeoutS", 30.0),
+					QueueTechnology.PUBSUB,
+					unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once")
+						.with("visibilityTimeoutS", 10.0),
+					QueueTechnology.NATS,
+					unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once"),
+					QueueTechnology.REDIS_STREAMS, unpartitioned(TechnologyProfile.experimental(), "off"),
+					QueueTechnology.GENERIC, unpartitioned(TechnologyProfile.core(), "off")));
 
-	private static TechnologyProfile queue(TechnologyProfile tier, String partitioning, String acks, double lingerMs,
-			String flowControl) {
-		return tier.with("partitioning", partitioning)
-			.with("acks", acks)
-			.with("lingerMs", lingerMs)
+	/**
+	 * The profile of one shared queue: no partitions, publishes acknowledged by the
+	 * leader, no batching.
+	 * @param tier the profile to fill in
+	 * @param flowControl whether a memory alarm blocks publishers ({@code on} or
+	 * {@code off})
+	 * @return the filled-in profile
+	 */
+	private static TechnologyProfile unpartitioned(TechnologyProfile tier, String flowControl) {
+		return tier.with("partitioning", "none")
+			.with("acks", "leader")
+			.with("lingerMs", 0.0)
 			.with("flowControl", flowControl);
 	}
 
 	public TechnologyProfile profile() {
-		return PROFILES.of(technology);
+		return PROFILES.of(this.technology);
 	}
 
 	/**
 	 * Whether messages go to partitions (by key or in turn), after the technology's
 	 * default.
+	 * @return {@code true} when the queue is partitioned
 	 */
 	public boolean partitioned() {
-		Partitioning effective = profile().choice("partitioning", partitioning, Partitioning.AUTO, Partitioning.NONE);
+		Partitioning effective = profile().choice("partitioning", this.partitioning, Partitioning.AUTO,
+				Partitioning.NONE);
 		return effective == Partitioning.KEY || effective == Partitioning.ROUND_ROBIN;
 	}
 
-	/** Whether a memory alarm blocks publishers, after the technology's default. */
+	/**
+	 * Whether a memory alarm blocks publishers, after the technology's default.
+	 * @return {@code true} when publishers wait while memory is short
+	 */
 	public boolean blocksOnMemoryAlarm() {
-		return profile().choice("flowControl", flowControl, Toggle.AUTO, Toggle.OFF) == Toggle.ON;
+		return profile().choice("flowControl", this.flowControl, Toggle.AUTO, Toggle.OFF) == Toggle.ON;
 	}
 
-	/** Messages one consumer handles at once. */
+	/**
+	 * Messages one consumer handles at once.
+	 * @return the configured concurrency, or one when it is not set
+	 */
 	public int concurrencyPerConsumer() {
-		return consumerConcurrency == null ? 1 : consumerConcurrency;
+		return (this.consumerConcurrency != null) ? this.consumerConcurrency : 1;
 	}
+
 }

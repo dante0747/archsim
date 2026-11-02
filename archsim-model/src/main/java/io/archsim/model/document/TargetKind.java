@@ -7,7 +7,12 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum TargetKind implements JsonEnum {
 
-	NODE("node"), EDGE("edge"), WORKLOAD("workload");
+	/** A node's config, named by the target's id. */
+	NODE("node"),
+	/** An edge's config, named by the target's id. */
+	EDGE("edge"),
+	/** The workload, which needs no id. */
+	WORKLOAD("workload");
 
 	private final String json;
 
@@ -17,7 +22,7 @@ public enum TargetKind implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

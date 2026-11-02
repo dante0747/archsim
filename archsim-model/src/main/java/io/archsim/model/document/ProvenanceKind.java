@@ -8,7 +8,12 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum ProvenanceKind implements JsonEnum {
 
-	MEASURED("measured"), ASSUMED("assumed"), ILLUSTRATIVE("illustrative");
+	/** Fitted from telemetry. */
+	MEASURED("measured"),
+	/** Typed by a person. */
+	ASSUMED("assumed"),
+	/** An ArchSim default or preset. */
+	ILLUSTRATIVE("illustrative");
 
 	private final String json;
 
@@ -18,7 +23,7 @@ public enum ProvenanceKind implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

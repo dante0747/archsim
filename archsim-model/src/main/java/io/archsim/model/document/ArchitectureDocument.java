@@ -1,15 +1,17 @@
 package io.archsim.model.document;
 
-import io.archsim.model.codec.Const;
-import io.archsim.model.codec.Default;
-import io.archsim.model.codec.Description;
-import io.archsim.model.codec.MaxItems;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
 import org.jspecify.annotations.Nullable;
+
+import io.archsim.model.codec.Const;
+import io.archsim.model.codec.Default;
+import io.archsim.model.codec.Description;
+import io.archsim.model.codec.MaxItems;
 
 /**
  * An ArchSim design: the one JSON document the editor saves, the API stores and the
@@ -37,11 +39,7 @@ public record ArchitectureDocument(@Default(SCHEMA_VERSION) @Const(SCHEMA_VERSIO
 		@Default(KIND) @Const(KIND) String kind, @Default("{}") Metadata metadata,
 		@Default("{}") Architecture architecture, @Default("{}") Workload workload,
 		@Default("[]") @MaxItems(50) List<Scenario> scenarios, @Default("{}") Objectives objectives,
-		@Default("{}") Layout layout,
-
-		@Default("{}") @Description("Where inputs came from, keyed by path: nodes/<id>/<config key>, edges/<id>/<config key> or"
-				+ " workload/<field>.") Map<String, InputProvenance> provenance,
-
+		@Default("{}") Layout layout, @Default("{}") @Description(PROVENANCE) Map<String, InputProvenance> provenance,
 		@Nullable CalibrationRecord calibration, @Default("{}") Pricing pricing) {
 
 	/** The schema version of documents this model reads and writes. */
@@ -50,18 +48,32 @@ public record ArchitectureDocument(@Default(SCHEMA_VERSION) @Const(SCHEMA_VERSIO
 	/** What every design document's {@code kind} says. */
 	public static final String KIND = "archsim.architecture";
 
+	static final String PROVENANCE = "Where inputs came from, keyed by path: nodes/<id>/<config key>, "
+			+ "edges/<id>/<config key> or workload/<field>.";
+
+	/**
+	 * Copies the scenarios and the provenance, so the document does not change.
+	 */
 	public ArchitectureDocument {
 		scenarios = List.copyOf(scenarios);
 		provenance = Collections.unmodifiableMap(new LinkedHashMap<>(provenance));
 	}
 
-	/** The first node with this id. */
+	/**
+	 * The first node with this id.
+	 * @param id the node's id
+	 * @return the node; empty when there is none
+	 */
 	public Optional<NodeSpec> node(String id) {
-		return architecture.node(id);
+		return this.architecture.node(id);
 	}
 
-	/** The first scenario with this id. */
+	/**
+	 * The first scenario with this id.
+	 * @param id the scenario's id
+	 * @return the scenario; empty when there is none
+	 */
 	public Optional<Scenario> scenario(String id) {
-		return scenarios.stream().filter(s -> s.id().equals(id)).findFirst();
+		return this.scenarios.stream().filter((scenario) -> scenario.id().equals(id)).findFirst();
 	}
 }

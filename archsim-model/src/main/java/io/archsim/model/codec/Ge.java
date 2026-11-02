@@ -15,6 +15,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface Ge {
 
+	/**
+	 * The lowest value allowed.
+	 * @return the inclusive lower bound
+	 */
 	double value();
 
 }

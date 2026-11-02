@@ -5,7 +5,14 @@ import io.archsim.model.codec.JsonEnum;
 /** Where a service runs. */
 public enum Platform implements JsonEnum {
 
-	VM("vm"), DOCKER("docker"), KUBERNETES("kubernetes"), SERVERLESS("serverless");
+	/** Virtual machines. */
+	VM("vm"),
+	/** Docker containers, which behave like virtual machines. */
+	DOCKER("docker"),
+	/** Pods on a Kubernetes cluster's nodes. */
+	KUBERNETES("kubernetes"),
+	/** Functions, one request per instance, with cold starts. */
+	SERVERLESS("serverless");
 
 	private final String json;
 
@@ -15,7 +22,7 @@ public enum Platform implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

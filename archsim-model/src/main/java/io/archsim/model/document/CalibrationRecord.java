@@ -1,12 +1,14 @@
 package io.archsim.model.document;
 
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.MaxItems;
 import io.archsim.model.codec.MaxLength;
-import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The last calibration from telemetry, and how well the calibrated model replays what was
@@ -26,6 +28,9 @@ public record CalibrationRecord(@MaxLength(40) String at, @MaxLength(500) String
 		@Default("[]") @MaxItems(500) List<ReplayCheck> replay, @MaxLength(80) @Nullable String replayDigest,
 		@Default("[]") @MaxItems(50) List<String> notes) {
 
+	/**
+	 * Copies the lists, so the record does not change.
+	 */
 	public CalibrationRecord {
 		replay = List.copyOf(replay);
 		notes = List.copyOf(notes);

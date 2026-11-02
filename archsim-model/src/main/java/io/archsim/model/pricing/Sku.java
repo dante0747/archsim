@@ -1,5 +1,13 @@
 package io.archsim.model.pricing;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
@@ -7,12 +15,6 @@ import io.archsim.model.codec.Le;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinLength;
 import io.archsim.model.codec.ModelName;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import org.jspecify.annotations.Nullable;
 
 /**
  * One instance type of a price list: its shape and its prices per hour.
@@ -35,13 +37,20 @@ public record Sku(@MinLength(1) @MaxLength(80) String sku, @MinLength(1) @MaxLen
 		@Default("[]") List<String> engines, @Default("false") boolean burstable,
 		@Gt(0) @Le(1) @Nullable Double baselineCpu, @Ge(0) @Nullable Double creditVcpuHour) {
 
+	/**
+	 * Copies the prices and the engines, so the type does not change.
+	 */
 	public Sku {
 		hourly = Collections.unmodifiableMap(new LinkedHashMap<>(hourly));
 		engines = List.copyOf(engines);
 	}
 
-	/** The price per hour of a purchase option, if the type has one. */
+	/**
+	 * The price per hour of a purchase option, if the type has one.
+	 * @param option the purchase option, such as {@code on_demand}
+	 * @return the price per hour, in USD; empty when the type has no such option
+	 */
 	public Optional<Double> price(String option) {
-		return Optional.ofNullable(hourly.get(option));
+		return Optional.ofNullable(this.hourly.get(option));
 	}
 }

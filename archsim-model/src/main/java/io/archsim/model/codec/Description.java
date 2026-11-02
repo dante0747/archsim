@@ -16,6 +16,10 @@ import java.lang.annotation.Target;
 @Target({ ElementType.TYPE, ElementType.RECORD_COMPONENT })
 public @interface Description {
 
+	/**
+	 * The description, word for word as the Python model has it.
+	 * @return the description's text
+	 */
 	String value();
 
 }

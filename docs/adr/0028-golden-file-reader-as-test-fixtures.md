@@ -28,8 +28,9 @@ test code, adds no module, and `archsim-engine` depends on `archsim-model` anywa
 - `GoldenFile` reads a file (gzip of canonical JSON) and lists its `GoldenEntry`s, inputs resolved.
 - `JsonDiff` compares JSON as the exporter's `--check` does and names where values differ, as
   JSON Pointers.
-- `Parity.check(entry, call, error)` runs a Java function on an entry's input and compares its
-  output, or its exception recorded as Python records one, with the entry.
+- `Parity.check(entry, call)` runs a Java function on an entry's input and compares its output
+  with the entry. A module's `call` turns the exceptions the golden files record into a
+  `PythonError` carrying the error as Python records it, which is compared in turn.
 - `Repository` finds the repository root (the build passes `-Darchsim.repoRoot`).
 - A module maps the Python functions it ports to Java calls (in `archsim-model`,
   `ModelFunctions`), and one test runs every entry of those functions in every file. A second test
@@ -46,7 +47,7 @@ A later module adds `testImplementation(testFixtures(project(":archsim-model")))
 
 ### Confirmation
 
-`GoldenParityTest` uses it in `archsim-model`; `./gradlew build` compiles the fixtures with the
+`GoldenParityTests` uses it in `archsim-model`; `./gradlew build` compiles the fixtures with the
 same checks as main code.
 
 ## More Information

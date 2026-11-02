@@ -8,8 +8,24 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum ServiceTechnology implements JsonEnum {
 
-	GENERIC("generic"), JAVA("java"), NODEJS("nodejs"), GO("go"), PYTHON("python"), DOTNET("dotnet"), RUST("rust"),
-	PHP("php"), RUBY("ruby");
+	/** A runtime of no particular kind. */
+	GENERIC("generic"),
+	/** Java on the JVM, with GC pauses and JIT warm-up. */
+	JAVA("java"),
+	/** Node.js, on an event loop. */
+	NODEJS("nodejs"),
+	/** Go, whose garbage collector pauses briefly. */
+	GO("go"),
+	/** Python. */
+	PYTHON("python"),
+	/** .NET, with GC pauses and JIT warm-up. */
+	DOTNET("dotnet"),
+	/** Rust, with no garbage collector. */
+	RUST("rust"),
+	/** PHP, with no garbage collection pauses. */
+	PHP("php"),
+	/** Ruby. */
+	RUBY("ruby");
 
 	private final String json;
 
@@ -19,7 +35,7 @@ public enum ServiceTechnology implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

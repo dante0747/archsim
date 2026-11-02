@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Objects;
 import java.util.Optional;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -16,10 +17,19 @@ import tools.jackson.databind.node.ObjectNode;
  * <p>
  * Python's integers have no limit; one that does not fit the Java type is reported as too
  * large. Every bounded field's bounds fit its type, so only an unbounded field can tell.
+ *
+ * @param bounds the bounds the integer must keep to
+ * @param isLong whether the Java type is a {@code long} rather than an {@code int}
  */
 record IntegerShape(Bounds bounds, boolean isLong) implements Shape {
 
-	private static final BigDecimal LONG_LIMIT = new BigDecimal(BigInteger.TWO.pow(63));
+	/** The bits of a {@code long}'s magnitude, its sign aside. */
+	private static final int LONG_MAGNITUDE_BITS = Long.SIZE - 1;
+
+	/** The bits of an {@code int}'s magnitude, its sign aside. */
+	private static final int INT_MAGNITUDE_BITS = Integer.SIZE - 1;
+
+	private static final BigDecimal LONG_LIMIT = new BigDecimal(BigInteger.TWO.pow(LONG_MAGNITUDE_BITS));
 
 	@Override
 	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
@@ -28,16 +38,16 @@ record IntegerShape(Bounds bounds, boolean isLong) implements Shape {
 			return null;
 		}
 		int mark = errors.mark();
-		bounds.check(new BigDecimal(number.get()), at, errors);
+		this.bounds.check(new BigDecimal(number.get()), at, errors);
 		if (errors.since(mark)) {
 			return null;
 		}
 		BigInteger value = number.get();
-		if (value.bitLength() > (isLong ? 63 : 31)) {
+		if (value.bitLength() > (this.isLong ? LONG_MAGNITUDE_BITS : INT_MAGNITUDE_BITS)) {
 			errors.add("int_parsing_size", at, Messages.INT_PARSING_SIZE);
 			return null;
 		}
-		return isLong ? (Object) value.longValue() : (Object) value.intValue();
+		return this.isLong ? (Object) value.longValue() : (Object) value.intValue();
 	}
 
 	private static Optional<BigInteger> integer(JsonNode in, Location at, Errors errors) {
@@ -45,20 +55,7 @@ record IntegerShape(Bounds bounds, boolean isLong) implements Shape {
 			return Optional.of(in.bigIntegerValue());
 		}
 		if (in.isNumber()) {
-			double x = in.doubleValue();
-			if (!Double.isFinite(x)) {
-				errors.add("finite_number", at, Messages.FINITE_NUMBER);
-			}
-			else if (x != Math.rint(x)) {
-				errors.add("int_from_float", at, Messages.INT_FROM_FLOAT);
-			}
-			else if (new BigDecimal(x).abs().compareTo(LONG_LIMIT) >= 0) {
-				errors.add("int_parsing_size", at, Messages.INT_PARSING_SIZE);
-			}
-			else {
-				return Optional.of(new BigDecimal(x).toBigIntegerExact());
-			}
-			return Optional.empty();
+			return fromFloat(in.doubleValue(), at, errors);
 		}
 		if (in.isBoolean()) {
 			return Optional.of(in.booleanValue() ? BigInteger.ONE : BigInteger.ZERO);
@@ -74,17 +71,35 @@ record IntegerShape(Bounds bounds, boolean isLong) implements Shape {
 		return Optional.empty();
 	}
 
+	/** The integer a float stands for, when it is finite, whole and within a long. */
+	private static Optional<BigInteger> fromFloat(double number, Location at, Errors errors) {
+		if (!Double.isFinite(number)) {
+			errors.add("finite_number", at, Messages.FINITE_NUMBER);
+		}
+		else if (number != Math.rint(number)) {
+			errors.add("int_from_float", at, Messages.INT_FROM_FLOAT);
+		}
+		else if (new BigDecimal(number).abs().compareTo(LONG_LIMIT) >= 0) {
+			errors.add("int_parsing_size", at, Messages.INT_PARSING_SIZE);
+		}
+		else {
+			return Optional.of(new BigDecimal(number).toBigIntegerExact());
+		}
+		return Optional.empty();
+	}
+
 	@Override
 	public JsonNode write(@Nullable Object value) {
 		long number = ((Number) Objects.requireNonNull(value)).longValue();
 		// the smallest node, as Jackson reads the same number
-		return number == (int) number ? NODES.numberNode((int) number) : NODES.numberNode(number);
+		return (number == (int) number) ? NODES.numberNode((int) number) : NODES.numberNode(number);
 	}
 
 	@Override
 	public ObjectNode schema(Definitions definitions) {
 		ObjectNode schema = NODES.objectNode().put("type", "integer");
-		bounds.describe(schema);
+		this.bounds.describe(schema);
 		return schema;
 	}
+
 }

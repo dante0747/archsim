@@ -5,7 +5,14 @@ import io.archsim.model.codec.JsonEnum;
 /** Which instances serve reads; auto follows the technology. */
 public enum ReadFrom implements JsonEnum {
 
-	AUTO("auto"), ALL("all"), PRIMARY("primary"), REPLICAS("replicas");
+	/** Whatever the technology does by default. */
+	AUTO("auto"),
+	/** The primary and its replicas take turns serving reads. */
+	ALL("all"),
+	/** Only the primary serves reads. */
+	PRIMARY("primary"),
+	/** Only the replicas serve reads. */
+	REPLICAS("replicas");
 
 	private final String json;
 
@@ -15,7 +22,7 @@ public enum ReadFrom implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

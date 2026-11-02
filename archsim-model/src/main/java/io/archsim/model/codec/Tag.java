@@ -16,6 +16,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Tag {
 
+	/**
+	 * The union property's value that selects this record.
+	 * @return the tag's string
+	 */
 	String value();
 
 }

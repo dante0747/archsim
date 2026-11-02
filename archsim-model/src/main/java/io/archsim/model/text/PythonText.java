@@ -1,8 +1,10 @@
 package io.archsim.model.text;
 
 import java.math.BigDecimal;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -17,6 +19,27 @@ import tools.jackson.databind.JsonNode;
  */
 public final class PythonText {
 
+	/**
+	 * A float's {@code repr} is in fixed notation only when its decimal point's place in
+	 * its digits is above this ({@code 0.0001}, but {@code 1e-05}).
+	 */
+	private static final int FIXED_NOTATION_POINT_ABOVE = -4;
+
+	/**
+	 * A float's {@code repr} is in fixed notation only when its decimal point's place in
+	 * its digits is at most this ({@code 1000000000000000.0}, but {@code 1e+16}).
+	 */
+	private static final int FIXED_NOTATION_POINT_UP_TO = 16;
+
+	/** The first character that is not a C0 control character. */
+	private static final int SPACE = 0x20;
+
+	/** The DEL control character, which {@code repr} escapes too. */
+	private static final int DELETE = 0x7f;
+
+	private static final Map<Integer, String> ESCAPES = Map.of((int) '\\', "\\\\", (int) '\n', "\\n", (int) '\r', "\\r",
+			(int) '\t', "\\t");
+
 	private PythonText() {
 	}
 
@@ -25,48 +48,28 @@ public final class PythonText {
 	 * {@code x}, in fixed notation from 1e-4 up to 1e16 ({@code 0.0001}, {@code 2.5},
 	 * {@code 100.0}) and in scientific notation outside it ({@code 1e-05},
 	 * {@code 1e+16}).
+	 * @param number the float
+	 * @return its repr
 	 */
-	public static String repr(double x) {
-		if (Double.isNaN(x)) {
+	public static String repr(double number) {
+		if (Double.isNaN(number)) {
 			return "nan";
 		}
-		if (Double.isInfinite(x)) {
-			return x > 0 ? "inf" : "-inf";
+		if (Double.isInfinite(number)) {
+			return (number > 0) ? "inf" : "-inf";
 		}
-		if (x == 0) {
-			return Double.doubleToRawLongBits(x) < 0 ? "-0.0" : "0.0";
+		if (number == 0) {
+			return (Double.doubleToRawLongBits(number) < 0) ? "-0.0" : "0.0";
 		}
-		// Double.toString gives the shortest digits that round-trip, as Python's repr
-		// does
-		BigDecimal shortest = new BigDecimal(Double.toString(Math.abs(x))).stripTrailingZeros();
-		String digits = shortest.unscaledValue().toString();
-		int point = digits.length() - shortest.scale(); // the decimal point's place in
-														// the digits
-		String sign = x < 0 ? "-" : "";
-		if (point > -4 && point <= 16) {
-			return sign + fixed(digits, point);
-		}
-		String mantissa = digits.length() == 1 ? digits : digits.charAt(0) + "." + digits.substring(1);
-		return sign + mantissa + exponent(point - 1);
-	}
-
-	/** Python's {@code str()} of an integer read from JSON: its digits. */
-	public static String str(long x) {
-		return Long.toString(x);
-	}
-
-	/**
-	 * Python's {@code str()} of the value {@code json.loads} gives for this JSON:
-	 * {@code None}, {@code True}, {@code 1.5}, a string as it is, {@code ['a', 1]},
-	 * {@code {'a': 1}}.
-	 */
-	public static String str(JsonNode value) {
-		return value.isString() ? value.stringValue() : repr(value);
+		String sign = (number < 0) ? "-" : "";
+		return sign + reprOfMagnitude(Math.abs(number));
 	}
 
 	/**
 	 * Python's {@code repr()} of the value {@code json.loads} gives for this JSON: as
 	 * {@link #str(JsonNode)}, with strings quoted ({@code 'a'}).
+	 * @param value the JSON value
+	 * @return its repr
 	 */
 	public static String repr(JsonNode value) {
 		if (value.isNull() || value.isMissingNode()) {
@@ -85,58 +88,73 @@ public final class PythonText {
 			return repr(value.stringValue());
 		}
 		if (value.isArray()) {
-			return value.valueStream().map(PythonText::repr).collect(Collectors.joining(", ", "[", "]"));
+			return '[' + value.valueStream().map(PythonText::repr).collect(Collectors.joining(", ")) + ']';
 		}
-		return value.propertyStream()
-			.map(e -> repr(e.getKey()) + ": " + repr(e.getValue()))
-			.collect(Collectors.joining(", ", "{", "}"));
+		return '{' + value.propertyStream()
+			.map((property) -> repr(property.getKey()) + ": " + repr(property.getValue()))
+			.collect(Collectors.joining(", ")) + '}';
 	}
 
 	/**
 	 * Python's {@code repr()} of a string: in single quotes, or in double quotes when it
 	 * holds a single quote and no double quote, with backslashes and control characters
 	 * escaped.
+	 * @param text the string
+	 * @return its repr
 	 */
-	public static String repr(String s) {
-		char quote = s.indexOf('\'') >= 0 && s.indexOf('"') < 0 ? '"' : '\'';
+	public static String repr(String text) {
+		char quote = (text.indexOf('\'') >= 0 && text.indexOf('"') < 0) ? '"' : '\'';
 		StringBuilder out = new StringBuilder().append(quote);
-		s.codePoints().forEach(c -> {
-			String escape = ESCAPES.get(c);
-			if (escape != null) {
-				out.append(escape);
-			}
-			else if (c == quote) {
-				out.append('\\').append(quote);
-			}
-			else if (c < 0x20 || c == 0x7f) {
-				out.append("\\x%02x".formatted(c));
-			}
-			else {
-				out.appendCodePoint(c);
-			}
-		});
+		text.codePoints().forEach((codePoint) -> appendEscaped(out, codePoint, quote));
 		return out.append(quote).toString();
+	}
+
+	/**
+	 * Python's {@code str()} of an integer read from JSON: its digits.
+	 * @param number the integer
+	 * @return its digits, after a minus sign when it is negative
+	 */
+	public static String str(long number) {
+		return Long.toString(number);
+	}
+
+	/**
+	 * Python's {@code str()} of the value {@code json.loads} gives for this JSON:
+	 * {@code None}, {@code True}, {@code 1.5}, a string as it is, {@code ['a', 1]},
+	 * {@code {'a': 1}}.
+	 * @param value the JSON value
+	 * @return its text
+	 */
+	public static String str(JsonNode value) {
+		return value.isString() ? value.stringValue() : repr(value);
 	}
 
 	/**
 	 * Python's {@code str.title()}: each word starts with a capital and goes on in lower
 	 * case, a word being a run of cased letters ({@code "latencyP95Ms"} becomes
 	 * {@code "Latencyp95Ms"}).
+	 * @param text the string
+	 * @return the string in title case
 	 */
-	public static String title(String s) {
-		StringBuilder out = new StringBuilder(s.length());
+	public static String title(String text) {
+		StringBuilder out = new StringBuilder(text.length());
 		boolean previousCased = false;
-		for (int i = 0; i < s.length();) {
-			int c = s.codePointAt(i);
-			boolean cased = Character.isUpperCase(c) || Character.isLowerCase(c) || Character.isTitleCase(c);
-			out.appendCodePoint(previousCased ? Character.toLowerCase(c) : Character.toTitleCase(c));
+		for (int i = 0; i < text.length();) {
+			int codePoint = text.codePointAt(i);
+			boolean cased = Character.isUpperCase(codePoint) || Character.isLowerCase(codePoint)
+					|| Character.isTitleCase(codePoint);
+			out.appendCodePoint(previousCased ? Character.toLowerCase(codePoint) : Character.toTitleCase(codePoint));
 			previousCased = cased;
-			i += Character.charCount(c);
+			i += Character.charCount(codePoint);
 		}
 		return out.toString();
 	}
 
-	/** {@code bool(value)} of the value {@code json.loads} gives for this JSON. */
+	/**
+	 * {@code bool(value)} of the value {@code json.loads} gives for this JSON.
+	 * @param value the JSON value
+	 * @return whether Python counts the value as true
+	 */
 	public static boolean truthy(JsonNode value) {
 		if (value.isNull() || value.isMissingNode()) {
 			return false;
@@ -153,8 +171,33 @@ public final class PythonText {
 		return !value.isEmpty();
 	}
 
-	private static final Map<Integer, String> ESCAPES = Map.of((int) '\\', "\\\\", (int) '\n', "\\n", (int) '\r', "\\r",
-			(int) '\t', "\\t");
+	/**
+	 * {@code e+16}, {@code e-05}: a sign and at least two digits, as C's printf writes
+	 * them.
+	 * @param exponent the power of ten
+	 * @return the exponent's text
+	 */
+	static String exponent(int exponent) {
+		return String.format(Locale.ROOT, "e%+03d", exponent);
+	}
+
+	/**
+	 * The repr of a positive finite float.
+	 * @param magnitude the float, above zero
+	 * @return its repr
+	 */
+	private static String reprOfMagnitude(double magnitude) {
+		// Double.toString gives the shortest digits that round-trip, like Python's repr
+		BigDecimal shortest = new BigDecimal(Double.toString(magnitude)).stripTrailingZeros();
+		String digits = shortest.unscaledValue().toString();
+		// the decimal point's place in the digits
+		int point = digits.length() - shortest.scale();
+		if (point > FIXED_NOTATION_POINT_ABOVE && point <= FIXED_NOTATION_POINT_UP_TO) {
+			return fixed(digits, point);
+		}
+		String mantissa = (digits.length() == 1) ? digits : digits.charAt(0) + "." + digits.substring(1);
+		return mantissa + exponent(point - 1);
+	}
 
 	private static String fixed(String digits, int point) {
 		if (point <= 0) {
@@ -166,12 +209,20 @@ public final class PythonText {
 		return digits.substring(0, point) + "." + digits.substring(point);
 	}
 
-	/**
-	 * {@code e+16}, {@code e-05}: a sign and at least two digits, as C's printf writes
-	 * them.
-	 */
-	static String exponent(int e) {
-		return "e" + (e < 0 ? "-" : "+") + (Math.abs(e) < 10 ? "0" : "") + Math.abs(e);
+	private static void appendEscaped(StringBuilder out, int codePoint, char quote) {
+		String escape = ESCAPES.get(codePoint);
+		if (escape != null) {
+			out.append(escape);
+		}
+		else if (codePoint == quote) {
+			out.append('\\').append(quote);
+		}
+		else if (codePoint < SPACE || codePoint == DELETE) {
+			out.append("\\x%02x".formatted(codePoint));
+		}
+		else {
+			out.appendCodePoint(codePoint);
+		}
 	}
 
 }

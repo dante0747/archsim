@@ -1,13 +1,15 @@
 package io.archsim.model.upgrade;
 
-import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.text.PythonText;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.model.document.ArchitectureDocument;
+import io.archsim.model.text.PythonText;
 
 /**
  * The upgrade chain from schema 1.0 to the current one (ADR-0023): one {@link Upgrade}
@@ -54,6 +56,8 @@ public final class Upgrades {
 
 	/**
 	 * The document upgraded to the current schema.
+	 * @param raw the document's JSON, as read; it is not changed
+	 * @return a copy of the document at the current schema, and the steps it took
 	 * @throws UpgradeException when it cannot be
 	 */
 	public static Upgraded toCurrent(JsonNode raw) {
@@ -62,6 +66,10 @@ public final class Upgrades {
 
 	/**
 	 * The document upgraded to {@code target} along {@code chain}.
+	 * @param raw the document's JSON, as read; it is not changed
+	 * @param target the schema version to upgrade to
+	 * @param chain the upgrade steps, oldest first
+	 * @return a copy of the document at {@code target}, and the steps it took
 	 * @throws UpgradeException when it cannot be
 	 */
 	public static Upgraded upgrade(JsonNode raw, String target, List<Upgrade> chain) {
@@ -75,11 +83,11 @@ public final class Upgrades {
 		String version = PythonText.str(stamped);
 		if (SchemaVersion.parse(version).isNewerThan(SchemaVersion.parse(target))) {
 			throw new UpgradeException(
-					("this document uses schema %s, newer than the supported %s. " + "Upgrade ArchSim to open it.")
+					("this document uses schema %s, newer than the supported %s. Upgrade ArchSim" + " to open it.")
 						.formatted(version, target));
 		}
 		Map<String, Upgrade> steps = new LinkedHashMap<>();
-		chain.forEach(step -> steps.put(step.from(), step));
+		chain.forEach((step) -> steps.put(step.from(), step));
 		ObjectNode document = object.deepCopy();
 		List<String> notes = new ArrayList<>();
 		while (!version.equals(target)) {

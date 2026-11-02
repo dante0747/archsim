@@ -16,17 +16,29 @@ public final class TechnologyProfiles<E extends Enum<E>> {
 
 	private final Map<E, TechnologyProfile> profiles;
 
+	/**
+	 * Holds the profile of every technology.
+	 * @param technologies the component type's technologies
+	 * @param profiles the profile of each technology
+	 * @throws IllegalArgumentException when a technology has no profile
+	 */
 	public TechnologyProfiles(Class<E> technologies, Map<E, TechnologyProfile> profiles) {
 		this.profiles = new EnumMap<>(profiles);
-		List<E> missing = Arrays.stream(technologies.getEnumConstants()).filter(t -> !profiles.containsKey(t)).toList();
+		List<E> missing = Arrays.stream(technologies.getEnumConstants())
+			.filter((technology) -> !profiles.containsKey(technology))
+			.toList();
 		if (!missing.isEmpty()) {
 			throw new IllegalArgumentException("technologies without a profile: " + missing);
 		}
 	}
 
-	/** The profile of {@code technology}. */
+	/**
+	 * The profile of {@code technology}.
+	 * @param technology the technology whose profile to return
+	 * @return its profile
+	 */
 	public TechnologyProfile of(E technology) {
-		return Objects.requireNonNull(profiles.get(technology), technology::name);
+		return Objects.requireNonNull(this.profiles.get(technology), technology::name);
 	}
 
 }

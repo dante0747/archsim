@@ -1,14 +1,16 @@
 package io.archsim.model.codec;
 
-import io.archsim.model.text.PythonText;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.model.text.PythonText;
 
 /**
  * A pydantic union with a discriminator, as a {@link Tagged} sealed interface: the
@@ -35,15 +37,15 @@ final class UnionShape implements Shape {
 			errors.add("model_attributes_type", at, Messages.MODEL_ATTRIBUTES_TYPE);
 			return null;
 		}
-		if (!in.has(property)) {
-			errors.add("union_tag_not_found", at, Messages.unionTagNotFound(property));
+		if (!in.has(this.property)) {
+			errors.add("union_tag_not_found", at, Messages.unionTagNotFound(this.property));
 			return null;
 		}
-		JsonNode tag = in.get(property);
-		RecordShape member = tag.isString() ? members.get(tag.stringValue()) : null;
+		JsonNode tag = in.get(this.property);
+		RecordShape member = tag.isString() ? this.members.get(tag.stringValue()) : null;
 		if (member == null) {
 			errors.add("union_tag_invalid", at,
-					Messages.unionTagInvalid(PythonText.str(tag), property, List.copyOf(members.keySet())));
+					Messages.unionTagInvalid(PythonText.str(tag), this.property, List.copyOf(this.members.keySet())));
 			return null;
 		}
 		return member.read(in, at.child(tag.stringValue()), errors);
@@ -51,8 +53,8 @@ final class UnionShape implements Shape {
 
 	@Override
 	public JsonNode write(@Nullable Object value) {
-		String tag = tags.get(Objects.requireNonNull(value).getClass());
-		return Objects.requireNonNull(members.get(tag), "not a member of the union").write(value);
+		String tag = this.tags.get(Objects.requireNonNull(value).getClass());
+		return Objects.requireNonNull(this.members.get(tag), "not a member of the union").write(value);
 	}
 
 	@Override
@@ -60,9 +62,9 @@ final class UnionShape implements Shape {
 		ObjectNode schema = NODES.objectNode();
 		ObjectNode discriminator = schema.putObject("discriminator");
 		ObjectNode mapping = discriminator.putObject("mapping");
-		discriminator.put("propertyName", property);
+		discriminator.put("propertyName", this.property);
 		ArrayNode oneOf = schema.putArray("oneOf");
-		members.forEach((tag, member) -> {
+		this.members.forEach((tag, member) -> {
 			ObjectNode reference = definitions.reference(member);
 			mapping.put(tag, reference.get("$ref").stringValue());
 			oneOf.add(reference);

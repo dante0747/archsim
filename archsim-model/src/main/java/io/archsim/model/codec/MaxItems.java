@@ -12,6 +12,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE_USE)
 public @interface MaxItems {
 
+	/**
+	 * The most items the list may have.
+	 * @return the inclusive maximum count
+	 */
 	int value();
 
 }

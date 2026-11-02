@@ -1,9 +1,7 @@
 package io.archsim.model.text;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-
 import java.math.BigDecimal;
+
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.DoubleRange;
@@ -12,8 +10,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+
 /** Python's {@code format(value, spec)}: the expected texts are Python 3.12's. */
-class PythonFormatTest {
+class PythonFormatTests {
 
 	@ParameterizedTest(name = "format({0}, \"{1}\") is \"{2}\"")
 	@CsvSource(delimiter = '|', quoteCharacter = '`', ignoreLeadingAndTrailingWhitespace = false, textBlock = """
@@ -57,7 +58,7 @@ class PythonFormatTest {
 			0.25|^9.1f|`   0.2   `
 			999999.5|^9.1f|`999999.5 `
 			""")
-	void a_float_is_formatted_as_python_formats_it(double value, String spec, String python) {
+	void format_float_isWhatPythonWrites(double value, String spec, String python) {
 		assertThat(PythonFormat.format(value, spec)).isEqualTo(python);
 	}
 
@@ -71,19 +72,19 @@ class PythonFormatTest {
 			7|.1f|7.0
 			1234|>8|`    1234`
 			""")
-	void an_integer_is_formatted_as_python_formats_it(long value, String spec, String python) {
+	void format_integer_isWhatPythonWrites(long value, String spec, String python) {
 		assertThat(PythonFormat.format(value, spec)).isEqualTo(python);
 	}
 
 	@Test
-	void a_spec_it_does_not_know_is_refused_rather_than_guessed() {
+	void format_unknownSpec_isRefusedRatherThanGuessed() {
 		assertThatIllegalArgumentException().isThrownBy(() -> PythonFormat.format(1.5, "b"));
 		assertThatIllegalArgumentException().isThrownBy(() -> PythonFormat.format(1.5, "d"));
 		assertThatIllegalArgumentException().isThrownBy(() -> PythonFormat.format(1.5, ".2"));
 	}
 
 	@Property
-	void fixed_point_is_within_half_a_unit_of_the_last_digit(@ForAll @DoubleRange(min = -1e9, max = 1e9) double value,
+	void format_fixedPoint_isWithinHalfAUnitOfTheLastDigit(@ForAll @DoubleRange(min = -1e9, max = 1e9) double value,
 			@ForAll @IntRange(min = 0, max = 6) int digits) {
 		BigDecimal shown = new BigDecimal(PythonFormat.format(value, "." + digits + "f"));
 		BigDecimal halfAUnit = BigDecimal.valueOf(5, digits + 1);
@@ -91,7 +92,7 @@ class PythonFormatTest {
 	}
 
 	@Property
-	void general_format_keeps_six_significant_digits(@ForAll @DoubleRange(min = 0.01, max = 1e12) double value) {
+	void format_general_keepsSixSignificantDigits(@ForAll @DoubleRange(min = 0.01, max = 1e12) double value) {
 		String text = PythonFormat.format(value, "g");
 		double back = Double.parseDouble(text);
 		assertThat(Math.abs(back - value)).isLessThanOrEqualTo(Math.abs(value) * 5e-6);

@@ -1,18 +1,11 @@
 package io.archsim.model;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowableOfType;
-
-import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.issue.DocumentInvalidException;
-import io.archsim.model.issue.Issue;
-import io.archsim.model.issue.Severity;
-import io.archsim.parity.Repository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -20,11 +13,21 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.document.ArchitectureDocument;
+import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.model.issue.Issue;
+import io.archsim.model.issue.Severity;
+import io.archsim.parity.Repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.assertj.core.api.Assertions.tuple;
+
 /**
  * Reading and writing documents. The golden files check every example against the Python
  * engine; these say what a reader of the API can rely on.
  */
-class DesignDocumentsTest {
+class DesignDocumentsTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -35,14 +38,14 @@ class DesignDocumentsTest {
 	static Stream<Path> documents() throws IOException {
 		Path webFixture = Repository.root().resolve("apps/web/src/test/fixtures/starter.json");
 		try (Stream<Path> examples = Files.list(Repository.examples())) {
-			return Stream.concat(examples.filter(p -> p.toString().endsWith(".json")).sorted().toList().stream(),
-					Stream.of(webFixture));
+			List<Path> designs = examples.filter((path) -> path.toString().endsWith(".json")).sorted().toList();
+			return Stream.concat(designs.stream(), Stream.of(webFixture));
 		}
 	}
 
 	@ParameterizedTest(name = "{0}")
 	@MethodSource("documents")
-	void a_document_written_reads_back_as_the_same_document_and_the_same_json(Path file) {
+	void toJson_shippedDocument_readsBackAsTheSameDocumentAndJson(Path file) {
 		ArchitectureDocument read = DesignDocuments.load(JSON.readTree(file.toFile()));
 		ObjectNode written = DesignDocuments.toJson(read);
 
@@ -52,7 +55,7 @@ class DesignDocumentsTest {
 	}
 
 	@Test
-	void an_empty_document_of_the_current_schema_takes_every_default() {
+	void load_emptyCurrentDocument_takesEveryDefault() {
 		ArchitectureDocument document = DesignDocuments.load(JSON.readTree("{\"schemaVersion\": \"1.7\"}"));
 		assertThat(document.metadata().name()).isEqualTo("Untitled architecture");
 		assertThat(document.workload().rps()).isEqualTo(100.0);
@@ -61,7 +64,7 @@ class DesignDocumentsTest {
 	}
 
 	@Test
-	void every_schema_error_becomes_an_issue_naming_the_node_or_link_it_is_in() {
+	void load_schemaErrors_becomeIssuesNamingTheirNodeOrLink() {
 		JsonNode raw = JSON.readTree("""
 				{"schemaVersion": "1.7",
 				 "architecture": {"nodes": [{"id": "api", "type": ""}],
@@ -86,16 +89,16 @@ class DesignDocumentsTest {
 	}
 
 	@Test
-	void a_document_that_cannot_be_upgraded_is_one_version_issue() {
+	void load_newerSchema_isOneVersionIssue() {
 		DocumentInvalidException invalid = catchThrowableOfType(DocumentInvalidException.class,
 				() -> DesignDocuments.load(JSON.readTree("{\"schemaVersion\": \"9\"}")));
 		assertThat(invalid.issues()).extracting(Issue::code, Issue::message)
-			.containsExactly(org.assertj.core.groups.Tuple.tuple("document.version",
+			.containsExactly(tuple("document.version",
 					"this document uses schema 9, newer than the supported 1.7. Upgrade ArchSim to open it."));
 	}
 
 	@Test
-	void the_simulation_input_is_what_the_simulator_reads() {
+	void simulationInput_anyDocument_isWhatTheSimulatorReads() {
 		ArchitectureDocument document = DesignDocuments.load(JSON.readTree("{\"schemaVersion\": \"1.7\"}"));
 		assertThat(List.copyOf(DesignDocuments.simulationInput(document).propertyNames()))
 			.containsExactly("schemaVersion", "metadata", "architecture", "workload", "pricing");

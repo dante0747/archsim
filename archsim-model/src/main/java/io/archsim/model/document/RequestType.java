@@ -7,7 +7,10 @@ import io.archsim.model.codec.JsonEnum;
  */
 public enum RequestType implements JsonEnum {
 
-	READ("read"), WRITE("write");
+	/** A request that reads data. */
+	READ("read"),
+	/** A request that changes data. */
+	WRITE("write");
 
 	private final String json;
 
@@ -17,7 +20,7 @@ public enum RequestType implements JsonEnum {
 
 	@Override
 	public String json() {
-		return json;
+		return this.json;
 	}
 
 }

@@ -9,24 +9,27 @@ final class Errors {
 	private final List<BindingError> found = new ArrayList<>();
 
 	void add(String type, Location at, String message) {
-		found.add(new BindingError(type, at, message));
+		this.found.add(new BindingError(type, at, message));
 	}
 
-	/** A mark to ask later whether anything went wrong since. */
+	/**
+	 * A mark to ask later whether anything went wrong since.
+	 * @return the mark to give {@link #since(int)}
+	 */
 	int mark() {
-		return found.size();
+		return this.found.size();
 	}
 
 	boolean since(int mark) {
-		return found.size() > mark;
+		return this.found.size() > mark;
 	}
 
 	boolean isEmpty() {
-		return found.isEmpty();
+		return this.found.isEmpty();
 	}
 
 	List<BindingError> list() {
-		return List.copyOf(found);
+		return List.copyOf(this.found);
 	}
 
 }

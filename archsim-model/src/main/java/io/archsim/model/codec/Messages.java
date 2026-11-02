@@ -1,8 +1,9 @@
 package io.archsim.model.codec;
 
-import io.archsim.model.text.PythonText;
 import java.math.BigDecimal;
 import java.util.List;
+
+import io.archsim.model.text.PythonText;
 
 /**
  * pydantic's error messages, word for word: users see them, in the editor and from the
@@ -40,9 +41,11 @@ final class Messages {
 
 	/**
 	 * {@code Input should be 'a', 'b' or 'c'}, the expected values as Python writes them.
+	 * @param expected the values allowed, already written as Python writes them
+	 * @return the message
 	 */
 	static String literal(List<String> expected) {
-		String joined = expected.size() == 1 ? expected.getFirst()
+		String joined = (expected.size() == 1) ? expected.getFirst()
 				: String.join(", ", expected.subList(0, expected.size() - 1)) + " or " + expected.getLast();
 		return "Input should be " + joined;
 	}
@@ -84,6 +87,9 @@ final class Messages {
 	 * A bound as pydantic prints it: an integer field's as an integer, a float field's as
 	 * Rust prints a float, with no exponent and no {@code .0} ({@code 600000},
 	 * {@code 0.1}).
+	 * @param value the bound
+	 * @param integer whether the field is an integer
+	 * @return the bound's text
 	 */
 	static String bound(double value, boolean integer) {
 		if (integer) {
@@ -92,8 +98,8 @@ final class Messages {
 		return new BigDecimal(Double.toString(value)).stripTrailingZeros().toPlainString();
 	}
 
-	private static String plural(int n) {
-		return n == 1 ? "" : "s";
+	private static String plural(int count) {
+		return (count == 1) ? "" : "s";
 	}
 
 }

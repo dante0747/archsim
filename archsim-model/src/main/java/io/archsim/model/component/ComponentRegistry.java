@@ -15,6 +15,11 @@ public final class ComponentRegistry {
 
 	private final Map<String, ComponentSpec<?>> specs = new LinkedHashMap<>();
 
+	/**
+	 * Registers component types, in order.
+	 * @param specs the types to register
+	 * @throws IllegalArgumentException when two of them have the same type name
+	 */
 	public ComponentRegistry(List<? extends ComponentSpec<?>> specs) {
 		for (ComponentSpec<?> spec : specs) {
 			if (this.specs.putIfAbsent(spec.type(), spec) != null) {
@@ -23,22 +28,29 @@ public final class ComponentRegistry {
 		}
 	}
 
-	/** The type named {@code type}, if it is registered. */
+	/**
+	 * The type named {@code type}, if it is registered.
+	 * @param type the type's name in documents
+	 * @return the type's spec, if it is registered
+	 */
 	public Optional<ComponentSpec<?>> find(String type) {
-		return Optional.ofNullable(specs.get(type));
+		return Optional.ofNullable(this.specs.get(type));
 	}
 
 	public boolean contains(String type) {
-		return specs.containsKey(type);
+		return this.specs.containsKey(type);
 	}
 
-	/** Every registered type name, in order. */
+	/**
+	 * Every registered type name, in order.
+	 * @return the type names
+	 */
 	public List<String> types() {
-		return List.copyOf(specs.keySet());
+		return List.copyOf(this.specs.keySet());
 	}
 
 	public List<ComponentSpec<?>> specs() {
-		return List.copyOf(specs.values());
+		return List.copyOf(this.specs.values());
 	}
 
 }

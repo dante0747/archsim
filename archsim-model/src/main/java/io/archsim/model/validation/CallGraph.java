@@ -1,11 +1,11 @@
 package io.archsim.model.validation;
 
-import io.archsim.model.document.EdgeSpec;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,7 +15,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+
 import org.jspecify.annotations.Nullable;
+
+import io.archsim.model.document.EdgeSpec;
 
 /**
  * The design's nodes and valid links as a directed graph: its cycles, its topological
@@ -23,11 +26,15 @@ import org.jspecify.annotations.Nullable;
  */
 final class CallGraph {
 
+	/** The most nodes the path of an amplification lists. */
+	private static final int MAX_PATH_LENGTH = 50;
+
 	private final Set<String> nodes;
 
 	private final Map<String, List<EdgeSpec>> out;
 
 	/**
+	 * The graph of these nodes and links.
 	 * @param nodeIds every node id, in the document's order
 	 * @param out each node's valid outgoing links
 	 */
@@ -37,104 +44,103 @@ final class CallGraph {
 	}
 
 	private List<EdgeSpec> out(String node) {
-		return out.getOrDefault(node, List.of());
-	}
-
-	/** A node on the depth-first stack, and the next of its links to follow. */
-	private static final class Frame {
-
-		final String node;
-
-		int next;
-
-		Frame(String node) {
-			this.node = node;
-		}
-
-	}
-
-	private enum Color {
-
-		ON_STACK, DONE
-
+		return this.out.getOrDefault(node, List.of());
 	}
 
 	/**
-	 * One directed cycle, as node ids with the first repeated at the end, found by a
-	 * depth-first search from each node in order; empty when the graph is acyclic.
+	 * One directed cycle, found by a depth-first search from each node in order.
+	 * @return the cycle as node ids with the first repeated at the end; empty when the
+	 * graph is acyclic
 	 */
 	Optional<List<String>> findCycle() {
-		Map<String, Color> color = new HashMap<>(); // absent: not visited yet
-		Map<String, String> parent = new HashMap<>();
-		for (String root : nodes) {
-			if (color.containsKey(root)) {
+		Map<String, Color> colors = new HashMap<>(); // absent: not visited yet
+		Map<String, String> parents = new HashMap<>();
+		for (String root : this.nodes) {
+			if (colors.containsKey(root)) {
 				continue;
 			}
-			Deque<Frame> stack = new ArrayDeque<>();
-			stack.push(new Frame(root));
-			color.put(root, Color.ON_STACK);
-			while (!stack.isEmpty()) {
-				Frame top = stack.element();
-				List<EdgeSpec> edges = out(top.node);
-				if (top.next >= edges.size()) {
-					color.put(top.node, Color.DONE);
-					stack.pop();
-					continue;
-				}
-				String v = edges.get(top.next++).target();
-				if (!nodes.contains(v)) {
-					continue;
-				}
-				if (color.get(v) == Color.ON_STACK) {
-					return Optional.of(cycleThrough(top.node, v, parent));
-				}
-				if (!color.containsKey(v)) {
-					color.put(v, Color.ON_STACK);
-					parent.put(v, top.node);
-					stack.push(new Frame(v));
-				}
+			Optional<List<String>> cycle = findCycleFrom(root, colors, parents);
+			if (cycle.isPresent()) {
+				return cycle;
 			}
 		}
 		return Optional.empty();
 	}
 
 	/**
-	 * The cycle closed by the link from {@code u} back to {@code v}, which is on the
-	 * stack.
+	 * Searches depth first from a node no search has visited yet.
+	 * @param root the node to start from
+	 * @param colors the nodes visited so far: on the stack, or done
+	 * @param parents the node each visited node was reached from
+	 * @return the first cycle found, or empty when none is reachable from the root
 	 */
-	private static List<String> cycleThrough(String u, String v, Map<String, String> parent) {
-		List<String> cycle = new ArrayList<>();
-		cycle.add(v);
-		// every node on the stack but its root has a parent, and v is on the stack below
-		// u
-		for (String w = u; !w.equals(v); w = Objects.requireNonNull(parent.get(w))) {
-			cycle.add(w);
+	private Optional<List<String>> findCycleFrom(String root, Map<String, Color> colors, Map<String, String> parents) {
+		Deque<Frame> stack = new ArrayDeque<>();
+		stack.push(new Frame(root, out(root).iterator()));
+		colors.put(root, Color.ON_STACK);
+		while (!stack.isEmpty()) {
+			Frame top = stack.element();
+			if (!top.links().hasNext()) {
+				colors.put(top.node(), Color.DONE);
+				stack.pop();
+				continue;
+			}
+			String target = top.links().next().target();
+			if (!this.nodes.contains(target)) {
+				continue;
+			}
+			if (colors.get(target) == Color.ON_STACK) {
+				return Optional.of(cycleThrough(top.node(), target, parents));
+			}
+			if (!colors.containsKey(target)) {
+				colors.put(target, Color.ON_STACK);
+				parents.put(target, top.node());
+				stack.push(new Frame(target, out(target).iterator()));
+			}
 		}
-		cycle.add(v);
+		return Optional.empty();
+	}
+
+	/**
+	 * The cycle closed by a link back to a node on the depth-first stack.
+	 * @param from the node the link leaves, at the top of the stack
+	 * @param onStack the node the link reaches, lower on the stack
+	 * @param parents the node each visited node was reached from
+	 * @return the cycle, starting and ending at {@code onStack}
+	 */
+	private static List<String> cycleThrough(String from, String onStack, Map<String, String> parents) {
+		List<String> cycle = new ArrayList<>();
+		cycle.add(onStack);
+		// every node on the stack but its root has a parent, and onStack is on the stack
+		// below from
+		for (String node = from; !node.equals(onStack); node = Objects.requireNonNull(parents.get(node))) {
+			cycle.add(node);
+		}
+		cycle.add(onStack);
 		Collections.reverse(cycle);
 		return cycle;
 	}
 
 	/**
-	 * The nodes in topological order (Kahn's algorithm); nodes on a cycle are left out.
+	 * The nodes in topological order (Kahn's algorithm).
+	 * @return the node ids, each after every node that links to it; nodes on a cycle are
+	 * left out
 	 */
 	List<String> topologicalOrder() {
-		Map<String, Integer> inDegree = new LinkedHashMap<>();
-		nodes.forEach(n -> inDegree.put(n, 0));
-		out.values().forEach(edges -> edges.forEach(e -> inDegree.computeIfPresent(e.target(), (k, d) -> d + 1)));
+		Map<String, Integer> inDegree = inDegrees();
 		Deque<String> queue = new ArrayDeque<>();
-		inDegree.forEach((n, d) -> {
-			if (d == 0) {
-				queue.add(n);
+		inDegree.forEach((node, degree) -> {
+			if (degree == 0) {
+				queue.add(node);
 			}
 		});
 		List<String> order = new ArrayList<>();
 		while (!queue.isEmpty()) {
-			String u = queue.remove();
-			order.add(u);
-			for (EdgeSpec e : out(u)) {
-				if (inDegree.merge(e.target(), -1, Integer::sum) == 0) {
-					queue.add(e.target());
+			String next = queue.remove();
+			order.add(next);
+			for (EdgeSpec edge : out(next)) {
+				if (inDegree.merge(edge.target(), -1, Integer::sum) == 0) {
+					queue.add(edge.target());
 				}
 			}
 		}
@@ -142,17 +148,16 @@ final class CallGraph {
 	}
 
 	/**
-	 * What one call into a node costs in component calls, and the next node on its
-	 * costliest path.
+	 * How many links reach each node.
+	 * @return each node's count of incoming links, in the nodes' order
 	 */
-	private record Cost(double calls, @Nullable String next) {
-	}
-
-	/**
-	 * The worst a client request can do: its component calls, and the path of nodes that
-	 * drives them.
-	 */
-	record Amplification(double calls, List<String> path) {
+	private Map<String, Integer> inDegrees() {
+		Map<String, Integer> inDegree = new LinkedHashMap<>();
+		this.nodes.forEach((node) -> inDegree.put(node, 0));
+		for (List<EdgeSpec> edges : this.out.values()) {
+			edges.forEach((edge) -> inDegree.computeIfPresent(edge.target(), (target, degree) -> degree + 1));
+		}
+		return inDegree;
 	}
 
 	/**
@@ -165,59 +170,129 @@ final class CallGraph {
 	 * @param sources the client nodes
 	 * @param clientAttempts the attempts each client makes per request
 	 * @param sendsToOneTarget whether a node sends each call to one of its links
+	 * @return the worst a client request can do
 	 */
 	Amplification amplification(List<String> sources, ToIntFunction<String> clientAttempts,
 			Predicate<String> sendsToOneTarget) {
-		Map<String, Cost> memo = new HashMap<>();
+		Costs costs = new Costs(sendsToOneTarget);
 		double worst = 0.0;
 		List<String> worstPath = List.of();
 		for (String source : sources) {
-			double total = clientAttempts.applyAsInt(source) * cost(source, memo, sendsToOneTarget).calls();
+			double total = clientAttempts.applyAsInt(source) * costs.of(source).calls();
 			if (total > worst) {
 				worst = total;
-				List<String> path = new ArrayList<>(List.of(source));
-				String next = cost(source, memo, sendsToOneTarget).next();
-				while (next != null && !path.contains(next) && path.size() < 50) {
-					path.add(next);
-					next = cost(next, memo, sendsToOneTarget).next();
-				}
-				worstPath = path;
+				worstPath = costs.costliestPath(source);
 			}
 		}
 		return new Amplification(worst, worstPath);
 	}
 
-	private Cost cost(String node, Map<String, Cost> memo, Predicate<String> sendsToOneTarget) {
-		Cost known = memo.get(node);
-		if (known != null) {
-			return known;
+	/**
+	 * The worst a client request can do: its component calls, and the path of nodes that
+	 * drives them.
+	 *
+	 * @param calls the component calls one client request can cause
+	 * @param path the node ids from the client along the costliest links
+	 */
+	record Amplification(double calls, List<String> path) {
+	}
+
+	/** Whether the depth-first search is still below a node, or done with it. */
+	private enum Color {
+
+		/** The node is on the stack: the search is following its links. */
+		ON_STACK,
+
+		/** The search has followed every link from the node. */
+		DONE
+
+	}
+
+	/**
+	 * A node on the depth-first stack, and the links from it still to follow.
+	 *
+	 * @param node the node's id
+	 * @param links its outgoing links not followed yet
+	 */
+	private record Frame(String node, Iterator<EdgeSpec> links) {
+	}
+
+	/**
+	 * What one call into a node costs in component calls, and the next node on its
+	 * costliest path.
+	 *
+	 * @param calls the component calls one call into the node causes, itself included
+	 * @param next the target of its costliest link; {@code null} when it has none
+	 */
+	private record Cost(double calls, @Nullable String next) {
+	}
+
+	/** The cost of a call into each node, worked out once per node. */
+	private final class Costs {
+
+		private final Map<String, Cost> memo = new HashMap<>();
+
+		private final Predicate<String> sendsToOneTarget;
+
+		Costs(Predicate<String> sendsToOneTarget) {
+			this.sendsToOneTarget = sendsToOneTarget;
 		}
-		double sum = 0.0;
-		double most = Double.NEGATIVE_INFINITY;
-		String costliest = null;
-		for (EdgeSpec e : out(node)) {
-			if (!nodes.contains(e.target())) {
-				continue;
+
+		Cost of(String node) {
+			Cost known = this.memo.get(node);
+			if (known != null) {
+				return known;
 			}
-			double calls = Math.max(1, e.config().maxAttempts()) * cost(e.target(), memo, sendsToOneTarget).calls();
-			sum += calls;
-			if (calls > most) {
-				most = calls;
-				costliest = e.target();
+			Cost cost = costOfLinks(node);
+			this.memo.put(node, cost);
+			return cost;
+		}
+
+		/**
+		 * The cost of a call into a node, from the cost of a call along each of its
+		 * links.
+		 * @param node the node's id
+		 * @return 1 plus its costliest link, or the sum of its links, as the node sends
+		 * each call to one link or to all
+		 */
+		private Cost costOfLinks(String node) {
+			double sum = 0.0;
+			double most = Double.NEGATIVE_INFINITY;
+			String costliest = null;
+			for (EdgeSpec edge : out(node)) {
+				if (!CallGraph.this.nodes.contains(edge.target())) {
+					continue;
+				}
+				int attempts = Math.max(1, edge.config().maxAttempts());
+				double calls = attempts * of(edge.target()).calls();
+				sum += calls;
+				if (calls > most) {
+					most = calls;
+					costliest = edge.target();
+				}
 			}
+			if (costliest == null) {
+				return new Cost(1.0, null);
+			}
+			return new Cost(1.0 + (this.sendsToOneTarget.test(node) ? most : sum), costliest);
 		}
-		Cost cost;
-		if (costliest == null) {
-			cost = new Cost(1.0, null);
+
+		/**
+		 * The path a client request takes along each node's costliest link.
+		 * @param source the client's node id
+		 * @return the node ids from the client, stopping at a node with no link, at a
+		 * node already on the path, or at {@code MAX_PATH_LENGTH} nodes
+		 */
+		List<String> costliestPath(String source) {
+			List<String> path = new ArrayList<>(List.of(source));
+			String next = of(source).next();
+			while (next != null && !path.contains(next) && path.size() < MAX_PATH_LENGTH) {
+				path.add(next);
+				next = of(next).next();
+			}
+			return path;
 		}
-		else if (sendsToOneTarget.test(node)) {
-			cost = new Cost(1.0 + most, costliest);
-		}
-		else {
-			cost = new Cost(1.0 + sum, costliest);
-		}
-		memo.put(node, cost);
-		return cost;
+
 	}
 
 }

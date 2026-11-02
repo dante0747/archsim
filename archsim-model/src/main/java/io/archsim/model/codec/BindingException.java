@@ -20,9 +20,10 @@ public final class BindingException extends RuntimeException {
 	/**
 	 * The errors, in the order pydantic reports them: fields in declaration order, then
 	 * extras.
+	 * @return every error found, at least one
 	 */
 	public List<BindingError> errors() {
-		return errors;
+		return this.errors;
 	}
 
 	private static String summary(List<BindingError> errors) {
@@ -30,7 +31,7 @@ public final class BindingException extends RuntimeException {
 			throw new IllegalArgumentException("a binding exception needs at least one error");
 		}
 		BindingError first = errors.getFirst();
-		String more = errors.size() > 1 ? " (+%d more)".formatted(errors.size() - 1) : "";
+		String more = (errors.size() > 1) ? " (+%d more)".formatted(errors.size() - 1) : "";
 		return "%s: %s%s".formatted(first.location(), first.message(), more);
 	}
 

@@ -3,6 +3,7 @@ package io.archsim.model.codec;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;

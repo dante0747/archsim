@@ -1,27 +1,19 @@
 package io.archsim.model.pricing;
 
-import io.archsim.model.text.PythonText;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 import org.jspecify.annotations.Nullable;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.model.text.PythonText;
 
 /**
  * The price snapshots this machine has: the ones ArchSim ships, and any in extra folders
@@ -46,18 +38,16 @@ public final class PriceSnapshots {
 	 */
 	static final List<String> SHIPPED = List.of("aws-us-east-1-2026-10-27.json", "aws-us-east-1-2026-10-28.json");
 
-	private static final JsonMapper JSON = JsonMapper.builder().build();
+	private final List<FoundSnapshot> found;
 
-	private record Found(PriceSnapshot snapshot, String file, boolean shipped) {
-	}
-
-	private final List<Found> found;
-
-	private PriceSnapshots(List<Found> found) {
+	private PriceSnapshots(List<FoundSnapshot> found) {
 		this.found = List.copyOf(found);
 	}
 
-	/** The snapshots ArchSim ships, read once. */
+	/**
+	 * The snapshots ArchSim ships, read once.
+	 * @return the shipped snapshots
+	 */
 	public static PriceSnapshots shipped() {
 		return Shipped.SNAPSHOTS;
 	}
@@ -65,157 +55,91 @@ public final class PriceSnapshots {
 	/**
 	 * The snapshots in these folders ({@code *.json}, by file name), then the shipped
 	 * ones.
+	 * @param folders the extra folders, in order; one that does not exist is skipped
+	 * @return the snapshots of the folders and the shipped ones
+	 * @throws UncheckedIOException when a folder cannot be listed
 	 */
 	public static PriceSnapshots with(List<Path> folders) {
-		List<Found> all = new ArrayList<>();
-		for (Path folder : folders) {
-			if (!Files.isDirectory(folder)) {
-				continue;
-			}
-			try (Stream<Path> files = Files.list(folder)) {
-				for (Path file : files.filter(p -> p.toString().endsWith(".json")).sorted().toList()) {
-					read(file).ifPresent(s -> all.add(new Found(s, file.getFileName().toString(), false)));
-				}
-			}
-			catch (IOException e) {
-				throw new UncheckedIOException("cannot list " + folder, e);
-			}
-		}
+		List<FoundSnapshot> all = new ArrayList<>(SnapshotFiles.inFolders(folders));
 		all.addAll(shipped().found);
 		return new PriceSnapshots(all);
 	}
 
-	private static Optional<PriceSnapshot> read(Path file) {
-		try {
-			return Optional.of(PriceSnapshot.parse(JSON.readTree(file.toFile())));
-		}
-		catch (PricingException | JacksonException e) {
-			return Optional.empty(); // not a snapshot: not offered
-		}
-	}
-
 	/**
 	 * The snapshots that can be chosen: the newest of each provider and region, or
-	 * ({@code
-	 * everyDate}) all, by provider and region, newest first.
+	 * ({@code everyDate}) all, by provider and region, newest first.
+	 * @param everyDate whether to list every date rather than only the newest
+	 * @return the snapshots, each content once
 	 */
 	public List<AvailableSnapshot> available(boolean everyDate) {
-		Map<List<String>, Found> unique = new LinkedHashMap<>();
-		for (Found f : found) {
-			unique.putIfAbsent(key(f.snapshot()), f); // the same content in two folders:
-														// listed once
-		}
-		Map<List<String>, String> newest = new HashMap<>();
-		unique.keySet().forEach(k -> newest.merge(k.subList(0, 2), k.get(2), (a, b) -> a.compareTo(b) >= 0 ? a : b));
-		Comparator<List<String>> order = Comparator.<List<String>, String>comparing(k -> k.get(0))
-			.thenComparing(k -> k.get(1))
-			.thenComparing(k -> k.get(2), Comparator.reverseOrder())
-			.thenComparing(k -> k.get(3));
-		List<AvailableSnapshot> out = new ArrayList<>();
-		for (List<String> k : unique.keySet().stream().sorted(order).toList()) {
-			boolean isNewest = Objects.equals(newest.get(k.subList(0, 2)), k.get(2));
-			if (isNewest || everyDate) {
-				Found f = Objects.requireNonNull(unique.get(k));
-				out.add(new AvailableSnapshot(k.get(0), k.get(1), k.get(2), f.file(), k.get(3), isNewest));
-			}
-		}
-		return out;
-	}
-
-	private static List<String> key(PriceSnapshot s) {
-		return List.of(s.provider(), Objects.requireNonNullElse(s.region(), ""),
-				Objects.requireNonNullElse(s.snapshotDate(), ""), Objects.requireNonNullElse(s.sha256(), ""));
+		return everyDate ? SnapshotListing.everyDate(this.found) : SnapshotListing.newest(this.found);
 	}
 
 	/**
 	 * The newest snapshot of {@code provider} and {@code region} ({@code generic} needs
 	 * none); with {@code date} (and {@code sha256}) exactly that snapshot, never another.
+	 * @param provider the provider, or {@code generic} for the illustrative rates
+	 * @param region the region; {@code null} for any
+	 * @param date the date that pins the snapshot; {@code null} for the newest
+	 * @param sha256 the content hash that pins the snapshot; {@code null} for any
+	 * @return the snapshot
 	 * @throws PricingException naming what this machine has, when there is none
 	 */
 	public PriceSnapshot load(String provider, @Nullable String region, @Nullable String date,
 			@Nullable String sha256) {
-		if (provider.equals("generic")) {
+		if (PriceSnapshot.GENERIC_PROVIDER.equals(provider)) {
 			return PriceSnapshot.GENERIC;
 		}
-		PriceSnapshot best = null;
-		for (Found f : found) {
-			PriceSnapshot s = f.snapshot();
-			boolean matches = s.provider().equals(provider) && (region == null || region.equals(s.region()))
-					&& (date == null || date.equals(s.snapshotDate())) && (sha256 == null || sha256.equals(s.sha256()));
-			if (matches && (best == null || dateOf(s).compareTo(dateOf(best)) > 0)) {
-				best = s;
-			}
-		}
-		if (best != null) {
-			return best;
-		}
-		throw new PricingException(missing(provider, region, date, sha256));
-	}
-
-	private String missing(String provider, @Nullable String region, @Nullable String date, @Nullable String sha256) {
-		String wanted = "no price snapshot for %s %s".formatted(provider, region == null ? "" : region).stripTrailing();
-		if (date != null) {
-			wanted += " of " + date;
-		}
-		if (sha256 != null) {
-			wanted += " with content " + sha256.substring(0, Math.min(12, sha256.length()));
-		}
-		List<AvailableSnapshot> same = available(true).stream()
-			.filter(a -> a.provider().equals(provider) && (region == null || a.region().equals(region)))
-			.toList();
-		if ((date != null || sha256 != null) && !same.isEmpty()) {
-			String have = same.stream()
-				.map(a -> "%s %s (%s)".formatted(a.region(), a.date(), a.sha256().substring(0, 12)))
-				.collect(Collectors.joining(", "));
-			return "%s (this machine has %s %s); a pinned snapshot is never swapped for another.".formatted(wanted,
-					provider, have);
-		}
-		String have = available(false).stream()
-			.map(a -> a.provider() + " " + a.region())
-			.collect(Collectors.joining(", "));
-		return "%s (available: generic; snapshots: %s).".formatted(wanted, have.isEmpty() ? "none" : have);
-	}
-
-	private static String dateOf(PriceSnapshot s) {
-		return Objects.requireNonNullElse(s.snapshotDate(), "");
+		SnapshotQuery query = new SnapshotQuery(provider, region, date, sha256);
+		return this.found.stream()
+			.map(FoundSnapshot::snapshot)
+			.filter(query::matches)
+			.max(Comparator.comparing(PriceSnapshots::dateOf))
+			.orElseThrow(() -> new PricingException(query.missing(available(true), available(false))));
 	}
 
 	/**
 	 * The snapshot a document's {@code pricing} JSON names (generic when it has none):
 	 * the pinned one when it has {@code snapshotDate} (and {@code snapshotSha256}), else
 	 * the newest of its provider and region.
+	 * @param pricing the document's {@code pricing}, as JSON; {@code null} when it has
+	 * none
+	 * @return the snapshot
 	 * @throws PricingException when this machine does not have it
 	 */
 	public PriceSnapshot forPricing(@Nullable JsonNode pricing) {
-		JsonNode p = pricing == null || pricing.isNull() ? JsonNodeFactory.instance.objectNode() : pricing;
-		JsonNode provider = p.path("provider");
-		return load(PythonText.truthy(provider) ? PythonText.str(provider) : "generic", text(p.get("region")),
-				text(p.get("snapshotDate")), text(p.get("snapshotSha256")));
-	}
-
-	private static @Nullable String text(@Nullable JsonNode value) {
-		return value == null || value.isNull() ? null : PythonText.str(value);
+		JsonNode fields = orEmpty(pricing);
+		JsonNode provider = fields.path("provider");
+		String providerName = PythonText.truthy(provider) ? PythonText.str(provider) : PriceSnapshot.GENERIC_PROVIDER;
+		return load(providerName, text(fields.get("region")), text(fields.get("snapshotDate")),
+				text(fields.get("snapshotSha256")));
 	}
 
 	/**
-	 * {@code pricing} with the snapshot it resolves to written in ({@code region}, {@code
-	 * snapshotDate}, {@code snapshotSha256}), so a run's input names exactly the prices
-	 * it used. Unchanged for generic prices, or when this machine has no such snapshot.
+	 * {@code pricing} with the snapshot it resolves to written in ({@code region},
+	 * {@code snapshotDate}, {@code snapshotSha256}), so a run's input names exactly the
+	 * prices it used. Unchanged for generic prices, or when this machine has no such
+	 * snapshot.
+	 * @param pricing the document's {@code pricing}, as JSON; {@code null} when it has
+	 * none
+	 * @return a pinned copy, or {@code pricing} itself when there is nothing to pin
 	 */
 	public @Nullable JsonNode pinned(@Nullable JsonNode pricing) {
-		JsonNode p = pricing == null || pricing.isNull() ? JsonNodeFactory.instance.objectNode() : pricing;
-		JsonNode provider = p.path("provider");
-		if (!p.isObject() || !PythonText.truthy(provider) || PythonText.str(provider).equals("generic")) {
+		JsonNode fields = orEmpty(pricing);
+		JsonNode provider = fields.path("provider");
+		if (!fields.isObject() || !PythonText.truthy(provider)
+				|| PriceSnapshot.GENERIC_PROVIDER.equals(PythonText.str(provider))) {
 			return pricing;
 		}
 		PriceSnapshot snapshot;
 		try {
-			snapshot = forPricing(p);
+			snapshot = forPricing(fields);
 		}
-		catch (PricingException missing) {
+		catch (PricingException ex) {
+			// this machine has no such snapshot: nothing to pin
 			return pricing;
 		}
-		ObjectNode written = ((ObjectNode) p).deepCopy();
+		ObjectNode written = ((ObjectNode) fields).deepCopy();
 		written.put("region", snapshot.region());
 		written.put("snapshotDate", snapshot.snapshotDate());
 		written.put("snapshotSha256", snapshot.sha256());
@@ -226,39 +150,41 @@ public final class PriceSnapshots {
 	 * The {@code pricing} templates and new documents start with: the newest shipped
 	 * snapshot of {@value #DEFAULT_PROVIDER} {@value #DEFAULT_REGION}, pinned by date;
 	 * generic rates when none is shipped.
+	 * @return the {@code pricing} JSON
 	 */
 	public ObjectNode defaultPricing() {
-		String newest = found.stream()
-			.filter(Found::shipped)
-			.map(Found::snapshot)
-			.filter(s -> s.provider().equals(DEFAULT_PROVIDER) && DEFAULT_REGION.equals(s.region()))
+		Optional<String> newest = this.found.stream()
+			.filter(FoundSnapshot::shipped)
+			.map(FoundSnapshot::snapshot)
+			.filter((snapshot) -> snapshot.provider().equals(DEFAULT_PROVIDER)
+					&& DEFAULT_REGION.equals(snapshot.region()))
 			.map(PriceSnapshots::dateOf)
-			.max(Comparator.naturalOrder())
-			.orElse(null);
+			.max(Comparator.naturalOrder());
 		ObjectNode pricing = JsonNodeFactory.instance.objectNode();
-		if (newest == null) {
-			return pricing.put("provider", "generic");
+		if (newest.isEmpty()) {
+			return pricing.put("provider", PriceSnapshot.GENERIC_PROVIDER);
 		}
-		return pricing.put("provider", DEFAULT_PROVIDER).put("region", DEFAULT_REGION).put("snapshotDate", newest);
+		return pricing.put("provider", DEFAULT_PROVIDER)
+			.put("region", DEFAULT_REGION)
+			.put("snapshotDate", newest.get());
+	}
+
+	private static String dateOf(PriceSnapshot snapshot) {
+		return Objects.requireNonNullElse(snapshot.snapshotDate(), "");
+	}
+
+	private static JsonNode orEmpty(@Nullable JsonNode pricing) {
+		return (pricing == null || pricing.isNull()) ? JsonNodeFactory.instance.objectNode() : pricing;
+	}
+
+	private static @Nullable String text(@Nullable JsonNode value) {
+		return (value == null || value.isNull()) ? null : PythonText.str(value);
 	}
 
 	/** The shipped snapshots, read the first time they are needed. */
 	private static final class Shipped {
 
-		static final PriceSnapshots SNAPSHOTS = new PriceSnapshots(
-				SHIPPED.stream().map(name -> new Found(PriceSnapshot.parse(resource(name)), name, true)).toList());
-
-		private static JsonNode resource(String name) {
-			try (InputStream in = PriceSnapshots.class.getResourceAsStream("snapshots/" + name)) {
-				if (in == null) {
-					throw new IllegalStateException("the shipped snapshot " + name + " is missing from the jar");
-				}
-				return JSON.readTree(in);
-			}
-			catch (IOException e) {
-				throw new UncheckedIOException(e);
-			}
-		}
+		static final PriceSnapshots SNAPSHOTS = new PriceSnapshots(SnapshotFiles.shipped(SHIPPED));
 
 	}
 

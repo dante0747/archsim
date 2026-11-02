@@ -1,5 +1,19 @@
 package io.archsim.model;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+
+import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
+
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.distribution.Distribution;
@@ -19,18 +33,7 @@ import io.archsim.model.upgrade.Upgrades;
 import io.archsim.model.validation.DocumentValidator;
 import io.archsim.model.validation.ValidationResult;
 import io.archsim.parity.GoldenEntry;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
-import org.jspecify.annotations.Nullable;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.JsonNodeFactory;
-import tools.jackson.databind.node.ObjectNode;
+import io.archsim.parity.PythonError;
 
 /**
  * The Python engine's functions this module ports, each as the Java call that replaces
@@ -50,41 +53,36 @@ final class ModelFunctions {
 			Map.entry("archsim_engine.scenarios.simulation_input", ModelFunctions::simulationInput),
 			Map.entry("archsim_engine.validation.validate_document", ModelFunctions::validateDocument),
 			Map.entry("archsim_engine.scenarios.normalize_document",
-					entry -> DesignDocuments.normalize(DesignDocuments.parse(entry.input("doc")),
+					(entry) -> DesignDocuments.normalize(DesignDocuments.parse(entry.input("doc")),
 							StandardComponents.registry())),
 			Map.entry("archsim_engine.scenarios.apply_overrides", ModelFunctions::applyOverrides),
-			Map.entry("archsim_engine.document_json_schema", entry -> DesignDocuments.jsonSchema()),
+			Map.entry("archsim_engine.document_json_schema", (entry) -> DesignDocuments.jsonSchema()),
 			Map.entry("archsim_engine.distributions.Distribution.expected",
-					entry -> NODES.numberNode(distribution(entry).expected())),
+					(entry) -> NODES.numberNode(distribution(entry).expected())),
 			Map.entry("archsim_engine.distributions.Distribution.describe",
-					entry -> NODES.stringNode(distribution(entry).describe())),
+					(entry) -> NODES.stringNode(distribution(entry).describe())),
 			Map.entry("archsim_engine.distributions.Empirical.quantile",
-					entry -> NODES
+					(entry) -> NODES
 						.numberNode(((Empirical) distribution(entry)).quantile(entry.input("q").doubleValue()))),
 			Map.entry("archsim_engine.pricing.parse_snapshot",
-					entry -> snapshotJson(PriceSnapshot.parse(entry.input("data")))),
+					(entry) -> snapshotJson(PriceSnapshot.parse(entry.input("data")))),
 			Map.entry("archsim_engine.pricing.content_sha256",
-					entry -> NODES.stringNode(PriceSnapshot.contentSha256(entry.input("data")))),
+					(entry) -> NODES.stringNode(PriceSnapshot.contentSha256(entry.input("data")))),
 			Map.entry("archsim_engine.pricing.available",
-					entry -> array(PRICES.available(entry.input("everyDate").booleanValue())
+					(entry) -> array(PRICES.available(entry.input("everyDate").booleanValue())
 						.stream()
 						.map(RecordCodec::write)
 						.toList())),
-			Map.entry("archsim_engine.pricing.default_pricing", entry -> PRICES.defaultPricing()),
-			Map.entry("archsim_engine.pricing.load_snapshot",
-					entry -> PRICES
-						.load(entry.input("provider").stringValue(), text(entry.input("region")),
+			Map.entry("archsim_engine.pricing.default_pricing", (entry) -> PRICES.defaultPricing()), Map
+				.entry("archsim_engine.pricing.load_snapshot",
+						(entry) -> PRICES.load(entry.input("provider").stringValue(), text(entry.input("region")),
 								text(entry.input("date")), text(entry.input("sha256")))
-						.toJson()),
+							.toJson()),
 			Map.entry("archsim_engine.pricing.snapshot_for",
-					entry -> PRICES.forPricing(entry.input("pricing")).toJson()),
+					(entry) -> PRICES.forPricing(entry.input("pricing")).toJson()),
 			Map.entry("archsim_engine.pricing.pinned",
-					entry -> Objects.requireNonNullElse(PRICES.pinned(entry.input("pricing")), NODES.nullNode())),
-			Map.entry("archsim_engine.pricing.unknown_families",
-					entry -> array(snapshotOf(entry.input("snapshot")).unknownFamilies(strings(entry.input("families")))
-						.stream()
-						.map(NODES::stringNode)
-						.toList())));
+					(entry) -> Objects.requireNonNullElse(PRICES.pinned(entry.input("pricing")), NODES.nullNode())),
+			Map.entry("archsim_engine.pricing.unknown_families", ModelFunctions::unknownFamilies));
 
 	private ModelFunctions() {
 	}
@@ -94,27 +92,31 @@ final class ModelFunctions {
 		return PORTED.keySet();
 	}
 
-	/** The Java counterpart of the entry's function on the entry's input. */
+	/**
+	 * The Java counterpart of the entry's function on the entry's input. The exceptions
+	 * the golden files record become the errors the Python engine raises in their place.
+	 */
 	static JsonNode call(GoldenEntry entry) {
-		return Objects.requireNonNull(PORTED.get(entry.fn()), entry.fn()).apply(entry);
+		Function<GoldenEntry, JsonNode> counterpart = Objects.requireNonNull(PORTED.get(entry.fn()), entry.fn());
+		try {
+			return counterpart.apply(entry);
+		}
+		catch (UpgradeException ex) {
+			throw new PythonError(error("MigrationError", ex), ex);
+		}
+		catch (PricingException ex) {
+			throw new PythonError(error("PricingError", ex), ex);
+		}
+		catch (DocumentInvalidException ex) {
+			ObjectNode json = error("DocumentInvalidError", ex);
+			ex.issues().stream().map(Issue::toJson).forEach(json.putArray("issues")::add);
+			throw new PythonError(json, ex);
+		}
 	}
 
-	/**
-	 * How the Python engine records an exception: its type, its message, and a document's
-	 * issues.
-	 */
-	static JsonNode error(RuntimeException e) {
-		ObjectNode json = NODES.objectNode();
-		switch (e) {
-			case UpgradeException upgrade -> json.put("type", "MigrationError").put("message", upgrade.getMessage());
-			case PricingException pricing -> json.put("type", "PricingError").put("message", pricing.getMessage());
-			case DocumentInvalidException invalid -> {
-				json.put("type", "DocumentInvalidError").put("message", invalid.getMessage());
-				invalid.issues().stream().map(Issue::toJson).forEach(json.putArray("issues")::add);
-			}
-			default -> throw e;
-		}
-		return json;
+	/** How the Python engine records an exception: its type and its message. */
+	private static ObjectNode error(String type, RuntimeException exception) {
+		return NODES.objectNode().put("type", type).put("message", exception.getMessage());
 	}
 
 	private static JsonNode migrateDocument(GoldenEntry entry) {
@@ -144,13 +146,14 @@ final class ModelFunctions {
 		ObjectNode flows = output.putObject("edgeFlows");
 		result.edgeFlows()
 			.forEach((edge, types) -> flows.set(edge,
-					array(types.stream().map(t -> NODES.stringNode(t.json())).toList())));
+					array(types.stream().map((type) -> NODES.stringNode(type.json())).toList())));
 		return output;
 	}
 
 	private static JsonNode applyOverrides(GoldenEntry entry) {
 		List<ScenarioOverride> overrides = new ArrayList<>();
-		entry.input("overrides").forEach(o -> overrides.add(RecordCodec.read(o, ScenarioOverride.class)));
+		entry.input("overrides")
+			.forEach((override) -> overrides.add(RecordCodec.read(override, ScenarioOverride.class)));
 		return Scenarios.applyOverrides((ObjectNode) entry.input("docDict"), overrides,
 				entry.input("scenarioName").stringValue());
 	}
@@ -174,12 +177,19 @@ final class ModelFunctions {
 		return json;
 	}
 
+	/** The families a snapshot does not know, of those asked about. */
+	private static JsonNode unknownFamilies(GoldenEntry entry) {
+		PriceSnapshot snapshot = snapshotOf(entry.input("snapshot"));
+		List<String> unknown = snapshot.unknownFamilies(strings(entry.input("families")));
+		return array(unknown.stream().map(NODES::stringNode).toList());
+	}
+
 	/** A snapshot back from what {@link #snapshotJson} records. */
 	private static PriceSnapshot snapshotOf(JsonNode json) {
 		Map<SkuCategory, List<Sku>> skus = new EnumMap<>(SkuCategory.class);
 		for (SkuCategory category : SkuCategory.values()) {
 			List<Sku> items = new ArrayList<>();
-			json.path("skus").path(category.json()).forEach(s -> items.add(RecordCodec.read(s, Sku.class)));
+			json.path("skus").path(category.json()).forEach((sku) -> items.add(RecordCodec.read(sku, Sku.class)));
 			skus.put(category, items);
 		}
 		return new PriceSnapshot(json.get("provider").stringValue(), text(json.get("region")),
@@ -189,12 +199,12 @@ final class ModelFunctions {
 	}
 
 	private static @Nullable String text(@Nullable JsonNode value) {
-		return value == null || value.isNull() ? null : value.stringValue();
+		return (value == null || value.isNull()) ? null : value.stringValue();
 	}
 
 	private static List<String> strings(JsonNode array) {
 		List<String> out = new ArrayList<>();
-		array.forEach(item -> out.add(item.stringValue()));
+		array.forEach((item) -> out.add(item.stringValue()));
 		return out;
 	}
 

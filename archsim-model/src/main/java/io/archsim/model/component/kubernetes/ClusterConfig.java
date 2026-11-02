@@ -1,15 +1,14 @@
 package io.archsim.model.component.kubernetes;
 
-import static io.archsim.model.component.Resources.MAX_CPU_CORES;
-import static io.archsim.model.component.Resources.MAX_MEMORY_GIB;
+import java.util.Map;
 
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
+import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
-import java.util.Map;
 
 /**
  * A Kubernetes cluster: its node pool, the cluster autoscaler, and the requests of pods
@@ -33,15 +32,15 @@ import java.util.Map;
  * @param costPerHour the price of one node per hour, in USD
  */
 public record ClusterConfig(@Default("kubernetes") ClusterTechnology technology,
-		@Default("3") @Ge(1) @Le(1000) int nodes, @Default("4.0") @Gt(0) @Le(MAX_CPU_CORES) double nodeVcpu,
-		@Default("16.0") @Gt(0) @Le(MAX_MEMORY_GIB) double nodeMemoryGib,
+		@Default("3") @Ge(1) @Le(1000) int nodes, @Default("4.0") @Gt(0) @Le(Resources.MAX_CPU_CORES) double nodeVcpu,
+		@Default("16.0") @Gt(0) @Le(Resources.MAX_MEMORY_GIB) double nodeMemoryGib,
 		@Default("0.9") @Gt(0) @Le(1) double allocatableShare, @Default("true") boolean clusterAutoscaler,
 		@Default("1") @Ge(1) @Le(1000) int minNodes, @Default("10") @Ge(1) @Le(1000) int maxNodes,
 		@Default("120.0") @Ge(0) @Le(3600) double nodeProvisionS, @Default("10.0") @Gt(0) @Le(600) double scanIntervalS,
 		@Default("600.0") @Ge(0) @Le(86_400) double scaleDownUnneededS,
 		@Default("8.0") @Ge(0) @Le(3600) double imagePullS,
-		@Default("0.5") @Gt(0) @Le(MAX_CPU_CORES) double defaultCpuRequest,
-		@Default("0.5") @Gt(0) @Le(MAX_MEMORY_GIB) double defaultMemoryRequestGib,
+		@Default("0.5") @Gt(0) @Le(Resources.MAX_CPU_CORES) double defaultCpuRequest,
+		@Default("0.5") @Gt(0) @Le(Resources.MAX_MEMORY_GIB) double defaultMemoryRequestGib,
 		@Default("0.19") @Ge(0) @Le(100_000) double costPerHour) {
 
 	/**
@@ -55,16 +54,23 @@ public record ClusterConfig(@Default("kubernetes") ClusterTechnology technology,
 					TechnologyProfile.experimental(), ClusterTechnology.OPENSHIFT, TechnologyProfile.experimental()));
 
 	public TechnologyProfile profile() {
-		return PROFILES.of(technology);
+		return PROFILES.of(this.technology);
 	}
 
-	/** vCPU a node offers pods, after the system's reservations. */
+	/**
+	 * vCPU a node offers pods, after the system's reservations.
+	 * @return the allocatable vCPU per node
+	 */
 	public double allocatableCpu() {
-		return nodeVcpu * allocatableShare;
+		return this.nodeVcpu * this.allocatableShare;
 	}
 
-	/** Memory a node offers pods, in GiB, after the system's reservations. */
+	/**
+	 * Memory a node offers pods, after the system's reservations.
+	 * @return the allocatable memory per node, in GiB
+	 */
 	public double allocatableMemoryGib() {
-		return nodeMemoryGib * allocatableShare;
+		return this.nodeMemoryGib * this.allocatableShare;
 	}
+
 }
