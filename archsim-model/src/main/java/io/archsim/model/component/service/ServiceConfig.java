@@ -162,6 +162,21 @@ public record ServiceConfig(
         return cluster == null || cluster.isEmpty() ? null : cluster;
     }
 
+    /**
+     * The cluster the service runs on, among the design's: the one it names, else the design's
+     * only one; none when it is not on Kubernetes or none fits.
+     */
+    public @Nullable String clusterIn(List<String> clusterIds) {
+        if (!onKubernetes() || clusterIds.isEmpty()) {
+            return null;
+        }
+        String named = namedCluster();
+        if (named != null) {
+            return clusterIds.contains(named) ? named : null;
+        }
+        return clusterIds.size() == 1 ? clusterIds.getFirst() : null;
+    }
+
     /** Requests one replica can hold within its memory; empty when memory is not set. */
     public OptionalInt memorySlots() {
         if (memoryGib == null) {

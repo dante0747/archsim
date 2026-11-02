@@ -1,4 +1,4 @@
-package io.archsim.model.validation;
+package io.archsim.model.issue;
 
 import io.archsim.model.codec.RecordCodec;
 import java.util.Objects;

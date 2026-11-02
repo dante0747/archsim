@@ -3,7 +3,7 @@ package io.archsim.model;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.validation.DocumentInvalidException;
+import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.parity.Repository;
 import java.io.IOException;
 import java.nio.file.Files;

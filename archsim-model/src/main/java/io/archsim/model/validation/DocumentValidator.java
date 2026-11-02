@@ -10,6 +10,7 @@ import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
 import io.archsim.model.component.client.ClientConfig;
 import io.archsim.model.component.service.ServiceSpec;
+import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.Fault;
@@ -17,6 +18,7 @@ import io.archsim.model.document.FaultKind;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.Pricing;
 import io.archsim.model.document.RequestType;
+import io.archsim.model.issue.Issue;
 import io.archsim.model.pricing.PriceSnapshot;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.model.pricing.PricingException;
@@ -61,7 +63,7 @@ public final class DocumentValidator {
 
     /** ArchSim's own component types and the price snapshots it ships. */
     public static DocumentValidator standard() {
-        return new DocumentValidator(ComponentRegistry.standard(), PriceSnapshots.shipped());
+        return new DocumentValidator(StandardComponents.registry(), PriceSnapshots.shipped());
     }
 
     /** Checks {@code document}, bounding the calls one request may cause at the default. */

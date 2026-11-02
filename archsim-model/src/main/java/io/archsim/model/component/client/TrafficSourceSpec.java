@@ -7,7 +7,7 @@ import io.archsim.model.component.Port;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.RequestType;
-import io.archsim.model.validation.Issue;
+import io.archsim.model.issue.Issue;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;

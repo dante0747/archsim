@@ -1,4 +1,4 @@
-package io.archsim.model.validation;
+package io.archsim.model.issue;
 
 import java.io.Serial;
 import java.util.List;

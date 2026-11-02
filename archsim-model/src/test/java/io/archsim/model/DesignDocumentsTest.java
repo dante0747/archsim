@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.validation.DocumentInvalidException;
-import io.archsim.model.validation.Issue;
-import io.archsim.model.validation.Severity;
+import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.model.issue.Issue;
+import io.archsim.model.issue.Severity;
 import io.archsim.parity.Repository;
 import java.io.IOException;
 import java.nio.file.Files;

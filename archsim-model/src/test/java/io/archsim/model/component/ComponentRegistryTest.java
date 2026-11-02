@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.cache.CacheConfig;
 import io.archsim.model.component.external.ExternalApiSpec;
+import io.archsim.model.component.standard.StandardComponents;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,7 @@ class ComponentRegistryTest {
 
     @Test
     void the_standard_registry_lists_the_types_in_the_python_engines_order() {
-        assertThat(ComponentRegistry.standard().types())
+        assertThat(StandardComponents.registry().types())
                 .containsExactly(
                         "traffic_source",
                         "mobile_app",
@@ -43,7 +44,7 @@ class ComponentRegistryTest {
 
     @Test
     void every_config_reads_from_an_empty_object_with_its_defaults() {
-        for (ComponentSpec<?> spec : ComponentRegistry.standard().specs()) {
+        for (ComponentSpec<?> spec : StandardComponents.registry().specs()) {
             Record config = spec.parseConfig(JSON.createObjectNode());
             assertThat(RecordCodec.read(RecordCodec.write(config), spec.configType()))
                     .as(spec.type())

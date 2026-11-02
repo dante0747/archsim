@@ -5,8 +5,8 @@ import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
 import io.archsim.model.document.NodeSpec;
+import io.archsim.model.issue.Issue;
 import io.archsim.model.text.PythonFormat;
-import io.archsim.model.validation.Issue;
 import java.util.ArrayList;
 import java.util.List;
 

@@ -2,6 +2,7 @@ package io.archsim.model.validation;
 
 import io.archsim.model.component.GraphView;
 import io.archsim.model.document.RequestType;
+import io.archsim.model.issue.Issue;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;

@@ -36,8 +36,9 @@ simulating it, and they are what a client needs to check a design.
 
 - `io.archsim.model.component`: `ComponentSpec<C>` is the extension point, as Python's
   `ComponentModel` is: a type's name, ports, config record, `emittedTypes` and `validate`.
-  `ComponentRegistry.standard()` holds ArchSim's eleven types; each type has a package with its
-  config record and spec. A config's "auto" settings resolve through `TechnologyProfile` tables,
+  `StandardComponents.registry()` holds ArchSim's eleven types; each type has a package with its
+  config record and spec, and `component.standard` assembles them, so the shared types never
+  depend on the types built on them ([ADR-0029](0029-model-packages-in-layers-checked-by-archunit.md)). A config's "auto" settings resolve through `TechnologyProfile` tables,
   the values of the engine's `technology.py`.
 - `io.archsim.model.pricing`: the `archsim.prices/1` file format, `PriceSnapshot` and
   `PriceSnapshots` (which snapshots there are, the newest or pinned one for a document's pricing,
@@ -62,7 +63,8 @@ simulating it, and they are what a client needs to check a design.
 ### Confirmation
 
 The golden files' `validate_document`, `normalize_document` and pricing entries pass against the
-model alone; ArchUnit checks that the model depends on no framework.
+model alone; ArchUnit checks that the model depends on no framework and that its packages build
+on each other in one direction ([ADR-0029](0029-model-packages-in-layers-checked-by-archunit.md)).
 
 ## Pros and Cons of the Options
 

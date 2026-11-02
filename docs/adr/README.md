@@ -70,3 +70,4 @@ what the repository shows.
 | [0026](0026-component-specs-and-price-snapshots-in-the-model.md) | Component specifications and the price-snapshot lookup belong to the model | Proposed | 2026-11-02 |
 | [0027](0027-python-text-conventions-in-one-package.md) | Reproduce Python's text conventions for numbers and values in one package | Proposed | 2026-11-02 |
 | [0028](0028-golden-file-reader-as-test-fixtures.md) | Read the golden files with a reader shared as Gradle test fixtures | Proposed | 2026-11-02 |
+| [0029](0029-model-packages-in-layers-checked-by-archunit.md) | Build the model's packages in layers, one direction only, checked by ArchUnit | Proposed | 2026-11-02 |

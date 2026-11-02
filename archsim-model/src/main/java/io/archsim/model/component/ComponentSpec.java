@@ -3,7 +3,7 @@ package io.archsim.model.component;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.RequestType;
-import io.archsim.model.validation.Issue;
+import io.archsim.model.issue.Issue;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;

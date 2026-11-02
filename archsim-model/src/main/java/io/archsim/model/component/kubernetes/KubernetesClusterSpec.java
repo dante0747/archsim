@@ -6,11 +6,10 @@ import io.archsim.model.component.GraphView;
 import io.archsim.model.component.service.ServiceConfig;
 import io.archsim.model.component.service.ServiceSpec;
 import io.archsim.model.document.NodeSpec;
+import io.archsim.model.issue.Issue;
 import io.archsim.model.text.PythonFormat;
-import io.archsim.model.validation.Issue;
 import java.util.ArrayList;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A Kubernetes cluster: a pool of nodes for the services on the Kubernetes platform. It is not on
@@ -26,26 +25,6 @@ public final class KubernetesClusterSpec extends ComponentSpec<ClusterConfig> {
         super(TYPE, "Kubernetes cluster", Category.COMPUTE, ClusterConfig.class, List.of());
     }
 
-    /** The ids of the design's clusters, in order. */
-    public static List<String> clusterIds(GraphView view) {
-        return view.nodes().values().stream()
-                .filter(n -> n.type().equals(TYPE))
-                .map(NodeSpec::id)
-                .toList();
-    }
-
-    /** The cluster a service runs on: the one it names, else the design's only one; or none. */
-    public static @Nullable String clusterOf(ServiceConfig service, List<String> clusterIds) {
-        if (!service.onKubernetes() || clusterIds.isEmpty()) {
-            return null;
-        }
-        String named = service.namedCluster();
-        if (named != null) {
-            return clusterIds.contains(named) ? named : null;
-        }
-        return clusterIds.size() == 1 ? clusterIds.getFirst() : null;
-    }
-
     @Override
     public List<Issue> validate(NodeSpec node, ClusterConfig config, GraphView view) {
         List<Issue> issues = new ArrayList<>();
@@ -59,7 +38,7 @@ public final class KubernetesClusterSpec extends ComponentSpec<ClusterConfig> {
                     .atNode(node.id())
                     .atPath("nodes"));
         }
-        List<String> clusters = clusterIds(view);
+        List<String> clusters = view.idsOfType(TYPE);
         double allocCpu = config.allocatableCpu();
         double allocMem = config.allocatableMemoryGib();
         double requestedCpu = 0.0;
@@ -68,7 +47,7 @@ public final class KubernetesClusterSpec extends ComponentSpec<ClusterConfig> {
         for (NodeSpec other : view.nodes().values()) {
             if (!other.type().equals(ServiceSpec.TYPE)
                     || !(view.configs().get(other.id()) instanceof ServiceConfig service)
-                    || !node.id().equals(clusterOf(service, clusters))) {
+                    || !node.id().equals(service.clusterIn(clusters))) {
                 continue;
             }
             members++;

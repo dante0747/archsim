@@ -6,10 +6,11 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.component.ComponentRegistry;
+import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.Scenario;
-import io.archsim.model.validation.DocumentInvalidException;
-import io.archsim.model.validation.Issue;
+import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.model.issue.Issue;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.GoldenFile;
 import io.archsim.parity.JsonDiff;
@@ -33,7 +34,7 @@ import tools.jackson.databind.node.ObjectNode;
  */
 class ScenarioResolutionTest {
 
-    private static final ComponentRegistry REGISTRY = ComponentRegistry.standard();
+    private static final ComponentRegistry REGISTRY = StandardComponents.registry();
 
     @TestFactory
     Stream<DynamicTest> resolution_fails_where_the_python_engine_failed_and_only_there() {

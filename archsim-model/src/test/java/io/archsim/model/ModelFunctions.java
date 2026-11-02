@@ -1,10 +1,12 @@
 package io.archsim.model;
 
 import io.archsim.model.codec.RecordCodec;
-import io.archsim.model.component.ComponentRegistry;
+import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.distribution.Distribution;
 import io.archsim.model.distribution.Empirical;
 import io.archsim.model.document.ScenarioOverride;
+import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.model.issue.Issue;
 import io.archsim.model.pricing.PriceSnapshot;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.model.pricing.PricingException;
@@ -14,9 +16,7 @@ import io.archsim.model.scenario.Scenarios;
 import io.archsim.model.upgrade.UpgradeException;
 import io.archsim.model.upgrade.Upgraded;
 import io.archsim.model.upgrade.Upgrades;
-import io.archsim.model.validation.DocumentInvalidException;
 import io.archsim.model.validation.DocumentValidator;
-import io.archsim.model.validation.Issue;
 import io.archsim.model.validation.ValidationResult;
 import io.archsim.parity.GoldenEntry;
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ final class ModelFunctions {
             Map.entry(
                     "archsim_engine.scenarios.normalize_document",
                     entry -> DesignDocuments.normalize(
-                            DesignDocuments.parse(entry.input("doc")), ComponentRegistry.standard())),
+                            DesignDocuments.parse(entry.input("doc")), StandardComponents.registry())),
             Map.entry("archsim_engine.scenarios.apply_overrides", ModelFunctions::applyOverrides),
             Map.entry("archsim_engine.document_json_schema", entry -> DesignDocuments.jsonSchema()),
             Map.entry(

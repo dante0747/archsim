@@ -56,6 +56,14 @@ public record GraphView(
         return Optional.ofNullable(nodes.get(id));
     }
 
+    /** The ids of the nodes of a component type, in the document's order. */
+    public List<String> idsOfType(String type) {
+        return nodes.values().stream()
+                .filter(n -> n.type().equals(type))
+                .map(NodeSpec::id)
+                .toList();
+    }
+
     /** How messages name a node: its label, or its id; an id with no node is its own name. */
     public String name(String nodeId) {
         NodeSpec node = nodes.get(nodeId);

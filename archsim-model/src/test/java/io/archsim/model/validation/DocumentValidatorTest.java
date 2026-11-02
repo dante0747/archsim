@@ -5,6 +5,7 @@ import static org.assertj.core.groups.Tuple.tuple;
 
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.document.RequestType;
+import io.archsim.model.issue.Issue;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;

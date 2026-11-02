@@ -4,12 +4,11 @@ import io.archsim.model.component.Category;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
-import io.archsim.model.component.kubernetes.KubernetesClusterSpec;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.RequestType;
+import io.archsim.model.issue.Issue;
 import io.archsim.model.text.PythonFormat;
-import io.archsim.model.validation.Issue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
@@ -22,6 +21,9 @@ public final class ServiceSpec extends ComponentSpec<ServiceConfig> {
 
     /** The type name, which other types' rules look for. */
     public static final String TYPE = "service";
+
+    /** The type of the Kubernetes clusters a service may run on. */
+    private static final String CLUSTER = "kubernetes_cluster";
 
     public ServiceSpec() {
         super(
@@ -50,7 +52,7 @@ public final class ServiceSpec extends ComponentSpec<ServiceConfig> {
     }
 
     private static List<Issue> clusterIssues(NodeSpec node, ServiceConfig config, GraphView view) {
-        List<String> clusters = KubernetesClusterSpec.clusterIds(view);
+        List<String> clusters = view.idsOfType(CLUSTER);
         String named = config.namedCluster();
         if (named != null && !clusters.contains(named)) {
             return List.of(Issue.error(
