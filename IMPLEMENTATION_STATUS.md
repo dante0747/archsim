@@ -1,11 +1,39 @@
 # Implementation status
 
-State as of 2026-11-02 (engine 0.16.0, schema 1.7, report 1.14). This file separates what is
+State as of 2026-11-02 (engine 0.16.0, frozen for the held-out campaign; schema 1.7,
+report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**Engine 0.16.0 frozen, a symmetric p95 criterion, and architecture decision records
+(2026-11-02).**
+
+- **Engine 0.16.0 is frozen** in `benchmarks/engines.json` (tree `4da78ff`, tag `engine-0.16.0`),
+  for the held-out campaign and as the Java port's parity reference
+  ([ADR 0017](docs/adr/0017-freeze-python-engine-during-port.md)).
+  - The held-out experiments can now be calibrated and measured from a clean tree; none has been
+    yet.
+  - Model and accuracy work waits until the Java port is complete.
+  - `test_the_last_engine_entry_is_the_engine_in_this_tree` fails on any commit under
+    `packages/engine` until it has a new version and entry.
+- **Criterion 2 is symmetric** ([ADR 0018](docs/adr/0018-p95-within-a-factor-of-two.md)): a
+  step's p95 must be within a factor of two either way, or within 3 ms. Before, a prediction that
+  was too low always passed.
+  - On the v6 runs no experiment meets it now. pg-mixed fails at 3,788 req/s (2.0 ms predicted,
+    30.7 measured) and Kafka at 1,894 and 2,272 req/s, where both passed before.
+  - /accuracy ranks the worst step by the same factor. `accuracy.json`'s `thresholds.p95Error` is
+    now `p95Factor`.
+- **Architecture decision records** in [`docs/adr/`](docs/adr/README.md), 18 of them in MADR 4:
+  - recording decisions (0001);
+  - three retroactive ones: the design document as the contract, the PostgreSQL run queue, and
+    sealed held-out experiments;
+  - the Java port and its decisions (0005–0016);
+  - the freeze (0017) and the p95 rule (0018).
+  - CONTRIBUTING.md asks for an ADR with every significant decision, and the README and
+    docs/architecture.md link to them.
 
 **W29: the service time's spread anchored at the calibration pass (2026-11-02; harness only,
 engine still 0.16.0).**
@@ -1844,31 +1872,43 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. Accuracy: freeze an engine in `benchmarks/engines.json` and run the prospective campaign
-   (0.14.0 and the frozen engine predict the five held-out experiments before they are
-   measured; the four in-sample ones are measured again, Kafka on the fixed stack), then W25
-   (accuracy over time on /accuracy). Open model work the campaign would test, in order: a CPU
-   cost that rises near full load (pg-mixed +24%) and how hyperthreaded vCPUs become capacity; a
-   CPU per request that keeps falling above the calibration staircase (cache-aside -34%); a
-   predicted range that includes run-to-run calibration variation (1 of 12 runs inside it).
-2. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured
-   CPU and memory, apply with one click, verify over 5 seeds.
-3. Decide the tier thresholds (the owner; a proposal is in docs/validation.md), including
-   whether criterion 2 should be symmetric (within a factor of two), and rerun on a second
-   machine (a quieter Linux host or the hosted-runner workflow, which has not completed a run
-   yet) for criterion 3b.
+1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–3
+   now; stage 4, the simulation kernel, after the held-out campaign.
+2. The held-out campaign with the frozen engine 0.16.0 (ADR 0017):
+   - the five held-out experiments are predicted before they are measured, and the four
+     in-sample ones are measured again, Kafka on the fixed stack;
+   - two or three overnight runs on an idle laptop;
+   - before the first night, decide whether engine 0.14.0 should predict the held-out
+     experiments too, for a before-and-after (the harness can't predict with a second engine
+     yet);
+   - then W25 (accuracy over time on /accuracy).
+3. Decide the rest of the tier thresholds (the owner; a proposal is in docs/validation.md;
+   criterion 2 is settled by ADR 0018), and rerun on a second machine (a quieter Linux host or the
+   hosted-runner workflow, which has not completed a run yet) for criterion 3b.
 4. Move to TypeScript 7 and ESLint 10 once typescript-eslint supports TypeScript 7 and
    eslint-config-next's plugins accept ESLint 10; `.github/dependabot.yml` ignores both until
    then (the rest of Dependabot's PR #4 is merged: React 19.3.1, simple-icons 16.35.0,
    jsdom 30, @types/node 26).
-5. Total client deadline across retries, retry budgets / circuit breaker component, and
+
+After the Java port (ADR 0017), so that none of it is written twice:
+
+5. The model work the campaign would test, in order:
+   - a CPU cost that rises near full load (pg-mixed), and how hyperthreaded vCPUs become
+     capacity;
+   - a CPU per request that keeps falling above the calibration staircase (cache-aside, -24.5%
+     in-sample);
+   - refitting the predicted range with the v6 runs, and ranking replicates by mean;
+   - a CPU model for the Kafka broker and consumers.
+6. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured CPU
+   and memory, apply with one click, and verify over 5 seeds.
+7. Total client deadline across retries, retry budgets / circuit breaker component, and
    parallel fan-out calls.
-6. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
+8. Circuit breakers and retry budgets as link settings, random failures (MTBF/MTTR), health
    checks and failover, multi-region latency.
-7. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
+9. Calibrate against a live Prometheus and a real OpenTelemetry export, export of the
    dashboard to real Grafana, and an agent/MCP surface on top of the validated run API (see
    [docs/roadmap.md](docs/roadmap.md)).
-8. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
+10. More technology behaviour: deadlocks and range locks, vacuum/compaction pauses, consumer
    group rebalancing, adaptive capacity, per-key hot-row splitting.
 
 ## Bugs per week

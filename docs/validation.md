@@ -897,7 +897,8 @@ The four experiments above are in-sample: the model and the calibration protocol
 with their results in view. Five more were registered on 30 Oct 2026 in commit `90f067d`
 (`benchmarks/run.py`, `Experiment.held_out`) to test ArchSim on stacks it was never
 tuned on. They are **sealed** until an engine frozen in `benchmarks/engines.json` has predicted
-them:
+them. Engine 0.16.0 was frozen for them on 2 Nov 2026 (tag `engine-0.16.0`;
+[ADR 0017](adr/0017-freeze-python-engine-during-port.md)), and they have not been measured yet:
 
 - `run.py` refuses to calibrate or measure one unless the engine's source tree
   (`git rev-parse HEAD:packages/engine`) matches a frozen entry and nothing in the engine or the
