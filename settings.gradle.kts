@@ -18,4 +18,5 @@ dependencyResolutionManagement {
     }
 }
 
+include("archsim-model")
 include("archsim-api-tests")
