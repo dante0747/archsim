@@ -19,8 +19,10 @@ apps/web/          Next.js 16 + React Flow editor and results UI.
 examples/          Example architecture documents (served by the API, used by tests).
 docs/              Design and reference documentation.
 
-archsim-api-tests/ Java: black-box tests of the HTTP API (the Java 25 port, see
-                   docs/proposals/java-25-port.md). build-logic/ and gradle/ hold the build.
+archsim-model/     Java: the design document's records, upgrades, JSON Schema and validation
+                   (the Java 25 port, see docs/proposals/java-25-port.md).
+archsim-api-tests/ Java: black-box tests of the HTTP API. build-logic/ and gradle/ hold the
+                   build.
 parity/golden/     The Python engine's golden files, the reference for the Java port.
 ```
 
@@ -87,6 +89,7 @@ npm run e2e                       # the main path in Chromium, against the build
 
 # Java (JDK 25; Gradle finds it, or downloads one, whatever JAVA_HOME says)
 ./gradlew build                   # formatting, Error Prone and NullAway, unit tests, coverage
+./gradlew :archsim-model:test     # the design model against the golden files
 docker compose up -d postgres
 ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python   # black-box API tests
 ```

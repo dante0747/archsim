@@ -37,6 +37,14 @@ references in `input`, call the Java counterpart of `fn`, and compare with `outp
 exactly, numbers within a relative 1e-9, arrays position by position, objects key by key. An entry
 with `error` must fail the same way (its type's counterpart and the same message).
 
+That reader is `io.archsim.parity` in `archsim-model`'s Gradle test fixtures, so every module's
+tests can use it with `testImplementation(testFixtures(project(":archsim-model")))`
+([ADR-0028](../docs/adr/0028-golden-file-reader-as-test-fixtures.md)): `GoldenFile` reads a file
+and resolves references, `GoldenEntry` is one call, `JsonDiff` compares as above, and
+`Parity.check` runs an entry against a Java function. The model's
+[`GoldenParityTest`](../archsim-model/README.md#tests) checks every entry of the functions stage 1
+ports.
+
 ## Layout
 
 | File | Cases | What |

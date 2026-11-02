@@ -2,6 +2,8 @@
 
 **Status:** approved by the owner on 2 Nov 2026, with the [decisions](#decisions) below. Stage 0
 (foundations) is built; its exit check is still open (see [Stage 0](#stage-0--foundations-35-days)).
+Stage 1 (the design model) is built and its exit check passes (see
+[Stage 1](#stage-1--design-model-and-schema-35-days)).
 
 **Why:** the owner works in Java and wants to maintain ArchSim. This is a port, not a redesign of
 what ArchSim does: the simulation model, the design format and the web app's behaviour stay the
@@ -136,6 +138,15 @@ doesn't change.
 - **JSON Schema:** generated from the records and compared with today's.
 - **Exit:** all 25 examples and every test fixture read and write back identically, and every
   invalid fixture gives the same errors.
+- **Built (2 Nov 2026):** [`archsim-model/`](../../archsim-model/README.md): the records, the
+  upgrades, reading and writing, the JSON Schema and validation, with the component types'
+  specifications and the price-snapshot lookup validation needs
+  ([ADR-0026](../adr/0026-component-specs-and-price-snapshots-in-the-model.md)). Every golden
+  entry of the functions it ports passes: loading, upgrading, validating and normalizing every
+  template, scenario and fixture, applying overrides, the JSON Schema, the distributions and the
+  price snapshots. The exporter became a package, `scripts/golden/`.
+- **Left for later stages:** the component catalog the editor renders (stage 2); pinning prices
+  and sizing "auto" parts when a scenario is resolved (stage 3).
 
 ### Stage 2 · The API on Spring Boot, engine still Python (1–2 weeks)
 - **Endpoints:** `archsim-app` serves all 69 of them. Same JSON, cookies, CSRF, rate limits and
@@ -244,6 +255,19 @@ Stage 0 proposes three more, for the owner to accept:
 | Black-box API tests in Java, run against any base URL | [0019](../adr/0019-black-box-api-tests-against-any-base-url.md) |
 | The frozen engine's deterministic functions recorded as golden files | [0020](../adr/0020-golden-files-of-the-frozen-engine.md) |
 | The Java build's conventions: one convention plugin, warnings as errors, JUnit 6 | [0021](../adr/0021-java-build-conventions.md) |
+
+Stage 1 proposes eight more:
+
+| Decision | ADR |
+| --- | --- |
+| Records and a pydantic-compatible codec over Jackson trees | [0022](../adr/0022-records-and-a-pydantic-compatible-codec.md) |
+| Upgrades as a chain of steps on the JSON; only the current schema is modelled | [0023](../adr/0023-upgrade-chain-on-the-json.md) |
+| Issues with stable codes and the Python engine's words | [0024](../adr/0024-validation-issues-with-stable-codes.md) |
+| The JSON Schema generated from the records, as pydantic writes it | [0025](../adr/0025-json-schema-generated-from-the-records.md) |
+| Component specifications and the price-snapshot lookup belong to the model | [0026](../adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
+| Python's text conventions for numbers and values in one package | [0027](../adr/0027-python-text-conventions-in-one-package.md) |
+| The golden-file reader shared as Gradle test fixtures | [0028](../adr/0028-golden-file-reader-as-test-fixtures.md) |
+| The model's packages in layers, checked by ArchUnit | [0029](../adr/0029-model-packages-in-layers-checked-by-archunit.md) |
 
 **Rough total:** 6–10 weeks of sessions for stages 0–6, plus overnight parity runs, then the
 harness port.
