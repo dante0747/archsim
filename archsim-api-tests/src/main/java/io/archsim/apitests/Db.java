@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -26,66 +27,99 @@ public final class Db {
 
 	private final String password;
 
+	/**
+	 * Describes how to reach a database; each statement opens a connection of its own.
+	 * @param url the database's JDBC URL
+	 * @param user the user to connect as
+	 * @param password the user's password
+	 */
 	public Db(String url, String user, String password) {
 		this.url = url;
 		this.user = user;
 		this.password = password;
 	}
 
-	/** Runs an INSERT, UPDATE or DELETE; returns the rows it changed. */
+	/**
+	 * Runs an INSERT, UPDATE or DELETE.
+	 * @param sql the statement, with a {@code ?} for each argument
+	 * @param args the statement's arguments, in order
+	 * @return how many rows it changed
+	 */
 	public int update(String sql, @Nullable Object... args) {
-		try (Connection c = connect(); PreparedStatement st = prepare(c, sql, args)) {
-			return st.executeUpdate();
+		try (Connection connection = connect(); PreparedStatement statement = prepare(connection, sql, args)) {
+			return statement.executeUpdate();
 		}
-		catch (SQLException e) {
-			throw new IllegalStateException(sql, e);
+		catch (SQLException ex) {
+			throw new IllegalStateException(sql, ex);
 		}
 	}
 
-	/** The rows of a query, each a map from column name to value. */
+	/**
+	 * Runs a query.
+	 * @param sql the query, with a {@code ?} for each argument
+	 * @param args the query's arguments, in order
+	 * @return each row, a map from column name to value in the columns' order
+	 */
 	public List<Map<String, @Nullable Object>> rows(String sql, @Nullable Object... args) {
-		try (Connection c = connect(); PreparedStatement st = prepare(c, sql, args); ResultSet rs = st.executeQuery()) {
-			ResultSetMetaData meta = rs.getMetaData();
-			List<Map<String, @Nullable Object>> out = new ArrayList<>();
-			while (rs.next()) {
-				Map<String, @Nullable Object> row = new LinkedHashMap<>();
-				for (int i = 1; i <= meta.getColumnCount(); i++) {
-					row.put(meta.getColumnLabel(i), rs.getObject(i));
-				}
-				out.add(row);
-			}
-			return out;
+		try (Connection connection = connect();
+				PreparedStatement statement = prepare(connection, sql, args);
+				ResultSet resultSet = statement.executeQuery()) {
+			return readRows(resultSet);
 		}
-		catch (SQLException e) {
-			throw new IllegalStateException(sql, e);
+		catch (SQLException ex) {
+			throw new IllegalStateException(sql, ex);
 		}
 	}
 
-	/** The first column of every row. */
+	/**
+	 * Runs a query and returns the first column of every row.
+	 * @param sql the query, with a {@code ?} for each argument
+	 * @param args the query's arguments, in order
+	 * @return the first column's values, a row's after the row before
+	 */
 	public List<@Nullable Object> column(String sql, @Nullable Object... args) {
-		List<@Nullable Object> out = new ArrayList<>();
+		List<@Nullable Object> values = new ArrayList<>();
 		for (Map<String, @Nullable Object> row : rows(sql, args)) {
-			out.add(row.values().iterator().next());
+			values.add(row.values().iterator().next());
 		}
-		return out;
+		return values;
 	}
 
-	/** The first column of the first row, or null when there is no row. */
+	/**
+	 * Runs a query and returns the first column of its first row.
+	 * @param sql the query, with a {@code ?} for each argument
+	 * @param args the query's arguments, in order
+	 * @return the value, or null when there is no row
+	 */
 	public @Nullable Object value(String sql, @Nullable Object... args) {
 		List<@Nullable Object> values = column(sql, args);
 		return values.isEmpty() ? null : values.get(0);
 	}
 
 	private Connection connect() throws SQLException {
-		return DriverManager.getConnection(url, user, password);
+		return DriverManager.getConnection(this.url, this.user, this.password);
 	}
 
-	private static PreparedStatement prepare(Connection c, String sql, @Nullable Object... args) throws SQLException {
-		PreparedStatement st = c.prepareStatement(sql);
-		for (int i = 0; i < args.length; i++) {
-			st.setObject(i + 1, args[i]);
+	private static List<Map<String, @Nullable Object>> readRows(ResultSet resultSet) throws SQLException {
+		ResultSetMetaData columns = resultSet.getMetaData();
+		List<Map<String, @Nullable Object>> rows = new ArrayList<>();
+		while (resultSet.next()) {
+			Map<String, @Nullable Object> row = new LinkedHashMap<>();
+			for (int i = 1; i <= columns.getColumnCount(); i++) {
+				row.put(columns.getColumnLabel(i), resultSet.getObject(i));
+			}
+			rows.add(row);
 		}
-		return st;
+		return rows;
+	}
+
+	private static PreparedStatement prepare(Connection connection, String sql, @Nullable Object... args)
+			throws SQLException {
+		PreparedStatement statement = connection.prepareStatement(sql);
+		for (int i = 0; i < args.length; i++) {
+			statement.setObject(i + 1, args[i]);
+		}
+		return statement;
 	}
 
 }

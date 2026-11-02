@@ -64,18 +64,20 @@ A hosted server must call the suite's stand-in GitHub: `ARCHSIM_GITHUB_URL` and
 
 ```java
 @ApiTest(Profile.HOSTED)
-class TokensTest {
+class TokensTests {
     @Test
-    void aReadTokenOnlyReads(ApiServer server) {
+    void request_withReadToken_onlyReads(ApiServer server) {
         ApiClient ada = server.signedIn("ada");   // a new person, signed in, CSRF header set
         ...
     }
 
     @Test
-    void somethingLocal(@On(Profile.LOCAL) ApiClient client) { ... }
+    void change_withoutSignIn_needsNoCsrfHeaderOrToken(@On(Profile.LOCAL) ApiClient client) { ... }
 }
 ```
 
+- Test classes end in `Tests`; each test is named `method_state_result` (what it calls, in which
+  state, what happens), like every Java test in ArchSim.
 - A test method takes an `ApiServer` (clients, sign-in, the database) or a fresh `ApiClient`
   (cookies, default headers; paths are relative to `/api/v1`).
 - A server is shared by every test of its profile and may outlive a run, so a test never
@@ -94,14 +96,16 @@ class TokensTest {
 | --- | --- |
 | `src/main/java` | the harness: client, servers and profiles, the stand-in GitHub, JDBC |
 | `src/test/java` | unit tests of the harness (run by `./gradlew build`) |
-| `src/apiTest/java` | the black-box tests (run by `apiTest`) |
+| `src/apiTest/java` | the black-box tests (run by `apiTest`), and the steps some of them share (`Reviews`, `Shares`, `LoopbackSignIn`) |
 | `fixtures/` | inputs a profile needs (a second price snapshot) |
 
 ## What came from the Python tests
 
-Each class here is one or two files of `services/api/tests`, with one method per Python test
-and the same names in camelCase. Of the 162 Python API tests, 120 are here, as 122 methods: two
-are split in two because they need two server configurations. The other 42 stay in Python:
+Each class here comes from one or two files of `services/api/tests` (`test_api_review.py` became
+two classes), with one method per Python test. The methods are named `method_state_result`, like
+every Java test in ArchSim, rather than after the Python tests. Of the 162 Python API tests, 120
+are here, as 122 methods: two are split in two because they need two server configurations. The
+other 42 stay in Python:
 
 - **In-process internals (26):** `test_api_queue.py`, `test_api_worker.py`,
   `test_api_process_runner.py` and `test_api_migrations.py`. They drive the run queue, workers,
@@ -111,16 +115,16 @@ are split in two because they need two server configurations. The other 42 stay 
 
 | Python file | Class | Here | Stays in Python |
 | --- | --- | --- | --- |
-| `test_api_endpoints.py` | `EndpointsTest` | 17 | the database going down mid-run (the test swaps the server's engine in-process); two restarts of the API with leases written to the database |
-| `test_api_export.py`, `test_api_import.py` | `ImportExportTest` | 4 | |
-| `test_api_calibration.py` | `CalibrationTest` | 5 | the parsing of `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` (a `Settings` unit test) |
-| `test_api_oauth.py` | `OAuthTest` | 16 | the validation of the sign-in settings (a `Settings` unit test) |
-| `test_api_tokens.py` | `TokensTest` | 12 | |
-| `test_api_workspaces.py` | `WorkspacesTest` | 15 | three tests of `queue.claim`, called directly |
-| `test_api_limits.py` | `LimitsTest` | 13 | four tests of the rate-limit counter (`limits.hit`, `limits.prune`), called directly |
-| `test_api_run_groups.py` | `RunGroupsTest` | 8 | two quick-check tests that shrink the engine's sampling thresholds in-process |
-| `test_api_shares.py` | `SharesTest` | 15 | unit tests of `new_slug` and `public_report`; the API tests check both through the routes |
-| `test_api_review.py` | `ReviewTest` | 15 | |
+| `test_api_endpoints.py` | `EndpointsTests` | 17 | the database going down mid-run (the test swaps the server's engine in-process); two restarts of the API with leases written to the database |
+| `test_api_export.py`, `test_api_import.py` | `ImportExportTests` | 4 | |
+| `test_api_calibration.py` | `CalibrationTests` | 5 | the parsing of `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` (a `Settings` unit test) |
+| `test_api_oauth.py` | `OAuthTests` | 16 | the validation of the sign-in settings (a `Settings` unit test) |
+| `test_api_tokens.py` | `TokensTests` | 12 | |
+| `test_api_workspaces.py` | `WorkspacesTests` | 15 | three tests of `queue.claim`, called directly |
+| `test_api_limits.py` | `LimitsTests` | 13 | four tests of the rate-limit counter (`limits.hit`, `limits.prune`), called directly |
+| `test_api_run_groups.py` | `RunGroupsTests` | 8 | two quick-check tests that shrink the engine's sampling thresholds in-process |
+| `test_api_shares.py` | `SharesTests` | 15 | unit tests of `new_slug` and `public_report`; the API tests check both through the routes |
+| `test_api_review.py` | `ReviewTests`, `ReviewHistoryTests` | 15 | |
 
 Some tests check less than the Python test, or check it another way:
 
@@ -148,6 +152,6 @@ them by accident:
   That breaks the rule in `limits.py` that a refused request costs nothing. `archsim-app` must
   not copy it: check both limits before charging either.
 - **Revoking a share stores a JSON `null` in `shared_reports.payload`, not SQL `NULL`** (the
-  default of SQLAlchemy's JSON type). `SharesTest` accepts both. Both APIs use one database, so
+  default of SQLAlchemy's JSON type). `SharesTests` accepts both. Both APIs use one database, so
   `archsim-app` should decide deliberately which one it writes, and readers should treat both
   as "no copy".

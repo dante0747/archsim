@@ -1,22 +1,8 @@
 package io.archsim.apitests;
 
-import static io.archsim.apitests.ApiClient.query;
-import static io.archsim.apitests.Json.items;
-import static io.archsim.apitests.Json.object;
-import static io.archsim.apitests.Json.strings;
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.io.IOException;
-import java.net.BindException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URI;
 import java.net.URLDecoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -24,12 +10,14 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.jspecify.annotations.Nullable;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Signing in with GitHub against the suite's stand-in: PKCE and state checks, the session
@@ -46,11 +34,13 @@ import tools.jackson.databind.JsonNode;
  * provider.
  */
 @ApiTest(Profile.HOSTED)
-class OAuthTest {
+class OAuthTests {
 
-	private static final String SESSION = "__Host-archsim_session";
+	/** The session cookie. */
+	static final String SESSION = "__Host-archsim_session";
 
-	private static final String STATE = "__Host-archsim_oauth";
+	/** The cookie that carries the signed OAuth state from the login to the callback. */
+	static final String STATE = "__Host-archsim_oauth";
 
 	/**
 	 * A loopback address that is not a trusted proxy (the servers trust 127.0.0.1 only).
@@ -58,12 +48,12 @@ class OAuthTest {
 	private static final String UNTRUSTED = "127.0.0.2";
 
 	@Test
-	void signedOutRequestsAreRefused(ApiClient client) {
+	void requests_whenSignedOut_areRefused(ApiClient client) {
 		assertThat(client.get("/auth/config").json())
-			.isEqualTo(object("mode", "oauth", "providers", Json.array("github", "google")));
+			.isEqualTo(Json.object("mode", "oauth", "providers", Json.array("github", "google")));
 		for (ApiResponse res : List.of(client.get("/auth/me"), client.get("/projects"),
-				client.post("/projects", object()), client.post("/validate", object("document", object())),
-				client.get("/workspaces"))) {
+				client.post("/projects", Json.object()),
+				client.post("/validate", Json.object("document", Json.object())), client.get("/workspaces"))) {
 			assertThat(res.status()).as(res + ": " + res.text()).isEqualTo(401);
 		}
 		// public: the landing page, templates and catalog work before signing in
@@ -73,56 +63,54 @@ class OAuthTest {
 	}
 
 	@Test
-	void loginRedirectsToTheProviderWithPkceAndASignedState(ApiServer server) {
-		ApiResponse res = server.client().get(query("/auth/github/login", "next", "/projects"));
+	void login_toGitHub_redirectsWithPkceAndSignedState(ApiServer server) {
+		ApiResponse res = server.client().get(ApiClient.query("/auth/github/login", "next", "/projects"));
 		assertThat(res.status()).isEqualTo(302);
 		URI url = URI.create(res.location());
-		Map<String, String> q = params(res.location());
+		Map<String, String> parameters = params(res.location());
 		assertThat(url.getScheme() + "://" + url.getRawAuthority() + url.getRawPath())
 			.isEqualTo(server.github().url() + "/login/oauth/authorize");
-		assertThat(q.get("code_challenge_method")).isEqualTo("S256");
-		assertThat(q.get("code_challenge")).hasSize(43);
-		assertThat(q.get("redirect_uri")).isEqualTo(Profile.HOSTED_PUBLIC_URL + "/api/v1/auth/github/callback");
-		assertThat(q.get("client_id")).isEqualTo(FakeGitHub.CLIENT_ID);
-		assertThat(q.get("state")).hasSizeGreaterThanOrEqualTo(40);
+		assertThat(parameters.get("code_challenge_method")).isEqualTo("S256");
+		assertThat(parameters.get("code_challenge")).hasSize(43);
+		assertThat(parameters.get("redirect_uri"))
+			.isEqualTo(Profile.HOSTED_PUBLIC_URL + "/api/v1/auth/github/callback");
+		assertThat(parameters.get("client_id")).isEqualTo(FakeGitHub.CLIENT_ID);
+		assertThat(parameters.get("state")).hasSizeGreaterThanOrEqualTo(40);
 		assertThat(res.setCookies()).singleElement()
-			.satisfies(cookie -> assertThat(cookie).startsWith(STATE + "=")
+			.satisfies((cookie) -> assertThat(cookie).startsWith(STATE + "=")
 				.contains("HttpOnly", "Path=/", "SameSite=lax", "Secure", "Max-Age=600"));
 	}
 
 	@Test
-	void signingInMakesAnAccountAPersonalWorkspaceAndASession(ApiServer server) {
+	void signIn_firstTime_makesAccountWorkspaceAndSession(ApiServer server) {
 		ApiClient client = server.client();
 		FakeGitHub.Account ada = server.newAccount("ada");
-		ApiResponse start = client.get(query("/auth/github/login", "next", "/projects/abc"));
+		ApiResponse start = client.get(ApiClient.query("/auth/github/login", "next", "/projects/abc"));
 		String back = server.github().authorize(start.location(), ada.login());
 		ApiResponse done = client.open(back);
 		assertThat(done.status()).isEqualTo(302);
 		assertThat(done.location()).isEqualTo("/projects/abc");
 		String sessionCookie = setCookie(done, SESSION);
 		assertThat(sessionCookie).contains("HttpOnly", "Path=/", "SameSite=lax", "Secure");
-		assertThat(done.setCookies()).anyMatch(c -> c.startsWith(STATE + "=\"\"")); // state
-																					// cleared
+		// the state is cleared
+		assertThat(done.setCookies()).anyMatch((header) -> header.startsWith(STATE + "=\"\""));
 		// the verifier went to the token endpoint, and the provider checked it against
 		// the challenge
-		String code = param(back, "code");
-		assertThat(server.github().tokenRequests()).filteredOn(r -> code.equals(r.get("code")))
-			.singleElement()
-			.satisfies(r -> assertThat(r.get("code_verifier")).isNotEmpty());
+		assertVerifierSent(server, param(back, "code"));
 
 		JsonNode me = client.get("/auth/me").json();
 		assertThat(me.path("kind").asString()).isEqualTo("session");
 		assertThat(me.path("user").path("name").asString()).isEqualTo("Ada");
 		assertThat(me.path("user").path("email").asString()).isEqualTo(ada.email());
-		assertThat(items(me.path("workspaces")))
-			.extracting(
-					w -> w.path("kind").asString() + " " + w.path("role").asString() + " " + w.path("name").asString())
+		assertThat(Json.items(me.path("workspaces")))
+			.extracting((workspace) -> workspace.path("kind").asString() + " " + workspace.path("role").asString() + " "
+					+ workspace.path("name").asString())
 			.containsExactly("personal owner Ada's workspace");
 		// projects go to the personal workspace; the default workspace is not hers
 		client.header("X-ArchSim-CSRF", me.path("csrfToken").asString());
-		JsonNode p = Runs.createProject(client);
-		assertThat(client.get("/projects").json().path(0).path("id")).isEqualTo(p.path("id"));
-		assertThat(client.get(query("/projects", "workspace", "default")).status()).isEqualTo(404);
+		JsonNode project = Runs.createProject(client);
+		assertThat(client.get("/projects").json().path(0).path("id")).isEqualTo(project.path("id"));
+		assertThat(client.get(ApiClient.query("/projects", "workspace", "default")).status()).isEqualTo(404);
 		// only a hash of the cookie is stored
 		String secret = sessionCookie.split(";", 2)[0].split("=", 2)[1];
 		assertThat(server.db().column("SELECT id FROM sessions WHERE user_id = ?", Workspaces.userId(client)))
@@ -130,8 +118,15 @@ class OAuthTest {
 			.hasSize(1);
 	}
 
+	/** The token request with {@code code} carried the PKCE verifier. */
+	private static void assertVerifierSent(ApiServer server, String code) {
+		assertThat(server.github().tokenRequests()).filteredOn((request) -> code.equals(request.get("code")))
+			.singleElement()
+			.satisfies((request) -> assertThat(request.get("code_verifier")).isNotEmpty());
+	}
+
 	@Test
-	void signingInAgainFindsTheSameAccount(ApiServer server) {
+	void signIn_again_findsTheSameAccount(ApiServer server) {
 		ApiClient client = server.client();
 		String ada = server.newAccount("ada").login();
 		server.signIn(client, ada);
@@ -149,7 +144,7 @@ class OAuthTest {
 	 * alone.
 	 */
 	@Test
-	void aVerifiedEmailLinksTwoSignInAccounts(ApiServer server) {
+	void signIn_withSameVerifiedEmail_linksTheAccounts(ApiServer server) {
 		ApiClient client = server.client();
 		FakeGitHub.Account ada = server.newAccount("ada");
 		server.signIn(client, ada.login());
@@ -166,7 +161,7 @@ class OAuthTest {
 	 * Mallory signs in with GitHub here (Google in the Python test): an unverified email.
 	 */
 	@Test
-	void anUnverifiedEmailLinksNothingAndGrantsNothing(ApiServer server) {
+	void signIn_withUnverifiedEmail_linksAndGrantsNothing(ApiServer server) {
 		ApiClient client = server.client();
 		FakeGitHub.Account ada = server.newAccount("ada");
 		server.signIn(client, ada.login());
@@ -178,7 +173,7 @@ class OAuthTest {
 		assertThat(me.path("user").path("email").isNull()).isTrue();
 		client.post("/auth/logout");
 		server.signIn(client, account(server, "fakeadmin", Profile.ADMIN_EMAIL, false).login());
-		assertThat(strings(client.get("/auth/me").json().path("workspaces"), "id")).doesNotContain("default");
+		assertThat(Json.strings(client.get("/auth/me").json().path("workspaces"), "id")).doesNotContain("default");
 	}
 
 	/**
@@ -187,33 +182,33 @@ class OAuthTest {
 	 * who owns default all the same.
 	 */
 	@Test
-	void theFirstSignInOfAnAdminEmailOwnsDefault(ApiServer server) {
+	void signIn_withAdminEmail_ownsDefault(ApiServer server) {
 		ApiClient client = server.client();
 		server.signIn(client, account(server, "admin", Profile.ADMIN_EMAIL, true).login());
 		JsonNode workspaces = client.get("/auth/me").json().path("workspaces");
 		assertThat(Json.find(workspaces, "id", "default").path("role").asString()).isEqualTo("owner");
-		assertThat(client.get(query("/projects", "workspace", "default")).status()).isEqualTo(200);
+		assertThat(client.get(ApiClient.query("/projects", "workspace", "default")).status()).isEqualTo(200);
 	}
 
 	@Test
-	void aWrongOrMissingStateSignsNobodyIn(ApiServer server) {
+	void callback_withWrongOrMissingState_signsNobodyIn(ApiServer server) {
 		ApiClient client = server.client();
 		ApiResponse start = client.get("/auth/github/login");
 		String back = server.github().authorize(start.location(), server.newAccount("ada").login());
 		String code = param(back, "code");
 		String state = param(back, "state");
-		ApiResponse res = client.get(query("/auth/github/callback", "code", code, "state", "not-the-state"));
+		ApiResponse res = client.get(ApiClient.query("/auth/github/callback", "code", code, "state", "not-the-state"));
 		assertThat(res.location()).isEqualTo("/signin?error=state");
-		client.cookies().clear(); // no state cookie at all (another browser, or it
-									// expired)
-		res = client.get(query("/auth/github/callback", "code", code, "state", state));
+		// no state cookie at all (another browser, or it expired)
+		client.cookies().clear();
+		res = client.get(ApiClient.query("/auth/github/callback", "code", code, "state", state));
 		assertThat(res.location()).isEqualTo("/signin?error=state");
 		assertThat(client.get("/auth/me").status()).isEqualTo(401);
-		assertThat(res.setCookies()).noneMatch(c -> c.startsWith(SESSION + "="));
+		assertThat(res.setCookies()).noneMatch((header) -> header.startsWith(SESSION + "="));
 	}
 
 	@Test
-	void aTamperedStateCookieIsRefused(ApiServer server) {
+	void callback_withTamperedStateCookie_isRefused(ApiServer server) {
 		ApiClient client = server.client();
 		ApiResponse start = client.get("/auth/github/login");
 		String back = server.github().authorize(start.location(), server.newAccount("ada").login());
@@ -224,9 +219,9 @@ class OAuthTest {
 	}
 
 	@Test
-	void providerRefusalsEndOnTheSignInPage(ApiServer server) {
+	void callback_whenProviderRefuses_endsOnSignInPage(ApiServer server) {
 		ApiClient client = server.client();
-		ApiResponse res = client.get(query("/auth/github/callback", "error", "access_denied"));
+		ApiResponse res = client.get(ApiClient.query("/auth/github/callback", "error", "access_denied"));
 		assertThat(res.location()).isEqualTo("/signin?error=denied");
 		String ada = server.newAccount("ada").login();
 		server.github().refuseTokensFor(ada);
@@ -236,39 +231,39 @@ class OAuthTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "//evil.example/x", "https://evil.example/", "/\\evil.example", "projects" })
-	void signInNeverLandsOnAnotherSite(String nextPath, ApiServer server) {
+	void signIn_withForeignNextPath_landsOnThisSite(String nextPath, ApiServer server) {
 		ApiClient client = server.client();
-		ApiResponse start = client.get(query("/auth/github/login", "next", nextPath));
+		ApiResponse start = client.get(ApiClient.query("/auth/github/login", "next", nextPath));
 		String back = server.github().authorize(start.location(), server.newAccount("ada").login());
 		assertThat(client.open(back).location()).isEqualTo("/");
 	}
 
 	@Test
-	void logoutEndsTheSessionEverywhereAtOnce(ApiServer server) {
+	void logout_withSessionCookie_endsTheSessionAtOnce(ApiServer server) {
 		ApiClient client = server.signedIn("ada");
 		String cookie = cookie(client, SESSION);
 		ApiResponse res = client.post("/auth/logout");
 		assertThat(res.status()).isEqualTo(204);
-		assertThat(res.setCookies()).anyMatch(c -> c.startsWith(SESSION + "=\"\""));
+		assertThat(res.setCookies()).anyMatch((header) -> header.startsWith(SESSION + "=\"\""));
 		// the old cookie is dead even if a browser kept it
 		client.cookies().put(SESSION, cookie);
 		assertThat(client.get("/auth/me").status()).isEqualTo(401);
 	}
 
 	@Test
-	void logoutEverywhereEndsEverySession(ApiServer server) {
+	void logout_everywhere_endsEverySession(ApiServer server) {
 		ApiClient client = server.client();
 		String ada = server.newAccount("ada").login();
 		server.signIn(client, ada);
 		ApiClient other = server.client();
 		server.signIn(other, ada);
 		assertThat(other.get("/auth/me").status()).isEqualTo(200);
-		client.post(query("/auth/logout", "everywhere", true));
+		client.post(ApiClient.query("/auth/logout", "everywhere", true));
 		assertThat(other.get("/auth/me").status()).isEqualTo(401);
 	}
 
 	@Test
-	void expiredSessionsAndDisabledAccountsAreSignedOut(ApiServer server) {
+	void session_expiredOrAccountDisabled_isSignedOut(ApiServer server) {
 		ApiClient client = server.client();
 		String ada = server.newAccount("ada").login();
 		server.signIn(client, ada);
@@ -289,23 +284,22 @@ class OAuthTest {
 	 * address recorded.
 	 */
 	@Test
-	void sessionsRecordTheClientIpOnlyFromATrustedProxy(ApiServer server) throws IOException, InterruptedException {
+	void signIn_throughProxy_recordsClientIpOnlyIfTrusted(ApiServer server) throws IOException, InterruptedException {
 		ApiClient trusted = server.client();
 		server.signIn(trusted, server.newAccount("ada").login());
 		assertThat(sessionIp(server, cookie(trusted, SESSION))).isEqualTo(trusted.header("X-ArchSim-Client-IP"));
 
-		String untrusted = signInFrom(UNTRUSTED, "203.0.113.8", server, server.newAccount("bob"));
+		String untrusted = LoopbackSignIn.signIn(UNTRUSTED, "203.0.113.8", server, server.newAccount("bob"));
 		assertThat(sessionIp(server, untrusted)).isEqualTo(UNTRUSTED);
 	}
 
 	@Test
-	void withoutSignInThereIsNothingToSignInTo(@On(Profile.LOCAL) ApiClient c) {
-		assertThat(c.get("/auth/github/login").status()).isEqualTo(404);
-		assertThat(c.post("/auth/logout").status()).isEqualTo(204);
+	void auth_withoutSignIn_hasNothingToSignInTo(@On(Profile.LOCAL) ApiClient client) {
+		assertThat(client.get("/auth/github/login").status()).isEqualTo(404);
+		assertThat(client.post("/auth/logout").status()).isEqualTo(204);
 	}
 
 	// -- helpers
-	// ----------------------------------------------------------------------------------
 
 	/**
 	 * A new GitHub account called {@code name} (a unique login) with any email, verified
@@ -340,11 +334,11 @@ class OAuthTest {
 	/** The query parameters of a URL, first value of each. */
 	private static Map<String, String> params(String url) {
 		Map<String, String> out = new LinkedHashMap<>();
-		String q = URI.create(url).getRawQuery();
-		if (q != null) {
-			for (String pair : q.split("&", -1)) {
-				String[] kv = pair.split("=", 2);
-				out.putIfAbsent(decode(kv[0]), kv.length > 1 ? decode(kv[1]) : "");
+		String query = URI.create(url).getRawQuery();
+		if (query != null) {
+			for (String pair : query.split("&", -1)) {
+				String[] nameAndValue = pair.split("=", 2);
+				out.putIfAbsent(decode(nameAndValue[0]), (nameAndValue.length > 1) ? decode(nameAndValue[1]) : "");
 			}
 		}
 		return out;
@@ -358,8 +352,8 @@ class OAuthTest {
 		return value;
 	}
 
-	private static String decode(String s) {
-		return URLDecoder.decode(s, StandardCharsets.UTF_8);
+	private static String decode(String encoded) {
+		return URLDecoder.decode(encoded, StandardCharsets.UTF_8);
 	}
 
 	/**
@@ -375,57 +369,9 @@ class OAuthTest {
 			return HexFormat.of()
 				.formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
 		}
-		catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException(e);
+		catch (NoSuchAlgorithmException ex) {
+			throw new IllegalStateException(ex);
 		}
-	}
-
-	/**
-	 * The browser round trip as {@code account}, from the local address {@code from},
-	 * sending {@code X-ArchSim-Client-IP: claimed}. Returns the session cookie. Skips the
-	 * test where the machine cannot connect from that address.
-	 */
-	private static String signInFrom(String from, String claimed, ApiServer server, FakeGitHub.Account account)
-			throws IOException, InterruptedException {
-		InetAddress local = InetAddress.getByName(from);
-		try (Socket probe = new Socket()) {
-			probe.bind(new InetSocketAddress(local, 0));
-		}
-		catch (BindException e) {
-			Assumptions.abort("this machine cannot connect from " + from + ": " + e.getMessage());
-		}
-		try (HttpClient http = HttpClient.newBuilder()
-			.version(HttpClient.Version.HTTP_1_1)
-			.followRedirects(HttpClient.Redirect.NEVER)
-			.localAddress(local)
-			.build()) {
-			HttpResponse<String> start = http
-				.send(HttpRequest.newBuilder(server.url().resolve(ApiClient.API + "/auth/github/login"))
-					.header("X-ArchSim-Client-IP", claimed)
-					.build(), BodyHandlers.ofString());
-			assertThat(start.statusCode()).as(start.body()).isEqualTo(302);
-			String back = server.github()
-				.authorize(start.headers().firstValue("location").orElseThrow(), account.login());
-			assertThat(back).startsWith(Profile.HOSTED_PUBLIC_URL + "/");
-			HttpResponse<String> done = http
-				.send(HttpRequest.newBuilder(server.url().resolve(back.substring(Profile.HOSTED_PUBLIC_URL.length())))
-					.header("X-ArchSim-Client-IP", claimed)
-					.header("Cookie", STATE + "=" + cookieValue(start, STATE))
-					.build(), BodyHandlers.ofString());
-			assertThat(done.statusCode()).as(done.body()).isEqualTo(302);
-			assertThat(done.headers().firstValue("location")).hasValue("/");
-			return cookieValue(done, SESSION);
-		}
-	}
-
-	private static String cookieValue(HttpResponse<?> res, String name) {
-		return res.headers()
-			.allValues("set-cookie")
-			.stream()
-			.filter(c -> c.startsWith(name + "="))
-			.map(c -> c.split(";", 2)[0].substring(name.length() + 1))
-			.findFirst()
-			.orElseThrow(() -> new AssertionError(res.uri() + " sets no " + name));
 	}
 
 }

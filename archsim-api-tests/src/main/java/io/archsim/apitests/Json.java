@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -17,6 +18,7 @@ import tools.jackson.databind.node.ObjectNode;
 /** JSON in tests: parse, write, build and pick values out. */
 public final class Json {
 
+	/** The mapper every helper here uses: Jackson's defaults. */
 	public static final JsonMapper MAPPER = JsonMapper.builder().build();
 
 	private Json() {
@@ -26,22 +28,34 @@ public final class Json {
 		return MAPPER.readTree(text);
 	}
 
-	/** A JSON file, e.g. an example or a fixture. */
+	/**
+	 * Reads a JSON file, e.g. an example or a fixture.
+	 * @param file the file, in UTF-8
+	 * @return the file's JSON
+	 */
 	public static JsonNode read(Path file) {
 		try {
 			return parse(Files.readString(file, StandardCharsets.UTF_8));
 		}
-		catch (IOException e) {
-			throw new UncheckedIOException(e);
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
 		}
 	}
 
-	/** {@code value} as JSON text; a string is written as a JSON string. */
+	/**
+	 * Writes a value as JSON text.
+	 * @param value a node, a map, a list...; a string is written as a JSON string
+	 * @return the JSON text
+	 */
 	public static String write(Object value) {
 		return MAPPER.writeValueAsString(value);
 	}
 
-	/** Any value (a node, a map, a list, a string, a number, null) as a node. */
+	/**
+	 * Turns any value into a node.
+	 * @param value a node, a map, a list, a string, a number, or null
+	 * @return {@code value} itself when it is a node, otherwise its JSON
+	 */
 	public static JsonNode tree(@Nullable Object value) {
 		if (value == null) {
 			return JsonNodeFactory.instance.nullNode();
@@ -52,7 +66,11 @@ public final class Json {
 		return MAPPER.valueToTree(value);
 	}
 
-	/** An object from names and values: {@code object("name", "x", "seeds", 3)}. */
+	/**
+	 * Builds an object from names and values: {@code object("name", "x", "seeds", 3)}.
+	 * @param namesAndValues each field's name followed by its value (see {@link #tree})
+	 * @return the object, with its fields in the order given
+	 */
 	public static ObjectNode object(@Nullable Object... namesAndValues) {
 		if (namesAndValues.length % 2 != 0) {
 			throw new IllegalArgumentException("names and values come in pairs");
@@ -64,7 +82,11 @@ public final class Json {
 		return node;
 	}
 
-	/** An array of the given values. */
+	/**
+	 * Builds an array of the given values.
+	 * @param values the elements (see {@link #tree})
+	 * @return the array, with its elements in the order given
+	 */
 	public static ArrayNode array(@Nullable Object... values) {
 		ArrayNode node = MAPPER.createArrayNode();
 		for (Object value : values) {
@@ -73,7 +95,11 @@ public final class Json {
 		return node;
 	}
 
-	/** A deep copy of an object, to change without touching the original. */
+	/**
+	 * Copies an object deeply, to change without touching the original.
+	 * @param node the object to copy
+	 * @return the copy
+	 */
 	public static ObjectNode copy(JsonNode node) {
 		if (!(node.deepCopy() instanceof ObjectNode copy)) {
 			throw new IllegalArgumentException("not a JSON object: " + node);
@@ -81,27 +107,41 @@ public final class Json {
 		return copy;
 	}
 
-	/** The elements of an array (or nothing, for anything else). */
+	/**
+	 * Returns the elements of an array.
+	 * @param array the array; anything else has no elements
+	 * @return the elements, in order
+	 */
 	public static List<JsonNode> items(JsonNode array) {
-		List<JsonNode> out = new ArrayList<>();
+		List<JsonNode> elements = new ArrayList<>();
 		if (array.isArray()) {
-			array.forEach(out::add);
+			array.forEach(elements::add);
 		}
-		return out;
+		return elements;
 	}
 
 	/**
-	 * {@code field} of each element of an array, as text:
+	 * Picks a field out of each element of an array, as text:
 	 * {@code [x["id"] for x in array]}.
+	 * @param array the array
+	 * @param field the field to pick
+	 * @return the field's text in each element, in order
 	 */
 	public static List<String> strings(JsonNode array, String field) {
-		return items(array).stream().map(x -> x.path(field).asString()).toList();
+		return items(array).stream().map((element) -> element.path(field).asString()).toList();
 	}
 
-	/** The first element of an array whose {@code field} is {@code value}. */
+	/**
+	 * Finds the first element of an array whose field has a given value; fails the test
+	 * when there is none.
+	 * @param array the array to search
+	 * @param field the field to compare
+	 * @param value the text the field must have
+	 * @return the element
+	 */
 	public static JsonNode find(JsonNode array, String field, String value) {
 		return items(array).stream()
-			.filter(x -> value.equals(x.path(field).asString(null)))
+			.filter((element) -> value.equals(element.path(field).asString(null)))
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("no element with " + field + "=" + value + " in " + array));
 	}

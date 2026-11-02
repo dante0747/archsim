@@ -1,9 +1,11 @@
 package io.archsim.apitests;
 
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,7 +20,17 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ApiServer {
 
-	private static final AtomicInteger ADDRESSES = new AtomicInteger(ThreadLocalRandom.current().nextInt(1 << 16));
+	/** Picks the host part of an address in 198.18.0.0/16: its last two bytes. */
+	private static final int HOST_MASK = 0xFFFF;
+
+	/** Picks the last byte of an address. */
+	private static final int BYTE_MASK = 0xFF;
+
+	/** The bits in one byte of an address. */
+	private static final int BITS_PER_BYTE = 8;
+
+	private static final AtomicInteger ADDRESSES = new AtomicInteger(
+			ThreadLocalRandom.current().nextInt(HOST_MASK + 1));
 
 	private static final AtomicInteger PEOPLE = new AtomicInteger();
 
@@ -33,6 +45,14 @@ public final class ApiServer {
 
 	private final @Nullable FakeGitHub github;
 
+	/**
+	 * Describes a running server.
+	 * @param profile the server's profile
+	 * @param url the server's base URL
+	 * @param db the server's database, or null when the suite was not told where it is
+	 * @param github the stand-in GitHub a hosted server signs people in with, or null for
+	 * a server without sign-in
+	 */
 	public ApiServer(Profile profile, URI url, @Nullable Db db, @Nullable FakeGitHub github) {
 		this.profile = profile;
 		this.url = url;
@@ -41,47 +61,59 @@ public final class ApiServer {
 	}
 
 	public Profile profile() {
-		return profile;
+		return this.profile;
 	}
 
 	public URI url() {
-		return url;
+		return this.url;
 	}
 
-	/** A new client: no cookies, an address of its own. */
+	/**
+	 * Returns a new client: no cookies, an address of its own.
+	 * @return the client
+	 */
 	public ApiClient client() {
-		return new ApiClient(url, profile == Profile.HOSTED ? Profile.HOSTED_PUBLIC_URL : null)
+		return new ApiClient(this.url, (this.profile == Profile.HOSTED) ? Profile.HOSTED_PUBLIC_URL : null)
 			.header("X-ArchSim-Client-IP", nextAddress());
 	}
 
 	/**
-	 * An address no other client of this test run has (from 198.18.0.0/16, a test range).
+	 * Returns an address no other client of this test run has.
+	 * @return an address from 198.18.0.0/16, a range for tests
 	 */
 	public static String nextAddress() {
-		int n = ADDRESSES.getAndIncrement() & 0xFFFF;
-		return "198.18." + (n >> 8) + "." + (n & 0xFF);
-	}
-
-	/** The server's database (fails when the suite was not told where it is). */
-	public Db db() {
-		if (db == null) {
-			throw new IllegalStateException("this test reads or writes the " + profile.id()
-					+ " server's database: set archsim.api.jdbc." + profile.id());
-		}
-		return db;
-	}
-
-	/** The stand-in GitHub the hosted server signs people in with. */
-	public FakeGitHub github() {
-		if (github == null) {
-			throw new IllegalStateException("only the hosted profile signs in (this is " + profile.id() + ")");
-		}
-		return github;
+		int host = ADDRESSES.getAndIncrement() & HOST_MASK;
+		return "198.18." + (host >> BITS_PER_BYTE) + "." + (host & BYTE_MASK);
 	}
 
 	/**
-	 * A new GitHub account: login {@code <name>-<unique>}, display name {@code Name}, and
-	 * a verified email {@code <login>@example.com}.
+	 * Returns the server's database; fails when the suite was not told where it is.
+	 * @return the database
+	 */
+	public Db db() {
+		if (this.db == null) {
+			throw new IllegalStateException("this test reads or writes the " + this.profile.id()
+					+ " server's database: set archsim.api.jdbc." + this.profile.id());
+		}
+		return this.db;
+	}
+
+	/**
+	 * Returns the stand-in GitHub the hosted server signs people in with.
+	 * @return the stand-in GitHub
+	 */
+	public FakeGitHub github() {
+		if (this.github == null) {
+			throw new IllegalStateException("only the hosted profile signs in (this is " + this.profile.id() + ")");
+		}
+		return this.github;
+	}
+
+	/**
+	 * Adds a new GitHub account: login {@code <name>-<unique>}, display name
+	 * {@code Name}, and a verified email {@code <login>@example.com}.
+	 * @param name the person's name, which starts the login
+	 * @return the account
 	 */
 	public FakeGitHub.Account newAccount(String name) {
 		String login = (name + "-" + RUN + PEOPLE.incrementAndGet()).toLowerCase(Locale.ROOT);
@@ -90,19 +122,17 @@ public final class ApiServer {
 	}
 
 	/**
-	 * The whole browser round trip as {@code login}: the API's login, GitHub's page, the
-	 * API's callback. Like the web app, the client then sends the CSRF token with every
-	 * change. Returns where the callback sent the browser.
+	 * Makes the whole browser round trip as {@code login}: the API's login, GitHub's
+	 * page, the API's callback. Like the web app, the client then sends the CSRF token
+	 * with every change.
+	 * @param client the client that signs in
+	 * @param login the GitHub account to sign in as
+	 * @return where the callback sent the browser
 	 */
 	public String signIn(ApiClient client, String login) {
-		ApiResponse start = client.get("/auth/github/login");
-		if (start.status() != 302) {
-			throw new AssertionError(start + ": " + start.text());
-		}
-		ApiResponse done = client.open(github().authorize(start.location(), login));
-		if (done.status() != 302) {
-			throw new AssertionError(done + ": " + done.text());
-		}
+		ApiResponse start = client.get("/auth/github/login").expectStatus(HttpURLConnection.HTTP_MOVED_TEMP);
+		ApiResponse done = client.open(github().authorize(start.location(), login))
+			.expectStatus(HttpURLConnection.HTTP_MOVED_TEMP);
 		String csrf = client.cookie("__Host-archsim_csrf");
 		if (csrf != null) {
 			client.header("X-ArchSim-CSRF", csrf);
@@ -111,7 +141,9 @@ public final class ApiServer {
 	}
 
 	/**
-	 * A client signed in as a new person called {@code name} (see {@link #newAccount}).
+	 * Returns a client signed in as a new person (see {@link #newAccount}).
+	 * @param name the start of the person's login
+	 * @return the signed-in client
 	 */
 	public ApiClient signedIn(String name) {
 		ApiClient client = client();

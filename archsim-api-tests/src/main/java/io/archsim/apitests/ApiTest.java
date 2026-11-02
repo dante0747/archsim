@@ -6,6 +6,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
 import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
@@ -21,6 +22,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(ApiExtension.class)
 public @interface ApiTest {
 
+	/**
+	 * The profile of the server the class's tests run against.
+	 * @return the profile, {@link Profile#LOCAL} unless the class names another
+	 */
 	Profile value() default Profile.LOCAL;
 
 }

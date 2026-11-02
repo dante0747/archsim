@@ -14,6 +14,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface On {
 
+	/**
+	 * The profile of the server the parameter stands for.
+	 * @return the profile, instead of the class's
+	 */
 	Profile value();
 
 }

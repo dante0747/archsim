@@ -1,25 +1,18 @@
 package io.archsim.apitests;
 
+import java.net.URI;
+import java.util.Arrays;
+import java.util.Properties;
+
+import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.net.URI;
-import java.util.Properties;
-import org.junit.jupiter.api.Test;
-
-class SuiteConfigTest {
-
-	private static Properties properties(String... namesAndValues) {
-		Properties p = new Properties();
-		p.setProperty("archsim.repoRoot", Examples.repoRoot().toString());
-		for (int i = 0; i < namesAndValues.length; i += 2) {
-			p.setProperty(namesAndValues[i], namesAndValues[i + 1]);
-		}
-		return p;
-	}
+class SuiteConfigTests {
 
 	@Test
-	void urlsAndDatabasesPerProfile() {
+	void from_urlAndJdbcProperties_readsThemByProfile() {
 		SuiteConfig config = SuiteConfig
 			.from(properties("archsim.api.url.local", "http://127.0.0.1:8000/", "archsim.api.url.small-runs",
 					" http://h:1 ", "archsim.api.jdbc.local", "jdbc:postgresql://127.0.0.1:5432/archsim"));
@@ -31,7 +24,7 @@ class SuiteConfigTest {
 	}
 
 	@Test
-	void startingServersHasDefaults() {
+	void from_startingServers_hasDefaults() {
 		SuiteConfig config = SuiteConfig.from(properties("archsim.api.start", "python"));
 		assertThat(config.start()).isEqualTo("python");
 		assertThat(config.basePort()).isEqualTo(8101);
@@ -42,15 +35,24 @@ class SuiteConfigTest {
 	}
 
 	@Test
-	void theRepositoryMustBeFound() {
-		Properties p = new Properties();
-		p.setProperty("archsim.repoRoot", "does-not-exist");
-		assertThatThrownBy(() -> SuiteConfig.from(p)).hasMessageContaining("archsim.repoRoot");
+	void from_missingRepository_fails() {
+		Properties suiteProperties = new Properties();
+		suiteProperties.setProperty("archsim.repoRoot", "does-not-exist");
+		assertThatThrownBy(() -> SuiteConfig.from(suiteProperties)).hasMessageContaining("archsim.repoRoot");
 	}
 
 	@Test
-	void profilesHaveDistinctPorts() {
-		assertThat(java.util.Arrays.stream(Profile.values()).map(Profile::portOffset)).doesNotHaveDuplicates();
+	void portOffset_ofEveryProfile_isDistinct() {
+		assertThat(Arrays.stream(Profile.values()).map(Profile::portOffset)).doesNotHaveDuplicates();
+	}
+
+	private static Properties properties(String... namesAndValues) {
+		Properties suiteProperties = new Properties();
+		suiteProperties.setProperty("archsim.repoRoot", Examples.repoRoot().toString());
+		for (int i = 0; i < namesAndValues.length; i += 2) {
+			suiteProperties.setProperty(namesAndValues[i], namesAndValues[i + 1]);
+		}
+		return suiteProperties;
 	}
 
 }

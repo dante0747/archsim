@@ -7,8 +7,8 @@ import java.util.Map;
 /**
  * The server configurations the suite tests. A profile is a set of {@code ARCHSIM_*}
  * settings, the same for every implementation of the API; a server of a profile has its
- * own database. Besides these, every server gets {@code ARCHSIM_DATABASE_URL} and {@code
- * ARCHSIM_EXAMPLES_DIR}, and nothing else from the environment.
+ * own database. Besides these, every server gets {@code ARCHSIM_DATABASE_URL} and
+ * {@code ARCHSIM_EXAMPLES_DIR}, and nothing else from the environment.
  */
 public enum Profile {
 
@@ -34,8 +34,7 @@ public enum Profile {
 	RATE_LIMITED("rate-limited", 4),
 	/**
 	 * No sign-in; calls to Prometheus as a hosted server with an allowlist makes them
-	 * ({@code
-	 * ARCHSIM_OUTBOUND=allowlist}): only to localhost:9090, and only if that name
+	 * ({@code ARCHSIM_OUTBOUND=allowlist}): only to localhost:9090, and only if that name
 	 * resolves to public addresses (it does not).
 	 */
 	ALLOWLIST("allowlist", 5);
@@ -52,6 +51,9 @@ public enum Profile {
 	 */
 	public static final String ADMIN_EMAIL = "admin@example.com";
 
+	/** The setting that names the hosts Prometheus may be called at. */
+	private static final String PROMETHEUS_ALLOWED_HOSTS = "ARCHSIM_PROMETHEUS_ALLOWED_HOSTS";
+
 	private final String id;
 
 	private final int portOffset;
@@ -61,55 +63,79 @@ public enum Profile {
 		this.portOffset = portOffset;
 	}
 
-	/** The profile's name in property names and logs, e.g. {@code small-runs}. */
+	/**
+	 * Returns the profile's name in property names and logs.
+	 * @return the name, e.g. {@code small-runs}
+	 */
 	public String id() {
-		return id;
-	}
-
-	/** A started server of this profile listens on {@code archsim.api.port} plus this. */
-	public int portOffset() {
-		return portOffset;
+		return this.id;
 	}
 
 	/**
-	 * The {@code ARCHSIM_*} settings of this profile, beyond the database and examples.
+	 * Returns where a started server of this profile listens, relative to the first.
+	 * @return what to add to {@code archsim.api.port}
+	 */
+	public int portOffset() {
+		return this.portOffset;
+	}
+
+	/**
+	 * Returns the {@code ARCHSIM_*} settings of this profile, beyond the database and
+	 * examples.
+	 * @param config what the suite was told, for the paths and addresses the settings
+	 * name
+	 * @return the settings' values by name
 	 */
 	public Map<String, String> settings(SuiteConfig config) {
+		return switch (this) {
+			case LOCAL -> localSettings(config);
+			case HOSTED -> hostedSettings(config);
+			case CONSTRAINED -> settingsOf("ARCHSIM_MAX_CONCURRENT_RUNS", "1", "ARCHSIM_MAX_BODY_BYTES", "10000");
+			case SMALL_RUNS ->
+				settingsOf("ARCHSIM_MAX_REQUESTS", "1000", PROMETHEUS_ALLOWED_HOSTS, "prom.example:9090");
+			case RATE_LIMITED -> settingsOf("ARCHSIM_RATE_LIMITS", "true");
+			case ALLOWLIST -> settingsOf("ARCHSIM_OUTBOUND", "allowlist", PROMETHEUS_ALLOWED_HOSTS, "localhost:9090");
+		};
+	}
+
+	/**
+	 * Returns the local profile's settings: two snapshots of a made-up provider besides
+	 * the shipped ones, the engine's fixture (2026-10-01) and a newer copy of it
+	 * (2026-11-01).
+	 * @param config what the suite was told, for the repository's root
+	 * @return the settings' values by name
+	 */
+	private static Map<String, String> localSettings(SuiteConfig config) {
+		String pricesDir = String.join(File.pathSeparator,
+				config.repoRoot().resolve("packages/engine/tests/fixtures/pricing").toString(),
+				config.repoRoot().resolve("archsim-api-tests/fixtures/prices").toString());
+		return settingsOf("ARCHSIM_PRICES_DIR", pricesDir);
+	}
+
+	private static Map<String, String> hostedSettings(SuiteConfig config) {
 		Map<String, String> env = new LinkedHashMap<>();
-		switch (this) {
-			case LOCAL ->
-				// two snapshots of a made-up provider besides the shipped ones: the
-				// engine's
-				// fixture (2026-10-01) and a newer copy of it (2026-11-01)
-				env.put("ARCHSIM_PRICES_DIR",
-						String.join(File.pathSeparator,
-								config.repoRoot().resolve("packages/engine/tests/fixtures/pricing").toString(),
-								config.repoRoot().resolve("archsim-api-tests/fixtures/prices").toString()));
-			case HOSTED -> {
-				env.put("ARCHSIM_AUTH_MODE", "oauth");
-				env.put("ARCHSIM_SECRET_KEY", HOSTED_SECRET_KEY);
-				env.put("ARCHSIM_PUBLIC_URL", HOSTED_PUBLIC_URL);
-				env.put("ARCHSIM_GITHUB_CLIENT_ID", FakeGitHub.CLIENT_ID);
-				env.put("ARCHSIM_GITHUB_CLIENT_SECRET", FakeGitHub.CLIENT_SECRET);
-				env.put("ARCHSIM_GITHUB_URL", config.fakeGitHubUrl().toString());
-				env.put("ARCHSIM_GITHUB_API_URL", config.fakeGitHubUrl().toString());
-				env.put("ARCHSIM_GOOGLE_CLIENT_ID", FakeGitHub.CLIENT_ID);
-				env.put("ARCHSIM_GOOGLE_CLIENT_SECRET", FakeGitHub.CLIENT_SECRET);
-				env.put("ARCHSIM_ADMIN_EMAILS", ADMIN_EMAIL);
-			}
-			case CONSTRAINED -> {
-				env.put("ARCHSIM_MAX_CONCURRENT_RUNS", "1");
-				env.put("ARCHSIM_MAX_BODY_BYTES", "10000");
-			}
-			case SMALL_RUNS -> {
-				env.put("ARCHSIM_MAX_REQUESTS", "1000");
-				env.put("ARCHSIM_PROMETHEUS_ALLOWED_HOSTS", "prom.example:9090");
-			}
-			case RATE_LIMITED -> env.put("ARCHSIM_RATE_LIMITS", "true");
-			case ALLOWLIST -> {
-				env.put("ARCHSIM_OUTBOUND", "allowlist");
-				env.put("ARCHSIM_PROMETHEUS_ALLOWED_HOSTS", "localhost:9090");
-			}
+		env.put("ARCHSIM_AUTH_MODE", "oauth");
+		env.put("ARCHSIM_SECRET_KEY", HOSTED_SECRET_KEY);
+		env.put("ARCHSIM_PUBLIC_URL", HOSTED_PUBLIC_URL);
+		env.put("ARCHSIM_GITHUB_CLIENT_ID", FakeGitHub.CLIENT_ID);
+		env.put("ARCHSIM_GITHUB_CLIENT_SECRET", FakeGitHub.CLIENT_SECRET);
+		env.put("ARCHSIM_GITHUB_URL", config.fakeGitHubUrl().toString());
+		env.put("ARCHSIM_GITHUB_API_URL", config.fakeGitHubUrl().toString());
+		env.put("ARCHSIM_GOOGLE_CLIENT_ID", FakeGitHub.CLIENT_ID);
+		env.put("ARCHSIM_GOOGLE_CLIENT_SECRET", FakeGitHub.CLIENT_SECRET);
+		env.put("ARCHSIM_ADMIN_EMAILS", ADMIN_EMAIL);
+		return env;
+	}
+
+	/**
+	 * Builds settings from names and values.
+	 * @param namesAndValues each setting's name followed by its value
+	 * @return the settings' values by name, in the order given
+	 */
+	private static Map<String, String> settingsOf(String... namesAndValues) {
+		Map<String, String> env = new LinkedHashMap<>();
+		for (int i = 0; i < namesAndValues.length; i += 2) {
+			env.put(namesAndValues[i], namesAndValues[i + 1]);
 		}
 		return env;
 	}

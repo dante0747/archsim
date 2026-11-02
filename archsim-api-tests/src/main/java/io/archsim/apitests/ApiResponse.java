@@ -1,7 +1,9 @@
 package io.archsim.apitests;
 
 import java.net.http.HttpHeaders;
+import java.net.http.HttpResponse;
 import java.util.List;
+
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -11,9 +13,7 @@ import tools.jackson.databind.JsonNode;
  */
 public final class ApiResponse {
 
-	private final String method;
-
-	private final String path;
+	private final String request;
 
 	private final int status;
 
@@ -23,75 +23,120 @@ public final class ApiResponse {
 
 	private @Nullable JsonNode json;
 
-	ApiResponse(String method, String path, int status, HttpHeaders headers, String text) {
-		this.method = method;
-		this.path = path;
-		this.status = status;
-		this.headers = headers;
-		this.text = text;
+	/**
+	 * Wraps the answer to one request.
+	 * @param request the request as tests show it: its method and path, e.g.
+	 * {@code GET /api/v1/projects}
+	 * @param response the server's answer
+	 */
+	ApiResponse(String request, HttpResponse<String> response) {
+		this.request = request;
+		this.status = response.statusCode();
+		this.headers = response.headers();
+		this.text = response.body();
 	}
 
 	public int status() {
-		return status;
+		return this.status;
 	}
 
-	/** The body as text. */
+	/**
+	 * Returns the body as text.
+	 * @return the body, as the server sent it
+	 */
 	public String text() {
-		return text;
+		return this.text;
 	}
 
-	/** The body as JSON; fails the test, showing the body, when it is not JSON. */
+	/**
+	 * Returns the body as JSON; fails the test, showing the body, when it is not JSON.
+	 * @return the body, parsed once and kept
+	 */
 	public JsonNode json() {
-		JsonNode parsed = json;
+		JsonNode parsed = this.json;
 		if (parsed == null) {
 			try {
-				parsed = Json.parse(text);
+				parsed = Json.parse(this.text);
 			}
-			catch (JacksonException e) {
-				throw new AssertionError(this + " is not JSON: " + text, e);
+			catch (JacksonException ex) {
+				throw new AssertionError(this + " is not JSON: " + this.text, ex);
 			}
-			json = parsed;
+			this.json = parsed;
 		}
 		return parsed;
 	}
 
-	/** {@code detail.message} of an error answer, or "" when there is none. */
+	/**
+	 * Returns the message of an error answer.
+	 * @return the body's {@code detail.message}, or "" when there is none
+	 */
 	public String message() {
 		return json().path("detail").path("message").asString("");
 	}
 
-	/** The first value of a header (names are case-insensitive), or null. */
+	/**
+	 * Returns the first value of a header.
+	 * @param name the header's name, in any case
+	 * @return the header's first value, or null when the answer has no such header
+	 */
 	public @Nullable String header(String name) {
-		return headers.firstValue(name).orElse(null);
+		return this.headers.firstValue(name).orElse(null);
 	}
 
-	/** Every value of a header, e.g. each {@code Set-Cookie}. */
+	/**
+	 * Returns every value of a header, e.g. each {@code Set-Cookie}.
+	 * @param name the header's name, in any case
+	 * @return the header's values, in the order the server sent them
+	 */
 	public List<String> headers(String name) {
-		return headers.allValues(name);
+		return this.headers.allValues(name);
 	}
 
-	/** The {@code Set-Cookie} headers. */
+	/**
+	 * Returns the {@code Set-Cookie} headers.
+	 * @return each {@code Set-Cookie} header, in the order the server sent them
+	 */
 	public List<String> setCookies() {
 		return headers("set-cookie");
 	}
 
-	/** The {@code Set-Cookie} header that sets {@code name}, or null. */
+	/**
+	 * Returns the {@code Set-Cookie} header that sets a cookie.
+	 * @param name the cookie's name
+	 * @return the first header that sets {@code name}, or null when none does
+	 */
 	public @Nullable String setCookie(String name) {
-		return setCookies().stream().filter(c -> c.startsWith(name + "=")).findFirst().orElse(null);
+		return setCookies().stream().filter((setCookie) -> setCookie.startsWith(name + "=")).findFirst().orElse(null);
 	}
 
-	/** Where a redirect points. */
+	/**
+	 * Returns where a redirect points; fails the test when the answer has no
+	 * {@code Location}.
+	 * @return the {@code Location} header
+	 */
 	public String location() {
 		String location = header("location");
 		if (location == null) {
-			throw new AssertionError(this + " has no Location header: " + text);
+			throw new AssertionError(this + " has no Location header: " + this.text);
 		}
 		return location;
 	}
 
+	/**
+	 * Fails the test, showing the answer, unless it has the expected status.
+	 * @param expected the status the test expects
+	 * @return this answer
+	 */
+	ApiResponse expectStatus(int expected) {
+		if (this.status != expected) {
+			throw new AssertionError(this + ": " + this.text);
+		}
+		return this;
+	}
+
 	@Override
 	public String toString() {
-		return method + " " + path + " -> " + status;
+		return this.request + " -> " + this.status;
 	}
 
 }

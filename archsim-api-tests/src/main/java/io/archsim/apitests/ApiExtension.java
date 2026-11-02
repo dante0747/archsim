@@ -17,14 +17,6 @@ public final class ApiExtension implements BeforeAllCallback, ParameterResolver 
 
 	private static final Namespace NAMESPACE = Namespace.create(ApiExtension.class);
 
-	/** The test run's servers, shared by every class and stopped when the run ends. */
-	static ApiServers servers(ExtensionContext context) {
-		return context.getRoot()
-			.getStore(NAMESPACE)
-			.computeIfAbsent(ApiServers.class, k -> new ApiServers(SuiteConfig.fromSystemProperties()),
-					ApiServers.class);
-	}
-
 	@Override
 	public void beforeAll(ExtensionContext context) {
 		server(context, profileOf(context.getRequiredTestClass()));
@@ -52,6 +44,19 @@ public final class ApiExtension implements BeforeAllCallback, ParameterResolver 
 		throw new ParameterResolutionException("not an API parameter: " + type);
 	}
 
+	/**
+	 * Returns the test run's servers, shared by every class and stopped when the run
+	 * ends.
+	 * @param context the context of any test or class of the run
+	 * @return the servers, created on first use
+	 */
+	static ApiServers servers(ExtensionContext context) {
+		return context.getRoot()
+			.getStore(NAMESPACE)
+			.computeIfAbsent(ApiServers.class, (key) -> new ApiServers(SuiteConfig.fromSystemProperties()),
+					ApiServers.class);
+	}
+
 	private static ApiServer server(ExtensionContext context, Profile profile) {
 		ApiServer server = servers(context).server(profile);
 		if (server == null) {
@@ -62,8 +67,8 @@ public final class ApiExtension implements BeforeAllCallback, ParameterResolver 
 	}
 
 	private static Profile profileOf(Class<?> testClass) {
-		for (Class<?> c = testClass; c != null; c = enclosing(c)) {
-			ApiTest annotation = c.getAnnotation(ApiTest.class);
+		for (Class<?> type = testClass; type != null; type = enclosing(type)) {
+			ApiTest annotation = type.getAnnotation(ApiTest.class);
 			if (annotation != null) {
 				return annotation.value();
 			}
@@ -71,8 +76,8 @@ public final class ApiExtension implements BeforeAllCallback, ParameterResolver 
 		throw new IllegalStateException(testClass + " is not an @ApiTest");
 	}
 
-	private static @Nullable Class<?> enclosing(Class<?> c) {
-		return c.getEnclosingClass();
+	private static @Nullable Class<?> enclosing(Class<?> type) {
+		return type.getEnclosingClass();
 	}
 
 }
