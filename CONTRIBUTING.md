@@ -98,6 +98,9 @@ speed beyond generous limits, and simulations in tests should use short duration
 - Add or update tests for behaviour changes. Simulation changes need tests that check
   behaviour (direction and accounting), not just that code runs.
 - Update docs when you change the schema, API, modeling assumptions or the UI workflow.
+- A change that makes a significant decision (hard to reverse, a contract others rely on, or
+  how accuracy is judged) adds an [architecture decision record](docs/adr/README.md) in the
+  same PR, or supersedes an existing one.
 - Write commit messages as [Conventional Commits](https://www.conventionalcommits.org):
   `type(scope): description`, in the imperative and starting in lower case, at most 100
   characters (`feat(engine): add a circuit breaker component`). Types: `feat`, `fix`,
