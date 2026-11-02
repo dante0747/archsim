@@ -96,3 +96,42 @@ class TokensTest {
 | `src/test/java` | unit tests of the harness (run by `./gradlew build`) |
 | `src/apiTest/java` | the black-box tests (run by `apiTest`) |
 | `fixtures/` | inputs a profile needs (a second price snapshot) |
+
+## What came from the Python tests
+
+Each class here is one or two files of `services/api/tests`, with one method per Python test
+and the same names in camelCase. Of the 162 Python API tests, 120 are here, as 122 methods: two
+are split in two because they need two server configurations. The other 42 stay in Python:
+
+- **In-process internals (26):** `test_api_queue.py`, `test_api_worker.py`,
+  `test_api_process_runner.py` and `test_api_migrations.py`. They drive the run queue, workers,
+  simulation processes and Alembic from inside the process. The Java app gets its own tests for
+  these parts.
+- **Not observable over HTTP (16),** listed below with the reason in each class's Javadoc.
+
+| Python file | Class | Here | Stays in Python |
+| --- | --- | --- | --- |
+| `test_api_endpoints.py` | `EndpointsTest` | 17 | the database going down mid-run (the test swaps the server's engine in-process); two restarts of the API with leases written to the database |
+| `test_api_export.py`, `test_api_import.py` | `ImportExportTest` | 4 | |
+| `test_api_calibration.py` | `CalibrationTest` | 5 | the parsing of `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` (a `Settings` unit test) |
+| `test_api_oauth.py` | `OAuthTest` | 16 | the validation of the sign-in settings (a `Settings` unit test) |
+| `test_api_tokens.py` | `TokensTest` | 12 | |
+| `test_api_workspaces.py` | `WorkspacesTest` | 15 | three tests of `queue.claim`, called directly |
+| `test_api_limits.py` | `LimitsTest` | 13 | four tests of the rate-limit counter (`limits.hit`, `limits.prune`), called directly |
+| `test_api_run_groups.py` | `RunGroupsTest` | 8 | two quick-check tests that shrink the engine's sampling thresholds in-process |
+| `test_api_shares.py` | `SharesTest` | 15 | unit tests of `new_slug` and `public_report`; the API tests check both through the routes |
+| `test_api_review.py` | `ReviewTest` | 15 | |
+
+Some tests check less than the Python test, or check it another way:
+
+- Google sign-in can't be faked over HTTP (the Python API calls Google's real addresses), so a
+  second GitHub account with the same email stands in where a Python test signs in with
+  Google.
+- The untrusted-proxy case signs in from 127.0.0.2 rather than starting a second server.
+- An allowlisted Prometheus name must resolve to public addresses. Without patching DNS in
+  the process, only `localhost` is checked (the `allowlist` profile), not the five private
+  ranges.
+- `test_profiles_per_kind` and `test_seed_limits_per_workspace_kind` are checked through what
+  the workspaces report and refuse, not by calling `limits` directly.
+- The engine digest check compares two runs of the same input, not a run with the engine called
+  in-process.
