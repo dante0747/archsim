@@ -3,6 +3,7 @@ package io.archsim.model.text;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import java.math.BigDecimal;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.DoubleRange;
@@ -84,8 +85,9 @@ class PythonFormatTest {
     @Property
     void fixed_point_is_within_half_a_unit_of_the_last_digit(
             @ForAll @DoubleRange(min = -1e9, max = 1e9) double value, @ForAll @IntRange(min = 0, max = 6) int digits) {
-        double back = Double.parseDouble(PythonFormat.format(value, "." + digits + "f"));
-        assertThat(Math.abs(back - value)).isLessThanOrEqualTo(0.5 * Math.pow(10, -digits) * (1 + 1e-9));
+        BigDecimal shown = new BigDecimal(PythonFormat.format(value, "." + digits + "f"));
+        BigDecimal halfAUnit = BigDecimal.valueOf(5, digits + 1);
+        assertThat(shown.subtract(new BigDecimal(value)).abs()).isLessThanOrEqualTo(halfAUnit);
     }
 
     @Property
