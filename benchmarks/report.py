@@ -1576,7 +1576,7 @@ def dev_text(results: Path = RESULTS) -> str:
                 cells.append(f"{knee_text(k['predictedKnee'])} ({pct(k['kneeError'])})")
                 if k["kneeError"] is not None and not disturbed:
                     errors[e]["all"].append(abs(k["kneeError"]))
-                    if at == runs[-1]:
+                    if at == max(checks[e][exp]):  # the latest run this engine checked
                         errors[e]["latest"].append(abs(k["kneeError"]))
             lines.append(
                 f"| {exp} | `{any_check['results']}/` | {at} | "
@@ -1587,8 +1587,8 @@ def dev_text(results: Path = RESULTS) -> str:
             )
     summary = [
         f"- Engine {e}: median absolute knee error {pct(bench.median(v['latest']), False)} over "
-        f"the latest run of each experiment, {pct(bench.median(v['all']), False)} over all "
-        f"{len(v['all'])} counted runs."
+        f"the latest run it checked of each experiment, {pct(bench.median(v['all']), False)} "
+        f"over all {len(v['all'])} counted runs."
         for e, v in errors.items()
     ]
     machines = [

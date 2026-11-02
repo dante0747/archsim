@@ -708,7 +708,8 @@ campaign's analysis, and its causes still hold:
   replicate calibrations saw no full garbage collection, and `median_inputs` then dropped how
   often one happens, so the model paused the event loop for 9.7 ms every 1,500 requests (Node's
   default) instead of every 32,500 (fixed after the campaign; re-simulated, the latest run's
-  p95 at 2,600 req/s falls from 4.7 to 3.3 ms). In every run, the service time's spread: v6's
+  p95 at 2,600 req/s falls from 4.7 to 3.3 ms; hot-row's `run-9/` had the same bug, which moved
+  its p95 below the knee by at most 0.14 ms and not its knee). In every run, the service time's spread: v6's
   top pass gives a lognormal with p95 11 times its median, and engine 0.15.0's load curve
   (W21) makes each request 1.4 to 1.7 times as costly at these rates as at the top of the
   staircase; with both the model's queue grows a tail the real event loop does not have. Without

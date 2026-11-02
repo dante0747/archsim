@@ -1019,8 +1019,13 @@ def test_dev_checks_page_is_generated_from_the_committed_checks() -> None:
     # disturbed runs are listed but left out of the medians: 19 of the 26 count
     assert "| `pg-mixed/run-6/` | 2026-10-30T21:30:44Z | yes | 1,089 | no: disturbed |" in text
     assert (
-        "Engine 0.14.0: median absolute knee error 20% over the latest run of each experiment, "
-        "24% over all 19 counted runs." in text
+        "Engine 0.14.0: median absolute knee error 20% over the latest run it checked of each "
+        "experiment, 24% over all 19 counted runs." in text
+    )
+    # the v6 campaign's runs, checked with engine 0.16.0 only
+    assert (
+        "Engine 0.16.0: median absolute knee error 15% over the latest run it checked of each "
+        "experiment, 19% over all 31 counted runs." in text
     )
     assert "_No development checks yet._" in report.dev_text(Path("nowhere"))
 

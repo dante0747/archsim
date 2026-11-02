@@ -25,7 +25,8 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
   1.7); next to look at before the freeze.
 - Fixed: `run.median_inputs` took its keys from the first replicate only, so when that pass
   saw no mark-compact, `gcEveryRequests` was dropped and the model paused every 1,500 requests
-  (Node's default) instead of about 32,500 (cache-aside's latest run). Inputs only some
+  (Node's default) instead of about 32,500 (cache-aside's latest run, and hot-row's `run-9/`,
+  where it moved p95 by at most 0.14 ms below the knee). Inputs only some
   replicates have now take the median of those, and the spacing goes when the median pause is
   0 (test `test_median_inputs_keeps_an_input_the_first_replicate_lacks`). The committed
   predictions keep the inputs they were made with.
