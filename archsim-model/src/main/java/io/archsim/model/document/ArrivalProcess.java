@@ -4,17 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** How requests arrive: at random (exponential gaps) or evenly spaced. */
 public enum ArrivalProcess implements JsonEnum {
-    POISSON("poisson"),
-    DETERMINISTIC("deterministic");
 
-    private final String json;
+	POISSON("poisson"), DETERMINISTIC("deterministic");
 
-    ArrivalProcess(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	ArrivalProcess(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

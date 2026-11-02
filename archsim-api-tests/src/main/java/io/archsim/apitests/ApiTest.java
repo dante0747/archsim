@@ -9,9 +9,10 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
- * A class of black-box tests against a server of {@link #value()}. Its test methods may take
- * an {@link ApiServer} or a fresh {@link ApiClient} of that server as parameters (or of another
- * profile, with {@link On}). The class is skipped when the run has no server of its profile.
+ * A class of black-box tests against a server of {@link #value()}. Its test methods may
+ * take an {@link ApiServer} or a fresh {@link ApiClient} of that server as parameters (or
+ * of another profile, with {@link On}). The class is skipped when the run has no server
+ * of its profile.
  */
 @Documented
 @Inherited
@@ -19,5 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Retention(RetentionPolicy.RUNTIME)
 @ExtendWith(ApiExtension.class)
 public @interface ApiTest {
-    Profile value() default Profile.LOCAL;
+
+	Profile value() default Profile.LOCAL;
+
 }

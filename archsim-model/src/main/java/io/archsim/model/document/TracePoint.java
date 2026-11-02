@@ -9,4 +9,5 @@ import io.archsim.model.codec.AsArray;
  * @param rps the offered rate there, in requests per second
  */
 @AsArray
-public record TracePoint(double t, double rps) {}
+public record TracePoint(double t, double rps) {
+}

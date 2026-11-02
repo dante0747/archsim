@@ -4,17 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** Whether a port receives requests or sends them. */
 public enum PortDirection implements JsonEnum {
-    IN("in"),
-    OUT("out");
 
-    private final String json;
+	IN("in"), OUT("out");
 
-    PortDirection(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	PortDirection(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

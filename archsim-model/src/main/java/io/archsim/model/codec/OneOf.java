@@ -11,5 +11,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE_USE)
 public @interface OneOf {
-    int[] value();
+
+	int[] value();
+
 }

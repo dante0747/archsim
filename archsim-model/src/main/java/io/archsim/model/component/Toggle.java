@@ -4,18 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** A behaviour setting that is on, off, or what the technology does by default. */
 public enum Toggle implements JsonEnum {
-    AUTO("auto"),
-    ON("on"),
-    OFF("off");
 
-    private final String json;
+	AUTO("auto"), ON("on"), OFF("off");
 
-    Toggle(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	Toggle(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

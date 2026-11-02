@@ -4,23 +4,19 @@ import io.archsim.model.codec.JsonEnum;
 
 /** The kind of third-party provider: a label; presets set illustrative numbers. */
 public enum ExternalApiTechnology implements JsonEnum {
-    PAYMENTS("payments"),
-    EMAIL("email"),
-    SMS("sms"),
-    IDENTITY("identity"),
-    LLM("llm"),
-    OBJECT_STORAGE("object_storage"),
-    MAPS("maps"),
-    GENERIC("generic");
 
-    private final String json;
+	PAYMENTS("payments"), EMAIL("email"), SMS("sms"), IDENTITY("identity"), LLM("llm"),
+	OBJECT_STORAGE("object_storage"), MAPS("maps"), GENERIC("generic");
 
-    ExternalApiTechnology(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	ExternalApiTechnology(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

@@ -10,5 +10,5 @@ import io.archsim.model.codec.ModelName;
  * @param url where it is
  */
 @ModelName("SourceModel")
-public record PriceSource(
-        @MaxLength(200) String name, @MaxLength(500) String url) {}
+public record PriceSource(@MaxLength(200) String name, @MaxLength(500) String url) {
+}

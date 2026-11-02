@@ -12,7 +12,7 @@ import tools.jackson.databind.node.ObjectNode;
  */
 public record Upgraded(ObjectNode document, List<String> notes) {
 
-    public Upgraded {
-        notes = List.copyOf(notes);
-    }
+	public Upgraded {
+		notes = List.copyOf(notes);
+	}
 }

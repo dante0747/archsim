@@ -11,17 +11,15 @@ import io.archsim.model.text.PythonFormat;
 /** Always the same value. Useful for fixed overheads and deterministic tests. */
 @Tag("constant")
 @Description("Always the same value. Useful for fixed overheads and deterministic tests.")
-public record Constant(
-        @Description("Value in ms") @Ge(0) @Le(MAX_SAMPLE_MS)
-        double value) implements Distribution {
+public record Constant(@Description("Value in ms") @Ge(0) @Le(MAX_SAMPLE_MS) double value) implements Distribution {
 
-    @Override
-    public double expected() {
-        return value;
-    }
+	@Override
+	public double expected() {
+		return value;
+	}
 
-    @Override
-    public String describe() {
-        return "constant %s ms".formatted(PythonFormat.format(value, "g"));
-    }
+	@Override
+	public String describe() {
+		return "constant %s ms".formatted(PythonFormat.format(value, "g"));
+	}
 }

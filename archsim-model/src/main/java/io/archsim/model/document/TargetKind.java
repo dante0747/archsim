@@ -2,20 +2,22 @@ package io.archsim.model.document;
 
 import io.archsim.model.codec.JsonEnum;
 
-/** What a scenario's override changes: a node's config, an edge's config or the workload. */
+/**
+ * What a scenario's override changes: a node's config, an edge's config or the workload.
+ */
 public enum TargetKind implements JsonEnum {
-    NODE("node"),
-    EDGE("edge"),
-    WORKLOAD("workload");
 
-    private final String json;
+	NODE("node"), EDGE("edge"), WORKLOAD("workload");
 
-    TargetKind(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	TargetKind(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

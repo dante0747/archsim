@@ -13,6 +13,6 @@ import io.archsim.model.codec.Tag;
  */
 @Tag("ramp")
 @Description("Offered load ramps linearly from ``startRps`` to ``endRps`` over the run.")
-public record RampPattern(
-        @Ge(0) @Le(100_000) double startRps,
-        @Ge(0) @Le(100_000) double endRps) implements TrafficPattern {}
+public record RampPattern(@Ge(0) @Le(100_000) double startRps,
+		@Ge(0) @Le(100_000) double endRps) implements TrafficPattern {
+}

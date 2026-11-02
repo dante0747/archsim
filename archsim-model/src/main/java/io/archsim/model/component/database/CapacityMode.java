@@ -4,17 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** How capacity units are bought: per request, or provisioned. */
 public enum CapacityMode implements JsonEnum {
-    ON_DEMAND("on_demand"),
-    PROVISIONED("provisioned");
 
-    private final String json;
+	ON_DEMAND("on_demand"), PROVISIONED("provisioned");
 
-    CapacityMode(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	CapacityMode(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

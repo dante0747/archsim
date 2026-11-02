@@ -11,5 +11,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE_USE)
 public @interface MinItems {
-    int value();
+
+	int value();
+
 }

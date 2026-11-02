@@ -8,22 +8,22 @@ import tools.jackson.databind.node.ObjectNode;
 /** Python's {@code dict[str, Any]}: any JSON object, kept as an {@link ObjectNode}. */
 record ObjectAnyShape() implements Shape {
 
-    @Override
-    public @Nullable Object read(JsonNode in, Location at, Errors errors) {
-        if (!in.isObject()) {
-            errors.add("dict_type", at, Messages.DICT_TYPE);
-            return null;
-        }
-        return in.deepCopy();
-    }
+	@Override
+	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
+		if (!in.isObject()) {
+			errors.add("dict_type", at, Messages.DICT_TYPE);
+			return null;
+		}
+		return in.deepCopy();
+	}
 
-    @Override
-    public JsonNode write(@Nullable Object value) {
-        return ((ObjectNode) Objects.requireNonNull(value)).deepCopy();
-    }
+	@Override
+	public JsonNode write(@Nullable Object value) {
+		return ((ObjectNode) Objects.requireNonNull(value)).deepCopy();
+	}
 
-    @Override
-    public ObjectNode schema(Definitions definitions) {
-        return NODES.objectNode().put("additionalProperties", true).put("type", "object");
-    }
+	@Override
+	public ObjectNode schema(Definitions definitions) {
+		return NODES.objectNode().put("additionalProperties", true).put("type", "object");
+	}
 }

@@ -10,5 +10,5 @@ import org.jspecify.annotations.Nullable;
  * @param targetSide the side of the called component; {@code null}: the editor chooses
  */
 @Description("Which side of each component a link attaches to on the canvas (rendering only).")
-public record EdgeLayout(
-        @Nullable EdgeSide sourceSide, @Nullable EdgeSide targetSide) {}
+public record EdgeLayout(@Nullable EdgeSide sourceSide, @Nullable EdgeSide targetSide) {
+}

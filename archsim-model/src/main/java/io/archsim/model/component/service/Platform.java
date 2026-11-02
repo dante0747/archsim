@@ -4,19 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** Where a service runs. */
 public enum Platform implements JsonEnum {
-    VM("vm"),
-    DOCKER("docker"),
-    KUBERNETES("kubernetes"),
-    SERVERLESS("serverless");
 
-    private final String json;
+	VM("vm"), DOCKER("docker"), KUBERNETES("kubernetes"), SERVERLESS("serverless");
 
-    Platform(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	Platform(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

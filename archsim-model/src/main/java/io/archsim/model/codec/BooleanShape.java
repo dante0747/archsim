@@ -9,43 +9,42 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * A Python {@code bool}. Lax as pydantic is: {@code 0} and {@code 1}, and the strings
- * {@code "true"}, {@code "yes"}, {@code "on"}, {@code "1"} and their opposites (any case) are
- * booleans too.
+ * {@code "true"}, {@code "yes"}, {@code "on"}, {@code "1"} and their opposites (any case)
+ * are booleans too.
  */
 record BooleanShape() implements Shape {
 
-    private static final Set<String> TRUE = Set.of("1", "on", "t", "true", "y", "yes");
-    private static final Set<String> FALSE = Set.of("0", "off", "f", "false", "n", "no");
+	private static final Set<String> TRUE = Set.of("1", "on", "t", "true", "y", "yes");
 
-    @Override
-    public @Nullable Object read(JsonNode in, Location at, Errors errors) {
-        if (in.isBoolean()) {
-            return in.booleanValue();
-        }
-        if (in.isIntegralNumber() || in.isString()) {
-            String text = in.isString()
-                    ? in.stringValue().toLowerCase(Locale.ROOT)
-                    : in.bigIntegerValue().toString();
-            if (TRUE.contains(text) || FALSE.contains(text)) {
-                return TRUE.contains(text);
-            }
-            errors.add("bool_parsing", at, Messages.BOOL_PARSING);
-            return null;
-        }
-        if (in.isNumber() && (in.doubleValue() == 0 || in.doubleValue() == 1)) {
-            return in.doubleValue() == 1;
-        }
-        errors.add("bool_type", at, Messages.BOOL_TYPE);
-        return null;
-    }
+	private static final Set<String> FALSE = Set.of("0", "off", "f", "false", "n", "no");
 
-    @Override
-    public JsonNode write(@Nullable Object value) {
-        return NODES.booleanNode((Boolean) Objects.requireNonNull(value));
-    }
+	@Override
+	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
+		if (in.isBoolean()) {
+			return in.booleanValue();
+		}
+		if (in.isIntegralNumber() || in.isString()) {
+			String text = in.isString() ? in.stringValue().toLowerCase(Locale.ROOT) : in.bigIntegerValue().toString();
+			if (TRUE.contains(text) || FALSE.contains(text)) {
+				return TRUE.contains(text);
+			}
+			errors.add("bool_parsing", at, Messages.BOOL_PARSING);
+			return null;
+		}
+		if (in.isNumber() && (in.doubleValue() == 0 || in.doubleValue() == 1)) {
+			return in.doubleValue() == 1;
+		}
+		errors.add("bool_type", at, Messages.BOOL_TYPE);
+		return null;
+	}
 
-    @Override
-    public ObjectNode schema(Definitions definitions) {
-        return NODES.objectNode().put("type", "boolean");
-    }
+	@Override
+	public JsonNode write(@Nullable Object value) {
+		return NODES.booleanNode((Boolean) Objects.requireNonNull(value));
+	}
+
+	@Override
+	public ObjectNode schema(Definitions definitions) {
+		return NODES.objectNode().put("type", "boolean");
+	}
 }

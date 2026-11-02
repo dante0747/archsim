@@ -9,7 +9,5 @@ import io.archsim.model.codec.Default;
  * @param y the vertical offset
  * @param zoom the zoom factor
  */
-public record Viewport(
-        @Default("0.0") double x,
-        @Default("0.0") double y,
-        @Default("1.0") double zoom) {}
+public record Viewport(@Default("0.0") double x, @Default("0.0") double y, @Default("1.0") double zoom) {
+}

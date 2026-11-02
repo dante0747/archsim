@@ -8,5 +8,5 @@ import io.archsim.model.codec.Default;
  * @param x the horizontal position
  * @param y the vertical position
  */
-public record Position(
-        @Default("0.0") double x, @Default("0.0") double y) {}
+public record Position(@Default("0.0") double x, @Default("0.0") double y) {
+}

@@ -1,6 +1,6 @@
-// What every Java module of ArchSim gets: Java 25, the formatter, Error Prone with NullAway
-// (JSpecify annotations), JUnit with AssertJ, and JaCoCo coverage. `./gradlew check` runs
-// them all; `./gradlew spotlessApply` fixes the formatting.
+// What every Java module of ArchSim gets: Java 25, Spring's formatter, Error Prone with NullAway
+// (JSpecify annotations), JUnit with AssertJ, and JaCoCo coverage. `./gradlew check` runs them all
+// and fails on any finding; `./gradlew format` fixes the formatting (docs/java-conventions.md).
 import net.ltgt.gradle.errorprone.CheckSeverity
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -9,7 +9,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 plugins {
     java
     jacoco
-    id("com.diffplug.spotless")
+    id("io.spring.javaformat")
     id("net.ltgt.errorprone")
 }
 
@@ -47,15 +47,6 @@ tasks.withType<JavaCompile>().configureEach {
         check("NullAway", CheckSeverity.ERROR)
         option("NullAway:AnnotatedPackages", "io.archsim")
         option("NullAway:JSpecifyMode", "true")
-    }
-}
-
-spotless {
-    java {
-        palantirJavaFormat(version("palantir-java-format"))
-        removeUnusedImports()
-        trimTrailingWhitespace()
-        endWithNewline()
     }
 }
 

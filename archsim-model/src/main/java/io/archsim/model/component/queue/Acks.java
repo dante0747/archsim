@@ -4,18 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** What a publish waits for before it is acknowledged; auto follows the technology. */
 public enum Acks implements JsonEnum {
-    AUTO("auto"),
-    LEADER("leader"),
-    ALL("all");
 
-    private final String json;
+	AUTO("auto"), LEADER("leader"), ALL("all");
 
-    Acks(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	Acks(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

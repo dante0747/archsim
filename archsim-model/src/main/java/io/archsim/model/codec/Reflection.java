@@ -7,15 +7,19 @@ import org.jspecify.annotations.Nullable;
 /** Calling a record's accessor reflectively, where a failure can only be a bug. */
 final class Reflection {
 
-    private Reflection() {}
+	private Reflection() {
+	}
 
-    static @Nullable Object get(Method accessor, Object record) {
-        try {
-            return accessor.invoke(record);
-        } catch (InvocationTargetException e) {
-            throw new IllegalStateException("accessor " + accessor + " failed", e.getCause());
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException("accessor " + accessor + " is not public", e);
-        }
-    }
+	static @Nullable Object get(Method accessor, Object record) {
+		try {
+			return accessor.invoke(record);
+		}
+		catch (InvocationTargetException e) {
+			throw new IllegalStateException("accessor " + accessor + " failed", e.getCause());
+		}
+		catch (IllegalAccessException e) {
+			throw new IllegalStateException("accessor " + accessor + " is not public", e);
+		}
+	}
+
 }

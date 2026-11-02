@@ -4,18 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** How many of a key's replicas an operation waits for: one, a quorum, or all. */
 public enum Consistency implements JsonEnum {
-    ONE("one"),
-    QUORUM("quorum"),
-    ALL("all");
 
-    private final String json;
+	ONE("one"), QUORUM("quorum"), ALL("all");
 
-    Consistency(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	Consistency(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

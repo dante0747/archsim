@@ -8,11 +8,14 @@ import java.lang.annotation.Target;
 
 /**
  * The name the Python model has, where the record's own name differs (the JSON Schema's
- * definitions and error messages use it). Without it, the record's simple name is the name.
+ * definitions and error messages use it). Without it, the record's simple name is the
+ * name.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface ModelName {
-    String value();
+
+	String value();
+
 }

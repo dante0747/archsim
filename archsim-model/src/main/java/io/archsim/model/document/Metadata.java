@@ -14,14 +14,11 @@ import org.jspecify.annotations.Nullable;
  * @param description a longer description
  * @param tags labels to find it by
  */
-public record Metadata(
-        @Default("Untitled architecture") @MinLength(1) @MaxLength(120)
-        String name,
+public record Metadata(@Default("Untitled architecture") @MinLength(1) @MaxLength(120) String name,
 
-        @MaxLength(4000) @Nullable String description,
-        @Default("[]") @MaxItems(20) List<String> tags) {
+		@MaxLength(4000) @Nullable String description, @Default("[]") @MaxItems(20) List<String> tags) {
 
-    public Metadata {
-        tags = List.copyOf(tags);
-    }
+	public Metadata {
+		tags = List.copyOf(tags);
+	}
 }

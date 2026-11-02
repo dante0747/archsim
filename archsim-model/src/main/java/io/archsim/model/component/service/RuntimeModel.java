@@ -2,20 +2,23 @@ package io.archsim.model.component.service;
 
 import io.archsim.model.codec.JsonEnum;
 
-/** How a service's handlers share work: a thread per request, or event loops; auto follows the technology. */
+/**
+ * How a service's handlers share work: a thread per request, or event loops; auto follows
+ * the technology.
+ */
 public enum RuntimeModel implements JsonEnum {
-    AUTO("auto"),
-    THREAD_POOL("thread_pool"),
-    EVENT_LOOP("event_loop");
 
-    private final String json;
+	AUTO("auto"), THREAD_POOL("thread_pool"), EVENT_LOOP("event_loop");
 
-    RuntimeModel(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	RuntimeModel(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

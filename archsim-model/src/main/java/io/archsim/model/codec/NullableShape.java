@@ -7,22 +7,20 @@ import tools.jackson.databind.node.ObjectNode;
 /** {@code X | None}: JSON {@code null}, or what the inner shape reads. */
 record NullableShape(Shape inner) implements Shape {
 
-    @Override
-    public @Nullable Object read(JsonNode in, Location at, Errors errors) {
-        return in.isNull() ? null : inner.read(in, at, errors);
-    }
+	@Override
+	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
+		return in.isNull() ? null : inner.read(in, at, errors);
+	}
 
-    @Override
-    public JsonNode write(@Nullable Object value) {
-        return value == null ? NODES.nullNode() : inner.write(value);
-    }
+	@Override
+	public JsonNode write(@Nullable Object value) {
+		return value == null ? NODES.nullNode() : inner.write(value);
+	}
 
-    @Override
-    public ObjectNode schema(Definitions definitions) {
-        ObjectNode schema = NODES.objectNode();
-        schema.putArray("anyOf")
-                .add(inner.schema(definitions))
-                .add(NODES.objectNode().put("type", "null"));
-        return schema;
-    }
+	@Override
+	public ObjectNode schema(Definitions definitions) {
+		ObjectNode schema = NODES.objectNode();
+		schema.putArray("anyOf").add(inner.schema(definitions)).add(NODES.objectNode().put("type", "null"));
+		return schema;
+	}
 }

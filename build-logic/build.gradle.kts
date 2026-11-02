@@ -3,6 +3,6 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.spotless.gradle.plugin)
+    implementation(libs.spring.javaformat.gradle.plugin)
     implementation(libs.errorprone.gradle.plugin)
 }

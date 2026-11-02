@@ -14,10 +14,8 @@ import io.archsim.model.codec.Le;
  * @param trafficShare the group's share of the workload (percent)
  * @param technology what the app is built with
  */
-public record MobileAppConfig(
-        @Default("10000.0") @Gt(0) @Le(600_000) double timeoutMs,
-        @Default("2") @Ge(1) @Le(5) int maxAttempts,
-        @Default("500.0") @Ge(0) @Le(60_000) double retryBackoffMs,
-        @Default("50.0") @Gt(0) @Le(100) double trafficShare,
-        @Default("mobile") MobileTechnology technology)
-        implements ClientConfig {}
+public record MobileAppConfig(@Default("10000.0") @Gt(0) @Le(600_000) double timeoutMs,
+		@Default("2") @Ge(1) @Le(5) int maxAttempts, @Default("500.0") @Ge(0) @Le(60_000) double retryBackoffMs,
+		@Default("50.0") @Gt(0) @Le(100) double trafficShare,
+		@Default("mobile") MobileTechnology technology) implements ClientConfig {
+}

@@ -11,26 +11,23 @@ import io.archsim.model.component.queue.MessageQueueSpec;
 import io.archsim.model.component.service.ServiceSpec;
 import java.util.List;
 
-/** ArchSim's own component types, in the order the Python engine's default registry has them. */
+/**
+ * ArchSim's own component types, in the order the Python engine's default registry has
+ * them.
+ */
 public final class StandardComponents {
 
-    private static final ComponentRegistry REGISTRY = new ComponentRegistry(List.of(
-            TrafficSourceSpec.CLIENTS,
-            TrafficSourceSpec.MOBILE_APP,
-            TrafficSourceSpec.WEB_CLIENT,
-            TrafficSourceSpec.API_CONSUMER,
-            new LoadBalancerSpec(),
-            new ServiceSpec(),
-            new CacheSpec(),
-            new DatabaseSpec(),
-            new ExternalApiSpec(),
-            new MessageQueueSpec(),
-            new KubernetesClusterSpec()));
+	private static final ComponentRegistry REGISTRY = new ComponentRegistry(
+			List.of(TrafficSourceSpec.CLIENTS, TrafficSourceSpec.MOBILE_APP, TrafficSourceSpec.WEB_CLIENT,
+					TrafficSourceSpec.API_CONSUMER, new LoadBalancerSpec(), new ServiceSpec(), new CacheSpec(),
+					new DatabaseSpec(), new ExternalApiSpec(), new MessageQueueSpec(), new KubernetesClusterSpec()));
 
-    private StandardComponents() {}
+	private StandardComponents() {
+	}
 
-    /** A registry of ArchSim's own types (it is immutable, so one is shared). */
-    public static ComponentRegistry registry() {
-        return REGISTRY;
-    }
+	/** A registry of ArchSim's own types (it is immutable, so one is shared). */
+	public static ComponentRegistry registry() {
+		return REGISTRY;
+	}
+
 }

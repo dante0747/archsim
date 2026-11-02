@@ -13,13 +13,11 @@ import org.jspecify.annotations.Nullable;
  * @param edges where links attach, by edge id
  * @param viewport the part of the canvas shown
  */
-public record Layout(
-        @Default("{}") Map<String, Position> nodes,
-        @Default("{}") Map<String, EdgeLayout> edges,
-        @Nullable Viewport viewport) {
+public record Layout(@Default("{}") Map<String, Position> nodes, @Default("{}") Map<String, EdgeLayout> edges,
+		@Nullable Viewport viewport) {
 
-    public Layout {
-        nodes = Collections.unmodifiableMap(new LinkedHashMap<>(nodes));
-        edges = Collections.unmodifiableMap(new LinkedHashMap<>(edges));
-    }
+	public Layout {
+		nodes = Collections.unmodifiableMap(new LinkedHashMap<>(nodes));
+		edges = Collections.unmodifiableMap(new LinkedHashMap<>(edges));
+	}
 }

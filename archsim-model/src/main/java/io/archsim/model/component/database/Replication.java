@@ -4,20 +4,18 @@ import io.archsim.model.codec.JsonEnum;
 
 /** What a write waits for from replicas; auto follows the technology. */
 public enum Replication implements JsonEnum {
-    AUTO("auto"),
-    ASYNC("async"),
-    MAJORITY("majority"),
-    ALL("all"),
-    NONE("none");
 
-    private final String json;
+	AUTO("auto"), ASYNC("async"), MAJORITY("majority"), ALL("all"), NONE("none");
 
-    Replication(String json) {
-        this.json = json;
-    }
+	private final String json;
 
-    @Override
-    public String json() {
-        return json;
-    }
+	Replication(String json) {
+		this.json = json;
+	}
+
+	@Override
+	public String json() {
+		return json;
+	}
+
 }

@@ -9,4 +9,5 @@ import io.archsim.model.codec.AsArray;
  * @param ms the value at that probability, in milliseconds
  */
 @AsArray
-public record Quantile(double p, double ms) {}
+public record Quantile(double p, double ms) {
+}

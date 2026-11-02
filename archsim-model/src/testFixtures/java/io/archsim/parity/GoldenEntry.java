@@ -6,56 +6,52 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * One recorded call of a Python engine function: its inputs, references resolved, and either
- * what it returned or what it raised.
+ * One recorded call of a Python engine function: its inputs, references resolved, and
+ * either what it returned or what it raised.
  *
  * @param file the golden file it is in, such as {@code fixtures/migrations}
  * @param pointer where it is in the file, as a JSON Pointer
  * @param fn the Python function, such as {@code archsim_engine.scenarios.load_document}
  * @param input its parameters by name, in camelCase, references resolved
  * @param output what it returned, or {@code null} when it raised
- * @param error what it raised, {@code {type, message}} and maybe {@code issues}, or {@code null}
+ * @param error what it raised, {@code {type, message}} and maybe {@code issues}, or
+ * {@code null}
  */
-public record GoldenEntry(
-        String file,
-        String pointer,
-        String fn,
-        ObjectNode input,
-        @Nullable JsonNode output,
-        @Nullable JsonNode error) {
+public record GoldenEntry(String file, String pointer, String fn, ObjectNode input, @Nullable JsonNode output,
+		@Nullable JsonNode error) {
 
-    public GoldenEntry {
-        if ((output == null) == (error == null)) {
-            throw new IllegalArgumentException(pointer + ": an entry has an output or an error");
-        }
-    }
+	public GoldenEntry {
+		if ((output == null) == (error == null)) {
+			throw new IllegalArgumentException(pointer + ": an entry has an output or an error");
+		}
+	}
 
-    /** The parameter {@code name}. */
-    public JsonNode input(String name) {
-        return Objects.requireNonNull(input.get(name), () -> pointer + " has no input " + name);
-    }
+	/** The parameter {@code name}. */
+	public JsonNode input(String name) {
+		return Objects.requireNonNull(input.get(name), () -> pointer + " has no input " + name);
+	}
 
-    public boolean raised() {
-        return error != null;
-    }
+	public boolean raised() {
+		return error != null;
+	}
 
-    /** What the function returned. */
-    public JsonNode expectedOutput() {
-        return Objects.requireNonNull(output, () -> pointer + " raised");
-    }
+	/** What the function returned. */
+	public JsonNode expectedOutput() {
+		return Objects.requireNonNull(output, () -> pointer + " raised");
+	}
 
-    /** What the function raised. */
-    public JsonNode expectedError() {
-        return Objects.requireNonNull(error, () -> pointer + " returned");
-    }
+	/** What the function raised. */
+	public JsonNode expectedError() {
+		return Objects.requireNonNull(error, () -> pointer + " returned");
+	}
 
-    /** The function's own name, without its module: {@code load_document}. */
-    public String function() {
-        return fn.substring(fn.lastIndexOf('.') + 1);
-    }
+	/** The function's own name, without its module: {@code load_document}. */
+	public String function() {
+		return fn.substring(fn.lastIndexOf('.') + 1);
+	}
 
-    @Override
-    public String toString() {
-        return file + " " + pointer;
-    }
+	@Override
+	public String toString() {
+		return file + " " + pointer;
+	}
 }

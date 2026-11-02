@@ -7,4 +7,6 @@ import io.archsim.model.codec.Tagged;
  * constant}, {@code ramp}, {@code burst} or {@code trace}.
  */
 @Tagged("kind")
-public sealed interface TrafficPattern permits ConstantPattern, RampPattern, BurstPattern, TracePattern {}
+public sealed interface TrafficPattern permits ConstantPattern, RampPattern, BurstPattern, TracePattern {
+
+}

@@ -11,8 +11,9 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A price snapshot file as {@code scripts/prices/} writes it (format {@code archsim.prices/1}),
- * read with the Python engine's rules so a bad file is refused with the same reason.
+ * A price snapshot file as {@code scripts/prices/} writes it (format
+ * {@code archsim.prices/1}), read with the Python engine's rules so a bad file is refused
+ * with the same reason.
  *
  * @param format always {@value #FORMAT}
  * @param provider the cloud provider, such as {@code aws}
@@ -28,48 +29,34 @@ import org.jspecify.annotations.Nullable;
  * @param rates per-unit prices
  */
 @ModelName("SnapshotModel")
-record SnapshotFile(
-        @Const(FORMAT) String format,
-        @Matches(NAME) String provider,
-        @Matches(NAME) String region,
-        @Default("USD") @Const("USD") String currency,
-        @Matches("^\\d{4}-\\d{2}-\\d{2}$") String snapshotDate,
-        @MinItems(1) List<PriceSource> sources,
-        @MaxLength(500) @Nullable String note,
-        @Default("[]") List<Sku> compute,
-        @Default("[]") List<Sku> databases,
-        @Default("[]") List<Sku> caches,
-        @Default("[]") List<Sku> streams,
-        @Default("{}") Rates rates) {
+record SnapshotFile(@Const(FORMAT) String format, @Matches(NAME) String provider, @Matches(NAME) String region,
+		@Default("USD") @Const("USD") String currency, @Matches("^\\d{4}-\\d{2}-\\d{2}$") String snapshotDate,
+		@MinItems(1) List<PriceSource> sources, @MaxLength(500) @Nullable String note, @Default("[]") List<Sku> compute,
+		@Default("[]") List<Sku> databases, @Default("[]") List<Sku> caches, @Default("[]") List<Sku> streams,
+		@Default("{}") Rates rates) {
 
-    static final String FORMAT = "archsim.prices/1";
-    static final String NAME = "^[a-z0-9-]{1,40}$";
+	static final String FORMAT = "archsim.prices/1";
+	static final String NAME = "^[a-z0-9-]{1,40}$";
 
-    SnapshotFile {
-        sources = List.copyOf(sources);
-        compute = List.copyOf(compute);
-        databases = List.copyOf(databases);
-        caches = List.copyOf(caches);
-        streams = List.copyOf(streams);
-    }
+	SnapshotFile {
+		sources = List.copyOf(sources);
+		compute = List.copyOf(compute);
+		databases = List.copyOf(databases);
+		caches = List.copyOf(caches);
+		streams = List.copyOf(streams);
+	}
 
-    /** A snapshot's per-unit prices; each is optional, since older snapshots have fewer. */
-    @ModelName("RatesModel")
-    record Rates(
-            @Ge(0) @Nullable Double storageGibMonth,
-            @Ge(0) @Nullable Double serverlessGbSecond,
-            @Ge(0) @Nullable Double serverlessPerMillionRequests,
-            @Ge(0) @Nullable Double queuePerMillionRequests,
-            @Ge(0) @Nullable Double loadBalancerHour,
-            @Ge(0) @Nullable Double loadBalancerLcuHour,
-            @Ge(0) @Nullable Double networkLoadBalancerHour,
-            @Ge(0) @Nullable Double networkLoadBalancerLcuHour,
-            @Ge(0) @Nullable Double dynamodbReadPerMillion,
-            @Ge(0) @Nullable Double dynamodbWritePerMillion,
-            @Ge(0) @Nullable Double dynamodbRcuHour,
-            @Ge(0) @Nullable Double dynamodbWcuHour,
-            @Ge(0) @Nullable Double dynamodbStorageGibMonth,
-            @Ge(0) @Nullable Double apiGatewayPerMillion,
-            @Ge(0) @Nullable Double rdsStorageGibMonth,
-            @Ge(0) @Nullable Double kubernetesControlPlaneHour) {}
+	/**
+	 * A snapshot's per-unit prices; each is optional, since older snapshots have fewer.
+	 */
+	@ModelName("RatesModel")
+	record Rates(@Ge(0) @Nullable Double storageGibMonth, @Ge(0) @Nullable Double serverlessGbSecond,
+			@Ge(0) @Nullable Double serverlessPerMillionRequests, @Ge(0) @Nullable Double queuePerMillionRequests,
+			@Ge(0) @Nullable Double loadBalancerHour, @Ge(0) @Nullable Double loadBalancerLcuHour,
+			@Ge(0) @Nullable Double networkLoadBalancerHour, @Ge(0) @Nullable Double networkLoadBalancerLcuHour,
+			@Ge(0) @Nullable Double dynamodbReadPerMillion, @Ge(0) @Nullable Double dynamodbWritePerMillion,
+			@Ge(0) @Nullable Double dynamodbRcuHour, @Ge(0) @Nullable Double dynamodbWcuHour,
+			@Ge(0) @Nullable Double dynamodbStorageGibMonth, @Ge(0) @Nullable Double apiGatewayPerMillion,
+			@Ge(0) @Nullable Double rdsStorageGibMonth, @Ge(0) @Nullable Double kubernetesControlPlaneHour) {
+	}
 }

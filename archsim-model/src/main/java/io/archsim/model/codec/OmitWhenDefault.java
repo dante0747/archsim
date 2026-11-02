@@ -13,4 +13,6 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.RECORD_COMPONENT)
-public @interface OmitWhenDefault {}
+public @interface OmitWhenDefault {
+
+}

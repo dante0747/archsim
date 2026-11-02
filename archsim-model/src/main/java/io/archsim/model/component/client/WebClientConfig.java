@@ -14,10 +14,8 @@ import io.archsim.model.codec.Le;
  * @param trafficShare the group's share of the workload (percent)
  * @param technology what the site is built with
  */
-public record WebClientConfig(
-        @Default("15000.0") @Gt(0) @Le(600_000) double timeoutMs,
-        @Default("1") @Ge(1) @Le(5) int maxAttempts,
-        @Default("100.0") @Ge(0) @Le(60_000) double retryBackoffMs,
-        @Default("35.0") @Gt(0) @Le(100) double trafficShare,
-        @Default("browser") WebTechnology technology)
-        implements ClientConfig {}
+public record WebClientConfig(@Default("15000.0") @Gt(0) @Le(600_000) double timeoutMs,
+		@Default("1") @Ge(1) @Le(5) int maxAttempts, @Default("100.0") @Ge(0) @Le(60_000) double retryBackoffMs,
+		@Default("35.0") @Gt(0) @Le(100) double trafficShare,
+		@Default("browser") WebTechnology technology) implements ClientConfig {
+}
