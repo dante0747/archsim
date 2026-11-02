@@ -135,3 +135,19 @@ Some tests check less than the Python test, or check it another way:
   the workspaces report and refuse, not by calling `limits` directly.
 - The engine digest check compares two runs of the same input, not a run with the engine called
   in-process.
+
+## Notes for the Java app (stage 2)
+
+Found while porting the tests. The suite checks neither of these, so the Java app can't copy
+them by accident:
+
+- **A bug in the Python API (not fixed; the owner decides).** `_charge` in
+  `services/api/src/archsim_api/routers/runs.py` counts new runs against the person's hourly
+  counter (`user:<id>:runs`) before the workspace's (`ws:<id>:runs`). When the workspace's
+  limit then answers 429, the person's counter keeps the cost of runs that were never queued.
+  That breaks the rule in `limits.py` that a refused request costs nothing. `archsim-app` must
+  not copy it: check both limits before charging either.
+- **Revoking a share stores a JSON `null` in `shared_reports.payload`, not SQL `NULL`** (the
+  default of SQLAlchemy's JSON type). `SharesTest` accepts both. Both APIs use one database, so
+  `archsim-app` should decide deliberately which one it writes, and readers should treat both
+  as "no copy".
