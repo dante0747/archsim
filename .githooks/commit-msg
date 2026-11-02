@@ -1,0 +1,4 @@
+#!/bin/sh
+# Rejects commit messages that are not Conventional Commits. Enable once per clone:
+#   git config core.hooksPath .githooks      (or: make hooks)
+exec uv run --quiet --no-sync python scripts/check_commits.py --file "$1"

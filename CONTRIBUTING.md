@@ -98,7 +98,13 @@ speed beyond generous limits, and simulations in tests should use short duration
 - Add or update tests for behaviour changes. Simulation changes need tests that check
   behaviour (direction and accounting), not just that code runs.
 - Update docs when you change the schema, API, modeling assumptions or the UI workflow.
-- Use clear commit messages in the imperative mood ("Add circuit breaker component").
+- Write commit messages as [Conventional Commits](https://www.conventionalcommits.org):
+  `type(scope): description`, in the imperative and starting in lower case, at most 100
+  characters (`feat(engine): add a circuit breaker component`). Types: `feat`, `fix`,
+  `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`; mark a
+  breaking change with `!` after the type or scope. Commits carry no AI co-author trailer.
+  `make hooks` (or `git config core.hooksPath .githooks`) checks each message as you commit,
+  and CI checks every commit of a pull request (`scripts/check_commits.py`).
 - Do not commit secrets, `.env` files, local databases (`*.db`) or generated reports.
 - New dependencies need a reason in the PR description. No telemetry, no paid services.
 - If you change component metadata (fields, ports, defaults), regenerate the web test fixture

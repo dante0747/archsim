@@ -1,10 +1,14 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
+.PHONY: setup hooks api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
 
-setup:            ## install Python and web dependencies
+setup:            ## install Python and web dependencies, and the commit-message hook
 	uv sync
 	cd apps/web && npm ci
+	git config core.hooksPath .githooks
+
+hooks:            ## check commit messages against Conventional Commits on every commit
+	git config core.hooksPath .githooks
 
 api:              ## run the API on http://127.0.0.1:8000
 	uv run archsim-api serve --reload
