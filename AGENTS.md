@@ -1,0 +1,44 @@
+# Working on ArchSim with an AI assistant
+
+Instructions for AI coding assistants (Claude Code, Codex, Cursor, Copilot and others) working in
+this repository. People follow the same rules: [CONTRIBUTING.md](CONTRIBUTING.md) and
+[docs/java-conventions.md](docs/java-conventions.md).
+
+## Standards to follow
+
+Read the skill for the task before starting it. Each is a short, complete set of rules:
+
+| Task | Skill |
+| --- | --- |
+| Writing, changing or reviewing Java | [`.claude/skills/java-conventions`](.claude/skills/java-conventions/SKILL.md) |
+| Adding behaviour or fixing a bug, in any language | [`.claude/skills/test-first`](.claude/skills/test-first/SKILL.md) |
+| Writing a commit message | [`.claude/skills/conventional-commits`](.claude/skills/conventional-commits/SKILL.md) |
+
+The build enforces the Java rules and fails on any finding: never suppress a finding, add
+`@SuppressWarnings` for a style rule, or change `config/checkstyle/` to make a change pass.
+Ask the owner instead.
+
+## The repository
+
+- `archsim-model/`, `archsim-api-tests/`, `build-logic/`: Java 25, one Gradle build
+  (`./gradlew build`). The Java port's plan is `docs/proposals/java-25-port.md`.
+- `packages/engine/`: the Python engine, **frozen at 0.16.0**: don't change it; report its bugs.
+- `services/api/`: the Python API, being replaced by the Java one. `apps/web/`: the Next.js app.
+- `docs/adr/`: architecture decisions. A significant decision gets a new ADR with
+  `status: proposed`; never mark one accepted, that is the owner's call.
+
+## Before saying a change is done
+
+```bash
+./gradlew format && ./gradlew build          # Java: format, Checkstyle, Error Prone, tests
+uv run ruff check packages services scripts  # Python
+uv run pytest
+uv run python scripts/check_commits.py --range main..HEAD
+```
+
+## Rules that are never bent
+
+- The repository is private: never change its visibility or publish its content.
+- Commits use the configured git identity and carry no AI co-author trailer.
+- Never print or edit secrets (`.env*` files other than `.env.example`).
+- Python commands run through `uv run`.

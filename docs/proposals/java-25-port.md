@@ -81,7 +81,9 @@ archsim-model (plain Java library, usable without the simulator)
   per component, and component types sit behind a sealed interface. Why not virtual threads:
   [ADR-0013](../adr/0013-event-driven-simulation-kernel.md).
 - **Quality gates in CI:**
-  - formatting: Spotless with palantir-java-format;
+  - formatting and style: Spring's formatter (spring-javaformat) and Checkstyle with clean-code
+    rules ([ADR-0030](../adr/0030-spring-style-and-clean-code-checks.md),
+    [Java conventions](../java-conventions.md));
   - null safety: Error Prone with NullAway and JSpecify annotations;
   - layering: ArchUnit rules (controllers never use repositories directly; the model and the
     engine never import Spring or JDBC; the model never imports the engine);
@@ -104,7 +106,7 @@ doesn't change.
 | `settings.gradle.kts`, `gradlew`, `gradle/wrapper/` | the build and its wrapper (Gradle 9.8) |
 | `gradle/libs.versions.toml` | every version, in one place |
 | `gradle/gradle-daemon-jvm.properties` | Gradle runs on JDK 25 whatever `JAVA_HOME` says, and downloads one if none is installed |
-| `build-logic/` | the convention plugin every module applies: Java 25, Spotless, Error Prone with NullAway, JUnit, JaCoCo |
+| `build-logic/` | the convention plugin every module applies: Java 25, spring-javaformat, Checkstyle, Error Prone with NullAway, JUnit, JaCoCo |
 | `archsim-model/`, `archsim-engine/`, `archsim-app/`, `archsim-cli/`, `archsim-mcp/` | one module per box above, each added by the stage that needs it. Maven's standard directories inside: `src/main/java/io/archsim/<module>/` (in the app, `io.archsim.app.<feature>`), `src/main/resources`, `src/test/java` |
 | `archsim-api-tests/` | a test module: the black-box API tests (stage 0) |
 | `parity/golden/` | the frozen Python engine's golden files, the reference for stages 1 and 3 ([`parity/README.md`](../../parity/README.md)) |

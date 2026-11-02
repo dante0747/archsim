@@ -39,7 +39,8 @@ sets:
   `gradle/gradle-daemon-jvm.properties` makes Gradle itself run on JDK 25, downloading one if
   none is installed, so the build works whatever `JAVA_HOME` points to.
 - **Formatting.** Spotless with palantir-java-format checks it; `./gradlew spotlessApply` fixes
-  it.
+  it. (Superseded by [ADR-0030](0030-spring-style-and-clean-code-checks.md): Spring's
+  formatter and Checkstyle.)
 - **Static analysis.** Error Prone with NullAway in JSpecify mode covers all of `io.archsim`.
   With `-Xlint:all -Werror`, every javac or Error Prone warning fails the build.
 - **Tests.** JUnit 6 and AssertJ. JUnit 6 is JUnit 5's Jupiter API, and the version Spring Boot
