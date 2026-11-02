@@ -6,7 +6,7 @@
   },
   "thresholds": {
     "kneeError": 0.25,
-    "p95Error": 1.0,
+    "p95Factor": 2.0,
     "p95Ms": 3.0,
     "lowLoadFraction": 0.5
   },
@@ -27,10 +27,7 @@
       "cache-aside",
       "kafka"
     ],
-    "p95WithinTolerance": [
-      "pg-mixed",
-      "kafka"
-    ],
+    "p95WithinTolerance": [],
     "validated": [],
     "withSpread": [
       "pg-mixed",
@@ -137,11 +134,13 @@
           "thisRun": 0.1929903233419872
         },
         "p95": {
-          "pass": true,
+          "pass": false,
           "steps": 3,
-          "misses": [],
+          "misses": [
+            3788
+          ],
           "runs": 3,
-          "runsPassing": 3
+          "runsPassing": 0
         },
         "stable": {
           "pass": false,
@@ -291,9 +290,11 @@
       "spreadExceedsError": false,
       "p95BelowKnee": {
         "steps": 3,
-        "within": 3,
-        "misses": [],
-        "pass": true,
+        "within": 2,
+        "misses": [
+          3788
+        ],
+        "pass": false,
         "medianAbsError": 0.24300381694343462,
         "maxAbsError": 0.933943449960791,
         "worst": {
@@ -309,7 +310,7 @@
             "successRate": 1.0
           },
           "p95Error": -0.933943449960791,
-          "p95Within": true,
+          "p95Within": false,
           "text": {
             "offered": "3,788",
             "measuredP95": "30.7",
@@ -416,7 +417,7 @@
             "successRate": 1.0
           },
           "p95Error": -0.933943449960791,
-          "p95Within": true,
+          "p95Within": false,
           "text": {
             "offered": "3,788",
             "measuredP95": "30.7",
@@ -439,7 +440,7 @@
             "successRate": 1.0
           },
           "p95Error": -0.9617107758765703,
-          "p95Within": true,
+          "p95Within": false,
           "text": {
             "offered": "4,545",
             "measuredP95": "63.3",
@@ -462,7 +463,7 @@
             "successRate": 1.0
           },
           "p95Error": -0.7183999367014641,
-          "p95Within": true,
+          "p95Within": false,
           "text": {
             "offered": "5,050",
             "measuredP95": "115",
@@ -3012,13 +3013,15 @@
           "thisRun": -0.09795175563802455
         },
         "p95": {
-          "pass": true,
+          "pass": false,
           "steps": 6,
           "misses": [
+            1894,
+            2272,
             2778
           ],
           "runs": 3,
-          "runsPassing": 2
+          "runsPassing": 0
         },
         "stable": {
           "pass": true,
@@ -3149,11 +3152,13 @@
       "spreadExceedsError": false,
       "p95BelowKnee": {
         "steps": 6,
-        "within": 5,
+        "within": 3,
         "misses": [
+          1894,
+          2272,
           2778
         ],
-        "pass": true,
+        "pass": false,
         "medianAbsError": 0.6360188616686135,
         "maxAbsError": 41.87561642732136,
         "worst": {
@@ -3276,7 +3281,7 @@
             "successRate": 1.0
           },
           "p95Error": -0.8044832270937341,
-          "p95Within": true,
+          "p95Within": false,
           "text": {
             "offered": "1,894",
             "measuredP95": "14.5",
@@ -3299,7 +3304,7 @@
             "successRate": 1.0
           },
           "p95Error": -0.834751910827402,
-          "p95Within": true,
+          "p95Within": false,
           "text": {
             "offered": "2,272",
             "measuredP95": "28.7",
@@ -4530,9 +4535,11 @@
         "checks": {
           "kneeError": 2.525538376587521,
           "steps": 1,
-          "misses": [],
+          "misses": [
+            1275
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": [
             2550,
@@ -4582,9 +4589,11 @@
         "checks": {
           "kneeError": 0.20279821145247354,
           "steps": 3,
-          "misses": [],
+          "misses": [
+            3750
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -4630,9 +4639,11 @@
         "checks": {
           "kneeError": 0.25001321562615636,
           "steps": 3,
-          "misses": [],
+          "misses": [
+            3544
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -4678,9 +4689,11 @@
         "checks": {
           "kneeError": 0.23726782504493713,
           "steps": 3,
-          "misses": [],
+          "misses": [
+            3712
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -4726,11 +4739,14 @@
         "checks": {
           "kneeError": 0.06342885111684601,
           "steps": 4,
-          "misses": [],
+          "misses": [
+            3581,
+            4298
+          ],
           "unstable": [
             4298
           ],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": false,
           "disturbed": []
         },
@@ -4776,11 +4792,13 @@
         "checks": {
           "kneeError": 0.11254697094675116,
           "steps": 3,
-          "misses": [],
+          "misses": [
+            3638
+          ],
           "unstable": [
             3638
           ],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": false,
           "disturbed": []
         },
@@ -4826,9 +4844,11 @@
         "checks": {
           "kneeError": 0.1929903233419872,
           "steps": 3,
-          "misses": [],
+          "misses": [
+            3788
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -4916,6 +4936,7 @@
           "kneeError": -0.48913574218750006,
           "steps": 9,
           "misses": [
+            376,
             418,
             460,
             522,
@@ -5843,6 +5864,7 @@
           "misses": [
             252,
             503,
+            754,
             905
           ],
           "unstable": [],
@@ -5889,6 +5911,9 @@
           "kneeError": -0.21476542967792545,
           "steps": 7,
           "misses": [
+            800,
+            1200,
+            1440,
             1760,
             2000
           ],
@@ -5941,9 +5966,12 @@
         "checks": {
           "kneeError": 0.3269393115092395,
           "steps": 3,
-          "misses": [],
+          "misses": [
+            1412,
+            2119
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -5989,9 +6017,13 @@
         "checks": {
           "kneeError": 0.0253928708317363,
           "steps": 4,
-          "misses": [],
+          "misses": [
+            1069,
+            1604,
+            1924
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -6037,9 +6069,13 @@
         "checks": {
           "kneeError": 0.03664611590628862,
           "steps": 4,
-          "misses": [],
+          "misses": [
+            1050,
+            1575,
+            1890
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -6085,9 +6121,12 @@
         "checks": {
           "kneeError": -0.024136480128524027,
           "steps": 5,
-          "misses": [],
+          "misses": [
+            1912,
+            2295
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -6133,9 +6172,12 @@
         "checks": {
           "kneeError": -0.030312147423843517,
           "steps": 5,
-          "misses": [],
+          "misses": [
+            1931,
+            2318
+          ],
           "unstable": [],
-          "p95Pass": true,
+          "p95Pass": false,
           "stablePass": true,
           "disturbed": []
         },
@@ -6182,6 +6224,8 @@
           "kneeError": -0.09795175563802455,
           "steps": 6,
           "misses": [
+            1894,
+            2272,
             2778
           ],
           "unstable": [],

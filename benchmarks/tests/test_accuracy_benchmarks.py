@@ -1075,14 +1075,30 @@ def test_docstring_states_the_measurement_window() -> None:
 # ---------------------------------------------------------------------------------------------
 
 
-def test_p95_within() -> None:
-    assert report.p95_within(1.0, 3.9)  # 3 ms absolute
-    assert not report.p95_within(1.0, 4.1)
-    assert report.p95_within(10.0, 19.9)  # 100%
+def test_p95_within_a_factor_of_two_either_way() -> None:
+    assert report.p95_within(10.0, 19.9)  # double
     assert not report.p95_within(10.0, 20.1)
-    assert report.p95_within(10.0, 0.5)
+    assert report.p95_within(10.0, 5.1)  # half
+    assert not report.p95_within(10.0, 4.9)  # too low fails as surely as too high
+    assert not report.p95_within(100.0, 0.5)
+
+
+def test_p95_within_3_ms_where_a_factor_is_too_strict() -> None:
+    assert report.p95_within(1.0, 3.9)
+    assert not report.p95_within(1.0, 4.1)
+    assert report.p95_within(4.0, 1.1)  # a factor of 3.6, but only 2.9 ms below
+    assert report.p95_within(2.0, 0.0)
+
+
+def test_p95_within_needs_both_values() -> None:
     assert not report.p95_within(None, 1.0)
     assert not report.p95_within(1.0, None)
+
+
+def test_p95_factor_is_symmetric() -> None:
+    assert report.p95_factor(10.0, 20.0) == report.p95_factor(10.0, 5.0) == 2.0
+    assert report.p95_factor(10.0, 10.0) == report.p95_factor(0.0, 0.0) == 1.0
+    assert report.p95_factor(10.0, 0.0) == report.p95_factor(0.0, 10.0) == math.inf
 
 
 def cmp_row(rps: float, meas: float | None, pred: float | None, unstable: bool = False) -> dict:
@@ -1342,10 +1358,10 @@ def test_criteria_on_the_committed_results() -> None:
         c = report.load(exp, "comparison")
         assert c is not None
         got[exp] = report.criteria(c, hist[exp])
-    assert got["pg-mixed"]["p95"]["misses"] == []
+    assert got["pg-mixed"]["p95"]["misses"] == [3788]  # 2.03 ms predicted, 30.7 measured
     assert got["pg-hot-row"]["p95"]["misses"] == [850, 935]
     assert got["cache-aside"]["p95"]["misses"] == [2600, 3900, 4680, 5200, 5720, 6500]
-    assert got["kafka"]["p95"]["misses"] == [2778]
+    assert got["kafka"]["p95"]["misses"] == [1894, 2272, 2778]
     assert got["pg-hot-row"]["stable"]["unstable"] == [935]
     # the v6 campaign (1-2 Nov 2026): three counted runs each under v6 and engine 0.16.0
     assert {exp: (k["knee"]["runs"], k["knee"]["disturbedRuns"]) for exp, k in got.items()} == {
@@ -1356,9 +1372,11 @@ def test_criteria_on_the_committed_results() -> None:
         abs=1e-4,
     )
     assert [exp for exp, k in got.items() if k["knee"]["pass"]] == report.ORDER
-    # criterion 2: pg-mixed and Kafka; 3a: cache-aside and Kafka (pg-mixed and hot-row had an
-    # unstable step at or below the knee in two of three runs); only Kafka meets both
-    assert [e for e, k in got.items() if k["p95"]["pass"]] == ["pg-mixed", "kafka"]
+    # criterion 2, a factor of two either way: none. pg-mixed (3,788) and Kafka (1,894, 2,272)
+    # now fail at steps predicted too low, which the one-sided rule before ADR 0018 let pass.
+    # 3a: cache-aside and Kafka (pg-mixed and hot-row had an unstable step at or below the knee
+    # in two of three runs)
+    assert [e for e, k in got.items() if k["p95"]["pass"]] == []
     assert [e for e, k in got.items() if k["stable"]["pass"]] == ["cache-aside", "kafka"]
     assert not any(k["all"] for k in got.values())
     # every run under v6 was on the same laptop: a second machine is needed
@@ -1540,9 +1558,13 @@ def test_accuracy_json_on_the_committed_results() -> None:
     assert [v["run"] for v in by["kafka"]["spread"]["values"]] == ["run-6/", "run-7/", "latest"]
     assert by["pg-hot-row"]["runs"] == 11 and by["kafka"]["runs"] == 8
     assert mixed["repeatability"]["runs"] == 3 and mixed["repeatability"]["disturbed"] == 0
-    assert mixed["p95BelowKnee"]["within"] == 3 and mixed["p95BelowKnee"]["steps"] == 3
+    # criterion 2 is symmetric (ADR 0018): pg-mixed's 3,788 req/s step, 15 times too low, misses
+    assert mixed["p95BelowKnee"]["within"] == 2 and mixed["p95BelowKnee"]["steps"] == 3
     assert mixed["p95BelowKnee"]["worst"]["text"]["offered"] == "3,788"
-    assert by["kafka"]["p95BelowKnee"]["misses"] == [2778]
+    assert by["kafka"]["p95BelowKnee"]["misses"] == [1894, 2272, 2778]
+    assert by["kafka"]["p95BelowKnee"]["worst"]["text"]["offered"] == "2,778"
+    assert data["thresholds"]["p95Factor"] == 2.0 and "p95Error" not in data["thresholds"]
+    assert data["summary"]["p95WithinTolerance"] == []
     assert mixed["date"] == "2026-11-02" and mixed["engineVersion"] == "0.16.0"
     assert mixed["environment"]["powerMode"] == "Best performance"
     assert mixed["environment"]["dockerCpus"] == 8

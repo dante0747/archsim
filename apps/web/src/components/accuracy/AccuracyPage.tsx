@@ -132,7 +132,7 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
             Median knee error within ±{Math.round(t.kneeError * 100)}% over 3+ runs ({c.knee.runs} so far):
           </YesNo>
           <YesNo ok={c.p95.pass}>
-            p95 within ±{Math.round(t.p95Error * 100)}% or {t.p95Ms} ms below the knee, in 2 of 3 runs:
+            p95 within a factor of {t.p95Factor} or {t.p95Ms} ms below the knee, in 2 of 3 runs:
           </YesNo>
           <YesNo ok={c.stable.pass}>No unstable step below the knee, in 2 of 3 runs:</YesNo>
           <YesNo ok={c.reproduced.pass}>
@@ -635,7 +635,7 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
               ],
               [
                 "Latency below the knee",
-                `At each load step up to the measured knee, a prediction counts as close when it is within ±${Math.round(t.p95Error * 100)}% or ${t.p95Ms} ms of the measured p95, whichever is larger. Latencies of a millisecond or two make percentages look large: 1.0 ms predicted as 2.0 ms is +100%. The test is lenient one way: a prediction that is too low can never be more than 100% below, so it always counts as close.`,
+                `At each load step up to the measured knee, a prediction counts as close when it is within a factor of ${t.p95Factor} of the measured p95 (from half to double) or within ${t.p95Ms} ms of it, whichever is wider. The test is the same both ways: predicting half the measured latency misses as much as predicting double. The ${t.p95Ms} ms allowance is there because latencies of a millisecond or two make factors look large.`,
               ],
               [
                 "Unstable step",

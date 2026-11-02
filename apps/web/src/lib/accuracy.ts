@@ -239,7 +239,7 @@ export interface HistoryRun {
 export interface Accuracy {
   generatedBy: string;
   objective: { p95Ms: number; minSuccess: number };
-  thresholds: { kneeError: number; p95Error: number; p95Ms: number; lowLoadFraction: number };
+  thresholds: { kneeError: number; p95Factor: number; p95Ms: number; lowLoadFraction: number };
   summary: {
     experiments: number;
     runs: number;
@@ -350,7 +350,7 @@ export function byKneeError(experiments: Experiment[]): Experiment[] {
 export function p95Sentence(x: Experiment, t: Accuracy["thresholds"]): string {
   const b = x.p95BelowKnee;
   if (b.steps === 0) return "No measured step was below the knee, so latency there could not be checked.";
-  const tol = `±${Math.round(t.p95Error * 100)}% or ${t.p95Ms} ms`;
+  const tol = `a factor of ${t.p95Factor} or ${t.p95Ms} ms`;
   const head = `Latency (p95) within ${tol} at ${b.within} of ${b.steps} load steps up to the measured knee`;
   if (!b.worst || b.pass) return `${head}; the typical miss was ${b.text.medianAbsError}.`;
   const w = b.worst.text;

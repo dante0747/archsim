@@ -63,10 +63,11 @@ Read these numbers as three runs on one laptop, all of them in-sample:
   wrong](#where-the-model-is-wrong-and-why): pg-mixed's latency climbs before its core fills,
   and cache-aside's cost per request keeps falling above the calibration staircase.
 - **Every experiment meets criterion 1** (median knee error within ±25%; cache-aside only just,
-  at -24.8%), and pg-mixed and Kafka criterion 2. None meets all of them: hot-row and cache-aside
-  miss criterion 2, pg-mixed and hot-row criterion 3a (an unstable step at or below the knee in
-  two of three runs), and criterion 3b needs a second machine. See [Proposed tier
-  thresholds](#proposed-tier-thresholds).
+  at -24.8%), and none meets criterion 2 (p95 within a factor of two or 3 ms at or below the
+  knee): near their knees ArchSim predicts pg-mixed's p95 and two of Kafka's steps too low, and
+  hot-row's and cache-aside's too high. pg-mixed and hot-row also miss criterion 3a (an unstable
+  step at or below the knee in two of three runs), and criterion 3b needs a second machine. See
+  [Proposed tier thresholds](#proposed-tier-thresholds).
 - **Light-load latency: within 0.6 ms for pg-mixed and hot-row, 2 to 3 times too high for
   cache-aside.** At a quarter and half of the predicted knee ArchSim's p95 is 0.01 to 0.59 ms
   off for pg-mixed and hot-row. For cache-aside it is 2.9 and 4.7 ms against 1.4 and 1.5
@@ -951,25 +952,27 @@ A technology is **validated** when every benchmark that exercises it has, over a
 counted runs under the same protocol, machine, OS build, power mode and engine:
 
 1. a median knee error within ±25%;
-2. at or below the measured knee, every step's p95 error within ±100% or 3 ms absolute, whichever
-   is larger (so sub-millisecond noise does not fail it), in at least two of three runs;
+2. at or below the measured knee, every step's predicted p95 within a factor of two of the
+   measured one (from half to double) or within 3 ms of it, whichever is wider (so
+   sub-millisecond noise does not fail it), in at least two of three runs;
 3. no unstable step at or below the measured knee, in at least two of three runs (3a), and a run
    under the same protocol on a second machine, or the hosted runner (3b).
 
-Criterion 2 is one-sided as written: a predicted p95 that is too low is at most 100% below the
-measured one, so it always passes (see [above](#where-the-model-is-wrong-and-why)). A symmetric
-rule, within a factor of two of the measured p95 or 3 ms, would fail pg-mixed and Kafka on this
-data; the owner decides.
+Criterion 2 is symmetric: predicting half the measured p95 misses as much as predicting double
+([ADR 0018](adr/0018-p95-within-a-factor-of-two.md)). Until 2 Nov 2026 it read "within ±100%",
+which a prediction that was too low could never fail. pg-mixed and Kafka passed it that way and
+fail it now: pg-mixed at 3,788 req/s (2.0 ms predicted, 30.7 measured) and Kafka at 1,894 and
+2,272 req/s (2.8 and 4.7 ms predicted, 14.5 and 28.7 measured).
 
 Computed by `benchmarks/report.py` from each experiment's latest run and its kept runs:
 
 <!-- BEGIN GENERATED: tiers -->
-| Experiment | 1. Median knee error within ±25% (3+ runs) | 2. p95 within ±100% or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |
+| Experiment | 1. Median knee error within ±25% (3+ runs) | 2. p95 within a factor of two or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |
 | --- | --- | --- | --- | --- | --- |
-| pg-mixed | yes (median +11% over 3 runs) | yes: 3 of 3 steps within; 3 of 3 runs pass | no: none unstable; 1 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| pg-mixed | yes (median +11% over 3 runs) | no: 3,788 req/s miss (2 of 3 steps within); 0 of 3 runs pass | no: none unstable; 1 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
 | pg-hot-row | yes (median -10% over 3 runs) | no: 850 and 935 req/s miss (4 of 6 steps within); 0 of 3 runs pass | no: 935 req/s unstable; 1 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
 | cache-aside | yes (median -25% over 3 runs) | no: 2,600, 3,900, 4,680, 5,200, 5,720 and 6,500 req/s miss (1 of 7 steps within); 0 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
-| kafka | yes (median -3% over 3 runs) | yes: 2,778 req/s miss (5 of 6 steps within); 2 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| kafka | yes (median -3% over 3 runs) | no: 1,894, 2,272 and 2,778 req/s miss (3 of 6 steps within); 0 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
 
 A technology meets the thresholds when every experiment that exercises it meets all three: Node.js (pg-mixed, pg-hot-row, cache-aside, kafka); PostgreSQL (pg-mixed, pg-hot-row, cache-aside, kafka); Redis (cache-aside); Kafka (kafka). None meets them on this data.
 <!-- END GENERATED: tiers -->
