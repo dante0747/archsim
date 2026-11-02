@@ -52,6 +52,7 @@ final class ModelFunctions {
                     entry -> DesignDocuments.normalize(
                             DesignDocuments.parse(entry.input("doc")), ComponentRegistry.standard())),
             Map.entry("archsim_engine.scenarios.apply_overrides", ModelFunctions::applyOverrides),
+            Map.entry("archsim_engine.document_json_schema", entry -> DesignDocuments.jsonSchema()),
             Map.entry(
                     "archsim_engine.distributions.Distribution.expected",
                     entry -> NODES.numberNode(distribution(entry).expected())),

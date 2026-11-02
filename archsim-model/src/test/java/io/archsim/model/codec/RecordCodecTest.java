@@ -3,6 +3,7 @@ package io.archsim.model.codec;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
+import io.archsim.model.text.CanonicalJson;
 import java.util.ArrayList;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -16,7 +17,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The codec reads JSON as pydantic does: the same coercions, the same errors in the same order
- * with the same messages. Every expected message here is pydantic 2's.
+ * with the same messages; it writes the JSON and the JSON Schema pydantic writes. Every expected
+ * message and schema here is pydantic 2's.
  */
 class RecordCodecTest {
 
@@ -327,6 +329,83 @@ class RecordCodecTest {
         void an_array_record_is_written_as_an_array() {
             assertThat(RecordCodec.write(new Curve(List.of(new Point(0, 1), new Point(2, 3)))))
                     .isEqualTo(json("{\"points\": [[0.0, 1.0], [2.0, 3.0]]}"));
+        }
+    }
+
+    @Nested
+    @DisplayName("JSON Schema")
+    class Schema {
+
+        /** The schemas compared as Python's {@code json.dumps(sort_keys=True)} writes them. */
+        private static void assertSchema(Class<? extends Record> type, String pydantic) {
+            assertThat(CanonicalJson.write(RecordCodec.jsonSchema(type)))
+                    .isEqualTo(CanonicalJson.write(json(pydantic)));
+        }
+
+        @Test
+        void a_property_is_titled_as_python_titles_its_json_name() {
+            assertSchema(Part.class, """
+                    {"additionalProperties": false, "title": "Part", "type": "object",
+                     "properties": {
+                       "id": {"title": "Id", "type": "string"},
+                       "size": {"title": "Size", "type": "integer"},
+                       "readRatio": {"default": 0.5, "title": "Readratio", "type": "number"}},
+                     "required": ["id", "size"]}""");
+        }
+
+        @Test
+        void bounds_defaults_and_nullable_fields_are_written_as_pydantic_writes_them_and_a_list_default_is_hidden() {
+            assertSchema(Sample.class, """
+                    {"additionalProperties": false, "title": "Sample", "type": "object",
+                     "properties": {
+                       "name": {"default": "Untitled", "maxLength": 10, "minLength": 1, "title": "Name",
+                                "type": "string"},
+                       "rate": {"default": 1.0, "exclusiveMinimum": 0, "maximum": 600000, "title": "Rate",
+                                "type": "number"},
+                       "count": {"default": 2, "maximum": 10, "minimum": 1, "title": "Count", "type": "integer"},
+                       "enabled": {"default": false, "title": "Enabled", "type": "boolean"},
+                       "share": {"anyOf": [{"minimum": 0.1, "type": "number"}, {"type": "null"}], "default": null,
+                                 "title": "Share"},
+                       "tags": {"items": {"pattern": "^[a-z]+$", "type": "string"}, "maxItems": 2, "title": "Tags",
+                                "type": "array"},
+                       "mode": {"default": "auto", "enum": ["auto", "steady", "ramp"], "title": "Mode",
+                                "type": "string"}}}""");
+        }
+
+        @Test
+        void a_tagged_union_is_a_discriminated_one_of_with_each_record_under_defs() {
+            assertSchema(Drawing.class, """
+                    {"additionalProperties": false, "title": "Drawing", "type": "object",
+                     "properties": {
+                       "figure": {
+                         "discriminator": {"mapping": {"circle": "#/$defs/Circle", "square": "#/$defs/Square"},
+                                           "propertyName": "kind"},
+                         "oneOf": [{"$ref": "#/$defs/Circle"}, {"$ref": "#/$defs/Square"}],
+                         "title": "Figure"}},
+                     "required": ["figure"],
+                     "$defs": {
+                       "Circle": {"additionalProperties": false, "title": "Circle", "type": "object",
+                                  "properties": {
+                                    "kind": {"const": "circle", "default": "circle", "title": "Kind", "type": "string"},
+                                    "radius": {"exclusiveMinimum": 0, "title": "Radius", "type": "number"}},
+                                  "required": ["radius"]},
+                       "Square": {"additionalProperties": false, "title": "Square", "type": "object",
+                                  "properties": {
+                                    "kind": {"const": "square", "default": "square", "title": "Kind", "type": "string"},
+                                    "side": {"exclusiveMinimum": 0, "title": "Side", "type": "number"}},
+                                  "required": ["side"]}}}""");
+        }
+
+        @Test
+        void an_array_record_is_a_tuple() {
+            assertSchema(Curve.class, """
+                    {"additionalProperties": false, "title": "Curve", "type": "object",
+                     "properties": {
+                       "points": {
+                         "items": {"maxItems": 2, "minItems": 2, "prefixItems": [{"type": "number"}, {"type": "number"}],
+                                   "type": "array"},
+                         "minItems": 2, "title": "Points", "type": "array"}},
+                     "required": ["points"]}""");
         }
     }
 }

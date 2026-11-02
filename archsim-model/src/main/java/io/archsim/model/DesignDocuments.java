@@ -66,6 +66,15 @@ public final class DesignDocuments {
     }
 
     /**
+     * The design document's JSON Schema, generated from the records as pydantic writes a model's
+     * (ADR-0025): the API serves it, and AI agents read it. A node's config is any object here;
+     * its component type checks it.
+     */
+    public static ObjectNode jsonSchema() {
+        return RecordCodec.jsonSchema(ArchitectureDocument.class);
+    }
+
+    /**
      * The document's JSON with every node's config written in full, its defaults filled in, so a
      * scenario's override has something to change (the engine's {@code normalize_document}). A
      * config that is not valid is left as it is; validation reports it.
