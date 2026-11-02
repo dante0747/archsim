@@ -1,6 +1,7 @@
 # Proposal: ArchSim on Java 25, ported in stages
 
-**Status:** draft for the owner's review, 2 Nov 2026. Nothing has been built yet.
+**Status:** approved by the owner on 2 Nov 2026, with the [decisions](#decisions) below. Stage 0
+is next; nothing has been built yet.
 
 **Why:** the owner works in Java and wants to maintain ArchSim. This is a port, not a redesign of
 what ArchSim does: the simulation model, the design format and the web app's behaviour stay the
@@ -18,7 +19,7 @@ same. The structure and tooling become standard modern Java.
 | Design document format (schema 1.7 JSON) | shared contract | **unchanged** |
 | HTTP API contract (routes, JSON, cookies) | shared contract | **unchanged** |
 | PostgreSQL data | Alembic migrations | **same tables**, Flyway from the current revision; no data migration |
-| Benchmark harness (k6, Docker, statistics) | Python, 11.8k lines | stays Python (recommended), calls the Java engine's CLI |
+| Benchmark harness (k6, Docker, statistics) | Python, 11.8k lines | stays Python during the port and calls the Java engine's CLI; ported to Java after stage 6 |
 
 ## Principles
 
@@ -136,10 +137,18 @@ archsim-cli (picocli)      archsim-mcp (MCP Java SDK)      benchmarks (Python �
 - **Remove Python:** everything except the benchmark harness.
 - **Docs:** CONTRIBUTING, the README and `IMPLEMENTATION_STATUS.md` rewritten for the Java build.
 
+### Stage 7 · The benchmark harness (after the port)
+- **What it covers:** `benchmarks/run.py`, `report.py` and their tests, rewritten in Java once
+  stages 0–6 are done.
+- **Parity bar:** the committed results under `benchmarks/results` reduce to the same numbers
+  (medians, knees, spreads, digests of the reduced summaries), because past and future runs must
+  stay comparable.
+- **Exit:** the harness runs from Gradle, and the last Python code is deleted.
+
 ## Accuracy work during the port
 
-Recommended order: finish the protocol v6 decision, freeze the Python engine and run the held-out
-campaign **before stage 4 starts**.
+Decided order: the Python engine is frozen at 0.16.0, and the held-out campaign runs on it
+**before stage 4 starts**. Accuracy and model work stop until the port is complete.
 
 - **Why first:** the held-out results then describe the engine customers use today. The Java engine
   is checked against the same measurements afterwards. Because the port changes no behaviour, that
@@ -157,14 +166,20 @@ campaign **before stage 4 starts**.
 - **Effort.** The durations are rough estimates at this project's pace (169 commits in nine
   days). Parity runs need the laptop overnight, like the benchmark campaigns.
 
-## Decisions for the owner
+## Decisions
 
-1. **Build tool:** Gradle with Kotlin DSL (recommended) or Maven.
-2. **Framework:** Spring Boot 4 (recommended) or Quarkus.
-3. **Data access:** `JdbcClient` with Flyway (recommended) or JPA/Hibernate.
-4. **Base package:** which domain should it use (for example `io.archsim`)?
-5. **Benchmark harness:** keep it in Python, calling the Java CLI (recommended), or port it too.
-6. **SQLite development mode:** drop it (recommended) or keep it.
-7. **Order:** run the held-out campaign before stage 4 (recommended) or port first.
+The owner's answers, 2 Nov 2026:
 
-**Rough total:** 6–10 weeks of sessions, plus overnight parity runs.
+1. **Build tool:** Gradle with Kotlin DSL and a version catalog.
+2. **Framework:** Spring Boot 4.
+3. **Data access:** Spring's `JdbcClient` with explicit SQL, and Flyway for migrations.
+4. **Base package:** `io.archsim` (for example `io.archsim.engine`, `io.archsim.api`).
+5. **Benchmark harness:** it stays Python during the port and calls the Java CLI from stage 4.
+   Once the migration is complete, it's ported to Java as well (stage 7).
+6. **SQLite development mode:** dropped. Local development and tests use PostgreSQL, in Docker or
+   Testcontainers.
+7. **Order:** the held-out campaign runs on the frozen Python engine 0.16.0 before stage 4
+   starts. Stages 0–3 go ahead in the meantime. The campaign itself needs the owner's go-ahead.
+
+**Rough total:** 6–10 weeks of sessions for stages 0–6, plus overnight parity runs, then the
+harness port.
