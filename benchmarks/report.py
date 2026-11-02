@@ -237,6 +237,8 @@ def history(results: Path = RESULTS) -> dict[str, list[dict[str, Any]]]:
                 "os": env.get("os"),
                 # Windows' power mode, recorded since 31 Oct 2026 (None before: unknown)
                 "powerMode": env.get("powerMode"),
+                # measured before a harness fix that limited it (HARNESS_CAVEATS)
+                "harnessCaveat": harness_caveat(exp, (cal or {}).get("at")) is not None,
                 "engineVersion": pred.get("engineVersion"),
                 "measuredKnee": cmp_["measuredKnee"],
                 "predictedKnee": cmp_["predictedKnee"],
@@ -464,7 +466,9 @@ def knee_spread(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
     one. An OS update is not run-to-run noise: Windows build 26300 and its WSL kernel moved
     Kafka's knee from 945 to 2,040 req/s on the same laptop. Nor is the power mode: Best
     performance moved cache-aside's from 4,848 to about 7,000, so the runs must share it too (an
-    unrecorded mode is not the same as a recorded one). Every
+    unrecorded mode is not the same as a recorded one). Nor is a harness fix (HARNESS_CAVEATS):
+    Kafka's broker healthcheck held its knee near 2,100 req/s until 31 Oct, 2,600 to 2,800 after.
+    Every
     protocol counts, as in docs/validation.md's headline: the protocols differ in the
     calibration, and the knee is found the same way in each (run 1 measured each step once
     rather than three times). Disturbed runs (``disturbed_steps``) are left out: their knee is not
@@ -472,7 +476,7 @@ def knee_spread(runs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
     +/-50%."""
 
     def at(r: Mapping[str, Any]) -> tuple[Any, ...]:
-        return (r["machine"], r.get("os"), r.get("powerMode"))
+        return (r["machine"], r.get("os"), r.get("powerMode"), bool(r.get("harnessCaveat")))
 
     where = at(runs[-1]) if runs else None
     here = [r for r in runs if at(r) == where and r["measuredKnee"].get("kneeRps") is not None]
@@ -988,6 +992,9 @@ def input_value(name: str, v: Any) -> str:
         return f"lognormal, median {v['median']:g} ms, p95 {v['p95']:g} ms"
     if isinstance(v, dict) and v.get("kind") == "exponential":
         return f"exponential, mean {v['mean']:g} ms"
+    if isinstance(v, list):  # a load curve (serviceTimeByLoad): the cost's factor at each rate
+        points = ", ".join(f"x{p['factor']:.2f} at {p['rps']:,.0f}" for p in v)
+        return f"{points} req/s" if v else "none"
     return f"{v:g}" + (" ms" if name.endswith("Ms") else "")
 
 

@@ -178,9 +178,15 @@ def fake_inputs() -> dict[str, Any]:
 
 
 def test_no_memory_inputs_from_calibrations_without_readings() -> None:
-    # every kept calibration predates W24: no working set in its passes, so no memory inputs,
-    # and its design keeps ArchSim's defaults exactly
-    for path in ("pg-mixed", "pg-hot-row", "cache-aside", "kafka", "pg-mixed/run-6"):
+    # every kept calibration before the v6 campaign predates W24: no working set in its passes,
+    # so no memory inputs, and its design keeps ArchSim's defaults exactly
+    for path in (
+        "pg-mixed/run-10",
+        "pg-hot-row/run-8",
+        "cache-aside/run-5",
+        "kafka/run-5",
+        "pg-mixed/run-6",
+    ):
         cal = calibration(path)
         for s in replicate_sets(cal):
             assert run.memory_inputs(run.EXPERIMENTS[path.split("/")[0]], s) == {}
@@ -198,6 +204,7 @@ def test_one_point_or_one_rate_fits_nothing() -> None:
 
 def test_calibrated_memory_moves_no_latency() -> None:
     cal = calibration("pg-mixed")
+    cal["inputs"] = {k: v for k, v in cal["inputs"].items() if "Memory" not in k}  # the defaults
     memory = {
         "serviceMemoryBaselineMb": {"value": 40.0},
         "serviceMemoryPerRpsMb": {"value": 0.03},
@@ -326,12 +333,19 @@ def test_calibrate_hands_the_staircase_to_the_fit_and_saves_it_once(
 
 TRIAL = run.RESULTS / "trials"
 SERVICE = {"pg-mixed": "api", "pg-hot-row": "api", "cache-aside": "api", "kafka": "producer"}
+BASELINE = {
+    "pg-mixed": "pg-mixed/run-10",
+    "pg-hot-row": "pg-hot-row/run-8",
+    "cache-aside": "cache-aside/run-5",
+    "kafka": "kafka/run-5",
+}
+"""Each experiment's latest run of the baseline campaign (v5, engine 0.14.0, memory defaults)."""
 
 
 @pytest.mark.parametrize("exp_id", list(SERVICE))
 def test_memory_fitted_in_the_trial_is_closer_than_the_defaults(exp_id: str) -> None:
-    # 31 Oct trial: calibration passes only, nothing measured. Against the latest kept run's
-    # steps at or below both knees, the fit is within 66% of the measured working set at every
+    # 31 Oct trial: calibration passes only, nothing measured. Against the baseline campaign's
+    # latest run's steps at or below both knees (predicted with the defaults), the fit is within 66% of the measured working set at every
     # step where ArchSim's defaults (256 MiB + 2 MiB per request held) were 59% to 485% high.
     # It is low at the top step (-25% to -65%): the staircase stops at a third of the knee, and
     # V8's heap grows faster than the rate beyond it, which a line through the staircase misses.
@@ -344,7 +358,7 @@ def test_memory_fitted_in_the_trial_is_closer_than_the_defaults(exp_id: str) -> 
         k: v["value"] for k, v in cal["inputs"].items() if "Memory" in k
     }
     base, per_rps = fit["serviceMemoryBaselineMb"]["value"], fit["serviceMemoryPerRpsMb"]["value"]
-    cmp_ = json.loads((run.RESULTS / exp_id / "comparison.json").read_text(encoding="utf-8"))
+    cmp_ = json.loads((run.RESULTS / BASELINE[exp_id] / "comparison.json").read_text("utf-8"))
     rows = run.at_or_below_both_knees(cmp_["rows"], cmp_["measuredKnee"], cmp_["predictedKnee"])
     cells = [(r["offeredRps"], r["resources"][SERVICE[exp_id]]) for r in rows]
     assert len(cells) >= 3

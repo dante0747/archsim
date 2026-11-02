@@ -1,11 +1,51 @@
 # Implementation status
 
-State as of 2026-11-01 (engine 0.16.0, schema 1.7, report 1.14). This file separates what is
+State as of 2026-11-02 (engine 0.16.0, schema 1.7, report 1.14). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**The protocol v6 campaign: engine 0.16.0 in-sample, three runs each (2026-11-02).**
+
+- The four in-sample experiments ran three times each overnight (1-2 Nov, 23:41 to 06:14,
+  Windows on Best performance, held-out experiments sealed, no run disturbed; four disturbed
+  calibration passes retried, all pg-mixed's). Median knee error: **Kafka -3%, pg-hot-row -10%,
+  pg-mixed +11%, cache-aside -25%** (baseline v5 with engine 0.14.0: +4%, -16%, +24%, -34%); the
+  median absolute error over the 12 runs fell from 22% to 10%, and the 80% range held the
+  measured knee in 11 of 12 (engine 0.14.0's: 1 of 12). All four meet criterion 1; none meets
+  all of them (`docs/validation.md`).
+- Not all of it is the model: pg-mixed's prediction is where it was and its real knee rose
+  about 10% between the campaigns on the same laptop and settings; Kafka's real knee rose
+  because the broker's healthcheck is gone (W23's fix, first measured here).
+- New problem: cache-aside's p95 at a quarter and half of the knee is predicted 2 to 3 times
+  too high in all three runs (2.8 to 4.7 ms against 1.4 to 1.5), from the v6 service time's
+  spread (lognormal p95 11x its median) and the load curve's factor at those rates (1.4 to
+  1.7); next to look at before the freeze.
+- Fixed: `run.median_inputs` took its keys from the first replicate only, so when that pass
+  saw no mark-compact, `gcEveryRequests` was dropped and the model paused every 1,500 requests
+  (Node's default) instead of about 32,500 (cache-aside's latest run). Inputs only some
+  replicates have now take the median of those, and the spacing goes when the median pause is
+  0 (test `test_median_inputs_keeps_an_input_the_first_replicate_lacks`). The committed
+  predictions keep the inputs they were made with.
+- `report.py` renders a load curve input (`serviceTimeByLoad`), which the v5 campaign's
+  calibrations did not have.
+- W26's curve extension and W27's host machine stay off. Re-simulated on the 12 v6 runs
+  (in-sample; W27 with `results/trials/2026-11-01-w27/what-if-fit.json`, k6's CPU and the
+  background assumed):
+
+  | Median knee error (3 v6 runs) | defaults | W26 `CURVE_FORM = "log"` | W27 `BENCH_HOST=on` | both |
+  | --- | --- | --- | --- | --- |
+  | pg-mixed | +11% | +11% | 0% | 0% |
+  | pg-hot-row | -10% | -10% | -12% | -12% |
+  | cache-aside | -25% | -23% | -34% | -33% |
+  | Kafka | -3% | -3% | -27% | -27% |
+  | Median absolute error, 12 runs | 10% | 10% | 14% | 14% |
+
+  The extension adds little once the staircase reaches about two thirds of the core; the host
+  model raises the CPU per request with the machine's load, while the measured cost keeps
+  falling with load, and Kafka's broker and consumer join that load.
 
 **Engine 0.16.0: accuracy round 2 together (2026-11-01; W26 to W28).**
 

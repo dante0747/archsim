@@ -1,29 +1,380 @@
 {
   "experiment": "kafka",
-  "at": "2026-10-31T03:30:04Z",
-  "predictionsSha256": "81612827c5f1b775c74f0cba58e643fe22071662377684b7dda2d335944037cc",
+  "at": "2026-11-02T04:53:13Z",
+  "predictionsSha256": "5912c678885908518f29a63b2df5eb92d3146209e31bc939fb626e5014a2db3a",
   "steps": [
     {
-      "offeredRps": 525,
+      "offeredRps": 631,
       "runs": [
         {
-          "offeredRps": 525,
-          "p50": 1.021435,
-          "p95": 4.640131,
-          "p99": 9.391121,
-          "mean": 1.6480073572993073,
-          "sent": 10501,
+          "offeredRps": 631,
+          "p50": 0.924306,
+          "p95": 3.533767,
+          "p99": 9.117110599999986,
+          "mean": 1.4784395048728274,
+          "sent": 12621,
           "dropped": 0,
           "failed": 0,
-          "succeeded": 10501,
+          "succeeded": 12621,
           "successRate": 1.0,
-          "throughputRps": 525.05,
-          "serviceCpuMsPerRequest": 0.6919196251714156,
+          "throughputRps": 631.05,
+          "serviceCpuMsPerRequest": 0.6401597363083165,
           "containerCpuShare": {
-            "producer": 0.323,
-            "consumer": 0.277,
-            "postgres": 0.179,
-            "kafka": 0.895
+            "producer": 0.36,
+            "consumer": 0.313,
+            "postgres": 0.224,
+            "kafka": 0.415
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.3942,
+                "maxCores": 0.4136,
+                "workingSetMiB": 47.4,
+                "anonMiB": 42.6
+              },
+              "consumer": {
+                "cores": 0.3498,
+                "maxCores": 0.3759,
+                "workingSetMiB": 161.6,
+                "anonMiB": 153.5
+              },
+              "postgres": {
+                "cores": 0.2549,
+                "maxCores": 0.3003,
+                "workingSetMiB": 104.0,
+                "anonMiB": 10.7
+              },
+              "kafka": {
+                "cores": 0.4653,
+                "maxCores": 0.4989,
+                "workingSetMiB": 953.4,
+                "anonMiB": 925.2
+              }
+            }
+          },
+          "queue": {
+            "produced": 15776,
+            "consumedDuringStep": 15776,
+            "consumedRps": 631.04,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 20,
+            "meanMessageAgeMs": 7.2308057998573805
+          },
+          "at": "2026-11-02T04:53:47Z"
+        },
+        {
+          "offeredRps": 631,
+          "p50": 0.755867,
+          "p95": 2.109053,
+          "p99": 5.460788799999962,
+          "mean": 1.0744198348783802,
+          "sent": 12621,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 12621,
+          "successRate": 1.0,
+          "throughputRps": 631.05,
+          "serviceCpuMsPerRequest": 0.5183308613804906,
+          "containerCpuShare": {
+            "producer": 0.29,
+            "consumer": 0.296,
+            "postgres": 0.202,
+            "kafka": 0.376
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.3245,
+                "maxCores": 0.335,
+                "workingSetMiB": 62.5,
+                "anonMiB": 57.2
+              },
+              "consumer": {
+                "cores": 0.3338,
+                "maxCores": 0.3423,
+                "workingSetMiB": 164.6,
+                "anonMiB": 156.5
+              },
+              "postgres": {
+                "cores": 0.2283,
+                "maxCores": 0.2466,
+                "workingSetMiB": 105.8,
+                "anonMiB": 11.0
+              },
+              "kafka": {
+                "cores": 0.4322,
+                "maxCores": 0.4625,
+                "workingSetMiB": 973.8,
+                "anonMiB": 943.6
+              }
+            }
+          },
+          "queue": {
+            "produced": 15777,
+            "consumedDuringStep": 15777,
+            "consumedRps": 631.08,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 14,
+            "meanMessageAgeMs": 5.277632517233183
+          },
+          "at": "2026-11-02T04:54:24Z"
+        },
+        {
+          "offeredRps": 631,
+          "p50": 0.847274,
+          "p95": 2.627948,
+          "p99": 7.853160799999958,
+          "mean": 1.2354458220426237,
+          "sent": 12621,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 12621,
+          "successRate": 1.0,
+          "throughputRps": 631.05,
+          "serviceCpuMsPerRequest": 0.5456119421906694,
+          "containerCpuShare": {
+            "producer": 0.306,
+            "consumer": 0.311,
+            "postgres": 0.214,
+            "kafka": 0.38
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.35,
+                "maxCores": 0.4027,
+                "workingSetMiB": 88.5,
+                "anonMiB": 81.8
+              },
+              "consumer": {
+                "cores": 0.3537,
+                "maxCores": 0.3673,
+                "workingSetMiB": 168.7,
+                "anonMiB": 160.9
+              },
+              "postgres": {
+                "cores": 0.2454,
+                "maxCores": 0.2779,
+                "workingSetMiB": 106.4,
+                "anonMiB": 11.0
+              },
+              "kafka": {
+                "cores": 0.4389,
+                "maxCores": 0.4715,
+                "workingSetMiB": 968.7,
+                "anonMiB": 936.1
+              }
+            }
+          },
+          "queue": {
+            "produced": 15776,
+            "consumedDuringStep": 15776,
+            "consumedRps": 631.04,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 21,
+            "meanMessageAgeMs": 6.769828064337216
+          },
+          "at": "2026-11-02T04:55:01Z"
+        }
+      ],
+      "at": "2026-11-02T04:55:04Z",
+      "p50": 0.847274,
+      "p95": 2.627948,
+      "p99": 7.853160799999958,
+      "mean": 1.2354458220426237,
+      "successRate": 1.0,
+      "throughputRps": 631.05,
+      "queue": {
+        "consumedRps": 631.04,
+        "backlogAtEnd": 0,
+        "p95MessageAgeMs": 20,
+        "meanMessageAgeMs": 6.769828064337216
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "producer": {
+            "cores": 0.35,
+            "maxCores": 0.4027,
+            "workingSetMiB": 62.5,
+            "anonMiB": 57.2
+          },
+          "consumer": {
+            "cores": 0.3498,
+            "maxCores": 0.3673,
+            "workingSetMiB": 164.6,
+            "anonMiB": 156.5
+          },
+          "postgres": {
+            "cores": 0.2454,
+            "maxCores": 0.2779,
+            "workingSetMiB": 105.8,
+            "anonMiB": 11.0
+          },
+          "kafka": {
+            "cores": 0.4389,
+            "maxCores": 0.4715,
+            "workingSetMiB": 968.7,
+            "anonMiB": 936.1
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 1262,
+      "runs": [
+        {
+          "offeredRps": 1262,
+          "p50": 0.751387,
+          "p95": 4.161573,
+          "p99": 13.153588599999818,
+          "mean": 1.4521249346697893,
+          "sent": 25241,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 25241,
+          "successRate": 1.0,
+          "throughputRps": 1262.05,
+          "serviceCpuMsPerRequest": 0.41214785116632857,
+          "containerCpuShare": {
+            "producer": 0.447,
+            "consumer": 0.269,
+            "postgres": 0.342,
+            "kafka": 0.37
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.5186,
+                "maxCores": 0.5287,
+                "workingSetMiB": 92.7,
+                "anonMiB": 86.0
+              },
+              "consumer": {
+                "cores": 0.3088,
+                "maxCores": 0.3125,
+                "workingSetMiB": 182.5,
+                "anonMiB": 174.2
+              },
+              "postgres": {
+                "cores": 0.3966,
+                "maxCores": 0.4059,
+                "workingSetMiB": 112.9,
+                "anonMiB": 15.9
+              },
+              "kafka": {
+                "cores": 0.4334,
+                "maxCores": 0.4496,
+                "workingSetMiB": 977.0,
+                "anonMiB": 941.3
+              }
+            }
+          },
+          "queue": {
+            "produced": 31552,
+            "consumedDuringStep": 31552,
+            "consumedRps": 1262.08,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 111,
+            "meanMessageAgeMs": 42.0368844340557
+          },
+          "at": "2026-11-02T04:55:39Z"
+        },
+        {
+          "offeredRps": 1262,
+          "p50": 0.74903,
+          "p95": 4.202308,
+          "p99": 12.254658999999991,
+          "mean": 1.4051713734004132,
+          "sent": 25241,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 25241,
+          "successRate": 1.0,
+          "throughputRps": 1262.05,
+          "serviceCpuMsPerRequest": 0.4043425456389453,
+          "containerCpuShare": {
+            "producer": 0.437,
+            "consumer": 0.274,
+            "postgres": 0.33,
+            "kafka": 0.373
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.5215,
+                "maxCores": 0.5313,
+                "workingSetMiB": 147.7,
+                "anonMiB": 139.2
+              },
+              "consumer": {
+                "cores": 0.3136,
+                "maxCores": 0.3169,
+                "workingSetMiB": 199.0,
+                "anonMiB": 190.4
+              },
+              "postgres": {
+                "cores": 0.3933,
+                "maxCores": 0.407,
+                "workingSetMiB": 111.1,
+                "anonMiB": 9.9
+              },
+              "kafka": {
+                "cores": 0.4374,
+                "maxCores": 0.4477,
+                "workingSetMiB": 982.4,
+                "anonMiB": 942.4
+              }
+            }
+          },
+          "queue": {
+            "produced": 31552,
+            "consumedDuringStep": 31552,
+            "consumedRps": 1262.08,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 89,
+            "meanMessageAgeMs": 35.20621211520938
+          },
+          "at": "2026-11-02T04:56:17Z"
+        },
+        {
+          "offeredRps": 1262,
+          "p50": 0.782161,
+          "p95": 9.190808849999996,
+          "p99": 30.736778900000004,
+          "mean": 2.2967140330824023,
+          "sent": 25240,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 25240,
+          "successRate": 1.0,
+          "throughputRps": 1262.0,
+          "serviceCpuMsPerRequest": 0.42774561820544516,
+          "containerCpuShare": {
+            "producer": 0.454,
+            "consumer": 0.271,
+            "postgres": 0.343,
+            "kafka": 0.365
           },
           "resources": {
             "method": "window",
@@ -31,867 +382,54 @@
             "readings": 5,
             "containers": {
               "producer": {
-                "cores": 0.3538,
-                "maxCores": 0.3936,
-                "workingSetMiB": 46.5,
-                "anonMiB": 40.3
-              },
-              "consumer": {
-                "cores": 0.3107,
-                "maxCores": 0.3245,
-                "workingSetMiB": 63.8,
-                "anonMiB": 59.0
-              },
-              "postgres": {
-                "cores": 0.2011,
-                "maxCores": 0.2167,
-                "workingSetMiB": 96.6,
-                "anonMiB": 10.2
-              },
-              "kafka": {
-                "cores": 0.9589,
-                "maxCores": 1.0276,
-                "workingSetMiB": 970.3,
-                "anonMiB": 925.0
-              }
-            }
-          },
-          "queue": {
-            "produced": 13126,
-            "consumedDuringStep": 13126,
-            "consumedRps": 525.04,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 14,
-            "meanMessageAgeMs": 6.033139700980859
-          },
-          "at": "2026-10-31T03:30:38Z"
-        },
-        {
-          "offeredRps": 525,
-          "p50": 0.92376,
-          "p95": 4.704358,
-          "p99": 9.04022,
-          "mean": 1.4857671446528817,
-          "sent": 10501,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 10501,
-          "successRate": 1.0,
-          "throughputRps": 525.05,
-          "serviceCpuMsPerRequest": 0.5832784337624742,
-          "containerCpuShare": {
-            "producer": 0.272,
-            "consumer": 0.275,
-            "postgres": 0.175,
-            "kafka": 0.849
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.05,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.3099,
-                "maxCores": 0.3305,
-                "workingSetMiB": 47.9,
-                "anonMiB": 41.9
+                "cores": 0.5396,
+                "maxCores": 0.5736,
+                "workingSetMiB": 158.8,
+                "anonMiB": 149.9
               },
               "consumer": {
                 "cores": 0.3126,
-                "maxCores": 0.323,
-                "workingSetMiB": 66.1,
-                "anonMiB": 61.4
+                "maxCores": 0.3212,
+                "workingSetMiB": 193.0,
+                "anonMiB": 184.9
               },
               "postgres": {
-                "cores": 0.2028,
-                "maxCores": 0.2157,
-                "workingSetMiB": 98.6,
-                "anonMiB": 11.1
-              },
-              "kafka": {
-                "cores": 0.8299,
-                "maxCores": 0.9774,
-                "workingSetMiB": 1045.4,
-                "anonMiB": 997.5
-              }
-            }
-          },
-          "queue": {
-            "produced": 13127,
-            "consumedDuringStep": 13127,
-            "consumedRps": 525.08,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 22,
-            "meanMessageAgeMs": 6.9140081896962196
-          },
-          "at": "2026-10-31T03:31:15Z"
-        },
-        {
-          "offeredRps": 525,
-          "p50": 0.898571,
-          "p95": 3.634514,
-          "p99": 7.06458,
-          "mean": 1.3294505570897952,
-          "sent": 10501,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 10501,
-          "successRate": 1.0,
-          "throughputRps": 525.05,
-          "serviceCpuMsPerRequest": 0.5652744724613392,
-          "containerCpuShare": {
-            "producer": 0.26,
-            "consumer": 0.27,
-            "postgres": 0.167,
-            "kafka": 0.864
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.04,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.2958,
-                "maxCores": 0.3011,
-                "workingSetMiB": 49.4,
-                "anonMiB": 43.3
-              },
-              "consumer": {
-                "cores": 0.3072,
-                "maxCores": 0.3138,
-                "workingSetMiB": 64.7,
-                "anonMiB": 60.2
-              },
-              "postgres": {
-                "cores": 0.1948,
-                "maxCores": 0.2041,
-                "workingSetMiB": 98.9,
-                "anonMiB": 9.9
-              },
-              "kafka": {
-                "cores": 0.8978,
-                "maxCores": 1.025,
-                "workingSetMiB": 1063.1,
-                "anonMiB": 1012.7
-              }
-            }
-          },
-          "queue": {
-            "produced": 13127,
-            "consumedDuringStep": 13127,
-            "consumedRps": 525.08,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 13,
-            "meanMessageAgeMs": 5.329016284163413
-          },
-          "at": "2026-10-31T03:31:53Z"
-        }
-      ],
-      "at": "2026-10-31T03:31:56Z",
-      "p50": 0.92376,
-      "p95": 4.640131,
-      "p99": 9.04022,
-      "mean": 1.4857671446528817,
-      "successRate": 1.0,
-      "throughputRps": 525.05,
-      "queue": {
-        "consumedRps": 525.08,
-        "backlogAtEnd": 0,
-        "p95MessageAgeMs": 14,
-        "meanMessageAgeMs": 6.033139700980859
-      },
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "producer": {
-            "cores": 0.3099,
-            "maxCores": 0.3305,
-            "workingSetMiB": 47.9,
-            "anonMiB": 41.9
-          },
-          "consumer": {
-            "cores": 0.3107,
-            "maxCores": 0.323,
-            "workingSetMiB": 64.7,
-            "anonMiB": 60.2
-          },
-          "postgres": {
-            "cores": 0.2011,
-            "maxCores": 0.2157,
-            "workingSetMiB": 98.6,
-            "anonMiB": 10.2
-          },
-          "kafka": {
-            "cores": 0.8978,
-            "maxCores": 1.025,
-            "workingSetMiB": 1045.4,
-            "anonMiB": 997.5
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 1050,
-      "runs": [
-        {
-          "offeredRps": 1050,
-          "p50": 0.974841,
-          "p95": 9.712593,
-          "p99": 21.685986,
-          "mean": 2.4478279943336005,
-          "sent": 21001,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 21001,
-          "successRate": 1.0,
-          "throughputRps": 1050.05,
-          "serviceCpuMsPerRequest": 0.4486282949870486,
-          "containerCpuShare": {
-            "producer": 0.405,
-            "consumer": 0.289,
-            "postgres": 0.303,
-            "kafka": 0.921
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.0,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.4771,
-                "maxCores": 0.5532,
-                "workingSetMiB": 90.9,
-                "anonMiB": 83.0
-              },
-              "consumer": {
-                "cores": 0.3343,
-                "maxCores": 0.3389,
-                "workingSetMiB": 64.1,
-                "anonMiB": 59.5
-              },
-              "postgres": {
-                "cores": 0.3641,
-                "maxCores": 0.4213,
-                "workingSetMiB": 100.7,
-                "anonMiB": 10.4
-              },
-              "kafka": {
-                "cores": 0.9485,
-                "maxCores": 1.3195,
-                "workingSetMiB": 1067.4,
-                "anonMiB": 1016.6
-              }
-            }
-          },
-          "queue": {
-            "produced": 26252,
-            "consumedDuringStep": 26252,
-            "consumedRps": 1050.08,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 110,
-            "meanMessageAgeMs": 33.21837055378315
-          },
-          "at": "2026-10-31T03:32:31Z"
-        },
-        {
-          "offeredRps": 1050,
-          "p50": 0.9808885,
-          "p95": 10.537601850000012,
-          "p99": 27.478651629999998,
-          "mean": 2.6672045778021087,
-          "sent": 21002,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 21002,
-          "successRate": 1.0,
-          "throughputRps": 1050.1,
-          "serviceCpuMsPerRequest": 0.4520763486741847,
-          "containerCpuShare": {
-            "producer": 0.409,
-            "consumer": 0.289,
-            "postgres": 0.31,
-            "kafka": 0.949
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.0,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.4853,
-                "maxCores": 0.5375,
-                "workingSetMiB": 98.5,
-                "anonMiB": 90.3
-              },
-              "consumer": {
-                "cores": 0.3332,
-                "maxCores": 0.3371,
-                "workingSetMiB": 80.9,
-                "anonMiB": 75.5
-              },
-              "postgres": {
-                "cores": 0.3733,
-                "maxCores": 0.4135,
-                "workingSetMiB": 103.8,
-                "anonMiB": 11.0
-              },
-              "kafka": {
-                "cores": 0.9356,
-                "maxCores": 1.0008,
-                "workingSetMiB": 1073.9,
-                "anonMiB": 1018.6
-              }
-            }
-          },
-          "queue": {
-            "produced": 26248,
-            "consumedDuringStep": 26248,
-            "consumedRps": 1049.92,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 138,
-            "meanMessageAgeMs": 35.53294924292924
-          },
-          "at": "2026-10-31T03:33:09Z"
-        },
-        {
-          "offeredRps": 1050,
-          "p50": 1.024213,
-          "p95": 10.976509,
-          "p99": 23.441273,
-          "mean": 2.783561752487983,
-          "sent": 21001,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 21001,
-          "successRate": 1.0,
-          "throughputRps": 1050.05,
-          "serviceCpuMsPerRequest": 0.4705520722230688,
-          "containerCpuShare": {
-            "producer": 0.419,
-            "consumer": 0.288,
-            "postgres": 0.311,
-            "kafka": 0.971
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.0,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.4875,
-                "maxCores": 0.5513,
-                "workingSetMiB": 149.4,
-                "anonMiB": 139.3
-              },
-              "consumer": {
-                "cores": 0.3351,
-                "maxCores": 0.3392,
-                "workingSetMiB": 91.9,
-                "anonMiB": 86.4
-              },
-              "postgres": {
-                "cores": 0.3681,
-                "maxCores": 0.4377,
-                "workingSetMiB": 105.5,
-                "anonMiB": 9.9
-              },
-              "kafka": {
-                "cores": 0.9724,
-                "maxCores": 1.2521,
-                "workingSetMiB": 1075.8,
-                "anonMiB": 1017.2
-              }
-            }
-          },
-          "queue": {
-            "produced": 26252,
-            "consumedDuringStep": 26252,
-            "consumedRps": 1050.08,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 132,
-            "meanMessageAgeMs": 38.3163658873387
-          },
-          "at": "2026-10-31T03:33:47Z"
-        }
-      ],
-      "at": "2026-10-31T03:33:50Z",
-      "p50": 0.9808885,
-      "p95": 10.537601850000012,
-      "p99": 23.441273,
-      "mean": 2.6672045778021087,
-      "successRate": 1.0,
-      "throughputRps": 1050.05,
-      "queue": {
-        "consumedRps": 1050.08,
-        "backlogAtEnd": 0,
-        "p95MessageAgeMs": 132,
-        "meanMessageAgeMs": 35.53294924292924
-      },
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "producer": {
-            "cores": 0.4853,
-            "maxCores": 0.5513,
-            "workingSetMiB": 98.5,
-            "anonMiB": 90.3
-          },
-          "consumer": {
-            "cores": 0.3343,
-            "maxCores": 0.3389,
-            "workingSetMiB": 80.9,
-            "anonMiB": 75.5
-          },
-          "postgres": {
-            "cores": 0.3681,
-            "maxCores": 0.4213,
-            "workingSetMiB": 103.8,
-            "anonMiB": 10.4
-          },
-          "kafka": {
-            "cores": 0.9485,
-            "maxCores": 1.2521,
-            "workingSetMiB": 1073.9,
-            "anonMiB": 1017.2
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 1575,
-      "runs": [
-        {
-          "offeredRps": 1575,
-          "p50": 1.337804,
-          "p95": 25.971370099999966,
-          "p99": 63.427801640000006,
-          "mean": 6.042365448337435,
-          "sent": 31367,
-          "dropped": 134,
-          "failed": 0,
-          "succeeded": 31367,
-          "successRate": 0.9957461667883559,
-          "throughputRps": 1568.35,
-          "serviceCpuMsPerRequest": 0.3837951226970415,
-          "containerCpuShare": {
-            "producer": 0.503,
-            "consumer": 0.27,
-            "postgres": 0.406,
-            "kafka": 0.947
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.04,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.6109,
-                "maxCores": 0.6361,
-                "workingSetMiB": 163.8,
-                "anonMiB": 153.1
-              },
-              "consumer": {
-                "cores": 0.302,
-                "maxCores": 0.3082,
-                "workingSetMiB": 103.2,
-                "anonMiB": 95.2
-              },
-              "postgres": {
-                "cores": 0.4619,
-                "maxCores": 0.4784,
-                "workingSetMiB": 109.8,
-                "anonMiB": 11.0
-              },
-              "kafka": {
-                "cores": 0.9888,
-                "maxCores": 1.105,
-                "workingSetMiB": 1091.7,
-                "anonMiB": 1030.6
-              }
-            }
-          },
-          "queue": {
-            "produced": 39243,
-            "consumedDuringStep": 39243,
-            "consumedRps": 1569.72,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 2660,
-            "meanMessageAgeMs": 1376.5147447954857
-          },
-          "at": "2026-10-31T03:34:26Z"
-        },
-        {
-          "offeredRps": 1575,
-          "p50": 1.2570955000000001,
-          "p95": 21.419560999999995,
-          "p99": 41.570596889999976,
-          "mean": 4.874414137562788,
-          "sent": 31462,
-          "dropped": 39,
-          "failed": 0,
-          "succeeded": 31462,
-          "successRate": 0.9987619440652677,
-          "throughputRps": 1573.1,
-          "serviceCpuMsPerRequest": 0.39286415171081396,
-          "containerCpuShare": {
-            "producer": 0.515,
-            "consumer": 0.269,
-            "postgres": 0.404,
-            "kafka": 0.892
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.6183,
-                "maxCores": 0.6388,
-                "workingSetMiB": 175.3,
-                "anonMiB": 164.7
-              },
-              "consumer": {
-                "cores": 0.3017,
-                "maxCores": 0.3037,
-                "workingSetMiB": 167.1,
-                "anonMiB": 159.3
-              },
-              "postgres": {
-                "cores": 0.4615,
-                "maxCores": 0.4776,
-                "workingSetMiB": 110.8,
-                "anonMiB": 9.9
-              },
-              "kafka": {
-                "cores": 1.0263,
-                "maxCores": 1.0558,
-                "workingSetMiB": 1080.4,
-                "anonMiB": 1017.4
-              }
-            }
-          },
-          "queue": {
-            "produced": 39338,
-            "consumedDuringStep": 39338,
-            "consumedRps": 1573.52,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 2508,
-            "meanMessageAgeMs": 1343.408174941199
-          },
-          "at": "2026-10-31T03:35:05Z"
-        },
-        {
-          "offeredRps": 1575,
-          "p50": 1.1119585,
-          "p95": 22.449208099999964,
-          "p99": 79.46780957000011,
-          "mean": 5.570689533793244,
-          "sent": 31308,
-          "dropped": 193,
-          "failed": 0,
-          "succeeded": 31308,
-          "successRate": 0.9938732103742738,
-          "throughputRps": 1565.4,
-          "serviceCpuMsPerRequest": 0.39501314311964064,
-          "containerCpuShare": {
-            "producer": 0.516,
-            "consumer": 0.27,
-            "postgres": 0.409,
-            "kafka": 0.933
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.01,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.62,
-                "maxCores": 0.6498,
-                "workingSetMiB": 174.1,
-                "anonMiB": 164.1
-              },
-              "consumer": {
-                "cores": 0.3024,
-                "maxCores": 0.3164,
-                "workingSetMiB": 167.4,
-                "anonMiB": 159.0
-              },
-              "postgres": {
-                "cores": 0.466,
-                "maxCores": 0.4942,
-                "workingSetMiB": 115.8,
-                "anonMiB": 10.3
-              },
-              "kafka": {
-                "cores": 0.9583,
-                "maxCores": 1.1648,
-                "workingSetMiB": 1090.5,
-                "anonMiB": 1027.0
-              }
-            }
-          },
-          "queue": {
-            "produced": 39184,
-            "consumedDuringStep": 39184,
-            "consumedRps": 1567.36,
-            "backlogAtEnd": 0,
-            "p95MessageAgeMs": 2804,
-            "meanMessageAgeMs": 1458.951002938546
-          },
-          "at": "2026-10-31T03:35:45Z"
-        }
-      ],
-      "at": "2026-10-31T03:35:48Z",
-      "p50": 1.2570955000000001,
-      "p95": 22.449208099999964,
-      "p99": 63.427801640000006,
-      "mean": 5.570689533793244,
-      "successRate": 0.9957461667883559,
-      "throughputRps": 1568.35,
-      "queue": {
-        "consumedRps": 1569.72,
-        "backlogAtEnd": 0,
-        "p95MessageAgeMs": 2660,
-        "meanMessageAgeMs": 1376.5147447954857
-      },
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "producer": {
-            "cores": 0.6183,
-            "maxCores": 0.6388,
-            "workingSetMiB": 174.1,
-            "anonMiB": 164.1
-          },
-          "consumer": {
-            "cores": 0.302,
-            "maxCores": 0.3082,
-            "workingSetMiB": 167.1,
-            "anonMiB": 159.0
-          },
-          "postgres": {
-            "cores": 0.4619,
-            "maxCores": 0.4784,
-            "workingSetMiB": 110.8,
-            "anonMiB": 10.3
-          },
-          "kafka": {
-            "cores": 0.9888,
-            "maxCores": 1.105,
-            "workingSetMiB": 1090.5,
-            "anonMiB": 1027.0
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 1890,
-      "runs": [
-        {
-          "offeredRps": 1890,
-          "p50": 1.482237,
-          "p95": 48.96970439999997,
-          "p99": 103.85224882000023,
-          "mean": 9.724019757612238,
-          "sent": 37407,
-          "dropped": 394,
-          "failed": 0,
-          "succeeded": 37407,
-          "successRate": 0.9895769953175841,
-          "throughputRps": 1870.35,
-          "serviceCpuMsPerRequest": 0.3619482346411647,
-          "containerCpuShare": {
-            "producer": 0.556,
-            "consumer": 0.271,
-            "postgres": 0.413,
-            "kafka": 0.971
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.6781,
-                "maxCores": 0.6973,
-                "workingSetMiB": 177.4,
-                "anonMiB": 166.6
-              },
-              "consumer": {
-                "cores": 0.303,
-                "maxCores": 0.311,
-                "workingSetMiB": 168.3,
-                "anonMiB": 160.4
-              },
-              "postgres": {
-                "cores": 0.4627,
-                "maxCores": 0.468,
-                "workingSetMiB": 119.1,
-                "anonMiB": 11.0
-              },
-              "kafka": {
-                "cores": 0.993,
-                "maxCores": 1.115,
-                "workingSetMiB": 1090.6,
-                "anonMiB": 1025.0
-              }
-            }
-          },
-          "queue": {
-            "produced": 46846,
-            "consumedDuringStep": 41075,
-            "consumedRps": 1643.0,
-            "backlogAtEnd": 5771,
-            "p95MessageAgeMs": 9234,
-            "meanMessageAgeMs": 4510.566316854217
-          },
-          "at": "2026-10-31T03:36:28Z"
-        },
-        {
-          "offeredRps": 1890,
-          "p50": 1.549155,
-          "p95": 38.32278125,
-          "p99": 61.26496805000001,
-          "mean": 8.134038543706389,
-          "sent": 37546,
-          "dropped": 255,
-          "failed": 0,
-          "succeeded": 37546,
-          "successRate": 0.9932541467156953,
-          "throughputRps": 1877.3,
-          "serviceCpuMsPerRequest": 0.36157405791859054,
-          "containerCpuShare": {
-            "producer": 0.549,
-            "consumer": 0.267,
-            "postgres": 0.408,
-            "kafka": 0.947
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.04,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.6824,
-                "maxCores": 0.6884,
-                "workingSetMiB": 180.8,
-                "anonMiB": 170.5
-              },
-              "consumer": {
-                "cores": 0.304,
-                "maxCores": 0.3154,
-                "workingSetMiB": 177.5,
-                "anonMiB": 169.4
-              },
-              "postgres": {
-                "cores": 0.4719,
-                "maxCores": 0.4897,
-                "workingSetMiB": 122.4,
-                "anonMiB": 9.9
-              },
-              "kafka": {
-                "cores": 1.0229,
-                "maxCores": 1.1261,
-                "workingSetMiB": 1089.3,
-                "anonMiB": 1022.7
-              }
-            }
-          },
-          "queue": {
-            "produced": 46997,
-            "consumedDuringStep": 41777,
-            "consumedRps": 1671.08,
-            "backlogAtEnd": 5220,
-            "p95MessageAgeMs": 6952,
-            "meanMessageAgeMs": 4103.562240920621
-          },
-          "at": "2026-10-31T03:37:14Z"
-        },
-        {
-          "offeredRps": 1890,
-          "p50": 1.66899,
-          "p95": 42.469176199999985,
-          "p99": 85.24982583999996,
-          "mean": 8.953129998801185,
-          "sent": 37537,
-          "dropped": 264,
-          "failed": 0,
-          "succeeded": 37537,
-          "successRate": 0.9930160577762494,
-          "throughputRps": 1876.85,
-          "serviceCpuMsPerRequest": 0.3653685834681195,
-          "containerCpuShare": {
-            "producer": 0.565,
-            "consumer": 0.272,
-            "postgres": 0.417,
-            "kafka": 0.974
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.01,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.6822,
-                "maxCores": 0.6977,
-                "workingSetMiB": 179.2,
-                "anonMiB": 168.6
-              },
-              "consumer": {
-                "cores": 0.3091,
-                "maxCores": 0.317,
-                "workingSetMiB": 176.1,
-                "anonMiB": 167.8
-              },
-              "postgres": {
-                "cores": 0.4747,
-                "maxCores": 0.4866,
-                "workingSetMiB": 127.5,
+                "cores": 0.4096,
+                "maxCores": 0.4275,
+                "workingSetMiB": 114.6,
                 "anonMiB": 10.7
               },
               "kafka": {
-                "cores": 1.053,
-                "maxCores": 1.1224,
-                "workingSetMiB": 1074.9,
-                "anonMiB": 1007.0
+                "cores": 0.4335,
+                "maxCores": 0.4475,
+                "workingSetMiB": 985.6,
+                "anonMiB": 942.7
               }
             }
           },
           "queue": {
-            "produced": 46988,
-            "consumedDuringStep": 41823,
-            "consumedRps": 1672.92,
-            "backlogAtEnd": 5165,
-            "p95MessageAgeMs": 7440,
-            "meanMessageAgeMs": 4195.155875447918
+            "produced": 31551,
+            "consumedDuringStep": 31551,
+            "consumedRps": 1262.04,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 214,
+            "meanMessageAgeMs": 67.72476228209192
           },
-          "at": "2026-10-31T03:37:57Z"
+          "at": "2026-11-02T04:56:56Z"
         }
       ],
-      "at": "2026-10-31T03:38:00Z",
-      "p50": 1.549155,
-      "p95": 42.469176199999985,
-      "p99": 85.24982583999996,
-      "mean": 8.953129998801185,
-      "successRate": 0.9930160577762494,
-      "throughputRps": 1876.85,
+      "at": "2026-11-02T04:56:59Z",
+      "p50": 0.751387,
+      "p95": 4.202308,
+      "p99": 13.153588599999818,
+      "mean": 1.4521249346697893,
+      "successRate": 1.0,
+      "throughputRps": 1262.05,
       "queue": {
-        "consumedRps": 1671.08,
-        "backlogAtEnd": 5220,
-        "p95MessageAgeMs": 7440,
-        "meanMessageAgeMs": 4195.155875447918
+        "consumedRps": 1262.08,
+        "backlogAtEnd": 0,
+        "p95MessageAgeMs": 111,
+        "meanMessageAgeMs": 42.0368844340557
       },
       "unstable": false,
       "repeats": 3,
@@ -901,113 +439,53 @@
         "repeats": 3,
         "containers": {
           "producer": {
-            "cores": 0.6822,
-            "maxCores": 0.6973,
-            "workingSetMiB": 179.2,
-            "anonMiB": 168.6
+            "cores": 0.5215,
+            "maxCores": 0.5313,
+            "workingSetMiB": 147.7,
+            "anonMiB": 139.2
           },
           "consumer": {
-            "cores": 0.304,
-            "maxCores": 0.3154,
-            "workingSetMiB": 176.1,
-            "anonMiB": 167.8
+            "cores": 0.3126,
+            "maxCores": 0.3169,
+            "workingSetMiB": 193.0,
+            "anonMiB": 184.9
           },
           "postgres": {
-            "cores": 0.4719,
-            "maxCores": 0.4866,
-            "workingSetMiB": 122.4,
+            "cores": 0.3966,
+            "maxCores": 0.407,
+            "workingSetMiB": 112.9,
             "anonMiB": 10.7
           },
           "kafka": {
-            "cores": 1.0229,
-            "maxCores": 1.1224,
-            "workingSetMiB": 1089.3,
-            "anonMiB": 1022.7
+            "cores": 0.4335,
+            "maxCores": 0.4477,
+            "workingSetMiB": 982.4,
+            "anonMiB": 942.4
           }
         }
       }
     },
     {
-      "offeredRps": 2100,
+      "offeredRps": 1894,
       "runs": [
         {
-          "offeredRps": 2100,
-          "p50": 1.9003485,
-          "p95": 53.96989739999999,
-          "p99": 93.12958297000057,
-          "mean": 11.85525476641695,
-          "sent": 41664,
-          "dropped": 337,
+          "offeredRps": 1894,
+          "p50": 0.8038025,
+          "p95": 14.214439099999955,
+          "p99": 32.54472234999997,
+          "mean": 2.7371133617476335,
+          "sent": 37880,
+          "dropped": 0,
           "failed": 0,
-          "succeeded": 41664,
-          "successRate": 0.9919763815147259,
-          "throughputRps": 2083.2,
-          "serviceCpuMsPerRequest": 0.3403045586994862,
+          "succeeded": 37880,
+          "successRate": 1.0,
+          "throughputRps": 1894.0,
+          "serviceCpuMsPerRequest": 0.3534312052543769,
           "containerCpuShare": {
-            "producer": 0.573,
-            "consumer": 0.269,
-            "postgres": 0.404,
-            "kafka": 0.963
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.03,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.7102,
-                "maxCores": 0.7174,
-                "workingSetMiB": 180.9,
-                "anonMiB": 170.4
-              },
-              "consumer": {
-                "cores": 0.3142,
-                "maxCores": 0.3212,
-                "workingSetMiB": 180.4,
-                "anonMiB": 172.1
-              },
-              "postgres": {
-                "cores": 0.4683,
-                "maxCores": 0.4789,
-                "workingSetMiB": 131.2,
-                "anonMiB": 10.7
-              },
-              "kafka": {
-                "cores": 1.0776,
-                "maxCores": 1.16,
-                "workingSetMiB": 1096.1,
-                "anonMiB": 1027.0
-              }
-            }
-          },
-          "queue": {
-            "produced": 52164,
-            "consumedDuringStep": 41959,
-            "consumedRps": 1678.36,
-            "backlogAtEnd": 10205,
-            "p95MessageAgeMs": 10978,
-            "meanMessageAgeMs": 5670.100352840204
-          },
-          "at": "2026-10-31T03:38:43Z"
-        },
-        {
-          "offeredRps": 2100,
-          "p50": 1.899834,
-          "p95": 44.566311,
-          "p99": 92.96217409999987,
-          "mean": 10.628326845850061,
-          "sent": 41531,
-          "dropped": 469,
-          "failed": 0,
-          "succeeded": 41531,
-          "successRate": 0.9888333333333333,
-          "throughputRps": 2076.55,
-          "serviceCpuMsPerRequest": 0.35079631694283187,
-          "containerCpuShare": {
-            "producer": 0.595,
-            "consumer": 0.273,
+            "producer": 0.559,
+            "consumer": 0.27,
             "postgres": 0.421,
-            "kafka": 0.978
+            "kafka": 0.401
           },
           "resources": {
             "method": "window",
@@ -1015,59 +493,59 @@
             "readings": 5,
             "containers": {
               "producer": {
-                "cores": 0.7263,
-                "maxCores": 0.7361,
-                "workingSetMiB": 179.6,
-                "anonMiB": 169.2
+                "cores": 0.6813,
+                "maxCores": 0.6875,
+                "workingSetMiB": 163.5,
+                "anonMiB": 154.6
               },
               "consumer": {
-                "cores": 0.3068,
-                "maxCores": 0.3206,
-                "workingSetMiB": 183.9,
-                "anonMiB": 175.4
+                "cores": 0.3008,
+                "maxCores": 0.3082,
+                "workingSetMiB": 195.9,
+                "anonMiB": 187.6
               },
               "postgres": {
-                "cores": 0.4691,
-                "maxCores": 0.4796,
-                "workingSetMiB": 135.9,
-                "anonMiB": 10.6
+                "cores": 0.4724,
+                "maxCores": 0.4825,
+                "workingSetMiB": 117.0,
+                "anonMiB": 9.9
               },
               "kafka": {
-                "cores": 1.0136,
-                "maxCores": 1.1632,
-                "workingSetMiB": 1103.9,
-                "anonMiB": 1033.6
+                "cores": 0.4954,
+                "maxCores": 0.5165,
+                "workingSetMiB": 992.7,
+                "anonMiB": 947.3
               }
             }
           },
           "queue": {
-            "produced": 52022,
-            "consumedDuringStep": 41476,
-            "consumedRps": 1659.04,
-            "backlogAtEnd": 10546,
-            "p95MessageAgeMs": 11177,
-            "meanMessageAgeMs": 5976.556301436179
+            "produced": 47351,
+            "consumedDuringStep": 43980,
+            "consumedRps": 1759.2,
+            "backlogAtEnd": 3371,
+            "p95MessageAgeMs": 7102,
+            "meanMessageAgeMs": 3481.9906401228664
           },
-          "at": "2026-10-31T03:39:29Z"
+          "at": "2026-11-02T04:57:39Z"
         },
         {
-          "offeredRps": 2100,
-          "p50": 1.509103,
-          "p95": 80.64105225,
-          "p99": 116.86847970000001,
-          "mean": 13.788869090995687,
-          "sent": 40936,
-          "dropped": 1063,
+          "offeredRps": 1894,
+          "p50": 0.799649,
+          "p95": 14.513844299999992,
+          "p99": 39.96548556,
+          "mean": 2.8958537548584675,
+          "sent": 37872,
+          "dropped": 8,
           "failed": 0,
-          "succeeded": 40936,
-          "successRate": 0.9746898735684183,
-          "throughputRps": 2046.8,
-          "serviceCpuMsPerRequest": 0.349554200885629,
+          "succeeded": 37872,
+          "successRate": 0.9997888067581837,
+          "throughputRps": 1893.6,
+          "serviceCpuMsPerRequest": 0.3533920959803984,
           "containerCpuShare": {
-            "producer": 0.582,
-            "consumer": 0.266,
-            "postgres": 0.416,
-            "kafka": 0.992
+            "producer": 0.556,
+            "consumer": 0.264,
+            "postgres": 0.419,
+            "kafka": 0.4
           },
           "resources": {
             "method": "window",
@@ -1075,54 +553,114 @@
             "readings": 5,
             "containers": {
               "producer": {
-                "cores": 0.7183,
-                "maxCores": 0.7382,
-                "workingSetMiB": 179.5,
-                "anonMiB": 168.8
+                "cores": 0.6736,
+                "maxCores": 0.6876,
+                "workingSetMiB": 160.3,
+                "anonMiB": 151.4
               },
               "consumer": {
-                "cores": 0.3048,
-                "maxCores": 0.3139,
-                "workingSetMiB": 196.9,
-                "anonMiB": 188.3
+                "cores": 0.295,
+                "maxCores": 0.2981,
+                "workingSetMiB": 200.8,
+                "anonMiB": 192.3
               },
               "postgres": {
-                "cores": 0.4749,
-                "maxCores": 0.4908,
-                "workingSetMiB": 140.1,
-                "anonMiB": 10.6
+                "cores": 0.466,
+                "maxCores": 0.4721,
+                "workingSetMiB": 121.8,
+                "anonMiB": 11.1
               },
               "kafka": {
-                "cores": 1.0498,
-                "maxCores": 1.2415,
-                "workingSetMiB": 1101.5,
-                "anonMiB": 1030.2
+                "cores": 0.4943,
+                "maxCores": 0.5077,
+                "workingSetMiB": 992.5,
+                "anonMiB": 946.5
               }
             }
           },
           "queue": {
-            "produced": 51263,
-            "consumedDuringStep": 41340,
-            "consumedRps": 1653.6,
-            "backlogAtEnd": 9923,
-            "p95MessageAgeMs": 11228,
-            "meanMessageAgeMs": 5593.871666720407
+            "produced": 47343,
+            "consumedDuringStep": 43620,
+            "consumedRps": 1744.8,
+            "backlogAtEnd": 3723,
+            "p95MessageAgeMs": 6902,
+            "meanMessageAgeMs": 3537.1773697619255
           },
-          "at": "2026-10-31T03:40:16Z"
+          "at": "2026-11-02T04:58:22Z"
+        },
+        {
+          "offeredRps": 1894,
+          "p50": 0.81616,
+          "p95": 15.085638300000008,
+          "p99": 49.02959379000005,
+          "mean": 3.1433282624379384,
+          "sent": 37868,
+          "dropped": 13,
+          "failed": 0,
+          "succeeded": 37868,
+          "successRate": 0.9996568200417095,
+          "throughputRps": 1893.4,
+          "serviceCpuMsPerRequest": 0.35810314744402194,
+          "containerCpuShare": {
+            "producer": 0.565,
+            "consumer": 0.267,
+            "postgres": 0.42,
+            "kafka": 0.396
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.0,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.687,
+                "maxCores": 0.7083,
+                "workingSetMiB": 160.8,
+                "anonMiB": 152.0
+              },
+              "consumer": {
+                "cores": 0.3005,
+                "maxCores": 0.3079,
+                "workingSetMiB": 214.4,
+                "anonMiB": 205.9
+              },
+              "postgres": {
+                "cores": 0.4717,
+                "maxCores": 0.4879,
+                "workingSetMiB": 125.7,
+                "anonMiB": 11.0
+              },
+              "kafka": {
+                "cores": 0.4877,
+                "maxCores": 0.5018,
+                "workingSetMiB": 993.9,
+                "anonMiB": 946.4
+              }
+            }
+          },
+          "queue": {
+            "produced": 47340,
+            "consumedDuringStep": 43298,
+            "consumedRps": 1731.92,
+            "backlogAtEnd": 4042,
+            "p95MessageAgeMs": 7198,
+            "meanMessageAgeMs": 3605.182758824573
+          },
+          "at": "2026-11-02T04:59:05Z"
         }
       ],
-      "at": "2026-10-31T03:40:19Z",
-      "p50": 1.899834,
-      "p95": 53.96989739999999,
-      "p99": 93.12958297000057,
-      "mean": 11.85525476641695,
-      "successRate": 0.9888333333333333,
-      "throughputRps": 2076.55,
+      "at": "2026-11-02T04:59:08Z",
+      "p50": 0.8038025,
+      "p95": 14.513844299999992,
+      "p99": 39.96548556,
+      "mean": 2.8958537548584675,
+      "successRate": 0.9997888067581837,
+      "throughputRps": 1893.6,
       "queue": {
-        "consumedRps": 1659.04,
-        "backlogAtEnd": 10205,
-        "p95MessageAgeMs": 11177,
-        "meanMessageAgeMs": 5670.100352840204
+        "consumedRps": 1744.8,
+        "backlogAtEnd": 3723,
+        "p95MessageAgeMs": 7102,
+        "meanMessageAgeMs": 3537.1773697619255
       },
       "unstable": false,
       "repeats": 3,
@@ -1132,404 +670,344 @@
         "repeats": 3,
         "containers": {
           "producer": {
-            "cores": 0.7183,
-            "maxCores": 0.7361,
-            "workingSetMiB": 179.6,
-            "anonMiB": 169.2
+            "cores": 0.6813,
+            "maxCores": 0.6876,
+            "workingSetMiB": 160.8,
+            "anonMiB": 152.0
           },
           "consumer": {
-            "cores": 0.3068,
-            "maxCores": 0.3206,
-            "workingSetMiB": 183.9,
-            "anonMiB": 175.4
+            "cores": 0.3005,
+            "maxCores": 0.3079,
+            "workingSetMiB": 200.8,
+            "anonMiB": 192.3
           },
           "postgres": {
-            "cores": 0.4691,
-            "maxCores": 0.4796,
-            "workingSetMiB": 135.9,
+            "cores": 0.4717,
+            "maxCores": 0.4825,
+            "workingSetMiB": 121.8,
+            "anonMiB": 11.0
+          },
+          "kafka": {
+            "cores": 0.4943,
+            "maxCores": 0.5077,
+            "workingSetMiB": 992.7,
+            "anonMiB": 946.5
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 2272,
+      "runs": [
+        {
+          "offeredRps": 2272,
+          "p50": 0.956796,
+          "p95": 28.73679219999987,
+          "p99": 58.97721771999998,
+          "mean": 5.013311392920944,
+          "sent": 45345,
+          "dropped": 96,
+          "failed": 0,
+          "succeeded": 45345,
+          "successRate": 0.9978873704363901,
+          "throughputRps": 2267.25,
+          "serviceCpuMsPerRequest": 0.33294095862871653,
+          "containerCpuShare": {
+            "producer": 0.616,
+            "consumer": 0.264,
+            "postgres": 0.416,
+            "kafka": 0.442
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.7656,
+                "maxCores": 0.7727,
+                "workingSetMiB": 166.4,
+                "anonMiB": 157.4
+              },
+              "consumer": {
+                "cores": 0.304,
+                "maxCores": 0.3117,
+                "workingSetMiB": 211.5,
+                "anonMiB": 202.8
+              },
+              "postgres": {
+                "cores": 0.4792,
+                "maxCores": 0.4975,
+                "workingSetMiB": 130.3,
+                "anonMiB": 11.1
+              },
+              "kafka": {
+                "cores": 0.5567,
+                "maxCores": 0.5719,
+                "workingSetMiB": 997.3,
+                "anonMiB": 948.6
+              }
+            }
+          },
+          "queue": {
+            "produced": 56706,
+            "consumedDuringStep": 42663,
+            "consumedRps": 1706.52,
+            "backlogAtEnd": 14043,
+            "p95MessageAgeMs": 10387,
+            "meanMessageAgeMs": 6244.728483802952
+          },
+          "at": "2026-11-02T04:59:53Z"
+        },
+        {
+          "offeredRps": 2272,
+          "p50": 0.8630975,
+          "p95": 31.895321500000005,
+          "p99": 64.12482906000001,
+          "mean": 5.367141268691361,
+          "sent": 45208,
+          "dropped": 233,
+          "failed": 0,
+          "succeeded": 45208,
+          "successRate": 0.994872471996655,
+          "throughputRps": 2260.4,
+          "serviceCpuMsPerRequest": 0.3350228570418427,
+          "containerCpuShare": {
+            "producer": 0.622,
+            "consumer": 0.266,
+            "postgres": 0.425,
+            "kafka": 0.445
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.7574,
+                "maxCores": 0.7647,
+                "workingSetMiB": 178.8,
+                "anonMiB": 169.8
+              },
+              "consumer": {
+                "cores": 0.3002,
+                "maxCores": 0.3026,
+                "workingSetMiB": 209.8,
+                "anonMiB": 201.1
+              },
+              "postgres": {
+                "cores": 0.4824,
+                "maxCores": 0.4963,
+                "workingSetMiB": 134.6,
+                "anonMiB": 9.9
+              },
+              "kafka": {
+                "cores": 0.5493,
+                "maxCores": 0.5576,
+                "workingSetMiB": 1002.3,
+                "anonMiB": 952.4
+              }
+            }
+          },
+          "queue": {
+            "produced": 56569,
+            "consumedDuringStep": 42560,
+            "consumedRps": 1702.4,
+            "backlogAtEnd": 14009,
+            "p95MessageAgeMs": 11661,
+            "meanMessageAgeMs": 6588.11936280009
+          },
+          "at": "2026-11-02T05:00:41Z"
+        },
+        {
+          "offeredRps": 2272,
+          "p50": 0.92772,
+          "p95": 23.196969400000008,
+          "p99": 53.00709288,
+          "mean": 4.445293564733503,
+          "sent": 45193,
+          "dropped": 248,
+          "failed": 0,
+          "succeeded": 45193,
+          "successRate": 0.994542373627341,
+          "throughputRps": 2259.65,
+          "serviceCpuMsPerRequest": 0.3348816352512643,
+          "containerCpuShare": {
+            "producer": 0.616,
+            "consumer": 0.266,
+            "postgres": 0.422,
+            "kafka": 0.444
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.767,
+                "maxCores": 0.7841,
+                "workingSetMiB": 178.2,
+                "anonMiB": 168.9
+              },
+              "consumer": {
+                "cores": 0.3059,
+                "maxCores": 0.31,
+                "workingSetMiB": 209.7,
+                "anonMiB": 201.0
+              },
+              "postgres": {
+                "cores": 0.4826,
+                "maxCores": 0.4951,
+                "workingSetMiB": 139.5,
+                "anonMiB": 10.6
+              },
+              "kafka": {
+                "cores": 0.5579,
+                "maxCores": 0.5754,
+                "workingSetMiB": 1006.8,
+                "anonMiB": 955.2
+              }
+            }
+          },
+          "queue": {
+            "produced": 56554,
+            "consumedDuringStep": 42895,
+            "consumedRps": 1715.8,
+            "backlogAtEnd": 13659,
+            "p95MessageAgeMs": 11637,
+            "meanMessageAgeMs": 6501.020834654659
+          },
+          "at": "2026-11-02T05:01:29Z"
+        }
+      ],
+      "at": "2026-11-02T05:01:32Z",
+      "p50": 0.92772,
+      "p95": 28.73679219999987,
+      "p99": 58.97721771999998,
+      "mean": 5.013311392920944,
+      "successRate": 0.994872471996655,
+      "throughputRps": 2260.4,
+      "queue": {
+        "consumedRps": 1706.52,
+        "backlogAtEnd": 14009,
+        "p95MessageAgeMs": 11637,
+        "meanMessageAgeMs": 6501.020834654659
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "producer": {
+            "cores": 0.7656,
+            "maxCores": 0.7727,
+            "workingSetMiB": 178.2,
+            "anonMiB": 168.9
+          },
+          "consumer": {
+            "cores": 0.304,
+            "maxCores": 0.31,
+            "workingSetMiB": 209.8,
+            "anonMiB": 201.1
+          },
+          "postgres": {
+            "cores": 0.4824,
+            "maxCores": 0.4963,
+            "workingSetMiB": 134.6,
             "anonMiB": 10.6
           },
           "kafka": {
-            "cores": 1.0498,
-            "maxCores": 1.1632,
-            "workingSetMiB": 1101.5,
-            "anonMiB": 1030.2
+            "cores": 0.5567,
+            "maxCores": 0.5719,
+            "workingSetMiB": 1002.3,
+            "anonMiB": 952.4
           }
         }
       }
     },
     {
-      "offeredRps": 2310,
+      "offeredRps": 2525,
       "runs": [
         {
-          "offeredRps": 2310,
-          "p50": 2.750069,
-          "p95": 68.22796340000001,
-          "p99": 120.97679200000002,
-          "mean": 14.764872875297296,
-          "sent": 44979,
-          "dropped": 1221,
+          "offeredRps": 2525,
+          "p50": 1.069641,
+          "p95": 44.874311,
+          "p99": 99.78294280000017,
+          "mean": 8.074320919776925,
+          "sent": 49861,
+          "dropped": 640,
           "failed": 0,
-          "succeeded": 44979,
-          "successRate": 0.9735714285714285,
-          "throughputRps": 2248.95,
-          "serviceCpuMsPerRequest": 0.338778053316801,
+          "succeeded": 49861,
+          "successRate": 0.9873269836240867,
+          "throughputRps": 2493.05,
+          "serviceCpuMsPerRequest": 0.3240698225230848,
           "containerCpuShare": {
-            "producer": 0.616,
-            "consumer": 0.272,
-            "postgres": 0.407,
-            "kafka": 1.004
+            "producer": 0.651,
+            "consumer": 0.267,
+            "postgres": 0.421,
+            "kafka": 0.467
           },
           "resources": {
             "method": "window",
-            "seconds": 19.02,
+            "seconds": 19.0,
             "readings": 5,
             "containers": {
               "producer": {
-                "cores": 0.764,
-                "maxCores": 0.8239,
-                "workingSetMiB": 180.5,
-                "anonMiB": 170.0
+                "cores": 0.8144,
+                "maxCores": 0.8312,
+                "workingSetMiB": 177.3,
+                "anonMiB": 167.9
               },
               "consumer": {
-                "cores": 0.312,
-                "maxCores": 0.3185,
-                "workingSetMiB": 225.9,
-                "anonMiB": 216.2
-              },
-              "postgres": {
-                "cores": 0.4723,
-                "maxCores": 0.4931,
-                "workingSetMiB": 145.7,
-                "anonMiB": 11.1
-              },
-              "kafka": {
-                "cores": 1.1112,
-                "maxCores": 1.2045,
-                "workingSetMiB": 1080.4,
-                "anonMiB": 1007.8
-              }
-            }
-          },
-          "queue": {
-            "produced": 56455,
-            "consumedDuringStep": 40777,
-            "consumedRps": 1631.08,
-            "backlogAtEnd": 15678,
-            "p95MessageAgeMs": 10142,
-            "meanMessageAgeMs": 6754.349953926487
-          },
-          "at": "2026-10-31T03:41:06Z"
-        },
-        {
-          "offeredRps": 2310,
-          "p50": 1.997404,
-          "p95": 63.70109519999994,
-          "p99": 104.32949510000002,
-          "mean": 13.81290553481257,
-          "sent": 45515,
-          "dropped": 686,
-          "failed": 0,
-          "succeeded": 45515,
-          "successRate": 0.9851518365403347,
-          "throughputRps": 2275.75,
-          "serviceCpuMsPerRequest": 0.3279344480667438,
-          "containerCpuShare": {
-            "producer": 0.601,
-            "consumer": 0.269,
-            "postgres": 0.409,
-            "kafka": 0.971
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.7481,
-                "maxCores": 0.7566,
-                "workingSetMiB": 180.2,
-                "anonMiB": 169.2
-              },
-              "consumer": {
-                "cores": 0.3079,
-                "maxCores": 0.315,
-                "workingSetMiB": 225.6,
-                "anonMiB": 215.4
-              },
-              "postgres": {
-                "cores": 0.4684,
-                "maxCores": 0.4753,
-                "workingSetMiB": 149.7,
-                "anonMiB": 10.4
-              },
-              "kafka": {
-                "cores": 1.0297,
-                "maxCores": 1.2139,
-                "workingSetMiB": 1121.5,
-                "anonMiB": 1048.2
-              }
-            }
-          },
-          "queue": {
-            "produced": 57054,
-            "consumedDuringStep": 41839,
-            "consumedRps": 1673.56,
-            "backlogAtEnd": 15215,
-            "p95MessageAgeMs": 11300,
-            "meanMessageAgeMs": 6946.08
-          },
-          "at": "2026-10-31T03:41:57Z"
-        },
-        {
-          "offeredRps": 2310,
-          "p50": 2.8749000000000002,
-          "p95": 60.388376,
-          "p99": 105.15064234999987,
-          "mean": 13.517073991730028,
-          "sent": 45466,
-          "dropped": 737,
-          "failed": 0,
-          "succeeded": 45466,
-          "successRate": 0.9840486548492522,
-          "throughputRps": 2273.3,
-          "serviceCpuMsPerRequest": 0.3395070261724925,
-          "containerCpuShare": {
-            "producer": 0.618,
-            "consumer": 0.276,
-            "postgres": 0.42,
-            "kafka": 1.009
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.03,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.7812,
-                "maxCores": 0.8611,
-                "workingSetMiB": 180.9,
-                "anonMiB": 169.5
-              },
-              "consumer": {
-                "cores": 0.3199,
-                "maxCores": 0.3302,
-                "workingSetMiB": 216.9,
-                "anonMiB": 207.7
-              },
-              "postgres": {
-                "cores": 0.4874,
-                "maxCores": 0.5056,
-                "workingSetMiB": 155.0,
-                "anonMiB": 9.9
-              },
-              "kafka": {
-                "cores": 1.1344,
-                "maxCores": 1.2134,
-                "workingSetMiB": 1101.3,
-                "anonMiB": 1026.6
-              }
-            }
-          },
-          "queue": {
-            "produced": 56930,
-            "consumedDuringStep": 40809,
-            "consumedRps": 1632.36,
-            "backlogAtEnd": 16121,
-            "p95MessageAgeMs": 13917,
-            "meanMessageAgeMs": 7162.127517464644
-          },
-          "at": "2026-10-31T03:42:47Z"
-        }
-      ],
-      "at": "2026-10-31T03:42:50Z",
-      "p50": 2.750069,
-      "p95": 63.70109519999994,
-      "p99": 105.15064234999987,
-      "mean": 13.81290553481257,
-      "successRate": 0.9840486548492522,
-      "throughputRps": 2273.3,
-      "queue": {
-        "consumedRps": 1632.36,
-        "backlogAtEnd": 15678,
-        "p95MessageAgeMs": 11300,
-        "meanMessageAgeMs": 6946.08
-      },
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "producer": {
-            "cores": 0.764,
-            "maxCores": 0.8239,
-            "workingSetMiB": 180.5,
-            "anonMiB": 169.5
-          },
-          "consumer": {
-            "cores": 0.312,
-            "maxCores": 0.3185,
-            "workingSetMiB": 225.6,
-            "anonMiB": 215.4
-          },
-          "postgres": {
-            "cores": 0.4723,
-            "maxCores": 0.4931,
-            "workingSetMiB": 149.7,
-            "anonMiB": 10.4
-          },
-          "kafka": {
-            "cores": 1.1112,
-            "maxCores": 1.2134,
-            "workingSetMiB": 1101.3,
-            "anonMiB": 1026.6
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 2625,
-      "runs": [
-        {
-          "offeredRps": 2625,
-          "p50": 3.40707,
-          "p95": 79.81270559999999,
-          "p99": 135.72283367999938,
-          "mean": 18.231155543181256,
-          "sent": 50705,
-          "dropped": 1796,
-          "failed": 0,
-          "succeeded": 50705,
-          "successRate": 0.9657911277880421,
-          "throughputRps": 2535.25,
-          "serviceCpuMsPerRequest": 0.3161388260787639,
-          "containerCpuShare": {
-            "producer": 0.63,
-            "consumer": 0.268,
-            "postgres": 0.406,
-            "kafka": 0.993
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 18.97,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.8012,
-                "maxCores": 0.8131,
-                "workingSetMiB": 182.6,
-                "anonMiB": 170.9
-              },
-              "consumer": {
-                "cores": 0.3104,
+                "cores": 0.3094,
                 "maxCores": 0.3153,
-                "workingSetMiB": 216.7,
-                "anonMiB": 207.5
+                "workingSetMiB": 219.8,
+                "anonMiB": 211.2
               },
               "postgres": {
-                "cores": 0.4712,
-                "maxCores": 0.4803,
-                "workingSetMiB": 159.4,
+                "cores": 0.4863,
+                "maxCores": 0.5083,
+                "workingSetMiB": 144.4,
                 "anonMiB": 9.9
               },
               "kafka": {
-                "cores": 1.0916,
-                "maxCores": 1.2115,
-                "workingSetMiB": 1131.5,
-                "anonMiB": 1055.8
+                "cores": 0.5978,
+                "maxCores": 0.6227,
+                "workingSetMiB": 1013.4,
+                "anonMiB": 960.1
               }
             }
           },
           "queue": {
-            "produced": 63684,
-            "consumedDuringStep": 41391,
-            "consumedRps": 1655.64,
-            "backlogAtEnd": 22293,
-            "p95MessageAgeMs": 10020,
-            "meanMessageAgeMs": 7746.609214416444
+            "produced": 62487,
+            "consumedDuringStep": 42432,
+            "consumedRps": 1697.28,
+            "backlogAtEnd": 20055,
+            "p95MessageAgeMs": 14380,
+            "meanMessageAgeMs": 7664.762027779641
           },
-          "at": "2026-10-31T03:43:43Z"
+          "at": "2026-11-02T05:02:21Z"
         },
         {
-          "offeredRps": 2625,
-          "p50": 3.2235905000000002,
-          "p95": 80.46322274999994,
-          "p99": 123.13912773999998,
-          "mean": 18.527387854418702,
-          "sent": 50398,
-          "dropped": 2103,
+          "offeredRps": 2525,
+          "p50": 0.986756,
+          "p95": 35.93065279999997,
+          "p99": 62.38035651999997,
+          "mean": 5.964748926983791,
+          "sent": 50345,
+          "dropped": 157,
           "failed": 0,
-          "succeeded": 50398,
-          "successRate": 0.9599436201215215,
-          "throughputRps": 2519.9,
-          "serviceCpuMsPerRequest": 0.31882948515476944,
+          "succeeded": 50345,
+          "successRate": 0.9968912122292186,
+          "throughputRps": 2517.25,
+          "serviceCpuMsPerRequest": 0.3172968692859301,
           "containerCpuShare": {
-            "producer": 0.635,
-            "consumer": 0.264,
-            "postgres": 0.411,
-            "kafka": 1.024
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.7975,
-                "maxCores": 0.8007,
-                "workingSetMiB": 184.2,
-                "anonMiB": 173.3
-              },
-              "consumer": {
-                "cores": 0.3096,
-                "maxCores": 0.3129,
-                "workingSetMiB": 222.3,
-                "anonMiB": 213.0
-              },
-              "postgres": {
-                "cores": 0.4742,
-                "maxCores": 0.4903,
-                "workingSetMiB": 165.1,
-                "anonMiB": 10.4
-              },
-              "kafka": {
-                "cores": 1.1345,
-                "maxCores": 1.2483,
-                "workingSetMiB": 1123.0,
-                "anonMiB": 1046.0
-              }
-            }
-          },
-          "queue": {
-            "produced": 63320,
-            "consumedDuringStep": 40745,
-            "consumedRps": 1629.8,
-            "backlogAtEnd": 22575,
-            "p95MessageAgeMs": 15696,
-            "meanMessageAgeMs": 8653.796894655501
-          },
-          "at": "2026-10-31T03:44:38Z"
-        },
-        {
-          "offeredRps": 2625,
-          "p50": 4.9130515,
-          "p95": 95.1492174,
-          "p99": 145.18604621999964,
-          "mean": 23.38415978649415,
-          "sent": 49474,
-          "dropped": 3028,
-          "failed": 0,
-          "succeeded": 49474,
-          "successRate": 0.9423260066283189,
-          "throughputRps": 2473.7,
-          "serviceCpuMsPerRequest": 0.32322412993781274,
-          "containerCpuShare": {
-            "producer": 0.638,
-            "consumer": 0.271,
-            "postgres": 0.414,
-            "kafka": 1.013
+            "producer": 0.642,
+            "consumer": 0.262,
+            "postgres": 0.416,
+            "kafka": 0.465
           },
           "resources": {
             "method": "window",
@@ -1537,54 +1015,114 @@
             "readings": 5,
             "containers": {
               "producer": {
-                "cores": 0.8121,
-                "maxCores": 0.8331,
-                "workingSetMiB": 184.4,
-                "anonMiB": 173.2
+                "cores": 0.8112,
+                "maxCores": 0.8271,
+                "workingSetMiB": 180.2,
+                "anonMiB": 171.0
               },
               "consumer": {
-                "cores": 0.3153,
-                "maxCores": 0.3303,
-                "workingSetMiB": 216.2,
-                "anonMiB": 207.3
+                "cores": 0.3049,
+                "maxCores": 0.3083,
+                "workingSetMiB": 216.6,
+                "anonMiB": 207.9
               },
               "postgres": {
-                "cores": 0.4794,
-                "maxCores": 0.5034,
-                "workingSetMiB": 171.3,
-                "anonMiB": 10.6
+                "cores": 0.4833,
+                "maxCores": 0.4911,
+                "workingSetMiB": 148.9,
+                "anonMiB": 9.9
               },
               "kafka": {
-                "cores": 1.1293,
-                "maxCores": 1.3038,
-                "workingSetMiB": 1127.5,
-                "anonMiB": 1049.9
+                "cores": 0.5965,
+                "maxCores": 0.6036,
+                "workingSetMiB": 1018.4,
+                "anonMiB": 964.1
               }
             }
           },
           "queue": {
-            "produced": 62553,
-            "consumedDuringStep": 39904,
-            "consumedRps": 1596.16,
-            "backlogAtEnd": 22649,
-            "p95MessageAgeMs": 10920,
-            "meanMessageAgeMs": 8402.79064305685
+            "produced": 62893,
+            "consumedDuringStep": 43112,
+            "consumedRps": 1724.48,
+            "backlogAtEnd": 19781,
+            "p95MessageAgeMs": 13877,
+            "meanMessageAgeMs": 7721.999574663002
           },
-          "at": "2026-10-31T03:45:34Z"
+          "at": "2026-11-02T05:03:14Z"
+        },
+        {
+          "offeredRps": 2525,
+          "p50": 0.6790725,
+          "p95": 17.120828,
+          "p99": 81.61746335,
+          "mean": 3.8587155142270015,
+          "sent": 50116,
+          "dropped": 384,
+          "failed": 0,
+          "succeeded": 50116,
+          "successRate": 0.9923960396039604,
+          "throughputRps": 2505.8,
+          "serviceCpuMsPerRequest": 0.2855561346466482,
+          "containerCpuShare": {
+            "producer": 0.563,
+            "consumer": 0.106,
+            "postgres": 0.134,
+            "kafka": 0.384
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.0,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.7109,
+                "maxCores": 0.7233,
+                "workingSetMiB": 181.0,
+                "anonMiB": 171.6
+              },
+              "consumer": {
+                "cores": 0.1069,
+                "maxCores": 0.128,
+                "workingSetMiB": 223.4,
+                "anonMiB": 213.7
+              },
+              "postgres": {
+                "cores": 0.1241,
+                "maxCores": 0.1644,
+                "workingSetMiB": 153.1,
+                "anonMiB": 10.3
+              },
+              "kafka": {
+                "cores": 0.4876,
+                "maxCores": 0.5049,
+                "workingSetMiB": 1027.3,
+                "anonMiB": 971.1
+              }
+            }
+          },
+          "queue": {
+            "produced": 62742,
+            "consumedDuringStep": 14036,
+            "consumedRps": 561.44,
+            "backlogAtEnd": 48706,
+            "p95MessageAgeMs": 22164,
+            "meanMessageAgeMs": 21663.139275766018
+          },
+          "at": "2026-11-02T05:04:23Z"
         }
       ],
-      "at": "2026-10-31T03:45:37Z",
-      "p50": 3.40707,
-      "p95": 80.46322274999994,
-      "p99": 135.72283367999938,
-      "mean": 18.527387854418702,
-      "successRate": 0.9599436201215215,
-      "throughputRps": 2519.9,
+      "at": "2026-11-02T05:04:26Z",
+      "p50": 0.986756,
+      "p95": 35.93065279999997,
+      "p99": 81.61746335,
+      "mean": 5.964748926983791,
+      "successRate": 0.9923960396039604,
+      "throughputRps": 2505.8,
       "queue": {
-        "consumedRps": 1629.8,
-        "backlogAtEnd": 22575,
-        "p95MessageAgeMs": 10920,
-        "meanMessageAgeMs": 8402.79064305685
+        "consumedRps": 1697.28,
+        "backlogAtEnd": 20055,
+        "p95MessageAgeMs": 14380,
+        "meanMessageAgeMs": 7721.999574663002
       },
       "unstable": false,
       "repeats": 3,
@@ -1594,173 +1132,53 @@
         "repeats": 3,
         "containers": {
           "producer": {
-            "cores": 0.8012,
-            "maxCores": 0.8131,
-            "workingSetMiB": 184.2,
-            "anonMiB": 173.2
+            "cores": 0.8112,
+            "maxCores": 0.8271,
+            "workingSetMiB": 180.2,
+            "anonMiB": 171.0
           },
           "consumer": {
-            "cores": 0.3104,
-            "maxCores": 0.3153,
-            "workingSetMiB": 216.7,
-            "anonMiB": 207.5
+            "cores": 0.3049,
+            "maxCores": 0.3083,
+            "workingSetMiB": 219.8,
+            "anonMiB": 211.2
           },
           "postgres": {
-            "cores": 0.4742,
-            "maxCores": 0.4903,
-            "workingSetMiB": 165.1,
-            "anonMiB": 10.4
+            "cores": 0.4833,
+            "maxCores": 0.4911,
+            "workingSetMiB": 148.9,
+            "anonMiB": 9.9
           },
           "kafka": {
-            "cores": 1.1293,
-            "maxCores": 1.2483,
-            "workingSetMiB": 1127.5,
-            "anonMiB": 1049.9
+            "cores": 0.5965,
+            "maxCores": 0.6036,
+            "workingSetMiB": 1018.4,
+            "anonMiB": 964.1
           }
         }
       }
     },
     {
-      "offeredRps": 3150,
+      "offeredRps": 2778,
       "runs": [
         {
-          "offeredRps": 3150,
-          "p50": 19.4707595,
-          "p95": 133.35330799999997,
-          "p99": 220.22570961000002,
-          "mean": 39.018903757682146,
-          "sent": 53632,
-          "dropped": 9369,
+          "offeredRps": 2778,
+          "p50": 1.2343555,
+          "p95": 56.482386299999995,
+          "p99": 107.65260158999999,
+          "mean": 10.362077924582417,
+          "sent": 54112,
+          "dropped": 1447,
           "failed": 0,
-          "succeeded": 53632,
-          "successRate": 0.8512880747924636,
-          "throughputRps": 2681.6,
-          "serviceCpuMsPerRequest": 0.31457552883222256,
+          "succeeded": 54112,
+          "successRate": 0.9739556147518854,
+          "throughputRps": 2705.6,
+          "serviceCpuMsPerRequest": 0.30976169029010464,
           "containerCpuShare": {
-            "producer": 0.661,
-            "consumer": 0.268,
-            "postgres": 0.419,
-            "kafka": 1.086
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.13,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.8609,
-                "maxCores": 0.9417,
-                "workingSetMiB": 182.9,
-                "anonMiB": 171.7
-              },
-              "consumer": {
-                "cores": 0.3224,
-                "maxCores": 0.3452,
-                "workingSetMiB": 231.5,
-                "anonMiB": 222.1
-              },
-              "postgres": {
-                "cores": 0.4962,
-                "maxCores": 0.5187,
-                "workingSetMiB": 175.5,
-                "anonMiB": 11.1
-              },
-              "kafka": {
-                "cores": 1.1866,
-                "maxCores": 1.3213,
-                "workingSetMiB": 1128.5,
-                "anonMiB": 1050.5
-              }
-            }
-          },
-          "queue": {
-            "produced": 69020,
-            "consumedDuringStep": 38363,
-            "consumedRps": 1534.52,
-            "backlogAtEnd": 30657,
-            "p95MessageAgeMs": 11980,
-            "meanMessageAgeMs": 9572.59038084875
-          },
-          "at": "2026-10-31T03:46:35Z"
-        },
-        {
-          "offeredRps": 3150,
-          "p50": 16.251722,
-          "p95": 143.858768,
-          "p99": 222.81591231999906,
-          "mean": 40.44897176638965,
-          "sent": 53127,
-          "dropped": 9874,
-          "failed": 0,
-          "succeeded": 53127,
-          "successRate": 0.8432723290106506,
-          "throughputRps": 2656.35,
-          "serviceCpuMsPerRequest": 0.3126467983296925,
-          "containerCpuShare": {
-            "producer": 0.638,
-            "consumer": 0.265,
-            "postgres": 0.407,
-            "kafka": 1.058
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.13,
-            "readings": 5,
-            "containers": {
-              "producer": {
-                "cores": 0.8403,
-                "maxCores": 0.8804,
-                "workingSetMiB": 185.0,
-                "anonMiB": 173.8
-              },
-              "consumer": {
-                "cores": 0.3229,
-                "maxCores": 0.352,
-                "workingSetMiB": 254.6,
-                "anonMiB": 244.6
-              },
-              "postgres": {
-                "cores": 0.5025,
-                "maxCores": 0.543,
-                "workingSetMiB": 182.4,
-                "anonMiB": 10.6
-              },
-              "kafka": {
-                "cores": 1.1985,
-                "maxCores": 1.4841,
-                "workingSetMiB": 1146.0,
-                "anonMiB": 1067.0
-              }
-            }
-          },
-          "queue": {
-            "produced": 67293,
-            "consumedDuringStep": 39209,
-            "consumedRps": 1568.36,
-            "backlogAtEnd": 28084,
-            "p95MessageAgeMs": 18002,
-            "meanMessageAgeMs": 9933.812402667412
-          },
-          "at": "2026-10-31T03:47:36Z"
-        },
-        {
-          "offeredRps": 3150,
-          "p50": 21.013247,
-          "p95": 117.87786319999994,
-          "p99": 162.63714683999993,
-          "mean": 36.235771447461175,
-          "sent": 57053,
-          "dropped": 5948,
-          "failed": 0,
-          "succeeded": 57053,
-          "successRate": 0.905588800177775,
-          "throughputRps": 2852.65,
-          "serviceCpuMsPerRequest": 0.30276885904181666,
-          "containerCpuShare": {
-            "producer": 0.672,
-            "consumer": 0.269,
-            "postgres": 0.405,
-            "kafka": 1.038
+            "producer": 0.667,
+            "consumer": 0.266,
+            "postgres": 0.416,
+            "kafka": 0.489
           },
           "resources": {
             "method": "window",
@@ -1768,54 +1186,174 @@
             "readings": 5,
             "containers": {
               "producer": {
-                "cores": 0.8797,
-                "maxCores": 0.8994,
-                "workingSetMiB": 184.9,
-                "anonMiB": 173.4
+                "cores": 0.8474,
+                "maxCores": 0.8529,
+                "workingSetMiB": 180.7,
+                "anonMiB": 170.8
               },
               "consumer": {
-                "cores": 0.3224,
-                "maxCores": 0.3499,
-                "workingSetMiB": 249.0,
-                "anonMiB": 238.6
+                "cores": 0.3091,
+                "maxCores": 0.3207,
+                "workingSetMiB": 272.7,
+                "anonMiB": 262.5
               },
               "postgres": {
-                "cores": 0.4841,
-                "maxCores": 0.518,
-                "workingSetMiB": 186.6,
-                "anonMiB": 11.1
+                "cores": 0.4798,
+                "maxCores": 0.4859,
+                "workingSetMiB": 160.4,
+                "anonMiB": 10.6
               },
               "kafka": {
-                "cores": 1.1525,
-                "maxCores": 1.2753,
-                "workingSetMiB": 1142.9,
-                "anonMiB": 1062.0
+                "cores": 0.6288,
+                "maxCores": 0.638,
+                "workingSetMiB": 1033.2,
+                "anonMiB": 976.0
               }
             }
           },
           "queue": {
-            "produced": 72220,
-            "consumedDuringStep": 39647,
-            "consumedRps": 1585.88,
-            "backlogAtEnd": 32573,
-            "p95MessageAgeMs": 12189,
-            "meanMessageAgeMs": 9752.22283496732
+            "produced": 67941,
+            "consumedDuringStep": 41517,
+            "consumedRps": 1660.68,
+            "backlogAtEnd": 26424,
+            "p95MessageAgeMs": 9801,
+            "meanMessageAgeMs": 8283.073642010979
           },
-          "at": "2026-10-31T03:48:38Z"
+          "at": "2026-11-02T05:05:21Z"
+        },
+        {
+          "offeredRps": 2778,
+          "p50": 1.1383895,
+          "p95": 33.7441572,
+          "p99": 60.012231349999915,
+          "mean": 6.334764194699362,
+          "sent": 55352,
+          "dropped": 210,
+          "failed": 0,
+          "succeeded": 55352,
+          "successRate": 0.9962204384291422,
+          "throughputRps": 2767.6,
+          "serviceCpuMsPerRequest": 0.3051524901220095,
+          "containerCpuShare": {
+            "producer": 0.658,
+            "consumer": 0.278,
+            "postgres": 0.403,
+            "kafka": 0.485
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.0,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.8366,
+                "maxCores": 0.8432,
+                "workingSetMiB": 179.5,
+                "anonMiB": 170.1
+              },
+              "consumer": {
+                "cores": 0.3165,
+                "maxCores": 0.3371,
+                "workingSetMiB": 124.1,
+                "anonMiB": 118.4
+              },
+              "postgres": {
+                "cores": 0.482,
+                "maxCores": 0.5004,
+                "workingSetMiB": 167.3,
+                "anonMiB": 11.1
+              },
+              "kafka": {
+                "cores": 0.6273,
+                "maxCores": 0.6369,
+                "workingSetMiB": 1038.8,
+                "anonMiB": 981.2
+              }
+            }
+          },
+          "queue": {
+            "produced": 69093,
+            "consumedDuringStep": 41576,
+            "consumedRps": 1663.04,
+            "backlogAtEnd": 27517,
+            "p95MessageAgeMs": 13670,
+            "meanMessageAgeMs": 9397.02033411173
+          },
+          "at": "2026-11-02T05:06:19Z"
+        },
+        {
+          "offeredRps": 2778,
+          "p50": 1.138809,
+          "p95": 44.6904875,
+          "p99": 85.86773319999996,
+          "mean": 7.9293444633243455,
+          "sent": 55091,
+          "dropped": 469,
+          "failed": 0,
+          "succeeded": 55091,
+          "successRate": 0.9915586753059755,
+          "throughputRps": 2754.55,
+          "serviceCpuMsPerRequest": 0.30341712177550545,
+          "containerCpuShare": {
+            "producer": 0.666,
+            "consumer": 0.263,
+            "postgres": 0.411,
+            "kafka": 0.485
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.0,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.8458,
+                "maxCores": 0.8696,
+                "workingSetMiB": 178.0,
+                "anonMiB": 168.4
+              },
+              "consumer": {
+                "cores": 0.3086,
+                "maxCores": 0.3171,
+                "workingSetMiB": 247.9,
+                "anonMiB": 238.5
+              },
+              "postgres": {
+                "cores": 0.4809,
+                "maxCores": 0.4971,
+                "workingSetMiB": 173.9,
+                "anonMiB": 12.3
+              },
+              "kafka": {
+                "cores": 0.6279,
+                "maxCores": 0.6485,
+                "workingSetMiB": 1041.5,
+                "anonMiB": 982.4
+              }
+            }
+          },
+          "queue": {
+            "produced": 68848,
+            "consumedDuringStep": 42232,
+            "consumedRps": 1689.28,
+            "backlogAtEnd": 26616,
+            "p95MessageAgeMs": 10529,
+            "meanMessageAgeMs": 8414.176892010535
+          },
+          "at": "2026-11-02T05:07:16Z"
         }
       ],
-      "at": "2026-10-31T03:48:41Z",
-      "p50": 19.4707595,
-      "p95": 133.35330799999997,
-      "p99": 220.22570961000002,
-      "mean": 39.018903757682146,
-      "successRate": 0.8512880747924636,
-      "throughputRps": 2681.6,
+      "at": "2026-11-02T05:07:19Z",
+      "p50": 1.138809,
+      "p95": 44.6904875,
+      "p99": 85.86773319999996,
+      "mean": 7.9293444633243455,
+      "successRate": 0.9915586753059755,
+      "throughputRps": 2754.55,
       "queue": {
-        "consumedRps": 1568.36,
-        "backlogAtEnd": 30657,
-        "p95MessageAgeMs": 12189,
-        "meanMessageAgeMs": 9752.22283496732
+        "consumedRps": 1663.04,
+        "backlogAtEnd": 26616,
+        "p95MessageAgeMs": 10529,
+        "meanMessageAgeMs": 8414.176892010535
       },
       "unstable": false,
       "repeats": 3,
@@ -1825,28 +1363,490 @@
         "repeats": 3,
         "containers": {
           "producer": {
-            "cores": 0.8609,
-            "maxCores": 0.8994,
-            "workingSetMiB": 184.9,
-            "anonMiB": 173.4
+            "cores": 0.8458,
+            "maxCores": 0.8529,
+            "workingSetMiB": 179.5,
+            "anonMiB": 170.1
           },
           "consumer": {
-            "cores": 0.3224,
-            "maxCores": 0.3499,
-            "workingSetMiB": 249.0,
-            "anonMiB": 238.6
+            "cores": 0.3091,
+            "maxCores": 0.3207,
+            "workingSetMiB": 247.9,
+            "anonMiB": 238.5
           },
           "postgres": {
-            "cores": 0.4962,
-            "maxCores": 0.5187,
-            "workingSetMiB": 182.4,
+            "cores": 0.4809,
+            "maxCores": 0.4971,
+            "workingSetMiB": 167.3,
             "anonMiB": 11.1
           },
           "kafka": {
-            "cores": 1.1866,
-            "maxCores": 1.3213,
-            "workingSetMiB": 1142.9,
-            "anonMiB": 1062.0
+            "cores": 0.6279,
+            "maxCores": 0.638,
+            "workingSetMiB": 1038.8,
+            "anonMiB": 981.2
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 3156,
+      "runs": [
+        {
+          "offeredRps": 3156,
+          "p50": 1.572863,
+          "p95": 56.811889,
+          "p99": 105.51432909999993,
+          "mean": 11.218970595863945,
+          "sent": 60831,
+          "dropped": 2289,
+          "failed": 0,
+          "succeeded": 60831,
+          "successRate": 0.963735741444867,
+          "throughputRps": 3041.55,
+          "serviceCpuMsPerRequest": 0.2910876209882832,
+          "containerCpuShare": {
+            "producer": 0.699,
+            "consumer": 0.261,
+            "postgres": 0.409,
+            "kafka": 0.518
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.8955,
+                "maxCores": 0.9044,
+                "workingSetMiB": 181.0,
+                "anonMiB": 171.1
+              },
+              "consumer": {
+                "cores": 0.3079,
+                "maxCores": 0.3115,
+                "workingSetMiB": 248.7,
+                "anonMiB": 239.0
+              },
+              "postgres": {
+                "cores": 0.4952,
+                "maxCores": 0.5011,
+                "workingSetMiB": 177.6,
+                "anonMiB": 9.9
+              },
+              "kafka": {
+                "cores": 0.686,
+                "maxCores": 0.7136,
+                "workingSetMiB": 1050.1,
+                "anonMiB": 990.8
+              }
+            }
+          },
+          "queue": {
+            "produced": 76557,
+            "consumedDuringStep": 41674,
+            "consumedRps": 1666.96,
+            "backlogAtEnd": 34883,
+            "p95MessageAgeMs": 14492,
+            "meanMessageAgeMs": 10412.419531370433
+          },
+          "at": "2026-11-02T05:08:17Z"
+        },
+        {
+          "offeredRps": 3156,
+          "p50": 2.003521,
+          "p95": 56.485952499999996,
+          "p99": 91.3935,
+          "mean": 11.5170671154125,
+          "sent": 62151,
+          "dropped": 971,
+          "failed": 0,
+          "succeeded": 62151,
+          "successRate": 0.984617090713222,
+          "throughputRps": 3107.55,
+          "serviceCpuMsPerRequest": 0.2885047029607422,
+          "containerCpuShare": {
+            "producer": 0.702,
+            "consumer": 0.266,
+            "postgres": 0.412,
+            "kafka": 0.522
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.8978,
+                "maxCores": 0.9078,
+                "workingSetMiB": 180.3,
+                "anonMiB": 169.8
+              },
+              "consumer": {
+                "cores": 0.3187,
+                "maxCores": 0.3374,
+                "workingSetMiB": 272.2,
+                "anonMiB": 262.2
+              },
+              "postgres": {
+                "cores": 0.4914,
+                "maxCores": 0.5042,
+                "workingSetMiB": 183.7,
+                "anonMiB": 9.9
+              },
+              "kafka": {
+                "cores": 0.6852,
+                "maxCores": 0.6968,
+                "workingSetMiB": 1045.1,
+                "anonMiB": 984.9
+              }
+            }
+          },
+          "queue": {
+            "produced": 77717,
+            "consumedDuringStep": 41766,
+            "consumedRps": 1670.64,
+            "backlogAtEnd": 35951,
+            "p95MessageAgeMs": 18153,
+            "meanMessageAgeMs": 10260.979580152672
+          },
+          "at": "2026-11-02T05:09:19Z"
+        },
+        {
+          "offeredRps": 3156,
+          "p50": 1.599014,
+          "p95": 58.45912925,
+          "p99": 119.55896719999997,
+          "mean": 11.563766689884648,
+          "sent": 61016,
+          "dropped": 2057,
+          "failed": 0,
+          "succeeded": 61016,
+          "successRate": 0.9673869960204842,
+          "throughputRps": 3050.8,
+          "serviceCpuMsPerRequest": 0.29108331479567134,
+          "containerCpuShare": {
+            "producer": 0.69,
+            "consumer": 0.261,
+            "postgres": 0.408,
+            "kafka": 0.523
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.06,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.893,
+                "maxCores": 0.9024,
+                "workingSetMiB": 178.9,
+                "anonMiB": 169.2
+              },
+              "consumer": {
+                "cores": 0.3063,
+                "maxCores": 0.3131,
+                "workingSetMiB": 275.4,
+                "anonMiB": 265.3
+              },
+              "postgres": {
+                "cores": 0.4914,
+                "maxCores": 0.5052,
+                "workingSetMiB": 192.5,
+                "anonMiB": 10.6
+              },
+              "kafka": {
+                "cores": 0.6999,
+                "maxCores": 0.788,
+                "workingSetMiB": 1053.3,
+                "anonMiB": 992.2
+              }
+            }
+          },
+          "queue": {
+            "produced": 76421,
+            "consumedDuringStep": 41578,
+            "consumedRps": 1663.12,
+            "backlogAtEnd": 34843,
+            "p95MessageAgeMs": 14462,
+            "meanMessageAgeMs": 10578.61815611508
+          },
+          "at": "2026-11-02T05:10:21Z"
+        }
+      ],
+      "at": "2026-11-02T05:10:24Z",
+      "p50": 1.599014,
+      "p95": 56.811889,
+      "p99": 105.51432909999993,
+      "mean": 11.5170671154125,
+      "successRate": 0.9673869960204842,
+      "throughputRps": 3050.8,
+      "queue": {
+        "consumedRps": 1666.96,
+        "backlogAtEnd": 34883,
+        "p95MessageAgeMs": 14492,
+        "meanMessageAgeMs": 10412.419531370433
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "producer": {
+            "cores": 0.8955,
+            "maxCores": 0.9044,
+            "workingSetMiB": 180.3,
+            "anonMiB": 169.8
+          },
+          "consumer": {
+            "cores": 0.3079,
+            "maxCores": 0.3131,
+            "workingSetMiB": 272.2,
+            "anonMiB": 262.2
+          },
+          "postgres": {
+            "cores": 0.4914,
+            "maxCores": 0.5042,
+            "workingSetMiB": 183.7,
+            "anonMiB": 9.9
+          },
+          "kafka": {
+            "cores": 0.686,
+            "maxCores": 0.7136,
+            "workingSetMiB": 1050.1,
+            "anonMiB": 990.8
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 3788,
+      "runs": [
+        {
+          "offeredRps": 3788,
+          "p50": 6.151473,
+          "p95": 109.62837250000001,
+          "p99": 168.88045940000006,
+          "mean": 26.473047638449238,
+          "sent": 64511,
+          "dropped": 11407,
+          "failed": 0,
+          "succeeded": 64511,
+          "successRate": 0.8497457783397877,
+          "throughputRps": 3225.55,
+          "serviceCpuMsPerRequest": 0.27139106433534543,
+          "containerCpuShare": {
+            "producer": 0.689,
+            "consumer": 0.262,
+            "postgres": 0.411,
+            "kafka": 0.528
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.09,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.8906,
+                "maxCores": 0.9331,
+                "workingSetMiB": 183.1,
+                "anonMiB": 173.0
+              },
+              "consumer": {
+                "cores": 0.3177,
+                "maxCores": 0.325,
+                "workingSetMiB": 283.6,
+                "anonMiB": 272.7
+              },
+              "postgres": {
+                "cores": 0.4963,
+                "maxCores": 0.5129,
+                "workingSetMiB": 198.8,
+                "anonMiB": 10.9
+              },
+              "kafka": {
+                "cores": 0.698,
+                "maxCores": 0.7434,
+                "workingSetMiB": 1050.1,
+                "anonMiB": 987.8
+              }
+            }
+          },
+          "queue": {
+            "produced": 83329,
+            "consumedDuringStep": 41794,
+            "consumedRps": 1671.76,
+            "backlogAtEnd": 41535,
+            "p95MessageAgeMs": 14557,
+            "meanMessageAgeMs": 11653.453864902507
+          },
+          "at": "2026-11-02T05:11:28Z"
+        },
+        {
+          "offeredRps": 3788,
+          "p50": 9.272111,
+          "p95": 100.5051494,
+          "p99": 165.20072919999987,
+          "mean": 27.157250930161442,
+          "sent": 67069,
+          "dropped": 8692,
+          "failed": 0,
+          "succeeded": 67069,
+          "successRate": 0.8852707857604837,
+          "throughputRps": 3353.45,
+          "serviceCpuMsPerRequest": 0.26563419018934886,
+          "containerCpuShare": {
+            "producer": 0.691,
+            "consumer": 0.266,
+            "postgres": 0.405,
+            "kafka": 0.552
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.11,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.9091,
+                "maxCores": 0.9732,
+                "workingSetMiB": 218.1,
+                "anonMiB": 207.0
+              },
+              "consumer": {
+                "cores": 0.3188,
+                "maxCores": 0.3245,
+                "workingSetMiB": 283.7,
+                "anonMiB": 272.3
+              },
+              "postgres": {
+                "cores": 0.5005,
+                "maxCores": 0.5164,
+                "workingSetMiB": 201.8,
+                "anonMiB": 10.6
+              },
+              "kafka": {
+                "cores": 0.7405,
+                "maxCores": 0.8056,
+                "workingSetMiB": 1082.9,
+                "anonMiB": 991.3
+              }
+            }
+          },
+          "queue": {
+            "produced": 85662,
+            "consumedDuringStep": 40381,
+            "consumedRps": 1615.24,
+            "backlogAtEnd": 45281,
+            "p95MessageAgeMs": 17161,
+            "meanMessageAgeMs": 12252.547962181017
+          },
+          "at": "2026-11-02T05:12:38Z"
+        },
+        {
+          "offeredRps": 3788,
+          "p50": 20.28322,
+          "p95": 137.31262379999995,
+          "p99": 193.77593899999977,
+          "mean": 40.2684173665401,
+          "sent": 61985,
+          "dropped": 13777,
+          "failed": 0,
+          "succeeded": 61985,
+          "successRate": 0.8181542197935641,
+          "throughputRps": 3099.25,
+          "serviceCpuMsPerRequest": 0.294554995780697,
+          "containerCpuShare": {
+            "producer": 0.664,
+            "consumer": 0.251,
+            "postgres": 0.398,
+            "kafka": 0.555
+          },
+          "resources": {
+            "method": "window",
+            "seconds": 19.04,
+            "readings": 5,
+            "containers": {
+              "producer": {
+                "cores": 0.9156,
+                "maxCores": 0.9697,
+                "workingSetMiB": 224.6,
+                "anonMiB": 213.7
+              },
+              "consumer": {
+                "cores": 0.3131,
+                "maxCores": 0.3245,
+                "workingSetMiB": 302.3,
+                "anonMiB": 291.2
+              },
+              "postgres": {
+                "cores": 0.5042,
+                "maxCores": 0.5283,
+                "workingSetMiB": 207.3,
+                "anonMiB": 11.2
+              },
+              "kafka": {
+                "cores": 0.7786,
+                "maxCores": 0.8009,
+                "workingSetMiB": 1101.1,
+                "anonMiB": 992.2
+              }
+            }
+          },
+          "queue": {
+            "produced": 79397,
+            "consumedDuringStep": 36565,
+            "consumedRps": 1462.6,
+            "backlogAtEnd": 42832,
+            "p95MessageAgeMs": 19918,
+            "meanMessageAgeMs": 13582.924241633165
+          },
+          "at": "2026-11-02T05:13:49Z"
+        }
+      ],
+      "at": "2026-11-02T05:13:52Z",
+      "p50": 9.272111,
+      "p95": 109.62837250000001,
+      "p99": 168.88045940000006,
+      "mean": 27.157250930161442,
+      "successRate": 0.8497457783397877,
+      "throughputRps": 3225.55,
+      "queue": {
+        "consumedRps": 1615.24,
+        "backlogAtEnd": 42832,
+        "p95MessageAgeMs": 17161,
+        "meanMessageAgeMs": 12252.547962181017
+      },
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "producer": {
+            "cores": 0.9091,
+            "maxCores": 0.9697,
+            "workingSetMiB": 218.1,
+            "anonMiB": 207.0
+          },
+          "consumer": {
+            "cores": 0.3177,
+            "maxCores": 0.3245,
+            "workingSetMiB": 283.7,
+            "anonMiB": 272.7
+          },
+          "postgres": {
+            "cores": 0.5005,
+            "maxCores": 0.5164,
+            "workingSetMiB": 201.8,
+            "anonMiB": 10.9
+          },
+          "kafka": {
+            "cores": 0.7405,
+            "maxCores": 0.8009,
+            "workingSetMiB": 1082.9,
+            "anonMiB": 991.3
           }
         }
       }

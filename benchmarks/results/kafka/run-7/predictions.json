@@ -1,0 +1,531 @@
+{
+  "experiment": "kafka",
+  "at": "2026-11-02T02:40:35Z",
+  "engineVersion": "0.16.0",
+  "reportVersion": "1.14",
+  "provenance": {
+    "commit": "7e55fba11ccdf3b0b0282c2197dbcc75ff919ccc",
+    "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
+    "harnessHash": "613ee690014f20c0f8b1355b03a5e86502467a99d3cd183c7515e5f2d47e816d",
+    "dirty": false,
+    "machineId": "i7-1165g7"
+  },
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "knee": {
+    "kneeRps": 2575,
+    "tried": [
+      {
+        "offeredRps": 100.0,
+        "p95": 2.3745,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 200.0,
+        "p95": 2.2823,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 400.0,
+        "p95": 2.2375,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": 2.1506,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1600.0,
+        "p95": 2.2823,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 3200.0,
+        "p95": 1954.4549,
+        "successRate": 0.1778
+      },
+      {
+        "offeredRps": 2400,
+        "p95": 5.6751,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2800,
+        "p95": 1878.561,
+        "successRate": 0.987
+      },
+      {
+        "offeredRps": 2600,
+        "p95": 64.833,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2500,
+        "p95": 9.8805,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2550,
+        "p95": 17.8972,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 2575,
+        "p95": 25.0604,
+        "successRate": 1.0
+      }
+    ]
+  },
+  "kneeRange": {
+    "method": "the knee's run-to-run variation from a fresh calibration (each input's variation between calibrations times how much the knee moves with it) and the model's own error (the spread of measured over predicted knees in the in-sample runs), as a lognormal around the predicted knee",
+    "lowRps": 1931,
+    "highRps": 3433,
+    "nominalRps": 2575,
+    "nominalCoverage": 0.8,
+    "sigma": 0.2244,
+    "calibrationSigma": 0.1674,
+    "modelSigma": 0.1495,
+    "sensitivity": {
+      "serviceTimeMs": -1.001,
+      "writeServiceTimeMs": 0.0,
+      "commitFlushMs": 0.0,
+      "dbCpuShare": 0.0,
+      "dbLinkLatencyMs": 0.0,
+      "publishTimeMs": 0.0,
+      "consumerTimeMs": 0.0,
+      "fetchOverheadMs": 0.0
+    },
+    "fit": {
+      "at": "2026-11-01T15:31:14Z",
+      "engineVersion": "0.16.0",
+      "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
+      "runs": 12,
+      "experiments": 4
+    }
+  },
+  "steps": [
+    {
+      "offeredRps": 644,
+      "p50": 0.9178,
+      "p95": 2.1936,
+      "p99": 3.3248,
+      "mean": 1.0748,
+      "successRate": 1.0,
+      "throughputRps": 644.05,
+      "resultDigest": "d1735483525ca3c9fe2cd41ff359e432c3c88fdb786c3034c0637feff07c417d",
+      "resources": {
+        "api": {
+          "cores": 0.2803,
+          "memoryMiB": 111.6
+        },
+        "db": {
+          "cores": 0.2104
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.196,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.276
+      },
+      "queue": {
+        "consumedRps": 644.05,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 7.957,
+        "p95MessageAgeMs": 13.8351
+      }
+    },
+    {
+      "offeredRps": 1288,
+      "p50": 0.8998,
+      "p95": 2.1936,
+      "p99": 3.5283,
+      "mean": 1.0755,
+      "successRate": 1.0,
+      "throughputRps": 1288.05,
+      "resultDigest": "2d968145bcfbca394f25e761e8cdbafd9fe768b0d92ec55ef0efee44a94f00b1",
+      "resources": {
+        "api": {
+          "cores": 0.4949,
+          "memoryMiB": 151.6
+        },
+        "db": {
+          "cores": 0.414
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.297,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3567
+      },
+      "queue": {
+        "consumedRps": 1269.65,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 501.8189,
+        "p95MessageAgeMs": 817.7454
+      }
+    },
+    {
+      "offeredRps": 1931,
+      "p50": 1.0336,
+      "p95": 2.6216,
+      "p99": 5.4547,
+      "mean": 1.2754,
+      "successRate": 1.0,
+      "throughputRps": 1931.0,
+      "resultDigest": "05e3d1859852be60ffa1bc102a1b7dbec5d9272bdf430a03616031419bead72d",
+      "resources": {
+        "api": {
+          "cores": 0.7403,
+          "memoryMiB": 195.6
+        },
+        "db": {
+          "cores": 0.4274
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.311,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3651
+      },
+      "queue": {
+        "consumedRps": 1311.1,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 4926.9644,
+        "p95MessageAgeMs": 8803.1621
+      }
+    },
+    {
+      "offeredRps": 2318,
+      "p50": 1.3638,
+      "p95": 4.301,
+      "p99": 14.6819,
+      "mean": 1.8809,
+      "successRate": 1.0,
+      "throughputRps": 2318.1,
+      "resultDigest": "4e2fb7ee0c6ef3a4e5ce60b77d538d046b61964e48ea7f43ecd5a526414e69b7",
+      "resources": {
+        "api": {
+          "cores": 0.8891,
+          "memoryMiB": 220.2
+        },
+        "db": {
+          "cores": 0.429
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.313,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3655
+      },
+      "queue": {
+        "consumedRps": 1316.8,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 6100.6423,
+        "p95MessageAgeMs": 8803.1621
+      }
+    },
+    {
+      "offeredRps": 2575,
+      "p50": 6.7823,
+      "p95": 25.0604,
+      "p99": 37.9832,
+      "mean": 8.9795,
+      "successRate": 1.0,
+      "throughputRps": 2575.75,
+      "resultDigest": "e0b4352f922135197aa4c1c0dd70cde2288351d7843ee0a853e50aa994cad2d0",
+      "resources": {
+        "api": {
+          "cores": 0.9876,
+          "memoryMiB": 240.6
+        },
+        "db": {
+          "cores": 0.4314
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.315,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3683
+      },
+      "queue": {
+        "consumedRps": 1324.3,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 6898.8916,
+        "p95MessageAgeMs": 9341.986
+      }
+    },
+    {
+      "offeredRps": 2833,
+      "p50": 1215.1266,
+      "p95": 1916.1322,
+      "p99": 1993.544,
+      "mean": 1243.6627,
+      "successRate": 0.8547,
+      "throughputRps": 2482.4,
+      "resultDigest": "0167ad719bff9ff6ebe003660b3c1178f3e7305abab58fa0fb2092d90d19267c",
+      "resources": {
+        "api": {
+          "cores": 0.9968,
+          "memoryMiB": 298.0
+        },
+        "db": {
+          "cores": 0.4278
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.315,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3651
+      },
+      "queue": {
+        "consumedRps": 1312.9,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 7387.3951,
+        "p95MessageAgeMs": 11615.5854
+      }
+    },
+    {
+      "offeredRps": 3219,
+      "p50": 1635.4004,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1622.1119,
+      "successRate": 0.1645,
+      "throughputRps": 687.0,
+      "resultDigest": "c377006e706b5310f602c40e5b9968300b680372876b71514b5ec1626b17df8d",
+      "resources": {
+        "api": {
+          "cores": 0.9968,
+          "memoryMiB": 394.2
+        },
+        "db": {
+          "cores": 0.4306
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.317,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3687
+      },
+      "queue": {
+        "consumedRps": 1321.6,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 7046.7075,
+        "p95MessageAgeMs": 9719.4023
+      }
+    },
+    {
+      "offeredRps": 3862,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 140.6,
+      "resultDigest": "ea60d992412bbe62f2dec22ead3fc6ca36b704566a41b561c4a103fc11a0f72f",
+      "resources": {
+        "api": {
+          "cores": 0.9968,
+          "memoryMiB": 556.0
+        },
+        "db": {
+          "cores": 0.4312
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.318,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3649
+      },
+      "queue": {
+        "consumedRps": 1323.3,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 7098.7489,
+        "p95MessageAgeMs": 9913.7903
+      }
+    }
+  ],
+  "design": {
+    "schemaVersion": "1.0",
+    "kind": "archsim.architecture",
+    "metadata": {
+      "name": "benchmark kafka"
+    },
+    "architecture": {
+      "nodes": [
+        {
+          "id": "clients",
+          "type": "traffic_source",
+          "label": "k6",
+          "config": {
+            "timeoutMs": 2000,
+            "maxAttempts": 1
+          }
+        },
+        {
+          "id": "api",
+          "type": "service",
+          "label": "Node.js service",
+          "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 1,
+            "processesPerReplica": 1,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.3195,
+              "p95": 0.8657
+            },
+            "gcPauseMs": 9.0615,
+            "gcEveryRequests": 10120,
+            "serviceTimeByLoad": [
+              {
+                "rps": 50.0,
+                "factor": 1.6309
+              },
+              {
+                "rps": 405.0,
+                "factor": 1.2605
+              },
+              {
+                "rps": 1012.0,
+                "factor": 1.0
+              }
+            ],
+            "warmupFactor": 1,
+            "cpuCores": 1,
+            "memoryGib": 1024,
+            "memoryBaselineMb": 70.917,
+            "memoryPerRpsMb": 0.062508,
+            "memoryPerRequestMb": 0.01
+          }
+        },
+        {
+          "id": "kafka",
+          "type": "message_queue",
+          "label": "Kafka",
+          "config": {
+            "technology": "kafka",
+            "partitions": 6,
+            "consumers": 1,
+            "consumerConcurrency": 3,
+            "fetchOverheadMs": {
+              "kind": "lognormal",
+              "median": 2.0035,
+              "p95": 5.2854
+            },
+            "brokers": 1,
+            "maxDepth": null,
+            "acks": "leader",
+            "lingerMs": 0,
+            "publishTimeMs": {
+              "kind": "lognormal",
+              "median": 0.4752,
+              "p95": 1.5748
+            },
+            "consumerTimeMs": {
+              "kind": "lognormal",
+              "median": 0.008,
+              "p95": 0.0214
+            },
+            "maxDeliveries": 1
+          }
+        },
+        {
+          "id": "db",
+          "type": "database",
+          "label": "PostgreSQL",
+          "config": {
+            "technology": "postgresql",
+            "maxConnections": 10,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "cpuCores": 2,
+            "cpuShare": 1.0,
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.2661,
+              "p95": 0.7679
+            },
+            "commitFlushMs": {
+              "kind": "lognormal",
+              "median": 0.8516,
+              "p95": 1.6654
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e-clients",
+          "source": "clients",
+          "sourcePort": "out",
+          "target": "api",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0
+            }
+          }
+        },
+        {
+          "id": "e-kafka",
+          "source": "api",
+          "sourcePort": "out",
+          "target": "kafka",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0
+            }
+          }
+        },
+        {
+          "id": "e-db",
+          "source": "kafka",
+          "sourcePort": "out",
+          "target": "db",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 0.1513,
+              "p95": 0.9048
+            }
+          }
+        }
+      ],
+      "autoSize": false
+    },
+    "workload": {
+      "rps": 2575,
+      "durationS": 25,
+      "warmupS": 5,
+      "readRatio": 0.0,
+      "keyCount": 100000,
+      "keySkew": 0.0,
+      "seed": 42,
+      "arrivalProcess": "deterministic"
+    },
+    "scenarios": []
+  }
+}

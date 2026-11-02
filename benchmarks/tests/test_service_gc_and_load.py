@@ -203,16 +203,11 @@ def test_every_latest_calibration_gets_a_falling_curve() -> None:
 def test_a_design_with_the_curve_costs_more_at_low_load_and_the_same_at_the_top() -> None:
     cal = json.loads((run.RESULTS / "pg-mixed" / "calibration.json").read_text(encoding="utf-8"))
     inputs = {**cal["inputs"], "serviceTimeByLoad": run.service_time_by_load(cal["cpuByLoad"])}
-    low = [
-        run.simulate(run.design(PG_MIXED, x, 200, warm=2, duration=6))
-        for x in (cal["inputs"], inputs)
-    ]
+    flat = {k: v for k, v in cal["inputs"].items() if k != "serviceTimeByLoad"}
+    low = [run.simulate(run.design(PG_MIXED, x, 200, warm=2, duration=6)) for x in (flat, inputs)]
     assert low[1]["resources"]["api"]["cores"] > 1.5 * low[0]["resources"]["api"]["cores"]
     top = cal["staircaseRps"][-1]
-    high = [
-        run.simulate(run.design(PG_MIXED, x, top, warm=2, duration=6))
-        for x in (cal["inputs"], inputs)
-    ]
+    high = [run.simulate(run.design(PG_MIXED, x, top, warm=2, duration=6)) for x in (flat, inputs)]
     assert high[1]["resources"]["api"]["cores"] == pytest.approx(
         high[0]["resources"]["api"]["cores"], rel=0.02
     )
