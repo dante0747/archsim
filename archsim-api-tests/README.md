@@ -55,6 +55,7 @@ implementation of the API ([`Profile.java`](src/main/java/io/archsim/apitests/Pr
 | `constrained` | no sign-in; one run at a time; request bodies up to 10,000 bytes |
 | `small-runs` | no sign-in; runs of at most 1,000 requests; Prometheus only at `prom.example:9090` |
 | `rate-limited` | no sign-in, with a hosted server's rate limits |
+| `allowlist` | no sign-in; Prometheus calls in allowlist mode (`ARCHSIM_OUTBOUND=allowlist`), only to `localhost:9090`, which must resolve to public addresses (it does not) |
 
 A hosted server must call the suite's stand-in GitHub: `ARCHSIM_GITHUB_URL` and
 `ARCHSIM_GITHUB_API_URL` are `http://127.0.0.1:<archsim.api.fakeGitHubPort>`.

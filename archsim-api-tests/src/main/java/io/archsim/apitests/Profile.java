@@ -26,7 +26,13 @@ public enum Profile {
     /** No sign-in; runs of at most 1,000 requests, and Prometheus only at prom.example:9090. */
     SMALL_RUNS("small-runs", 3),
     /** No sign-in, with the rate limits a hosted server has. */
-    RATE_LIMITED("rate-limited", 4);
+    RATE_LIMITED("rate-limited", 4),
+    /**
+     * No sign-in; calls to Prometheus as a hosted server with an allowlist makes them ({@code
+     * ARCHSIM_OUTBOUND=allowlist}): only to localhost:9090, and only if that name resolves to
+     * public addresses (it does not).
+     */
+    ALLOWLIST("allowlist", 5);
 
     /** The public address of the hosted profile: sign-in callbacks name it. */
     public static final String HOSTED_PUBLIC_URL = "https://archsim.test";
@@ -93,6 +99,10 @@ public enum Profile {
                 env.put("ARCHSIM_PROMETHEUS_ALLOWED_HOSTS", "prom.example:9090");
             }
             case RATE_LIMITED -> env.put("ARCHSIM_RATE_LIMITS", "true");
+            case ALLOWLIST -> {
+                env.put("ARCHSIM_OUTBOUND", "allowlist");
+                env.put("ARCHSIM_PROMETHEUS_ALLOWED_HOSTS", "localhost:9090");
+            }
         }
         return env;
     }
