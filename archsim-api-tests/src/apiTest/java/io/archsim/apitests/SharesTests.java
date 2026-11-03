@@ -2,7 +2,6 @@ package io.archsim.apitests;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -41,8 +40,8 @@ class SharesTests {
 	void share_ofFinishedRun_isFrozenCopyWithoutTraces(ApiClient client) {
 		Workspaces.enter(client);
 		JsonNode project = Runs.createProject(client, Examples.starter(4, 1));
-		String projectId = id(project);
-		String runId = Shares.finishedRun(client, projectId);
+		String projectId = Json.id(project);
+		String runId = Json.id(Runs.finishedRun(client, projectId));
 		JsonNode full = client.get("/runs/" + runId + "/report").json();
 		// the stored report has them; the share must not
 		assertThat(full.path("traces").isEmpty()).isFalse();
@@ -67,9 +66,8 @@ class SharesTests {
 		// still listed, in its workspace
 		JsonNode listed = client.get("/shares").json();
 		assertThat(Json.items(listed))
-			.extracting(
-					(entry) -> entry.path("id").asString() + " " + entry.path("projectId") + " " + entry.path("runId"))
-			.containsExactly(id(made) + " null null");
+			.extracting((entry) -> Json.id(entry) + " " + entry.path("projectId") + " " + entry.path("runId"))
+			.containsExactly(Json.id(made) + " null null");
 	}
 
 	/** A new share of the run whose report is {@code full}, in {@code project}. */
@@ -103,7 +101,7 @@ class SharesTests {
 	@Test
 	void share_ofCalibratedRun_hidesTelemetryAddresses(ApiServer server) {
 		ApiClient client = server.client();
-		String runId = Shares.finishedRun(client, Shares.calibratedProject(client));
+		String runId = Shares.calibratedRun(client);
 		// the run's own report names the address: the engine copies the design's
 		// calibration
 		assertThat(Shares.calibrationSource(client.get("/runs/" + runId + "/report").json()))
@@ -111,14 +109,14 @@ class SharesTests {
 		JsonNode made = share(client, runId, Json.object());
 		JsonNode body = publicShare(client, slug(made)).json();
 		assertThat(Shares.calibrationSource(body.path("report"))).isEqualTo("Prometheus (address hidden)");
-		Object payload = server.db().value("SELECT payload::text FROM shared_reports WHERE id = ?", id(made));
+		Object payload = server.db().value("SELECT payload::text FROM shared_reports WHERE id = ?", Json.id(made));
 		assertThat(payload).isNotNull();
 		assertThat(String.valueOf(payload)).doesNotContain("hunter2").doesNotContain("prom.internal");
 	}
 
 	@Test
 	void share_withTitleAndExpiry_keepsThem(ApiClient client) {
-		String runId = Shares.finishedRun(client, Shares.calibratedProject(client));
+		String runId = Shares.calibratedRun(client);
 		JsonNode never = share(client, runId,
 				Json.object("title", "  For the platform review  ", "expiresInDays", null));
 		assertThat(never.path("title").asString()).isEqualTo("For the platform review");
@@ -135,10 +133,10 @@ class SharesTests {
 	 */
 	@Test
 	void share_ofUnfinishedRun_isConflict(ApiClient client) {
-		String unfinished = Shares.startLongRun(client, Shares.calibratedProject(client));
-		ApiResponse res = client.post("/runs/" + unfinished + "/shares", Json.object());
-		assertThat(res.status()).isEqualTo(409);
-		assertThat(res.message()).contains("only finished runs");
+		String unfinished = Runs.startLongRun(client, Shares.calibratedProject(client));
+		ApiResponse response = client.post("/runs/" + unfinished + "/shares", Json.object());
+		assertThat(response.status()).isEqualTo(409);
+		assertThat(response.message()).contains("only finished runs");
 		client.post("/runs/" + unfinished + "/cancel");
 		Runs.waitFor(client, unfinished);
 	}
@@ -148,9 +146,9 @@ class SharesTests {
 	void revoke_activeShare_answers404AtOnceAndDeletesTheCopy(ApiServer server) {
 		ApiClient client = server.client();
 		String projectId = Shares.calibratedProject(client);
-		JsonNode made = share(client, Shares.finishedRun(client, projectId), Json.object());
+		JsonNode made = share(client, Json.id(Runs.finishedRun(client, projectId)), Json.object());
 		assertThat(publicShare(client, slug(made)).status()).isEqualTo(200);
-		assertThat(client.delete("/shares/" + id(made)).status()).isEqualTo(204);
+		assertThat(client.delete("/shares/" + Json.id(made)).status()).isEqualTo(204);
 		ApiResponse gone = publicShare(client, slug(made));
 		assertThat(gone.status()).isEqualTo(404);
 		assertThat(gone.message()).isEqualTo("Share link not found");
@@ -158,10 +156,10 @@ class SharesTests {
 		// type) a JSON null
 		List<Map<String, @Nullable Object>> rows = server.db()
 			.rows("SELECT (payload IS NULL OR jsonb_typeof(payload) = 'null') AS cleared,"
-					+ " revoked_at IS NOT NULL AS revoked FROM shared_reports WHERE id = ?", id(made));
+					+ " revoked_at IS NOT NULL AS revoked FROM shared_reports WHERE id = ?", Json.id(made));
 		assertThat(rows).hasSize(1);
 		assertThat(rows.get(0)).containsEntry("cleared", true).containsEntry("revoked", true);
-		assertThat(client.delete("/shares/" + id(made)).status()).isEqualTo(204); // idempotent
+		assertThat(client.delete("/shares/" + Json.id(made)).status()).isEqualTo(204); // idempotent
 		JsonNode listed = client.get("/projects/" + projectId + "/shares").json();
 		assertThat(Json.strings(listed, "status")).containsExactly("revoked");
 		// the project's history names the link once when made and once when revoked
@@ -176,8 +174,9 @@ class SharesTests {
 	void publicShare_whenExpired_is404(ApiServer server) {
 		ApiClient client = server.client();
 		String projectId = Shares.calibratedProject(client);
-		JsonNode made = share(client, Shares.finishedRun(client, projectId), Json.object("expiresInDays", 1));
-		server.db().update("UPDATE shared_reports SET expires_at = now() - interval '1 second' WHERE id = ?", id(made));
+		JsonNode made = share(client, Json.id(Runs.finishedRun(client, projectId)), Json.object("expiresInDays", 1));
+		server.db()
+			.update("UPDATE shared_reports SET expires_at = now() - interval '1 second' WHERE id = ?", Json.id(made));
 		assertThat(publicShare(client, slug(made)).status()).isEqualTo(404);
 		assertThat(client.get("/projects/" + projectId + "/shares").json().path(0).path("status").asString())
 			.isEqualTo("expired");
@@ -186,24 +185,24 @@ class SharesTests {
 	@Test
 	void publicShare_withUnknownOrMalformedSlug_isTheSame404(ApiClient client) {
 		for (String slug : List.of("0".repeat(22), "short", "x".repeat(23), "not-base62-but-22-chr!")) {
-			ApiResponse res = publicShare(client, slug);
-			assertThat(res.status()).as(slug).isEqualTo(404);
-			assertThat(res.message()).as(slug).isEqualTo("Share link not found");
+			ApiResponse response = publicShare(client, slug);
+			assertThat(response.status()).as(slug).isEqualTo(404);
+			assertThat(response.message()).as(slug).isEqualTo("Share link not found");
 		}
 	}
 
 	@Test
 	void publicShare_ofActiveLink_isNeitherCachedNorIndexed(ApiClient client) {
-		JsonNode made = share(client, Shares.finishedRun(client, Shares.calibratedProject(client)), Json.object());
-		ApiResponse res = publicShare(client, slug(made));
-		assertThat(res.header("cache-control")).isEqualTo("no-store");
-		assertThat(res.header("x-robots-tag")).isEqualTo("noindex");
+		JsonNode made = share(client, Shares.calibratedRun(client), Json.object());
+		ApiResponse response = publicShare(client, slug(made));
+		assertThat(response.header("cache-control")).hasValue("no-store");
+		assertThat(response.header("x-robots-tag")).hasValue("noindex");
 	}
 
 	@Test
 	void publicShare_viewedOrPreviewed_countsOnlyViews(ApiClient client) {
 		String projectId = Shares.calibratedProject(client);
-		JsonNode made = share(client, Shares.finishedRun(client, projectId), Json.object());
+		JsonNode made = share(client, Json.id(Runs.finishedRun(client, projectId)), Json.object());
 		for (int i = 0; i < 3; i++) {
 			publicShare(client, slug(made));
 		}
@@ -219,7 +218,7 @@ class SharesTests {
 		ApiClient owner = server.signedIn("owner");
 		String team = Workspaces.enter(owner);
 		String projectId = Shares.calibratedProject(owner);
-		String runId = Shares.finishedRun(owner, projectId);
+		String runId = Json.id(Runs.finishedRun(owner, projectId));
 		JsonNode made = share(owner, runId, Json.object());
 		ApiClient vera = server.signedIn("vera");
 		Workspaces.join(owner, team, vera, "viewer");
@@ -228,13 +227,13 @@ class SharesTests {
 
 		assertThat(vera.get("/projects/" + projectId + "/shares").json().size()).isEqualTo(1);
 		assertThat(vera.post("/runs/" + runId + "/shares", Json.object()).status()).isEqualTo(403);
-		assertThat(vera.delete("/shares/" + id(made)).status()).isEqualTo(403);
+		assertThat(vera.delete("/shares/" + Json.id(made)).status()).isEqualTo(403);
 
 		assertThat(ed.post("/runs/" + runId + "/shares", Json.object()).status()).isEqualTo(201);
-		assertThat(ed.delete("/shares/" + id(made)).status()).isEqualTo(204);
+		assertThat(ed.delete("/shares/" + Json.id(made)).status()).isEqualTo(204);
 
 		// a read token is a viewer
-		ApiClient edsReadToken = Shares.tokenClient(server, ed, "read");
+		ApiClient edsReadToken = server.tokenClient(ed, "read");
 		assertThat(edsReadToken.post("/runs/" + runId + "/shares", Json.object()).status()).isEqualTo(403);
 	}
 
@@ -242,15 +241,15 @@ class SharesTests {
 	void shares_fromOutsideTheWorkspace_revealNothing(@On(Profile.HOSTED) ApiServer server) {
 		ApiClient owner = server.signedIn("owner");
 		String projectId = Shares.calibratedProject(owner);
-		String runId = Shares.finishedRun(owner, projectId);
+		String runId = Json.id(Runs.finishedRun(owner, projectId));
 		JsonNode made = share(owner, runId, Json.object());
 		ApiClient olga = server.signedIn("olga"); // no role in the owner's workspace
 
 		assertThat(olga.post("/runs/" + runId + "/shares", Json.object()).status()).isEqualTo(404);
 		assertThat(olga.get("/projects/" + projectId + "/shares").status()).isEqualTo(404);
-		ApiResponse res = olga.delete("/shares/" + id(made));
-		assertThat(res.status()).isEqualTo(404);
-		assertThat(res.message()).isEqualTo("Share link not found");
+		ApiResponse response = olga.delete("/shares/" + Json.id(made));
+		assertThat(response.status()).isEqualTo(404);
+		assertThat(response.message()).isEqualTo("Share link not found");
 		assertThat(olga.delete("/shares/nope").status()).isEqualTo(404);
 		// the link itself is public
 		assertThat(publicShare(olga, slug(made)).status()).isEqualTo(200);
@@ -260,12 +259,9 @@ class SharesTests {
 	void publicShare_onSignedInServer_servesAnyoneWithTheLink(@On(Profile.HOSTED) ApiServer server) {
 		ApiClient ada = server.signedIn("ada");
 		String workspace = Workspaces.first(ada);
-		ApiResponse res = ada.post(ApiClient.query("/projects", "workspace", workspace),
-				Json.object("document", Shares.calibrated()));
-		assertThat(res.status()).as(res.text()).isEqualTo(201);
-		String projectId = id(res.json());
-		String runId = Shares.finishedRun(ada, projectId); // the run belongs to ada's
-															// workspace
+		String projectId = Json.id(Runs.createProject(ada, workspace, Shares.calibrated()));
+		// the run belongs to ada's workspace
+		String runId = Json.id(Runs.finishedRun(ada, projectId));
 		JsonNode made = share(ada, runId, Json.object());
 
 		ApiClient anonymous = server.client();
@@ -285,7 +281,7 @@ class SharesTests {
 	@Test
 	void publicShare_pastViewsPerAddress_is429(@On(Profile.RATE_LIMITED) ApiServer server) {
 		ApiClient client = server.client();
-		String slug = slug(share(client, Shares.finishedRun(client, Shares.calibratedProject(client)), Json.object()));
+		String slug = slug(share(client, Shares.calibratedRun(client), Json.object()));
 		Shares.awaitRoomInTheMinute();
 		for (int i = 1; i <= PUBLIC_VIEWS_PER_MINUTE; i++) {
 			assertThat(publicShare(client, slug).status()).as("view %d", i).isEqualTo(200);
@@ -293,7 +289,8 @@ class SharesTests {
 		assertThat(publicShare(client, slug).status()).isEqualTo(429);
 		ApiResponse refused = publicShare(client, slug);
 		assertThat(refused.status()).isEqualTo(429);
-		assertThat(Integer.parseInt(Objects.requireNonNull(refused.header("retry-after")))).isGreaterThanOrEqualTo(1);
+		assertThat(refused.header("retry-after").map(Integer::parseInt))
+			.hasValueSatisfying((seconds) -> assertThat(seconds).isGreaterThanOrEqualTo(1));
 		// guessing links counts too
 		assertThat(publicShare(client, "0".repeat(22)).status()).isEqualTo(429);
 		// another visitor, behind the web server: a client with its own
@@ -303,7 +300,7 @@ class SharesTests {
 
 	@Test
 	void publicShare_withoutLimits_isNeverRefused(ApiClient client) {
-		String slug = slug(share(client, Shares.finishedRun(client, Shares.calibratedProject(client)), Json.object()));
+		String slug = slug(share(client, Shares.calibratedRun(client), Json.object()));
 		for (int i = 1; i <= PUBLIC_VIEWS_PER_MINUTE + 1; i++) {
 			assertThat(publicShare(client, slug).status()).as("view %d", i).isEqualTo(200);
 		}
@@ -314,18 +311,18 @@ class SharesTests {
 	void openACopy_ofShare_makesProjectFromTheSharedDesign(@On(Profile.HOSTED) ApiServer server) {
 		ApiClient owner = server.signedIn("owner");
 		JsonNode project = Runs.createProject(owner, Shares.calibrated());
-		JsonNode made = share(owner, Shares.finishedRun(owner, id(project)), Json.object());
-		String team = id(Workspaces.create(owner, "Mine"));
-		ApiResponse res = owner.post(ApiClient.query("/projects/from-share", "workspace", team),
+		JsonNode made = share(owner, Json.id(Runs.finishedRun(owner, Json.id(project))), Json.object());
+		String team = Json.id(Workspaces.create(owner, "Mine"));
+		ApiResponse response = owner.post(ApiClient.query("/projects/from-share", "workspace", team),
 				Json.object("slug", slug(made)));
-		assertThat(res.status()).as(res.text()).isEqualTo(201);
-		JsonNode copied = res.json();
+		assertThat(response.status()).as(response.text()).isEqualTo(201);
+		JsonNode copied = response.json();
 		assertThat(copied.path("name").asString()).isEqualTo(project.path("name").asString() + " (copy)");
 		assertThat(copied.path("document").path("architecture"))
 			.isEqualTo(project.path("document").path("architecture"));
 		assertThat(Json.write(copied.path("document"))).doesNotContain("hunter2");
 		JsonNode inTeam = owner.get(ApiClient.query("/projects", "workspace", team)).json();
-		assertThat(Json.strings(inTeam, "id")).containsExactly(id(copied));
+		assertThat(Json.strings(inTeam, "id")).containsExactly(Json.id(copied));
 		ApiResponse named = owner.post("/projects/from-share", Json.object("slug", slug(made), "name", "Fork"));
 		assertThat(named.status()).isEqualTo(201);
 		assertThat(named.json().path("name").asString()).isEqualTo("Fork");
@@ -337,24 +334,18 @@ class SharesTests {
 				vera.post(ApiClient.query("/projects/from-share", "workspace", team), Json.object("slug", slug(made)))
 					.status())
 			.isEqualTo(403);
-		owner.delete("/shares/" + id(made));
+		owner.delete("/shares/" + Json.id(made));
 		ApiResponse gone = owner.post("/projects/from-share", Json.object("slug", slug(made)));
 		assertThat(gone.status()).isEqualTo(404);
 	}
 
 	// -- helpers
 	private static JsonNode share(ApiClient client, String runId, ObjectNode body) {
-		ApiResponse res = client.post("/runs/" + runId + "/shares", body);
-		assertThat(res.status()).as(res.text()).isEqualTo(201);
-		return res.json();
+		return client.post("/runs/" + runId + "/shares", body).expectStatus(201).json();
 	}
 
 	private static ApiResponse publicShare(ApiClient client, String slug) {
 		return client.get("/public/shares/" + slug);
-	}
-
-	private static String id(JsonNode node) {
-		return node.path("id").asString();
 	}
 
 	private static String slug(JsonNode share) {

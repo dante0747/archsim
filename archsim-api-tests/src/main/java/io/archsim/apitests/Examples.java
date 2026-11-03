@@ -54,11 +54,11 @@ public final class Examples {
 	 * @return a fresh copy of the design
 	 */
 	public static ObjectNode starter(int durationS, int warmupS) {
-		ObjectNode doc = load("cache-aside-starter");
-		ObjectNode workload = (ObjectNode) doc.get("workload");
+		ObjectNode document = load("cache-aside-starter");
+		ObjectNode workload = (ObjectNode) document.get("workload");
 		workload.put("durationS", durationS);
 		workload.put("warmupS", warmupS);
-		return doc;
+		return document;
 	}
 
 	/**

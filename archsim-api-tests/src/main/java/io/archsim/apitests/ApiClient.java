@@ -18,6 +18,7 @@ import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.StringJoiner;
 
 import org.jspecify.annotations.Nullable;
@@ -86,15 +87,14 @@ public final class ApiClient {
 	/**
 	 * Returns a header this client sends with every request.
 	 * @param name the header's name, in any case
-	 * @return the header's value, or null when the client does not send it
+	 * @return the header's value, or empty when the client does not send it
 	 */
-	public @Nullable String header(String name) {
+	public Optional<String> header(String name) {
 		return this.headers.entrySet()
 			.stream()
 			.filter((header) -> header.getKey().equalsIgnoreCase(name))
 			.map(Map.Entry::getValue)
-			.findFirst()
-			.orElse(null);
+			.findFirst();
 	}
 
 	/**
@@ -108,10 +108,10 @@ public final class ApiClient {
 	/**
 	 * Returns a cookie this client holds.
 	 * @param name the cookie's name
-	 * @return the cookie's value, or null when the client holds no such cookie
+	 * @return the cookie's value, or empty when the client holds no such cookie
 	 */
-	public @Nullable String cookie(String name) {
-		return this.cookies.get(name);
+	public Optional<String> cookie(String name) {
+		return Optional.ofNullable(this.cookies.get(name));
 	}
 
 	/**
@@ -204,20 +204,6 @@ public final class ApiClient {
 	 */
 	public ApiResponse send(String method, String path, @Nullable Object json, Map<String, String> extraHeaders) {
 		byte[] body = (json != null) ? Json.write(json).getBytes(StandardCharsets.UTF_8) : null;
-		return exchange(method, this.base.resolve(API + path), body, extraHeaders);
-	}
-
-	/**
-	 * Sends a request with a body that is not JSON, e.g. a form or a broken document. The
-	 * body goes as {@code application/json} unless {@code extraHeaders} name another
-	 * {@code Content-Type}.
-	 * @param method the HTTP method
-	 * @param path the path under {@value #API}, with any query string
-	 * @param body the body, sent as it is
-	 * @param extraHeaders headers for this request only, over the default ones
-	 * @return the server's answer
-	 */
-	public ApiResponse sendRaw(String method, String path, byte[] body, Map<String, String> extraHeaders) {
 		return exchange(method, this.base.resolve(API + path), body, extraHeaders);
 	}
 

@@ -33,10 +33,11 @@ class CalibrationTests {
 	@Test
 	void calibrate_withRecordedPrometheusOrOtlp_returnsCalibratedDocument(ApiClient client) {
 		// the range is not the recording's window
-		ApiResponse res = client.post("/calibrate", Json.object("document", Examples.starter(), "source", "prometheus",
-				"mapping", MAPPING, "recorded", RECORDED, "range", "2026-10-20T00:00:00Z/2026-10-21T00:00:00Z"));
-		assertThat(res.status()).as(res.text()).isEqualTo(200);
-		JsonNode out = res.json();
+		ApiResponse response = client.post("/calibrate",
+				Json.object("document", Examples.starter(), "source", "prometheus", "mapping", MAPPING, "recorded",
+						RECORDED, "range", "2026-10-20T00:00:00Z/2026-10-21T00:00:00Z"));
+		assertThat(response.status()).as(response.text()).isEqualTo(200);
+		JsonNode out = response.json();
 		JsonNode serviceTime = out.path("document").path("provenance").path("nodes/api/serviceTimeMs");
 		assertThat(serviceTime.path("timeRange").asString()).startsWith("2026-10-01T00:00:00Z");
 		assertThat(Json.items(out.path("notes"))).anyMatch((note) -> note.asString().contains("the recording covers"));
@@ -51,22 +52,22 @@ class CalibrationTests {
 			.asBoolean()).isTrue();
 
 		JsonNode traces = Json.read(Examples.engineFixture("calibration/checkout-traces.otlp.json"));
-		res = client.post("/calibrate", Json.object("document", Examples.starter(), "source", "otlp", "traces", traces,
-				"mapping", "services: {checkout-api: api}\ndatabases: {orders: db}\n"));
-		assertThat(res.status()).as(res.text()).isEqualTo(200);
-		assertThat(Json.strings(res.json().path("changes"), "path")).contains("nodes/api/serviceTimeMs");
+		response = client.post("/calibrate", Json.object("document", Examples.starter(), "source", "otlp", "traces",
+				traces, "mapping", "services: {checkout-api: api}\ndatabases: {orders: db}\n"));
+		assertThat(response.status()).as(response.text()).isEqualTo(200);
+		assertThat(Json.strings(response.json().path("changes"), "path")).contains("nodes/api/serviceTimeMs");
 	}
 
 	@Test
 	void calibrate_withoutUsableSource_saysWhatIsMissing(ApiClient client) {
-		ApiResponse res = client.post("/calibrate",
+		ApiResponse response = client.post("/calibrate",
 				Json.object("document", Examples.starter(), "source", "prometheus", "mapping", "nodes: {}"));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.message()).contains("URL or recorded");
-		res = client.post("/calibrate", Json.object("document", Examples.starter(), "source", "prometheus", "mapping",
-				"nodes: {}", "prometheusUrl", "file:///etc/passwd"));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.message()).contains("http");
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.message()).contains("URL or recorded");
+		response = client.post("/calibrate", Json.object("document", Examples.starter(), "source", "prometheus",
+				"mapping", "nodes: {}", "prometheusUrl", "file:///etc/passwd"));
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.message()).contains("http");
 	}
 
 	/**
@@ -75,32 +76,32 @@ class CalibrationTests {
 	 * do).
 	 */
 	@Test
-	void calibrate_withSecretInput_readsNoFileAndRepeatsNoInput(ApiClient client, @TempDir Path tmp)
+	void calibrate_withSecretInput_readsNoFileAndRepeatsNoInput(ApiClient client, @TempDir Path directory)
 			throws IOException {
-		Path secret = tmp.resolve("secret.yaml");
+		Path secret = directory.resolve("secret.yaml");
 		Files.writeString(secret, "nodes: TOPSECRET-file-content-41\n", StandardCharsets.UTF_8);
 
-		ApiResponse res = calibrate(client, Json.object("mapping", secret.toString(), "recorded", RECORDED));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.text()).doesNotContain("TOPSECRET");
-		assertThat(res.message()).contains("must be a YAML or JSON object");
+		ApiResponse response = calibrate(client, Json.object("mapping", secret.toString(), "recorded", RECORDED));
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.text()).doesNotContain("TOPSECRET");
+		assertThat(response.message()).contains("must be a YAML or JSON object");
 		// validation errors name the place, never the value sent
-		res = calibrate(client,
+		response = calibrate(client,
 				Json.object("mapping", "nodes: {api: {serviceTimeMs: {histogram: q, unit: SECRET-UNIT}}}"));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.text()).doesNotContain("SECRET-UNIT").doesNotContain("input_value");
-		assertThat(res.text()).contains("nodes.api.serviceTimeMs");
-		res = calibrate(client, Json.object("mapping", "nodes: {}", "recorded",
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.text()).doesNotContain("SECRET-UNIT").doesNotContain("input_value");
+		assertThat(response.text()).contains("nodes.api.serviceTimeMs");
+		response = calibrate(client, Json.object("mapping", "nodes: {}", "recorded",
 				Json.object("range", Json.object("start", "a", "end", 5, "step", -7))));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.text()).doesNotContain("input_value").doesNotContain("-7");
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.text()).doesNotContain("input_value").doesNotContain("-7");
 		// broken YAML is a 422 too (it was a 500), without an excerpt of the text
 		for (String[] sourceAndMapping : new String[][] { { "prometheus", "nodes: [SECRET-YAML" },
 				{ "otlp", "a: [SECRET-YAML" } }) {
-			res = client.post("/calibrate", Json.object("document", Examples.starter(), "source", sourceAndMapping[0],
-					"mapping", sourceAndMapping[1], "traces", Json.object()));
-			assertThat(res.status()).as(res.text()).isEqualTo(422);
-			assertThat(res.text()).doesNotContain("SECRET-YAML");
+			response = client.post("/calibrate", Json.object("document", Examples.starter(), "source",
+					sourceAndMapping[0], "mapping", sourceAndMapping[1], "traces", Json.object()));
+			assertThat(response.status()).as(response.text()).isEqualTo(422);
+			assertThat(response.text()).doesNotContain("SECRET-YAML");
 		}
 	}
 
@@ -114,10 +115,10 @@ class CalibrationTests {
 	@Test
 	void calibrate_withCutOffPrometheus_explainsTheFailure(ApiClient client) throws IOException {
 		try (CutOffServer prometheus = new CutOffServer()) {
-			ApiResponse res = client.post("/calibrate", Json.object("document", Examples.starter(), "source",
+			ApiResponse response = client.post("/calibrate", Json.object("document", Examples.starter(), "source",
 					"prometheus", "mapping", MAPPING, "replay", false, "prometheusUrl", prometheus.url()));
-			assertThat(res.status()).as(res.text()).isEqualTo(422);
-			assertThat(res.message()).contains("cut off");
+			assertThat(response.status()).as(response.text()).isEqualTo(422);
+			assertThat(response.message()).contains("cut off");
 		}
 	}
 
@@ -128,10 +129,10 @@ class CalibrationTests {
 	@Test
 	void calibrate_withHostOffTheAllowlist_isRefused(@On(Profile.SMALL_RUNS) ApiClient client) throws IOException {
 		try (CutOffServer prometheus = new CutOffServer()) {
-			ApiResponse res = client.post("/calibrate", Json.object("document", Examples.starter(), "source",
+			ApiResponse response = client.post("/calibrate", Json.object("document", Examples.starter(), "source",
 					"prometheus", "mapping", MAPPING, "replay", false, "prometheusUrl", prometheus.url()));
-			assertThat(res.status()).isEqualTo(422);
-			assertThat(res.message()).contains("not allowed");
+			assertThat(response.status()).isEqualTo(422);
+			assertThat(response.message()).contains("not allowed");
 		}
 	}
 
@@ -141,10 +142,10 @@ class CalibrationTests {
 	 */
 	@Test
 	void calibrate_withReplayPastTheLimits_is422(@On(Profile.SMALL_RUNS) ApiClient client) {
-		ApiResponse res = client.post("/calibrate", Json.object("document", Examples.starter(), "source", "prometheus",
-				"mapping", MAPPING, "recorded", RECORDED));
-		assertThat(res.status()).as(res.text()).isEqualTo(422);
-		assertThat(res.message()).contains("replay run hit a limit");
+		ApiResponse response = client.post("/calibrate", Json.object("document", Examples.starter(), "source",
+				"prometheus", "mapping", MAPPING, "recorded", RECORDED));
+		assertThat(response.status()).as(response.text()).isEqualTo(422);
+		assertThat(response.message()).contains("replay run hit a limit");
 	}
 
 	/**

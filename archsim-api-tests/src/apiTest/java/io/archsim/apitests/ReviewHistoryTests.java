@@ -69,12 +69,12 @@ class ReviewHistoryTests {
 		ApiClient vera = server.signedIn("vera");
 		Workspaces.join(owner, team, vera, "viewer");
 		List<String> before = actions(Reviews.workspaceEvents(server, team));
-		ApiResponse res = owner.put("/projects/" + project, Json.object("name", "Late", "expectedRevision", 7));
-		assertThat(res.status()).isEqualTo(409);
+		ApiResponse response = owner.put("/projects/" + project, Json.object("name", "Late", "expectedRevision", 7));
+		assertThat(response.status()).isEqualTo(409);
 		assertThat(vera.delete("/projects/" + project).status()).isEqualTo(403);
 		assertThat(vera.post("/projects/" + project + "/runs", Json.object()).status()).isEqualTo(403);
-		res = owner.post("/projects/" + project + "/comments", Json.object("body", ""));
-		assertThat(res.status()).isEqualTo(422);
+		response = owner.post("/projects/" + project + "/comments", Json.object("body", ""));
+		assertThat(response.status()).isEqualTo(422);
 		assertThat(actions(Reviews.workspaceEvents(server, team))).isEqualTo(before);
 	}
 
@@ -82,13 +82,13 @@ class ReviewHistoryTests {
 	void membershipChange_ofEachKind_isRecorded(@On(Profile.HOSTED) ApiServer server) {
 		ApiClient owner = server.signedIn("owner");
 		String ownerId = Workspaces.userId(owner);
-		String workspace = id(Workspaces.create(owner, "Platform"));
+		String workspace = Json.id(Workspaces.create(owner, "Platform"));
 		ApiClient ann = server.signedIn("ann");
 		String annId = Workspaces.userId(ann);
 		String invitations = "/workspaces/" + workspace + "/invitations";
 		JsonNode invitation = owner.post(invitations, Json.object("role", "editor")).json();
 		JsonNode gone = owner.post(invitations, Json.object("role", "viewer")).json();
-		owner.delete(invitations + "/" + id(gone));
+		owner.delete(invitations + "/" + Json.id(gone));
 		ApiResponse accepted = ann.post("/invitations/accept", Json.object("token", invitation.path("token")));
 		assertThat(accepted.status()).isEqualTo(200);
 		owner.patch("/workspaces/" + workspace + "/members/" + annId, Json.object("role", "viewer"));
@@ -99,10 +99,11 @@ class ReviewHistoryTests {
 			.extracting(
 					(event) -> event.get("action") + " " + event.get("target_id") + " " + event.get("actor_user_id"))
 			.containsExactly("workspace.create " + workspace + " " + ownerId,
-					"invitation.create " + id(invitation) + " " + ownerId,
-					"invitation.create " + id(gone) + " " + ownerId, "invitation.revoke " + id(gone) + " " + ownerId,
-					"member.join " + annId + " " + annId, "member.role " + annId + " " + ownerId,
-					"workspace.rename " + workspace + " " + ownerId, "member.remove " + annId + " " + ownerId);
+					"invitation.create " + Json.id(invitation) + " " + ownerId,
+					"invitation.create " + Json.id(gone) + " " + ownerId,
+					"invitation.revoke " + Json.id(gone) + " " + ownerId, "member.join " + annId + " " + annId,
+					"member.role " + annId + " " + ownerId, "workspace.rename " + workspace + " " + ownerId,
+					"member.remove " + annId + " " + ownerId);
 		assertThat(meta(event(events, "member.role"))).isEqualTo(Json.object("from", "editor", "to", "viewer"));
 		assertThat(events).allSatisfy((event) -> assertThat(event.get("project_id")).isNull());
 	}
@@ -129,8 +130,8 @@ class ReviewHistoryTests {
 		// ed's change, from ed's address
 		Workspaces.join(owner, team, ed, "editor");
 		JsonNode items = owner.get("/workspaces/" + team + "/activity").json().path("items");
-		assertThat(addresses(items)).isEqualTo(Set.of(Objects.requireNonNull(owner.header("X-ArchSim-Client-IP")),
-				Objects.requireNonNull(ed.header("X-ArchSim-Client-IP"))));
+		assertThat(addresses(items)).isEqualTo(Set.of(owner.header("X-ArchSim-Client-IP").orElseThrow(),
+				ed.header("X-ArchSim-Client-IP").orElseThrow()));
 		JsonNode edSees = ed.get("/workspaces/" + team + "/activity").json().path("items");
 		assertThat(Json.items(edSees)).isNotEmpty().allSatisfy((item) -> assertThat(item.path("ip").isNull()).isTrue());
 	}
@@ -139,12 +140,9 @@ class ReviewHistoryTests {
 	void commentsAndHistory_ofTwoWorkspaces_stayInTheirWorkspace(@On(Profile.HOSTED) ApiServer server) {
 		ApiClient owner = server.signedIn("owner");
 		String personal = Workspaces.first(owner);
-		String team = id(Workspaces.create(owner, "Team"));
+		String team = Json.id(Workspaces.create(owner, "Team"));
 		String mine = Reviews.newProject(owner);
-		ApiResponse res = owner.post(ApiClient.query("/projects", "workspace", team),
-				Json.object("document", Reviews.design()));
-		assertThat(res.status()).as(res.text()).isEqualTo(201);
-		String theirs = id(res.json());
+		String theirs = Json.id(Runs.createProject(owner, team, Reviews.design()));
 		Reviews.comment(owner, theirs, Json.object("body", "In the team"));
 		Reviews.comment(owner, mine, Json.object("body", "In personal"));
 		Map<String, @Nullable Object> rows = new HashMap<>();
@@ -168,19 +166,19 @@ class ReviewHistoryTests {
 	 * cancelled), the project, a comment and its thread, a sign-off, and deletions.
 	 */
 	private static void changeEverything(ApiClient client, String project) {
-		String run = id(Reviews.finishedRun(client, project));
-		String queued = Reviews.startLongRun(client, project);
+		String run = Json.id(Runs.finishedRun(client, project));
+		String queued = Runs.startLongRun(client, project);
 		client.post("/runs/" + queued + "/cancel");
 		Runs.waitFor(client, queued);
 		client.put("/projects/" + project, Json.object("name", "Renamed"));
 		JsonNode comment = Reviews.comment(client, project,
 				Json.object("anchorKind", "node", "anchorId", "db", "body", "Replica lag?"));
-		client.patch("/comments/" + id(comment), Json.object("body", "Replica lag ok?"));
-		client.post("/comments/" + id(comment) + "/resolve");
-		client.post("/comments/" + id(comment) + "/resolve", Json.object("resolved", false));
+		client.patch("/comments/" + Json.id(comment), Json.object("body", "Replica lag ok?"));
+		client.post("/comments/" + Json.id(comment) + "/resolve");
+		client.post("/comments/" + Json.id(comment) + "/resolve", Json.object("resolved", false));
 		JsonNode signoff = client.post("/runs/" + run + "/signoffs", Json.object("decision", "approved")).json();
-		client.delete("/signoffs/" + id(signoff));
-		client.delete("/comments/" + id(comment));
+		client.delete("/signoffs/" + Json.id(signoff));
+		client.delete("/comments/" + Json.id(comment));
 		client.delete("/runs/" + queued);
 	}
 
@@ -226,10 +224,6 @@ class ReviewHistoryTests {
 		Set<String> out = new HashSet<>();
 		Json.items(items).forEach((item) -> out.add(item.path("projectId").asString("none")));
 		return out;
-	}
-
-	private static String id(JsonNode node) {
-		return node.path("id").asString();
 	}
 
 }

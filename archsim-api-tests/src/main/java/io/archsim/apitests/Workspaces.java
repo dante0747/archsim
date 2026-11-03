@@ -38,7 +38,7 @@ public final class Workspaces {
 	 * @return the workspace's id
 	 */
 	public static String enter(ApiClient client) {
-		String id = create(client, "Test").path("id").asString();
+		String id = Json.id(create(client, "Test"));
 		client.header("X-ArchSim-Workspace", id);
 		return id;
 	}
@@ -49,7 +49,7 @@ public final class Workspaces {
 	 * @return the person's user id
 	 */
 	public static String userId(ApiClient client) {
-		return me(client).path("user").path("id").asString();
+		return Json.id(me(client).path("user"));
 	}
 
 	/**
@@ -58,7 +58,7 @@ public final class Workspaces {
 	 * @return the workspace's id: a new person's personal workspace
 	 */
 	public static String first(ApiClient client) {
-		return me(client).path("workspaces").path(0).path("id").asString();
+		return Json.id(me(client).path("workspaces").path(0));
 	}
 
 	/**

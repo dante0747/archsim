@@ -78,14 +78,14 @@ final class LoopbackSignIn {
 	 * The value of the cookie {@code name} that the response sets; fails the test without
 	 * one.
 	 */
-	private static String cookieValue(HttpResponse<?> res, String name) {
-		return res.headers()
+	private static String cookieValue(HttpResponse<?> response, String name) {
+		return response.headers()
 			.allValues("set-cookie")
 			.stream()
 			.filter((cookie) -> cookie.startsWith(name + "="))
 			.map((cookie) -> cookie.split(";", 2)[0].substring(name.length() + 1))
 			.findFirst()
-			.orElseThrow(() -> new AssertionError(res.uri() + " sets no " + name));
+			.orElseThrow(() -> new AssertionError(response.uri() + " sets no " + name));
 	}
 
 }

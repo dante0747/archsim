@@ -5,7 +5,7 @@ import java.time.Duration;
 
 import tools.jackson.databind.JsonNode;
 
-/** Steps most tests take: making a project, waiting for a run. */
+/** Steps most tests take: making a project, starting its runs, waiting for a run. */
 public final class Runs {
 
 	/** How long {@link #waitFor(ApiClient, String)} waits for a run to finish. */
@@ -13,6 +13,15 @@ public final class Runs {
 
 	/** How long to wait between two looks at a run. */
 	private static final Duration POLL_INTERVAL = Duration.ofMillis(50);
+
+	/**
+	 * How long the workload of {@link #startLongRun} runs, in simulated seconds: long
+	 * enough that the run is still queued or running when a test acts on it.
+	 */
+	private static final int LONG_RUN_DURATION_S = 120;
+
+	/** How long the workload of {@link #startLongRun} warms up, in simulated seconds. */
+	private static final int LONG_RUN_WARMUP_S = 5;
 
 	private Runs() {
 	}
@@ -36,6 +45,63 @@ public final class Runs {
 	 */
 	public static JsonNode createProject(ApiClient client) {
 		return createProject(client, Examples.starter());
+	}
+
+	/**
+	 * Creates a project in a given workspace ({@code POST /projects?workspace=...});
+	 * fails the test unless it answers 201.
+	 * @param client the client that creates it
+	 * @param workspaceId the workspace the project goes to
+	 * @param document the project's design
+	 * @return the new project
+	 */
+	public static JsonNode createProject(ApiClient client, String workspaceId, JsonNode document) {
+		return client.post(ApiClient.query("/projects", "workspace", workspaceId), Json.object("document", document))
+			.expectStatus(HttpURLConnection.HTTP_CREATED)
+			.json();
+	}
+
+	/**
+	 * Starts a run of the project's saved design; fails the test unless it answers 202.
+	 * @param client the client that starts the run
+	 * @param projectId the project to run
+	 * @return the run's id
+	 */
+	public static String startRun(ApiClient client, String projectId) {
+		JsonNode run = client.post("/projects/" + projectId + "/runs", Json.object())
+			.expectStatus(HttpURLConnection.HTTP_ACCEPTED)
+			.json();
+		return Json.id(run);
+	}
+
+	/**
+	 * Starts a run of the starter design simulated for 120 s, so that it is still queued
+	 * or running when this returns; fails the test unless it answers 202.
+	 * @param client the client that starts the run
+	 * @param projectId the project the run belongs to
+	 * @return the run's id
+	 */
+	public static String startLongRun(ApiClient client, String projectId) {
+		JsonNode longDesign = Examples.starter(LONG_RUN_DURATION_S, LONG_RUN_WARMUP_S);
+		JsonNode run = client.post("/projects/" + projectId + "/runs", Json.object("document", longDesign))
+			.expectStatus(HttpURLConnection.HTTP_ACCEPTED)
+			.json();
+		return Json.id(run);
+	}
+
+	/**
+	 * Runs the project's saved design to the end; fails the test unless the run starts
+	 * and succeeds.
+	 * @param client the client that starts the run and waits for it
+	 * @param projectId the project to run
+	 * @return the finished run
+	 */
+	public static JsonNode finishedRun(ApiClient client, String projectId) {
+		JsonNode run = waitFor(client, startRun(client, projectId));
+		if (!"succeeded".equals(run.path("status").asString())) {
+			throw new AssertionError("run " + Json.id(run) + " did not succeed: " + run);
+		}
+		return run;
 	}
 
 	/**

@@ -3,6 +3,7 @@ package io.archsim.apitests;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
@@ -77,10 +78,10 @@ public final class ApiResponse {
 	/**
 	 * Returns the first value of a header.
 	 * @param name the header's name, in any case
-	 * @return the header's first value, or null when the answer has no such header
+	 * @return the header's first value, or empty when the answer has no such header
 	 */
-	public @Nullable String header(String name) {
-		return this.headers.firstValue(name).orElse(null);
+	public Optional<String> header(String name) {
+		return this.headers.firstValue(name);
 	}
 
 	/**
@@ -103,10 +104,10 @@ public final class ApiResponse {
 	/**
 	 * Returns the {@code Set-Cookie} header that sets a cookie.
 	 * @param name the cookie's name
-	 * @return the first header that sets {@code name}, or null when none does
+	 * @return the first header that sets {@code name}, or empty when none does
 	 */
-	public @Nullable String setCookie(String name) {
-		return setCookies().stream().filter((setCookie) -> setCookie.startsWith(name + "=")).findFirst().orElse(null);
+	public Optional<String> setCookie(String name) {
+		return setCookies().stream().filter((setCookie) -> setCookie.startsWith(name + "=")).findFirst();
 	}
 
 	/**
@@ -115,21 +116,18 @@ public final class ApiResponse {
 	 * @return the {@code Location} header
 	 */
 	public String location() {
-		String location = header("location");
-		if (location == null) {
-			throw new AssertionError(this + " has no Location header: " + this.text);
-		}
-		return location;
+		return header("location").orElseThrow(() -> new AssertionError(this + " has no Location header: " + this.text));
 	}
 
 	/**
-	 * Fails the test, showing the answer, unless it has the expected status.
+	 * Fails the test, showing the expected status and the answer, unless the answer has
+	 * that status.
 	 * @param expected the status the test expects
 	 * @return this answer
 	 */
 	ApiResponse expectStatus(int expected) {
 		if (this.status != expected) {
-			throw new AssertionError(this + ": " + this.text);
+			throw new AssertionError("expected " + expected + ": " + this + ": " + this.text);
 		}
 		return this;
 	}

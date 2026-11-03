@@ -46,14 +46,14 @@ class EndpointsTests {
 		// cache misses that nothing reads: the API no longer reads the DB on a miss
 		ObjectNode bad = Examples.starter();
 		for (JsonNode edge : bad.path("architecture").path("edges")) {
-			if (edge.path("id").asString().equals("api-db")) {
+			if (Json.id(edge).equals("api-db")) {
 				((ObjectNode) edge.path("config")).put("readsOnMiss", false);
 			}
 		}
-		JsonNode res = client.post("/validate", Json.object("document", bad)).json();
-		assertThat(res.path("valid").asBoolean()).isFalse();
-		assertThat(res.path("issues").get(0).path("code").asString()).isEqualTo("cache.miss_unrouted");
-		assertThat(res.path("issues").get(0).path("nodeId").asString()).isEqualTo("cache");
+		JsonNode validation = client.post("/validate", Json.object("document", bad)).json();
+		assertThat(validation.path("valid").asBoolean()).isFalse();
+		assertThat(validation.path("issues").get(0).path("code").asString()).isEqualTo("cache.miss_unrouted");
+		assertThat(validation.path("issues").get(0).path("nodeId").asString()).isEqualTo("cache");
 		JsonNode scenario = client.post("/validate", Json.object("document", Examples.starter(), "scenarioId", "nope"))
 			.json();
 		assertThat(scenario.path("issues").get(0).path("code").asString()).isEqualTo("scenario.unknown");
@@ -61,9 +61,9 @@ class EndpointsTests {
 
 	@Test
 	void analyze_withStarterDocument_returnsSizesCostAndReview(ApiClient client) {
-		ApiResponse res = client.post("/analyze", Json.object("document", Examples.starter()));
-		assertThat(res.status()).isEqualTo(200);
-		JsonNode analysis = res.json();
+		ApiResponse response = client.post("/analyze", Json.object("document", Examples.starter()));
+		assertThat(response.status()).isEqualTo(200);
+		JsonNode analysis = response.json();
 		JsonNode api = analysis.path("sizing").path("nodes").path("api");
 		assertThat(api.path("specs").path("cpuCores").path("source").asString()).isEqualTo("auto");
 		assertThat(api.path("auto").path("cpuCores").asDouble()).isGreaterThanOrEqualTo(1);
@@ -107,9 +107,10 @@ class EndpointsTests {
 			.containsExactly("2026-11-01 true", "2026-10-01 false");
 		assertThat(Json.items(listed).subList(1, listed.size()))
 			.allMatch((source) -> source.path("sha256").asString().length() == 64);
-		ObjectNode doc = Examples.starter();
-		doc.set("pricing", Json.object("provider", "example-cloud", "region", "test-1", "snapshotDate", "2026-10-01"));
-		JsonNode cost = client.post("/analyze", Json.object("document", doc)).json().path("cost");
+		ObjectNode document = Examples.starter();
+		document.set("pricing",
+				Json.object("provider", "example-cloud", "region", "test-1", "snapshotDate", "2026-10-01"));
+		JsonNode cost = client.post("/analyze", Json.object("document", document)).json().path("cost");
 		assertThat(cost.path("pricing").path("snapshotDate").asString()).isEqualTo("2026-10-01");
 		assertThat(cost.path("pricing").path("sha256").asString()).isEqualTo(sources.get(1).path("sha256").asString());
 	}
@@ -122,11 +123,11 @@ class EndpointsTests {
 	 */
 	@Test
 	void run_sameInputInTwoProjects_givesSameDigests(ApiClient client) {
-		ObjectNode doc = Examples.starter(5, 1);
-		String first = Runs.createProject(client, doc).path("id").asString();
-		String second = Runs.createProject(client, doc).path("id").asString();
-		sameDigests(client, first, second, new RunInput(doc, null));
-		sameDigests(client, first, second, new RunInput(doc, "three-api-replicas"));
+		ObjectNode document = Examples.starter(5, 1);
+		String first = Json.id(Runs.createProject(client, document));
+		String second = Json.id(Runs.createProject(client, document));
+		sameDigests(client, first, second, new RunInput(document, null));
+		sameDigests(client, first, second, new RunInput(document, "three-api-replicas"));
 	}
 
 	private static void sameDigests(ApiClient client, String first, String second, RunInput input) {
@@ -144,28 +145,29 @@ class EndpointsTests {
 	private static JsonNode finishedReport(ApiClient client, String projectId, RunInput input) {
 		ObjectNode body = Json.object("document", input.document(), "scenarioId", input.scenarioId());
 		JsonNode run = client.post("/projects/" + projectId + "/runs", body).json();
-		assertThat(Runs.waitFor(client, run.path("id").asString()).path("status").asString()).isEqualTo("succeeded");
-		return client.get("/runs/" + run.path("id").asString() + "/report").json();
+		assertThat(Runs.waitFor(client, Json.id(run)).path("status").asString()).isEqualTo("succeeded");
+		return client.get("/runs/" + Json.id(run) + "/report").json();
 	}
 
 	@Test
 	void projectCrud_withStaleRevision_isConflict(ApiClient client) {
 		Workspaces.enter(client);
 		JsonNode created = Runs.createProject(client);
-		String id = created.path("id").asString();
+		String id = Json.id(created);
 		assertThat(created.path("name").asString()).isEqualTo("Cache-aside web API (starter)");
 		assertThat(created.path("nodeCount").asInt()).isEqualTo(5);
 		assertThat(created.path("revision").asInt()).isEqualTo(1);
-		ObjectNode doc = Json.copy(created.path("document"));
-		((ObjectNode) Json.find(doc.path("architecture").path("nodes"), "id", "api").path("config")).put("replicas", 5);
+		ObjectNode document = Json.copy(created.path("document"));
+		JsonNode api = Json.find(document.path("architecture").path("nodes"), "id", "api");
+		((ObjectNode) api.path("config")).put("replicas", 5);
 		ApiResponse updated = client.put("/projects/" + id,
-				Json.object("name", "My system", "document", doc, "expectedRevision", 1));
+				Json.object("name", "My system", "document", document, "expectedRevision", 1));
 		assertThat(updated.status()).as(updated.text()).isEqualTo(200);
 		JsonNode body = updated.json();
 		assertThat(body.path("revision").asInt()).isEqualTo(2);
 		assertThat(body.path("name").asString()).isEqualTo("My system");
 		assertThat(body.path("document").path("metadata").path("name").asString()).isEqualTo("My system");
-		ApiResponse stale = client.put("/projects/" + id, Json.object("document", doc, "expectedRevision", 1));
+		ApiResponse stale = client.put("/projects/" + id, Json.object("document", document, "expectedRevision", 1));
 		assertThat(stale.status()).isEqualTo(409);
 		assertThat(Json.strings(client.get("/projects").json(), "id")).containsExactly(id);
 		assertThat(client.post("/projects/" + id + "/duplicate").json().path("name").asString())
@@ -203,17 +205,15 @@ class EndpointsTests {
 		assertThat(named.json().path("name").asString()).isEqualTo("Mine");
 		// A saved copy belongs to the user too; the template opens an unedited copy.
 		for (JsonNode copy : List.of(first.json(), plain.json())) {
-			JsonNode saved = client
-				.put("/projects/" + copy.path("id").asString(), Json.object("document", copy.path("document")))
+			JsonNode saved = client.put("/projects/" + Json.id(copy), Json.object("document", copy.path("document")))
 				.json();
 			assertThat(saved.path("revision").asInt()).isEqualTo(2);
 		}
 		ApiResponse fresh = client.post("/projects", body);
 		assertThat(fresh.status()).isEqualTo(201);
-		assertThat(fresh.json().path("id").asString()).isNotIn(first.json().path("id").asString(),
-				plain.json().path("id").asString(), named.json().path("id").asString());
+		assertThat(Json.id(fresh.json())).isNotIn(Json.id(first.json()), Json.id(plain.json()), Json.id(named.json()));
 		// A duplicate is the user's own project, not a copy of the template.
-		String freshId = fresh.json().path("id").asString();
+		String freshId = Json.id(fresh.json());
 		JsonNode duplicate = client.post("/projects/" + freshId + "/duplicate").json();
 		client.delete("/projects/" + freshId);
 		assertThat(client.post("/projects", body).json().path("id")).isNotEqualTo(duplicate.path("id"));
@@ -222,53 +222,54 @@ class EndpointsTests {
 	@Test
 	void update_withWorkInProgressGraph_savesButDoesNotSimulate(ApiClient client) {
 		JsonNode project = Runs.createProject(client);
-		String id = project.path("id").asString();
-		ObjectNode doc = Json.copy(project.path("document"));
+		String id = Json.id(project);
+		ObjectNode document = Json.copy(project.path("document"));
 		// graph-level errors: allowed when saving
-		((ObjectNode) doc.path("architecture")).set("edges", Json.array());
-		assertThat(client.put("/projects/" + id, Json.object("document", doc)).status()).isEqualTo(200);
+		((ObjectNode) document.path("architecture")).set("edges", Json.array());
+		assertThat(client.put("/projects/" + id, Json.object("document", document)).status()).isEqualTo(200);
 		ApiResponse run = client.post("/projects/" + id + "/runs", Json.object());
 		assertThat(run.status()).isEqualTo(422);
 		JsonNode detail = run.json().path("detail");
 		assertThat(detail.path("message").asString()).startsWith("Cannot simulate");
 		assertThat(Json.strings(detail.path("issues"), "code")).contains("port.missing_link");
 		// schema-level errors are rejected on save
-		((ObjectNode) doc.path("architecture")).set("edges", Json
+		((ObjectNode) document.path("architecture")).set("edges", Json
 			.array(Json.object("id", "x", "source", "a", "target", "b", "config", Json.object("maxAttempts", 99))));
-		assertThat(client.put("/projects/" + id, Json.object("document", doc)).status()).isEqualTo(422);
+		assertThat(client.put("/projects/" + id, Json.object("document", document)).status()).isEqualTo(422);
 	}
 
 	@Test
 	void importExport_ofStarter_roundTrips(ApiClient client) {
 		ApiResponse imported = client.post("/projects/import", Examples.starter());
 		assertThat(imported.status()).isEqualTo(201);
-		String id = imported.json().path("id").asString();
+		String id = Json.id(imported.json());
 		ApiResponse exported = client.get("/projects/" + id + "/export");
-		assertThat(exported.header("content-disposition")).contains("attachment");
+		assertThat(exported.header("content-disposition"))
+			.hasValueSatisfying((disposition) -> assertThat(disposition).contains("attachment"));
 		JsonNode again = client.post("/projects/import", exported.json()).json();
 		assertThat(again.path("document")).isEqualTo(exported.json());
 		ObjectNode noVersion = Examples.starter();
 		noVersion.remove("schemaVersion");
-		ApiResponse res = client.post("/projects/import", noVersion);
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.message()).contains("schemaVersion");
+		ApiResponse response = client.post("/projects/import", noVersion);
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.message()).contains("schemaVersion");
 	}
 
 	@Test
 	void run_toCompletion_reportsAndReproduces(ApiClient client) {
-		String url = "/projects/" + Runs.createProject(client).path("id").asString() + "/runs";
-		ApiResponse res = client.post(url, Json.object("scenarioId", "three-api-replicas"));
-		assertThat(res.status()).as(res.text()).isEqualTo(202);
-		JsonNode queued = res.json();
+		String url = "/projects/" + Json.id(Runs.createProject(client)) + "/runs";
+		ApiResponse response = client.post(url, Json.object("scenarioId", "three-api-replicas"));
+		assertThat(response.status()).as(response.text()).isEqualTo(202);
+		JsonNode queued = response.json();
 		assertThat(queued.path("status").asString()).isIn("queued", "running");
 		assertThat(queued.path("label").asString()).isEqualTo("3 API replicas");
-		JsonNode done = Runs.waitFor(client, queued.path("id").asString());
+		JsonNode done = Runs.waitFor(client, Json.id(queued));
 		assertThat(done.path("status").asString()).as(done.toString()).isEqualTo("succeeded");
 		assertThat(done.path("progress").asDouble()).isEqualTo(1.0);
 		assertThat(done.path("summary").path("throughputRps").asDouble()).isGreaterThan(300);
 		assertThat(done.path("resultDigest").asString()).isNotEmpty();
 		assertThat(done.path("inputDigest").asString()).isNotEmpty();
-		String doneId = done.path("id").asString();
+		String doneId = Json.id(done);
 
 		JsonNode report = client.get("/runs/" + doneId + "/report").json();
 		assertThat(report.path("provenance").path("scenarioId").asString()).isEqualTo("three-api-replicas");
@@ -281,45 +282,42 @@ class EndpointsTests {
 		// reproduce from the stored snapshot -> identical results
 		JsonNode rerun = client.post("/runs/" + doneId + "/rerun").json();
 		assertThat(rerun.path("reproducesRunId").asString()).isEqualTo(doneId);
-		JsonNode again = Runs.waitFor(client, rerun.path("id").asString());
+		JsonNode again = Runs.waitFor(client, Json.id(rerun));
 		assertThat(again.path("resultDigest")).isEqualTo(done.path("resultDigest"));
 		assertThat(again.path("inputDigest")).isEqualTo(done.path("inputDigest"));
 
-		assertThat(Json.strings(client.get(url).json(), "id")).containsExactlyInAnyOrder(doneId,
-				again.path("id").asString());
+		assertThat(Json.strings(client.get(url).json(), "id")).containsExactlyInAnyOrder(doneId, Json.id(again));
 		assertThat(client.get("/runs/" + doneId + "/input").json().path("schemaVersion").asString()).isEqualTo("1.7");
 	}
 
 	@Test
 	void run_withUnsavedDocument_simulatesItWithoutSaving(ApiClient client) {
 		JsonNode project = Runs.createProject(client);
-		String id = project.path("id").asString();
+		String id = Json.id(project);
 		ObjectNode edited = Json.copy(project.path("document"));
 		((ObjectNode) edited.path("workload")).put("rps", 50);
 		JsonNode run = client.post("/projects/" + id + "/runs", Json.object("document", edited)).json();
-		JsonNode done = Runs.waitFor(client, run.path("id").asString());
+		JsonNode done = Runs.waitFor(client, Json.id(run));
 		// simulated the edited document...
 		assertThat(done.path("summary").path("offeredRps").asDouble()).isLessThan(80);
 		JsonNode saved = client.get("/projects/" + id).json();
 		// ...without changing the saved one
 		assertThat(saved.path("document").path("workload").path("rps").asInt()).isEqualTo(400);
-		JsonNode report = client.get("/runs/" + done.path("id").asString() + "/report").json();
+		JsonNode report = client.get("/runs/" + Json.id(done) + "/report").json();
 		assertThat(report.path("input").path("workload").path("rps").asInt()).isEqualTo(50);
 	}
 
 	@Test
 	void batch_ofTwoScenarios_runsAndCompares(ApiClient client) {
-		String project = Runs.createProject(client).path("id").asString();
-		ApiResponse res = client.post("/projects/" + project + "/runs/batch",
+		String project = Json.id(Runs.createProject(client));
+		ApiResponse response = client.post("/projects/" + project + "/runs/batch",
 				Json.object("scenarioIds", Json.array("one-api-replica", "three-api-replicas")));
-		assertThat(res.status()).isEqualTo(202);
-		JsonNode first = Runs.waitFor(client, res.json().get(0).path("id").asString());
-		JsonNode second = Runs.waitFor(client, res.json().get(1).path("id").asString());
+		assertThat(response.status()).isEqualTo(202);
+		JsonNode first = Runs.waitFor(client, Json.id(response.json().get(0)));
+		JsonNode second = Runs.waitFor(client, Json.id(response.json().get(1)));
 		assertThat(first.path("status").asString()).isEqualTo("succeeded");
 		assertThat(second.path("status").asString()).isEqualTo("succeeded");
-		JsonNode comparison = client
-			.get(ApiClient.query("/compare", "a", first.path("id").asString(), "b", second.path("id").asString()))
-			.json();
+		JsonNode comparison = client.get(ApiClient.query("/compare", "a", Json.id(first), "b", Json.id(second))).json();
 		assertThat(comparison.path("inputDiff")).isEqualTo(Json
 			.array(Json.object("path", "node[api].replicas", "label", "API Servers: replicas", "a", 1, "b", 3)));
 		assertThat(comparison.path("labels")).isEqualTo(Json.object("a", "1 API replica", "b", "3 API replicas"));
@@ -332,8 +330,8 @@ class EndpointsTests {
 
 	@Test
 	void delete_projectWithRuns_removesItsRuns(ApiClient client) {
-		String project = Runs.createProject(client).path("id").asString();
-		String run = client.post("/projects/" + project + "/runs", Json.object()).json().path("id").asString();
+		String project = Json.id(Runs.createProject(client));
+		String run = Runs.startRun(client, project);
 		Runs.waitFor(client, run);
 		client.delete("/projects/" + project);
 		assertThat(client.get("/runs/" + run).status()).isEqualTo(404);
@@ -342,10 +340,10 @@ class EndpointsTests {
 	@Test
 	void run_withSeedPast32Bits_roundTrips(ApiClient client) {
 		// seeds reach 2**32 - 1, past a 32-bit INTEGER column (matters on PostgreSQL)
-		ObjectNode doc = Examples.starter(3, 1);
-		((ObjectNode) doc.path("workload")).put("seed", 4_000_000_000L);
-		String project = Runs.createProject(client, doc).path("id").asString();
-		String run = client.post("/projects/" + project + "/runs", Json.object()).json().path("id").asString();
+		ObjectNode document = Examples.starter(3, 1);
+		((ObjectNode) document.path("workload")).put("seed", 4_000_000_000L);
+		String project = Json.id(Runs.createProject(client, document));
+		String run = Runs.startRun(client, project);
 		JsonNode done = Runs.waitFor(client, run);
 		assertThat(done.path("status").asString()).isEqualTo("succeeded");
 		assertThat(done.path("seed").asLong()).isEqualTo(4_000_000_000L);
@@ -354,18 +352,18 @@ class EndpointsTests {
 	/** Runs over the server's request limit (small-runs: 1,000) are refused. */
 	@Test
 	void run_overTheRequestLimit_isRefused(@On(Profile.SMALL_RUNS) ApiClient client) {
-		String project = Runs.createProject(client).path("id").asString();
-		ApiResponse res = client.post("/projects/" + project + "/runs", Json.object());
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.message()).contains("Reduce RPS or duration");
+		String project = Json.id(Runs.createProject(client));
+		ApiResponse response = client.post("/projects/" + project + "/runs", Json.object());
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.message()).contains("Reduce RPS or duration");
 	}
 
 	/** One run at a time (constrained profile): the second waits, and both cancel. */
 	@Test
 	void cancel_queuedAndRunningRuns_cancelsBoth(@On(Profile.CONSTRAINED) ApiClient client) {
-		String project = Runs.createProject(client, Examples.starter(120, 5)).path("id").asString();
-		String first = client.post("/projects/" + project + "/runs", Json.object()).json().path("id").asString();
-		String second = client.post("/projects/" + project + "/runs", Json.object()).json().path("id").asString();
+		String project = Json.id(Runs.createProject(client, Examples.starter(120, 5)));
+		String first = Runs.startRun(client, project);
+		String second = Runs.startRun(client, project);
 		// cancel the queued one immediately and the running one cooperatively
 		assertThat(client.post("/runs/" + second + "/cancel").json().path("status").asString()).isEqualTo("cancelled");
 		long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();

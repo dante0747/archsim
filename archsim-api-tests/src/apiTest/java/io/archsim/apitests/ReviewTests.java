@@ -35,32 +35,32 @@ class ReviewTests {
 		assertThat(fields(root, "anchorKind", "anchorId", "parentId"))
 			.isEqualTo(Json.object("anchorKind", "node", "anchorId", "cache", "parentId", null));
 		assertThat(root.path("body").asString()).isEqualTo("Why 2 GB?");
-		assertThat(root.path("author").path("id").asString()).isEqualTo("local");
+		assertThat(Json.id(root.path("author"))).isEqualTo("local");
 		assertThat(fields(root, "detached", "canEdit", "canDelete"))
 			.isEqualTo(Json.object("detached", false, "canEdit", true, "canDelete", true));
 		JsonNode reply = Reviews.comment(client, project,
-				Json.object("parentId", id(root), "anchorKind", "project", "body", "Hit ratio"));
+				Json.object("parentId", Json.id(root), "anchorKind", "project", "body", "Hit ratio"));
 		// a reply joins its thread's part, whatever it says
 		assertThat(fields(reply, "parentId", "anchorKind", "anchorId"))
-			.isEqualTo(Json.object("parentId", id(root), "anchorKind", "node", "anchorId", "cache"));
-		JsonNode nested = Reviews.comment(client, project, Json.object("parentId", id(reply), "body", "Agreed"));
+			.isEqualTo(Json.object("parentId", Json.id(root), "anchorKind", "node", "anchorId", "cache"));
+		JsonNode nested = Reviews.comment(client, project, Json.object("parentId", Json.id(reply), "body", "Agreed"));
 		// one level of threads
-		assertThat(nested.path("parentId").asString()).isEqualTo(id(root));
+		assertThat(nested.path("parentId").asString()).isEqualTo(Json.id(root));
 		Reviews.comment(client, project, Json.object("anchorKind", "edge", "anchorId", "api-db", "body", "Pool size?"));
 		Reviews.comment(client, project, Json.object("body", "Overall looks fine"));
 
 		JsonNode onCache = commentsOn(client, project, "node", "cache");
-		assertThat(Json.strings(onCache, "id")).containsExactly(id(root), id(reply), id(nested));
+		assertThat(Json.strings(onCache, "id")).containsExactly(Json.id(root), Json.id(reply), Json.id(nested));
 		assertThat(client.get("/projects/" + project + "/comments").json().size()).isEqualTo(5);
 
 		// resolving from a reply resolves the thread
-		ApiResponse res = client.post("/comments/" + id(reply) + "/resolve", Json.object("resolved", true));
-		assertThat(res.status()).isEqualTo(200);
-		assertThat(id(res.json())).isEqualTo(id(root));
-		assertThat(res.json().path("resolvedAt").isString()).isTrue();
-		assertThat(res.json().path("resolvedBy").path("id").asString()).isEqualTo("local");
-		res = client.post("/comments/" + id(root) + "/resolve", Json.object("resolved", false));
-		assertThat(fields(res.json(), "resolvedAt", "resolvedBy"))
+		ApiResponse response = client.post("/comments/" + Json.id(reply) + "/resolve", Json.object("resolved", true));
+		assertThat(response.status()).isEqualTo(200);
+		assertThat(Json.id(response.json())).isEqualTo(Json.id(root));
+		assertThat(response.json().path("resolvedAt").isString()).isTrue();
+		assertThat(Json.id(response.json().path("resolvedBy"))).isEqualTo("local");
+		response = client.post("/comments/" + Json.id(root) + "/resolve", Json.object("resolved", false));
+		assertThat(fields(response.json(), "resolvedAt", "resolvedBy"))
 			.isEqualTo(Json.object("resolvedAt", null, "resolvedBy", null));
 	}
 
@@ -68,7 +68,7 @@ class ReviewTests {
 	void comment_withBadTextOrAnchor_isRefused(ApiClient client) {
 		String project = Reviews.newProject(client);
 		String other = Reviews.newProject(client);
-		String otherRun = id(Reviews.finishedRun(client, other));
+		String otherRun = Json.id(Runs.finishedRun(client, other));
 		String url = "/projects/" + project + "/comments";
 		assertThat(client.post(url, Json.object("body", "")).status()).isEqualTo(422);
 		assertThat(client.post(url, Json.object("body", "   ")).status()).isEqualTo(422);
@@ -78,17 +78,17 @@ class ReviewTests {
 		assertThat(client.post(url, Json.object("body", "x", "anchorKind", "run")).status()).isEqualTo(422);
 		assertThat(client.post(url, Json.object("body", "x", "anchorKind", "wall")).status()).isEqualTo(422);
 		// runs and threads of another project are not this one's
-		ApiResponse res = client.post(url, Json.object("body", "x", "anchorKind", "run", "anchorId", otherRun));
-		assertThat(res.status()).isEqualTo(404);
+		ApiResponse response = client.post(url, Json.object("body", "x", "anchorKind", "run", "anchorId", otherRun));
+		assertThat(response.status()).isEqualTo(404);
 		ObjectNode nextToOtherRun = Json.object("body", "x", "anchorKind", "node", "anchorId", "api", "runId",
 				otherRun);
 		assertThat(client.post(url, nextToOtherRun).status()).isEqualTo(404);
 		JsonNode elsewhere = Reviews.comment(client, other, Json.object());
-		assertThat(client.post(url, Json.object("body", "x", "parentId", id(elsewhere))).status()).isEqualTo(404);
+		assertThat(client.post(url, Json.object("body", "x", "parentId", Json.id(elsewhere))).status()).isEqualTo(404);
 		// editing keeps the checks
 		JsonNode mine = Reviews.comment(client, project, Json.object());
-		assertThat(client.patch("/comments/" + id(mine), Json.object("body", " ")).status()).isEqualTo(422);
-		JsonNode edited = client.patch("/comments/" + id(mine), Json.object("body", "Better")).json();
+		assertThat(client.patch("/comments/" + Json.id(mine), Json.object("body", " ")).status()).isEqualTo(422);
+		JsonNode edited = client.patch("/comments/" + Json.id(mine), Json.object("body", "Better")).json();
 		assertThat(edited.path("body").asString()).isEqualTo("Better");
 		assertThat(edited.path("editedAt").isString()).isTrue();
 	}
@@ -96,7 +96,7 @@ class ReviewTests {
 	@Test
 	void comment_onDeletedPartOrRun_isDetachedNotLost(ApiClient client) {
 		String project = Reviews.newProject(client);
-		String run = id(Reviews.finishedRun(client, project));
+		String run = Json.id(Runs.finishedRun(client, project));
 		JsonNode onCache = Reviews.comment(client, project, Json.object("anchorKind", "node", "anchorId", "cache"));
 		JsonNode onLink = Reviews.comment(client, project, Json.object("anchorKind", "edge", "anchorId", "api-cache"));
 		JsonNode onRun = Reviews.comment(client, project, Json.object("anchorKind", "run", "anchorId", run));
@@ -112,9 +112,9 @@ class ReviewTests {
 		assertThat(client.delete("/runs/" + run).status()).isEqualTo(204);
 
 		JsonNode listed = client.get("/projects/" + project + "/comments").json();
-		assertThat(Json.find(listed, "id", id(onCache)).path("detached").asBoolean()).isTrue();
-		assertThat(Json.find(listed, "id", id(onLink)).path("detached").asBoolean()).isTrue();
-		JsonNode runComment = Json.find(listed, "id", id(onRun));
+		assertThat(Json.find(listed, "id", Json.id(onCache)).path("detached").asBoolean()).isTrue();
+		assertThat(Json.find(listed, "id", Json.id(onLink)).path("detached").asBoolean()).isTrue();
+		JsonNode runComment = Json.find(listed, "id", Json.id(onRun));
 		assertThat(runComment.path("detached").asBoolean()).isTrue();
 		assertThat(runComment.path("runId").isNull()).isTrue();
 		// nothing was deleted with the parts
@@ -126,8 +126,8 @@ class ReviewTests {
 		ApiClient client = server.client();
 		String workspace = Workspaces.enter(client);
 		JsonNode created = Runs.createProject(client, Reviews.design());
-		String project = id(created);
-		String run = id(Reviews.finishedRun(client, project));
+		String project = Json.id(created);
+		String run = Json.id(Runs.finishedRun(client, project));
 		Reviews.comment(client, project, Json.object());
 		client.post("/runs/" + run + "/signoffs", Json.object("decision", "approved"));
 		assertThat(rowsOf(server, "comments", project)).isEqualTo(1L);
@@ -147,7 +147,7 @@ class ReviewTests {
 		ApiClient owner = server.signedIn("owner");
 		String team = Workspaces.enter(owner);
 		String project = Reviews.newProject(owner);
-		String run = id(Reviews.finishedRun(owner, project));
+		String run = Json.id(Runs.finishedRun(owner, project));
 		JsonNode owners = Reviews.comment(owner, project, Json.object("anchorKind", "node", "anchorId", "api"));
 		ApiClient vera = server.signedIn("vera");
 		Workspaces.join(owner, team, vera, "viewer");
@@ -160,17 +160,17 @@ class ReviewTests {
 		JsonNode mine = Reviews.comment(vera, project,
 				Json.object("anchorKind", "node", "anchorId", "api", "body", "From vera"));
 		assertThat(mine.path("author").path("name").asString()).isEqualTo("Vera");
-		assertThat(vera.post("/comments/" + id(owners) + "/resolve").status()).isEqualTo(200);
-		ApiResponse res = vera.post("/runs/" + run + "/signoffs", Json.object("decision", "approved"));
-		assertThat(res.status()).isEqualTo(201);
-		assertThat(res.json().path("reviewer").path("id").asString()).isEqualTo(Workspaces.userId(vera));
-		assertThat(vera.patch("/comments/" + id(mine), Json.object("body", "ok")).status()).isEqualTo(200);
+		assertThat(vera.post("/comments/" + Json.id(owners) + "/resolve").status()).isEqualTo(200);
+		ApiResponse response = vera.post("/runs/" + run + "/signoffs", Json.object("decision", "approved"));
+		assertThat(response.status()).isEqualTo(201);
+		assertThat(Json.id(response.json().path("reviewer"))).isEqualTo(Workspaces.userId(vera));
+		assertThat(vera.patch("/comments/" + Json.id(mine), Json.object("body", "ok")).status()).isEqualTo(200);
 		assertEachAnswers(403,
-				List.of(vera.patch("/comments/" + id(owners), Json.object("body", "mine now")),
-						vera.delete("/comments/" + id(owners)),
+				List.of(vera.patch("/comments/" + Json.id(owners), Json.object("body", "mine now")),
+						vera.delete("/comments/" + Json.id(owners)),
 						vera.put("/projects/" + project, Json.object("name", "Viewer edit"))));
 		assertEditorAndOwnerRights(project, mine, ed, owner);
-		assertThat(vera.delete("/comments/" + id(owners)).status()).isEqualTo(403);
+		assertThat(vera.delete("/comments/" + Json.id(owners)).status()).isEqualTo(403);
 	}
 
 	/**
@@ -180,31 +180,33 @@ class ReviewTests {
 	private static void assertEditorAndOwnerRights(String project, JsonNode comment, ApiClient editor,
 			ApiClient owner) {
 		assertThat(editor.put("/projects/" + project, Json.object("name", "Ed")).status()).isEqualTo(200);
-		assertThat(editor.patch("/comments/" + id(comment), Json.object("body", "x")).status()).isEqualTo(403);
-		assertThat(editor.delete("/comments/" + id(comment)).status()).isEqualTo(403);
-		assertThat(owner.patch("/comments/" + id(comment), Json.object("body", "x")).status()).isEqualTo(403);
-		assertThat(owner.delete("/comments/" + id(comment)).status()).isEqualTo(204);
+		assertThat(editor.patch("/comments/" + Json.id(comment), Json.object("body", "x")).status()).isEqualTo(403);
+		assertThat(editor.delete("/comments/" + Json.id(comment)).status()).isEqualTo(403);
+		assertThat(owner.patch("/comments/" + Json.id(comment), Json.object("body", "x")).status()).isEqualTo(403);
+		assertThat(owner.delete("/comments/" + Json.id(comment)).status()).isEqualTo(204);
 	}
 
 	@Test
 	void review_withReadOnlyToken_readsButCannotCommentOrSignOff(@On(Profile.HOSTED) ApiServer server) {
 		ApiClient owner = server.signedIn("owner");
 		String project = Reviews.newProject(owner);
-		String run = id(Reviews.finishedRun(owner, project));
+		String run = Json.id(Runs.finishedRun(owner, project));
 		JsonNode comment = Reviews.comment(owner, project, Json.object());
-		ApiClient reading = tokenClient(server, owner, "read");
+		ApiClient reading = server.tokenClient(owner, "read");
 		assertThat(reading.get("/projects/" + project + "/comments").status()).isEqualTo(200);
 		assertThat(reading.get("/projects/" + project + "/signoffs").status()).isEqualTo(200);
 		assertThat(reading.get("/projects/" + project + "/activity").status()).isEqualTo(200);
 		JsonNode listed = reading.get("/projects/" + project + "/comments").json();
 		assertThat(fields(listed.path(0), "canEdit", "canDelete"))
 			.isEqualTo(Json.object("canEdit", false, "canDelete", false));
-		assertEachAnswers(403, List.of(reading.post("/projects/" + project + "/comments", Json.object("body", "x")),
-				reading.patch("/comments/" + id(comment), Json.object("body", "x")),
-				reading.delete("/comments/" + id(comment)), reading.post("/comments/" + id(comment) + "/resolve"),
-				reading.post("/runs/" + run + "/signoffs", Json.object("decision", "approved"))));
-		ApiClient writing = tokenClient(server, owner, "write");
-		assertThat(writing.post("/comments/" + id(comment) + "/resolve").status()).isEqualTo(200);
+		String commentUrl = "/comments/" + Json.id(comment);
+		assertEachAnswers(403,
+				List.of(reading.post("/projects/" + project + "/comments", Json.object("body", "x")),
+						reading.patch(commentUrl, Json.object("body", "x")), reading.delete(commentUrl),
+						reading.post(commentUrl + "/resolve"),
+						reading.post("/runs/" + run + "/signoffs", Json.object("decision", "approved"))));
+		ApiClient writing = server.tokenClient(owner, "write");
+		assertThat(writing.post(commentUrl + "/resolve").status()).isEqualTo(200);
 		List<Map<String, @Nullable Object>> resolved = Reviews.projectEvents(server, project)
 			.stream()
 			.filter((event) -> "comment.resolve".equals(event.get("action")))
@@ -218,20 +220,21 @@ class ReviewTests {
 		ApiClient owner = server.signedIn("owner");
 		String workspace = Workspaces.first(owner);
 		String project = Reviews.newProject(owner);
-		String run = id(Reviews.finishedRun(owner, project));
+		String run = Json.id(Runs.finishedRun(owner, project));
 		JsonNode comment = Reviews.comment(owner, project, Json.object());
 		JsonNode signoff = owner.post("/runs/" + run + "/signoffs", Json.object("decision", "approved")).json();
+		String commentUrl = "/comments/" + Json.id(comment);
 		// the owner of a workspace of her own, elsewhere
 		ApiClient eve = server.signedIn("eve");
 		String elsewhere = Workspaces.first(eve);
 		assertEachAnswers(404,
 				List.of(eve.get("/projects/" + project + "/comments"),
 						eve.post("/projects/" + project + "/comments", Json.object("body", "x")),
-						eve.patch("/comments/" + id(comment), Json.object("body", "x")),
-						eve.delete("/comments/" + id(comment)), eve.post("/comments/" + id(comment) + "/resolve"),
-						eve.get("/projects/" + project + "/signoffs"), eve.get("/runs/" + run + "/signoffs"),
+						eve.patch(commentUrl, Json.object("body", "x")), eve.delete(commentUrl),
+						eve.post(commentUrl + "/resolve"), eve.get("/projects/" + project + "/signoffs"),
+						eve.get("/runs/" + run + "/signoffs"),
 						eve.post("/runs/" + run + "/signoffs", Json.object("decision", "approved")),
-						eve.delete("/signoffs/" + id(signoff)), eve.get("/projects/" + project + "/activity"),
+						eve.delete("/signoffs/" + Json.id(signoff)), eve.get("/projects/" + project + "/activity"),
 						eve.get("/workspaces/" + workspace + "/activity")));
 		// and their own workspace's history has none of it
 		assertThat(eve.get("/workspaces/" + elsewhere + "/activity").json().path("items")).isEqualTo(Json.array());
@@ -241,12 +244,12 @@ class ReviewTests {
 	@Test
 	void signoff_afterDesignChange_recordsTheRunAndGoesStale(ApiClient client) {
 		String project = Reviews.newProject(client);
-		JsonNode run = Reviews.finishedRun(client, project);
-		String url = "/runs/" + id(run) + "/signoffs";
-		ApiResponse res = client.post(url,
+		JsonNode run = Runs.finishedRun(client, project);
+		String url = "/runs/" + Json.id(run) + "/signoffs";
+		ApiResponse response = client.post(url,
 				Json.object("decision", "changes_requested", "note", " Cache TTL too long "));
-		assertThat(res.status()).as(res.text()).isEqualTo(201);
-		JsonNode first = res.json();
+		assertThat(response.status()).as(response.text()).isEqualTo(201);
+		JsonNode first = response.json();
 		assertThat(fields(first, "decision", "note", "stale"))
 			.isEqualTo(Json.object("decision", "changes_requested", "note", "Cache TTL too long", "stale", false));
 		assertThat(fields(first, "projectRevision", "inputDigest", "resultDigest"))
@@ -276,7 +279,7 @@ class ReviewTests {
 
 	/** Deleting the run keeps its project's three sign-offs, with the run's digests. */
 	private static void assertDeletingTheRunKeepsItsSignoffs(ApiClient client, String project, JsonNode run) {
-		assertThat(client.delete("/runs/" + id(run)).status()).isEqualTo(204);
+		assertThat(client.delete("/runs/" + Json.id(run)).status()).isEqualTo(204);
 		JsonNode kept = client.get("/projects/" + project + "/signoffs").json();
 		assertThat(kept.size()).isEqualTo(3);
 		assertThat(Json.items(kept)).allSatisfy((signoff) -> assertThat(fields(signoff, "runId", "resultDigest"))
@@ -292,12 +295,12 @@ class ReviewTests {
 		ApiClient owner = server.signedIn("owner");
 		String team = Workspaces.enter(owner);
 		String project = Reviews.newProject(owner);
-		String unfinished = Reviews.startLongRun(owner, project);
-		ApiResponse res = owner.post("/runs/" + unfinished + "/signoffs", Json.object("decision", "approved"));
-		assertThat(res.status()).isEqualTo(409);
+		String unfinished = Runs.startLongRun(owner, project);
+		ApiResponse response = owner.post("/runs/" + unfinished + "/signoffs", Json.object("decision", "approved"));
+		assertThat(response.status()).isEqualTo(409);
 		owner.post("/runs/" + unfinished + "/cancel");
 		Runs.waitFor(owner, unfinished);
-		String run = id(Reviews.finishedRun(owner, project));
+		String run = Json.id(Runs.finishedRun(owner, project));
 		String url = "/runs/" + run + "/signoffs";
 		assertThat(owner.post(url, Json.object("decision", "maybe")).status()).isEqualTo(422);
 		assertThat(owner.post(url, Json.object("decision", "approved", "note", "x".repeat(2001))).status())
@@ -307,18 +310,18 @@ class ReviewTests {
 		Workspaces.join(owner, team, vera, "viewer");
 		JsonNode listed = vera.get(url).json();
 		assertThat(listed.path(0).path("canWithdraw")).isEqualTo(Json.tree(false));
-		assertThat(vera.delete("/signoffs/" + id(mine)).status()).isEqualTo(403);
-		assertThat(owner.delete("/signoffs/" + id(mine)).status()).isEqualTo(204);
+		assertThat(vera.delete("/signoffs/" + Json.id(mine)).status()).isEqualTo(403);
+		assertThat(owner.delete("/signoffs/" + Json.id(mine)).status()).isEqualTo(204);
 		assertThat(owner.get(url).json()).isEqualTo(Json.array());
-		assertThat(owner.delete("/signoffs/" + id(mine)).status()).isEqualTo(404);
+		assertThat(owner.delete("/signoffs/" + Json.id(mine)).status()).isEqualTo(404);
 	}
 
 	@Test
 	void signoff_ofSimulatedRun_goesStaleWhenTheDesignChanges(ApiClient client) {
 		// the whole path with a real run: simulate, comment on it, approve, change, stale
 		String project = Reviews.newProject(client);
-		JsonNode done = Reviews.finishedRun(client, project);
-		String run = id(done);
+		JsonNode done = Runs.finishedRun(client, project);
+		String run = Json.id(done);
 		JsonNode comment = Reviews.comment(client, project,
 				Json.object("anchorKind", "run", "anchorId", run, "body", "Looks right"));
 		assertThat(comment.path("detached")).isEqualTo(Json.tree(false));
@@ -339,36 +342,26 @@ class ReviewTests {
 
 	/** {@link Reviews#design()} without the cache and the links to and from it. */
 	private static ObjectNode designWithoutTheCache() {
-		ObjectNode doc = Reviews.design();
-		ObjectNode arch = (ObjectNode) doc.path("architecture");
-		arch.set("nodes",
-				Json.array(Json.items(arch.path("nodes"))
+		ObjectNode document = Reviews.design();
+		ObjectNode architecture = (ObjectNode) document.path("architecture");
+		architecture.set("nodes",
+				Json.array(Json.items(architecture.path("nodes"))
 					.stream()
-					.filter((node) -> !node.path("id").asString().equals("cache"))
+					.filter((node) -> !Json.id(node).equals("cache"))
 					.toArray()));
-		arch.set("edges",
-				Json.array(Json.items(arch.path("edges"))
+		architecture.set("edges",
+				Json.array(Json.items(architecture.path("edges"))
 					.stream()
-					.filter((edge) -> !edge.path("id").asString().contains("cache"))
+					.filter((edge) -> !Json.id(edge).contains("cache"))
 					.toArray()));
-		return doc;
+		return document;
 	}
 
 	/** Each of the answers has {@code status} (the requests are all made first). */
 	private static void assertEachAnswers(int status, List<ApiResponse> answers) {
-		for (ApiResponse res : answers) {
-			assertThat(res.status()).as(res + ": " + res.text()).isEqualTo(status);
+		for (ApiResponse response : answers) {
+			assertThat(response.status()).as(response + ": " + response.text()).isEqualTo(status);
 		}
-	}
-
-	/**
-	 * A client that sends {@code person}'s new API token of {@code scope} (read or
-	 * write).
-	 */
-	private static ApiClient tokenClient(ApiServer server, ApiClient person, String scope) {
-		ApiResponse res = person.post("/tokens", Json.object("name", "test " + scope, "scope", scope));
-		assertThat(res.status()).as(res.text()).isEqualTo(201);
-		return server.client().header("Authorization", "Bearer " + res.json().path("token").asString());
 	}
 
 	/** How many rows of {@code table} belong to the project. */
@@ -386,10 +379,6 @@ class ReviewTests {
 			}
 		}
 		return out;
-	}
-
-	private static String id(JsonNode node) {
-		return node.path("id").asString();
 	}
 
 }

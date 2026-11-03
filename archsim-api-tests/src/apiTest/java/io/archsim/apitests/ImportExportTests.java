@@ -25,26 +25,27 @@ class ImportExportTests {
 		String[][] formats = { { "compose", "docker-compose.yml", "image: postgres:16" },
 				{ "k8s", "k8s.yaml", "kind: StatefulSet" }, { "mermaid", "mmd", "flowchart LR" }, };
 		for (String[] format : formats) {
-			ApiResponse res = client.post("/export", Json.object("document", Examples.starter(), "format", format[0]));
-			assertThat(res.status()).as(res.text()).isEqualTo(200);
-			JsonNode out = res.json();
+			ApiResponse response = client.post("/export",
+					Json.object("document", Examples.starter(), "format", format[0]));
+			assertThat(response.status()).as(response.text()).isEqualTo(200);
+			JsonNode out = response.json();
 			assertThat(out.path("format").asString()).isEqualTo(format[0]);
 			assertThat(out.path("suffix").asString()).isEqualTo(format[1]);
 			assertThat(out.path("text").asString()).contains(format[2]);
 		}
 		ObjectNode broken = Examples.starter();
 		((ObjectNode) broken.path("architecture")).put("nodes", "nope");
-		ApiResponse res = client.post("/export", Json.object("document", broken, "format", "compose"));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.json().path("detail").path("issues").isEmpty()).isFalse();
+		ApiResponse response = client.post("/export", Json.object("document", broken, "format", "compose"));
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.json().path("detail").path("issues").isEmpty()).isFalse();
 	}
 
 	@Test
 	void import_composeOrExport_reportsGuessesAndRoundTrips(ApiClient client) {
 		String text = Examples.text(Examples.engineFixture("import/voting-compose.yml"));
-		ApiResponse res = client.post("/import", Json.object("format", "compose", "text", text, "name", "Voting"));
-		assertThat(res.status()).as(res.text()).isEqualTo(200);
-		JsonNode out = res.json();
+		ApiResponse response = client.post("/import", Json.object("format", "compose", "text", text, "name", "Voting"));
+		assertThat(response.status()).as(response.text()).isEqualTo(200);
+		JsonNode out = response.json();
 		assertThat(out.path("document").path("metadata").path("name").asString()).isEqualTo("Voting");
 		assertThat(out.path("report").path("guessed").isEmpty()).isFalse();
 		assertThat(out.path("report").path("mapped").isEmpty()).isFalse();
@@ -61,12 +62,12 @@ class ImportExportTests {
 
 	@Test
 	void import_withWrongText_saysWhatItExpected(ApiClient client) {
-		ApiResponse res = client.post("/import", Json.object("format", "terraform", "text", "not json"));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.message()).contains("terraform show -json");
-		res = client.post("/import", Json.object("format", "compose", "text", "[1, 2]"));
-		assertThat(res.status()).isEqualTo(422);
-		assertThat(res.message()).contains("services");
+		ApiResponse response = client.post("/import", Json.object("format", "terraform", "text", "not json"));
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.message()).contains("terraform show -json");
+		response = client.post("/import", Json.object("format", "compose", "text", "[1, 2]"));
+		assertThat(response.status()).isEqualTo(422);
+		assertThat(response.message()).contains("services");
 	}
 
 	static Stream<Arguments> malformed() {
@@ -82,9 +83,9 @@ class ImportExportTests {
 	@ParameterizedTest
 	@MethodSource("malformed")
 	void import_withMalformedInput_is422Not500(String format, String text, ApiServer server) {
-		ApiResponse res = server.client().post("/import", Json.object("format", format, "text", text));
-		assertThat(res.status()).as(res.text()).isEqualTo(422);
-		assertThat(res.message()).startsWith("Cannot import:");
+		ApiResponse response = server.client().post("/import", Json.object("format", format, "text", text));
+		assertThat(response.status()).as(response.text()).isEqualTo(422);
+		assertThat(response.message()).startsWith("Cannot import:");
 	}
 
 }

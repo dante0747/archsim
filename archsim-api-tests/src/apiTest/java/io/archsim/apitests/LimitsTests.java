@@ -3,7 +3,6 @@ package io.archsim.apitests;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -42,17 +41,18 @@ class LimitsTests {
 	void startRuns_pastWorkspaceHourlyLimit_is429(ApiServer server) {
 		ApiClient ada = server.signedIn("ada");
 		setWorkspace(server.db(), Workspaces.first(ada), "max_runs_per_hour", 2);
-		String project = Runs.createProject(ada).path("id").asString();
+		String project = Json.id(Runs.createProject(ada));
 		String url = "/projects/" + project + "/runs";
 		assertThat(ada.post(url, Json.object()).status()).isEqualTo(202);
 		ApiResponse batch = ada.post(url + "/batch", Json.object("scenarioIds", Json.array(null, null)));
 		// 1 + 2 > 2: none of the batch is queued
 		assertThat(batch.status()).isEqualTo(429);
 		assertThat(ada.post(url, Json.object()).status()).isEqualTo(202);
-		ApiResponse res = ada.post(url, Json.object());
-		assertThat(res.status()).isEqualTo(429);
-		assertThat(Integer.parseInt(Objects.requireNonNull(res.header("retry-after")))).isBetween(1, 3600);
-		assertThat(res.message()).contains("runs for this hour");
+		ApiResponse response = ada.post(url, Json.object());
+		assertThat(response.status()).isEqualTo(429);
+		assertThat(response.header("retry-after").map(Integer::parseInt))
+			.hasValueSatisfying((seconds) -> assertThat(seconds).isBetween(1, 3600));
+		assertThat(response.message()).contains("runs for this hour");
 		assertThat(ada.get(url).json().size()).isEqualTo(2);
 	}
 
@@ -61,12 +61,12 @@ class LimitsTests {
 	void startRuns_withoutSignIn_haveNoHourlyLimit(@On(Profile.LOCAL) ApiClient client) {
 		String workspace = Workspaces.enter(client);
 		assertThat(client.get("/workspaces/" + workspace).json().path("maxRunsPerHour").isNull()).isTrue();
-		String project = Runs.createProject(client).path("id").asString();
+		String project = Json.id(Runs.createProject(client));
 		List<String> runs = new ArrayList<>();
 		for (int i = 0; i < 5; i++) {
-			ApiResponse res = client.post("/projects/" + project + "/runs", Json.object());
-			assertThat(res.status()).as(res.text()).isEqualTo(202);
-			runs.add(res.json().path("id").asString());
+			ApiResponse response = client.post("/projects/" + project + "/runs", Json.object());
+			assertThat(response.status()).as(response.text()).isEqualTo(202);
+			runs.add(Json.id(response.json()));
 		}
 		// spare the shared worker
 		runs.forEach((run) -> client.post("/runs/" + run + "/cancel"));
@@ -94,12 +94,13 @@ class LimitsTests {
 	void startRun_inSandbox_carriesItsWorkspaceLimits(ApiServer server) {
 		ApiClient ada = server.signedIn("ada");
 		String sandbox = Workspaces.insert(server.db(), "sandbox", Workspaces.userId(ada));
-		String project = createProject(ada, sandbox, Examples.starter(4, 1)).path("id").asString();
-		String run = startRun(ada, project);
+		String project = Json.id(Runs.createProject(ada, sandbox, Examples.starter(4, 1)));
+		String run = Runs.startRun(ada, project);
 		assertThat(runLimits(server.db(), run)).isEqualTo(Map.of("max_requests", 200_000L, "max_wall_seconds", 20.0));
 		// 400 req/s for ten minutes: more than a sandbox run may send
-		ApiResponse res = ada.post("/projects/" + project + "/runs", Json.object("document", Examples.starter(600, 1)));
-		assertThat(res.status()).as(res.text()).isEqualTo(422);
+		ApiResponse response = ada.post("/projects/" + project + "/runs",
+				Json.object("document", Examples.starter(600, 1)));
+		assertThat(response.status()).as(response.text()).isEqualTo(422);
 	}
 
 	/**
@@ -114,7 +115,7 @@ class LimitsTests {
 	void workspaces_ofEachKind_getTheirProfile(ApiServer server, @On(Profile.LOCAL) ApiServer local) {
 		ApiClient ada = server.signedIn("ada");
 		String personal = Workspaces.first(ada);
-		String team = Workspaces.create(ada, "Team").path("id").asString();
+		String team = Json.id(Workspaces.create(ada, "Team"));
 		String sandbox = Workspaces.insert(server.db(), "sandbox", Workspaces.userId(ada));
 		JsonNode mine = ada.get("/workspaces").json();
 		assertThat(atOnce(mine, personal)).isEqualTo(2);
@@ -122,13 +123,13 @@ class LimitsTests {
 		assertThat(atOnce(mine, sandbox)).isEqualTo(1);
 
 		ApiClient client = local.client();
-		String localTeam = Workspaces.create(client, "Team").path("id").asString();
+		String localTeam = Json.id(Workspaces.create(client, "Team"));
 		String localSandbox = Workspaces.insert(local.db(), "sandbox", "local");
 		JsonNode workspaces = client.get("/workspaces").json();
 		assertThat(atOnce(workspaces, localTeam)).isNull();
 		assertThat(atOnce(workspaces, localSandbox)).isEqualTo(1);
-		String project = createProject(client, localSandbox, Examples.starter(4, 1)).path("id").asString();
-		String run = startRun(client, project);
+		String project = Json.id(Runs.createProject(client, localSandbox, Examples.starter(4, 1)));
+		String run = Runs.startRun(client, project);
 		assertThat(runLimits(local.db(), run).get("max_wall_seconds")).isEqualTo(20.0);
 	}
 
@@ -142,7 +143,7 @@ class LimitsTests {
 		assertThat(List.<Object>of(mine.path("kind").asString(), mine.path("maxConcurrentRuns").asInt(),
 				mine.path("maxRunsPerHour").asInt()))
 			.containsExactly("personal", 2, 60);
-		String id = mine.path("id").asString();
+		String id = Json.id(mine);
 		setWorkspace(server.db(), id, "max_concurrent_runs", 5);
 		assertThat(ada.get("/workspaces/" + id).json().path("maxConcurrentRuns").asInt()).isEqualTo(5);
 		JsonNode localDefault = Json.find(local.get("/workspaces").json(), "id", "default");
@@ -158,9 +159,9 @@ class LimitsTests {
 		for (int i = 0; i < 5; i++) {
 			assertThat(ada.post(url, Json.object("document", Examples.starter())).status()).isEqualTo(201);
 		}
-		ApiResponse res = ada.post(url, Json.object("document", Examples.starter()));
-		assertThat(res.status()).isEqualTo(409);
-		assertThat(res.message()).contains("at most 5 projects");
+		ApiResponse response = ada.post(url, Json.object("document", Examples.starter()));
+		assertThat(response.status()).isEqualTo(409);
+		assertThat(response.message()).contains("at most 5 projects");
 	}
 
 	// -- calling Prometheus
@@ -169,9 +170,9 @@ class LimitsTests {
 	void calibrate_onHostedServer_callsNoPrometheusByDefault(ApiServer server) {
 		ApiClient ada = server.signedIn("ada");
 		for (String url : List.of("http://127.0.0.1:9090", "http://10.0.0.5:9090", "http://prom.example.com")) {
-			ApiResponse res = calibrate(ada, url, null);
-			assertThat(res.status()).as(res.text()).isEqualTo(422);
-			assertThat(res.message()).contains("ARCHSIM_OUTBOUND");
+			ApiResponse response = calibrate(ada, url, null);
+			assertThat(response.status()).as(response.text()).isEqualTo(422);
+			assertThat(response.message()).contains("ARCHSIM_OUTBOUND");
 		}
 	}
 
@@ -183,9 +184,9 @@ class LimitsTests {
 	 */
 	@Test
 	void calibrate_withAllowlistedPrivateName_isRefused(@On(Profile.ALLOWLIST) ApiClient client) {
-		ApiResponse res = calibrate(client, "http://localhost:9090", null);
-		assertThat(res.status()).as(res.text()).isEqualTo(422);
-		assertThat(res.message()).contains("non-public");
+		ApiResponse response = calibrate(client, "http://localhost:9090", null);
+		assertThat(response.status()).as(response.text()).isEqualTo(422);
+		assertThat(response.message()).contains("non-public");
 		// not on the list at all
 		ApiResponse other = calibrate(client, "http://127.0.0.1:9090", null);
 		assertThat(other.message()).contains("not allowed");
@@ -195,12 +196,12 @@ class LimitsTests {
 	void calibrate_inSandboxOnOpenServer_neverCallsOut(@On(Profile.LOCAL) ApiServer local) {
 		ApiClient client = local.client();
 		String sandbox = Workspaces.insert(local.db(), "sandbox", "local");
-		ApiResponse res = calibrate(client, "http://127.0.0.1:9", sandbox);
-		assertThat(res.status()).as(res.text()).isEqualTo(422);
-		assertThat(res.message()).contains("ARCHSIM_OUTBOUND");
+		ApiResponse response = calibrate(client, "http://127.0.0.1:9", sandbox);
+		assertThat(response.status()).as(response.text()).isEqualTo(422);
+		assertThat(response.message()).contains("ARCHSIM_OUTBOUND");
 		// the default workspace on a local server still may (and fails to connect here)
-		res = calibrate(client, "http://127.0.0.1:9", null);
-		assertThat(res.message()).doesNotContain("ARCHSIM_OUTBOUND");
+		response = calibrate(client, "http://127.0.0.1:9", null);
+		assertThat(response.message()).doesNotContain("ARCHSIM_OUTBOUND");
 	}
 
 	/**
@@ -210,35 +211,36 @@ class LimitsTests {
 	@Test
 	void calibrate_asViewer_isForbidden(ApiServer server) {
 		ApiClient ada = server.signedIn("ada");
-		String team = Workspaces.create(ada, "Team").path("id").asString();
+		String team = Json.id(Workspaces.create(ada, "Team"));
 		ApiClient viv = server.signedIn("viv");
 		Workspaces.join(ada, team, viv, "viewer");
-		ApiResponse res = viv.post(ApiClient.query("/calibrate", "workspace", team),
+		ApiResponse response = viv.post(ApiClient.query("/calibrate", "workspace", team),
 				Json.object("document", Examples.starter(), "source", "otlp"));
-		assertThat(res.status()).as(res.text()).isEqualTo(403);
+		assertThat(response.status()).as(response.text()).isEqualTo(403);
 	}
 
 	// -- security headers
 
 	@Test
 	void answers_ofHostedServer_carrySecurityHeaders(ApiServer server) {
-		ApiResponse res = server.signedIn("ada").get("/auth/me");
-		assertThat(res.header("x-content-type-options")).isEqualTo("nosniff");
-		assertThat(res.header("x-frame-options")).isEqualTo("DENY");
-		assertThat(res.header("referrer-policy")).isEqualTo("no-referrer");
-		assertThat(res.header("content-security-policy")).isEqualTo("default-src 'none'; frame-ancestors 'none'");
-		assertThat(res.header("cache-control")).isEqualTo("no-store");
-		assertThat(res.header("strict-transport-security")).startsWith("max-age=");
+		ApiResponse response = server.signedIn("ada").get("/auth/me");
+		assertThat(response.header("x-content-type-options")).hasValue("nosniff");
+		assertThat(response.header("x-frame-options")).hasValue("DENY");
+		assertThat(response.header("referrer-policy")).hasValue("no-referrer");
+		assertThat(response.header("content-security-policy")).hasValue("default-src 'none'; frame-ancestors 'none'");
+		assertThat(response.header("cache-control")).hasValue("no-store");
+		assertThat(response.header("strict-transport-security"))
+			.hasValueSatisfying((transportSecurity) -> assertThat(transportSecurity).startsWith("max-age="));
 		ApiResponse docs = server.client().get("/docs");
 		// its script comes from a CDN
-		assertThat(docs.header("content-security-policy")).isNull();
+		assertThat(docs.header("content-security-policy")).isEmpty();
 	}
 
 	@Test
 	void answers_ofLocalServer_sendNoHsts(@On(Profile.LOCAL) ApiClient client) {
-		ApiResponse res = client.get("/health");
-		assertThat(res.header("x-content-type-options")).isEqualTo("nosniff");
-		assertThat(res.header("strict-transport-security")).isNull();
+		ApiResponse response = client.get("/health");
+		assertThat(response.header("x-content-type-options")).hasValue("nosniff");
+		assertThat(response.header("strict-transport-security")).isEmpty();
 	}
 
 	// -- helpers
@@ -249,19 +251,6 @@ class LimitsTests {
 			throw new IllegalArgumentException(column);
 		}
 		db.update("UPDATE workspaces SET " + column + " = ? WHERE id = ?", value, workspace);
-	}
-
-	private static JsonNode createProject(ApiClient client, String workspace, JsonNode document) {
-		ApiResponse res = client.post(ApiClient.query("/projects", "workspace", workspace),
-				Json.object("document", document));
-		assertThat(res.status()).as(res.text()).isEqualTo(201);
-		return res.json();
-	}
-
-	private static String startRun(ApiClient client, String project) {
-		ApiResponse res = client.post("/projects/" + project + "/runs", Json.object());
-		assertThat(res.status()).as(res.text()).isEqualTo(202);
-		return res.json().path("id").asString();
 	}
 
 	/** A run's stored limits, {@code max_requests} and {@code max_wall_seconds}. */

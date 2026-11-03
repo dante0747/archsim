@@ -108,6 +108,15 @@ public final class Json {
 	}
 
 	/**
+	 * Returns the id of something the API answered with: a project, a run, a comment...
+	 * @param node the object
+	 * @return its {@code id} field as text, or "" when it has none
+	 */
+	public static String id(JsonNode node) {
+		return node.path("id").asString();
+	}
+
+	/**
 	 * Returns the elements of an array.
 	 * @param array the array; anything else has no elements
 	 * @return the elements, in order
@@ -122,7 +131,7 @@ public final class Json {
 
 	/**
 	 * Picks a field out of each element of an array, as text:
-	 * {@code [x["id"] for x in array]}.
+	 * {@code [element["id"] for element in array]}.
 	 * @param array the array
 	 * @param field the field to pick
 	 * @return the field's text in each element, in order

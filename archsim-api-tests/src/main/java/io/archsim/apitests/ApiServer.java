@@ -7,6 +7,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
 
 /**
  * A running server of one {@link Profile}: clients for it, its database, and (hosted)
@@ -133,10 +134,7 @@ public final class ApiServer {
 		ApiResponse start = client.get("/auth/github/login").expectStatus(HttpURLConnection.HTTP_MOVED_TEMP);
 		ApiResponse done = client.open(github().authorize(start.location(), login))
 			.expectStatus(HttpURLConnection.HTTP_MOVED_TEMP);
-		String csrf = client.cookie("__Host-archsim_csrf");
-		if (csrf != null) {
-			client.header("X-ArchSim-CSRF", csrf);
-		}
+		client.cookie("__Host-archsim_csrf").ifPresent((csrf) -> client.header("X-ArchSim-CSRF", csrf));
 		return done.location();
 	}
 
@@ -152,6 +150,20 @@ public final class ApiServer {
 			throw new AssertionError("signing in as " + name + " failed: " + landed);
 		}
 		return client;
+	}
+
+	/**
+	 * Returns a new client that sends {@code person}'s new API token and no cookies, as a
+	 * CLI would; fails the test unless the token is made.
+	 * @param person the signed-in client that makes the token
+	 * @param scope the token's scope: {@code read} or {@code write}
+	 * @return the client, with the token in its {@code Authorization} header
+	 */
+	public ApiClient tokenClient(ApiClient person, String scope) {
+		JsonNode created = person.post("/tokens", Json.object("name", "test " + scope, "scope", scope))
+			.expectStatus(HttpURLConnection.HTTP_CREATED)
+			.json();
+		return client().header("Authorization", "Bearer " + created.path("token").asString());
 	}
 
 }

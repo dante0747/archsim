@@ -51,10 +51,10 @@ class OAuthTests {
 	void requests_whenSignedOut_areRefused(ApiClient client) {
 		assertThat(client.get("/auth/config").json())
 			.isEqualTo(Json.object("mode", "oauth", "providers", Json.array("github", "google")));
-		for (ApiResponse res : List.of(client.get("/auth/me"), client.get("/projects"),
+		for (ApiResponse response : List.of(client.get("/auth/me"), client.get("/projects"),
 				client.post("/projects", Json.object()),
 				client.post("/validate", Json.object("document", Json.object())), client.get("/workspaces"))) {
-			assertThat(res.status()).as(res + ": " + res.text()).isEqualTo(401);
+			assertThat(response.status()).as(response + ": " + response.text()).isEqualTo(401);
 		}
 		// public: the landing page, templates and catalog work before signing in
 		assertThat(client.get("/health").status()).isEqualTo(200);
@@ -64,10 +64,10 @@ class OAuthTests {
 
 	@Test
 	void login_toGitHub_redirectsWithPkceAndSignedState(ApiServer server) {
-		ApiResponse res = server.client().get(ApiClient.query("/auth/github/login", "next", "/projects"));
-		assertThat(res.status()).isEqualTo(302);
-		URI url = URI.create(res.location());
-		Map<String, String> parameters = params(res.location());
+		ApiResponse response = server.client().get(ApiClient.query("/auth/github/login", "next", "/projects"));
+		assertThat(response.status()).isEqualTo(302);
+		URI url = URI.create(response.location());
+		Map<String, String> parameters = queryParameters(response.location());
 		assertThat(url.getScheme() + "://" + url.getRawAuthority() + url.getRawPath())
 			.isEqualTo(server.github().url() + "/login/oauth/authorize");
 		assertThat(parameters.get("code_challenge_method")).isEqualTo("S256");
@@ -76,7 +76,7 @@ class OAuthTests {
 			.isEqualTo(Profile.HOSTED_PUBLIC_URL + "/api/v1/auth/github/callback");
 		assertThat(parameters.get("client_id")).isEqualTo(FakeGitHub.CLIENT_ID);
 		assertThat(parameters.get("state")).hasSizeGreaterThanOrEqualTo(40);
-		assertThat(res.setCookies()).singleElement()
+		assertThat(response.setCookies()).singleElement()
 			.satisfies((cookie) -> assertThat(cookie).startsWith(STATE + "=")
 				.contains("HttpOnly", "Path=/", "SameSite=lax", "Secure", "Max-Age=600"));
 	}
@@ -96,7 +96,7 @@ class OAuthTests {
 		assertThat(done.setCookies()).anyMatch((header) -> header.startsWith(STATE + "=\"\""));
 		// the verifier went to the token endpoint, and the provider checked it against
 		// the challenge
-		assertVerifierSent(server, param(back, "code"));
+		assertVerifierSent(server, queryParameter(back, "code"));
 
 		JsonNode me = client.get("/auth/me").json();
 		assertThat(me.path("kind").asString()).isEqualTo("session");
@@ -169,7 +169,7 @@ class OAuthTests {
 		client.post("/auth/logout");
 		server.signIn(client, account(server, "mallory", ada.email(), false).login());
 		JsonNode me = client.get("/auth/me").json();
-		assertThat(me.path("user").path("id").asString()).isNotEqualTo(adaId);
+		assertThat(Json.id(me.path("user"))).isNotEqualTo(adaId);
 		assertThat(me.path("user").path("email").isNull()).isTrue();
 		client.post("/auth/logout");
 		server.signIn(client, account(server, "fakeadmin", Profile.ADMIN_EMAIL, false).login());
@@ -195,16 +195,17 @@ class OAuthTests {
 		ApiClient client = server.client();
 		ApiResponse start = client.get("/auth/github/login");
 		String back = server.github().authorize(start.location(), server.newAccount("ada").login());
-		String code = param(back, "code");
-		String state = param(back, "state");
-		ApiResponse res = client.get(ApiClient.query("/auth/github/callback", "code", code, "state", "not-the-state"));
-		assertThat(res.location()).isEqualTo("/signin?error=state");
+		String code = queryParameter(back, "code");
+		String state = queryParameter(back, "state");
+		String callback = "/auth/github/callback";
+		ApiResponse response = client.get(ApiClient.query(callback, "code", code, "state", "not-the-state"));
+		assertThat(response.location()).isEqualTo("/signin?error=state");
 		// no state cookie at all (another browser, or it expired)
 		client.cookies().clear();
-		res = client.get(ApiClient.query("/auth/github/callback", "code", code, "state", state));
-		assertThat(res.location()).isEqualTo("/signin?error=state");
+		response = client.get(ApiClient.query(callback, "code", code, "state", state));
+		assertThat(response.location()).isEqualTo("/signin?error=state");
 		assertThat(client.get("/auth/me").status()).isEqualTo(401);
-		assertThat(res.setCookies()).noneMatch((header) -> header.startsWith(SESSION + "="));
+		assertThat(response.setCookies()).noneMatch((header) -> header.startsWith(SESSION + "="));
 	}
 
 	@Test
@@ -221,8 +222,8 @@ class OAuthTests {
 	@Test
 	void callback_whenProviderRefuses_endsOnSignInPage(ApiServer server) {
 		ApiClient client = server.client();
-		ApiResponse res = client.get(ApiClient.query("/auth/github/callback", "error", "access_denied"));
-		assertThat(res.location()).isEqualTo("/signin?error=denied");
+		ApiResponse response = client.get(ApiClient.query("/auth/github/callback", "error", "access_denied"));
+		assertThat(response.location()).isEqualTo("/signin?error=denied");
 		String ada = server.newAccount("ada").login();
 		server.github().refuseTokensFor(ada);
 		assertThat(server.signIn(client, ada)).isEqualTo("/signin?error=provider");
@@ -242,9 +243,9 @@ class OAuthTests {
 	void logout_withSessionCookie_endsTheSessionAtOnce(ApiServer server) {
 		ApiClient client = server.signedIn("ada");
 		String cookie = cookie(client, SESSION);
-		ApiResponse res = client.post("/auth/logout");
-		assertThat(res.status()).isEqualTo(204);
-		assertThat(res.setCookies()).anyMatch((header) -> header.startsWith(SESSION + "=\"\""));
+		ApiResponse response = client.post("/auth/logout");
+		assertThat(response.status()).isEqualTo(204);
+		assertThat(response.setCookies()).anyMatch((header) -> header.startsWith(SESSION + "=\"\""));
 		// the old cookie is dead even if a browser kept it
 		client.cookies().put(SESSION, cookie);
 		assertThat(client.get("/auth/me").status()).isEqualTo(401);
@@ -287,7 +288,8 @@ class OAuthTests {
 	void signIn_throughProxy_recordsClientIpOnlyIfTrusted(ApiServer server) throws IOException, InterruptedException {
 		ApiClient trusted = server.client();
 		server.signIn(trusted, server.newAccount("ada").login());
-		assertThat(sessionIp(server, cookie(trusted, SESSION))).isEqualTo(trusted.header("X-ArchSim-Client-IP"));
+		assertThat(sessionIp(server, cookie(trusted, SESSION)))
+			.isEqualTo(trusted.header("X-ArchSim-Client-IP").orElseThrow());
 
 		String untrusted = LoopbackSignIn.signIn(UNTRUSTED, "203.0.113.8", server, server.newAccount("bob"));
 		assertThat(sessionIp(server, untrusted)).isEqualTo(UNTRUSTED);
@@ -312,27 +314,21 @@ class OAuthTests {
 
 	/** A cookie the client holds; fails the test when it has none. */
 	private static String cookie(ApiClient client, String name) {
-		String value = client.cookie(name);
-		if (value == null) {
-			throw new AssertionError("the client holds no " + name + ": " + client.cookies().keySet());
-		}
-		return value;
+		return client.cookie(name)
+			.orElseThrow(() -> new AssertionError("the client holds no " + name + ": " + client.cookies().keySet()));
 	}
 
 	/**
 	 * The {@code Set-Cookie} header that sets {@code name}; fails the test when there is
 	 * none.
 	 */
-	private static String setCookie(ApiResponse res, String name) {
-		String cookie = res.setCookie(name);
-		if (cookie == null) {
-			throw new AssertionError(res + " sets no " + name + ": " + res.setCookies());
-		}
-		return cookie;
+	private static String setCookie(ApiResponse response, String name) {
+		return response.setCookie(name)
+			.orElseThrow(() -> new AssertionError(response + " sets no " + name + ": " + response.setCookies()));
 	}
 
 	/** The query parameters of a URL, first value of each. */
-	private static Map<String, String> params(String url) {
+	private static Map<String, String> queryParameters(String url) {
 		Map<String, String> out = new LinkedHashMap<>();
 		String query = URI.create(url).getRawQuery();
 		if (query != null) {
@@ -344,8 +340,8 @@ class OAuthTests {
 		return out;
 	}
 
-	private static String param(String url, String name) {
-		String value = params(url).get(name);
+	private static String queryParameter(String url, String name) {
+		String value = queryParameters(url).get(name);
 		if (value == null) {
 			throw new AssertionError(url + " has no " + name);
 		}
