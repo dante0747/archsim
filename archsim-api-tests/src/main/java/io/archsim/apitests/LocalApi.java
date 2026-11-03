@@ -121,7 +121,13 @@ final class LocalApi {
 		env.putAll(settings);
 		String described = launch.name() + ", log " + logFile;
 		ServerProcess server = new ServerProcess(described, run(builder, described), launch.urls(), logFile);
-		server.awaitHealthy(Duration.ofMinutes(2));
+		try {
+			server.awaitHealthy(Duration.ofMinutes(2));
+		}
+		catch (IllegalStateException ex) {
+			server.stop();
+			throw ex;
+		}
 		return server;
 	}
 

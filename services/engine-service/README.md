@@ -19,5 +19,5 @@ A document the engine cannot read answers `422 {"issues": [...]}` with the engin
 request the service cannot read answers `400 {"message": ...}`. Answers are written as FastAPI
 wrote them, so the Java API passes them on unchanged. Each call runs in a worker thread, so a long
 analysis does not hold up other requests. The service has no body limit of its own: it listens
-only to the Java API, which refuses bodies over `ARCHSIM_MAX_BODY_BYTES`. The engine reads `ARCHSIM_PRICES_DIR` from
-the environment, as it does in the Python API.
+only to the Java API, which refuses bodies over `ARCHSIM_MAX_BODY_BYTES`. The engine reads
+`ARCHSIM_PRICES_DIR` from the environment, as it does in the Python API.

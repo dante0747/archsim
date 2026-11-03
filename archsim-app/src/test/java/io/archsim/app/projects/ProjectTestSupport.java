@@ -77,18 +77,25 @@ abstract class ProjectTestSupport {
 	 * @param role the local user's role there
 	 */
 	void workspace(String id, String kind, String role) {
+		workspaceWithoutRole(id, kind);
+		this.jdbc
+			.sql("INSERT INTO memberships (workspace_id, user_id, role, created_at) "
+					+ "VALUES (:id, 'local', :role, now())")
+			.param("id", id)
+			.param("role", role)
+			.update();
+	}
+
+	/**
+	 * Makes a workspace the local user has no role in.
+	 * @param id its id, which no other test uses
+	 * @param kind {@code personal}, {@code team} or {@code sandbox}
+	 */
+	void workspaceWithoutRole(String id, String kind) {
 		this.jdbc.sql("INSERT INTO workspaces (id, name, kind, created_at) VALUES (:id, :id, :kind, now())")
 			.param("id", id)
 			.param("kind", kind)
 			.update();
-		if (!role.isEmpty()) {
-			this.jdbc
-				.sql("INSERT INTO memberships (workspace_id, user_id, role, created_at) "
-						+ "VALUES (:id, 'local', :role, now())")
-				.param("id", id)
-				.param("role", role)
-				.update();
-		}
 	}
 
 	void user(String id) {

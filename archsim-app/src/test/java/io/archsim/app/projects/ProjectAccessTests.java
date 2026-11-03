@@ -15,7 +15,7 @@ class ProjectAccessTests extends ProjectTestSupport {
 
 	@Test
 	void get_projectInAWorkspaceWithoutARole_isNotFound() {
-		workspace("hidden1", "team", "");
+		workspaceWithoutRole("hidden1", "team");
 		storedProject("hidden1p", "hidden1", "local", null);
 
 		assertThat(mvc().get().uri("/api/v1/projects/hidden1p")).hasStatus(404)

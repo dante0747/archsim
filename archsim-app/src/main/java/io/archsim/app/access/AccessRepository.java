@@ -26,12 +26,13 @@ class AccessRepository {
 	}
 
 	/**
-	 * A workspace, locked until the transaction ends.
+	 * A workspace, locked until the transaction ends. The lock lets rows that refer to
+	 * the workspace still be written meanwhile ({@code NO KEY}).
 	 * @param id the workspace's id
 	 * @return the workspace, if it exists
 	 */
 	Optional<WorkspaceRef> lockWorkspace(String id) {
-		return this.jdbc.sql("SELECT id, kind FROM workspaces WHERE id = :id FOR UPDATE")
+		return this.jdbc.sql("SELECT id, kind FROM workspaces WHERE id = :id FOR NO KEY UPDATE")
 			.param("id", id)
 			.query(WorkspaceRef.class)
 			.optional();

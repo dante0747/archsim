@@ -7,12 +7,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * The proxies whose {@code X-ArchSim-Client-IP} header is believed
@@ -23,7 +24,7 @@ public final class TrustedProxies {
 
 	private static final Duration LOOKUP_LIFE = Duration.ofMinutes(1);
 
-	private final List<String> entries;
+	private final List<Entry> entries;
 
 	private final Clock clock;
 
@@ -47,7 +48,11 @@ public final class TrustedProxies {
 	 * @param lookUp a host name's addresses, none when it has none
 	 */
 	TrustedProxies(List<String> entries, Clock clock, Function<String, Set<InetAddress>> lookUp) {
-		this.entries = entries.stream().map(String::strip).filter((entry) -> !entry.isEmpty()).toList();
+		this.entries = entries.stream()
+			.map(String::strip)
+			.filter((entry) -> !entry.isEmpty())
+			.map((entry) -> new Entry(entry, Network.parse(entry).orElse(null)))
+			.toList();
 		this.clock = clock;
 		this.lookUp = lookUp;
 	}
@@ -60,15 +65,15 @@ public final class TrustedProxies {
 	 */
 	boolean trust(Ip peer) {
 		String text = IpText.format(peer);
-		return this.entries.stream().anyMatch((entry) -> entry.equals(text) || matches(entry, peer.address()));
+		return this.entries.stream().anyMatch((entry) -> entry.text().equals(text) || matches(entry, peer.address()));
 	}
 
-	private boolean matches(String entry, InetAddress peer) {
-		Optional<Network> network = Network.parse(entry);
-		if (network.isPresent()) {
-			return network.get().contains(peer);
+	private boolean matches(Entry entry, InetAddress peer) {
+		Network network = entry.network();
+		if (network != null) {
+			return network.contains(peer);
 		}
-		return addressesOfHost(entry).contains(peer);
+		return addressesOfHost(entry.text()).contains(peer);
 	}
 
 	private Set<InetAddress> addressesOfHost(String host) {
@@ -85,6 +90,16 @@ public final class TrustedProxies {
 		catch (UnknownHostException ex) {
 			return Set.of();
 		}
+	}
+
+	/**
+	 * One proxy as the setting gives it, read once.
+	 *
+	 * @param text the entry, which a peer may equal as written
+	 * @param network the address or network it is, or {@code null} for a host name
+	 */
+	private record Entry(String text, @Nullable Network network) {
+
 	}
 
 	/**
