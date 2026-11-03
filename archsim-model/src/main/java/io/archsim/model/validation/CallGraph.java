@@ -76,16 +76,16 @@ final class CallGraph {
 	 */
 	private Optional<List<String>> findCycleFrom(String root, Map<String, Color> colors, Map<String, String> parents) {
 		Deque<Frame> stack = new ArrayDeque<>();
-		stack.push(new Frame(root, out(root).iterator()));
+		stack.push(new Frame(root, out(root)));
 		colors.put(root, Color.ON_STACK);
 		while (!stack.isEmpty()) {
 			Frame top = stack.element();
-			if (!top.links().hasNext()) {
+			if (!top.hasLinkToFollow()) {
 				colors.put(top.node(), Color.DONE);
 				stack.pop();
 				continue;
 			}
-			String target = top.links().next().target();
+			String target = top.nextLink().target();
 			if (!this.nodes.contains(target)) {
 				continue;
 			}
@@ -95,7 +95,7 @@ final class CallGraph {
 			if (!colors.containsKey(target)) {
 				colors.put(target, Color.ON_STACK);
 				parents.put(target, top.node());
-				stack.push(new Frame(target, out(target).iterator()));
+				stack.push(new Frame(target, out(target)));
 			}
 		}
 		return Optional.empty();
@@ -208,13 +208,39 @@ final class CallGraph {
 
 	}
 
-	/**
-	 * A node on the depth-first stack, and the links from it still to follow.
-	 *
-	 * @param node the node's id
-	 * @param links its outgoing links not followed yet
-	 */
-	private record Frame(String node, Iterator<EdgeSpec> links) {
+	/** A node on the depth-first stack, and the links from it still to follow. */
+	private static final class Frame {
+
+		private final String node;
+
+		private final Iterator<EdgeSpec> links;
+
+		/**
+		 * A node the search has just reached, with none of its links followed.
+		 * @param node the node's id
+		 * @param links its outgoing links
+		 */
+		Frame(String node, List<EdgeSpec> links) {
+			this.node = node;
+			this.links = links.iterator();
+		}
+
+		String node() {
+			return this.node;
+		}
+
+		boolean hasLinkToFollow() {
+			return this.links.hasNext();
+		}
+
+		/**
+		 * The next link to follow, which is then followed.
+		 * @return the first of the node's links not followed yet
+		 */
+		EdgeSpec nextLink() {
+			return this.links.next();
+		}
+
 	}
 
 	/**

@@ -69,10 +69,10 @@ final class ModelFunctions {
 			Map.entry("archsim_engine.pricing.content_sha256",
 					(entry) -> NODES.stringNode(PriceSnapshot.contentSha256(entry.input("data")))),
 			Map.entry("archsim_engine.pricing.available",
-					(entry) -> array(PRICES.available(entry.input("everyDate").booleanValue())
-						.stream()
-						.map(RecordCodec::write)
-						.toList())),
+					(entry) -> array(
+							(entry.input("everyDate").booleanValue() ? PRICES.everyDate() : PRICES.newest()).stream()
+								.map(RecordCodec::write)
+								.toList())),
 			Map.entry("archsim_engine.pricing.default_pricing", (entry) -> PRICES.defaultPricing()), Map
 				.entry("archsim_engine.pricing.load_snapshot",
 						(entry) -> PRICES.load(entry.input("provider").stringValue(), text(entry.input("region")),

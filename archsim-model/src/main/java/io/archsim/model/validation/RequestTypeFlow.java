@@ -38,13 +38,11 @@ final class RequestTypeFlow {
 	 * A routing of an acyclic graph.
 	 * @param context the validation so far
 	 * @param graph the design's call graph, which has no cycle
-	 * @param view the design as component rules see it, which they read to say what a
-	 * node sends on
 	 */
-	RequestTypeFlow(ValidationContext context, CallGraph graph, GraphView view) {
+	RequestTypeFlow(ValidationContext context, CallGraph graph) {
 		this.context = context;
 		this.graph = graph;
-		this.view = view;
+		this.view = context.graphView();
 	}
 
 	/**
@@ -134,7 +132,7 @@ final class RequestTypeFlow {
 			if (this.reached.contains(edge.source()) && (flow == null || flow.isEmpty())) {
 				this.context.report(Issue.warning("edge.unused",
 						"Link '%s' never carries traffic: it accepts %s but none of those reach %s's '%s' port."
-							.formatted(edge.id(), LinkChecks.types(edge.config().requestTypes()),
+							.formatted(edge.id(), IssueText.requestTypes(edge.config().requestTypes()),
 									this.context.nameOf(edge.source()), edge.sourcePort()))
 					.atEdge(edge.id()));
 			}

@@ -32,18 +32,19 @@ record SnapshotQuery(String provider, @Nullable String region, @Nullable String 
 
 	/**
 	 * Why no snapshot matches: what was asked for, and what this machine has instead.
-	 * @param everyDate every snapshot that can be chosen, as listed
-	 * @param newest the newest snapshot of each provider and region, as listed
+	 * @param everyDate every snapshot that can be chosen, as
+	 * {@link PriceSnapshots#everyDate()} lists them
 	 * @return the message
 	 */
-	String missing(List<AvailableSnapshot> everyDate, List<AvailableSnapshot> newest) {
+	String missingMessage(List<AvailableSnapshot> everyDate) {
 		String wanted = wanted();
 		List<AvailableSnapshot> sameRegion = everyDate.stream().filter(this::isOfProviderAndRegion).toList();
 		if (isPinned() && !sameRegion.isEmpty()) {
 			return "%s (this machine has %s %s); a pinned snapshot is never swapped for another.".formatted(wanted,
 					this.provider, datesAndHashes(sameRegion));
 		}
-		String have = newest.stream()
+		String have = everyDate.stream()
+			.filter(AvailableSnapshot::newest)
 			.map((snapshot) -> snapshot.provider() + " " + snapshot.region())
 			.collect(Collectors.joining(", "));
 		return "%s (available: generic; snapshots: %s).".formatted(wanted, have.isEmpty() ? "none" : have);

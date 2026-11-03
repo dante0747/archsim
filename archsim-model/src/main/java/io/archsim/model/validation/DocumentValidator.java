@@ -57,7 +57,9 @@ public final class DocumentValidator {
 
 	/**
 	 * Checks {@code document}. The checks run in a fixed order, and the issues come in
-	 * the order they found them.
+	 * the order they found them. The request types are followed from the client down the
+	 * call graph when it has one client and no loop; the component rules then see what
+	 * reaches each part.
 	 * @param document the design to check
 	 * @param maxAmplification the most component calls one client request may cause;
 	 * {@code null} for no bound
@@ -68,7 +70,12 @@ public final class DocumentValidator {
 		new IdChecks(context).check();
 		new ComponentTypeChecks(context).check();
 		new LinkChecks(context).check();
-		RequestFlow flow = new CallGraphChecks(context).check(maxAmplification);
+		CallGraph graph = new CallGraph(context.nodeIds(), context.outEdgesByNode());
+		CallGraphChecks callGraphChecks = new CallGraphChecks(context, graph);
+		callGraphChecks.check(maxAmplification);
+		RequestFlow flow = callGraphChecks.routableSource()
+			.map((source) -> new RequestTypeFlow(context, graph).route(source))
+			.orElseGet(() -> RequestFlow.unrouted(context.graphView()));
 		new ComponentRuleChecks(context).check(flow.view());
 		new WorkloadChecks(context).check();
 		new PricingChecks(context, this.prices).check();

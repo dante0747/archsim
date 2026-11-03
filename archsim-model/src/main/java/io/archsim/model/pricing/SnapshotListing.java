@@ -10,8 +10,9 @@ import java.util.Objects;
 import java.util.function.BinaryOperator;
 
 /**
- * The snapshots that can be chosen, as {@link PriceSnapshots#available(boolean)} lists
- * them: each content once, by provider and region, newest first.
+ * The snapshots that can be chosen, as {@link PriceSnapshots#everyDate()} and
+ * {@link PriceSnapshots#newest()} list them: each content once, by provider and region,
+ * newest first.
  */
 final class SnapshotListing {
 

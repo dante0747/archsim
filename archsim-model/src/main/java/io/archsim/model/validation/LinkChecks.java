@@ -1,7 +1,6 @@
 package io.archsim.model.validation;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -27,7 +26,7 @@ final class LinkChecks {
 
 	private final ValidationContext context;
 
-	/** Each link's two ends and ports so far, to find a link made twice. */
+	/** The two ends and ports of each valid link so far, to find a link made twice. */
 	private final Set<List<String>> connections = new HashSet<>();
 
 	LinkChecks(ValidationContext context) {
@@ -47,13 +46,29 @@ final class LinkChecks {
 				this.context.report(problem.get());
 			}
 			else if (joinsKnownTypes(edge)) {
-				this.context.addValidEdge(edge);
+				addValidEdge(edge);
 			}
 		}
 	}
 
+	/**
+	 * Whether a link without problems joins two nodes of known types, rather than being
+	 * skipped as a link to a node of an unknown type.
+	 * @param edge a link between two existing nodes
+	 * @return {@code true} when the registry knows both nodes' types
+	 */
 	private boolean joinsKnownTypes(EdgeSpec edge) {
-		return this.context.hasNode(edge.source()) && hasKnownType(edge.source()) && hasKnownType(edge.target());
+		return hasKnownType(edge.source()) && hasKnownType(edge.target());
+	}
+
+	/**
+	 * Records a sound link for the checks that follow, and its ends and ports, so that a
+	 * later link joining the same ports is found.
+	 * @param edge the sound link
+	 */
+	private void addValidEdge(EdgeSpec edge) {
+		this.connections.add(connection(edge));
+		this.context.addValidEdge(edge);
 	}
 
 	private boolean hasKnownType(String nodeId) {
@@ -157,11 +172,12 @@ final class LinkChecks {
 		if (extra.isEmpty()) {
 			return Optional.empty();
 		}
-		String emits = types(port.requestTypes());
+		String carried = IssueText.requestTypes(extra);
+		String emits = IssueText.requestTypes(port.requestTypes());
 		return Optional.of(Issue
 			.error("edge.request_types",
-					"Link '%s' carries %s but port '%s' of %s only emits %s.".formatted(edge.id(), types(extra),
-							port.name(), source.name(), emits))
+					"Link '%s' carries %s but port '%s' of %s only emits %s.".formatted(edge.id(), carried, port.name(),
+							source.name(), emits))
 			.atEdge(edge.id())
 			.withHint("Limit the link's request types to %s.".formatted(emits)));
 	}
@@ -178,24 +194,25 @@ final class LinkChecks {
 		if (extra.isEmpty()) {
 			return Optional.empty();
 		}
+		String carried = IssueText.requestTypes(extra);
+		String accepts = IssueText.requestTypes(port.requestTypes());
 		return Optional.of(
 				Issue
 					.error("edge.request_types",
-							"Link '%s' carries %s but %s only accepts %s on '%s'.".formatted(edge.id(), types(extra),
-									target.name(), types(port.requestTypes()), port.name()))
+							"Link '%s' carries %s but %s only accepts %s on '%s'.".formatted(edge.id(), carried,
+									target.name(), accepts, port.name()))
 					.atEdge(edge.id()));
 	}
 
 	/**
-	 * A link that joins the same two ports as an earlier one; remembers the link's ports
-	 * otherwise.
+	 * A link that joins the same two ports as an earlier valid one.
 	 * @param edge the link to check
 	 * @param source the node the link leaves
 	 * @param target the node the link reaches
-	 * @return an issue when an earlier link joins the same ports, or empty
+	 * @return an issue when an earlier valid link joins the same ports, or empty
 	 */
 	private Optional<Issue> duplicateProblem(EdgeSpec edge, NodeSpec source, NodeSpec target) {
-		if (this.connections.add(List.of(edge.source(), edge.sourcePort(), edge.target(), edge.targetPort()))) {
+		if (!this.connections.contains(connection(edge))) {
 			return Optional.empty();
 		}
 		return Optional.of(
@@ -224,6 +241,15 @@ final class LinkChecks {
 					.withHint("Only a service's links use these settings."));
 			}
 		}
+	}
+
+	/**
+	 * What tells a link made twice: its two ends and ports.
+	 * @param edge the link
+	 * @return its source, source port, target and target port
+	 */
+	private static List<String> connection(EdgeSpec edge) {
+		return List.of(edge.source(), edge.sourcePort(), edge.target(), edge.targetPort());
 	}
 
 	private static List<String> callerSettings(EdgeSpec edge) {
@@ -278,15 +304,6 @@ final class LinkChecks {
 
 	private static String names(List<Port> ports) {
 		return ports.stream().map(Port::name).collect(Collectors.joining(", "));
-	}
-
-	/**
-	 * Request types as messages list them.
-	 * @param types the request types to list
-	 * @return their JSON names, joined by commas
-	 */
-	static String types(Collection<RequestType> types) {
-		return types.stream().map(RequestType::json).collect(Collectors.joining(", "));
 	}
 
 	/**

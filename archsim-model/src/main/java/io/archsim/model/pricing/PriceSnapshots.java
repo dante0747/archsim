@@ -66,13 +66,21 @@ public final class PriceSnapshots {
 	}
 
 	/**
-	 * The snapshots that can be chosen: the newest of each provider and region, or
-	 * ({@code everyDate}) all, by provider and region, newest first.
-	 * @param everyDate whether to list every date rather than only the newest
-	 * @return the snapshots, each content once
+	 * The snapshots a document's pricing gets when it pins no date: the newest of each
+	 * provider and region.
+	 * @return the snapshots, by provider and region, each content once
 	 */
-	public List<AvailableSnapshot> available(boolean everyDate) {
-		return everyDate ? SnapshotListing.everyDate(this.found) : SnapshotListing.newest(this.found);
+	public List<AvailableSnapshot> newest() {
+		return SnapshotListing.newest(this.found);
+	}
+
+	/**
+	 * Every snapshot that can be chosen, each marked whether it is the newest of its
+	 * provider and region.
+	 * @return the snapshots, by provider and region and newest first, each content once
+	 */
+	public List<AvailableSnapshot> everyDate() {
+		return SnapshotListing.everyDate(this.found);
 	}
 
 	/**
@@ -94,8 +102,8 @@ public final class PriceSnapshots {
 		return this.found.stream()
 			.map(FoundSnapshot::snapshot)
 			.filter(query::matches)
-			.max(Comparator.comparing(PriceSnapshots::dateOf))
-			.orElseThrow(() -> new PricingException(query.missing(available(true), available(false))));
+			.reduce(PriceSnapshots::newerOf)
+			.orElseThrow(() -> new PricingException(query.missingMessage(everyDate())));
 	}
 
 	/**
@@ -167,6 +175,17 @@ public final class PriceSnapshots {
 		return pricing.put("provider", DEFAULT_PROVIDER)
 			.put("region", DEFAULT_REGION)
 			.put("snapshotDate", newest.get());
+	}
+
+	/**
+	 * The newer of two snapshots; of two of the same date, the one found first, so that a
+	 * snapshot in an extra folder wins over a shipped one.
+	 * @param first a snapshot
+	 * @param later a snapshot found after it
+	 * @return {@code later} when its date is after {@code first}'s, else {@code first}
+	 */
+	private static PriceSnapshot newerOf(PriceSnapshot first, PriceSnapshot later) {
+		return (dateOf(later).compareTo(dateOf(first)) > 0) ? later : first;
 	}
 
 	private static String dateOf(PriceSnapshot snapshot) {

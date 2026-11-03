@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.component.Category;
-import io.archsim.model.component.GraphView;
 import io.archsim.model.component.client.ClientConfig;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.issue.Issue;
@@ -15,9 +14,8 @@ import io.archsim.model.text.PythonFormat;
 
 /**
  * Checks the call graph: that a client generates load, that requests cannot loop, and
- * that one request does not cause too many calls between parts. When the graph has no
- * loop and one client, it hands the graph to {@link RequestTypeFlow} to follow the
- * request types down it.
+ * that one request does not cause too many calls between parts; and says whether the
+ * request types can be followed down it, which needs one client and no loop.
  */
 final class CallGraphChecks {
 
@@ -43,40 +41,53 @@ final class CallGraphChecks {
 	private final CallGraph graph;
 
 	/**
-	 * Checks of the design's valid links, once the link checks have recorded them.
-	 * @param context the validation so far
+	 * A loop in the graph, as node ids with the first repeated at the end; {@code null}
+	 * when it has none.
 	 */
-	CallGraphChecks(ValidationContext context) {
+	private final @Nullable List<String> cycle;
+
+	/**
+	 * Checks of the design's call graph, once the link checks have recorded its valid
+	 * links.
+	 * @param context the validation so far
+	 * @param graph the design's nodes and valid links
+	 */
+	CallGraphChecks(ValidationContext context, CallGraph graph) {
 		this.context = context;
 		this.sources = context.trafficSources();
-		this.graph = new CallGraph(context.nodeIds(), context.outEdgesByNode());
+		this.graph = graph;
+		this.cycle = graph.findCycle().orElse(null);
 	}
 
 	/**
-	 * Reports a design with no client, a loop, or a request that causes too many calls;
-	 * then, when the graph has no loop and exactly one client, follows the request types
-	 * down it.
+	 * Reports a design with no client, a loop, or a request that causes too many calls.
 	 * @param maxAmplification the most component calls one client request may cause;
 	 * {@code null} for no bound
-	 * @return where the request types go; unrouted when the graph has a loop or not
-	 * exactly one client
 	 */
-	RequestFlow check(@Nullable Double maxAmplification) {
+	void check(@Nullable Double maxAmplification) {
 		if (this.sources.isEmpty()) {
 			this.context.report(Issue.error("graph.no_source", "There is no client, so nothing generates load.")
 				.withHint("Drag a client (Clients, Mobile app, Web browser or API consumers) onto the canvas and"
 						+ " connect it."));
 		}
-		Optional<List<String>> cycle = this.graph.findCycle();
-		cycle.ifPresent(this::reportCycle);
-		if (cycle.isEmpty() && !this.sources.isEmpty() && maxAmplification != null) {
+		if (this.cycle != null) {
+			reportCycle(this.cycle);
+		}
+		else if (!this.sources.isEmpty() && maxAmplification != null) {
 			checkAmplification(maxAmplification);
 		}
-		GraphView view = this.context.graphView();
-		if (cycle.isEmpty() && this.sources.size() == 1) {
-			return new RequestTypeFlow(this.context, this.graph, view).route(this.sources.getFirst());
+	}
+
+	/**
+	 * The client to follow the request types from: the design's one client, when the
+	 * graph has no loop.
+	 * @return the client; empty when the graph has a loop or not exactly one client
+	 */
+	Optional<NodeSpec> routableSource() {
+		if (this.cycle != null || this.sources.size() != 1) {
+			return Optional.empty();
 		}
-		return RequestFlow.unrouted(view);
+		return Optional.of(this.sources.getFirst());
 	}
 
 	private void reportCycle(List<String> cycle) {
