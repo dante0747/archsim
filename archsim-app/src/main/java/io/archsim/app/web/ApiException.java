@@ -51,6 +51,18 @@ public final class ApiException extends RuntimeException {
 	}
 
 	/**
+	 * A request over a rate limit: {@code 429} with {@code Retry-After}.
+	 * @param message what was refused and when to try again
+	 * @param retryAfterSeconds how many seconds until the limit's window ends
+	 * @return the refusal
+	 */
+	public static ApiException tooManyRequests(String message, long retryAfterSeconds) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.set(HttpHeaders.RETRY_AFTER, Long.toString(retryAfterSeconds));
+		return new ApiException(HttpStatus.TOO_MANY_REQUESTS, message, List.of(), headers);
+	}
+
+	/**
 	 * Headers the answer carries besides the body's, such as {@code WWW-Authenticate}.
 	 * @return the headers, possibly none
 	 */

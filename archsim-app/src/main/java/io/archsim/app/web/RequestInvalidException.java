@@ -68,6 +68,20 @@ public final class RequestInvalidException extends RuntimeException {
 	}
 
 	/**
+	 * A query parameter that should be a boolean and is not one of pydantic's words for
+	 * one.
+	 * @param name the parameter's name
+	 * @param value what the request gave
+	 * @return the refusal, as pydantic words it
+	 */
+	public static RequestInvalidException queryNotBoolean(String name, String value) {
+		ObjectNode error = error("bool_parsing", NODES.arrayNode().add("query").add(name),
+				"Input should be a valid boolean, unable to interpret input");
+		error.put("input", value);
+		return new RequestInvalidException(NODES.arrayNode().add(error));
+	}
+
+	/**
 	 * A JSON body the codec could not read.
 	 * @param errors what the codec found wrong, as pydantic reports it
 	 * @param body the body, whose values the errors show as their {@code input}

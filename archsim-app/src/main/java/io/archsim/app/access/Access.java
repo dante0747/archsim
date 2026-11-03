@@ -11,7 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import io.archsim.app.web.ApiException;
 
 /**
- * What a principal may do: its role in a workspace is its membership's. Someone without a
+ * What a principal may do: its role in a workspace is its membership's, lowered to viewer
+ * for a read-only API token, and none outside a token's one workspace. Someone without a
  * role in a workspace learns nothing about it, so its workspace, projects and runs answer
  * {@code 404} as if they did not exist; a role too weak for an action answers
  * {@code 403}.
@@ -100,17 +101,24 @@ public class Access {
 	}
 
 	private Optional<WorkspaceRole> roleIn(Principal principal, String workspaceId) {
-		return this.repository.role(workspaceId, principal.userId()).map(WorkspaceRole::of);
+		if (!principal.sees(workspaceId)) {
+			return Optional.empty();
+		}
+		return this.repository.role(workspaceId, principal.userId()).map(WorkspaceRole::of).map(principal::roleFor);
 	}
 
 	/**
-	 * The workspace a request means when it names none: the principal's personal
-	 * workspace, else the default one, else its oldest membership.
+	 * The workspace a request means when it names none: a token's own workspace, else the
+	 * principal's personal workspace, else the default one, else its oldest membership.
 	 * @param principal who is asking
 	 * @return the workspace's id
 	 * @throws ApiException {@code 404} when the principal belongs to no workspace
 	 */
 	private String defaultWorkspaceId(Principal principal) {
+		Optional<String> tokens = principal.tokenWorkspaceId();
+		if (tokens.isPresent()) {
+			return tokens.get();
+		}
 		List<WorkspaceRef> memberships = this.repository.memberships(principal.userId());
 		if (memberships.isEmpty()) {
 			throw notFound("A workspace you belong to was");

@@ -148,6 +148,10 @@ jobs:
           --tests '*EndpointsTests.analyze_*' --tests '*EndpointsTests.pricing_*'
           --tests '*EndpointsTests.create_fromExampleOrBlank_*' --tests '*EndpointsTests.importExport_*'
           --tests '*EndpointsTests.import_withBodyOverTheLimit_*' --tests '*LimitsTests.answers_ofLocalServer_*'
+          --tests '*OAuthTests' --tests '*TokensTests.createToken_*' --tests '*TokensTests.revokeToken_*'
+          --tests '*TokensTests.request_withRevokedExpiredOrMistypedToken_*' --tests '*TokensTests.csrfCookie_*'
+          --tests '*TokensTests.change_withAnotherSessionsCsrfToken_*'
+          --tests '*TokensTests.change_withoutSignIn_needsNoCsrfHeaderOrToken'
       - name: Upload the test reports and server logs
         if: failure()
         uses: actions/upload-artifact@v7

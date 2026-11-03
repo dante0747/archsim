@@ -11,8 +11,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import io.archsim.app.config.ArchsimProperties;
 
 /**
- * Lets a controller take the request's {@link Principal} and {@link RequestedWorkspace}
- * as parameters.
+ * Lets a controller take the request's {@link Principal}, {@link Visitor} and
+ * {@link RequestedWorkspace} as parameters.
  */
 @Configuration(proxyBeanMethods = false)
 class AccessConfiguration implements WebMvcConfigurer {
@@ -21,15 +21,23 @@ class AccessConfiguration implements WebMvcConfigurer {
 
 	private final Clock clock;
 
-	AccessConfiguration(ArchsimProperties properties, ObjectProvider<Clock> clock) {
+	private final ObjectProvider<Credentials> credentials;
+
+	private final ObjectProvider<Csrf> csrf;
+
+	AccessConfiguration(ArchsimProperties properties, ObjectProvider<Clock> clock,
+			ObjectProvider<Credentials> credentials, ObjectProvider<Csrf> csrf) {
 		this.properties = properties;
 		this.clock = clock.getIfAvailable(Clock::systemUTC);
+		this.credentials = credentials;
+		this.csrf = csrf;
 	}
 
 	@Override
 	public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-		TrustedProxies proxies = new TrustedProxies(this.properties.trustedProxies().hosts(), this.clock);
-		resolvers.add(new PrincipalResolver(this.properties, proxies));
+		ClientIps clientIps = new ClientIps(new TrustedProxies(this.properties.trustedProxies().hosts(), this.clock));
+		resolvers.add(new PrincipalResolver(this.properties, clientIps, this.credentials, this.csrf));
+		resolvers.add(new VisitorResolver(clientIps));
 		resolvers.add(new RequestedWorkspaceResolver());
 	}
 

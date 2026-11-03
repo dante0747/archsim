@@ -23,10 +23,24 @@ public final class TestProperties {
 	 * @return the settings
 	 */
 	public static ArchsimProperties with(String... settings) {
+		return bind(ArchsimProperties.class, settings);
+	}
+
+	/**
+	 * The sign-in settings, with some of them given.
+	 * @param settings {@code name=value} pairs under {@code archsim.}, such as
+	 * {@code secret-key=...}
+	 * @return the settings
+	 */
+	public static SignInProperties signIn(String... settings) {
+		return bind(SignInProperties.class, settings);
+	}
+
+	private static <T> T bind(Class<T> type, String... settings) {
 		Map<String, String> given = Arrays.stream(settings)
 			.map((setting) -> setting.split("=", 2))
 			.collect(Collectors.toMap((pair) -> "archsim." + pair[0], (pair) -> pair[1]));
-		return new Binder(new MapConfigurationPropertySource(given)).bindOrCreate("archsim", ArchsimProperties.class);
+		return new Binder(new MapConfigurationPropertySource(given)).bindOrCreate("archsim", type);
 	}
 
 }

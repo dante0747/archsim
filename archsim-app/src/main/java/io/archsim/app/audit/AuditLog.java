@@ -1,7 +1,6 @@
 package io.archsim.app.audit;
 
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
@@ -11,6 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.PrincipalKind;
+import io.archsim.app.store.Times;
 
 /**
  * The history of changes: who did what to which project, run, comment or membership. An
@@ -47,7 +47,7 @@ public class AuditLog {
 			}
 		});
 		this.repository.insert(new AuditEvent(project.workspaceId(), project.id(), actorOf(principal), action,
-				"project", project.id(), details, this.clock.instant().truncatedTo(ChronoUnit.MICROS)));
+				"project", project.id(), details, Times.now(this.clock)));
 	}
 
 	private static Actor actorOf(Principal principal) {

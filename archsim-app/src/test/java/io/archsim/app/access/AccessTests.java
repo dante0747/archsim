@@ -14,12 +14,12 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 /**
- * The workspace a request means when it names none: the asker's personal one, else the
- * default one, else the oldest it belongs to.
+ * The workspace a request means when it names none (the asker's personal one, else the
+ * default one, else the oldest it belongs to), and what an API token may do there.
  */
 class AccessTests {
 
-	private static final Principal ASKER = new Principal("u1", PrincipalKind.SESSION, null);
+	private static final Principal ASKER = Principal.session("u1", "s1", null);
 
 	private final AccessRepository repository = mock();
 
@@ -57,6 +57,34 @@ class AccessTests {
 				assertThat(ex.status()).isEqualTo(HttpStatus.NOT_FOUND);
 				assertThat(ex.getMessage()).isEqualTo("A workspace you belong to was not found");
 			});
+	}
+
+	@Test
+	void workspace_noneNamedWithWorkspaceToken_isTheTokensWorkspace() {
+		member(new WorkspaceRef("mine", "personal"), new WorkspaceRef("team1", "team"));
+		Principal token = Principal.token("u1", new TokenGrant("team1", false), null);
+
+		assertThat(this.access.workspace(token, new RequestedWorkspace(null)).workspace().id()).isEqualTo("team1");
+	}
+
+	@Test
+	void workspace_otherThanTheTokensOwn_isNotFound() {
+		member(new WorkspaceRef("mine", "personal"), new WorkspaceRef("team1", "team"));
+		Principal token = Principal.token("u1", new TokenGrant("team1", false), null);
+
+		assertThatExceptionOfType(ApiException.class)
+			.isThrownBy(() -> this.access.workspace(token, new RequestedWorkspace("mine")))
+			.satisfies((ex) -> assertThat(ex.status()).isEqualTo(HttpStatus.NOT_FOUND));
+	}
+
+	@Test
+	void require_editingWithReadToken_isForbiddenAsAViewer() {
+		member(new WorkspaceRef("team1", "team"));
+		Principal token = Principal.token("u1", new TokenGrant(null, true), null);
+
+		assertThatExceptionOfType(ApiException.class)
+			.isThrownBy(() -> this.access.require(token, "team1", WorkspaceRole.EDITOR, "Project 'p'"))
+			.withMessage("You are a viewer in this workspace; this needs editor access.");
 	}
 
 	private void member(WorkspaceRef... workspaces) {

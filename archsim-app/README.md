@@ -57,9 +57,13 @@ ways.
 | `examples` | `GET /examples`, `GET /examples/{id}` |
 | `analysis` | `POST /validate` (archsim-model; a scenario through the engine service), `POST /analyze` (engine service) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
-| `access` | who is asking (`Principal`), workspace roles, and the rule that what you may not see answers `404` |
+| `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
+| `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
+| `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
+| `workspaces` | `GET /workspaces`, and new workspaces with their owner |
 | `audit` | the history of changes, written in the transaction of each change |
-| `limits` | what a workspace's kind allows (a sandbox holds five projects) |
+| `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted and cut in characters) |
+| `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
 | `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) |
 
 ## Endpoints ported
@@ -68,8 +72,8 @@ ways.
 | --- | --- | --- |
 | 1 | health, meta, components, pricing, architecture schema, examples, OpenAPI | done |
 | 2 | validate, analyze (Python engine service), projects, documents | done |
-| 3 | sign-in, sessions, CSRF, tokens | next |
-| 4 | runs and the queue | |
+| 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
+| 4 | runs and the queue | next |
 | 5 | shares, reviews, workspaces, limits, import and export, calibration | |
 | 6 | compose runs the Java API; FastAPI deleted | |
 
@@ -110,8 +114,10 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - A `405` that Tomcat answers itself (`TRACE`) lists Tomcat's methods in `Allow`.
 - A SQLAlchemy URL without a host (a Unix socket, `postgresql+psycopg:///archsim`) is refused;
   the JDBC driver needs a host.
-- Until slice 3, a server with `ARCHSIM_AUTH_MODE=oauth` answers `401` to every request that
-  needs to know who is asking: sign-in, sessions and API tokens are not ported yet.
+- The sign-in state cookie's expiry is written as Java writes a number (`1.79369E9`); Python
+  wrote `1793690103.358`. Each API reads the other's.
+- An OAuth provider whose profile names no account id (`"id": null`) fails the sign-in
+  (`/signin?error=provider`); Python stored the account under the subject `None`.
 - The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
   be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, `/analyze` and scenario validation
   answer `503` saying which. The Python API computed in-process, with no time limit.
@@ -133,5 +139,10 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   stored revision is still the one read, and answers the other `409`.
 - **A sandbox past its cap.** Python counted a workspace's projects and then added one, so
   requests at once could take a sandbox past five projects. Java locks the workspace first.
+
+- **A crash on odd sign-in input.** Python compared the callback's `state` and the
+  `X-ArchSim-CSRF` header with `hmac.compare_digest`, which raises on text that is not ASCII, so
+  such a request answered `500`. Java compares bytes: the callback lands on
+  `/signin?error=state`, and the change is refused with `403`.
 
 More are listed here as their endpoints are ported.

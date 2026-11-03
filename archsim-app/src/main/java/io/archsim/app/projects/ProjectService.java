@@ -12,6 +12,7 @@ import io.archsim.app.access.Principal;
 import io.archsim.app.access.RequestedWorkspace;
 import io.archsim.app.access.WorkspaceAccess;
 import io.archsim.app.access.WorkspaceRole;
+import io.archsim.app.store.Text;
 import io.archsim.app.web.ApiException;
 
 /**
@@ -139,11 +140,7 @@ class ProjectService {
 	 * @return the copy's name
 	 */
 	private static String copyName(String name) {
-		String copy = name + " (copy)";
-		if (copy.codePointCount(0, copy.length()) <= MAX_NAME) {
-			return copy;
-		}
-		return copy.substring(0, copy.offsetByCodePoints(0, MAX_NAME));
+		return Text.cut(name + " (copy)", MAX_NAME);
 	}
 
 }

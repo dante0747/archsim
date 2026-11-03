@@ -60,6 +60,21 @@ class ArchsimPropertiesTests {
 	}
 
 	@Test
+	void limitsOn_withSignInAndNoSetting_isTrue() {
+		assertThat(TestProperties.with("auth-mode=oauth").limitsOn()).isTrue();
+	}
+
+	@Test
+	void limitsOn_withoutSignInOrSetting_isFalse() {
+		assertThat(TestProperties.with().limitsOn()).isFalse();
+	}
+
+	@Test
+	void limitsOn_setOff_isFalseEvenWithSignIn() {
+		assertThat(TestProperties.with("auth-mode=oauth", "rate-limits=false").limitsOn()).isFalse();
+	}
+
+	@Test
 	void toString_databaseUrlWithPassword_masksIt() {
 		ArchsimProperties properties = TestProperties.with("database-url=postgresql://archsim:s3cret@db/archsim");
 

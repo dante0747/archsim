@@ -22,6 +22,8 @@ dependencies {
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.spring.boot.starter.jdbc.test)
     testImplementation(libs.archunit)
+    // the black-box suite's stand-in GitHub, for the sign-in tests
+    testImplementation(project(":archsim-api-tests"))
     // PostgreSQL binaries from Maven Central for the database tests, no Docker (ADR-0033)
     testImplementation(platform(libs.embedded.postgres.binaries.bom))
     testImplementation(libs.embedded.postgres)

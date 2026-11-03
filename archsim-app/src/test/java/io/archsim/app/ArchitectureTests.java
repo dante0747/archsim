@@ -29,11 +29,12 @@ class ArchitectureTests {
 
 	/**
 	 * What every feature may use: start-up, settings, migrations, the web contract,
-	 * access rules, the history, workspace limits and the Python engine service.
+	 * access rules, the history, workspace limits, the Python engine service and stored
+	 * values.
 	 */
 	private static final String[] SHARED = { "io.archsim.app", "io.archsim.app.config..", "io.archsim.app.migration..",
 			"io.archsim.app.web..", "io.archsim.app.access..", "io.archsim.app.audit..", "io.archsim.app.limits..",
-			"io.archsim.app.engine.." };
+			"io.archsim.app.engine..", "io.archsim.app.store.." };
 
 	@Test
 	void controllers_anyFeature_neverUseARepository() {

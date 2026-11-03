@@ -7,6 +7,7 @@ import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
+import io.archsim.app.store.Text;
 import io.archsim.app.web.RequestInvalidException;
 
 /**
@@ -34,7 +35,7 @@ class RequestedWorkspaceResolver implements HandlerMethodArgumentResolver {
 		// FastAPI takes the last of a repeated parameter, and counts characters, not
 		// UTF-16 units
 		String query = (values != null && values.length > 0) ? values[values.length - 1] : null;
-		if (query != null && query.codePointCount(0, query.length()) > MAX_ID) {
+		if (query != null && Text.length(query) > MAX_ID) {
 			throw RequestInvalidException.queryTooLong(QUERY, query, MAX_ID);
 		}
 		String header = request.getHeader(HEADER);

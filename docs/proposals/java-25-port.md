@@ -64,7 +64,8 @@ archsim-model (plain Java library, usable without the simulator)
 - **Gradle 9 with Kotlin DSL**, a version catalog, and one Gradle module per box above, each
   added by the stage that first needs it.
 - **Spring Boot 4** (Spring Framework 7, Jackson 3), Spring Security's OAuth2 client for GitHub
-  and Google sign-in, CSRF protection and hashed API tokens, as today. **One app,
+  and Google sign-in, CSRF protection and hashed API tokens, as today (ADR-0037, proposed, does
+  sign-in in plain Spring MVC instead, to keep the shared sessions and the HTTP contract). **One app,
   `archsim-app`**, organised by feature: one package per feature, holding that feature's
   controller, service and repository classes. It builds one image, started as `api`, `worker`
   or `migrate` like today's Python image; the worker is a Spring profile without the web layer.

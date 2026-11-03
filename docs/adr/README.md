@@ -78,3 +78,4 @@ what the repository shows.
 | [0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md) | Keep the FastAPI API's HTTP contract in Spring MVC | Proposed | 2026-11-03 |
 | [0035](0035-read-the-python-apis-settings-unchanged.md) | Read the Python API's `ARCHSIM_*` settings unchanged | Proposed | 2026-11-03 |
 | [0036](0036-python-engine-service-for-synchronous-calls.md) | Run the engine's synchronous calls in a small internal Python service | Proposed | 2026-11-03 |
+| [0037](0037-sign-in-without-spring-security.md) | Sign people in with plain Spring MVC, not Spring Security | Proposed | 2026-11-03 |

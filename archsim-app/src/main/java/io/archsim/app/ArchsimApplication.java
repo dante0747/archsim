@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ConfigurableApplicationContext;
 
 import io.archsim.app.config.ArchsimProperties;
+import io.archsim.app.config.SignInProperties;
 
 /**
  * ArchSim's application: the HTTP API over PostgreSQL, started in one of its {@link Role
@@ -18,7 +19,7 @@ import io.archsim.app.config.ArchsimProperties;
  * layer's filters read them.
  */
 @SpringBootApplication
-@EnableConfigurationProperties(ArchsimProperties.class)
+@EnableConfigurationProperties({ ArchsimProperties.class, SignInProperties.class })
 public class ArchsimApplication {
 
 	/**

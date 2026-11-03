@@ -2,11 +2,9 @@ package io.archsim.app.projects;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -19,6 +17,8 @@ import io.archsim.app.access.Access;
 import io.archsim.app.access.Principal;
 import io.archsim.app.audit.AuditLog;
 import io.archsim.app.audit.ProjectTarget;
+import io.archsim.app.store.Ids;
+import io.archsim.app.store.Times;
 import io.archsim.app.web.ApiException;
 
 /**
@@ -58,9 +58,8 @@ class ProjectChanges {
 		JsonNode metadata = project.design().path("metadata");
 		String description = (project.description() != null) ? project.description()
 				: metadata.path("description").asString(null);
-		Project made = new Project(UUID.randomUUID().toString().replace("-", ""), project.workspaceId(),
-				principal.userId(), metadata.path("name").asString(), description, project.design(), 1,
-				project.sourceExample(), now, now);
+		Project made = new Project(Ids.newId(), project.workspaceId(), principal.userId(),
+				metadata.path("name").asString(), description, project.design(), 1, project.sourceExample(), now, now);
 		this.projects.insert(made);
 		this.audit.project("project.create", target(made), meta("fromExample", made.sourceExample()), principal);
 		return made;
@@ -109,7 +108,7 @@ class ProjectChanges {
 	}
 
 	private Instant now() {
-		return this.clock.instant().truncatedTo(ChronoUnit.MICROS);
+		return Times.now(this.clock);
 	}
 
 	private static ProjectTarget target(Project project) {

@@ -42,6 +42,9 @@ import org.springframework.validation.annotation.Validated;
  * owner of the default workspace ({@code none})
  * @param trustedProxies addresses whose {@code X-ArchSim-Client-IP} header is believed:
  * the web server's, as IPs, networks or host names
+ * @param rateLimits whether the limits per workspace, person and address apply (429 with
+ * {@code Retry-After}), with the hosted limits per workspace kind; empty for on with
+ * sign-in and off without
  */
 @ConfigurationProperties("archsim")
 @Validated
@@ -53,7 +56,8 @@ public record ArchsimProperties(
 		@DefaultValue("300.0") @Positive @DecimalMax("3600") double maxWallSeconds,
 		@DefaultValue("2000000") @Min(1) @Max(20_000_000) long maxRequests,
 		@DefaultValue("5000000") @Min(10_000) long maxBodyBytes, @Nullable String publicUrl,
-		@DefaultValue("none") AuthMode authMode, @DefaultValue("127.0.0.1,::1") HostList trustedProxies) {
+		@DefaultValue("none") AuthMode authMode, @DefaultValue("127.0.0.1,::1") HostList trustedProxies,
+		@Nullable Boolean rateLimits) {
 
 	/** The most runs one worker simulates at once. */
 	static final int MAX_SLOTS = 32;
@@ -120,6 +124,14 @@ public record ArchsimProperties(
 		return this.authMode == AuthMode.OAUTH;
 	}
 
+	/**
+	 * Whether the rate limits and the hosted limits per workspace kind apply.
+	 * @return the setting, else whether people sign in
+	 */
+	public boolean limitsOn() {
+		return (this.rateLimits != null) ? this.rateLimits : hosted();
+	}
+
 	private static boolean hasDesigns(Path folder) {
 		if (!Files.isDirectory(folder)) {
 			return false;
@@ -140,10 +152,11 @@ public record ArchsimProperties(
 	public String toString() {
 		return ("ArchsimProperties[databaseUrl=%s, examplesDir=%s, pricesDir=%s, corsOrigins=%s, autoMigrate=%s, "
 				+ "maxConcurrentRuns=%s, maxWallSeconds=%s, maxRequests=%s, maxBodyBytes=%s, publicUrl=%s, "
-				+ "authMode=%s, trustedProxies=%s]")
+				+ "authMode=%s, trustedProxies=%s, rateLimits=%s]")
 			.formatted(DatabaseUrl.masked(this.databaseUrl), this.examplesDir, this.pricesDir,
 					this.corsOrigins.origins(), this.autoMigrate, this.maxConcurrentRuns, this.maxWallSeconds,
-					this.maxRequests, this.maxBodyBytes, this.publicUrl, this.authMode, this.trustedProxies.hosts());
+					this.maxRequests, this.maxBodyBytes, this.publicUrl, this.authMode, this.trustedProxies.hosts(),
+					this.rateLimits);
 	}
 
 }
