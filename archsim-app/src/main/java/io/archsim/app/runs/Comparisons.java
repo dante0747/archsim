@@ -1,8 +1,5 @@
 package io.archsim.app.runs;
 
-import java.util.List;
-
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -51,8 +48,8 @@ class Comparisons {
 		RunView view = run.view();
 		return this.runs.reportDocument(run)
 			.filter((report) -> view.succeeded())
-			.orElseThrow(() -> new ApiException(HttpStatus.CONFLICT,
-					"Run " + view.shortId() + " is " + view.status() + "; cannot compare", List.of()));
+			.orElseThrow(
+					() -> ApiException.conflict("Run " + view.shortId() + " is " + view.status() + "; cannot compare"));
 	}
 
 }

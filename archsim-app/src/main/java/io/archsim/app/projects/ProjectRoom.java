@@ -1,9 +1,7 @@
 package io.archsim.app.projects;
 
-import java.util.List;
 import java.util.OptionalInt;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import io.archsim.app.access.Access;
@@ -40,8 +38,8 @@ class ProjectRoom {
 			.map((workspace) -> this.limits.maxProjects(workspace.kind()))
 			.orElse(OptionalInt.empty());
 		if (cap.isPresent() && this.projects.count(workspaceId) >= cap.getAsInt()) {
-			throw new ApiException(HttpStatus.CONFLICT,
-					"This workspace holds at most %d projects: delete one first.".formatted(cap.getAsInt()), List.of());
+			throw ApiException
+				.conflict("This workspace holds at most %d projects: delete one first.".formatted(cap.getAsInt()));
 		}
 	}
 

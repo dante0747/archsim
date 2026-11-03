@@ -41,11 +41,7 @@ public class AuditLog {
 	 */
 	public void project(String action, ProjectTarget project, Map<String, @Nullable Object> meta, Principal principal) {
 		ObjectNode details = this.json.createObjectNode().put("name", project.name());
-		meta.forEach((key, value) -> {
-			if (value != null) {
-				details.set(key, this.json.valueToTree(value));
-			}
-		});
+		details.setAll(details(meta));
 		this.repository.insert(new AuditEvent(project.workspaceId(), project.id(), actorOf(principal), action,
 				"project", project.id(), details, Times.now(this.clock)));
 	}
@@ -66,6 +62,32 @@ public class AuditLog {
 		}
 		this.repository.insert(new AuditEvent(run.workspaceId(), run.projectId(), actorOf(principal), action, "run",
 				run.id(), details, Times.now(this.clock)));
+	}
+
+	/**
+	 * Records a change to a workspace, its members or its invitations. The target's kind
+	 * is the action's first word, {@code user} for a member.
+	 * @param action the change, such as {@code member.role}
+	 * @param target the workspace, and the member or invitation if it is about one
+	 * @param meta what else to record about it; {@code null} values are left out
+	 * @param principal who made the change
+	 */
+	public void workspace(String action, WorkspaceTarget target, Map<String, @Nullable Object> meta,
+			Principal principal) {
+		String kind = action.substring(0, action.indexOf('.'));
+		String targetId = (target.targetId() != null) ? target.targetId() : target.workspaceId();
+		this.repository.insert(new AuditEvent(target.workspaceId(), null, actorOf(principal), action,
+				"member".equals(kind) ? "user" : kind, targetId, details(meta), Times.now(this.clock)));
+	}
+
+	private ObjectNode details(Map<String, @Nullable Object> meta) {
+		ObjectNode details = this.json.createObjectNode();
+		meta.forEach((key, value) -> {
+			if (value != null) {
+				details.set(key, this.json.valueToTree(value));
+			}
+		});
+		return details;
 	}
 
 	private static Actor actorOf(Principal principal) {

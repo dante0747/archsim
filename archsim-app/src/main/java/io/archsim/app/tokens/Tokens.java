@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import io.archsim.app.access.Access;
@@ -73,8 +72,7 @@ class Tokens {
 		}
 		int active = list(person).size();
 		if (active >= MAX_TOKENS) {
-			throw new ApiException(HttpStatus.CONFLICT, "You have " + active + " tokens: revoke some first.",
-					List.of());
+			throw ApiException.conflict("You have " + active + " tokens: revoke some first.");
 		}
 		String secret = Secrets.newSecret(Secrets.TOKEN_PREFIX);
 		Instant now = now();

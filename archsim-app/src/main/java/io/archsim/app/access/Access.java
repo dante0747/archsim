@@ -51,8 +51,9 @@ public class Access {
 
 	/**
 	 * A workspace, whoever asks, locked until the transaction ends: requests that count
-	 * what it holds before adding to it take turns. For a feature that has already
-	 * checked the asker's role there.
+	 * what it holds before changing it take turns. Taking the lock tells the asker
+	 * nothing, so it may come before their role is checked, and a role read after it is
+	 * the one committed by whoever held it before.
 	 * @param id the workspace's id
 	 * @return the workspace, if it exists
 	 */

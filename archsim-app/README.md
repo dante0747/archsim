@@ -63,7 +63,7 @@ ways.
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
-| `workspaces` | `GET /workspaces`, and new workspaces with their owner |
+| `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
 | `audit` | the history of changes, written in the transaction of each change |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted and cut in characters) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
@@ -77,7 +77,7 @@ ways.
 | 2 | validate, analyze (Python engine service), projects, documents | done |
 | 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
 | 4 | runs and the queue (the workers stay Python) | done |
-| 5 | shares, reviews, workspaces, limits, import and export, calibration | next |
+| 5 | workspaces, members and invitations (done); reviews, shares, import and export, calibration | in progress |
 | 6 | compose runs the Java API; FastAPI deleted | |
 
 ## Tests
@@ -161,5 +161,12 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - **Seed groups and batches half queued.** Python queued a group's runs, and a batch's, one by
   one, each in its own transaction, so a failure part-way left a group with fewer runs than its
   size, or part of a batch. Java queues a group with its runs, and a batch, in one transaction.
+
+- **A workspace with no owner.** Python counted a workspace's owners and then changed a role or
+  removed a member, so two owners demoting or removing each other at once both succeeded and left
+  the workspace with no one to manage it. Java locks the workspace first.
+- **One invitation, two members.** Python read an invitation and later marked it accepted, so two
+  people accepting the same link at once both joined. Java claims the link before it adds the
+  member; the second answers `404`, as for a link already used.
 
 More are listed here as their endpoints are ported.

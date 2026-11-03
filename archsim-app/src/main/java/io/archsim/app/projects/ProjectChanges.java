@@ -3,11 +3,9 @@ package io.archsim.app.projects;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -101,10 +99,8 @@ class ProjectChanges {
 	 * @return {@code 409}, asking to reload
 	 */
 	static ApiException modifiedElsewhere(int stored, int had) {
-		return new ApiException(HttpStatus.CONFLICT,
-				"Project was modified elsewhere (revision %d, you had %d). Reload before saving.".formatted(stored,
-						had),
-				List.of());
+		return ApiException.conflict("Project was modified elsewhere (revision %d, you had %d). Reload before saving."
+			.formatted(stored, had));
 	}
 
 	private Instant now() {

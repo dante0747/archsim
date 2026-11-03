@@ -51,6 +51,15 @@ public final class ApiException extends RuntimeException {
 	}
 
 	/**
+	 * A request the current state of things does not allow: {@code 409}.
+	 * @param message why, and what to do instead
+	 * @return the refusal
+	 */
+	public static ApiException conflict(String message) {
+		return new ApiException(HttpStatus.CONFLICT, message, List.of());
+	}
+
+	/**
 	 * A request over a rate limit: {@code 429} with {@code Retry-After}.
 	 * @param message what was refused and when to try again
 	 * @param retryAfterSeconds how many seconds until the limit's window ends

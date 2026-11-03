@@ -3,10 +3,12 @@ package io.archsim.app.access;
 import java.util.Arrays;
 import java.util.Locale;
 
+import io.archsim.model.codec.JsonEnum;
+
 /**
  * A member's role in a workspace, each allowing what the one before it does and more.
  */
-public enum WorkspaceRole {
+public enum WorkspaceRole implements JsonEnum {
 
 	/** Reads the workspace's projects and runs. */
 	VIEWER,
@@ -43,6 +45,7 @@ public enum WorkspaceRole {
 	 * The role's name, as the database and the API write it.
 	 * @return {@code viewer}, {@code editor} or {@code owner}
 	 */
+	@Override
 	public String json() {
 		return name().toLowerCase(Locale.ROOT);
 	}

@@ -3,7 +3,6 @@ package io.archsim.app.runs;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 
@@ -76,8 +75,7 @@ class Runs {
 		return this.repository.report(run.id())
 			.filter((report) -> run.view().succeeded())
 			.map(JsonText::new)
-			.orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Run is " + status + "; no report available",
-					List.of()));
+			.orElseThrow(() -> ApiException.conflict("Run is " + status + "; no report available"));
 	}
 
 	/**

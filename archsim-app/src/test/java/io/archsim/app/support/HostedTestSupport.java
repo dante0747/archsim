@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -77,6 +78,15 @@ public abstract class HostedTestSupport {
 
 	protected static FakeGitHub github() {
 		return GITHUB;
+	}
+
+	/**
+	 * A connection of its own to the test database, as another request at the same time
+	 * has.
+	 * @return the client
+	 */
+	protected static JdbcClient anotherConnection() {
+		return JdbcClient.create(new DriverManagerDataSource(DATABASE));
 	}
 
 	/**
