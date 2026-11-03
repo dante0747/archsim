@@ -1,9 +1,10 @@
 /**
  * End-to-end tests against a production build (`npm run build` first, then `npm run e2e`).
- * Playwright starts the API (e2e/api-server.mjs: a throwaway SQLite database and shortened copies
- * of the templates) and `next start` pointed at it, on spare ports so a running stack is left
- * alone. The capture spec (README images and demo GIF) has its own config:
- * playwright.capture.config.ts.
+ * Playwright starts the API (e2e/api-server.mjs: the Java API with the Python engine service and a
+ * Python worker, on a fresh PostgreSQL database, with shortened copies of the templates) and
+ * `next start` pointed at it, on spare ports so a running stack is left alone. It needs
+ * PostgreSQL (docker compose up -d postgres) and the API's jar (./gradlew :archsim-app:bootJar).
+ * The capture spec (README images and demo GIF) has its own config: playwright.capture.config.ts.
  */
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 

@@ -25,6 +25,12 @@ migrates the database first unless `ARCHSIM_AUTO_MIGRATE=false`); `migrate` brin
 to the latest schema and exits. The rest of the command line is Spring Boot's
 (`--server.port=8000`).
 
+In Docker, both roles run from one image, which Jib builds into the local Docker without a
+Dockerfile (`./gradlew :archsim-app:jibDockerBuild`, or `make image`): `archsim-app:local`, on
+Eclipse Temurin's Java 25 runtime, with the examples in `/app/examples`. The repository's
+`docker-compose.yml` runs it as `migrate` and `api`, next to the engine service and a Python
+worker.
+
 Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 ([ADR-0035](../docs/adr/0035-read-the-python-apis-settings-unchanged.md)): `ARCHSIM_DATABASE_URL`
 may be a SQLAlchemy URL (`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`, the
@@ -82,7 +88,7 @@ ways.
 | 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
 | 4 | runs and the queue (the workers stay Python) | done |
 | 5 | workspaces, members and invitations; comments, sign-offs and history; share links; import and export; calibration | done |
-| 6 | compose runs the Java API; FastAPI deleted | |
+| 6 | compose runs the Java API (done); FastAPI deleted | in progress |
 
 ## Tests
 

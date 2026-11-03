@@ -1,12 +1,23 @@
 # Local development stack. Ports are bound to 127.0.0.1 only: it runs without sign-in
 # (ARCHSIM_AUTH_MODE=none; see SECURITY.md before letting anyone else in).
 #
-#   docker compose up -d postgres     # just the database (run API and web locally)
-#   docker compose up --build         # everything: http://localhost:3000
-#   docker compose --profile workers up --build --scale worker=2   # plus two extra workers
+#   ./gradlew :archsim-app:jibDockerBuild    # the Java API's image (make image); again after
+#                                            # changing the Java code
+#   docker compose up -d postgres            # just the database (run the API and web locally)
+#   docker compose up --build                # everything: http://localhost:3000
+#   docker compose up --build --scale worker=3   # more simulation workers
+#
+# The API is the Java one (archsim-app). It calls the Python engine service for the engine's
+# synchronous calls, and Python workers simulate the runs it queues (docs/proposals/java-25-port.md).
 name: archsim
 
-x-api-image: &api-image
+# archsim-app's image, which Jib builds into the local Docker (ADR-0014); compose does not
+# build it. Started as migrate or api.
+x-archsim-app: &archsim-app
+  image: archsim-app:local
+  pull_policy: never
+
+x-worker-build: &worker-build
   context: .
   dockerfile: services/api/Dockerfile
 
@@ -27,10 +38,10 @@ services:
       timeout: 5s
       retries: 10
 
-  # One-shot: brings the database to the latest schema, then exits. The API waits for it.
+  # One-shot: brings the database to the latest schema (Flyway), then exits. The API waits for it.
   migrate:
-    build: *api-image
-    command: ["archsim-api", "migrate"]
+    <<: *archsim-app
+    command: ["migrate"]
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
     depends_on:
@@ -38,9 +49,30 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # The Python engine's synchronous calls (analyze, validate a scenario, prepare a run, compare,
+  # export, import, calibrate), for the API only (ADR-0036). It checks no caller and calls the
+  # Prometheus servers the API's requests name, so only the API shares its network.
+  engine:
+    build:
+      context: .
+      dockerfile: services/engine-service/Dockerfile
+    networks: [engine]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   api:
-    build: *api-image
-    init: true # reaps and signals the simulation processes
+    <<: *archsim-app
+    command: ["api"]
     # Settings for this machine, such as sign-in and its secrets: put them in .env.docker (git
     # ignores it; see the sign-in block of .env.example). Without the file, no sign-in.
     env_file:
@@ -49,34 +81,43 @@ services:
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
       ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
-      ARCHSIM_EXAMPLES_DIR: /app/examples
       ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
+      ARCHSIM_ENGINE_URL: http://engine:8001
     depends_on:
       migrate:
         condition: service_completed_successfully
-    stop_grace_period: 30s # time to give runs in flight back to the queue
+      engine:
+        condition: service_healthy
+    networks: [default, engine]
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
+      # the image has bash but no HTTP client
       test:
         [
           "CMD",
-          "python",
+          "bash",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)",
+          "exec 3<>/dev/tcp/127.0.0.1/8000 && printf 'GET /api/v1/health HTTP/1.0\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '",
         ]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 12
+      start_period: 20s
 
-  # More simulation workers, on top of the one inside the API. They share the queue in
-  # PostgreSQL; on SIGTERM each gives its runs back to it.
+  # Simulation workers: they take the runs the API queues in PostgreSQL and, on SIGTERM, give
+  # the runs in flight back to the queue. Scale with --scale worker=N.
   worker:
-    build: *api-image
-    init: true
-    profiles: ["workers"]
+    build: *worker-build
+    init: true # reaps and signals the simulation processes
     command: ["archsim-api", "worker"]
+    # The API's settings: with sign-in on, the worker caps the runs each workspace kind
+    # simulates at once (ARCHSIM_AUTH_MODE, ARCHSIM_RATE_LIMITS). It needs the whole file, as the
+    # API's embedded worker had it: with ARCHSIM_AUTH_MODE=oauth its settings also check the
+    # secret key, public URL and OAuth client.
+    env_file:
+      - path: .env.docker
+        required: false
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
       ARCHSIM_AUTO_MIGRATE: "false"
@@ -96,6 +137,9 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:3000:3000"
+
+networks:
+  engine: {}
 
 volumes:
   pgdata:

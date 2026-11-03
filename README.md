@@ -265,18 +265,24 @@ All settings are listed in [.env.example](.env.example).
 ### Everything in Docker
 
 ```bash
+./gradlew :archsim-app:jibDockerBuild
+```
+
+```bash
 docker compose up --build
 ```
 
-Then open <http://localhost:3000>. Ports are bound to 127.0.0.1 because the stack runs
-without sign-in by default. A one-shot `migrate` service updates the database first.
+The first command builds the Java API's image into your local Docker with Jib (`make image`; run
+it again after changing the Java code); compose builds the rest. Then open
+<http://localhost:3000>. Ports are bound to 127.0.0.1 because the stack runs without sign-in by
+default. A one-shot `migrate` service updates the database first, the `engine` service answers
+the API's engine calls, and a `worker` simulates the runs.
 
 ### Several API instances and workers
 
-Runs wait in a queue in the database, and the API simulates them itself by default. To share the
-work, start more workers against the same PostgreSQL (`docker compose --profile workers up
---build --scale worker=2`, or `uv run archsim-api worker --slots 4` on any machine that reaches
-the database); set `ARCHSIM_EMBEDDED_WORKER=false` on API instances that should only serve HTTP.
+Runs wait in a queue in the database, and workers simulate them. To share the work, start more
+workers against the same PostgreSQL (`docker compose up --build --scale worker=3`, or
+`uv run archsim-api worker --slots 4` on any machine that reaches the database).
 A run survives a restart (it is queued again), cancel works from any instance, and a crashed
 simulation fails only its own run. SQLite is for one machine. Details and limits:
 [docs/api.md](docs/api.md#background-runs-and-several-instances).

@@ -107,15 +107,16 @@ instance reports the same value.
 
 ### Background runs and several instances
 
-Runs are queued in the database; workers take them. By default `archsim-api serve` contains a
-worker (`ARCHSIM_EMBEDDED_WORKER=true`), so one command runs everything. Each run simulates in a
-process of its own (`ARCHSIM_RUNNER=process`), up to `ARCHSIM_MAX_CONCURRENT_RUNS` at once
-(default: CPU count - 1).
+Runs are queued in the database, and workers (`archsim-api worker`) take them: the Java API only
+queues. (The Python API, until it is removed, also contains a worker unless
+`ARCHSIM_EMBEDDED_WORKER=false`.) Each run simulates in a process of its own
+(`ARCHSIM_RUNNER=process`), up to `ARCHSIM_MAX_CONCURRENT_RUNS` at once per worker (default:
+CPU count - 1).
 
-- **Restarts.** An API or worker that stops normally (Ctrl+C, SIGTERM) gives its runs back to the
+- **Restarts.** A worker that stops normally (Ctrl+C, SIGTERM) gives its runs back to the
   queue, and the next worker simulates them again from the start. One that dies without warning
   (killed, out of memory, host lost) stops renewing its runs' leases; after
-  `ARCHSIM_LEASE_SECONDS` (30 s) another worker, or the same API after a restart, requeues them.
+  `ARCHSIM_LEASE_SECONDS` (30 s) another worker, or the same one after a restart, requeues them.
   A run whose worker stops twice is `failed` with "The simulation worker stopped
   unexpectedly…".
 - **A crashed simulation** (its process ran out of memory or was killed) fails only that run,
@@ -123,15 +124,15 @@ process of its own (`ARCHSIM_RUNNER=process`), up to `ARCHSIM_MAX_CONCURRENT_RUN
 - **Deadline.** A run still going `ARCHSIM_MAX_WALL_SECONDS` + 30 s after it started is killed and
   `failed`, even if the simulation stopped checking its limits.
 - **Several instances.** With PostgreSQL, any number of API instances and workers can share one
-  database: workers claim runs with `FOR UPDATE SKIP LOCKED`, and cancel requests reach the
-  worker holding a run wherever it is. Run extra workers with `archsim-api worker --slots N`
-  (`docker compose --profile workers up --scale worker=2`), and set
-  `ARCHSIM_EMBEDDED_WORKER=false` on API instances that should only serve HTTP. Hosts need
-  synchronised clocks (NTP): leases compare their times. SQLite works for several processes on
-  one machine only.
-- **Migrations** take a PostgreSQL advisory lock, so instances starting together migrate one at
-  a time. `archsim-api migrate` (the Compose `migrate` service) migrates once and exits; then
-  set `ARCHSIM_AUTO_MIGRATE=false` on the instances.
+  database: the API only queues runs, workers claim them with `FOR UPDATE SKIP LOCKED`, and
+  cancel requests reach the worker holding a run wherever it is. Run more workers with
+  `archsim-api worker --slots N` (`docker compose up --scale worker=3`). Hosts need
+  synchronised clocks (NTP): leases compare their times. The Java API needs PostgreSQL; the
+  Python API's SQLite works for several processes on one machine only.
+- **Migrations** (Flyway) take a PostgreSQL lock, so instances starting together migrate one at
+  a time. The `migrate` role (`java -jar archsim-app.jar migrate`, the Compose `migrate`
+  service) migrates once and exits; then set `ARCHSIM_AUTO_MIGRATE=false` on the API instances
+  and the workers.
 - **Workers table.** `job_workers` lists each worker's latest heartbeat (every 2 s), slots and
   runs in flight; rows of workers gone for an hour are deleted.
 

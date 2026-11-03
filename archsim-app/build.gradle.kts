@@ -4,6 +4,7 @@
 plugins {
     id("archsim.java-conventions")
     alias(libs.plugins.spring.boot)
+    alias(libs.plugins.jib)
 }
 
 dependencies {
@@ -37,4 +38,47 @@ tasks.test {
 tasks.bootJar {
     // one name whatever the version, so the black-box suite and the image find it
     archiveFileName = "archsim-app.jar"
+}
+
+// The image compose runs as `migrate` and `api` (ADR-0014), built into the local Docker with
+// ./gradlew :archsim-app:jibDockerBuild (make image), for this machine's processor. It carries the
+// examples, as the Python image did.
+val imageExamples = "/app/examples"
+val buildsOnArm = providers.systemProperty("os.arch").get() in setOf("aarch64", "arm64")
+val imageArchitecture = if (buildsOnArm) "arm64" else "amd64"
+
+jib {
+    from {
+        image = "eclipse-temurin:25-jre"
+        platforms {
+            platform {
+                architecture = imageArchitecture
+                os = "linux"
+            }
+        }
+    }
+    to {
+        image = "archsim-app:local"
+    }
+    container {
+        mainClass = "io.archsim.app.ArchsimApplication"
+        args = listOf("api")
+        ports = listOf("8000")
+        // a user and group of its own, not root's group
+        user = "10001:10001"
+        environment = mapOf("ARCHSIM_EXAMPLES_DIR" to imageExamples)
+    }
+    extraDirectories {
+        paths {
+            path {
+                setFrom(rootDir.resolve("examples"))
+                into = imageExamples
+            }
+        }
+    }
+}
+
+// Jib reads the project while it runs, which the configuration cache does not allow
+tasks.withType<com.google.cloud.tools.jib.gradle.JibTask>().configureEach {
+    notCompatibleWithConfigurationCache("Jib reads the project at execution time")
 }

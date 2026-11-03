@@ -30,7 +30,8 @@ ArchSim runs in one of two modes, chosen with `ARCHSIM_AUTH_MODE`:
 - **`none` (the default): local, single-user.** There is no sign-in: every request is the
   local owner of the `default` workspace, so anyone who can reach the API can read, change and
   delete everything. `archsim-api serve` binds to `127.0.0.1`; keep it that way. The Docker
-  Compose file binds ports to `127.0.0.1` for the same reason.
+  Compose file binds ports to `127.0.0.1` for the same reason, and puts the engine service on a
+  network only the API shares (see "Outbound requests" below).
 - **`oauth`: hosted, for people other than whoever runs the server.** Sign-in with GitHub or
   Google, workspaces with roles, API tokens, CSRF protection, rate limits and an outbound block
   are on. The rest of this section describes that mode; the notes after it apply to both.
@@ -102,7 +103,10 @@ server at `https://<host>/api/v1`.
   CGNAT, unique-local IPv6, or IPv4 hidden in IPv6), the connection goes to that checked
   address (no second lookup an attacker could change), TLS is still verified against the host
   name, and redirects are never followed. An IP address written in the allowlist itself is
-  trusted as written (for a Prometheus on a private network the operator chose).
+  trusted as written (for a Prometheus on a private network the operator chose). The API works
+  out this policy and sends it with each calibration to the engine service, which makes the
+  call. The service checks no caller, so only the API may reach it: Compose gives it a network
+  that it shares with the API alone.
 - **Client addresses.** The web server sends the visitor's address as `X-ArchSim-Client-IP`,
   taken from `X-Forwarded-For` at the depth `ARCHSIM_TRUSTED_HOPS` says (1 behind one reverse
   proxy; 0 sends nothing, since the header would be the client's own word). The API believes it

@@ -1,6 +1,6 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup hooks api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
+.PHONY: setup hooks image api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
 
 setup:            ## install Python and web dependencies, and the commit-message hook
 	uv sync
@@ -9,6 +9,9 @@ setup:            ## install Python and web dependencies, and the commit-message
 
 hooks:            ## check commit messages against Conventional Commits on every commit
 	git config core.hooksPath .githooks
+
+image:            ## build the Java API's image for docker compose (Jib, into the local Docker)
+	./gradlew :archsim-app:jibDockerBuild
 
 api:              ## run the API on http://127.0.0.1:8000
 	uv run archsim-api serve --reload

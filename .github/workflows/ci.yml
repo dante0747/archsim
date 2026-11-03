@@ -137,6 +137,8 @@ jobs:
       - run: uv sync --frozen
       - name: Build
         run: ./gradlew build
+      - name: Build the API's image (a tarball, no Docker needed)
+        run: ./gradlew :archsim-app:jibBuildTar
       - name: Black-box API tests against the Python API
         run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python
       # the whole suite, against the Java API with the Python engine service and a Python worker
@@ -193,16 +195,39 @@ jobs:
       - run: npm run typecheck
 
   e2e:
-    # the main path in Chromium against a production build and the real API on SQLite;
-    # see apps/web/e2e/main-path.spec.ts
+    # the main path in Chromium against a production build and the real API: the Java API with
+    # the Python engine service and a Python worker, on PostgreSQL; see apps/web/e2e/api-server.mjs
     name: End-to-end (Playwright, main path)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: archsim
+          POSTGRES_PASSWORD: archsim
+          POSTGRES_DB: archsim
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U archsim -d archsim"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      E2E_POSTGRES_URL: postgresql://archsim:archsim@127.0.0.1:5432/archsim
     defaults:
       run:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew :archsim-app:bootJar
+        working-directory: .
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
