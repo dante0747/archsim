@@ -72,3 +72,4 @@ what the repository shows.
 | [0028](0028-golden-file-reader-as-test-fixtures.md) | Read the golden files with a reader shared as Gradle test fixtures | Proposed | 2026-11-02 |
 | [0029](0029-model-packages-in-layers-checked-by-archunit.md) | Build the model's packages in layers, one direction only, checked by ArchUnit | Proposed | 2026-11-02 |
 | [0030](0030-spring-style-and-clean-code-checks.md) | Write Java in Spring Framework's style, with clean-code rules the build enforces | Proposed | 2026-11-02 |
+| [0031](0031-component-catalog-facts-and-presentation.md) | Build the component catalog from the specifications, with its presentation as data | Proposed | 2026-11-03 |

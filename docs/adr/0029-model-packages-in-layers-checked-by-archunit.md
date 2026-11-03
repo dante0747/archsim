@@ -37,6 +37,7 @@ From the top, each layer may use only those below it:
 | Entry point | `io.archsim.model` | anything below |
 | Validation | `validation` | components, pricing, issues, document, codec, text |
 | Scenarios | `scenario` | issues, document, text |
+| Catalog | `catalog` | components, document, codec, text |
 | Components | `component..` | issues, document, codec, text |
 | Pricing | `pricing` | codec, text |
 | Upgrades | `upgrade` | document, text |

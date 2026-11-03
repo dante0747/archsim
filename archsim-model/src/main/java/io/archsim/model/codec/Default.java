@@ -16,12 +16,13 @@ import java.lang.annotation.Target;
  * ({@code @Default("generic")}); for a number, a boolean or an empty collection it is
  * that value's JSON ({@code @Default("50.0")}, {@code @Default("true")},
  * {@code @Default("[]")}). It is bound like an input, so a default that does not fit its
- * field fails when the codec first meets the record. An object or a non-empty list is a
- * {@link DefaultFrom} constant.
+ * field fails when the codec first meets the record. A record field whose own fields all
+ * have defaults commonly takes {@code @Default("{}")}, the record those defaults make;
+ * any other object, and a non-empty list, is a {@link DefaultFrom} constant.
  *
  * <p>
- * An empty collection's default is what pydantic calls a {@code default_factory}: the
- * JSON Schema does not show it.
+ * An empty collection's or an empty object's default is what pydantic calls a
+ * {@code default_factory}: the JSON Schema does not show it.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

@@ -1,0 +1,25 @@
+{
+  "description": "Users on phones (iOS, Android, cross-platform). Sends its share of the workload over a slower, more variable mobile network, waits longer and retries once by default.",
+  "icon": "smartphone",
+  "modeled": [
+    "Open-loop arrivals: clients do not slow down when the system is slow",
+    "Per-attempt client timeout and bounded retries with exponential backoff",
+    "Its share of the workload, split from the same arrivals as the other client groups",
+    "Mobile network delay as the latency of its link (default p50 35 ms / p95 120 ms one way)"
+  ],
+  "notModeled": [
+    "Closed-loop users with think time",
+    "Client-side connection pools",
+    "Offline queues, background sync and app-store release lag"
+  ],
+  "presets": [],
+  "linkDefaults": {
+    "latencyMs": {
+      "kind": "lognormal",
+      "median": 35.0,
+      "p95": 120.0
+    }
+  },
+  "technologyTraits": {},
+  "technologySources": {}
+}

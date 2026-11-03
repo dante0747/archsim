@@ -1,0 +1,207 @@
+{
+  "description": "Reads that hit return from memory. On a miss, either the calling service reads the data store itself and writes the value back (cache-aside: leave the 'miss' port empty and set the service's link to the data store to 'Reads only on a cache miss'), or the cache asks the data store linked to its 'miss' port (read-through). Writes invalidate the key.",
+  "icon": "zap",
+  "modeled": [
+    "Hit/miss decision per read (fixed probability or TTL over a Zipf keyspace)",
+    "Technology behaviour: single-threaded commands (Redis, Valkey) or worker threads (Memcached)",
+    "Cluster shards: keys hash to a shard with its own executors and memory",
+    "Cache-aside (the caller reads the data store and writes the value back) or read-through (the cache reads it through its miss link)",
+    "Miss path latency added to the caller; repopulation cost",
+    "Memory (when set, TTL model): key capacity per shard, LRU eviction or noeviction out-of-memory errors",
+    "RDB snapshots (when on): fork stalls block commands for a time proportional to the data",
+    "CPU cores (when set): commands queue for a core when executors outnumber cores"
+  ],
+  "notModeled": [
+    "LFU and other eviction policies; memory for the fixed-ratio model (checked, not simulated)",
+    "Thundering herd / request coalescing on misses",
+    "Replicas and failover; copy-on-write memory growth during snapshots",
+    "CDN geography (edge-to-user latency belongs on the incoming link)"
+  ],
+  "presets": [
+    {
+      "config": {
+        "concurrency": 1,
+        "costPerHour": 0.1,
+        "cpuCores": 2,
+        "memoryGib": 6.4,
+        "technology": "redis"
+      },
+      "description": "Single Redis node: commands run on one thread, sub-millisecond; extra cores do not add command throughput. Illustrative defaults.",
+      "family": "In-memory",
+      "id": "redis",
+      "name": "Redis",
+      "sources": {
+        "concurrency": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+      },
+      "tags": [
+        "in-memory",
+        "key-value"
+      ],
+      "technology": "redis"
+    },
+    {
+      "config": {
+        "concurrency": 1,
+        "costPerHour": 0.1,
+        "cpuCores": 2,
+        "memoryGib": 6.4,
+        "serviceTimeMs": {
+          "kind": "exponential",
+          "mean": 0.035
+        },
+        "technology": "valkey"
+      },
+      "description": "Redis-compatible; I/O threads take socket work off the command thread, so each command is shorter, but commands still run one at a time. Illustrative defaults.",
+      "family": "In-memory",
+      "id": "valkey",
+      "name": "Valkey",
+      "sources": {
+        "concurrency": "https://valkey.io/blog/unlock-one-million-rps/"
+      },
+      "tags": [
+        "in-memory",
+        "key-value"
+      ],
+      "technology": "valkey"
+    },
+    {
+      "config": {
+        "concurrency": 4,
+        "costPerHour": 0.09,
+        "cpuCores": 2,
+        "memoryGib": 6.4,
+        "serviceTimeMs": {
+          "kind": "exponential",
+          "mean": 0.04
+        },
+        "technology": "memcached"
+      },
+      "description": "Multi-threaded get/set cache with its default 4 worker threads. Illustrative defaults.",
+      "family": "In-memory",
+      "id": "memcached",
+      "name": "Memcached",
+      "sources": {
+        "concurrency": "https://docs.memcached.org/serverguide/configuring/"
+      },
+      "tags": [
+        "in-memory",
+        "key-value"
+      ],
+      "technology": "memcached"
+    },
+    {
+      "config": {
+        "concurrency": 1024,
+        "costPerHour": 0.2,
+        "hitRatio": 0.9,
+        "queueCapacity": 100000,
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 1.5,
+          "p95": 4
+        },
+        "technology": "cdn"
+      },
+      "description": "Edge cache in front of the origin: huge parallelism, a few ms per request, most reads served at the edge. Put user-to-edge latency on the incoming link. Illustrative defaults.",
+      "family": "Edge cache",
+      "id": "cdn",
+      "name": "CDN edge cache",
+      "sources": {},
+      "tags": [
+        "edge",
+        "http",
+        "static"
+      ],
+      "technology": "cdn"
+    },
+    {
+      "config": {
+        "concurrency": 256,
+        "costPerHour": 0.08,
+        "cpuCores": 2,
+        "hitRatio": 0.85,
+        "memoryGib": 8,
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 0.3,
+          "p95": 1.2
+        },
+        "technology": "varnish"
+      },
+      "description": "Reverse-proxy HTTP cache in front of the application. Illustrative defaults.",
+      "family": "HTTP accelerator",
+      "id": "varnish",
+      "name": "Varnish",
+      "sources": {},
+      "tags": [
+        "http",
+        "reverse-proxy"
+      ],
+      "technology": "varnish"
+    }
+  ],
+  "linkDefaults": {},
+  "technologyTraits": {
+    "memcached": [
+      {
+        "detail": "Worker threads (4 by default) execute requests in parallel; memory is managed in slabs with LRU eviction and nothing is persisted.",
+        "id": "threads",
+        "source": "https://docs.memcached.org/serverguide/configuring/",
+        "title": "Multi-threaded"
+      }
+    ],
+    "redis": [
+      {
+        "detail": "Commands run one at a time on a single thread per node, however many cores it has; scale out with cluster shards (keys are split across 16,384 hash slots).",
+        "id": "single_thread",
+        "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+        "title": "One thread executes commands"
+      },
+      {
+        "detail": "With allkeys-lru the least recently used keys make room for new ones; with noeviction (Redis's own default) writes fail with an out-of-memory error once memory is full.",
+        "id": "eviction",
+        "source": "https://redis.io/docs/latest/develop/reference/eviction/",
+        "title": "Eviction policy"
+      },
+      {
+        "detail": "With RDB snapshots on, each snapshot forks the process; the fork blocks the command thread for about 10-13 ms per GB of data on modern hardware (Redis's own measurements), far more on some older virtual machines.",
+        "id": "fork_stall",
+        "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+        "title": "Snapshot fork stalls"
+      }
+    ],
+    "valkey": [
+      {
+        "detail": "Valkey offloads socket I/O to I/O threads, which shortens each command, but commands still execute one at a time per node; scale out with cluster shards.",
+        "id": "single_thread",
+        "source": "https://valkey.io/blog/unlock-one-million-rps/",
+        "title": "One thread executes commands"
+      },
+      {
+        "detail": "With allkeys-lru the least recently used keys make room for new ones; with noeviction (Redis's own default) writes fail with an out-of-memory error once memory is full.",
+        "id": "eviction",
+        "source": "https://redis.io/docs/latest/develop/reference/eviction/",
+        "title": "Eviction policy"
+      },
+      {
+        "detail": "With RDB snapshots on, each snapshot forks the process; the fork blocks the command thread for about 10-13 ms per GB of data on modern hardware (Redis's own measurements), far more on some older virtual machines.",
+        "id": "fork_stall",
+        "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+        "title": "Snapshot fork stalls"
+      }
+    ]
+  },
+  "technologySources": {
+    "evictionPolicy": {
+      "memcached": "https://docs.memcached.org/serverguide/configuring/"
+    },
+    "persistence": {
+      "memcached": "https://docs.memcached.org/serverguide/configuring/"
+    },
+    "singleThreaded": {
+      "memcached": "https://docs.memcached.org/serverguide/configuring/",
+      "redis": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+      "valkey": "https://valkey.io/blog/unlock-one-million-rps/"
+    }
+  }
+}

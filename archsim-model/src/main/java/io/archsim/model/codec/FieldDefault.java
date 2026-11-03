@@ -57,18 +57,22 @@ record FieldDefault(boolean required, @Nullable Object value, boolean inSchema) 
 		return new FieldDefault(false, value, !json.isContainer());
 	}
 
+	/**
+	 * The value of a {@link DefaultFrom} constant.
+	 * @param constant the annotation
+	 * @param component the record component it is on
+	 * @return the constant's value
+	 * @throws IllegalStateException when the record has no static constant of that name,
+	 * or it holds no value of the component's type
+	 */
 	private static Object valueOf(DefaultFrom constant, RecordComponent component) {
-		try {
-			Object value = Reflection.accessible(component.getDeclaringRecord().getDeclaredField(constant.value()))
-				.get(null);
-			if (!component.getType().isInstance(value)) {
-				throw new IllegalStateException("the default of " + component + " is not one: " + value);
-			}
-			return value;
+		Object value = Reflection.staticValue(component.getDeclaringRecord(), constant.value())
+			.orElseThrow(() -> new IllegalStateException(
+					"the default of " + component + " names no static constant " + constant.value()));
+		if (!component.getType().isInstance(value)) {
+			throw new IllegalStateException("the default of " + component + " is not one: " + value);
 		}
-		catch (ReflectiveOperationException ex) {
-			throw new IllegalStateException("the default of " + component + " cannot be read", ex);
-		}
+		return value;
 	}
 
 	/**

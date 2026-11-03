@@ -2,6 +2,7 @@ package io.archsim.model.component.database;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import io.archsim.model.component.Category;
@@ -9,6 +10,7 @@ import io.archsim.model.component.ComponentIdentity;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
+import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.issue.Issue;
 import io.archsim.model.text.PythonFormat;
@@ -30,6 +32,11 @@ public final class DatabaseSpec extends ComponentSpec<DatabaseConfig> {
 	public DatabaseSpec() {
 		super(new ComponentIdentity("database", "Database", Category.STORAGE), DatabaseConfig.class,
 				List.of(Port.in("in", "Queries", "Read and write queries.")));
+	}
+
+	@Override
+	public Map<String, TechnologyProfile> technologies() {
+		return DatabaseConfig.PROFILES.byName();
 	}
 
 	@Override

@@ -1,0 +1,25 @@
+{
+  "description": "Users in a web browser (single-page app or server-rendered site). Sends its share of the workload over a broadband network and does not retry by default.",
+  "icon": "app-window",
+  "modeled": [
+    "Open-loop arrivals: clients do not slow down when the system is slow",
+    "Per-attempt client timeout and bounded retries with exponential backoff",
+    "Its share of the workload, split from the same arrivals as the other client groups",
+    "Home or office network delay as the latency of its link (default p50 15 ms / p95 45 ms one way)"
+  ],
+  "notModeled": [
+    "Closed-loop users with think time",
+    "Client-side connection pools",
+    "Static assets, browser caching and CDN hits (model a CDN as a cache in front if needed)"
+  ],
+  "presets": [],
+  "linkDefaults": {
+    "latencyMs": {
+      "kind": "lognormal",
+      "median": 15.0,
+      "p95": 45.0
+    }
+  },
+  "technologyTraits": {},
+  "technologySources": {}
+}

@@ -32,29 +32,14 @@ import io.archsim.model.codec.OmitWhenDefault;
 		exactly that one is used, never a newer one; a run's input records the snapshot it used.""")
 public record Pricing(@Default(GENERIC) @Matches(Patterns.PRICE_NAME) String provider,
 		@Matches(Patterns.PRICE_NAME) @Nullable String region,
-		@Default("on_demand") @Description(PURCHASE_OPTION) @Const("on_demand") String purchaseOption,
-		@Default("[]") @Description(FAMILIES) @MaxItems(20) List<@Matches(Patterns.FAMILY) String> families,
-		@Default("auto") @OmitWhenDefault @Description(BURSTABLE) Burstable burstable,
-		@OmitWhenDefault @Description(SNAPSHOT_DATE) @Matches(Patterns.DATE) @Nullable String snapshotDate,
-		@OmitWhenDefault @Description(SNAPSHOT_SHA256) @Matches(Patterns.SHA256) @Nullable String snapshotSha256) {
+		@Default("on_demand") @Description(Descriptions.PRICING_PURCHASE_OPTION) @Const("on_demand") String purchaseOption,
+		@Default("[]") @Description(Descriptions.PRICING_FAMILIES) @MaxItems(20) List<@Matches(Patterns.FAMILY) String> families,
+		@Default("auto") @OmitWhenDefault @Description(Descriptions.PRICING_BURSTABLE) Burstable burstable,
+		@OmitWhenDefault @Description(Descriptions.PRICING_SNAPSHOT_DATE) @Matches(Patterns.DATE) @Nullable String snapshotDate,
+		@OmitWhenDefault @Description(Descriptions.PRICING_SNAPSHOT_SHA256) @Matches(Patterns.SHA256) @Nullable String snapshotSha256) {
 
 	/** The provider of ArchSim's illustrative rates, which need no snapshot. */
 	public static final String GENERIC = "generic";
-
-	static final String PURCHASE_OPTION = "On-demand prices. Savings plans and reserved terms are not modeled yet.";
-
-	static final String FAMILIES = "Instance families to snap to (e.g. m7g, r7g); empty: any in the snapshot. "
-			+ "Naming a burstable family (t4g) allows it everywhere it fits, without restricting the lists";
-
-	static final String BURSTABLE = "auto: a light part may run on a burstable type (t4g) when its CPU at the base "
-			+ "load stays under 80% of the type's baseline and its peak under 60% of its vCPUs. never: no burstable "
-			+ "types (many teams ban them in production).";
-
-	static final String SNAPSHOT_DATE = "Use exactly the snapshot of this date (YYYY-MM-DD), never a newer one; a "
-			+ "warning and generic rates when this machine does not have it. Empty: the newest.";
-
-	static final String SNAPSHOT_SHA256 = "With snapshotDate: the snapshot's content hash, so changed prices of the "
-			+ "same date are not used either. A run's input records it.";
 
 	/**
 	 * Copies the families, so the pricing does not change.

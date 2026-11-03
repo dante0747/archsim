@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -20,6 +21,7 @@ import io.archsim.model.codec.SampleRecords.Point;
 import io.archsim.model.codec.SampleRecords.Sample;
 import io.archsim.model.codec.SampleRecords.Settings;
 import io.archsim.model.codec.SampleRecords.Square;
+import io.archsim.model.codec.SampleRecords.Threads;
 import io.archsim.model.codec.SampleRecords.Window;
 import io.archsim.model.text.CanonicalJson;
 
@@ -174,6 +176,23 @@ class RecordCodecTests {
 		void read_listLongerThanItsMaximum_isReportedAsThatAlone() {
 			assertThat(errors("{\"tags\": [1, 2, 3]}", Sample.class))
 				.containsExactly(error("too_long", "tags", "List should have at most 2 items after validation, not 3"));
+		}
+
+		@ParameterizedTest(name = "{0} reads as {1}")
+		@CsvSource(delimiter = '|', textBlock = """
+				{"perCore": 2}       | 2
+				{"perCore": 4.0}     | 4
+				{"perCore": true}    | 1
+				""")
+		void read_choiceAsIntegerWholeFloatOrBoolean_isAccepted(String input, int perCore) {
+			assertThat(RecordCodec.read(json(input), Threads.class).perCore()).isEqualTo(perCore);
+		}
+
+		@ParameterizedTest(name = "perCore {0}")
+		@ValueSource(strings = { "3", "1.5", "\"2\"" })
+		void read_integerNotAChoice_listsTheChoicesInWrittenOrder(String perCore) {
+			assertThat(errors("{\"perCore\": " + perCore + "}", Threads.class))
+				.containsExactly(error("literal_error", "perCore", "Input should be 4, 1 or 2"));
 		}
 
 		@Test
@@ -336,6 +355,14 @@ class RecordCodecTests {
 					                "kind": {"const": "square", "default": "square", "title": "Kind", "type": "string"},
 					                "side": {"exclusiveMinimum": 0, "title": "Side", "type": "number"}},
 					              "required": ["side"]}}}""");
+		}
+
+		@Test
+		void jsonSchema_integerChoices_areAnEnumInWrittenOrder() {
+			assertSchema(Threads.class, """
+					{"additionalProperties": false, "title": "Threads", "type": "object",
+					 "properties": {"perCore": {"enum": [4, 1, 2], "title": "Percore", "type": "integer"}},
+					 "required": ["perCore"]}""");
 		}
 
 		@Test

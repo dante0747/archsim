@@ -21,15 +21,9 @@ import io.archsim.model.codec.OmitWhenDefault;
  * own
  */
 public record Architecture(@Default("[]") @MaxItems(200) List<NodeSpec> nodes,
-		@Default("[]") @MaxItems(1000) List<EdgeSpec> edges, @Default("true") @Description(AUTO_SIZE) boolean autoSize,
-		@OmitWhenDefault @Description(HOST) @Nullable HostSpec host) {
-
-	static final String AUTO_SIZE = "Give parts with an empty CPU, memory or storage spec the size they need for "
-			+ "the design's peak load (see sizing.py). false: an empty spec is not modelled.";
-
-	static final String HOST = "The one machine every part with a CPU size runs on (docker compose on one VM, a "
-			+ "benchmark on a laptop): their CPU work shares its physical cores. Empty: each part's vCPUs are its "
-			+ "own (as before schema 1.7).";
+		@Default("[]") @MaxItems(1000) List<EdgeSpec> edges,
+		@Default("true") @Description(Descriptions.ARCHITECTURE_AUTO_SIZE) boolean autoSize,
+		@OmitWhenDefault @Description(Descriptions.ARCHITECTURE_HOST) @Nullable HostSpec host) {
 
 	/**
 	 * Copies the lists, so the architecture does not change.

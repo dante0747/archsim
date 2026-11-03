@@ -3,6 +3,8 @@ package io.archsim.model.codec;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -27,6 +29,22 @@ final class TupleShape implements Shape {
 		this.items = List.copyOf(items);
 		this.accessors = List.copyOf(accessors);
 		this.constructor = constructor;
+	}
+
+	/**
+	 * The shape of an {@link AsArray} record: an item for each of its components.
+	 * @param type the record
+	 * @return its shape
+	 */
+	static TupleShape of(Class<?> type) {
+		RecordComponent[] components = type.getRecordComponents();
+		List<Shape> items = Arrays.stream(components)
+			.map((component) -> TypeShapes.of(component.getAnnotatedType()))
+			.toList();
+		List<Method> accessors = Arrays.stream(components)
+			.map((component) -> Reflection.accessible(component.getAccessor()))
+			.toList();
+		return new TupleShape(items, accessors, Reflection.canonicalConstructor(type, components));
 	}
 
 	@Override

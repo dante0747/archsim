@@ -39,7 +39,8 @@ public record ArchitectureDocument(@Default(SCHEMA_VERSION) @Const(SCHEMA_VERSIO
 		@Default(KIND) @Const(KIND) String kind, @Default("{}") Metadata metadata,
 		@Default("{}") Architecture architecture, @Default("{}") Workload workload,
 		@Default("[]") @MaxItems(50) List<Scenario> scenarios, @Default("{}") Objectives objectives,
-		@Default("{}") Layout layout, @Default("{}") @Description(PROVENANCE) Map<String, InputProvenance> provenance,
+		@Default("{}") Layout layout,
+		@Default("{}") @Description(Descriptions.DOCUMENT_PROVENANCE) Map<String, InputProvenance> provenance,
 		@Nullable CalibrationRecord calibration, @Default("{}") Pricing pricing) {
 
 	/** The schema version of documents this model reads and writes. */
@@ -47,9 +48,6 @@ public record ArchitectureDocument(@Default(SCHEMA_VERSION) @Const(SCHEMA_VERSIO
 
 	/** What every design document's {@code kind} says. */
 	public static final String KIND = "archsim.architecture";
-
-	static final String PROVENANCE = "Where inputs came from, keyed by path: nodes/<id>/<config key>, "
-			+ "edges/<id>/<config key> or workload/<field>.";
 
 	/**
 	 * Copies the scenarios and the provenance, so the document does not change.

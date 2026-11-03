@@ -1,17 +1,18 @@
 package io.archsim.model.component.cache;
 
-import java.util.Map;
 import java.util.OptionalLong;
 
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.DefaultFrom;
+import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.OmitWhenDefault;
+import io.archsim.model.codec.Ui;
 import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
@@ -44,23 +45,56 @@ import io.archsim.model.distribution.Exponential;
  * @param itemSizeKb the size of one cached item
  * @param costPerHour the price per hour, in USD
  */
-public record CacheConfig(@Default("redis") CacheTechnology technology, @Default("fixed_ratio") HitModel hitModel,
-		@Default("0.8") @Ge(0) @Le(1) double hitRatio, @Default("60.0") @Gt(0) @Le(86_400) double ttlSeconds,
-		@Default("true") boolean populateOnMiss,
+public record CacheConfig(
+		@Default("redis") @Description(Descriptions.TECHNOLOGY) @Ui(
+				group = Descriptions.TECHNOLOGY_GROUP) CacheTechnology technology,
+		@Default("fixed_ratio") @Description(Descriptions.HIT_MODEL) @Ui(group = Descriptions.CACHE_BEHAVIOUR_GROUP,
+				headline = true) HitModel hitModel,
+		@Default("0.8") @Description(Descriptions.HIT_RATIO) @Ui(group = Descriptions.CACHE_BEHAVIOUR_GROUP,
+				assumption = true, headline = true, visibleWhen = "hitModel=fixed_ratio",
+				step = 0.05) @Ge(0) @Le(1) double hitRatio,
+		@Default("60.0") @Description(Descriptions.TTL_SECONDS) @Ui(label = "TTL", unit = "s",
+				group = Descriptions.CACHE_BEHAVIOUR_GROUP, assumption = true,
+				visibleWhen = "hitModel=ttl_keyspace") @Gt(0) @Le(86_400) double ttlSeconds,
+		@Default("true") @Description(Descriptions.POPULATE_ON_MISS) @Ui(
+				group = Descriptions.CACHE_BEHAVIOUR_GROUP) boolean populateOnMiss,
 
-		@DefaultFrom("DEFAULT_SERVICE_TIME") Distribution serviceTimeMs,
+		@DefaultFrom("DEFAULT_SERVICE_TIME") @Description(Descriptions.SERVICE_TIME_MS) @Ui(label = "Command time",
+				unit = "ms", group = Descriptions.PERFORMANCE_GROUP, assumption = true) Distribution serviceTimeMs,
 
-		@Default("1") @Ge(1) @Le(1024) int concurrency, @Default("1") @Ge(1) @Le(1000) int shards,
-		@Default("auto") Toggle singleThreaded, @Default("auto") EvictionPolicy evictionPolicy,
-		@Default("auto") Persistence persistence, @Default("60.0") @Gt(0) @Le(86_400) double snapshotIntervalS,
-		@Default("10.0") @Ge(0) @Le(10_000) double forkMsPerGib,
-		@Default("10000") @Ge(0) @Le(100_000) int queueCapacity, @Gt(0) @Le(600_000) @Nullable Double queueTimeoutMs,
-		@Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
-		@OmitWhenDefault @Gt(0) @Le(1) @Nullable Double siblingSpeed,
-		@Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
-		@Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
-		@Default("1.0") @Gt(0) @Le(1_048_576) double itemSizeKb,
-		@Default("0.1") @Ge(0) @Le(100_000) double costPerHour) {
+		@Default("1") @Description(Descriptions.CONCURRENCY) @Ui(label = "Command executors",
+				group = Descriptions.CAPACITY_GROUP) @Ge(1) @Le(1024) int concurrency,
+		@Default("1") @Description(Descriptions.SHARDS) @Ui(label = "Shards (cluster nodes)",
+				group = Descriptions.CAPACITY_GROUP) @Ge(1) @Le(1000) int shards,
+		@Default("auto") @Description(Descriptions.SINGLE_THREADED) @Ui(label = "Single-threaded commands",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Toggle singleThreaded,
+		@Default("auto") @Description(Descriptions.EVICTION_POLICY) @Ui(
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) EvictionPolicy evictionPolicy,
+		@Default("auto") @Description(Descriptions.PERSISTENCE) @Ui(
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Persistence persistence,
+		@Default("60.0") @Description(Descriptions.SNAPSHOT_INTERVAL_S) @Ui(label = "Snapshot interval", unit = "s",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				visibleWhen = "persistence=rdb") @Gt(0) @Le(86_400) double snapshotIntervalS,
+		@Default("10.0") @Description(Descriptions.FORK_MS_PER_GIB) @Ui(label = "Fork stall per GiB", unit = "ms",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP, assumption = true,
+				visibleWhen = "persistence=rdb") @Ge(0) @Le(10_000) double forkMsPerGib,
+		@Default("10000") @Description(Descriptions.QUEUE_CAPACITY) @Ui(label = "Queue limit",
+				group = Descriptions.CAPACITY_GROUP) @Ge(0) @Le(100_000) int queueCapacity,
+		@Description(Descriptions.QUEUE_TIMEOUT_MS) @Ui(label = "Queue timeout", unit = "ms",
+				group = Descriptions.CAPACITY_GROUP) @Gt(0) @Le(600_000) @Nullable Double queueTimeoutMs,
+		@Description(Descriptions.CPU_CORES) @Ui(label = "CPU", unit = "vCPU", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
+		@Description(Resources.SIBLING_SPEED) @Ui(label = "Hyperthread sibling speed",
+				group = Descriptions.RESOURCES_GROUP,
+				step = 0.05) @OmitWhenDefault @Gt(0) @Le(1) @Nullable Double siblingSpeed,
+		@Description(Descriptions.MEMORY_GIB) @Ui(label = "Memory", unit = "GiB", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
+		@Description(Descriptions.INSTANCE_TYPE) @Ui(
+				group = Descriptions.RESOURCES_GROUP) @Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
+		@Default("1.0") @Description(Descriptions.ITEM_SIZE_KB) @Ui(label = "Item size", unit = "KiB",
+				group = Descriptions.RESOURCES_GROUP, assumption = true) @Gt(0) @Le(1_048_576) double itemSizeKb,
+		@Default("0.1") @Description(Descriptions.COST_PER_HOUR) @Ui(unit = "$/h", group = Descriptions.COST_GROUP,
+				assumption = true) @Ge(0) @Le(100_000) double costPerHour) {
 
 	/**
 	 * The share of a cache node's memory that holds keys; the rest is overhead
@@ -75,14 +109,14 @@ public record CacheConfig(@Default("redis") CacheTechnology technology, @Default
 	static final Distribution DEFAULT_SERVICE_TIME = new Exponential(0.05);
 
 	/** What each technology does by default (technology.py's {@code CACHE_PROFILES}). */
-	static final TechnologyProfiles<CacheTechnology> PROFILES = new TechnologyProfiles<>(CacheTechnology.class,
-			Map.of(CacheTechnology.REDIS, kind(TechnologyProfile.core(), "on").with("persistence", "none"),
-					CacheTechnology.VALKEY, kind(TechnologyProfile.experimental(), "on").with("persistence", "none"),
-					CacheTechnology.MEMCACHED,
-					kind(TechnologyProfile.experimental(), "off").with("persistence", "none"), CacheTechnology.CDN,
-					kind(TechnologyProfile.experimental(), "off"), CacheTechnology.VARNISH,
-					kind(TechnologyProfile.experimental(), "off"), CacheTechnology.GENERIC,
-					kind(TechnologyProfile.core(), "off")));
+	static final TechnologyProfiles<CacheTechnology> PROFILES = TechnologyProfiles.builder(CacheTechnology.class)
+		.with(CacheTechnology.REDIS, kind(TechnologyProfile.core(), "on").with("persistence", "none"))
+		.with(CacheTechnology.VALKEY, kind(TechnologyProfile.experimental(), "on").with("persistence", "none"))
+		.with(CacheTechnology.MEMCACHED, kind(TechnologyProfile.experimental(), "off").with("persistence", "none"))
+		.with(CacheTechnology.CDN, kind(TechnologyProfile.experimental(), "off"))
+		.with(CacheTechnology.VARNISH, kind(TechnologyProfile.experimental(), "off"))
+		.with(CacheTechnology.GENERIC, kind(TechnologyProfile.core(), "off"))
+		.build();
 
 	private static TechnologyProfile kind(TechnologyProfile tier, String singleThreaded) {
 		return tier.with("singleThreaded", singleThreaded).with("evictionPolicy", "allkeys_lru");

@@ -20,17 +20,10 @@ import io.archsim.model.codec.Le;
 @Description("""
 		Service-level objectives the design should meet. Not used by the simulation itself; the UI
 		and reports evaluate runs against them (pass/fail, error budget).""")
-public record Objectives(@Default("300.0") @Description(LATENCY_P95) @Gt(0) @Le(600_000) @Nullable Double latencyP95Ms,
-		@Description(LATENCY_P99) @Gt(0) @Le(600_000) @Nullable Double latencyP99Ms,
-		@Default("0.999") @Description(AVAILABILITY) @Ge(0) @Le(1) @Nullable Double availability,
-		@Description(MIN_THROUGHPUT) @Ge(0) @Le(1_000_000) @Nullable Double minThroughputRps) {
-
-	static final String LATENCY_P95 = "p95 end-to-end latency target (ms)";
-
-	static final String LATENCY_P99 = "p99 end-to-end latency target (ms)";
-
-	static final String AVAILABILITY = "Minimum share of requests that succeed";
-
-	static final String MIN_THROUGHPUT = "Minimum successful requests/s";
+public record Objectives(
+		@Default("300.0") @Description(Descriptions.OBJECTIVES_LATENCY_P95_MS) @Gt(0) @Le(600_000) @Nullable Double latencyP95Ms,
+		@Description(Descriptions.OBJECTIVES_LATENCY_P99_MS) @Gt(0) @Le(600_000) @Nullable Double latencyP99Ms,
+		@Default("0.999") @Description(Descriptions.OBJECTIVES_AVAILABILITY) @Ge(0) @Le(1) @Nullable Double availability,
+		@Description(Descriptions.OBJECTIVES_MIN_THROUGHPUT_RPS) @Ge(0) @Le(1_000_000) @Nullable Double minThroughputRps) {
 
 }

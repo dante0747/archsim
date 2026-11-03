@@ -1,0 +1,163 @@
+{
+  "description": "A third-party service you call but do not operate (payments, email, SMS, identity, LLM inference, object storage). Each call takes the provider's response time, may fail, and may be rejected by the provider's rate or concurrency limit.",
+  "icon": "globe",
+  "modeled": [
+    "Response time sampled from the configured distribution",
+    "Random provider errors at the configured rate",
+    "Provider rate limit (token bucket) and concurrency limit; excess calls fail immediately",
+    "Price per million calls for cost estimates"
+  ],
+  "notModeled": [
+    "Provider-side queueing and degradation under your load",
+    "Retry-After headers and provider-side backoff",
+    "Regional outages (use a fault to inject one)"
+  ],
+  "presets": [
+    {
+      "config": {
+        "costPerMillionRequests": 0,
+        "errorRate": 0.002,
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 250,
+          "p95": 900
+        },
+        "rateLimitRps": 100,
+        "technology": "payments"
+      },
+      "description": "Card payment provider: a few hundred ms per charge, rare errors, per-account rate limit. Usually priced per transaction amount, so no per-call price is set. Numbers are illustrative assumptions, not a provider's published figures.",
+      "family": "SaaS API",
+      "id": "payments-api",
+      "name": "Payments API",
+      "sources": {},
+      "tags": [
+        "payments",
+        "third-party"
+      ],
+      "technology": "payments"
+    },
+    {
+      "config": {
+        "costPerMillionRequests": 1000,
+        "errorRate": 0.001,
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 120,
+          "p95": 400
+        },
+        "rateLimitRps": 50,
+        "technology": "email"
+      },
+      "description": "Transactional email sending. Numbers are illustrative assumptions, not a provider's published figures.",
+      "family": "SaaS API",
+      "id": "email-api",
+      "name": "Email API",
+      "sources": {},
+      "tags": [
+        "email",
+        "third-party"
+      ],
+      "technology": "email"
+    },
+    {
+      "config": {
+        "costPerMillionRequests": 7500,
+        "errorRate": 0.005,
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 300,
+          "p95": 1200
+        },
+        "rateLimitRps": 30,
+        "technology": "sms"
+      },
+      "description": "SMS / messaging provider: slower and pricier per call. Numbers are illustrative assumptions, not a provider's published figures.",
+      "family": "SaaS API",
+      "id": "sms-api",
+      "name": "SMS API",
+      "sources": {},
+      "tags": [
+        "sms",
+        "third-party"
+      ],
+      "technology": "sms"
+    },
+    {
+      "config": {
+        "costPerMillionRequests": 0,
+        "errorRate": 0.0005,
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 80,
+          "p95": 250
+        },
+        "rateLimitRps": 200,
+        "technology": "identity"
+      },
+      "description": "OAuth/OIDC identity provider for token checks and logins. Usually priced per active user, so no per-call price is set. Numbers are illustrative assumptions, not a provider's published figures.",
+      "family": "SaaS API",
+      "id": "identity-provider",
+      "name": "Identity provider",
+      "sources": {},
+      "tags": [
+        "auth",
+        "third-party"
+      ],
+      "technology": "identity"
+    },
+    {
+      "config": {
+        "concurrencyLimit": 100,
+        "costPerMillionRequests": 2000,
+        "errorRate": 0.01,
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 1500,
+          "p95": 6000
+        },
+        "rateLimitRps": 50,
+        "technology": "llm"
+      },
+      "description": "Hosted model inference: seconds per call with a heavy tail, tight rate and concurrency limits, noticeable error rate. Numbers are illustrative assumptions, not a provider's published figures.",
+      "family": "SaaS API",
+      "id": "llm-api",
+      "name": "LLM inference API",
+      "sources": {},
+      "tags": [
+        "ai",
+        "llm",
+        "third-party"
+      ],
+      "technology": "llm"
+    },
+    {
+      "config": {
+        "costPerMillionRequests": 0.4,
+        "errorRate": 0.0001,
+        "latencyMs": {
+          "kind": "lognormal",
+          "median": 25,
+          "p95": 80
+        },
+        "rateLimitRps": 5500,
+        "technology": "object_storage"
+      },
+      "description": "Object GETs from S3-compatible storage: tens of ms, very high limits. Numbers are illustrative assumptions, not a provider's published figures.",
+      "family": "SaaS API",
+      "id": "object-storage",
+      "name": "Object storage (S3-compatible)",
+      "sources": {
+        "rateLimitRps": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html"
+      },
+      "tags": [
+        "storage",
+        "blob",
+        "third-party"
+      ],
+      "technology": "object_storage"
+    }
+  ],
+  "linkDefaults": {},
+  "technologyTraits": {},
+  "technologySources": {}
+}

@@ -56,26 +56,9 @@ class ComponentRegistryTests {
 		assertThat(forced.executors()).isEqualTo(4);
 	}
 
-	@Test
-	void technologyProfiles_technologyWithoutProfile_isRefused() {
-		assertThatIllegalArgumentException()
-			.isThrownBy(() -> new TechnologyProfiles<>(Two.class, Map.of(Two.ONE, TechnologyProfile.core())))
-			.withMessage("technologies without a profile: [TWO]");
-	}
-
 	private static CacheConfig cache(Map<String, Object> settings) {
 		ObjectNode json = JSON.valueToTree(settings);
 		return RecordCodec.read(json, CacheConfig.class);
-	}
-
-	/** Two technologies, of which a test gives only the first a profile. */
-	private enum Two {
-
-		/** The technology with a profile. */
-		ONE,
-		/** The technology without one. */
-		TWO
-
 	}
 
 }

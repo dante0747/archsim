@@ -6,13 +6,19 @@ import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Builds the shape of an annotated Java type, its {@code @Nullable} aside: a string, a
- * number, a boolean, a {@link JsonEnum}, a list or a map of these, or any JSON. The
- * shapes of records and unions come from {@link Shapes}.
+ * Builds the shape of a field's or a list item's type, from its annotations.
+ *
+ * <p>
+ * The types a record may use: {@link String}, {@code double}, {@code int}, {@code long},
+ * {@code boolean} (or their boxes), a {@link JsonEnum}, a {@link List} or a {@link Map}
+ * with string keys of these, {@link JsonNode} (any JSON), {@link ObjectNode} (any JSON
+ * object), another record, or a {@link Tagged} sealed interface; {@code @Nullable} on any
+ * of them allows {@code null}. The shapes of records and unions come from {@link Shapes}.
  */
 final class TypeShapes {
 
@@ -20,11 +26,23 @@ final class TypeShapes {
 	}
 
 	/**
+	 * The shape of a field's or a list item's type.
+	 * @param annotated the type, with its annotations
+	 * @return its shape, which reads {@code null} too when the type is {@code @Nullable}
+	 */
+	static Shape of(AnnotatedType annotated) {
+		if (annotated.isAnnotationPresent(Nullable.class)) {
+			return new NullableShape(nonNullable(annotated));
+		}
+		return nonNullable(annotated);
+	}
+
+	/**
 	 * The shape of an annotated type, as though it were not {@code @Nullable}.
 	 * @param annotated a field's or an item's type, with its annotations
 	 * @return the shape that reads and writes its values
 	 */
-	static Shape of(AnnotatedType annotated) {
+	private static Shape nonNullable(AnnotatedType annotated) {
 		Class<?> raw = raw(annotated);
 		if (raw == String.class) {
 			return StringShape.of(annotated);
@@ -87,7 +105,7 @@ final class TypeShapes {
 	 */
 	private static Shape structured(AnnotatedType annotated, Class<?> raw) {
 		if (raw == List.class) {
-			return ListShape.of(Shapes.of(typeArgument(annotated, 0)), annotated);
+			return ListShape.of(of(typeArgument(annotated, 0)), annotated);
 		}
 		if (raw == Map.class) {
 			return map(annotated);
@@ -105,7 +123,7 @@ final class TypeShapes {
 		if (raw(typeArgument(annotated, 0)) != String.class) {
 			throw new IllegalArgumentException("a map's keys are strings: " + annotated);
 		}
-		return new MapShape(Shapes.of(typeArgument(annotated, 1)));
+		return new MapShape(of(typeArgument(annotated, 1)));
 	}
 
 	private static AnnotatedType typeArgument(AnnotatedType annotated, int index) {

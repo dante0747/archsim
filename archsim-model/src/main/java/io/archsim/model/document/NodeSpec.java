@@ -25,9 +25,9 @@ import io.archsim.model.codec.MinLength;
 
 		``config`` is validated by the component model registered for ``type``; it is kept as a
 		plain mapping here so the document schema does not depend on the component catalog.""")
-public record NodeSpec(@Description("Unique node id (letters, digits, _ . -)") @Matches(Patterns.ID) String id,
+public record NodeSpec(@Description(Descriptions.NODE_ID) @Matches(Patterns.ID) String id,
 
-		@Description("Registered component type") @MinLength(1) @MaxLength(64) String type,
+		@Description(Descriptions.NODE_TYPE) @MinLength(1) @MaxLength(64) String type,
 
 		@Default("") @MaxLength(120) String label, @MaxLength(2000) @Nullable String description,
 		@Default("{}") ObjectNode config) {

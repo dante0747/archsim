@@ -1,0 +1,317 @@
+{
+  "description": "Stateless application servers. Each replica has a worker pool and a bounded queue. Outgoing links are called in order for matching request types (e.g. reads to the cache, writes to the database). Runs on VMs, containers, Kubernetes (optional autoscaling) or as a serverless function.",
+  "icon": "server",
+  "modeled": [
+    "FIFO queue per replica with a size limit and a wait timeout",
+    "Worker pool per replica; service time sampled from the configured distribution",
+    "Technology behaviour: event loops (Node.js), stop-the-world GC pauses, JIT warm-up of new instances, runtime-specific serverless cold starts",
+    "Sequential downstream calls; blocking (thread-per-request) or non-blocking I/O",
+    "Autoscaling (when on): utilization-driven replica count with evaluation interval, start-up delay and scale-down stabilization",
+    "Serverless (platform): one request per instance, cold starts, concurrency limit and scale-out rate (throttling), idle reclaim",
+    "CPU cores (when set): the CPU share of service time needs a core; with fewer cores than workers, work queues for a core",
+    "Memory (when set): requests held by a replica use memory; past the limit new requests are refused; memory per req/s adds memory that follows throughput (reported and sized, reclaimable)"
+  ],
+  "notModeled": [
+    "OOM kills and restarts (memory is a refusal limit instead); concurrent GC CPU overhead",
+    "CPU per request that changes with load (one value per request: calibration fits it where load is highest)",
+    "Parallel fan-out calls (dependencies are called one after another)",
+    "Node/cluster capacity limits for new pods, readiness probe failures",
+    "Serverless memory-to-CPU scaling (set CPU directly) and provisioned concurrency"
+  ],
+  "presets": [
+    {
+      "config": {
+        "cpuCores": 2,
+        "memoryGib": 4,
+        "platform": "vm",
+        "technology": "generic"
+      },
+      "description": "Fixed replicas on virtual machines, thread-per-request workers.",
+      "family": "VM",
+      "id": "generic-vm",
+      "name": "Generic service (VM)",
+      "sources": {},
+      "tags": [
+        "vm",
+        "static"
+      ],
+      "technology": "generic"
+    },
+    {
+      "config": {
+        "blockingDownstream": true,
+        "costPerHour": 0.17,
+        "cpuCores": 2,
+        "memoryBaselineMb": 768,
+        "memoryGib": 4,
+        "memoryPerRequestMb": 1,
+        "platform": "docker",
+        "queueCapacity": 100,
+        "replicas": 2,
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 12,
+          "p95": 40
+        },
+        "technology": "java",
+        "workersPerReplica": 200
+      },
+      "description": "Spring Boot containers with a large blocking thread pool (Tomcat-style).",
+      "family": "Container",
+      "id": "java-spring-docker",
+      "name": "Java/Spring on Docker",
+      "sources": {
+        "queueCapacity": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+        "workersPerReplica": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
+      },
+      "tags": [
+        "container",
+        "jvm",
+        "blocking"
+      ],
+      "technology": "java"
+    },
+    {
+      "config": {
+        "blockingDownstream": false,
+        "costPerHour": 0.05,
+        "cpuCores": 1,
+        "memoryBaselineMb": 128,
+        "memoryGib": 1,
+        "memoryPerRequestMb": 0.5,
+        "platform": "docker",
+        "queueCapacity": 1000,
+        "replicas": 4,
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 4,
+          "p95": 12
+        },
+        "technology": "nodejs",
+        "workersPerReplica": 1
+      },
+      "description": "One event loop per container: every request's CPU work queues for that single thread, while I/O waits don't hold it.",
+      "family": "Container",
+      "id": "nodejs-docker",
+      "name": "Node.js on Docker",
+      "sources": {
+        "workersPerReplica": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop"
+      },
+      "tags": [
+        "container",
+        "event-loop",
+        "non-blocking"
+      ],
+      "technology": "nodejs"
+    },
+    {
+      "config": {
+        "autoscaling": true,
+        "costPerHour": 0.05,
+        "cpuCores": 2,
+        "maxReplicas": 10,
+        "memoryBaselineMb": 64,
+        "memoryGib": 1,
+        "memoryPerRequestMb": 0.25,
+        "minReplicas": 2,
+        "platform": "kubernetes",
+        "queueCapacity": 200,
+        "replicas": 2,
+        "scaleIntervalS": 15,
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 5,
+          "p95": 15
+        },
+        "startupS": 10,
+        "targetUtilization": 0.6,
+        "technology": "go",
+        "workersPerReplica": 64
+      },
+      "description": "Go pods behind a Kubernetes Service with a Horizontal Pod Autoscaler.",
+      "family": "Kubernetes",
+      "id": "go-k8s-hpa",
+      "name": "Go service on Kubernetes (HPA)",
+      "sources": {
+        "scaleIntervalS": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+      },
+      "tags": [
+        "kubernetes",
+        "hpa",
+        "autoscaling"
+      ],
+      "technology": "go"
+    },
+    {
+      "config": {
+        "autoscaling": true,
+        "costPerHour": 0.05,
+        "cpuCores": 2,
+        "maxReplicas": 12,
+        "memoryBaselineMb": 512,
+        "memoryGib": 2,
+        "memoryPerRequestMb": 4,
+        "minReplicas": 2,
+        "platform": "kubernetes",
+        "queueCapacity": 64,
+        "replicas": 2,
+        "scaleIntervalS": 15,
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 15,
+          "p95": 60
+        },
+        "startupS": 25,
+        "targetUtilization": 0.6,
+        "technology": "python",
+        "workersPerReplica": 4
+      },
+      "description": "Gunicorn-style worker processes in pods, autoscaled by an HPA.",
+      "family": "Kubernetes",
+      "id": "python-k8s-hpa",
+      "name": "Python service on Kubernetes (HPA)",
+      "sources": {
+        "scaleIntervalS": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+      },
+      "tags": [
+        "kubernetes",
+        "hpa",
+        "autoscaling"
+      ],
+      "technology": "python"
+    },
+    {
+      "config": {
+        "concurrencyLimit": 1000,
+        "costPerHour": 0.06,
+        "cpuCores": 1,
+        "keepWarmS": 300,
+        "memoryGib": 1.75,
+        "platform": "serverless",
+        "serviceTimeMs": {
+          "kind": "lognormal",
+          "median": 20,
+          "p95": 60
+        },
+        "technology": "nodejs"
+      },
+      "description": "Function-as-a-service: an instance per concurrent request, cold starts when scaling out.",
+      "family": "Serverless",
+      "id": "serverless-fn",
+      "name": "Serverless function (Lambda-style)",
+      "sources": {
+        "concurrencyLimit": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+        "cpuCores": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html",
+        "memoryGib": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"
+      },
+      "tags": [
+        "serverless",
+        "faas",
+        "cold-start"
+      ],
+      "technology": "nodejs"
+    }
+  ],
+  "linkDefaults": {},
+  "technologyTraits": {
+    "dotnet": [
+      {
+        "detail": "Methods start unoptimised and are recompiled once hot, so a fresh instance is slower at first (factor and duration are illustrative).",
+        "id": "tiered_compilation",
+        "source": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation",
+        "title": "Tiered compilation warm-up"
+      },
+      {
+        "detail": "Gen0 collections pause managed threads briefly (illustrative).",
+        "id": "gc_pauses",
+        "source": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals",
+        "title": "GC pauses"
+      }
+    ],
+    "go": [
+      {
+        "detail": "Requests run as goroutines scheduled across all cores; the concurrent GC's stop-the-world pauses are usually under 100 microseconds.",
+        "id": "goroutines",
+        "source": "https://go.dev/doc/go1.8",
+        "title": "Goroutines on every core"
+      }
+    ],
+    "java": [
+      {
+        "detail": "Spring MVC on Tomcat serves each request on a pool thread (200 by default) that stays busy during downstream calls.",
+        "id": "thread_per_request",
+        "source": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+        "title": "Thread per request"
+      },
+      {
+        "detail": "The garbage collector (G1 by default) pauses all application threads for a few milliseconds when the young generation fills up, more often under load (pause and frequency are illustrative).",
+        "id": "gc_pauses",
+        "source": "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html",
+        "title": "Stop-the-world GC pauses"
+      },
+      {
+        "detail": "A new instance starts with interpreted or lightly optimised code and runs slower until the JIT has compiled the hot paths (factor and duration are illustrative).",
+        "id": "jit_warmup",
+        "source": "https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html",
+        "title": "JIT warm-up"
+      }
+    ],
+    "nodejs": [
+      {
+        "detail": "JavaScript runs on one thread per process: CPU work of every request queues for that one loop (event-loop lag), while I/O waits don't hold it. Add processes per replica (cluster mode) to use more cores.",
+        "id": "event_loop",
+        "source": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+        "title": "Single-threaded event loop"
+      },
+      {
+        "detail": "V8's scavenger pauses the loop for a couple of milliseconds now and then (illustrative).",
+        "id": "v8_gc",
+        "source": "https://v8.dev/blog/trash-talk",
+        "title": "Short GC pauses"
+      }
+    ],
+    "php": [
+      {
+        "detail": "Each request takes a PHP-FPM child; pm.max_children (5 in the shipped www.conf) caps concurrency and memory is freed when the request ends.",
+        "id": "process_per_request",
+        "source": "https://www.php.net/manual/en/install.fpm.configuration.php",
+        "title": "Process per request (PHP-FPM)"
+      }
+    ],
+    "python": [
+      {
+        "detail": "Gunicorn-style sync workers handle one request each; each process is held to one core by the GIL (the docs suggest 2 x cores + 1 workers).",
+        "id": "worker_processes",
+        "source": "https://gunicorn.org/design/",
+        "title": "Worker processes"
+      }
+    ],
+    "rust": [
+      {
+        "detail": "Memory is freed deterministically: no GC pauses and no JIT warm-up.",
+        "id": "no_gc",
+        "source": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html",
+        "title": "No garbage collector"
+      }
+    ]
+  },
+  "technologySources": {
+    "gcPauseMs": {
+      "go": "https://go.dev/doc/go1.8",
+      "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+    },
+    "runtimeModel": {
+      "go": "https://go.dev/doc/go1.8",
+      "java": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+      "nodejs": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+      "php": "https://www.php.net/manual/en/install.fpm.configuration.php",
+      "python": "https://gunicorn.org/design/"
+    },
+    "warmupFactor": {
+      "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+    },
+    "warmupS": {
+      "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+    }
+  }
+}

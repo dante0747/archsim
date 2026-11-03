@@ -1,0 +1,325 @@
+{
+  "description": "A pool of nodes for services on the Kubernetes platform. Every replica becomes a pod scheduled by its CPU and memory requests; pods wait as Pending when nodes are full until the cluster autoscaler adds a node, then pull their image and start.",
+  "icon": "boxes",
+  "modeled": [
+    "Nodes with allocatable CPU and memory; pods bound by their requests to the least allocated node that fits",
+    "Pending pods when no node has room; scheduled as soon as room appears",
+    "Cluster autoscaler: scan interval, node provisioning delay, max/min nodes, removal of empty nodes",
+    "Image pull on the first pod of a service per node, then the service's start-up time",
+    "Services join automatically (the only cluster) or by name; each replica is a pod"
+  ],
+  "notModeled": [
+    "CPU contention between pods beyond their requests (noisy neighbours), limits and throttling",
+    "Pod priority and preemption, affinity, taints, topology spread",
+    "Node failures, drains and rolling deployments",
+    "Several node pools per cluster"
+  ],
+  "presets": [
+    {
+      "config": {
+        "clusterAutoscaler": true,
+        "costPerHour": 0.19,
+        "maxNodes": 10,
+        "nodeMemoryGib": 16,
+        "nodeProvisionS": 120,
+        "nodeVcpu": 4,
+        "nodes": 3,
+        "technology": "kubernetes"
+      },
+      "description": "Three 4 vCPU / 16 GiB nodes with the cluster autoscaler (up to 10 nodes, 2 minutes per node). Node sizes, provisioning times and prices are illustrative.",
+      "family": "Cluster",
+      "id": "kubernetes-cluster",
+      "name": "Kubernetes cluster",
+      "sources": {},
+      "tags": [
+        "kubernetes",
+        "cluster-autoscaler"
+      ],
+      "technology": "kubernetes"
+    },
+    {
+      "config": {
+        "clusterAutoscaler": true,
+        "costPerHour": 0.192,
+        "maxNodes": 12,
+        "nodeMemoryGib": 16,
+        "nodeProvisionS": 150,
+        "nodeVcpu": 4,
+        "nodes": 3,
+        "technology": "eks"
+      },
+      "description": "Managed control plane with a node group of 4 vCPU / 16 GiB instances, about 2.5 minutes per new node. Node sizes, provisioning times and prices are illustrative.",
+      "family": "Cluster",
+      "id": "eks-style",
+      "name": "EKS-style managed cluster",
+      "sources": {},
+      "tags": [
+        "kubernetes",
+        "managed"
+      ],
+      "technology": "eks"
+    },
+    {
+      "config": {
+        "clusterAutoscaler": true,
+        "costPerHour": 0.17,
+        "maxNodes": 12,
+        "nodeMemoryGib": 16,
+        "nodeProvisionS": 90,
+        "nodeVcpu": 4,
+        "nodes": 3,
+        "technology": "gke"
+      },
+      "description": "Managed cluster with 4 vCPU / 16 GiB nodes and node auto-provisioning, about 1.5 minutes per new node. Node sizes, provisioning times and prices are illustrative.",
+      "family": "Cluster",
+      "id": "gke-style",
+      "name": "GKE-style managed cluster",
+      "sources": {},
+      "tags": [
+        "kubernetes",
+        "managed"
+      ],
+      "technology": "gke"
+    },
+    {
+      "config": {
+        "clusterAutoscaler": true,
+        "costPerHour": 0.19,
+        "maxNodes": 12,
+        "nodeMemoryGib": 16,
+        "nodeProvisionS": 180,
+        "nodeVcpu": 4,
+        "nodes": 3,
+        "technology": "aks"
+      },
+      "description": "Managed cluster with 4 vCPU / 16 GiB nodes, about 3 minutes per new node. Node sizes, provisioning times and prices are illustrative.",
+      "family": "Cluster",
+      "id": "aks-style",
+      "name": "AKS-style managed cluster",
+      "sources": {},
+      "tags": [
+        "kubernetes",
+        "managed"
+      ],
+      "technology": "aks"
+    },
+    {
+      "config": {
+        "allocatableShare": 0.85,
+        "clusterAutoscaler": false,
+        "costPerHour": 0.04,
+        "nodeMemoryGib": 4,
+        "nodeProvisionS": 0,
+        "nodeVcpu": 2,
+        "nodes": 2,
+        "technology": "k3s"
+      },
+      "description": "Lightweight Kubernetes on two small nodes and no cluster autoscaler: what fits is what you get. Node sizes, provisioning times and prices are illustrative.",
+      "family": "Cluster",
+      "id": "k3s",
+      "name": "k3s (small / edge)",
+      "sources": {},
+      "tags": [
+        "kubernetes",
+        "edge"
+      ],
+      "technology": "k3s"
+    }
+  ],
+  "linkDefaults": {},
+  "technologyTraits": {
+    "aks": [
+      {
+        "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
+        "id": "requests",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "title": "Pods are scheduled by their requests"
+      },
+      {
+        "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
+        "id": "pending",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "title": "Pending pods"
+      },
+      {
+        "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
+        "id": "cluster_autoscaler",
+        "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+        "title": "Cluster autoscaler"
+      },
+      {
+        "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
+        "id": "image_pull",
+        "source": "https://kubernetes.io/docs/concepts/containers/images/",
+        "title": "Image pulls on new nodes"
+      },
+      {
+        "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
+        "id": "hpa",
+        "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+        "title": "Horizontal Pod Autoscaler"
+      }
+    ],
+    "eks": [
+      {
+        "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
+        "id": "requests",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "title": "Pods are scheduled by their requests"
+      },
+      {
+        "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
+        "id": "pending",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "title": "Pending pods"
+      },
+      {
+        "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
+        "id": "cluster_autoscaler",
+        "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+        "title": "Cluster autoscaler"
+      },
+      {
+        "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
+        "id": "image_pull",
+        "source": "https://kubernetes.io/docs/concepts/containers/images/",
+        "title": "Image pulls on new nodes"
+      },
+      {
+        "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
+        "id": "hpa",
+        "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+        "title": "Horizontal Pod Autoscaler"
+      }
+    ],
+    "gke": [
+      {
+        "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
+        "id": "requests",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "title": "Pods are scheduled by their requests"
+      },
+      {
+        "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
+        "id": "pending",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "title": "Pending pods"
+      },
+      {
+        "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
+        "id": "cluster_autoscaler",
+        "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+        "title": "Cluster autoscaler"
+      },
+      {
+        "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
+        "id": "image_pull",
+        "source": "https://kubernetes.io/docs/concepts/containers/images/",
+        "title": "Image pulls on new nodes"
+      },
+      {
+        "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
+        "id": "hpa",
+        "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+        "title": "Horizontal Pod Autoscaler"
+      }
+    ],
+    "k3s": [
+      {
+        "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
+        "id": "requests",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "title": "Pods are scheduled by their requests"
+      },
+      {
+        "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
+        "id": "pending",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "title": "Pending pods"
+      },
+      {
+        "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
+        "id": "cluster_autoscaler",
+        "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+        "title": "Cluster autoscaler"
+      },
+      {
+        "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
+        "id": "image_pull",
+        "source": "https://kubernetes.io/docs/concepts/containers/images/",
+        "title": "Image pulls on new nodes"
+      },
+      {
+        "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
+        "id": "hpa",
+        "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+        "title": "Horizontal Pod Autoscaler"
+      }
+    ],
+    "kubernetes": [
+      {
+        "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
+        "id": "requests",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "title": "Pods are scheduled by their requests"
+      },
+      {
+        "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
+        "id": "pending",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "title": "Pending pods"
+      },
+      {
+        "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
+        "id": "cluster_autoscaler",
+        "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+        "title": "Cluster autoscaler"
+      },
+      {
+        "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
+        "id": "image_pull",
+        "source": "https://kubernetes.io/docs/concepts/containers/images/",
+        "title": "Image pulls on new nodes"
+      },
+      {
+        "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
+        "id": "hpa",
+        "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+        "title": "Horizontal Pod Autoscaler"
+      }
+    ],
+    "openshift": [
+      {
+        "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
+        "id": "requests",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+        "title": "Pods are scheduled by their requests"
+      },
+      {
+        "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
+        "id": "pending",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "title": "Pending pods"
+      },
+      {
+        "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
+        "id": "cluster_autoscaler",
+        "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+        "title": "Cluster autoscaler"
+      },
+      {
+        "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
+        "id": "image_pull",
+        "source": "https://kubernetes.io/docs/concepts/containers/images/",
+        "title": "Image pulls on new nodes"
+      },
+      {
+        "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
+        "id": "hpa",
+        "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+        "title": "Horizontal Pod Autoscaler"
+      }
+    ]
+  },
+  "technologySources": {}
+}

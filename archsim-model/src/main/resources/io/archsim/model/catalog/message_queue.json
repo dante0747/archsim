@@ -1,0 +1,298 @@
+{
+  "description": "Asynchronous messaging (Kafka, RabbitMQ, SQS-style). Producers get an acknowledgement after publishing; consumers process messages in the background and call the outgoing links. Absorbs spikes as backlog (lag) instead of rejecting requests, and behaves like the technology you pick.",
+  "icon": "inbox",
+  "modeled": [
+    "Publish acknowledgement latency (plus replication wait and batching linger) and a bounded backlog",
+    "Partitioned logs: key-hashed ordered partitions, one consumer each (hot partitions lag)",
+    "Fetch cycles: a consumer polls its partitions' backlog, processes it in parallel slots (each partition in order), pays the fetch and commit overhead, then polls again",
+    "Shared queues: competing consumers, FIFO",
+    "Redelivery of failed messages up to max deliveries, then dead-lettering",
+    "Visibility timeouts / ack deadlines: slow processing is delivered again (duplicates)",
+    "Memory alarm flow control: publishers block past the high watermark",
+    "At-most-once delivery: overflow dropped silently; FIFO publish rate limits",
+    "Backlog (lag), consumer utilization and message age"
+  ],
+  "notModeled": [
+    "Broker disk and network throughput limits",
+    "Consumer group rebalancing pauses",
+    "Exactly-once transactions"
+  ],
+  "presets": [
+    {
+      "config": {
+        "brokers": 3,
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 2,
+          "p95": 8
+        },
+        "consumers": 6,
+        "costPerHour": 0.21,
+        "cpuCores": 4,
+        "maxDeliveries": 3,
+        "maxDepth": 10000000,
+        "memoryGib": 16,
+        "partitions": 12,
+        "publishTimeMs": {
+          "kind": "lognormal",
+          "median": 1,
+          "p95": 4
+        },
+        "storageGib": 1000,
+        "technology": "kafka"
+      },
+      "description": "Partitioned log: messages hash by key to 12 ordered partitions, one consumer each; acks=all and 5 ms linger on publish.",
+      "family": "Log / stream",
+      "id": "kafka",
+      "name": "Kafka",
+      "sources": {},
+      "tags": [
+        "log",
+        "stream",
+        "partitions"
+      ],
+      "technology": "kafka"
+    },
+    {
+      "config": {
+        "brokers": 1,
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 3,
+          "p95": 12
+        },
+        "consumers": 8,
+        "costPerHour": 0.1,
+        "cpuCores": 2,
+        "maxDeliveries": 5,
+        "maxDepth": 10000000,
+        "memoryGib": 8,
+        "messageSizeKb": 4,
+        "partitions": 1000,
+        "publishTimeMs": {
+          "kind": "lognormal",
+          "median": 1,
+          "p95": 4
+        },
+        "storageGib": 200,
+        "technology": "rabbitmq"
+      },
+      "description": "Message broker with competing consumers on a queue; past the memory high watermark it blocks publishers.",
+      "family": "Broker",
+      "id": "rabbitmq",
+      "name": "RabbitMQ",
+      "sources": {},
+      "tags": [
+        "broker",
+        "amqp"
+      ],
+      "technology": "rabbitmq"
+    },
+    {
+      "config": {
+        "brokers": 1,
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 5,
+          "p95": 20
+        },
+        "consumers": 10,
+        "costPerHour": 0.0,
+        "maxDeliveries": 5,
+        "maxDepth": null,
+        "partitions": 10000,
+        "publishTimeMs": {
+          "kind": "lognormal",
+          "median": 15,
+          "p95": 40
+        },
+        "technology": "sqs"
+      },
+      "description": "Managed HTTP queue: slower publishes, unbounded backlog, 30 s visibility timeout (slow processing gets delivered twice).",
+      "family": "Managed queue",
+      "id": "sqs",
+      "name": "SQS-style queue",
+      "sources": {},
+      "tags": [
+        "managed",
+        "queue"
+      ],
+      "technology": "sqs"
+    },
+    {
+      "config": {
+        "brokers": 1,
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 5,
+          "p95": 20
+        },
+        "consumers": 10,
+        "costPerHour": 0.0,
+        "maxDeliveries": 5,
+        "maxDepth": null,
+        "partitions": 10000,
+        "publishTimeMs": {
+          "kind": "lognormal",
+          "median": 20,
+          "p95": 60
+        },
+        "technology": "pubsub"
+      },
+      "description": "Managed publish/subscribe with a 10 s ack deadline (illustrative numbers).",
+      "family": "Managed queue",
+      "id": "pubsub",
+      "name": "Pub/Sub-style topic",
+      "sources": {},
+      "tags": [
+        "managed",
+        "pubsub"
+      ],
+      "technology": "pubsub"
+    },
+    {
+      "config": {
+        "brokers": 3,
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 2,
+          "p95": 8
+        },
+        "consumers": 8,
+        "costPerHour": 0.08,
+        "cpuCores": 2,
+        "maxDepth": 1000000,
+        "memoryGib": 4,
+        "partitions": 1000,
+        "publishTimeMs": {
+          "kind": "lognormal",
+          "median": 0.5,
+          "p95": 2
+        },
+        "storageGib": 100,
+        "technology": "nats"
+      },
+      "description": "Lightweight messaging with JetStream persistence (at-least-once); switch delivery to at-most-once for core NATS.",
+      "family": "Broker",
+      "id": "nats",
+      "name": "NATS JetStream",
+      "sources": {},
+      "tags": [
+        "broker",
+        "low-latency"
+      ],
+      "technology": "nats"
+    },
+    {
+      "config": {
+        "brokers": 1,
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 2,
+          "p95": 8
+        },
+        "consumers": 4,
+        "costPerHour": 0.1,
+        "cpuCores": 2,
+        "maxDepth": 1000000,
+        "memoryGib": 6.4,
+        "partitions": 1000,
+        "publishTimeMs": {
+          "kind": "lognormal",
+          "median": 0.5,
+          "p95": 2
+        },
+        "technology": "redis_streams"
+      },
+      "description": "Append-only stream with consumer groups, in memory.",
+      "family": "Log / stream",
+      "id": "redis-streams",
+      "name": "Redis Streams",
+      "sources": {},
+      "tags": [
+        "stream",
+        "in-memory"
+      ],
+      "technology": "redis_streams"
+    }
+  ],
+  "linkDefaults": {},
+  "technologyTraits": {
+    "kafka": [
+      {
+        "detail": "Messages with the same key land on the same partition and are processed in order by the one consumer that owns it. A skewed key makes one partition, and its consumer, fall behind while others idle.",
+        "id": "partitions",
+        "source": "https://kafka.apache.org/documentation/#intro_concepts_and_terms",
+        "title": "Ordered partitions, one consumer each"
+      },
+      {
+        "detail": "The producer's acknowledgement waits until the in-sync replicas have the message (the default since Kafka 3.0).",
+        "id": "acks_all",
+        "source": "https://kafka.apache.org/documentation/#producerconfigs_acks",
+        "title": "acks=all"
+      },
+      {
+        "detail": "The producer holds a message up to linger.ms to batch it with others (5 ms by default in Kafka 4.0).",
+        "id": "linger",
+        "source": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms",
+        "title": "Batching (linger.ms)"
+      }
+    ],
+    "nats": [
+      {
+        "detail": "Core NATS is at-most-once: a slow consumer's overflow is dropped and the publisher never knows. Choose at-least-once for JetStream.",
+        "id": "core_vs_jetstream",
+        "source": "https://docs.nats.io/nats-concepts/core-nats",
+        "title": "Core NATS drops, JetStream persists"
+      }
+    ],
+    "pubsub": [
+      {
+        "detail": "A message not acknowledged within the ack deadline is delivered again.",
+        "id": "ack_deadline",
+        "source": "https://docs.cloud.google.com/pubsub/docs/subscription-properties",
+        "title": "Ack deadline (10 s)"
+      }
+    ],
+    "rabbitmq": [
+      {
+        "detail": "When queued messages use more memory than the high watermark, the broker blocks publishing connections until consumers catch up: producers slow down instead of getting errors. Needs memory and message size set.",
+        "id": "memory_alarm",
+        "source": "https://www.rabbitmq.com/docs/memory",
+        "title": "Memory alarm blocks publishers"
+      }
+    ],
+    "sqs": [
+      {
+        "detail": "A received message is hidden for the visibility timeout. If processing takes longer, the message becomes visible again and another consumer processes it too: duplicate work.",
+        "id": "visibility_timeout",
+        "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html",
+        "title": "Visibility timeout (30 s)"
+      },
+      {
+        "detail": "FIFO queues accept about 300 publishes per second without batching; standard queues are effectively unlimited.",
+        "id": "fifo_limit",
+        "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html",
+        "title": "FIFO throughput limit"
+      }
+    ]
+  },
+  "technologySources": {
+    "acks": {
+      "kafka": "https://kafka.apache.org/documentation/#producerconfigs_acks"
+    },
+    "flowControl": {
+      "rabbitmq": "https://www.rabbitmq.com/docs/memory"
+    },
+    "lingerMs": {
+      "kafka": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms"
+    },
+    "partitioning": {
+      "kafka": "https://kafka.apache.org/documentation/#intro_concepts_and_terms"
+    },
+    "visibilityTimeoutS": {
+      "pubsub": "https://docs.cloud.google.com/pubsub/docs/subscription-properties",
+      "sqs": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"
+    }
+  }
+}

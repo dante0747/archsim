@@ -1,18 +1,19 @@
 package io.archsim.model.component.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.OptionalInt;
 
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.DefaultFrom;
+import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.OmitWhenDefault;
+import io.archsim.model.codec.Ui;
 import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
@@ -66,60 +67,121 @@ import io.archsim.model.distribution.LogNormal;
  * @param keepWarmS serverless: idle time after which an instance is reclaimed
  * @param costPerHour the price of one replica per hour, in USD
  */
-public record ServiceConfig(@Default("generic") ServiceTechnology technology, @Default("vm") Platform platform,
-		@Default("2") @Ge(1) @Le(500) int replicas, @Default("4") @Ge(1) @Le(4096) int workersPerReplica,
-		@Default("50") @Ge(0) @Le(100_000) int queueCapacity,
-		@Default("1000.0") @Gt(0) @Le(600_000) @Nullable Double queueTimeoutMs,
+public record ServiceConfig(
+		@Default("generic") @Description(Descriptions.TECHNOLOGY) @Ui(
+				group = Descriptions.TECHNOLOGY_GROUP) ServiceTechnology technology,
+		@Default("vm") @Description(Descriptions.PLATFORM) @Ui(group = Descriptions.TECHNOLOGY_GROUP) Platform platform,
+		@Default("2") @Description(Descriptions.REPLICAS) @Ui(group = Descriptions.CAPACITY_GROUP,
+				headline = true) @Ge(1) @Le(500) int replicas,
+		@Default("4") @Description(Descriptions.WORKERS_PER_REPLICA) @Ui(group = Descriptions.CAPACITY_GROUP,
+				headline = true) @Ge(1) @Le(4096) int workersPerReplica,
+		@Default("50") @Description(Descriptions.QUEUE_CAPACITY) @Ui(label = "Queue limit per replica",
+				group = Descriptions.CAPACITY_GROUP) @Ge(0) @Le(100_000) int queueCapacity,
+		@Default("1000.0") @Description(Descriptions.QUEUE_TIMEOUT_MS) @Ui(label = "Queue timeout", unit = "ms",
+				group = Descriptions.CAPACITY_GROUP) @Gt(0) @Le(600_000) @Nullable Double queueTimeoutMs,
 
-		@DefaultFrom("DEFAULT_SERVICE_TIME") Distribution serviceTimeMs,
+		@DefaultFrom("DEFAULT_SERVICE_TIME") @Description(Descriptions.SERVICE_TIME_MS) @Ui(label = "Service time",
+				unit = "ms", group = Descriptions.PERFORMANCE_GROUP, assumption = true,
+				headline = true) Distribution serviceTimeMs,
 
-		@Default("[]") @OmitWhenDefault List<LoadPoint> serviceTimeByLoad, @Default("true") boolean blockingDownstream,
-		@Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores, @Default("1.0") @Ge(0) @Le(1) double cpuShare,
-		@OmitWhenDefault @Gt(0) @Le(1) @Nullable Double siblingSpeed,
-		@Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
-		@Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
-		@Default("2.0") @Gt(0) @Le(65_536) double memoryPerRequestMb,
-		@Default("256.0") @Ge(0) @Le(1_048_576) double memoryBaselineMb,
-		@Default("0.0") @Ge(0) @Le(65_536) double memoryPerRpsMb, @Default("false") boolean autoscaling,
-		@Default("1") @Ge(1) @Le(500) int minReplicas, @Default("10") @Ge(1) @Le(500) int maxReplicas,
-		@Default("0.6") @Ge(0.1) @Le(0.95) double targetUtilization,
-		@Default("15.0") @Gt(0) @Le(600) double scaleIntervalS, @Default("20.0") @Ge(0) @Le(600) double startupS,
-		@Default("1000") @Ge(1) @Le(100_000) int concurrencyLimit, @Nullable Distribution coldStartMs,
-		@Nullable String cluster, @Default("1000") @Ge(1) @Le(100_000) int scaleOutRate,
-		@Default("auto") RuntimeModel runtimeModel, @Default("1") @Ge(1) @Le(256) int processesPerReplica,
-		@Ge(0) @Le(10_000) @Nullable Double gcPauseMs, @Ge(1) @Le(10_000_000) @Nullable Integer gcEveryRequests,
-		@Ge(1) @Le(20) @Nullable Double warmupFactor, @Ge(0) @Le(3600) @Nullable Double warmupS,
-		@Default("300.0") @Ge(0) @Le(7200) double keepWarmS, @Default("0.1") @Ge(0) @Le(10_000) double costPerHour) {
+		@Default("[]") @Description(Descriptions.SERVICE_TIME_BY_LOAD) @Ui(group = Descriptions.PERFORMANCE_GROUP,
+				kind = "loadCurve") @OmitWhenDefault List<LoadPoint> serviceTimeByLoad,
+		@Default("true") @Description(Descriptions.BLOCKING_DOWNSTREAM) @Ui(label = "Workers block on downstream calls",
+				group = Descriptions.PERFORMANCE_GROUP) boolean blockingDownstream,
+		@Description(Descriptions.CPU_CORES) @Ui(label = "CPU", unit = "vCPU", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
+		@Default("1.0") @Description(Descriptions.CPU_SHARE) @Ui(label = "CPU share of service time",
+				group = Descriptions.RESOURCES_GROUP, step = 0.05) @Ge(0) @Le(1) double cpuShare,
+		@Description(Resources.SIBLING_SPEED) @Ui(label = "Hyperthread sibling speed",
+				group = Descriptions.RESOURCES_GROUP,
+				step = 0.05) @OmitWhenDefault @Gt(0) @Le(1) @Nullable Double siblingSpeed,
+		@Description(Descriptions.MEMORY_GIB) @Ui(label = "Memory", unit = "GiB", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
+		@Description(Descriptions.INSTANCE_TYPE) @Ui(
+				group = Descriptions.RESOURCES_GROUP) @Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
+		@Default("2.0") @Description(Descriptions.MEMORY_PER_REQUEST_MB) @Ui(label = "Memory per request", unit = "MiB",
+				group = Descriptions.RESOURCES_GROUP, assumption = true) @Gt(0) @Le(65_536) double memoryPerRequestMb,
+		@Default("256.0") @Description(Descriptions.MEMORY_BASELINE_MB) @Ui(label = "Memory at idle", unit = "MiB",
+				group = Descriptions.RESOURCES_GROUP, assumption = true) @Ge(0) @Le(1_048_576) double memoryBaselineMb,
+		@Default("0.0") @Description(Descriptions.MEMORY_PER_RPS_MB) @Ui(label = "Memory per req/s", unit = "MiB",
+				group = Descriptions.RESOURCES_GROUP, step = 0.01) @Ge(0) @Le(65_536) double memoryPerRpsMb,
+		@Default("false") @Description(Descriptions.AUTOSCALING) @Ui(
+				group = Descriptions.AUTOSCALING_GROUP) boolean autoscaling,
+		@Default("1") @Description(Descriptions.MIN_REPLICAS) @Ui(group = Descriptions.AUTOSCALING_GROUP,
+				visibleWhen = "autoscaling=true") @Ge(1) @Le(500) int minReplicas,
+		@Default("10") @Description(Descriptions.MAX_REPLICAS) @Ui(group = Descriptions.AUTOSCALING_GROUP,
+				visibleWhen = "autoscaling=true") @Ge(1) @Le(500) int maxReplicas,
+		@Default("0.6") @Description(Descriptions.TARGET_UTILIZATION) @Ui(group = Descriptions.AUTOSCALING_GROUP,
+				visibleWhen = "autoscaling=true", step = 0.05) @Ge(0.1) @Le(0.95) double targetUtilization,
+		@Default("15.0") @Description(Descriptions.SCALE_INTERVAL_S) @Ui(label = "Evaluation interval", unit = "s",
+				group = Descriptions.AUTOSCALING_GROUP,
+				visibleWhen = "autoscaling=true") @Gt(0) @Le(600) double scaleIntervalS,
+		@Default("20.0") @Description(Descriptions.STARTUP_S) @Ui(label = "Replica start-up time", unit = "s",
+				group = Descriptions.AUTOSCALING_GROUP, assumption = true,
+				visibleWhen = "autoscaling=true") @Ge(0) @Le(600) double startupS,
+		@Default("1000") @Description(Descriptions.CONCURRENCY_LIMIT) @Ui(group = Descriptions.SERVERLESS_GROUP,
+				visibleWhen = "platform=serverless") @Ge(1) @Le(100_000) int concurrencyLimit,
+		@Description(Descriptions.COLD_START_MS) @Ui(label = "Cold start", unit = "ms",
+				group = Descriptions.SERVERLESS_GROUP, assumption = true,
+				visibleWhen = "platform=serverless") @Nullable Distribution coldStartMs,
+		@Description(Descriptions.CLUSTER) @Ui(group = Descriptions.TECHNOLOGY_GROUP,
+				visibleWhen = "platform=kubernetes", kind = "nodeRef",
+				refType = "kubernetes_cluster") @Nullable String cluster,
+		@Default("1000") @Description(Descriptions.SCALE_OUT_RATE) @Ui(label = "Scale-out rate per 10 s",
+				group = Descriptions.SERVERLESS_GROUP,
+				visibleWhen = "platform=serverless") @Ge(1) @Le(100_000) int scaleOutRate,
+		@Default("auto") @Description(Descriptions.RUNTIME_MODEL) @Ui(label = "Concurrency model",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) RuntimeModel runtimeModel,
+		@Default("1") @Description(Descriptions.PROCESSES_PER_REPLICA) @Ui(label = "Event-loop processes per replica",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) @Ge(1) @Le(256) int processesPerReplica,
+		@Description(Descriptions.GC_PAUSE_MS) @Ui(label = "GC pause", unit = "ms",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) @Ge(0) @Le(10_000) @Nullable Double gcPauseMs,
+		@Description(Descriptions.GC_EVERY_REQUESTS) @Ui(label = "Requests between GCs",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) @Ge(1) @Le(10_000_000) @Nullable Integer gcEveryRequests,
+		@Description(Descriptions.WARMUP_FACTOR) @Ui(label = "JIT warm-up slowdown",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP, assumption = true,
+				step = 0.1) @Ge(1) @Le(20) @Nullable Double warmupFactor,
+		@Description(Descriptions.WARMUP_S) @Ui(label = "JIT warm-up time", unit = "s",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) @Ge(0) @Le(3600) @Nullable Double warmupS,
+		@Default("300.0") @Description(Descriptions.KEEP_WARM_S) @Ui(label = "Keep warm", unit = "s",
+				group = Descriptions.SERVERLESS_GROUP,
+				visibleWhen = "platform=serverless") @Ge(0) @Le(7200) double keepWarmS,
+		@Default("0.1") @Description(Descriptions.COST_PER_HOUR) @Ui(label = "Cost per replica-hour", unit = "$/h",
+				group = Descriptions.COST_GROUP, assumption = true) @Ge(0) @Le(10_000) double costPerHour) {
 
 	/** The default handler time per request: 8 ms median, 25 ms p95. */
 	static final Distribution DEFAULT_SERVICE_TIME = new LogNormal(8.0, 25.0);
 
 	/** What each runtime does by default (technology.py's {@code SERVICE_PROFILES}). */
-	static final TechnologyProfiles<ServiceTechnology> PROFILES = new TechnologyProfiles<>(ServiceTechnology.class, Map
-		.of(ServiceTechnology.NODEJS,
-				runtime(TechnologyProfile.core(), "event_loop", new Gc(2.0, 1500), new Startup(1.0, 0.0, 250, 700)),
-				ServiceTechnology.JAVA,
+	static final TechnologyProfiles<ServiceTechnology> PROFILES = TechnologyProfiles.builder(ServiceTechnology.class)
+		.with(ServiceTechnology.NODEJS,
+				runtime(TechnologyProfile.core(), "event_loop", new Gc(2.0, 1500), new Startup(1.0, 0.0, 250, 700)))
+		.with(ServiceTechnology.JAVA,
 				runtime(TechnologyProfile.core(), "thread_pool", new Gc(12.0, 2000),
-						new Startup(2.5, 45.0, 1200, 3500)),
-				ServiceTechnology.DOTNET,
+						new Startup(2.5, 45.0, 1200, 3500)))
+		.with(ServiceTechnology.DOTNET,
 				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(6.0, 2000),
-						new Startup(1.5, 20.0, 600, 1500)),
-				ServiceTechnology.GO,
-				runtime(TechnologyProfile.core(), "thread_pool", new Gc(0.1, 1000), new Startup(1.0, 0.0, 100, 300)),
-				ServiceTechnology.RUST,
+						new Startup(1.5, 20.0, 600, 1500)))
+		.with(ServiceTechnology.GO,
+				runtime(TechnologyProfile.core(), "thread_pool", new Gc(0.1, 1000), new Startup(1.0, 0.0, 100, 300)))
+		.with(ServiceTechnology.RUST,
 				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(0.0, null),
-						new Startup(1.0, 0.0, 60, 200)),
-				ServiceTechnology.PYTHON,
+						new Startup(1.0, 0.0, 60, 200)))
+		.with(ServiceTechnology.PYTHON,
 				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(1.0, 2000),
-						new Startup(1.0, 0.0, 250, 700)),
-				ServiceTechnology.PHP,
+						new Startup(1.0, 0.0, 250, 700)))
+		.with(ServiceTechnology.PHP,
 				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(0.0, null),
-						new Startup(1.0, 0.0, 300, 900)),
-				ServiceTechnology.RUBY,
+						new Startup(1.0, 0.0, 300, 900)))
+		.with(ServiceTechnology.RUBY,
 				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(3.0, 1500),
-						new Startup(1.0, 0.0, 300, 900)),
-				ServiceTechnology.GENERIC,
-				runtime(TechnologyProfile.core(), "thread_pool", new Gc(0.0, null), new Startup(1.0, 0.0, 300, 900))));
+						new Startup(1.0, 0.0, 300, 900)))
+		.with(ServiceTechnology.GENERIC,
+				runtime(TechnologyProfile.core(), "thread_pool", new Gc(0.0, null), new Startup(1.0, 0.0, 300, 900)))
+		.build();
 
 	/** The MiB in a GiB. */
 	private static final double MIB_PER_GIB = 1024.0;

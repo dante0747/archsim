@@ -78,4 +78,51 @@ final class SampleRecords {
 	record Settings(@Default("auto") @OmitWhenDefault Mode mode, @OmitWhenDefault @Nullable Double extra) {
 	}
 
+	record Threads(@Choice(4) @Choice(1) @Choice(2) int perCore) {
+	}
+
+	record Panel(@Ui(label = "Request rate", unit = "req/s", group = "Load", assumption = true, step = 0.5) double rate,
+			@Ui(headline = true, kind = "loadCurve", refType = "kubernetes_cluster", hidden = true) String cluster,
+			@Ui double plain, double unmarked) {
+	}
+
+	record Conditions(boolean autoscaling, int replicas, double share, Mode mode, String zone,
+			@Ui(visibleWhen = "autoscaling=true") double byFlag, @Ui(visibleWhen = "replicas=3") double byCount,
+			@Ui(visibleWhen = "share=0.5") double byShare, @Ui(visibleWhen = "mode=ramp") double byMode,
+			@Ui(visibleWhen = "zone=eu-west") double byZone) {
+	}
+
+	record ConditionWithoutValue(boolean autoscaling, @Ui(visibleWhen = "autoscaling") double byFlag) {
+	}
+
+	record ConditionOnUnknownField(@Ui(visibleWhen = "autoscaling=true") double byFlag) {
+	}
+
+	record ConditionOnList(List<String> tags, @Ui(visibleWhen = "tags=a") double byTags) {
+	}
+
+	record ConditionOnBooleanNotTrueOrFalse(boolean autoscaling, @Ui(visibleWhen = "autoscaling=yes") double byFlag) {
+	}
+
+	record ConditionOnUnknownChoice(Mode mode, @Ui(visibleWhen = "mode=rmap") double byMode) {
+	}
+
+	record Schedule(@DefaultFrom("WORKING_HOURS") Window window) {
+
+		static final Window WORKING_HOURS = new Window(9, 17);
+
+	}
+
+	record MissingConstant(@DefaultFrom("NOWHERE") Window window) {
+	}
+
+	record ConstantOfAnotherType(@DefaultFrom("LABEL") Window window) {
+
+		static final String LABEL = "nine to five";
+
+	}
+
+	record InstanceFieldDefault(@DefaultFrom("fallback") Window window, Window fallback) {
+	}
+
 }

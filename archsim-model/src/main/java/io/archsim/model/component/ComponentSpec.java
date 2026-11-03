@@ -1,6 +1,7 @@
 package io.archsim.model.component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -79,6 +80,15 @@ public abstract class ComponentSpec<C extends Record> {
 	 */
 	public boolean isTrafficSource() {
 		return false;
+	}
+
+	/**
+	 * The profile of each of the type's technologies, by JSON name, in the order the
+	 * technologies are declared; empty for a type without a {@code technology} setting.
+	 * @return the technologies' profiles
+	 */
+	public Map<String, TechnologyProfile> technologies() {
+		return Map.of();
 	}
 
 	public final Optional<Port> port(String name) {

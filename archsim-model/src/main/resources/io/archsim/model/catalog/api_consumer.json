@@ -1,0 +1,25 @@
+{
+  "description": "Partners and other systems calling your public API endpoints (REST, GraphQL). Sends its share of the workload server to server, with a short timeout and SDK-style retries.",
+  "icon": "braces",
+  "modeled": [
+    "Open-loop arrivals: clients do not slow down when the system is slow",
+    "Per-attempt client timeout and bounded retries with exponential backoff",
+    "Its share of the workload, split from the same arrivals as the other client groups",
+    "Server-to-server internet delay as the latency of its link (default p50 10 ms / p95 30 ms one way)"
+  ],
+  "notModeled": [
+    "Closed-loop users with think time",
+    "Client-side connection pools",
+    "Per-consumer API keys and quotas (put a rate-limited gateway in front to model them)"
+  ],
+  "presets": [],
+  "linkDefaults": {
+    "latencyMs": {
+      "kind": "lognormal",
+      "median": 10.0,
+      "p95": 30.0
+    }
+  },
+  "technologyTraits": {},
+  "technologySources": {}
+}

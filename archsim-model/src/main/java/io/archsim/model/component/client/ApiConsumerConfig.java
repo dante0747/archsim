@@ -1,9 +1,11 @@
 package io.archsim.model.component.client;
 
 import io.archsim.model.codec.Default;
+import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
+import io.archsim.model.codec.Ui;
 
 /**
  * Partners and other systems calling the public API, with a short timeout and SDK-style
@@ -15,8 +17,17 @@ import io.archsim.model.codec.Le;
  * @param trafficShare the group's share of the workload (percent)
  * @param technology what the consumers use
  */
-public record ApiConsumerConfig(@Default("5000.0") @Gt(0) @Le(600_000) double timeoutMs,
-		@Default("3") @Ge(1) @Le(5) int maxAttempts, @Default("200.0") @Ge(0) @Le(60_000) double retryBackoffMs,
-		@Default("15.0") @Gt(0) @Le(100) double trafficShare,
-		@Default("api_client") ApiClientTechnology technology) implements ClientConfig {
+public record ApiConsumerConfig(
+		@Default("5000.0") @Description(Descriptions.TIMEOUT_MS) @Ui(label = "Client timeout", unit = "ms",
+				group = Descriptions.CLIENT_BEHAVIOUR_GROUP, headline = true) @Gt(0) @Le(600_000) double timeoutMs,
+		@Default("3") @Description(Descriptions.MAX_ATTEMPTS) @Ui(
+				group = Descriptions.CLIENT_BEHAVIOUR_GROUP) @Ge(1) @Le(5) int maxAttempts,
+		@Default("200.0") @Description(Descriptions.RETRY_BACKOFF_MS) @Ui(label = "Retry backoff", unit = "ms",
+				group = Descriptions.CLIENT_BEHAVIOUR_GROUP) @Ge(0) @Le(60_000) double retryBackoffMs,
+		@Default("15.0") @Description(Descriptions.TRAFFIC_SHARE) @Ui(unit = "%",
+				group = Descriptions.TRAFFIC_GROUP) @Gt(0) @Le(100) double trafficShare,
+		@Default("api_client") @Description(Descriptions.TECHNOLOGY) @Ui(
+				group = Descriptions.TECHNOLOGY_GROUP) ApiClientTechnology technology)
+		implements
+			ClientConfig {
 }

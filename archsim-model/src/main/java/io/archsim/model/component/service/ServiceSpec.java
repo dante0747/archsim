@@ -2,6 +2,7 @@ package io.archsim.model.component.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 
 import io.archsim.model.component.Category;
@@ -9,6 +10,7 @@ import io.archsim.model.component.ComponentIdentity;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
+import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.RequestType;
@@ -42,6 +44,11 @@ public final class ServiceSpec extends ComponentSpec<ServiceConfig> {
 						Port.out("out", "Dependencies",
 								"Downstream calls made while handling a request. Each link's request types decide"
 										+ " which requests use it.")));
+	}
+
+	@Override
+	public Map<String, TechnologyProfile> technologies() {
+		return ServiceConfig.PROFILES.byName();
 	}
 
 	@Override

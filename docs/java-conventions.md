@@ -70,7 +70,7 @@ shorter.
 | NPath complexity of a method | 200 |
 | Operators in one boolean expression | 3 |
 | Nested `if` / `for` / `try` | 2 / 1 / 1 |
-| Classes one class uses (fan-out) | 20 |
+| Classes one class uses (fan-out) | 20; the codec's annotations (`@Default`, `@Ui`, ...) don't count |
 
 A record may have as many components as the data it holds: a design document's config records
 mirror a contract with dozens of fields.
@@ -96,7 +96,8 @@ mirror a contract with dozens of fields.
 - **Exceptions, not error codes.** Throw the most specific exception; never catch `Exception`,
   `RuntimeException` or `Throwable`. A caught exception is named `ex`, and an empty `catch`
   says why it is empty.
-- **No printing.** Log through SLF4J, or throw.
+- **No printing.** Log through SLF4J, or throw. A logger is a constant:
+  `private static final Logger LOGGER = LoggerFactory.getLogger(Owner.class)`.
 
 ### Comments and Javadoc
 
@@ -112,6 +113,13 @@ mirror a contract with dozens of fields.
 
 ### Data in code
 
+- **Setting descriptions and form groups** of a package's records (`@Description`, the `group`
+  of `@Ui`) are constants in the package's package-private `Descriptions` class, so each
+  setting's annotations stay short. When several records share the class, each text is named
+  after its record (`FAULT_START_S`, `WORKLOAD_SEED`). A record's own description (its
+  docstring) stays on the record, as a text block. Checkstyle lets an annotated record
+  component's line run past 120 columns when its strings are short, because the formatter
+  cannot wrap between annotations.
 - **No JSON in strings** in production code. Data (presets, catalogs, fixtures) is a resource file
   read at start-up; JSON the code produces is built with Jackson's tree API or written by the
   codec. Tests may use JSON text as input.
@@ -127,7 +135,10 @@ mirror a contract with dozens of fields.
 - **Test classes end in `Tests`** (`TokenServiceTests`) and, like their methods, are
   package-private.
 - **One behaviour per test**, in three parts separated by a blank line: arrange, act, assert.
-  No logic (loops, conditions) in a test beyond building its input.
+  No logic (loops, conditions) in a test beyond building its input. The one exception is the
+  black-box suite's port of the Python API tests (`archsim-api-tests`), which keeps one method per
+  Python test so each can be traced to its source; its multi-step methods are not a model for
+  new tests.
 - **AssertJ** for assertions, **BDDMockito** (`given`, `then`) when a mock is needed. Prefer real
   objects and slice tests over mocks.
 - **The right kind of test:** a unit test for a class; a Spring slice test (`@WebMvcTest`,

@@ -1,0 +1,16 @@
+{
+  "description": "Generates the workload (RPS, read/write mix, traffic pattern) and measures what users experience: end-to-end latency, errors and client timeouts.",
+  "icon": "users",
+  "modeled": [
+    "Open-loop arrivals: clients do not slow down when the system is slow",
+    "Per-attempt client timeout and bounded retries with exponential backoff"
+  ],
+  "notModeled": [
+    "Closed-loop users with think time",
+    "Client-side connection pools"
+  ],
+  "presets": [],
+  "linkDefaults": {},
+  "technologyTraits": {},
+  "technologySources": {}
+}

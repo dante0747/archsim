@@ -30,13 +30,9 @@ import io.archsim.model.codec.MaxLength;
 		they differ from the default and illustrative otherwise (``provenance.py``).""")
 public record InputProvenance(ProvenanceKind kind, @MaxLength(500) @Nullable String source,
 		@MaxLength(2000) @Nullable String query, @MaxLength(100) @Nullable String timeRange,
-		@Description("Largest relative error of the fit at the checked quantiles") @Ge(0) @Nullable Double fitError,
+		@Description(Descriptions.PROVENANCE_FIT_ERROR) @Ge(0) @Nullable Double fitError,
 		@MaxLength(40) @Nullable String fittedAt, @MaxLength(500) @Nullable String note,
-		@Default("null") @Description(VALUE) JsonNode value) {
-
-	static final String VALUE = "The value calibration set (JSON, as stored at the path). The input counts as "
-			+ "measured only while its current value still equals this; a scenario, sweep or edit that changes it "
-			+ "makes it assumed again. Records without it (written by earlier builds) are taken at their word.";
+		@Default("null") @Description(Descriptions.PROVENANCE_VALUE) JsonNode value) {
 
 	/**
 	 * Copies the value, so the record does not change.

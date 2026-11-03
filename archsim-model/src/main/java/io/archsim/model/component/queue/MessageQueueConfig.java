@@ -1,15 +1,15 @@
 package io.archsim.model.component.queue;
 
-import java.util.Map;
-
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.DefaultFrom;
+import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Matches;
+import io.archsim.model.codec.Ui;
 import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
@@ -55,30 +55,68 @@ import io.archsim.model.distribution.LogNormal;
  * @param instanceType the instance type in the design's price snapshot (schema 1.4)
  * @param costPerHour the price of one broker per hour, in USD
  */
-public record MessageQueueConfig(@Default("generic") QueueTechnology technology,
-		@Default("8") @Ge(1) @Le(10_000) int partitions, @Default("4") @Ge(1) @Le(10_000) int consumers,
-		@Default("100000") @Ge(1) @Le(100_000_000) @Nullable Integer maxDepth,
+public record MessageQueueConfig(
+		@Default("generic") @Description(Descriptions.TECHNOLOGY) @Ui(
+				group = Descriptions.TECHNOLOGY_GROUP) QueueTechnology technology,
+		@Default("8") @Description(Descriptions.PARTITIONS) @Ui(group = Descriptions.CAPACITY_GROUP,
+				headline = true) @Ge(1) @Le(10_000) int partitions,
+		@Default("4") @Description(Descriptions.CONSUMERS) @Ui(group = Descriptions.CAPACITY_GROUP,
+				headline = true) @Ge(1) @Le(10_000) int consumers,
+		@Default("100000") @Description(Descriptions.MAX_DEPTH) @Ui(label = "Max backlog", unit = "msgs",
+				group = Descriptions.CAPACITY_GROUP) @Ge(1) @Le(100_000_000) @Nullable Integer maxDepth,
 
-		@DefaultFrom("DEFAULT_PUBLISH_TIME") Distribution publishTimeMs,
+		@DefaultFrom("DEFAULT_PUBLISH_TIME") @Description(Descriptions.PUBLISH_TIME_MS) @Ui(
+				label = "Publish (ack) time", unit = "ms", group = Descriptions.PERFORMANCE_GROUP, assumption = true,
+				headline = true) Distribution publishTimeMs,
 
-		@DefaultFrom("DEFAULT_CONSUMER_TIME") Distribution consumerTimeMs,
+		@DefaultFrom("DEFAULT_CONSUMER_TIME") @Description(Descriptions.CONSUMER_TIME_MS) @Ui(label = "Consumer time",
+				unit = "ms", group = Descriptions.PERFORMANCE_GROUP, assumption = true) Distribution consumerTimeMs,
 
-		@Ge(1) @Le(10_000) @Nullable Integer consumerConcurrency, @Nullable Distribution fetchOverheadMs,
-		@Default("3") @Ge(1) @Le(20) int maxDeliveries, @Default("auto") Partitioning partitioning,
-		@Default("auto") Acks acks,
+		@Description(Descriptions.CONSUMER_CONCURRENCY) @Ui(
+				group = Descriptions.CAPACITY_GROUP) @Ge(1) @Le(10_000) @Nullable Integer consumerConcurrency,
+		@Description(Descriptions.FETCH_OVERHEAD_MS) @Ui(label = "Fetch overhead", unit = "ms",
+				group = Descriptions.PERFORMANCE_GROUP) @Nullable Distribution fetchOverheadMs,
+		@Default("3") @Description(Descriptions.MAX_DELIVERIES) @Ui(
+				group = Descriptions.RELIABILITY_GROUP) @Ge(1) @Le(20) int maxDeliveries,
+		@Default("auto") @Description(Descriptions.PARTITIONING) @Ui(
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Partitioning partitioning,
+		@Default("auto") @Description(Descriptions.ACKS) @Ui(label = "Publish acknowledgement",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Acks acks,
 
-		@DefaultFrom("DEFAULT_REPLICATION") Distribution replicationMs,
+		@DefaultFrom("DEFAULT_REPLICATION") @Description(Descriptions.REPLICATION_MS) @Ui(label = "Replication wait",
+				unit = "ms", group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) Distribution replicationMs,
 
-		@Ge(0) @Le(10_000) @Nullable Double lingerMs, @Default("auto") Delivery delivery,
-		@Gt(0) @Le(43_200) @Nullable Double visibilityTimeoutS, @Default("false") boolean fifo,
-		@Default("300.0") @Gt(0) @Le(1_000_000) double fifoLimitRps, @Default("auto") Toggle flowControl,
-		@Default("0.6") @Gt(0) @Le(1) double memoryHighWatermark,
-		@Default("1.0") @Gt(0) @Le(1_048_576) double messageSizeKb, @Default("1") @Ge(1) @Le(1000) int brokers,
-		@Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
-		@Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
-		@Gt(0) @Le(Resources.MAX_STORAGE_GIB) @Nullable Double storageGib,
-		@Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
-		@Default("0.15") @Ge(0) @Le(10_000) double costPerHour) {
+		@Description(Descriptions.LINGER_MS) @Ui(label = "Batching linger", unit = "ms",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) @Ge(0) @Le(10_000) @Nullable Double lingerMs,
+		@Default("auto") @Description(Descriptions.DELIVERY) @Ui(label = "Delivery guarantee",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Delivery delivery,
+		@Description(Descriptions.VISIBILITY_TIMEOUT_S) @Ui(label = "Visibility timeout", unit = "s",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) @Gt(0) @Le(43_200) @Nullable Double visibilityTimeoutS,
+		@Default("false") @Description(Descriptions.FIFO) @Ui(label = "FIFO queue",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP, visibleWhen = "technology=sqs") boolean fifo,
+		@Default("300.0") @Description(Descriptions.FIFO_LIMIT_RPS) @Ui(label = "FIFO publish limit", unit = "msg/s",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				visibleWhen = "technology=sqs") @Gt(0) @Le(1_000_000) double fifoLimitRps,
+		@Default("auto") @Description(Descriptions.FLOW_CONTROL) @Ui(label = "Memory alarm blocks publishers",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Toggle flowControl,
+		@Default("0.6") @Description(Descriptions.MEMORY_HIGH_WATERMARK) @Ui(
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP, step = 0.05) @Gt(0) @Le(1) double memoryHighWatermark,
+		@Default("1.0") @Description(Descriptions.MESSAGE_SIZE_KB) @Ui(label = "Message size", unit = "KiB",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) @Gt(0) @Le(1_048_576) double messageSizeKb,
+		@Default("1") @Description(Descriptions.BROKERS) @Ui(
+				group = Descriptions.COST_GROUP) @Ge(1) @Le(1000) int brokers,
+		@Description(Descriptions.CPU_CORES) @Ui(label = "CPU", unit = "vCPU", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
+		@Description(Descriptions.MEMORY_GIB) @Ui(label = "Memory", unit = "GiB", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
+		@Description(Descriptions.STORAGE_GIB) @Ui(label = "Storage", unit = "GiB",
+				group = Descriptions.RESOURCES_GROUP) @Gt(0) @Le(Resources.MAX_STORAGE_GIB) @Nullable Double storageGib,
+		@Description(Descriptions.INSTANCE_TYPE) @Ui(
+				group = Descriptions.RESOURCES_GROUP) @Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
+		@Default("0.15") @Description(Descriptions.COST_PER_HOUR) @Ui(label = "Cost per broker-hour", unit = "$/h",
+				group = Descriptions.COST_GROUP, assumption = true) @Ge(0) @Le(10_000) double costPerHour) {
 
 	/** The default time a publish takes to be acknowledged: 2 ms median, 8 ms p95. */
 	static final Distribution DEFAULT_PUBLISH_TIME = new LogNormal(2.0, 8.0);
@@ -90,30 +128,32 @@ public record MessageQueueConfig(@Default("generic") QueueTechnology technology,
 	static final Distribution DEFAULT_REPLICATION = new LogNormal(2.0, 8.0);
 
 	/**
-	 * What each technology does by default (technology.py's {@code QUEUE_PROFILES}). A
-	 * visibility timeout Python lists as {@code None} is left out: the setting's fallback
-	 * is none too.
+	 * What each technology does by default (technology.py's {@code QUEUE_PROFILES}).
 	 */
-	static final TechnologyProfiles<QueueTechnology> PROFILES = new TechnologyProfiles<>(QueueTechnology.class,
-			Map.of(QueueTechnology.KAFKA,
-					TechnologyProfile.core()
-						.with("partitioning", "key")
-						.with("acks", "all")
-						.with("lingerMs", 5.0)
-						.with("flowControl", "off")
-						.with("delivery", "at_least_once"),
-					QueueTechnology.RABBITMQ,
-					unpartitioned(TechnologyProfile.experimental(), "on").with("delivery", "at_least_once"),
-					QueueTechnology.SQS,
-					unpartitioned(TechnologyProfile.core(), "off").with("delivery", "at_least_once")
-						.with("visibilityTimeoutS", 30.0),
-					QueueTechnology.PUBSUB,
-					unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once")
-						.with("visibilityTimeoutS", 10.0),
-					QueueTechnology.NATS,
-					unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once"),
-					QueueTechnology.REDIS_STREAMS, unpartitioned(TechnologyProfile.experimental(), "off"),
-					QueueTechnology.GENERIC, unpartitioned(TechnologyProfile.core(), "off")));
+	static final TechnologyProfiles<QueueTechnology> PROFILES = TechnologyProfiles.builder(QueueTechnology.class)
+		.with(QueueTechnology.KAFKA,
+				TechnologyProfile.core()
+					.with("partitioning", "key")
+					.with("acks", "all")
+					.with("lingerMs", 5.0)
+					.with("flowControl", "off")
+					.with("delivery", "at_least_once")
+					.withoutDefault("visibilityTimeoutS"))
+		.with(QueueTechnology.RABBITMQ,
+				unpartitioned(TechnologyProfile.experimental(), "on").with("delivery", "at_least_once")
+					.withoutDefault("visibilityTimeoutS"))
+		.with(QueueTechnology.SQS,
+				unpartitioned(TechnologyProfile.core(), "off").with("delivery", "at_least_once")
+					.with("visibilityTimeoutS", 30.0))
+		.with(QueueTechnology.PUBSUB,
+				unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once")
+					.with("visibilityTimeoutS", 10.0))
+		.with(QueueTechnology.NATS,
+				unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once")
+					.withoutDefault("visibilityTimeoutS"))
+		.with(QueueTechnology.REDIS_STREAMS, unpartitioned(TechnologyProfile.experimental(), "off"))
+		.with(QueueTechnology.GENERIC, unpartitioned(TechnologyProfile.core(), "off"))
+		.build();
 
 	/**
 	 * The profile of one shared queue: no partitions, publishes acknowledged by the

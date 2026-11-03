@@ -14,15 +14,18 @@ import io.archsim.model.codec.JsonEnum;
 /**
  * What a technology does by default, for the settings a config leaves on {@code auto} (or
  * empty): PostgreSQL takes row locks, Redis runs commands on one thread, Envoy times out
- * after 15 s. A value is under the config field's JSON name; a technology that lacks one
- * leaves the field's own fallback.
+ * after 15 s. A value is under the config field's JSON name; a technology that lacks one,
+ * or says it has none ({@link #withoutDefault}), leaves the field's own fallback.
  *
  * @param tier how well ArchSim knows the technology
  * @param values the defaults, by the config field's JSON name: strings for choices,
- * numbers
+ * numbers, distributions; {@code null} for a field the technology has no default for
  */
-public record TechnologyProfile(Tier tier, Map<String, Object> values) {
+public record TechnologyProfile(Tier tier, Map<String, @Nullable Object> values) {
 
+	/**
+	 * Copies the defaults, keeping their order.
+	 */
 	public TechnologyProfile {
 		Objects.requireNonNull(tier, "tier");
 		values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
@@ -45,16 +48,24 @@ public record TechnologyProfile(Tier tier, Map<String, Object> values) {
 	}
 
 	/**
-	 * This profile with a default for {@code field}: a string for a choice, a number
-	 * otherwise.
+	 * This profile with a default for {@code field}, written as the field's own values
+	 * are: a string for a choice, a number, or a distribution such as a log-normal.
 	 * @param field the config field's JSON name
 	 * @param value the technology's default for it
 	 * @return a profile with the default added
 	 */
 	public TechnologyProfile with(String field, Object value) {
-		Map<String, Object> more = new LinkedHashMap<>(this.values);
-		more.put(field, value);
-		return new TechnologyProfile(this.tier, more);
+		return withValue(field, Objects.requireNonNull(value, field));
+	}
+
+	/**
+	 * This profile saying the technology has no default for {@code field}, which then
+	 * takes its own fallback. The editor shows that as the technology's default too.
+	 * @param field the config field's JSON name
+	 * @return a profile that names the field without a default
+	 */
+	public TechnologyProfile withoutDefault(String field) {
+		return withValue(field, null);
 	}
 
 	/**
@@ -71,7 +82,7 @@ public record TechnologyProfile(Tier tier, Map<String, Object> values) {
 		if (explicit != auto) {
 			return explicit;
 		}
-		Object value = this.values.get(field);
+		@Nullable Object value = this.values.get(field);
 		if (value == null) {
 			return fallback;
 		}
@@ -93,6 +104,12 @@ public record TechnologyProfile(Tier tier, Map<String, Object> values) {
 			return Optional.of(explicit);
 		}
 		return Optional.ofNullable(this.values.get(field)).map((value) -> ((Number) value).doubleValue());
+	}
+
+	private TechnologyProfile withValue(String field, @Nullable Object value) {
+		Map<String, @Nullable Object> more = new LinkedHashMap<>(this.values);
+		more.put(field, value);
+		return new TechnologyProfile(this.tier, more);
 	}
 
 }

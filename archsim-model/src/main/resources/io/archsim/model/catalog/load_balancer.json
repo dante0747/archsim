@@ -1,0 +1,233 @@
+{
+  "description": "Spreads requests across the replicas of its targets (round-robin, least-connections or random). Links can filter by request type, e.g. to route reads and writes differently.",
+  "icon": "split",
+  "modeled": [
+    "Instance selection per policy across all routable replicas of linked targets (follows autoscaling)",
+    "Per-link timeout and retries that avoid the failed instance",
+    "Technology defaults: upstream timeout (504) and Envoy circuit breakers (503)",
+    "Connection limit (rejects beyond max connections)",
+    "Optional rate limit (token bucket); excess rejected as rate_limited"
+  ],
+  "notModeled": [
+    "Health checks and ejection",
+    "TLS handshakes",
+    "Sticky sessions",
+    "Per-client or per-route rate limits"
+  ],
+  "presets": [
+    {
+      "config": {
+        "cpuCores": 2,
+        "maxConnections": 1024,
+        "memoryGib": 2,
+        "overheadMs": {
+          "kind": "constant",
+          "value": 0.2
+        },
+        "policy": "round_robin",
+        "technology": "nginx"
+      },
+      "description": "Reverse proxy with very low per-request overhead: 2 workers x 1,024 connections, two per proxied request, so 1,024 requests at once; 60 s upstream timeout.",
+      "family": "Load balancer",
+      "id": "nginx",
+      "name": "Nginx",
+      "sources": {},
+      "tags": [
+        "proxy",
+        "l7"
+      ],
+      "technology": "nginx"
+    },
+    {
+      "config": {
+        "cpuCores": 2,
+        "memoryGib": 2,
+        "overheadMs": {
+          "kind": "constant",
+          "value": 0.15
+        },
+        "policy": "least_connections",
+        "technology": "haproxy"
+      },
+      "description": "High-performance TCP/HTTP load balancer, least-connections balancing.",
+      "family": "Load balancer",
+      "id": "haproxy",
+      "name": "HAProxy",
+      "sources": {},
+      "tags": [
+        "proxy",
+        "l7"
+      ],
+      "technology": "haproxy"
+    },
+    {
+      "config": {
+        "cpuCores": 2,
+        "memoryGib": 2,
+        "overheadMs": {
+          "kind": "constant",
+          "value": 0.3
+        },
+        "policy": "least_connections",
+        "technology": "envoy"
+      },
+      "description": "Service proxy (also the data plane of most service meshes): circuit breakers at 1,024 requests per target, 15 s route timeout.",
+      "family": "Load balancer",
+      "id": "envoy",
+      "name": "Envoy",
+      "sources": {},
+      "tags": [
+        "proxy",
+        "mesh"
+      ],
+      "technology": "envoy"
+    },
+    {
+      "config": {
+        "costPerHour": 0.05,
+        "cpuCores": 2,
+        "memoryGib": 4,
+        "overheadMs": {
+          "kind": "lognormal",
+          "median": 1.0,
+          "p95": 3.0
+        },
+        "rateLimitBurst": 200,
+        "rateLimitRps": 1000,
+        "technology": "kong"
+      },
+      "description": "API gateway in front of services, with a global rate limit.",
+      "family": "API gateway",
+      "id": "kong",
+      "name": "Kong API gateway",
+      "sources": {},
+      "tags": [
+        "gateway",
+        "rate-limit"
+      ],
+      "technology": "kong"
+    },
+    {
+      "config": {
+        "costPerHour": 0.0225,
+        "maxConnections": 100000,
+        "overheadMs": {
+          "kind": "lognormal",
+          "median": 1.5,
+          "p95": 5.0
+        },
+        "technology": "aws_alb"
+      },
+      "description": "Managed cloud application load balancer (illustrative numbers, not a vendor benchmark).",
+      "family": "Load balancer",
+      "id": "aws-alb",
+      "name": "ALB-style load balancer",
+      "sources": {},
+      "tags": [
+        "managed",
+        "l7"
+      ],
+      "technology": "aws_alb"
+    },
+    {
+      "config": {
+        "costPerHour": 0.0,
+        "overheadMs": {
+          "kind": "lognormal",
+          "median": 6.0,
+          "p95": 20.0
+        },
+        "rateLimitBurst": 5000,
+        "rateLimitRps": 10000,
+        "technology": "api_gateway"
+      },
+      "description": "Managed API gateway: higher overhead per request and an account-level rate limit.",
+      "family": "API gateway",
+      "id": "api-gateway",
+      "name": "API-gateway-style (managed)",
+      "sources": {
+        "rateLimitBurst": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html",
+        "rateLimitRps": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html"
+      },
+      "tags": [
+        "managed",
+        "gateway",
+        "rate-limit"
+      ],
+      "technology": "api_gateway"
+    }
+  ],
+  "linkDefaults": {},
+  "technologyTraits": {
+    "api_gateway": [
+      {
+        "detail": "The gateway waits at most 29 s for the backend by default, then returns 504 (regional and private REST APIs can request more).",
+        "id": "integration_timeout",
+        "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html",
+        "title": "Integration timeout 29 s"
+      },
+      {
+        "detail": "10,000 requests per second with a 5,000 burst per account and Region by default (token bucket; lower in some newer Regions); excess gets 429. The preset sets these.",
+        "id": "account_throttle",
+        "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html",
+        "title": "Account throttle"
+      }
+    ],
+    "aws_alb": [
+      {
+        "detail": "The load balancer closes a connection idle for 60 s (default), which ends a slow upstream response with 504.",
+        "id": "idle_timeout",
+        "source": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html",
+        "title": "Idle timeout 60 s"
+      }
+    ],
+    "envoy": [
+      {
+        "detail": "Each upstream cluster allows 1,024 concurrent requests by default; beyond that Envoy answers 503 at once instead of queueing.",
+        "id": "circuit_breakers",
+        "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto",
+        "title": "Circuit breakers (1,024 requests)"
+      },
+      {
+        "detail": "A route waits 15 s for the upstream response by default, then returns 504.",
+        "id": "route_timeout",
+        "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+        "title": "Route timeout 15 s"
+      }
+    ],
+    "kong": [
+      {
+        "detail": "A Kong service waits 60 s (read_timeout) for the upstream by default.",
+        "id": "service_timeouts",
+        "source": "https://developer.konghq.com/gateway/entities/service/",
+        "title": "Upstream timeouts 60 s"
+      }
+    ],
+    "nginx": [
+      {
+        "detail": "nginx gives up on an upstream response after proxy_read_timeout (60 s by default) and returns 504.",
+        "id": "proxy_read_timeout",
+        "source": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout",
+        "title": "Upstream read timeout 60 s"
+      },
+      {
+        "detail": "worker_connections counts every connection, including those to upstream servers, so each proxied request uses two and a worker serves half as many requests (the preset sizes it that way).",
+        "id": "two_connections",
+        "source": "https://nginx.org/en/docs/ngx_core_module.html#worker_connections",
+        "title": "Two connections per proxied request"
+      }
+    ]
+  },
+  "technologySources": {
+    "circuitBreakerMaxRequests": {
+      "envoy": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto"
+    },
+    "upstreamTimeoutMs": {
+      "api_gateway": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html",
+      "aws_alb": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html",
+      "envoy": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "kong": "https://developer.konghq.com/gateway/entities/service/",
+      "nginx": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout"
+    }
+  }
+}

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -13,6 +14,7 @@ import io.archsim.model.component.ComponentIdentity;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
+import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.service.ServiceSpec;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.NodeSpec;
@@ -45,6 +47,11 @@ public final class CacheSpec extends ComponentSpec<CacheConfig> {
 		super(new ComponentIdentity(TYPE, "Cache", Category.STORAGE), CacheConfig.class,
 				List.of(Port.in("in", "Commands", "Reads (lookups) and writes (invalidations)."),
 						Port.out(MISS, "Miss", MISS_DESCRIPTION).carrying(RequestType.READ).withMaxEdges(1)));
+	}
+
+	@Override
+	public Map<String, TechnologyProfile> technologies() {
+		return CacheConfig.PROFILES.byName();
 	}
 
 	/**

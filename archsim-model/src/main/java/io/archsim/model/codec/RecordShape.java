@@ -124,11 +124,11 @@ final class RecordShape implements Shape {
 		if (key != null) {
 			return field.shape().read(in.get(key), at.child(key), errors);
 		}
-		if (field.required()) {
+		if (field.fieldDefault().required()) {
 			errors.add("missing", at.child(field.name()), Messages.MISSING);
 			return null;
 		}
-		Object fallback = field.defaultValue();
+		Object fallback = field.fieldDefault().value();
 		return (fallback instanceof JsonNode node) ? node.deepCopy() : fallback;
 	}
 
@@ -198,7 +198,7 @@ final class RecordShape implements Shape {
 		}
 		for (Field field : this.fields) {
 			Object value = Reflection.get(field.accessor(), record);
-			if (field.omitWhenDefault() && Objects.equals(value, field.defaultValue())) {
+			if (field.omitWhenDefault() && Objects.equals(value, field.fieldDefault().value())) {
 				continue;
 			}
 			object.set(field.name(), field.shape().write(value));
@@ -232,7 +232,7 @@ final class RecordShape implements Shape {
 		ArrayNode required = NODES.arrayNode();
 		for (Field field : this.fields) {
 			properties.set(field.name(), property(field, definitions));
-			if (field.required()) {
+			if (field.fieldDefault().required()) {
 				required.add(field.name());
 			}
 		}
@@ -243,8 +243,8 @@ final class RecordShape implements Shape {
 	}
 
 	/**
-	 * A field's schema: its value's, with the title, description, default and extras
-	 * pydantic adds.
+	 * A field's schema: its value's, with the title, description and default pydantic
+	 * adds, and the field's {@link Ui} hints as {@code x-ui}.
 	 * @param field the field
 	 * @param definitions where the records the field uses are defined
 	 * @return the field's property schema
@@ -257,11 +257,11 @@ final class RecordShape implements Shape {
 		if (field.description() != null) {
 			schema.put("description", field.description());
 		}
-		if (field.defaultInSchema()) {
-			schema.set("default", field.shape().write(field.defaultValue()));
+		if (field.fieldDefault().inSchema()) {
+			schema.set("default", field.shape().write(field.fieldDefault().value()));
 		}
-		if (field.extra() != null) {
-			schema.setAll(field.extra());
+		if (field.uiHints() != null) {
+			schema.set("x-ui", field.uiHints().deepCopy());
 		}
 		return schema;
 	}

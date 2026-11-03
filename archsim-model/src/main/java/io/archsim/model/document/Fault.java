@@ -32,11 +32,11 @@ import io.archsim.model.codec.MinLength;
 		* ``slowdown`` - service times sampled at the target node are multiplied by ``factor``.
 		* ``latency``  - each traversal of the target edge gets ``extraMs`` added (one way).""")
 public record Fault(@Matches(Patterns.ID) String id, FaultKind kind,
-		@Description("Node id (outage, slowdown) or edge id (latency)") @MinLength(1) @MaxLength(64) String target,
-		@Description("When the fault starts (s, simulated time)") @Ge(0) @Le(3600) double startS,
-		@Description("How long the fault lasts (s)") @Gt(0) @Le(3600) double durationS,
-		@Default("4.0") @Description("slowdown: service-time multiplier") @Ge(1) @Le(100) double factor,
-		@Default("200.0") @Description("latency: added one-way latency (ms)") @Ge(0) @Le(60_000) double extraMs,
+		@Description(Descriptions.FAULT_TARGET) @MinLength(1) @MaxLength(64) String target,
+		@Description(Descriptions.FAULT_START_S) @Ge(0) @Le(3600) double startS,
+		@Description(Descriptions.FAULT_DURATION_S) @Gt(0) @Le(3600) double durationS,
+		@Default("4.0") @Description(Descriptions.FAULT_SLOWDOWN_FACTOR) @Ge(1) @Le(100) double factor,
+		@Default("200.0") @Description(Descriptions.FAULT_EXTRA_MS) @Ge(0) @Le(60_000) double extraMs,
 		@MaxLength(120) @Nullable String label) {
 
 	/**

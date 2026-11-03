@@ -2,6 +2,7 @@ package io.archsim.model.component.queue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import io.archsim.model.component.Category;
@@ -9,6 +10,7 @@ import io.archsim.model.component.ComponentIdentity;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
+import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.issue.Issue;
 
@@ -30,6 +32,11 @@ public final class MessageQueueSpec extends ComponentSpec<MessageQueueConfig> {
 						Port.out("out", "Consumers",
 								"Downstream calls each consumer makes per message, in order, for matching request"
 										+ " types.")));
+	}
+
+	@Override
+	public Map<String, TechnologyProfile> technologies() {
+		return MessageQueueConfig.PROFILES.byName();
 	}
 
 	@Override

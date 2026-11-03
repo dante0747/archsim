@@ -27,6 +27,7 @@ Each package uses only those below it, and ArchUnit checks it
 | `io.archsim.model` | `DesignDocuments`: load, parse, write, normalize, the JSON Schema | |
 | `validation` | `DocumentValidator` and the checks it runs in order (ids, component types, links, the `CallGraph`, request-type flow, component rules, the workload, prices), `ValidationResult` | [0024](../docs/adr/0024-validation-issues-with-stable-codes.md) |
 | `scenario` | finding a scenario and applying its overrides | |
+| `catalog` | `ComponentCatalog`: the component catalog the editor renders (`GET /components`), from the specifications and each type's `catalog/<type>.json` | [0031](../docs/adr/0031-component-catalog-facts-and-presentation.md) |
 | `component` | `ComponentSpec` (ports, config, routing, rules), `ComponentRegistry`, technology profiles; one package per type, and `standard` assembles ArchSim's eleven | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
 | `pricing` | price snapshots: the `archsim.prices/1` format, which there are, which a document uses | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
 | `upgrade` | the chain of upgrades from schema 1.0 to 1.7, on the JSON | [0023](../docs/adr/0023-upgrade-chain-on-the-json.md) |
@@ -47,7 +48,8 @@ resources by the build while the engine exists.
 - `GoldenParityTests` runs every recorded call of each function this module ports, in every
   [golden file](../parity/README.md), and expects the same output or the same error:
   `load_document`, `migrate_document`, `validate_document`, `normalize_document`,
-  `apply_overrides`, `simulation_input`, `document_json_schema`, the distributions' and the price
+  `apply_overrides`, `simulation_input`, `document_json_schema`, the component catalog
+  (`ComponentRegistry.catalog_document` and `types`), the distributions' and the price
   snapshots' functions. `ModelFunctions` maps each Python name to its Java call.
 - The other tests specify the parts: the pydantic rules the codec copies, the upgrades, each
   check of validation, Python's number formats, the component types, the price snapshots; jqwik
@@ -60,7 +62,5 @@ stages' modules to use ([ADR-0028](../docs/adr/0028-golden-file-reader-as-test-f
 
 ## Not here yet
 
-- **The component catalog** the editor renders (field descriptions, `x-ui` hints, presets,
-  technology traits): stage 2, when the API serves it.
 - **Resolving a scenario in full:** finding it and applying its overrides is here; pinning prices
   and sizing parts left on "auto" need the engine's sizing (stage 3).

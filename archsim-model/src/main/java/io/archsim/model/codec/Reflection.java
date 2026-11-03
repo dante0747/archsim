@@ -2,10 +2,13 @@ package io.archsim.model.codec;
 
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
+import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 
@@ -43,6 +46,31 @@ final class Reflection {
 		}
 		catch (NoSuchMethodException ex) {
 			throw new IllegalStateException(type + " has no canonical constructor", ex);
+		}
+	}
+
+	/**
+	 * The value of a static field a type declares, such as a record's constant.
+	 * @param type the type that declares the field
+	 * @param name the field's name
+	 * @return the field's value; empty when the type declares no static field of that
+	 * name, or it holds {@code null}
+	 */
+	static Optional<Object> staticValue(Class<?> type, String name) {
+		for (Field field : type.getDeclaredFields()) {
+			if (field.getName().equals(name) && Modifier.isStatic(field.getModifiers())) {
+				return Optional.ofNullable(staticValue(field));
+			}
+		}
+		return Optional.empty();
+	}
+
+	private static @Nullable Object staticValue(Field field) {
+		try {
+			return accessible(field).get(null);
+		}
+		catch (IllegalAccessException ex) {
+			throw new IllegalStateException("field " + field + " cannot be read", ex);
 		}
 	}
 

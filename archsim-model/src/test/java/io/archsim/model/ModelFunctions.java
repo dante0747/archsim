@@ -14,6 +14,7 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.catalog.ComponentCatalog;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.distribution.Distribution;
@@ -57,6 +58,10 @@ final class ModelFunctions {
 							StandardComponents.registry())),
 			Map.entry("archsim_engine.scenarios.apply_overrides", ModelFunctions::applyOverrides),
 			Map.entry("archsim_engine.document_json_schema", (entry) -> DesignDocuments.jsonSchema()),
+			Map.entry("archsim_engine.registry.ComponentRegistry.catalog_document",
+					(entry) -> ComponentCatalog.of(StandardComponents.registry())),
+			Map.entry("archsim_engine.registry.ComponentRegistry.types",
+					(entry) -> array(StandardComponents.registry().types().stream().map(NODES::stringNode).toList())),
 			Map.entry("archsim_engine.distributions.Distribution.expected",
 					(entry) -> NODES.numberNode(distribution(entry).expected())),
 			Map.entry("archsim_engine.distributions.Distribution.describe",

@@ -13,7 +13,7 @@ import io.archsim.model.codec.Description;
  */
 public record OverrideTarget(TargetKind kind,
 
-		@Description("Node or edge id; omitted for workload") @Nullable String id) {
+		@Description(Descriptions.OVERRIDE_TARGET_ID) @Nullable String id) {
 
 	/**
 	 * Checks that a node or an edge target has an id.

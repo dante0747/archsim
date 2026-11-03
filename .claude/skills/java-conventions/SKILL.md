@@ -47,7 +47,8 @@ ArchSim's Java code is a reference for engineers. Every rule here is either chec
 - Never return `null` from a public method: `Optional`. `@Nullable` (JSpecify) inside; NullAway
   checks it.
 - Throw specific exceptions; never catch `Exception`, `RuntimeException` or `Throwable`. Name a
-  caught exception `ex`. No `System.out` or `printStackTrace`: log or throw.
+  caught exception `ex`. No `System.out` or `printStackTrace`: log or throw. A logger is
+  `private static final Logger LOGGER`.
 - Say it once: a rule, message or number lives in one place.
 
 ### Limits Checkstyle enforces
@@ -61,7 +62,8 @@ ArchSim's Java code is a reference for engineers. Every rule here is either chec
 | Cyclomatic / NPath complexity | 10 / 200 |
 | Boolean operators in one expression | 3 |
 | Nested `if` / `for` / `try` | 2 / 1 / 1 |
-| Classes one class uses | 20 |
+| Classes one class uses | 20; the codec's annotations (`@Default`, `@Ui`, ...) don't count |
+| Line length | 120; an annotated record component may run past it when its strings are short |
 
 When you near a limit, split by responsibility (extract a method object, a strategy or a value
 type). Don't game it with longer lines or denser expressions.
@@ -80,6 +82,10 @@ type). Don't game it with longer lines or denser expressions.
 - No JSON in strings in production code (Checkstyle rule `jsonInStrings`): data goes in a
   resource file read once; JSON the code produces is built with Jackson's tree API or the
   model's codec. Tests may use JSON text as input.
+- Setting descriptions and form groups (`@Description`, the `group` of `@Ui`) are constants in the
+  package's package-private `Descriptions` class, so annotations stay short. When several records
+  share it, name each text after its record (`FAULT_START_S`). A record's own description stays
+  on the record, as a text block.
 
 ## Tests
 
@@ -87,7 +93,9 @@ type). Don't game it with longer lines or denser expressions.
   camelCase.
 - Classes end in `Tests`; classes and methods are package-private.
 - One behaviour per test: arrange, act, assert, separated by blank lines. No loops or conditions
-  beyond building the input. AssertJ; BDDMockito when a mock is truly needed.
+  beyond building the input. AssertJ; BDDMockito when a mock is truly needed. The one exception
+  is `archsim-api-tests`, which keeps one method per ported Python test; don't copy its
+  multi-step methods.
 - Unit tests for classes, Spring slices (`@WebMvcTest`, `@JdbcTest`) for layers, the black-box
   suite for the HTTP contract, the golden files for parity with the Python engine.
 

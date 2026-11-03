@@ -1,26 +1,12 @@
 package io.archsim.model.codec;
 
-import java.lang.reflect.AnnotatedType;
-import java.lang.reflect.RecordComponent;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
-import org.jspecify.annotations.Nullable;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ObjectNode;
-
 /**
- * Builds the {@link Shape} of a Java type from its annotations, once per record and
- * union.
- *
- * <p>
- * The types a record may use: {@link String}, {@code double}, {@code int}, {@code long},
- * {@code boolean} (or their boxes), a {@link JsonEnum}, a {@link List} or a {@link Map}
- * with string keys of these, {@link JsonNode} (any JSON), {@link ObjectNode} (any JSON
- * object), another record, or a {@link Tagged} sealed interface; {@code @Nullable} on any
- * of them allows {@code null}.
+ * Builds the {@link Shape} of a record, an {@link AsArray} record or a {@link Tagged}
+ * sealed interface, once per record and union. {@link TypeShapes} builds the shapes of
+ * their fields.
  */
 final class Shapes {
 
@@ -42,7 +28,8 @@ final class Shapes {
 	}
 
 	/**
-	 * The shape of a record or a {@link Tagged} sealed interface, used as a whole input.
+	 * The shape of a record or a {@link Tagged} sealed interface, used as a whole input
+	 * or as a field's value.
 	 * @param type the record or the sealed interface
 	 * @return its shape, built the first time it is asked for
 	 */
@@ -51,21 +38,9 @@ final class Shapes {
 			return UNIONS.get(type);
 		}
 		if (type.isRecord()) {
-			return type.isAnnotationPresent(AsArray.class) ? tuple(type) : RECORDS.get(type);
+			return type.isAnnotationPresent(AsArray.class) ? TupleShape.of(type) : RECORDS.get(type);
 		}
 		throw new IllegalArgumentException(type + " is neither a record nor a tagged union");
-	}
-
-	/**
-	 * The shape of a field or list item, from its annotated type.
-	 * @param annotated the type, with its annotations
-	 * @return its shape, which reads {@code null} too when the type is {@code @Nullable}
-	 */
-	static Shape of(AnnotatedType annotated) {
-		if (annotated.isAnnotationPresent(Nullable.class)) {
-			return new NullableShape(TypeShapes.of(annotated));
-		}
-		return TypeShapes.of(annotated);
 	}
 
 	static RecordShape record(Class<?> type) {
@@ -89,14 +64,6 @@ final class Shapes {
 			tags.put(member, tag.value());
 		}
 		return new UnionShape(tagged.value(), members, tags);
-	}
-
-	private static Shape tuple(Class<?> type) {
-		RecordComponent[] components = type.getRecordComponents();
-		List<Shape> items = Arrays.stream(components).map((component) -> of(component.getAnnotatedType())).toList();
-		return new TupleShape(items,
-				Arrays.stream(components).map((component) -> Reflection.accessible(component.getAccessor())).toList(),
-				Reflection.canonicalConstructor(type, components));
 	}
 
 }

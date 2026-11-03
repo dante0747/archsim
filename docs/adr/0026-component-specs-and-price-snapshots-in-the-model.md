@@ -57,8 +57,8 @@ simulating it, and they are what a client needs to check a design.
   behaves (engine). The type name joins them, and a test in the engine will check that every
   specification has a behaviour.
 - Neutral: the component catalog the editor renders (field descriptions, presets, technology
-  traits) also describes component types; it is added to these specifications when stage 2 serves
-  it.
+  traits) also describes component types; stage 2 builds it from these specifications and data
+  ([ADR-0031](0031-component-catalog-facts-and-presentation.md)).
 
 ### Confirmation
 

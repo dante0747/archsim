@@ -52,8 +52,13 @@ public @interface Ui {
 
 	/**
 	 * When the field is shown: {@code otherField=value}, such as
-	 * {@code hitModel=fixed_ratio} or {@code autoscaling=true}. The value takes the other
-	 * field's JSON type.
+	 * {@code hitModel=fixed_ratio} or {@code autoscaling=true}, where the other field is
+	 * one of the same record. The value is written as the other field's JSON: a boolean
+	 * for a {@code boolean}, a number for an {@code int}, {@code long} or {@code double}
+	 * (or their boxes), and a string for a {@link String} or a {@link JsonEnum}. A
+	 * condition on a field of any other type, one without {@code =}, or one naming no
+	 * field of the record fails with an {@link IllegalArgumentException} when the codec
+	 * first meets the record.
 	 * @return the condition, or empty to always show the field
 	 */
 	String visibleWhen() default "";

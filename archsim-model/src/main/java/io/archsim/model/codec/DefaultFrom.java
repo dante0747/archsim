@@ -20,9 +20,11 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <p>
- * Use {@link Default} for a string, number, boolean or empty collection. The constant is
- * package-private, not private: Error Prone does not count an annotation's reference as a
- * use.
+ * Use {@link Default} for a string, number, boolean or empty collection, or for a record
+ * made of its fields' defaults ({@code @Default("{}")}). The constant is package-private,
+ * not private: Error Prone does not count an annotation's reference as a use. A name that
+ * is not a static constant of the field's type fails with an
+ * {@link IllegalStateException} when the codec first meets the record.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

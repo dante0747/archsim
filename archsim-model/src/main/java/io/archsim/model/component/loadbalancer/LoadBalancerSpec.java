@@ -3,6 +3,7 @@ package io.archsim.model.component.loadbalancer;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -11,6 +12,7 @@ import io.archsim.model.component.ComponentIdentity;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
 import io.archsim.model.component.Port;
+import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.RequestType;
@@ -25,12 +27,13 @@ public final class LoadBalancerSpec extends ComponentSpec<LoadBalancerConfig> {
 
 	/** Creates the load balancer type: requests come in, and go out to its targets. */
 	public LoadBalancerSpec() {
-		super(new ComponentIdentity("load_balancer", "Load Balancer", Category.NETWORK), LoadBalancerConfig.class, List
-			.of(Port.in("in", "Requests", "Incoming requests."), Port
-				.out("out", "Targets",
-						"Instances to balance across. A retry (link max attempts > 1) avoids the"
-								+ " instance that just failed.")
-				.withMinEdges(1)));
+		super(new ComponentIdentity("load_balancer", "Load Balancer", Category.NETWORK), LoadBalancerConfig.class,
+				requestsAndTargets());
+	}
+
+	@Override
+	public Map<String, TechnologyProfile> technologies() {
+		return LoadBalancerConfig.PROFILES.byName();
 	}
 
 	@Override
@@ -84,6 +87,20 @@ public final class LoadBalancerSpec extends ComponentSpec<LoadBalancerConfig> {
 			}
 		}
 		return issues;
+	}
+
+	/**
+	 * Requests come in through one port and go out to the targets it balances across.
+	 * @return the load balancer's ports
+	 */
+	private static List<Port> requestsAndTargets() {
+		Port in = Port.in("in", "Requests", "Incoming requests.");
+		Port targets = Port
+			.out("out", "Targets",
+					"Instances to balance across. A retry (link max attempts > 1) avoids the instance "
+							+ "that just failed.")
+			.withMinEdges(1);
+		return List.of(in, targets);
 	}
 
 }

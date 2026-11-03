@@ -25,27 +25,11 @@ import io.archsim.model.codec.Le;
 		``components/host.py``). Its parts' CPU work, its own background and the CPU the clients'
 		traffic costs on it share its physical cores: past one busy thread per core, threads share
 		cores as hyperthreads, and the clock falls as more cores are busy.""")
-public record HostSpec(@Description(PHYSICAL_CORES) @Ge(1) @Le(512) int physicalCores,
-		@Default("2") @Description(THREADS_PER_CORE) @Choice(1) @Choice(2) int threadsPerCore,
-		@Default("0.6") @Description(SIBLING_SPEED) @Gt(0) @Le(1) double siblingSpeed,
-		@Default("1.0") @Description(ALL_CORE_CLOCK) @Gt(0) @Le(1) double allCoreClock,
-		@Default("0.0") @Description(OTHER_BUSY_THREADS) @Ge(0) @Le(4096) double otherBusyThreads,
-		@Default("0.0") @Description(CLIENT_CPU_MS) @Ge(0) @Le(10_000) double clientCpuMs) {
-
-	static final String PHYSICAL_CORES = "Physical cores of the machine (not hardware threads).";
-
-	static final String THREADS_PER_CORE = "Hardware threads per core: 2 with hyperthreading (SMT), 1 without.";
-
-	static final String SIBLING_SPEED = "Speed of a thread while its core's other thread is busy too, relative to "
-			+ "running alone: a busy pair does twice this much work (about 0.6 on Intel and AMD cores).";
-
-	static final String ALL_CORE_CLOCK = "Clock with every thread busy, relative to one busy thread (turbo and "
-			+ "power limits; about 0.75 on a laptop, close to 1 on servers). In between it falls in a straight line.";
-
-	static final String OTHER_BUSY_THREADS = "Threads busy on the machine with work outside the design (operating "
-			+ "system, other programs).";
-
-	static final String CLIENT_CPU_MS = "CPU time each request of the clients' traffic costs on the machine outside "
-			+ "the design's parts (ms), e.g. a load generator running on it. 0: the clients are elsewhere.";
+public record HostSpec(@Description(Descriptions.HOST_PHYSICAL_CORES) @Ge(1) @Le(512) int physicalCores,
+		@Default("2") @Description(Descriptions.HOST_THREADS_PER_CORE) @Choice(1) @Choice(2) int threadsPerCore,
+		@Default("0.6") @Description(Descriptions.HOST_SIBLING_SPEED) @Gt(0) @Le(1) double siblingSpeed,
+		@Default("1.0") @Description(Descriptions.HOST_ALL_CORE_CLOCK) @Gt(0) @Le(1) double allCoreClock,
+		@Default("0.0") @Description(Descriptions.HOST_OTHER_BUSY_THREADS) @Ge(0) @Le(4096) double otherBusyThreads,
+		@Default("0.0") @Description(Descriptions.HOST_CLIENT_CPU_MS) @Ge(0) @Le(10_000) double clientCpuMs) {
 
 }

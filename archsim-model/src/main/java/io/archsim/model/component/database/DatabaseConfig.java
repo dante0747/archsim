@@ -1,16 +1,16 @@
 package io.archsim.model.component.database;
 
-import java.util.Map;
-
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.DefaultFrom;
+import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Matches;
 import io.archsim.model.codec.OmitWhenDefault;
+import io.archsim.model.codec.Ui;
 import io.archsim.model.component.Resources;
 import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.TechnologyProfiles;
@@ -69,44 +69,114 @@ import io.archsim.model.distribution.LogNormal;
  * @param dataSizeGib the data stored, over all shards; {@code null}: not modelled
  * @param costPerHour the price of one instance per hour, in USD
  */
-public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technology,
-		@Default("10") @Ge(1) @Le(100_000) int maxConnections,
+public record DatabaseConfig(
+		@Default("postgresql") @Description(Descriptions.TECHNOLOGY) @Ui(
+				group = Descriptions.TECHNOLOGY_GROUP) DatabaseTechnology technology,
+		@Default("10") @Description(Descriptions.MAX_CONNECTIONS) @Ui(label = "Max connections per instance",
+				group = Descriptions.CAPACITY_GROUP, headline = true) @Ge(1) @Le(100_000) int maxConnections,
 
-		@DefaultFrom("DEFAULT_READ_SERVICE_TIME") Distribution readServiceTimeMs,
+		@DefaultFrom("DEFAULT_READ_SERVICE_TIME") @Description(Descriptions.READ_SERVICE_TIME_MS) @Ui(
+				label = "Read query time", unit = "ms", group = Descriptions.PERFORMANCE_GROUP, assumption = true,
+				headline = true) Distribution readServiceTimeMs,
 
-		@DefaultFrom("DEFAULT_WRITE_SERVICE_TIME") Distribution writeServiceTimeMs,
+		@DefaultFrom("DEFAULT_WRITE_SERVICE_TIME") @Description(Descriptions.WRITE_SERVICE_TIME_MS) @Ui(
+				label = "Write query time", unit = "ms", group = Descriptions.PERFORMANCE_GROUP,
+				assumption = true) Distribution writeServiceTimeMs,
 
-		@Default("0") @Ge(0) @Le(15) int readReplicas, @Default("1") @Ge(1) @Le(256) int shards,
-		@Default("1") @Ge(1) @Le(7) int replicationFactor, @Default("one") Consistency consistency,
-		@Gt(0) @Le(1_000_000) @Nullable Double throughputLimitRps,
-		@Default("200") @Ge(0) @Le(100_000) int queueCapacity,
-		@Default("1000.0") @Gt(0) @Le(600_000) @Nullable Double queueTimeoutMs, @Default("auto") Toggle rowLocks,
-		@Default("auto") Toggle readsWaitForWrites, @Default("auto") Toggle commitFlush,
+		@Default("0") @Description(Descriptions.READ_REPLICAS) @Ui(group = Descriptions.TOPOLOGY_GROUP,
+				headline = true) @Ge(0) @Le(15) int readReplicas,
+		@Default("1") @Description(Descriptions.SHARDS) @Ui(label = "Shards (partitions)",
+				group = Descriptions.TOPOLOGY_GROUP) @Ge(1) @Le(256) int shards,
+		@Default("1") @Description(Descriptions.REPLICATION_FACTOR) @Ui(
+				group = Descriptions.TOPOLOGY_GROUP) @Ge(1) @Le(7) int replicationFactor,
+		@Default("one") @Description(Descriptions.CONSISTENCY) @Ui(label = "Consistency level",
+				group = Descriptions.TOPOLOGY_GROUP) Consistency consistency,
+		@Description(Descriptions.THROUGHPUT_LIMIT_RPS) @Ui(label = "Throughput limit per shard", unit = "ops/s",
+				group = Descriptions.CAPACITY_GROUP,
+				assumption = true) @Gt(0) @Le(1_000_000) @Nullable Double throughputLimitRps,
+		@Default("200") @Description(Descriptions.QUEUE_CAPACITY) @Ui(label = "Wait queue limit",
+				group = Descriptions.CAPACITY_GROUP) @Ge(0) @Le(100_000) int queueCapacity,
+		@Default("1000.0") @Description(Descriptions.QUEUE_TIMEOUT_MS) @Ui(label = "Acquire timeout", unit = "ms",
+				group = Descriptions.CAPACITY_GROUP) @Gt(0) @Le(600_000) @Nullable Double queueTimeoutMs,
+		@Default("auto") @Description(Descriptions.ROW_LOCKS) @Ui(label = "Row locks on writes",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Toggle rowLocks,
+		@Default("auto") @Description(Descriptions.READS_WAIT_FOR_WRITES) @Ui(label = "Reads wait for writers",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Toggle readsWaitForWrites,
+		@Default("auto") @Description(Descriptions.COMMIT_FLUSH) @Ui(label = "Commits wait for the log flush",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Toggle commitFlush,
 
-		@DefaultFrom("DEFAULT_COMMIT_FLUSH") Distribution commitFlushMs,
+		@DefaultFrom("DEFAULT_COMMIT_FLUSH") @Description(Descriptions.COMMIT_FLUSH_MS) @Ui(label = "Log flush time",
+				unit = "ms", group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) Distribution commitFlushMs,
 
-		@Default("auto") Replication replication, @Ge(1) @Le(256) @Nullable Integer replicaApplyWorkers,
-		@Default("0.5") @Gt(0) @Le(5) double replicaApplyFactor,
+		@Default("auto") @Description(Descriptions.REPLICATION) @Ui(label = "Replica writes",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Replication replication,
+		@Description(Descriptions.REPLICA_APPLY_WORKERS) @Ui(
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) @Ge(1) @Le(256) @Nullable Integer replicaApplyWorkers,
+		@Default("0.5") @Description(Descriptions.REPLICA_APPLY_FACTOR) @Ui(label = "Replay cost vs. write time",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP, assumption = true,
+				step = 0.05) @Gt(0) @Le(5) double replicaApplyFactor,
 
-		@DefaultFrom("DEFAULT_REPLICATION_DELAY") Distribution replicationDelayMs,
+		@DefaultFrom("DEFAULT_REPLICATION_DELAY") @Description(Descriptions.REPLICATION_DELAY_MS) @Ui(
+				label = "Replication network delay", unit = "ms", group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) Distribution replicationDelayMs,
 
-		@Default("auto") ReadFrom readFrom, @Ge(1) @Le(100_000) @Nullable Integer readTickets,
-		@Ge(1) @Le(100_000) @Nullable Integer writeTickets, @Ge(0) @Le(1) @Nullable Double scatterReads,
-		@Ge(0) @Le(1000) @Nullable Double routerOverheadMs, @Ge(1) @Le(50) @Nullable Double sstablesPerRead,
-		@Default("auto") Toggle capacityUnits, @Default("on_demand") CapacityMode capacityMode,
-		@Default("1000") @Gt(0) @Le(10_000_000) double readCapacityUnits,
-		@Default("500") @Gt(0) @Le(10_000_000) double writeCapacityUnits,
-		@Default("1.0") @Gt(0) @Le(400) double itemSizeKb, @Default("eventual") ConsistentReads consistentReads,
-		@Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores, @Default("0.5") @Ge(0) @Le(1) double cpuShare,
-		@OmitWhenDefault @Gt(0) @Le(1) @Nullable Double siblingSpeed,
-		@Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
-		@Gt(0) @Le(10_000_000) @Nullable Double workingSetGib,
+		@Default("auto") @Description(Descriptions.READ_FROM) @Ui(label = "Reads served by",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) ReadFrom readFrom,
+		@Description(Descriptions.READ_TICKETS) @Ui(label = "Concurrent reads (tickets)",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) @Ge(1) @Le(100_000) @Nullable Integer readTickets,
+		@Description(Descriptions.WRITE_TICKETS) @Ui(label = "Concurrent writes (tickets)",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) @Ge(1) @Le(100_000) @Nullable Integer writeTickets,
+		@Description(Descriptions.SCATTER_READS) @Ui(label = "Reads sent to every shard",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				step = 0.05) @Ge(0) @Le(1) @Nullable Double scatterReads,
+		@Description(Descriptions.ROUTER_OVERHEAD_MS) @Ui(label = "Router / coordinator time", unit = "ms",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) @Ge(0) @Le(1000) @Nullable Double routerOverheadMs,
+		@Description(Descriptions.SSTABLES_PER_READ) @Ui(label = "SSTables per cold read",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				assumption = true) @Ge(1) @Le(50) @Nullable Double sstablesPerRead,
+		@Default("auto") @Description(Descriptions.CAPACITY_UNITS) @Ui(label = "Capacity units and partition limits",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP) Toggle capacityUnits,
+		@Default("on_demand") @Description(Descriptions.CAPACITY_MODE) @Ui(
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				visibleWhen = "technology=dynamodb") CapacityMode capacityMode,
+		@Default("1000") @Description(Descriptions.READ_CAPACITY_UNITS) @Ui(unit = "RCU",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				visibleWhen = "technology=dynamodb") @Gt(0) @Le(10_000_000) double readCapacityUnits,
+		@Default("500") @Description(Descriptions.WRITE_CAPACITY_UNITS) @Ui(unit = "WCU",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				visibleWhen = "technology=dynamodb") @Gt(0) @Le(10_000_000) double writeCapacityUnits,
+		@Default("1.0") @Description(Descriptions.ITEM_SIZE_KB) @Ui(label = "Item size", unit = "KB",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP, assumption = true,
+				visibleWhen = "technology=dynamodb") @Gt(0) @Le(400) double itemSizeKb,
+		@Default("eventual") @Description(Descriptions.CONSISTENT_READS) @Ui(label = "Read consistency",
+				group = Descriptions.TECHNOLOGY_BEHAVIOUR_GROUP,
+				visibleWhen = "technology=dynamodb") ConsistentReads consistentReads,
+		@Description(Descriptions.CPU_CORES) @Ui(label = "CPU", unit = "vCPU", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_CPU_CORES) @Nullable Double cpuCores,
+		@Default("0.5") @Description(Descriptions.CPU_SHARE) @Ui(label = "CPU share of query time",
+				group = Descriptions.RESOURCES_GROUP, assumption = true, step = 0.05) @Ge(0) @Le(1) double cpuShare,
+		@Description(Resources.SIBLING_SPEED) @Ui(label = "Hyperthread sibling speed",
+				group = Descriptions.RESOURCES_GROUP,
+				step = 0.05) @OmitWhenDefault @Gt(0) @Le(1) @Nullable Double siblingSpeed,
+		@Description(Descriptions.MEMORY_GIB) @Ui(label = "Memory", unit = "GiB", group = Descriptions.RESOURCES_GROUP,
+				step = 0.5) @Gt(0) @Le(Resources.MAX_MEMORY_GIB) @Nullable Double memoryGib,
+		@Description(Descriptions.WORKING_SET_GIB) @Ui(label = "Hot working set", unit = "GiB",
+				group = Descriptions.RESOURCES_GROUP,
+				assumption = true) @Gt(0) @Le(10_000_000) @Nullable Double workingSetGib,
 
-		@DefaultFrom("DEFAULT_DISK_READ") Distribution diskReadMs,
+		@DefaultFrom("DEFAULT_DISK_READ") @Description(Descriptions.DISK_READ_MS) @Ui(label = "Disk read time",
+				unit = "ms", group = Descriptions.RESOURCES_GROUP, assumption = true) Distribution diskReadMs,
 
-		@Gt(0) @Le(Resources.MAX_STORAGE_GIB) @Nullable Double storageGib,
-		@Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
-		@Gt(0) @Le(100_000_000) @Nullable Double dataSizeGib, @Default("0.35") @Ge(0) @Le(100_000) double costPerHour) {
+		@Description(Descriptions.STORAGE_GIB) @Ui(label = "Storage", unit = "GiB",
+				group = Descriptions.RESOURCES_GROUP) @Gt(0) @Le(Resources.MAX_STORAGE_GIB) @Nullable Double storageGib,
+		@Description(Descriptions.INSTANCE_TYPE) @Ui(
+				group = Descriptions.RESOURCES_GROUP) @Matches(Resources.INSTANCE_TYPE) @Nullable String instanceType,
+		@Description(Descriptions.DATA_SIZE_GIB) @Ui(label = "Data size", unit = "GiB",
+				group = Descriptions.RESOURCES_GROUP,
+				assumption = true) @Gt(0) @Le(100_000_000) @Nullable Double dataSizeGib,
+		@Default("0.35") @Description(Descriptions.COST_PER_HOUR) @Ui(label = "Cost per instance-hour", unit = "$/h",
+				group = Descriptions.COST_GROUP, assumption = true) @Ge(0) @Le(100_000) double costPerHour) {
 
 	/** Read units one partition of a metered table serves per second. */
 	public static final double PARTITION_READ_UNITS = 3000.0;
@@ -141,50 +211,51 @@ public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technolog
 	/**
 	 * What each technology does by default (technology.py's {@code DATABASE_PROFILES}).
 	 */
-	static final TechnologyProfiles<DatabaseTechnology> PROFILES = new TechnologyProfiles<>(DatabaseTechnology.class,
-			Map.ofEntries(Map.entry(DatabaseTechnology.POSTGRESQL, relational(TechnologyProfile.core(), "off", 1)),
-					Map.entry(DatabaseTechnology.MYSQL, relational(TechnologyProfile.experimental(), "off", 4)),
-					Map.entry(DatabaseTechnology.MARIADB, relational(TechnologyProfile.experimental(), "off", 4)),
-					Map.entry(DatabaseTechnology.ORACLE, relational(TechnologyProfile.experimental(), "off", 4)),
-					Map.entry(DatabaseTechnology.SQLSERVER, relational(TechnologyProfile.experimental(), "on", 4)),
-					Map.entry(DatabaseTechnology.COCKROACHDB, relational(TechnologyProfile.experimental(), "off", 4)),
-					Map.entry(DatabaseTechnology.YUGABYTEDB, relational(TechnologyProfile.experimental(), "off", 4)),
-					Map.entry(DatabaseTechnology.MONGODB,
-							TechnologyProfile.experimental()
-								.with("rowLocks", "on")
-								.with("readsWaitForWrites", "off")
-								.with("commitFlush", "on")
-								.with("replication", "majority")
-								.with("replicaApplyWorkers", 16)
-								.with("readFrom", "primary")
-								.with("readTickets", 128)
-								.with("writeTickets", 128)
-								.with("routerOverheadMs", 0.5)),
-					Map.entry(DatabaseTechnology.COUCHBASE,
-							TechnologyProfile.experimental()
-								.with("rowLocks", "off")
-								.with("commitFlush", "off")
-								.with("replication", "async")
-								.with("replicaApplyWorkers", 4)
-								.with("readFrom", "primary")),
-					Map.entry(DatabaseTechnology.CASSANDRA, wideColumn(2.0)),
-					Map.entry(DatabaseTechnology.SCYLLADB, wideColumn(1.5)),
-					Map.entry(DatabaseTechnology.DYNAMODB,
-							TechnologyProfile.experimental()
-								.with("rowLocks", "off")
-								.with("commitFlush", "off")
-								.with("replication", "none")
-								.with("readFrom", "all")
-								.with("capacityUnits", "on")),
-					Map.entry(DatabaseTechnology.ELASTICSEARCH, search()),
-					Map.entry(DatabaseTechnology.OPENSEARCH, search()),
-					Map.entry(DatabaseTechnology.GENERIC,
-							TechnologyProfile.core()
-								.with("rowLocks", "off")
-								.with("readsWaitForWrites", "off")
-								.with("commitFlush", "off")
-								.with("replication", "none")
-								.with("readFrom", "all"))));
+	static final TechnologyProfiles<DatabaseTechnology> PROFILES = TechnologyProfiles.builder(DatabaseTechnology.class)
+		.with(DatabaseTechnology.POSTGRESQL, relational(TechnologyProfile.core(), "off", 1))
+		.with(DatabaseTechnology.MYSQL, relational(TechnologyProfile.experimental(), "off", 4))
+		.with(DatabaseTechnology.MARIADB, relational(TechnologyProfile.experimental(), "off", 4))
+		.with(DatabaseTechnology.ORACLE, relational(TechnologyProfile.experimental(), "off", 4))
+		.with(DatabaseTechnology.SQLSERVER, relational(TechnologyProfile.experimental(), "on", 4))
+		.with(DatabaseTechnology.COCKROACHDB, relational(TechnologyProfile.experimental(), "off", 4))
+		.with(DatabaseTechnology.YUGABYTEDB, relational(TechnologyProfile.experimental(), "off", 4))
+		.with(DatabaseTechnology.MONGODB,
+				TechnologyProfile.experimental()
+					.with("rowLocks", "on")
+					.with("readsWaitForWrites", "off")
+					.with("commitFlush", "on")
+					.with("replication", "majority")
+					.with("replicaApplyWorkers", 16)
+					.with("readFrom", "primary")
+					.with("readTickets", 128)
+					.with("writeTickets", 128)
+					.with("routerOverheadMs", 0.5))
+		.with(DatabaseTechnology.COUCHBASE,
+				TechnologyProfile.experimental()
+					.with("rowLocks", "off")
+					.with("commitFlush", "off")
+					.with("replication", "async")
+					.with("replicaApplyWorkers", 4)
+					.with("readFrom", "primary"))
+		.with(DatabaseTechnology.CASSANDRA, wideColumn(2.0))
+		.with(DatabaseTechnology.SCYLLADB, wideColumn(1.5))
+		.with(DatabaseTechnology.DYNAMODB,
+				TechnologyProfile.experimental()
+					.with("rowLocks", "off")
+					.with("commitFlush", "off")
+					.with("replication", "none")
+					.with("readFrom", "all")
+					.with("capacityUnits", "on"))
+		.with(DatabaseTechnology.ELASTICSEARCH, search())
+		.with(DatabaseTechnology.OPENSEARCH, search())
+		.with(DatabaseTechnology.GENERIC,
+				TechnologyProfile.core()
+					.with("rowLocks", "off")
+					.with("readsWaitForWrites", "off")
+					.with("commitFlush", "off")
+					.with("replication", "none")
+					.with("readFrom", "all"))
+		.build();
 
 	/** The threads a search engine's replica replays writes with. */
 	private static final int SEARCH_APPLY_WORKERS = 4;
@@ -220,6 +291,8 @@ public record DatabaseConfig(@Default("postgresql") DatabaseTechnology technolog
 			.with("replicaApplyWorkers", SEARCH_APPLY_WORKERS)
 			.with("readFrom", "all")
 			.with("scatterReads", 1.0)
+			// No setting has this name (the setting is routerOverheadMs). It is kept
+			// because the Python engine has it, so the catalog's defaults stay the same.
 			.with("coordinatorMs", 1.0);
 	}
 

@@ -20,10 +20,9 @@ import io.archsim.model.codec.MaxLength;
 @Description("One observed-against-simulated comparison of a calibration's replay.")
 public record ReplayCheck(ReplayScope scope, @Nullable String id, @MaxLength(200) String label,
 
-		@Description("Latency quantiles (ms), throughput (req/s), CPU in use (mean cores over all replicas, schema"
-				+ " 1.5) or the memory peak per replica (MiB, schema 1.5)") ReplayMetric metric,
+		@Description(Descriptions.REPLAY_METRIC) ReplayMetric metric,
 
 		double observed, @Nullable Double simulated,
 
-		@Description("(simulated - observed) / observed") @Nullable Double error) {
+		@Description(Descriptions.REPLAY_ERROR) @Nullable Double error) {
 }

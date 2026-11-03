@@ -2,12 +2,14 @@ package io.archsim.model.component.kubernetes;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import io.archsim.model.component.Category;
 import io.archsim.model.component.ComponentIdentity;
 import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.GraphView;
+import io.archsim.model.component.TechnologyProfile;
 import io.archsim.model.component.service.ServiceConfig;
 import io.archsim.model.component.service.ServiceSpec;
 import io.archsim.model.document.NodeSpec;
@@ -33,6 +35,11 @@ public final class KubernetesClusterSpec extends ComponentSpec<ClusterConfig> {
 	/** Creates the Kubernetes cluster type, which has no ports. */
 	public KubernetesClusterSpec() {
 		super(new ComponentIdentity(TYPE, "Kubernetes cluster", Category.COMPUTE), ClusterConfig.class, List.of());
+	}
+
+	@Override
+	public Map<String, TechnologyProfile> technologies() {
+		return ClusterConfig.PROFILES.byName();
 	}
 
 	@Override
