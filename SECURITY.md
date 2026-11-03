@@ -29,8 +29,9 @@ ArchSim runs in one of two modes, chosen with `ARCHSIM_AUTH_MODE`:
 
 - **`none` (the default): local, single-user.** There is no sign-in: every request is the
   local owner of the `default` workspace, so anyone who can reach the API can read, change and
-  delete everything. `archsim-api serve` binds to `127.0.0.1`; keep it that way. The Docker
-  Compose file binds ports to `127.0.0.1` for the same reason, and puts the engine service on a
+  delete everything. The API listens on `127.0.0.1` unless told otherwise
+  (`--server.address`, `SERVER_ADDRESS`); keep it that way. The Docker Compose file binds ports
+  to `127.0.0.1` for the same reason, and puts the engine service on a
   network only the API shares (see "Outbound requests" below).
 - **`oauth`: hosted, for people other than whoever runs the server.** Sign-in with GitHub or
   Google, workspaces with roles, API tokens, CSRF protection, rate limits and an outbound block

@@ -17,6 +17,9 @@ spring:
 
 server:
   port: 8000
+  # this machine only, as the Python API did: without sign-in, whoever reaches the API owns
+  # everything in it (SECURITY.md). Set SERVER_ADDRESS or --server.address to open it up.
+  address: 127.0.0.1
 
 springdoc:
   api-docs:

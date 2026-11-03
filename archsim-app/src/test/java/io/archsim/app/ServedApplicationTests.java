@@ -1,15 +1,22 @@
 package io.archsim.app;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Objects;
 
+import org.apache.catalina.connector.Connector;
+import org.apache.coyote.AbstractProtocol;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.tomcat.TomcatWebServer;
+import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -18,8 +25,8 @@ import io.archsim.app.database.TestDatabases;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The application behind a real Tomcat: the answers that come from the servlet container
- * rather than Spring MVC carry the API's bodies too.
+ * The application behind a real Tomcat: where it listens, and the answers that come from
+ * the servlet container rather than Spring MVC, which carry the API's bodies too.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class ServedApplicationTests {
@@ -28,6 +35,9 @@ class ServedApplicationTests {
 
 	@LocalServerPort
 	private int port;
+
+	@Autowired
+	private WebServerApplicationContext context;
 
 	@DynamicPropertySource
 	static void database(DynamicPropertyRegistry registry) {
@@ -57,6 +67,16 @@ class ServedApplicationTests {
 
 		assertThat(response.statusCode()).isEqualTo(404);
 		assertThat(response.body()).isEqualTo("{\"detail\":\"Not Found\"}");
+	}
+
+	@Test
+	void listen_withoutAServerAddress_acceptsLoopbackConnectionsOnly() {
+		TomcatWebServer server = (TomcatWebServer) Objects.requireNonNull(this.context.getWebServer());
+		Connector connector = server.getTomcat().getConnector();
+
+		InetAddress address = ((AbstractProtocol<?>) connector.getProtocolHandler()).getAddress();
+
+		assertThat(address).extracting(InetAddress::getHostAddress).isEqualTo("127.0.0.1");
 	}
 
 	private HttpResponse<String> send(String method, String path) throws IOException, InterruptedException {

@@ -66,7 +66,12 @@ jib {
         ports = listOf("8000")
         // a user and group of its own, not root's group
         user = "10001:10001"
-        environment = mapOf("ARCHSIM_EXAMPLES_DIR" to imageExamples)
+        environment = mapOf(
+            "ARCHSIM_EXAMPLES_DIR" to imageExamples,
+            // every interface of its container, so the published port and the other containers
+            // (web calls http://api:8000) reach it; compose publishes the port on 127.0.0.1 only
+            "SERVER_ADDRESS" to "0.0.0.0",
+        )
     }
     extraDirectories {
         paths {

@@ -23,13 +23,15 @@ One jar runs in one of its roles, named by the first argument
 ([ADR-0014](../docs/adr/0014-one-deployable-application-with-roles.md)): `api` serves the API (and
 migrates the database first unless `ARCHSIM_AUTO_MIGRATE=false`); `migrate` brings the database
 to the latest schema and exits. The rest of the command line is Spring Boot's
-(`--server.port=8000`).
+(`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
+address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
+[SECURITY.md](../SECURITY.md) first.
 
 In Docker, both roles run from one image, which Jib builds into the local Docker without a
 Dockerfile (`./gradlew :archsim-app:jibDockerBuild`, or `make image`): `archsim-app:local`, on
-Eclipse Temurin's Java 25 runtime, with the examples in `/app/examples`. The repository's
-`docker-compose.yml` runs it as `migrate` and `api`, next to the engine service and a Python
-worker.
+Eclipse Temurin's Java 25 runtime, with the examples in `/app/examples`. It listens on every
+interface of its container. The repository's `docker-compose.yml` runs it as `migrate` and `api`,
+next to the engine service and a Python worker, and publishes the API on `127.0.0.1` only.
 
 Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 ([ADR-0035](../docs/adr/0035-read-the-python-apis-settings-unchanged.md)): `ARCHSIM_DATABASE_URL`
