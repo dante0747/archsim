@@ -1,0 +1,25 @@
+[project]
+name = "archsim-engine-service"
+version = "0.1.0"
+description = "Internal HTTP service that runs the Python engine's synchronous calls for the Java API."
+readme = "README.md"
+license = "AGPL-3.0-only"
+requires-python = ">=3.11"
+dependencies = [
+  "archsim-engine",
+  "starlette>=1.9",
+  "uvicorn[standard]>=0.32",
+]
+
+[project.scripts]
+archsim-engine-service = "archsim_engine_service.__main__:main"
+
+[tool.uv.sources]
+archsim-engine = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/archsim_engine_service"]
