@@ -99,4 +99,5 @@ type). Don't game it with longer lines or denser expressions.
 - [ ] Public types and methods have Javadoc that says what and why.
 - [ ] No JSON strings, magic numbers, `null` returns, commented-out code or TODOs.
 - [ ] A significant decision has an ADR (`docs/adr/`, `status: proposed`).
+- [ ] The `java-reviewer` agent reviewed the staged diff and answered APPROVE.
 - [ ] The commit message follows the `conventional-commits` skill.

@@ -136,6 +136,14 @@ mirror a contract with dozens of fields.
 - Tests may use JSON text and literal numbers as their input, and need no Javadoc: their names
   are the specification.
 
+## Review
+
+Every change to Java code, the build or a migration is reviewed before it is committed. The
+repository's [`java-reviewer`](../.claude/agents/java-reviewer.md) agent is a strict senior Java
+reviewer for AI-assisted work: it checks the staged diff against these rules, the API and
+database contracts and mainstream Spring practice, runs the checks, and answers APPROVE or
+CHANGES REQUESTED. People's changes get the same review in their pull request.
+
 ## Commits
 
 [Conventional Commits](https://www.conventionalcommits.org), as [CONTRIBUTING.md](../CONTRIBUTING.md)
@@ -158,3 +166,6 @@ The repository carries skills that give AI assistants these rules while they wor
 | [`java-conventions`](../.claude/skills/java-conventions/SKILL.md) | writing or changing Java code |
 | [`test-first`](../.claude/skills/test-first/SKILL.md) | adding behaviour or fixing a bug |
 | [`conventional-commits`](../.claude/skills/conventional-commits/SKILL.md) | writing a commit message |
+
+And one agent: [`java-reviewer`](../.claude/agents/java-reviewer.md), the strict review every
+Java change gets before it is committed.

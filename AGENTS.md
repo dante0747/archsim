@@ -14,6 +14,11 @@ Read the skill for the task before starting it. Each is a short, complete set of
 | Adding behaviour or fixing a bug, in any language | [`.claude/skills/test-first`](.claude/skills/test-first/SKILL.md) |
 | Writing a commit message | [`.claude/skills/conventional-commits`](.claude/skills/conventional-commits/SKILL.md) |
 
+Before committing a change to Java code, the build or a migration, have it reviewed by the
+strict senior Java reviewer, [`.claude/agents/java-reviewer.md`](.claude/agents/java-reviewer.md)
+(in Claude Code, the `java-reviewer` agent; elsewhere, give an assistant that file as its
+instructions), and commit only once it approves.
+
 The build enforces the Java rules and fails on any finding: never suppress a finding, add
 `@SuppressWarnings` for a style rule, or change `config/checkstyle/` to make a change pass.
 Ask the owner instead.
