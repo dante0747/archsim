@@ -7,44 +7,19 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * An API the suite can start ({@code archsim.api.start}), and the command that serves it
- * on a port of the loopback interface.
+ * An API the suite can start ({@code archsim.api.start}), and the commands that serve it
+ * on the loopback interface, with the Python engine service and worker next to it.
  */
 public enum StartableApi {
 
 	/**
-	 * Today's Python API ({@code uv run archsim-api serve}). Needs {@code uv} on the PATH
-	 * and a synced environment ({@code uv sync}).
+	 * The Java API ({@code java -jar archsim-app.jar api}), on the JDK the suite runs on.
+	 * Gradle builds the jar first when {@code archsim.api.start=java}. The Python engine
+	 * service answers its engine calls (ADR-0036), and a Python worker simulates the runs
+	 * it queues, until stage 4 of the port. Both need {@code uv} on the PATH and a synced
+	 * environment ({@code uv sync}).
 	 */
-	PYTHON("Python") {
-
-		@Override
-		List<String> command(SuiteConfig config, int port) {
-			return List.of("uv", "run", "--no-sync", "--project", config.repoRoot().toString(), "archsim-api", "serve",
-					"--host", LOOPBACK, "--port", Integer.toString(port));
-		}
-
-	},
-
-	/**
-	 * The Java API ({@code java -jar archsim-app.jar api}), on the JDK the suite runs on,
-	 * with the Python engine service and a Python worker next to it. Gradle builds the
-	 * jar first when {@code archsim.api.start=java}.
-	 */
-	JAVA("Java") {
-
-		@Override
-		List<String> command(SuiteConfig config, int port) {
-			Path jar = config.repoRoot().resolve(APP_JAR);
-			if (!Files.isRegularFile(jar)) {
-				throw new IllegalStateException("no " + jar + ": build it with ./gradlew :archsim-app:bootJar");
-			}
-			Path java = Path.of(System.getProperty("java.home"), "bin", "java");
-			return List.of(java.toString(), "-jar", jar.toString(), "api", "--server.address=" + LOOPBACK,
-					"--server.port=" + port);
-		}
-
-	};
+	JAVA;
 
 	/** Where a started API listens: only this machine can reach it. */
 	private static final String LOOPBACK = "127.0.0.1";
@@ -52,17 +27,11 @@ public enum StartableApi {
 	/** archsim-app's runnable jar, relative to the repository. */
 	private static final String APP_JAR = "archsim-app/build/libs/archsim-app.jar";
 
-	private final String label;
-
-	StartableApi(String label) {
-		this.label = label;
-	}
-
 	/**
 	 * The API a value of {@code archsim.api.start} names.
-	 * @param name {@code python} or {@code java}, in any case
+	 * @param name {@code java}, in any case
 	 * @return the API
-	 * @throws IllegalArgumentException when the name is neither
+	 * @throws IllegalArgumentException when it names no API the suite can start
 	 */
 	public static StartableApi of(String name) {
 		return Arrays.stream(values())
@@ -73,30 +42,20 @@ public enum StartableApi {
 	}
 
 	/**
-	 * Returns the API's name for people.
-	 * @return {@code Python} or {@code Java}
+	 * Returns the command that serves the API.
+	 * @param config what the suite was told: the repository
+	 * @param port the port to listen on
+	 * @return the command and its arguments
+	 * @throws IllegalStateException when the API's jar is not built
 	 */
-	public String label() {
-		return this.label;
-	}
-
-	/**
-	 * Whether the API needs the Python engine service next to it, for the engine's
-	 * synchronous calls (ADR-0036).
-	 * @return {@code true} for the Java API
-	 */
-	boolean needsEngineService() {
-		return this == JAVA;
-	}
-
-	/**
-	 * Whether the API needs Python workers next to it to simulate the runs it queues: the
-	 * Java API queues runs in the database, and the Python workers take them until stage
-	 * 4 of the port.
-	 * @return {@code true} for the Java API
-	 */
-	boolean needsWorkers() {
-		return this == JAVA;
+	List<String> command(SuiteConfig config, int port) {
+		Path jar = config.repoRoot().resolve(APP_JAR);
+		if (!Files.isRegularFile(jar)) {
+			throw new IllegalStateException("no " + jar + ": build it with ./gradlew :archsim-app:bootJar");
+		}
+		Path java = Path.of(System.getProperty("java.home"), "bin", "java");
+		return List.of(java.toString(), "-jar", jar.toString(), "api", "--server.address=" + LOOPBACK,
+				"--server.port=" + port);
 	}
 
 	/**
@@ -118,14 +77,6 @@ public enum StartableApi {
 		return List.of("uv", "run", "--no-sync", "--project", config.repoRoot().toString(), "archsim-engine-service",
 				"--host", LOOPBACK, "--port", Integer.toString(port));
 	}
-
-	/**
-	 * Returns the command that serves the API.
-	 * @param config what the suite was told: the repository
-	 * @param port the port to listen on
-	 * @return the command and its arguments
-	 */
-	abstract List<String> command(SuiteConfig config, int port);
 
 	private String id() {
 		return name().toLowerCase(Locale.ROOT);

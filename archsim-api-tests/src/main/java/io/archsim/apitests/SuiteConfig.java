@@ -15,9 +15,8 @@ import org.jspecify.annotations.Nullable;
  * name.
  *
  * <ul>
- * <li>{@code archsim.api.start=python} or {@code java}: start that API once per profile
- * the tests use, each on its own port and PostgreSQL database (created afresh), and stop
- * it afterwards.
+ * <li>{@code archsim.api.start=java}: start the Java API once per profile the tests use,
+ * each on its own port and PostgreSQL database (created afresh), and stop it afterwards.
  * <li>Otherwise {@code archsim.api.url.<profile>} is the base URL of a running server of
  * that profile (for example {@code archsim.api.url.local=http://127.0.0.1:8000}), and
  * {@code archsim.api.jdbc.<profile>} its database, for the tests that set up or check

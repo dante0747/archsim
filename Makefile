@@ -1,6 +1,6 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup hooks image api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
+.PHONY: setup hooks image engine api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
 
 setup:            ## install Python and web dependencies, and the commit-message hook
 	uv sync
@@ -13,19 +13,23 @@ hooks:            ## check commit messages against Conventional Commits on every
 image:            ## build the Java API's image for docker compose (Jib, into the local Docker)
 	./gradlew :archsim-app:jibDockerBuild
 
-api:              ## run the API on http://127.0.0.1:8000
-	uv run archsim-api serve --reload
+engine:           ## run the engine service the API calls, on http://127.0.0.1:8001
+	uv run archsim-engine-service
 
-worker:           ## run another simulation worker (share a PostgreSQL database with the API)
+api:              ## build and run the API on http://127.0.0.1:8000 (needs PostgreSQL: make dev-db)
+	./gradlew :archsim-app:bootJar
+	java -jar archsim-app/build/libs/archsim-app.jar api
+
+worker:           ## run a simulation worker on the API's database
 	uv run archsim-api worker
 
 web:              ## run the web app on http://localhost:3000
 	cd apps/web && npm run dev
 
-dev-db:           ## start PostgreSQL only (then set ARCHSIM_DATABASE_URL, see .env.example)
+dev-db:           ## start PostgreSQL only, where the API and the workers look by default
 	docker compose up -d postgres
 
-seed:             ## migrate the database and create one project per example
+seed:             ## create one project per example in the default workspace
 	uv run archsim-api seed
 
 test: test-py test-web
@@ -46,7 +50,7 @@ fmt:
 	uv run ruff format packages services benchmarks
 
 typecheck:
-	uv run mypy packages/engine/src services/api/src packages/mcp/src
+	uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
 	cd apps/web && npm run typecheck
 	uv run mypy benchmarks
 

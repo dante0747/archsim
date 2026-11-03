@@ -41,7 +41,7 @@ Domain errors use one shape:
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
 | 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
-| 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or FastAPI request validation errors (FastAPI's standard `detail` list). |
+| 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or a request body or query that does not fit (a `detail` list of `type`, `loc`, `msg` and `input`, as FastAPI's was). |
 | 429 | A rate limit (runs per hour, sign-in attempts, ...): wait the `Retry-After` seconds. |
 
 ## Meta
@@ -107,9 +107,8 @@ instance reports the same value.
 
 ### Background runs and several instances
 
-Runs are queued in the database, and workers (`archsim-api worker`) take them: the Java API only
-queues. (The Python API, until it is removed, also contains a worker unless
-`ARCHSIM_EMBEDDED_WORKER=false`.) Each run simulates in a process of its own
+Runs are queued in the database, and workers (`archsim-api worker`) take them: the API only
+queues. Each run simulates in a process of its own
 (`ARCHSIM_RUNNER=process`), up to `ARCHSIM_MAX_CONCURRENT_RUNS` at once per worker (default:
 CPU count - 1).
 
@@ -123,16 +122,14 @@ CPU count - 1).
   with the same message; the worker and its other runs carry on.
 - **Deadline.** A run still going `ARCHSIM_MAX_WALL_SECONDS` + 30 s after it started is killed and
   `failed`, even if the simulation stopped checking its limits.
-- **Several instances.** With PostgreSQL, any number of API instances and workers can share one
-  database: the API only queues runs, workers claim them with `FOR UPDATE SKIP LOCKED`, and
-  cancel requests reach the worker holding a run wherever it is. Run more workers with
-  `archsim-api worker --slots N` (`docker compose up --scale worker=3`). Hosts need
-  synchronised clocks (NTP): leases compare their times. The Java API needs PostgreSQL; the
-  Python API's SQLite works for several processes on one machine only.
+- **Several instances.** Any number of API instances and workers can share one database: the API
+  only queues runs, workers claim them with `FOR UPDATE SKIP LOCKED`, and cancel requests reach the
+  worker holding a run wherever it is. Run more workers with `archsim-api worker --slots N` (`docker
+  compose up --scale worker=3`). Hosts need synchronised clocks (NTP): leases compare their times.
 - **Migrations** (Flyway) take a PostgreSQL lock, so instances starting together migrate one at
   a time. The `migrate` role (`java -jar archsim-app.jar migrate`, the Compose `migrate`
-  service) migrates once and exits; then set `ARCHSIM_AUTO_MIGRATE=false` on the API instances
-  and the workers.
+  service) migrates once and exits; then set `ARCHSIM_AUTO_MIGRATE=false` on the API instances.
+  Workers never migrate.
 - **Workers table.** `job_workers` lists each worker's latest heartbeat (every 2 s), slots and
   runs in flight; rows of workers gone for an hour are deleted.
 

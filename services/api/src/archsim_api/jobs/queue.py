@@ -50,8 +50,6 @@ from sqlalchemy.orm import Session
 from archsim_api.db import Database, JobWorker, SimulationRun, Workspace, utcnow
 from archsim_engine import SimulationLimits
 
-ACTIVE = ("queued", "running")
-
 MAX_ATTEMPTS = 2
 """A run whose worker stops without finishing it is requeued once; the second time it fails."""
 
@@ -134,7 +132,8 @@ def _claimable(table: Any, exclude: Collection[str]) -> ColumnElement[bool]:
 
 
 def enqueue(session: Session, run: SimulationRun) -> SimulationRun:
-    """Store a new run as queued (committing ``session``); any worker may claim it from now on."""
+    """Store a new run as queued (committing ``session``); any worker may claim it from now on.
+    The API queues runs with its own SQL; the workers' tests queue them with this."""
     run.status = "queued"
     run.progress = 0.0
     run.attempts = 0
@@ -379,7 +378,8 @@ def release(db: Database, run_id: str, worker_id: str) -> str | None:
 def request_cancel(db: Database, run_id: str) -> str | None:
     """Ask for a run to stop, from any process. A queued run is cancelled now (returns
     ``"cancelled"``); a running one is marked, and its worker stops it after its next renewal
-    (returns ``"running"``). None: the run was not active."""
+    (returns ``"running"``). None: the run was not active. The API asks with its own SQL; the
+    workers' tests ask with this."""
     now = utcnow()
     with db.engine.begin() as conn:
         res = conn.execute(

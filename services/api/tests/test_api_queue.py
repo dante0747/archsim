@@ -1,5 +1,6 @@
-"""The database run queue: claims, leases, cancel requests, reaping, and refusing an outcome from
-a worker that lost its lease. Runs on SQLite and, with ARCHSIM_TEST_DATABASE_URL, PostgreSQL."""
+"""The database run queue: claims, leases, cancel requests, reaping, refusing an outcome from a
+worker that lost its lease, and the runs at once each workspace may have. Runs on SQLite and,
+with ARCHSIM_TEST_DATABASE_URL, PostgreSQL."""
 
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select, update
 
-from archsim_api.db import Database, JobWorker, Project, SimulationRun, utcnow
+from archsim_api.db import Database, JobWorker, Project, SimulationRun, Workspace, utcnow
 from archsim_api.jobs import queue
 from archsim_api.migrations import upgrade_to_head
 
@@ -218,3 +219,59 @@ def test_worker_heartbeats(db: Database) -> None:
     queue.forget_worker(db, "w1")
     with db.session() as s:
         assert s.execute(select(JobWorker.id)).scalars().all() == []
+
+
+# -- runs at once per workspace ------------------------------------------------------------------
+def _queue(db: Database, workspace: str, n: int, kind: str = "team", **ws: object) -> list[str]:
+    ids: list[str] = []
+    with db.session() as s:
+        if s.get(Workspace, workspace) is None:
+            s.add(Workspace(id=workspace, name=workspace, kind=kind, **ws))
+            s.flush()
+            s.add(
+                Project(
+                    id=f"p-{workspace}",
+                    workspace_id=workspace,
+                    name="p",
+                    document={},
+                    schema_version="1",
+                )
+            )
+            s.flush()
+        for _ in range(n):
+            run = queue.enqueue(
+                s,
+                SimulationRun(
+                    project_id=f"p-{workspace}",
+                    workspace_id=workspace,
+                    seed=1,
+                    engine_version="test",
+                    input_document={"ws": workspace},
+                    created_at=utcnow() + timedelta(milliseconds=len(ids)),
+                ),
+            )
+            ids.append(run.id)
+    return ids
+
+
+def test_claim_keeps_each_workspace_under_its_cap(db: Database) -> None:
+    capped = _queue(db, "capped", 3, max_concurrent_runs=1)
+    free = _queue(db, "free", 2)
+    first = queue.claim(db, "w1", 4, LEASE)
+    assert {c.id for c in first} == {capped[0], *free}  # one of capped's, all of free's
+    assert queue.claim(db, "w2", 4, LEASE) == []  # capped is at its cap on another worker too
+    assert queue.finish(db, capped[0], "w1", "succeeded")
+    assert [c.id for c in queue.claim(db, "w2", 4, LEASE)] == [capped[1]]
+
+
+def test_claim_uses_the_kind_cap_for_workspaces_without_one(db: Database) -> None:
+    sand = _queue(db, "sand", 3, kind="sandbox")
+    taken = queue.claim(db, "w", 5, LEASE, kind_caps={"sandbox": 2})
+    assert sorted(c.id for c in taken) == sorted(sand[:2])
+
+
+def test_claim_is_fair_between_workspaces(db: Database) -> None:
+    busy = _queue(db, "busy", 5)  # queued first
+    late = _queue(db, "late", 1)
+    taken = [c.id for c in queue.claim(db, "w", 2, LEASE)]
+    assert sorted(taken) == sorted([busy[0], late[0]])  # not busy's two oldest

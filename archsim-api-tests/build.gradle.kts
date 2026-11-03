@@ -1,8 +1,7 @@
 // Black-box tests of the ArchSim HTTP API. They speak HTTP to a running API (and, where a test
-// needs it, SQL to its PostgreSQL database, whose tables are part of the contract), so the same
-// suite checks the Python API today and the Java API from stage 2. See README.md.
+// needs it, SQL to its PostgreSQL database, whose tables are part of the contract). Written
+// against the Python API, they now check the Java one that replaced it. See README.md.
 //
-//   ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python    # starts the Python API
 //   ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java      # builds and starts the Java API
 //   ./gradlew :archsim-api-tests:apiTest -Parchsim.api.url.local=http://127.0.0.1:8000
 plugins {

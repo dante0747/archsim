@@ -61,7 +61,7 @@ public final class ApiExtension implements BeforeAllCallback, ParameterResolver 
 		ApiServer server = servers(context).server(profile);
 		if (server == null) {
 			throw new TestAbortedException("no " + profile.id() + " server in this run: set archsim.api.url."
-					+ profile.id() + ", or archsim.api.start=python");
+					+ profile.id() + ", or archsim.api.start=java");
 		}
 		return server;
 	}

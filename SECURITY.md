@@ -54,9 +54,9 @@ server at `https://<host>/api/v1`.
 
 **How each threat is handled.**
 
-- **Sign-in.** GitHub and Google OAuth 2 with PKCE (S256) through Authlib. The state and the
-  PKCE verifier live in a short-lived (10 min) HttpOnly cookie signed with
-  `ARCHSIM_SECRET_KEY` (HMAC-SHA256); the callback refuses a missing, expired, tampered or
+- **Sign-in.** GitHub and Google OAuth 2 with PKCE (S256). The state and the PKCE verifier
+  live in a short-lived (10 min) HttpOnly cookie signed with `ARCHSIM_SECRET_KEY`
+  (HMAC-SHA256); the callback refuses a missing, expired, tampered or
   different state, and a stolen authorization code is useless without the verifier. After
   signing in the browser only ever lands on a path of this site (`next` cannot point
   elsewhere). Accounts are matched by the provider's stable id; a second provider is linked to
@@ -125,18 +125,19 @@ server at `https://<host>/api/v1`.
 **What remains.** Resolving a host name is not covered by the per-query deadline (the
 system's resolver timeout applies). A workspace owner can read every design in it. Provider
 accounts are trusted for the emails they verify. Denial of service by a signed-in person is
-bounded by the limits above, not prevented. SQLite is for one machine; use PostgreSQL when
-hosted.
+bounded by the limits above, not prevented.
 
 ### Both modes
 
-- **No code execution over the API.** Documents are data: they are parsed with strict
-  Pydantic models (`extra="forbid"`) and component types must already be registered in the
-  server process. There is no endpoint that evaluates expressions, templates or user code.
+- **No code execution over the API.** Documents are data: they are parsed strictly, unknown
+  fields refused (the API's document model, and the engine's Pydantic models with
+  `extra="forbid"`), and component types must already be registered in the engine. There is no
+  endpoint that evaluates expressions, templates or user code.
 - **Plugins are local only.** Third-party component models are loaded from Python packages
-  installed in the server's environment via the `archsim.components` entry point group, and
-  only when `ARCHSIM_ENABLE_PLUGINS=1`. Plugins run with the server's privileges, so install
-  only packages you trust. Plugins can never be uploaded through the API.
+  installed in the engine's environment (the engine service and the workers) via the
+  `archsim.components` entry point group, and only when `ARCHSIM_ENABLE_PLUGINS=1`. Plugins run
+  with those processes' privileges, so install only packages you trust. Plugins can never be
+  uploaded through the API.
 - **Bounded resource use.** Each request body is capped (`ARCHSIM_MAX_BODY_BYTES`, default
   5 MB). Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked

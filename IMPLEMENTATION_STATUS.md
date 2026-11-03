@@ -1,12 +1,31 @@
 # Implementation status
 
-State as of 2026-11-02 (engine 0.16.0, frozen for the held-out campaign; schema 1.7,
-report 1.14). This file separates what is
+State as of 2026-11-03 (engine 0.16.0, frozen for the held-out campaign; schema 1.7,
+report 1.14; the API in Java). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**The Java API replaces the Python API: stage 2 of the Java port (2026-11-03).**
+
+- `archsim-app` (Java 25, Spring Boot 4) serves every endpoint the FastAPI app served, with the
+  same JSON, cookies, CSRF checks, rate limits, outbound block, token hashes and PostgreSQL
+  tables. Flyway took the schema over at Alembic's revision 0008
+  ([ADR 0032](docs/adr/0032-flyway-takes-over-from-alembic.md)). Its differences from the Python
+  API, and the Python bugs it does not copy, are listed in
+  [archsim-app/README.md](archsim-app/README.md).
+- The engine stays Python: an internal engine service answers the API's synchronous calls
+  ([ADR 0036](docs/adr/0036-python-engine-service-for-synchronous-calls.md)), and
+  `archsim-api worker` processes simulate the runs it queues, until stage 4.
+- The black-box suite (`archsim-api-tests`, ported from the Python API's tests) and the
+  Playwright end-to-end tests pass against it. Docker Compose runs it from an image Jib builds
+  (`make image`).
+- The FastAPI app, its HTTP tests and the suite's Python mode are deleted; `services/api` keeps
+  the workers, `migrate` and `seed`. With the Python API went its SQLite mode
+  ([ADR 0016](docs/adr/0016-drop-sqlite-development-mode.md)): running ArchSim locally needs
+  PostgreSQL, and the API listens on 127.0.0.1 unless told otherwise.
 
 **Engine 0.16.0 frozen, a symmetric p95 criterion, and architecture decision records
 (2026-11-02).**
@@ -1848,8 +1867,8 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   an internal dependency timeout.
 - A run requeued after a restart starts again from the beginning (simulations have no
   checkpoints). Cancelling a run held by another instance takes up to one heartbeat (2 s).
-  Workers poll the queue once a second; SQLite supports several processes on one machine only,
-  and hosts sharing PostgreSQL need synchronised clocks for leases.
+  Workers poll the queue once a second, and hosts sharing PostgreSQL need synchronised clocks
+  for leases.
 - `throughputRps` counts by completion time and can be slightly above `offeredRps`.
 - "Queue kept growing" needs at least 4 time buckets inside the measurement window.
 - Sign-in is optional (`ARCHSIM_AUTH_MODE=oauth`, GitHub and Google); without it the app is

@@ -1,10 +1,10 @@
 # archsim-app
 
 ArchSim's HTTP API on Spring Boot 4: stage 2 of the [Java port](../docs/proposals/java-25-port.md),
-which replaces the FastAPI API in `services/api` endpoint for endpoint. It serves the same JSON,
+which replaced the FastAPI API in `services/api` endpoint for endpoint. It serves the same JSON,
 cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI and the
-[black-box suite](../archsim-api-tests/README.md) work against either API, and both can share one
-database while the port is under way. Simulations stay in Python until stage 4: runs go to the
+[black-box suite](../archsim-api-tests/README.md) work against it unchanged, and a database the
+Python API used carries on as it is. Simulations stay in Python until stage 4: runs go to the
 Python workers through the shared queue, and the engine's synchronous calls (an analysis, a
 scenario's validation, preparing a run, comparing two, summarizing a seed group) go to a small
 internal Python engine service, `services/engine-service`.
@@ -90,7 +90,7 @@ ways.
 | 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
 | 4 | runs and the queue (the workers stay Python) | done |
 | 5 | workspaces, members and invitations; comments, sign-offs and history; share links; import and export; calibration | done |
-| 6 | compose runs the Java API (done); FastAPI deleted | in progress |
+| 6 | compose runs the Java API; FastAPI deleted | done |
 
 ## Tests
 
@@ -150,7 +150,9 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - A share link made from a run whose report's `reportVersion` is not a string (the engine always
   writes one) keeps `unknown`; Python kept `str()` of it.
 - The Java API has no embedded worker: the runs it queues are simulated by `archsim-api worker`
-  processes (Python) on the same database. `ARCHSIM_EMBEDDED_WORKER` does nothing to it.
+  processes (Python) on the same database. `ARCHSIM_EMBEDDED_WORKER` is gone.
+- There is no `--reload`, which `archsim-api serve` had: rebuild the jar, or run the API from an
+  IDE.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote
   `1e-05`); `GET /compare` and `GET /run-groups/{id}` spell the engine's numbers as Java writes
   them. Clients read the same numbers.

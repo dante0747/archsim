@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1
-# ArchSim API image. Build from the repository root:
-#   docker build -f services/api/Dockerfile -t archsim-api .
+# ArchSim simulation worker image: simulates the runs the API (archsim-app) queues in PostgreSQL.
+# Build from the repository root:
+#   docker build -f services/api/Dockerfile -t archsim-worker .
+# Run it under an init (docker run --init, init: true in compose) so killed simulation processes
+# are reaped, with ARCHSIM_DATABASE_URL set to the API's database.
 FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
@@ -20,16 +23,11 @@ COPY examples/ examples/
 
 RUN uv sync --frozen --no-dev --no-editable --package archsim-api
 
-RUN useradd --create-home --uid 10001 archsim \
-    && mkdir -p /app/data \
-    && chown archsim /app/data
+RUN useradd --create-home --uid 10001 archsim
 
 USER archsim
 
 ENV PATH="/app/.venv/bin:${PATH}" \
-    ARCHSIM_EXAMPLES_DIR=/app/examples \
-    ARCHSIM_DATABASE_URL=sqlite:////app/data/archsim.db
+    ARCHSIM_EXAMPLES_DIR=/app/examples
 
-EXPOSE 8000
-
-CMD ["archsim-api", "serve", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["archsim-api", "worker"]

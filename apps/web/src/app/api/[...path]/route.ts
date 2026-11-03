@@ -1,6 +1,6 @@
 /**
- * Same-origin proxy to the FastAPI backend. The target is read from ARCHSIM_API_URL when the
- * server starts, so the same build works locally and in Docker.
+ * Same-origin proxy to the ArchSim API (archsim-app). The target is read from ARCHSIM_API_URL
+ * when the server starts, so the same build works locally and in Docker.
  *
  * Sign-in rides through here: the session cookie, API tokens and the CSRF header go to the API,
  * and its Set-Cookie, redirects (sign-in) and Retry-After (rate limits) come back. The visitor's
@@ -32,7 +32,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     return Response.json(
       {
         detail: {
-          message: `Cannot reach the ArchSim API at ${API_URL}. Start it with "uv run archsim-api serve".`,
+          message: `Cannot reach the ArchSim API at ${API_URL}. Start it as the README's quick start shows, or set ARCHSIM_API_URL to where it runs.`,
           issues: [],
         },
       },

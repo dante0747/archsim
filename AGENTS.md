@@ -28,7 +28,9 @@ Ask the owner instead.
 - `archsim-model/`, `archsim-app/`, `archsim-api-tests/`, `build-logic/`: Java 25, one Gradle build
   (`./gradlew build`). The Java port's plan is `docs/proposals/java-25-port.md`.
 - `packages/engine/`: the Python engine, **frozen at 0.16.0**: don't change it; report its bugs.
-- `services/api/`: the Python API, being replaced by the Java one. `apps/web/`: the Next.js app.
+- `services/api/`: the Python simulation workers (`archsim-api worker`) and the Alembic schema
+  Flyway took over from; the Java API replaced its FastAPI app. `services/engine-service/`: the
+  engine's synchronous calls, for the Java API. `apps/web/`: the Next.js app.
 - `docs/adr/`: architecture decisions. A significant decision gets a new ADR with
   `status: proposed`; never mark one accepted, that is the owner's call.
 

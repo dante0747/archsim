@@ -196,4 +196,4 @@ start("api", java, ["-jar", jar, "api", "--server.address=127.0.0.1", `--server.
   ARCHSIM_ENGINE_URL: `http://127.0.0.1:${enginePort}`,
 });
 await waitUntilHealthy("api", `http://127.0.0.1:${port}/api/v1/health`);
-start("worker", "uv", ["run", "--no-sync", "archsim-api", "worker"], { ARCHSIM_AUTO_MIGRATE: "false" });
+start("worker", "uv", ["run", "--no-sync", "archsim-api", "worker"], {});

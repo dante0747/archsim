@@ -111,16 +111,13 @@ services:
     build: *worker-build
     init: true # reaps and signals the simulation processes
     command: ["archsim-api", "worker"]
-    # The API's settings: with sign-in on, the worker caps the runs each workspace kind
-    # simulates at once (ARCHSIM_AUTH_MODE, ARCHSIM_RATE_LIMITS). It needs the whole file, as the
-    # API's embedded worker had it: with ARCHSIM_AUTH_MODE=oauth its settings also check the
-    # secret key, public URL and OAuth client.
+    # The API's settings: the worker reads ARCHSIM_AUTH_MODE and ARCHSIM_RATE_LIMITS from them,
+    # and with limits on caps the runs each workspace kind simulates at once.
     env_file:
       - path: .env.docker
         required: false
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
-      ARCHSIM_AUTO_MIGRATE: "false"
     depends_on:
       migrate:
         condition: service_completed_successfully

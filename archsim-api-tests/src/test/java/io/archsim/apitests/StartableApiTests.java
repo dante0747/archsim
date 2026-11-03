@@ -14,9 +14,9 @@ class StartableApiTests {
 	}
 
 	@Test
-	void of_unknownName_failsListingTheChoices() {
-		assertThatIllegalArgumentException().isThrownBy(() -> StartableApi.of("ruby"))
-			.withMessage("archsim.api.start=ruby: the suite can start [python, java]");
+	void of_removedPythonApi_failsListingTheChoices() {
+		assertThatIllegalArgumentException().isThrownBy(() -> StartableApi.of("python"))
+			.withMessage("archsim.api.start=python: the suite can start [java]");
 	}
 
 }

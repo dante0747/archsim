@@ -188,7 +188,7 @@ or follows the system). The screenshots in this README still show the previous l
 its technology logos and flowing traffic, says what you will see happen, its level and key
 numbers, with category filters, search and a featured template. Your saved projects are on their
 own page (`/projects`). Projects live in
-PostgreSQL (or SQLite), documents
+PostgreSQL, documents
 import/export as versioned JSON, and every run stores its input, seed, engine version and
 result digest so it can be re-run and verified bit for bit.
 
@@ -220,22 +220,34 @@ summaries are not.
 
 ## Quick start
 
-Prerequisites: **Python 3.11+** with [uv](https://docs.astral.sh/uv/), **Node.js 20.9+** (24
-recommended) with npm. Docker is optional.
+Prerequisites: **Java 25** (a JDK), **Python 3.11+** with [uv](https://docs.astral.sh/uv/),
+**Node.js 20.9+** (24 recommended) with npm, and **PostgreSQL 16**, which Docker Compose can
+start for you.
 
 ```bash
 git clone <your-fork-url> archsim
 cd archsim
 uv sync
+docker compose up -d postgres
+./gradlew :archsim-app:bootJar
 ```
 
-Start the API (SQLite by default: no database to install). It applies migrations on startup:
+Then start the back end, each part in a terminal of its own: the engine service, the API (it
+migrates the database when it starts) and a simulation worker.
 
 ```bash
-uv run archsim-api serve
+uv run archsim-engine-service
 ```
 
-In a second terminal, start the web app:
+```bash
+java -jar archsim-app/build/libs/archsim-app.jar api
+```
+
+```bash
+uv run archsim-api worker
+```
+
+In another terminal, start the web app:
 
 ```bash
 cd apps/web
@@ -245,21 +257,12 @@ npm run dev
 
 Open <http://localhost:3000>, pick **Cache-aside web API (starter)**, and press **Run**.
 
-### Using PostgreSQL
-
-PostgreSQL is the intended database. Start it with Docker Compose and point the API at it:
-
-```bash
-docker compose up -d postgres
-```
-
-```bash
-ARCHSIM_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim uv run archsim-api serve
-```
-
+The parts find each other with their defaults: PostgreSQL at
+`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim` (compose's) and the engine service
+at `http://127.0.0.1:8001`. For another database, set `ARCHSIM_DATABASE_URL` for the API and the
+worker alike (on Windows PowerShell: `$env:ARCHSIM_DATABASE_URL = "postgresql+psycopg://..."`).
 Use `127.0.0.1` rather than `localhost`: with Docker Desktop on Windows, `localhost` may try
-IPv6 first and stall. On Windows PowerShell, set the variable first with
-`$env:ARCHSIM_DATABASE_URL = "postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim"`.
+IPv6 first and stall.
 All settings are listed in [.env.example](.env.example).
 
 ### Everything in Docker
@@ -284,7 +287,7 @@ Runs wait in a queue in the database, and workers simulate them. To share the wo
 workers against the same PostgreSQL (`docker compose up --build --scale worker=3`, or
 `uv run archsim-api worker --slots 4` on any machine that reaches the database).
 A run survives a restart (it is queued again), cancel works from any instance, and a crashed
-simulation fails only its own run. SQLite is for one machine. Details and limits:
+simulation fails only its own run. Details and limits:
 [docs/api.md](docs/api.md#background-runs-and-several-instances).
 
 ### Sign-in, teams and API tokens
@@ -354,22 +357,28 @@ loop, and a design whose one request would fan out into more than 10,000 calls i
 ## Tests and checks
 
 ```bash
-uv run pytest                                   # engine + API
-uv run ruff check packages services && uv run ruff format --check packages services
-uv run mypy packages/engine/src services/api/src packages/mcp/src
+uv run pytest                                   # engine, engine service and workers
+uv run ruff check packages services benchmarks
+uv run ruff format --check packages services benchmarks
+uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
+./gradlew build                                 # the Java code: format, Checkstyle, tests
 cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
 ```
 
 The engine suite includes analytic checks against M/M/1 and M/M/c (Erlang C) queues, request
 accounting invariants, determinism, and a directional reference benchmark on the starter
-example. CI (GitHub Actions) also runs the API tests against PostgreSQL. `make` targets wrap
+example. CI (GitHub Actions) also runs the worker tests against PostgreSQL and the black-box
+API tests against the Java API. `make` targets wrap
 these commands (see the [Makefile](Makefile)).
 
 ## Repository layout
 
 ```
 packages/engine/   Python simulation engine and domain model (no web dependencies)
-services/api/      FastAPI service: projects, background runs, reports, comparison, migrations
+archsim-app/       Java API (Spring Boot): projects, runs, workspaces, reviews, sharing, sign-in
+archsim-model/     Java design model: the document's records, upgrades and validation
+services/engine-service/  Python engine service: the engine's synchronous calls, for the API
+services/api/      Python simulation workers: they simulate the runs the API queues
 apps/web/          Next.js editor: canvas, inspector, results and comparison
 examples/          Example architectures (versioned JSON) with scenarios
 docs/              Architecture, simulation model, schema, API, extension guide, roadmap
@@ -419,8 +428,11 @@ Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 ## Troubleshooting
 
-- **The web app says it cannot reach the API.** Start it with `uv run archsim-api serve`. If it
-  runs elsewhere, set `ARCHSIM_API_URL` for the web server (default `http://127.0.0.1:8000`).
+- **The web app says it cannot reach the API.** Start it as the [quick start](#quick-start)
+  shows. If it runs elsewhere, set `ARCHSIM_API_URL` for the web server (default
+  `http://127.0.0.1:8000`).
+- **Runs stay queued.** No worker is running: start one (`uv run archsim-api worker`), with the
+  API's `ARCHSIM_DATABASE_URL`.
 - **Windows: `DLL load failed ... The filename or extension is too long`.** The checkout path is
   too deep for Windows' path limit. Clone into a short path such as `C:\src\archsim`, or put the
   virtual environment somewhere short with `UV_PROJECT_ENVIRONMENT`.

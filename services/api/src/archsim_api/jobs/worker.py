@@ -1,10 +1,10 @@
 """Workers: take runs from the queue and simulate each one in a process of its own.
 
 A ``Worker`` is the supervisor. It has ``slots`` runs at most and three kinds of threads:
-- the *claim* thread takes queued runs whenever a slot is free (woken at once by a local
-  enqueue or a finished run, otherwise every ``poll_seconds``);
+- the *claim* thread takes queued runs whenever a slot is free (at once when a run finishes,
+  otherwise every ``poll_seconds``);
 - the *heartbeat* thread renews the leases of its runs every ``heartbeat_seconds``, passes on
-  cancel requests from any API instance, records the worker in ``job_workers``, and every
+  the cancels the API asks for, records the worker in ``job_workers``, and every
   ``reap_seconds`` settles runs whose worker died (``queue.reap``);
 - one *run* thread per run, which starts a ``spawn`` process for it (``child.main``), relays its
   progress to the database at most once a second and records the outcome.
@@ -12,8 +12,8 @@ A ``Worker`` is the supervisor. It has ``slots`` runs at most and three kinds of
 A process that crashes or is killed fails only its own run (``WORKER_STOPPED``). Cancelling sends
 a message down the run's pipe; a run still going ``cancel_grace_seconds`` later is terminated,
 then killed. Every run has a hard deadline of ``max_wall_seconds`` plus a margin, past which it is
-killed and failed. A worker that stops (``stop``: ``serve`` shutting down, or ``archsim-api
-worker`` getting SIGTERM) requeues its runs; one that dies leaves them to be requeued when their
+killed and failed. A worker that stops (``stop``: ``archsim-api worker`` getting SIGTERM or
+Ctrl+C) requeues its runs; one that dies leaves them to be requeued when their
 leases run out.
 
 ``executor="thread"`` runs simulations in the run threads instead (no process start-up cost,
@@ -39,11 +39,9 @@ from multiprocessing.process import BaseProcess
 from queue import SimpleQueue
 from typing import Any, Literal, TypeVar
 
-from sqlalchemy.orm import Session
-
 from archsim_api import limits
 from archsim_api.config import Settings
-from archsim_api.db import Database, SimulationRun
+from archsim_api.db import Database
 from archsim_api.jobs import child, orphans, queue
 from archsim_api.jobs.child import Outcome, Simulate
 from archsim_engine import SimulationLimits
@@ -298,20 +296,6 @@ class Worker:
         with contextlib.suppress(Exception):
             queue.forget_worker(self.db, self.id)
         log.info("worker %s stopped", self.id)
-
-    def wake(self) -> None:
-        """A run was queued here: claim now rather than at the next poll."""
-        self._wake.set()
-
-    def cancel_now(self, run_id: str) -> bool:
-        """Pass on a cancel at once when this worker holds the run (otherwise its own worker
-        sees the request at its next heartbeat)."""
-        with self._lock:
-            ex = self._executions.get(run_id)
-        if ex is None:
-            return False
-        ex.request_cancel()
-        return True
 
     @property
     def running(self) -> dict[str, int | None]:
@@ -614,32 +598,3 @@ class Execution:
             log.warning(
                 "run %s: lease lost before it finished; its %s was dropped", self.id, status
             )
-
-
-class JobService:
-    """What the API uses: enqueue and cancel through the database (so they work from any
-    instance), and this process's embedded worker if it has one."""
-
-    def __init__(self, db: Database, worker: Worker | None) -> None:
-        self.db = db
-        self.worker = worker
-
-    def start(self) -> None:
-        if self.worker is not None:
-            self.worker.start()
-
-    def shutdown(self) -> None:
-        if self.worker is not None:
-            self.worker.stop()
-
-    def enqueue(self, session: Session, run: SimulationRun) -> SimulationRun:
-        queue.enqueue(session, run)
-        if self.worker is not None:
-            self.worker.wake()
-        return run
-
-    def cancel(self, run_id: str) -> str | None:
-        status = queue.request_cancel(self.db, run_id)
-        if status == "running" and self.worker is not None:
-            self.worker.cancel_now(run_id)
-        return status

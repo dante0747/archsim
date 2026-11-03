@@ -38,7 +38,7 @@ jobs:
           python3 scripts/check_commits.py --range "$RANGE"
 
   python:
-    name: Python (engine + API, SQLite)
+    name: Python (engine, engine service, workers; SQLite)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -62,7 +62,7 @@ jobs:
         run: uv run python scripts/export_golden.py --check
 
   api-postgres:
-    name: API tests on PostgreSQL
+    name: Worker tests on PostgreSQL
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -91,7 +91,7 @@ jobs:
   api-windows:
     # simulation processes on Windows: the Job Object that kills them with their worker,
     # Ctrl+Break handling, and the venv launcher between a worker and its interpreter
-    name: API tests on Windows
+    name: Worker tests on Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -103,9 +103,9 @@ jobs:
 
   java:
     # the Java build (Spring's formatting, Checkstyle, Error Prone and NullAway, unit tests,
-    # coverage; any finding fails it, see docs/java-conventions.md), then the black-box API tests
-    # against the Python API they start on PostgreSQL; see archsim-api-tests/README.md and
-    # docs/proposals/java-25-port.md
+    # coverage; any finding fails it, see docs/java-conventions.md), the API's image, then the
+    # black-box API tests against the Java API they start on PostgreSQL; see
+    # archsim-api-tests/README.md and docs/proposals/java-25-port.md
     name: Java (Gradle build, black-box API tests)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -139,11 +139,9 @@ jobs:
         run: ./gradlew build
       - name: Build the API's image (a tarball, no Docker needed)
         run: ./gradlew :archsim-app:jibBuildTar
-      - name: Black-box API tests against the Python API
-        run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python
       # the whole suite, against the Java API with the Python engine service and a Python worker
       # next to it
-      - name: Black-box API tests against the Java API
+      - name: Black-box API tests
         run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
       - name: Upload the test reports and server logs
         if: failure()

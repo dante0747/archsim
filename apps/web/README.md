@@ -1,13 +1,13 @@
 # @archsim/web
 
 The ArchSim editor: a Next.js 16 app (React Flow canvas, Zustand stores, Tailwind CSS v4,
-Radix primitives, Recharts, elkjs). It talks to the FastAPI service through a same-origin proxy
+Radix primitives, Recharts, elkjs). It talks to the API (`archsim-app`) through a same-origin proxy
 (`src/app/api/[...path]/route.ts`) that forwards to `ARCHSIM_API_URL`
 (default `http://127.0.0.1:8000`).
 
 ```bash
 npm ci
-npm run dev        # http://localhost:3000 (start the API first: uv run archsim-api serve)
+npm run dev        # http://localhost:3000 (start the API first: ../../README.md, quick start)
 npm test           # unit tests (Vitest + Testing Library)
 npm run lint
 npm run build      # then: npm run typecheck

@@ -3,7 +3,9 @@
 **Status:** approved by the owner on 2 Nov 2026, with the [decisions](#decisions) below. Stage 0
 (foundations) is built; its exit check is still open (see [Stage 0](#stage-0--foundations-35-days)).
 Stage 1 (the design model) is built and its exit check passes (see
-[Stage 1](#stage-1--design-model-and-schema-35-days)).
+[Stage 1](#stage-1--design-model-and-schema-35-days)). Stage 2 (the API on Spring Boot) is built
+and its exit check passes (see
+[Stage 2](#stage-2--the-api-on-spring-boot-engine-still-python-12-weeks)).
 
 **Why:** the owner works in Java and wants to maintain ArchSim. This is a port, not a redesign of
 what ArchSim does: the simulation model, the design format and the web app's behaviour stay the
@@ -162,6 +164,14 @@ doesn't change.
   - the black-box suite and the Playwright end-to-end tests pass against the Java API;
   - one database works with both APIs;
   - compose switches to Java, and the FastAPI code is deleted.
+- **Built (3 Nov 2026):** [`archsim-app/`](../../archsim-app/README.md), in six slices. The whole
+  black-box suite (132 tests) and the Playwright end-to-end tests pass against it. Flyway's `V1`
+  builds Alembic's schema and takes over a database Alembic made
+  ([ADR-0032](../adr/0032-flyway-takes-over-from-alembic.md)). Compose runs it from an image
+  Jib builds, with the engine service
+  ([ADR-0036](../adr/0036-python-engine-service-for-synchronous-calls.md)) and the Python
+  workers. The FastAPI app is deleted; `services/api` keeps the workers until stage 4. Its
+  differences from the Python API, and the Python bugs it does not copy, are in its README.
 
 ### Stage 3 · The engine's deterministic parts (1–2 weeks)
 - **What it covers:** in `archsim-engine`, estimate, sizing, cost, pricing, design review and

@@ -1,7 +1,9 @@
-"""Workers and the queue together: cancelling from another API instance, a worker taking over a run
-whose lease ran out, cancelling a run that ignores it, the hard deadline, and a killed worker
-leaving no simulation process behind. Runs on SQLite and, with ARCHSIM_TEST_DATABASE_URL,
-PostgreSQL (the CI job ``api-postgres``)."""
+"""Workers and the queue together. The API only writes to the database (it queues runs and asks
+for cancels), so these tests do the same: a cancel reaching the worker that holds the run, a
+worker taking over a run whose lease ran out, cancelling a run that ignores it, the hard deadline,
+runs in simulation processes matching runs in threads, and a killed worker or simulation process
+leaving nothing behind. Runs on SQLite and, with ARCHSIM_TEST_DATABASE_URL, PostgreSQL (the CI
+job ``api-postgres``)."""
 
 from __future__ import annotations
 
@@ -22,14 +24,13 @@ import pytest
 from sqlalchemy import select
 
 import sim_targets
-from api_helpers import create_project, make_client, starter, wait_for
+from api_helpers import starter
 from archsim_api.db import Database, Project, SimulationRun
 from archsim_api.jobs import child, orphans, queue
 from archsim_api.jobs.worker import Worker, WorkerConfig
 from archsim_api.migrations import upgrade_to_head
 from archsim_engine import SimulationLimits
-
-API = "/api/v1"
+from archsim_engine import engine as engine_module
 
 
 @pytest.fixture
@@ -43,11 +44,13 @@ def db(db_url: str) -> Iterator[Database]:
     database.engine.dispose()
 
 
-def _enqueue(db: Database, document: dict[str, Any]) -> str:
+def _enqueue(db: Database, document: dict[str, Any], **values: Any) -> str:
     with db.session() as s:
         run = queue.enqueue(
             s,
-            SimulationRun(project_id="p", seed=1, engine_version="test", input_document=document),
+            SimulationRun(
+                project_id="p", seed=1, engine_version="test", input_document=document, **values
+            ),
         )
         return run.id
 
@@ -57,6 +60,18 @@ def _row(db: Database, run_id: str) -> SimulationRun:
         run = s.get(SimulationRun, run_id)
         assert run is not None
         return run
+
+
+def _report(db: Database, run_id: str) -> dict[str, Any]:
+    with db.session() as s:  # the report is a deferred column: read it in the session
+        run = s.get(SimulationRun, run_id)
+        assert run is not None and run.report is not None
+        return run.report
+
+
+def _finished(db: Database, run_id: str) -> SimulationRun | None:
+    run = _row(db, run_id)
+    return None if run.status in ("queued", "running") else run
 
 
 def _until(check: Callable[[], Any], timeout: float, what: str) -> Any:
@@ -118,42 +133,22 @@ def _alive(pid: int) -> bool:
         return sys.platform == "darwin"
 
 
-# -- several API instances ---------------------------------------------------------------------
+# -- cancels -----------------------------------------------------------------------------------
 
 
-def test_cancel_from_another_api_instance(db_url: str) -> None:
-    # "a" simulates (embedded worker); "b" only serves the API, like a second instance behind a
-    # load balancer: it shares nothing with "a" but the database
-    with (
-        make_client(db_url, max_concurrent_runs=1) as a,
-        make_client(db_url, embedded_worker=False) as b,
-    ):
-        p = create_project(b, starter(duration=600, warmup=5))
-        running = b.post(f"{API}/projects/{p['id']}/runs", json={}).json()
-        queued = b.post(f"{API}/projects/{p['id']}/runs", json={}).json()
-        _until(
-            lambda: a.get(f"{API}/runs/{running['id']}").json()["progress"] > 0,
-            60,
-            "a to simulate the first run",
-        )
-        # a queued run is cancelled at once, by whichever instance is asked
-        assert b.post(f"{API}/runs/{queued['id']}/cancel").json()["status"] == "cancelled"
-        # a running one is stopped by the worker holding it, at its next heartbeat
-        assert b.post(f"{API}/runs/{running['id']}/cancel").json()["status"] == "running"
+def test_a_cancel_asked_for_in_the_database_stops_the_run(db: Database) -> None:
+    # the API asks from another process: a queued run is cancelled at once, a running one by the
+    # worker holding it, at its next heartbeat
+    running = _enqueue(db, starter(duration=600, warmup=5))
+    with _running(Worker(db, _config())):
+        _until(lambda: _row(db, running).progress > 0, 90, "the worker to simulate the run")
+        queued = _enqueue(db, starter(duration=600, warmup=5))  # its only slot is taken
+        assert queue.request_cancel(db, queued) == "cancelled"
+        assert queue.request_cancel(db, running) == "running"
         t0 = time.monotonic()
-        assert wait_for(b, running["id"], timeout=30)["status"] == "cancelled"
+        _until(lambda: _row(db, running).status == "cancelled", 30, "the cancel")
         assert time.monotonic() - t0 < 10
-        assert a.get(f"{API}/runs/{queued['id']}").json()["status"] == "cancelled"
-
-
-def test_an_api_instance_without_a_worker_only_queues(db_url: str) -> None:
-    with make_client(db_url, embedded_worker=False) as api:
-        p = create_project(api, starter(duration=4, warmup=1))
-        run = api.post(f"{API}/projects/{p['id']}/runs", json={}).json()
-        time.sleep(1.0)
-        assert api.get(f"{API}/runs/{run['id']}").json()["status"] == "queued"
-        with make_client(db_url) as simulating:  # a worker turns up and takes it
-            assert wait_for(simulating, run["id"], timeout=60)["status"] == "succeeded"
+    assert _row(db, queued).status == "cancelled"
 
 
 # -- leases ------------------------------------------------------------------------------------
@@ -227,6 +222,82 @@ def test_a_run_past_its_hard_deadline_is_killed_and_failed(db: Database) -> None
     assert not _alive(pid)
 
 
+# -- simulation processes ----------------------------------------------------------------------
+
+
+def _simulated(db: Database, executor: str) -> SimulationRun:
+    run_id = _enqueue(db, starter())
+    with _running(Worker(db, _config(executor=executor))):
+        run: SimulationRun = _until(lambda: _finished(db, run_id), 180, f"the run in a {executor}")
+    return run
+
+
+def test_a_run_in_a_process_matches_the_same_run_in_a_thread(db: Database) -> None:
+    in_process = _simulated(db, "process")
+    in_thread = _simulated(db, "thread")
+
+    assert in_process.status == "succeeded", in_process.error
+    assert in_thread.status == "succeeded", in_thread.error
+    assert in_process.result_digest is not None
+    assert in_process.result_digest == in_thread.result_digest
+
+
+def test_a_quick_check_is_simulated_as_a_sample(
+    db: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # in a thread, so the engine's sampling thresholds can be shrunk: a few seconds of the starter
+    # then qualify, and the sample always counts as steady
+    monkeypatch.setattr(engine_module, "SAMPLE_MIN_S", 1.0)
+    monkeypatch.setattr(engine_module, "SAMPLE_MIN_REQUESTS", 200)
+    monkeypatch.setattr(engine_module, "stationary", lambda report: (True, {}))
+    document = starter(duration=8, warmup=1)
+    document["workload"]["rps"] = 200
+    run_id = _enqueue(db, document, mode="sampled")
+
+    with _running(Worker(db, _config(executor="thread"))):
+        run = _until(lambda: _finished(db, run_id), 120, "the quick check")
+
+    assert run.status == "succeeded", run.error
+    mode = _report(db, run_id)["simulationMode"]
+    assert (mode["kind"], mode["requestedDurationS"]) == ("sampled", 8)
+
+
+def _kill(pid: int) -> None:
+    """End a process abruptly, the way an out-of-memory kill or ``taskkill /F`` does (on Windows
+    any signal but Ctrl+C/Ctrl+Break is TerminateProcess)."""
+    os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
+
+
+def test_a_killed_simulation_process_fails_only_its_own_run(db: Database) -> None:
+    victim = _enqueue(db, starter(duration=900, warmup=5))
+    survivor = _enqueue(db, starter(duration=900, warmup=5))
+    worker = Worker(db, _config(slots=2))
+    with _running(worker):
+        _until(
+            lambda: _row(db, victim).progress > 0 and _row(db, survivor).progress > 0,
+            120,
+            "both runs to simulate",
+        )
+        pids = worker.running
+        victim_pid, survivor_pid = pids[victim], pids[survivor]
+        assert victim_pid and survivor_pid and victim_pid != survivor_pid
+        _kill(victim_pid)
+
+        failed = _until(lambda: _finished(db, victim), 60, "the killed run to fail")
+        assert failed.status == "failed"
+        assert failed.error == {"message": queue.WORKER_STOPPED}
+        # the other run, in a process of its own, carries on
+        time.sleep(1.5)
+        assert _row(db, survivor).status == "running"
+        assert worker.running.get(survivor) == survivor_pid
+        assert queue.request_cancel(db, survivor) == "running"
+        _until(lambda: _row(db, survivor).status == "cancelled", 60, "the cancel")
+
+        # and later runs are unaffected
+        later = _enqueue(db, starter(duration=4, warmup=1))
+        assert _until(lambda: _finished(db, later), 180, "a later run").status == "succeeded"
+
+
 # -- a worker that dies ------------------------------------------------------------------------
 
 
@@ -247,7 +318,6 @@ def _start_worker_process(
     env = {
         **os.environ,
         "ARCHSIM_DATABASE_URL": db_url,
-        "ARCHSIM_AUTO_MIGRATE": "false",
         "ARCHSIM_RUNNER": "process",
         "ARCHSIM_LEASE_SECONDS": "2",
         "ARCHSIM_HEARTBEAT_SECONDS": "0.5",

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _default_examples_dir() -> str:
@@ -32,31 +31,28 @@ def default_slots() -> int:
 
 
 class Settings(BaseSettings):
+    """What ``archsim-api worker``, ``migrate`` and ``seed`` read. The API's own settings (sign-in,
+    CORS, calibration ...) are ``archsim-app``'s; the worker ignores them, so both can share one
+    environment."""
+
     model_config = SettingsConfigDict(env_prefix="ARCHSIM_", env_file=".env", extra="ignore")
 
     database_url: str = Field(
-        default="sqlite:///./archsim.db",
-        description="SQLAlchemy URL. PostgreSQL: postgresql+psycopg://user:pass@host:5432/db",
+        default="postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim",
+        description="SQLAlchemy URL of the API's database (the API's default, compose's "
+        "PostgreSQL). The tests also use SQLite: sqlite:///./archsim.db",
     )
     examples_dir: str = Field(default_factory=_default_examples_dir)
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
-    auto_migrate: bool = True
     max_concurrent_runs: int = Field(
         default_factory=default_slots,
         ge=1,
         le=32,
-        description="Runs a worker simulates at once (the embedded one, or `archsim-api worker` "
-        "without --slots). Default: CPU count - 1",
+        description="Runs a worker simulates at once (without --slots). Default: CPU count - 1",
     )
     runner: Literal["process", "thread"] = Field(
         default="process",
         description="process: each run in a process of its own (separate cores, killable, a "
         "crash fails only that run); thread: in the worker's threads",
-    )
-    embedded_worker: bool = Field(
-        default=True,
-        description="Simulate queued runs inside `archsim-api serve`. Turn it off on API "
-        "instances when separate `archsim-api worker` processes do the simulating",
     )
     lease_seconds: float = Field(
         default=30.0,
@@ -79,79 +75,15 @@ class Settings(BaseSettings):
     )
     max_wall_seconds: float = Field(default=300.0, gt=0, le=3600)
     max_requests: int = Field(default=2_000_000, ge=1, le=20_000_000)
-    max_body_bytes: int = Field(default=5_000_000, ge=10_000)
-    run_history_limit: int = Field(default=200, ge=1, description="Runs listed per project")
-    prometheus_allowed_hosts: Annotated[list[str], NoDecode] = Field(
-        default_factory=list,
-        description="Prometheus hosts POST /calibrate may query (host or host:port, comma "
-        "separated). Empty: any host, for local use. Set it before the API is reachable from "
-        "anywhere but your machine.",
-    )
-    prometheus_timeout_s: float = Field(
-        default=30.0, gt=0, le=600, description="Deadline of one Prometheus query, body included"
-    )
-    prometheus_max_bytes: int = Field(
-        default=50 * 1024 * 1024, ge=1024, description="Largest Prometheus response accepted"
-    )
-    calibrate_max_wall_seconds: float = Field(
-        default=60.0,
-        gt=0,
-        le=3600,
-        description="Wall-clock limit of the replay run inside POST /calibrate (it answers "
-        "synchronously); never above max_wall_seconds",
-    )
-
-    # -- sign-in and security (see SECURITY.md) ----------------------------------------------
     auth_mode: Literal["none", "oauth"] = Field(
         default="none",
-        description="none: no sign-in, every request is the local owner of the default "
-        "workspace (local use only). oauth: GitHub/Google sign-in, sessions and API tokens",
-    )
-    secret_key: SecretStr | None = Field(
-        default=None,
-        description="Signs the sign-in state cookie and derives CSRF tokens. Required with "
-        "oauth: at least 32 random characters, the same on every API instance",
-    )
-    public_url: str | None = Field(
-        default=None,
-        description="The address people open, e.g. https://archsim.example.com. Required with "
-        "oauth: sign-in callbacks go to <public_url>/api/v1/auth/<provider>/callback",
-    )
-    admin_emails: Annotated[list[str], NoDecode] = Field(
-        default_factory=list,
-        description="Verified emails (comma separated) whose first sign-in makes them an owner "
-        "of the default workspace",
-    )
-    github_client_id: str | None = None
-    github_client_secret: SecretStr | None = None
-    github_url: str = Field(
-        default="https://github.com", description="GitHub (Enterprise Server: its address)"
-    )
-    github_api_url: str = Field(
-        default="https://api.github.com",
-        description="GitHub's API (Enterprise Server: <address>/api/v3)",
-    )
-    google_client_id: str | None = None
-    google_client_secret: SecretStr | None = None
-    session_days: int = Field(default=30, ge=1, le=365, description="How long a sign-in lasts")
-    trusted_proxies: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["127.0.0.1", "::1"],
-        description="Addresses (IPs, CIDRs or host names, comma separated) whose "
-        "X-ArchSim-Client-IP header is believed: the web server's. Others are rate-limited by "
-        "their own address",
-    )
-
-    outbound: Literal["open", "allowlist", "off"] | None = Field(
-        default=None,
-        description="Calls to servers a request names (Prometheus). open: any host; allowlist: "
-        "only ARCHSIM_PROMETHEUS_ALLOWED_HOSTS, and a listed name must resolve to public "
-        "addresses; off: none. Default: open without sign-in; with it, allowlist when hosts "
-        "are listed, else off. Sandbox workspaces are always off",
+        description="The API's sign-in: with oauth (hosted use) the limits per workspace kind are "
+        "on unless ARCHSIM_RATE_LIMITS says otherwise",
     )
     rate_limits: bool | None = Field(
         default=None,
-        description="Limits per workspace, person and address (429 with Retry-After) and the "
-        "hosted limits per workspace kind. Default: on with sign-in, off without",
+        description="The limits per workspace kind (runs at once). Default: on with sign-in, off "
+        "without",
     )
 
     @property
@@ -160,69 +92,14 @@ class Settings(BaseSettings):
         return self.auth_mode == "oauth"
 
     @property
-    def outbound_mode(self) -> Literal["open", "allowlist", "off"]:
-        if self.outbound is not None:
-            return self.outbound
-        if not self.hosted:
-            return "open"
-        return "allowlist" if self.prometheus_allowed_hosts else "off"
-
-    @property
     def limits_on(self) -> bool:
         return self.hosted if self.rate_limits is None else self.rate_limits
-
-    def oauth_providers(self) -> list[str]:
-        """Providers with a client id and secret, in the order sign-in offers them."""
-        out = []
-        if self.github_client_id and self.github_client_secret:
-            out.append("github")
-        if self.google_client_id and self.google_client_secret:
-            out.append("google")
-        return out
 
     @model_validator(mode="after")
     def _heartbeat_inside_lease(self) -> Settings:
         if self.heartbeat_seconds * 2 > self.lease_seconds:
             raise ValueError("heartbeat_seconds must be at most half of lease_seconds")
         return self
-
-    @model_validator(mode="after")
-    def _oauth_complete(self) -> Settings:
-        if self.auth_mode != "oauth":
-            return self
-        if self.secret_key is None or len(self.secret_key.get_secret_value()) < 32:
-            raise ValueError("ARCHSIM_AUTH_MODE=oauth needs ARCHSIM_SECRET_KEY (32+ characters)")
-        if not self.public_url or not self.public_url.startswith(("https://", "http://")):
-            raise ValueError("ARCHSIM_AUTH_MODE=oauth needs ARCHSIM_PUBLIC_URL (https://host)")
-        if not self.oauth_providers():
-            raise ValueError(
-                "ARCHSIM_AUTH_MODE=oauth needs a GitHub or Google client id and secret "
-                "(ARCHSIM_GITHUB_CLIENT_ID/SECRET, ARCHSIM_GOOGLE_CLIENT_ID/SECRET)"
-            )
-        self.public_url = self.public_url.rstrip("/")
-        return self
-
-    @field_validator("admin_emails", mode="before")
-    @classmethod
-    def _split_emails(cls, v: object) -> object:
-        if isinstance(v, str):
-            text = v.strip()
-            if text.startswith("["):
-                return [e.strip().lower() for e in json.loads(text)]
-            return [e.strip().lower() for e in text.split(",") if e.strip()]
-        if isinstance(v, list):
-            return [str(e).strip().lower() for e in v]
-        return v
-
-    @field_validator("prometheus_allowed_hosts", "trusted_proxies", mode="before")
-    @classmethod
-    def _split_hosts(cls, v: object) -> object:
-        if isinstance(v, str):
-            text = v.strip()
-            if text.startswith("["):
-                return json.loads(text)
-            return [h.strip() for h in text.split(",") if h.strip()]
-        return v
 
 
 @lru_cache

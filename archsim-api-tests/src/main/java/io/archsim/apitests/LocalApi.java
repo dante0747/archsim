@@ -23,7 +23,7 @@ import java.util.Map;
  * of its own, created afresh. It runs in a directory of its own under
  * {@code build/api-servers/}, so a {@code .env} file in the repository does not reach it,
  * and none of the caller's {@code ARCHSIM_*} variables do either: it gets its profile's
- * settings, in the environment either API reads.
+ * settings, in the environment the API and the Python processes read.
  */
 final class LocalApi {
 
@@ -46,8 +46,8 @@ final class LocalApi {
 	}
 
 	/**
-	 * Starts an API as a server of a profile, and the Python engine service before it
-	 * when the API needs one, and waits until they are healthy.
+	 * Starts an API as a server of a profile, the Python engine service before it and a
+	 * Python worker after it, and waits until they are healthy or ready.
 	 * @param config what the suite was told: ports, PostgreSQL, the repository
 	 * @param profile the profile to start a server of
 	 * @param api the API to start
@@ -60,22 +60,18 @@ final class LocalApi {
 		Map<String, String> settings = settings(config, profile, jdbcUrl, database);
 		List<ServerProcess> started = new ArrayList<>();
 		try {
-			if (api.needsEngineService()) {
-				URI engine = URI.create("http://127.0.0.1:" + (port + ENGINE_PORT_OFFSET));
-				started.add(launchEngineService(config, profile,
-						new ServerProcess.Urls(engine, jdbcUrl, engine.resolve("/health")), settings));
-				settings.put("ARCHSIM_ENGINE_URL", engine.toString());
-			}
+			URI engine = URI.create("http://127.0.0.1:" + (port + ENGINE_PORT_OFFSET));
+			started.add(launchEngineService(config, profile,
+					new ServerProcess.Urls(engine, jdbcUrl, engine.resolve("/health")), settings));
+			settings.put("ARCHSIM_ENGINE_URL", engine.toString());
 			URI url = URI.create("http://127.0.0.1:" + port);
 			ServerProcess server = launch(
-					new Launch(profile.id(), "the " + profile.id() + " " + api.label() + " API (" + url + ")",
+					new Launch(profile.id(), "the " + profile.id() + " Java API (" + url + ")",
 							api.command(config, port),
 							new ServerProcess.Urls(url, jdbcUrl, url.resolve(ApiClient.API + "/health"))),
 					settings, profile);
 			started.add(server);
-			if (api.needsWorkers()) {
-				started.add(launchWorker(config, profile, new ServerProcess.Urls(url, jdbcUrl, null), settings));
-			}
+			started.add(launchWorker(config, profile, new ServerProcess.Urls(url, jdbcUrl, null), settings));
 			return new Started(server, started);
 		}
 		catch (IllegalStateException | UncheckedIOException ex) {
@@ -229,8 +225,8 @@ final class LocalApi {
 	}
 
 	/**
-	 * Returns the URL the API reaches its database at, as the Python API takes it; the
-	 * Java API reads the same.
+	 * Returns the URL the API and the worker reach their database at, as SQLAlchemy takes
+	 * it; the Java API reads it too.
 	 * @param config what the suite was told: the PostgreSQL user
 	 * @param jdbcUrl the database's JDBC URL
 	 * @param database the database's name

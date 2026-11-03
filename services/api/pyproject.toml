@@ -1,20 +1,16 @@
 [project]
 name = "archsim-api"
-version = "0.2.0"
-description = "ArchSim HTTP API: projects, simulation runs, reports and comparisons."
+version = "0.3.0"
+description = "ArchSim simulation workers: they simulate the runs the API (archsim-app) queues."
 readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
 dependencies = [
   "archsim-engine",
-  "fastapi>=0.115",
-  "uvicorn[standard]>=0.32",
   "sqlalchemy>=2.0.36",
   "alembic>=1.14",
   "psycopg[binary]>=3.2",
   "pydantic-settings>=2.6",
-  "authlib>=1.9",
-  "httpx2>=2.16",
 ]
 
 [project.scripts]

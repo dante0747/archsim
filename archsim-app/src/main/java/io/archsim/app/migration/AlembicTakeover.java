@@ -42,8 +42,8 @@ class AlembicTakeover implements Callback {
 		}
 		if (!BASELINE_REVISION.equals(revision.get())) {
 			throw new FlywayException("This database is at Alembic revision " + revision.get()
-					+ ": bring it to revision " + BASELINE_REVISION + " with the Python API's `archsim-api migrate`, "
-					+ "then migrate again.");
+					+ ": bring it to revision " + BASELINE_REVISION + " with `uv run archsim-api migrate` "
+					+ "(services/api), then migrate again.");
 		}
 	}
 

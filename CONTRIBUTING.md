@@ -13,16 +13,18 @@ through [SECURITY.md](SECURITY.md), not public issues.
 ```
 packages/engine/   Python package `archsim_engine`: schema, component registry, simulator,
                    analysis, comparison, CLI (`archsim`). No web dependencies.
-services/api/      Python package `archsim_api`: FastAPI app, SQLAlchemy models, Alembic
-                   migrations, background job runner, CLI (`archsim-api`).
+services/api/      Python package `archsim_api`: the simulation workers, the SQLAlchemy models
+                   and Alembic migrations the schema started from, CLI (`archsim-api`).
+services/engine-service/
+                   Python: the engine's synchronous calls, for the Java API only.
 apps/web/          Next.js 16 + React Flow editor and results UI.
 examples/          Example architecture documents (served by the API, used by tests).
 docs/              Design and reference documentation.
 
 archsim-model/     Java: the design document's records, upgrades, JSON Schema and validation
                    (the Java 25 port, see docs/proposals/java-25-port.md).
-archsim-app/       Java: the HTTP API on Spring Boot 4, replacing services/api endpoint by
-                   endpoint (stage 2 of the port).
+archsim-app/       Java: the HTTP API on Spring Boot 4 (stage 2 of the port); Flyway owns
+                   the database schema.
 archsim-api-tests/ Java: black-box tests of the HTTP API. build-logic/ and gradle/ hold the
                    build.
 parity/golden/     The Python engine's golden files, the reference for the Java port.
@@ -30,33 +32,35 @@ parity/golden/     The Python engine's golden files, the reference for the Java 
 
 ## Development setup
 
-Prerequisites: Python 3.11+ (3.12 recommended), [uv](https://docs.astral.sh/uv/),
-Node.js 24 with npm, and optionally Docker for PostgreSQL.
+Prerequisites: a JDK 25, Python 3.11+ (3.12 recommended), [uv](https://docs.astral.sh/uv/),
+Node.js 24 with npm, and PostgreSQL 16 (Docker Compose starts one).
 
 ```bash
-# Python workspace (engine + API + dev tools) into .venv
+# Python workspace (engine, engine service, workers, dev tools) into .venv
 uv sync
 
 # Web app
 cd apps/web && npm ci && cd ../..
 
-# Run the API (SQLite file ./archsim.db by default) and the web app in two terminals
-uv run archsim-api serve          # http://127.0.0.1:8000  (OpenAPI docs: /api/v1/docs)
-cd apps/web && npm run dev        # http://localhost:3000
-```
-
-To develop against PostgreSQL instead of SQLite:
-
-```bash
+# The database and the API's jar
 docker compose up -d postgres
-export ARCHSIM_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim
-uv run archsim-api migrate
+./gradlew :archsim-app:bootJar
+
+# The engine service, the API, a worker and the web app, each in a terminal of its own
+uv run archsim-engine-service                          # http://127.0.0.1:8001 (the API's only)
+java -jar archsim-app/build/libs/archsim-app.jar api   # http://127.0.0.1:8000 (docs: /api/v1/docs)
+uv run archsim-api worker                              # simulates the runs the API queues
+cd apps/web && npm run dev                             # http://localhost:3000
+
 uv run archsim-api seed           # optional: one project per example file
 ```
 
-The `Makefile` wraps these commands (`make setup`, `make api`, `make web`, `make dev-db`,
-`make test`, ...). On Windows without `make`, run the underlying commands shown in the
-Makefile directly; nothing depends on a POSIX shell.
+The API and the worker both default to compose's PostgreSQL
+(`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`); set `ARCHSIM_DATABASE_URL` for
+both to use another. The `Makefile` wraps these commands (`make setup`, `make dev-db`,
+`make engine`, `make api`, `make worker`, `make web`, `make test`, ...). On Windows without
+`make`, run the underlying commands shown in the Makefile directly; nothing depends on a POSIX
+shell.
 
 **Windows path length.** If the checkout lives in a very deep directory, loading compiled
 Python extensions (for example SQLAlchemy's) can fail with "The filename or extension is too
@@ -71,10 +75,10 @@ Run everything CI runs before opening a pull request:
 # Python
 uv run ruff check packages services
 uv run ruff format --check packages services
-uv run mypy packages/engine/src services/api/src packages/mcp/src
-uv run pytest                                   # engine + API tests (SQLite)
+uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
+uv run pytest                                   # engine, engine service and worker tests (SQLite)
 
-# API tests against PostgreSQL (drops all tables in the target database!)
+# Worker tests against PostgreSQL (drops all tables in the target database!)
 docker compose up -d postgres
 docker compose exec postgres createdb -U archsim archsim_test   # once
 ARCHSIM_TEST_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test \
@@ -94,8 +98,7 @@ npm run e2e                       # the main path in Chromium, against the build
 ./gradlew :archsim-model:test     # the design model against the golden files
 ./gradlew :archsim-app:test       # the Java API, on an embedded PostgreSQL (no Docker needed)
 docker compose up -d postgres
-./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python   # black-box API tests
-./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java     # the same, against the Java API
+./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java     # black-box API tests
 ```
 
 `./gradlew format` fixes the Java formatting; `./gradlew build` fails on any Checkstyle finding.
@@ -106,9 +109,11 @@ of its own (`archsim_api_tests_*`) in the PostgreSQL above;
 [archsim-api-tests/README.md](archsim-api-tests/README.md) says how to run them against servers
 that are already running.
 
-`npm run e2e` starts its own API (a throwaway SQLite database under `apps/web/.e2e/`, templates
-shortened to 20 s) on :8002 and `next start` on :3002, so a stack running on :3000/:8000 is
-left alone; set `E2E_API_PORT`/`E2E_WEB_PORT` to move them. It needs `uv` on PATH and a fresh
+`npm run e2e` starts its own back end on :8002 (the Java API, the engine service and a worker,
+on a throwaway database `archsim_e2e_8002` in the PostgreSQL above, with the templates shortened
+to 20 s) and `next start` on :3002, so a stack running on :3000/:8000 is left alone; set
+`E2E_API_PORT`/`E2E_WEB_PORT` to move them, and `E2E_POSTGRES_URL` for another PostgreSQL. It
+needs `uv` on PATH, the API's jar (`./gradlew :archsim-app:bootJar`) and a fresh
 `npm run build`. On a failure, `npx playwright show-trace apps/web/test-results/<test>/trace.zip`
 replays it step by step. `npm run e2e:capture` retakes the README images in `docs/images/` and
 records the demo GIF (it needs ffmpeg for the GIF and takes a few minutes).
@@ -168,9 +173,11 @@ Users compare runs and rely on reproducibility, so engine changes are held to a 
 
 Changing the document schema requires bumping `SCHEMA_VERSION`, adding a migration in
 `packages/engine/src/archsim_engine/migrations.py`, and a test that an old document still
-loads. Changing the database schema requires a new Alembic revision in
-`services/api/src/archsim_api/migrations/versions/`; the test suite checks that migrations and
-ORM models agree.
+loads. Changing the database schema requires a new Flyway migration in
+`archsim-app/src/main/resources/db/migration/` (Flyway owns the schema,
+[ADR-0032](docs/adr/0032-flyway-takes-over-from-alembic.md)), and a change to the workers'
+SQLAlchemy models in `services/api` when they use the columns. Alembic stays at revision 0008:
+a later revision would make Flyway refuse the database.
 
 ## Adding a component type
 

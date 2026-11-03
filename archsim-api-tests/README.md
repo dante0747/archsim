@@ -1,11 +1,11 @@
 # Black-box API tests
 
-These tests speak HTTP to a running ArchSim API, so the same suite checks today's Python API
-and, from stage 2 of the [Java port](../docs/proposals/java-25-port.md), the Java one. They are
-the Python API tests in `services/api/tests`, rewritten against a base URL. Where a Python test
-writes or reads the database directly (an expired session, a sandbox workspace, a stored
-hash), the black-box test does the same over JDBC: the PostgreSQL tables are part of the
-contract, since the Java API takes them over unchanged.
+These tests speak HTTP to a running ArchSim API. They are the Python API's tests, rewritten
+against a base URL so the same suite could check the Python API and the Java one that replaced it
+in stage 2 of the [Java port](../docs/proposals/java-25-port.md); with the Python API removed,
+they check the Java API (`archsim-app`). Where a test writes or reads the database directly (an
+expired session, a sandbox workspace, a stored hash), it does so over JDBC: the PostgreSQL tables
+are part of the contract, since the Java API took them over unchanged.
 
 ## Running them
 
@@ -13,20 +13,17 @@ PostgreSQL must be running (`docker compose up -d postgres`) and the Python envi
 synced (`uv sync`). Then:
 
 ```bash
-./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python
+./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
 ```
 
-starts the Python API once for each [profile](#profiles) the tests use, each on its own port
-(8101 and up) and its own database (`archsim_api_tests_<profile>`, dropped and created afresh),
-runs the tests and stops the servers. Each server's log is in
-`archsim-api-tests/build/api-servers/<profile>.log`.
-
-`-Parchsim.api.start=java` does the same with the Java API (archsim-app): Gradle builds its jar
-first and the suite runs it on the JDK it runs on, with the same `ARCHSIM_*` settings. Next to
-each Java server the suite starts the Python engine service (`uv run archsim-engine-service`), 500
-ports above it, with only `ARCHSIM_PRICES_DIR`; its log is
-`archsim-api-tests/build/api-servers/<profile>-engine.log`. Until stage 2 is done, only the
-endpoints already ported answer; pick their tests with `--tests`.
+builds the Java API's jar and starts it, on the JDK the suite runs on, once for each
+[profile](#profiles) the tests use: each on its own port (8101 and up) and its own database
+(`archsim_api_tests_<profile>`, dropped and created afresh). Next to each server the suite
+starts the Python engine service (`uv run archsim-engine-service`), 500 ports above it, with
+only `ARCHSIM_PRICES_DIR`, and a Python worker (`uv run archsim-api worker`) with the server's
+settings. Then it runs the tests and stops them all. The logs are in
+`archsim-api-tests/build/api-servers/`: `<profile>.log`, `<profile>-engine.log` and
+`<profile>-worker.log`.
 
 Against servers that are already running, give their URLs instead; tests of a profile without
 a URL are skipped:
@@ -38,7 +35,7 @@ a URL are skipped:
 
 | Property (`-P`) | Default | Meaning |
 | --- | --- | --- |
-| `archsim.api.start` | | `python` or `java`: start that API per profile |
+| `archsim.api.start` | | `java`: start the Java API per profile |
 | `archsim.api.url.<profile>` | | base URL of a running server of that profile |
 | `archsim.api.jdbc.<profile>` | | its database, for the tests that set up or check rows |
 | `archsim.api.port` | `8101` | first port for started servers (profile offsets follow) |
@@ -110,21 +107,32 @@ class TokensTests {
 
 ## What came from the Python tests
 
-Each class here comes from one or two files of `services/api/tests` (`test_api_review.py` became
-two classes), with one method per Python test. The methods are named `method_state_result`, like
-every Java test in ArchSim, rather than after the Python tests. One method per Python test is a
-deliberate exception to the [conventions](../docs/java-conventions.md#tests)' "one behaviour per
-test", so each port can be traced to its source; a new test checks one behaviour. Of the 162
-Python API tests, 120 are here, as 122 methods: two are split in two because they need two server
-configurations. The other 42 stay in Python:
+Each class here comes from one or two files of the Python API's tests in `services/api/tests`
+(`test_api_review.py` became two classes), with one method per Python test. The methods are named
+`method_state_result`, like every Java test in ArchSim, rather than after the Python tests. One
+method per Python test is a deliberate exception to the
+[conventions](../docs/java-conventions.md#tests)' "one behaviour per test", so each port can be
+traced to its source; a new test checks one behaviour. Of the 162 Python API tests, 120 are here, as
+122 methods: two are split in two because they need two server configurations. The other 42 were not
+ported:
 
 - **In-process internals (26):** `test_api_queue.py`, `test_api_worker.py`,
   `test_api_process_runner.py` and `test_api_migrations.py`. They drive the run queue, workers,
-  simulation processes and Alembic from inside the process. The Java app gets its own tests for
-  these parts.
-- **Not observable over HTTP (16),** listed below with the reason in each class's Javadoc.
+  simulation processes and Alembic from inside the process, and stay with the Python workers in
+  `services/api/tests` (the process-runner tests are now part of `test_api_worker.py`).
+- **Not observable over HTTP (16),** listed below with the reason in each class's Javadoc. Where
+  they are checked now:
+  - with the Python workers, in `services/api/tests`: `queue.claim` (`test_api_queue.py`), the
+    quick checks (`test_api_worker.py`, one test for both), `limits.prune`
+    (`test_api_limits.py`), and the restarts with leases (the lease tests of
+    `test_api_worker.py`, and `test_api_queue.py`'s reaping tests);
+  - in `archsim-app`'s own tests, for its versions: the settings parsed (`SettingListsTests`,
+    `SignInPropertiesTests`), the rate-limit counter (`RateLimitsTests`) and the share helpers
+    (`SlugsTests`, `SharePayloadsTests`);
+  - nowhere: the database going down mid-run, a test that swapped the Python API's engine
+    in-process, went with it.
 
-| Python file | Class | Here | Stays in Python |
+| Python file | Class | Here | Not ported |
 | --- | --- | --- | --- |
 | `test_api_endpoints.py` | `EndpointsTests` | 17 | the database going down mid-run (the test swaps the server's engine in-process); two restarts of the API with leases written to the database |
 | `test_api_export.py`, `test_api_import.py` | `ImportExportTests` | 4 | |
@@ -151,18 +159,16 @@ Some tests check less than the Python test, or check it another way:
 - The engine digest check compares two runs of the same input, not a run with the engine called
   in-process.
 
-## Notes for the Java app (stage 2)
+## Notes from porting the tests
 
-Found while porting the tests. The suite checks neither of these, so the Java app can't copy
-them by accident:
+Found while porting the tests. The suite checks neither, so the Java API could not copy them by
+accident:
 
-- **A bug in the Python API (not fixed; the owner decides).** `_charge` in
-  `services/api/src/archsim_api/routers/runs.py` counts new runs against the person's hourly
-  counter (`user:<id>:runs`) before the workspace's (`ws:<id>:runs`). When the workspace's
-  limit then answers 429, the person's counter keeps the cost of runs that were never queued.
-  That breaks the rule in `limits.py` that a refused request costs nothing. `archsim-app` must
-  not copy it: check both limits before charging either.
-- **Revoking a share stores a JSON `null` in `shared_reports.payload`, not SQL `NULL`** (the
-  default of SQLAlchemy's JSON type). `SharesTests` accepts both. Both APIs use one database, so
-  `archsim-app` should decide deliberately which one it writes, and readers should treat both
-  as "no copy".
+- **A bug in the Python API.** It counted new runs against the person's hourly counter
+  (`user:<id>:runs`) before the workspace's (`ws:<id>:runs`), so when the workspace's limit then
+  answered 429, the person's counter kept the cost of runs that were never queued. That breaks
+  the rule that a refused request costs nothing, so `archsim-app` must not copy it: a run is
+  charged to both counters or to neither.
+- **Revoking a share stored a JSON `null` in `shared_reports.payload`, not SQL `NULL`** (the
+  default of SQLAlchemy's JSON type). A database the Python API used may still hold both, so
+  `SharesTests` accepts both, and `archsim-app` reads both as "no copy".

@@ -11,10 +11,16 @@ flowchart LR
     Store["Zustand store<br/>(document, history, runs)"]
     Proxy["/api/v1/* route handler<br/>(proxy to ARCHSIM_API_URL)"]
   end
-  subgraph api["services/api (FastAPI)"]
-    Routers["routers: meta, projects, runs"]
-    Jobs["jobs: queue in the database + workers<br/>(a process per run; embedded in serve,<br/>or archsim-api worker)"]
-    ORM["SQLAlchemy models<br/>+ Alembic migrations"]
+  subgraph api["archsim-app (Java, Spring Boot)"]
+    Controllers["controllers: projects, runs, workspaces,<br/>reviews, shares, sign-in, tokens"]
+    Model["archsim-model:<br/>the document, read and checked"]
+    Repos["repositories (JdbcClient)<br/>+ Flyway migrations"]
+  end
+  subgraph engsvc["services/engine-service"]
+    Sync["the engine's synchronous calls:<br/>analyze, prepare, compare,<br/>export, import, calibrate"]
+  end
+  subgraph workers["services/api (archsim-api worker)"]
+    Jobs["queue claims + workers<br/>(a process per run)"]
   end
   subgraph engine["packages/engine (archsim_engine)"]
     Schema["schema + migrations"]
@@ -22,12 +28,15 @@ flowchart LR
     Sim["SimPy engine + metrics"]
     Analysis["analysis + compare"]
   end
-  DB[("PostgreSQL<br/>or SQLite")]
-  UI --> Store --> Proxy --> Routers
-  Routers --> Schema
-  Routers --> Registry
-  Routers --> ORM --> DB
-  Jobs --> ORM
+  DB[("PostgreSQL")]
+  UI --> Store --> Proxy --> Controllers
+  Controllers --> Model
+  Controllers --> Sync
+  Controllers --> Repos --> DB
+  Sync --> Schema
+  Sync --> Registry
+  Sync --> Analysis
+  Jobs --> DB
   Jobs --> Sim
   Sim --> Analysis
 ```
@@ -85,12 +94,31 @@ calls the engine directly: tools to list, validate, analyze, simulate, compare, 
 and calibrate, plus resources for the templates, the JSON Schema and the simulation model.
 See [`agents.md`](agents.md).
 
-### API (`services/api`, import name `archsim_api`)
+### API (`archsim-app`, Java)
 
-FastAPI application created by `create_app(settings)`. It translates HTTP into engine calls,
-stores projects and runs, and executes simulations in the background. All endpoints live under
-`/api/v1`; see [`api.md`](api.md). OpenAPI is served at `/api/v1/openapi.json` and interactive
-docs at `/api/v1/docs`.
+A Spring Boot application ([`archsim-app/README.md`](../archsim-app/README.md)). It stores
+projects, runs, workspaces, reviews and share links in PostgreSQL, with SQL written by hand
+(`JdbcClient`) and a schema Flyway owns; it reads and checks documents with `archsim-model`;
+it signs people in and enforces roles, CSRF, rate limits and the outbound policy. Runs are only
+queued: the workers simulate them. All endpoints live under `/api/v1`; see [`api.md`](api.md).
+OpenAPI is served at `/api/v1/openapi.json` and interactive docs at `/api/v1/docs`. It replaced
+the Python (FastAPI) API endpoint for endpoint, with the same JSON, cookies and tables
+([the Java port](proposals/java-25-port.md)).
+
+### Engine service (`services/engine-service`)
+
+An internal Python HTTP service the API calls for what the engine answers at once: analyzing a
+design, preparing a run (migrate, resolve the scenario, validate, check its size), comparing
+reports, export, import and calibration
+([ADR-0036](adr/0036-python-engine-service-for-synchronous-calls.md)). It checks no caller, so
+only the API may reach it. The API sends each calibration's outbound policy with the request.
+
+### Workers (`services/api`, import name `archsim_api`)
+
+`archsim-api worker` processes take the runs the API queues in PostgreSQL and simulate each with
+the engine, until the Java port's stage 4. The package also keeps the SQLAlchemy models and
+Alembic migrations the schema started from (Flyway's `V1` reproduces their revision 0008), and
+`archsim-api seed`.
 
 ### Web app (`apps/web`)
 
@@ -144,11 +172,13 @@ no API or frontend changes; see [`extending-components.md`](extending-components
 sequenceDiagram
   participant B as Browser
   participant A as API
+  participant S as Engine service
   participant D as Database
   participant W as Worker (any instance)
   participant E as Simulation process (one per run)
   B->>A: POST /projects/{id}/runs {scenarioId, document?}
-  A->>A: prepare_run() (migrate, resolve scenario, validate, size check)
+  A->>S: POST /prepare (migrate, resolve scenario, validate, size check)
+  S-->>A: the prepared input, or the issues
   alt invalid or too large
     A-->>B: 422 {message, issues[]}
   else ok
@@ -181,8 +211,8 @@ sequenceDiagram
   `BEGIN IMMEDIATE`, one host only) and renews it every heartbeat. Progress and the outcome are
   written only while the worker still holds the lease, so a worker that lost a run cannot
   overwrite the one that took it over.
-- **Workers** (`jobs/worker.py`): `archsim-api serve` contains one by default; `archsim-api
-  worker --slots N` runs more, on any host that reaches the database. Each run simulates in a
+- **Workers** (`jobs/worker.py`): `archsim-api worker --slots N`, as many as needed, on any
+  host that reaches the database; the API simulates nothing itself. Each run simulates in a
   `spawn` process of its own (`jobs/child.py`) with a pipe each way: the run and "cancel" go
   down, progress and the result come up. One process is started ahead, so a run does not wait
   for the engine to import. A process that crashes fails only its own run.
@@ -194,21 +224,21 @@ sequenceDiagram
 - **Limits:** `ARCHSIM_MAX_CONCURRENT_RUNS` runs per worker (default: CPU count - 1); per-run
   wall-clock limit `ARCHSIM_MAX_WALL_SECONDS`, checked by the engine every 4,096 events, and a
   hard deadline 30 s later at which the worker kills the process.
-- **Workers that stop:** a worker that is stopped (SIGTERM, Ctrl+C, the API shutting down)
-  requeues its runs without counting the attempt. One that dies stops renewing its leases;
+- **Workers that stop:** a worker that is stopped (SIGTERM, Ctrl+C) requeues its runs without
+  counting the attempt. One that dies stops renewing its leases;
   every worker reaps expired leases every 10 s (and at start-up): requeued after a first
   attempt, `failed` with "The simulation worker stopped unexpectedly…" after a second,
   `cancelled` if a cancel was requested.
 - **No orphans:** a simulation process exits when its worker's pipe closes, gets SIGKILL from
   the kernel when its worker dies on Linux (`PR_SET_PDEATHSIG`), and sits in a Windows Job
-  Object that kills it with its worker. Containers run the API and workers under an init
-  (`init: true`). Simulation processes ignore Ctrl+C: the worker decides when they stop.
+  Object that kills it with its worker. Containers run workers under an init (`init: true`).
+  Simulation processes ignore Ctrl+C: the worker decides when they stop.
 - **Reproduce:** `POST /runs/{id}/rerun` re-simulates the stored input with the same scenario
   and seed. Equal `resultDigest` values confirm reproducibility.
 
 ## Persistence model
 
-Three tables (Alembic revisions `0001` to `0003`):
+The tables a run goes through (the others hold people, workspaces, reviews and share links):
 
 **`projects`** - `id`, `name`, `description`, `document` (JSON/JSONB), `schema_version`,
 `revision`, timestamps. `revision` increments on each update; clients can send
@@ -227,8 +257,9 @@ Deleting a project deletes its runs (`ON DELETE CASCADE`). Queue columns: `attem
 **`job_workers`** - one row per worker: host, process id, slots, runs in flight, status
 (`running` or `draining`) and its latest heartbeat.
 
-PostgreSQL uses `JSONB` for document columns; SQLite uses its JSON type. Both are exercised in
-CI.
+Flyway owns the schema: its `V1` reproduces Alembic's revision 0008, which the workers' models
+still describe ([ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)). Documents are `JSONB`.
+The workers' tests also run on SQLite, as CI does.
 
 ## Determinism and provenance
 

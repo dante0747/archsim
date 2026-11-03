@@ -1,7 +1,8 @@
-"""Database engine, session factory and ORM models.
+"""Database engine, session factory and ORM models: the schema at Alembic's revision 0008, which
+Flyway's ``V1`` in ``archsim-app`` reproduces, as the workers read and write it.
 
-PostgreSQL is the primary target (JSONB columns); SQLite is supported for zero-setup local use
-and tests. Reports are written once per run as a single JSON document, never per event.
+PostgreSQL is the target (JSONB columns); the tests also run on SQLite. Reports are written once
+per run as a single JSON document, never per event.
 """
 
 from __future__ import annotations
@@ -57,13 +58,6 @@ class Base(DeclarativeBase):
 DEFAULT_WORKSPACE_ID = "default"
 """The workspace every project and run belonged to before workspaces existed. In
 ``ARCHSIM_AUTH_MODE=none`` every request is its owner, the local user."""
-LOCAL_USER_ID = "local"
-"""The user every request is in ``ARCHSIM_AUTH_MODE=none`` (no sign-in)."""
-
-ROLES = ("viewer", "editor", "owner")
-"""Membership roles, weakest first: viewers read, editors also change projects and runs,
-owners also manage the workspace, its members and invitations."""
-WORKSPACE_KINDS = ("personal", "team", "sandbox")
 
 
 # -- identity --------------------------------------------------------------------------------
@@ -358,8 +352,7 @@ class RateLimit(Base):
 class SharedReport(Base):
     """A share link: a frozen copy of one run's report (no traces), its objectives and project
     name, readable by anyone with the random ``slug`` until it expires or is revoked. Revoking
-    clears the payload. The run and project may be deleted; the share stays (see
-    ``archsim_api.routers.shares``)."""
+    clears the payload. The run and project may be deleted; the share stays."""
 
     __tablename__ = "shared_reports"
     __table_args__ = (
@@ -401,10 +394,6 @@ class SharedReport(Base):
 
 
 # -- review: comments, sign-offs and history ---------------------------------------------------
-COMMENT_ANCHORS = ("node", "edge", "project", "run")
-REVIEW_DECISIONS = ("approved", "changes_requested")
-ACTOR_KINDS = ("user", "token", "system")
-
 # SQLite only numbers INTEGER primary keys by itself; PostgreSQL gets a BIGSERIAL.
 AutoBigInt = BigInteger().with_variant(Integer(), "sqlite")
 
@@ -473,7 +462,7 @@ class ReviewSignoff(Base):
 
 
 class AuditEvent(Base):
-    """One change, written in the same transaction as the change (``archsim_api.audit``).
+    """One change, written by the API in the same transaction as the change.
     ``project_id`` has no foreign key: a project's history outlives the project."""
 
     __tablename__ = "audit_events"
@@ -525,10 +514,6 @@ class Database:
 
     def session(self) -> Session:
         return self.session_factory()
-
-    def sessions(self) -> Iterator[Session]:
-        with self.session_factory() as s:
-            yield s
 
     @contextmanager
     def write_transaction(self) -> Iterator[Connection]:
