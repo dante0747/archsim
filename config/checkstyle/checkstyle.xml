@@ -42,9 +42,13 @@
 	<module name="FileLength">
 		<property name="max" value="400"/>
 	</module>
+	<!-- Besides imports and links, the last line of an annotated record component (it has an
+	     annotation, no string longer than a short default, and ends with the component's name) may
+	     run longer: the formatter keeps a component's annotations on one line and cannot wrap
+	     between them. A description belongs in the package's Descriptions class. -->
 	<module name="LineLength">
 		<property name="max" value="120"/>
-		<property name="ignorePattern" value="^(package|import) |https?://"/>
+		<property name="ignorePattern" value="^(package|import) |https?://|^(?:[^&quot;]|&quot;[^&quot;]{0,24}&quot;)*@\w+(?:[^&quot;]|&quot;[^&quot;]{0,24}&quot;)*\s[a-z]\w*(,|\)( \{)?)$"/>
 	</module>
 
 	<module name="TreeWalker">
@@ -106,8 +110,11 @@
 		<module name="NestedTryDepth">
 			<property name="max" value="1"/>
 		</module>
+		<!-- The codec's annotations (@Default, @Ge, @Ui, ...) declare a record's JSON; they don't
+		     couple it to other code, so they don't count. The rest of the codec does. -->
 		<module name="ClassFanOutComplexity">
 			<property name="max" value="20"/>
+			<property name="excludeClassesRegexps" value="^(Choice|Const|Default|DefaultFrom|Description|Ge|Gt|Le|Lt|Matches|MaxItems|MaxLength|MinItems|MinLength|OmitWhenDefault|Tag|Tagged|Ui|UniqueItems)$"/>
 		</module>
 
 		<!-- Names that say what they hold: no one-letter names outside for loops -->
