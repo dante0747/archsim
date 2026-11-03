@@ -65,7 +65,7 @@ public final class ServerProcess {
 	}
 
 	/**
-	 * Waits until {@code GET /api/v1/health} answers 200; fails, with the log's end, if
+	 * Waits until the server's health check answers 200; fails, with the log's end, if
 	 * not.
 	 * @param timeout how long to wait
 	 */
@@ -74,16 +74,14 @@ public final class ServerProcess {
 			.version(HttpClient.Version.HTTP_1_1)
 			.connectTimeout(HEALTH_CONNECT_TIMEOUT)
 			.build();
-		HttpRequest health = HttpRequest.newBuilder(url().resolve(ApiClient.API + "/health"))
-			.timeout(HEALTH_TIMEOUT)
-			.build();
+		HttpRequest check = HttpRequest.newBuilder(this.urls.health()).timeout(HEALTH_TIMEOUT).build();
 		long deadline = System.nanoTime() + timeout.toNanos();
 		while (System.nanoTime() < deadline) {
 			if (!this.process.isAlive()) {
 				throw new IllegalStateException(this.name + " stopped (exit " + this.process.exitValue()
 						+ ") before it was healthy:\n" + logTail());
 			}
-			if (isHealthy(http, health)) {
+			if (isHealthy(http, check)) {
 				return;
 			}
 			Runs.pause(HEALTH_POLL_INTERVAL);
@@ -133,12 +131,13 @@ public final class ServerProcess {
 	}
 
 	/**
-	 * Where a started server answers, and where its database is.
+	 * Where a started server answers, where its database is, and how to tell it is ready.
 	 *
 	 * @param api the server's base URL
 	 * @param jdbc the JDBC URL of the server's database
+	 * @param health what answers 200 once the server is ready
 	 */
-	record Urls(URI api, String jdbc) {
+	record Urls(URI api, String jdbc, URI health) {
 	}
 
 }

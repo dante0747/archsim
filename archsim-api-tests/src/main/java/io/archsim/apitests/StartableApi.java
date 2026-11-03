@@ -27,8 +27,9 @@ public enum StartableApi {
 	},
 
 	/**
-	 * The Java API ({@code java -jar archsim-app.jar api}), on the JDK the suite runs on.
-	 * Gradle builds the jar first when {@code archsim.api.start=java}.
+	 * The Java API ({@code java -jar archsim-app.jar api}), on the JDK the suite runs on,
+	 * with the Python engine service next to it. Gradle builds the jar first when
+	 * {@code archsim.api.start=java}.
 	 */
 	JAVA("Java") {
 
@@ -77,6 +78,26 @@ public enum StartableApi {
 	 */
 	public String label() {
 		return this.label;
+	}
+
+	/**
+	 * Whether the API needs the Python engine service next to it, for the engine's
+	 * synchronous calls (ADR-0036).
+	 * @return {@code true} for the Java API
+	 */
+	boolean needsEngineService() {
+		return this == JAVA;
+	}
+
+	/**
+	 * Returns the command that serves the Python engine service.
+	 * @param config what the suite was told: the repository
+	 * @param port the port to listen on
+	 * @return the command and its arguments
+	 */
+	static List<String> engineServiceCommand(SuiteConfig config, int port) {
+		return List.of("uv", "run", "--no-sync", "--project", config.repoRoot().toString(), "archsim-engine-service",
+				"--host", LOOPBACK, "--port", Integer.toString(port));
 	}
 
 	/**

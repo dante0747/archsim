@@ -51,7 +51,7 @@ jobs:
       - name: Format
         run: uv run ruff format --check packages services benchmarks
       - name: Type check
-        run: uv run mypy packages/engine/src services/api/src packages/mcp/src
+        run: uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
       - name: Tests
         run: uv run pytest
       - name: Type check the benchmark scripts
@@ -139,6 +139,15 @@ jobs:
         run: ./gradlew build
       - name: Black-box API tests against the Python API
         run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python
+      # the endpoints the Java API serves so far, with the Python engine service next to it;
+      # the list grows with each slice of stage 2 until it is the whole suite
+      - name: Black-box API tests against the Java API (ported endpoints)
+        run: >-
+          ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
+          --tests '*EndpointsTests.meta_*' --tests '*EndpointsTests.validate_*'
+          --tests '*EndpointsTests.analyze_*' --tests '*EndpointsTests.pricing_*'
+          --tests '*EndpointsTests.create_fromExampleOrBlank_*' --tests '*EndpointsTests.importExport_*'
+          --tests '*EndpointsTests.import_withBodyOverTheLimit_*' --tests '*LimitsTests.answers_ofLocalServer_*'
       - name: Upload the test reports and server logs
         if: failure()
         uses: actions/upload-artifact@v7

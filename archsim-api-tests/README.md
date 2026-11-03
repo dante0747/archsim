@@ -22,8 +22,11 @@ runs the tests and stops the servers. Each server's log is in
 `archsim-api-tests/build/api-servers/<profile>.log`.
 
 `-Parchsim.api.start=java` does the same with the Java API (archsim-app): Gradle builds its jar
-first and the suite runs it on the JDK it runs on, with the same `ARCHSIM_*` settings. Until stage
-2 is done, only the endpoints already ported answer; pick their tests with `--tests`.
+first and the suite runs it on the JDK it runs on, with the same `ARCHSIM_*` settings. Next to
+each Java server the suite starts the Python engine service (`uv run archsim-engine-service`), 500
+ports above it, with only `ARCHSIM_PRICES_DIR`; its log is
+`archsim-api-tests/build/api-servers/<profile>-engine.log`. Until stage 2 is done, only the
+endpoints already ported answer; pick their tests with `--tests`.
 
 Against servers that are already running, give their URLs instead; tests of a profile without
 a URL are skipped:

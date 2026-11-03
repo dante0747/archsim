@@ -66,9 +66,9 @@ public final class ApiServers implements AutoCloseable {
 	}
 
 	private ApiServer startServer(StartableApi api, Profile profile, @Nullable FakeGitHub fakeGitHub) {
-		ServerProcess process = LocalApi.start(this.config, profile, api);
-		this.started.add(process);
-		return new ApiServer(profile, process.url(), database(process.jdbcUrl()), fakeGitHub);
+		LocalApi.Started launched = LocalApi.start(this.config, profile, api);
+		this.started.addAll(launched.processes());
+		return new ApiServer(profile, launched.api().url(), database(launched.api().jdbcUrl()), fakeGitHub);
 	}
 
 	private Db database(String jdbcUrl) {
