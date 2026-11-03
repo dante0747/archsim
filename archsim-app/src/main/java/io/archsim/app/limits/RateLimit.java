@@ -8,6 +8,9 @@ package io.archsim.app.limits;
  */
 public record RateLimit(int limit, long windowSeconds) {
 
+	/** A minute, in seconds. */
+	public static final long MINUTE = 60;
+
 	/** An hour, in seconds. */
 	public static final long HOUR = 3600;
 
@@ -37,5 +40,11 @@ public record RateLimit(int limit, long windowSeconds) {
 
 	/** Sign-offs one person gives per hour. */
 	public static final RateLimit SIGNOFFS_PER_USER = new RateLimit(60, HOUR);
+
+	/** Share links one person makes per day. */
+	public static final RateLimit SHARES_PER_USER = new RateLimit(100, DAY);
+
+	/** Share pages opened from one address: 60 a minute. */
+	public static final RateLimit PUBLIC_VIEWS_PER_IP = new RateLimit(60, MINUTE);
 
 }

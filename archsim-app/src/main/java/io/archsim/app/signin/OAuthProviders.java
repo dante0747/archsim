@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import io.archsim.app.config.Addresses;
 import io.archsim.app.config.ArchsimProperties;
 import io.archsim.app.config.ClientCredentials;
 import io.archsim.app.config.SignInProperties;
@@ -35,7 +36,8 @@ class OAuthProviders {
 	OAuthProviders(ArchsimProperties properties, SignInProperties signIn) {
 		this.properties = properties;
 		this.providers = properties.hosted()
-				? providers(signIn, trimmed(signIn.requireComplete(properties.publicUrl()))) : Map.of();
+				? providers(signIn, Addresses.withoutTrailingSlashes(signIn.requireComplete(properties.publicUrl())))
+				: Map.of();
 	}
 
 	/**
@@ -78,8 +80,8 @@ class OAuthProviders {
 	}
 
 	private static OAuthProvider github(ClientCredentials client, SignInProperties signIn, String publicUrl) {
-		String site = trimmed(signIn.githubUrl());
-		String api = trimmed(signIn.githubApiUrl());
+		String site = Addresses.withoutTrailingSlashes(signIn.githubUrl());
+		String api = Addresses.withoutTrailingSlashes(signIn.githubApiUrl());
 		OAuthProvider.Endpoints endpoints = new OAuthProvider.Endpoints(site + "/login/oauth/authorize",
 				site + "/login/oauth/access_token", api + "/user", api + "/user/emails");
 		return new OAuthProvider(GITHUB, client, endpoints, "read:user user:email", Map.of("allow_signup", "true"),
@@ -95,14 +97,6 @@ class OAuthProviders {
 		parameters.put("prompt", "select_account");
 		parameters.put("access_type", "online");
 		return parameters;
-	}
-
-	private static String trimmed(String url) {
-		int end = url.length();
-		while (end > 0 && url.charAt(end - 1) == '/') {
-			end--;
-		}
-		return url.substring(0, end);
 	}
 
 }

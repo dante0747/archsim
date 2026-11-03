@@ -64,8 +64,10 @@ ways.
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
 | `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
+| `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
+| `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
-| `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted and cut in characters) |
+| `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
 | `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) |
 
@@ -77,7 +79,7 @@ ways.
 | 2 | validate, analyze (Python engine service), projects, documents | done |
 | 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
 | 4 | runs and the queue (the workers stay Python) | done |
-| 5 | workspaces, members and invitations; comments, sign-offs and history (done); shares, import and export, calibration | in progress |
+| 5 | workspaces, members and invitations; comments, sign-offs and history; share links (done); import and export, calibration | in progress |
 | 6 | compose runs the Java API; FastAPI deleted | |
 
 ## Tests
@@ -131,6 +133,10 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   `403` (a project or workspace the asker may not use). In a server with sign-in, a body that is
   not JSON is `401` signed out, where FastAPI answered `422`.
 - A `422` for query parameters names the first one that does not fit; FastAPI listed every one.
+- A share page that is not found (`GET /public/shares/{slug}`) still carries `Cache-Control:
+  no-store` and `X-Robots-Tag: noindex`; FastAPI sent them only with a report.
+- A share link made from a run whose report's `reportVersion` is not a string (the engine always
+  writes one) keeps `unknown`; Python kept `str()` of it.
 - The Java API has no embedded worker: the runs it queues are simulated by `archsim-api worker`
   processes (Python) on the same database. `ARCHSIM_EMBEDDED_WORKER` does nothing to it.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote
@@ -169,6 +175,13 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - **Refused comments counted against the hour.** Python counted a comment against the hourly limit
   before it checked what the comment was on, so a reply to a thread of another project, or a
   comment on a run of another one, still used up one of the hour's comments. Java checks first.
+- **Addresses left in share links.** Python hid the addresses in a calibration's source with a
+  Unicode word boundary, so an address right after a letter of another script
+  (`監視https://user:pass@prom.internal`) was kept in the link's copy. Java's boundary is ASCII,
+  and hides it.
+- **A revoke recorded twice.** Python read a share link and then stamped it revoked, so two revokes
+  at once (a double click) wrote two `share.revoke` lines in the history. Java stamps it only if it
+  is not stamped yet, and records the change only then.
 - **One invitation, two members.** Python read an invitation and later marked it accepted, so two
   people accepting the same link at once both joined. Java claims the link before it adds the
   member; the second answers `404`, as for a link already used.

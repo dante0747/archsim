@@ -38,8 +38,8 @@ class Logins {
 	 * @throws ApiException {@code 429} after too many sign-ins from one address
 	 */
 	Redirect start(OAuthProvider provider, @Nullable String next, Visitor visitor) {
-		String ip = (visitor.ip() != null) ? visitor.ip() : "unknown";
-		this.limits.enforce("ip:" + ip + ":login", RateLimit.LOGINS_PER_IP, "Too many sign-in attempts.");
+		this.limits.enforce("ip:" + visitor.ipOrUnknown() + ":login", RateLimit.LOGINS_PER_IP,
+				"Too many sign-in attempts.");
 		SignInState state = this.states.start(provider.name(), next);
 		return new Redirect(this.client.authorizationUrl(provider, state), List.of(this.states.setCookie(state)));
 	}

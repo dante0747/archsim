@@ -18,7 +18,7 @@ import io.archsim.app.access.Principal;
 @RestController
 class ActivityController {
 
-	private static final String BEFORE = "Events older than this id.";
+	static final String BEFORE = "Events older than this id.";
 
 	private final Activity activity;
 
@@ -38,8 +38,9 @@ class ActivityController {
 	ActivityPage ofProject(Principal principal, @PathVariable String projectId,
 			@RequestParam(name = "before", required = false) @Parameter(description = BEFORE,
 					schema = @Schema(type = "integer", minimum = "1")) @Nullable List<String> before,
-			@RequestParam(name = "limit", required = false) @Parameter(schema = @Schema(type = "integer", minimum = "1",
-					maximum = "200", defaultValue = "50")) @Nullable List<String> limit) {
+			@RequestParam(name = "limit", required = false) @Parameter(
+					schema = @Schema(type = "integer", minimum = "1", maximum = "" + HistoryRange.MAX_LIMIT,
+							defaultValue = "" + HistoryRange.DEFAULT_LIMIT)) @Nullable List<String> limit) {
 		return this.activity.ofProject(principal, projectId, HistoryRange.of(before, limit));
 	}
 
@@ -55,8 +56,9 @@ class ActivityController {
 	ActivityPage ofWorkspace(Principal principal, @PathVariable String workspaceId,
 			@RequestParam(name = "before", required = false) @Parameter(description = BEFORE,
 					schema = @Schema(type = "integer", minimum = "1")) @Nullable List<String> before,
-			@RequestParam(name = "limit", required = false) @Parameter(schema = @Schema(type = "integer", minimum = "1",
-					maximum = "200", defaultValue = "50")) @Nullable List<String> limit) {
+			@RequestParam(name = "limit", required = false) @Parameter(
+					schema = @Schema(type = "integer", minimum = "1", maximum = "" + HistoryRange.MAX_LIMIT,
+							defaultValue = "" + HistoryRange.DEFAULT_LIMIT)) @Nullable List<String> limit) {
 		return this.activity.ofWorkspace(principal, workspaceId, HistoryRange.of(before, limit));
 	}
 

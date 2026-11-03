@@ -105,7 +105,7 @@ class SignInController {
 					schema = @Schema(type = "boolean", defaultValue = "false")) @Nullable List<String> everywhere,
 			@CookieValue(name = Principal.SESSION_COOKIE, required = false) @Nullable String cookie,
 			@RequestHeader(name = Csrf.HEADER, required = false) @Nullable String csrfHeader) {
-		boolean all = QueryParameters.flag(everywhere, "everywhere");
+		boolean all = QueryParameters.flag(everywhere, "everywhere").orElse(false);
 		if (cookie != null && !cookie.isEmpty() && this.providers.hosted()) {
 			if (all) {
 				this.sessions.endEverywhere(cookie, csrfHeader);

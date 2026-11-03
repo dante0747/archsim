@@ -1,7 +1,5 @@
 package io.archsim.app.audit;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
@@ -14,16 +12,15 @@ import org.jspecify.annotations.Nullable;
  * @param action what changed, such as {@code comment.create}
  * @param targetKind what kind of thing it changed, such as {@code comment}
  * @param targetId which one
- * @param meta what else to record; {@code null} values are left out
+ * @param meta what else to record; {@code null} values are left out. The history copies
+ * it when it records the change.
  */
 public record Change(String workspaceId, @Nullable String projectId, String action, String targetKind,
 		@Nullable String targetId, Map<String, @Nullable Object> meta) {
 
-	/**
-	 * A change, with a copy of what else to record, in the caller's order.
-	 */
-	public Change {
-		meta = Collections.unmodifiableMap(new LinkedHashMap<>(meta));
-	}
+	// No compact constructor copying meta: javac then writes the parameter's @Nullable
+	// type
+	// argument against the field, and NullAway, reading this class from its class file,
+	// refuses every Map<String, @Nullable Object> passed in. AuditLog.record copies meta.
 
 }

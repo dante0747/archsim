@@ -110,6 +110,17 @@ public record ArchsimProperties(
 	}
 
 	/**
+	 * The address people open, as links to the web app start: without the slashes the
+	 * setting ends with.
+	 * @return the address, or empty when the setting names none
+	 */
+	public Optional<String> publicAddress() {
+		return Optional.ofNullable(this.publicUrl)
+			.filter((url) -> !url.isEmpty())
+			.map(Addresses::withoutTrailingSlashes);
+	}
+
+	/**
 	 * Whether people reach the API over HTTPS, so browsers should keep to it.
 	 * @return {@code true} when the public address is an {@code https://} one
 	 */

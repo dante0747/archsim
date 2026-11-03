@@ -8,7 +8,9 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.app.limits.RateLimit;
 import io.archsim.app.support.HistoryEvent;
+import io.archsim.app.support.UsedUpLimits;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -90,7 +92,7 @@ class SignoffChangesTests extends ReviewTestSupport {
 	void create_overTheHourlyLimit_isTooManyRequests() {
 		SignedIn ada = signedIn("Ada");
 		String run = run(project(ada), "succeeded");
-		useUp("user:" + ada.userId() + ":signoffs", 60);
+		UsedUpLimits.useUp(jdbc(), "user:" + ada.userId() + ":signoffs", RateLimit.SIGNOFFS_PER_USER);
 
 		assertThat(signOff(ada, run, "{\"decision\": \"approved\"}")).hasStatus(429)
 			.containsHeader(HttpHeaders.RETRY_AFTER)

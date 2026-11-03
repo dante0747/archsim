@@ -8,7 +8,9 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.app.limits.RateLimit;
 import io.archsim.app.support.HistoryEvent;
+import io.archsim.app.support.UsedUpLimits;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -178,7 +180,7 @@ class CommentWriterTests extends ReviewTestSupport {
 	void create_overTheHourlyLimit_isTooManyRequests() {
 		SignedIn ada = signedIn("Ada");
 		String project = project(ada);
-		useUp("user:" + ada.userId() + ":comments", 240);
+		UsedUpLimits.useUp(jdbc(), "user:" + ada.userId() + ":comments", RateLimit.COMMENTS_PER_USER);
 
 		assertThat(write(ada, project, "{\"body\": \"One more\"}")).hasStatus(429)
 			.containsHeader(HttpHeaders.RETRY_AFTER)

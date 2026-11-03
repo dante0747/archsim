@@ -139,7 +139,8 @@ public class ProjectService {
 	public ProjectDesign design(Principal principal, String projectId, WorkspaceRole minimum) {
 		Project project = find(projectId);
 		WorkspaceRole role = this.access.require(principal, project.workspaceId(), minimum, what(projectId));
-		return new ProjectDesign(project.id(), project.workspaceId(), project.revision(), project.document(), role);
+		return new ProjectDesign(project.id(), project.workspaceId(), project.name(), project.revision(),
+				project.document(), role);
 	}
 
 	/**
@@ -176,7 +177,7 @@ public class ProjectService {
 	 * @param name the original's name
 	 * @return the copy's name
 	 */
-	private static String copyName(String name) {
+	public static String copyName(String name) {
 		return Text.cut(name + " (copy)", MAX_NAME);
 	}
 

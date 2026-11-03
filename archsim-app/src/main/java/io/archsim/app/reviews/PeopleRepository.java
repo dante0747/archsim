@@ -28,6 +28,8 @@ class PeopleRepository {
 	 * @return each one found
 	 */
 	People named(Collection<? extends @Nullable String> ids) {
+		// mapMulti, not filter(Objects::nonNull), so that NullAway sees the ids left as
+		// non-null
 		List<String> wanted = ids.stream().<String>mapMulti((id, found) -> {
 			if (id != null) {
 				found.accept(id);

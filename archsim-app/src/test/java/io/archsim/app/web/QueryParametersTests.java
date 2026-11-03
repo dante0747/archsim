@@ -65,18 +65,18 @@ class QueryParametersTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "1", "on", "T", "True", "y", "YES" })
 	void flag_pydanticsWordsForTrue_isTrue(String word) {
-		assertThat(QueryParameters.flag(List.of(word), "everywhere")).isTrue();
+		assertThat(QueryParameters.flag(List.of(word), "everywhere")).contains(true);
 	}
 
 	@ParameterizedTest
 	@ValueSource(strings = { "0", "OFF", "f", "false", "N", "no" })
 	void flag_pydanticsWordsForFalse_isFalse(String word) {
-		assertThat(QueryParameters.flag(List.of(word), "everywhere")).isFalse();
+		assertThat(QueryParameters.flag(List.of(word), "everywhere")).contains(false);
 	}
 
 	@Test
-	void flag_notGiven_isFalse() {
-		assertThat(QueryParameters.flag(null, "everywhere")).isFalse();
+	void flag_notGiven_isEmpty() {
+		assertThat(QueryParameters.flag(null, "everywhere")).isEmpty();
 	}
 
 	@Test

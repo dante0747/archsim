@@ -1,7 +1,5 @@
 package io.archsim.app.reviews;
 
-import java.time.Instant;
-
 import org.springframework.http.HttpMethod;
 
 import io.archsim.app.support.HostedTestSupport;
@@ -15,8 +13,6 @@ abstract class ReviewTestSupport extends HostedTestSupport {
 	static final String PROJECTS = "/api/v1/projects/";
 
 	static final String COMMENTS = "/api/v1/comments/";
-
-	private static final long HOUR = 3600;
 
 	/**
 	 * A project in its owner's personal workspace, saved once, with a node {@code api}
@@ -75,25 +71,6 @@ abstract class ReviewTestSupport extends HostedTestSupport {
 					+ "'[{\"id\": \"api\"}]') WHERE id = :id")
 			.param("id", projectId)
 			.update();
-	}
-
-	/**
-	 * Uses up an hourly rate limit: this hour's window and the next one's, so a test
-	 * running at the turn of the hour still finds it used up.
-	 * @param key what the limit counts, such as {@code user:<id>:comments}
-	 * @param limit how many it allows per hour
-	 */
-	void useUp(String key, int limit) {
-		long start = Instant.now().getEpochSecond() / HOUR * HOUR;
-		for (long window : new long[] { start, start + HOUR }) {
-			this.jdbc()
-				.sql("INSERT INTO rate_limits (key, window_start, count, expires_at) "
-						+ "VALUES (:key, :window, :count, now() + interval '3 hours')")
-				.param("key", key)
-				.param("window", window)
-				.param("count", limit)
-				.update();
-		}
 	}
 
 	/**

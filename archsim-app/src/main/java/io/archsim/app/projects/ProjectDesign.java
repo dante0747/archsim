@@ -9,10 +9,12 @@ import io.archsim.app.access.WorkspaceRole;
  *
  * @param id the project's id
  * @param workspaceId its workspace
+ * @param name its name
  * @param revision how many times it has been saved
  * @param document its design
  * @param role the asker's role in its workspace
  */
-public record ProjectDesign(String id, String workspaceId, int revision, ObjectNode document, WorkspaceRole role) {
+public record ProjectDesign(String id, String workspaceId, String name, int revision, ObjectNode document,
+		WorkspaceRole role) {
 
 }

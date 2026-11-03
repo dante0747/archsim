@@ -8,18 +8,19 @@ import org.jspecify.annotations.Nullable;
  * @param id the run's id
  * @param projectId its project
  * @param label what people call it, if anything
+ * @param scenarioName the scenario it simulated, if any
  * @param status {@code queued}, {@code running}, {@code succeeded}, {@code failed} or
  * {@code cancelled}
  * @param inputDigest the digest of the design it simulated
  * @param resultDigest the digest of its report, once it succeeded
  */
-public record RunFacts(String id, String projectId, @Nullable String label, String status, @Nullable String inputDigest,
-		@Nullable String resultDigest) {
+public record RunFacts(String id, String projectId, @Nullable String label, @Nullable String scenarioName,
+		String status, @Nullable String inputDigest, @Nullable String resultDigest) {
 
 	static RunFacts of(StoredRun run) {
 		RunView view = run.view();
-		return new RunFacts(view.id(), view.projectId(), view.label(), view.status(), view.inputDigest(),
-				view.resultDigest());
+		return new RunFacts(view.id(), view.projectId(), view.label(), view.scenarioName(), view.status(),
+				view.inputDigest(), view.resultDigest());
 	}
 
 	/**

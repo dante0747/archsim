@@ -57,19 +57,19 @@ public final class QueryParameters {
 	 * A boolean parameter.
 	 * @param values the parameter's values, if any
 	 * @param name its name, for the refusal
-	 * @return the last value's meaning, {@code false} when it is not given
+	 * @return the last value's meaning, or empty when it is not given
 	 * @throws RequestInvalidException {@code 422} when it is no boolean
 	 */
-	public static boolean flag(@Nullable List<String> values, String name) {
+	public static Optional<Boolean> flag(@Nullable List<String> values, String name) {
 		Optional<String> value = last(values);
 		if (value.isEmpty()) {
-			return false;
+			return Optional.empty();
 		}
 		String word = value.get().toLowerCase(Locale.ROOT);
 		if (!TRUE.contains(word) && !FALSE.contains(word)) {
 			throw RequestInvalidException.queryNotBoolean(name, value.get());
 		}
-		return TRUE.contains(word);
+		return Optional.of(TRUE.contains(word));
 	}
 
 	/**

@@ -18,7 +18,7 @@ import tools.jackson.databind.node.ObjectNode;
  * @param scenarioCount how many scenarios its design has
  * @param document the design
  */
-record ProjectView(String id, String name, @Nullable String description, int revision, Instant createdAt,
+public record ProjectView(String id, String name, @Nullable String description, int revision, Instant createdAt,
 		Instant updatedAt, int nodeCount, int scenarioCount, ObjectNode document) {
 
 	static ProjectView of(Project project) {

@@ -1,7 +1,5 @@
 package io.archsim.app.reviews;
 
-import java.nio.charset.StandardCharsets;
-
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 
@@ -21,7 +19,7 @@ class ReviewDocumentationTests extends HostedTestSupport {
 
 	@Test
 	void comments_anchorKind_isOneOfFourWords() {
-		JsonNode kind = parameter(COMMENTS, "anchorKind");
+		JsonNode kind = documentedParameter(COMMENTS, "get", "anchorKind");
 
 		assertThat(kind.path("in").asString()).isEqualTo("query");
 		assertThat(kind.path("schema").path("enum")).containsExactly(json("\"node\""), json("\"edge\""),
@@ -30,14 +28,15 @@ class ReviewDocumentationTests extends HostedTestSupport {
 
 	@Test
 	void comments_ids_areStringsOfTheirLength() {
-		assertThat(parameter(COMMENTS, "anchorId").path("schema").path("maxLength").asInt()).isEqualTo(64);
-		assertThat(parameter(COMMENTS, "runId").path("schema").path("maxLength").asInt()).isEqualTo(32);
+		assertThat(documentedParameter(COMMENTS, "get", "anchorId").path("schema").path("maxLength").asInt())
+			.isEqualTo(64);
+		assertThat(documentedParameter(COMMENTS, "get", "runId").path("schema").path("maxLength").asInt())
+			.isEqualTo(32);
 	}
 
 	@Test
 	void comments_query_isNotDocumentedAsOneObject() {
-		assertThat(json(this.mvc().get().uri("/api/v1/openapi.json").exchange().getResponse().getContentAsByteArray())
-			.path("paths")
+		assertThat(json(this.mvc().get().uri("/api/v1/openapi.json").exchange()).path("paths")
 			.path(COMMENTS)
 			.path("get")
 			.path("parameters")
@@ -47,7 +46,7 @@ class ReviewDocumentationTests extends HostedTestSupport {
 
 	@Test
 	void history_before_isAnIntegerOfAtLeastOne() {
-		JsonNode before = parameter(HISTORY, "before");
+		JsonNode before = documentedParameter(HISTORY, "get", "before");
 
 		assertThat(before.path("schema").path("type").asString()).isEqualTo("integer");
 		assertThat(before.path("schema").path("minimum").asInt()).isOne();
@@ -55,29 +54,12 @@ class ReviewDocumentationTests extends HostedTestSupport {
 
 	@Test
 	void history_limit_isFromOneTo200AndFiftyUnlessGiven() {
-		JsonNode limit = parameter(HISTORY, "limit").path("schema");
+		JsonNode limit = documentedParameter(HISTORY, "get", "limit").path("schema");
 
 		assertThat(limit.path("type").asString()).isEqualTo("integer");
 		assertThat(limit.path("minimum").asInt()).isOne();
 		assertThat(limit.path("maximum").asInt()).isEqualTo(200);
 		assertThat(limit.path("default").asInt()).isEqualTo(50);
-	}
-
-	private JsonNode parameter(String path, String name) {
-		JsonNode document = json(
-				this.mvc().get().uri("/api/v1/openapi.json").exchange().getResponse().getContentAsByteArray());
-		return document.path("paths")
-			.path(path)
-			.path("get")
-			.path("parameters")
-			.valueStream()
-			.filter((parameter) -> name.equals(parameter.path("name").asString()))
-			.findFirst()
-			.orElseThrow(() -> new AssertionError(path + " documents no " + name));
-	}
-
-	private static JsonNode json(byte[] content) {
-		return json(new String(content, StandardCharsets.UTF_8));
 	}
 
 }

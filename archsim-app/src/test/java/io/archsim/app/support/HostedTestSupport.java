@@ -31,6 +31,7 @@ import io.archsim.app.access.Secrets;
 import io.archsim.app.database.TestDatabases;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * What the tests of a server with sign-in share: the whole application on one real
@@ -225,6 +226,25 @@ public abstract class HostedTestSupport {
 
 	protected static JsonNode json(String text) {
 		return JSON.readTree(text);
+	}
+
+	/**
+	 * A parameter as the OpenAPI document describes it.
+	 * @param path the endpoint's path, such as {@code /api/v1/projects/{projectId}}
+	 * @param method its method, lower case
+	 * @param name the parameter's name
+	 * @return the parameter's description
+	 */
+	protected JsonNode documentedParameter(String path, String method, String name) {
+		JsonNode document = json(this.mvc.get().uri("/api/v1/openapi.json").exchange());
+		return document.path("paths")
+			.path(path)
+			.path(method)
+			.path("parameters")
+			.valueStream()
+			.filter((parameter) -> name.equals(parameter.path("name").asString()))
+			.findFirst()
+			.orElseGet(() -> fail(path + " documents no " + name));
 	}
 
 	/**

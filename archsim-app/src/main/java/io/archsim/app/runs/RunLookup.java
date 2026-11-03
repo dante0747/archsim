@@ -37,6 +37,21 @@ public class RunLookup {
 	}
 
 	/**
+	 * A run, if the principal may act on it, with its report and the design it simulated.
+	 * @param principal who is asking
+	 * @param runId the run
+	 * @param minimum the role the action needs
+	 * @return the run, with its results
+	 * @throws ApiException {@code 404} without a role in its workspace, {@code 403} with
+	 * one too weak
+	 */
+	public RunResults withResults(Principal principal, String runId, WorkspaceRole minimum) {
+		StoredRun run = stored(principal, runId, minimum);
+		return new RunResults(RunFacts.of(run), this.repository.reportDocument(run.id()).orElse(null),
+				this.repository.inputDocument(run.id()));
+	}
+
+	/**
 	 * Whether a run is one of a project's.
 	 * @param runId the run
 	 * @param projectId the project

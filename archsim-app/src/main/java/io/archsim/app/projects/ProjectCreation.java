@@ -21,7 +21,7 @@ import io.archsim.app.web.ApiException;
  * exported file, or blank.
  */
 @Service
-class ProjectCreation {
+public class ProjectCreation {
 
 	private final Access access;
 
@@ -74,15 +74,18 @@ class ProjectCreation {
 	}
 
 	/**
-	 * Makes a project from a design exported earlier; an older schema is upgraded.
+	 * Makes a project from a design: one exported earlier, or one a share link shows. An
+	 * older schema is upgraded.
 	 * @param principal who is asking
 	 * @param workspace the workspace the request names
 	 * @param document the design
 	 * @param name the project's name; the design's when {@code null}
 	 * @return the project
+	 * @throws ApiException {@code 403} for a viewer, {@code 409} for a workspace as full
+	 * as it may be
 	 */
 	@Transactional
-	ProjectView importDesign(Principal principal, RequestedWorkspace workspace, ObjectNode document,
+	public ProjectView importDesign(Principal principal, RequestedWorkspace workspace, ObjectNode document,
 			@Nullable String name) {
 		WorkspaceAccess where = editable(principal, workspace);
 		ObjectNode design = this.designs.normalize(document, name);

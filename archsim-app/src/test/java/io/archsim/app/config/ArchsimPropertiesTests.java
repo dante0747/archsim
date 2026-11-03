@@ -45,6 +45,16 @@ class ArchsimPropertiesTests {
 	}
 
 	@Test
+	void publicAddress_withTrailingSlashes_isWithoutThem() {
+		assertThat(properties(null, "https://archsim.test//").publicAddress()).contains("https://archsim.test");
+	}
+
+	@Test
+	void publicAddress_empty_isNone() {
+		assertThat(properties(null, "").publicAddress()).isEmpty();
+	}
+
+	@Test
 	void hosted_oauth_isTrue() {
 		assertThat(TestProperties.with("auth-mode=oauth").hosted()).isTrue();
 	}
