@@ -15,9 +15,9 @@ import org.jspecify.annotations.Nullable;
  * name.
  *
  * <ul>
- * <li>{@code archsim.api.start=python}: start the Python API once per profile the tests
- * use, each on its own port and PostgreSQL database (created afresh), and stop it
- * afterwards.
+ * <li>{@code archsim.api.start=python} or {@code java}: start that API once per profile
+ * the tests use, each on its own port and PostgreSQL database (created afresh), and stop
+ * it afterwards.
  * <li>Otherwise {@code archsim.api.url.<profile>} is the base URL of a running server of
  * that profile (for example {@code archsim.api.url.local=http://127.0.0.1:8000}), and
  * {@code archsim.api.jdbc.<profile>} its database, for the tests that set up or check
@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
  * </ul>
  *
  * @param repoRoot the repository, for the examples and the engine's test fixtures
- * @param start which API to start ({@code python}), or null to use the URLs given
+ * @param start which API to start, or null to use the URLs given
  * @param basePort the port of the first started server; the others follow in profile
  * order
  * @param fakeGitHubPort where the stand-in GitHub listens; a hosted server must call it
@@ -39,8 +39,8 @@ import org.jspecify.annotations.Nullable;
  * @param urls the base URLs of running servers, by profile
  * @param jdbcUrls the JDBC URLs of those servers' databases, by profile
  */
-public record SuiteConfig(Path repoRoot, @Nullable String start, int basePort, int fakeGitHubPort, String postgresUrl,
-		String postgresUser, String postgresPassword, String databasePrefix, Map<Profile, URI> urls,
+public record SuiteConfig(Path repoRoot, @Nullable StartableApi start, int basePort, int fakeGitHubPort,
+		String postgresUrl, String postgresUser, String postgresPassword, String databasePrefix, Map<Profile, URI> urls,
 		Map<Profile, String> jdbcUrls) {
 
 	public static SuiteConfig fromSystemProperties() {
@@ -61,7 +61,7 @@ public record SuiteConfig(Path repoRoot, @Nullable String start, int basePort, i
 		Map<Profile, URI> urls = urls(properties);
 		Map<Profile, String> jdbcUrls = jdbcUrls(properties);
 		String start = properties.getProperty("archsim.api.start");
-		return new SuiteConfig(root, (start == null || start.isBlank()) ? null : start.strip(),
+		return new SuiteConfig(root, (start == null || start.isBlank()) ? null : StartableApi.of(start),
 				Integer.parseInt(properties.getProperty("archsim.api.port", "8101")),
 				Integer.parseInt(properties.getProperty("archsim.api.fakeGitHubPort", "8190")),
 				properties.getProperty("archsim.api.postgres", "jdbc:postgresql://127.0.0.1:5432/archsim"),

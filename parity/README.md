@@ -199,3 +199,18 @@ Calibration records the time it ran (`fittedAt`, `calibration.at`): it is fixed 
 - **The benchmark harness's fits** (`benchmarks/run.py`): it stays Python until stage 7.
   `fit_load_curve` and `extend_load_curve` are recorded on synthetic points, and every fit a
   calibration makes on its real inputs.
+
+## The database schema
+
+`parity/schema/` holds the schema the Python API's Alembic migrations build, which the Java app's
+Flyway baseline must reproduce ([ADR-0032](../docs/adr/0032-flyway-takes-over-from-alembic.md)).
+[`describe.sql`](schema/describe.sql) describes the public tables (columns, constraints, indexes,
+sequences) as one canonical JSON document; `alembic-<revision>.json` is that document for Alembic's
+head, written by [`scripts/schema_snapshot.py`](../scripts/schema_snapshot.py):
+
+```sh
+uv run python scripts/schema_snapshot.py --url postgresql://postgres@localhost:5432/postgres
+```
+
+archsim-app's `MigrationTests` describe the database Flyway builds with the same query and expect
+the same document.

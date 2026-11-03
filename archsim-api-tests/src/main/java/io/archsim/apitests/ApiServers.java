@@ -14,9 +14,6 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ApiServers implements AutoCloseable {
 
-	/** The one API the suite can start ({@code archsim.api.start}). */
-	private static final String PYTHON = "python";
-
 	private final SuiteConfig config;
 
 	private final Map<Profile, ApiServer> servers = new EnumMap<>(Profile.class);
@@ -40,7 +37,7 @@ public final class ApiServers implements AutoCloseable {
 			return known;
 		}
 		FakeGitHub fakeGitHub = (profile != Profile.HOSTED) ? null : gitHub();
-		String api = this.config.start();
+		StartableApi api = this.config.start();
 		ApiServer server = (api != null) ? startServer(api, profile, fakeGitHub) : givenServer(profile, fakeGitHub);
 		if (server != null) {
 			this.servers.put(profile, server);
@@ -68,11 +65,8 @@ public final class ApiServers implements AutoCloseable {
 		return new ApiServer(profile, url, db, fakeGitHub);
 	}
 
-	private ApiServer startServer(String api, Profile profile, @Nullable FakeGitHub fakeGitHub) {
-		if (!PYTHON.equals(api)) {
-			throw new IllegalArgumentException("archsim.api.start=" + api + ": the API to start is python");
-		}
-		ServerProcess process = PythonApi.start(this.config, profile);
+	private ApiServer startServer(StartableApi api, Profile profile, @Nullable FakeGitHub fakeGitHub) {
+		ServerProcess process = LocalApi.start(this.config, profile, api);
 		this.started.add(process);
 		return new ApiServer(profile, process.url(), database(process.jdbcUrl()), fakeGitHub);
 	}

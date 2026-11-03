@@ -26,7 +26,7 @@ class SuiteConfigTests {
 	@Test
 	void from_startingServers_hasDefaults() {
 		SuiteConfig config = SuiteConfig.from(properties("archsim.api.start", "python"));
-		assertThat(config.start()).isEqualTo("python");
+		assertThat(config.start()).isEqualTo(StartableApi.PYTHON);
 		assertThat(config.basePort()).isEqualTo(8101);
 		assertThat(config.fakeGitHubUrl()).isEqualTo(URI.create("http://127.0.0.1:8190"));
 		assertThat(config.postgresUrl()).isEqualTo("jdbc:postgresql://127.0.0.1:5432/archsim");

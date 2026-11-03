@@ -12,18 +12,17 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Starts today's Python API ({@code uv run archsim-api serve}) as a server of a profile,
- * on a PostgreSQL database of its own, created afresh. It runs in a directory of its own
- * under {@code build/api-servers/}, so a {@code .env} file in the repository does not
- * reach it, and none of the caller's {@code ARCHSIM_*} variables do either. Needs
- * {@code uv} on the PATH and a synced environment ({@code uv sync}).
+ * Starts an API ({@link StartableApi}) as a server of a profile, on a PostgreSQL database
+ * of its own, created afresh. It runs in a directory of its own under
+ * {@code build/api-servers/}, so a {@code .env} file in the repository does not reach it,
+ * and none of the caller's {@code ARCHSIM_*} variables do either: it gets its profile's
+ * settings, in the environment either API reads.
  */
-final class PythonApi {
+final class LocalApi {
 
 	/** The port PostgreSQL listens on when a JDBC URL names none. */
 	private static final int DEFAULT_POSTGRES_PORT = 5432;
@@ -31,21 +30,25 @@ final class PythonApi {
 	/** What a JDBC URL starts with, before the database's own URL. */
 	private static final String JDBC_PREFIX = "jdbc:";
 
-	private PythonApi() {
+	private LocalApi() {
 	}
 
 	/**
-	 * Starts the Python API as a server of a profile, and waits until it is healthy.
+	 * Starts an API as a server of a profile, and waits until it is healthy.
 	 * @param config what the suite was told: ports, PostgreSQL, the repository
 	 * @param profile the profile to start a server of
+	 * @param api the API to start
 	 * @return the running server, to stop when the run ends
 	 */
-	static ServerProcess start(SuiteConfig config, Profile profile) {
+	static ServerProcess start(SuiteConfig config, Profile profile, StartableApi api) {
 		int port = config.basePort() + profile.portOffset();
 		String database = config.databasePrefix() + "_" + profile.id().replace('-', '_');
 		String jdbcUrl = recreateDatabase(config, database);
 		Path log = serversDir().resolve(profile.id() + ".log");
-		ProcessBuilder command = serveCommand(config, port, workingDirectory(profile), log);
+		ProcessBuilder command = new ProcessBuilder(api.command(config, port))
+			.directory(workingDirectory(profile).toFile())
+			.redirectErrorStream(true)
+			.redirectOutput(log.toFile());
 		Map<String, String> env = command.environment();
 		env.keySet().removeIf((name) -> name.toUpperCase(Locale.ROOT).startsWith("ARCHSIM_"));
 		env.put("PYTHONUNBUFFERED", "1");
@@ -53,8 +56,9 @@ final class PythonApi {
 		env.put("ARCHSIM_EXAMPLES_DIR", config.repoRoot().resolve("examples").toString());
 		env.putAll(profile.settings(config));
 		URI url = URI.create("http://127.0.0.1:" + port);
-		ServerProcess server = new ServerProcess("the " + profile.id() + " Python API (" + url + ", log " + log + ")",
-				launch(command), new ServerProcess.Urls(url, jdbcUrl), log);
+		String name = "the " + profile.id() + " " + api.label() + " API (" + url + ", log " + log + ")";
+		ServerProcess server = new ServerProcess(name, launch(command, name), new ServerProcess.Urls(url, jdbcUrl),
+				log);
 		server.awaitHealthy(Duration.ofMinutes(2));
 		return server;
 	}
@@ -81,20 +85,12 @@ final class PythonApi {
 		return dir;
 	}
 
-	private static ProcessBuilder serveCommand(SuiteConfig config, int port, Path directory, Path log) {
-		return new ProcessBuilder(List.of("uv", "run", "--no-sync", "--project", config.repoRoot().toString(),
-				"archsim-api", "serve", "--host", "127.0.0.1", "--port", Integer.toString(port)))
-			.directory(directory.toFile())
-			.redirectErrorStream(true)
-			.redirectOutput(log.toFile());
-	}
-
-	private static Process launch(ProcessBuilder command) {
+	private static Process launch(ProcessBuilder command, String name) {
 		try {
 			return command.start();
 		}
 		catch (IOException ex) {
-			throw new UncheckedIOException("cannot start the Python API (is uv on the PATH?)", ex);
+			throw new UncheckedIOException("cannot start " + name + " with " + command.command().getFirst(), ex);
 		}
 	}
 
@@ -123,7 +119,8 @@ final class PythonApi {
 	}
 
 	/**
-	 * Returns the URL the Python API reaches its database at.
+	 * Returns the URL the API reaches its database at, as the Python API takes it; the
+	 * Java API reads the same.
 	 * @param config what the suite was told: the PostgreSQL user
 	 * @param jdbcUrl the database's JDBC URL
 	 * @param database the database's name

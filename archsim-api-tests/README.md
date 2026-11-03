@@ -21,6 +21,10 @@ starts the Python API once for each [profile](#profiles) the tests use, each on 
 runs the tests and stops the servers. Each server's log is in
 `archsim-api-tests/build/api-servers/<profile>.log`.
 
+`-Parchsim.api.start=java` does the same with the Java API (archsim-app): Gradle builds its jar
+first and the suite runs it on the JDK it runs on, with the same `ARCHSIM_*` settings. Until stage
+2 is done, only the endpoints already ported answer; pick their tests with `--tests`.
+
 Against servers that are already running, give their URLs instead; tests of a profile without
 a URL are skipped:
 
@@ -31,7 +35,7 @@ a URL are skipped:
 
 | Property (`-P`) | Default | Meaning |
 | --- | --- | --- |
-| `archsim.api.start` | | `python`: start the Python API per profile |
+| `archsim.api.start` | | `python` or `java`: start that API per profile |
 | `archsim.api.url.<profile>` | | base URL of a running server of that profile |
 | `archsim.api.jdbc.<profile>` | | its database, for the tests that set up or check rows |
 | `archsim.api.port` | `8101` | first port for started servers (profile offsets follow) |
@@ -87,8 +91,10 @@ class TokensTests {
   (`Workspaces.enter(client)`).
 - Every client sends its own `X-ArchSim-Client-IP` (the servers trust it from 127.0.0.1), so one
   test's limits per address never touch another's.
-- `Runs.createProject`, `Runs.waitFor`, `Examples.starter(duration, warmup)` and `Json` are the
-  usual steps; `server.db()` runs SQL on the server's database.
+- `Runs` (`createProject`, `startRun`, `finishedRun`, `startLongRun`, `waitFor`),
+  `Examples.starter(duration, warmup)` and `Json` are the usual steps. `server.tokenClient(...)`
+  is a client with a new API token, and `server.db()` runs SQL on the server's database. A step
+  that needs a status checks it with `expectStatus`, which fails the test showing the answer.
 
 ## Layout
 
@@ -103,9 +109,11 @@ class TokensTests {
 
 Each class here comes from one or two files of `services/api/tests` (`test_api_review.py` became
 two classes), with one method per Python test. The methods are named `method_state_result`, like
-every Java test in ArchSim, rather than after the Python tests. Of the 162 Python API tests, 120
-are here, as 122 methods: two are split in two because they need two server configurations. The
-other 42 stay in Python:
+every Java test in ArchSim, rather than after the Python tests. One method per Python test is a
+deliberate exception to the [conventions](../docs/java-conventions.md#tests)' "one behaviour per
+test", so each port can be traced to its source; a new test checks one behaviour. Of the 162
+Python API tests, 120 are here, as 122 methods: two are split in two because they need two server
+configurations. The other 42 stay in Python:
 
 - **In-process internals (26):** `test_api_queue.py`, `test_api_worker.py`,
   `test_api_process_runner.py` and `test_api_migrations.py`. They drive the run queue, workers,

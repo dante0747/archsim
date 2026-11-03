@@ -1,0 +1,25 @@
+# archsim-app's own settings. ArchSim's settings are ARCHSIM_* environment variables, as for the
+# Python API (io.archsim.app.config.ArchsimProperties); these are Spring Boot's.
+spring:
+  application:
+    name: archsim
+  main:
+    banner-mode: off
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    hikari:
+      # fail a health check within 10 s rather than 30, as the Python API's connect timeout
+      connection-timeout: 10000
+      # start without the database; /health says when it is unreachable
+      initialization-fail-timeout: -1
+
+server:
+  port: 8000
+
+springdoc:
+  api-docs:
+    path: /api/v1/openapi.json
+  swagger-ui:
+    path: /api/v1/docs

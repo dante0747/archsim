@@ -25,7 +25,7 @@ Ask the owner instead.
 
 ## The repository
 
-- `archsim-model/`, `archsim-api-tests/`, `build-logic/`: Java 25, one Gradle build
+- `archsim-model/`, `archsim-app/`, `archsim-api-tests/`, `build-logic/`: Java 25, one Gradle build
   (`./gradlew build`). The Java port's plan is `docs/proposals/java-25-port.md`.
 - `packages/engine/`: the Python engine, **frozen at 0.16.0**: don't change it; report its bugs.
 - `services/api/`: the Python API, being replaced by the Java one. `apps/web/`: the Next.js app.

@@ -73,3 +73,7 @@ what the repository shows.
 | [0029](0029-model-packages-in-layers-checked-by-archunit.md) | Build the model's packages in layers, one direction only, checked by ArchUnit | Proposed | 2026-11-02 |
 | [0030](0030-spring-style-and-clean-code-checks.md) | Write Java in Spring Framework's style, with clean-code rules the build enforces | Proposed | 2026-11-02 |
 | [0031](0031-component-catalog-facts-and-presentation.md) | Build the component catalog from the specifications, with its presentation as data | Proposed | 2026-11-03 |
+| [0032](0032-flyway-takes-over-from-alembic.md) | Flyway takes over from Alembic at revision 0008, proven by a schema snapshot | Proposed | 2026-11-03 |
+| [0033](0033-embedded-postgresql-for-tests.md) | Run the database tests on an embedded PostgreSQL, without Docker | Proposed | 2026-11-03 |
+| [0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md) | Keep the FastAPI API's HTTP contract in Spring MVC | Proposed | 2026-11-03 |
+| [0035](0035-read-the-python-apis-settings-unchanged.md) | Read the Python API's `ARCHSIM_*` settings unchanged | Proposed | 2026-11-03 |

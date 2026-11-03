@@ -21,6 +21,8 @@ docs/              Design and reference documentation.
 
 archsim-model/     Java: the design document's records, upgrades, JSON Schema and validation
                    (the Java 25 port, see docs/proposals/java-25-port.md).
+archsim-app/       Java: the HTTP API on Spring Boot 4, replacing services/api endpoint by
+                   endpoint (stage 2 of the port).
 archsim-api-tests/ Java: black-box tests of the HTTP API. build-logic/ and gradle/ hold the
                    build.
 parity/golden/     The Python engine's golden files, the reference for the Java port.
@@ -90,16 +92,19 @@ npm run e2e                       # the main path in Chromium, against the build
 # Java (JDK 25; Gradle finds it, or downloads one, whatever JAVA_HOME says)
 ./gradlew build                   # formatting, Checkstyle, Error Prone and NullAway, tests, coverage
 ./gradlew :archsim-model:test     # the design model against the golden files
+./gradlew :archsim-app:test       # the Java API, on an embedded PostgreSQL (no Docker needed)
 docker compose up -d postgres
 ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python   # black-box API tests
+./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java     # the same, against the Java API
 ```
 
 `./gradlew format` fixes the Java formatting; `./gradlew build` fails on any Checkstyle finding.
 Java code follows [docs/java-conventions.md](docs/java-conventions.md): Spring Framework's style,
-clean-code limits on size and complexity, tests named `method_state_result` and written first. The black-box API tests start the Python
-API once per server profile, each on a fresh database of its own (`archsim_api_tests_*`) in
-the PostgreSQL above; [archsim-api-tests/README.md](archsim-api-tests/README.md) says how to
-run them against servers that are already running.
+clean-code limits on size and complexity, tests named `method_state_result` and written first.
+The black-box API tests start the chosen API once per server profile, each on a fresh database
+of its own (`archsim_api_tests_*`) in the PostgreSQL above;
+[archsim-api-tests/README.md](archsim-api-tests/README.md) says how to run them against servers
+that are already running.
 
 `npm run e2e` starts its own API (a throwaway SQLite database under `apps/web/.e2e/`, templates
 shortened to 20 s) on :8002 and `next start` on :3002, so a stack running on :3000/:8000 is

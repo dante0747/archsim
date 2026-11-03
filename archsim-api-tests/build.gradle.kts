@@ -3,6 +3,7 @@
 // suite checks the Python API today and the Java API from stage 2. See README.md.
 //
 //   ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python    # starts the Python API
+//   ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java      # builds and starts the Java API
 //   ./gradlew :archsim-api-tests:apiTest -Parchsim.api.url.local=http://127.0.0.1:8000
 plugins {
     id("archsim.java-conventions")
@@ -35,6 +36,10 @@ testing {
                         "archsim.serversDir",
                         layout.buildDirectory.dir("api-servers").get().asFile.absolutePath,
                     )
+                    // the Java API runs from archsim-app's jar, built first
+                    if (providers.gradleProperty("archsim.api.start").orNull.equals("java", ignoreCase = true)) {
+                        dependsOn(":archsim-app:bootJar")
+                    }
                     val forwarded = providers.gradlePropertiesPrefixedBy("archsim.")
                     jvmArgumentProviders.add(
                         CommandLineArgumentProvider {

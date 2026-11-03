@@ -1,0 +1,1260 @@
+{
+  "sequences": [
+    "audit_events_id_seq"
+  ],
+  "tables": {
+    "alembic_version": {
+      "columns": [
+        {
+          "default": null,
+          "name": "version_num",
+          "notNull": true,
+          "type": "character varying(32)"
+        }
+      ],
+      "constraints": {
+        "alembic_version_pkc": "PRIMARY KEY (version_num)"
+      },
+      "indexes": {
+        "alembic_version_pkc": "CREATE UNIQUE INDEX alembic_version_pkc ON public.alembic_version USING btree (version_num)"
+      }
+    },
+    "api_tokens": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "user_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "name",
+          "notNull": true,
+          "type": "character varying(100)"
+        },
+        {
+          "default": null,
+          "name": "prefix",
+          "notNull": true,
+          "type": "character varying(24)"
+        },
+        {
+          "default": null,
+          "name": "token_hash",
+          "notNull": true,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "scope",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "last_used_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "expires_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "revoked_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "api_tokens_pkey": "PRIMARY KEY (id)",
+        "api_tokens_token_hash_key": "UNIQUE (token_hash)",
+        "api_tokens_user_id_fkey": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+        "api_tokens_workspace_id_fkey": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "api_tokens_pkey": "CREATE UNIQUE INDEX api_tokens_pkey ON public.api_tokens USING btree (id)",
+        "api_tokens_token_hash_key": "CREATE UNIQUE INDEX api_tokens_token_hash_key ON public.api_tokens USING btree (token_hash)",
+        "ix_api_tokens_user_id": "CREATE INDEX ix_api_tokens_user_id ON public.api_tokens USING btree (user_id)"
+      }
+    },
+    "audit_events": {
+      "columns": [
+        {
+          "default": "nextval('audit_events_id_seq'::regclass)",
+          "name": "id",
+          "notNull": true,
+          "type": "bigint"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "project_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "actor_user_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "actor_kind",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "action",
+          "notNull": true,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "target_kind",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "target_id",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "meta",
+          "notNull": false,
+          "type": "jsonb"
+        },
+        {
+          "default": null,
+          "name": "ip",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "audit_events_actor_user_id_fkey": "FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL",
+        "audit_events_pkey": "PRIMARY KEY (id)",
+        "audit_events_workspace_id_fkey": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "audit_events_pkey": "CREATE UNIQUE INDEX audit_events_pkey ON public.audit_events USING btree (id)",
+        "ix_audit_project_id": "CREATE INDEX ix_audit_project_id ON public.audit_events USING btree (project_id, id)",
+        "ix_audit_workspace_id": "CREATE INDEX ix_audit_workspace_id ON public.audit_events USING btree (workspace_id, id)"
+      }
+    },
+    "comments": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "project_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "anchor_kind",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "anchor_id",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "run_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "parent_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "author_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "body",
+          "notNull": true,
+          "type": "text"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "edited_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "resolved_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "resolved_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        }
+      ],
+      "constraints": {
+        "comments_author_id_fkey": "FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL",
+        "comments_parent_id_fkey": "FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE",
+        "comments_pkey": "PRIMARY KEY (id)",
+        "comments_project_id_fkey": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE",
+        "comments_resolved_by_fkey": "FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL",
+        "comments_run_id_fkey": "FOREIGN KEY (run_id) REFERENCES simulation_runs(id) ON DELETE SET NULL",
+        "comments_workspace_id_fkey": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "comments_pkey": "CREATE UNIQUE INDEX comments_pkey ON public.comments USING btree (id)",
+        "ix_comments_parent_id": "CREATE INDEX ix_comments_parent_id ON public.comments USING btree (parent_id)",
+        "ix_comments_project_created": "CREATE INDEX ix_comments_project_created ON public.comments USING btree (project_id, created_at)",
+        "ix_comments_run_id": "CREATE INDEX ix_comments_run_id ON public.comments USING btree (run_id)"
+      }
+    },
+    "identities": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "user_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "provider",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "subject",
+          "notNull": true,
+          "type": "character varying(255)"
+        },
+        {
+          "default": null,
+          "name": "email",
+          "notNull": false,
+          "type": "character varying(320)"
+        },
+        {
+          "default": null,
+          "name": "email_verified",
+          "notNull": true,
+          "type": "boolean"
+        },
+        {
+          "default": null,
+          "name": "login",
+          "notNull": false,
+          "type": "character varying(200)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "last_login_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "identities_pkey": "PRIMARY KEY (id)",
+        "identities_user_id_fkey": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+        "uq_identities_provider_subject": "UNIQUE (provider, subject)"
+      },
+      "indexes": {
+        "identities_pkey": "CREATE UNIQUE INDEX identities_pkey ON public.identities USING btree (id)",
+        "ix_identities_user_id": "CREATE INDEX ix_identities_user_id ON public.identities USING btree (user_id)",
+        "uq_identities_provider_subject": "CREATE UNIQUE INDEX uq_identities_provider_subject ON public.identities USING btree (provider, subject)"
+      }
+    },
+    "invitations": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "token_hash",
+          "notNull": true,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "role",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "email",
+          "notNull": false,
+          "type": "character varying(320)"
+        },
+        {
+          "default": null,
+          "name": "created_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "expires_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "accepted_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "accepted_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        }
+      ],
+      "constraints": {
+        "invitations_accepted_by_fkey": "FOREIGN KEY (accepted_by) REFERENCES users(id) ON DELETE SET NULL",
+        "invitations_created_by_fkey": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+        "invitations_pkey": "PRIMARY KEY (id)",
+        "invitations_token_hash_key": "UNIQUE (token_hash)",
+        "invitations_workspace_id_fkey": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "invitations_pkey": "CREATE UNIQUE INDEX invitations_pkey ON public.invitations USING btree (id)",
+        "invitations_token_hash_key": "CREATE UNIQUE INDEX invitations_token_hash_key ON public.invitations USING btree (token_hash)",
+        "ix_invitations_workspace_id": "CREATE INDEX ix_invitations_workspace_id ON public.invitations USING btree (workspace_id)"
+      }
+    },
+    "job_workers": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "hostname",
+          "notNull": true,
+          "type": "character varying(255)"
+        },
+        {
+          "default": null,
+          "name": "pid",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "slots",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "running",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "status",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "started_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "heartbeat_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "job_workers_pkey": "PRIMARY KEY (id)"
+      },
+      "indexes": {
+        "ix_job_workers_heartbeat_at": "CREATE INDEX ix_job_workers_heartbeat_at ON public.job_workers USING btree (heartbeat_at)",
+        "job_workers_pkey": "CREATE UNIQUE INDEX job_workers_pkey ON public.job_workers USING btree (id)"
+      }
+    },
+    "memberships": {
+      "columns": [
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "user_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "role",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "memberships_pkey": "PRIMARY KEY (workspace_id, user_id)",
+        "memberships_user_id_fkey": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+        "memberships_workspace_id_fkey": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "ix_memberships_user_id": "CREATE INDEX ix_memberships_user_id ON public.memberships USING btree (user_id)",
+        "memberships_pkey": "CREATE UNIQUE INDEX memberships_pkey ON public.memberships USING btree (workspace_id, user_id)"
+      }
+    },
+    "projects": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "name",
+          "notNull": true,
+          "type": "character varying(120)"
+        },
+        {
+          "default": null,
+          "name": "description",
+          "notNull": false,
+          "type": "text"
+        },
+        {
+          "default": null,
+          "name": "document",
+          "notNull": true,
+          "type": "jsonb"
+        },
+        {
+          "default": null,
+          "name": "schema_version",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "revision",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "updated_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "source_example",
+          "notNull": false,
+          "type": "character varying(100)"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "created_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        }
+      ],
+      "constraints": {
+        "fk_projects_created_by": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+        "fk_projects_workspace_id": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE",
+        "projects_pkey": "PRIMARY KEY (id)"
+      },
+      "indexes": {
+        "ix_projects_source_example": "CREATE INDEX ix_projects_source_example ON public.projects USING btree (source_example)",
+        "ix_projects_workspace_updated": "CREATE INDEX ix_projects_workspace_updated ON public.projects USING btree (workspace_id, updated_at)",
+        "projects_pkey": "CREATE UNIQUE INDEX projects_pkey ON public.projects USING btree (id)"
+      }
+    },
+    "rate_limits": {
+      "columns": [
+        {
+          "default": null,
+          "name": "key",
+          "notNull": true,
+          "type": "character varying(200)"
+        },
+        {
+          "default": null,
+          "name": "window_start",
+          "notNull": true,
+          "type": "bigint"
+        },
+        {
+          "default": null,
+          "name": "count",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "expires_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "rate_limits_pkey": "PRIMARY KEY (key, window_start)"
+      },
+      "indexes": {
+        "ix_rate_limits_expires_at": "CREATE INDEX ix_rate_limits_expires_at ON public.rate_limits USING btree (expires_at)",
+        "rate_limits_pkey": "CREATE UNIQUE INDEX rate_limits_pkey ON public.rate_limits USING btree (key, window_start)"
+      }
+    },
+    "review_signoffs": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "project_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "run_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "project_revision",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "input_digest",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "result_digest",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "reviewer_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "decision",
+          "notNull": true,
+          "type": "character varying(24)"
+        },
+        {
+          "default": null,
+          "name": "note",
+          "notNull": false,
+          "type": "text"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "review_signoffs_pkey": "PRIMARY KEY (id)",
+        "review_signoffs_project_id_fkey": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE",
+        "review_signoffs_reviewer_id_fkey": "FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL",
+        "review_signoffs_run_id_fkey": "FOREIGN KEY (run_id) REFERENCES simulation_runs(id) ON DELETE SET NULL"
+      },
+      "indexes": {
+        "ix_review_signoffs_run_id": "CREATE INDEX ix_review_signoffs_run_id ON public.review_signoffs USING btree (run_id)",
+        "ix_signoffs_project_created": "CREATE INDEX ix_signoffs_project_created ON public.review_signoffs USING btree (project_id, created_at)",
+        "review_signoffs_pkey": "CREATE UNIQUE INDEX review_signoffs_pkey ON public.review_signoffs USING btree (id)"
+      }
+    },
+    "run_groups": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "project_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "kind",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "base_seed",
+          "notNull": true,
+          "type": "bigint"
+        },
+        {
+          "default": null,
+          "name": "size",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": "'full'::character varying",
+          "name": "mode",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "scenario_id",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "label",
+          "notNull": false,
+          "type": "character varying(200)"
+        },
+        {
+          "default": null,
+          "name": "created_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "run_groups_created_by_fkey": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+        "run_groups_pkey": "PRIMARY KEY (id)",
+        "run_groups_project_id_fkey": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE",
+        "run_groups_workspace_id_fkey": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "ix_run_groups_project_id": "CREATE INDEX ix_run_groups_project_id ON public.run_groups USING btree (project_id)",
+        "run_groups_pkey": "CREATE UNIQUE INDEX run_groups_pkey ON public.run_groups USING btree (id)"
+      }
+    },
+    "sessions": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "user_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "last_seen_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "expires_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "ip",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "user_agent",
+          "notNull": false,
+          "type": "character varying(300)"
+        }
+      ],
+      "constraints": {
+        "sessions_pkey": "PRIMARY KEY (id)",
+        "sessions_user_id_fkey": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "ix_sessions_expires_at": "CREATE INDEX ix_sessions_expires_at ON public.sessions USING btree (expires_at)",
+        "ix_sessions_user_id": "CREATE INDEX ix_sessions_user_id ON public.sessions USING btree (user_id)",
+        "sessions_pkey": "CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id)"
+      }
+    },
+    "shared_reports": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "slug",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "project_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "run_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "created_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "title",
+          "notNull": true,
+          "type": "character varying(200)"
+        },
+        {
+          "default": null,
+          "name": "payload",
+          "notNull": false,
+          "type": "jsonb"
+        },
+        {
+          "default": null,
+          "name": "payload_version",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "report_version",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "result_digest",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "expires_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "revoked_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": "0",
+          "name": "view_count",
+          "notNull": true,
+          "type": "integer"
+        }
+      ],
+      "constraints": {
+        "fk_shared_reports_created_by": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+        "fk_shared_reports_project_id": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL",
+        "fk_shared_reports_run_id": "FOREIGN KEY (run_id) REFERENCES simulation_runs(id) ON DELETE SET NULL",
+        "fk_shared_reports_workspace_id": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE",
+        "shared_reports_pkey": "PRIMARY KEY (id)",
+        "uq_shared_reports_slug": "UNIQUE (slug)"
+      },
+      "indexes": {
+        "ix_shared_reports_project_created": "CREATE INDEX ix_shared_reports_project_created ON public.shared_reports USING btree (project_id, created_at)",
+        "ix_shared_reports_workspace_created": "CREATE INDEX ix_shared_reports_workspace_created ON public.shared_reports USING btree (workspace_id, created_at)",
+        "shared_reports_pkey": "CREATE UNIQUE INDEX shared_reports_pkey ON public.shared_reports USING btree (id)",
+        "uq_shared_reports_slug": "CREATE UNIQUE INDEX uq_shared_reports_slug ON public.shared_reports USING btree (slug)"
+      }
+    },
+    "simulation_runs": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "project_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "label",
+          "notNull": false,
+          "type": "character varying(200)"
+        },
+        {
+          "default": null,
+          "name": "scenario_id",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "scenario_name",
+          "notNull": false,
+          "type": "character varying(120)"
+        },
+        {
+          "default": null,
+          "name": "status",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "progress",
+          "notNull": true,
+          "type": "double precision"
+        },
+        {
+          "default": null,
+          "name": "error",
+          "notNull": false,
+          "type": "jsonb"
+        },
+        {
+          "default": null,
+          "name": "seed",
+          "notNull": true,
+          "type": "bigint"
+        },
+        {
+          "default": null,
+          "name": "engine_version",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "input_digest",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "result_digest",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "summary",
+          "notNull": false,
+          "type": "jsonb"
+        },
+        {
+          "default": null,
+          "name": "wall_seconds",
+          "notNull": false,
+          "type": "double precision"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "started_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "finished_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "input_document",
+          "notNull": true,
+          "type": "jsonb"
+        },
+        {
+          "default": null,
+          "name": "report",
+          "notNull": false,
+          "type": "jsonb"
+        },
+        {
+          "default": "0",
+          "name": "attempts",
+          "notNull": true,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "lease_owner",
+          "notNull": false,
+          "type": "character varying(64)"
+        },
+        {
+          "default": null,
+          "name": "lease_expires_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "cancel_requested_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "workspace_id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "created_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "max_requests",
+          "notNull": false,
+          "type": "bigint"
+        },
+        {
+          "default": null,
+          "name": "max_wall_seconds",
+          "notNull": false,
+          "type": "double precision"
+        },
+        {
+          "default": null,
+          "name": "group_id",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "seed_index",
+          "notNull": false,
+          "type": "integer"
+        },
+        {
+          "default": "'full'::character varying",
+          "name": "mode",
+          "notNull": true,
+          "type": "character varying(16)"
+        }
+      ],
+      "constraints": {
+        "fk_runs_created_by": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+        "fk_runs_group_id": "FOREIGN KEY (group_id) REFERENCES run_groups(id) ON DELETE SET NULL",
+        "fk_runs_workspace_id": "FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE",
+        "simulation_runs_pkey": "PRIMARY KEY (id)",
+        "simulation_runs_project_id_fkey": "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE"
+      },
+      "indexes": {
+        "ix_runs_project_created": "CREATE INDEX ix_runs_project_created ON public.simulation_runs USING btree (project_id, created_at)",
+        "ix_runs_status_created": "CREATE INDEX ix_runs_status_created ON public.simulation_runs USING btree (status, created_at)",
+        "ix_runs_workspace_status": "CREATE INDEX ix_runs_workspace_status ON public.simulation_runs USING btree (workspace_id, status)",
+        "ix_simulation_runs_group_id": "CREATE INDEX ix_simulation_runs_group_id ON public.simulation_runs USING btree (group_id)",
+        "ix_simulation_runs_project_id": "CREATE INDEX ix_simulation_runs_project_id ON public.simulation_runs USING btree (project_id)",
+        "ix_simulation_runs_status": "CREATE INDEX ix_simulation_runs_status ON public.simulation_runs USING btree (status)",
+        "simulation_runs_pkey": "CREATE UNIQUE INDEX simulation_runs_pkey ON public.simulation_runs USING btree (id)"
+      }
+    },
+    "users": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "email",
+          "notNull": false,
+          "type": "character varying(320)"
+        },
+        {
+          "default": null,
+          "name": "name",
+          "notNull": true,
+          "type": "character varying(200)"
+        },
+        {
+          "default": null,
+          "name": "avatar_url",
+          "notNull": false,
+          "type": "character varying(500)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "last_seen_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        },
+        {
+          "default": null,
+          "name": "disabled_at",
+          "notNull": false,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "users_pkey": "PRIMARY KEY (id)"
+      },
+      "indexes": {
+        "ix_users_email": "CREATE INDEX ix_users_email ON public.users USING btree (email)",
+        "users_pkey": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+      }
+    },
+    "workspaces": {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": true,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "name",
+          "notNull": true,
+          "type": "character varying(120)"
+        },
+        {
+          "default": null,
+          "name": "kind",
+          "notNull": true,
+          "type": "character varying(16)"
+        },
+        {
+          "default": null,
+          "name": "max_concurrent_runs",
+          "notNull": false,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "max_runs_per_hour",
+          "notNull": false,
+          "type": "integer"
+        },
+        {
+          "default": null,
+          "name": "created_by",
+          "notNull": false,
+          "type": "character varying(32)"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": {
+        "workspaces_created_by_fkey": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+        "workspaces_pkey": "PRIMARY KEY (id)"
+      },
+      "indexes": {
+        "workspaces_pkey": "CREATE UNIQUE INDEX workspaces_pkey ON public.workspaces USING btree (id)"
+      }
+    }
+  }
+}

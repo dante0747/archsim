@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test logging: the application's warnings, without the embedded PostgreSQL's server log. -->
+<configuration>
+	<include resource="org/springframework/boot/logging/logback/base.xml"/>
+	<logger name="io.zonky.test.db.postgres" level="WARN"/>
+	<logger name="org.flywaydb" level="WARN"/>
+	<root level="WARN"/>
+</configuration>
