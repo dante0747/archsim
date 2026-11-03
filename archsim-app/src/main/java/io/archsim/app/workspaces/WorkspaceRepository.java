@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -30,6 +31,14 @@ class WorkspaceRepository {
 				SELECT w.id, w.name, w.kind, w.max_concurrent_runs, w.max_runs_per_hour, w.created_at, m.role
 				FROM workspaces w JOIN memberships m ON m.workspace_id = w.id
 				WHERE m.user_id = :user""").param("user", userId).query((rows, number) -> membership(rows)).list();
+	}
+
+	Optional<WorkspaceInfo> find(String id) {
+		return this.jdbc.sql("SELECT id, name, kind, max_runs_per_hour FROM workspaces WHERE id = :id")
+			.param("id", id)
+			.query((rows, number) -> new WorkspaceInfo(rows.getString("id"), rows.getString("name"),
+					rows.getString("kind"), rows.getObject("max_runs_per_hour", Integer.class)))
+			.optional();
 	}
 
 	/**

@@ -16,6 +16,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.web.ApiException;
@@ -54,7 +55,7 @@ public final class EngineService {
 	 * answer in time
 	 */
 	public JsonText analyze(JsonNode document, @Nullable String scenarioId) {
-		return call("/analyze", document, scenarioId);
+		return call("/analyze", design(document, scenarioId));
 	}
 
 	/**
@@ -68,13 +69,70 @@ public final class EngineService {
 	 * answer in time
 	 */
 	public JsonText validateScenario(JsonNode document, String scenarioId) {
-		return call("/validate", document, scenarioId);
+		return call("/validate", design(document, scenarioId));
 	}
 
-	private JsonText call(String path, JsonNode document, @Nullable String scenarioId) {
+	/**
+	 * Prepares a run to be queued ({@code prepare_run}): the design to store with it, its
+	 * scenario and seed, and whether a quick check can answer it.
+	 * @param request the design, scenario, limits and seed
+	 * @return what the engine prepared
+	 * @throws EngineRefusalException when the engine cannot simulate the design, or the
+	 * run is over its limits
+	 * @throws ApiException {@code 503} when the service cannot be reached or does not
+	 * answer in time
+	 */
+	public PreparedRun prepare(PrepareRequest request) {
+		ObjectNode body = design(request.document(), request.scenarioId());
+		body.put("maxRequests", request.maxRequests());
+		body.put("maxWallSeconds", request.maxWallSeconds());
+		body.put("seed", request.seed());
+		return RecordCodec.read(JSON.readTree(call("/prepare", body).json()), PreparedRun.class);
+	}
+
+	/**
+	 * Compares two finished runs' reports ({@code compare_reports}).
+	 * @param first the first run's report
+	 * @param second the second run's report
+	 * @param firstLabel what to call the first
+	 * @param secondLabel what to call the second
+	 * @return the comparison: KPI deltas, input differences and explanations
+	 * @throws ApiException {@code 503} when the service cannot be reached or does not
+	 * answer in time
+	 */
+	public ObjectNode compare(JsonNode first, JsonNode second, String firstLabel, String secondLabel) {
+		ObjectNode body = JSON.createObjectNode();
+		body.set("a", first);
+		body.set("b", second);
+		body.put("labelA", firstLabel);
+		body.put("labelB", secondLabel);
+		return (ObjectNode) JSON.readTree(call("/compare", body).json());
+	}
+
+	/**
+	 * The summary of a seed group's runs against the objectives they ran with
+	 * ({@code summarize_seeds}).
+	 * @param runs each run's {@code seed} and, if it succeeded, {@code summary}
+	 * @param objectives the design's objectives
+	 * @return the summary: the verdict split, percentiles and ranges
+	 * @throws ApiException {@code 503} when the service cannot be reached or does not
+	 * answer in time
+	 */
+	public JsonNode summarizeSeeds(ArrayNode runs, JsonNode objectives) {
+		ObjectNode body = JSON.createObjectNode();
+		body.set("runs", runs);
+		body.set("objectives", objectives);
+		return JSON.readTree(call("/summarize-seeds", body).json());
+	}
+
+	private static ObjectNode design(JsonNode document, @Nullable String scenarioId) {
 		ObjectNode request = JSON.createObjectNode();
 		request.set("document", document);
 		request.put("scenarioId", scenarioId);
+		return request;
+	}
+
+	private JsonText call(String path, ObjectNode request) {
 		try {
 			String answer = this.http.post()
 				.uri(path)
@@ -99,18 +157,20 @@ public final class EngineService {
 	}
 
 	/**
-	 * Reads the issues of a {@code 422} answer and throws them.
+	 * Reads a {@code 422} answer and throws it.
 	 * @param response the engine service's answer
-	 * @throws EngineRefusalException always, with the answer's issues
+	 * @throws EngineRefusalException always, with the answer's words and issues
 	 */
 	private static void refuse(ClientHttpResponse response) throws IOException {
 		try (InputStream body = response.getBody()) {
-			List<Issue> issues = JSON.readTree(body)
-				.path("issues")
+			JsonNode refusal = JSON.readTree(body);
+			List<Issue> issues = refusal.path("issues")
 				.valueStream()
 				.map((issue) -> RecordCodec.read(issue, Issue.class))
 				.toList();
-			throw new EngineRefusalException(issues);
+			String message = refusal.path("message").asString("");
+			throw refusal.path("limit").asBoolean(false) ? EngineRefusalException.runOverLimits(message)
+					: EngineRefusalException.invalidDesign(message, issues);
 		}
 	}
 

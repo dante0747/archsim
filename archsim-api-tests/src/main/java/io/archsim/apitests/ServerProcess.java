@@ -14,6 +14,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An API server the suite started: its process (and children), address, database and log.
  */
@@ -67,14 +69,15 @@ public final class ServerProcess {
 	/**
 	 * Waits until the server's health check answers 200; fails, with the log's end, if
 	 * not.
+	 * @param health what answers 200 once the server is ready
 	 * @param timeout how long to wait
 	 */
-	void awaitHealthy(Duration timeout) {
+	void awaitHealthy(URI health, Duration timeout) {
 		HttpClient http = HttpClient.newBuilder()
 			.version(HttpClient.Version.HTTP_1_1)
 			.connectTimeout(HEALTH_CONNECT_TIMEOUT)
 			.build();
-		HttpRequest check = HttpRequest.newBuilder(this.urls.health()).timeout(HEALTH_TIMEOUT).build();
+		HttpRequest check = HttpRequest.newBuilder(health).timeout(HEALTH_TIMEOUT).build();
 		long deadline = System.nanoTime() + timeout.toNanos();
 		while (System.nanoTime() < deadline) {
 			if (!this.process.isAlive()) {
@@ -88,6 +91,28 @@ public final class ServerProcess {
 		}
 		stop();
 		throw new IllegalStateException(this.name + " was not healthy within " + timeout + ":\n" + logTail());
+	}
+
+	/**
+	 * Waits until the process logs a line, for a process that answers no HTTP (a worker);
+	 * fails, with the log's end, if not.
+	 * @param ready what the log says once the process is ready
+	 * @param timeout how long to wait
+	 */
+	void awaitLogged(String ready, Duration timeout) {
+		long deadline = System.nanoTime() + timeout.toNanos();
+		while (System.nanoTime() < deadline) {
+			if (!this.process.isAlive()) {
+				throw new IllegalStateException(this.name + " stopped (exit " + this.process.exitValue()
+						+ ") before it was ready:\n" + logTail());
+			}
+			if (log().contains(ready)) {
+				return;
+			}
+			Runs.pause(HEALTH_POLL_INTERVAL);
+		}
+		stop();
+		throw new IllegalStateException(this.name + " was not ready within " + timeout + ":\n" + logTail());
 	}
 
 	/** Stops the server and every process it started (simulation processes included). */
@@ -120,6 +145,15 @@ public final class ServerProcess {
 		}
 	}
 
+	private String log() {
+		try {
+			return Files.readString(this.log, StandardCharsets.UTF_8);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
+	}
+
 	private String logTail() {
 		try {
 			List<String> lines = Files.readAllLines(this.log, StandardCharsets.UTF_8);
@@ -135,9 +169,10 @@ public final class ServerProcess {
 	 *
 	 * @param api the server's base URL
 	 * @param jdbc the JDBC URL of the server's database
-	 * @param health what answers 200 once the server is ready
+	 * @param health what answers 200 once the server is ready; none for a worker, which
+	 * answers no HTTP
 	 */
-	record Urls(URI api, String jdbc, URI health) {
+	record Urls(URI api, String jdbc, @Nullable URI health) {
 	}
 
 }

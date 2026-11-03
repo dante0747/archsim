@@ -21,7 +21,7 @@ import io.archsim.app.web.ApiException;
  * and {@code 403} to a role too weak for the request.
  */
 @Service
-class ProjectService {
+public class ProjectService {
 
 	private static final int MAX_NAME = 120;
 
@@ -127,8 +127,40 @@ class ProjectService {
 		return new Revision(name, description, design, expected);
 	}
 
+	/**
+	 * A project's saved design, for a feature that works on it (a run simulates it).
+	 * @param principal who is asking
+	 * @param projectId the project
+	 * @param minimum the role the work needs
+	 * @return the project's id, workspace and design
+	 * @throws ApiException {@code 404} without a role in its workspace, {@code 403} with
+	 * one too weak
+	 */
+	public ProjectDesign design(Principal principal, String projectId, WorkspaceRole minimum) {
+		Project project = accessible(principal, projectId, minimum);
+		return new ProjectDesign(project.id(), project.workspaceId(), project.document());
+	}
+
+	/**
+	 * Checks that the principal may work on a project, without reading it.
+	 * @param principal who is asking
+	 * @param projectId the project
+	 * @param minimum the role the work needs
+	 * @throws ApiException {@code 404} without a role in its workspace, {@code 403} with
+	 * one too weak
+	 */
+	public void requireAccess(Principal principal, String projectId, WorkspaceRole minimum) {
+		String what = what(projectId);
+		String workspaceId = this.projects.workspaceOf(projectId).orElseThrow(() -> Access.notFound(what));
+		this.access.require(principal, workspaceId, minimum, what);
+	}
+
+	private static String what(String projectId) {
+		return "Project '" + projectId + "'";
+	}
+
 	private Project accessible(Principal principal, String id, WorkspaceRole minimum) {
-		String what = "Project '" + id + "'";
+		String what = what(id);
 		Project project = this.projects.find(id).orElseThrow(() -> Access.notFound(what));
 		this.access.require(principal, project.workspaceId(), minimum, what);
 		return project;

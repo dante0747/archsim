@@ -1,8 +1,9 @@
 """The engine service's HTTP app: one ``POST`` endpoint per engine call, JSON in and out.
 
-A call the engine refuses because the document cannot be read answers ``422`` with the engine's
-issues, ``{"issues": [...]}``; the Java API turns that into its own error body. Answers are
-written as FastAPI wrote them, so the Java API can pass them on unchanged.
+A call the engine refuses answers ``422`` with ``{"message", "issues", "limit"}``: the engine's
+words and issues for a document it cannot read (``limit`` false), or for a run over its limits
+(``limit`` true, no issues). The Java API turns that into its own error body. Answers are written
+as FastAPI wrote them, so the Java API can pass them on unchanged.
 """
 
 from __future__ import annotations
@@ -21,9 +22,15 @@ from archsim_engine import (
     ENGINE_VERSION,
     ComponentRegistry,
     DocumentInvalidError,
+    SimulationLimitError,
+    SimulationLimits,
+    compare_reports,
     default_registry,
     load_document,
+    prepare_run,
+    quick_check,
     resolve_scenario,
+    summarize_seeds,
     validate_document,
 )
 from archsim_engine import analyze_document as engine_analyze
@@ -53,6 +60,20 @@ def document_of(body: dict[str, Any]) -> dict[str, Any]:
     return document
 
 
+def whole_number(body: dict[str, Any], name: str) -> int | None:
+    value = body.get(name)
+    if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+        raise BadRequest(f"{name} must be a whole number")
+    return value
+
+
+def number(body: dict[str, Any], name: str) -> float:
+    value = body.get(name)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise BadRequest(f"{name} must be a number")
+    return float(value)
+
+
 def scenario_of(body: dict[str, Any]) -> str | None:
     scenario = body.get("scenarioId")
     if scenario is not None and not isinstance(scenario, str):
@@ -75,12 +96,16 @@ def endpoint(call: Callable[[dict[str, Any], ComponentRegistry], Any]) -> Handle
         except BadRequest as exc:
             return JSONResponse({"message": str(exc)}, status_code=400)
         except DocumentInvalidError as exc:
-            return JSONResponse(
-                {"issues": [issue.to_dict() for issue in exc.issues]}, status_code=422
-            )
+            return refused(str(exc), [issue.to_dict() for issue in exc.issues], limit=False)
+        except SimulationLimitError as exc:
+            return refused(str(exc), [], limit=True)
         return JSONResponse(result)
 
     return handle
+
+
+def refused(message: str, issues: list[dict[str, Any]], *, limit: bool) -> Response:
+    return JSONResponse({"message": message, "issues": issues, "limit": limit}, status_code=422)
 
 
 def analyze(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
@@ -101,6 +126,52 @@ def validate(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any
     return validate_document(resolved if scenario_id else doc, registry).to_dict()
 
 
+def prepare(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
+    """``prepare_run`` of a run about to be queued, within ``maxRequests`` and ``maxWallSeconds``,
+    with ``seed`` replacing the workload's: the document to store with the run, its scenario,
+    the seed it runs with, and whether a quick check can answer it."""
+    prepared = prepare_run(
+        document_of(body), scenario_of(body), registry, limits_of(body), whole_number(body, "seed")
+    )
+    return {
+        "scenarioId": prepared.scenario_id,
+        "scenarioName": prepared.scenario_name,
+        "seed": prepared.resolved.workload.seed,
+        "document": prepared.document.to_json_dict(),
+        "quickCheck": quick_check(prepared.resolved.workload),
+    }
+
+
+def limits_of(body: dict[str, Any]) -> SimulationLimits:
+    """The run's limits: ``maxRequests`` and ``maxWallSeconds``, its workspace's."""
+    max_requests = whole_number(body, "maxRequests")
+    if max_requests is None:
+        raise BadRequest("maxRequests must be a whole number")
+    return SimulationLimits(
+        max_requests=max_requests, max_wall_seconds=number(body, "maxWallSeconds")
+    )
+
+
+def compare(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
+    """``compare_reports`` of two finished runs' reports, named ``labelA`` and ``labelB``."""
+    a, b = body.get("a"), body.get("b")
+    label_a, label_b = body.get("labelA"), body.get("labelB")
+    if not isinstance(a, dict) or not isinstance(b, dict):
+        raise BadRequest("a and b must be reports")
+    if not isinstance(label_a, str) or not isinstance(label_b, str):
+        raise BadRequest("labelA and labelB must be strings")
+    return compare_reports(a, b, label_a, label_b)
+
+
+def seeds(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
+    """``summarize_seeds`` of a seed group's runs against the objectives they ran with."""
+    runs = body.get("runs")
+    objectives = body.get("objectives")
+    if not isinstance(runs, list) or not isinstance(objectives, dict):
+        raise BadRequest("runs must be a list and objectives an object")
+    return summarize_seeds(runs, objectives)
+
+
 async def health(request: Request) -> Response:
     return JSONResponse({"status": "ok", "engineVersion": ENGINE_VERSION})
 
@@ -112,6 +183,9 @@ def create_app() -> Starlette:
             Route("/health", health, methods=["GET"]),
             Route("/analyze", endpoint(analyze), methods=["POST"]),
             Route("/validate", endpoint(validate), methods=["POST"]),
+            Route("/prepare", endpoint(prepare), methods=["POST"]),
+            Route("/compare", endpoint(compare), methods=["POST"]),
+            Route("/summarize-seeds", endpoint(seeds), methods=["POST"]),
         ]
     )
     app.state.registry = default_registry()

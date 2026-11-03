@@ -60,6 +60,17 @@ public class Workspaces {
 	}
 
 	/**
+	 * A workspace something of it refers to (a project, a run), which therefore exists.
+	 * @param id the workspace's id
+	 * @return the workspace
+	 * @throws IllegalStateException when there is no such workspace
+	 */
+	public WorkspaceInfo get(String id) {
+		return this.repository.find(id)
+			.orElseThrow(() -> new IllegalStateException("no workspace " + id + ", which a row refers to"));
+	}
+
+	/**
 	 * Makes a workspace in the caller's transaction, with its maker as its owner.
 	 * @param name its name, cut to 120 characters
 	 * @param kind {@code personal}, {@code team} or {@code sandbox}

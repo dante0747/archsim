@@ -5,14 +5,16 @@ which replaces the FastAPI API in `services/api` endpoint for endpoint. It serve
 cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI and the
 [black-box suite](../archsim-api-tests/README.md) work against either API, and both can share one
 database while the port is under way. Simulations stay in Python until stage 4: runs go to the
-Python workers through the shared queue, and the engine's synchronous calls (an analysis) go to
-a small internal Python engine service, `services/engine-service`.
+Python workers through the shared queue, and the engine's synchronous calls (an analysis, a
+scenario's validation, preparing a run, comparing two, summarizing a seed group) go to a small
+internal Python engine service, `services/engine-service`.
 
 ## Running it
 
 ```bash
 ./gradlew :archsim-app:bootJar
 uv run archsim-engine-service --port 8001       # the engine's synchronous calls (ADR-0036)
+uv run archsim-api worker                       # simulates the runs the API queues (Python, until stage 4)
 java -jar archsim-app/build/libs/archsim-app.jar api --server.port=8000
 java -jar archsim-app/build/libs/archsim-app.jar migrate
 ```
@@ -57,6 +59,7 @@ ways.
 | `examples` | `GET /examples`, `GET /examples/{id}` |
 | `analysis` | `POST /validate` (archsim-model; a scenario through the engine service), `POST /analyze` (engine service) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
+| `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are queued in `simulation_runs`, and the Python workers simulate them until stage 4 |
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
@@ -73,8 +76,8 @@ ways.
 | 1 | health, meta, components, pricing, architecture schema, examples, OpenAPI | done |
 | 2 | validate, analyze (Python engine service), projects, documents | done |
 | 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
-| 4 | runs and the queue | next |
-| 5 | shares, reviews, workspaces, limits, import and export, calibration | |
+| 4 | runs and the queue (the workers stay Python) | done |
+| 5 | shares, reviews, workspaces, limits, import and export, calibration | next |
 | 6 | compose runs the Java API; FastAPI deleted | |
 
 ## Tests
@@ -119,12 +122,19 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - An OAuth provider whose profile names no account id (`"id": null`) fails the sign-in
   (`/signin?error=provider`); Python stored the account under the subject `None`.
 - The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
-  be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, `/analyze` and scenario validation
-  answer `503` saying which. The Python API computed in-process, with no time limit.
+  be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, the requests that need it answer
+  `503` saying which: `/analyze`, scenario validation, starting a run (one, a batch, a seed group
+  or a rerun), `/compare` and `GET /run-groups/{id}`, which summarizes its runs through it. The
+  Python API computed in-process, with no time limit.
 - The order of refusals differs. Java reads a request's body before it checks access, so a body
   that does not fit is `422` where FastAPI first answered `404` or `403` (a project or workspace
   the asker may not use). In a server with sign-in, a body that is not JSON is `401` signed out,
   where FastAPI answered `422`.
+- The Java API has no embedded worker: the runs it queues are simulated by `archsim-api worker`
+  processes (Python) on the same database. `ARCHSIM_EMBEDDED_WORKER` does nothing to it.
+- A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote
+  `1e-05`); `GET /compare` and `GET /run-groups/{id}` spell the engine's numbers as Java writes
+  them. Clients read the same numbers.
 - Numbers in a stored design come back spelled as Java writes them (`0.0005` as `5.0E-4`,
   `1e-05` as `1.0E-5`); clients read the same numbers.
 - `/api/v1/projects/` (a trailing slash) is `404`; Starlette redirected it (`307`) to
@@ -144,5 +154,12 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   `X-ArchSim-CSRF` header with `hmac.compare_digest`, which raises on text that is not ASCII, so
   such a request answered `500`. Java compares bytes: the callback lands on
   `/signin?error=state`, and the change is refused with `403`.
+
+- **Refused runs counted against the hour.** Python counted a run, or a rerun, against the hourly
+  limits before the engine prepared it, so a design it could not simulate, or a run over its
+  limits, still used up one of the hour's runs. Java prepares and checks first.
+- **Seed groups and batches half queued.** Python queued a group's runs, and a batch's, one by
+  one, each in its own transaction, so a failure part-way left a group with fewer runs than its
+  size, or part of a batch. Java queues a group with its runs, and a batch, in one transaction.
 
 More are listed here as their endpoints are ported.

@@ -139,19 +139,23 @@ jobs:
         run: ./gradlew build
       - name: Black-box API tests against the Python API
         run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python
-      # the endpoints the Java API serves so far, with the Python engine service next to it;
-      # the list grows with each slice of stage 2 until it is the whole suite
+      # the endpoints the Java API serves so far, with the Python engine service and a Python
+      # worker next to it; the list grows with each slice of stage 2 until it is the whole suite
       - name: Black-box API tests against the Java API (ported endpoints)
         run: >-
           ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
           --tests '*EndpointsTests.meta_*' --tests '*EndpointsTests.validate_*'
           --tests '*EndpointsTests.analyze_*' --tests '*EndpointsTests.pricing_*'
           --tests '*EndpointsTests.create_fromExampleOrBlank_*' --tests '*EndpointsTests.importExport_*'
-          --tests '*EndpointsTests.import_withBodyOverTheLimit_*' --tests '*LimitsTests.answers_ofLocalServer_*'
-          --tests '*OAuthTests' --tests '*TokensTests.createToken_*' --tests '*TokensTests.revokeToken_*'
-          --tests '*TokensTests.request_withRevokedExpiredOrMistypedToken_*' --tests '*TokensTests.csrfCookie_*'
-          --tests '*TokensTests.change_withAnotherSessionsCsrfToken_*'
-          --tests '*TokensTests.change_withoutSignIn_needsNoCsrfHeaderOrToken'
+          --tests '*EndpointsTests.import_*' --tests '*EndpointsTests.run_*' --tests '*EndpointsTests.batch_*'
+          --tests '*EndpointsTests.cancel_*' --tests '*EndpointsTests.delete_*' --tests '*EndpointsTests.update_*'
+          --tests '*LimitsTests.answers_ofLocalServer_*' --tests '*OAuthTests'
+          --tests '*TokensTests.createToken_*' --tests '*TokensTests.revokeToken_*' --tests '*TokensTests.change_*'
+          --tests '*TokensTests.csrfCookie_*' --tests '*TokensTests.request_withWriteToken_*'
+          --tests '*TokensTests.request_withReadToken_*' --tests '*TokensTests.request_withRevokedExpiredOrMistypedToken_*'
+          --tests '*RunGroupsTests.quickCheck*' --tests '*RunGroupsTests.seedGroup*'
+          --tests '*RunGroupsTests.startRuns_withThreeSeeds_*' --tests '*RunGroupsTests.startRuns_withSeedsOutOfRange_*'
+          --tests '*RunGroupsTests.startRuns_inHostedWorkspace_*' --tests '*RunGroupsTests.startRuns_seedGroupPastTheHourlyLimit_*'
       - name: Upload the test reports and server logs
         if: failure()
         uses: actions/upload-artifact@v7

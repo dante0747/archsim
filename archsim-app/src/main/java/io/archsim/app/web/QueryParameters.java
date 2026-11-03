@@ -2,7 +2,9 @@ package io.archsim.app.web;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
@@ -57,6 +59,24 @@ public final class QueryParameters {
 			throw RequestInvalidException.queryNotBoolean(name, value.get());
 		}
 		return TRUE.contains(word);
+	}
+
+	/**
+	 * Parameters an endpoint needs.
+	 * @param parameters each parameter's values by its name, in the endpoint's order
+	 * @return each parameter's last value, in that order
+	 * @throws RequestInvalidException {@code 422} listing every one not given
+	 */
+	public static List<String> required(SequencedMap<String, @Nullable List<String>> parameters) {
+		List<String> missing = parameters.entrySet()
+			.stream()
+			.filter((parameter) -> last(parameter.getValue()).isEmpty())
+			.map(Map.Entry::getKey)
+			.toList();
+		if (!missing.isEmpty()) {
+			throw RequestInvalidException.queryMissing(missing);
+		}
+		return parameters.values().stream().map((values) -> last(values).orElseThrow()).toList();
 	}
 
 	private static Optional<String> last(@Nullable List<String> values) {

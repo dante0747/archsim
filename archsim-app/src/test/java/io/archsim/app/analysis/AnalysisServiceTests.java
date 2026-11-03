@@ -86,7 +86,7 @@ class AnalysisServiceTests {
 	void analyze_designTheEngineCannotRead_isRefusedWithItsIssues() throws IOException {
 		ObjectNode design = starter();
 		given(this.engine.analyze(design, null))
-			.willThrow(new EngineRefusalException(List.of(Issue.error("document.schema", "bad"))));
+			.willThrow(EngineRefusalException.invalidDesign("bad", List.of(Issue.error("document.schema", "bad"))));
 
 		assertThatExceptionOfType(ApiException.class)
 			.isThrownBy(() -> this.service.analyze(new AnalysisRequest(design, null)))

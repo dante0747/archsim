@@ -50,6 +50,24 @@ public class AuditLog {
 				"project", project.id(), details, Times.now(this.clock)));
 	}
 
+	/**
+	 * Records a change to a run: started, cancelled or deleted.
+	 * @param action the change, such as {@code run.create}
+	 * @param run the run
+	 * @param principal who made the change
+	 */
+	public void run(String action, RunTarget run, Principal principal) {
+		ObjectNode details = this.json.createObjectNode();
+		if (run.label() != null) {
+			details.put("label", run.label());
+		}
+		if (run.scenarioName() != null) {
+			details.put("scenario", run.scenarioName());
+		}
+		this.repository.insert(new AuditEvent(run.workspaceId(), run.projectId(), actorOf(principal), action, "run",
+				run.id(), details, Times.now(this.clock)));
+	}
+
 	private static Actor actorOf(Principal principal) {
 		String kind = (principal.kind() == PrincipalKind.TOKEN) ? "token" : "user";
 		return new Actor(principal.userId(), kind, principal.ip());

@@ -58,6 +58,21 @@ class WorkspaceLimitsTests {
 	}
 
 	@Test
+	void runLimits_sandbox_areTightenedByItsOwn() {
+		assertThat(this.local.runLimits("sandbox")).isEqualTo(new WorkspaceLimits.RunLimits(200_000, 20.0));
+	}
+
+	@Test
+	void runLimits_teamWithoutLimits_areTheServers() {
+		assertThat(this.local.runLimits("team")).isEqualTo(new WorkspaceLimits.RunLimits(2_000_000, 300.0));
+	}
+
+	@Test
+	void maxSeeds_hostedTeam_isFive() {
+		assertThat(this.hosted.maxSeeds("team")).isEqualTo(5);
+	}
+
+	@Test
 	void runsPerHour_withLimitsOn_isTheKinds() {
 		assertThat(this.hosted.runsPerHour("sandbox", null)).hasValue(20);
 	}

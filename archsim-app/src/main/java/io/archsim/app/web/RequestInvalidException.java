@@ -68,6 +68,18 @@ public final class RequestInvalidException extends RuntimeException {
 	}
 
 	/**
+	 * Query parameters an endpoint needs and the request lacks.
+	 * @param names the parameters' names
+	 * @return the refusal, one error each, as pydantic words it
+	 */
+	public static RequestInvalidException queryMissing(List<String> names) {
+		ArrayNode errors = NODES.arrayNode();
+		names.forEach((name) -> errors
+			.add(error(MISSING, NODES.arrayNode().add("query").add(name), "Field required").putNull("input")));
+		return new RequestInvalidException(errors);
+	}
+
+	/**
 	 * A query parameter that should be a boolean and is not one of pydantic's words for
 	 * one.
 	 * @param name the parameter's name

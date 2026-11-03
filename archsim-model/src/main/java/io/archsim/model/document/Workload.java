@@ -39,7 +39,7 @@ public record Workload(
 		@Default("10.0") @Description(Descriptions.WORKLOAD_WARMUP_S) @Ui(label = "Warm-up", unit = "s",
 				group = Descriptions.WORKLOAD_RUN_GROUP) @Ge(0) @Le(3600) double warmupS,
 		@Default("42") @Description(Descriptions.WORKLOAD_SEED) @Ui(label = "Seed",
-				group = Descriptions.WORKLOAD_RUN_GROUP) @Ge(0) @Le(4_294_967_295L) long seed,
+				group = Descriptions.WORKLOAD_RUN_GROUP) @Ge(0) @Le(MAX_SEED) long seed,
 		@Default("0.9") @Description(Descriptions.WORKLOAD_READ_RATIO) @Ui(label = "Read ratio",
 				group = Descriptions.WORKLOAD_TRAFFIC_GROUP, assumption = true,
 				step = 0.05) @Ge(0) @Le(1) double readRatio,
@@ -56,6 +56,9 @@ public record Workload(
 				group = Descriptions.WORKLOAD_RUN_GROUP) @Ge(0) @Le(600) @Nullable Double drainS,
 		@Default("[]") @Description(Descriptions.WORKLOAD_FAULTS) @Ui(label = "Faults", kind = "faults",
 				group = Descriptions.WORKLOAD_CHAOS_GROUP, hidden = true) @MaxItems(20) List<Fault> faults) {
+
+	/** The largest seed the engine takes: 2<sup>32</sup> - 1. */
+	public static final long MAX_SEED = 4_294_967_295L;
 
 	/** The default traffic pattern: the baseline load throughout. */
 	static final TrafficPattern CONSTANT_LOAD = new ConstantPattern();

@@ -37,6 +37,18 @@ class ProjectRepository {
 		this.json = json;
 	}
 
+	/**
+	 * The workspace a project is in.
+	 * @param id the project
+	 * @return its workspace's id, if the project exists
+	 */
+	Optional<String> workspaceOf(String id) {
+		return this.jdbc.sql("SELECT workspace_id FROM projects WHERE id = :id")
+			.param("id", id)
+			.query((rows, number) -> rows.getString("workspace_id"))
+			.optional();
+	}
+
 	Optional<Project> find(String id) {
 		return this.jdbc.sql("SELECT " + COLUMNS + " FROM projects WHERE id = :id")
 			.param("id", id)

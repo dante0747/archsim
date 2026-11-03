@@ -102,6 +102,31 @@ public class WorkspaceLimits {
 	}
 
 	/**
+	 * The largest run a workspace of a kind may start: the server's own limits, tightened
+	 * by the kind's.
+	 * @param kind the workspace's kind
+	 * @return the most requests and wall-clock seconds of one run
+	 */
+	public RunLimits runLimits(String kind) {
+		LimitProfile profile = profile(kind);
+		Long requests = profile.maxRequests();
+		Double seconds = profile.maxWallSeconds();
+		return new RunLimits(
+				(requests != null) ? Math.min(this.properties.maxRequests(), requests) : this.properties.maxRequests(),
+				(seconds != null) ? Math.min(this.properties.maxWallSeconds(), seconds)
+						: this.properties.maxWallSeconds());
+	}
+
+	/**
+	 * The most runs one seed group of a workspace of a kind may start.
+	 * @param kind the workspace's kind
+	 * @return the most seeds
+	 */
+	public int maxSeeds(String kind) {
+		return profile(kind).maxSeeds();
+	}
+
+	/**
 	 * A personal or team workspace's hosted limits: runs at once and per hour; the
 	 * server's own run sizes, any number of projects.
 	 * @param atOnce runs simulated at once
@@ -114,6 +139,16 @@ public class WorkspaceLimits {
 
 	private static OptionalInt optional(@Nullable Integer limit) {
 		return (limit != null) ? OptionalInt.of(limit) : OptionalInt.empty();
+	}
+
+	/**
+	 * The largest run a workspace may start.
+	 *
+	 * @param maxRequests expected requests in one run
+	 * @param maxWallSeconds wall-clock seconds one run may take
+	 */
+	public record RunLimits(long maxRequests, double maxWallSeconds) {
+
 	}
 
 }

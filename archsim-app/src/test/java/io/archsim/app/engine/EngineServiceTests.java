@@ -21,6 +21,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
+import io.archsim.model.codec.BindingException;
 import io.archsim.model.issue.Issue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,6 +84,80 @@ class EngineServiceTests {
 			.isThrownBy(() -> engine.validateScenario(DESIGN, "three-api-replicas"))
 			.extracting(ApiException::status)
 			.isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+	}
+
+	@Test
+	void prepare_answer_isTheRunToQueue() throws IOException {
+		EngineService engine = serving(200, """
+				{"scenarioId": "peak", "scenarioName": "Peak", "seed": 7, "document": {"kind": "archsim.architecture"},
+				 "quickCheck": {"eligible": false, "reason": "the traffic is not constant", "requestedS": 60.0,
+				                "simulatedS": null, "sampleS": null}}""");
+
+		PreparedRun prepared = engine.prepare(new PrepareRequest(DESIGN, "peak", 1000, 20.0, 7L));
+
+		assertThat(prepared.scenarioName()).isEqualTo("Peak");
+		assertThat(prepared.seed()).isEqualTo(7);
+		assertThat(prepared.quickCheck().reason()).isEqualTo("the traffic is not constant");
+	}
+
+	@Test
+	void prepare_request_carriesTheLimitsAndSeed() throws IOException {
+		EngineService engine = serving(200, """
+				{"scenarioId": null, "scenarioName": null, "seed": 1, "document": {},
+				 "quickCheck": {"eligible": true, "reason": "", "requestedS": 60.0, "simulatedS": 30.0,
+				                "sampleS": 20.0}}""");
+
+		engine.prepare(new PrepareRequest(DESIGN, null, 1000, 20.0, null));
+
+		assertThat(JSON.readTree(this.received.get())).isEqualTo(JSON.readTree("""
+				{"document": {"kind": "archsim.architecture"}, "scenarioId": null, "maxRequests": 1000,
+				 "maxWallSeconds": 20.0, "seed": null}"""));
+	}
+
+	@Test
+	void prepare_runOverItsLimits_throwsTheEnginesWords() throws IOException {
+		EngineService engine = serving(422, "{\"message\": \"too many requests\", \"issues\": [], \"limit\": true}");
+
+		assertThatExceptionOfType(EngineRefusalException.class)
+			.isThrownBy(() -> engine.prepare(new PrepareRequest(DESIGN, null, 1000, 20.0, null)))
+			.satisfies((ex) -> {
+				assertThat(ex.overLimits()).isTrue();
+				assertThat(ex.engineMessage()).isEqualTo("too many requests");
+			});
+	}
+
+	@Test
+	void compare_request_carriesBothReportsAndTheirNames() throws IOException {
+		EngineService engine = serving(200, "{\"kpis\": []}");
+
+		engine.compare(JSON.readTree("{\"summary\": 1}"), JSON.readTree("{\"summary\": 2}"), "before", "after");
+
+		assertThat(JSON.readTree(this.received.get())).isEqualTo(JSON.readTree(
+				"{\"a\": {\"summary\": 1}, \"b\": {\"summary\": 2}, \"labelA\": \"before\", \"labelB\": \"after\"}"));
+	}
+
+	@Test
+	void prepare_answerMissingTheSeed_failsAtOnce() throws IOException {
+		EngineService engine = serving(200, """
+				{"scenarioId": null, "scenarioName": null, "document": {},
+				 "quickCheck": {"eligible": true, "reason": "", "requestedS": 60.0, "simulatedS": 30.0,
+				                "sampleS": 20.0}}""");
+
+		assertThatExceptionOfType(BindingException.class)
+			.isThrownBy(() -> engine.prepare(new PrepareRequest(DESIGN, null, 1000, 20.0, null)))
+			.satisfies((ex) -> assertThat(ex.errors()).extracting((error) -> error.location().parts())
+				.contains(List.of("seed")));
+	}
+
+	@Test
+	void summarizeSeeds_request_carriesTheRunsAndObjectives() throws IOException {
+		EngineService engine = serving(200, "{}");
+
+		engine.summarizeSeeds(JSON.createArrayNode().add(JSON.createObjectNode().put("seed", 42).putNull("summary")),
+				JSON.readTree("{\"latencyP95Ms\": 300.0}"));
+
+		assertThat(JSON.readTree(this.received.get())).isEqualTo(JSON
+			.readTree("{\"runs\": [{\"seed\": 42, \"summary\": null}], \"objectives\": {\"latencyP95Ms\": 300.0}}"));
 	}
 
 	private EngineService serving(int status, String answer) throws IOException {

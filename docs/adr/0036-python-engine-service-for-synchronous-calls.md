@@ -43,9 +43,12 @@ answers exactly as they are and can shrink one endpoint at a time.
   `archsim-engine`, Starlette and Uvicorn only: no database, no settings beyond the engine's own
   (`ARCHSIM_PRICES_DIR`), no authentication. It listens inside compose only.
 - One `POST` endpoint per engine call, JSON in and out: `{"document", "scenarioId"}` for
-  `/analyze` and for `/validate`, which the Java API calls only with a scenario. A document the
-  engine cannot read answers `422 {"issues": [...]}`; a request it cannot read,
-  `400 {"message"}`. Answers are encoded as FastAPI encoded them, so the Java API passes the
+  `/analyze` and for `/validate`, which the Java API calls only with a scenario; `/prepare` for a
+  run about to be queued (`prepare_run` within the run's limits and seed, with `quick_check`);
+  `/compare` for two reports (`compare_reports`); `/summarize-seeds` for a seed group
+  (`summarize_seeds`). A refusal answers `422 {"message", "issues", "limit"}`: the engine's
+  words and issues for a document it cannot read, or for a run over its limits (`limit` true); a
+  request it cannot read, `400 {"message"}`. Answers are encoded as FastAPI encoded them, so the Java API passes the
   bytes on. Each call runs in a worker thread, as FastAPI ran sync routes, so a long analysis
   holds up no other request; the service has no body limit of its own, as only the Java API,
   which limits bodies, calls it.

@@ -45,6 +45,7 @@ import org.springframework.validation.annotation.Validated;
  * @param rateLimits whether the limits per workspace, person and address apply (429 with
  * {@code Retry-After}), with the hosted limits per workspace kind; empty for on with
  * sign-in and off without
+ * @param runHistoryLimit how many of a project's runs its list shows
  */
 @ConfigurationProperties("archsim")
 @Validated
@@ -57,7 +58,7 @@ public record ArchsimProperties(
 		@DefaultValue("2000000") @Min(1) @Max(20_000_000) long maxRequests,
 		@DefaultValue("5000000") @Min(10_000) long maxBodyBytes, @Nullable String publicUrl,
 		@DefaultValue("none") AuthMode authMode, @DefaultValue("127.0.0.1,::1") HostList trustedProxies,
-		@Nullable Boolean rateLimits) {
+		@Nullable Boolean rateLimits, @DefaultValue("200") @Min(1) int runHistoryLimit) {
 
 	/** The most runs one worker simulates at once. */
 	static final int MAX_SLOTS = 32;
@@ -152,11 +153,11 @@ public record ArchsimProperties(
 	public String toString() {
 		return ("ArchsimProperties[databaseUrl=%s, examplesDir=%s, pricesDir=%s, corsOrigins=%s, autoMigrate=%s, "
 				+ "maxConcurrentRuns=%s, maxWallSeconds=%s, maxRequests=%s, maxBodyBytes=%s, publicUrl=%s, "
-				+ "authMode=%s, trustedProxies=%s, rateLimits=%s]")
+				+ "authMode=%s, trustedProxies=%s, rateLimits=%s, runHistoryLimit=%s]")
 			.formatted(DatabaseUrl.masked(this.databaseUrl), this.examplesDir, this.pricesDir,
 					this.corsOrigins.origins(), this.autoMigrate, this.maxConcurrentRuns, this.maxWallSeconds,
 					this.maxRequests, this.maxBodyBytes, this.publicUrl, this.authMode, this.trustedProxies.hosts(),
-					this.rateLimits);
+					this.rateLimits, this.runHistoryLimit);
 	}
 
 }

@@ -39,6 +39,9 @@ final class LocalApi {
 	/** What a JDBC URL starts with, before the database's own URL. */
 	private static final String JDBC_PREFIX = "jdbc:";
 
+	/** What a Python worker logs once it takes runs. */
+	private static final String WORKER_READY = "run(s) at once";
+
 	private LocalApi() {
 	}
 
@@ -54,9 +57,7 @@ final class LocalApi {
 		int port = config.basePort() + profile.portOffset();
 		String database = config.databasePrefix() + "_" + profile.id().replace('-', '_');
 		String jdbcUrl = recreateDatabase(config, database);
-		Map<String, String> settings = new HashMap<>(profile.settings(config));
-		settings.put("ARCHSIM_DATABASE_URL", sqlAlchemyUrl(config, jdbcUrl, database));
-		settings.put("ARCHSIM_EXAMPLES_DIR", config.repoRoot().resolve("examples").toString());
+		Map<String, String> settings = settings(config, profile, jdbcUrl, database);
 		List<ServerProcess> started = new ArrayList<>();
 		try {
 			if (api.needsEngineService()) {
@@ -72,6 +73,9 @@ final class LocalApi {
 							new ServerProcess.Urls(url, jdbcUrl, url.resolve(ApiClient.API + "/health"))),
 					settings, profile);
 			started.add(server);
+			if (api.needsWorkers()) {
+				started.add(launchWorker(config, profile, new ServerProcess.Urls(url, jdbcUrl, null), settings));
+			}
 			return new Started(server, started);
 		}
 		catch (IllegalStateException | UncheckedIOException ex) {
@@ -79,6 +83,22 @@ final class LocalApi {
 			started.forEach(ServerProcess::stop);
 			throw ex;
 		}
+	}
+
+	/**
+	 * Returns a server's {@code ARCHSIM_*} settings: its profile's, its database and the
+	 * examples.
+	 * @param config what the suite was told: the repository and the PostgreSQL user
+	 * @param profile the profile the server serves
+	 * @param jdbcUrl the database's JDBC URL
+	 * @param database the database's name
+	 * @return the settings, which the caller may add to
+	 */
+	private static Map<String, String> settings(SuiteConfig config, Profile profile, String jdbcUrl, String database) {
+		Map<String, String> settings = new HashMap<>(profile.settings(config));
+		settings.put("ARCHSIM_DATABASE_URL", sqlAlchemyUrl(config, jdbcUrl, database));
+		settings.put("ARCHSIM_EXAMPLES_DIR", config.repoRoot().resolve("examples").toString());
+		return settings;
 	}
 
 	/**
@@ -103,8 +123,24 @@ final class LocalApi {
 	}
 
 	/**
+	 * Starts a Python worker for an API, with the API's settings: it takes the runs the
+	 * API queues in their shared database. It starts after the API, which has migrated
+	 * the database.
+	 * @param config what the suite was told: the repository
+	 * @param profile the profile the API serves
+	 * @param urls the API's address and database; a worker answers no HTTP
+	 * @param settings the API's {@code ARCHSIM_*} settings
+	 * @return the running worker
+	 */
+	private static ServerProcess launchWorker(SuiteConfig config, Profile profile, ServerProcess.Urls urls,
+			Map<String, String> settings) {
+		return launch(new Launch(profile.id() + "-worker", "the " + profile.id() + " worker",
+				StartableApi.workerCommand(config), urls), settings, profile);
+	}
+
+	/**
 	 * Starts a process with only the given {@code ARCHSIM_*} settings and waits until it
-	 * is healthy.
+	 * is healthy, or for a worker, ready.
 	 * @param launch what to start
 	 * @param settings its {@code ARCHSIM_*} environment
 	 * @param profile the profile it serves, whose directory it runs in
@@ -121,8 +157,14 @@ final class LocalApi {
 		env.putAll(settings);
 		String described = launch.name() + ", log " + logFile;
 		ServerProcess server = new ServerProcess(described, run(builder, described), launch.urls(), logFile);
+		URI health = launch.urls().health();
 		try {
-			server.awaitHealthy(Duration.ofMinutes(2));
+			if (health != null) {
+				server.awaitHealthy(health, Duration.ofMinutes(2));
+			}
+			else {
+				server.awaitLogged(WORKER_READY, Duration.ofMinutes(2));
+			}
 		}
 		catch (IllegalStateException ex) {
 			server.stop();

@@ -1,7 +1,10 @@
 package io.archsim.app.web;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.SequencedMap;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -34,6 +37,26 @@ class QueryParametersTests {
 		assertThatExceptionOfType(RequestInvalidException.class)
 			.isThrownBy(() -> QueryParameters.text(List.of("abcd"), "next", 3))
 			.satisfies((ex) -> assertThat(ex.detail().get(0).path("type").asString()).isEqualTo("string_too_long"));
+	}
+
+	@Test
+	void required_given_areTheLastValuesInOrder() {
+		SequencedMap<String, @Nullable List<String>> query = new LinkedHashMap<>();
+		query.put("a", List.of("x", "first"));
+		query.put("b", List.of("second"));
+
+		assertThat(QueryParameters.required(query)).containsExactly("first", "second");
+	}
+
+	@Test
+	void required_missing_isRefusedNamingEveryOne() {
+		SequencedMap<String, @Nullable List<String>> query = new LinkedHashMap<>();
+		query.put("a", null);
+		query.put("b", List.of());
+
+		assertThatExceptionOfType(RequestInvalidException.class).isThrownBy(() -> QueryParameters.required(query))
+			.satisfies((ex) -> assertThat(ex.detail().valueStream().map((error) -> error.path("loc").get(1).asString()))
+				.containsExactly("a", "b"));
 	}
 
 	@ParameterizedTest
