@@ -1,7 +1,5 @@
 package io.archsim.app.migration;
 
-import java.util.List;
-
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy;
@@ -9,7 +7,7 @@ import org.springframework.mock.env.MockEnvironment;
 
 import io.archsim.app.Role;
 import io.archsim.app.config.ArchsimProperties;
-import io.archsim.app.config.CorsOrigins;
+import io.archsim.app.config.TestProperties;
 
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
@@ -44,8 +42,7 @@ class MigrationStrategyTests {
 	}
 
 	private static FlywayMigrationStrategy strategy(Role role, boolean autoMigrate) {
-		ArchsimProperties properties = new ArchsimProperties("postgresql://h/db", null, null,
-				new CorsOrigins(List.of()), autoMigrate, null, 300, 1, 10_000, null);
+		ArchsimProperties properties = TestProperties.with("auto-migrate=" + autoMigrate);
 		MockEnvironment environment = new MockEnvironment();
 		environment.setActiveProfiles(role.profile());
 		return new MigrationConfiguration().migrationStrategy(properties, environment);

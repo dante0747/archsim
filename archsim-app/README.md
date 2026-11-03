@@ -5,12 +5,14 @@ which replaces the FastAPI API in `services/api` endpoint for endpoint. It serve
 cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI and the
 [black-box suite](../archsim-api-tests/README.md) work against either API, and both can share one
 database while the port is under way. Simulations stay in Python until stage 4: runs go to the
-Python workers through the shared queue.
+Python workers through the shared queue, and the engine's synchronous calls (an analysis) go to
+a small internal Python engine service, `services/engine-service`.
 
 ## Running it
 
 ```bash
 ./gradlew :archsim-app:bootJar
+uv run archsim-engine-service --port 8001       # the engine's synchronous calls (ADR-0036)
 java -jar archsim-app/build/libs/archsim-app.jar api --server.port=8000
 java -jar archsim-app/build/libs/archsim-app.jar migrate
 ```
@@ -24,8 +26,10 @@ to the latest schema and exits. The rest of the command line is Spring Boot's
 Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 ([ADR-0035](../docs/adr/0035-read-the-python-apis-settings-unchanged.md)): `ARCHSIM_DATABASE_URL`
 may be a SQLAlchemy URL (`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`, the
-default) or a JDBC one. The OpenAPI document is at `/api/v1/openapi.json`, the interactive docs at
-`/api/v1/docs`.
+default) or a JDBC one. Two settings are the Java API's own: `ARCHSIM_ENGINE_URL`, where the
+engine service listens (default `http://127.0.0.1:8001`), and `ARCHSIM_ENGINE_TIMEOUT`, how many
+seconds an engine call may take (default 120). The OpenAPI document is at `/api/v1/openapi.json`,
+the interactive docs at `/api/v1/docs`.
 
 ## The database
 
@@ -51,14 +55,20 @@ ways.
 | `meta` | `GET /health`, `GET /meta` |
 | `catalog` | `GET /components`, `GET /pricing`, `GET /schema/architecture`, from [archsim-model](../archsim-model/README.md) |
 | `examples` | `GET /examples`, `GET /examples/{id}` |
+| `analysis` | `POST /validate` (archsim-model; a scenario through the engine service), `POST /analyze` (engine service) |
+| `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
+| `access` | who is asking (`Principal`), workspace roles, and the rule that what you may not see answers `404` |
+| `audit` | the history of changes, written in the transaction of each change |
+| `limits` | what a workspace's kind allows (a sandbox holds five projects) |
+| `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) |
 
 ## Endpoints ported
 
 | Slice | Endpoints | Status |
 | --- | --- | --- |
 | 1 | health, meta, components, pricing, architecture schema, examples, OpenAPI | done |
-| 2 | validate, analyze (Python engine service), projects, documents | next |
-| 3 | sign-in, sessions, CSRF, tokens | |
+| 2 | validate, analyze (Python engine service), projects, documents | done |
+| 3 | sign-in, sessions, CSRF, tokens | next |
 | 4 | runs and the queue | |
 | 5 | shares, reviews, workspaces, limits, import and export, calibration | |
 | 6 | compose runs the Java API; FastAPI deleted | |
@@ -100,7 +110,28 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - A `405` that Tomcat answers itself (`TRACE`) lists Tomcat's methods in `Allow`.
 - A SQLAlchemy URL without a host (a Unix socket, `postgresql+psycopg:///archsim`) is refused;
   the JDBC driver needs a host.
+- Until slice 3, a server with `ARCHSIM_AUTH_MODE=oauth` answers `401` to every request that
+  needs to know who is asking: sign-in, sessions and API tokens are not ported yet.
+- The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
+  be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, `/analyze` and scenario validation
+  answer `503` saying which. The Python API computed in-process, with no time limit.
+- The order of refusals differs. Java reads a request's body before it checks access, so a body
+  that does not fit is `422` where FastAPI first answered `404` or `403` (a project or workspace
+  the asker may not use). In a server with sign-in, a body that is not JSON is `401` signed out,
+  where FastAPI answered `422`.
+- Numbers in a stored design come back spelled as Java writes them (`0.0005` as `5.0E-4`,
+  `1e-05` as `1.0E-5`); clients read the same numbers.
+- `/api/v1/projects/` (a trailing slash) is `404`; Starlette redirected it (`307`) to
+  `/api/v1/projects`. The same holds for every route.
 - A request Tomcat cannot parse at all (a bad percent escape, oversized headers) gets Tomcat's
   plain `400` page.
 
-Bugs of the Python API the Java API does not copy are listed here as their endpoints are ported.
+### Python bugs not copied
+
+- **Lost saves.** Python checked `expectedRevision` and then saved, so two saves made from the
+  same revision at once both succeeded and one silently replaced the other. Java saves only if the
+  stored revision is still the one read, and answers the other `409`.
+- **A sandbox past its cap.** Python counted a workspace's projects and then added one, so
+  requests at once could take a sandbox past five projects. Java locks the workspace first.
+
+More are listed here as their endpoints are ported.

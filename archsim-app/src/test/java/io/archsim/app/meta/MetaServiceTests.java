@@ -1,11 +1,9 @@
 package io.archsim.app.meta;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import io.archsim.app.config.ArchsimProperties;
-import io.archsim.app.config.CorsOrigins;
+import io.archsim.app.config.TestProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -16,8 +14,8 @@ import static org.mockito.Mockito.mock;
  */
 class MetaServiceTests {
 
-	private static final ArchsimProperties PROPERTIES = new ArchsimProperties("postgresql://h/db", null, null,
-			new CorsOrigins(List.of()), true, 3, 120.0, 50_000, 10_000, null);
+	private static final ArchsimProperties PROPERTIES = TestProperties.with("max-concurrent-runs=3",
+			"max-wall-seconds=120", "max-requests=50000");
 
 	private final DatabaseProbe database = mock();
 

@@ -1,5 +1,7 @@
 package io.archsim.app;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -65,6 +67,29 @@ class ArchsimApplicationTests {
 			.bodyJson()
 			.extractingPath("$.paths['/api/v1/health']")
 			.isNotNull();
+	}
+
+	@Test
+	void openApi_apiBody_isTheRequestBodyWithTheCodecsSchema() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.extractingPath("$.paths['/api/v1/validate'].post.requestBody.content['application/json'].schema.required")
+			.isEqualTo(List.of("document"));
+	}
+
+	@Test
+	void openApi_apiBody_isNoQueryParameter() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.doesNotHavePath("$.paths['/api/v1/validate'].post.parameters");
+	}
+
+	@Test
+	void openApi_listOfProjects_namesTheWorkspaceParameter() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.extractingPath("$.paths['/api/v1/projects'].get.parameters[0].name")
+			.isEqualTo("workspace");
 	}
 
 }

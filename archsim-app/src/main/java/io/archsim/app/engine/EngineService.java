@@ -1,0 +1,117 @@
+package io.archsim.app.engine;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.http.HttpTimeoutException;
+import java.util.List;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.app.web.ApiException;
+import io.archsim.app.web.JsonText;
+import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.issue.Issue;
+
+/**
+ * The Python engine service (ADR-0036), which runs the engine's synchronous calls until
+ * stage 3 of the port moves each one to Java. Its answers are passed on as it wrote them.
+ */
+public final class EngineService {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(EngineService.class);
+
+	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	private final RestClient http;
+
+	/**
+	 * A client of the service at the base URL of {@code http}.
+	 * @param http a client whose base URL is the service's
+	 */
+	public EngineService(RestClient http) {
+		this.http = http;
+	}
+
+	/**
+	 * The auto sizes, cost and design review of a design or one of its scenarios
+	 * ({@code analyze_document}).
+	 * @param document the design, as the request carries it
+	 * @param scenarioId the scenario to analyze, or {@code null} for the design itself
+	 * @return the analysis, as the engine wrote it
+	 * @throws EngineRefusalException when the engine cannot read the design
+	 * @throws ApiException {@code 503} when the service cannot be reached or does not
+	 * answer in time
+	 */
+	public JsonText analyze(JsonNode document, @Nullable String scenarioId) {
+		return call("/analyze", document, scenarioId);
+	}
+
+	/**
+	 * The validation of one of a design's scenarios, resolved first as a run resolves it
+	 * (auto sizes, pinned prices, overrides). A design that cannot be read or resolved is
+	 * answered as invalid, not refused.
+	 * @param document the design, as the request carries it
+	 * @param scenarioId the scenario to validate
+	 * @return the validation, as the engine wrote it
+	 * @throws ApiException {@code 503} when the service cannot be reached or does not
+	 * answer in time
+	 */
+	public JsonText validateScenario(JsonNode document, String scenarioId) {
+		return call("/validate", document, scenarioId);
+	}
+
+	private JsonText call(String path, JsonNode document, @Nullable String scenarioId) {
+		ObjectNode request = JSON.createObjectNode();
+		request.set("document", document);
+		request.put("scenarioId", scenarioId);
+		try {
+			String answer = this.http.post()
+				.uri(path)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(request)
+				.retrieve()
+				.onStatus((status) -> status.isSameCodeAs(HttpStatus.UNPROCESSABLE_CONTENT),
+						(sent, response) -> refuse(response))
+				.body(String.class);
+			return new JsonText(Objects.requireNonNull(answer, "the engine service answered nothing"));
+		}
+		catch (ResourceAccessException ex) {
+			if (ex.getCause() instanceof HttpTimeoutException) {
+				LOGGER.warn("The engine service did not answer {} in time", path, ex);
+				throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+						"The simulation engine took too long to answer: a smaller design may be quicker", List.of());
+			}
+			LOGGER.warn("The engine service cannot be reached at {}", path, ex);
+			throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+					"The simulation engine is not available right now: try again in a moment", List.of());
+		}
+	}
+
+	/**
+	 * Reads the issues of a {@code 422} answer and throws them.
+	 * @param response the engine service's answer
+	 * @throws EngineRefusalException always, with the answer's issues
+	 */
+	private static void refuse(ClientHttpResponse response) throws IOException {
+		try (InputStream body = response.getBody()) {
+			List<Issue> issues = JSON.readTree(body)
+				.path("issues")
+				.valueStream()
+				.map((issue) -> RecordCodec.read(issue, Issue.class))
+				.toList();
+			throw new EngineRefusalException(issues);
+		}
+	}
+
+}

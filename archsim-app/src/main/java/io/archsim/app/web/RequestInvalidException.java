@@ -10,9 +10,9 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.model.codec.BindingError;
 
 /**
- * A request body that is not what the endpoint takes, refused as FastAPI refused it:
+ * A request that is not what the endpoint takes, refused as FastAPI refused it:
  * {@code 422 {"detail": [...]}}, one pydantic error per thing wrong, each located under
- * {@code "body"}.
+ * {@code "body"} or {@code "query"}.
  */
 public final class RequestInvalidException extends RuntimeException {
 
@@ -49,6 +49,21 @@ public final class RequestInvalidException extends RuntimeException {
 		ObjectNode error = error("json_invalid", NODES.arrayNode().add("body").add(offset), "JSON decode error");
 		error.set("input", NODES.objectNode());
 		error.putObject("ctx").put("error", reason);
+		return new RequestInvalidException(NODES.arrayNode().add(error));
+	}
+
+	/**
+	 * A query parameter longer than the endpoint takes.
+	 * @param name the parameter's name
+	 * @param value what the request gave
+	 * @param maxLength the most characters it may have
+	 * @return the refusal, as pydantic words it
+	 */
+	public static RequestInvalidException queryTooLong(String name, String value, int maxLength) {
+		ObjectNode error = error("string_too_long", NODES.arrayNode().add("query").add(name),
+				"String should have at most %d characters".formatted(maxLength));
+		error.put("input", value);
+		error.putObject("ctx").put("max_length", maxLength);
 		return new RequestInvalidException(NODES.arrayNode().add(error));
 	}
 

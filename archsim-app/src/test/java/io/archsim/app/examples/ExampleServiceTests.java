@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatus;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.config.ArchsimProperties;
-import io.archsim.app.config.CorsOrigins;
+import io.archsim.app.config.TestProperties;
 import io.archsim.app.web.ApiException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,8 +61,7 @@ class ExampleServiceTests {
 	}
 
 	private ExampleService service() {
-		ArchsimProperties properties = new ArchsimProperties("postgresql://h/db", this.folder.toString(), null,
-				new CorsOrigins(List.of()), true, null, 300, 1, 10_000, null);
+		ArchsimProperties properties = TestProperties.with("examples-dir=" + this.folder);
 		return new ExampleService(new ExampleRepository(properties, JsonMapper.builder().build()));
 	}
 

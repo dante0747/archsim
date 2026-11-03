@@ -2,6 +2,7 @@ package io.archsim.app.config;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -21,8 +22,7 @@ class ArchsimPropertiesTests {
 
 	@Test
 	void concurrentRuns_set_isTheSetting() {
-		ArchsimProperties properties = new ArchsimProperties("postgresql://h/db", null, null,
-				new CorsOrigins(List.of()), true, 3, 300, 1, 10_000, null);
+		ArchsimProperties properties = TestProperties.with("max-concurrent-runs=3");
 
 		assertThat(properties.concurrentRuns()).isEqualTo(3);
 	}
@@ -45,17 +45,37 @@ class ArchsimPropertiesTests {
 	}
 
 	@Test
+	void hosted_oauth_isTrue() {
+		assertThat(TestProperties.with("auth-mode=oauth").hosted()).isTrue();
+	}
+
+	@Test
+	void hosted_byDefault_isFalse() {
+		assertThat(TestProperties.with().hosted()).isFalse();
+	}
+
+	@Test
+	void trustedProxies_notSet_areThisMachine() {
+		assertThat(TestProperties.with().trustedProxies().hosts()).containsExactly("127.0.0.1", "::1");
+	}
+
+	@Test
 	void toString_databaseUrlWithPassword_masksIt() {
-		ArchsimProperties properties = new ArchsimProperties("postgresql://archsim:s3cret@db/archsim", null, null,
-				new CorsOrigins(List.of()), true, null, 300, 1, 10_000, null);
+		ArchsimProperties properties = TestProperties.with("database-url=postgresql://archsim:s3cret@db/archsim");
 
 		assertThat(properties.toString()).contains("databaseUrl=postgresql://archsim:***@db/archsim")
 			.doesNotContain("s3cret");
 	}
 
 	private static ArchsimProperties properties(@Nullable String pricesDir, @Nullable String publicUrl) {
-		return new ArchsimProperties("postgresql://h/db", null, pricesDir, new CorsOrigins(List.of()), true, null, 300,
-				1, 10_000, publicUrl);
+		List<String> settings = new ArrayList<>();
+		if (pricesDir != null) {
+			settings.add("prices-dir=" + pricesDir);
+		}
+		if (publicUrl != null) {
+			settings.add("public-url=" + publicUrl);
+		}
+		return TestProperties.with(settings.toArray(String[]::new));
 	}
 
 }

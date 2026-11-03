@@ -38,6 +38,10 @@ import org.springframework.validation.annotation.Validated;
  * @param maxRequests the most requests a run may simulate
  * @param maxBodyBytes the largest request body the API accepts
  * @param publicUrl the address people open, such as {@code https://archsim.example.com}
+ * @param authMode whether people sign in ({@code oauth}) or every request is the local
+ * owner of the default workspace ({@code none})
+ * @param trustedProxies addresses whose {@code X-ArchSim-Client-IP} header is believed:
+ * the web server's, as IPs, networks or host names
  */
 @ConfigurationProperties("archsim")
 @Validated
@@ -48,7 +52,8 @@ public record ArchsimProperties(
 		@Min(1) @Max(MAX_SLOTS) @Nullable Integer maxConcurrentRuns,
 		@DefaultValue("300.0") @Positive @DecimalMax("3600") double maxWallSeconds,
 		@DefaultValue("2000000") @Min(1) @Max(20_000_000) long maxRequests,
-		@DefaultValue("5000000") @Min(10_000) long maxBodyBytes, @Nullable String publicUrl) {
+		@DefaultValue("5000000") @Min(10_000) long maxBodyBytes, @Nullable String publicUrl,
+		@DefaultValue("none") AuthMode authMode, @DefaultValue("127.0.0.1,::1") HostList trustedProxies) {
 
 	/** The most runs one worker simulates at once. */
 	static final int MAX_SLOTS = 32;
@@ -107,6 +112,14 @@ public record ArchsimProperties(
 		return this.publicUrl != null && this.publicUrl.startsWith("https://");
 	}
 
+	/**
+	 * Whether people other than whoever runs the server reach it: they sign in.
+	 * @return {@code true} with {@code ARCHSIM_AUTH_MODE=oauth}
+	 */
+	public boolean hosted() {
+		return this.authMode == AuthMode.OAUTH;
+	}
+
 	private static boolean hasDesigns(Path folder) {
 		if (!Files.isDirectory(folder)) {
 			return false;
@@ -126,10 +139,11 @@ public record ArchsimProperties(
 	@Override
 	public String toString() {
 		return ("ArchsimProperties[databaseUrl=%s, examplesDir=%s, pricesDir=%s, corsOrigins=%s, autoMigrate=%s, "
-				+ "maxConcurrentRuns=%s, maxWallSeconds=%s, maxRequests=%s, maxBodyBytes=%s, publicUrl=%s]")
+				+ "maxConcurrentRuns=%s, maxWallSeconds=%s, maxRequests=%s, maxBodyBytes=%s, publicUrl=%s, "
+				+ "authMode=%s, trustedProxies=%s]")
 			.formatted(DatabaseUrl.masked(this.databaseUrl), this.examplesDir, this.pricesDir,
 					this.corsOrigins.origins(), this.autoMigrate, this.maxConcurrentRuns, this.maxWallSeconds,
-					this.maxRequests, this.maxBodyBytes, this.publicUrl);
+					this.maxRequests, this.maxBodyBytes, this.publicUrl, this.authMode, this.trustedProxies.hosts());
 	}
 
 }

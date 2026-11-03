@@ -1,11 +1,6 @@
 package io.archsim.app.config;
 
-import java.util.Arrays;
 import java.util.List;
-
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The web origins that may call the API from a browser. {@code ARCHSIM_CORS_ORIGINS}
@@ -15,11 +10,6 @@ import tools.jackson.databind.json.JsonMapper;
  * @param origins the origins, such as {@code https://archsim.example.com}
  */
 public record CorsOrigins(List<String> origins) {
-
-	private static final JsonMapper JSON = JsonMapper.builder().build();
-
-	private static final TypeReference<List<String>> STRINGS = new TypeReference<>() {
-	};
 
 	/**
 	 * The origins, copied.
@@ -37,17 +27,7 @@ public record CorsOrigins(List<String> origins) {
 	 * one of strings
 	 */
 	public static CorsOrigins valueOf(String setting) {
-		String text = setting.strip();
-		if (text.isEmpty() || text.charAt(0) != '[') {
-			return new CorsOrigins(
-					Arrays.stream(text.split(",")).map(String::strip).filter((origin) -> !origin.isEmpty()).toList());
-		}
-		try {
-			return new CorsOrigins(JSON.readValue(text, STRINGS));
-		}
-		catch (JacksonException ex) {
-			throw new IllegalArgumentException("ARCHSIM_CORS_ORIGINS is not a JSON array of strings: " + text, ex);
-		}
+		return new CorsOrigins(SettingLists.parse("ARCHSIM_CORS_ORIGINS", setting));
 	}
 
 }

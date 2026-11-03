@@ -37,6 +37,24 @@ class ArchsimPropertiesBindingTests {
 	}
 
 	@Test
+	void bind_trustedProxiesCommaSeparated_areEachEntry() {
+		Map<String, Object> environment = Map.of("ARCHSIM_TRUSTED_PROXIES", " 10.0.0.0/8, web ,");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).trustedProxies().hosts())
+				.containsExactly("10.0.0.0/8", "web"));
+	}
+
+	@Test
+	void bind_trustedProxiesAsJsonArray_areEachEntry() {
+		Map<String, Object> environment = Map.of("ARCHSIM_TRUSTED_PROXIES", "[\"10.0.0.0/8\", \"web\"]");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).trustedProxies().hosts())
+				.containsExactly("10.0.0.0/8", "web"));
+	}
+
+	@Test
 	void bind_bodyLimitBelowTheMinimum_failsNamingTheSetting() {
 		Map<String, Object> environment = Map.of("ARCHSIM_MAX_BODY_BYTES", "9999");
 
