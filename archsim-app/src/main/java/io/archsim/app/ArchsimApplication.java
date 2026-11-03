@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ConfigurableApplicationContext;
 
 import io.archsim.app.config.ArchsimProperties;
+import io.archsim.app.config.CalibrationProperties;
 import io.archsim.app.config.SignInProperties;
 
 /**
@@ -19,7 +20,7 @@ import io.archsim.app.config.SignInProperties;
  * layer's filters read them.
  */
 @SpringBootApplication
-@EnableConfigurationProperties({ ArchsimProperties.class, SignInProperties.class })
+@EnableConfigurationProperties({ ArchsimProperties.class, SignInProperties.class, CalibrationProperties.class })
 public class ArchsimApplication {
 
 	/**

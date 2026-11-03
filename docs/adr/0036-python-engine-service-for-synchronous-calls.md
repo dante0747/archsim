@@ -40,18 +40,28 @@ Chosen option: "a new internal HTTP service", because it is the smallest thing t
 answers exactly as they are and can shrink one endpoint at a time.
 
 - `services/engine-service` is a uv workspace member, `archsim-engine-service`, depending on
-  `archsim-engine`, Starlette and Uvicorn only: no database, no settings beyond the engine's own
+  `archsim-engine`, Starlette, Uvicorn and pydantic only: no database, no settings beyond the engine's own
   (`ARCHSIM_PRICES_DIR`), no authentication. It listens inside compose only.
 - One `POST` endpoint per engine call, JSON in and out: `{"document", "scenarioId"}` for
   `/analyze` and for `/validate`, which the Java API calls only with a scenario; `/prepare` for a
   run about to be queued (`prepare_run` within the run's limits and seed, with `quick_check`);
   `/compare` for two reports (`compare_reports`); `/summarize-seeds` for a seed group
-  (`summarize_seeds`). A refusal answers `422 {"message", "issues", "limit"}`: the engine's
-  words and issues for a document it cannot read, or for a run over its limits (`limit` true); a
-  request it cannot read, `400 {"message"}`. Answers are encoded as FastAPI encoded them, so the Java API passes the
+  (`summarize_seeds`); `/export` and `/import` for designs as infrastructure files
+  (`export_document`, `import_design`); `/calibrate` for `POST /calibrate`. A refusal answers
+  `422 {"message", "issues", "kind"}`: `invalid` with the engine's words and issues for a
+  document it cannot read, `limit` for a run over its limits, `unreadable` for text, a mapping or
+  telemetry that cannot be used, in the words the Python API answered; a request it cannot read,
+  `400 {"message"}`. Answers are encoded as FastAPI encoded them, so the Java API passes the
   bytes on. Each call runs in a worker thread, as FastAPI ran sync routes, so a long analysis
   holds up no other request; the service has no body limit of its own, as only the Java API,
   which limits bodies, calls it.
+- `/calibrate` is the one call that reaches out: it queries the Prometheus server a request
+  names. The service holds no settings, so the Java API sends the policy with each request,
+  worked out from `ARCHSIM_OUTBOUND`, `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS`, the Prometheus
+  timeout and size limits and the workspace (a sandbox never calls out), with the replay's
+  limits. A policy the service cannot read is refused (`400`), never guessed. The engine's own
+  client then checks the host and, under an allowlist, that its name resolves to public
+  addresses, as it did inside the Python API.
 - The Java API reaches it at `ARCHSIM_ENGINE_URL` (default `http://127.0.0.1:8001`) through one
   client in its `engine` package, over HTTP/1.1, and waits `ARCHSIM_ENGINE_TIMEOUT` seconds
   (default 120) for an answer. If the service is down, or does not answer in time, the endpoint
@@ -64,6 +74,9 @@ answers exactly as they are and can shrink one endpoint at a time.
 - Good, because `/analyze` and the others answer byte for byte what the Python API answered.
 - Good, because the engine and the FastAPI code stay untouched until each is deleted.
 - Good, because the service is stateless: it can be restarted or scaled on its own.
+- Bad, because the service checks no caller: whatever can reach it chooses the outbound policy
+  of the calibrations it asks for. It must listen where only the Java API reaches it (inside
+  compose, never on a published port).
 - Bad, because there is one more container and one more network hop per analysis (a few
   milliseconds on the compose network, small next to the engine's own time).
 - Bad, because a request validated in Java is read again in Python; both use the same document

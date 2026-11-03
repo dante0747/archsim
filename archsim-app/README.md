@@ -64,6 +64,8 @@ ways.
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
 | `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
+| `conversion` | `POST /export` and `POST /import`: designs as docker-compose, Kubernetes manifests, Mermaid or a Terraform plan, through the engine service |
+| `calibration` | `POST /calibrate`: the engine's Prometheus and OpenTelemetry calibration, run by the engine service under the server's outbound policy |
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
@@ -79,7 +81,7 @@ ways.
 | 2 | validate, analyze (Python engine service), projects, documents | done |
 | 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
 | 4 | runs and the queue (the workers stay Python) | done |
-| 5 | workspaces, members and invitations; comments, sign-offs and history; share links (done); import and export, calibration | in progress |
+| 5 | workspaces, members and invitations; comments, sign-offs and history; share links; import and export; calibration | done |
 | 6 | compose runs the Java API; FastAPI deleted | |
 
 ## Tests
@@ -126,13 +128,15 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
   be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, the requests that need it answer
   `503` saying which: `/analyze`, scenario validation, starting a run (one, a batch, a seed group
-  or a rerun), `/compare` and `GET /run-groups/{id}`, which summarizes its runs through it. The
-  Python API computed in-process, with no time limit.
+  or a rerun), `/compare`, `GET /run-groups/{id}`, which summarizes its runs through it,
+  `/export`, `/import` and `/calibrate`. The Python API computed in-process, with no time limit.
 - The order of refusals differs. Java reads a request's body and query before it checks access,
   so a body or query parameter that does not fit is `422` where FastAPI first answered `404` or
   `403` (a project or workspace the asker may not use). In a server with sign-in, a body that is
   not JSON is `401` signed out, where FastAPI answered `422`.
 - A `422` for query parameters names the first one that does not fit; FastAPI listed every one.
+- `POST /calibrate` with a `mapping` that is neither text nor an object answers `422` with
+  `Cannot calibrate: ...`; pydantic listed both types it expected.
 - A share page that is not found (`GET /public/shares/{slug}`) still carries `Cache-Control:
   no-store` and `X-Robots-Tag: noindex`; FastAPI sent them only with a report.
 - A share link made from a run whose report's `reportVersion` is not a string (the engine always

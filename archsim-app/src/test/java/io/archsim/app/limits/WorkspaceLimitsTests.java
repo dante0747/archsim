@@ -63,6 +63,16 @@ class WorkspaceLimitsTests {
 	}
 
 	@Test
+	void replayLimits_teamWithoutLimits_areTheServersWithinTheCalibrationCap() {
+		assertThat(this.local.replayLimits("team", 60.0)).isEqualTo(new WorkspaceLimits.RunLimits(2_000_000, 60.0));
+	}
+
+	@Test
+	void replayLimits_hostedTeam_replaysForAtMostItsKindsSeconds() {
+		assertThat(this.hosted.replayLimits("team", 60.0).maxWallSeconds()).isEqualTo(20.0);
+	}
+
+	@Test
 	void runLimits_teamWithoutLimits_areTheServers() {
 		assertThat(this.local.runLimits("team")).isEqualTo(new WorkspaceLimits.RunLimits(2_000_000, 300.0));
 	}

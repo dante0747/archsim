@@ -139,15 +139,10 @@ jobs:
         run: ./gradlew build
       - name: Black-box API tests against the Python API
         run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=python
-      # the endpoints the Java API serves so far, with the Python engine service and a Python
-      # worker next to it; the list grows with each slice of stage 2 until it is the whole suite
-      - name: Black-box API tests against the Java API (ported endpoints)
-        run: >-
-          ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
-          --tests '*EndpointsTests' --tests '*OAuthTests' --tests '*TokensTests' --tests '*RunGroupsTests'
-          --tests '*WorkspacesTests' --tests '*LimitsTests.login_*' --tests '*LimitsTests.workspaces_*'
-          --tests '*LimitsTests.answers_*' --tests '*LimitsTests.startRun*' --tests '*LimitsTests.createProject_*'
-          --tests '*ReviewTests' --tests '*ReviewHistoryTests' --tests '*SharesTests'
+      # the whole suite, against the Java API with the Python engine service and a Python worker
+      # next to it
+      - name: Black-box API tests against the Java API
+        run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
       - name: Upload the test reports and server logs
         if: failure()
         uses: actions/upload-artifact@v7

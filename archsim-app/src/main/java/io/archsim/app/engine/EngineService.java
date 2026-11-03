@@ -19,6 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.app.limits.WorkspaceLimits.RunLimits;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
 import io.archsim.model.codec.RecordCodec;
@@ -125,6 +126,66 @@ public final class EngineService {
 		return JSON.readTree(call("/summarize-seeds", body).json());
 	}
 
+	/**
+	 * A design as docker-compose, Kubernetes manifests or a Mermaid diagram.
+	 * @param document the design
+	 * @param format {@code compose}, {@code k8s} or {@code mermaid}
+	 * @return {@code {format, text, suffix, mediaType}}, as the engine wrote them
+	 * @throws EngineRefusalException when the engine cannot read the design
+	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
+	 * late
+	 */
+	public JsonText export(JsonNode document, String format) {
+		ObjectNode request = JSON.createObjectNode();
+		request.set("document", document);
+		request.put("format", format);
+		return call("/export", request);
+	}
+
+	/**
+	 * A design from docker-compose, Kubernetes manifests or a Terraform plan.
+	 * @param format {@code compose}, {@code k8s} or {@code terraform}
+	 * @param text the file's content
+	 * @param name the design's name, if not the text's
+	 * @return {@code {document, report}}, as the engine wrote them
+	 * @throws EngineRefusalException when the text is not the format, or makes a design
+	 * that is not valid
+	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
+	 * late
+	 */
+	public JsonText importDesign(String format, String text, @Nullable String name) {
+		ObjectNode request = JSON.createObjectNode();
+		request.put("format", format);
+		request.put("text", text);
+		request.put("name", name);
+		return call("/import", request);
+	}
+
+	/**
+	 * A design calibrated from telemetry. The engine service calls the Prometheus server
+	 * the request names, if the policy sent with it allows.
+	 * @param request what {@code POST /calibrate} takes
+	 * @param policy which Prometheus servers it may call, and how
+	 * @param replay the limits of the replay that checks the result
+	 * @return the calibrated design, the changes, notes and the calibration record
+	 * @throws EngineRefusalException when the design, the mapping or the telemetry cannot
+	 * be used
+	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
+	 * late
+	 */
+	public JsonText calibrate(ObjectNode request, OutboundPolicy policy, RunLimits replay) {
+		ObjectNode body = request.deepCopy();
+		// the policy last, so that nothing the request carries stands in for it
+		body.put("outbound", policy.mode().json());
+		ArrayNode hosts = body.putArray("allowedHosts");
+		policy.allowedHosts().forEach(hosts::add);
+		body.put("timeoutS", policy.timeoutSeconds());
+		body.put("maxBytes", policy.maxBytes());
+		body.put("maxRequests", replay.maxRequests());
+		body.put("maxWallSeconds", replay.maxWallSeconds());
+		return call("/calibrate", body, "calibrate with replay off, or over a shorter range");
+	}
+
 	private static ObjectNode design(JsonNode document, @Nullable String scenarioId) {
 		ObjectNode request = JSON.createObjectNode();
 		request.set("document", document);
@@ -133,6 +194,20 @@ public final class EngineService {
 	}
 
 	private JsonText call(String path, ObjectNode request) {
+		return call(path, request, "a smaller design may be quicker");
+	}
+
+	/**
+	 * Calls the engine service.
+	 * @param path the endpoint
+	 * @param request its body
+	 * @param whenSlow what to try when the service answers too late
+	 * @return the answer, as the engine wrote it
+	 * @throws EngineRefusalException when the engine refuses
+	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
+	 * late
+	 */
+	private JsonText call(String path, ObjectNode request, String whenSlow) {
 		try {
 			String answer = this.http.post()
 				.uri(path)
@@ -148,7 +223,7 @@ public final class EngineService {
 			if (ex.getCause() instanceof HttpTimeoutException) {
 				LOGGER.warn("The engine service did not answer {} in time", path, ex);
 				throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
-						"The simulation engine took too long to answer: a smaller design may be quicker", List.of());
+						"The simulation engine took too long to answer: " + whenSlow, List.of());
 			}
 			LOGGER.warn("The engine service cannot be reached at {}", path, ex);
 			throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
@@ -169,8 +244,11 @@ public final class EngineService {
 				.map((issue) -> RecordCodec.read(issue, Issue.class))
 				.toList();
 			String message = refusal.path("message").asString("");
-			throw refusal.path("limit").asBoolean(false) ? EngineRefusalException.runOverLimits(message)
-					: EngineRefusalException.invalidDesign(message, issues);
+			throw switch (refusal.path("kind").asString("")) {
+				case "limit" -> EngineRefusalException.runOverLimits(message);
+				case "unreadable" -> EngineRefusalException.unreadable(message);
+				default -> EngineRefusalException.invalidDesign(message, issues);
+			};
 		}
 	}
 

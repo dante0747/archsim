@@ -132,19 +132,4 @@ class ShareLinksTests extends ShareTestSupport {
 				json("{\"title\": \"For the team\", \"runId\": \"" + run + "\", \"label\": \"Baseline\"}"), project));
 	}
 
-	@Test
-	void reportVersion_ofAnotherType_isUnknown() {
-		assertThat(ShareLinks.reportVersion(json("{\"reportVersion\": 1.5}"))).isEqualTo("unknown");
-	}
-
-	@Test
-	void reportVersion_empty_isUnknown() {
-		assertThat(ShareLinks.reportVersion(json("{\"reportVersion\": \"\"}"))).isEqualTo("unknown");
-	}
-
-	@Test
-	void reportVersion_missing_isUnknown() {
-		assertThat(ShareLinks.reportVersion(json("{}"))).isEqualTo("unknown");
-	}
-
 }

@@ -52,7 +52,11 @@ public class WorkspaceLimits {
 
 	private final ArchsimProperties properties;
 
-	WorkspaceLimits(ArchsimProperties properties) {
+	/**
+	 * The limits under a server's settings.
+	 * @param properties the settings: whether the limits apply, and the server's own
+	 */
+	public WorkspaceLimits(ArchsimProperties properties) {
 		this.properties = properties;
 	}
 
@@ -66,7 +70,7 @@ public class WorkspaceLimits {
 		if (this.properties.limitsOn()) {
 			return HOSTED.getOrDefault(kind, HOSTED_PERSONAL);
 		}
-		return SANDBOX.equals(kind) ? SANDBOXED : UNLIMITED;
+		return isSandbox(kind) ? SANDBOXED : UNLIMITED;
 	}
 
 	/**
@@ -115,6 +119,31 @@ public class WorkspaceLimits {
 				(requests != null) ? Math.min(this.properties.maxRequests(), requests) : this.properties.maxRequests(),
 				(seconds != null) ? Math.min(this.properties.maxWallSeconds(), seconds)
 						: this.properties.maxWallSeconds());
+	}
+
+	/**
+	 * The largest replay a calibration in a workspace of a kind may run. It runs while
+	 * the request waits, so it gets the tightest wall clock: the server's, the
+	 * calibration limit's and the kind's.
+	 * @param kind the workspace's kind
+	 * @param calibrateMaxWallSeconds the server's limit on a calibration's replay
+	 * ({@code ARCHSIM_CALIBRATE_MAX_WALL_SECONDS})
+	 * @return the most requests and wall-clock seconds of the replay
+	 */
+	public RunLimits replayLimits(String kind, double calibrateMaxWallSeconds) {
+		RunLimits run = runLimits(kind);
+		double seconds = Math.min(run.maxWallSeconds(), calibrateMaxWallSeconds);
+		Double kindSeconds = profile(kind).calibrateWallSeconds();
+		return new RunLimits(run.maxRequests(), (kindSeconds != null) ? Math.min(seconds, kindSeconds) : seconds);
+	}
+
+	/**
+	 * Whether a workspace of a kind is a sandbox.
+	 * @param kind the workspace's kind
+	 * @return {@code true} for a sandbox
+	 */
+	public static boolean isSandbox(String kind) {
+		return SANDBOX.equals(kind);
 	}
 
 	/**

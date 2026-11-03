@@ -18,7 +18,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.app.config.CalibrationProperties.Outbound;
+import io.archsim.app.limits.WorkspaceLimits.RunLimits;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
 import io.archsim.model.codec.BindingException;
@@ -35,6 +38,11 @@ class EngineServiceTests {
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final JsonNode DESIGN = JSON.readTree("{\"kind\": \"archsim.architecture\"}");
+
+	private static final OutboundPolicy POLICY = new OutboundPolicy(Outbound.ALLOWLIST, List.of("prom:9090"), 30.0,
+			1024);
+
+	private static final RunLimits REPLAY = new RunLimits(1000, 20.0);
 
 	private final AtomicReference<String> received = new AtomicReference<>();
 
@@ -116,7 +124,8 @@ class EngineServiceTests {
 
 	@Test
 	void prepare_runOverItsLimits_throwsTheEnginesWords() throws IOException {
-		EngineService engine = serving(422, "{\"message\": \"too many requests\", \"issues\": [], \"limit\": true}");
+		EngineService engine = serving(422,
+				"{\"message\": \"too many requests\", \"issues\": [], \"kind\": \"limit\"}");
 
 		assertThatExceptionOfType(EngineRefusalException.class)
 			.isThrownBy(() -> engine.prepare(new PrepareRequest(DESIGN, null, 1000, 20.0, null)))
@@ -158,6 +167,50 @@ class EngineServiceTests {
 
 		assertThat(JSON.readTree(this.received.get())).isEqualTo(JSON
 			.readTree("{\"runs\": [{\"seed\": 42, \"summary\": null}], \"objectives\": {\"latencyP95Ms\": 300.0}}"));
+	}
+
+	@Test
+	void export_request_carriesTheDesignAndFormat() throws IOException {
+		EngineService engine = serving(200, "{}");
+
+		engine.export(DESIGN, "mermaid");
+
+		assertThat(JSON.readTree(this.received.get()))
+			.isEqualTo(JSON.readTree("{\"document\": {\"kind\": \"archsim.architecture\"}, \"format\": \"mermaid\"}"));
+	}
+
+	@Test
+	void importDesign_request_carriesTheTextAndName() throws IOException {
+		EngineService engine = serving(200, "{}");
+
+		engine.importDesign("compose", "services: {}", null);
+
+		assertThat(JSON.readTree(this.received.get()))
+			.isEqualTo(JSON.readTree("{\"format\": \"compose\", \"text\": \"services: {}\", \"name\": null}"));
+	}
+
+	@Test
+	void calibrate_somethingItCannotUse_throwsTheApisWords() throws IOException {
+		EngineService engine = serving(422, """
+				{"message": "Give a Prometheus URL or recorded responses", "issues": [], "kind": "unreadable"}""");
+
+		assertThatExceptionOfType(EngineRefusalException.class)
+			.isThrownBy(() -> engine.calibrate(JSON.createObjectNode(), POLICY, REPLAY))
+			.satisfies((refusal) -> {
+				assertThat(refusal.answer("x").getMessage()).isEqualTo("Give a Prometheus URL or recorded responses");
+				assertThat(refusal.answer("x").issues()).isEmpty();
+			});
+	}
+
+	@Test
+	void calibrate_request_carriesThePolicyOverWhatTheRequestSays() throws IOException {
+		EngineService engine = serving(200, "{}");
+
+		engine.calibrate((ObjectNode) JSON.readTree("{\"source\": \"otlp\", \"outbound\": \"open\"}"), POLICY, REPLAY);
+
+		assertThat(JSON.readTree(this.received.get())).isEqualTo(JSON.readTree("""
+				{"source": "otlp", "outbound": "allowlist", "allowedHosts": ["prom:9090"], "timeoutS": 30.0,
+				 "maxBytes": 1024, "maxRequests": 1000, "maxWallSeconds": 20.0}"""));
 	}
 
 	private EngineService serving(int status, String answer) throws IOException {

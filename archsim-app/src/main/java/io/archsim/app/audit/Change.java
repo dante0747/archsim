@@ -18,9 +18,9 @@ import org.jspecify.annotations.Nullable;
 public record Change(String workspaceId, @Nullable String projectId, String action, String targetKind,
 		@Nullable String targetId, Map<String, @Nullable Object> meta) {
 
-	// No compact constructor copying meta: javac then writes the parameter's @Nullable
-	// type
-	// argument against the field, and NullAway, reading this class from its class file,
-	// refuses every Map<String, @Nullable Object> passed in. AuditLog.record copies meta.
+	// No compact constructor that copies meta: javac would write the @Nullable
+	// type argument of its parameter against the field, and NullAway, reading
+	// this class from its class file, would refuse every map passed in.
+	// AuditLog.record copies meta.
 
 }

@@ -36,6 +36,16 @@ public final class TestProperties {
 		return bind(SignInProperties.class, settings);
 	}
 
+	/**
+	 * The calibration settings, with some of them given.
+	 * @param settings {@code name=value} pairs under {@code archsim.}, such as
+	 * {@code outbound=allowlist}
+	 * @return the settings
+	 */
+	public static CalibrationProperties calibration(String... settings) {
+		return bind(CalibrationProperties.class, settings);
+	}
+
 	private static <T> T bind(Class<T> type, String... settings) {
 		Map<String, String> given = Arrays.stream(settings)
 			.map((setting) -> setting.split("=", 2))
