@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, TypeGuard, get_args
 from urllib.parse import urlparse
 
 from pydantic import ValidationError
@@ -50,7 +50,7 @@ from archsim_engine.calibration import (
     validation_message,
 )
 from archsim_engine.calibration.prometheus import host_allowed
-from archsim_engine.export import FORMATS, export_document
+from archsim_engine.export import FORMATS, Format, export_document
 from archsim_engine.importers import import_design
 
 OUTBOUND_MODES = ("open", "allowlist", "off")
@@ -206,11 +206,16 @@ def export(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
     """``export_document``: the design as docker-compose, Kubernetes manifests or Mermaid, with a
     suggested file suffix and media type."""
     fmt = body.get("format")
-    if not isinstance(fmt, str) or fmt not in FORMATS:
-        raise BadRequest(f"format must be one of {', '.join(FORMATS)}")
+    if not is_export_format(fmt):
+        raise BadRequest(f"format must be one of {', '.join(get_args(Format))}")
     text = export_document(document_of(body), fmt, registry)
     suffix, mime = FORMATS[fmt]
     return {"format": fmt, "text": text, "suffix": suffix, "mediaType": mime}
+
+
+def is_export_format(value: object) -> TypeGuard[Format]:
+    """Whether ``value`` names a format the engine exports to."""
+    return isinstance(value, str) and value in get_args(Format)
 
 
 def import_(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:

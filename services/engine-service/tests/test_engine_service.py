@@ -263,10 +263,14 @@ def test_export_starter_answers_the_engines_text_with_its_suffix(client: TestCli
     assert response.json()["format"] == "compose"
 
 
-def test_export_unknown_format_is_a_bad_request(client: TestClient) -> None:
-    response = client.post("/export", json={"document": starter(), "format": "helm"})
+@pytest.mark.parametrize("fmt", ["helm", "Compose", None, 5, ["compose"]])
+def test_export_format_the_engine_does_not_export_to_is_a_bad_request(
+    client: TestClient, fmt: Any
+) -> None:
+    response = client.post("/export", json={"document": starter(), "format": fmt})
 
     assert response.status_code == 400
+    assert response.json()["message"] == "format must be one of compose, k8s, mermaid"
 
 
 def test_export_unreadable_document_is_invalid(client: TestClient) -> None:
