@@ -38,10 +38,11 @@ record RunView(String id, String projectId, @Nullable String label, @Nullable St
 		@Nullable Double wallSeconds, Instant createdAt, @Nullable Instant startedAt, @Nullable Instant finishedAt,
 		@Nullable String reproducesRunId, @Nullable String groupId, @Nullable Integer seedIndex, String mode) {
 
+	/** The status of a run that finished and has its report. */
+	static final String SUCCEEDED = "succeeded";
+
 	/** The characters of a run's id that name it when it has no label. */
 	private static final int SHORT_ID = 8;
-
-	private static final String SUCCEEDED = "succeeded";
 
 	/**
 	 * Whether a worker still has the run to do: queued or running.

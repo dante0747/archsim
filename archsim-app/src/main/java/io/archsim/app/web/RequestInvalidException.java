@@ -94,6 +94,67 @@ public final class RequestInvalidException extends RuntimeException {
 	}
 
 	/**
+	 * A query parameter that should be a whole number and is not one.
+	 * @param name the parameter's name
+	 * @param value what the request gave
+	 * @return the refusal, as pydantic words it
+	 */
+	public static RequestInvalidException queryNotInteger(String name, String value) {
+		ObjectNode error = error("int_parsing", NODES.arrayNode().add("query").add(name),
+				"Input should be a valid integer, unable to parse string as an integer");
+		error.put("input", value);
+		return new RequestInvalidException(NODES.arrayNode().add(error));
+	}
+
+	/**
+	 * A whole-number query parameter below the least the endpoint takes.
+	 * @param name the parameter's name
+	 * @param value what the request gave
+	 * @param minimum the least it may be
+	 * @return the refusal, as pydantic words it
+	 */
+	public static RequestInvalidException queryBelow(String name, String value, long minimum) {
+		ObjectNode error = error("greater_than_equal", NODES.arrayNode().add("query").add(name),
+				"Input should be greater than or equal to " + minimum);
+		error.put("input", value);
+		error.putObject("ctx").put("ge", minimum);
+		return new RequestInvalidException(NODES.arrayNode().add(error));
+	}
+
+	/**
+	 * A whole-number query parameter above the most the endpoint takes.
+	 * @param name the parameter's name
+	 * @param value what the request gave
+	 * @param maximum the most it may be
+	 * @return the refusal, as pydantic words it
+	 */
+	public static RequestInvalidException queryAbove(String name, String value, long maximum) {
+		ObjectNode error = error("less_than_equal", NODES.arrayNode().add("query").add(name),
+				"Input should be less than or equal to " + maximum);
+		error.put("input", value);
+		error.putObject("ctx").put("le", maximum);
+		return new RequestInvalidException(NODES.arrayNode().add(error));
+	}
+
+	/**
+	 * A query parameter that is none of the words the endpoint takes.
+	 * @param name the parameter's name
+	 * @param value what the request gave
+	 * @param choices the words it takes
+	 * @return the refusal, as pydantic words it: {@code 'a', 'b' or 'c'}
+	 */
+	public static RequestInvalidException queryNotOneOf(String name, String value, List<String> choices) {
+		List<String> quoted = choices.stream().map((choice) -> "'" + choice + "'").toList();
+		String expected = (quoted.size() == 1) ? quoted.getFirst()
+				: String.join(", ", quoted.subList(0, quoted.size() - 1)) + " or " + quoted.getLast();
+		ObjectNode error = error("literal_error", NODES.arrayNode().add("query").add(name),
+				"Input should be " + expected);
+		error.put("input", value);
+		error.putObject("ctx").put("expected", expected);
+		return new RequestInvalidException(NODES.arrayNode().add(error));
+	}
+
+	/**
 	 * A JSON body the codec could not read.
 	 * @param errors what the codec found wrong, as pydantic reports it
 	 * @param body the body, whose values the errors show as their {@code input}

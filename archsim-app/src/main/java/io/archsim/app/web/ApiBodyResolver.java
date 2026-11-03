@@ -38,14 +38,41 @@ class ApiBodyResolver implements HandlerMethodArgumentResolver {
 	}
 
 	@Override
-	public Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer container,
+	public @Nullable Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer container,
 			NativeWebRequest request, @Nullable WebDataBinderFactory binders) throws IOException {
+		JsonNode tree = body(request);
+		boolean required = required(parameter);
+		if (tree == null) {
+			if (required) {
+				throw RequestInvalidException.missingBody();
+			}
+			return null;
+		}
+		return (tree.isNull() && !required) ? null : read(parameter, tree);
+	}
+
+	/**
+	 * The request's body, as JSON.
+	 * @param request the request
+	 * @return the body, or {@code null} when it is empty
+	 * @throws IOException when the body cannot be read
+	 * @throws RequestInvalidException when the body is not JSON
+	 */
+	private @Nullable JsonNode body(NativeWebRequest request) throws IOException {
 		HttpServletRequest servletRequest = request.getNativeRequest(HttpServletRequest.class);
 		byte[] body = (servletRequest != null) ? servletRequest.getInputStream().readAllBytes() : new byte[0];
-		if (body.length == 0) {
-			throw RequestInvalidException.missingBody();
-		}
-		JsonNode tree = readTree(body);
+		return (body.length > 0) ? readTree(body) : null;
+	}
+
+	/**
+	 * A body read as the parameter's type: a record by the model's codec, an
+	 * {@link ObjectNode} as any JSON object.
+	 * @param parameter the parameter
+	 * @param tree the body
+	 * @return the value
+	 * @throws RequestInvalidException when the body does not fit the type
+	 */
+	private static Object read(MethodParameter parameter, JsonNode tree) {
 		if (parameter.getParameterType() == ObjectNode.class) {
 			return anyObject(tree);
 		}
@@ -59,6 +86,11 @@ class ApiBodyResolver implements HandlerMethodArgumentResolver {
 		catch (BindingException ex) {
 			throw RequestInvalidException.of(ex.errors(), tree);
 		}
+	}
+
+	private static boolean required(MethodParameter parameter) {
+		ApiBody annotation = parameter.getParameterAnnotation(ApiBody.class);
+		return annotation == null || annotation.required();
 	}
 
 	/**

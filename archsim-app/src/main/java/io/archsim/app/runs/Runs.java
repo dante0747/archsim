@@ -6,7 +6,6 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.app.access.Access;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
 import io.archsim.app.config.ArchsimProperties;
@@ -25,14 +24,14 @@ class Runs {
 
 	private final ProjectService projects;
 
-	private final Access access;
+	private final RunLookup lookup;
 
 	private final ArchsimProperties properties;
 
-	Runs(RunRepository repository, ProjectService projects, Access access, ArchsimProperties properties) {
+	Runs(RunRepository repository, ProjectService projects, RunLookup lookup, ArchsimProperties properties) {
 		this.repository = repository;
 		this.projects = projects;
-		this.access = access;
+		this.lookup = lookup;
 		this.properties = properties;
 	}
 
@@ -57,10 +56,7 @@ class Runs {
 	 * one too weak
 	 */
 	StoredRun require(Principal principal, String runId, WorkspaceRole minimum) {
-		String what = "Run '" + runId + "'";
-		StoredRun run = this.repository.find(runId).orElseThrow(() -> Access.notFound(what));
-		this.access.require(principal, run.workspaceId(), minimum, what);
-		return run;
+		return this.lookup.stored(principal, runId, minimum);
 	}
 
 	/**

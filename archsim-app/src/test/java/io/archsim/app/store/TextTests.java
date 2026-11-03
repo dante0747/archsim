@@ -26,4 +26,29 @@ class TextTests {
 		assertThat(Text.cut("abc", 5)).isEqualTo("abc");
 	}
 
+	@Test
+	void strip_noBreakAndNextLineSpaces_areTrimmedAsPythonTrimsThem() {
+		assertThat(Text.strip("\u00a0\u0085 note \u202f\u3000")).isEqualTo("note");
+	}
+
+	@Test
+	void strip_onlySpaces_isEmpty() {
+		assertThat(Text.strip(" \t\n\u2007")).isEmpty();
+	}
+
+	@Test
+	void strip_spacesInside_stay() {
+		assertThat(Text.strip(" a  b ")).isEqualTo("a  b");
+	}
+
+	@Test
+	void oneLine_wordsAcrossLines_areOneSpaceApart() {
+		assertThat(Text.oneLine("\n Looks\tgood,\r\n\u00a0ship   it \n")).isEqualTo("Looks good, ship it");
+	}
+
+	@Test
+	void oneLine_onlySpaces_isEmpty() {
+		assertThat(Text.oneLine(" \n\t ")).isEmpty();
+	}
+
 }

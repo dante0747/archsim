@@ -147,7 +147,7 @@ jobs:
           --tests '*EndpointsTests' --tests '*OAuthTests' --tests '*TokensTests' --tests '*RunGroupsTests'
           --tests '*WorkspacesTests' --tests '*LimitsTests.login_*' --tests '*LimitsTests.workspaces_*'
           --tests '*LimitsTests.answers_*' --tests '*LimitsTests.startRun*' --tests '*LimitsTests.createProject_*'
-          --tests '*ReviewHistoryTests.membershipChange_*'
+          --tests '*ReviewTests' --tests '*ReviewHistoryTests'
       - name: Upload the test reports and server logs
         if: failure()
         uses: actions/upload-artifact@v7

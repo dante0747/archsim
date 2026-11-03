@@ -12,6 +12,7 @@ import tools.jackson.databind.JsonNode;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
+import io.archsim.app.support.HistoryEvent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -54,8 +55,8 @@ class MembersTests extends WorkspaceTestSupport {
 		send(ada, HttpMethod.PATCH, WORKSPACES + "/" + team + "/members/" + bob.userId(), "{\"role\": \"editor\"}");
 
 		assertThat(history(team)).last()
-			.isEqualTo(new Event("member.role", "user", bob.userId(),
-					meta("{\"from\": \"viewer\", \"to\": \"editor\"}"), null));
+			.isEqualTo(new HistoryEvent("member.role", "user", bob.userId(),
+					json("{\"from\": \"viewer\", \"to\": \"editor\"}"), null));
 	}
 
 	@Test
@@ -134,8 +135,8 @@ class MembersTests extends WorkspaceTestSupport {
 		send(ada, HttpMethod.DELETE, WORKSPACES + "/" + team + "/members/" + bob.userId(), null);
 
 		assertThat(history(team)).last()
-			.isEqualTo(new Event("member.remove", "user", bob.userId(), meta("{\"role\": \"editor\", \"left\": false}"),
-					null));
+			.isEqualTo(new HistoryEvent("member.remove", "user", bob.userId(),
+					json("{\"role\": \"editor\", \"left\": false}"), null));
 	}
 
 	/**

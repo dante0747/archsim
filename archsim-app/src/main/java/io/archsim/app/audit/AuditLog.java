@@ -10,6 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.PrincipalKind;
+import io.archsim.app.store.Text;
 import io.archsim.app.store.Times;
 
 /**
@@ -19,6 +20,9 @@ import io.archsim.app.store.Times;
  */
 @Component
 public class AuditLog {
+
+	/** The most characters of a comment or note the history keeps. */
+	private static final int EXCERPT = 140;
 
 	private final AuditRepository repository;
 
@@ -78,6 +82,31 @@ public class AuditLog {
 		String targetId = (target.targetId() != null) ? target.targetId() : target.workspaceId();
 		this.repository.insert(new AuditEvent(target.workspaceId(), null, actorOf(principal), action,
 				"member".equals(kind) ? "user" : kind, targetId, details(meta), Times.now(this.clock)));
+	}
+
+	/**
+	 * Records a change to a comment or a sign-off: anything in a project that is not the
+	 * project itself or a run.
+	 * @param change what changed, and where
+	 * @param principal who made it
+	 */
+	public void record(Change change, Principal principal) {
+		this.repository
+			.insert(new AuditEvent(change.workspaceId(), change.projectId(), actorOf(principal), change.action(),
+					change.targetKind(), change.targetId(), details(change.meta()), Times.now(this.clock)));
+	}
+
+	/**
+	 * The start of a comment or note, on one line, for the history.
+	 * @param text the text
+	 * @return its words one space apart, cut to 140 characters with an ellipsis
+	 */
+	public static String excerpt(String text) {
+		String line = Text.oneLine(text);
+		if (Text.length(line) <= EXCERPT) {
+			return line;
+		}
+		return Text.strip(Text.cut(line, EXCERPT - 1)) + "…";
 	}
 
 	private ObjectNode details(Map<String, @Nullable Object> meta) {

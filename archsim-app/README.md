@@ -77,7 +77,7 @@ ways.
 | 2 | validate, analyze (Python engine service), projects, documents | done |
 | 3 | sign-in, sessions, CSRF, tokens, the workspace list | done |
 | 4 | runs and the queue (the workers stay Python) | done |
-| 5 | workspaces, members and invitations (done); reviews, shares, import and export, calibration | in progress |
+| 5 | workspaces, members and invitations; comments, sign-offs and history (done); shares, import and export, calibration | in progress |
 | 6 | compose runs the Java API; FastAPI deleted | |
 
 ## Tests
@@ -126,10 +126,11 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   `503` saying which: `/analyze`, scenario validation, starting a run (one, a batch, a seed group
   or a rerun), `/compare` and `GET /run-groups/{id}`, which summarizes its runs through it. The
   Python API computed in-process, with no time limit.
-- The order of refusals differs. Java reads a request's body before it checks access, so a body
-  that does not fit is `422` where FastAPI first answered `404` or `403` (a project or workspace
-  the asker may not use). In a server with sign-in, a body that is not JSON is `401` signed out,
-  where FastAPI answered `422`.
+- The order of refusals differs. Java reads a request's body and query before it checks access,
+  so a body or query parameter that does not fit is `422` where FastAPI first answered `404` or
+  `403` (a project or workspace the asker may not use). In a server with sign-in, a body that is
+  not JSON is `401` signed out, where FastAPI answered `422`.
+- A `422` for query parameters names the first one that does not fit; FastAPI listed every one.
 - The Java API has no embedded worker: the runs it queues are simulated by `archsim-api worker`
   processes (Python) on the same database. `ARCHSIM_EMBEDDED_WORKER` does nothing to it.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote
@@ -165,6 +166,9 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - **A workspace with no owner.** Python counted a workspace's owners and then changed a role or
   removed a member, so two owners demoting or removing each other at once both succeeded and left
   the workspace with no one to manage it. Java locks the workspace first.
+- **Refused comments counted against the hour.** Python counted a comment against the hourly limit
+  before it checked what the comment was on, so a reply to a thread of another project, or a
+  comment on a run of another one, still used up one of the hour's comments. Java checks first.
 - **One invitation, two members.** Python read an invitation and later marked it accepted, so two
   people accepting the same link at once both joined. Java claims the link before it adds the
   member; the second answers `404`, as for a link already used.

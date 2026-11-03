@@ -5,7 +5,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.access.Secrets;
 import io.archsim.app.support.HostedTestSupport;
@@ -19,8 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TokensTests extends HostedTestSupport {
 
 	private static final String TOKENS = "/api/v1/tokens";
-
-	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	@Test
 	void create_writeToken_isShownOnceWithItsPrefix() {
@@ -173,11 +170,6 @@ class TokensTests extends HostedTestSupport {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body)
 			.exchange();
-	}
-
-	private static JsonNode created(MvcTestResult result) {
-		assertThat(result).hasStatus(201);
-		return JSON.readTree(result.getResponse().getContentAsByteArray());
 	}
 
 }

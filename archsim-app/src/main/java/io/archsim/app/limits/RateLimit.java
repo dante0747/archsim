@@ -32,4 +32,10 @@ public record RateLimit(int limit, long windowSeconds) {
 	/** Runs one person starts per hour, whatever the workspace. */
 	public static final RateLimit RUNS_PER_USER = new RateLimit(300, HOUR);
 
+	/** Comments one person writes per hour. */
+	public static final RateLimit COMMENTS_PER_USER = new RateLimit(240, HOUR);
+
+	/** Sign-offs one person gives per hour. */
+	public static final RateLimit SIGNOFFS_PER_USER = new RateLimit(60, HOUR);
+
 }

@@ -7,6 +7,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.app.support.HistoryEvent;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -39,8 +41,8 @@ class WorkspaceChangesTests extends WorkspaceTestSupport {
 
 		String team = team(ada);
 
-		assertThat(history(team))
-			.containsExactly(new Event("workspace.create", "workspace", team, meta("{\"name\": \"Team\"}"), null));
+		assertThat(history(team)).containsExactly(
+				new HistoryEvent("workspace.create", "workspace", team, json("{\"name\": \"Team\"}"), null));
 	}
 
 	@Test

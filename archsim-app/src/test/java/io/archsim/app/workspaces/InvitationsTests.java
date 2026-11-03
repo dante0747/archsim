@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.app.support.HistoryEvent;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -44,7 +46,7 @@ class InvitationsTests extends WorkspaceTestSupport {
 		String id = invite(ada, team, "viewer").path("id").asString();
 
 		assertThat(history(team)).last()
-			.isEqualTo(new Event("invitation.create", "invitation", id, meta("{\"role\": \"viewer\"}"), null));
+			.isEqualTo(new HistoryEvent("invitation.create", "invitation", id, json("{\"role\": \"viewer\"}"), null));
 	}
 
 	@Test
@@ -103,7 +105,7 @@ class InvitationsTests extends WorkspaceTestSupport {
 		send(ada, HttpMethod.DELETE, WORKSPACES + "/" + team + "/invitations/" + id, null);
 
 		assertThat(history(team)).last()
-			.isEqualTo(new Event("invitation.revoke", "invitation", id, meta("{\"role\": \"editor\"}"), null));
+			.isEqualTo(new HistoryEvent("invitation.revoke", "invitation", id, json("{\"role\": \"editor\"}"), null));
 	}
 
 }

@@ -132,13 +132,14 @@ public class ProjectService {
 	 * @param principal who is asking
 	 * @param projectId the project
 	 * @param minimum the role the work needs
-	 * @return the project's id, workspace and design
+	 * @return the project's id, workspace, revision and design, with the asker's role
 	 * @throws ApiException {@code 404} without a role in its workspace, {@code 403} with
 	 * one too weak
 	 */
 	public ProjectDesign design(Principal principal, String projectId, WorkspaceRole minimum) {
-		Project project = accessible(principal, projectId, minimum);
-		return new ProjectDesign(project.id(), project.workspaceId(), project.document());
+		Project project = find(projectId);
+		WorkspaceRole role = this.access.require(principal, project.workspaceId(), minimum, what(projectId));
+		return new ProjectDesign(project.id(), project.workspaceId(), project.revision(), project.document(), role);
 	}
 
 	/**
@@ -146,13 +147,14 @@ public class ProjectService {
 	 * @param principal who is asking
 	 * @param projectId the project
 	 * @param minimum the role the work needs
+	 * @return the principal's role in the project's workspace
 	 * @throws ApiException {@code 404} without a role in its workspace, {@code 403} with
 	 * one too weak
 	 */
-	public void requireAccess(Principal principal, String projectId, WorkspaceRole minimum) {
+	public WorkspaceRole requireAccess(Principal principal, String projectId, WorkspaceRole minimum) {
 		String what = what(projectId);
 		String workspaceId = this.projects.workspaceOf(projectId).orElseThrow(() -> Access.notFound(what));
-		this.access.require(principal, workspaceId, minimum, what);
+		return this.access.require(principal, workspaceId, minimum, what);
 	}
 
 	private static String what(String projectId) {
@@ -160,10 +162,13 @@ public class ProjectService {
 	}
 
 	private Project accessible(Principal principal, String id, WorkspaceRole minimum) {
-		String what = what(id);
-		Project project = this.projects.find(id).orElseThrow(() -> Access.notFound(what));
-		this.access.require(principal, project.workspaceId(), minimum, what);
+		Project project = find(id);
+		this.access.require(principal, project.workspaceId(), minimum, what(id));
 		return project;
+	}
+
+	private Project find(String id) {
+		return this.projects.find(id).orElseThrow(() -> Access.notFound(what(id)));
 	}
 
 	/**

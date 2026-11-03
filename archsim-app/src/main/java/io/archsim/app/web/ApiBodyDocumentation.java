@@ -28,15 +28,16 @@ class ApiBodyDocumentation {
 	OperationCustomizer apiBodies() {
 		return (operation, handler) -> {
 			for (MethodParameter parameter : handler.getMethodParameters()) {
-				if (parameter.hasParameterAnnotation(ApiBody.class)) {
-					operation.requestBody(requestBody(parameter.getParameterType()));
+				ApiBody body = parameter.getParameterAnnotation(ApiBody.class);
+				if (body != null) {
+					operation.requestBody(requestBody(parameter.getParameterType(), body.required()));
 				}
 			}
 			return operation;
 		};
 	}
 
-	private static RequestBody requestBody(Class<?> type) {
+	private static RequestBody requestBody(Class<?> type, boolean required) {
 		Schema<?> schema;
 		try {
 			schema = type.isRecord()
@@ -48,7 +49,7 @@ class ApiBodyDocumentation {
 			throw new UncheckedIOException("the codec's schema of " + type.getSimpleName() + " is not one", ex);
 		}
 		MediaType json = new MediaType().schema(schema);
-		return new RequestBody().required(true)
+		return new RequestBody().required(required)
 			.content(new Content().addMediaType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE, json));
 	}
 

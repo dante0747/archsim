@@ -4,6 +4,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
@@ -11,18 +12,25 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.apitests.FakeGitHub;
 import io.archsim.app.access.Csrf;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.Secrets;
 import io.archsim.app.database.TestDatabases;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * What the tests of a server with sign-in share: the whole application on one real
@@ -51,6 +59,8 @@ public abstract class HostedTestSupport {
 	private static final FakeGitHub GITHUB = FakeGitHub.start(0);
 
 	private static final Duration SESSION_LENGTH = Duration.ofDays(30);
+
+	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	@Autowired
 	private MockMvcTester mvc;
@@ -172,8 +182,76 @@ public abstract class HostedTestSupport {
 		return secret;
 	}
 
+	/**
+	 * A request from someone signed in, as the web app sends it.
+	 * @param person who sends it
+	 * @param method its method
+	 * @param uri where to
+	 * @param body its JSON body, if any
+	 * @return the answer
+	 */
+	protected MvcTestResult send(SignedIn person, HttpMethod method, String uri, @Nullable String body) {
+		MockMvcTester.MockMvcRequestBuilder request = person.browser(this.mvc.method(method).uri(uri));
+		return (body != null) ? request.contentType(MediaType.APPLICATION_JSON).content(body).exchange()
+				: request.exchange();
+	}
+
+	/**
+	 * A workspace's history.
+	 * @param workspaceId the workspace
+	 * @return its events, oldest first
+	 */
+	protected List<HistoryEvent> history(String workspaceId) {
+		return events("workspace_id", workspaceId);
+	}
+
+	/**
+	 * A project's history.
+	 * @param projectId the project
+	 * @return its events, oldest first
+	 */
+	protected List<HistoryEvent> projectHistory(String projectId) {
+		return events("project_id", projectId);
+	}
+
+	protected static JsonNode created(MvcTestResult result) {
+		assertThat(result).hasStatus(201);
+		return json(result);
+	}
+
+	protected static JsonNode json(MvcTestResult result) {
+		return JSON.readTree(result.getResponse().getContentAsByteArray());
+	}
+
+	protected static JsonNode json(String text) {
+		return JSON.readTree(text);
+	}
+
+	/**
+	 * The ids of a list's items, not of what they hold.
+	 * @param items a JSON array of objects with an {@code id}
+	 * @return the ids, in order
+	 */
+	protected static List<String> ids(JsonNode items) {
+		return items.valueStream().map((item) -> item.path("id").asString()).toList();
+	}
+
 	protected static String newId() {
 		return UUID.randomUUID().toString().replace("-", "");
+	}
+
+	private List<HistoryEvent> events(String column, String id) {
+		return this.jdbc
+			.sql("SELECT action, target_kind, target_id, meta::text AS meta, project_id FROM audit_events WHERE "
+					+ column + " = :id ORDER BY id")
+			.param("id", id)
+			.query((rows, number) -> {
+				String meta = rows.getString("meta");
+				return new HistoryEvent(rows.getString("action"), rows.getString("target_kind"),
+						rows.getString("target_id"), (meta != null) ? JSON.readTree(meta) : null,
+						rows.getString("project_id"));
+			})
+			.list();
 	}
 
 	/**

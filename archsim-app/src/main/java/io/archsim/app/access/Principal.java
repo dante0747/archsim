@@ -126,4 +126,15 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 		}
 	}
 
+	/**
+	 * Refuses a read-only API token, for a change it may not make.
+	 * @throws ApiException {@code 403} for a read-only token
+	 */
+	public void requireWritable() {
+		if (readOnly()) {
+			throw new ApiException(HttpStatus.FORBIDDEN, "This API token can only read: use a token with write scope.",
+					List.of());
+		}
+	}
+
 }

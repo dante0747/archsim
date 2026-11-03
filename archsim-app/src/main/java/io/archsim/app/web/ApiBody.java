@@ -20,4 +20,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 @Documented
 public @interface ApiBody {
 
+	/**
+	 * Whether the request must have a body. An optional body that is missing, or is JSON
+	 * {@code null}, is passed as {@code null}, as FastAPI passes {@code None}.
+	 * @return {@code false} for a body the endpoint does without
+	 */
+	boolean required() default true;
+
 }

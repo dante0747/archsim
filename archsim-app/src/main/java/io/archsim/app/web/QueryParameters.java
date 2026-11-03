@@ -1,11 +1,15 @@
 package io.archsim.app.web;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.SequencedMap;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 
@@ -13,15 +17,22 @@ import io.archsim.app.store.Text;
 
 /**
  * Query parameters read as FastAPI read them: a repeated parameter's last value counts,
- * lengths are counted in characters, and a boolean is one of pydantic's words for one, in
- * any case. A controller takes each parameter as {@code @RequestParam List<String>} and
- * reads it here.
+ * lengths are counted in characters, a boolean is one of pydantic's words for one, in any
+ * case, and a whole number is written as pydantic reads one. A controller takes each
+ * parameter as {@code @RequestParam List<String>} and reads it here.
  */
 public final class QueryParameters {
 
 	private static final Set<String> TRUE = Set.of("1", "on", "t", "true", "y", "yes");
 
 	private static final Set<String> FALSE = Set.of("0", "off", "f", "false", "n", "no");
+
+	/**
+	 * A whole number as pydantic reads one from text: white space around it, ASCII digits
+	 * with single underscores between them, and a fraction of zeros.
+	 */
+	private static final Pattern INTEGER = Pattern.compile("\\s*([+-]?[0-9]+(?:_[0-9]+)*)(?:\\.0+)?\\s*",
+			Pattern.UNICODE_CHARACTER_CLASS);
 
 	private QueryParameters() {
 	}
@@ -59,6 +70,67 @@ public final class QueryParameters {
 			throw RequestInvalidException.queryNotBoolean(name, value.get());
 		}
 		return TRUE.contains(word);
+	}
+
+	/**
+	 * A word parameter, one of a few.
+	 * @param values the parameter's values, if any
+	 * @param name its name, for the refusal
+	 * @param choices the words it may be
+	 * @return the last value, or empty when it is not given
+	 * @throws RequestInvalidException {@code 422} when it is another word
+	 */
+	public static Optional<String> choice(@Nullable List<String> values, String name, List<String> choices) {
+		Optional<String> value = last(values);
+		if (value.isPresent() && !choices.contains(value.get())) {
+			throw RequestInvalidException.queryNotOneOf(name, value.get(), choices);
+		}
+		return value;
+	}
+
+	/**
+	 * A whole-number parameter with no upper bound. A number past what a {@code long}
+	 * holds, which pydantic takes, counts as the largest {@code long}.
+	 * @param values the parameter's values, if any
+	 * @param name its name, for the refusal
+	 * @param minimum the least it may be
+	 * @return the last value, or empty when it is not given
+	 * @throws RequestInvalidException {@code 422} when it is no whole number or less
+	 */
+	public static OptionalLong integer(@Nullable List<String> values, String name, long minimum) {
+		return integer(values, name, minimum, Long.MAX_VALUE);
+	}
+
+	/**
+	 * A whole-number parameter.
+	 * @param values the parameter's values, if any
+	 * @param name its name, for the refusal
+	 * @param minimum the least it may be
+	 * @param maximum the most it may be; {@link Long#MAX_VALUE} for no bound
+	 * @return the last value, or empty when it is not given
+	 * @throws RequestInvalidException {@code 422} when it is no whole number or out of
+	 * bounds
+	 */
+	public static OptionalLong integer(@Nullable List<String> values, String name, long minimum, long maximum) {
+		Optional<String> value = last(values);
+		if (value.isEmpty()) {
+			return OptionalLong.empty();
+		}
+		Matcher number = INTEGER.matcher(value.get());
+		if (!number.matches()) {
+			throw RequestInvalidException.queryNotInteger(name, value.get());
+		}
+		BigInteger parsed = new BigInteger(number.group(1).replace("_", ""));
+		if (parsed.compareTo(BigInteger.valueOf(minimum)) < 0) {
+			throw RequestInvalidException.queryBelow(name, value.get(), minimum);
+		}
+		if (parsed.compareTo(BigInteger.valueOf(maximum)) > 0) {
+			if (maximum != Long.MAX_VALUE) {
+				throw RequestInvalidException.queryAbove(name, value.get(), maximum);
+			}
+			return OptionalLong.of(Long.MAX_VALUE);
+		}
+		return OptionalLong.of(parsed.longValueExact());
 	}
 
 	/**
