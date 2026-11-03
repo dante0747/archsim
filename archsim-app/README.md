@@ -179,6 +179,10 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - **Refused runs counted against the hour.** Python counted a run, or a rerun, against the hourly
   limits before the engine prepared it, so a design it could not simulate, or a run over its
   limits, still used up one of the hour's runs. Java prepares and checks first.
+- **Runs a workspace refused, charged to the person.** Python counted new runs against the
+  person's hourly limit, then the workspace's, each on its own, so when the workspace's limit
+  answered `429` the person's count kept runs that were never queued. Java counts them against
+  both limits together, or against neither.
 - **Seed groups and batches half queued.** Python queued a group's runs, and a batch's, one by
   one, each in its own transaction, so a failure part-way left a group with fewer runs than its
   size, or part of a batch. Java queues a group with its runs, and a batch, in one transaction.

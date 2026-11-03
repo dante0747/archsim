@@ -33,6 +33,19 @@ class RunChargesTests extends RunTestSupport {
 	}
 
 	@Test
+	void create_overTheWorkspacesHour_isNotCountedAgainstThePersonsHour() {
+		prepares(42, null, true);
+		String project = project("team", "editor");
+		runsPerHour(project, 1);
+		started(start(project, "{}"));
+		int counted = personsRunsCounted();
+
+		assertThat(start(project, "{}")).hasStatus(429);
+
+		assertThat(personsRunsCounted()).isEqualTo(counted);
+	}
+
+	@Test
 	void create_runTheEngineRefuses_isNotCountedAgainstTheHour() {
 		String project = project("team", "editor");
 		runsPerHour(project, 1);

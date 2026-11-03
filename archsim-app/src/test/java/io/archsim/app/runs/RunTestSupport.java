@@ -216,6 +216,16 @@ abstract class RunTestSupport {
 			.update();
 	}
 
+	/**
+	 * Returns how many runs the local user has been counted for, in every window.
+	 * @return the count
+	 */
+	int personsRunsCounted() {
+		return this.jdbc.sql("SELECT coalesce(sum(count), 0) FROM rate_limits WHERE key = 'user:local:runs'")
+			.query(Integer.class)
+			.single();
+	}
+
 	static JsonNode json(MvcTestResult result) {
 		return JSON.readTree(result.getResponse().getContentAsByteArray());
 	}

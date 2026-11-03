@@ -3,6 +3,7 @@ package io.archsim.app.limits;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import io.archsim.app.config.ArchsimProperties;
+import io.archsim.app.limits.RateLimits.Charge;
 import io.archsim.app.support.HostedTestSupport;
 import io.archsim.app.web.ApiException;
 
@@ -83,6 +85,54 @@ class RateLimitsTests extends HostedTestSupport {
 	}
 
 	@Test
+	void enforceAll_withinEveryLimit_countsEachKey() {
+		String person = key();
+		String workspace = key();
+		List<Charge> charges = List.of(new Charge(person, TWO_A_DAY, "You."), new Charge(workspace, TWO_A_DAY, "Lab."));
+
+		this.limits.enforceAll(charges, 2);
+
+		assertThat(count(person)).isEqualTo(2);
+		assertThat(count(workspace)).isEqualTo(2);
+	}
+
+	@Test
+	void enforceAll_secondKeyOverItsLimit_countsNeither() {
+		String person = key();
+		String workspace = key();
+		this.limits.enforceAll(List.of(new Charge(workspace, TWO_A_DAY, "Lab.")), 2);
+		List<Charge> charges = List.of(new Charge(person, TWO_A_DAY, "You."), new Charge(workspace, TWO_A_DAY, "Lab."));
+
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> this.limits.enforceAll(charges, 1));
+
+		assertThat(count(person)).isZero();
+		assertThat(count(workspace)).isEqualTo(2);
+	}
+
+	@Test
+	void enforceAll_secondKeyOverItsLimit_saysWhenItsWindowEnds() {
+		String person = key();
+		String workspace = key();
+		this.limits.enforceAll(List.of(new Charge(workspace, TWO_A_DAY, "Lab.")), 2);
+		List<Charge> charges = List.of(new Charge(person, new RateLimit(2, RateLimit.HOUR), "You."),
+				new Charge(workspace, TWO_A_DAY, "Lab."));
+
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> this.limits.enforceAll(charges, 1))
+			.satisfies((ex) -> assertThat(ex.headers().getFirst("Retry-After")).isEqualTo("43200"))
+			.withMessage("Lab. Try again in 12 h.");
+	}
+
+	@Test
+	void enforceAll_moreHitsThanTheLimit_isRefusedAndCostsNothing() {
+		String key = key();
+		List<Charge> charges = List.of(new Charge(key, TWO_A_DAY, "Too many."));
+
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> this.limits.enforceAll(charges, 3));
+
+		assertThat(count(key)).isZero();
+	}
+
+	@Test
 	void enforce_inATransactionThatRollsBack_staysCounted() {
 		String key = key();
 		TransactionTemplate failing = new TransactionTemplate(this.transactions);
@@ -124,7 +174,7 @@ class RateLimitsTests extends HostedTestSupport {
 
 	private int count(String key) {
 		return this.jdbc()
-			.sql("SELECT sum(count) FROM rate_limits WHERE key = :key")
+			.sql("SELECT coalesce(sum(count), 0) FROM rate_limits WHERE key = :key")
 			.param("key", key)
 			.query(Integer.class)
 			.single();

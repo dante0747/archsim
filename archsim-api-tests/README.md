@@ -167,8 +167,8 @@ accident:
 - **A bug in the Python API.** It counted new runs against the person's hourly counter
   (`user:<id>:runs`) before the workspace's (`ws:<id>:runs`), so when the workspace's limit then
   answered 429, the person's counter kept the cost of runs that were never queued. That breaks
-  the rule that a refused request costs nothing, so `archsim-app` must not copy it: a run is
-  charged to both counters or to neither.
+  the rule that a refused request costs nothing. `archsim-app` charges a run to both counters or
+  to neither (its README, "Python bugs not copied").
 - **Revoking a share stored a JSON `null` in `shared_reports.payload`, not SQL `NULL`** (the
   default of SQLAlchemy's JSON type). A database the Python API used may still hold both, so
   `SharesTests` accepts both, and `archsim-app` reads both as "no copy".
