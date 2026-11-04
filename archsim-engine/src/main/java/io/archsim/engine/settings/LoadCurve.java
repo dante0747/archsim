@@ -1,10 +1,13 @@
 package io.archsim.engine.settings;
 
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
 import tools.jackson.databind.JsonNode;
+
+import io.archsim.model.component.service.LoadPoint;
 
 /**
  * A service's time per request as its load changes ({@code serviceTimeByLoad}): at each
@@ -21,6 +24,17 @@ public final class LoadCurve {
 
 	private LoadCurve(NavigableMap<Double, Double> points) {
 		this.points = points;
+	}
+
+	/**
+	 * A service's curve, from its config record.
+	 * @param points its points, in any order
+	 * @return the curve; of two points at one rate, the later
+	 */
+	public static LoadCurve of(List<LoadPoint> points) {
+		TreeMap<Double, Double> sorted = new TreeMap<>();
+		points.forEach((point) -> add(sorted, point.rps(), point.factor()));
+		return new LoadCurve(sorted);
 	}
 
 	/**

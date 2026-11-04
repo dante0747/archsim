@@ -7,8 +7,12 @@ import java.util.Set;
 import java.util.function.Function;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.model.issue.Issue;
 import io.archsim.parity.GoldenEntry;
+import io.archsim.parity.PythonError;
 
 /**
  * The Python engine's functions this module ports, each as the Java call that replaces
@@ -19,7 +23,7 @@ final class EngineFunctions {
 
 	private static final Map<String, Function<GoldenEntry, JsonNode>> PORTED = merged(TextFunctions.PORTED,
 			QueueingFunctions.PORTED, LoadFunctions.PORTED, PricingFunctions.PORTED, SeedFunctions.PORTED,
-			SweepFunctions.PORTED);
+			SweepFunctions.PORTED, SizingFunctions.PORTED);
 
 	private EngineFunctions() {
 	}
@@ -29,9 +33,22 @@ final class EngineFunctions {
 		return PORTED.keySet();
 	}
 
-	/** The Java counterpart of the entry's function on the entry's input. */
+	/**
+	 * The Java counterpart of the entry's function on the entry's input. The exceptions
+	 * the golden files record become the errors the Python engine raises in their place.
+	 */
 	static JsonNode call(GoldenEntry entry) {
-		return Objects.requireNonNull(PORTED.get(entry.fn()), entry.fn()).apply(entry);
+		Function<GoldenEntry, JsonNode> counterpart = Objects.requireNonNull(PORTED.get(entry.fn()), entry.fn());
+		try {
+			return counterpart.apply(entry);
+		}
+		catch (DocumentInvalidException ex) {
+			ObjectNode error = GoldenJson.NODES.objectNode()
+				.put("type", "DocumentInvalidError")
+				.put("message", ex.getMessage());
+			ex.issues().stream().map(Issue::toJson).forEach(error.putArray("issues")::add);
+			throw new PythonError(error, ex);
+		}
 	}
 
 	@SafeVarargs

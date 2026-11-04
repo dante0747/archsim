@@ -13,7 +13,6 @@ uv run archsim-engine-service --port 8001
 | --- | --- | --- |
 | `GET /health` | | the Java API's checks |
 | `POST /analyze` `{"document", "scenarioId"}` | `analyze_document` | `POST /api/v1/analyze` |
-| `POST /validate` `{"document", "scenarioId"}` | `resolve_scenario`, `validate_document` | `POST /api/v1/validate` with a scenario (resolving one sizes "auto" parts, which Java does from stage 3) |
 | `POST /prepare` `{"document", "scenarioId", "maxRequests", "maxWallSeconds", "seed"}` | `prepare_run`, `quick_check` | starting and rerunning runs: the document to store, its scenario and seed |
 | `POST /compare` `{"a", "b", "labelA", "labelB"}` | `compare_reports` | `GET /api/v1/compare` |
 | `POST /summarize-seeds` `{"runs", "objectives"}` | `summarize_seeds` | `GET /api/v1/run-groups/{id}` |

@@ -1,0 +1,114 @@
+package io.archsim.engine.sizing;
+
+import java.util.List;
+import java.util.Set;
+
+/**
+ * The rules auto-sizing follows: the utilization it aims at, the common sizes it rounds
+ * to, and the illustrative ratios it uses where the model has no measured basis (their
+ * explanations say "illustrative").
+ */
+final class Sizing {
+
+	/** The CPU utilization a part is sized for at the peak. */
+	static final double TARGET_CPU = 0.6;
+
+	/**
+	 * The size below the target's is kept when it runs the peak at up to this: rounding
+	 * up to the next common size would otherwise double the cores for a few points of
+	 * utilization.
+	 */
+	static final double CPU_STEP_SLACK = 0.65;
+
+	/** The common vCPU counts. */
+	static final List<Double> CPU_STEPS = List.of(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 48.0, 64.0, 96.0, 128.0, 192.0, 256.0,
+			384.0, 512.0);
+
+	/** The common memory sizes, in GiB. */
+	static final List<Double> MEMORY_STEPS = List.of(0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 384.0,
+			512.0, 768.0, 1024.0, 1536.0, 2048.0);
+
+	/** The common disk sizes, in GiB. */
+	static final List<Double> DISK_STEPS = List.of(10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0,
+			10000.0, 20000.0, 50000.0, 100000.0);
+
+	/** The most vCPU an auto size has. */
+	static final double MAX_CPU = 512;
+
+	/** The most memory an auto size has, in GiB. */
+	static final double MAX_MEMORY_GIB = 24576;
+
+	/** The most disk an auto size has, in GiB. */
+	static final double MAX_STORAGE_GIB = 1_000_000;
+
+	/** Auto memory is what the engine's memory model needs, plus 25%. */
+	static final double MEMORY_HEADROOM = 1.25;
+
+	/** Auto storage keeps the data under 70% full. */
+	static final double STORAGE_FILL = 0.7;
+
+	/** The smallest auto disk, in GiB. */
+	static final double MIN_STORAGE_GIB = 10;
+
+	/**
+	 * Illustrative: the memory the operating system of a VM uses besides the part's
+	 * process.
+	 */
+	static final double OS_MEMORY_GIB = 0.25;
+
+	/** Illustrative: requests per second an L7 proxy handles comfortably on one vCPU. */
+	static final double PROXY_RPS_PER_VCPU = 5000;
+
+	/** Illustrative: load balancer memory per vCPU (a proxy keeps little state). */
+	static final int PROXY_GIB_PER_VCPU = 1;
+
+	/** Illustrative: messages per second a broker handles comfortably on one vCPU. */
+	static final double BROKER_MSGS_PER_VCPU = 10000;
+
+	/** Illustrative: broker memory per vCPU for buffers and page cache. */
+	static final int BROKER_GIB_PER_VCPU = 2;
+
+	/** Kafka's default retention ({@code log.retention.hours = 168}), in seconds. */
+	static final double LOG_RETENTION_S = 7 * 24 * 3600;
+
+	/** The brokers that keep a log for its retention rather than deleting on ack. */
+	static final Set<String> LOG_BROKERS = Set.of("kafka", "redis_streams");
+
+	/**
+	 * A broker that deletes on ack keeps room for an hour of peak publishes, in seconds.
+	 */
+	static final double BACKLOG_S = 3600;
+
+	/** The largest auto memory of one service replica, in GiB. */
+	static final int MAX_SERVICE_MEMORY_GIB = 64;
+
+	/** Illustrative: the smallest auto memory of a database instance, in GiB. */
+	static final double DB_MIN_MEMORY_GIB = 1;
+
+	/**
+	 * Memory per connection of a database instance: RDS for PostgreSQL sets
+	 * {@code max_connections} to its memory / 9,531,392 bytes by default.
+	 */
+	static final long DB_BYTES_PER_CONNECTION = 9_531_392;
+
+	/**
+	 * Illustrative: the share of a database's data read often, when no working set is
+	 * set.
+	 */
+	static final double DB_HOT_SHARE = 0.25;
+
+	/** The share of a database's memory its buffer cache takes. */
+	static final double BUFFER_CACHE_SHARE = 0.75;
+
+	/** AWS Lambda gives a function one vCPU per this many MB of memory. */
+	static final int LAMBDA_MB_PER_VCPU = 1769;
+
+	/**
+	 * Standard shapes without a price snapshot: GiB per vCPU (compute, general, memory).
+	 */
+	static final List<Double> GIB_PER_VCPU = List.of(2.0, 4.0, 8.0);
+
+	private Sizing() {
+	}
+
+}

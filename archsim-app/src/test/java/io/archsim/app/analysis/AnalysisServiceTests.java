@@ -9,15 +9,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.engine.EngineRefusalException;
 import io.archsim.app.engine.EngineService;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
+import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.issue.Issue;
 import io.archsim.model.pricing.PriceSnapshots;
+import io.archsim.model.validation.DocumentValidator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -26,7 +29,8 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 
 /**
- * Checking a design: validated in Java, its scenarios and analyses asked of the engine.
+ * Checking a design: resolved and validated in Java, its analyses asked of the engine
+ * service.
  */
 class AnalysisServiceTests {
 
@@ -34,8 +38,9 @@ class AnalysisServiceTests {
 
 	private final EngineService engine = mock();
 
-	private final AnalysisService service = new AnalysisService(StandardComponents.registry(), PriceSnapshots.shipped(),
-			this.engine, JSON);
+	private final AnalysisService service = new AnalysisService(
+			new DocumentValidator(StandardComponents.registry(), PriceSnapshots.shipped()),
+			new ScenarioResolver(StandardComponents.registry(), PriceSnapshots.shipped()), this.engine, JSON);
 
 	@Test
 	void validate_starterDesign_isValid() throws IOException {
@@ -67,19 +72,33 @@ class AnalysisServiceTests {
 
 	@Test
 	void validate_emptyScenarioId_validatesTheDesignItself() throws IOException {
-		this.service.validate(new AnalysisRequest(starter(), ""));
+		JsonNode answer = JSON.readTree(this.service.validate(new AnalysisRequest(starter(), "")).json());
 
+		assertThat(answer.path("valid").asBoolean()).isTrue();
+	}
+
+	@Test
+	void validate_aScenarioThatBreaksTheDesign_isInvalid() throws IOException {
+		JsonNode answer = JSON.readTree(this.service.validate(new AnalysisRequest(withNoReplicas(), "none")).json());
+
+		assertThat(answer.path("valid").asBoolean()).isFalse();
+		assertThat(answer.path("issues").get(0).path("code").asString()).isEqualTo("node.config_invalid");
+	}
+
+	@Test
+	void validate_theDesignWithoutTheScenarioThatBreaksIt_isValid() throws IOException {
+		JsonNode answer = JSON.readTree(this.service.validate(new AnalysisRequest(withNoReplicas(), null)).json());
+
+		assertThat(answer.path("valid").asBoolean()).isTrue();
 		then(this.engine).shouldHaveNoInteractions();
 	}
 
 	@Test
-	void validate_scenario_isTheEnginesAnswer() throws IOException {
-		ObjectNode design = starter();
-		given(this.engine.validateScenario(design, "three-api-replicas")).willReturn(new JsonText("{\"valid\":true}"));
+	void validate_scenarioTheDesignDoesNotHave_isInvalidWithTheReason() throws IOException {
+		JsonNode answer = JSON.readTree(this.service.validate(new AnalysisRequest(starter(), "nope")).json());
 
-		JsonText answer = this.service.validate(new AnalysisRequest(design, "three-api-replicas"));
-
-		assertThat(answer.json()).isEqualTo("{\"valid\":true}");
+		assertThat(answer.path("valid").asBoolean()).isFalse();
+		assertThat(answer.path("issues").get(0).path("code").asString()).isEqualTo("scenario.unknown");
 	}
 
 	@Test
@@ -95,6 +114,17 @@ class AnalysisServiceTests {
 				assertThat(ex.getMessage()).isEqualTo("The document cannot be analyzed");
 				assertThat(ex.issues()).containsExactly(Issue.error("document.schema", "bad"));
 			});
+	}
+
+	/**
+	 * The starter with a scenario that runs its API on no replicas, which is not valid.
+	 */
+	private static ObjectNode withNoReplicas() throws IOException {
+		ObjectNode design = starter();
+		ObjectNode scenario = ((ArrayNode) design.path("scenarios")).addObject().put("id", "none").put("name", "None");
+		ObjectNode override = scenario.putArray("overrides").addObject().put("path", "replicas").put("value", 0);
+		override.putObject("target").put("kind", "node").put("id", "api");
+		return design;
 	}
 
 	private static ObjectNode starter() throws IOException {

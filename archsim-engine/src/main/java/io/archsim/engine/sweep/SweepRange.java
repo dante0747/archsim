@@ -5,6 +5,7 @@ import java.util.List;
 
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.engine.text.HalfUp;
+import io.archsim.model.document.Workload;
 
 /**
  * The range of constant loads a sweep steps through to find where a design breaks.
@@ -49,6 +50,9 @@ public record SweepRange(double fromRps, double toRps) {
 	 */
 	private static final double SHORTEST_STEP_S = 1e-9;
 
+	/** A breaking-point sweep's steps run at least this long, in seconds. */
+	private static final double SHORTEST_SWEEP_STEP_S = 2.0;
+
 	/** Loads from here on are rounded to multiples of {@link #COARSE_ROUNDING}. */
 	private static final double COARSE_FROM = 100;
 
@@ -73,6 +77,18 @@ public record SweepRange(double fromRps, double toRps) {
 		double low = Math.max(step, HalfUp.javaScriptRound(base * LOW_SHARE / step) * step);
 		double high = Math.max(low + step, HalfUp.javaScriptRound(base * HIGH_MULTIPLE / step) * step);
 		return new SweepRange(Math.min(low, cap), Math.min(high, cap));
+	}
+
+	/**
+	 * The range a breaking-point sweep steps through by default: around a design's load,
+	 * within what a step of at least two seconds can run.
+	 * @param workload the resolved design's workload
+	 * @param limits the limits a run is held to
+	 * @param stepSeconds how long each step runs
+	 * @return the range
+	 */
+	public static SweepRange around(Workload workload, SimulationLimits limits, double stepSeconds) {
+		return suggested(workload.rps(), rpsCap(limits, Math.max(SHORTEST_SWEEP_STEP_S, stepSeconds)));
 	}
 
 	/**

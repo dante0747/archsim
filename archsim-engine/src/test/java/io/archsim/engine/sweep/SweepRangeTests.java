@@ -1,13 +1,18 @@
 package io.archsim.engine.sweep;
 
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.simulation.SimulationLimits;
+import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.document.Workload;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The loads a sweep steps through. */
 class SweepRangeTests {
+
+	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	@Test
 	void suggested_aLoad_runsFromHalfToThreeTimesItOnRoundNumbers() {
@@ -22,6 +27,14 @@ class SweepRangeTests {
 	@Test
 	void suggested_aCap_limitsBothEnds() {
 		assertThat(SweepRange.suggested(40_000, 50_000)).isEqualTo(new SweepRange(20_000, 50_000));
+	}
+
+	@Test
+	void around_aShortStep_capsTheRangeAsATwoSecondStepWould() {
+		Workload workload = RecordCodec.read(JSON.readTree("{\"rps\": 60000}"), Workload.class);
+
+		assertThat(SweepRange.around(workload, new SimulationLimits(100_000, 300), 1))
+			.isEqualTo(new SweepRange(40_000, 50_000));
 	}
 
 	@Test

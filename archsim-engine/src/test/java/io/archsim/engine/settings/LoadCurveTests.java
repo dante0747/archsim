@@ -1,7 +1,11 @@
 package io.archsim.engine.settings;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
+
+import io.archsim.model.component.service.LoadPoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -32,6 +36,13 @@ class LoadCurveTests {
 	@Test
 	void factorAt_betweenPoints_isInterpolatedInTheLogOfTheRate() {
 		assertThat(CURVE.factorAt(200)).isCloseTo(0.75, within(1e-12));
+	}
+
+	@Test
+	void of_aConfigsPoints_isTheSameCurve() {
+		LoadCurve curve = LoadCurve.of(List.of(new LoadPoint(400, 0.5), new LoadPoint(100, 1.0)));
+
+		assertThat(curve.factorAt(200)).isEqualTo(CURVE.factorAt(200));
 	}
 
 	@Test

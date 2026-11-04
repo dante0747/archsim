@@ -62,7 +62,7 @@ public final class InstanceTypes {
 		return items.stream()
 			.filter((sku) -> size.fitsIn(sku.vcpu(), sku.memoryGib()) && sku.price(option).isPresent())
 			.filter((sku) -> allowed(sku, restricting, namedBursts, size.busy()))
-			.filter((sku) -> runs(sku, kind.engine()))
+			.filter((sku) -> sku.runs(kind.engine()))
 			.min(Comparator.<Sku>comparingDouble((sku) -> sku.price(option).orElseThrow())
 				.thenComparingDouble(Sku::vcpu)
 				.thenComparingDouble(Sku::memoryGib)
@@ -128,7 +128,7 @@ public final class InstanceTypes {
 	 * @return the type, if the list has it
 	 */
 	private Optional<Sku> find(SkuCategory category, String name, @Nullable String engine) {
-		return items(category).stream().filter((sku) -> sku.sku().equals(name) && runs(sku, engine)).findFirst();
+		return items(category).stream().filter((sku) -> sku.sku().equals(name) && sku.runs(engine)).findFirst();
 	}
 
 	private boolean allowed(Sku sku, Set<String> restricting, Set<String> namedBursts, @Nullable Busy busy) {
@@ -171,17 +171,6 @@ public final class InstanceTypes {
 			.filter((sku) -> kind.test(sku) && named.contains(sku.family()))
 			.map(Sku::family)
 			.collect(Collectors.toSet());
-	}
-
-	/**
-	 * Whether a type runs an engine: any type when no engine is asked for, or it lists
-	 * none.
-	 * @param sku the type
-	 * @param engine the engine, or {@code null} for any
-	 * @return whether it runs it
-	 */
-	private static boolean runs(Sku sku, @Nullable String engine) {
-		return engine == null || engine.isEmpty() || sku.engines().isEmpty() || sku.engines().contains(engine);
 	}
 
 }

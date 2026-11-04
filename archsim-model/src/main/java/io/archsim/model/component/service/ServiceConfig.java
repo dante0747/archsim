@@ -255,6 +255,24 @@ public record ServiceConfig(
 	}
 
 	/**
+	 * Whether the service's handlers are event loops: its own concurrency model, else its
+	 * technology's, else a thread pool.
+	 * @return {@code true} for event loops
+	 */
+	public boolean runsEventLoop() {
+		return profile().choice("runtimeModel", this.runtimeModel, RuntimeModel.AUTO,
+				RuntimeModel.THREAD_POOL) == RuntimeModel.EVENT_LOOP;
+	}
+
+	/**
+	 * The requests one replica handles at once: its event-loop processes, or its workers.
+	 * @return the handlers per replica
+	 */
+	public int handlersPerReplica() {
+		return runsEventLoop() ? this.processesPerReplica : this.workersPerReplica;
+	}
+
+	/**
 	 * Requests one replica can hold within its memory; empty when memory is not set.
 	 * @return the requests one replica holds, zero or more
 	 */

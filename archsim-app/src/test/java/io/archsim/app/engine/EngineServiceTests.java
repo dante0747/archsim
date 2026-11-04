@@ -85,11 +85,10 @@ class EngineServiceTests {
 	}
 
 	@Test
-	void validateScenario_serviceDown_isServiceUnavailable() throws IOException {
+	void analyze_serviceDown_isServiceUnavailable() throws IOException {
 		EngineService engine = new EngineService(RestClient.create("http://127.0.0.1:" + freePort()));
 
-		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> engine.validateScenario(DESIGN, "three-api-replicas"))
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.analyze(DESIGN, null))
 			.extracting(ApiException::status)
 			.isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
 	}

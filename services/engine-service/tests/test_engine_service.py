@@ -16,12 +16,9 @@ from archsim_engine import (
     analyze_document,
     compare_reports,
     default_registry,
-    load_document,
     prepare_run,
     quick_check,
-    resolve_scenario,
     summarize_seeds,
-    validate_document,
 )
 from archsim_engine.export import export_document
 from archsim_engine_service.app import create_app
@@ -107,24 +104,6 @@ def test_analyze_request_it_cannot_read_is_a_bad_request(
 
     assert response.status_code == 400
     assert response.json()["message"].startswith(message)
-
-
-def test_validate_scenario_validates_the_resolved_design(client: TestClient) -> None:
-    response = client.post(
-        "/validate", json={"document": starter(), "scenarioId": "three-api-replicas"}
-    )
-
-    registry = default_registry()
-    resolved, _ = resolve_scenario(load_document(starter()), "three-api-replicas", registry)
-    assert response.json() == validate_document(resolved, registry).to_dict()
-
-
-def test_validate_unknown_scenario_is_invalid_with_the_reason(client: TestClient) -> None:
-    response = client.post("/validate", json={"document": starter(), "scenarioId": "nope"})
-
-    assert response.status_code == 200
-    assert response.json()["valid"] is False
-    assert response.json()["issues"][0]["code"] == "scenario.unknown"
 
 
 def test_unknown_path_is_not_found(client: TestClient) -> None:

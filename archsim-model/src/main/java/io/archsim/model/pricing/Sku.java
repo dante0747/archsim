@@ -53,4 +53,14 @@ public record Sku(@MinLength(1) @MaxLength(80) String sku, @MinLength(1) @MaxLen
 	public Optional<Double> price(String option) {
 		return Optional.ofNullable(this.hourly.get(option));
 	}
+
+	/**
+	 * Whether the type runs an engine: any type when no engine is asked for, or when it
+	 * lists none.
+	 * @param engine the engine, such as {@code postgresql}, or {@code null} for any
+	 * @return whether it runs it
+	 */
+	public boolean runs(@Nullable String engine) {
+		return engine == null || engine.isEmpty() || this.engines.isEmpty() || this.engines.contains(engine);
+	}
 }

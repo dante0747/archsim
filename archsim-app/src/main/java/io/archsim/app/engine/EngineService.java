@@ -60,20 +60,6 @@ public final class EngineService {
 	}
 
 	/**
-	 * The validation of one of a design's scenarios, resolved first as a run resolves it
-	 * (auto sizes, pinned prices, overrides). A design that cannot be read or resolved is
-	 * answered as invalid, not refused.
-	 * @param document the design, as the request carries it
-	 * @param scenarioId the scenario to validate
-	 * @return the validation, as the engine wrote it
-	 * @throws ApiException {@code 503} when the service cannot be reached or does not
-	 * answer in time
-	 */
-	public JsonText validateScenario(JsonNode document, String scenarioId) {
-		return call("/validate", design(document, scenarioId));
-	}
-
-	/**
 	 * Prepares a run to be queued ({@code prepare_run}): the design to store with it, its
 	 * scenario and seed, and whether a quick check can answer it.
 	 * @param request the design, scenario, limits and seed

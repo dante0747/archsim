@@ -65,7 +65,7 @@ ways.
 | `meta` | `GET /health`, `GET /meta` |
 | `catalog` | `GET /components`, `GET /pricing`, `GET /schema/architecture`, from [archsim-model](../archsim-model/README.md) |
 | `examples` | `GET /examples`, `GET /examples/{id}` |
-| `analysis` | `POST /validate` (archsim-model; a scenario through the engine service), `POST /analyze` (engine service) |
+| `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (engine service) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
 | `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are queued in `simulation_runs`, and the Python workers simulate them until stage 4 |
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |

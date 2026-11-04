@@ -29,12 +29,9 @@ from archsim_engine import (
     SimulationLimits,
     compare_reports,
     default_registry,
-    load_document,
     prepare_run,
     quick_check,
-    resolve_scenario,
     summarize_seeds,
-    validate_document,
 )
 from archsim_engine import analyze_document as engine_analyze
 from archsim_engine.calibration import (
@@ -141,19 +138,6 @@ def refused(message: str, issues: list[dict[str, Any]], kind: str) -> Response:
 def analyze(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
     """``analyze_document``: the auto sizes, cost and review of a document or one of its scenarios."""
     return engine_analyze(document_of(body), registry, scenario_of(body))
-
-
-def validate(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
-    """``validate_document`` of a document or one of its scenarios, as ``POST /validate`` answered
-    it: a scenario is resolved first (auto sizes, pinned prices, overrides), and a document that
-    cannot be read or resolved is invalid with the reasons, not refused."""
-    scenario_id = scenario_of(body)
-    try:
-        doc = load_document(document_of(body))
-        resolved, _ = resolve_scenario(doc, scenario_id, registry)
-    except DocumentInvalidError as exc:
-        return {"valid": False, "issues": [issue.to_dict() for issue in exc.issues]}
-    return validate_document(resolved if scenario_id else doc, registry).to_dict()
 
 
 def prepare(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
@@ -344,7 +328,6 @@ def create_app() -> Starlette:
         routes=[
             Route("/health", health, methods=["GET"]),
             Route("/analyze", endpoint(analyze), methods=["POST"]),
-            Route("/validate", endpoint(validate), methods=["POST"]),
             Route("/prepare", endpoint(prepare), methods=["POST"]),
             Route("/compare", endpoint(compare), methods=["POST"]),
             Route("/summarize-seeds", endpoint(seeds), methods=["POST"]),

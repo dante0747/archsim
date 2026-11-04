@@ -17,7 +17,12 @@ public final class LoadEstimate {
 
 	private final Map<String, @Nullable NodeLoad> edges;
 
-	LoadEstimate(Map<String, @Nullable NodeLoad> nodes, Map<String, @Nullable NodeLoad> edges) {
+	/**
+	 * An estimate of these loads.
+	 * @param nodes each part's load, by its id, {@code null} where it depends on the run
+	 * @param edges each link's load, by its id, {@code null} where it depends on the run
+	 */
+	public LoadEstimate(Map<String, @Nullable NodeLoad> nodes, Map<String, @Nullable NodeLoad> edges) {
 		this.nodes = Collections.unmodifiableMap(new LinkedHashMap<>(nodes));
 		this.edges = Collections.unmodifiableMap(new LinkedHashMap<>(edges));
 	}

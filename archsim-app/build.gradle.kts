@@ -12,6 +12,7 @@ dependencies {
     // one Jackson for the app and the model, whatever Spring Boot's BOM says
     implementation(platform(libs.jackson.bom))
     implementation(project(":archsim-model"))
+    implementation(project(":archsim-engine"))
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.flyway)
