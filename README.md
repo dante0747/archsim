@@ -377,6 +377,7 @@ these commands (see the [Makefile](Makefile)).
 packages/engine/   Python simulation engine and domain model (no web dependencies)
 archsim-app/       Java API (Spring Boot): projects, runs, workspaces, reviews, sharing, sign-in
 archsim-model/     Java design model: the document's records, upgrades and validation
+archsim-engine/    Java engine: its deterministic parts (sizing, cost, review, exports, ...)
 services/engine-service/  Python engine service: the engine's synchronous calls, for the API
 services/api/      Python simulation workers: they simulate the runs the API queues
 apps/web/          Next.js editor: canvas, inspector, results and comparison

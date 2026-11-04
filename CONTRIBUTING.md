@@ -23,6 +23,7 @@ docs/              Design and reference documentation.
 
 archsim-model/     Java: the design document's records, upgrades, JSON Schema and validation
                    (the Java 25 port, see docs/proposals/java-25-port.md).
+archsim-engine/    Java: the engine's deterministic parts (stage 3 of the port).
 archsim-app/       Java: the HTTP API on Spring Boot 4 (stage 2 of the port); Flyway owns
                    the database schema.
 archsim-api-tests/ Java: black-box tests of the HTTP API. build-logic/ and gradle/ hold the
@@ -96,6 +97,7 @@ npm run e2e                       # the main path in Chromium, against the build
 # Java (JDK 25; Gradle finds it, or downloads one, whatever JAVA_HOME says)
 ./gradlew build                   # formatting, Checkstyle, Error Prone and NullAway, tests, coverage
 ./gradlew :archsim-model:test     # the design model against the golden files
+./gradlew :archsim-engine:test    # the engine's deterministic parts against the golden files
 ./gradlew :archsim-app:test       # the Java API, on an embedded PostgreSQL (no Docker needed)
 docker compose up -d postgres
 ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java     # black-box API tests

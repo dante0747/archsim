@@ -8,10 +8,10 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * JSON text exactly as Python's
- * {@code json.dumps(value, sort_keys=True, separators=(",", ":"),
- * ensure_ascii=False)} writes it: keys sorted by code point, no spaces, floats as their
- * repr, non-ASCII characters as they are. Hashes of it (a price snapshot's
- * {@code sha256}) then match the Python engine's.
+ * {@code json.dumps(value, sort_keys=True, separators=(",", ":"))} writes it: keys sorted
+ * by code point, no spaces, floats as their repr, and non-ASCII characters either as they
+ * are ({@code ensure_ascii=False}) or escaped. Hashes of it (a price snapshot's
+ * {@code sha256}, a report's digest) then match the Python engine's.
  */
 public final class CanonicalJson {
 
@@ -21,21 +21,49 @@ public final class CanonicalJson {
 	 */
 	private static final char SPACE = 0x20;
 
-	private CanonicalJson() {
+	/** The last printable ASCII character, {@code ~}. */
+	private static final char TILDE = 0x7e;
+
+	private static final CanonicalJson AS_IS = new CanonicalJson(Character.MAX_VALUE);
+
+	private static final CanonicalJson ASCII = new CanonicalJson(TILDE);
+
+	/** The last character written as it is; the characters after it are escaped. */
+	private final char lastUnescaped;
+
+	private CanonicalJson(char lastUnescaped) {
+		this.lastUnescaped = lastUnescaped;
 	}
 
 	/**
-	 * The canonical JSON text of a value.
+	 * The canonical JSON text of a value, non-ASCII characters as they are
+	 * ({@code ensure_ascii=False}).
 	 * @param value the JSON value
 	 * @return its text, as Python's {@code json.dumps} writes it with these options
 	 */
 	public static String write(JsonNode value) {
+		return AS_IS.text(value);
+	}
+
+	/**
+	 * The canonical JSON text of a value in printable ASCII, Python's default
+	 * ({@code ensure_ascii=True}): every other character is escaped with its four
+	 * hexadecimal digits, a character beyond the Basic Multilingual Plane as its two
+	 * surrogates.
+	 * @param value the JSON value
+	 * @return its text, as Python's {@code json.dumps} writes it with these options
+	 */
+	public static String writeAscii(JsonNode value) {
+		return ASCII.text(value);
+	}
+
+	private String text(JsonNode value) {
 		StringBuilder out = new StringBuilder();
-		write(value, out);
+		append(value, out);
 		return out.toString();
 	}
 
-	private static void write(JsonNode value, StringBuilder out) {
+	private void append(JsonNode value, StringBuilder out) {
 		if (value.isNull() || value.isMissingNode()) {
 			out.append("null");
 		}
@@ -59,18 +87,18 @@ public final class CanonicalJson {
 		}
 	}
 
-	private static void array(JsonNode array, StringBuilder out) {
+	private void array(JsonNode array, StringBuilder out) {
 		out.append('[');
 		for (int i = 0; i < array.size(); i++) {
 			if (i > 0) {
 				out.append(',');
 			}
-			write(array.get(i), out);
+			append(array.get(i), out);
 		}
 		out.append(']');
 	}
 
-	private static void object(JsonNode object, StringBuilder out) {
+	private void object(JsonNode object, StringBuilder out) {
 		List<Map.Entry<String, JsonNode>> properties = new ArrayList<>(object.properties());
 		properties.sort(Map.Entry.comparingByKey(CanonicalJson::compareCodePoints));
 		out.append('{');
@@ -80,7 +108,7 @@ public final class CanonicalJson {
 			}
 			string(properties.get(i).getKey(), out);
 			out.append(':');
-			write(properties.get(i).getValue(), out);
+			append(properties.get(i).getValue(), out);
 		}
 		out.append('}');
 	}
@@ -102,11 +130,11 @@ public final class CanonicalJson {
 	}
 
 	/**
-	 * A string as Python's json module writes it without ASCII escaping.
+	 * A string as Python's json module writes it.
 	 * @param text the string
 	 * @param out where its JSON text is written, quoted
 	 */
-	private static void string(String text, StringBuilder out) {
+	private void string(String text, StringBuilder out) {
 		out.append('"');
 		for (int i = 0; i < text.length(); i++) {
 			char character = text.charAt(i);
@@ -119,7 +147,7 @@ public final class CanonicalJson {
 				case '\b' -> out.append("\\b");
 				case '\f' -> out.append("\\f");
 				default -> {
-					if (character < SPACE) {
+					if (character < SPACE || character > this.lastUnescaped) {
 						out.append("\\u%04x".formatted((int) character));
 					}
 					else {

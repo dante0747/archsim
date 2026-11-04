@@ -19,5 +19,6 @@ dependencyResolutionManagement {
 }
 
 include("archsim-model")
+include("archsim-engine")
 include("archsim-app")
 include("archsim-api-tests")
