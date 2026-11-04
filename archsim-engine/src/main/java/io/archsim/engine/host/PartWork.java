@@ -33,7 +33,23 @@ public record PartWork(double busy, double busiest, double cores) {
 	 */
 	public static Optional<PartWork> forSizing(String type, LenientSettings settings, NodeLoad load) {
 		double cpu = settings.number("cpuCores").orElse(0.0);
-		double cores = (cpu > 0) ? cpu : 1.0;
+		return of(type, settings, load, (cpu > 0) ? cpu : 1.0);
+	}
+
+	/**
+	 * The work of a service, database or cache with a CPU size, as a run would do it.
+	 * @param type the part's component type
+	 * @param settings its settings
+	 * @param load the requests it carries
+	 * @return its work; empty for a part without a CPU size, another type, or a
+	 * serverless function
+	 */
+	public static Optional<PartWork> withCpuSize(String type, LenientSettings settings, NodeLoad load) {
+		double cpu = settings.number("cpuCores").orElse(0.0);
+		return (cpu > 0) ? of(type, settings, load, cpu) : Optional.empty();
+	}
+
+	private static Optional<PartWork> of(String type, LenientSettings settings, NodeLoad load, double cores) {
 		return switch (type) {
 			case ServiceSpec.TYPE -> service(settings, load, cores);
 			case DatabaseSpec.TYPE -> Optional.of(database(settings, load, cores));

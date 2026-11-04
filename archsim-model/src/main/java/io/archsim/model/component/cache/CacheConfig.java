@@ -163,4 +163,14 @@ public record CacheConfig(
 		return OptionalLong.of(Math.max(1, (long) Math.floor(keyMemoryKb / this.itemSizeKb)));
 	}
 
+	/**
+	 * The keys its memory holds over all its shards; empty when memory is not set.
+	 * @return the keys all the shards hold
+	 */
+	public OptionalLong heldKeys() {
+		OptionalLong perShard = capacityKeys();
+		return perShard.isPresent() ? OptionalLong.of(perShard.getAsLong() * Math.max(1, this.shards))
+				: OptionalLong.empty();
+	}
+
 }

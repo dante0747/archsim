@@ -273,6 +273,15 @@ public record ServiceConfig(
 	}
 
 	/**
+	 * Whether a handler stays busy while the service waits on its own calls: a
+	 * thread-pool worker that blocks on them does; an event loop never does.
+	 * @return {@code true} when a handler is held through the calls
+	 */
+	public boolean holdsHandlerThroughCalls() {
+		return !runsEventLoop() && this.blockingDownstream;
+	}
+
+	/**
 	 * Requests one replica can hold within its memory; empty when memory is not set.
 	 * @return the requests one replica holds, zero or more
 	 */

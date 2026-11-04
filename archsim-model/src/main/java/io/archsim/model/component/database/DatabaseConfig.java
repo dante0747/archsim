@@ -265,6 +265,12 @@ public record DatabaseConfig(
 	 */
 	private static final double ROUNDING_TOLERANCE = 1e-9;
 
+	/** A read capacity unit covers this much of an item. */
+	private static final double READ_UNIT_KB = 4.0;
+
+	/** An eventually consistent read takes half a unit. */
+	private static final double EVENTUAL_READ_SHARE = 0.5;
+
 	private static TechnologyProfile relational(TechnologyProfile tier, String readsWaitForWrites, int applyWorkers) {
 		return tier.with("rowLocks", "on")
 			.with("readsWaitForWrites", readsWaitForWrites)
@@ -310,6 +316,50 @@ public record DatabaseConfig(
 	}
 
 	/**
+	 * Whether a write waits for the log flush, after the technology's default.
+	 * @return {@code true} when a commit flushes the log
+	 */
+	public boolean flushesCommits() {
+		return profile().choice("commitFlush", this.commitFlush, Toggle.AUTO, Toggle.OFF) == Toggle.ON;
+	}
+
+	/**
+	 * The read capacity units per second a metered table has: as provisioned, or on
+	 * demand.
+	 * @return the read units per second
+	 */
+	public double readUnitsPerSecond() {
+		return (this.capacityMode == CapacityMode.PROVISIONED) ? this.readCapacityUnits : ON_DEMAND_READ_UNITS;
+	}
+
+	/**
+	 * The write capacity units per second a metered table has: as provisioned, or on
+	 * demand.
+	 * @return the write units per second
+	 */
+	public double writeUnitsPerSecond() {
+		return (this.capacityMode == CapacityMode.PROVISIONED) ? this.writeCapacityUnits : ON_DEMAND_WRITE_UNITS;
+	}
+
+	/**
+	 * The read capacity units one read takes: a unit per 4 KB of the item, half for an
+	 * eventually consistent read.
+	 * @return the units per read
+	 */
+	public double unitsPerRead() {
+		int blocks = (int) Math.ceil(this.itemSizeKb / READ_UNIT_KB - ROUNDING_TOLERANCE);
+		return Math.max(1, blocks) * ((this.consistentReads == ConsistentReads.STRONG) ? 1.0 : EVENTUAL_READ_SHARE);
+	}
+
+	/**
+	 * The write capacity units one write takes: a unit per KB of the item.
+	 * @return the units per write
+	 */
+	public double unitsPerWrite() {
+		return Math.max(1, (int) Math.ceil(this.itemSizeKb - ROUNDING_TOLERANCE));
+	}
+
+	/**
 	 * Which instances serve reads, after the technology's default.
 	 * @return the instances that serve reads; {@link ReadFrom#AUTO} when the technology
 	 * has no default
@@ -326,11 +376,9 @@ public record DatabaseConfig(
 		if (!metered()) {
 			return this.shards;
 		}
-		boolean provisioned = this.capacityMode == CapacityMode.PROVISIONED;
-		double readUnits = provisioned ? this.readCapacityUnits : ON_DEMAND_READ_UNITS;
-		double writeUnits = provisioned ? this.writeCapacityUnits : ON_DEMAND_WRITE_UNITS;
-		int byCapacity = (int) Math
-			.ceil(readUnits / PARTITION_READ_UNITS + writeUnits / PARTITION_WRITE_UNITS - ROUNDING_TOLERANCE);
+		double partitionsNeeded = readUnitsPerSecond() / PARTITION_READ_UNITS
+				+ writeUnitsPerSecond() / PARTITION_WRITE_UNITS;
+		int byCapacity = (int) Math.ceil(partitionsNeeded - ROUNDING_TOLERANCE);
 		return Math.max(1, Math.max(byCapacity, partitionsBySize()));
 	}
 

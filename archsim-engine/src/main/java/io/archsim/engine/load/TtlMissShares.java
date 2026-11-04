@@ -89,9 +89,8 @@ final class TtlMissShares {
 	 */
 	private static @Nullable Long capacityKeys(NodeSpec cache, ComponentSpec<?> cacheType) {
 		try {
-			if (cacheType.parseConfig(cache.config()) instanceof CacheConfig config
-					&& config.capacityKeys().isPresent()) {
-				return config.capacityKeys().getAsLong() * Math.max(1, config.shards());
+			if (cacheType.parseConfig(cache.config()) instanceof CacheConfig config && config.heldKeys().isPresent()) {
+				return config.heldKeys().getAsLong();
 			}
 			return null;
 		}

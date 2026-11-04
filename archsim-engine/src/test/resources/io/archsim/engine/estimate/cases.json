@@ -1,0 +1,5407 @@
+{
+ "generator": "scripts/export_estimate_cases.py (archsim_engine 0.16.0)",
+ "cases": [
+  {
+   "name": "onAHostMachine_slowsEveryPartsCpuWork",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 0.7,
+        "memoryGib": 4.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 2.0,
+        "cpuShare": 0.5,
+        "memoryGib": 4.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      },
+      {
+       "id": "cache",
+       "type": "cache",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "redis",
+        "hitModel": "fixed_ratio",
+        "hitRatio": 0.8,
+        "ttlSeconds": 60.0,
+        "populateOnMiss": true,
+        "serviceTimeMs": {
+         "kind": "exponential",
+         "mean": 0.05
+        },
+        "concurrency": 1,
+        "shards": 1,
+        "singleThreaded": "auto",
+        "evictionPolicy": "auto",
+        "persistence": "auto",
+        "snapshotIntervalS": 60.0,
+        "forkMsPerGib": 10.0,
+        "queueCapacity": 10000,
+        "queueTimeoutMs": null,
+        "cpuCores": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "itemSizeKb": 1.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-cache",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "cache",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-db",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true,
+     "host": {
+      "physicalCores": 2,
+      "threadsPerCore": 2,
+      "siblingSpeed": 0.6,
+      "allCoreClock": 1.0,
+      "otherBusyThreads": 0.0,
+      "clientCpuMs": 0.0
+     }
+    },
+    "workload": {
+     "rps": 300.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 300.0,
+    "latencyMs": null,
+    "p95Approximate": true,
+    "busiest": {
+     "id": "db",
+     "label": "db",
+     "utilization": 71.4031,
+     "limitedBy": "cpu"
+    },
+    "overloaded": true,
+    "saturationRps": 4.2,
+    "summary": "Overloaded at 300 req/s: db needs 7140% of its capacity; it saturates at about 4 req/s.",
+    "paths": [],
+    "breakdown": [],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 300.0,
+      "status": "unknown",
+      "note": "It waits on a part that is overloaded or has no estimate."
+     },
+     {
+      "id": "db",
+      "label": "db",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 300.0,
+      "status": "overloaded",
+      "slots": 10,
+      "pools": 1,
+      "meanServiceMs": 480.425,
+      "meanHoldMs": 480.425,
+      "utilization": 71.4031,
+      "slotUtilization": 14.4128,
+      "cpuUtilization": 71.4031,
+      "rateLimitShare": null,
+      "load": 71.4031,
+      "limitedBy": "cpu",
+      "waitProbability": null,
+      "meanWaitMs": null
+     },
+     {
+      "id": "cache",
+      "label": "cache",
+      "type": "cache",
+      "onPath": true,
+      "arrivalRps": 300.0,
+      "status": "overloaded",
+      "slots": 1,
+      "pools": 1,
+      "meanServiceMs": 5.404,
+      "meanHoldMs": 5.404,
+      "utilization": 1.6212,
+      "slotUtilization": 1.6212,
+      "cpuUtilization": 1.6212,
+      "rateLimitShare": null,
+      "load": 1.6212,
+      "limitedBy": "slots",
+      "waitProbability": null,
+      "meanWaitMs": null
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "onABusyHostMachine_slowsTheOwnTimesItsRequestsWait",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 0.7,
+        "memoryGib": 4.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 2.0,
+        "cpuShare": 0.5,
+        "memoryGib": 4.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-db",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true,
+     "host": {
+      "physicalCores": 1,
+      "threadsPerCore": 2,
+      "siblingSpeed": 0.6,
+      "allCoreClock": 1.0,
+      "otherBusyThreads": 1.2,
+      "clientCpuMs": 0.0
+     }
+    },
+    "workload": {
+     "rps": 30.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 30.0,
+    "latencyMs": {
+     "mean": 26.46,
+     "p95": 48.54
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "db",
+     "label": "db",
+     "utilization": 0.0988,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 303.6,
+    "summary": "p95 ≈ 49 ms; busiest db 10%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 24.0,
+      "meanMs": 24.365
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 6.0,
+      "meanMs": 34.82
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 13.468,
+      "share": 0.5091
+     },
+     {
+      "nodeId": "db",
+      "label": "db",
+      "meanMs": 10.988,
+      "share": 0.4153
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 2.0,
+      "share": 0.0756
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 30.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 13.464,
+      "meanHoldMs": 25.451,
+      "utilization": 0.0954,
+      "slotUtilization": 0.0954,
+      "cpuUtilization": 0.0785,
+      "rateLimitShare": null,
+      "load": 0.0954,
+      "limitedBy": "slots",
+      "waitProbability": 0.0007,
+      "meanWaitMs": 0.005,
+      "meanResidenceMs": 25.456,
+      "perRequestMs": 13.468
+     },
+     {
+      "id": "db",
+      "label": "db",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 30.0,
+      "status": "ok",
+      "slots": 10,
+      "pools": 1,
+      "meanServiceMs": 10.988,
+      "meanHoldMs": 10.988,
+      "utilization": 0.0988,
+      "slotUtilization": 0.033,
+      "cpuUtilization": 0.0988,
+      "rateLimitShare": null,
+      "load": 0.0988,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 10.988,
+      "perRequestMs": 10.988
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "withHyperthreads_slowsThePartOnItsOwnThreads",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 64,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 4.0,
+        "cpuShare": 1.0,
+        "siblingSpeed": 0.6,
+        "memoryGib": 8.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 300.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 300.0,
+    "latencyMs": null,
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 80.9375,
+     "limitedBy": "cpu"
+    },
+    "overloaded": true,
+    "saturationRps": 3.7,
+    "summary": "Overloaded at 300 req/s: api needs 8094% of its capacity; it saturates at about 4 req/s.",
+    "paths": [],
+    "breakdown": [],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 300.0,
+      "status": "overloaded",
+      "slots": 64,
+      "pools": 1,
+      "meanServiceMs": 1079.167,
+      "meanHoldMs": 1079.167,
+      "utilization": 80.9375,
+      "slotUtilization": 5.0586,
+      "cpuUtilization": 80.9375,
+      "rateLimitShare": null,
+      "load": 80.9375,
+      "limitedBy": "cpu",
+      "waitProbability": null,
+      "meanWaitMs": null
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "aServiceTimeByLoad_scalesTheOwnTime",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "serviceTimeByLoad": [
+         {
+          "rps": 10.0,
+          "factor": 1.0
+         },
+         {
+          "rps": 100.0,
+          "factor": 2.0
+         }
+        ],
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 1.0,
+        "memoryGib": 4.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "fn",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "serverless",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "serviceTimeByLoad": [
+         {
+          "rps": 10.0,
+          "factor": 1.0
+         },
+         {
+          "rps": 100.0,
+          "factor": 1.5
+         }
+        ],
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 1.727539,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 50,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-fn",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "fn",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 35.38,
+     "p95": 46.2
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 0.4247,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 235.5,
+    "summary": "p95 ≈ 46 ms; busiest api 42%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 35.384
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 35.384
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 18.384,
+      "share": 0.5196
+     },
+     {
+      "nodeId": "fn",
+      "label": "fn",
+      "meanMs": 15.0,
+      "share": 0.4239
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 2.0,
+      "share": 0.0565
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 16.99,
+      "meanHoldMs": 32.99,
+      "utilization": 0.4247,
+      "slotUtilization": 0.4124,
+      "cpuUtilization": 0.4247,
+      "rateLimitShare": null,
+      "load": 0.4247,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0994,
+      "meanWaitMs": 1.395,
+      "meanResidenceMs": 34.384,
+      "perRequestMs": 18.384
+     },
+     {
+      "id": "fn",
+      "label": "fn",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 50,
+      "pools": 1,
+      "meanServiceMs": 15.0,
+      "meanHoldMs": 15.0,
+      "utilization": 0.03,
+      "slotUtilization": 0.03,
+      "cpuUtilization": null,
+      "rateLimitShare": null,
+      "load": 0.03,
+      "limitedBy": "slots",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 15.0,
+      "perRequestMs": 15.0
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "databasesWithLimits_shareOfTheirLimitsSetsTheLoad",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "pg",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 1,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": 150.0,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 2.0,
+        "cpuShare": 0.5,
+        "memoryGib": 4.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      },
+      {
+       "id": "ddb",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "provisioned",
+        "readCapacityUnits": 50.0,
+        "writeCapacityUnits": 30.0,
+        "itemSizeKb": 6.0,
+        "consistentReads": "eventual",
+        "cpuCores": null,
+        "cpuShare": 0.5,
+        "memoryGib": null,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": null,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pg",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pg",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-ddb",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "ddb",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": null,
+    "p95Approximate": true,
+    "busiest": {
+     "id": "pg",
+     "label": "pg",
+     "utilization": 0.1489,
+     "limitedBy": "rate limit"
+    },
+    "overloaded": true,
+    "saturationRps": 25.0,
+    "summary": "Overloaded at 100 req/s: ddb needs 400% of its capacity; it saturates at about 25 req/s.",
+    "paths": [],
+    "breakdown": [],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "unknown",
+      "note": "It waits on a part that is overloaded or has no estimate."
+     },
+     {
+      "id": "pg",
+      "label": "pg",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 10,
+      "pools": 2,
+      "meanServiceMs": 8.808,
+      "meanHoldMs": 8.808,
+      "utilization": 0.1489,
+      "slotUtilization": 0.044,
+      "cpuUtilization": 0.1489,
+      "rateLimitShare": 0.6667,
+      "load": 0.6667,
+      "limitedBy": "rate limit",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 8.808
+     },
+     {
+      "id": "ddb",
+      "label": "ddb",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "overloaded",
+      "slots": 10,
+      "pools": 1,
+      "meanServiceMs": 8.558,
+      "meanHoldMs": 8.558,
+      "utilization": 0.0856,
+      "slotUtilization": 0.0856,
+      "cpuUtilization": null,
+      "rateLimitShare": 4.0,
+      "load": 4.0,
+      "limitedBy": "rate limit",
+      "waitProbability": null,
+      "meanWaitMs": null
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "aReadThroughCache_writesTheValueBackAfterAMiss",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "cache",
+       "type": "cache",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "redis",
+        "hitModel": "fixed_ratio",
+        "hitRatio": 0.6,
+        "ttlSeconds": 60.0,
+        "populateOnMiss": true,
+        "serviceTimeMs": {
+         "kind": "exponential",
+         "mean": 0.05
+        },
+        "concurrency": 1,
+        "shards": 1,
+        "singleThreaded": "auto",
+        "evictionPolicy": "auto",
+        "persistence": "auto",
+        "snapshotIntervalS": 60.0,
+        "forkMsPerGib": 10.0,
+        "queueCapacity": 10000,
+        "queueTimeoutMs": null,
+        "cpuCores": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "itemSizeKb": 1.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 1.0,
+        "cpuShare": 0.5,
+        "memoryGib": 2.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-cache",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "cache",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "cache-db",
+       "source": "cache",
+       "sourcePort": "miss",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 14.69,
+     "p95": 25.65
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 0.5,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 200.0,
+    "summary": "p95 ≈ 26 ms; busiest api 50%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 15.346
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 12.073
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 10.023,
+      "share": 0.6823
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 2.32,
+      "share": 0.1579
+     },
+     {
+      "nodeId": "db",
+      "label": "db",
+      "meanMs": 2.282,
+      "share": 0.1553
+     },
+     {
+      "nodeId": "cache",
+      "label": "cache",
+      "meanMs": 0.066,
+      "share": 0.0045
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 13.669,
+      "utilization": 0.5,
+      "slotUtilization": 0.1709,
+      "cpuUtilization": 0.5,
+      "rateLimitShare": null,
+      "load": 0.5,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0055,
+      "meanWaitMs": 0.023,
+      "meanResidenceMs": 13.691,
+      "perRequestMs": 10.023
+     },
+     {
+      "id": "cache",
+      "label": "cache",
+      "type": "cache",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 1,
+      "pools": 1,
+      "meanServiceMs": 0.05,
+      "meanHoldMs": 0.05,
+      "utilization": 0.005,
+      "slotUtilization": 0.005,
+      "cpuUtilization": 0.005,
+      "rateLimitShare": null,
+      "load": 0.005,
+      "limitedBy": "slots",
+      "waitProbability": 0.005,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 2.669,
+      "perRequestMs": 0.066
+     },
+     {
+      "id": "db",
+      "label": "db",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 32.0,
+      "status": "ok",
+      "slots": 10,
+      "pools": 1,
+      "meanServiceMs": 7.132,
+      "meanHoldMs": 7.132,
+      "utilization": 0.1141,
+      "slotUtilization": 0.0228,
+      "cpuUtilization": 0.1141,
+      "rateLimitShare": null,
+      "load": 0.1141,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 7.132,
+      "perRequestMs": 2.282
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "aRateLimitNearlyUsed_isNamedInTheSummary",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 64,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "pay",
+       "type": "external_api",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "latencyMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "errorRate": 0.001,
+        "rateLimitRps": 120.0,
+        "concurrencyLimit": null,
+        "costPerMillionRequests": 0.0
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pay",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pay",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 22.0,
+     "p95": 22.0
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 0.5,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 120.0,
+    "summary": "p95 ≈ 22 ms; busiest api 50%; pay uses 83% of its rate limit (turns requests away above about 120 req/s)",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 22.0
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 22.0
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "pay",
+      "label": "pay",
+      "meanMs": 10.0,
+      "share": 0.4545
+     },
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 10.0,
+      "share": 0.4545
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 2.0,
+      "share": 0.0909
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 64,
+      "pools": 2,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 21.0,
+      "utilization": 0.5,
+      "slotUtilization": 0.0164,
+      "cpuUtilization": 0.5,
+      "rateLimitShare": null,
+      "load": 0.5,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 21.0,
+      "perRequestMs": 10.0
+     },
+     {
+      "id": "pay",
+      "label": "pay",
+      "type": "external_api",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "busy",
+      "slots": null,
+      "pools": 1,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 10.0,
+      "utilization": null,
+      "slotUtilization": null,
+      "cpuUtilization": null,
+      "rateLimitShare": 0.8333,
+      "load": 0.8333,
+      "limitedBy": "rate limit",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 10.0,
+      "perRequestMs": 10.0
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "anOverloadedService_saysWhereTheDesignSaturates",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 2,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 1.0,
+        "memoryGib": 4.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 400.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 400.0,
+    "latencyMs": null,
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 2.0,
+     "limitedBy": "slots"
+    },
+    "overloaded": true,
+    "saturationRps": 200.0,
+    "summary": "Overloaded at 400 req/s: api needs 200% of its capacity; it saturates at about 200 req/s.",
+    "paths": [],
+    "breakdown": [],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 400.0,
+      "status": "overloaded",
+      "slots": 2,
+      "pools": 1,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 10.0,
+      "utilization": 2.0,
+      "slotUtilization": 2.0,
+      "cpuUtilization": 2.0,
+      "rateLimitShare": null,
+      "load": 2.0,
+      "limitedBy": "slots",
+      "waitProbability": null,
+      "meanWaitMs": null
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "aQueueWithAnOverloadedConsumer_doesNotSlowItsProducers",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 1.0,
+        "memoryGib": 4.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "q",
+       "type": "message_queue",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "kafka",
+        "partitions": 1,
+        "consumers": 1,
+        "maxDepth": 100000,
+        "publishTimeMs": {
+         "kind": "lognormal",
+         "median": 2.0,
+         "p95": 8.0
+        },
+        "consumerTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "consumerConcurrency": null,
+        "fetchOverheadMs": null,
+        "maxDeliveries": 3,
+        "partitioning": "auto",
+        "acks": "auto",
+        "replicationMs": {
+         "kind": "lognormal",
+         "median": 2.0,
+         "p95": 8.0
+        },
+        "lingerMs": null,
+        "delivery": "auto",
+        "visibilityTimeoutS": null,
+        "fifo": false,
+        "fifoLimitRps": 300.0,
+        "flowControl": "auto",
+        "memoryHighWatermark": 0.6,
+        "messageSizeKb": 1.0,
+        "brokers": 1,
+        "cpuCores": 1.0,
+        "memoryGib": 2.0,
+        "storageGib": 200.0,
+        "instanceType": null,
+        "costPerHour": 0.15
+       }
+      },
+      {
+       "id": "worker",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 1,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 50.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-q",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "q",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "q-worker",
+       "source": "q",
+       "sourcePort": "out",
+       "target": "worker",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 200.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.2,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 200.0,
+    "latencyMs": {
+     "mean": 21.64,
+     "p95": 33.77
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "worker",
+     "label": "worker",
+     "utilization": 10.0,
+     "limitedBy": "slots"
+    },
+    "overloaded": true,
+    "saturationRps": 20.0,
+    "summary": "Overloaded at 200 req/s: worker needs 1000% of its capacity; it saturates at about 20 req/s.",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 40.0,
+      "meanMs": 21.637
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 160.0,
+      "meanMs": 21.637
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 11.431,
+      "share": 0.5283
+     },
+     {
+      "nodeId": "q",
+      "label": "q",
+      "meanMs": 8.206,
+      "share": 0.3793
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 2.0,
+      "share": 0.0924
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 200.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 19.206,
+      "utilization": 0.5,
+      "slotUtilization": 0.4801,
+      "cpuUtilization": 0.5,
+      "rateLimitShare": null,
+      "load": 0.5,
+      "limitedBy": "cpu",
+      "waitProbability": 0.155,
+      "meanWaitMs": 1.431,
+      "meanResidenceMs": 20.637,
+      "perRequestMs": 11.431
+     },
+     {
+      "id": "q",
+      "label": "q",
+      "type": "message_queue",
+      "onPath": true,
+      "arrivalRps": 200.0,
+      "status": "unknown",
+      "note": "It waits on a part that is overloaded or has no estimate.",
+      "perRequestMs": 8.206
+     },
+     {
+      "id": "worker",
+      "label": "worker",
+      "type": "service",
+      "onPath": false,
+      "arrivalRps": 200.0,
+      "status": "overloaded",
+      "slots": 1,
+      "pools": 1,
+      "meanServiceMs": 50.0,
+      "meanHoldMs": 50.0,
+      "utilization": 10.0,
+      "slotUtilization": 10.0,
+      "cpuUtilization": 10.0,
+      "rateLimitShare": null,
+      "load": 10.0,
+      "limitedBy": "slots",
+      "waitProbability": null,
+      "meanWaitMs": null
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "aTtlCacheWithLittleMemory_saysWhichKeysItHolds",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "cache",
+       "type": "cache",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "redis",
+        "hitModel": "ttl_keyspace",
+        "hitRatio": 0.8,
+        "ttlSeconds": 30.0,
+        "populateOnMiss": true,
+        "serviceTimeMs": {
+         "kind": "exponential",
+         "mean": 0.05
+        },
+        "concurrency": 1,
+        "shards": 1,
+        "singleThreaded": "auto",
+        "evictionPolicy": "auto",
+        "persistence": "auto",
+        "snapshotIntervalS": 60.0,
+        "forkMsPerGib": 10.0,
+        "queueCapacity": 10000,
+        "queueTimeoutMs": null,
+        "cpuCores": 1.0,
+        "memoryGib": 0.001,
+        "instanceType": null,
+        "itemSizeKb": 1.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 1.0,
+        "cpuShare": 0.5,
+        "memoryGib": 2.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-cache",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "cache",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "cache-db",
+       "source": "cache",
+       "sourcePort": "miss",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 16.09,
+     "p95": 28.84
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 0.5,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 200.0,
+    "summary": "p95 ≈ 29 ms; busiest api 50%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 17.089
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 12.086
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 10.036,
+      "share": 0.6238
+     },
+     {
+      "nodeId": "db",
+      "label": "db",
+      "meanMs": 3.489,
+      "share": 0.2169
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 2.489,
+      "share": 0.1547
+     },
+     {
+      "nodeId": "cache",
+      "label": "cache",
+      "meanMs": 0.075,
+      "share": 0.0047
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 15.053,
+      "utilization": 0.5,
+      "slotUtilization": 0.1882,
+      "cpuUtilization": 0.5,
+      "rateLimitShare": null,
+      "load": 0.5,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0078,
+      "meanWaitMs": 0.036,
+      "meanResidenceMs": 15.089,
+      "perRequestMs": 10.036
+     },
+     {
+      "id": "cache",
+      "label": "cache",
+      "type": "cache",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 1,
+      "pools": 1,
+      "meanServiceMs": 0.05,
+      "meanHoldMs": 0.05,
+      "utilization": 0.005,
+      "slotUtilization": 0.005,
+      "cpuUtilization": 0.005,
+      "rateLimitShare": null,
+      "load": 0.005,
+      "limitedBy": "slots",
+      "waitProbability": 0.005,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 4.053,
+      "perRequestMs": 0.075
+     },
+     {
+      "id": "db",
+      "label": "db",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 48.92,
+      "status": "ok",
+      "slots": 10,
+      "pools": 1,
+      "meanServiceMs": 7.132,
+      "meanHoldMs": 7.132,
+      "utilization": 0.1744,
+      "slotUtilization": 0.0349,
+      "cpuUtilization": 0.1744,
+      "rateLimitShare": null,
+      "load": 0.1744,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 7.132,
+      "perRequestMs": 3.489
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share.",
+     "cache's hit ratio is estimated at 39% from its TTL and how popular the keys are (its memory holds the 838 most popular of 100,000 keys)."
+    ]
+   }
+  },
+  {
+   "name": "aBurstPattern_isEstimatedAtItsPeak",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 1.0,
+        "memoryGib": 4.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "burst",
+      "burstRps": 250.0,
+      "startS": 10.0,
+      "durationS": 5.0
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 250.0,
+    "latencyMs": {
+     "mean": 11.15,
+     "p95": 12.95
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 0.625,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 400.0,
+    "summary": "p95 ≈ 13 ms; busiest api 62%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 200.0,
+      "meanMs": 11.154
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 50.0,
+      "meanMs": 11.154
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 10.154,
+      "share": 0.9103
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 1.0,
+      "share": 0.0897
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 250.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 10.0,
+      "utilization": 0.625,
+      "slotUtilization": 0.3125,
+      "cpuUtilization": 0.625,
+      "rateLimitShare": null,
+      "load": 0.625,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0422,
+      "meanWaitMs": 0.154,
+      "meanResidenceMs": 10.154,
+      "perRequestMs": 10.154
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share.",
+     "At the pattern's peak of 250 req/s; a run's p95 also covers quieter periods."
+    ]
+   }
+  },
+  {
+   "name": "noPartWithAKnownCapacity_hasNoEstimate",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "k8s",
+       "type": "kubernetes_cluster",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "kubernetes",
+        "nodes": 3,
+        "nodeVcpu": 4.0,
+        "nodeMemoryGib": 16.0,
+        "allocatableShare": 0.9,
+        "clusterAutoscaler": true,
+        "minNodes": 1,
+        "maxNodes": 10,
+        "nodeProvisionS": 120.0,
+        "scanIntervalS": 10.0,
+        "scaleDownUnneededS": 600.0,
+        "imagePullS": 8.0,
+        "defaultCpuRequest": 0.5,
+        "defaultMemoryRequestGib": 0.5,
+        "costPerHour": 0.19
+       }
+      }
+     ],
+     "edges": [],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 0.0,
+     "p95": 0.0
+    },
+    "p95Approximate": true,
+    "busiest": null,
+    "overloaded": false,
+    "saturationRps": null,
+    "summary": "No estimate: no part with known capacity carries load.",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 0.0
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 0.0
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 0.0,
+      "share": 0.0
+     }
+    ],
+    "parts": [
+     {
+      "id": "k8s",
+      "label": "k8s",
+      "type": "kubernetes_cluster",
+      "onPath": false,
+      "arrivalRps": 0.0,
+      "status": "unknown",
+      "note": "No capacity model for this kind of part."
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "partsOnACycle_areLeftOut",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "b",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "c",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "b-c",
+       "source": "b",
+       "sourcePort": "out",
+       "target": "c",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "c-b",
+       "source": "c",
+       "sourcePort": "out",
+       "target": "b",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 11.01,
+     "p95": 11.29
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 0.5,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 200.0,
+    "summary": "p95 ≈ 11 ms; busiest api 50%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 11.005
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 11.005
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 10.005,
+      "share": 0.9091
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 1.0,
+      "share": 0.0909
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 10.0,
+      "meanHoldMs": 10.0,
+      "utilization": 0.5,
+      "slotUtilization": 0.125,
+      "cpuUtilization": 0.5,
+      "rateLimitShare": null,
+      "load": 0.5,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0018,
+      "meanWaitMs": 0.005,
+      "meanResidenceMs": 10.005,
+      "perRequestMs": 10.005
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "aCallIntoACycle_leavesTheLatencyUnestimated",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "b",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "c",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 1.0,
+        "cpuShare": 0.5,
+        "memoryGib": 2.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-b",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "b",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "b-c",
+       "source": "b",
+       "sourcePort": "out",
+       "target": "c",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "c-b",
+       "source": "c",
+       "sourcePort": "out",
+       "target": "b",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-db",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": null,
+    "p95Approximate": true,
+    "busiest": {
+     "id": "db",
+     "label": "db",
+     "utilization": 0.4404,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 227.1,
+    "summary": "busiest db 44%",
+    "paths": [],
+    "breakdown": [],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "unknown",
+      "note": "It waits on a part that is overloaded or has no estimate."
+     },
+     {
+      "id": "db",
+      "label": "db",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 10,
+      "pools": 1,
+      "meanServiceMs": 8.808,
+      "meanHoldMs": 8.808,
+      "utilization": 0.4404,
+      "slotUtilization": 0.0881,
+      "cpuUtilization": 0.4404,
+      "rateLimitShare": null,
+      "load": 0.4404,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 8.808
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share.",
+     "Latency not estimated: the load on some parts depends on the run."
+    ]
+   }
+  },
+  {
+   "name": "partsWhoseConfigIsNotValid_haveNoCapacityModel",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "bad",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "replicas": -1
+       }
+      },
+      {
+       "id": "cache",
+       "type": "cache",
+       "label": "",
+       "description": null,
+       "config": {
+        "hitModel": "ttl_keyspace",
+        "ttlSeconds": 30,
+        "shards": 0
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 1.0,
+        "cpuShare": 0.5,
+        "memoryGib": 2.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-bad",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "bad",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-cache",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "cache",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "cache-db",
+       "source": "cache",
+       "sourcePort": "miss",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": null,
+    "p95Approximate": true,
+    "busiest": {
+     "id": "db",
+     "label": "db",
+     "utilization": 0.1693,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 590.7,
+    "summary": "busiest db 17%",
+    "paths": [],
+    "breakdown": [],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "unknown",
+      "note": "It waits on a part that is overloaded or has no estimate."
+     },
+     {
+      "id": "bad",
+      "label": "bad",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "unknown",
+      "note": "No capacity model for this kind of part."
+     },
+     {
+      "id": "cache",
+      "label": "cache",
+      "type": "cache",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "unknown",
+      "note": "No capacity model for this kind of part."
+     },
+     {
+      "id": "db",
+      "label": "db",
+      "type": "database",
+      "onPath": true,
+      "arrivalRps": 47.48,
+      "status": "ok",
+      "slots": 10,
+      "pools": 1,
+      "meanServiceMs": 7.132,
+      "meanHoldMs": 7.132,
+      "utilization": 0.1693,
+      "slotUtilization": 0.0339,
+      "cpuUtilization": 0.1693,
+      "rateLimitShare": null,
+      "load": 0.1693,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 7.132
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share.",
+     "cache's hit ratio is estimated at 41% from its TTL and how popular the keys are (evictions not included).",
+     "Latency not estimated: the load on some parts depends on the run."
+    ]
+   }
+  },
+  {
+   "name": "everyKindOfDistribution_givesItsMoments",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "slow",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 512,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "exponential",
+         "mean": 900.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 96.0,
+        "cpuShare": 1.0,
+        "memoryGib": 192.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "even",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "uniform",
+         "min": 1.0,
+         "max": 3.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "measured",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "empirical",
+         "quantiles": [
+          [
+           0.0,
+           1.0
+          ],
+          [
+           0.5,
+           2.0
+          ],
+          [
+           0.95,
+           6.0
+          ],
+          [
+           1.0,
+           9.0
+          ]
+         ]
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-slow",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "slow",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "clients-even",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "even",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "clients-measured",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "measured",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 907.93,
+     "p95": 2514.26
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "slow",
+     "label": "slow",
+     "utilization": 0.4688,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 213.3,
+    "summary": "p95 ≈ 2.51 s; busiest slow 47%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 907.925
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 907.925
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": "slow",
+      "label": "slow",
+      "meanMs": 900.0,
+      "share": 0.9913
+     },
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 3.0,
+      "share": 0.0033
+     },
+     {
+      "nodeId": "measured",
+      "label": "measured",
+      "meanMs": 2.925,
+      "share": 0.0032
+     },
+     {
+      "nodeId": "even",
+      "label": "even",
+      "meanMs": 2.0,
+      "share": 0.0022
+     }
+    ],
+    "parts": [
+     {
+      "id": "slow",
+      "label": "slow",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 512,
+      "pools": 2,
+      "meanServiceMs": 900.0,
+      "meanHoldMs": 900.0,
+      "utilization": 0.4688,
+      "slotUtilization": 0.0879,
+      "cpuUtilization": 0.4688,
+      "rateLimitShare": null,
+      "load": 0.4688,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 900.0,
+      "perRequestMs": 900.0
+     },
+     {
+      "id": "even",
+      "label": "even",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 2.0,
+      "meanHoldMs": 2.0,
+      "utilization": 0.1,
+      "slotUtilization": 0.025,
+      "cpuUtilization": 0.1,
+      "rateLimitShare": null,
+      "load": 0.1,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 2.0,
+      "perRequestMs": 2.0
+     },
+     {
+      "id": "measured",
+      "label": "measured",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 2.925,
+      "meanHoldMs": 2.925,
+      "utilization": 0.1462,
+      "slotUtilization": 0.0366,
+      "cpuUtilization": 0.1462,
+      "rateLimitShare": null,
+      "load": 0.1462,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 2.925,
+      "perRequestMs": 2.925
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  },
+  {
+   "name": "aFastPath_readsInTenthsOfAMillisecond",
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "estimate": {
+    "method": "Estimate from queueing formulas (not simulated)",
+    "atRps": 100.0,
+    "latencyMs": {
+     "mean": 1.5,
+     "p95": 1.5
+    },
+    "p95Approximate": true,
+    "busiest": {
+     "id": "api",
+     "label": "api",
+     "utilization": 0.025,
+     "limitedBy": "cpu"
+    },
+    "overloaded": false,
+    "saturationRps": 4000.0,
+    "summary": "p95 ≈ 1.5 ms; busiest api 2%",
+    "paths": [
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "read",
+      "rps": 80.0,
+      "meanMs": 1.5
+     },
+     {
+      "clientId": "clients",
+      "client": "clients",
+      "op": "write",
+      "rps": 20.0,
+      "meanMs": 1.5
+     }
+    ],
+    "breakdown": [
+     {
+      "nodeId": null,
+      "label": "Network",
+      "meanMs": 1.0,
+      "share": 0.6667
+     },
+     {
+      "nodeId": "api",
+      "label": "api",
+      "meanMs": 0.5,
+      "share": 0.3333
+     }
+    ],
+    "parts": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "onPath": true,
+      "arrivalRps": 100.0,
+      "status": "ok",
+      "slots": 4,
+      "pools": 2,
+      "meanServiceMs": 0.5,
+      "meanHoldMs": 0.5,
+      "utilization": 0.025,
+      "slotUtilization": 0.0063,
+      "cpuUtilization": 0.025,
+      "rateLimitShare": null,
+      "load": 0.025,
+      "limitedBy": "cpu",
+      "waitProbability": 0.0,
+      "meanWaitMs": 0.0,
+      "meanResidenceMs": 0.5,
+      "perRequestMs": 0.5
+     }
+    ],
+    "notes": [
+     "Queueing formulas (M/M/c) at the peak load, not a simulation: first attempts only, with no retries, timeouts, faults, lock waits, buffer-cache misses, cold starts, GC pauses or autoscaling delays.",
+     "The p95 is a rough approximation: a lognormal with each request path's mean and variance, mixed by traffic share."
+    ]
+   }
+  }
+ ]
+}

@@ -54,7 +54,11 @@ reads, the defaults stay in the model, and the golden files prove the answers di
   `256 if None`) are not ported: the record's default and its bounds already give them.
 - A result with a fixed shape is a record, written by `RecordCodec`; a result that is a map by
   design (per-node sizes, explanations by spec) is a `Map` of records or strings, in the order the
-  Python builds it.
+  Python builds it. A result whose items come in shapes told apart by their fields, not a tag
+  (the instant estimate's parts: a note, or the figures), is a sealed interface of records; the
+  codec's unions need a tag, so the result puts its JSON together by hand, each record written by
+  `RecordCodec` (`InstantEstimate.toJson`). A write-only untagged union in the codec could
+  replace that.
 - Python's arithmetic is kept where it changes digits: `FloatSum` for the built-in `sum()`,
   `ExactSum` for `math.fsum`, the same order of operations.
 

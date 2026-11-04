@@ -21,17 +21,18 @@ import io.archsim.model.issue.Issue;
  */
 public final class MessageQueueSpec extends ComponentSpec<MessageQueueConfig> {
 
+	/** The component type's name in documents. */
+	public static final String TYPE = "message_queue";
+
 	/**
 	 * Creates the message queue type: messages are published in, and consumers call out.
 	 */
 	public MessageQueueSpec() {
-		super(new ComponentIdentity("message_queue", "Message Queue / Stream", Category.MESSAGING),
-				MessageQueueConfig.class,
-				List.of(Port.in("in", "Publish",
-						"Messages published by producers (the caller gets an ack, not the result)."),
-						Port.out("out", "Consumers",
-								"Downstream calls each consumer makes per message, in order, for matching request"
-										+ " types.")));
+		super(new ComponentIdentity(TYPE, "Message Queue / Stream", Category.MESSAGING), MessageQueueConfig.class, List
+			.of(Port.in("in", "Publish", "Messages published by producers (the caller gets an ack, not the result)."),
+					Port.out("out", "Consumers",
+							"Downstream calls each consumer makes per message, in order, for matching request"
+									+ " types.")));
 	}
 
 	@Override

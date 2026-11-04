@@ -39,6 +39,21 @@ class ServiceConfigTests {
 		assertThat(config("{\"processesPerReplica\": 3, \"workersPerReplica\": 8}").handlersPerReplica()).isEqualTo(8);
 	}
 
+	@Test
+	void holdsHandlerThroughCalls_aThreadPoolThatBlocks_holdsIt() {
+		assertThat(config("{}").holdsHandlerThroughCalls()).isTrue();
+	}
+
+	@Test
+	void holdsHandlerThroughCalls_anEventLoop_neverHoldsIt() {
+		assertThat(config("{\"technology\": \"nodejs\"}").holdsHandlerThroughCalls()).isFalse();
+	}
+
+	@Test
+	void holdsHandlerThroughCalls_aThreadPoolThatDoesNotBlock_letsItGo() {
+		assertThat(config("{\"blockingDownstream\": false}").holdsHandlerThroughCalls()).isFalse();
+	}
+
 	private static ServiceConfig config(String json) {
 		return RecordCodec.read((ObjectNode) JSON.readTree(json), ServiceConfig.class);
 	}

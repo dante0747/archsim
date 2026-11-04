@@ -57,8 +57,8 @@ record SizingLoads(LoadEstimate peak, LoadEstimate base, Map<String, Double> pea
 			return new SizingLoads(peak, base, Map.of(), Map.of());
 		}
 		return new SizingLoads(peak, base,
-				HostSpeeds.forSizing(host, work(design, peak, registry), design.workload().peakRate()),
-				HostSpeeds.forSizing(host, work(design, base, registry), baseRate));
+				HostSpeeds.onHost(host, work(design, peak, registry), design.workload().peakRate()),
+				HostSpeeds.onHost(host, work(design, base, registry), baseRate));
 	}
 
 	private static LoadEstimate at(ArchitectureDocument design, LoadEstimator estimator, double rate) {

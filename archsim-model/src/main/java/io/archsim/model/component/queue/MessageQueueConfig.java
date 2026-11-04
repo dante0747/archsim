@@ -194,6 +194,46 @@ public record MessageQueueConfig(
 	}
 
 	/**
+	 * Messages all consumers handle at once: each of the first {@code min(consumers,
+	 * partitions)} consumers has its concurrency, and on a partitioned queue no more than
+	 * the partitions it owns (consumer {@code i} owns the partitions {@code p} with
+	 * {@code p mod consumers = i}).
+	 * @return the consumer slots
+	 */
+	public int consumerSlots() {
+		int active = Math.min(this.consumers, this.partitions);
+		int each = concurrencyPerConsumer();
+		if (each == 1) {
+			return active;
+		}
+		if (!partitioned()) {
+			return active * each;
+		}
+		int slots = 0;
+		for (int consumer = 0; consumer < active; consumer++) {
+			int owned = (this.partitions - consumer + active - 1) / active;
+			slots += Math.min(each, owned);
+		}
+		return slots;
+	}
+
+	/**
+	 * How long a producer batches messages, after the technology's default.
+	 * @return the linger, in milliseconds; zero when neither sets one
+	 */
+	public double lingerMsInEffect() {
+		return profile().number("lingerMs", this.lingerMs).orElse(0.0);
+	}
+
+	/**
+	 * Whether a publish waits for every replica, after the technology's default.
+	 * @return {@code true} when a publish is acknowledged by all replicas
+	 */
+	public boolean acknowledgedByAll() {
+		return profile().choice("acks", this.acks, Acks.AUTO, Acks.LEADER) == Acks.ALL;
+	}
+
+	/**
 	 * Messages one consumer handles at once.
 	 * @return the configured concurrency, or one when it is not set
 	 */

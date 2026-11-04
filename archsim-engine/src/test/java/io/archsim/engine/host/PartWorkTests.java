@@ -42,6 +42,25 @@ class PartWorkTests {
 			.isEmpty();
 	}
 
+	@Test
+	void withCpuSize_aServiceWithCpuCores_isItsWorkOnThem() {
+		PartWork work = PartWork
+			.withCpuSize("service", LenientSettings.of(JSON.readTree("""
+					{"cpuCores": 4, "serviceTimeMs": {"kind": "constant", "value": 10}, "replicas": 1}""")),
+					new NodeLoad(240, 60))
+			.orElseThrow();
+
+		assertThat(work).isEqualTo(new PartWork(3.0, 3.0, 4.0));
+	}
+
+	@Test
+	void withCpuSize_aServiceWithoutCpuCores_hasNoWorkOnAMachine() {
+		assertThat(PartWork.withCpuSize("service",
+				LenientSettings.of(JSON.readTree("{\"serviceTimeMs\": {\"kind\": \"constant\", \"value\": 10}}")),
+				new NodeLoad(240, 60)))
+			.isEmpty();
+	}
+
 	private static PartWork work(String type, String config, double read, double write) {
 		return PartWork.forSizing(type, LenientSettings.of(JSON.readTree(config)), new NodeLoad(read, write))
 			.orElseThrow();
