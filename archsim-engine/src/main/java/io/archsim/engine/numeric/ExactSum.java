@@ -35,6 +35,8 @@ public final class ExactSum {
 				infinities += term;
 			}
 			notFinite += term;
+			// as Python does: the sum is now not finite, and the partials start again
+			count = 0;
 		}
 		if (Double.isNaN(infinities)) {
 			throw new IllegalArgumentException("-inf + inf in fsum");

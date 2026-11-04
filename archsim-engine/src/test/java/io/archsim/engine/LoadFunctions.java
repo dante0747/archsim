@@ -1,5 +1,6 @@
 package io.archsim.engine;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -7,47 +8,84 @@ import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.load.BaseRate;
+import io.archsim.engine.load.CacheMisses;
+import io.archsim.engine.load.LoadEstimate;
+import io.archsim.engine.load.LoadEstimator;
+import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.load.TtlCacheTraffic;
-import io.archsim.engine.queueing.ErlangC;
-import io.archsim.engine.queueing.QueueWait;
-import io.archsim.engine.queueing.Zipf;
+import io.archsim.engine.settings.LenientSettings;
+import io.archsim.model.DesignDocuments;
 import io.archsim.model.codec.RecordCodec;
-import io.archsim.model.distribution.Distribution;
+import io.archsim.model.component.standard.StandardComponents;
+import io.archsim.model.document.ArchitectureDocument;
+import io.archsim.model.document.Workload;
 import io.archsim.parity.GoldenEntry;
 
 /**
- * Load and queueing: the queueing formulas, key popularity, TTL caches' hit ratios and
- * service times' means.
+ * The load a design carries: its peak and base rates, each part's load, TTL caches' miss
+ * shares and hit ratios, and service times' means.
  */
 final class LoadFunctions {
 
 	static final Map<String, Function<GoldenEntry, JsonNode>> PORTED = Map.ofEntries(
-			Map.entry("archsim_engine.explain.erlang_c",
-					(entry) -> GoldenJson.number(ErlangC.waitProbability(entry.input("c").intValue(),
-							entry.input("offered").doubleValue()))),
-			Map.entry("archsim_engine.explain.zipf_share",
-					(entry) -> GoldenJson.number(Zipf.share(entry.input("n").longValue(),
-							entry.input("s").doubleValue(), entry.input("top").longValue()))),
-			Map.entry("archsim_engine.estimate.mmc_wait", LoadFunctions::mmcWait),
+			// the model's workload gives the peak the Python engine's peak_rps gives
+			Map.entry("archsim_engine.load.peak_rps", (entry) -> GoldenJson.number(workload(entry).peakRate())),
+			Map.entry("archsim_engine.load.base_rps", (entry) -> GoldenJson.number(BaseRate.of(workload(entry)))),
+			Map.entry("archsim_engine.load.estimate_load", LoadFunctions::estimateLoad),
+			Map.entry("archsim_engine.load.ttl_miss_shares", LoadFunctions::ttlMissShares),
 			Map.entry("archsim_engine.load.ttl_hit_ratio", (entry) -> GoldenJson.number(ttlTraffic(entry).hitRatio())),
-			// the model's distributions give the mean the Python engine's mean_ms gives
-			Map.entry("archsim_engine.load.mean_ms",
-					(entry) -> GoldenJson.number(RecordCodec.read(entry.input("d"), Distribution.class).expected())));
+			Map.entry("archsim_engine.load.mean_ms", LoadFunctions::meanMs));
+
+	private static final LoadEstimator ESTIMATOR = new LoadEstimator(StandardComponents.registry());
 
 	private LoadFunctions() {
 	}
 
-	/** {@code (probability, Moments(mean, var))}, or {@code None} when unstable. */
-	private static JsonNode mmcWait(GoldenEntry entry) {
-		return QueueWait
-			.mmc(entry.input("slots").intValue(), entry.input("lam").doubleValue(), entry.input("holdMs").doubleValue())
-			.<JsonNode>map((wait) -> {
-				ObjectNode moments = GoldenJson.NODES.objectNode()
-					.put("mean", wait.moments().mean())
-					.put("var", wait.moments().variance());
-				return GoldenJson.NODES.arrayNode().add(wait.probability()).add(moments);
-			})
-			.orElse(GoldenJson.NODES.nullNode());
+	/** {@code mean_ms(d)}: the mean of a distribution read as a setting. */
+	private static JsonNode meanMs(GoldenEntry entry) {
+		ObjectNode settings = GoldenJson.NODES.objectNode();
+		settings.set("d", entry.input("d"));
+		return GoldenJson.number(LenientSettings.of(settings).meanMs("d"));
+	}
+
+	/** {@code {loads, edgeLoads}}: the return value and the link loads it fills. */
+	private static JsonNode estimateLoad(GoldenEntry entry) {
+		ArchitectureDocument design = DesignDocuments.parse(entry.input("doc"));
+		Map<String, Double> shares = new LinkedHashMap<>();
+		entry.input("missShares")
+			.properties()
+			.forEach((share) -> shares.put(share.getKey(), share.getValue().doubleValue()));
+		CacheMisses misses = new CacheMisses(shares, GoldenJson.readNullableNumber(entry.input("ttlMissShare")));
+		LoadEstimate loads = ESTIMATOR.estimate(design.architecture(), design.workload(), rate(entry, design), misses);
+		ObjectNode output = GoldenJson.NODES.objectNode();
+		output.set("loads", loads(loads.nodes()));
+		output.set("edgeLoads", loads(loads.edges()));
+		return output;
+	}
+
+	private static JsonNode ttlMissShares(GoldenEntry entry) {
+		ArchitectureDocument design = DesignDocuments.parse(entry.input("doc"));
+		ObjectNode output = GoldenJson.NODES.objectNode();
+		ESTIMATOR.ttlMissShares(design.architecture(), design.workload(), rate(entry, design)).forEach(output::put);
+		return output;
+	}
+
+	/** The entry's rate, or the workload's peak when it gives none. */
+	private static double rate(GoldenEntry entry, ArchitectureDocument design) {
+		JsonNode rate = entry.input("rate");
+		return rate.isNull() ? design.workload().peakRate() : rate.doubleValue();
+	}
+
+	private static ObjectNode loads(Map<String, @Nullable NodeLoad> loads) {
+		ObjectNode json = GoldenJson.NODES.objectNode();
+		loads.forEach(
+				(id, load) -> json.set(id, (load != null) ? RecordCodec.write(load) : GoldenJson.NODES.nullNode()));
+		return json;
+	}
+
+	private static Workload workload(GoldenEntry entry) {
+		return RecordCodec.read(entry.input("workload"), Workload.class);
 	}
 
 	private static TtlCacheTraffic ttlTraffic(GoldenEntry entry) {

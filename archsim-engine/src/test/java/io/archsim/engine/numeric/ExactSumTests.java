@@ -89,6 +89,13 @@ class ExactSumTests {
 	}
 
 	@Test
+	void of_finiteTermsAfterAnInfinity_isTheInfinity() {
+		double sum = ExactSum.of(DoubleStream.of(1e308, Double.POSITIVE_INFINITY, 1e308));
+
+		assertThat(sum).isEqualTo(Double.POSITIVE_INFINITY);
+	}
+
+	@Test
 	void of_anInfinity_isInfinite() {
 		double sum = ExactSum.of(DoubleStream.of(1.0, Double.POSITIVE_INFINITY));
 

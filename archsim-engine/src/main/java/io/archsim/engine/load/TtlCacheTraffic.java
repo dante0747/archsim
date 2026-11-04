@@ -50,9 +50,10 @@ public record TtlCacheTraffic(double readRps, double writeRps, long keys, double
 		if (total <= 0) {
 			return 0.0;
 		}
+		double held = held();
 		double hits = 0.0;
 		for (Bucket bucket : buckets) {
-			double cached = Math.min(bucket.count(), Math.max(0.0, held() - bucket.firstRank()));
+			double cached = Math.min(bucket.count(), Math.max(0.0, held - bucket.firstRank()));
 			if (cached <= 0) {
 				break;
 			}

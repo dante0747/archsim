@@ -11,7 +11,8 @@ import io.archsim.model.text.PythonFormat;
  * positive values this is how the web app's JavaScript rounds its figures; a negative
  * half goes away from zero here ({@code -2.5} is {@code -3}), as the Python engine rounds
  * it. A negative value that rounds to zero keeps its sign, as Python's {@code Decimal}
- * keeps it.
+ * keeps it. {@link #javaScriptRound} is the other rounding the engine uses, on the float
+ * itself.
  */
 public final class HalfUp {
 
@@ -61,9 +62,10 @@ public final class HalfUp {
 
 	/**
 	 * JavaScript's {@code Math.round}, as the Python engine computes it:
-	 * {@code floor(value + 0.5)}, halves towards positive infinity. Not Java's
-	 * {@code Math.round}: the two differ at {@code 0.49999999999999994}, where adding a
-	 * half rounds up to 1 before the floor is taken.
+	 * {@code math.floor(value + 0.5)}, halves towards positive infinity. Neither Java's
+	 * {@code Math.round} nor JavaScript's own: both give 0 for
+	 * {@code 0.49999999999999994}, where adding a half rounds up to 1 before the floor is
+	 * taken.
 	 * @param value the float
 	 * @return the nearest whole number, as a float
 	 */

@@ -22,6 +22,9 @@ import io.archsim.model.text.PythonFormat;
  */
 public final class DatabaseSpec extends ComponentSpec<DatabaseConfig> {
 
+	/** The component type's name in documents. */
+	public static final String TYPE = "database";
+
 	/** The share of its storage above which an instance is nearly full. */
 	private static final double NEARLY_FULL_SHARE = 0.85;
 
@@ -30,7 +33,7 @@ public final class DatabaseSpec extends ComponentSpec<DatabaseConfig> {
 
 	/** Creates the database type: queries come in, and nothing goes out. */
 	public DatabaseSpec() {
-		super(new ComponentIdentity("database", "Database", Category.STORAGE), DatabaseConfig.class,
+		super(new ComponentIdentity(TYPE, "Database", Category.STORAGE), DatabaseConfig.class,
 				List.of(Port.in("in", "Queries", "Read and write queries.")));
 	}
 
