@@ -43,14 +43,14 @@ final class ComponentEntry {
 		entry.put("isTrafficSource", spec.isTrafficSource());
 		entry.set("ports", ports(spec.ports()));
 		entry.set("fields", FieldDescriptors.of(spec.configType()));
-		entry.set("defaultConfig", withoutNulls(RecordCodec.write(spec.parseConfig(NODES.objectNode()))));
+		entry.set("defaultConfig", defaultConfig(spec));
 		entry.set("modeled", strings(presentation.modeled()));
 		entry.set("notModeled", strings(presentation.notModeled()));
 		entry.set("presets", presets(presentation.presets(), technologies));
 		entry.set("linkDefaults", presentation.linkDefaults().deepCopy());
 		entry.set("technologyTraits", presentation.technologyTraits().deepCopy());
 		entry.set("technologyDefaults", TechnologyDefaults.of(technologies));
-		entry.set("technologySources", presentation.technologySources().deepCopy());
+		entry.set("technologySources", sources(presentation.technologySources()));
 		entry.set("technologyTiers", TechnologyDefaults.tiers(technologies));
 		return entry;
 	}
@@ -74,17 +74,42 @@ final class ComponentEntry {
 	 * The presets, each with its technology's tier when the type knows the technology.
 	 * @param presets the presets as the presentation lists them
 	 * @param technologies the type's technologies' profiles, by JSON name
-	 * @return a copy of the presets with their tiers
+	 * @return the presets as JSON, with their tiers
 	 */
-	private static ArrayNode presets(ArrayNode presets, Map<String, TechnologyProfile> technologies) {
-		ArrayNode out = presets.deepCopy();
-		for (JsonNode preset : out) {
-			@Nullable TechnologyProfile profile = technologies.get(preset.path("technology").asString());
+	private static ArrayNode presets(List<Preset> presets, Map<String, TechnologyProfile> technologies) {
+		ArrayNode out = NODES.arrayNode();
+		for (Preset preset : presets) {
+			ObjectNode json = RecordCodec.write(preset);
+			@Nullable TechnologyProfile profile = technologies.get(preset.technology());
 			if (profile != null) {
-				((ObjectNode) preset).put("tier", profile.tier().json());
+				json.put("tier", profile.tier().json());
 			}
+			out.add(json);
 		}
 		return out;
+	}
+
+	/**
+	 * Field → technology → the documentation behind its default, as JSON.
+	 * @param sources the links, by field and then technology
+	 * @return the links as a JSON object
+	 */
+	private static ObjectNode sources(Map<String, Map<String, String>> sources) {
+		ObjectNode out = NODES.objectNode();
+		sources.forEach((field, links) -> {
+			ObjectNode byTechnology = out.putObject(field);
+			links.forEach(byTechnology::put);
+		});
+		return out;
+	}
+
+	/**
+	 * A type's default config: the settings that have a value when none is written.
+	 * @param spec the type's specification
+	 * @return the default config, without the settings that default to nothing
+	 */
+	static ObjectNode defaultConfig(ComponentSpec<?> spec) {
+		return withoutNulls(RecordCodec.write(spec.parseConfig(NODES.objectNode())));
 	}
 
 	private static ArrayNode strings(List<String> values) {

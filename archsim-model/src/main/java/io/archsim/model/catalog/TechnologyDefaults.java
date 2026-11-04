@@ -54,7 +54,7 @@ final class TechnologyDefaults {
 	 * @param value a technology's default
 	 * @return the default as JSON
 	 */
-	private static JsonNode json(@Nullable Object value) {
+	static JsonNode json(@Nullable Object value) {
 		return switch (value) {
 			case null -> NODES.nullNode();
 			case String text -> NODES.stringNode(text);

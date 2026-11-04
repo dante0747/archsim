@@ -74,16 +74,15 @@ class ComponentCatalogTests {
 			.stream()
 			.flatMap((spec) -> Presentation.of(spec.type())
 				.presets()
-				.valueStream()
-				.map((preset) -> DynamicTest.dynamicTest(spec.type() + " " + preset.path("id").asString(),
+				.stream()
+				.map((preset) -> DynamicTest.dynamicTest(spec.type() + " " + preset.id(),
 						() -> assertValidPreset(spec, preset))));
 	}
 
 	@Test
 	void of_eachType_givesItsPresetsDistinctIds() {
-		assertThat(StandardComponents.registry().types()).allSatisfy((type) -> assertThat(
-				Presentation.of(type).presets().valueStream().map((preset) -> preset.path("id").asString()))
-			.doesNotHaveDuplicates());
+		assertThat(StandardComponents.registry().types()).allSatisfy(
+				(type) -> assertThat(Presentation.of(type).presets().stream().map(Preset::id)).doesNotHaveDuplicates());
 	}
 
 	@Test
@@ -99,12 +98,11 @@ class ComponentCatalogTests {
 	 * type's, with the technology the preset names, and it has a name, family and
 	 * description.
 	 */
-	private static void assertValidPreset(ComponentSpec<?> spec, JsonNode preset) {
-		Record config = spec.parseConfig((ObjectNode) preset.path("config"));
+	private static void assertValidPreset(ComponentSpec<?> spec, Preset preset) {
+		Record config = spec.parseConfig(preset.config());
 
-		assertThat(RecordCodec.write(config).path("technology").asString())
-			.isEqualTo(preset.path("technology").asString());
-		assertThat(Stream.of("name", "family", "description").map((key) -> preset.path(key).asString()))
+		assertThat(RecordCodec.write(config).path("technology").asString()).isEqualTo(preset.technology());
+		assertThat(Stream.of(preset.name(), preset.family(), preset.description()))
 			.allSatisfy((text) -> assertThat(text).isNotBlank());
 	}
 

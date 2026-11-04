@@ -26,6 +26,10 @@ class PartSizerTests {
 	void size_aPartWhoseLoadIsNotEstimated_isSkippedWithTheReason() {
 		ArchitectureDocument design = DesignDocuments.parse(JSON.readTree("""
 				{"architecture": {"nodes": [{"id": "api", "type": "service"}]}, "workload": {"rps": 100}}"""));
+		// The estimator gives every standard part a load, so this
+		// estimate is built by hand (hence LoadEstimate's public
+		// constructor): it guards a part whose load depends on the run,
+		// as the Python engine does.
 		Map<String, @Nullable NodeLoad> unknown = new HashMap<>();
 		unknown.put("api", null);
 		LoadEstimate loads = new LoadEstimate(unknown, Map.of());

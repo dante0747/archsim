@@ -44,6 +44,16 @@ class AutoSizerTests {
 	}
 
 	@Test
+	void sizes_aServiceNeedingMoreMemoryThanOneVcpuComesWith_getsTheVcpuOfTheShape() {
+		PartSize api = size("api", design(service("{\"memoryBaselineMb\": 7000}"), "generic", 100));
+
+		assertThat(api.cpuCores()).isEqualTo(2.0);
+		assertThat(api.memoryGib()).isEqualTo(16.0);
+		assertThat(api.why().get(Spec.CPU_CORES))
+			.isEqualTo(AT_THE_PEAK + "; rounded up to a standard shape, 2 vCPU and 16 GiB (8 GiB per vCPU)");
+	}
+
+	@Test
 	void sizes_withAPriceSnapshot_snapsToTheCheapestInstanceType() {
 		PartSize api = size("api", design(service("{}"), "aws", 100));
 
@@ -127,8 +137,8 @@ class AutoSizerTests {
 
 		assertThat(db.sku()).isNull();
 		assertThat(db.cpuCores()).isEqualTo(512.0);
-		assertThat(db.why().get(Spec.CPU_CORES)).endsWith(
-				"; no database type in aws us-east-1 (2026-10-28) has " + "512 vCPU and 64 GiB: kept as computed");
+		assertThat(db.why().get(Spec.CPU_CORES))
+			.endsWith("; no database type in aws us-east-1 (2026-10-28) has 512 vCPU and 64 GiB: kept as computed");
 	}
 
 	@Test
@@ -239,9 +249,9 @@ class AutoSizerTests {
 
 	/** A service with 10 ms of CPU per request and the given settings. */
 	private static String service(String config) {
-		ObjectNode json = (ObjectNode) JSON.readTree(config);
-		return "{\"id\": \"api\", \"type\": \"service\", \"config\": {%s%s}}".formatted(SERVICE_TIME,
-				json.isEmpty() ? "" : ", " + json.toString().substring(1, json.toString().length() - 1));
+		ObjectNode settings = (ObjectNode) JSON.readTree("{" + SERVICE_TIME + "}");
+		settings.setAll((ObjectNode) JSON.readTree(config));
+		return "{\"id\": \"api\", \"type\": \"service\", \"config\": " + settings + "}";
 	}
 
 	/**

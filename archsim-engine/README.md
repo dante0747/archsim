@@ -22,7 +22,8 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `settings` | reading a part's settings where the Python engine read the raw settings of a design that may not be valid yet: `LenientSettings` ([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md)), `LoadCurve` (service time by load) |
 | `pricing` | instance types from price snapshots: `MachineKind` (which price list), `InstanceTypes` (the cheapest type that covers a size, the part's own type), `Busy` (burstable types' CPU credits), `PricingChoice` (a design's snapshot and purchase), `Purchase`, `MachineSize`, `Machine` |
 | `host` | the design's host machine (schema 1.7): `HostMachine` (threads that slow each other down), `PartWork`, `HostSpeeds` |
-| `provenance` | where each input came from; `ValueText`, how its value reads |
+| `provenance` | where each input came from: `InputProvenances` (each performance input of a design, measured, documented, assumed or illustrative, with its value: `Input`, `Provenance`), read from the model's `ComponentFacts`; `ValueText` (how a value reads) |
+| `technology` | each part's technology and its tier: `TechnologyTiers` |
 | `confidence` | how far a result can be trusted; `ConfidenceLevel` |
 | `seeds` | ranges across seeds: `ValueRange`, `Seeds` |
 | `sweep` | load sweeps: `SweepRange`, its levels and the highest load a step can run |
@@ -45,7 +46,12 @@ machine a part runs on, the CPU work on the design's host), the Java reads them 
   every golden file, and expects the same output: text exactly, numbers to a relative 1e-9.
   `EngineFunctions` maps each Python name to its Java call, through one table per area
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
-  `SweepFunctions`, `SizingFunctions`). Ported so far:
+  `SweepFunctions`, `SizingFunctions`, `InputFunctions`). Ported so far:
+  - for every case of every template and of the invalid documents, where each input came from
+    (`provenance.input_provenance`, `provenance_counts`), each part's technology tier
+    (`ComponentRegistry.technology_tiers`) and the model a run simulates
+    (`scenarios.simulation_input`, whose counterpart is the model's
+    `DesignDocuments.simulationInput`);
   - resolving every case of every template and of the invalid documents
     (`scenarios.resolve_scenario_sized`), auto-sizing (`sizing.auto_sizes`, `apply_auto_sizes`,
     `base_busy`) and `sweep.sweep_range`;
@@ -58,8 +64,8 @@ machine a part runs on, the CPU work on the design's host), the Java reads them 
     `provenance.describe_value`; the `seeds` text helpers; `estimate.mmc_wait`;
     `sweep.suggest_range`, `rps_cap`, `levels`; `report.canonical_digest`).
 - Where the golden files do not reach a branch (a design on a host machine, a pod bigger than
-  its node, an instance type set on the part, a size no type covers, and more), the unit tests
-  expect the values and words the Python engine gives.
+  its node, an instance type set on the part, a size no type covers, an input measured before,
+  and more), the unit tests expect the values and words the Python engine gives.
 - The other tests specify each class.
 - `ArchitectureTests` checks that the engine uses no framework or database class, and that its
   packages have no cycles.

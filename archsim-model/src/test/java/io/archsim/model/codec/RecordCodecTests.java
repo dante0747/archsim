@@ -26,6 +26,7 @@ import io.archsim.model.codec.SampleRecords.Window;
 import io.archsim.model.text.CanonicalJson;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
@@ -248,6 +249,17 @@ class RecordCodecTests {
 			assertThat(errors("{\"figure\": {\"kind\": 5}}", Drawing.class)).containsExactly(error("union_tag_invalid",
 					"figure", "Input tag '5' found using 'kind' does not match any of the expected tags: 'circle',"
 							+ " 'square'"));
+		}
+
+		@Test
+		void tag_aMemberOfATaggedInterface_isItsTag() {
+			assertThat(RecordCodec.tag(new Square(2))).isEqualTo("square");
+		}
+
+		@Test
+		void tag_aRecordWithoutATag_isRefused() {
+			assertThatIllegalArgumentException().isThrownBy(() -> RecordCodec.tag(new Point(1, 2)))
+				.withMessage("Point is not a tagged record");
 		}
 
 		@Test

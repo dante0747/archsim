@@ -3,12 +3,14 @@ package io.archsim.model.catalog;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
@@ -26,8 +28,9 @@ import tools.jackson.databind.node.ObjectNode;
  * @param technologyTraits technology → the behaviours it brings, with their sources
  * @param technologySources field → technology → the documentation behind its default
  */
-record Presentation(String description, String icon, List<String> modeled, List<String> notModeled, ArrayNode presets,
-		ObjectNode linkDefaults, ObjectNode technologyTraits, ObjectNode technologySources) {
+record Presentation(String description, String icon, List<String> modeled, List<String> notModeled,
+		List<Preset> presets, ObjectNode linkDefaults, ObjectNode technologyTraits,
+		Map<String, Map<String, String>> technologySources) {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -43,6 +46,11 @@ record Presentation(String description, String icon, List<String> modeled, List<
 		Objects.requireNonNull(technologySources, "technologySources");
 		modeled = List.copyOf(modeled);
 		notModeled = List.copyOf(notModeled);
+		presets = List.copyOf(presets);
+		Map<String, Map<String, String>> sources = new LinkedHashMap<>();
+		technologySources
+			.forEach((field, links) -> sources.put(field, Collections.unmodifiableMap(new LinkedHashMap<>(links))));
+		technologySources = Collections.unmodifiableMap(sources);
 	}
 
 	/**

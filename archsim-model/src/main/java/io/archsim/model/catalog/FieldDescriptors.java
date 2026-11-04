@@ -2,8 +2,11 @@ package io.archsim.model.catalog;
 
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.RecordComponent;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
@@ -27,6 +30,18 @@ final class FieldDescriptors {
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
+	/** The {@code @Ui} hint of a field's label. */
+	private static final String LABEL = "label";
+
+	/** The {@code @Ui} hint of a field's kind of input. */
+	private static final String KIND = "kind";
+
+	/** The {@code @Ui} hint of a performance assumption. */
+	private static final String ASSUMPTION = "assumption";
+
+	/** The {@code @Ui} hint of a field the inspector shows first. */
+	private static final String HEADLINE = "headline";
+
 	/**
 	 * A bound beyond this is written as a decimal; inside it, a whole bound as an
 	 * integer.
@@ -42,12 +57,27 @@ final class FieldDescriptors {
 	 * @return the descriptors
 	 */
 	static ArrayNode of(Class<? extends Record> config) {
-		ObjectNode defaults = RecordCodec.write(RecordCodec.read(NODES.objectNode(), config));
+		ObjectNode defaults = defaults(config);
 		ArrayNode fields = NODES.arrayNode();
 		for (RecordComponent component : config.getRecordComponents()) {
 			fields.add(describe(component, defaults));
 		}
 		return fields;
+	}
+
+	/**
+	 * One setting per field of a config record, in declaration order: what the analysis
+	 * reads of each descriptor, from the same facts.
+	 * @param config the config record
+	 * @return the settings
+	 */
+	static List<Setting> settings(Class<? extends Record> config) {
+		ObjectNode defaults = defaults(config);
+		List<Setting> settings = new ArrayList<>();
+		for (RecordComponent component : config.getRecordComponents()) {
+			settings.add(setting(component, defaults));
+		}
+		return List.copyOf(settings);
 	}
 
 	/**
@@ -71,32 +101,70 @@ final class FieldDescriptors {
 	}
 
 	private static ObjectNode describe(RecordComponent component, ObjectNode defaults) {
-		ObjectNode hints = UiHints.of(component).orElseGet(NODES::objectNode);
-		JsonNode label = hints.remove("label");
-		JsonNode hintedKind = hints.remove("kind");
-		JsonNode assumption = hints.remove("assumption");
-		JsonNode headline = hints.remove("headline");
-		FieldKind kind = FieldKind.of(component.getAnnotatedType());
-		if (hintedKind != null) {
-			kind = kind.hintedAs(hintedKind.stringValue());
-		}
+		ObjectNode hints = hints(component);
+		FieldKind kind = kind(component, hints);
 		Description description = component.getAnnotation(Description.class);
 		ObjectNode field = NODES.objectNode();
 		field.put("key", component.getName());
-		field.put("label", (label != null) ? label.stringValue() : humanize(component.getName()));
+		field.put("label", label(component, hints));
 		field.put("kind", kind.name());
 		field.put("nullable", kind.nullable());
 		field.put("description", (description != null) ? description.value() : "");
 		field.set("default", defaultOf(component, defaults));
-		field.put("assumption", assumption != null && assumption.booleanValue());
-		field.put("headline", headline != null && headline.booleanValue());
+		field.put("assumption", flag(hints, ASSUMPTION));
+		field.put("headline", flag(hints, HEADLINE));
 		ArrayNode options = kind.options();
 		if (options != null) {
 			field.set("options", options.deepCopy());
 		}
 		putBounds(component.getAnnotatedType(), field);
+		hints.remove(List.of(LABEL, KIND, ASSUMPTION, HEADLINE));
 		field.setAll(hints);
 		return field;
+	}
+
+	private static Setting setting(RecordComponent component, ObjectNode defaults) {
+		ObjectNode hints = hints(component);
+		JsonNode unit = hints.path("unit");
+		Map<String, JsonNode> visibleWhen = new LinkedHashMap<>();
+		hints.path("visibleWhen").properties().forEach((when) -> visibleWhen.put(when.getKey(), when.getValue()));
+		return new Setting(component.getName(), label(component, hints), unit.isString() ? unit.stringValue() : null,
+				kind(component, hints).name(), flag(hints, ASSUMPTION), visibleWhen, defaultOf(component, defaults));
+	}
+
+	/**
+	 * The record's defaults, as JSON.
+	 * @param config the config record
+	 * @return the config the record reads from an empty object, written back
+	 */
+	private static ObjectNode defaults(Class<? extends Record> config) {
+		return RecordCodec.write(RecordCodec.read(NODES.objectNode(), config));
+	}
+
+	private static ObjectNode hints(RecordComponent component) {
+		return UiHints.of(component).orElseGet(NODES::objectNode);
+	}
+
+	private static String label(RecordComponent component, ObjectNode hints) {
+		JsonNode label = hints.get(LABEL);
+		return (label != null) ? label.stringValue() : humanize(component.getName());
+	}
+
+	/**
+	 * The field's kind of input: from its type, or as its {@code @Ui} names it.
+	 * @param component the field
+	 * @param hints its {@code @Ui} hints
+	 * @return the kind
+	 */
+	private static FieldKind kind(RecordComponent component, ObjectNode hints) {
+		FieldKind kind = FieldKind.of(component.getAnnotatedType());
+		JsonNode hinted = hints.get(KIND);
+		return (hinted != null) ? kind.hintedAs(hinted.stringValue()) : kind;
+	}
+
+	private static boolean flag(ObjectNode hints, String name) {
+		JsonNode flag = hints.get(name);
+		return flag != null && flag.booleanValue();
 	}
 
 	/**

@@ -1,5 +1,6 @@
 package io.archsim.model.codec;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -54,6 +55,21 @@ public final class RecordCodec {
 			}
 		}
 		return (ObjectNode) Shapes.of(type).write(value);
+	}
+
+	/**
+	 * The tag of a member of a {@link Tagged} interface: the value its JSON gives the
+	 * interface's tag field, such as {@code constant} for a constant traffic pattern.
+	 * @param member a record of a tagged interface
+	 * @return its tag
+	 * @throws IllegalArgumentException when the record carries no {@link Tag}
+	 */
+	public static String tag(Object member) {
+		@Nullable Tag tag = member.getClass().getAnnotation(Tag.class);
+		if (tag == null) {
+			throw new IllegalArgumentException(member.getClass().getSimpleName() + " is not a tagged record");
+		}
+		return tag.value();
 	}
 
 	/**

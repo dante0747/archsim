@@ -77,10 +77,9 @@ class AnalysisService {
 		ArchitectureDocument resolved;
 		try {
 			design = DesignDocuments.load(document);
-			// resolved even without a scenario, as the Python API did: a design that
-			// cannot be
-			// resolved (auto-sized, priced) cannot run, and answers invalid with the
-			// reasons
+			// Resolved even without a scenario, as the Python API did: a design
+			// that cannot be resolved (auto-sized, priced) cannot run, so it is
+			// invalid, with the reasons.
 			resolved = this.resolver.resolve(design, scenario).document();
 		}
 		catch (DocumentInvalidException ex) {
