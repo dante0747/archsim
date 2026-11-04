@@ -13,9 +13,10 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 
 | Package | What |
 | --- | --- |
+| `cost` | the cost estimate before a run: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`), `SizePricing` (the price of a part's size) |
 | `estimate` | the instant estimate: `InstantEstimator` (what textbook queueing formulas predict for a design at its peak, without a run: each part's utilization and wait, each request path's latency and a rough p95, where an average request's time goes, and where the design saturates: `InstantEstimate`) |
 | `scenario` | `ScenarioResolver`: the document a run simulates, a design or one of its scenarios with its defaults in full, its prices pinned and its empty specs auto-sized (`ResolvedDesign`) |
-| `sizing` | auto-sizing: `AutoSizer` (each part's CPU, memory and storage for the design's own peak, snapped to an instance type or a standard shape, with what it needs and why: `PartSize`), one sizer per kind of part, `BaseBusy` |
+| `sizing` | auto-sizing: `AutoSizer` (each part's CPU, memory and storage for the design's own peak, snapped to an instance type or a standard shape, with what it needs and why: `PartSize`), one sizer per kind of part, `BaseBusy`, `SizingSummaries` (each part's specs and where they came from, its needs against its instance, the price of its size) |
 | `numeric` | arithmetic as Python does it: `ExactSum` (`math.fsum`), `FloatSum` (the built-in `sum()` of floats, compensated since Python 3.12), `PythonRound` (`round(x, n)`), `Median`, `Erf` (the complementary error function, as fdlibm and Python compute it) |
 | `text` | how the engine writes numbers: `NumberText` (formulas, percentages, short figures, latencies) and `HalfUp` (rounding halves away from zero, as the Python engine does, and JavaScript's `Math.round` as the Python engine computes it) |
 | `queueing` | the Erlang C formula, the wait in an M/M/c queue, `Moments` of a time (its distribution's, or calls made on average), the p95 of a mix of times (`LognormalMixture`), Zipf key popularity |
@@ -56,7 +57,13 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   every golden file, and expects the same output: text exactly, numbers to a relative 1e-9.
   `EngineFunctions` maps each Python name to its Java call, through one table per area
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
-  `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`). Ported so far:
+  `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`).
+  Ported so far:
+  - the cost estimate before a run (`cost.estimate_cost` without a run's report, and
+    `NOT_MODELLED`) and `sizing.sizing_summary`, for every case of every template (the golden
+    files have neither for the invalid documents: `cost/cases.json` covers settings read
+    leniently); the cost with a run's report is ported with the report functions, and its 50
+    golden entries are skipped until then;
   - the instant estimate for every case of every template and of the invalid documents
     (`estimate.estimate_design`), and its `METHOD` and `NOT_INCLUDED`;
   - for every case of every template and of the invalid documents, where each input came from
@@ -81,7 +88,9 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   estimate's such cases are in `estimate/cases.json`, each a resolved design with the Python
   engine's estimate, which `scripts/export_estimate_cases.py` writes (`--check` compares a fresh
   export); `numeric/erfc.csv` holds Python's `math.erfc` at points over every interval of the
-  approximation, from `scripts/export_erfc_points.py`.
+  approximation, from `scripts/export_erfc_points.py`. The cost estimate's and the sizing
+  summary's cases are in `cost/cases.json`, from `scripts/export_cost_cases.py`, which
+  `CostEstimatorTests` and `SizingSummariesTests` check.
 - The other tests specify each class.
 - `ArchitectureTests` checks that the engine uses no framework or database class, and that its
   packages have no cycles.

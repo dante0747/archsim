@@ -14,9 +14,12 @@ import io.archsim.model.component.Port;
  */
 public final class ExternalApiSpec extends ComponentSpec<ExternalApiConfig> {
 
+	/** The component type's name in documents. */
+	public static final String TYPE = "external_api";
+
 	/** Creates the external API type: calls come in, and nothing goes out. */
 	public ExternalApiSpec() {
-		super(new ComponentIdentity("external_api", "External API", Category.EXTERNAL), ExternalApiConfig.class,
+		super(new ComponentIdentity(TYPE, "External API", Category.EXTERNAL), ExternalApiConfig.class,
 				List.of(Port.in("in", "Calls", "Calls to the third-party service.")));
 	}
 

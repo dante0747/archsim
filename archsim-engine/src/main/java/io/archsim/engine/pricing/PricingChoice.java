@@ -1,5 +1,7 @@
 package io.archsim.engine.pricing;
 
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.document.Pricing;
 import io.archsim.model.pricing.PriceSnapshot;
@@ -12,8 +14,10 @@ import io.archsim.model.pricing.PricingException;
  * @param snapshot the snapshot; the generic rates when the one named is not available
  * here (validation says so)
  * @param purchase the purchase option, families and burstable policy
+ * @param unavailable why the snapshot named is not available here; {@code null} when it
+ * is
  */
-public record PricingChoice(PriceSnapshot snapshot, Purchase purchase) {
+public record PricingChoice(PriceSnapshot snapshot, Purchase purchase, @Nullable String unavailable) {
 
 	/**
 	 * The choice a design's pricing makes.
@@ -22,15 +26,13 @@ public record PricingChoice(PriceSnapshot snapshot, Purchase purchase) {
 	 * @return the snapshot and purchase
 	 */
 	public static PricingChoice of(Pricing pricing, PriceSnapshots prices) {
-		PriceSnapshot snapshot;
+		Purchase purchase = new Purchase(pricing.purchaseOption(), pricing.families(), pricing.burstable());
 		try {
-			snapshot = prices.forPricing(RecordCodec.write(pricing));
+			return new PricingChoice(prices.forPricing(RecordCodec.write(pricing)), purchase, null);
 		}
 		catch (PricingException ex) {
-			snapshot = PriceSnapshot.GENERIC;
+			return new PricingChoice(PriceSnapshot.GENERIC, purchase, ex.getMessage());
 		}
-		return new PricingChoice(snapshot,
-				new Purchase(pricing.purchaseOption(), pricing.families(), pricing.burstable()));
 	}
 
 	/**

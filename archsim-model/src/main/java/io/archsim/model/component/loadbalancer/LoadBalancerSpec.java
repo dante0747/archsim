@@ -25,9 +25,12 @@ import io.archsim.model.text.PythonFormat;
  */
 public final class LoadBalancerSpec extends ComponentSpec<LoadBalancerConfig> {
 
+	/** The component type's name in documents. */
+	public static final String TYPE = "load_balancer";
+
 	/** Creates the load balancer type: requests come in, and go out to its targets. */
 	public LoadBalancerSpec() {
-		super(new ComponentIdentity("load_balancer", "Load Balancer", Category.NETWORK), LoadBalancerConfig.class,
+		super(new ComponentIdentity(TYPE, "Load Balancer", Category.NETWORK), LoadBalancerConfig.class,
 				requestsAndTargets());
 	}
 

@@ -171,7 +171,8 @@ public final class InstantEstimator {
 		return this.registry.find(CacheSpec.TYPE)
 			.flatMap((spec) -> EstimateGraph.parsed(spec, cache))
 			.filter(CacheConfig.class::isInstance)
-			.map((config) -> ((CacheConfig) config).heldKeys())
+			.map(CacheConfig.class::cast)
+			.map(CacheConfig::heldKeys)
 			.orElse(OptionalLong.empty());
 	}
 

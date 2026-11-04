@@ -331,7 +331,7 @@ final class PartEstimates {
 				.stream()
 				.filter((edge) -> "miss".equals(edge.sourcePort()))
 				.map((edge) -> PartEstimates.this.loads.edges().get(edge.id()))
-				.filter((sent) -> sent != null)
+				.filter(Objects::nonNull)
 				.mapToDouble(NodeLoad::read));
 			if (this.here.read() > 0 && missed > 0) {
 				return wait.plus(this.shape.own(Op.READ)).times(missed / this.here.read());

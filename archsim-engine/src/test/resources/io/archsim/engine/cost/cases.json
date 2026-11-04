@@ -1,0 +1,6749 @@
+{
+ "generator": "scripts/export_cost_cases.py (archsim_engine 0.16.0)",
+ "cases": [
+  {
+   "name": "managedPartsOnAws_arePricedAtTheSnapshotsRates",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "alb",
+       "type": "load_balancer",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "aws_alb"
+       }
+      },
+      {
+       "id": "gw",
+       "type": "load_balancer",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "api_gateway"
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        }
+       }
+      },
+      {
+       "id": "fn",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "platform": "serverless",
+        "memoryGib": 1.0
+       }
+      },
+      {
+       "id": "q",
+       "type": "message_queue",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "sqs"
+       }
+      },
+      {
+       "id": "worker",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        }
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb"
+       }
+      },
+      {
+       "id": "ledger",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "capacityMode": "provisioned",
+        "readCapacityUnits": 100,
+        "writeCapacityUnits": 50,
+        "dataSizeGib": 20
+       }
+      },
+      {
+       "id": "pay",
+       "type": "external_api",
+       "label": "",
+       "description": null,
+       "config": {
+        "latencyMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "costPerMillionRequests": 2.5
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-alb",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "alb",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "alb-gw",
+       "source": "alb",
+       "sourcePort": "out",
+       "target": "gw",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "gw-api",
+       "source": "gw",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-fn",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "fn",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-q",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "q",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "q-worker",
+       "source": "q",
+       "sourcePort": "out",
+       "target": "worker",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-ledger",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "ledger",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pay",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pay",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "alb",
+       "type": "load_balancer",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "aws_alb",
+        "policy": "round_robin",
+        "overheadMs": {
+         "kind": "constant",
+         "value": 0.2
+        },
+        "maxConnections": 10000,
+        "rateLimitRps": null,
+        "rateLimitBurst": null,
+        "upstreamTimeoutMs": null,
+        "circuitBreakerMaxRequests": null,
+        "cpuCores": null,
+        "memoryGib": null,
+        "instanceType": null,
+        "costPerHour": 0.025
+       }
+      },
+      {
+       "id": "gw",
+       "type": "load_balancer",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "api_gateway",
+        "policy": "round_robin",
+        "overheadMs": {
+         "kind": "constant",
+         "value": 0.2
+        },
+        "maxConnections": 10000,
+        "rateLimitRps": null,
+        "rateLimitBurst": null,
+        "upstreamTimeoutMs": null,
+        "circuitBreakerMaxRequests": null,
+        "cpuCores": null,
+        "memoryGib": null,
+        "instanceType": null,
+        "costPerHour": 0.025
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": "c6g.medium",
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "fn",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "serverless",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 0.5788581119276427,
+        "cpuShare": 1.0,
+        "memoryGib": 1.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "q",
+       "type": "message_queue",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "sqs",
+        "partitions": 8,
+        "consumers": 4,
+        "maxDepth": 100000,
+        "publishTimeMs": {
+         "kind": "lognormal",
+         "median": 2.0,
+         "p95": 8.0
+        },
+        "consumerTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "consumerConcurrency": null,
+        "fetchOverheadMs": null,
+        "maxDeliveries": 3,
+        "partitioning": "auto",
+        "acks": "auto",
+        "replicationMs": {
+         "kind": "lognormal",
+         "median": 2.0,
+         "p95": 8.0
+        },
+        "lingerMs": null,
+        "delivery": "auto",
+        "visibilityTimeoutS": null,
+        "fifo": false,
+        "fifoLimitRps": 300.0,
+        "flowControl": "auto",
+        "memoryHighWatermark": 0.6,
+        "messageSizeKb": 1.0,
+        "brokers": 1,
+        "cpuCores": null,
+        "memoryGib": null,
+        "storageGib": null,
+        "instanceType": null,
+        "costPerHour": 0.15
+       }
+      },
+      {
+       "id": "worker",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": "c6g.medium",
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": null,
+        "cpuShare": 0.5,
+        "memoryGib": null,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": null,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      },
+      {
+       "id": "ledger",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "provisioned",
+        "readCapacityUnits": 100.0,
+        "writeCapacityUnits": 50.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": null,
+        "cpuShare": 0.5,
+        "memoryGib": null,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": null,
+        "instanceType": null,
+        "dataSizeGib": 20.0,
+        "costPerHour": 0.35
+       }
+      },
+      {
+       "id": "pay",
+       "type": "external_api",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "latencyMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "errorRate": 0.001,
+        "rateLimitRps": null,
+        "concurrencyLimit": null,
+        "costPerMillionRequests": 2.5
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-alb",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "alb",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "alb-gw",
+       "source": "alb",
+       "sourcePort": "out",
+       "target": "gw",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "gw-api",
+       "source": "gw",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-fn",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "fn",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-q",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "q",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "q-worker",
+       "source": "q",
+       "sourcePort": "out",
+       "target": "worker",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-ledger",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "ledger",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pay",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pay",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 2209.4773706643655,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "gw",
+      "label": "gw",
+      "type": "load_balancer",
+      "technology": "api_gateway",
+      "snapshotDate": "2026-10-28",
+      "priceSource": "snapshot",
+      "instances": 0,
+      "unitPrice": 3.5000000000000004,
+      "unit": "million",
+      "monthly": 919.8000000000001,
+      "basis": "100.0 req/s at the base load",
+      "items": [
+       {
+        "what": "requests",
+        "quantity": 262800000.0,
+        "unit": "request",
+        "per": 1000000.0,
+        "unitPrice": 3.5,
+        "monthly": 919.8000000000001,
+        "text": "262.80 M requests × $3.50/M"
+       }
+      ]
+     },
+     {
+      "id": "pay",
+      "label": "pay",
+      "type": "external_api",
+      "technology": "generic",
+      "instances": 0,
+      "unitPrice": 2.5,
+      "priceSource": "set",
+      "unit": "million",
+      "monthly": 657.0,
+      "basis": "100.0 calls/s at the base load",
+      "items": [
+       {
+        "what": "calls",
+        "quantity": 262800000.0,
+        "unit": "call",
+        "per": 1000000.0,
+        "unitPrice": 2.5,
+        "monthly": 657.0,
+        "text": "262.80 M calls × $2.50/M"
+       }
+      ]
+     },
+     {
+      "id": "q",
+      "label": "q",
+      "type": "message_queue",
+      "technology": "sqs",
+      "snapshotDate": "2026-10-28",
+      "priceSource": "snapshot",
+      "instances": 0,
+      "unitPrice": 0.4,
+      "unit": "million",
+      "monthly": 315.36,
+      "basis": "100.0 messages/s at the base load × 3 requests (send, receive, delete)",
+      "items": [
+       {
+        "what": "requests",
+        "quantity": 788400000.0,
+        "unit": "request",
+        "per": 1000000.0,
+        "unitPrice": 0.4,
+        "monthly": 315.36,
+        "text": "788.40 M requests × $0.40/M"
+       }
+      ]
+     },
+     {
+      "id": "fn",
+      "label": "fn",
+      "type": "service",
+      "technology": "generic",
+      "snapshotDate": "2026-10-28",
+      "priceSource": "snapshot",
+      "instances": 0,
+      "unitPrice": 0.3666670000000001,
+      "unit": "million",
+      "monthly": 96.36008760000001,
+      "basis": "100.0 invocations/s at the base load × 10.0 ms × 1,024 MB",
+      "items": [
+       {
+        "what": "invocations",
+        "quantity": 262800000.0,
+        "unit": "invocation",
+        "per": 1000000.0,
+        "unitPrice": 0.2,
+        "monthly": 52.56,
+        "text": "262.80 M invocations × $0.20/M"
+       },
+       {
+        "what": "GB-seconds",
+        "quantity": 2628000.0,
+        "unit": "GB-second",
+        "per": 1.0,
+        "unitPrice": 1.66667e-05,
+        "monthly": 43.800087600000005,
+        "text": "2.63 M GB-seconds × $0.0000166667/GB-second"
+       }
+      ]
+     },
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.034,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 49.64,
+      "basis": "2 replicas",
+      "sku": "c6g.medium",
+      "snapshotDate": "2026-10-28"
+     },
+     {
+      "id": "worker",
+      "label": "worker",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.034,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 49.64,
+      "basis": "2 replicas",
+      "sku": "c6g.medium",
+      "snapshotDate": "2026-10-28"
+     },
+     {
+      "id": "orders",
+      "label": "orders",
+      "type": "database",
+      "technology": "dynamodb",
+      "snapshotDate": "2026-10-28",
+      "priceSource": "snapshot",
+      "instances": 0,
+      "unitPrice": null,
+      "unit": "million",
+      "monthly": 46.01328306436538,
+      "basis": "80.0 reads/s × 0.5 unit + 20.0 writes/s × 1 unit at the base load, on demand",
+      "items": [
+       {
+        "what": "read request units",
+        "quantity": 105120000.0,
+        "unit": "unit",
+        "per": 1000000.0,
+        "unitPrice": 0.125,
+        "monthly": 13.14,
+        "text": "105.12 M read request units × $0.125/M"
+       },
+       {
+        "what": "write request units",
+        "quantity": 52559999.99999999,
+        "unit": "unit",
+        "per": 1000000.0,
+        "unitPrice": 0.625,
+        "monthly": 32.849999999999994,
+        "text": "52.56 M write request units × $0.625/M"
+       },
+       {
+        "what": "GiB-months stored",
+        "quantity": 0.09313225746154785,
+        "unit": "GiB-month",
+        "per": 1.0,
+        "unitPrice": 0.25,
+        "monthly": 0.023283064365386963,
+        "text": "0.09 GiB-months stored × $0.25/GiB-month"
+       }
+      ]
+     },
+     {
+      "id": "ledger",
+      "label": "ledger",
+      "type": "database",
+      "technology": "dynamodb",
+      "snapshotDate": "2026-10-28",
+      "priceSource": "snapshot",
+      "instances": 1,
+      "unitPrice": 0.05234931506849315,
+      "unit": "hour",
+      "monthly": 38.214999999999996,
+      "basis": "100 RCU + 50 WCU provisioned",
+      "items": [
+       {
+        "what": "RCU-hours",
+        "quantity": 73000.0,
+        "unit": "RCU-hour",
+        "per": 1.0,
+        "unitPrice": 0.00013,
+        "monthly": 9.489999999999998,
+        "text": "73.0 k RCU-hours × $0.00013/RCU-hour"
+       },
+       {
+        "what": "WCU-hours",
+        "quantity": 36500.0,
+        "unit": "WCU-hour",
+        "per": 1.0,
+        "unitPrice": 0.00065,
+        "monthly": 23.724999999999998,
+        "text": "36.5 k WCU-hours × $0.00065/WCU-hour"
+       },
+       {
+        "what": "GiB-months stored",
+        "quantity": 20.0,
+        "unit": "GiB-month",
+        "per": 1.0,
+        "unitPrice": 0.25,
+        "monthly": 5.0,
+        "text": "20 GiB-months stored × $0.25/GiB-month"
+       }
+      ]
+     },
+     {
+      "id": "alb",
+      "label": "alb",
+      "type": "load_balancer",
+      "technology": "aws_alb",
+      "snapshotDate": "2026-10-28",
+      "priceSource": "snapshot",
+      "instances": 1,
+      "unitPrice": 0.0513,
+      "unit": "hour",
+      "monthly": 37.449,
+      "basis": "1 load balancer + 3.60 capacity units (100.0 req/s at the base load × 10 KB processed each, assumed; 1 LCU per 1 GB an hour)",
+      "items": [
+       {
+        "what": "load balancer-hours",
+        "quantity": 730,
+        "unit": "hour",
+        "per": 1.0,
+        "unitPrice": 0.0225,
+        "monthly": 16.425,
+        "text": "730 load balancer-hours × $0.0225/hour"
+       },
+       {
+        "what": "LCU-hours",
+        "quantity": 2628.0,
+        "unit": "LCU-hour",
+        "per": 1.0,
+        "unitPrice": 0.008,
+        "monthly": 21.024,
+        "text": "2,628 LCU-hours × $0.008/LCU-hour"
+       }
+      ]
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Per-request prices and cost per request are at the steady base load of 100.0 req/s as if it lasted all 730 hours of a month: the static load estimate at that rate (run a simulation to measure it). A burst's or ramp's peak is not billed all month.",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "alb": {
+      "specs": {},
+      "auto": {
+       "cpuCores": null,
+       "memoryGib": null,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {},
+      "pricePerHour": null,
+      "sku": null,
+      "skipped": "A managed service: the provider sizes it."
+     },
+     "gw": {
+      "specs": {},
+      "auto": {
+       "cpuCores": null,
+       "memoryGib": null,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {},
+      "pricePerHour": null,
+      "sku": null,
+      "skipped": "A managed service: the provider sizes it."
+     },
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)"
+      },
+      "pricePerHour": 0.034,
+      "sku": "c6g.medium",
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.5071
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · c6g.medium has 1 vCPU",
+       "memoryGib": "needs 519 MiB (up to 622 MiB when queues are full) · c6g.medium has 2 GiB"
+      },
+      "smallest": true
+     },
+     "fn": {
+      "specs": {
+       "cpuCores": {
+        "value": 0.5788581119276427,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 1.0,
+        "source": "set"
+       }
+      },
+      "auto": {
+       "cpuCores": 0.5788581119276427,
+       "memoryGib": 1.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "1 GiB of memory: a function gets 1 vCPU per 1,769 MB of memory (AWS Lambda), so 0.58 vCPU; below 1 its work runs slower",
+       "memoryGib": "256 MiB base + 1 request × 2 MiB, +25% headroom; a function gets 1 vCPU per 1,769 MB of memory (AWS Lambda), so 0.5788581119276427 vCPU takes 1,024 MB"
+      },
+      "pricePerHour": null,
+      "sku": null,
+      "need": {
+       "cpuCores": 1.0,
+       "memoryGib": 0.252,
+       "memoryGibMax": 0.252
+      },
+      "needText": {
+       "cpuCores": "needs 1 vCPU · each function instance has 0.5788581119276427 vCPU",
+       "memoryGib": "needs 258 MiB · each function instance has 1 GiB"
+      },
+      "smallest": true
+     },
+     "q": {
+      "specs": {},
+      "auto": {
+       "cpuCores": null,
+       "memoryGib": null,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {},
+      "pricePerHour": null,
+      "sku": null,
+      "skipped": "A managed service: the provider sizes it."
+     },
+     "worker": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)"
+      },
+      "pricePerHour": 0.034,
+      "sku": "c6g.medium",
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.501
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · c6g.medium has 1 vCPU",
+       "memoryGib": "needs 513 MiB (up to 622 MiB when queues are full) · c6g.medium has 2 GiB"
+      },
+      "smallest": true
+     },
+     "orders": {
+      "specs": {},
+      "auto": {
+       "cpuCores": null,
+       "memoryGib": null,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {},
+      "pricePerHour": null,
+      "sku": null,
+      "skipped": "A managed service: the provider sizes it."
+     },
+     "ledger": {
+      "specs": {},
+      "auto": {
+       "cpuCores": null,
+       "memoryGib": null,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {},
+      "pricePerHour": null,
+      "sku": null,
+      "skipped": "A managed service: the provider sizes it."
+     }
+    }
+   }
+  },
+  {
+   "name": "kubernetesServices_runOnTheirClusterOrOnImpliedNodes",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "platform": "kubernetes"
+       }
+      },
+      {
+       "id": "k8s",
+       "type": "kubernetes_cluster",
+       "label": "",
+       "description": null,
+       "config": {
+        "label": "Main cluster"
+       }
+      },
+      {
+       "id": "pods",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "platform": "kubernetes",
+        "cluster": "k8s"
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pods",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pods",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "kubernetes",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 0.5,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "k8s",
+       "type": "kubernetes_cluster",
+       "label": "",
+       "description": null,
+       "config": {
+        "label": "Main cluster"
+       }
+      },
+      {
+       "id": "pods",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "kubernetes",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 0.5,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": "k8s",
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pods",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pods",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 410.26,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "k8s",
+      "label": "k8s",
+      "type": "kubernetes_cluster",
+      "technology": "kubernetes",
+      "instances": 3.0,
+      "unitPrice": 0.154,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 410.26,
+      "basis": "3 nodes; + its managed control plane at $0.1/h",
+      "controlPlaneMonthly": 73.0,
+      "sku": "m6g.xlarge",
+      "snapshotDate": "2026-10-28"
+     },
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 0,
+      "unitPrice": null,
+      "priceSource": null,
+      "unit": "hour",
+      "monthly": 0.0,
+      "basis": "runs on k8s"
+     },
+     {
+      "id": "pods",
+      "label": "pods",
+      "type": "service",
+      "technology": "generic",
+      "instances": 0,
+      "unitPrice": null,
+      "priceSource": null,
+      "unit": "hour",
+      "monthly": 0.0,
+      "basis": "runs on k8s"
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 0.5,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 0.5,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB, +25% headroom"
+      },
+      "pricePerHour": 0.0384,
+      "sku": null,
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.3574,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.2521
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · each pod has 1 vCPU",
+       "memoryGib": "needs 258 MiB (up to 366 MiB when queues are full) · each pod has 512 MiB"
+      },
+      "smallest": true
+     },
+     "pods": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 0.5,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 0.5,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB, +25% headroom"
+      },
+      "pricePerHour": 0.0384,
+      "sku": null,
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.3574,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.251
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · each pod has 1 vCPU",
+       "memoryGib": "needs 257 MiB (up to 366 MiB when queues are full) · each pod has 512 MiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  },
+  {
+   "name": "aServiceOnKubernetesWithoutACluster_runsOnImpliedNodes",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "platform": "kubernetes"
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "kubernetes",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 0.5,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 128.15555555555554,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "kubernetes-control-plane",
+      "label": "Kubernetes control plane",
+      "type": "kubernetes_cluster",
+      "technology": null,
+      "instances": 1,
+      "unitPrice": 0.1,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 73.0,
+      "basis": "1 managed control plane, for the pods without a cluster in the design",
+      "snapshotDate": "2026-10-28",
+      "items": [
+       {
+        "what": "control plane-hours",
+        "quantity": 730,
+        "unit": "hour",
+        "per": 1.0,
+        "unitPrice": 0.1,
+        "monthly": 73.0,
+        "text": "730 control plane-hours × $0.10/hour"
+       }
+      ]
+     },
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.0378,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 55.155555555555544,
+      "basis": "2 pods on implied c6g.12xlarge nodes (no cluster in the design): 0.02 of a node each, 90% of a node allocatable",
+      "sku": "c6g.12xlarge",
+      "snapshotDate": "2026-10-28"
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 0.5,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 0.5,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB, +25% headroom"
+      },
+      "pricePerHour": 0.0384,
+      "sku": null,
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.3574,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.251
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · each pod has 1 vCPU",
+       "memoryGib": "needs 257 MiB (up to 366 MiB when queues are full) · each pod has 512 MiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  },
+  {
+   "name": "aBurstableTypeOverItsBaseline_paysForSurplusCredits",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "cpuCores": 2,
+        "replicas": 1,
+        "workersPerReplica": 64
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 300.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [
+      "t4g"
+     ]
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 64,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 1.0,
+        "memoryGib": 1.0,
+        "instanceType": "t4g.micro",
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 300.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [
+      "t4g"
+     ],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 87.892,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 1.0,
+      "unitPrice": 0.0084,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 87.892,
+      "basis": "1 replica; + $81.76 a month of surplus CPU credits: 3.00 cores busy at the base load, over its baseline of 0.20 (10% of each vCPU), 2.80 vCPU × $0.04 per vCPU-hour",
+      "creditsMonthly": 81.75999999999999,
+      "sku": "t4g.micro",
+      "snapshotDate": "2026-10-28"
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": [
+      "t4g"
+     ]
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 2.0,
+        "source": "set"
+       },
+       "memoryGib": {
+        "value": 1.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 2.0,
+       "memoryGib": 1.0,
+       "storageGib": null
+      },
+      "peakRps": 300.0,
+      "why": {
+       "cpuCores": "300 req/s per replica at peak (300 over 1) × 10 ms of CPU each = 3 cores busy; at a 60% target that is 5 → 8 vCPU; snapped to t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 3 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 3 at the peak stay under 60% of its vCPUs",
+       "memoryGib": "256 MiB base + 114 requests held (64 working, 50 queued) × 2 MiB = 484 MiB + 256 MiB for the operating system, +25% headroom; snapped to t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 3 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 3 at the peak stay under 60% of its vCPUs"
+      },
+      "pricePerHour": 0.0084,
+      "sku": "t4g.micro",
+      "need": {
+       "busyCores": 3.0,
+       "cpuCores": 5.0,
+       "memoryGibMax": 0.7246,
+       "baseBusyCores": 3.0
+      },
+      "needText": {
+       "cpuCores": "needs 5 vCPU (3 busy at the peak, at a 60% target) · t4g.micro has 2 vCPU",
+       "memoryGib": "needs 742 MiB · t4g.micro has 1 GiB"
+      }
+     }
+    }
+   }
+  },
+  {
+   "name": "pricesSetByAPersonOrAPreset_keepTheirPrices",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "costPerHour": 0.42
+       }
+      },
+      {
+       "id": "tagged",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "costPerHour": 0.2
+       }
+      },
+      {
+       "id": "pg",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "storageGib": 200,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-tagged",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "tagged",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pg",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pg",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {
+     "nodes/tagged/costPerHour": {
+      "kind": "assumed",
+      "source": null,
+      "query": null,
+      "timeRange": null,
+      "fitError": null,
+      "fittedAt": null,
+      "note": null,
+      "value": null
+     }
+    },
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": "c6g.medium",
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.42
+       }
+      },
+      {
+       "id": "tagged",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": "c6g.medium",
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.2
+       }
+      },
+      {
+       "id": "pg",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 2.0,
+        "cpuShare": 0.5,
+        "memoryGib": 8.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 200.0,
+        "instanceType": "db.t4g.large",
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-tagged",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "tagged",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-pg",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "pg",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {
+     "nodes/tagged/costPerHour": {
+      "kind": "assumed",
+      "source": null,
+      "query": null,
+      "timeRange": null,
+      "fitError": null,
+      "fittedAt": null,
+      "note": null,
+      "value": null
+     }
+    },
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 1022.3649999999999,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.42,
+      "priceSource": "set",
+      "unit": "hour",
+      "monthly": 613.1999999999999,
+      "basis": "2 replicas"
+     },
+     {
+      "id": "tagged",
+      "label": "tagged",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.2,
+      "priceSource": "set",
+      "unit": "hour",
+      "monthly": 292.0,
+      "basis": "2 replicas"
+     },
+     {
+      "id": "pg",
+      "label": "pg",
+      "type": "database",
+      "technology": "postgresql",
+      "instances": 1.0,
+      "unitPrice": 0.1605,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 117.165,
+      "basis": "1 node",
+      "sku": "db.t4g.large",
+      "snapshotDate": "2026-10-28"
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)"
+      },
+      "pricePerHour": 0.034,
+      "sku": "c6g.medium",
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.5031
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · c6g.medium has 1 vCPU",
+       "memoryGib": "needs 515 MiB (up to 622 MiB when queues are full) · c6g.medium has 2 GiB"
+      },
+      "smallest": true
+     },
+     "tagged": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)"
+      },
+      "pricePerHour": 0.034,
+      "sku": "c6g.medium",
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.501
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · c6g.medium has 1 vCPU",
+       "memoryGib": "needs 513 MiB (up to 622 MiB when queues are full) · c6g.medium has 2 GiB"
+      },
+      "smallest": true
+     },
+     "pg": {
+      "specs": {
+       "cpuCores": {
+        "value": 2.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 8.0,
+        "source": "auto"
+       },
+       "storageGib": {
+        "value": 200.0,
+        "source": "set"
+       }
+      },
+      "auto": {
+       "cpuCores": 2.0,
+       "memoryGib": 8.0,
+       "storageGib": 10.0
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "Each primary: 80 reads/s × 7.13 ms + 20 writes/s × 14.3 ms, 50% of it CPU = 0.43 cores busy; at a 60% target that is 0.71 → 1 vCPU; snapped to db.t4g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.43 cores busy at the base load stay under 80% of its baseline (0.6 cores, 30% of each vCPU), so it earns CPU credits, and 0.43 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest database type has)",
+       "memoryGib": "24 MiB of hot data per instance (25% of the 95 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 91 MiB for 10 connections (RDS's default: 9,531,392 bytes each) and 1 GiB in all; snapped to db.t4g.large (2 vCPU, 8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.43 cores busy at the base load stay under 80% of its baseline (0.6 cores, 30% of each vCPU), so it earns CPU credits, and 0.43 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest database type has)",
+       "storageGib": "100,000 keys × 1 KB ≈ 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
+      },
+      "pricePerHour": 0.1605,
+      "sku": "db.t4g.large",
+      "need": {
+       "busyCores": 0.4279,
+       "cpuCores": 0.7132,
+       "memoryGib": 0.0888,
+       "storageGib": 0.0931,
+       "baseBusyCores": 0.4279
+      },
+      "needText": {
+       "cpuCores": "needs 0.71 vCPU (0.43 busy at the peak, at a 60% target) · db.t4g.large has 2 vCPU",
+       "memoryGib": "needs 91 MiB · db.t4g.large has 8 GiB",
+       "storageGib": "stores 95 MiB · db.t4g.large has 200 GiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  },
+  {
+   "name": "aSnapshotThisMachineDoesNotHave_isPricedAtGenericRates",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        }
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "mars-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "mars-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "cost": {
+    "monthly": 62.196,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.0426,
+      "priceSource": "size",
+      "unit": "hour",
+      "monthly": 62.196,
+      "basis": "2 replicas"
+     }
+    ],
+    "notes": [
+     "no price snapshot for aws mars-1 (available: generic; snapshots: aws us-east-1). Priced at generic illustrative rates instead.",
+     "Parts without a set price are priced from their size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per GiB-month of storage)."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "illustrative",
+     "perVcpuHour": 0.037,
+     "perGibHour": 0.0028,
+     "perStorageGibMonth": 0.08
+    },
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "snapshotDate": null,
+     "currency": "USD",
+     "illustrative": true,
+     "sources": [],
+     "note": "Illustrative on-demand rates, roughly a large cloud's general-purpose VMs; sizes are standard shapes (2, 4 or 8 GiB per vCPU), not real instance types.",
+     "sha256": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; rounded up to a standard shape, 1 vCPU and 2 GiB (2 GiB per vCPU)"
+      },
+      "pricePerHour": 0.0426,
+      "sku": null,
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.501
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · each replica has 1 vCPU",
+       "memoryGib": "needs 513 MiB (up to 622 MiB when queues are full) · each replica has 2 GiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  },
+  {
+   "name": "aDesignWithOnlyClients_hasNoPrice",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      }
+     ],
+     "edges": [],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      }
+     ],
+     "edges": [],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "cost": {
+    "monthly": 0,
+    "perMillionRequests": null,
+    "byNode": [],
+    "notes": [
+     "No component has a price yet: set Cost per hour on components to estimate cost."
+    ],
+    "hasCost": false,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "illustrative",
+     "perVcpuHour": 0.037,
+     "perGibHour": 0.0028,
+     "perStorageGibMonth": 0.08
+    },
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "snapshotDate": null,
+     "currency": "USD",
+     "illustrative": true,
+     "sources": [],
+     "note": "Illustrative on-demand rates, roughly a large cloud's general-purpose VMs; sizes are standard shapes (2, 4 or 8 GiB per vCPU), not real instance types.",
+     "sha256": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {}
+   }
+  },
+  {
+   "name": "partsNoSnapshotTypeCovers_keepTheirPresetPriceOrArePricedFromTheirSize",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "cpuCores": 900
+       }
+      },
+      {
+       "id": "jvm",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "technology": "java",
+        "cpuCores": 900,
+        "costPerHour": 0.17
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "shards": 2,
+        "replicationFactor": 3
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-jvm",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "jvm",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "cpuCores": 900
+       }
+      },
+      {
+       "id": "jvm",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "technology": "java",
+        "cpuCores": 900,
+        "costPerHour": 0.17
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 2,
+        "replicationFactor": 3,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 2.0,
+        "cpuShare": 0.5,
+        "memoryGib": 1.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": "db.t4g.micro",
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-jvm",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "jvm",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 48943.28799999999,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 33.3,
+      "priceSource": "size",
+      "unit": "hour",
+      "monthly": 48617.99999999999,
+      "basis": "2 replicas; no compute type in aws us-east-1 (2026-10-28) covers its size: priced at generic rates"
+     },
+     {
+      "id": "jvm",
+      "label": "jvm",
+      "type": "service",
+      "technology": "java",
+      "instances": 2.0,
+      "unitPrice": 0.17,
+      "priceSource": "preset",
+      "unit": "hour",
+      "monthly": 248.20000000000002,
+      "basis": "2 replicas; no compute type in aws us-east-1 (2026-10-28) covers its size: priced at its preset's price"
+     },
+     {
+      "id": "orders",
+      "label": "orders",
+      "type": "database",
+      "technology": "postgresql",
+      "instances": 6.0,
+      "unitPrice": 0.0176,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 77.088,
+      "basis": "2 shards × 3 nodes",
+      "sku": "db.t4g.micro",
+      "snapshotDate": "2026-10-28"
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Parts the price snapshot does not cover keep their technology preset's illustrative price.",
+     "Parts the price snapshot does not cover are priced from their size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per GiB-month of storage).",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "orders": {
+      "specs": {
+       "cpuCores": {
+        "value": 2.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "storageGib": {
+        "value": 10.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 2.0,
+       "memoryGib": 1.0,
+       "storageGib": 10.0
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "80 reads/s × 1 replica × 7.13 ms + 20 writes/s × 3 replicas × 14.3 ms, 50% of it CPU, over 6 nodes = 0.12 cores busy; at a 60% target that is 0.2 → 1 vCPU; snapped to db.t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.12 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.12 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest database type has)",
+       "memoryGib": "12 MiB of hot data per instance (25% of the 48 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 91 MiB for 10 connections (RDS's default: 9,531,392 bytes each) and 1 GiB in all; snapped to db.t4g.micro (2 vCPU, 1 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it; burstable: 0.12 cores busy at the base load stay under 80% of its baseline (0.2 cores, 10% of each vCPU), so it earns CPU credits, and 0.12 at the peak stay under 60% of its vCPUs (it needs less CPU than the smallest database type has)",
+       "storageGib": "100,000 keys × 1 KB ≈ 95 MiB (set the data size for a better estimate) over 2 shards, kept under 70% full (at least 10 GiB)"
+      },
+      "pricePerHour": 0.0176,
+      "sku": "db.t4g.micro",
+      "need": {
+       "busyCores": 0.1189,
+       "cpuCores": 0.1981,
+       "memoryGib": 0.0888,
+       "storageGib": 0.0466,
+       "baseBusyCores": 0.1189
+      },
+      "needText": {
+       "cpuCores": "needs 0.2 vCPU (0.12 busy at the peak, at a 60% target) · db.t4g.micro has 2 vCPU",
+       "memoryGib": "needs 91 MiB · db.t4g.micro has 1 GiB",
+       "storageGib": "stores 48 MiB · db.t4g.micro has 10 GiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  },
+  {
+   "name": "aPartOfAnUnknownType_keepsItsSetPrice",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "box",
+       "type": "mystery_box",
+       "label": "",
+       "description": null,
+       "config": {
+        "costPerHour": 0.3
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-box",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "box",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "box",
+       "type": "mystery_box",
+       "label": "",
+       "description": null,
+       "config": {
+        "costPerHour": 0.3
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-box",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "box",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 219.0,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "box",
+      "label": "box",
+      "type": "mystery_box",
+      "technology": null,
+      "instances": 1.0,
+      "unitPrice": 0.3,
+      "priceSource": "set",
+      "unit": "hour",
+      "monthly": 219.0,
+      "basis": "1 instance"
+     }
+    ],
+    "notes": [],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {}
+   }
+  },
+  {
+   "name": "aTechnologyThatIsNotAName_isPricedAsTheEngineReadsIt",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "technology": 5
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "technology": 5
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 146.0,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": null,
+      "instances": 2.0,
+      "unitPrice": 0.1,
+      "priceSource": "default",
+      "unit": "hour",
+      "monthly": 146.0,
+      "basis": "2 replicas"
+     }
+    ],
+    "notes": [],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {}
+   }
+  },
+  {
+   "name": "aDynamoDbConfigThatIsNotValid_isPricedLikeAnyOtherPart",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        }
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "capacityMode": "provisioned",
+        "readCapacityUnits": "lots"
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": "c6g.medium",
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "capacityMode": "provisioned",
+        "readCapacityUnits": "lots"
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 305.14,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "orders",
+      "label": "orders",
+      "type": "database",
+      "technology": "dynamodb",
+      "instances": 1.0,
+      "unitPrice": 0.35,
+      "priceSource": "default",
+      "unit": "hour",
+      "monthly": 255.49999999999997,
+      "basis": "1 node"
+     },
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.034,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 49.64,
+      "basis": "2 replicas",
+      "sku": "c6g.medium",
+      "snapshotDate": "2026-10-28"
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)"
+      },
+      "pricePerHour": 0.034,
+      "sku": "c6g.medium",
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · c6g.medium has 1 vCPU",
+       "memoryGib": "needs 622 MiB · c6g.medium has 2 GiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  },
+  {
+   "name": "aDynamoDbCapacityModeOfNull_isPricedLikeAnyOtherPart",
+   "scenarioId": null,
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        }
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "capacityMode": null
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 2.0,
+        "instanceType": "c6g.medium",
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "dynamodb",
+        "capacityMode": null
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "purchaseOption": "on_demand",
+     "families": [],
+     "snapshotDate": "2026-10-28",
+     "snapshotSha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669"
+    }
+   },
+   "cost": {
+    "monthly": 305.14,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "orders",
+      "label": "orders",
+      "type": "database",
+      "technology": "dynamodb",
+      "instances": 1.0,
+      "unitPrice": 0.35,
+      "priceSource": "default",
+      "unit": "hour",
+      "monthly": 255.49999999999997,
+      "basis": "1 node"
+     },
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.034,
+      "priceSource": "snapshot",
+      "unit": "hour",
+      "monthly": 49.64,
+      "basis": "2 replicas",
+      "sku": "c6g.medium",
+      "snapshotDate": "2026-10-28"
+     }
+    ],
+    "notes": [
+     "Prices: aws us-east-1, on-demand list prices of 2026-10-28 (AWS Price List bulk API). Each part runs on the cheapest instance type that covers its CPU and memory (a burstable t4g type only when its CPU at the base load stays under its baseline, or when its family is named).",
+     "Not modelled: Multi-AZ deployments, reserved instances and savings plans, data transfer and NAT, and free tiers."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "snapshot",
+     "storageGibMonth": 0.08,
+     "serverlessGbSecond": 1.66667e-05,
+     "serverlessPerMillionRequests": 0.2,
+     "queuePerMillionRequests": 0.4,
+     "loadBalancerHour": 0.0225,
+     "loadBalancerLcuHour": 0.008,
+     "networkLoadBalancerHour": 0.0225,
+     "networkLoadBalancerLcuHour": 0.006,
+     "dynamodbReadPerMillion": 0.125,
+     "dynamodbWritePerMillion": 0.625,
+     "dynamodbRcuHour": 0.00013,
+     "dynamodbWcuHour": 0.00065,
+     "dynamodbStorageGibMonth": 0.25,
+     "apiGatewayPerMillion": 3.5,
+     "rdsStorageGibMonth": 0.115,
+     "kubernetesControlPlaneHour": 0.1
+    },
+    "pricing": {
+     "provider": "aws",
+     "region": "us-east-1",
+     "snapshotDate": "2026-10-28",
+     "currency": "USD",
+     "illustrative": false,
+     "sources": [
+      {
+       "name": "AWS Price List bulk API",
+       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+      }
+     ],
+     "note": "Offer file versions: AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639. AWS: This pricing list is for informational purposes only. All prices are subject to the additional terms included in the pricing pages on http://aws.amazon.com. All Free Tier prices are also subj",
+     "sha256": "35599a05bdf9f2e9fba3aacb295b660d6aa138349d9c9b73b5a95cab2e210669",
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; snapped to c6g.medium (1 vCPU, 2 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (it needs less CPU than the smallest compute type has)"
+      },
+      "pricePerHour": 0.034,
+      "sku": "c6g.medium",
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · c6g.medium has 1 vCPU",
+       "memoryGib": "needs 622 MiB · c6g.medium has 2 GiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  },
+  {
+   "name": "sizesSetOnTheDesignOrByAScenario_sayWhereTheyCameFrom",
+   "scenarioId": "bigger",
+   "design": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "cpuCores": 2
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "storageGib": 50
+       }
+      },
+      {
+       "id": "cache",
+       "type": "cache",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "q",
+       "type": "message_queue",
+       "label": "",
+       "description": null,
+       "config": {}
+      },
+      {
+       "id": "fn",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "platform": "serverless"
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-db",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-cache",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "cache",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-q",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "q",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-fn",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "fn",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [
+     {
+      "id": "bigger",
+      "name": "Bigger cache",
+      "description": null,
+      "overrides": [
+       {
+        "target": {
+         "kind": "node",
+         "id": "cache"
+        },
+        "path": "cpuCores",
+        "value": 4
+       }
+      ]
+     }
+    ],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "resolved": {
+    "schemaVersion": "1.7",
+    "kind": "archsim.architecture",
+    "metadata": {
+     "name": "case",
+     "description": null,
+     "tags": []
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 2.0,
+        "cpuShare": 1.0,
+        "memoryGib": 4.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "db",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 1.0,
+        "cpuShare": 0.5,
+        "memoryGib": 2.0,
+        "workingSetGib": null,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 50.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
+      },
+      {
+       "id": "cache",
+       "type": "cache",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "redis",
+        "hitModel": "fixed_ratio",
+        "hitRatio": 0.8,
+        "ttlSeconds": 60.0,
+        "populateOnMiss": true,
+        "serviceTimeMs": {
+         "kind": "exponential",
+         "mean": 0.05
+        },
+        "concurrency": 1,
+        "shards": 1,
+        "singleThreaded": "auto",
+        "evictionPolicy": "auto",
+        "persistence": "auto",
+        "snapshotIntervalS": 60.0,
+        "forkMsPerGib": 10.0,
+        "queueCapacity": 10000,
+        "queueTimeoutMs": null,
+        "cpuCores": 4,
+        "memoryGib": 2.0,
+        "itemSizeKb": 1.0,
+        "costPerHour": 0.1
+       }
+      },
+      {
+       "id": "q",
+       "type": "message_queue",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "partitions": 8,
+        "consumers": 4,
+        "maxDepth": 100000,
+        "publishTimeMs": {
+         "kind": "lognormal",
+         "median": 2.0,
+         "p95": 8.0
+        },
+        "consumerTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "consumerConcurrency": null,
+        "fetchOverheadMs": null,
+        "maxDeliveries": 3,
+        "partitioning": "auto",
+        "acks": "auto",
+        "replicationMs": {
+         "kind": "lognormal",
+         "median": 2.0,
+         "p95": 8.0
+        },
+        "lingerMs": null,
+        "delivery": "auto",
+        "visibilityTimeoutS": null,
+        "fifo": false,
+        "fifoLimitRps": 300.0,
+        "flowControl": "auto",
+        "memoryHighWatermark": 0.6,
+        "messageSizeKb": 1.0,
+        "brokers": 1,
+        "cpuCores": 1.0,
+        "memoryGib": 2.0,
+        "storageGib": 10.0,
+        "instanceType": null,
+        "costPerHour": 0.15
+       }
+      },
+      {
+       "id": "fn",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "serverless",
+        "replicas": 2,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 1.0,
+        "cpuShare": 1.0,
+        "memoryGib": 1.727539,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-db",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "db",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-cache",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "cache",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-q",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "q",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-fn",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "fn",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "scenarios": [],
+    "objectives": {
+     "latencyP95Ms": 300.0,
+     "latencyP99Ms": null,
+     "availability": 0.999,
+     "minThroughputRps": null
+    },
+    "layout": {
+     "nodes": {},
+     "edges": {},
+     "viewport": null
+    },
+    "provenance": {},
+    "calibration": null,
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "cost": {
+    "monthly": 364.562,
+    "perMillionRequests": null,
+    "byNode": [
+     {
+      "id": "api",
+      "label": "api",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.0852,
+      "priceSource": "size",
+      "unit": "hour",
+      "monthly": 124.392,
+      "basis": "2 replicas"
+     },
+     {
+      "id": "cache",
+      "label": "cache",
+      "type": "cache",
+      "technology": "redis",
+      "instances": 1.0,
+      "unitPrice": 0.1536,
+      "priceSource": "size",
+      "unit": "hour",
+      "monthly": 112.12799999999999,
+      "basis": "1 node"
+     },
+     {
+      "id": "fn",
+      "label": "fn",
+      "type": "service",
+      "technology": "generic",
+      "instances": 2.0,
+      "unitPrice": 0.0418,
+      "priceSource": "size",
+      "unit": "hour",
+      "monthly": 61.028,
+      "basis": "2 replicas"
+     },
+     {
+      "id": "db",
+      "label": "db",
+      "type": "database",
+      "technology": "postgresql",
+      "instances": 1.0,
+      "unitPrice": 0.0481,
+      "priceSource": "size",
+      "unit": "hour",
+      "monthly": 35.113,
+      "basis": "1 node"
+     },
+     {
+      "id": "q",
+      "label": "q",
+      "type": "message_queue",
+      "technology": "generic",
+      "instances": 1.0,
+      "unitPrice": 0.0437,
+      "priceSource": "size",
+      "unit": "hour",
+      "monthly": 31.901000000000003,
+      "basis": "1 broker"
+     }
+    ],
+    "notes": [
+     "Parts without a set price are priced from their size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per GiB-month of storage)."
+    ],
+    "hasCost": true,
+    "currency": "USD",
+    "hoursPerMonth": 730,
+    "rates": {
+     "kind": "illustrative",
+     "perVcpuHour": 0.037,
+     "perGibHour": 0.0028,
+     "perStorageGibMonth": 0.08
+    },
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "snapshotDate": null,
+     "currency": "USD",
+     "illustrative": true,
+     "sources": [],
+     "note": "Illustrative on-demand rates, roughly a large cloud's general-purpose VMs; sizes are standard shapes (2, 4 or 8 GiB per vCPU), not real instance types.",
+     "sha256": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "summary": {
+    "auto": true,
+    "targetCpuUtilization": 0.6,
+    "nodes": {
+     "api": {
+      "specs": {
+       "cpuCores": {
+        "value": 2.0,
+        "source": "set"
+       },
+       "memoryGib": {
+        "value": 4.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 4.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "50 req/s per replica at peak (100 over 2) × 10 ms of CPU each = 0.5 cores busy; at a 60% target that is 0.83 → 1 vCPU",
+       "memoryGib": "256 MiB base + 54 requests held (4 working, 50 queued) × 2 MiB = 364 MiB + 256 MiB for the operating system, +25% headroom; rounded up to a standard shape, 2 vCPU and 4 GiB (2 GiB per vCPU)"
+      },
+      "pricePerHour": 0.0852,
+      "sku": null,
+      "need": {
+       "busyCores": 0.5,
+       "cpuCores": 0.8333,
+       "memoryGibMax": 0.6074,
+       "baseBusyCores": 0.5,
+       "memoryGib": 0.5037
+      },
+      "needText": {
+       "cpuCores": "needs 0.83 vCPU (0.5 busy at the peak, at a 60% target) · each replica has 2 vCPU",
+       "memoryGib": "needs 516 MiB (up to 622 MiB when queues are full) · each replica has 4 GiB"
+      },
+      "smallest": true
+     },
+     "db": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       },
+       "storageGib": {
+        "value": 50.0,
+        "source": "set"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": 10.0
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "Each primary: 80 reads/s × 7.13 ms + 20 writes/s × 14.3 ms, 50% of it CPU = 0.43 cores busy; at a 60% target that is 0.71 → 1 vCPU",
+       "memoryGib": "24 MiB of hot data per instance (25% of the 95 MiB it stores, illustrative: set a hot working set for a better estimate) in a buffer cache of 75% of memory, at least 91 MiB for 10 connections (RDS's default: 9,531,392 bytes each) and 1 GiB in all; rounded up to a standard shape, 1 vCPU and 2 GiB (2 GiB per vCPU)",
+       "storageGib": "100,000 keys × 1 KB ≈ 95 MiB (set the data size for a better estimate), kept under 70% full (at least 10 GiB)"
+      },
+      "pricePerHour": 0.0481,
+      "sku": null,
+      "need": {
+       "busyCores": 0.4279,
+       "cpuCores": 0.7132,
+       "memoryGib": 0.0888,
+       "storageGib": 0.0931,
+       "baseBusyCores": 0.4279
+      },
+      "needText": {
+       "cpuCores": "needs 0.71 vCPU (0.43 busy at the peak, at a 60% target) · each instance has 1 vCPU",
+       "memoryGib": "needs 91 MiB · each instance has 2 GiB",
+       "storageGib": "stores 95 MiB · each instance has 50 GiB"
+      },
+      "smallest": true
+     },
+     "cache": {
+      "specs": {
+       "cpuCores": {
+        "value": 4,
+        "source": "scenario"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "100 commands/s per node × 0.05 ms = 0.01 cores busy; at a 60% target that is 0.01 → 1 vCPU",
+       "memoryGib": "100,000 keys × 1 KiB = 98 MiB per node; 80% of memory holds keys, +25% headroom; rounded up to a standard shape, 1 vCPU and 2 GiB (2 GiB per vCPU)"
+      },
+      "pricePerHour": 0.1536,
+      "sku": null,
+      "need": {
+       "busyCores": 0.005,
+       "cpuCores": 0.0083,
+       "memoryGib": 0.1192,
+       "baseBusyCores": 0.005
+      },
+      "needText": {
+       "cpuCores": "needs 0.01 vCPU (0.01 busy at the peak, at a 60% target) · each node has 4 vCPU",
+       "memoryGib": "needs 122 MiB · each node has 2 GiB"
+      },
+      "smallest": true
+     },
+     "q": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 2.0,
+        "source": "auto"
+       },
+       "storageGib": {
+        "value": 10.0,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 2.0,
+       "storageGib": 10.0
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "100 messages/s per broker at peak at about 10,000 per vCPU (illustrative)",
+       "memoryGib": "2 GiB per vCPU for buffers and page cache (illustrative)",
+       "storageGib": "An hour of peak publishes as a backlog buffer (100 messages/s × 1 KiB) = 352 MiB, kept under 70% full"
+      },
+      "pricePerHour": 0.0437,
+      "sku": null,
+      "need": {
+       "busyCores": 0.006,
+       "cpuCores": 0.01,
+       "memoryGib": 0.27,
+       "storageGib": 0.3433,
+       "baseBusyCores": 0.006
+      },
+      "needText": {
+       "cpuCores": "needs 0.01 vCPU (0.01 busy at the peak, at a 60% target) · each broker has 1 vCPU",
+       "memoryGib": "needs 276 MiB · each broker has 2 GiB",
+       "storageGib": "stores 352 MiB · each broker has 10 GiB"
+      },
+      "smallest": true
+     },
+     "fn": {
+      "specs": {
+       "cpuCores": {
+        "value": 1.0,
+        "source": "auto"
+       },
+       "memoryGib": {
+        "value": 1.727539,
+        "source": "auto"
+       }
+      },
+      "auto": {
+       "cpuCores": 1.0,
+       "memoryGib": 1.727539,
+       "storageGib": null
+      },
+      "peakRps": 100.0,
+      "why": {
+       "cpuCores": "One request per instance: 1 vCPU runs it at full speed",
+       "memoryGib": "256 MiB base + 1 request × 2 MiB, +25% headroom; a function gets 1 vCPU per 1,769 MB of memory (AWS Lambda), so 1 vCPU takes 1,769 MB"
+      },
+      "pricePerHour": null,
+      "sku": null,
+      "need": {
+       "cpuCores": 1.0,
+       "memoryGib": 0.252,
+       "memoryGibMax": 0.252
+      },
+      "needText": {
+       "cpuCores": "needs 1 vCPU · each function instance has 1 vCPU",
+       "memoryGib": "needs 258 MiB · each function instance has 1.73 GiB"
+      },
+      "smallest": true
+     }
+    }
+   }
+  }
+ ]
+}
