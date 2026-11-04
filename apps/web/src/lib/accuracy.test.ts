@@ -53,7 +53,9 @@ const spread: Spread = {
 
 describe("accuracy data", () => {
   it("has every experiment with the fields the page reads", () => {
-    expect(accuracy.experiments.map((x) => x.id)).toEqual(["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]);
+    // the held-out experiments lead, then the four the model was built with
+    expect(accuracy.experiments.map((x) => x.id)).toEqual(["java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl", "pg-mixed", "pg-hot-row", "cache-aside", "kafka"]);
+    expect(accuracy.experiments.map((x) => x.sample)).toEqual([...Array(5).fill("held-out"), ...Array(4).fill("tuned-on")]);
     for (const x of accuracy.experiments) {
       expect(x.name).toBeTruthy();
       expect(x.knee.text.measured).toMatch(/\d/);
@@ -201,6 +203,7 @@ describe("repeated runs", () => {
     const summary = (withRange: number, inRange: number, verdict: Verdict, nominal: number | null = 0.5, expectedInRange = withRange * (nominal ?? 0)) => ({
       ...accuracy.summary,
       coverage: { withRange, inRange, expectedInRange, nominalCoverage: nominal, verdict },
+      coverageHeldOut: undefined,
     });
     const head = "ArchSim's predicted range for the knee held the measured one in";
     expect(coverageSentence(summary(12, 1, "too narrow"))).toBe(`${head} 1 of 12 runs, where about 50% was expected: the range is too narrow.`);

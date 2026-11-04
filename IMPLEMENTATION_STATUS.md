@@ -1,12 +1,32 @@
 # Implementation status
 
-State as of 2026-11-03 (engine 0.16.0, frozen for the held-out campaign; schema 1.7,
+State as of 2026-11-04 (engine 0.16.0, frozen and measured on the held-out experiments; schema 1.7,
 report 1.14; the API in Java). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**The held-out campaign: engine 0.16.0 out of sample, three runs each (2026-11-04).**
+
+- The five held-out experiments, predicted by the frozen engine before they were measured
+  (3-4 Nov, rotating). Median knee error: cache-ttl -6%, python-mixed +29%, chain +30%,
+  go-mixed +67%, java-mixed +70%. One of five meets the ±25% target and three of five have the
+  measured knee inside the predicted range in at least 2 of 3 runs (the plan's targets were all
+  five). The range held 9 of 15 runs for a nominal 80%; every miss is java-mixed's or
+  go-mixed's.
+- Four of five over-predict capacity, the unsafe side, while their CPU per request is predicted
+  within 8% (cache-ttl's service and Redis +22% and +25%). Unchecked lead: the three runtimes
+  ran on the two hyperthreads of one core, which the model counts as two full cores; chain's
+  +30% needs another cause. Model work waits for the Java port.
+- cache-ttl meets criteria 1, 2 and 3a; only 3b (a second machine) is missing.
+- The four tuned-on experiments ran three more times under the same engine (4 Nov): over six
+  runs Kafka -3%, pg-hot-row -10%, pg-mixed +16%, cache-aside -23% (the in-sample target was
+  ±15%). Two runs were disturbed and are not counted; pg-mixed's first, after a Docker Desktop
+  restart, measured 2,875 req/s against 4,371 and 4,483 and counts by the rule.
+- `report.py`: the held-out experiments lead docs/validation.md, accuracy.json and /accuracy,
+  and the headline tables and /accuracy's cards label each experiment held out or tuned on.
 
 **The Java API replaces the Python API: stage 2 of the Java port (2026-11-03).**
 
@@ -33,8 +53,8 @@ listed under "Implemented" is a stub or a mock. The product and UX brief for v2 
 - **Engine 0.16.0 is frozen** in `benchmarks/engines.json` (tree `4da78ff`, tag `engine-0.16.0`),
   for the held-out campaign and as the Java port's parity reference
   ([ADR 0017](docs/adr/0017-freeze-python-engine-during-port.md)).
-  - The held-out experiments can now be calibrated and measured from a clean tree; none has been
-    yet.
+  - The held-out experiments can now be calibrated and measured from a clean tree; they were on
+    3-4 Nov (above).
   - Model and accuracy work waits until the Java port is complete.
   - `test_the_last_engine_entry_is_the_engine_in_this_tree` fails on any commit under
     `packages/engine` until it has a new version and entry.
@@ -1891,16 +1911,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–3
-   now; stage 4, the simulation kernel, after the held-out campaign.
-2. The held-out campaign with the frozen engine 0.16.0 (ADR 0017):
-   - the five held-out experiments are predicted before they are measured, and the four
-     in-sample ones are measured again, Kafka on the fixed stack;
-   - two or three overnight runs on an idle laptop;
-   - before the first night, decide whether engine 0.14.0 should predict the held-out
-     experiments too, for a before-and-after (the harness can't predict with a second engine
-     yet);
-   - then W25 (accuracy over time on /accuracy).
+1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stage 3 now;
+   stage 4, the simulation kernel, next (the held-out campaign it waited for is done).
+2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
+   experiments before they were measured (the harness can't predict with a second engine), so a
+   before-and-after on them can only re-simulate 0.14.0, labelled as such.
 3. Decide the rest of the tier thresholds (the owner; a proposal is in docs/validation.md;
    criterion 2 is settled by ADR 0018), and rerun on a second machine (a quieter Linux host or the
    hosted-runner workflow, which has not completed a run yet) for criterion 3b.
@@ -1911,7 +1926,10 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 After the Java port (ADR 0017), so that none of it is written twice:
 
-5. The model work the campaign would test, in order:
+5. The model work the campaign points to, in order:
+   - why the held-out stacks over-predict capacity: java-mixed +70%, go-mixed +67% and
+     python-mixed +29% ran on the two hyperthreads of one core, which the model counts as two
+     full cores; chain's +30% needs a cause of its own;
    - a CPU cost that rises near full load (pg-mixed), and how hyperthreaded vCPUs become
      capacity;
    - a CPU per request that keeps falling above the calibration staircase (cache-aside, -24.5%

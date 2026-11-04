@@ -1,12 +1,12 @@
 {
   "experiment": "pg-hot-row",
-  "at": "2026-11-02T03:47:44Z",
+  "at": "2026-11-04T12:25:37Z",
   "engineVersion": "0.16.0",
   "reportVersion": "1.14",
   "provenance": {
-    "commit": "7e55fba11ccdf3b0b0282c2197dbcc75ff919ccc",
+    "commit": "d8e3006681af8ceed751d647fc337f72cb4ecbf9",
     "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
-    "harnessHash": "613ee690014f20c0f8b1355b03a5e86502467a99d3cd183c7515e5f2d47e816d",
+    "harnessHash": "ccb5ddb27b66f3e9fc4ccf8428f1b673f477f074f04026d21834c1fbceb1a73b",
     "dirty": false,
     "machineId": "i7-1165g7"
   },
@@ -15,26 +15,26 @@
     "minSuccess": 0.99
   },
   "knee": {
-    "kneeRps": 850,
+    "kneeRps": 856,
     "tried": [
       {
         "offeredRps": 100.0,
-        "p95": 3.0114,
+        "p95": 2.9524,
         "successRate": 1.0
       },
       {
         "offeredRps": 200.0,
-        "p95": 2.6216,
+        "p95": 2.5702,
         "successRate": 1.0
       },
       {
         "offeredRps": 400.0,
-        "p95": 2.5198,
+        "p95": 2.422,
         "successRate": 1.0
       },
       {
         "offeredRps": 800.0,
-        "p95": 4.5643,
+        "p95": 3.8956,
         "successRate": 1.0
       },
       {
@@ -44,54 +44,54 @@
       },
       {
         "offeredRps": 1200,
-        "p95": 1998.6994,
-        "successRate": 0.0001
+        "p95": 1993.544,
+        "successRate": 0.0023
       },
       {
         "offeredRps": 1000,
         "p95": 1954.4549,
-        "successRate": 0.3533
+        "successRate": 0.362
       },
       {
         "offeredRps": 900,
-        "p95": 1239.4291,
+        "p95": 1167.9417,
         "successRate": 1.0
       },
       {
         "offeredRps": 850,
-        "p95": 27.6687,
+        "p95": 15.5806,
         "successRate": 1.0
       },
       {
         "offeredRps": 875,
-        "p95": 528.9496,
+        "p95": 469.6921,
         "successRate": 1.0
       },
       {
         "offeredRps": 862,
-        "p95": 158.0534,
+        "p95": 106.3654,
         "successRate": 1.0
       },
       {
         "offeredRps": 856,
-        "p95": 58.7212,
+        "p95": 37.2384,
         "successRate": 1.0
       }
     ]
   },
   "kneeRange": {
     "method": "the knee's run-to-run variation from a fresh calibration (each input's variation between calibrations times how much the knee moves with it) and the model's own error (the spread of measured over predicted knees in the in-sample runs), as a lognormal around the predicted knee",
-    "lowRps": 676,
-    "highRps": 1069,
-    "nominalRps": 850,
+    "lowRps": 678,
+    "highRps": 1080,
+    "nominalRps": 856,
     "nominalCoverage": 0.8,
-    "sigma": 0.179,
-    "calibrationSigma": 0.0985,
+    "sigma": 0.1817,
+    "calibrationSigma": 0.1032,
     "modelSigma": 0.1495,
     "sensitivity": {
       "serviceTimeMs": 0.0,
-      "writeServiceTimeMs": -0.258,
-      "commitFlushMs": -0.742,
+      "writeServiceTimeMs": -0.268,
+      "commitFlushMs": -0.782,
       "dbCpuShare": 0.0,
       "dbLinkLatencyMs": 0.0
     },
@@ -105,195 +105,195 @@
   },
   "steps": [
     {
-      "offeredRps": 212,
+      "offeredRps": 214,
       "p50": 1.598,
-      "p95": 2.6216,
-      "p99": 3.2596,
-      "mean": 1.6874,
+      "p95": 2.5198,
+      "p99": 3.1331,
+      "mean": 1.6909,
       "successRate": 1.0,
-      "throughputRps": 212.0,
-      "resultDigest": "30942df0f5d4535d1d0952528992d1dcec623a862bd536b7584da07f1765ae00",
+      "throughputRps": 214.0,
+      "resultDigest": "5c7603882a7c09a04a38c228e0aa3854a8b49a4c3b151e754f4235ba8c2fb735",
       "resources": {
         "api": {
           "cores": 0.0876,
-          "memoryMiB": 185.3
+          "memoryMiB": 72.7
         },
         "db": {
-          "cores": 0.0608
+          "cores": 0.0588
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
         "meanLockWaitMs": 0.0,
-        "meanCommitWaitMs": 0.8764
+        "meanCommitWaitMs": 0.8857
       }
     },
     {
-      "offeredRps": 425,
+      "offeredRps": 428,
       "p50": 1.5359,
-      "p95": 2.5198,
-      "p99": 3.2596,
-      "mean": 1.6214,
+      "p95": 2.422,
+      "p99": 3.0716,
+      "mean": 1.6203,
       "successRate": 1.0,
-      "throughputRps": 425.0,
-      "resultDigest": "c3f065ca5047a5d3077d7a932b152b9cc10fde64f1ad67d4274248944d6a6dc7",
+      "throughputRps": 428.0,
+      "resultDigest": "650f31c5cea7c8f7b2a3dc5a3bdf4b41d24c7ed87006779f7e4b7ff22ab206a8",
       "resources": {
         "api": {
-          "cores": 0.1415,
-          "memoryMiB": 185.3
+          "cores": 0.1403,
+          "memoryMiB": 72.7
         },
         "db": {
-          "cores": 0.1236
+          "cores": 0.1192
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
-        "meanLockWaitMs": 0.0118,
-        "meanCommitWaitMs": 0.8755
+        "meanLockWaitMs": 0.0076,
+        "meanCommitWaitMs": 0.8853
       }
     },
     {
-      "offeredRps": 638,
+      "offeredRps": 642,
       "p50": 1.6299,
-      "p95": 2.7821,
-      "p99": 3.6709,
-      "mean": 1.7396,
+      "p95": 2.6216,
+      "p99": 3.3913,
+      "mean": 1.7175,
       "successRate": 1.0,
-      "throughputRps": 638.0,
-      "resultDigest": "1c1da07b914150a90d48f8fad7449ad8e79605353ea46f9ed493d65161c0e3b1",
+      "throughputRps": 642.05,
+      "resultDigest": "06870e5fcca074ee921afe4ed38f0922bd5370fc69dfd3971d6c45bbd5522742",
       "resources": {
         "api": {
-          "cores": 0.212,
-          "memoryMiB": 185.3
+          "cores": 0.2102,
+          "memoryMiB": 72.7
         },
         "db": {
-          "cores": 0.1862
+          "cores": 0.1792
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
-        "meanLockWaitMs": 0.1315,
-        "meanCommitWaitMs": 0.8718
+        "meanLockWaitMs": 0.1029,
+        "meanCommitWaitMs": 0.8825
       }
     },
     {
-      "offeredRps": 765,
-      "p50": 1.9869,
-      "p95": 3.6709,
-      "p99": 4.6556,
-      "mean": 2.1433,
+      "offeredRps": 770,
+      "p50": 1.9097,
+      "p95": 3.3248,
+      "p99": 4.3871,
+      "mean": 2.052,
       "successRate": 1.0,
-      "throughputRps": 764.95,
-      "resultDigest": "206bb5002ee3acc1d2b42f5479e4382778f1e2b38098ad901577b45558bee730",
+      "throughputRps": 770.05,
+      "resultDigest": "55da1d43683c7cddc4bc80b3827b89729400e30baf104bee15ca808be88d0116",
       "resources": {
         "api": {
-          "cores": 0.2542,
-          "memoryMiB": 185.3
+          "cores": 0.2522,
+          "memoryMiB": 72.7
         },
         "db": {
-          "cores": 0.2232
+          "cores": 0.215
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
-        "meanLockWaitMs": 0.5278,
-        "meanCommitWaitMs": 0.8749
+        "meanLockWaitMs": 0.4309,
+        "meanCommitWaitMs": 0.8849
       }
     },
     {
-      "offeredRps": 850,
-      "p50": 7.0563,
-      "p95": 27.6687,
-      "p99": 33.728,
-      "mean": 10.553,
+      "offeredRps": 856,
+      "p50": 7.9465,
+      "p95": 37.2384,
+      "p99": 41.9365,
+      "mean": 12.8735,
       "successRate": 1.0,
-      "throughputRps": 849.2,
-      "resultDigest": "6203eadac19ad0c2018083fe7239661bfc16d7b70b61657fca3064bfd4247ad4",
+      "throughputRps": 854.3,
+      "resultDigest": "22574804b2cfdca69ec0a1dc8d73a8306f8000bace394e9e5b49ca24ada1da14",
       "resources": {
         "api": {
-          "cores": 0.2824,
-          "memoryMiB": 185.3
+          "cores": 0.2803,
+          "memoryMiB": 73.7
         },
         "db": {
-          "cores": 0.2482
+          "cores": 0.2392
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
-        "meanLockWaitMs": 5.8786,
-        "meanCommitWaitMs": 0.876
+        "meanLockWaitMs": 6.4453,
+        "meanCommitWaitMs": 0.886
       }
     },
     {
-      "offeredRps": 935,
-      "p50": 1215.1266,
+      "offeredRps": 942,
+      "p50": 1239.4291,
       "p95": 1916.1322,
       "p99": 1993.544,
-      "mean": 1208.4412,
-      "successRate": 0.8424,
-      "throughputRps": 807.05,
-      "resultDigest": "afc0b95c3e2ef1bd92a25f4ec9aad2bbf75e82988dfa9afc1c3d60e9f26470f8",
+      "mean": 1230.531,
+      "successRate": 0.7829,
+      "throughputRps": 758.25,
+      "resultDigest": "b18cfdf0b0b8eec88c2baf57cb1091d69ba3b574bfa1f0973f407e11f3caebdb",
       "resources": {
         "api": {
-          "cores": 0.3102,
-          "memoryMiB": 204.8
+          "cores": 0.3081,
+          "memoryMiB": 94.2
         },
         "db": {
-          "cores": 0.2504
+          "cores": 0.2402
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
-        "meanLockWaitMs": 10.5153,
-        "meanCommitWaitMs": 0.8758
+        "meanLockWaitMs": 10.4913,
+        "meanCommitWaitMs": 0.8858
       }
     },
     {
-      "offeredRps": 1062,
+      "offeredRps": 1070,
       "p50": 1603.3337,
       "p95": 1954.4549,
       "p99": 1993.544,
-      "mean": 1596.2562,
-      "successRate": 0.1707,
-      "throughputRps": 232.35,
-      "resultDigest": "cc82b980a80451663e23637b1415b0fdbeea2ecea1f61a39fb34f713af18f5ea",
+      "mean": 1609.6346,
+      "successRate": 0.158,
+      "throughputRps": 221.75,
+      "resultDigest": "9bdb324eb2e99b904441f4998baf5cec705dbbf81932e45ef1a33eb517192126",
       "resources": {
         "api": {
-          "cores": 0.3518,
-          "memoryMiB": 236.5
+          "cores": 0.3493,
+          "memoryMiB": 126.0
         },
         "db": {
-          "cores": 0.2504
+          "cores": 0.2402
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
-        "meanLockWaitMs": 10.5153,
-        "meanCommitWaitMs": 0.8759
+        "meanLockWaitMs": 10.4913,
+        "meanCommitWaitMs": 0.8858
       }
     },
     {
-      "offeredRps": 1275,
+      "offeredRps": 1284,
       "p50": null,
       "p95": null,
       "p99": null,
       "mean": null,
       "successRate": 0.0,
-      "throughputRps": 47.3,
-      "resultDigest": "88b68d5907a974c9836822a6acf44578b91f93b6f201e62b49dfa7c02f082f6b",
+      "throughputRps": 44.85,
+      "resultDigest": "c3bb7571d4416a3ad3b9fba49e04b65fffa67d8f6212f3fdff94271529849c83",
       "resources": {
         "api": {
-          "cores": 0.4214,
-          "memoryMiB": 289.8
+          "cores": 0.4187,
+          "memoryMiB": 179.2
         },
         "db": {
-          "cores": 0.2504
+          "cores": 0.2402
         }
       },
       "database": {
         "commitsPerFlush": 1.0,
-        "meanLockWaitMs": 10.5153,
-        "meanCommitWaitMs": 0.8759
+        "meanLockWaitMs": 10.4913,
+        "meanCommitWaitMs": 0.8858
       }
     }
   ],
@@ -327,32 +327,33 @@
             "queueTimeoutMs": null,
             "serviceTimeMs": {
               "kind": "lognormal",
-              "median": 0.2544,
-              "p95": 0.8361
+              "median": 0.2541,
+              "p95": 0.8105
             },
-            "gcPauseMs": 0,
+            "gcPauseMs": 6.2246,
+            "gcEveryRequests": 10891,
             "serviceTimeByLoad": [
               {
                 "rps": 50.0,
-                "factor": 2.2992
+                "factor": 2.3342
               },
               {
-                "rps": 202.0,
+                "rps": 206.0,
                 "factor": 1.2907
               },
               {
-                "rps": 319.0,
-                "factor": 1.057
+                "rps": 327.0,
+                "factor": 1.0597
               },
               {
-                "rps": 374.0,
+                "rps": 363.0,
                 "factor": 1.0
               }
             ],
             "warmupFactor": 1,
             "cpuCores": 1,
             "memoryGib": 1024,
-            "memoryBaselineMb": 184.86,
+            "memoryBaselineMb": 73.07,
             "memoryPerRpsMb": 0.0,
             "memoryPerRequestMb": 0.01
           }
@@ -370,13 +371,13 @@
             "cpuShare": 1.0,
             "writeServiceTimeMs": {
               "kind": "lognormal",
-              "median": 0.236,
-              "p95": 0.6906
+              "median": 0.2314,
+              "p95": 0.6362
             },
             "commitFlushMs": {
               "kind": "lognormal",
-              "median": 0.831,
-              "p95": 1.4201
+              "median": 0.8582,
+              "p95": 1.3022
             }
           }
         }
@@ -412,8 +413,8 @@
             ],
             "latencyMs": {
               "kind": "lognormal",
-              "median": 0.0202,
-              "p95": 0.2049
+              "median": 0.0239,
+              "p95": 0.2212
             }
           }
         }
@@ -421,7 +422,7 @@
       "autoSize": false
     },
     "workload": {
-      "rps": 850,
+      "rps": 856,
       "durationS": 25,
       "warmupS": 5,
       "readRatio": 0.0,

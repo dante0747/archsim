@@ -28,6 +28,20 @@ describe("AccuracyPage", () => {
       }
     }
 
+    // the held-out experiments lead: first in the short version, counted in the headline, and
+    // every card says whether the engine that predicted it was tuned on it
+    const held = accuracy.experiments.filter((x) => x.sample === "held-out");
+    const tuned = accuracy.experiments.filter((x) => x.sample === "tuned-on");
+    if (held.length) {
+      expect(screen.getByText(`held-out knees predicted within ±${Math.round(accuracy.thresholds.kneeError * 100)}%`)).toBeInTheDocument();
+      const at = (x: (typeof held)[number]) => text.indexOf(kneeSentence(x));
+      expect(Math.max(...held.map(at))).toBeLessThan(Math.min(...tuned.map(at)));
+    }
+    for (const x of accuracy.experiments) {
+      const card = container.querySelector(`article#${x.id}`) as HTMLElement;
+      expect(within(card).getByText(x.sample === "held-out" ? "Held out" : "Tuned on")).toBeInTheDocument();
+    }
+
     // CPU and memory: one card per experiment that recorded them, every part with its numbers
     const withResources = accuracy.experiments.filter((x) => x.resources);
     expect(screen.getByRole("heading", { level: 2, name: "CPU and memory" })).toBeInTheDocument();

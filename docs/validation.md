@@ -10,23 +10,33 @@ k6 summaries themselves are scratch output and are not committed.
 ## Headline
 
 <!-- BEGIN GENERATED: summary -->
-| Experiment | Knee measured | Knee predicted | Knee error | p95 error at or below the measured knee (median / worst) |
-| --- | --- | --- | --- | --- |
-| [pg-mixed](#pg-mixed) | 4,237 req/s | 5,055 req/s | +19% | 24% / 93% (3 steps) |
-| [pg-hot-row](#pg-hot-row) | 942 req/s | 851 req/s | -10% | 16% / 6527% (6 steps) |
-| [cache-aside](#cache-aside) | 6,918 req/s | 5,201 req/s | -25% | 433% / 26294% (7 steps) |
-| [kafka](#kafka) | 2,802 req/s | 2,528 req/s | -10% | 64% / 4188% (6 steps) |
+| Experiment | Sample | Knee measured | Knee predicted | Knee error | p95 error at or below the measured knee (median / worst) |
+| --- | --- | --- | --- | --- | --- |
+| [java-mixed](#java-mixed) | held out | 4,650 req/s | 7,907 req/s | +70% | 22% / 41% (2 steps) |
+| [go-mixed](#go-mixed) | held out | 5,950 req/s | 9,916 req/s | +67% | 26% / 47% (2 steps) |
+| [python-mixed](#python-mixed) | held out | 1,388 req/s | 1,762 req/s | +27% | 88% / 164% (3 steps) |
+| [chain](#chain) | held out | 3,388 req/s | 4,455 req/s | +32% | 54% / 91% (3 steps) |
+| [cache-ttl](#cache-ttl) | held out | 5,420 req/s | 5,104 req/s | -6% | 37% / 58% (5 steps) |
+| [pg-mixed](#pg-mixed) | tuned on | 4,483 req/s | 5,203 req/s | +16% | 16% / 81% (3 steps) |
+| [pg-hot-row](#pg-hot-row) | tuned on | 947 req/s | 857 req/s | -10% | 13% / 10003% (6 steps) |
+| [cache-aside](#cache-aside) | tuned on | 6,752 req/s | 5,652 req/s | -16% | 22% / 17808% (6 steps) |
+| [kafka](#kafka) | tuned on | 2,387 req/s | 2,090 req/s | -12% | 57% / 5268% (6 steps) |
 <!-- END GENERATED: summary -->
 
 Runs that repeat each experiment's latest conditions:
 
 <!-- BEGIN GENERATED: repeatability -->
-| Experiment | Runs repeating the latest | Median knee error | Knee errors | Measured knee inside the predicted range |
-| --- | --- | --- | --- | --- |
-| [pg-mixed](#pg-mixed) | 3 (v6, engine 0.16.0) | +11% | +6% to +19% | 3 of 3 runs (nominal 80%) |
-| [pg-hot-row](#pg-hot-row) | 3 (v6, engine 0.16.0) | -10% | -10% to -9% | 3 of 3 runs (nominal 80%) |
-| [cache-aside](#cache-aside) | 3 (v6, engine 0.16.0) | -25% | -27% to -24% | 2 of 3 runs (nominal 80%) |
-| [kafka](#kafka) | 3 (v6, engine 0.16.0) | -3% | -10% to -2% | 3 of 3 runs (nominal 80%) |
+| Experiment | Sample | Runs repeating the latest | Median knee error | Knee errors | Measured knee inside the predicted range |
+| --- | --- | --- | --- | --- | --- |
+| [java-mixed](#java-mixed) | held out | 3 (v6, engine 0.16.0) | +70% | +64% to +89% | 0 of 3 runs (nominal 80%) |
+| [go-mixed](#go-mixed) | held out | 3 (v6, engine 0.16.0) | +67% | +58% to +73% | 0 of 3 runs (nominal 80%) |
+| [python-mixed](#python-mixed) | held out | 3 (v6, engine 0.16.0) | +29% | +27% to +30% | 3 of 3 runs (nominal 80%) |
+| [chain](#chain) | held out | 3 (v6, engine 0.16.0) | +30% | +24% to +32% | 3 of 3 runs (nominal 80%) |
+| [cache-ttl](#cache-ttl) | held out | 3 (v6, engine 0.16.0) | -6% | -8% to +1% | 3 of 3 runs (nominal 80%) |
+| [pg-mixed](#pg-mixed) | tuned on | 6 (v6, engine 0.16.0) | +16% | +6% to +88% | 5 of 6 runs (nominal 80%) |
+| [pg-hot-row](#pg-hot-row) | tuned on | 5 (v6, engine 0.16.0; 1 disturbed, not counted) | -10% | -10% to -9% | 5 of 5 runs (nominal 80%) |
+| [cache-aside](#cache-aside) | tuned on | 6 (v6, engine 0.16.0) | -23% | -27% to -1% | 5 of 6 runs (nominal 80%) |
+| [kafka](#kafka) | tuned on | 5 (v6, engine 0.16.0; 1 disturbed, not counted) | -3% | -12% to +10% | 5 of 5 runs (nominal 80%) |
 
 The tier criteria below judge the median over at least 3 such runs. The nominal coverage is how often the measured knee should fall inside the predicted range. Engine 0.14.0's runs took the range from their three replicate calibration sets ((R - 1) / (R + 1) = 50%), which leaves out how much a calibration moves from one day to the next and the model's own error; since W28 the range is an 80% one that carries both ([Protocol](#protocol), step 3). A disturbed run missed the objective at one load step and met it at a higher one; it is kept and listed under the run history, but not counted.
 <!-- END GENERATED: repeatability -->
@@ -37,49 +47,71 @@ knee uses the same steps and the same interpolation. A run that met the objectiv
 up was disturbed and is not counted (see [Protocol](#protocol), step 5). The p95 error covers
 the steps at or below the measured knee: error = (predicted - measured) / measured.
 
-Read these numbers as three runs on one laptop, all of them in-sample:
+Read these numbers as runs on one laptop, three to six per experiment:
 
-- **Three counted runs each, under protocol v6 and engine 0.16.0** (the v6 campaign, 1-2 Nov
-  2026, Windows 11 build 26300 set to Best performance; no run disturbed). The first table shows
-  each experiment's latest run, the second the median over its counted runs: **Kafka -3%,
-  pg-hot-row -10%, pg-mixed +11%, cache-aside -25%.** Every one of the 12 runs is within 27%,
-  and the median absolute knee error over them is 10%, against 22% for engine 0.14.0 under v5
-  (the baseline campaign, 30-31 Oct: Kafka +4%, hot-row -16%, pg-mixed +24%, cache-aside -34%).
-- **Not all of the gain is the model's.** pg-mixed's prediction barely moved (4,780 to 5,055
-  req/s, against 4,729 to 5,003 under v5); its real knee rose about 10% between the campaigns
-  (4,237 to 4,495 req/s, against 3,783 to 4,160) on the same laptop, OS build and power mode,
-  with nothing on its path made cheaper. Kafka's real knee rose because the broker's healthcheck,
-  which held every earlier Kafka run, is gone (2,614 to 2,802 req/s, against 2,028 to 2,132), so
-  these are the first Kafka runs that measure Kafka. Cache-aside's and hot-row's predictions did
-  move: v6's higher staircase (cache-aside's top at 3,023 to 3,350 req/s instead of 1,201 to
-  1,586) and engine 0.15.0's database inputs (hot-row).
-- **The predicted range held the measured knee in 11 of 12 runs**, for a nominal 80% (W28; the
-  miss is cache-aside's run 6, measured 6,702 against a range up to 6,613). Engine 0.14.0's
-  replicate range held 1 of 12. The range is wide, about x0.75 to x1.33 of the knee
-  (pg-mixed's latest: 3,788 to 6,733 req/s around 5,055).
-- **ArchSim still errs on both sides.** It over-predicts pg-mixed's capacity (+6% to +19%: a
-  design sized on it runs out of headroom sooner than predicted) and under-predicts cache-aside's
-  (-24% to -27%: safe, but it would buy too much). The causes are under [Where the model is
+- **Held out: one of five predicted within 25%.** Engine 0.16.0 was frozen on 2 Nov 2026 and
+  predicted the five [held-out experiments](#held-out-experiments) before any of them was
+  measured; each then ran three times on 3-4 Nov. Median knee errors: cache-ttl -6%,
+  python-mixed +29%, chain +30%, go-mixed +67% and java-mixed +70%. Only cache-ttl meets
+  criterion 1 (within ±25%); python-mixed and chain miss it by about five points.
+- **On stacks it was not tuned on, ArchSim promised too much capacity.** Four of the five
+  predicted knees are above the measured ones, the unsafe side: a design sized on them runs out
+  of headroom sooner than predicted. The CPU those stacks cost is predicted well (busy cores at
+  the highest step below both knees within 8% for every held-out part except cache-ttl's
+  service and Redis, +22% and +25%), so the error is in how that CPU turns into capacity. One
+  lead, not checked yet: java-mixed, go-mixed and python-mixed ran on the two hyperthreads of one
+  physical core, which the model counts as two full cores, and on this laptop a thread that
+  shares its core runs at about half speed ([Environment](#environment)); the gap was written
+  down before they were measured ([Held-out experiments](#held-out-experiments)). chain, whose
+  services had a core each, is +30% too, so that is not the whole story. Model work waits until
+  the Java port is done ([ADR 0017](adr/0017-freeze-python-engine-during-port.md)).
+- **The predicted range held 9 of the 15 held-out runs**, against a nominal 80% (12 expected).
+  Every miss is java-mixed's or go-mixed's: in all six of their runs the measured knee fell below
+  the range's low end (java-mixed's latest: 4,650 req/s against a range from 5,926). Fifteen runs
+  are too few for the coverage check to reject 80% at 5%, but misses gathered in two experiments
+  are a bias, not bad luck. On the tuned-on experiments the range held 20 of 22 runs. It is
+  wide, about x0.75 to x1.33 of the predicted knee.
+- **cache-ttl meets criteria 1, 2 and 3a**: median -6%, every step's p95 within a factor of two or
+  3 ms at or below the knee, and no unstable step. Only criterion 3b, a second machine, is missing:
+  it is the first experiment to pass everything one machine can show.
+- **Tuned on: six runs each under engine 0.16.0** (the v6 campaign of 1-2 Nov and a repeat on 4
+  Nov), median knee errors **Kafka -3%, pg-hot-row -10%, pg-mixed +16% and cache-aside -23%**. The
+  plan's in-sample target was ±15%: Kafka and hot-row meet it, pg-mixed and cache-aside do not.
+  These four are in-sample: the protocol (up to v6) and the engine (up to 0.16.0) were developed
+  with their results in view. The first hot-row and Kafka runs of 4 Nov were disturbed and are not
+  counted. Kafka's third run stopped its calibration staircase at 406 req/s instead of about
+  1,000: that pass implied half the consumers' capacity at about 210 req/s, under the next step
+  (`run.next_rise`), so it predicted 2,088 req/s against 2,675 and 2,725 in the other two (-12%
+  against the measured knee). pg-mixed's first run of 4 Nov, the first experiment after Docker
+  Desktop had been restarted, measured 2,875 req/s against 4,371 and 4,483 in the other two
+  (+88%); its repeats swung as in no other run (2,658 to 3,869 req/s served at 4,050 offered), but
+  it never met the objective higher up, so the rule counts it. Without it the median is +16% too.
+- **Tuned on, ArchSim errs on both sides.** It over-predicts pg-mixed's capacity (+6% to +19%
+  in five of its six runs) and under-predicts cache-aside's (-27% to -1%: safe, but it would
+  buy too much). The causes are under [Where the model is
   wrong](#where-the-model-is-wrong-and-why): pg-mixed's latency climbs before its core fills,
   and cache-aside's cost per request keeps falling above the calibration staircase.
-- **Every experiment meets criterion 1** (median knee error within ±25%; cache-aside only just,
-  at -24.8%), and none meets criterion 2 (p95 within a factor of two or 3 ms at or below the
-  knee): near their knees ArchSim predicts pg-mixed's p95 and two of Kafka's steps too low, and
-  hot-row's and cache-aside's too high. pg-mixed and hot-row also miss criterion 3a (an unstable
-  step at or below the knee in two of three runs), and criterion 3b needs a second machine. See
-  [Proposed tier thresholds](#proposed-tier-thresholds).
-- **Light-load latency: within 0.6 ms for pg-mixed and hot-row, 2 to 3 times too high for
-  cache-aside.** At a quarter and half of the predicted knee ArchSim's p95 is 0.01 to 0.59 ms
-  off for pg-mixed and hot-row. For cache-aside it is 2.9 and 4.7 ms against 1.4 and 1.5
-  measured; part of that was a harness bug in the latest run, the rest the service time's spread
-  under v6's inputs ([below](#where-the-model-is-wrong-and-why)). Both are fixed in the harness
-  since: re-simulated with the spread anchored to the calibration pass (W29, in-sample), the
-  three runs give 1.39 to 1.60 ms there against 1.42 to 1.54 measured, and the predictions from
-  now on use it. Kafka's is 0.35 and 1.96 ms under.
-- **All four are in-sample.** The protocol (up to v6) and the engine (up to 0.16.0) were
-  developed with these four experiments' results in view. The five [held-out
-  experiments](#held-out-experiments) are the test of how ArchSim does on stacks it was not
-  tuned on.
+- **Not all of engine 0.16.0's gain over 0.14.0 is the model's.** pg-mixed's prediction barely
+  moved between the baseline campaign (v5, 30-31 Oct) and the v6 campaign (4,729 to 5,003 req/s,
+  then 4,780 to 5,055); its real knee rose about 10% (3,783 to 4,160, then 4,237 to 4,495) on
+  the same laptop, OS build and power mode, with nothing on its path made cheaper. Kafka's real
+  knee rose because the broker's healthcheck, which held every earlier Kafka run, is gone (2,028
+  to 2,132, then 2,614 to 2,802 req/s), so the v6 runs are the first that measure Kafka.
+  Cache-aside's and hot-row's predictions did move: v6's higher staircase (cache-aside) and
+  engine 0.15.0's database inputs (hot-row).
+- **Criterion 2** (p95 within a factor of two or 3 ms at or below the measured knee) holds for
+  cache-ttl, java-mixed and go-mixed; java-mixed's and go-mixed's knees came so early that only
+  two light steps are judged. python-mixed misses at 440 req/s (6.1 ms predicted, 2.3
+  measured), chain at 3,338 req/s, and every tuned-on experiment misses near its knee.
+  pg-mixed and hot-row also miss criterion 3a (an unstable step at or below the knee in more
+  than one run in three). See [Proposed tier thresholds](#proposed-tier-thresholds).
+- **Light-load latency.** At a quarter and half of the predicted knee ArchSim's p95 is within
+  0.6 ms for pg-mixed, hot-row and cache-aside (cache-aside's earlier 2 to 3 times too high is
+  gone since W29 anchored the service time's spread to the calibration pass: 0.00 and 0.09 ms
+  off), and Kafka's is 0.36 and 1.45 ms under. Held out, it is within 0.7 ms at a quarter of
+  the knee for all but python-mixed, whose p95 is predicted 2.6 and 1.9 times too high (6.1 and
+  5.9 ms against 2.3 and 3.1). At half the predicted knee java-mixed, go-mixed and chain are
+  1.2 to 2.9 ms under, because there they were already near their real knees.
 - **Two model features stay off.** Re-simulated on the 12 v6 runs (in-sample,
   [`docs/validation/dev-checks.md`](validation/dev-checks.md) for the defaults): W26's
   extension of the CPU curve above the staircase moves almost nothing (cache-aside -25% to -23%,
@@ -102,6 +134,7 @@ different modes are not compared with each other:
 uv run python benchmarks/run.py postgres   # pg-mixed and pg-hot-row
 uv run python benchmarks/run.py cache      # cache-aside
 uv run python benchmarks/run.py kafka      # kafka
+uv run python benchmarks/run.py java-mixed # a held-out stack: needs a frozen engine (below)
 uv run python benchmarks/run.py all --runs 3  # three independent runs of each, rotating
 uv run python benchmarks/report.py --json  # rewrite this page's tables, charts and accuracy.json
 ```
@@ -319,7 +352,8 @@ Nov):
 | 5 | v4; CPU and memory read inside the measured window; engine 0.13.0 | pg-mixed: knee 2,430 req/s against 2,238 predicted (-8%). The run of the other three was discarded: other work on the machine (video rendering) took its memory, so pg-hot-row's calibration measured a commit-flush p95 of 417 ms and Docker stalled for 20 minutes during cache-aside; Kafka did not run. They were run again in run 6. |
 | 6 | v4, as run 5, after a Windows update (build 26300, with a new WSL kernel) | pg-hot-row, cache-aside and Kafka, on an otherwise idle machine (no discarded pass; commit-flush p95 1.8 ms). The update made the stacks faster: Kafka's publish p95 in calibration fell from 10.1 to 2.6 ms and its knee rose from 945 to 2,040 req/s; hot-row held 777 req/s, where run 4 stalled at 333. |
 | 7 | v5 (a staircase with replicate sets and a predicted range; CPU per request net of idle at the top rate), engine 0.14.0, Windows on Best performance, k6 off the service's hyperthread sibling; three runs of each experiment, rotating (the baseline campaign, 30-31 Oct) | Engine 0.14.0's numbers, the first ones on /accuracy. The stacks were faster again under Best performance: pg-mixed's knee about 4,000 req/s, cache-aside's about 7,000. pg-mixed's first two runs (22:30 to 01:05, Western European time) were disturbed, cause unknown (Windows logged no throttling, Defender scan or other event around the first stall): two of three repeats stalled at 2,112 req/s in one, and the other missed at 2,550 to 4,590 req/s and met the objective at 5,100. Both are kept and not counted, and pg-mixed ran twice more on the idle machine (`run-9/` and the latest). Calibration retried five disturbed passes, all between 00:29 and 01:08. |
-| 8 | v6 (the staircase climbs to about two thirds of the service's core, W26), engine 0.16.0 with the 80% predicted range (W28), Kafka's broker healthcheck run once (W23), same machine, OS build and power mode; three runs of each experiment, rotating (the v6 campaign, 1-2 Nov) | This page's numbers. No run was disturbed; calibration retried four disturbed passes, all pg-mixed's (23:47 to 23:52 and 04:05 to 04:13). The staircases topped at 2,373 to 3,155 req/s for pg-mixed, 357 to 374 for hot-row, 3,023 to 3,350 for cache-aside and 971 to 1,015 for Kafka. The measured knees: pg-mixed 4,237 to 4,495 req/s (v5: 3,783 to 4,160), hot-row 939 to 953, cache-aside 6,702 to 7,010, and Kafka 2,614 to 2,802 without the healthcheck (v5: 2,028 to 2,132 with it). |
+| 8 | v6 (the staircase climbs to about two thirds of the service's core, W26), engine 0.16.0 with the 80% predicted range (W28), Kafka's broker healthcheck run once (W23), same machine, OS build and power mode; three runs of each experiment, rotating (the v6 campaign, 1-2 Nov) | The tuned-on experiments' first three runs under engine 0.16.0. No run was disturbed; calibration retried four disturbed passes, all pg-mixed's (23:47 to 23:52 and 04:05 to 04:13). The staircases topped at 2,373 to 3,155 req/s for pg-mixed, 357 to 374 for hot-row, 3,023 to 3,350 for cache-aside and 971 to 1,015 for Kafka. The measured knees: pg-mixed 4,237 to 4,495 req/s (v5: 3,783 to 4,160), hot-row 939 to 953, cache-aside 6,702 to 7,010, and Kafka 2,614 to 2,802 without the healthcheck (v5: 2,028 to 2,132 with it). |
+| 9 | v6 and engine 0.16.0, unchanged: the held-out campaign (3-4 Nov, the five held-out experiments three times each, rotating) and a repeat of the four tuned-on ones (4 Nov, three runs each, rotating) | The held-out numbers in the headline, none of them disturbed. In the repeat, hot-row's and Kafka's first runs were disturbed and are not counted, and pg-mixed's first, the first experiment after Docker Desktop had been restarted, measured 2,875 req/s against 4,371 and 4,483 in the other two: counted, though its repeats swung as in no other run. |
 
 **Protocol v6** (W26, 1 Nov 2026; first run in the v6 campaign, run 8) climbs the staircase to
 about two thirds of the service's core instead of a third (step 2), because every v5 staircase stopped at a third
@@ -344,6 +378,21 @@ Every kept run, compared the same way (`run.py compare`):
 <!-- BEGIN GENERATED: history -->
 | Experiment | Results | Protocol | Calibrated (UTC) | Knee measured | Knee predicted | Knee error | Counted |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| java-mixed | `run-1/` | v6 | 2026-11-03T21:34:40Z | 4,198 req/s | 7,915 req/s | +89% | yes |
+| java-mixed | `run-2/` | v6 | 2026-11-04T00:33:23Z | 4,799 req/s | 7,857 req/s | +64% | yes |
+| java-mixed | latest (`results/java-mixed/`) | v6 | 2026-11-04T03:38:18Z | 4,650 req/s | 7,907 req/s | +70% | yes |
+| go-mixed | `run-1/` | v6 | 2026-11-03T22:16:39Z | 5,508 req/s | 9,517 req/s | +73% | yes |
+| go-mixed | `run-2/` | v6 | 2026-11-04T01:13:30Z | 6,204 req/s | 9,802 req/s | +58% | yes |
+| go-mixed | latest (`results/go-mixed/`) | v6 | 2026-11-04T04:19:22Z | 5,950 req/s | 9,916 req/s | +67% | yes |
+| python-mixed | `run-1/` | v6 | 2026-11-03T22:58:02Z | 1,428 req/s | 1,850 req/s | +30% | yes |
+| python-mixed | `run-2/` | v6 | 2026-11-04T01:55:30Z | 1,385 req/s | 1,788 req/s | +29% | yes |
+| python-mixed | latest (`results/python-mixed/`) | v6 | 2026-11-04T05:00:48Z | 1,388 req/s | 1,762 req/s | +27% | yes |
+| chain | `run-1/` | v6 | 2026-11-03T23:27:46Z | 3,503 req/s | 4,353 req/s | +24% | yes |
+| chain | `run-2/` | v6 | 2026-11-04T02:28:58Z | 3,475 req/s | 4,531 req/s | +30% | yes |
+| chain | latest (`results/chain/`) | v6 | 2026-11-04T05:34:15Z | 3,388 req/s | 4,455 req/s | +32% | yes |
+| cache-ttl | `run-1/` | v6 | 2026-11-04T00:02:42Z | 5,747 req/s | 5,303 req/s | -8% | yes |
+| cache-ttl | `run-2/` | v6 | 2026-11-04T03:05:38Z | 5,336 req/s | 5,401 req/s | +1% | yes |
+| cache-ttl | latest (`results/cache-ttl/`) | v6 | 2026-11-04T06:11:13Z | 5,420 req/s | 5,104 req/s | -6% | yes |
 | pg-mixed | `run-1/` | v1 | 2026-10-26T08:00:55Z | > 1,359 req/s | 906 req/s | - | yes |
 | pg-mixed | `run-2/` | v2 | 2026-10-26T08:23:18Z | 1,895 req/s | 2,314 req/s | +22% | no: missed at 2,081 req/s, met higher |
 | pg-mixed | `run-3/` | v3 | 2026-10-26T09:46:26Z | 3,162 req/s | 808 req/s | -74% | yes |
@@ -356,7 +405,10 @@ Every kept run, compared the same way (`run.py compare`):
 | pg-mixed | `run-10/` | v5 | 2026-10-31T04:34:12Z | 4,006 req/s | 4,956 req/s | +24% | yes |
 | pg-mixed | `run-11/` | v6 | 2026-11-01T22:53:59Z | 4,495 req/s | 4,780 req/s | +6% | yes |
 | pg-mixed | `run-12/` | v6 | 2026-11-02T01:02:03Z | 4,364 req/s | 4,856 req/s | +11% | yes |
-| pg-mixed | latest (`results/pg-mixed/`) | v6 | 2026-11-02T03:15:28Z | 4,237 req/s | 5,055 req/s | +19% | yes |
+| pg-mixed | `run-13/` | v6 | 2026-11-02T03:15:28Z | 4,237 req/s | 5,055 req/s | +19% | yes |
+| pg-mixed | `run-14/` | v6 | 2026-11-04T07:15:57Z | 2,875 req/s | 5,406 req/s | +88% | yes |
+| pg-mixed | `run-15/` | v6 | 2026-11-04T09:35:52Z | 4,371 req/s | 5,059 req/s | +16% | yes |
+| pg-mixed | latest (`results/pg-mixed/`) | v6 | 2026-11-04T11:52:16Z | 4,483 req/s | 5,203 req/s | +16% | yes |
 | pg-hot-row | `run-1/` | v1 | 2026-10-26T08:11:06Z | 303 req/s | 403 req/s | +33% | no: missed at 363 and 443 req/s, met higher |
 | pg-hot-row | `run-2/` | v2 | 2026-10-26T08:42:10Z | 819 req/s | 418 req/s | -49% | yes |
 | pg-hot-row | `run-3/` | v3 | 2026-10-26T10:11:09Z | 132 req/s | 504 req/s | +281% | no: missed at 252 and 553 req/s, met higher |
@@ -367,7 +419,10 @@ Every kept run, compared the same way (`run.py compare`):
 | pg-hot-row | `run-8/` | v5 | 2026-10-31T02:21:39Z | 926 req/s | 783 req/s | -16% | yes |
 | pg-hot-row | `run-9/` | v6 | 2026-11-01T23:24:56Z | 953 req/s | 862 req/s | -10% | yes |
 | pg-hot-row | `run-10/` | v6 | 2026-11-02T01:33:51Z | 939 req/s | 851 req/s | -9% | yes |
-| pg-hot-row | latest (`results/pg-hot-row/`) | v6 | 2026-11-02T03:46:41Z | 942 req/s | 851 req/s | -10% | yes |
+| pg-hot-row | `run-11/` | v6 | 2026-11-02T03:46:41Z | 942 req/s | 851 req/s | -10% | yes |
+| pg-hot-row | `run-12/` | v6 | 2026-11-04T07:49:19Z | 697 req/s | 826 req/s | +19% | no: missed at 742 and 825 req/s, met higher |
+| pg-hot-row | `run-13/` | v6 | 2026-11-04T10:07:36Z | 947 req/s | 863 req/s | -9% | yes |
+| pg-hot-row | latest (`results/pg-hot-row/`) | v6 | 2026-11-04T12:24:30Z | 947 req/s | 857 req/s | -10% | yes |
 | cache-aside | `run-1/` | v4 | 2026-10-26T11:53:13Z | 4,016 req/s | 3,457 req/s | -14% | no: missed at 4,312 req/s, met higher |
 | cache-aside | `run-2/` | v4 | 2026-10-30T10:50:27Z | 4,848 req/s | 2,352 req/s | -51% | yes |
 | cache-aside | `run-3/` | v5 | 2026-10-30T22:22:04Z | 7,138 req/s | 5,303 req/s | -26% | yes |
@@ -375,7 +430,10 @@ Every kept run, compared the same way (`run.py compare`):
 | cache-aside | `run-5/` | v5 | 2026-10-31T02:44:32Z | 7,324 req/s | 4,851 req/s | -34% | yes |
 | cache-aside | `run-6/` | v6 | 2026-11-01T23:49:28Z | 6,702 req/s | 4,925 req/s | -27% | yes |
 | cache-aside | `run-7/` | v6 | 2026-11-02T01:58:24Z | 7,010 req/s | 5,302 req/s | -24% | yes |
-| cache-aside | latest (`results/cache-aside/`) | v6 | 2026-11-02T04:11:08Z | 6,918 req/s | 5,201 req/s | -25% | yes |
+| cache-aside | `run-8/` | v6 | 2026-11-02T04:11:08Z | 6,918 req/s | 5,201 req/s | -25% | yes |
+| cache-aside | `run-9/` | v6 | 2026-11-04T08:18:36Z | 6,086 req/s | 6,007 req/s | -1% | yes |
+| cache-aside | `run-10/` | v6 | 2026-11-04T10:33:51Z | 6,874 req/s | 5,452 req/s | -21% | yes |
+| cache-aside | latest (`results/cache-aside/`) | v6 | 2026-11-04T12:50:54Z | 6,752 req/s | 5,652 req/s | -16% | yes |
 | kafka | `run-1/` | v4 | 2026-10-26T12:22:50Z | 945 req/s | 1,006 req/s | +6% | no: missed at 1,006 req/s, met higher |
 | kafka | `run-2/` | v4 | 2026-10-30T11:20:01Z | 2,040 req/s | 1,602 req/s | -21% | yes |
 | kafka | `run-3/` | v5 | 2026-10-30T23:00:02Z | 2,132 req/s | 2,829 req/s | +33% | yes |
@@ -383,7 +441,10 @@ Every kept run, compared the same way (`run.py compare`):
 | kafka | `run-5/` | v5 | 2026-10-31T03:26:27Z | 2,028 req/s | 2,102 req/s | +4% | yes |
 | kafka | `run-6/` | v6 | 2026-11-02T00:26:56Z | 2,614 req/s | 2,551 req/s | -2% | yes |
 | kafka | `run-7/` | v6 | 2026-11-02T02:36:13Z | 2,659 req/s | 2,578 req/s | -3% | yes |
-| kafka | latest (`results/kafka/`) | v6 | 2026-11-02T04:48:49Z | 2,802 req/s | 2,528 req/s | -10% | yes |
+| kafka | `run-8/` | v6 | 2026-11-02T04:48:49Z | 2,802 req/s | 2,528 req/s | -10% | yes |
+| kafka | `run-9/` | v6 | 2026-11-04T08:59:13Z | 2,266 req/s | 2,677 req/s | +18% | no: missed at 2,408 req/s, met higher |
+| kafka | `run-10/` | v6 | 2026-11-04T11:12:22Z | 2,487 req/s | 2,728 req/s | +10% | yes |
+| kafka | latest (`results/kafka/`) | v6 | 2026-11-04T13:27:44Z | 2,387 req/s | 2,090 req/s | -12% | yes |
 <!-- END GENERATED: history -->
 
 The measured knee moved between runs too, not only the prediction. Each step was measured the
@@ -396,8 +457,8 @@ update and run 7 ran under Best performance. The run-to-run spread quoted here a
 
 <!-- BEGIN GENERATED: environment -->
 - CPU: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz; Docker 29.1.3 (linux/amd64) with 8 CPUs and 7.6 GiB; Windows-11-10.0.26300-SP0 (Best performance).
-- Images: postgres `postgres:16-alpine`, redis `redis:7-alpine`, kafka `apache/kafka:3.8.0`, k6 `grafana/k6:1.3.0`, service `node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4`.
-- CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): pg-mixed and pg-hot-row: service 1 (`2`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); cache-aside: service 1 (`2`), PostgreSQL 2 (`4,5`), Redis 1 (`1`), k6 3 (`0,6,7`); kafka: producer 1 (`2`), consumer 1 (`3`), PostgreSQL 2 (`4,5`), Kafka 2 (`0,1`), k6 2 (`6,7`).
+- Images: postgres `postgres:16-alpine`, redis `redis:7-alpine`, kafka `apache/kafka:3.8.0`, k6 `grafana/k6:1.3.0`, service `eclipse-temurin:21-jre-alpine + Spring Boot 3.5.7 (Tomcat, HikariCP), G1, 1 GiB heap`.
+- CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): java-mixed: service 2 (`2,3`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); go-mixed: service 2 (`2,3`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); python-mixed: service 2 (`2,3`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); chain: gateway 1 (`0`), API 1 (`2`), PostgreSQL 2 (`4,5`), k6 2 (`6,7`); cache-ttl: service 1 (`2`), PostgreSQL 2 (`4,5`), Redis 1 (`0`), k6 2 (`6,7`); pg-mixed and pg-hot-row: service 1 (`2`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); cache-aside: service 1 (`2`), PostgreSQL 2 (`4,5`), Redis 1 (`1`), k6 3 (`0,6,7`); kafka: producer 1 (`2`), consumer 1 (`3`), PostgreSQL 2 (`4,5`), Kafka 2 (`0,1`), k6 2 (`6,7`).
 <!-- END GENERATED: environment -->
 
 **What the machine itself does** (`run.py envcheck`, 30 Oct, Windows build 26300, pg-mixed's
@@ -435,170 +496,440 @@ workload, `results/envcheck/`):
   (this check and other work) the laptop's clock fell to about 1,600 MHz and stayed low for a
   while, again with no limit flagged: runs need the machine cool as well as idle.
 
-## pg-mixed
+## Held-out experiments
 
-<!-- BEGIN GENERATED: pg-mixed -->
-**Node.js + PostgreSQL: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-11-02T03:15:28Z, predicted 2026-11-02T03:20:49Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+The four experiments after these (pg-mixed, pg-hot-row, cache-aside and Kafka) are in-sample:
+the model and the calibration protocol were revised with their results in view. Five more were
+registered on 30 Oct 2026 in commit `90f067d` (`benchmarks/run.py`, `Experiment.held_out`) to
+test ArchSim on stacks it was never tuned on. They were **sealed** until an engine frozen in
+`benchmarks/engines.json` had predicted them. Engine 0.16.0 was frozen for them on 2 Nov 2026
+(tag `engine-0.16.0`; [ADR 0017](adr/0017-freeze-python-engine-during-port.md)), and each was
+measured three times on 3-4 Nov 2026, the three runs rotating through the five stacks. The
+results, misses included, lead the [headline](#headline):
 
-![pg-mixed: predicted and measured p95 and throughput](validation/pg-mixed.svg)
+- `run.py` refuses to calibrate or measure one unless the engine's source tree
+  (`git rev-parse HEAD:packages/engine`) matches a frozen entry and nothing in the engine or the
+  harness is uncommitted. Its predictions are then saved before the first measured step, as for
+  every experiment, so no model change can be tuned on its results first.
+- Before the freeze, `run.py smoke <experiment>` was the only way to start their stacks: 20
+  req/s for 10 s, checking that every request succeeded and that the services counted it. It
+  keeps no latency and no results.
+- `report.py` labels each pair of engine and experiment `held-out` or `tuned-on`. An experiment
+  is held out for a frozen engine that does not list it in `tunedOn`. The held-out experiments
+  lead this page's tables, and an engine tuned on them later must list them in `tunedOn`.
+- **Changed after registration, before any measurement (31 Oct 2026):** two library updates to
+  clear GitHub's dependency alerts. go-mixed's PostgreSQL driver pgx went from 5.7.6 to 5.9.2,
+  which also drops `golang.org/x/crypto`, and python-mixed's Flask from 3.1.2 to 3.1.3. None of
+  the flagged code could be reached (the SSH packages were never compiled in, the pgx bug is on
+  the server side of the protocol, and the service does not use Flask's sessions). No held-out
+  experiment had been calibrated or measured, so no result depends on the old versions.
 
-Model inputs from a staircase of calibration passes at 50, 743, 2,373 and 3,155 req/s (each rate up and down again): the median of 3 replicate sets from the 3,155 req/s passes, CPU per request net of the 20 s at rest:
+| Experiment | What it tests | Stack |
+| --- | --- | --- |
+| java-mixed | The `java` profile: a thread pool that waits on its own database calls, and stop-the-world GC | Spring Boot 3.5 (Tomcat's 200 threads, HikariCP), Java 21 with G1 |
+| go-mixed | The `go` profile: a goroutine per request, short GC pauses | net/http and a pgx pool, GOMAXPROCS 2 |
+| python-mixed | The `python` profile: worker processes that serve one request each | Flask on gunicorn, 10 sync workers with a pool of 1 connection each |
+| chain | Two services called one after the other | Node.js gateway (keep-alive) → Node.js API → PostgreSQL |
+| cache-ttl | A TTL cache whose hit ratio rises with load, scored at every step | Node.js, Redis with a 5 s TTL, PostgreSQL; Zipf 1.1 over 1,000,000 keys |
+
+Otherwise each uses pg-mixed's setup: 90% reads and 10% writes over 100,000 rows, a pool of 10
+connections and PostgreSQL 16 on CPUs 4,5.
+
+- **CPUs.** The three runtimes run on CPUs 2,3, which are the two hyperthreads of one physical
+  core on the laptop. The model gives them 2 cores, a gap noted before they were measured; all
+  three over-predict their knees (+29% to +70%), and how much of that this gap explains is not
+  checked yet. chain's gateway and API get one CPU each (0 and 2), as does cache-ttl's Redis
+  (0). No container shares a physical core with k6 or with another container. The cost: chain
+  and cache-ttl leave CPUs 1 and 3 idle and give k6 one core (6,7), so their ladders need
+  watching for dropped iterations.
+- **Service statistics.** Every service exposes the same `/stats` as the Node.js one: CPU per
+  request, own time, call timings and garbage collection.
+  - gunicorn's workers add theirs up in shared memory and take CPU from the container's cgroup.
+  - Java's and Go's GC pauses are calibrated from the runtime's own counters.
+  - Python's GC stays in the CPU per request: a gunicorn worker's collection stalls only its own
+    request, while a pause in the model would stall all ten.
+- **Fan-out.** Parallel fan-out is not modelled, so `chain` calls one service after the other.
+- **cache-ttl's skew is 1.1, not 0.8.** With Zipf 0.8 over a million keys and a 5 s TTL, the hit
+  ratio would be 9% to 24%. With 1.1 it rises from about 52% at 250 req/s to 69% at 4,000 req/s.
+  k6 draws keys from a keyspace this large by rejection-inversion, which gives exactly the same
+  distribution without a table in every VU.
+
+## java-mixed
+
+<!-- BEGIN GENERATED: java-mixed -->
+**Spring Boot (Tomcat, HikariCP) + PostgreSQL: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-11-04T03:38:18Z, predicted 2026-11-04T03:49:29Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+
+![java-mixed: predicted and measured p95 and throughput](validation/java-mixed.svg)
+
+Model inputs from a staircase of calibration passes at 50, 621, 2,826 and 3,553 req/s (each rate up and down again): the median of 3 replicate sets from the 3,553 req/s passes, CPU per request net of the 20 s at rest:
 
 | Input | Value | How it was measured |
 | --- | --- | --- |
-| `serviceTimeMs` | lognormal, median 0.176 ms, p95 0.3888 ms | the median of 3 replicates (third): mean = Node's CPU per request at 3155 req/s net of idle: (18746 - 5 ms at rest) / 94650 requests = 0.1980 ms, less the 0.0003 ms per request of the pauses modelled as GC (gcPauseMs) = 0.1977 ms; shape (p95/median 0.0073/0.0033 ms) from the handler's own time |
-| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 0.578 ms - the model's median without it 0.582 ms at 3155 req/s) / 2, one way, at least 0 |
-| `serviceTimeByLoad` | x4.21 at 50, x1.39 at 743, x1.05 at 2,373, x1.00 at 3,155 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.8326 ms at 50, 0.2756 ms at 743, 0.2083 ms at 2373, 0.1980 ms at 3155 req/s), fitted never rising with rate and divided by the top rate's (0.1980 ms); flat outside the staircase |
-| `gcPauseMs` | 9.4369 ms | the median of 3 replicates (third): V8's mark-compact cycles in the pass: 33.1 ms (incremental 18.9 ms, major 14.1 ms) over 3 cycles, a mean of 11.021 ms (the model's median: mean / 1.17); 122 scavenges, 129.3 ms, left in the CPU per request |
-| `gcEveryRequests` | 31550 | the median of 3 replicates (second): 94650 requests / 3 mark-compact cycles in the pass |
-| `writeServiceTimeMs` | lognormal, median 0.0794 ms, p95 0.7685 ms | the median of 3 replicates (third): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.2058 ms), shaped like its round trip (median 0.292, p95 2.820 ms) |
-| `readServiceTimeMs` | lognormal, median 0.1254 ms, p95 0.5594 ms | the median of 3 replicates (first): PostgreSQL's CPU per SELECT (0.1896 ms, the pass's less its UPDATEs'), shaped like its round trip (median 0.275, p95 1.228 ms) |
-| `dbLinkLatencyMs` | lognormal, median 0.0404 ms, p95 0.4289 ms | the median of 3 replicates (first): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0404, p95 0.4289 ms) |
-| `dbCpuShare` | 1 | the median of 3 replicates (first): PostgreSQL CPU per query at the top pass net of idle (0.1912 ms) / the model's mean time per query (85157 reads at 0.190 ms and 9494 writes without their flush at 0.206 ms: 0.191 ms) |
-| `commitFlushMs` | lognormal, median 0.9946 ms, p95 1.0045 ms | the median of 3 replicates (third): PostgreSQL's own WAL flushes at 3155 req/s (pg_stat_wal): 9397 flushes of 0.995 ms on average, 1.02 commits per flush (the model: 1.03); shaped like the commit wait the service measured (p95/median 1.01, mean 1.054 ms) |
-| `serviceMemoryBaselineMb` | 38.173 | the median of 3 replicates (first): at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,155 req/s), by non-negative least squares: 38.2 MiB + 0.0311 MiB per req/s, largest error at and above the median rate 97% |
-| `serviceMemoryPerRpsMb` | 0.031067 | the median of 3 replicates (first): per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,155 req/s), by non-negative least squares: 38.2 MiB + 0.0311 MiB per req/s, largest error at and above the median rate 97% |
+| `serviceTimeMs` | lognormal, median 0.2251 ms, p95 0.4991 ms | the median of 3 replicates (first): mean = the Spring Boot service's CPU per request at 3553 req/s net of idle: (27070 - 90 ms at rest) / 106592 requests = 0.2531 ms; shape (p95/median 0.1881/0.0848 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0.0242 ms | the median of 3 replicates (second): anchored: (measured median 0.516 ms - the model's median without it 0.468 ms at 3553 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x5.46 at 50, x1.48 at 621, x1.00 at 2,826, x1.00 at 3,553 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (1.3791 ms at 50, 0.3736 ms at 621, 0.2522 ms at 2826, 0.2531 ms at 3553 req/s), fitted never rising with rate and divided by the top rate's (0.2531 ms); flat outside the staircase |
+| `gcPauseMs` | 6.4221 ms | the median of 3 replicates (third): the runtime's stop-the-world pauses in the pass: 15.00 ms over 2 collections, a mean of 7.5000 ms (the model's median: mean / 1.17) |
+| `gcEveryRequests` | 53296 | the median of 3 replicates (first): 106592 requests / 2 collections in the pass |
+| `writeServiceTimeMs` | lognormal, median 0.075 ms, p95 0.5793 ms | the median of 3 replicates (first): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.1624 ms), shaped like its round trip (median 0.202, p95 1.562 ms) |
+| `readServiceTimeMs` | lognormal, median 0.1204 ms, p95 0.3501 ms | the median of 3 replicates (second): PostgreSQL's CPU per SELECT (0.1486 ms, the pass's less its UPDATEs'), shaped like its round trip (median 0.186, p95 0.541 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0176 ms, p95 0.1619 ms | the median of 3 replicates (first): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0176, p95 0.1619 ms) |
+| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.1497 ms) / the model's mean time per query (96088 reads at 0.149 ms and 10502 writes without their flush at 0.159 ms: 0.150 ms) |
+| `commitFlushMs` | lognormal, median 1.0224 ms, p95 1.2929 ms | the median of 3 replicates (third): PostgreSQL's own WAL flushes at 3553 req/s (pg_stat_wal): 10149 flushes of 1.033 ms on average, 1.04 commits per flush (the model: 1.04); shaped like the commit wait the service measured (p95/median 1.26, mean 1.144 ms) |
+| `serviceMemoryBaselineMb` | 486.052 | the median of 3 replicates (first): at idle: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,553 req/s), by non-negative least squares: 486.1 MiB + 0.1094 MiB per req/s, largest error at and above the median rate 8% |
+| `serviceMemoryPerRpsMb` | 0.109395 | the median of 3 replicates (first): per req/s: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,553 req/s), by non-negative least squares: 486.1 MiB + 0.1094 MiB per req/s, largest error at and above the median rate 8% |
 | `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
 
-Measured in the calibration pass at 3,155 req/s: p50 0.55 ms, p95 3.11 ms.
+Measured in the calibration pass at 3,553 req/s: p50 0.53 ms, p95 2.39 ms.
 
 | Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1,262 | 0.50 / 0.59 | 1.77 / 1.76 | 0% | 3.64 / 2.73 | 100% / 100% | 1,262 / 1,262 |
-| 2,525 | 0.56 / 0.56 | 2.42 / 1.84 | -24% | 6.91 / 3.01 | 100% / 100% | 2,525 / 2,524 |
-| 3,788 | 0.77 / 0.61 | 30.7 / 2.03 | -93% | 64.8 / 4.05 | 100% / 100% | 3,781 / 3,787 |
-| 4,545 | 1.58 / 0.77 | 63.3 / 2.42 | -96% | 74.3 / 9.88 | 99% / 100% | 4,507 / 4,545 |
-| 5,050 | 85.1 / 19.0 | 115 / 32.4 | -72% | 138 / 35.1 | 91% / 100% | 4,617 / 5,046 |
-| 5,555 | 116 / 1,264 | 174 / 1,916 | +1001% | 203 / 1,994 | 79% / 74% | 4,363 / 4,256 |
-| 6,312 | 124 / 1,635 | 181 / 1,954 | +980% | 222 / 1,994 | 69% / 15% | 4,385 / 1,263 |
-| 7,575 | 144 / - | 215 / - | - | 268 / - | 57% / 0% | 4,329 / 255 |
+| 1,975 | 0.46 / 0.55 | 1.67 / 1.63 | -2% | 2.89 / 2.24 | 100% / 100% | 1,975 / 1,975 |
+| 3,950 | 0.56 / 0.53 | 2.88 / 1.70 | -41% | 8.40 / 2.42 | 100% / 100% | 3,950 / 3,950 |
+| 5,925 | 1.39 / 0.56 | 56.8 / 1.87 | -97% | 112 / 2.73 | 97% / 100% | 5,758 / 5,925 |
+| 7,110 | 4.13 / 0.67 | 78.3 / 2.19 | -97% | 146 / 5.24 | 92% / 100% | 6,516 / 7,110 |
+| 7,900 (unstable) | 17.8 / 17.9 | 99.7 / 33.7 | -66% | 169 / 37.2 | 86% / 100% | 6,811 / 7,892 |
+| 8,690 | 47.6 / 1,239 | 149 / 1,916 | +1188% | 220 / 1,994 | 80% / 75% | 6,977 / 6,676 |
+| 9,875 | 61.3 / 1,635 | 171 / 1,954 | +1044% | 244 / 1,994 | 70% / 15% | 7,462 / 1,974 |
+| 11,850 | 76.1 / - | 194 / - | - | 274 / - | 57% / 0% | 6,778 / 394 |
 
-Knee: measured 4,237 req/s, predicted 5,055 req/s on the same steps (+19%); ArchSim's own search before measuring put it at 5,050 req/s. Its predicted 80% range was 3,788 to 6,733 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Unstable: the step's repeats' p95s differ by more than 2x across the objective (a repeat with no successful request counts as slower than any).
+
+Knee: measured 4,650 req/s, predicted 7,907 req/s on the same steps (+70%); ArchSim's own search before measuring put it at 7,900 req/s. Its predicted 80% range was 5,926 to 10,531 req/s: the measured knee fell outside it. Data: `benchmarks/results/java-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+<!-- END GENERATED: java-mixed -->
+
+## go-mixed
+
+<!-- BEGIN GENERATED: go-mixed -->
+**Go (net/http, pgx) + PostgreSQL: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-11-04T04:19:22Z, predicted 2026-11-04T04:33:11Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+
+![go-mixed: predicted and measured p95 and throughput](validation/go-mixed.svg)
+
+Model inputs from a staircase of calibration passes at 50, 1,551 and 4,132 req/s (each rate up and down again): the median of 3 replicate sets from the 4,132 req/s passes, CPU per request net of the 20 s at rest:
+
+| Input | Value | How it was measured |
+| --- | --- | --- |
+| `serviceTimeMs` | lognormal, median 0.1678 ms, p95 0.4533 ms | the median of 3 replicates (second): mean = the Go service's CPU per request at 4132 req/s net of idle: (24966 - 1 ms at rest) / 123961 requests = 0.2014 ms; shape (p95/median 0.0032/0.0012 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0.0131 ms | the median of 3 replicates (first): anchored: (measured median 0.459 ms - the model's median without it 0.432 ms at 4132 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x3.80 at 50, x1.10 at 1,551, x1.00 at 4,132 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.7660 ms at 50, 0.2216 ms at 1551, 0.2014 ms at 4132 req/s), fitted never rising with rate and divided by the top rate's (0.2014 ms); flat outside the staircase |
+| `gcPauseMs` | 0.1148 ms | the median of 3 replicates (third): the runtime's stop-the-world pauses in the pass: 12.47 ms over 93 collections, a mean of 0.1341 ms (the model's median: mean / 1.17) |
+| `gcEveryRequests` | 1333 | the median of 3 replicates (third): 123961 requests / 93 collections in the pass |
+| `writeServiceTimeMs` | lognormal, median 0.0127 ms, p95 0.4979 ms | the median of 3 replicates (second): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.1530 ms), shaped like its round trip (median 0.225, p95 8.870 ms) |
+| `readServiceTimeMs` | lognormal, median 0.1091 ms, p95 0.2836 ms | the median of 3 replicates (third): PostgreSQL's CPU per SELECT (0.1292 ms, the pass's less its UPDATEs'), shaped like its round trip (median 0.200, p95 0.519 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0283 ms, p95 0.1936 ms | the median of 3 replicates (first): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0283, p95 0.1936 ms) |
+| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.1340 ms) / the model's mean time per query (111557 reads at 0.132 ms and 12404 writes without their flush at 0.153 ms: 0.134 ms) |
+| `commitFlushMs` | lognormal, median 0.9901 ms, p95 1 ms | the median of 3 replicates (second): PostgreSQL's own WAL flushes at 4132 req/s (pg_stat_wal): 11719 flushes of 0.990 ms on average, 1.06 commits per flush (the model: 1.06); shaped like the commit wait the service measured (p95/median 1.01, mean 1.077 ms) |
+| `serviceMemoryBaselineMb` | 17.064 | the median of 3 replicates (first): at idle: the api-go container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 4,132 req/s), by non-negative least squares: 17.1 MiB + 0.0031 MiB per req/s, largest error at and above the median rate 18% |
+| `serviceMemoryPerRpsMb` | 0.003141 | the median of 3 replicates (first): per req/s: the api-go container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 4,132 req/s), by non-negative least squares: 17.1 MiB + 0.0031 MiB per req/s, largest error at and above the median rate 18% |
+| `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
+
+Measured in the calibration pass at 4,132 req/s: p50 0.46 ms, p95 2.17 ms.
+
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2,475 | 0.42 / 0.46 | 1.54 / 1.45 | -6% | 2.58 / 2.03 | 100% / 100% | 2,475 / 2,475 |
+| 4,950 | 0.50 / 0.46 | 2.95 / 1.57 | -47% | 9.56 / 2.24 | 100% / 100% | 4,950 / 4,950 |
+| 7,425 | 1.48 / 0.51 | 45.7 / 1.80 | -96% | 71.2 / 2.52 | 98% / 100% | 7,284 / 7,425 |
+| 8,910 | 3.65 / 0.64 | 66.2 / 2.11 | -97% | 86.2 / 3.53 | 92% / 100% | 8,170 / 8,910 |
+| 9,900 | 13.8 / 7.06 | 76.5 / 20.2 | -74% | 105 / 24.1 | 84% / 100% | 8,532 / 9,900 |
+| 10,890 | 46.8 / 1,239 | 90.9 / 1,916 | +2007% | 118 / 1,994 | 79% / 77% | 8,629 / 8,660 |
+| 12,375 | 71.3 / 1,603 | 114 / 1,954 | +1620% | 160 / 1,994 | 69% / 16% | 8,741 / 2,551 |
+| 14,850 | 85.0 / - | 141 / - | - | 197 / - | 54% / 0% | 8,031 / 519 |
+
+Knee: measured 5,950 req/s, predicted 9,916 req/s on the same steps (+67%); ArchSim's own search before measuring put it at 9,900 req/s. Its predicted 80% range was 7,426 to 13,199 req/s: the measured knee fell outside it. Data: `benchmarks/results/go-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+<!-- END GENERATED: go-mixed -->
+
+## python-mixed
+
+<!-- BEGIN GENERATED: python-mixed -->
+**Flask on gunicorn (10 sync workers) + PostgreSQL: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-11-04T05:00:48Z, predicted 2026-11-04T05:02:55Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+
+![python-mixed: predicted and measured p95 and throughput](validation/python-mixed.svg)
+
+Model inputs from a staircase of calibration passes at 50, 755 and 1,307 req/s (each rate up and down again): the median of 3 replicate sets from the 1,307 req/s passes, CPU per request net of the 20 s at rest:
+
+| Input | Value | How it was measured |
+| --- | --- | --- |
+| `serviceTimeMs` | lognormal, median 0.806 ms, p95 3.0617 ms | the median of 3 replicates (second): mean = the Flask service (gunicorn)'s CPU per request at 1307 req/s net of idle: (43988 - 65 ms at rest) / 39211 requests = 1.1202 ms; shape (p95/median 1.1163/0.2938 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 1.346 ms - the model's median without it 2.108 ms at 1307 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x1.58 at 50, x1.00 at 755, x1.00 at 1,307 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (1.7054 ms at 50, 1.0087 ms at 755, 1.1202 ms at 1307 req/s), fitted never rising with rate and divided by the top rate's (1.1202 ms); flat outside the staircase |
+| `gcPauseMs` | 0 ms | the median of 3 replicates (first): not modelled as a pause: each gunicorn worker collects on its own and stalls only its own request; the collections' CPU is in the CPU per request |
+| `writeServiceTimeMs` | lognormal, median 0.0878 ms, p95 0.8361 ms | the median of 3 replicates (first): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.2245 ms), shaped like its round trip (median 0.455, p95 4.331 ms) |
+| `readServiceTimeMs` | lognormal, median 0.069 ms, p95 0.6523 ms | the median of 3 replicates (first): PostgreSQL's CPU per SELECT (0.1753 ms, the pass's less its UPDATEs'), shaped like its round trip (median 0.424, p95 4.010 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.1123 ms, p95 1.7454 ms | the median of 3 replicates (first): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.1123, p95 1.7454 ms) |
+| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.1824 ms) / the model's mean time per query (35238 reads at 0.178 ms and 3973 writes without their flush at 0.223 ms: 0.182 ms) |
+| `commitFlushMs` | lognormal, median 1.0903 ms, p95 1.1012 ms | the median of 3 replicates (first): PostgreSQL's own WAL flushes at 1307 req/s (pg_stat_wal): 3940 flushes of 1.090 ms on average, 0.99 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.01, mean 1.285 ms) |
+| `serviceMemoryBaselineMb` | 326.529 | the median of 3 replicates (first): at idle: the api-python container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 1,307 req/s), by non-negative least squares: 326.5 MiB + 0.0013 MiB per req/s, largest error at and above the median rate 3% |
+| `serviceMemoryPerRpsMb` | 0.00126 | the median of 3 replicates (first): per req/s: the api-python container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 1,307 req/s), by non-negative least squares: 326.5 MiB + 0.0013 MiB per req/s, largest error at and above the median rate 3% |
+| `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
+
+Measured in the calibration pass at 1,307 req/s: p50 1.31 ms, p95 8.58 ms.
+
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- |
+| 440 | 1.00 / 1.84 | 2.33 / 6.14 | +164% | 3.80 / 11.3 | 100% / 100% | 440 / 440 |
+| 881 | 1.05 / 1.80 | 3.13 / 5.90 | +88% | 6.15 / 11.3 | 100% / 100% | 881 / 881 |
+| 1,322 | 1.35 / 2.11 | 7.60 / 6.78 | -11% | 18.1 / 11.8 | 100% / 100% | 1,322 / 1,322 |
+| 1,586 | 3.85 / 3.07 | 82.5 / 10.9 | -87% | 95.9 / 16.5 | 96% / 100% | 1,523 / 1,586 |
+| 1,762 | 12.6 / 15.6 | 82.6 / 45.4 | -45% | 119 / 63.6 | 86% / 100% | 1,524 / 1,765 |
+| 1,938 | 109 / 1,215 | 162 / 1,916 | +1086% | 185 / 1,994 | 87% / 91% | 1,684 / 1,788 |
+| 2,202 | 192 / 1,572 | 292 / 1,954 | +569% | 328 / 1,994 | 74% / 16% | 1,640 / 471 |
+| 2,643 | 218 / - | 316 / - | - | 362 / - | 62% / 0% | 1,630 / 103 |
+
+Knee: measured 1,388 req/s, predicted 1,762 req/s on the same steps (+27%); ArchSim's own search before measuring put it at 1,762 req/s. Its predicted 80% range was 1,314 to 2,363 req/s: the measured knee fell inside it. Data: `benchmarks/results/python-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+<!-- END GENERATED: python-mixed -->
+
+## chain
+
+<!-- BEGIN GENERATED: chain -->
+**Node.js gateway, Node.js API, PostgreSQL in a chain: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-11-04T05:34:15Z, predicted 2026-11-04T05:41:42Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+
+![chain: predicted and measured p95 and throughput](validation/chain.svg)
+
+Model inputs from a staircase of calibration passes at 50, 728, 2,120 and 2,816 req/s (each rate up and down again): the median of 3 replicate sets from the 2,816 req/s passes, CPU per request net of the 20 s at rest:
+
+| Input | Value | How it was measured |
+| --- | --- | --- |
+| `serviceTimeMs` | lognormal, median 0.1966 ms, p95 0.4555 ms | the median of 3 replicates (first): mean = Node's CPU per request at 2816 req/s net of idle: (18891 - 3 ms at rest) / 84314 requests = 0.2240 ms; shape (p95/median 0.0037/0.0016 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 1.009 ms - the model's median without it 1.164 ms at 2816 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x3.75 at 50, x1.35 at 728, x1.04 at 2,120, x1.00 at 2,816 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.8403 ms at 50, 0.3024 ms at 728, 0.2326 ms at 2120, 0.2240 ms at 2816 req/s), fitted never rising with rate and divided by the top rate's (0.2240 ms); flat outside the staircase |
+| `gcPauseMs` | 8.3874 ms | the median of 3 replicates (third): V8's mark-compact cycles in the pass: 9.8 ms (incremental 5.2 ms, major 4.6 ms) over 1 cycles, a mean of 9.795 ms (the model's median: mean / 1.17); 69 scavenges, 91.4 ms, left in the CPU per request |
+| `apiServiceTimeMs` | lognormal, median 0.1613 ms, p95 0.3759 ms | the median of 3 replicates (second): mean = the API's CPU per extra request between the passes: (16296 - 1026 ms) / (84449 - 1501 requests) = 0.1841 ms; shape (p95/median 0.0083/0.0035 ms) from its handler's own time |
+| `apiLinkLatencyMs` | 0.156 ms | the median of 3 replicates (second): (the gateway's call to the API, median 0.640 ms - the API's handler median 0.328 ms) / 2, one way |
+| `writeServiceTimeMs` | lognormal, median 0.0924 ms, p95 0.7588 ms | the median of 3 replicates (third): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.2097 ms), shaped like its round trip (median 0.334, p95 2.738 ms) |
+| `readServiceTimeMs` | lognormal, median 0.142 ms, p95 0.5351 ms | the median of 3 replicates (third): PostgreSQL's CPU per SELECT (0.1966 ms, the pass's less its UPDATEs'), shaped like its round trip (median 0.312, p95 1.175 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0483 ms, p95 0.4775 ms | the median of 3 replicates (second): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0483, p95 0.4775 ms) |
+| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.1981 ms) / the model's mean time per query (75803 reads at 0.196 ms and 8646 writes without their flush at 0.212 ms: 0.198 ms) |
+| `commitFlushMs` | lognormal, median 1.0806 ms, p95 1.0914 ms | the median of 3 replicates (third): PostgreSQL's own WAL flushes at 2816 req/s (pg_stat_wal): 8237 flushes of 1.081 ms on average, 1.03 commits per flush (the model: 1.03); shaped like the commit wait the service measured (p95/median 1.01, mean 1.148 ms) |
+| `serviceMemoryBaselineMb` | 44.131 | the median of 3 replicates (first): at idle: the gateway container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 2,816 req/s), by non-negative least squares: 44.1 MiB + 0.0214 MiB per req/s, largest error at and above the median rate 56% |
+| `serviceMemoryPerRpsMb` | 0.021443 | the median of 3 replicates (first): per req/s: the gateway container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 2,816 req/s), by non-negative least squares: 44.1 MiB + 0.0214 MiB per req/s, largest error at and above the median rate 56% |
+| `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
+| `apiMemoryBaselineMb` | 52.756 | the median of 3 replicates (first): at idle: the chain-api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 2,816 req/s), by non-negative least squares: 52.8 MiB + 0.0278 MiB per req/s, largest error at and above the median rate 117% |
+| `apiMemoryPerRpsMb` | 0.027767 | the median of 3 replicates (first): per req/s: the chain-api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 2,816 req/s), by non-negative least squares: 52.8 MiB + 0.0278 MiB per req/s, largest error at and above the median rate 117% |
+| `apiMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
+| `gcEveryRequests` | 84449 | the median of the 2 of 3 replicates with it (second): 84449 requests / 1 mark-compact cycles in the pass |
+
+Measured in the calibration pass at 2,816 req/s: p50 1.01 ms, p95 9.04 ms.
+
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1,112 | 0.81 / 1.16 | 2.58 / 2.42 | -6% | 5.43 / 3.32 | 100% / 100% | 1,112 / 1,112 |
+| 2,225 | 0.91 / 1.14 | 5.38 / 2.47 | -54% | 16.1 / 3.46 | 100% / 100% | 2,225 / 2,225 |
+| 3,338 | 1.44 / 1.24 | 30.9 / 2.67 | -91% | 68.4 / 3.67 | 99% / 100% | 3,309 / 3,338 |
+| 4,005 | 2.98 / 1.48 | 62.6 / 3.20 | -95% | 103 / 5.04 | 97% / 100% | 3,902 / 4,005 |
+| 4,450 | 21.6 / 13.8 | 90.6 / 27.7 | -69% | 118 / 31.8 | 91% / 100% | 4,064 / 4,448 |
+| 4,895 | 48.4 / 1,264 | 113 / 1,916 | +1595% | 160 / 1,994 | 87% / 77% | 4,265 / 3,891 |
+| 5,562 | 82.8 / 1,603 | 149 / 1,954 | +1209% | 219 / 1,994 | 76% / 15% | 4,203 / 1,136 |
+| 6,675 | 105 / - | 211 / - | - | 298 / - | 59% / 0% | 3,962 / 230 |
+
+Knee: measured 3,388 req/s, predicted 4,455 req/s on the same steps (+32%); ArchSim's own search before measuring put it at 4,450 req/s. Its predicted 80% range was 3,339 to 5,931 req/s: the measured knee fell inside it. Data: `benchmarks/results/chain/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+<!-- END GENERATED: chain -->
+
+## cache-ttl
+
+<!-- BEGIN GENERATED: cache-ttl -->
+**Cache-aside: Node.js, Redis (5 s TTL) and PostgreSQL; Zipf 1.1 over 1,000,000 keys.** Calibrated 2026-11-04T06:11:13Z, predicted 2026-11-04T06:16:50Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+
+![cache-ttl: predicted and measured p95 and throughput](validation/cache-ttl.svg)
+
+Model inputs from a staircase of calibration passes at 50, 617, 1,713, 2,863 and 3,262 req/s (each rate up and down again): the median of 3 replicate sets from the 3,262 req/s passes, CPU per request net of the 20 s at rest:
+
+| Input | Value | How it was measured |
+| --- | --- | --- |
+| `serviceTimeMs` | lognormal, median 0.0838 ms, p95 0.6962 ms | the median of 3 replicates (second): mean = Node's CPU per request at 3262 req/s net of idle: (18782 - 5 ms at rest) / 97859 requests = 0.1919 ms; shape (p95/median 0.0822/0.0058 ms) from the handler's own time; spread anchored: p95/median 8.31 instead of 14.21, so that the model's p95 - p50 at 3262 req/s is k6's: 2.969 against 3.075 ms |
+| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 0.526 ms - the model's median without it 0.571 ms at 3262 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x5.05 at 50, x1.84 at 617, x1.19 at 1,713, x1.04 at 2,863, x1.00 at 3,262 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.9687 ms at 50, 0.3527 ms at 617, 0.2276 ms at 1713, 0.1995 ms at 2863, 0.1919 ms at 3262 req/s), fitted never rising with rate and divided by the top rate's (0.1919 ms); flat outside the staircase |
+| `gcPauseMs` | 9.3017 ms | the median of 3 replicates (third): V8's mark-compact cycles in the pass: 21.7 ms (incremental 11.9 ms, major 9.8 ms) over 2 cycles, a mean of 10.863 ms (the model's median: mean / 1.17); 117 scavenges, 110.0 ms, left in the CPU per request |
+| `gcEveryRequests` | 48905 | the median of the 2 of 3 replicates with it (first): 97810 requests / 2 mark-compact cycles in the pass |
+| `readServiceTimeMs` | lognormal, median 0.1417 ms, p95 0.5413 ms | the median of 3 replicates (second): PostgreSQL's CPU per SELECT (0.1975 ms), shaped like its round trip (median 0.299, p95 1.140 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0436 ms, p95 0.4055 ms | the median of 3 replicates (second): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0436, p95 0.4055 ms) |
+| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.1975 ms) / the model's mean time per query (31423 reads at 0.197 ms: 0.197 ms) |
+| `cacheServiceTimeMs` | exponential, mean 0.03477 ms | the median of 3 replicates (second): mean = Redis's CPU per command at 3262 req/s net of idle: (4737 - 242 ms at rest) / 129282 GET/SET calls = 0.0348 ms (its command time alone, INFO commandstats: 346649 us over 129282 GET/SET calls = 0.0027 ms; the rest is reading requests and writing replies) |
+| `cacheLinkLatencyMs` | 0.0574 ms | the median of 3 replicates (second): (GET round trip median 0.139 ms - the command time's median 0.0241 ms) / 2, one way |
+| `serviceMemoryBaselineMb` | 58.723 | the median of 3 replicates (first): at idle: the api-ttl container's working set (the highest reading in each pass) against req/s over 12 points (at rest and 11 passes, 50 to 3,262 req/s), by non-negative least squares: 58.7 MiB + 0.0243 MiB per req/s, largest error at and above the median rate 101% |
+| `serviceMemoryPerRpsMb` | 0.024251 | the median of 3 replicates (first): per req/s: the api-ttl container's working set (the highest reading in each pass) against req/s over 12 points (at rest and 11 passes, 50 to 3,262 req/s), by non-negative least squares: 58.7 MiB + 0.0243 MiB per req/s, largest error at and above the median rate 101% |
+| `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
+
+Measured in the calibration pass at 3,262 req/s: p50 0.53 ms, p95 3.60 ms.
+
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred | Hit ratio meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1,275 | 0.52 / 0.47 | 1.73 / 2.37 | +37% | 3.66 / 5.79 | 100% / 100% | 1,275 / 1,275 | 62% / 62% |
+| 2,550 | 0.47 / 0.50 | 2.11 / 2.78 | +32% | 8.03 / 5.79 | 100% / 100% | 2,550 / 2,550 | 67% / 67% |
+| 3,825 | 0.56 / 0.74 | 5.96 / 5.04 | -15% | 17.7 / 11.1 | 100% / 100% | 3,825 / 3,825 | 69% / 69% |
+| 4,590 | 0.64 / 1.60 | 15.1 / 9.50 | -37% | 37.8 / 18.6 | 100% / 100% | 4,578 / 4,589 | 70% / 70% |
+| 5,100 | 0.72 / 8.43 | 22.6 / 35.8 | +58% | 49.0 / 48.2 | 100% / 100% | 5,082 / 5,102 | 71% / 71% |
+| 5,610 | 0.82 / 1,101 | 26.1 / 1,806 | +6822% | 61.1 / 1,954 | 99% / 98% | 5,532 / 5,218 | 71% / 71% |
+| 6,375 | 1.45 / 1,572 | 51.8 / 1,954 | +3670% | 98.5 / 1,994 | 95% / 21% | 6,052 / 1,614 | 72% / 71% |
+| 7,650 | 2.12 / - | 71.6 / - | - | 115 / - | 92% / 0% | 7,023 / 352 | 72% / 71% |
+
+Knee: measured 5,420 req/s, predicted 5,104 req/s on the same steps (-6%); ArchSim's own search before measuring put it at 5,100 req/s. Its predicted 80% range was 3,826 to 6,798 req/s: the measured knee fell inside it. Data: `benchmarks/results/cache-ttl/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+<!-- END GENERATED: cache-ttl -->
+
+## pg-mixed
+
+<!-- BEGIN GENERATED: pg-mixed -->
+**Node.js + PostgreSQL: 90% reads, 10% writes over 100,000 rows.** Calibrated 2026-11-04T11:52:16Z, predicted 2026-11-04T11:58:24Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+
+![pg-mixed: predicted and measured p95 and throughput](validation/pg-mixed.svg)
+
+Model inputs from a staircase of calibration passes at 50, 793, 2,610 and 3,262 req/s (each rate up and down again): the median of 3 replicate sets from the 3,262 req/s passes, CPU per request net of the 20 s at rest:
+
+| Input | Value | How it was measured |
+| --- | --- | --- |
+| `serviceTimeMs` | lognormal, median 0.1725 ms, p95 0.3702 ms | the median of 3 replicates (second): mean = Node's CPU per request at 3262 req/s net of idle: (18807 - 4 ms at rest) / 97860 requests = 0.1921 ms; shape (p95/median 0.0072/0.0034 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0.001 ms | the median of 3 replicates (second): anchored: (measured median 0.551 ms - the model's median without it 0.548 ms at 3262 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x4.03 at 50, x1.31 at 793, x1.04 at 2,610, x1.00 at 3,262 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.7740 ms at 50, 0.2513 ms at 793, 0.1996 ms at 2610, 0.1921 ms at 3262 req/s), fitted never rising with rate and divided by the top rate's (0.1921 ms); flat outside the staircase |
+| `gcPauseMs` | 7.124 ms | the median of 3 replicates (first): V8's mark-compact cycles in the pass: 8.3 ms (incremental 3.3 ms, major 5.0 ms) over 1 cycles, a mean of 8.320 ms (the model's median: mean / 1.17); 56 scavenges, 83.5 ms, left in the CPU per request |
+| `gcEveryRequests` | 48930 | the median of the 2 of 3 replicates with it (third): 97861 requests / 2 mark-compact cycles in the pass |
+| `writeServiceTimeMs` | lognormal, median 0.0598 ms, p95 0.7606 ms | the median of 3 replicates (third): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.1976 ms), shaped like its round trip (median 0.282, p95 3.584 ms) |
+| `readServiceTimeMs` | lognormal, median 0.1269 ms, p95 0.516 ms | the median of 3 replicates (second): PostgreSQL's CPU per SELECT (0.1826 ms, the pass's less its UPDATEs'), shaped like its round trip (median 0.270, p95 1.098 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0391 ms, p95 0.3856 ms | the median of 3 replicates (second): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0391, p95 0.3856 ms) |
+| `dbCpuShare` | 0.9999 | the median of 3 replicates (third): PostgreSQL CPU per query at the top pass net of idle (0.1772 ms) / the model's mean time per query (88061 reads at 0.175 ms and 9800 writes without their flush at 0.198 ms: 0.177 ms) |
+| `commitFlushMs` | lognormal, median 1.0093 ms, p95 1.0194 ms | the median of 3 replicates (third): PostgreSQL's own WAL flushes at 3262 req/s (pg_stat_wal): 9550 flushes of 1.009 ms on average, 1.03 commits per flush (the model: 1.04); shaped like the commit wait the service measured (p95/median 1.01, mean 1.087 ms) |
+| `serviceMemoryBaselineMb` | 73.125 | the median of 3 replicates (first): at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,262 req/s), by non-negative least squares: 73.1 MiB + 0.0208 MiB per req/s, largest error at and above the median rate 106% |
+| `serviceMemoryPerRpsMb` | 0.020773 | the median of 3 replicates (first): per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,262 req/s), by non-negative least squares: 73.1 MiB + 0.0208 MiB per req/s, largest error at and above the median rate 106% |
+| `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
+
+Measured in the calibration pass at 3,262 req/s: p50 0.54 ms, p95 2.93 ms.
+
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1,300 | 0.48 / 0.56 | 1.71 / 1.66 | -3% | 3.04 / 2.47 | 100% / 100% | 1,300 / 1,300 |
+| 2,600 | 0.52 / 0.54 | 2.09 / 1.76 | -16% | 6.07 / 2.73 | 100% / 100% | 2,600 / 2,600 |
+| 3,900 | 0.69 / 0.57 | 9.78 / 1.87 | -81% | 33.8 / 2.95 | 100% / 100% | 3,900 / 3,900 |
+| 4,680 | 2.12 / 0.72 | 63.6 / 2.28 | -96% | 81.0 / 6.65 | 99% / 100% | 4,622 / 4,680 |
+| 5,200 | 91.6 / 15.3 | 145 / 38.0 | -74% | 173 / 42.8 | 86% / 100% | 4,490 / 5,191 |
+| 5,720 | 115 / 1,239 | 165 / 1,916 | +1062% | 212 / 1,994 | 77% / 75% | 4,403 / 4,399 |
+| 6,500 | 126 / 1,635 | 189 / 1,954 | +934% | 228 / 1,994 | 67% / 15% | 4,348 / 1,298 |
+| 7,800 | 141 / - | 219 / - | - | 302 / - | 55% / 0% | 4,319 / 259 |
+
+Knee: measured 4,483 req/s, predicted 5,203 req/s on the same steps (+16%); ArchSim's own search before measuring put it at 5,200 req/s. Its predicted 80% range was 3,902 to 6,931 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: pg-mixed -->
 
 ## pg-hot-row
 
 <!-- BEGIN GENERATED: pg-hot-row -->
-**Node.js + PostgreSQL: every request updates the same row.** Calibrated 2026-11-02T03:46:41Z, predicted 2026-11-02T03:47:44Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+**Node.js + PostgreSQL: every request updates the same row.** Calibrated 2026-11-04T12:24:30Z, predicted 2026-11-04T12:25:37Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
 
 ![pg-hot-row: predicted and measured p95 and throughput](validation/pg-hot-row.svg)
 
-Model inputs from a staircase of calibration passes at 50, 202, 319 and 374 req/s (each rate up and down again): the median of 3 replicate sets from the 374 req/s passes, CPU per request net of the 20 s at rest:
+Model inputs from a staircase of calibration passes at 50, 206, 327 and 363 req/s (each rate up and down again): the median of 3 replicate sets from the 363 req/s passes, CPU per request net of the 20 s at rest:
 
 | Input | Value | How it was measured |
 | --- | --- | --- |
-| `serviceTimeMs` | lognormal, median 0.2544 ms, p95 0.8361 ms | the median of 3 replicates (third): mean = Node's CPU per request at 374 req/s net of idle: (3710 - 2 ms at rest) / 11220 requests = 0.3305 ms; shape (p95/median 0.0156/0.0047 ms) from the handler's own time |
-| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 1.398 ms - the model's median without it 1.536 ms at 374 req/s) / 2, one way, at least 0 |
-| `serviceTimeByLoad` | x2.30 at 50, x1.29 at 202, x1.06 at 319, x1.00 at 374 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.7578 ms at 50, 0.4254 ms at 202, 0.3484 ms at 319, 0.3296 ms at 374 req/s), fitted never rising with rate and divided by the top rate's (0.3296 ms); flat outside the staircase |
-| `gcPauseMs` | 0 ms | the median of 3 replicates (second): no mark-compact in the pass; 75 scavenges, 33.9 ms, left in the CPU per request |
-| `writeServiceTimeMs` | lognormal, median 0.236 ms, p95 0.6906 ms | the median of 3 replicates (second): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.2920 ms), shaped like its round trip (median 0.320, p95 0.938 ms) |
-| `dbLinkLatencyMs` | lognormal, median 0.0202 ms, p95 0.2049 ms | the median of 3 replicates (first): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0202, p95 0.2049 ms) |
-| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.3428 ms) / the model's mean time per query (11221 writes without their flush at 0.292 ms: 0.292 ms) |
-| `commitFlushMs` | lognormal, median 0.831 ms, p95 1.4201 ms | the median of 3 replicates (third): PostgreSQL's own WAL flushes at 374 req/s (pg_stat_wal): 11149 flushes of 0.876 ms on average, 1.01 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.71, mean 0.826 ms) |
-| `serviceMemoryBaselineMb` | 184.86 | the median of 3 replicates (first): at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 374 req/s), by non-negative least squares: 184.9 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 1%; memory did not grow with the request rate over the range |
-| `serviceMemoryPerRpsMb` | 0 | the median of 3 replicates (first): per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 374 req/s), by non-negative least squares: 184.9 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 1%; memory did not grow with the request rate over the range |
+| `serviceTimeMs` | lognormal, median 0.2541 ms, p95 0.8105 ms | the median of 3 replicates (second): mean = Node's CPU per request at 363 req/s net of idle: (3560 - 4 ms at rest) / 10891 requests = 0.3265 ms, less the 0.0007 ms per request of the pauses modelled as GC (gcPauseMs) = 0.3259 ms; shape (p95/median 0.0159/0.0050 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 1.421 ms - the model's median without it 1.536 ms at 363 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x2.33 at 50, x1.29 at 206, x1.06 at 327, x1.00 at 363 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.7621 ms at 50, 0.4214 ms at 206, 0.3460 ms at 327, 0.3265 ms at 363 req/s), fitted never rising with rate and divided by the top rate's (0.3265 ms); flat outside the staircase |
+| `gcPauseMs` | 6.2246 ms | the median of 3 replicates (second): V8's mark-compact cycles in the pass: 7.3 ms (incremental 3.9 ms, major 3.4 ms) over 1 cycles, a mean of 7.269 ms (the model's median: mean / 1.17); 83 scavenges, 34.5 ms, left in the CPU per request |
+| `writeServiceTimeMs` | lognormal, median 0.2314 ms, p95 0.6362 ms | the median of 3 replicates (second): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.2795 ms), shaped like its round trip (median 0.330, p95 0.908 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0239 ms, p95 0.2212 ms | the median of 3 replicates (second): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0239, p95 0.2212 ms) |
+| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.3208 ms) / the model's mean time per query (10891 writes without their flush at 0.280 ms: 0.280 ms) |
+| `commitFlushMs` | lognormal, median 0.8582 ms, p95 1.3022 ms | the median of 3 replicates (first): PostgreSQL's own WAL flushes at 363 req/s (pg_stat_wal): 10870 flushes of 0.886 ms on average, 1.00 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.52, mean 0.839 ms) |
+| `serviceMemoryBaselineMb` | 73.07 | the median of 3 replicates (first): at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 363 req/s), by non-negative least squares: 73.1 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 66%; memory did not grow with the request rate over the range |
+| `serviceMemoryPerRpsMb` | 0 | the median of 3 replicates (first): per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 363 req/s), by non-negative least squares: 73.1 MiB + 0.0000 MiB per req/s, largest error at and above the median rate 66%; memory did not grow with the request rate over the range |
 | `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
+| `gcEveryRequests` | 10891 | the median of the 2 of 3 replicates with it (second): 10891 requests / 1 mark-compact cycles in the pass |
 
-Measured in the calibration pass at 374 req/s: p50 1.37 ms, p95 2.76 ms.
+Measured in the calibration pass at 363 req/s: p50 1.42 ms, p95 2.76 ms.
 
 | Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
 | --- | --- | --- | --- | --- | --- | --- |
-| 212 | 1.69 / 1.60 | 3.12 / 2.62 | -16% | 3.78 / 3.26 | 100% / 100% | 212 / 212 |
-| 425 | 1.30 / 1.54 | 2.70 / 2.52 | -7% | 4.01 / 3.26 | 100% / 100% | 425 / 425 |
-| 638 | 1.25 / 1.63 | 2.89 / 2.78 | -4% | 6.17 / 3.67 | 100% / 100% | 638 / 638 |
-| 765 | 1.29 / 1.99 | 4.33 / 3.67 | -15% | 12.5 / 4.66 | 100% / 100% | 765 / 765 |
-| 850 | 1.35 / 7.06 | 11.8 / 27.7 | +134% | 34.2 / 33.7 | 100% / 100% | 850 / 849 |
-| 935 (unstable) | 1.84 / 1,215 | 28.9 / 1,916 | +6527% | 45.2 / 1,994 | 100% / 84% | 935 / 807 |
-| 1,062 | 291 / 1,603 | 429 / 1,954 | +356% | 480 / 1,994 | 98% / 17% | 1,039 / 232 |
-| 1,275 | 1,171 / - | 1,874 / - | - | 1,967 / - | 46% / 0% | 590 / 47 |
+| 214 | 1.67 / 1.60 | 3.08 / 2.52 | -18% | 3.64 / 3.13 | 100% / 100% | 214 / 214 |
+| 428 | 1.29 / 1.54 | 2.63 / 2.42 | -8% | 4.04 / 3.07 | 100% / 100% | 428 / 428 |
+| 642 | 1.23 / 1.63 | 2.66 / 2.62 | -1% | 4.91 / 3.39 | 100% / 100% | 642 / 642 |
+| 770 | 1.22 / 1.91 | 3.26 / 3.32 | +2% | 8.01 / 4.39 | 100% / 100% | 770 / 770 |
+| 856 | 1.32 / 7.95 | 12.2 / 37.2 | +206% | 76.6 / 41.9 | 100% / 100% | 856 / 854 |
+| 942 (unstable) | 1.72 / 1,239 | 19.0 / 1,916 | +10003% | 37.1 / 1,994 | 100% / 78% | 942 / 758 |
+| 1,070 (unstable) | 382 / 1,603 | 845 / 1,954 | +131% | 877 / 1,994 | 96% / 16% | 1,026 / 222 |
+| 1,284 | 1,196 / - | 1,930 / - | - | 1,972 / - | 49% / 0% | 626 / 45 |
 
 Unstable: the step's repeats' p95s differ by more than 2x across the objective (a repeat with no successful request counts as slower than any).
 
-Knee: measured 942 req/s, predicted 851 req/s on the same steps (-10%); ArchSim's own search before measuring put it at 850 req/s. Its predicted 80% range was 676 to 1,069 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-hot-row/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Knee: measured 947 req/s, predicted 857 req/s on the same steps (-10%); ArchSim's own search before measuring put it at 856 req/s. Its predicted 80% range was 678 to 1,080 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-hot-row/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: pg-hot-row -->
 
 ## cache-aside
 
 <!-- BEGIN GENERATED: cache-aside -->
-**Cache-aside: Node.js, Redis (30 s TTL) and PostgreSQL; Zipf 0.99 over 100,000 keys.** Calibrated 2026-11-02T04:11:08Z, predicted 2026-11-02T04:16:41Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+**Cache-aside: Node.js, Redis (30 s TTL) and PostgreSQL; Zipf 0.99 over 100,000 keys.** Calibrated 2026-11-04T12:50:54Z, predicted 2026-11-04T12:56:51Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
 
 ![cache-aside: predicted and measured p95 and throughput](validation/cache-aside.svg)
 
-Model inputs from a staircase of calibration passes at 50, 634, 1,964 and 3,251 req/s (each rate up and down again): the median of 3 replicate sets from the 3,251 req/s passes, CPU per request net of the 20 s at rest:
+Model inputs from a staircase of calibration passes at 50, 651, 2,052 and 3,470 req/s (each rate up and down again): the median of 3 replicate sets from the 3,470 req/s passes, CPU per request net of the 20 s at rest:
 
 | Input | Value | How it was measured |
 | --- | --- | --- |
-| `serviceTimeMs` | lognormal, median 0.0629 ms, p95 0.6912 ms | the median of 3 replicates (third): mean = Node's CPU per request at 3251 req/s net of idle: (17776 - 5 ms at rest) / 97530 requests = 0.1822 ms, less the 0.0003 ms per request of the pauses modelled as GC (gcPauseMs) = 0.1819 ms; shape (p95/median 0.0653/0.0059 ms) from the handler's own time |
-| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 0.421 ms - the model's median without it 0.548 ms at 3251 req/s) / 2, one way, at least 0 |
-| `serviceTimeByLoad` | x5.06 at 50, x1.71 at 634, x1.05 at 1,964, x1.00 at 3,251 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.9537 ms at 50, 0.3221 ms at 634, 0.1973 ms at 1964, 0.1884 ms at 3251 req/s), fitted never rising with rate and divided by the top rate's (0.1884 ms); flat outside the staircase |
-| `gcPauseMs` | 9.7368 ms | the median of 3 replicates (third): V8's mark-compact cycles in the pass: 34.1 ms (incremental 17.6 ms, major 16.5 ms) over 3 cycles, a mean of 11.371 ms (the model's median: mean / 1.17); 213 scavenges, 162.4 ms, left in the CPU per request |
-| `readServiceTimeMs` | lognormal, median 0.1806 ms, p95 0.5743 ms | the median of 3 replicates (second): PostgreSQL's CPU per SELECT (0.2313 ms), shaped like its round trip (median 0.317, p95 1.009 ms) |
-| `dbLinkLatencyMs` | lognormal, median 0.0368 ms, p95 0.3206 ms | the median of 3 replicates (second): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0368, p95 0.3206 ms) |
-| `dbCpuShare` | 0.9999 | the median of 3 replicates (third): PostgreSQL CPU per query at the top pass net of idle (0.2171 ms) / the model's mean time per query (23234 reads at 0.217 ms: 0.217 ms) |
-| `cacheServiceTimeMs` | exponential, mean 0.03587 ms | the median of 3 replicates (second): mean = Redis's CPU per command at 3251 req/s net of idle: (4599 - 258 ms at rest) / 121036 GET/SET calls = 0.0359 ms (its command time alone, INFO commandstats: 349577 us over 121036 GET/SET calls = 0.0029 ms; the rest is reading requests and writing replies) |
-| `cacheLinkLatencyMs` | 0.0564 ms | the median of 3 replicates (second): (GET round trip median 0.138 ms - the command time's median 0.0249 ms) / 2, one way |
-| `serviceMemoryBaselineMb` | 89.424 | the median of 3 replicates (first): at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,251 req/s), by non-negative least squares: 89.4 MiB + 0.0086 MiB per req/s, largest error at and above the median rate 65% |
-| `serviceMemoryPerRpsMb` | 0.008624 | the median of 3 replicates (first): per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,251 req/s), by non-negative least squares: 89.4 MiB + 0.0086 MiB per req/s, largest error at and above the median rate 65% |
+| `serviceTimeMs` | lognormal, median 0.1036 ms, p95 0.5604 ms | the median of 3 replicates (second): mean = Node's CPU per request at 3470 req/s net of idle: (18266 - 5 ms at rest) / 104101 requests = 0.1754 ms; shape (p95/median 0.0671/0.0058 ms) from the handler's own time; spread anchored: p95/median 5.41 instead of 11.60, so that the model's p95 - p50 at 3470 req/s is k6's: 1.272 against 1.246 ms |
+| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 0.401 ms - the model's median without it 0.407 ms at 3470 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x5.21 at 50, x1.74 at 651, x1.09 at 2,052, x1.00 at 3,470 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.9139 ms at 50, 0.3047 ms at 651, 0.1917 ms at 2052, 0.1754 ms at 3470 req/s), fitted never rising with rate and divided by the top rate's (0.1754 ms); flat outside the staircase |
+| `gcPauseMs` | 0 ms | the median of 3 replicates (second): no mark-compact in the pass; 28 scavenges, 47.1 ms, left in the CPU per request |
+| `readServiceTimeMs` | lognormal, median 0.1621 ms, p95 0.5274 ms | the median of 3 replicates (second): PostgreSQL's CPU per SELECT (0.2097 ms), shaped like its round trip (median 0.290, p95 0.945 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0346 ms, p95 0.3047 ms | the median of 3 replicates (second): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0346, p95 0.3047 ms) |
+| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.2097 ms) / the model's mean time per query (24644 reads at 0.210 ms: 0.210 ms) |
+| `cacheServiceTimeMs` | exponential, mean 0.03452 ms | the median of 3 replicates (second): mean = Redis's CPU per command at 3470 req/s net of idle: (4704 - 260 ms at rest) / 128745 GET/SET calls = 0.0345 ms (its command time alone, INFO commandstats: 349978 us over 128745 GET/SET calls = 0.0027 ms; the rest is reading requests and writing replies) |
+| `cacheLinkLatencyMs` | 0.0536 ms | the median of 3 replicates (second): (GET round trip median 0.131 ms - the command time's median 0.0239 ms) / 2, one way |
+| `serviceMemoryBaselineMb` | 75.177 | the median of 3 replicates (first): at idle: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,470 req/s), by non-negative least squares: 75.2 MiB + 0.0136 MiB per req/s, largest error at and above the median rate 74% |
+| `serviceMemoryPerRpsMb` | 0.013554 | the median of 3 replicates (first): per req/s: the api container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 3,470 req/s), by non-negative least squares: 75.2 MiB + 0.0136 MiB per req/s, largest error at and above the median rate 74% |
 | `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
 
-Measured in the calibration pass at 3,251 req/s: p50 0.42 ms, p95 1.74 ms.
+Measured in the calibration pass at 3,470 req/s: p50 0.40 ms, p95 1.69 ms.
 
 | Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred | Hit ratio meas / pred |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1,300 | 0.41 / 0.41 | 1.42 / 2.89 | +103% | 2.70 / 8.77 | 100% / 100% | 1,300 / 1,300 | 69% / 69% |
-| 2,600 | 0.42 / 0.44 | 1.54 / 4.66 | +202% | 4.03 / 11.3 | 100% / 100% | 2,600 / 2,600 | 74% / 75% |
-| 3,900 | 0.44 / 0.83 | 2.22 / 10.9 | +391% | 8.30 / 22.7 | 100% / 100% | 3,900 / 3,900 | 78% / 78% |
-| 4,680 | 0.46 / 2.37 | 3.36 / 17.9 | +433% | 15.4 / 29.9 | 100% / 100% | 4,680 / 4,679 | 80% / 79% |
-| 5,200 | 0.52 / 15.3 | 4.39 / 46.3 | +954% | 12.5 / 55.3 | 100% / 100% | 5,200 / 5,192 | 80% / 80% |
-| 5,720 | 0.55 / 1,123 | 6.98 / 1,842 | +26294% | 21.0 / 1,916 | 100% / 96% | 5,720 / 5,306 | 81% / 81% |
-| 6,500 | 0.69 / 1,572 | 13.1 / 1,954 | +14847% | 48.1 / 1,994 | 100% / 21% | 6,476 / 1,657 | 82% / 81% |
-| 7,800 | 0.91 / - | 37.2 / - | - | 73.1 / - | 98% / 0% | 7,619 / 338 | 83% / 81% |
+| 1,412 | 0.41 / 0.40 | 1.39 / 1.39 | 0% | 3.28 / 2.57 | 100% / 100% | 1,412 / 1,412 | 70% / 70% |
+| 2,825 | 0.41 / 0.38 | 1.54 / 1.45 | -6% | 4.44 / 2.62 | 100% / 100% | 2,825 / 2,825 | 75% / 75% |
+| 4,238 | 0.43 / 0.54 | 2.38 / 2.37 | 0% | 8.38 / 3.97 | 100% / 100% | 4,238 / 4,238 | 79% / 79% |
+| 5,085 | 0.52 / 0.99 | 7.03 / 4.30 | -39% | 23.7 / 6.92 | 100% / 100% | 5,085 / 5,086 | 80% / 80% |
+| 5,650 | 0.51 / 9.31 | 5.87 / 41.9 | +614% | 22.3 / 55.3 | 100% / 100% | 5,639 / 5,635 | 81% / 81% |
+| 6,215 | 0.56 / 1,191 | 10.7 / 1,916 | +17808% | 35.1 / 1,994 | 100% / 86% | 6,208 / 5,453 | 82% / 81% |
+| 7,062 | 0.81 / 1,603 | 27.6 / 1,954 | +6979% | 63.1 / 1,994 | 98% / 17% | 6,955 / 1,568 | 83% / 81% |
+| 8,475 | 1.04 / - | 48.4 / - | - | 77.6 / - | 96% / 0% | 8,175 / 332 | 84% / 81% |
 
-Knee: measured 6,918 req/s, predicted 5,201 req/s on the same steps (-25%); ArchSim's own search before measuring put it at 5,200 req/s. Its predicted 80% range was 3,877 to 6,974 req/s: the measured knee fell inside it. Data: `benchmarks/results/cache-aside/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Knee: measured 6,752 req/s, predicted 5,652 req/s on the same steps (-16%); ArchSim's own search before measuring put it at 5,650 req/s. Its predicted 80% range was 4,238 to 7,533 req/s: the measured knee fell inside it. Data: `benchmarks/results/cache-aside/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: cache-aside -->
 
 ## kafka
 
 <!-- BEGIN GENERATED: kafka -->
-**Kafka: Node.js producer, 6 partitions, 3 consumers inserting into PostgreSQL.** Calibrated 2026-11-02T04:48:49Z, predicted 2026-11-02T04:53:09Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
+**Kafka: Node.js producer, 6 partitions, 3 consumers inserting into PostgreSQL.** Calibrated 2026-11-04T13:27:44Z, predicted 2026-11-04T13:31:42Z (engine 0.16.0), measured afterwards. Objective: p95 <= 50 ms with >= 99% success.
 
 ![kafka: predicted and measured p95 and throughput](validation/kafka.svg)
 
-Model inputs from a staircase of calibration passes at 50, 406 and 1,015 req/s (each rate up and down again): the median of 3 replicate sets from the 1,015 req/s passes, CPU per request net of the 20 s at rest:
+Model inputs from a staircase of calibration passes at 50 and 406 req/s (each rate up and down again): the median of 3 replicate sets from the 406 req/s passes, CPU per request net of the 20 s at rest:
 
 | Input | Value | How it was measured |
 | --- | --- | --- |
-| `serviceTimeMs` | lognormal, median 0.3132 ms, p95 0.9392 ms | the median of 3 replicates (first): mean = Node's CPU per request at 1015 req/s net of idle: (13355 - 1403 ms at rest) / 30452 requests = 0.3925 ms, less the 0.0010 ms per request of the pauses modelled as GC (gcPauseMs) = 0.3914 ms; shape (p95/median 0.0241/0.0080 ms) from the handler's own time |
-| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 0.839 ms - the model's median without it 0.882 ms at 1015 req/s) / 2, one way, at least 0 |
-| `serviceTimeByLoad` | x1.53 at 50, x1.35 at 406, x1.00 at 1,015 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.5995 ms at 50, 0.5297 ms at 406, 0.3925 ms at 1015 req/s), fitted never rising with rate and divided by the top rate's (0.3925 ms); flat outside the staircase |
-| `gcPauseMs` | 8.991 ms | the median of 3 replicates (first): V8's mark-compact cycles in the pass: 31.5 ms (incremental 11.3 ms, major 20.2 ms) over 3 cycles, a mean of 10.500 ms (the model's median: mean / 1.17); 102 scavenges, 174.8 ms, left in the CPU per request |
-| `gcEveryRequests` | 10150 | the median of 3 replicates (third): 30451 requests / 3 mark-compact cycles in the pass |
-| `publishTimeMs` | lognormal, median 0.4715 ms, p95 1.5173 ms | the median of 3 replicates (second): producer.send with acks=all on one broker: median 0.472, p95 1.517 ms |
-| `consumerTimeMs` | lognormal, median 0.0077 ms, p95 0.0204 ms | the median of 3 replicates (first): consumer's own time per message (handling minus the INSERT): median 0.008, p95 0.020 ms |
+| `serviceTimeMs` | lognormal, median 0.3983 ms, p95 1.0499 ms | the median of 3 replicates (second): mean = Node's CPU per request at 406 req/s net of idle: (7244 - 1450 ms at rest) / 12181 requests = 0.4757 ms, less the 0.0019 ms per request of the pauses modelled as GC (gcPauseMs) = 0.4738 ms; shape (p95/median 0.0248/0.0094 ms) from the handler's own time |
+| `clientLinkLatencyMs` | 0 ms | the median of 3 replicates (second): anchored: (measured median 0.759 ms - the model's median without it 0.918 ms at 406 req/s) / 2, one way, at least 0 |
+| `serviceTimeByLoad` | x1.30 at 50, x1.00 at 406 req/s | the median of 3 replicates (first): the staircase's CPU per request net of idle (0.6204 ms at 50, 0.4757 ms at 406 req/s), fitted never rising with rate and divided by the top rate's (0.4757 ms); flat outside the staircase |
+| `gcPauseMs` | 9.0117 ms | the median of 3 replicates (first): V8's mark-compact cycles in the pass: 21.0 ms (incremental 11.2 ms, major 9.8 ms) over 2 cycles, a mean of 10.524 ms (the model's median: mean / 1.17); 192 scavenges, 135.0 ms, left in the CPU per request |
+| `gcEveryRequests` | 6090 | the median of 3 replicates (first): 12181 requests / 2 mark-compact cycles in the pass |
+| `publishTimeMs` | lognormal, median 0.466 ms, p95 1.2971 ms | the median of 3 replicates (third): producer.send with acks=all on one broker: median 0.466, p95 1.297 ms |
+| `consumerTimeMs` | lognormal, median 0.0104 ms, p95 0.0223 ms | the median of 3 replicates (third): consumer's own time per message (handling minus the INSERT): median 0.010, p95 0.022 ms |
 | `consumerConcurrency` | 3 | the median of 3 replicates (first): the stack's setting, not measured: one kafkajs consumer processes 3 of its 6 partitions at once (partitionsConsumedConcurrently) |
-| `fetchOverheadMs` | lognormal, median 1.9441 ms, p95 5.5091 ms | the median of 3 replicates (first): kafkajs's fetch cycle in the pass (3326 polls): each cycle less its batches' least span on 3 workers, median 1.944, p95 5.509 ms (the fetch: median 0.656 ms; the last batch's commit: median 0.395 ms) |
-| `writeServiceTimeMs` | lognormal, median 0.2624 ms, p95 0.753 ms | the median of 3 replicates (third): PostgreSQL's CPU per INSERT (0.3222 ms), shaped like the consumer's INSERT less its commit wait (median 1.724 - 1.022 ms, p95 3.036 - 1.022 ms) |
-| `dbLinkLatencyMs` | lognormal, median 0.1483 ms, p95 0.8916 ms | the median of 3 replicates (first): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.1483, p95 0.8916 ms) |
-| `dbCpuShare` | 1 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.3192 ms) / the model's mean time per query (the INSERT, 0.319 ms) |
-| `commitFlushMs` | lognormal, median 0.8477 ms, p95 1.6091 ms | the median of 3 replicates (third): PostgreSQL's own WAL flushes at 1015 req/s (pg_stat_wal): 23222 flushes of 0.915 ms on average, 1.31 commits per flush (the model: 1.09); shaped like the commit wait the service measured (p95/median 1.90, mean 1.103 ms) |
-| `serviceMemoryBaselineMb` | 36.302 | the median of 3 replicates (first): at idle: the producer container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 1,015 req/s), by non-negative least squares: 36.3 MiB + 0.0467 MiB per req/s, largest error at and above the median rate 26% |
-| `serviceMemoryPerRpsMb` | 0.046695 | the median of 3 replicates (first): per req/s: the producer container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 1,015 req/s), by non-negative least squares: 36.3 MiB + 0.0467 MiB per req/s, largest error at and above the median rate 26% |
+| `fetchOverheadMs` | lognormal, median 1.0158 ms, p95 2.3875 ms | the median of 3 replicates (second): kafkajs's fetch cycle in the pass (10893 polls): each cycle less its batches' least span on 3 workers, median 1.016, p95 2.387 ms (the fetch: median 0.527 ms; the last batch's commit: median 0.375 ms) |
+| `writeServiceTimeMs` | lognormal, median 0.2235 ms, p95 0.8493 ms | the median of 3 replicates (second): PostgreSQL's CPU per INSERT (0.3107 ms), shaped like the consumer's INSERT less its commit wait (median 1.186 - 0.761 ms, p95 2.374 - 0.761 ms) |
+| `dbLinkLatencyMs` | lognormal, median 0.0527 ms, p95 0.5233 ms | the median of 3 replicates (second): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0527, p95 0.5233 ms) |
+| `dbCpuShare` | 0.9999 | the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.3107 ms) / the model's mean time per query (the INSERT, 0.311 ms) |
+| `commitFlushMs` | lognormal, median 0.8839 ms, p95 1.4935 ms | the median of 3 replicates (third): PostgreSQL's own WAL flushes at 406 req/s (pg_stat_wal): 11911 flushes of 0.930 ms on average, 1.02 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.69, mean 0.818 ms) |
+| `serviceMemoryBaselineMb` | 39.134 | the median of 3 replicates (first): at idle: the producer container's working set (the highest reading in each pass) against req/s over 6 points (at rest and 5 passes, 50 to 406 req/s), by non-negative least squares: 39.1 MiB + 0.0187 MiB per req/s, largest error at and above the median rate 5% |
+| `serviceMemoryPerRpsMb` | 0.018737 | the median of 3 replicates (first): per req/s: the producer container's working set (the highest reading in each pass) against req/s over 6 points (at rest and 5 passes, 50 to 406 req/s), by non-negative least squares: 39.1 MiB + 0.0187 MiB per req/s, largest error at and above the median rate 5% |
 | `serviceMemoryPerRequestMb` | 0.01 | the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise) |
 
-Measured in the calibration pass at 1,015 req/s: p50 0.84 ms, p95 3.02 ms.
+Measured in the calibration pass at 406 req/s: p50 0.79 ms, p95 2.21 ms.
 
 | Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred | Consumed/s meas / pred | Message age p95 meas / pred (ms) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 631 | 0.85 / 0.94 | 2.63 / 2.28 | -13% | 7.85 / 3.39 | 100% / 100% | 631 / 631 | 631 / 631 | 20.0 / 13.6 |
-| 1,262 | 0.75 / 0.90 | 4.20 / 2.24 | -47% | 13.2 / 3.46 | 100% / 100% | 1,262 / 1,262 | 1,262 / 1,260 | 111 / 393 |
-| 1,894 | 0.80 / 1.05 | 14.5 / 2.84 | -80% | 40.0 / 5.14 | 100% / 100% | 1,894 / 1,894 | 1,745 / 1,326 | 7,102 / 8,133 |
-| 2,272 | 0.93 / 1.48 | 28.7 / 4.75 | -83% | 59.0 / 14.1 | 99% / 100% | 2,260 / 2,272 | 1,707 / 1,336 | 11,637 / 10,946 |
-| 2,525 | 0.99 / 7.95 | 35.9 / 28.2 | -21% | 81.6 / 42.8 | 99% / 100% | 2,506 / 2,525 | 1,697 / 1,347 | 14,380 / 13,343 |
-| 2,778 | 1.14 / 1,215 | 44.7 / 1,916 | +4188% | 85.9 / 1,994 | 99% / 87% | 2,755 / 2,464 | 1,663 / 1,343 | 10,529 / 8,631 |
-| 3,156 | 1.60 / 1,635 | 56.8 / 1,954 | +3340% | 106 / 1,994 | 97% / 16% | 3,051 / 671 | 1,667 / 1,340 | 14,492 / 9,159 |
-| 3,788 | 9.27 / - | 110 / - | - | 169 / - | 85% / 0% | 3,226 / 139 | 1,615 / 1,340 | 17,161 / 9,159 |
+| 522 | 0.75 / 0.94 | 2.35 / 1.99 | -15% | 6.57 / 2.84 | 100% / 100% | 522 / 522 | 522 / 522 | 10.0 / 7.20 |
+| 1,044 | 0.83 / 0.97 | 3.56 / 2.11 | -41% | 12.7 / 3.13 | 100% / 100% | 1,044 / 1,044 | 1,044 / 1,044 | 66.0 / 18.6 |
+| 1,566 | 0.80 / 1.10 | 12.9 / 2.62 | -80% | 33.4 / 4.47 | 100% / 100% | 1,566 / 1,566 | 1,566 / 1,426 | 1,835 / 2,847 |
+| 1,879 | 0.84 / 1.48 | 18.5 / 5.04 | -73% | 60.3 / 14.1 | 100% / 100% | 1,875 / 1,879 | 1,735 / 1,443 | 7,173 / 6,164 |
+| 2,088 | 0.86 / 10.3 | 26.0 / 29.4 | +13% | 56.7 / 31.8 | 100% / 100% | 2,080 / 2,089 | 1,740 / 1,442 | 8,596 / 10,112 |
+| 2,297 | 0.94 / 1,290 | 36.4 / 1,954 | +5268% | 79.3 / 1,994 | 99% / 84% | 2,281 / 1,973 | 1,715 / 1,444 | 10,393 / 8,133 |
+| 2,610 | 1.03 / 1,603 | 45.8 / 1,954 | +4167% | 103 / 1,994 | 98% / 16% | 2,565 / 537 | 1,690 / 1,445 | 12,242 / 8,461 |
+| 3,132 | 2.14 / - | 76.9 / - | - | 120 / - | 97% / 0% | 3,024 / 107 | 1,670 / 1,449 | 15,098 / 8,979 |
 
-Knee: measured 2,802 req/s, predicted 2,528 req/s on the same steps (-10%); ArchSim's own search before measuring put it at 2,525 req/s. Its predicted 80% range was 1,895 to 3,365 req/s: the measured knee fell inside it. Data: `benchmarks/results/kafka/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Knee: measured 2,387 req/s, predicted 2,090 req/s on the same steps (-12%); ArchSim's own search before measuring put it at 2,088 req/s. Its predicted 80% range was 1,566 to 2,784 req/s: the measured knee fell inside it. Data: `benchmarks/results/kafka/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: kafka -->
 
 ## Resources: CPU and memory
@@ -611,17 +942,29 @@ load step.
 <!-- BEGIN GENERATED: resources -->
 | Experiment | Part | Load step (req/s) | Busy cores measured | Busy cores predicted | Error | Median error up to both knees (steps) | Memory measured | Memory predicted | Error |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [pg-mixed](#pg-mixed) | Node.js service | 3,788 | 0.80 | 0.75 | -7% | 6% (3) | 152 MiB | 157 MiB | +3% |
-| [pg-mixed](#pg-mixed) | PostgreSQL | 3,788 | 0.80 | 0.72 | -10% | 3% (3) | 104 MiB | - | - |
-| [pg-hot-row](#pg-hot-row) | Node.js service | 850 | 0.23 | 0.28 | +25% | 15% (5) | 186 MiB | 185 MiB | -1% |
-| [pg-hot-row](#pg-hot-row) | PostgreSQL | 850 | 0.28 | 0.25 | -11% | 11% (5) | 109 MiB | - | - |
-| [cache-aside](#cache-aside) | Node.js service | 5,200 | 0.80 | 0.94 | +18% | 10% (5) | 182 MiB | 140 MiB | -23% |
-| [cache-aside](#cache-aside) | PostgreSQL | 5,200 | 0.24 | 0.24 | -2% | 2% (5) | 98 MiB | - | - |
-| [cache-aside](#cache-aside) | Redis | 5,200 | 0.19 | 0.22 | +20% | 14% (5) | 18 MiB | 29 MiB | +61% |
-| [kafka](#kafka) | Node.js producer | 2,525 | 0.81 | 0.99 | +22% | 16% (5) | 180 MiB | 160 MiB | -11% |
-| [kafka](#kafka) | Node.js consumer | 2,525 | 0.30 | not modelled | - | - | 220 MiB | - | - |
-| [kafka](#kafka) | PostgreSQL | 2,525 | 0.48 | 0.43 | -11% | 11% (5) | 149 MiB | - | - |
-| [kafka](#kafka) | Kafka broker | 2,525 | 0.60 | not modelled | - | - | 1,018 MiB | - | - |
+| [java-mixed](#java-mixed) | Spring Boot service | 3,950 | 1.04 | 1.00 | -4% | 6% (2) | 874 MiB | 925 MiB | +6% |
+| [java-mixed](#java-mixed) | PostgreSQL | 3,950 | 0.63 | 0.59 | -6% | 4% (2) | 102 MiB | - | - |
+| [go-mixed](#go-mixed) | Go service | 4,950 | 0.97 | 1.00 | +2% | 5% (2) | 42 MiB | 33 MiB | -22% |
+| [go-mixed](#go-mixed) | PostgreSQL | 4,950 | 0.70 | 0.64 | -8% | 5% (2) | 110 MiB | - | - |
+| [python-mixed](#python-mixed) | Flask service (gunicorn) | 1,322 | 1.49 | 1.48 | -1% | 6% (3) | 340 MiB | 329 MiB | -3% |
+| [python-mixed](#python-mixed) | PostgreSQL | 1,322 | 0.25 | 0.23 | -6% | 6% (3) | 124 MiB | - | - |
+| [chain](#chain) | Node.js gateway | 3,338 | 0.78 | 0.75 | -5% | 5% (3) | 170 MiB | 116 MiB | -32% |
+| [chain](#chain) | Node.js API | 3,338 | 0.66 | 0.61 | -7% | 13% (3) | 150 MiB | 145 MiB | -3% |
+| [chain](#chain) | PostgreSQL | 3,338 | 0.68 | 0.66 | -3% | 3% (3) | 104 MiB | - | - |
+| [cache-ttl](#cache-ttl) | Node.js service | 5,100 | 0.80 | 0.97 | +22% | 6% (5) | 179 MiB | 190 MiB | +6% |
+| [cache-ttl](#cache-ttl) | PostgreSQL | 5,100 | 0.29 | 0.29 | +3% | 3% (5) | 386 MiB | - | - |
+| [cache-ttl](#cache-ttl) | Redis | 5,100 | 0.18 | 0.23 | +25% | 16% (5) | 9 MiB | 28 MiB | +203% |
+| [pg-mixed](#pg-mixed) | Node.js service | 3,900 | 0.79 | 0.75 | -5% | 4% (3) | 148 MiB | 155 MiB | +5% |
+| [pg-mixed](#pg-mixed) | PostgreSQL | 3,900 | 0.77 | 0.71 | -7% | 1% (3) | 103 MiB | - | - |
+| [pg-hot-row](#pg-hot-row) | Node.js service | 856 | 0.22 | 0.28 | +27% | 21% (5) | 58 MiB | 74 MiB | +28% |
+| [pg-hot-row](#pg-hot-row) | PostgreSQL | 856 | 0.27 | 0.24 | -10% | 10% (5) | 106 MiB | - | - |
+| [cache-aside](#cache-aside) | Node.js service | 5,650 | 0.81 | 0.99 | +22% | 7% (5) | 181 MiB | 158 MiB | -13% |
+| [cache-aside](#cache-aside) | PostgreSQL | 5,650 | 0.24 | 0.22 | -6% | 9% (5) | 99 MiB | - | - |
+| [cache-aside](#cache-aside) | Redis | 5,650 | 0.19 | 0.23 | +23% | 15% (5) | 11 MiB | 31 MiB | +188% |
+| [kafka](#kafka) | Node.js producer | 2,088 | 0.72 | 0.99 | +38% | 22% (5) | 175 MiB | 81 MiB | -54% |
+| [kafka](#kafka) | Node.js consumer | 2,088 | 0.30 | not modelled | - | - | 182 MiB | - | - |
+| [kafka](#kafka) | PostgreSQL | 2,088 | 0.45 | 0.44 | -2% | 1% (5) | 132 MiB | - | - |
+| [kafka](#kafka) | Kafka broker | 2,088 | 0.54 | not modelled | - | - | 989 MiB | - | - |
 
 Each part at the highest load step at or below both knees, the measured one and the model's: past the model's own knee its queue holds every request the real service would time out, so its CPU reads fully busy and its memory grows without bound, and the knee error already counts that. Busy cores are CPU seconds per second; errors are (predicted - measured) / measured.
 
@@ -630,8 +973,13 @@ Measured: each container's CPU and working set (memory less reclaimable page cac
 Not modelled: Node.js consumer (inside the model's queue node, which has no CPU or memory); Kafka broker (the model's queue node has no CPU or memory).
 <!-- END GENERATED: resources -->
 
-What the numbers say. All four were read inside the measured window of each experiment's latest
-run (run 7, protocol v5, 31 Oct), against ArchSim's predictions saved before the measurements.
+The table shows the latest runs (3-4 Nov, engine 0.16.0). On the held-out experiments every
+part's busy cores are within 8% of the prediction except cache-ttl's service and Redis (+22% and
++25%), so their knee errors are not in the CPU per request.
+
+What the numbers say, as written for run 7 (protocol v5, 31 Oct). All four were read inside the
+measured window of each experiment's latest run, against ArchSim's predictions saved before the
+measurements.
 
 - **Node.js services: close, and too high where the real cost falls with load.** Protocol v5
   charges every request the service's CPU per request at the top of its calibration staircase,
@@ -827,14 +1175,24 @@ p95 at the ladder's low steps (at most half the predicted knee):
 <!-- BEGIN GENERATED: low-load -->
 | Experiment | Offered req/s | p95 measured (ms) | p95 predicted (ms) | Predicted - measured |
 | --- | --- | --- | --- | --- |
-| pg-mixed | 1,262 (0.25x the predicted knee) | 1.77 | 1.76 | -0.01 ms (0%) |
-| pg-mixed | 2,525 (0.5x the predicted knee) | 2.42 | 1.84 | -0.59 ms (-24%) |
-| pg-hot-row | 212 (0.25x the predicted knee) | 3.12 | 2.62 | -0.50 ms (-16%) |
-| pg-hot-row | 425 (0.5x the predicted knee) | 2.70 | 2.52 | -0.18 ms (-7%) |
-| cache-aside | 1,300 (0.25x the predicted knee) | 1.42 | 2.89 | +1.47 ms (+103%) |
-| cache-aside | 2,600 (0.5x the predicted knee) | 1.54 | 4.66 | +3.11 ms (+202%) |
-| kafka | 631 (0.25x the predicted knee) | 2.63 | 2.28 | -0.35 ms (-13%) |
-| kafka | 1,262 (0.5x the predicted knee) | 4.20 | 2.24 | -1.96 ms (-47%) |
+| java-mixed | 1,975 (0.25x the predicted knee) | 1.67 | 1.63 | -0.04 ms (-2%) |
+| java-mixed | 3,950 (0.5x the predicted knee) | 2.88 | 1.70 | -1.19 ms (-41%) |
+| go-mixed | 2,475 (0.25x the predicted knee) | 1.54 | 1.45 | -0.09 ms (-6%) |
+| go-mixed | 4,950 (0.5x the predicted knee) | 2.95 | 1.57 | -1.39 ms (-47%) |
+| python-mixed | 440 (0.25x the predicted knee) | 2.33 | 6.14 | +3.82 ms (+164%) |
+| python-mixed | 881 (0.5x the predicted knee) | 3.13 | 5.90 | +2.77 ms (+88%) |
+| chain | 1,112 (0.25x the predicted knee) | 2.58 | 2.42 | -0.16 ms (-6%) |
+| chain | 2,225 (0.5x the predicted knee) | 5.38 | 2.47 | -2.91 ms (-54%) |
+| cache-ttl | 1,275 (0.25x the predicted knee) | 1.73 | 2.37 | +0.64 ms (+37%) |
+| cache-ttl | 2,550 (0.5x the predicted knee) | 2.11 | 2.78 | +0.67 ms (+32%) |
+| pg-mixed | 1,300 (0.25x the predicted knee) | 1.71 | 1.66 | -0.05 ms (-3%) |
+| pg-mixed | 2,600 (0.5x the predicted knee) | 2.09 | 1.76 | -0.33 ms (-16%) |
+| pg-hot-row | 214 (0.25x the predicted knee) | 3.08 | 2.52 | -0.56 ms (-18%) |
+| pg-hot-row | 428 (0.5x the predicted knee) | 2.63 | 2.42 | -0.21 ms (-8%) |
+| cache-aside | 1,412 (0.25x the predicted knee) | 1.39 | 1.39 | -0.00 ms (0%) |
+| cache-aside | 2,825 (0.5x the predicted knee) | 1.54 | 1.45 | -0.09 ms (-6%) |
+| kafka | 522 (0.25x the predicted knee) | 2.35 | 1.99 | -0.36 ms (-15%) |
+| kafka | 1,044 (0.5x the predicted knee) | 3.56 | 2.11 | -1.45 ms (-41%) |
 <!-- END GENERATED: low-load -->
 
 What engine 0.15.0 changed (the plan's W21 to W24, 31 Oct 2026, each tuned on these four
@@ -861,7 +1219,9 @@ What would make it better next, in order:
 
 1. A CPU cost per request that rises near full load (pg-mixed's +24%), and how hyperthreaded
    vCPUs turn into capacity, for services and databases alike: a cloud vCPU is a hyperthread
-   too.
+   too. The held-out campaign puts this first: java-mixed (+70%), go-mixed (+67%) and
+   python-mixed (+29%) ran on the two hyperthreads of one core, and chain's +30% needs a cause
+   of its own.
 2. A CPU per request that keeps falling with load above the calibration staircase
    (cache-aside's -34%). Protocol v6 (W26) calibrates to about two thirds of the core, which is
    estimated to bring cache-aside to about -20% (protocol history, above). The rest of the fall
@@ -877,73 +1237,20 @@ What would make it better next, in order:
 3. A calibration whose inputs move less from run to run: much of the service's CPU variation
    is where the staircase stopped (W26 calibrates closer to the knee). The predicted range (W28)
    now carries that variation and the model's error; it holds 9 of the 12 runs in-sample and
-   9 leaving out each experiment, and the held-out campaign will test it.
+   9 leaving out each experiment. On the held-out campaign it held 9 of 15 (nominal 80%), every
+   miss java-mixed's or go-mixed's, whose measured knees fell below the range.
 4. Memory near the knee (a Node.js heap grows faster than linearly with load), a flush and a CPU
    per query that fall with load, and Kafka's rare consumer stalls (message age at mid load).
 
-Limits of this evidence: one machine, three counted runs per experiment under protocol v5,
-Windows with Docker Desktop (a virtual machine between the containers and the hardware) whose
-power mode (with k6 moved off the service's core) moved two knees by 45% to 65%, small synthetic
-services, and all four
-experiments in-sample for the protocol and the engine; k6's own summaries are not kept, only the
-numbers taken from them. It shows that on this machine engine 0.14.0 predicts three of the four
-knees within 25% (median of three runs), with errors on both sides; it does not show how ArchSim
-does on stacks it was not tuned on (the held-out experiments are for that), on other machines or
-on real applications.
-
-## Held-out experiments
-
-The four experiments above are in-sample: the model and the calibration protocol were revised
-with their results in view. Five more were registered on 30 Oct 2026 in commit `90f067d`
-(`benchmarks/run.py`, `Experiment.held_out`) to test ArchSim on stacks it was never
-tuned on. They are **sealed** until an engine frozen in `benchmarks/engines.json` has predicted
-them. Engine 0.16.0 was frozen for them on 2 Nov 2026 (tag `engine-0.16.0`;
-[ADR 0017](adr/0017-freeze-python-engine-during-port.md)), and they have not been measured yet:
-
-- `run.py` refuses to calibrate or measure one unless the engine's source tree
-  (`git rev-parse HEAD:packages/engine`) matches a frozen entry and nothing in the engine or the
-  harness is uncommitted. Its predictions are then saved before the first measured step, as for
-  every experiment, so no model change can be tuned on its results first.
-- Until then `run.py smoke <experiment>` is the only way to start their stacks: 20 req/s for
-  10 s, checking that every request succeeded and that the services counted it. It keeps no
-  latency and no results.
-- `report.py` labels each pair of engine and experiment `held-out` or `tuned-on`. An experiment
-  is held out for a frozen engine that does not list it in `tunedOn`. The held-out experiments
-  join this page's tables once they are measured.
-- **Changed after registration, before any measurement (31 Oct 2026):** two library updates to
-  clear GitHub's dependency alerts. go-mixed's PostgreSQL driver pgx went from 5.7.6 to 5.9.2,
-  which also drops `golang.org/x/crypto`, and python-mixed's Flask from 3.1.2 to 3.1.3. None of
-  the flagged code could be reached (the SSH packages were never compiled in, the pgx bug is on
-  the server side of the protocol, and the service does not use Flask's sessions). No held-out
-  experiment had been calibrated or measured, so no result depends on the old versions.
-
-| Experiment | What it tests | Stack |
-| --- | --- | --- |
-| java-mixed | The `java` profile: a thread pool that waits on its own database calls, and stop-the-world GC | Spring Boot 3.5 (Tomcat's 200 threads, HikariCP), Java 21 with G1 |
-| go-mixed | The `go` profile: a goroutine per request, short GC pauses | net/http and a pgx pool, GOMAXPROCS 2 |
-| python-mixed | The `python` profile: worker processes that serve one request each | Flask on gunicorn, 10 sync workers with a pool of 1 connection each |
-| chain | Two services called one after the other | Node.js gateway (keep-alive) → Node.js API → PostgreSQL |
-| cache-ttl | A TTL cache whose hit ratio rises with load, scored at every step | Node.js, Redis with a 5 s TTL, PostgreSQL; Zipf 1.1 over 1,000,000 keys |
-
-Otherwise each uses pg-mixed's setup: 90% reads and 10% writes over 100,000 rows, a pool of 10
-connections and PostgreSQL 16 on CPUs 4,5.
-
-- **CPUs.** The three runtimes run on CPUs 2,3, which are the two hyperthreads of one physical
-  core on the laptop. The model gives them 2 cores, a gap the results will show. chain's gateway
-  and API get one CPU each (0 and 2), as does cache-ttl's Redis (0). No container shares a
-  physical core with k6 or with another container. The cost: chain and cache-ttl leave CPUs 1
-  and 3 idle and give k6 one core (6,7), so their ladders need watching for dropped iterations.
-- **Service statistics.** Every service exposes the same `/stats` as the Node.js one: CPU per
-  request, own time, call timings and garbage collection.
-  - gunicorn's workers add theirs up in shared memory and take CPU from the container's cgroup.
-  - Java's and Go's GC pauses are calibrated from the runtime's own counters.
-  - Python's GC stays in the CPU per request: a gunicorn worker's collection stalls only its own
-    request, while a pause in the model would stall all ten.
-- **Fan-out.** Parallel fan-out is not modelled, so `chain` calls one service after the other.
-- **cache-ttl's skew is 1.1, not 0.8.** With Zipf 0.8 over a million keys and a 5 s TTL, the hit
-  ratio would be 9% to 24%. With 1.1 it rises from about 52% at 250 req/s to 69% at 4,000 req/s.
-  k6 draws keys from a keyspace this large by rejection-inversion, which gives exactly the same
-  distribution without a table in every VU.
+Limits of this evidence: one machine; three runs of each held-out experiment and six of each
+tuned-on one under protocol v6 and engine 0.16.0; Windows with Docker Desktop (a virtual machine
+between the containers and the hardware) whose power mode (with k6 moved off the service's core)
+moved two knees by 45% to 65%; small synthetic services; and k6's own summaries are not kept,
+only the numbers taken from them. The four tuned-on experiments are in-sample for the protocol
+and the engine, the five held-out ones are not. It shows that on this machine engine 0.16.0
+predicts the four tuned-on knees within 25% and one of the five held-out ones (median of their
+runs), and that on stacks it was not tuned on it errs towards promising too much capacity. It
+does not show how ArchSim does on other machines or on real applications.
 
 ## Proposed tier thresholds
 
@@ -970,12 +1277,17 @@ Computed by `benchmarks/report.py` from each experiment's latest run and its kep
 <!-- BEGIN GENERATED: tiers -->
 | Experiment | 1. Median knee error within ±25% (3+ runs) | 2. p95 within a factor of two or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |
 | --- | --- | --- | --- | --- | --- |
-| pg-mixed | yes (median +11% over 3 runs) | no: 3,788 req/s miss (2 of 3 steps within); 0 of 3 runs pass | no: none unstable; 1 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
-| pg-hot-row | yes (median -10% over 3 runs) | no: 850 and 935 req/s miss (4 of 6 steps within); 0 of 3 runs pass | no: 935 req/s unstable; 1 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
-| cache-aside | yes (median -25% over 3 runs) | no: 2,600, 3,900, 4,680, 5,200, 5,720 and 6,500 req/s miss (1 of 7 steps within); 0 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
-| kafka | yes (median -3% over 3 runs) | no: 1,894, 2,272 and 2,778 req/s miss (3 of 6 steps within); 0 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| java-mixed | no (median +70% over 3 runs) | yes: 2 of 2 steps within; 2 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| go-mixed | no (median +67% over 3 runs) | yes: 2 of 2 steps within; 3 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| python-mixed | no (median +29% over 3 runs) | no: 440 req/s miss (2 of 3 steps within); 0 of 3 runs pass | yes: none unstable; 2 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| chain | no (median +30% over 3 runs) | no: 3,338 req/s miss (2 of 3 steps within); 0 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| cache-ttl | yes (median -6% over 3 runs) | yes: 5 of 5 steps within; 3 of 3 runs pass | yes: none unstable; 3 of 3 runs pass | no: 3 runs under v6, on 1 machine | no |
+| pg-mixed | yes (median +16% over 6 runs) | no: 3,900 req/s miss (2 of 3 steps within); 0 of 6 runs pass | no: none unstable; 3 of 6 runs pass | no: 6 runs under v6, on 1 machine | no |
+| pg-hot-row | yes (median -10% over 5 runs; 1 disturbed run not counted) | no: 856 and 942 req/s miss (4 of 6 steps within); 0 of 5 runs pass | no: 942 req/s unstable; 2 of 5 runs pass | no: 6 runs under v6, on 1 machine | no |
+| cache-aside | yes (median -23% over 6 runs) | no: 5,650 and 6,215 req/s miss (4 of 6 steps within); 0 of 6 runs pass | yes: none unstable; 6 of 6 runs pass | no: 6 runs under v6, on 1 machine | no |
+| kafka | yes (median -3% over 5 runs; 1 disturbed run not counted) | no: 1,566, 1,879 and 2,297 req/s miss (3 of 6 steps within); 0 of 5 runs pass | yes: none unstable; 5 of 5 runs pass | no: 6 runs under v6, on 1 machine | no |
 
-A technology meets the thresholds when every experiment that exercises it meets all three: Node.js (pg-mixed, pg-hot-row, cache-aside, kafka); PostgreSQL (pg-mixed, pg-hot-row, cache-aside, kafka); Redis (cache-aside); Kafka (kafka). None meets them on this data.
+A technology meets the thresholds when every experiment that exercises it meets all three: Java (Spring Boot) (java-mixed); PostgreSQL (java-mixed, go-mixed, python-mixed, chain, cache-ttl, pg-mixed, pg-hot-row, cache-aside, kafka); Go (go-mixed); Python (Flask, gunicorn) (python-mixed); Node.js (chain, cache-ttl, pg-mixed, pg-hot-row, cache-aside, kafka); Redis (cache-ttl, cache-aside); Kafka (kafka). None meets them on this data.
 <!-- END GENERATED: tiers -->
 
 The criteria check the client's p95 only. Kafka's consumer side (consumed per second, message

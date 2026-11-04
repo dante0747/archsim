@@ -33,10 +33,12 @@ DOC = ROOT / "docs" / "validation.md"
 CHARTS = ROOT / "docs" / "validation"
 JSON_OUT = CHARTS / "accuracy.json"
 WEB_JSON = ROOT / "apps" / "web" / "src" / "data" / "accuracy.json"
-ORDER = ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
-# The held-out experiments (run.py, Experiment.held_out), sealed until a frozen engine has
-# predicted them. They join ORDER, the page's tables and accuracy.json once they have results.
+# The held-out experiments (run.py, Experiment.held_out), sealed until a frozen engine had
+# predicted them, then the four the model was built with. The page leads with the held-out ones:
+# they test ArchSim on stacks it was not tuned on.
 HELD_OUT = [e for e, x in bench.EXPERIMENTS.items() if x.held_out is not None]
+TUNED_ON = ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
+ORDER = HELD_OUT + TUNED_ON
 ENGINES = bench.ENGINES
 # Plain names for the web page (the comparison's title has the details).
 NAMES = {
@@ -190,6 +192,16 @@ def sample_label(
     if entry is None or not (entry.get("frozenAt") and entry.get("tag")):
         return "tuned-on"
     return "tuned-on" if exp in entry.get("tunedOn", []) else "held-out"
+
+
+SAMPLE_TEXT = {"held-out": "held out", "tuned-on": "tuned on"}
+"""``sample_label`` as the page's tables show it."""
+
+
+def latest_sample(exp: str, results: Path = RESULTS) -> str:
+    """``sample_label`` for the engine that predicted an experiment's latest run."""
+    pred = load(exp, "predictions", results) or {}
+    return sample_label(pred.get("engineVersion"), exp)
 
 
 def knee_text(k: Mapping[str, Any]) -> str:
@@ -672,15 +684,18 @@ def chart(cmp_: Mapping[str, Any]) -> str:
 # ---------------------------------------------------------------------------------------------
 
 
-def summary_block(cmps: list[dict[str, Any]]) -> str:
+def summary_block(cmps: list[dict[str, Any]], samples: Mapping[str, str]) -> str:
+    """Each experiment's latest run, labelled held out or tuned on (``samples``, by experiment:
+    ``sample_label``)."""
     lines = [
-        "| Experiment | Knee measured | Knee predicted | Knee error | p95 error at or below the measured knee (median / worst) |",
-        "| --- | --- | --- | --- | --- |",
+        "| Experiment | Sample | Knee measured | Knee predicted | Knee error | p95 error at or below the measured knee (median / worst) |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for c in cmps:
         b = c["belowKnee"]
+        exp = c["experiment"]
         lines.append(
-            f"| [{c['experiment']}](#{c['experiment']}) | {knee_text(c['measuredKnee'])} req/s | "
+            f"| [{exp}](#{exp}) | {SAMPLE_TEXT[samples[exp]]} | {knee_text(c['measuredKnee'])} req/s | "
             f"{knee_text(c['predictedKnee'])} req/s | {pct(c['kneeError'])} | "
             f"{pct(b['medianAbsP95Error'], False)} / {pct(b['maxAbsP95Error'], False)} ({b['steps']} steps) |"
         )
@@ -691,8 +706,8 @@ def repeatability_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
     """Each experiment's runs that repeat its latest one (same protocol, machine, OS build and
     engine): the median knee error, the errors' range, and the predicted range's coverage."""
     lines = [
-        "| Experiment | Runs repeating the latest | Median knee error | Knee errors | Measured knee inside the predicted range |",
-        "| --- | --- | --- | --- | --- |",
+        "| Experiment | Sample | Runs repeating the latest | Median knee error | Knee errors | Measured knee inside the predicted range |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for exp in ORDER:
         r = repeatability(hist.get(exp, []))
@@ -704,8 +719,9 @@ def repeatability_block(hist: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
             else "no range (protocol v5 adds it)"
         )
         disturbed = f"; {r['disturbed']} disturbed, not counted" if r["disturbed"] else ""
+        sample = SAMPLE_TEXT[sample_label(r["engineVersion"], exp)]
         lines.append(
-            f"| [{exp}](#{exp}) | {r['runs']} ({r['protocol']}, engine {r['engineVersion']}"
+            f"| [{exp}](#{exp}) | {sample} | {r['runs']} ({r['protocol']}, engine {r['engineVersion']}"
             f"{disturbed}) | {r['text']['medianError']} | {r['text']['errors']} | {cov} |"
         )
     lines += [
@@ -1161,7 +1177,10 @@ def render(text: str, results: Path = RESULTS) -> tuple[str, dict[str, str]]:
     """The page with its generated blocks rewritten, and the charts (file name -> SVG)."""
     cmps = [c for c in (load(e, "comparison", results) for e in ORDER) if c]
     hist = history(results)
-    text = replace_block(text, "summary", summary_block(cmps) if cmps else "_No results yet._")
+    samples = {c["experiment"]: latest_sample(c["experiment"], results) for c in cmps}
+    text = replace_block(
+        text, "summary", summary_block(cmps, samples) if cmps else "_No results yet._"
+    )
     text = replace_block(
         text, "repeatability", repeatability_block(hist) if hist else "_No results yet._"
     )

@@ -180,6 +180,8 @@ export interface Experiment {
   protocol: string;
   runs: number;
   inSample: boolean;
+  /** "held-out": predicted by a frozen engine that was not tuned on it, before it was first measured (the out-of-sample test); "tuned-on": the model was built with its results in view. */
+  sample: "held-out" | "tuned-on";
   /** A flaw of the benchmark that limited this run's measurements, fixed since; null when none. */
   caveat: string | null;
   tier: "validated" | "not-validated";

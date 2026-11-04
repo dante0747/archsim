@@ -579,14 +579,21 @@ def test_sample_label() -> None:
     assert report.sample_label("0.14.0", "chain") == "tuned-on"  # engines.json: not frozen yet
 
 
-def test_held_out_experiments_stay_out_of_the_page_until_measured() -> None:
-    assert not set(report.ORDER) & set(HELD_OUT)
+def test_the_measured_held_out_experiments_lead_the_page() -> None:
+    assert report.ORDER == HELD_OUT + TUNED_ON
     data = report.accuracy()
     assert data is not None
-    assert [x["id"] for x in data["experiments"]] == TUNED_ON
-    assert {x["sample"] for x in data["experiments"]} == {"tuned-on"}
-    assert data["summary"]["heldOut"] == []
-    assert not set(data["history"]) & set(HELD_OUT)
+    assert [x["id"] for x in data["experiments"]] == HELD_OUT + TUNED_ON
+    assert {x["id"]: x["sample"] for x in data["experiments"]} == {
+        **dict.fromkeys(HELD_OUT, "held-out"),
+        **dict.fromkeys(TUNED_ON, "tuned-on"),
+    }
+    assert data["summary"]["heldOut"] == HELD_OUT
+    assert list(data["history"]) == HELD_OUT + TUNED_ON
+    # both headline tables say which experiments the engine was tuned on
+    doc = report.DOC.read_text(encoding="utf-8")
+    assert "| [java-mixed](#java-mixed) | held out |" in doc
+    assert "| [pg-mixed](#pg-mixed) | tuned on |" in doc
 
 
 # ---------------------------------------------------------------------------------------------

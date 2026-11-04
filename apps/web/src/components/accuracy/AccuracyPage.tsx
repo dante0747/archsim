@@ -80,15 +80,20 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
           </h3>
           <p className="mt-1 text-[13px] text-ink-3">{x.title}</p>
         </div>
-        <span
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium text-ink-2",
-            x.tier === "validated" ? "bg-good-soft" : "bg-warning-soft",
-          )}
-        >
-          {x.tier === "validated" ? <Check className="size-3.5 text-good" aria-hidden /> : <TriangleAlert className="size-3.5 text-warning" aria-hidden />}
-          {x.tier === "validated" ? "Meets the proposed thresholds" : "Not validated"}
-        </span>
+        <div className="flex shrink-0 flex-wrap gap-1.5">
+          <span className="inline-flex items-center rounded-full border border-line px-2 py-0.5 text-[12px] font-medium text-ink-2">
+            {x.sample === "held-out" ? "Held out" : "Tuned on"}
+          </span>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium text-ink-2",
+              x.tier === "validated" ? "bg-good-soft" : "bg-warning-soft",
+            )}
+          >
+            {x.tier === "validated" ? <Check className="size-3.5 text-good" aria-hidden /> : <TriangleAlert className="size-3.5 text-warning" aria-hidden />}
+            {x.tier === "validated" ? "Meets the proposed thresholds" : "Not validated"}
+          </span>
+        </div>
       </div>
 
       {x.caveat && (
@@ -143,6 +148,7 @@ function ExperimentCard({ x, data }: { x: Experiment; data: Accuracy }) {
 
       <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
         Run of {formatDate(x.date)} (calibrated {formatTime(x.calibratedAt)}), protocol {x.protocol}, engine {x.engineVersion ?? "-"}. {env.text}.
+        {x.sample === "held-out" && " Held out: predicted by a frozen engine that was not tuned on it, before it was first measured."}
         {x.inSample && " In-sample: the calibration protocol was revised after this experiment's earlier results had been seen."} The model inputs and
         how each was measured are in <RepoFile path={VALIDATION_DOC} small /> (section {x.id}) in the repository.
       </p>
@@ -435,7 +441,10 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
   const n = s.experiments;
   const obj = data.objective;
   const t = data.thresholds;
-  const ordered = byKneeError(data.experiments);
+  const held = data.experiments.filter((x) => x.sample === "held-out");
+  // the held-out experiments lead: they test ArchSim on stacks it was not tuned on
+  const ordered = [...byKneeError(held), ...byKneeError(data.experiments.filter((x) => x.sample !== "held-out"))];
+  const heldWithin = held.filter((x) => x.knee.withinTolerance).length;
   const lows = data.experiments.flatMap((x) => x.lowLoad).filter((l) => l.diffMs !== null);
   const lowSorted = [...lows].sort((a, b) => (a.diffMs ?? 0) - (b.diffMs ?? 0));
   const allAbove = lows.length > 0 && lows.every((l) => (l.diffMs ?? 0) > 0);
@@ -491,7 +500,9 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
           </p>
           <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:flex sm:flex-wrap sm:gap-x-12">
             {[
-              [`${s.kneeWithinTolerance.length} of ${n}`, `capacity knees predicted within ±${Math.round(t.kneeError * 100)}%`],
+              held.length
+                ? [`${heldWithin} of ${held.length}`, `held-out knees predicted within ±${Math.round(t.kneeError * 100)}%`]
+                : [`${s.kneeWithinTolerance.length} of ${n}`, `capacity knees predicted within ±${Math.round(t.kneeError * 100)}%`],
               [minus(s.kneeErrorRangeText), "range of the knee errors"],
               [`${s.validated.length} of ${n}`, "experiments meet every proposed threshold"],
               [formatDate(s.latestDate), `latest run, ${machines === 1 ? "on one machine" : `on ${machines} machines`}`],
@@ -508,14 +519,14 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
       <main className="mx-auto max-w-5xl px-4 sm:px-6">
         <Section id="summary" title="The short version">
           <ul className="max-w-3xl space-y-3 text-[15px] leading-relaxed text-ink">
-            {ordered.map((x) => (
-              <li key={x.id} className="flex gap-3">
+            {ordered.map((x, i) => (
+              <li key={x.id} className={cn("flex gap-3", held.length > 0 && i === held.length && "border-t border-line pt-3")}>
                 {x.knee.withinTolerance ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <X className="mt-1 size-4 shrink-0 text-critical" aria-hidden />}
                 <span>
                   <a href={`#${x.id}`} className="font-semibold text-ink hover:underline">
                     {x.name}
                   </a>
-                  : {kneeSentence(x)}
+                  {held.length > 0 && <span className="text-ink-2"> ({x.sample === "held-out" ? "held out" : "tuned on"})</span>}: {kneeSentence(x)}
                   {x.caveat && (
                     <span className="text-ink-2">
                       {" "}
@@ -648,7 +659,7 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
               [
                 "In-sample",
                 s.inSample.length
-                  ? `${allInSample ? "Every experiment here" : names(data, s.inSample)} ${s.inSample.length === 1 ? "is" : "are"} in-sample: the calibration protocol was revised after their earlier results had been seen, so those numbers may flatter the model. ${allInSample ? "Held-out experiments, sealed until a frozen engine has predicted them, will test ArchSim on stacks it was not tuned on." : "The others were first run under the current protocol."}`
+                  ? `${allInSample ? "Every experiment here" : names(data, s.inSample)} ${s.inSample.length === 1 ? "is" : "are"} in-sample: the calibration protocol was revised after their earlier results had been seen, so those numbers may flatter the model. ${allInSample ? "Held-out experiments, sealed until a frozen engine has predicted them, will test ArchSim on stacks it was not tuned on." : held.length ? `${names(data, held.map((x) => x.id))} ${held.length === 1 ? "is" : "are"} held out: registered before the engine was frozen, sealed until it had predicted them, and never used to tune it. They are the test of ArchSim on stacks it was not tuned on.` : "The others were first run under the current protocol."}`
                   : "Every experiment was first run under the current protocol, so none of them shaped it.",
               ],
               [

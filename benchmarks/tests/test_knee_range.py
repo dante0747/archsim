@@ -282,7 +282,7 @@ def test_the_committed_range_fit() -> None:
     fit = json.loads(FIT_FILE.read_text(encoding="utf-8"))
     assert fit["nominalCoverage"] == run.RANGE_COVERAGE
     assert (fit["runs"], fit["experiments"]) == (12, 4)
-    assert {c["experiment"] for c in fit["calibrations"]} == set(report.ORDER)
+    assert {c["experiment"] for c in fit["calibrations"]} == set(report.TUNED_ON)
     assert not any(run.EXPERIMENTS[c["experiment"]].held_out for c in fit["calibrations"])
     assert 0 < fit["model"]["sigma"] < 1 and 0 <= fit["correlation"] <= 1
     for key, v in fit["inputs"].items():

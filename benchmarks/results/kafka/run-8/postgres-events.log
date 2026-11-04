@@ -1,0 +1,57 @@
+postgres-1  | 2026-11-02 04:35:35.646 UTC [40] LOG:  checkpoint starting: shutdown immediate
+postgres-1  | 2026-11-02 04:35:35.760 UTC [40] LOG:  checkpoint complete: wrote 3035 buffers (9.3%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.040 s, sync=0.057 s, total=0.116 s; sync files=309, longest=0.019 s, average=0.001 s; distance=28124 kB, estimate=28124 kB; lsn=0/306E3B0, redo lsn=0/306E3B0
+postgres-1  | 2026-11-02 04:35:44.980 UTC [62] LOG:  checkpoint starting: immediate force wait
+postgres-1  | 2026-11-02 04:35:45.052 UTC [62] LOG:  checkpoint complete: wrote 143 buffers (0.4%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.006 s, sync=0.058 s, total=0.072 s; sync files=76, longest=0.027 s, average=0.001 s; distance=961 kB, estimate=961 kB; lsn=0/315E828, redo lsn=0/315E7F0
+postgres-1  | 2026-11-02 04:35:55.924 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_type"
+postgres-1  | 2026-11-02 04:35:55.935 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_attribute"
+postgres-1  | 2026-11-02 04:35:55.942 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_class"
+postgres-1  | 2026-11-02 04:35:55.949 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_constraint"
+postgres-1  | 2026-11-02 04:35:55.951 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_rewrite"
+postgres-1  | 2026-11-02 04:35:55.956 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_description"
+postgres-1  | 2026-11-02 04:35:55.960 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_depend"
+postgres-1  | 2026-11-02 04:35:55.962 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_ts_config_map"
+postgres-1  | 2026-11-02 04:35:55.965 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_init_privs"
+postgres-1  | 2026-11-02 04:35:55.968 UTC [141] LOG:  automatic analyze of table "template1.pg_catalog.pg_collation"
+postgres-1  | 2026-11-02 04:35:55.972 UTC [141] LOG:  automatic analyze of table "template1.information_schema.sql_features"
+postgres-1  | 2026-11-02 04:36:15.904 UTC [212] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:36:15.911 UTC [212] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:36:15.920 UTC [212] LOG:  automatic vacuum of table "bench.pg_catalog.pg_statistic": index scans: 1
+postgres-1  | 2026-11-02 04:37:15.926 UTC [501] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:38:15.943 UTC [851] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:38:15.957 UTC [851] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:39:15.967 UTC [1194] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:39:16.011 UTC [1194] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:40:16.028 UTC [1555] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-11-02 04:41:16.048 UTC [1943] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-11-02 04:42:16.016 UTC [2294] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:42:16.060 UTC [2294] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:43:16.102 UTC [2664] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-11-02 04:44:16.104 UTC [3058] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-11-02 04:45:16.099 UTC [3398] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:46:16.086 UTC [3735] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:46:16.164 UTC [3735] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:47:16.160 UTC [4102] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-11-02 04:47:16.214 UTC [4102] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:48:16.177 UTC [4459] LOG:  automatic analyze of table "bench.public.items"
+postgres-1  | 2026-11-02 04:54:16.219 UTC [5822] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:54:16.283 UTC [5822] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:55:16.337 UTC [6106] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:56:16.261 UTC [6385] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:56:16.327 UTC [6385] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:57:16.354 UTC [6655] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:58:16.302 UTC [6930] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 04:58:16.394 UTC [6930] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 04:59:16.389 UTC [7196] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:00:16.331 UTC [7463] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 05:00:16.454 UTC [7463] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:01:16.473 UTC [7732] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:02:16.367 UTC [7993] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 05:02:16.481 UTC [7993] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:03:16.487 UTC [8245] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:05:16.429 UTC [8759] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 05:05:16.566 UTC [8759] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:07:16.584 UTC [9268] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:08:16.487 UTC [9517] LOG:  automatic vacuum of table "bench.public.events": index scans: 0
+postgres-1  | 2026-11-02 05:09:16.626 UTC [9769] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:11:16.684 UTC [10279] LOG:  automatic analyze of table "bench.public.events"
+postgres-1  | 2026-11-02 05:12:16.568 UTC [10531] LOG:  automatic vacuum of table "bench.public.events": index scans: 0

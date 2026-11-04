@@ -1,0 +1,511 @@
+{
+  "experiment": "cache-ttl",
+  "at": "2026-11-04T00:08:30Z",
+  "engineVersion": "0.16.0",
+  "reportVersion": "1.14",
+  "provenance": {
+    "commit": "d8e3006681af8ceed751d647fc337f72cb4ecbf9",
+    "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
+    "harnessHash": "ccb5ddb27b66f3e9fc4ccf8428f1b673f477f074f04026d21834c1fbceb1a73b",
+    "dirty": false,
+    "machineId": "i7-1165g7"
+  },
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "knee": {
+    "kneeRps": 5300,
+    "tried": [
+      {
+        "offeredRps": 100.0,
+        "p95": 3.0716,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 200.0,
+        "p95": 2.7821,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 400.0,
+        "p95": 2.5198,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": 2.2375,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1600.0,
+        "p95": 2.2375,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 3200.0,
+        "p95": 3.3248,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 6400.0,
+        "p95": 1954.4549,
+        "successRate": 0.2771
+      },
+      {
+        "offeredRps": 4800,
+        "p95": 9.4968,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 5600,
+        "p95": 1057.8408,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 5200,
+        "p95": 25.5616,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 5400,
+        "p95": 129.6588,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 5300,
+        "p95": 38.7429,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 5350,
+        "p95": 54.2494,
+        "successRate": 1.0
+      }
+    ]
+  },
+  "kneeRange": {
+    "method": "the knee's run-to-run variation from a fresh calibration (each input's variation between calibrations times how much the knee moves with it) and the model's own error (the spread of measured over predicted knees in the in-sample runs), as a lognormal around the predicted knee",
+    "lowRps": 3952,
+    "highRps": 7108,
+    "nominalRps": 5300,
+    "nominalCoverage": 0.8,
+    "sigma": 0.2291,
+    "calibrationSigma": 0.1736,
+    "modelSigma": 0.1495,
+    "sensitivity": {
+      "serviceTimeMs": -1.038,
+      "readServiceTimeMs": 0.0,
+      "dbCpuShare": 0.0,
+      "dbLinkLatencyMs": 0.0,
+      "cacheServiceTimeMs": 0.0,
+      "cacheLinkLatencyMs": 0.0
+    },
+    "fit": {
+      "at": "2026-11-01T15:31:14Z",
+      "engineVersion": "0.16.0",
+      "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
+      "runs": 12,
+      "experiments": 4
+    }
+  },
+  "steps": [
+    {
+      "offeredRps": 1325,
+      "p50": 0.4411,
+      "p95": 2.1936,
+      "p99": 5.4547,
+      "mean": 0.7353,
+      "successRate": 1.0,
+      "throughputRps": 1325.0,
+      "resultDigest": "868314ca8488693287ab276ef0039f79e3b9e3f7af4b62d332da5a04b5f7d93c",
+      "resources": {
+        "api": {
+          "cores": 0.3211,
+          "memoryMiB": 114.7
+        },
+        "cache": {
+          "cores": 0.0647,
+          "memoryMiB": 9.8
+        },
+        "db": {
+          "cores": 0.098
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.6269
+    },
+    {
+      "offeredRps": 2650,
+      "p50": 0.4681,
+      "p95": 2.674,
+      "p99": 5.7886,
+      "mean": 0.8257,
+      "successRate": 1.0,
+      "throughputRps": 2650.05,
+      "resultDigest": "5529a34f24f66c9cd08cbb7fde322450a1a608837304c3b1312d30ad98e653b9",
+      "resources": {
+        "api": {
+          "cores": 0.5064,
+          "memoryMiB": 114.7
+        },
+        "cache": {
+          "cores": 0.125,
+          "memoryMiB": 17.0
+        },
+        "db": {
+          "cores": 0.173
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.6705
+    },
+    {
+      "offeredRps": 3975,
+      "p50": 0.7529,
+      "p95": 5.3478,
+      "p99": 12.2852,
+      "mean": 1.5205,
+      "successRate": 1.0,
+      "throughputRps": 3974.75,
+      "resultDigest": "1a4d8f36aeecdc1a10f011949797440a50e67da416e42a9b2a344595282f44b9",
+      "resources": {
+        "api": {
+          "cores": 0.7331,
+          "memoryMiB": 114.7
+        },
+        "cache": {
+          "cores": 0.185,
+          "memoryMiB": 23.5
+        },
+        "db": {
+          "cores": 0.2408
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.692
+    },
+    {
+      "offeredRps": 4770,
+      "p50": 1.7297,
+      "p95": 9.1281,
+      "p99": 17.5463,
+      "mean": 2.9092,
+      "successRate": 1.0,
+      "throughputRps": 4770.3,
+      "resultDigest": "d4bd37238223cc8e16bf626339dd980289b97b397dc7be2751f84216bf32a3ab",
+      "resources": {
+        "api": {
+          "cores": 0.8812,
+          "memoryMiB": 115.7
+        },
+        "cache": {
+          "cores": 0.2205,
+          "memoryMiB": 27.0
+        },
+        "db": {
+          "cores": 0.278
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.703
+    },
+    {
+      "offeredRps": 5300,
+      "p50": 12.2852,
+      "p95": 38.7429,
+      "p99": 56.441,
+      "mean": 15.2556,
+      "successRate": 1.0,
+      "throughputRps": 5284.25,
+      "resultDigest": "1f7c942402052b23e70c2935303f82b28d4c07bb0d44c30d1f7c137cb58d1a03",
+      "resources": {
+        "api": {
+          "cores": 0.9826,
+          "memoryMiB": 117.8
+        },
+        "cache": {
+          "cores": 0.2428,
+          "memoryMiB": 29.3
+        },
+        "db": {
+          "cores": 0.3024
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.7093
+    },
+    {
+      "offeredRps": 5830,
+      "p50": 1167.9417,
+      "p95": 1878.561,
+      "p99": 1993.544,
+      "mean": 1163.6043,
+      "successRate": 0.8989,
+      "throughputRps": 5346.75,
+      "resultDigest": "0d8794c7f81e7895e130356e2002a39ee3497b580d375e0706d45a8daa4cb2a8",
+      "resources": {
+        "api": {
+          "cores": 0.9981,
+          "memoryMiB": 230.4
+        },
+        "cache": {
+          "cores": 0.246,
+          "memoryMiB": 31.6
+        },
+        "db": {
+          "cores": 0.3052
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.7107
+    },
+    {
+      "offeredRps": 6625,
+      "p50": 1571.8958,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1584.2303,
+      "successRate": 0.1867,
+      "throughputRps": 1549.15,
+      "resultDigest": "d6be82884228c95016f288ce8067efa570fbf3e2a0d946d622f30c381e077353",
+      "resources": {
+        "api": {
+          "cores": 0.9981,
+          "memoryMiB": 429.1
+        },
+        "cache": {
+          "cores": 0.246,
+          "memoryMiB": 31.7
+        },
+        "db": {
+          "cores": 0.3052
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.7107
+    },
+    {
+      "offeredRps": 7950,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 320.4,
+      "resultDigest": "bc8b327210b3bc3cb7bab899c06ba0cf53907bc13bb616a91b58865ead5c204d",
+      "resources": {
+        "api": {
+          "cores": 0.9981,
+          "memoryMiB": 760.8
+        },
+        "cache": {
+          "cores": 0.246,
+          "memoryMiB": 31.8
+        },
+        "db": {
+          "cores": 0.3052
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.7107
+    }
+  ],
+  "design": {
+    "schemaVersion": "1.0",
+    "kind": "archsim.architecture",
+    "metadata": {
+      "name": "benchmark cache-ttl"
+    },
+    "architecture": {
+      "nodes": [
+        {
+          "id": "clients",
+          "type": "traffic_source",
+          "label": "k6",
+          "config": {
+            "timeoutMs": 2000,
+            "maxAttempts": 1
+          }
+        },
+        {
+          "id": "api",
+          "type": "service",
+          "label": "Node.js service",
+          "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 1,
+            "processesPerReplica": 1,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.0793,
+              "p95": 0.6806
+            },
+            "gcPauseMs": 9.4745,
+            "gcEveryRequests": 47688,
+            "serviceTimeByLoad": [
+              {
+                "rps": 50.0,
+                "factor": 5.0183
+              },
+              {
+                "rps": 642.0,
+                "factor": 1.7171
+              },
+              {
+                "rps": 1935.0,
+                "factor": 1.0945
+              },
+              {
+                "rps": 3184.0,
+                "factor": 1.0
+              }
+            ],
+            "warmupFactor": 1,
+            "cpuCores": 1,
+            "memoryGib": 1024,
+            "memoryBaselineMb": 114.03,
+            "memoryPerRpsMb": 0.0,
+            "memoryPerRequestMb": 0.01
+          }
+        },
+        {
+          "id": "cache",
+          "type": "cache",
+          "label": "Redis",
+          "config": {
+            "technology": "redis",
+            "hitModel": "ttl_keyspace",
+            "ttlSeconds": 5,
+            "populateOnMiss": true,
+            "serviceTimeMs": {
+              "kind": "exponential",
+              "mean": 0.03561
+            },
+            "queueCapacity": 100000,
+            "cpuCores": 1,
+            "memoryGib": 4,
+            "itemSizeKb": 1.0
+          }
+        },
+        {
+          "id": "db",
+          "type": "database",
+          "label": "PostgreSQL",
+          "config": {
+            "technology": "postgresql",
+            "maxConnections": 10,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "cpuCores": 2,
+            "cpuShare": 1.0,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.1428,
+              "p95": 0.5384
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e-clients",
+          "source": "clients",
+          "sourcePort": "out",
+          "target": "api",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0
+            }
+          }
+        },
+        {
+          "id": "e-cache",
+          "source": "api",
+          "sourcePort": "out",
+          "target": "cache",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0534
+            }
+          }
+        },
+        {
+          "id": "e-miss",
+          "source": "cache",
+          "sourcePort": "miss",
+          "target": "db",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read"
+            ],
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 0.0411,
+              "p95": 0.3844
+            }
+          }
+        }
+      ],
+      "autoSize": false
+    },
+    "workload": {
+      "rps": 5300,
+      "durationS": 25,
+      "warmupS": 5,
+      "readRatio": 1.0,
+      "keyCount": 1000000,
+      "keySkew": 1.1,
+      "seed": 42,
+      "arrivalProcess": "deterministic"
+    },
+    "scenarios": []
+  }
+}

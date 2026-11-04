@@ -482,7 +482,7 @@ def test_at_or_below_both_knees() -> None:
 
 def test_committed_comparisons_are_reproduced_by_compare() -> None:
     dirs = run.result_dirs()
-    assert len(dirs) == 40
+    assert len(dirs) == 67
     for exp, d in dirs:
         committed = json.loads((d / "comparison.json").read_text(encoding="utf-8"))
         assert run.comparison_of(exp, d) == committed, d
@@ -493,7 +493,7 @@ def test_recompare_writes_every_comparison(tmp_path: Path) -> None:
     for f in (tmp_path / "pg-hot-row").rglob("comparison.json"):
         f.unlink()
     written = run.recompare(tmp_path)
-    runs = [f"run-{i}" for i in range(1, 11)]
+    runs = [f"run-{i}" for i in range(1, 14)]
     assert [p.parent.name for p in written] == [*runs, "pg-hot-row"]
     run4 = json.loads(written[3].read_text(encoding="utf-8"))
     rows = {r["offeredRps"]: r for r in run4["rows"]}
@@ -696,16 +696,16 @@ def test_resources_on_the_committed_results() -> None:
     assert {k: (r["measuredBy"], r["predictedBy"], r["memoryMeasured"]) for k, r in by.items()} == {
         exp: ("window", "predictions", True) for exp in report.ORDER
     }
-    # the v6 campaign's services had their memory fitted from the staircase (W24)
+    # the services have their memory fitted from the staircase (W24)
     service = {p["container"]: p for p in by["pg-mixed"]["parts"]}["api"]
-    assert service["top"]["text"]["measuredMemory"] == "152 MiB"
-    assert service["top"]["text"]["predictedMemory"] == "157 MiB"
+    assert service["top"]["text"]["measuredMemory"] == "148 MiB"
+    assert service["top"]["text"]["predictedMemory"] == "155 MiB"
     parts = {p["container"]: p for p in by["cache-aside"]["parts"]}
     assert list(parts) == ["api", "postgres", "redis"]
-    # the top step at or below both knees: the model's (5,201 req/s), not the measured (6,918)
-    assert by["cache-aside"]["topRps"] == 5200
-    assert parts["redis"]["top"]["text"]["coresError"] == "+20%"  # its CPU per command (W24)
-    assert parts["api"]["top"]["text"]["predictedMemory"] == "140 MiB"
+    # the top step at or below both knees: the model's (5,652 req/s), not the measured (6,752)
+    assert by["cache-aside"]["topRps"] == 5650
+    assert parts["redis"]["top"]["text"]["coresError"] == "+23%"  # its CPU per command (W24)
+    assert parts["api"]["top"]["text"]["predictedMemory"] == "158 MiB"
     kafka = {p["container"]: p for p in by["kafka"]["parts"]}
     assert not kafka["kafka"]["modelled"]["cores"]
     assert kafka["kafka"]["notModelled"]["cores"] == report.NOT_MODELLED["kafka"]
@@ -713,16 +713,16 @@ def test_resources_on_the_committed_results() -> None:
     cmps = [c for e in report.ORDER if (c := report.load(e, "comparison"))]
     block = report.resources_block(cmps)
     assert (
-        "| [pg-mixed](#pg-mixed) | Node.js service | 3,788 | 0.80 | 0.75 | -7% | 6% (3) | 152 MiB | 157 MiB | +3% |"
+        "| [pg-mixed](#pg-mixed) | Node.js service | 3,900 | 0.79 | 0.75 | -5% | 4% (3) | 148 MiB | 155 MiB | +5% |"
         in block
     )
     assert (
-        "| [cache-aside](#cache-aside) | Redis | 5,200 | 0.19 | 0.22 | +20% | 14% (5) | 18 MiB | "
-        "29 MiB | +61% |" in block
+        "| [cache-aside](#cache-aside) | Redis | 5,650 | 0.19 | 0.23 | +23% | 15% (5) | 11 MiB | "
+        "31 MiB | +188% |" in block
     )
     # memory is shown only where it was measured, never a prediction alone
     assert (
-        "| [kafka](#kafka) | Node.js consumer | 2,525 | 0.30 | not modelled | - | - | 220 MiB | - | - |"
+        "| [kafka](#kafka) | Node.js consumer | 2,088 | 0.30 | not modelled | - | - | 182 MiB | - | - |"
         in block
     )
 
@@ -809,41 +809,33 @@ DATABASE_INPUTS = {
 
 
 def test_split_inputs_reproduce_every_latest_calibration() -> None:
-    # the latest runs were calibrated under protocol v6 by today's code, one function per part and
-    # then anchored: the very inputs each one used, but for cache-aside's, whose first replicate
-    # saw no mark-compact, so median_inputs dropped gcEveryRequests (fixed after the campaign).
-    # W27: with a quiet contention check of the machine, the CPU-time inputs are at full speed
-    # and the design gains its host machine.
+    # the latest runs (the held-out campaign and the repeat of 4 Nov 2026) were calibrated under
+    # protocol v6 by today's code, one function per part and then anchored: the very inputs each
+    # one used. W27: with a quiet contention check of the machine, the CPU-time inputs are at
+    # full speed and the design gains its host machine.
     anew = {"host", "clientLinkLatencyMs", "anchor", *run.MACHINE_SCALED}
     skip = anew if run.machine_fit() is not None else set()
     for exp in report.ORDER:
         cal = json.loads((run.RESULTS / exp / "calibration.json").read_text(encoding="utf-8"))
         assert cal["protocol"] == "v6", exp
         again = run.rederive_inputs(run.EXPERIMENTS[exp], cal)
-        if exp == "cache-aside":
-            assert "gcEveryRequests" not in cal["inputs"]
-            every = again.pop("gcEveryRequests")
-            assert every["value"] == 32510
-            assert every["how"].startswith("the median of the 2 of 3 replicates with it (third)")
-            # the service time's spread anchored at the top pass (anchor_spread, after the
-            # campaign): narrowed from the own time's 11x, its mean still a replicate's CPU per
-            # request, and the client latency anchored again on top of it
-            st = again.pop("serviceTimeMs")
-            assert st["value"]["p95"] / st["value"]["median"] < 7
-            assert "; spread anchored: p95/median " in st["how"]
-            means = [run.mean_ms(r["serviceTimeMs"]["value"]) for r in cal["inputReplicates"]]
-            assert min(abs(run.mean_ms(st["value"]) / m - 1) for m in means) < 0.002
-            for k in ("serviceTimeMs", "clientLinkLatencyMs", "anchor"):
-                cal["inputs"].pop(k)
-                again.pop(k, None)
-        if exp == "pg-mixed":  # the same value, its replicate named right (it said "second")
-            every = again.pop("gcEveryRequests")
-            assert every["value"] == cal["inputs"].pop("gcEveryRequests")["value"] == 31550
-            assert every["how"].startswith("the median of the 2 of 3 replicates with it (third)")
         assert {k: v for k, v in again.items() if k not in skip} == {
             k: v for k, v in cal["inputs"].items() if k not in skip
         }, exp
         assert {"dbLinkLatencyMs", "dbCpuShare"} <= set(again), exp
+    # since W29 the service time's spread is anchored at the top pass: narrowed from the own
+    # time's, its mean still a replicate's CPU per request
+    cal = json.loads((run.RESULTS / "cache-aside" / "calibration.json").read_text(encoding="utf-8"))
+    st = cal["inputs"]["serviceTimeMs"]
+    assert st["value"]["p95"] / st["value"]["median"] < 7
+    assert "; spread anchored: p95/median " in st["how"]
+    means = [run.mean_ms(r["serviceTimeMs"]["value"]) for r in cal["inputReplicates"]]
+    assert min(abs(run.mean_ms(st["value"]) / m - 1) for m in means) < 0.002
+    # the GC inputs are the median of the replicates that saw a mark-compact
+    cal = json.loads((run.RESULTS / "pg-mixed" / "calibration.json").read_text(encoding="utf-8"))
+    every = cal["inputs"]["gcEveryRequests"]
+    assert every["value"] == 48930
+    assert every["how"].startswith("the median of the 2 of 3 replicates with it (third)")
 
 
 def test_database_inputs_keep_the_measured_round_trip() -> None:
@@ -995,7 +987,7 @@ def test_dev_checks_reproduce_the_committed_predictions() -> None:
     # engine 0.14.0 against every kept run: the protocols since v3 derive the same inputs
     # today, and then simulate exactly what their predictions said, step by step
     checks = report.dev_checks()["0.14.0"]
-    assert sorted(checks) == sorted(report.ORDER)
+    assert sorted(checks) == sorted(report.TUNED_ON)  # never the held-out experiments
     rows = [c for runs in checks.values() for c in runs.values()]
     assert len(rows) == 26  # 28 kept runs less the two calibrated from one pass
     # every run under protocol v5 too: its replicate sets derived again, and their medians
@@ -1358,30 +1350,56 @@ def test_criteria_on_the_committed_results() -> None:
         c = report.load(exp, "comparison")
         assert c is not None
         got[exp] = report.criteria(c, hist[exp])
-    assert got["pg-mixed"]["p95"]["misses"] == [3788]  # 2.03 ms predicted, 30.7 measured
-    assert got["pg-hot-row"]["p95"]["misses"] == [850, 935]
-    assert got["cache-aside"]["p95"]["misses"] == [2600, 3900, 4680, 5200, 5720, 6500]
-    assert got["kafka"]["p95"]["misses"] == [1894, 2272, 2778]
-    assert got["pg-hot-row"]["stable"]["unstable"] == [935]
-    # the v6 campaign (1-2 Nov 2026): three counted runs each under v6 and engine 0.16.0
+    assert {exp: k["p95"]["misses"] for exp, k in got.items()} == {
+        "java-mixed": [],
+        "go-mixed": [],
+        "python-mixed": [440],  # 6.1 ms predicted, 2.3 measured
+        "chain": [3338],
+        "cache-ttl": [],
+        "pg-mixed": [3900],
+        "pg-hot-row": [856, 942],
+        "cache-aside": [5650, 6215],
+        "kafka": [1566, 1879, 2297],
+    }
+    assert got["pg-hot-row"]["stable"]["unstable"] == [942]
+    # the held-out campaign (3-4 Nov 2026): three runs each under v6 and the frozen engine
+    # 0.16.0; the four tuned-on experiments add a repeat of 4 Nov to the v6 campaign's three, in
+    # which hot-row's and Kafka's first runs were disturbed
     assert {exp: (k["knee"]["runs"], k["knee"]["disturbedRuns"]) for exp, k in got.items()} == {
-        exp: (3, 0) for exp in report.ORDER
+        **dict.fromkeys(report.HELD_OUT, (3, 0)),
+        "pg-mixed": (6, 0),
+        "pg-hot-row": (5, 1),
+        "cache-aside": (6, 0),
+        "kafka": (5, 1),
     }
     assert {exp: k["knee"]["error"] for exp, k in got.items()} == pytest.approx(
-        {"pg-mixed": 0.1125, "pg-hot-row": -0.0955, "cache-aside": -0.2481, "kafka": -0.0303},
+        {
+            "java-mixed": 0.7002,
+            "go-mixed": 0.6666,
+            "python-mixed": 0.2910,
+            "chain": 0.3039,
+            "cache-ttl": -0.0582,
+            "pg-mixed": 0.1591,
+            "pg-hot-row": -0.0953,
+            "cache-aside": -0.2253,
+            "kafka": -0.0303,
+        },
         abs=1e-4,
     )
-    assert [exp for exp, k in got.items() if k["knee"]["pass"]] == report.ORDER
-    # criterion 2, a factor of two either way: none. pg-mixed (3,788) and Kafka (1,894, 2,272)
-    # now fail at steps predicted too low, which the one-sided rule before ADR 0018 let pass.
-    # 3a: cache-aside and Kafka (pg-mixed and hot-row had an unstable step at or below the knee
-    # in two of three runs)
-    assert [e for e, k in got.items() if k["p95"]["pass"]] == []
-    assert [e for e, k in got.items() if k["stable"]["pass"]] == ["cache-aside", "kafka"]
+    assert [exp for exp, k in got.items() if k["knee"]["pass"]] == ["cache-ttl", *report.TUNED_ON]
+    # criterion 2, a factor of two either way: java-mixed and go-mixed pass on the two light
+    # steps below their early knees, cache-ttl on all five. 3a: all but pg-mixed and hot-row
+    assert [e for e, k in got.items() if k["p95"]["pass"]] == [
+        "java-mixed",
+        "go-mixed",
+        "cache-ttl",
+    ]
+    assert [e for e, k in got.items() if not k["stable"]["pass"]] == ["pg-mixed", "pg-hot-row"]
     assert not any(k["all"] for k in got.values())
     # every run under v6 was on the same laptop: a second machine is needed
     assert {exp: k["reproduced"]["runs"] for exp, k in got.items()} == {
-        exp: 3 for exp in report.ORDER
+        **dict.fromkeys(report.HELD_OUT, 3),
+        **dict.fromkeys(report.TUNED_ON, 6),
     }
     assert all(k["reproduced"]["machines"] == 1 for k in got.values())
     assert not any(k["reproduced"]["pass"] for k in got.values())
@@ -1404,12 +1422,14 @@ def test_validation_page_is_generated_from_the_committed_results() -> None:
 
 def test_experiment_block_names_the_real_calibration_rates(tmp_path: Path) -> None:
     block = report.experiment_block("pg-mixed")
-    assert "calibration passes at 50, 743, 2,373 and 3,155 req/s" in block
-    assert "Measured in the calibration pass at 3,155 req/s" in block
+    assert "calibration passes at 50, 793, 2,610 and 3,262 req/s" in block
+    assert "Measured in the calibration pass at 3,262 req/s" in block
     assert "(50 req/s):" not in block and "Measured at 50 req/s" not in block
-    assert "calibration pass at 1,015 req/s" in report.experiment_block("kafka")
+    # Kafka's latest staircase stopped at its second pass: half the consumers' capacity that
+    # pass implied was below the next step (run.next_rise)
+    assert "calibration passes at 50 and 406 req/s" in report.experiment_block("kafka")
     # the load curve, an input since engine 0.15.0 (W21)
-    curve = "x4.21 at 50, x1.39 at 743, x1.05 at 2,373, x1.00 at 3,155 req/s"
+    curve = "x4.03 at 50, x1.31 at 793, x1.04 at 2,610, x1.00 at 3,262 req/s"
     assert f"| `serviceTimeByLoad` | {curve} |" in block
     # an older run under v4 (pg-mixed's run 5) still names its two passes
     shutil.copytree(run.RESULTS / "pg-mixed" / "run-5", tmp_path / "pg-mixed")
@@ -1443,9 +1463,10 @@ def test_environment_block_shows_each_stacks_pinning() -> None:
     older = envs["pg-mixed"] | {"os": "Windows-11-10.0.26200-SP0", "powerMode": None}
     two = report.environment_block(envs | {"pg-mixed": older})
     assert "- CPU for pg-mixed: 11th Gen Intel(R) Core(TM) i7-1165G7" in two
-    assert (
-        "- CPU for pg-hot-row, cache-aside and kafka: 11th Gen Intel(R) Core(TM) i7-1165G7" in two
+    others = (
+        "java-mixed, go-mixed, python-mixed, chain, cache-ttl, pg-hot-row, cache-aside and kafka"
     )
+    assert f"- CPU for {others}: 11th Gen Intel(R) Core(TM) i7-1165G7" in two
     assert two.count("Windows-11-10.0.26300-SP0 (Best performance)") == 1
     # runs that predate recording the cpusets show the runner's defaults, and say so
     old = {k: v for k, v in envs["pg-mixed"].items() if k != "cpusets"}
@@ -1488,7 +1509,8 @@ def test_accuracy_json_agrees_with_the_validation_page() -> None:
     for x in data["experiments"]:
         k, b = x["knee"]["text"], x["p95BelowKnee"]
         row = (
-            f"| [{x['id']}](#{x['id']}) | {k['measured']} req/s | {k['predicted']} req/s | "
+            f"| [{x['id']}](#{x['id']}) | {report.SAMPLE_TEXT[x['sample']]} | "
+            f"{k['measured']} req/s | {k['predicted']} req/s | "
             f"{k['error']} | {b['text']['medianAbsError']} / {b['text']['maxAbsError']} "
             f"({b['steps']} steps) |"
         )
@@ -1515,57 +1537,73 @@ def test_accuracy_json_on_the_committed_results() -> None:
     data = report.accuracy()
     assert data is not None
     s = data["summary"]
-    assert s["kneeErrorRangeText"] == "-25% to +19%"
-    assert s["kneeWithinTolerance"] == report.ORDER
+    # the latest runs: the held-out ones of 3-4 Nov, the tuned-on ones of 4 Nov
+    assert s["kneeErrorRangeText"] == "-16% to +70%"
+    assert s["kneeWithinTolerance"] == ["cache-ttl", *report.TUNED_ON]
     assert s["validated"] == [] and not any(t["validated"] for t in s["technologies"])
-    # every protocol after v4 was designed with all four's results in view
-    assert s["inSample"] == report.ORDER
-    # three counted runs each under the same conditions; Kafka's spread counts only the runs
-    # after the healthcheck fix, so it stays below its error
+    # every protocol after v4 was designed with all four's results in view, and none with the
+    # held-out experiments'
+    assert s["inSample"] == report.TUNED_ON
+    assert s["heldOut"] == report.HELD_OUT
+    # three or more counted runs each under the same conditions; pg-mixed's first run of 4 Nov
+    # (2,875 req/s, against 4,371 and 4,483) widens its spread beyond its error
     assert s["withSpread"] == report.ORDER and s["repeated"] == report.ORDER
-    assert s["spreadExceedsError"] == []
-    assert s["runs"] == 40 and len(s["machines"]) == 1
-    # the 80% range (W28) held the measured knee in 11 of 12 runs
+    assert s["spreadExceedsError"] == ["pg-mixed"]
+    assert s["runs"] == 67 and len(s["machines"]) == 1
+    # the 80% range (W28) held the measured knee in 29 of 37 runs: 20 of 22 tuned on, 9 of 15
+    # held out, every held-out miss java-mixed's or go-mixed's
     assert s["coverage"] == {
-        "withRange": 12,
-        "inRange": 11,
-        "expectedInRange": 9.6,
+        "withRange": 37,
+        "inRange": 29,
+        "expectedInRange": 29.6,
         "nominalCoverage": 0.8,
         "verdict": "as claimed",
     }
-    # pg-mixed's two disturbed v5 runs and six older ones
-    assert s["disturbedRuns"] == 8
+    assert s["coverageHeldOut"] == {
+        "withRange": 15,
+        "inRange": 9,
+        "expectedInRange": 12.0,
+        "nominalCoverage": 0.8,
+        "verdict": "as claimed",
+    }
     by = {x["id"]: x for x in data["experiments"]}
+    assert [by[e]["repeatability"]["inRange"] for e in report.HELD_OUT] == [0, 0, 3, 3, 3]
+    # pg-mixed's two disturbed v5 runs, six older ones, and hot-row's and Kafka's first runs of
+    # 4 Nov
+    assert s["disturbedRuns"] == 10
     mixed = by["pg-mixed"]
     assert mixed["knee"]["text"] == {
-        "measured": "4,237",
-        "predicted": "5,055",
-        "error": "+19%",
-        "absError": "19%",
+        "measured": "4,483",
+        "predicted": "5,203",
+        "error": "+16%",
+        "absError": "16%",
     }
     # the measured knee's spread pools v5 and v6 (the protocol changes the calibration only)
-    assert mixed["spread"]["text"] == "3,783 to 4,495 req/s"
-    assert mixed["spread"]["plusMinusText"] == "±9%"
+    assert mixed["spread"]["text"] == "2,875 to 4,495 req/s"
+    assert mixed["spread"]["plusMinusText"] == "±22%"
     assert mixed["spread"]["disturbed"] == 2
     assert [v["run"] for v in mixed["spread"]["values"]] == [
-        "run-8/",
-        "run-9/",
-        "run-10/",
-        "run-11/",
-        "run-12/",
+        *(f"run-{n}/" for n in range(8, 16)),
         "latest",
     ]
-    assert [v["run"] for v in by["kafka"]["spread"]["values"]] == ["run-6/", "run-7/", "latest"]
-    assert by["pg-hot-row"]["runs"] == 11 and by["kafka"]["runs"] == 8
-    assert mixed["repeatability"]["runs"] == 3 and mixed["repeatability"]["disturbed"] == 0
-    # criterion 2 is symmetric (ADR 0018): pg-mixed's 3,788 req/s step, 15 times too low, misses
+    # Kafka's spread counts only the runs after the healthcheck fix, and not the disturbed one
+    assert [v["run"] for v in by["kafka"]["spread"]["values"]] == [
+        "run-6/",
+        "run-7/",
+        "run-8/",
+        "run-10/",
+        "latest",
+    ]
+    assert by["pg-hot-row"]["runs"] == 14 and by["kafka"]["runs"] == 11
+    assert mixed["repeatability"]["runs"] == 6 and mixed["repeatability"]["disturbed"] == 0
+    # criterion 2 is symmetric (ADR 0018): pg-mixed's 3,900 req/s step misses
     assert mixed["p95BelowKnee"]["within"] == 2 and mixed["p95BelowKnee"]["steps"] == 3
-    assert mixed["p95BelowKnee"]["worst"]["text"]["offered"] == "3,788"
-    assert by["kafka"]["p95BelowKnee"]["misses"] == [1894, 2272, 2778]
-    assert by["kafka"]["p95BelowKnee"]["worst"]["text"]["offered"] == "2,778"
+    assert mixed["p95BelowKnee"]["worst"]["text"]["offered"] == "3,900"
+    assert by["kafka"]["p95BelowKnee"]["misses"] == [1566, 1879, 2297]
+    assert by["kafka"]["p95BelowKnee"]["worst"]["text"]["offered"] == "2,297"
     assert data["thresholds"]["p95Factor"] == 2.0 and "p95Error" not in data["thresholds"]
-    assert data["summary"]["p95WithinTolerance"] == []
-    assert mixed["date"] == "2026-11-02" and mixed["engineVersion"] == "0.16.0"
+    assert data["summary"]["p95WithinTolerance"] == ["java-mixed", "go-mixed", "cache-ttl"]
+    assert mixed["date"] == "2026-11-04" and mixed["engineVersion"] == "0.16.0"
     assert mixed["environment"]["powerMode"] == "Best performance"
     assert mixed["environment"]["dockerCpus"] == 8
     assert mixed["environment"]["dockerMemoryGiB"] == 7.6

@@ -1,12 +1,12 @@
 {
   "experiment": "cache-aside",
-  "at": "2026-11-02T04:16:41Z",
+  "at": "2026-11-04T12:56:51Z",
   "engineVersion": "0.16.0",
   "reportVersion": "1.14",
   "provenance": {
-    "commit": "7e55fba11ccdf3b0b0282c2197dbcc75ff919ccc",
+    "commit": "d8e3006681af8ceed751d647fc337f72cb4ecbf9",
     "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
-    "harnessHash": "613ee690014f20c0f8b1355b03a5e86502467a99d3cd183c7515e5f2d47e816d",
+    "harnessHash": "ccb5ddb27b66f3e9fc4ccf8428f1b673f477f074f04026d21834c1fbceb1a73b",
     "dirty": false,
     "machineId": "i7-1165g7"
   },
@@ -15,86 +15,86 @@
     "minSuccess": 0.99
   },
   "knee": {
-    "kneeRps": 5200,
+    "kneeRps": 5650,
     "tried": [
       {
         "offeredRps": 100.0,
-        "p95": 3.3248,
+        "p95": 2.7275,
         "successRate": 1.0
       },
       {
         "offeredRps": 200.0,
-        "p95": 3.1331,
+        "p95": 2.3279,
         "successRate": 1.0
       },
       {
         "offeredRps": 400.0,
-        "p95": 2.8945,
+        "p95": 1.9097,
         "successRate": 1.0
       },
       {
         "offeredRps": 800.0,
-        "p95": 2.7821,
+        "p95": 1.5359,
         "successRate": 1.0
       },
       {
         "offeredRps": 1600.0,
-        "p95": 3.0716,
+        "p95": 1.3911,
         "successRate": 1.0
       },
       {
         "offeredRps": 3200.0,
-        "p95": 7.0563,
+        "p95": 1.5666,
         "successRate": 1.0
       },
       {
         "offeredRps": 6400.0,
         "p95": 1916.1322,
-        "successRate": 0.2497
+        "successRate": 0.5778
       },
       {
         "offeredRps": 4800,
-        "p95": 19.7599,
+        "p95": 3.3913,
         "successRate": 1.0
       },
       {
         "offeredRps": 5600,
-        "p95": 1395.7985,
+        "p95": 29.3622,
         "successRate": 1.0
       },
       {
-        "offeredRps": 5200,
-        "p95": 46.3013,
+        "offeredRps": 6000,
+        "p95": 1289.502,
         "successRate": 1.0
       },
       {
-        "offeredRps": 5400,
-        "p95": 433.9229,
+        "offeredRps": 5800,
+        "p95": 442.6014,
         "successRate": 1.0
       },
       {
-        "offeredRps": 5300,
-        "p95": 89.0018,
+        "offeredRps": 5700,
+        "p95": 92.5975,
         "successRate": 1.0
       },
       {
-        "offeredRps": 5250,
-        "p95": 61.0936,
+        "offeredRps": 5650,
+        "p95": 41.9365,
         "successRate": 1.0
       }
     ]
   },
   "kneeRange": {
     "method": "the knee's run-to-run variation from a fresh calibration (each input's variation between calibrations times how much the knee moves with it) and the model's own error (the spread of measured over predicted knees in the in-sample runs), as a lognormal around the predicted knee",
-    "lowRps": 3877,
-    "highRps": 6974,
-    "nominalRps": 5200,
+    "lowRps": 4238,
+    "highRps": 7533,
+    "nominalRps": 5650,
     "nominalCoverage": 0.8,
-    "sigma": 0.2291,
-    "calibrationSigma": 0.1736,
+    "sigma": 0.2244,
+    "calibrationSigma": 0.1674,
     "modelSigma": 0.1495,
     "sensitivity": {
-      "serviceTimeMs": -1.038,
+      "serviceTimeMs": -1.001,
       "readServiceTimeMs": 0.0,
       "dbCpuShare": 0.0,
       "dbLinkLatencyMs": 0.0,
@@ -111,25 +111,25 @@
   },
   "steps": [
     {
-      "offeredRps": 1300,
-      "p50": 0.4075,
-      "p95": 2.8945,
-      "p99": 8.7736,
-      "mean": 0.8623,
+      "offeredRps": 1412,
+      "p50": 0.3995,
+      "p95": 1.3911,
+      "p99": 2.5702,
+      "mean": 0.549,
       "successRate": 1.0,
-      "throughputRps": 1300.0,
-      "resultDigest": "b3f17312c67c96f1490b197528e496b279bce0d29c0d94b1ffc8e0e39bb633aa",
+      "throughputRps": 1412.0,
+      "resultDigest": "fc185975b790e205324a7a9d4917d6eef9ea1985f26c051a74eb1328d0195f6c",
       "resources": {
         "api": {
-          "cores": 0.3028,
-          "memoryMiB": 101.4
+          "cores": 0.3209,
+          "memoryMiB": 94.2
         },
         "cache": {
-          "cores": 0.0611,
-          "memoryMiB": 11.0
+          "cores": 0.0635,
+          "memoryMiB": 11.7
         },
         "db": {
-          "cores": 0.0936
+          "cores": 0.0898
         }
       },
       "database": {
@@ -137,28 +137,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.6891
+      "cacheHitRatio": 0.6966
     },
     {
-      "offeredRps": 2600,
-      "p50": 0.4411,
-      "p95": 4.6556,
-      "p99": 11.3496,
-      "mean": 1.1165,
+      "offeredRps": 2825,
+      "p50": 0.384,
+      "p95": 1.4473,
+      "p99": 2.6216,
+      "mean": 0.5496,
       "successRate": 1.0,
-      "throughputRps": 2600.05,
-      "resultDigest": "881218a7c646201a3227a9648ccd1e0def272f22211fac89a93feeef97a2c3f6",
+      "throughputRps": 2825.0,
+      "resultDigest": "5de7c03cb24ef6b67fcc70d0ee403ae970c4de5bf95bc26559c692f24277a650",
       "resources": {
         "api": {
-          "cores": 0.4775,
-          "memoryMiB": 112.6
+          "cores": 0.5117,
+          "memoryMiB": 113.7
         },
         "cache": {
-          "cores": 0.1164,
-          "memoryMiB": 18.3
+          "cores": 0.1211,
+          "memoryMiB": 19.4
         },
         "db": {
-          "cores": 0.152
+          "cores": 0.1462
         }
       },
       "database": {
@@ -166,28 +166,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.7477
+      "cacheHitRatio": 0.7533
     },
     {
-      "offeredRps": 3900,
-      "p50": 0.8313,
-      "p95": 10.9089,
-      "p99": 22.698,
-      "mean": 2.4886,
+      "offeredRps": 4238,
+      "p50": 0.5377,
+      "p95": 2.3745,
+      "p99": 3.9735,
+      "mean": 0.7977,
       "successRate": 1.0,
-      "throughputRps": 3899.65,
-      "resultDigest": "ff98f875fd5627630a248f8387db3bd5e36e7555a950bfff320b30581389b82a",
+      "throughputRps": 4238.3,
+      "resultDigest": "f5e9114c38bd06a45c1f719a0d9662dbbf7f0a973325c56709d5fe73a5209617",
       "resources": {
         "api": {
-          "cores": 0.6992,
-          "memoryMiB": 126.0
+          "cores": 0.7405,
+          "memoryMiB": 133.1
         },
         "cache": {
-          "cores": 0.1704,
-          "memoryMiB": 24.2
+          "cores": 0.1775,
+          "memoryMiB": 25.6
         },
         "db": {
-          "cores": 0.1994
+          "cores": 0.1906
         }
       },
       "database": {
@@ -195,28 +195,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.7794
+      "cacheHitRatio": 0.786
     },
     {
-      "offeredRps": 4680,
-      "p50": 2.3745,
-      "p95": 17.8972,
-      "p99": 29.9495,
-      "mean": 4.8931,
+      "offeredRps": 5085,
+      "p50": 0.9935,
+      "p95": 4.301,
+      "p99": 6.9179,
+      "mean": 1.4859,
       "successRate": 1.0,
-      "throughputRps": 4679.0,
-      "resultDigest": "b90ad5d8226ce97a78e8911b63624ad0882d5261fba26a1416082ec2c7865ded",
+      "throughputRps": 5085.85,
+      "resultDigest": "f652dbc1c3eb28245943a80e00afc288819f16c7e770ed4bfa8c984ff04c1ef2",
       "resources": {
         "api": {
-          "cores": 0.8417,
-          "memoryMiB": 135.2
+          "cores": 0.8894,
+          "memoryMiB": 145.4
         },
         "cache": {
-          "cores": 0.2026,
-          "memoryMiB": 27.3
+          "cores": 0.2106,
+          "memoryMiB": 28.8
         },
         "db": {
-          "cores": 0.2236
+          "cores": 0.2114
         }
       },
       "database": {
@@ -224,28 +224,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.7942
+      "cacheHitRatio": 0.8016
     },
     {
-      "offeredRps": 5200,
-      "p50": 15.2751,
-      "p95": 46.3013,
+      "offeredRps": 5650,
+      "p50": 9.3106,
+      "p95": 41.9365,
       "p99": 55.3343,
-      "mean": 18.2844,
+      "mean": 13.876,
       "successRate": 1.0,
-      "throughputRps": 5192.2,
-      "resultDigest": "b04e8a0011011146268fee76916376b39108f5e00de0e4d0f88540e9d4898e2b",
+      "throughputRps": 5635.1,
+      "resultDigest": "573191b1b0fa748a75652857106f95b31d0a5b0258b31301f2d928980636cb3e",
       "resources": {
         "api": {
-          "cores": 0.9381,
-          "memoryMiB": 140.3
+          "cores": 0.9903,
+          "memoryMiB": 157.7
         },
         "cache": {
-          "cores": 0.223,
-          "memoryMiB": 29.2
+          "cores": 0.2314,
+          "memoryMiB": 30.8
         },
         "db": {
-          "cores": 0.2354
+          "cores": 0.2234
         }
       },
       "database": {
@@ -253,28 +253,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.8036
+      "cacheHitRatio": 0.8103
     },
     {
-      "offeredRps": 5720,
-      "p50": 1122.5891,
-      "p95": 1841.7265,
-      "p99": 1916.1322,
-      "mean": 1112.9765,
-      "successRate": 0.9629,
-      "throughputRps": 5305.65,
-      "resultDigest": "69e803c102c2cf6a3da7683b55d744d25e87101d97b0579ed453194afbbbd168",
+      "offeredRps": 6215,
+      "p50": 1191.3006,
+      "p95": 1916.1322,
+      "p99": 1993.544,
+      "mean": 1199.8718,
+      "successRate": 0.8565,
+      "throughputRps": 5452.55,
+      "resultDigest": "73b4444b65b300c5007ae23dadde5a3e5f33dac9bc7f80768f68ec2c60127d53",
       "resources": {
         "api": {
-          "cores": 0.9613,
-          "memoryMiB": 245.8
+          "cores": 1.0,
+          "memoryMiB": 285.7
         },
         "cache": {
-          "cores": 0.2277,
-          "memoryMiB": 31.0
+          "cores": 0.2337,
+          "memoryMiB": 32.8
         },
         "db": {
-          "cores": 0.2388
+          "cores": 0.2248
         }
       },
       "database": {
@@ -282,28 +282,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.8051
+      "cacheHitRatio": 0.811
     },
     {
-      "offeredRps": 6500,
-      "p50": 1571.8958,
+      "offeredRps": 7062,
+      "p50": 1603.3337,
       "p95": 1954.4549,
       "p99": 1993.544,
-      "mean": 1564.9018,
-      "successRate": 0.2079,
-      "throughputRps": 1657.15,
-      "resultDigest": "cbd06e53a5b58802a7db00d08ef95018755529cd89b98633b7fc027b65c942be",
+      "mean": 1595.1255,
+      "successRate": 0.1737,
+      "throughputRps": 1567.85,
+      "resultDigest": "9abcabe5de8887ff761640c4917b872ed43a70f7ecbf6b0614f1204fee2aec2c",
       "resources": {
         "api": {
-          "cores": 0.9613,
-          "memoryMiB": 439.3
+          "cores": 1.0,
+          "memoryMiB": 497.7
         },
         "cache": {
-          "cores": 0.2277,
-          "memoryMiB": 31.3
+          "cores": 0.2337,
+          "memoryMiB": 32.8
         },
         "db": {
-          "cores": 0.2388
+          "cores": 0.2248
         }
       },
       "database": {
@@ -311,28 +311,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.8051
+      "cacheHitRatio": 0.811
     },
     {
-      "offeredRps": 7800,
+      "offeredRps": 8475,
       "p50": null,
       "p95": null,
       "p99": null,
       "mean": null,
       "successRate": 0.0,
-      "throughputRps": 337.5,
-      "resultDigest": "6a3abcf1e75705cbb737677bda02ae3f8bc8a790c3e6d8911d959a9dc052f159",
+      "throughputRps": 332.25,
+      "resultDigest": "7eed67a1b592b6047378aa06183661b3710f26209c46a4da67afdf2dd164167f",
       "resources": {
         "api": {
-          "cores": 0.9613,
-          "memoryMiB": 764.9
+          "cores": 1.0,
+          "memoryMiB": 850.9
         },
         "cache": {
-          "cores": 0.2277,
-          "memoryMiB": 31.4
+          "cores": 0.2337,
+          "memoryMiB": 32.9
         },
         "db": {
-          "cores": 0.2388
+          "cores": 0.2248
         }
       },
       "database": {
@@ -340,7 +340,7 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.8051
+      "cacheHitRatio": 0.811
     }
   ],
   "design": {
@@ -373,33 +373,33 @@
             "queueTimeoutMs": null,
             "serviceTimeMs": {
               "kind": "lognormal",
-              "median": 0.0629,
-              "p95": 0.6912
+              "median": 0.1036,
+              "p95": 0.5604
             },
-            "gcPauseMs": 9.7368,
+            "gcPauseMs": 0,
             "serviceTimeByLoad": [
               {
                 "rps": 50.0,
-                "factor": 5.0621
+                "factor": 5.2104
               },
               {
-                "rps": 634.0,
-                "factor": 1.7097
+                "rps": 651.0,
+                "factor": 1.7372
               },
               {
-                "rps": 1964.0,
-                "factor": 1.0472
+                "rps": 2052.0,
+                "factor": 1.0929
               },
               {
-                "rps": 3251.0,
+                "rps": 3470.0,
                 "factor": 1.0
               }
             ],
             "warmupFactor": 1,
             "cpuCores": 1,
             "memoryGib": 1024,
-            "memoryBaselineMb": 89.424,
-            "memoryPerRpsMb": 0.008624,
+            "memoryBaselineMb": 75.177,
+            "memoryPerRpsMb": 0.013554,
             "memoryPerRequestMb": 0.01
           }
         },
@@ -414,7 +414,7 @@
             "populateOnMiss": true,
             "serviceTimeMs": {
               "kind": "exponential",
-              "mean": 0.03587
+              "mean": 0.03452
             },
             "queueCapacity": 100000,
             "cpuCores": 1,
@@ -432,11 +432,11 @@
             "queueCapacity": 100000,
             "queueTimeoutMs": null,
             "cpuCores": 2,
-            "cpuShare": 0.9999,
+            "cpuShare": 1.0,
             "readServiceTimeMs": {
               "kind": "lognormal",
-              "median": 0.1806,
-              "p95": 0.5743
+              "median": 0.1621,
+              "p95": 0.5274
             }
           }
         }
@@ -471,7 +471,7 @@
             ],
             "latencyMs": {
               "kind": "constant",
-              "value": 0.0564
+              "value": 0.0536
             }
           }
         },
@@ -487,8 +487,8 @@
             ],
             "latencyMs": {
               "kind": "lognormal",
-              "median": 0.0368,
-              "p95": 0.3206
+              "median": 0.0346,
+              "p95": 0.3047
             }
           }
         }
@@ -496,7 +496,7 @@
       "autoSize": false
     },
     "workload": {
-      "rps": 5200,
+      "rps": 5650,
       "durationS": 25,
       "warmupS": 5,
       "readRatio": 1.0,

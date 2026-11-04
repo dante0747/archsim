@@ -1,0 +1,528 @@
+{
+  "experiment": "chain",
+  "at": "2026-11-03T23:35:01Z",
+  "engineVersion": "0.16.0",
+  "reportVersion": "1.14",
+  "provenance": {
+    "commit": "d8e3006681af8ceed751d647fc337f72cb4ecbf9",
+    "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
+    "harnessHash": "ccb5ddb27b66f3e9fc4ccf8428f1b673f477f074f04026d21834c1fbceb1a73b",
+    "dirty": false,
+    "machineId": "i7-1165g7"
+  },
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "knee": {
+    "kneeRps": 4350,
+    "tried": [
+      {
+        "offeredRps": 100.0,
+        "p95": 2.9524,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 200.0,
+        "p95": 2.7275,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 400.0,
+        "p95": 2.5702,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": 2.3745,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1600.0,
+        "p95": 2.3745,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 3200.0,
+        "p95": 2.5702,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 6400.0,
+        "p95": null,
+        "successRate": 0.0
+      },
+      {
+        "offeredRps": 4800,
+        "p95": 1916.1322,
+        "successRate": 0.7172
+      },
+      {
+        "offeredRps": 4000,
+        "p95": 3.2596,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 4400,
+        "p95": 286.2918,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 4200,
+        "p95": 5.1401,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 4300,
+        "p95": 10.695,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 4350,
+        "p95": 36.5083,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 4375,
+        "p95": 148.9372,
+        "successRate": 1.0
+      }
+    ]
+  },
+  "kneeRange": {
+    "method": "the knee's run-to-run variation from a fresh calibration (each input's variation between calibrations times how much the knee moves with it) and the model's own error (the spread of measured over predicted knees in the in-sample runs), as a lognormal around the predicted knee",
+    "lowRps": 3264,
+    "highRps": 5798,
+    "nominalRps": 4350,
+    "nominalCoverage": 0.8,
+    "sigma": 0.2242,
+    "calibrationSigma": 0.167,
+    "modelSigma": 0.1495,
+    "sensitivity": {
+      "serviceTimeMs": -0.999,
+      "apiServiceTimeMs": 0.0,
+      "apiLinkLatencyMs": 0.0,
+      "readServiceTimeMs": 0.0,
+      "writeServiceTimeMs": 0.0,
+      "commitFlushMs": 0.0,
+      "dbCpuShare": 0.0,
+      "dbLinkLatencyMs": 0.0
+    },
+    "fit": {
+      "at": "2026-11-01T15:31:14Z",
+      "engineVersion": "0.16.0",
+      "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
+      "runs": 12,
+      "experiments": 4
+    }
+  },
+  "steps": [
+    {
+      "offeredRps": 1088,
+      "p50": 1.1412,
+      "p95": 2.3745,
+      "p99": 3.0716,
+      "mean": 1.289,
+      "successRate": 1.0,
+      "throughputRps": 1088.0,
+      "resultDigest": "d809b75e5a676b904340f1f288999cf2d3346fbe26c5e8f788b1cd5c4b2e8a76",
+      "resources": {
+        "gateway": {
+          "cores": 0.3147,
+          "memoryMiB": 74.8
+        },
+        "api": {
+          "cores": 0.2005,
+          "memoryMiB": 58.4
+        },
+        "db": {
+          "cores": 0.2182
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.0,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1237
+      }
+    },
+    {
+      "offeredRps": 2175,
+      "p50": 1.1188,
+      "p95": 2.422,
+      "p99": 3.1957,
+      "mean": 1.2698,
+      "successRate": 1.0,
+      "throughputRps": 2174.95,
+      "resultDigest": "7339b13fbd8d2d541ad22dd42814943928376e6fbce902bf9d3e48eb3eeb163e",
+      "resources": {
+        "gateway": {
+          "cores": 0.5212,
+          "memoryMiB": 103.4
+        },
+        "api": {
+          "cores": 0.3998,
+          "memoryMiB": 80.9
+        },
+        "db": {
+          "cores": 0.4344
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.015,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1872
+      }
+    },
+    {
+      "offeredRps": 3262,
+      "p50": 1.1873,
+      "p95": 2.5702,
+      "p99": 3.5989,
+      "mean": 1.3807,
+      "successRate": 1.0,
+      "throughputRps": 3261.95,
+      "resultDigest": "8040d63c5b35b75f142c24a3da814bfd62c0732260911aed2a0f1a74c33cbb79",
+      "resources": {
+        "gateway": {
+          "cores": 0.7484,
+          "memoryMiB": 133.1
+        },
+        "api": {
+          "cores": 0.5998,
+          "memoryMiB": 104.4
+        },
+        "db": {
+          "cores": 0.6562
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.046,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.2572
+      }
+    },
+    {
+      "offeredRps": 3915,
+      "p50": 1.4473,
+      "p95": 3.0716,
+      "p99": 4.301,
+      "mean": 1.6674,
+      "successRate": 1.0,
+      "throughputRps": 3914.9,
+      "resultDigest": "7121c557b84209be0b81628d25598883c45978d2a408505122f070ddfd8d2238",
+      "resources": {
+        "gateway": {
+          "cores": 0.8996,
+          "memoryMiB": 150.5
+        },
+        "api": {
+          "cores": 0.719,
+          "memoryMiB": 118.8
+        },
+        "db": {
+          "cores": 0.7838
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.075,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.2935
+      }
+    },
+    {
+      "offeredRps": 4350,
+      "p50": 15.8922,
+      "p95": 36.5083,
+      "p99": 38.7429,
+      "mean": 17.3126,
+      "successRate": 1.0,
+      "throughputRps": 4349.05,
+      "resultDigest": "10983ac3bbaf9d6de7738dbd8f1ebc6f7987234a41529c59e9ae97189a61cbc0",
+      "resources": {
+        "gateway": {
+          "cores": 0.9989,
+          "memoryMiB": 166.9
+        },
+        "api": {
+          "cores": 0.7994,
+          "memoryMiB": 130.0
+        },
+        "db": {
+          "cores": 0.8696
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.094,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3205
+      }
+    },
+    {
+      "offeredRps": 4785,
+      "p50": 1264.2177,
+      "p95": 1916.1322,
+      "p99": 1993.544,
+      "mean": 1255.9884,
+      "successRate": 0.7448,
+      "throughputRps": 3675.0,
+      "resultDigest": "9df6f0e3b7edc5dd6600442ec009fadd7ac60e690fd52c173adc193bea0225fb",
+      "resources": {
+        "gateway": {
+          "cores": 0.9992,
+          "memoryMiB": 273.4
+        },
+        "api": {
+          "cores": 0.7996,
+          "memoryMiB": 130.0
+        },
+        "db": {
+          "cores": 0.8698
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.092,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3205
+      }
+    },
+    {
+      "offeredRps": 5438,
+      "p50": 1635.4004,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1629.8,
+      "successRate": 0.1483,
+      "throughputRps": 1081.15,
+      "resultDigest": "040b725c6537f269f9f03fc3e5a887725584dcacf52b6febe42868edfed9d52e",
+      "resources": {
+        "gateway": {
+          "cores": 0.9992,
+          "memoryMiB": 437.2
+        },
+        "api": {
+          "cores": 0.7996,
+          "memoryMiB": 130.0
+        },
+        "db": {
+          "cores": 0.8698
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.092,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3205
+      }
+    },
+    {
+      "offeredRps": 6525,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 220.3,
+      "resultDigest": "3c3aeabed3ee5f03d1b73259984935889252028403917fc8b3ddfd14b79f89af",
+      "resources": {
+        "gateway": {
+          "cores": 0.9992,
+          "memoryMiB": 708.6
+        },
+        "api": {
+          "cores": 0.7996,
+          "memoryMiB": 130.0
+        },
+        "db": {
+          "cores": 0.8698
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.092,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.3205
+      }
+    }
+  ],
+  "design": {
+    "schemaVersion": "1.0",
+    "kind": "archsim.architecture",
+    "metadata": {
+      "name": "benchmark chain"
+    },
+    "architecture": {
+      "nodes": [
+        {
+          "id": "clients",
+          "type": "traffic_source",
+          "label": "k6",
+          "config": {
+            "timeoutMs": 2000,
+            "maxAttempts": 1
+          }
+        },
+        {
+          "id": "gateway",
+          "type": "service",
+          "label": "Node.js gateway",
+          "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 1,
+            "processesPerReplica": 1,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.2016,
+              "p95": 0.4676
+            },
+            "gcPauseMs": 9.0806,
+            "gcEveryRequests": 75299,
+            "serviceTimeByLoad": [
+              {
+                "rps": 50.0,
+                "factor": 4.0218
+              },
+              {
+                "rps": 721.0,
+                "factor": 1.3912
+              },
+              {
+                "rps": 1886.0,
+                "factor": 1.0805
+              },
+              {
+                "rps": 2513.0,
+                "factor": 1.0
+              }
+            ],
+            "warmupFactor": 1,
+            "cpuCores": 1,
+            "memoryGib": 1024,
+            "memoryBaselineMb": 45.322,
+            "memoryPerRpsMb": 0.026691,
+            "memoryPerRequestMb": 0.01
+          }
+        },
+        {
+          "id": "api",
+          "type": "service",
+          "label": "Node.js API",
+          "config": {
+            "technology": "nodejs",
+            "platform": "docker",
+            "replicas": 1,
+            "processesPerReplica": 1,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "serviceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.1612,
+              "p95": 0.3755
+            },
+            "gcPauseMs": 0,
+            "warmupFactor": 1,
+            "cpuCores": 1,
+            "memoryGib": 1024,
+            "memoryBaselineMb": 35.075,
+            "memoryPerRpsMb": 0.021225,
+            "memoryPerRequestMb": 0.01
+          }
+        },
+        {
+          "id": "db",
+          "type": "database",
+          "label": "PostgreSQL",
+          "config": {
+            "technology": "postgresql",
+            "maxConnections": 10,
+            "queueCapacity": 100000,
+            "queueTimeoutMs": null,
+            "cpuCores": 2,
+            "cpuShare": 1.0,
+            "readServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.1401,
+              "p95": 0.5562
+            },
+            "writeServiceTimeMs": {
+              "kind": "lognormal",
+              "median": 0.1298,
+              "p95": 0.6834
+            },
+            "commitFlushMs": {
+              "kind": "lognormal",
+              "median": 1.0585,
+              "p95": 1.5263
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e-clients",
+          "source": "clients",
+          "sourcePort": "out",
+          "target": "gateway",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.0
+            }
+          }
+        },
+        {
+          "id": "e-api",
+          "source": "gateway",
+          "sourcePort": "out",
+          "target": "api",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "constant",
+              "value": 0.1515
+            }
+          }
+        },
+        {
+          "id": "e-db",
+          "source": "api",
+          "sourcePort": "out",
+          "target": "db",
+          "targetPort": "in",
+          "config": {
+            "requestTypes": [
+              "read",
+              "write"
+            ],
+            "latencyMs": {
+              "kind": "lognormal",
+              "median": 0.0427,
+              "p95": 0.3612
+            }
+          }
+        }
+      ],
+      "autoSize": false
+    },
+    "workload": {
+      "rps": 4350,
+      "durationS": 25,
+      "warmupS": 5,
+      "readRatio": 0.9,
+      "keyCount": 100000,
+      "keySkew": 0.0,
+      "seed": 42,
+      "arrivalProcess": "deterministic"
+    },
+    "scenarios": []
+  }
+}

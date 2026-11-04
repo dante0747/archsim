@@ -197,7 +197,9 @@ def test_every_latest_calibration_gets_a_falling_curve() -> None:
         curve = run.service_time_by_load(cal["cpuByLoad"])
         assert curve is not None, exp
         assert curve["value"][-1] == {"rps": cal["staircaseRps"][-1], "factor": 1.0}
-        assert curve["value"][0]["factor"] > 1.4, exp  # 50 req/s costs more than the top rate
+        # 50 req/s costs more than the top rate: at least 1.3 times (Kafka's latest staircase
+        # stopped at 406 req/s, 1.30; the others reach 1,000 req/s or more)
+        assert curve["value"][0]["factor"] > 1.25, exp
 
 
 def test_a_design_with_the_curve_costs_more_at_low_load_and_the_same_at_the_top() -> None:
