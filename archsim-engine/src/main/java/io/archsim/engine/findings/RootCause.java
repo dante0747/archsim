@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 
+import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.report.NodeSummary;
 import io.archsim.engine.report.ReportNode;
 import io.archsim.model.component.cache.CacheSpec;
@@ -116,7 +117,7 @@ final class RootCause {
 		List<String> sentences = new ArrayList<>();
 		Map<String, Long> byLoad = new LinkedHashMap<>();
 		summary.rejected().forEach((reason, count) -> {
-			if (!"outage".equals(reason) && count != 0) {
+			if (!FailureReason.OUTAGE.is(reason) && count != 0) {
 				byLoad.put(reason, count);
 			}
 		});

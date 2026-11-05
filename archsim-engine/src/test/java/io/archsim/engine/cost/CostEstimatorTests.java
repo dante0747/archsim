@@ -8,12 +8,14 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.estimate.InstantEstimate;
 import io.archsim.engine.estimate.InstantEstimator;
+import io.archsim.engine.report.RunReport;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.engine.sizing.BaseBusy;
 import io.archsim.engine.sizing.PartSize;
@@ -26,6 +28,7 @@ import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.JsonDiff;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * The cost estimate in the cases the golden files do not reach: managed and per-request
@@ -35,11 +38,23 @@ import static org.assertj.core.api.Assertions.assertThat;
  * in {@code cases.json} (written by {@code scripts/export_cost_cases.py}) holds the
  * design, the design as simulated, and the cost and sizing summary the Python engine
  * 0.16.0 gives, worked out as its {@code analyze_document} does; the Java must match them
- * as the golden files do. {@code SizingSummariesTests} checks the summaries.
+ * as the golden files do. {@code SizingSummariesTests} checks the summaries. A cost after
+ * a run is checked with the report functions; here only what it refuses.
  */
 class CostEstimatorTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	private static final String DESIGN = """
+			{"schemaVersion": "1.7", "kind": "archsim.architecture", "metadata": {"name": "case"},
+			 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"}, {"id": "api", "type": "service"}],
+			                  "edges": [{"id": "clients-api", "source": "clients", "target": "api"}]},
+			 "workload": {"rps": 100}}""";
+
+	private static final String REPORT_WITHOUT_PARTS = """
+			{"summary": {"latencyMs": {}, "failureBreakdown": []}, "nodes": [], "findings": [],
+			 "provenance": {"resultDigest": "f"}, "timeseries": {"bucketS": 1.0},
+			 "window": {"warmupS": 0.0, "durationS": 10.0, "measuredS": 10.0}}""";
 
 	private final CostEstimator costs = new CostEstimator(StandardComponents.registry(), PriceSnapshots.shipped());
 
@@ -57,6 +72,16 @@ class CostEstimatorTests {
 
 			assertThat(JsonDiff.differences(entry.path("cost"), RecordCodec.write(cost))).isEmpty();
 		}));
+	}
+
+	@Test
+	void estimateAfterRun_aReportWithoutParts_isRefused() {
+		ArchitectureDocument design = DesignDocuments.parse(JSON.readTree(DESIGN));
+		RunReport report = RunReport.read(JSON.readTree(REPORT_WITHOUT_PARTS));
+
+		assertThatIllegalArgumentException()
+			.isThrownBy(() -> this.costs.estimateAfterRun(design, Map.of(), Map.of(), report))
+			.withMessage("a run's report lists the parts of the design it ran");
 	}
 
 	/**

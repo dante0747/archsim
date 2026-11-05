@@ -10,6 +10,7 @@ import java.util.function.DoublePredicate;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.numeric.FloatSum;
+import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.report.NodeSummary;
 import io.archsim.engine.report.ReportNode;
 import io.archsim.model.component.service.Platform;
@@ -70,7 +71,7 @@ final class ServiceFindings {
 		NodeSummary summary = node.summary();
 		long cold = summary.counter("coldStarts");
 		long coldTotal = Objects.requireNonNullElse(summary.coldStartsTotal(), cold);
-		long throttled = summary.rejectedFor("throttled");
+		long throttled = summary.rejectedFor(FailureReason.THROTTLED.json());
 		long arrivals = Objects.requireNonNullElse(summary.arrivals(), 0L);
 		double share = (arrivals != 0) ? (double) cold / arrivals : 0.0;
 		String peak = FindingText.countOrNone(summary.replicasPeak());

@@ -3,7 +3,6 @@ package io.archsim.engine.cost;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.text.NumberText;
-import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.kubernetes.KubernetesClusterSpec;
 import io.archsim.model.pricing.PriceSnapshot;
 import io.archsim.model.pricing.Sku;
@@ -24,12 +23,11 @@ final class QuoteLines {
 	 * A part's line.
 	 * @param part the part
 	 * @param quote its price per instance-hour
-	 * @param context the snapshot, the component types and the part's CPU at the base
-	 * load
+	 * @param count its billable instances
+	 * @param context the snapshot and the part's CPU at the base load
 	 * @return the line
 	 */
-	static CostLine of(CostPart part, Quote quote, Context context) {
-		InstanceCount count = Instances.of(part, context.registry());
+	static CostLine of(CostPart part, Quote quote, InstanceCount count, Context context) {
 		Credits credits = (quote.basis() == PriceBasis.SNAPSHOT)
 				? Credits.of(sku(context.snapshot(), quote.sku()), context.baseBusy(), count.count()) : null;
 		String note = note(part, quote, credits, context.snapshot());
@@ -117,11 +115,10 @@ final class QuoteLines {
 	 * What a line is priced with.
 	 *
 	 * @param snapshot the price snapshot
-	 * @param registry the component types
 	 * @param baseBusy the CPU cores one instance keeps busy at the base load;
 	 * {@code null} when unknown
 	 */
-	record Context(PriceSnapshot snapshot, ComponentRegistry registry, @Nullable Double baseBusy) {
+	record Context(PriceSnapshot snapshot, @Nullable Double baseBusy) {
 	}
 
 }

@@ -12,6 +12,11 @@ import io.archsim.model.pricing.PriceSource;
 /** The cost estimate's notes: how it was priced and what it leaves out, in order. */
 final class CostNotes {
 
+	private static final String MEASURED = "each part's rate measured while the run's offered load was at the base, "
+			+ "scaled to it exactly, so fan-out, cache misses and retries are kept";
+
+	private static final String ESTIMATED = "the static load estimate at that rate (run a simulation to measure it)";
+
 	private CostNotes() {
 	}
 
@@ -19,7 +24,8 @@ final class CostNotes {
 	 * Adds the notes, after any note on the snapshot itself.
 	 * @param notes the notes so far
 	 * @param flags what the pricing found
-	 * @param context the snapshot, purchase option, base load and per-request lines
+	 * @param context the snapshot, purchase option, base load, whether any cost is per
+	 * request, and how each part's rate at the base load was found
 	 */
 	static void add(List<String> notes, CostFlags flags, Context context) {
 		PriceSnapshot snapshot = context.snapshot();
@@ -42,7 +48,7 @@ final class CostNotes {
 					+ "rate.");
 		}
 		if (context.perRequest()) {
-			notes.add(perRequest(context.baseRps()));
+			notes.add(perRequest(context.baseRps(), context.base()));
 		}
 		if (flags.snapshotPriced()) {
 			notes.add(CostEstimator.NOT_MODELLED);
@@ -58,11 +64,14 @@ final class CostNotes {
 				+ NumberText.plain(GenericRates.STORAGE_GIB_MONTH) + " per GiB-month of storage).";
 	}
 
-	private static String perRequest(double baseRps) {
+	private static String perRequest(double baseRps, BaseLoad base) {
+		String how = switch (base) {
+			case BaseLoad.Estimated _ -> ESTIMATED;
+			case BaseLoad.Measured _ -> MEASURED;
+		};
 		return "Per-request prices and cost per request are at the steady base load of " + HalfUp.fixed(baseRps, 1)
-				+ " req/s as if it lasted all " + CostEstimator.HOURS_PER_MONTH
-				+ " hours of a month: the static load estimate at that rate (run a simulation to measure it). "
-				+ "A burst's or ramp's peak is not billed all month.";
+				+ " req/s as if it lasted all " + CostEstimator.HOURS_PER_MONTH + " hours of a month: " + how
+				+ ". A burst's or ramp's peak is not billed all month.";
 	}
 
 	private static String prices(PriceSnapshot snapshot, String option) {
@@ -81,9 +90,11 @@ final class CostNotes {
 	 * @param snapshot the price snapshot
 	 * @param option the purchase option
 	 * @param baseRps the workload's steady base load
-	 * @param perRequest whether a line is priced per request and costs something
+	 * @param perRequest whether a line is priced per request and costs something, or the
+	 * cost per million requests is known
+	 * @param base each part's usage at the base load: estimated, or measured in a run
 	 */
-	record Context(PriceSnapshot snapshot, String option, double baseRps, boolean perRequest) {
+	record Context(PriceSnapshot snapshot, String option, double baseRps, boolean perRequest, BaseLoad base) {
 	}
 
 }

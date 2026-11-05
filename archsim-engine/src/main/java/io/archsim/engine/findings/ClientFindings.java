@@ -10,6 +10,7 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 
 import io.archsim.engine.report.FailureCause;
+import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.report.RunSummary;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.client.ClientConfig;
@@ -88,14 +89,14 @@ final class ClientFindings {
 	private static String cause(FailureCause top, RunContext run) {
 		String count = FindingText.count(top.count());
 		String where = (top.nodeLabel() != null && !top.nodeLabel().isEmpty()) ? top.nodeLabel() : "the system";
-		if ("client_timeout".equals(top.reason())) {
+		if (FailureReason.CLIENT_TIMEOUT.is(top.reason())) {
 			// the client group that gave up: groups can have different timeouts
 			double timeout = clientTimeout(top.nodeId(), run);
 			return (timeout != 0)
 					? count + " requests exceeded the " + FindingText.general(timeout) + " ms client timeout"
 					: count + " requests hit the client timeout";
 		}
-		if ("dependency_timeout".equals(top.reason())) {
+		if (FailureReason.DEPENDENCY_TIMEOUT.is(top.reason())) {
 			return count + " requests failed at " + where + ": it " + FindingText.orNone(top.reasonText()) + " (link "
 					+ FindingText.orNone(top.edgeId()) + ")";
 		}

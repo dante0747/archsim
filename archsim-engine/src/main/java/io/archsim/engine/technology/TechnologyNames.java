@@ -1,5 +1,6 @@
 package io.archsim.engine.technology;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -74,6 +75,18 @@ public final class TechnologyNames {
 				.findFirst())
 			.map(Preset::name)
 			.orElseGet(() -> capitalized(technology)));
+	}
+
+	/**
+	 * Parts' technologies, each by its name ({@code _named}).
+	 * @param technologies each part's technology and tier
+	 * @return the same, in order, each technology by its name
+	 */
+	public List<PartTechnology> named(List<PartTechnology> technologies) {
+		return technologies.stream()
+			.map((part) -> new PartTechnology(part.id(), part.label(), part.type(),
+					of(part.type(), part.technology()).orElse(part.technology()), part.tier()))
+			.toList();
 	}
 
 	/**

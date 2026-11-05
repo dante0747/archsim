@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import io.archsim.engine.numeric.PythonRound;
 import io.archsim.engine.report.FailureCause;
+import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.report.NodeSummary;
 import io.archsim.engine.report.ReportNode;
 import io.archsim.engine.report.RunReport;
@@ -106,7 +107,7 @@ final class DependencyFindings {
 		long reached = report.summary()
 			.failureBreakdown()
 			.stream()
-			.filter((cause) -> node.id().equals(cause.nodeId()) && "upstream_error".equals(cause.reason()))
+			.filter((cause) -> node.id().equals(cause.nodeId()) && FailureReason.UPSTREAM_ERROR.is(cause.reason()))
 			.mapToLong(FailureCause::count)
 			.sum();
 		String detail = FindingText.count(errors) + " of " + FindingText.count(arrivals) + " calls ("
@@ -137,8 +138,8 @@ final class DependencyFindings {
 		if (arrivals < DataFindings.MIN_SAMPLES) {
 			return Optional.empty();
 		}
-		long throttled = summary.rejectedFor("throttled") + summary.counter("throttled");
-		long limited = summary.rejectedFor("rate_limited") + summary.counter("rateLimited");
+		long throttled = summary.rejectedFor(FailureReason.THROTTLED.json()) + summary.counter("throttled");
+		long limited = summary.rejectedFor(FailureReason.RATE_LIMITED.json()) + summary.counter("rateLimited");
 		long count = throttled + limited;
 		double share = (double) count / arrivals;
 		if (share <= THROTTLED) {

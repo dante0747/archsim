@@ -10,6 +10,7 @@ import io.archsim.engine.load.BaseRate;
 import io.archsim.engine.load.ComponentFamily;
 import io.archsim.engine.load.LoadEstimator;
 import io.archsim.engine.numeric.FloatSum;
+import io.archsim.engine.report.RunReport;
 import io.archsim.model.catalog.ComponentFacts;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.external.ExternalApiSpec;
@@ -20,12 +21,14 @@ import io.archsim.model.pricing.PriceSnapshot;
 import io.archsim.model.pricing.PriceSnapshots;
 
 /**
- * A design's monthly cost before a run, from each part's price per instance-hour
- * ({@link Quotes}), managed and per-request parts at a price snapshot's rates
- * ({@link ManagedLines}), third-party APIs per call ({@link ExternalApiLine}), and
- * services on Kubernetes ({@link KubernetesLines}). Per-request costs are at the
- * workload's steady base load, from the static load estimate at that rate. These are
- * planning estimates, not quotes.
+ * A design's monthly cost, from each part's price per instance-hour ({@link Quotes}),
+ * managed and per-request parts at a price snapshot's rates ({@link ManagedLines}),
+ * third-party APIs per call ({@link ExternalApiLine}), and services on Kubernetes
+ * ({@link KubernetesLines}). Per-request costs are at the workload's steady base load:
+ * before a run, from the static load estimate at that rate; after one, from the rates the
+ * run measured at it ({@link MeasuredUsage}), with autoscaled parts at their average
+ * active instances and the cost per million successful requests. These are planning
+ * estimates, not quotes.
  */
 public final class CostEstimator {
 
@@ -71,7 +74,25 @@ public final class CostEstimator {
 	 */
 	public CostEstimate estimate(ArchitectureDocument document, Map<String, ProvenanceKind> provenance,
 			Map<String, Double> baseBusy, InstantEstimate estimate) {
-		return new Pricing(document, new Inputs(provenance, baseBusy, estimate)).estimate();
+		return new Pricing(document, new Inputs(provenance, baseBusy), BaseUsage.of(document, this.loads, estimate))
+			.estimate();
+	}
+
+	/**
+	 * The monthly cost of a design after a run of it.
+	 * @param document the design the run simulated: resolved and auto-sized
+	 * @param provenance the document's provenance kind by path: a price marked measured
+	 * or assumed is the user's, whatever its value
+	 * @param baseBusy the CPU cores one instance of each part keeps busy at the base
+	 * load, so a burstable type above its baseline is charged its surplus CPU credits
+	 * @param report the run's report
+	 * @return the cost
+	 * @throws IllegalArgumentException when the report lists no parts
+	 */
+	public CostEstimate estimateAfterRun(ArchitectureDocument document, Map<String, ProvenanceKind> provenance,
+			Map<String, Double> baseBusy, RunReport report) {
+		return new Pricing(document, new Inputs(provenance, baseBusy), MeasuredUsage.of(document, this.loads, report))
+			.estimate();
 	}
 
 	/**
@@ -89,14 +110,12 @@ public final class CostEstimator {
 	}
 
 	/**
-	 * What a design is priced with beyond the design itself.
+	 * What a design is priced with beyond the design and its base load.
 	 *
 	 * @param provenance the document's provenance kind by path
 	 * @param baseBusy the CPU cores one instance of each part keeps busy at the base load
-	 * @param estimate the design's instant estimate
 	 */
-	private record Inputs(Map<String, ProvenanceKind> provenance, Map<String, Double> baseBusy,
-			InstantEstimate estimate) {
+	private record Inputs(Map<String, ProvenanceKind> provenance, Map<String, Double> baseBusy) {
 	}
 
 	/** One design being priced: its lines, notes and flags change only in here. */
@@ -122,9 +141,9 @@ public final class CostEstimator {
 
 		private final List<String> clusterIds;
 
-		private final Map<String, Usage> usage;
+		private final BaseLoad base;
 
-		Pricing(ArchitectureDocument document, Inputs inputs) {
+		Pricing(ArchitectureDocument document, Inputs inputs, BaseLoad base) {
 			this.document = document;
 			this.baseBusy = inputs.baseBusy();
 			this.pricing = DesignPricing.of(document.pricing(), CostEstimator.this.prices);
@@ -134,7 +153,7 @@ public final class CostEstimator {
 			this.managed = new ManagedLines(this.snapshot,
 					new DynamoDbLine(this.snapshot, CostEstimator.this.registry));
 			this.clusterIds = KubernetesLines.clusterIds(document);
-			this.usage = BaseUsage.of(document, CostEstimator.this.loads, inputs.estimate());
+			this.base = base;
 		}
 
 		CostEstimate estimate() {
@@ -149,10 +168,11 @@ public final class CostEstimator {
 			}
 			this.lines.sort(CostEstimator::dearestFirst);
 			double monthly = FloatSum.of(this.lines.stream().mapToDouble(CostLine::monthly));
+			Double perMillion = this.base.perMillion(monthly);
 			CostNotes.add(this.notes, this.flags, new CostNotes.Context(this.snapshot, this.pricing.purchase().option(),
-					BaseRate.of(this.document.workload()), perRequest()));
-			return new CostEstimate(monthly, null, this.lines, this.notes, this.flags.priced(), "USD", HOURS_PER_MONTH,
-					this.pricing.rates(), this.pricing.toJson());
+					BaseRate.of(this.document.workload()), perRequest() || perMillion != null, this.base));
+			return new CostEstimate(monthly, perMillion, this.lines, this.notes, this.flags.priced(), "USD",
+					HOURS_PER_MONTH, this.pricing.rates(), this.pricing.toJson());
 		}
 
 		/**
@@ -172,7 +192,7 @@ public final class CostEstimator {
 				return;
 			}
 			if (this.quotes.origin(part) != PriceBasis.SET) {
-				Optional<CostLine> managedLine = this.managed.line(part, this.usage.get(part.id()),
+				Optional<CostLine> managedLine = this.managed.line(part, this.base.usage().get(part.id()),
 						this.document.workload().keyCount());
 				if (managedLine.isPresent()) {
 					addSnapshotPriced(managedLine.get());
@@ -188,7 +208,7 @@ public final class CostEstimator {
 		}
 
 		private void addCalls(CostPart part) {
-			CostLine line = ExternalApiLine.of(part, this.usage.get(part.id()));
+			CostLine line = ExternalApiLine.of(part, this.base.usage().get(part.id()));
 			this.flags.markCalls(line);
 			this.lines.add(line);
 		}
@@ -201,7 +221,7 @@ public final class CostEstimator {
 		 */
 		private void addImpliedPods(CostPart part, ImpliedPods pods) {
 			this.flags.markImpliedPods();
-			addSnapshotPriced(KubernetesLines.onPods(part, pods, Instances.of(part, CostEstimator.this.registry),
+			addSnapshotPriced(KubernetesLines.onPods(part, pods, this.base.instances(part, CostEstimator.this.registry),
 					this.snapshot.snapshotDate()));
 		}
 
@@ -218,8 +238,8 @@ public final class CostEstimator {
 		private void addQuote(CostPart part) {
 			Quote quote = this.quotes.quote(part);
 			this.flags.markQuote(quote, this.snapshot);
-			this.lines.add(QuoteLines.of(part, quote,
-					new QuoteLines.Context(this.snapshot, CostEstimator.this.registry, this.baseBusy.get(part.id()))));
+			this.lines.add(QuoteLines.of(part, quote, this.base.instances(part, CostEstimator.this.registry),
+					new QuoteLines.Context(this.snapshot, this.baseBusy.get(part.id()))));
 		}
 
 		private boolean perRequest() {

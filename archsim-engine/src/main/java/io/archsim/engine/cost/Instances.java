@@ -1,8 +1,15 @@
 package io.archsim.engine.cost;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.load.ComponentFamily;
+import io.archsim.engine.numeric.FloatSum;
+import io.archsim.engine.report.ReportNode;
+import io.archsim.engine.text.HalfUp;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.cache.CacheSpec;
 import io.archsim.model.component.database.DatabaseSpec;
@@ -12,11 +19,14 @@ import io.archsim.model.component.loadbalancer.LoadBalancerSpec;
 import io.archsim.model.component.queue.MessageQueueSpec;
 import io.archsim.model.component.service.ServiceSpec;
 
-/** The billable instances of each kind of part, before a run. */
+/** The billable instances of each kind of part, before a run or in one. */
 final class Instances {
 
 	/** A cluster that does not say has this many nodes. */
 	private static final double DEFAULT_CLUSTER_NODES = 3.0;
+
+	/** How far from one a run's scale may be and still leave its counts as they were. */
+	private static final double UNSCALED = 1e-9;
 
 	private Instances() {
 	}
@@ -40,6 +50,56 @@ final class Instances {
 			case CacheSpec.TYPE, LoadBalancerSpec.TYPE -> counted(atLeastOne(part.valueNumber("nodes")), "node");
 			default -> other(part);
 		};
+	}
+
+	/**
+	 * The billable instances of a part in a run: an autoscaled service's or cluster's
+	 * average active instances times the scale, at least its minimum; any other part's as
+	 * before a run.
+	 * @param part the part
+	 * @param registry the component types, for the part's family
+	 * @param measured the part in the run's report; {@code null} when the report does not
+	 * have it
+	 * @param scale the base load ÷ the run's offered load
+	 * @return its instances and how they were counted
+	 */
+	static InstanceCount of(CostPart part, ComponentRegistry registry, @Nullable ReportNode measured, double scale) {
+		if (measured != null) {
+			Optional<InstanceCount> averaged = switch (part.type()) {
+				case ServiceSpec.TYPE ->
+					averaged(measured.series("replicas"), part.valueNumber("replicas"), scale, "active instance");
+				case KubernetesClusterSpec.TYPE ->
+					averaged(measured.series("nodes"), part.valueNumber("minNodes"), scale, "node");
+				default -> Optional.empty();
+			};
+			if (averaged.isPresent()) {
+				return averaged.get();
+			}
+		}
+		return of(part, registry);
+	}
+
+	/**
+	 * A part's average active instances in a run, scaled to the base load.
+	 * @param series its active instances per time bucket
+	 * @param minimum the fewest it runs; {@code null} when unset
+	 * @param scale the base load ÷ the run's offered load
+	 * @param word what an instance is called, such as {@code node}
+	 * @return the instances; empty when the run measured none
+	 */
+	private static Optional<InstanceCount> averaged(List<@Nullable Double> series, @Nullable Double minimum,
+			double scale, String word) {
+		List<Double> measured = series.stream().filter(Objects::nonNull).toList();
+		if (measured.isEmpty()) {
+			return Optional.empty();
+		}
+		double count = FloatSum.of(measured.stream().mapToDouble(Double::doubleValue)) / measured.size();
+		String atBase = "";
+		if (Math.abs(scale - 1.0) > UNSCALED) {
+			count = Math.max(atLeastOne(minimum), count * scale);
+			atBase = " at the base load";
+		}
+		return Optional.of(new InstanceCount(count, "avg " + CostText.plural(HalfUp.round(count, 1), word) + atBase));
 	}
 
 	private static InstanceCount cluster(CostPart part) {

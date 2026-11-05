@@ -11,6 +11,7 @@ import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.report.FailureCause;
+import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.report.ReportNode;
 import io.archsim.engine.report.RunReport;
 import io.archsim.model.component.cache.CacheSpec;
@@ -159,7 +160,7 @@ final class FaultFindings {
 		long failed = this.report.summary()
 			.failureBreakdown()
 			.stream()
-			.filter((cause) -> "outage".equals(cause.reason()) && fault.target().equals(cause.nodeId()))
+			.filter((cause) -> FailureReason.OUTAGE.is(cause.reason()) && fault.target().equals(cause.nodeId()))
 			.mapToLong(FailureCause::count)
 			.sum();
 		String name = this.labels.getOrDefault(fault.target(), fault.target());

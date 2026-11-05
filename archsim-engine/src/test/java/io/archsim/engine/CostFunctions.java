@@ -5,11 +5,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.junit.jupiter.api.Assumptions;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.engine.cost.CostEstimator;
 import io.archsim.engine.estimate.InstantEstimator;
+import io.archsim.engine.report.RunReport;
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.standard.StandardComponents;
@@ -22,10 +22,10 @@ import io.archsim.parity.JsonDiff;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The cost estimate. Its {@code nodes} and {@code pricing} inputs are the document's own,
- * and its {@code estimate} input the document's instant estimate, which the Java works
- * out itself. A cost after a run, with a run's report, is ported with the report
- * functions.
+ * The cost estimate. Its {@code nodes} and {@code pricing} inputs are the document's own.
+ * Before a run, its {@code estimate} input is the document's instant estimate, which the
+ * Java works out itself; after one, with the run's report, the cost reads the report and
+ * no estimate.
  */
 final class CostFunctions {
 
@@ -42,9 +42,6 @@ final class CostFunctions {
 	}
 
 	private static JsonNode estimateCost(GoldenEntry entry) {
-		if (!entry.input("report").isNull()) {
-			Assumptions.abort("a cost with a run's report is ported with the report functions (stage 3, S3)");
-		}
 		JsonNode input = entry.input("document");
 		assertThat(JsonDiff.differences(input.path("architecture").path("nodes"), entry.input("nodes")))
 			.as("the nodes are the document's")
@@ -57,8 +54,12 @@ final class CostFunctions {
 		entry.input("baseBusy")
 			.properties()
 			.forEach((busy) -> baseBusy.put(busy.getKey(), busy.getValue().doubleValue()));
-		return RecordCodec.write(COSTS.estimate(document, provenance(entry.input("provenance")), baseBusy,
-				ESTIMATOR.estimate(document)));
+		Map<String, ProvenanceKind> provenance = provenance(entry.input("provenance"));
+		JsonNode report = entry.input("report");
+		if (report.isNull()) {
+			return RecordCodec.write(COSTS.estimate(document, provenance, baseBusy, ESTIMATOR.estimate(document)));
+		}
+		return RecordCodec.write(COSTS.estimateAfterRun(document, provenance, baseBusy, RunReport.read(report)));
 	}
 
 	private static Map<String, ProvenanceKind> provenance(JsonNode kinds) {

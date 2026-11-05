@@ -55,7 +55,7 @@ public final class AnalysisConfidence {
 			}
 		}
 		Busiest busiest = estimate.busiest();
-		return new Evidence(inputs, weights, WeightedBy.UTILIZATION, named(technologies),
+		return new Evidence(inputs, weights, WeightedBy.UTILIZATION, this.names.named(technologies),
 				(busiest != null) ? busiest.id() : null, onPath.isEmpty() ? null : onPath, linkLabels(architecture),
 				"busiest part")
 			.assess();
@@ -75,13 +75,6 @@ public final class AnalysisConfidence {
 					+ names.getOrDefault(edge.target(), edge.target()));
 		}
 		return labels;
-	}
-
-	private List<PartTechnology> named(List<PartTechnology> technologies) {
-		return technologies.stream()
-			.map((part) -> new PartTechnology(part.id(), part.label(), part.type(),
-					this.names.of(part.type(), part.technology()).orElse(part.technology()), part.tier()))
-			.toList();
 	}
 
 }

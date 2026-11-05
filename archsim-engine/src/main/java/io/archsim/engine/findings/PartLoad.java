@@ -6,6 +6,7 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.numeric.FloatSum;
+import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.report.NodeSummary;
 
 /**
@@ -42,7 +43,7 @@ final class PartLoad {
 	 * @return how many
 	 */
 	static long outageRefusals(NodeSummary summary) {
-		return summary.rejectedFor("outage");
+		return summary.rejectedFor(FailureReason.OUTAGE.json());
 	}
 
 	/**

@@ -30,23 +30,33 @@ final class BaseUsage {
 	 * @param document the design as simulated
 	 * @param loads the load estimator
 	 * @param estimate the design's instant estimate
-	 * @return each part's usage by its id; parts whose load depends on the run are left
-	 * out
+	 * @return the base load before a run: each part's usage by its id, without the parts
+	 * whose load depends on the run
 	 */
-	static Map<String, Usage> of(ArchitectureDocument document, LoadEstimator loads, InstantEstimate estimate) {
+	static BaseLoad.Estimated of(ArchitectureDocument document, LoadEstimator loads, InstantEstimate estimate) {
+		Map<String, Double> stays = stays(estimate);
+		Map<String, Usage> usage = new HashMap<>();
+		atBase(document, loads).forEach((id, load) -> {
+			if (load != null) {
+				usage.put(id, usage(load, stays.get(id)));
+			}
+		});
+		return new BaseLoad.Estimated(usage);
+	}
+
+	/**
+	 * The static load estimate at the base rate, a TTL cache missing every read it cannot
+	 * estimate.
+	 * @param document the design as simulated
+	 * @param loads the load estimator
+	 * @return each part's load by its id; {@code null} for a part whose load depends on
+	 * the run
+	 */
+	static Map<String, @Nullable NodeLoad> atBase(ArchitectureDocument document, LoadEstimator loads) {
 		Workload workload = document.workload();
 		double base = BaseRate.of(workload);
 		Map<String, Double> misses = loads.ttlMissShares(document.architecture(), workload, base);
-		Map<String, Double> stays = stays(estimate);
-		Map<String, Usage> usage = new HashMap<>();
-		loads.estimate(document.architecture(), workload, base, new CacheMisses(misses, 1.0))
-			.nodes()
-			.forEach((id, load) -> {
-				if (load != null) {
-					usage.put(id, usage(load, stays.get(id)));
-				}
-			});
-		return usage;
+		return loads.estimate(document.architecture(), workload, base, new CacheMisses(misses, 1.0)).nodes();
 	}
 
 	private static Usage usage(NodeLoad load, @Nullable Double stay) {

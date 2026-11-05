@@ -1,15 +1,22 @@
 package io.archsim.engine;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.confidence.RunConfidence;
 import io.archsim.engine.explain.Formula;
 import io.archsim.engine.explain.QueueingFormulas;
 import io.archsim.engine.findings.RunAnalysis;
+import io.archsim.engine.provenance.Input;
+import io.archsim.engine.report.FailureReason;
+import io.archsim.engine.report.ModelNotes;
 import io.archsim.engine.report.ReportNode;
 import io.archsim.engine.report.RunReport;
 import io.archsim.engine.simulation.Stationarity;
@@ -20,17 +27,22 @@ import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.parity.GoldenEntry;
 
 /**
- * Reading a run's report: whether it reached a steady state, each part's formulas, and
- * what the run found.
+ * Reading a run's report: whether it reached a steady state, each part's formulas, what
+ * the run found and how far it can be trusted; and the words a report is written with.
  */
 final class ReportFunctions {
 
 	static final Map<String, Function<GoldenEntry, JsonNode>> PORTED = Map.ofEntries(
 			Map.entry("archsim_engine.engine.stationary", ReportFunctions::stationary),
 			Map.entry("archsim_engine.explain.generic", ReportFunctions::generic),
-			Map.entry("archsim_engine.analysis.analyze", ReportFunctions::analyze));
+			Map.entry("archsim_engine.analysis.analyze", ReportFunctions::analyze),
+			Map.entry("archsim_engine.confidence.report_confidence", ReportFunctions::reportConfidence),
+			Map.entry("archsim_engine.report.MODEL_NOTES", ReportFunctions::modelNotes),
+			Map.entry("archsim_engine.report.REASON_TEXT", ReportFunctions::reasonText));
 
 	private static final RunAnalysis ANALYSIS = new RunAnalysis(StandardComponents.registry());
+
+	private static final RunConfidence CONFIDENCE = new RunConfidence(StandardComponents.registry());
 
 	private ReportFunctions() {
 	}
@@ -65,6 +77,34 @@ final class ReportFunctions {
 		ANALYSIS.analyze(RunReport.read(entry.input("report")), DesignDocuments.parse(entry.input("resolved")))
 			.forEach((finding) -> findings.add(finding.toJson()));
 		return findings;
+	}
+
+	/**
+	 * {@code report_confidence(report, inputs, link_ms, registry)}: the design the run
+	 * simulated is the report's {@code input}.
+	 */
+	private static JsonNode reportConfidence(GoldenEntry entry) {
+		JsonNode report = entry.input("report");
+		List<Input> inputs = new ArrayList<>();
+		entry.input("inputs").forEach((input) -> inputs.add(RecordCodec.read(input, Input.class)));
+		Map<String, Double> linkMs = new LinkedHashMap<>();
+		entry.input("linkMs").properties().forEach((link) -> linkMs.put(link.getKey(), link.getValue().doubleValue()));
+		return RecordCodec.write(CONFIDENCE.of(RunReport.read(report),
+				DesignDocuments.parse(report.path("input")).architecture(), inputs, linkMs));
+	}
+
+	private static JsonNode modelNotes(GoldenEntry entry) {
+		ArrayNode notes = GoldenJson.NODES.arrayNode();
+		ModelNotes.all().forEach(notes::add);
+		return notes;
+	}
+
+	private static JsonNode reasonText(GoldenEntry entry) {
+		ObjectNode texts = GoldenJson.NODES.objectNode();
+		for (FailureReason reason : FailureReason.values()) {
+			texts.put(reason.json(), reason.text());
+		}
+		return texts;
 	}
 
 }

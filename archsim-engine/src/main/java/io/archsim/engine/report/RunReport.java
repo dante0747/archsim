@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -12,20 +13,25 @@ import tools.jackson.databind.JsonNode;
  *
  * @param summary the run's figures as a whole
  * @param nodes each part's figures, in the design's order
+ * @param edges each link's figures, in the design's order
  * @param findings what the run found, most severe first
+ * @param explain how the report explains its result; {@code null} when it does not
  * @param provenance what the run was, and the digest of its result
  * @param timeseries the run's figures per time bucket
  * @param window the run's measured window
  */
-public record RunReport(RunSummary summary, List<ReportNode> nodes, List<ReportFinding> findings,
-		ReportProvenance provenance, ReportTimeseries timeseries, ReportWindow window) {
+public record RunReport(RunSummary summary, List<ReportNode> nodes, List<ReportEdge> edges,
+		List<ReportFinding> findings, @Nullable ReportExplain explain, ReportProvenance provenance,
+		ReportTimeseries timeseries, ReportWindow window) {
 
 	/**
-	 * Checks that the report has the parts every report has, and copies its lists.
+	 * Checks that the report has the parts every report has, and copies its lists; a
+	 * report without its links has none.
 	 */
 	public RunReport {
 		Objects.requireNonNull(summary, "a report has its summary");
 		nodes = List.copyOf(Objects.requireNonNull(nodes, "a report has its parts"));
+		edges = (edges != null) ? List.copyOf(edges) : List.of();
 		findings = List.copyOf(Objects.requireNonNull(findings, "a report has its findings"));
 		Objects.requireNonNull(provenance, "a report has its provenance");
 		Objects.requireNonNull(timeseries, "a report has its time series");
@@ -49,6 +55,15 @@ public record RunReport(RunSummary summary, List<ReportNode> nodes, List<ReportF
 	 */
 	public Optional<ReportNode> node(String id) {
 		return this.nodes.stream().filter((node) -> node.id().equals(id)).findFirst();
+	}
+
+	/**
+	 * Where a traced request's time goes ({@code explain.latencyBreakdown}).
+	 * @return the shares, in the report's order; none when the report does not explain
+	 * its latency
+	 */
+	public List<LatencyShare> latencyBreakdown() {
+		return (this.explain != null) ? this.explain.latencyBreakdown() : List.of();
 	}
 
 	/**

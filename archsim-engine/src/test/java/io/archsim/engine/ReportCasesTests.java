@@ -24,7 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The report functions on the cases the golden files do not reach: no objectives, a run
  * without the figures to judge it, compact run summaries, a sweep with no completed step
  * or a latency knee, a run too short to judge, a part whose figures stop its formulas
- * early and more. Each case ({@code report/cases.json}, which
+ * early, a run's confidence weighed by utilization or with its bottleneck found by load,
+ * its cost without base-load buckets, an offered rate, a throughput or measured replicas,
+ * or with a base load of zero, and more. Each case ({@code report/cases.json}, which
  * {@code scripts/export_report_cases.py} writes from the frozen engine) is a call with
  * the Python engine's output, checked as the golden files are.
  */

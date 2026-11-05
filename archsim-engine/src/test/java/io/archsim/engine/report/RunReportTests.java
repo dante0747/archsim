@@ -28,6 +28,11 @@ class RunReportTests {
 			            "timeseries": {"queueLength": [1, null, 2], "replicas": null},
 			            "behaviour": [{"id": "primary_reads", "label": "Reads go to the primary"}]},
 			           {"id": "db", "type": "database", "category": "storage", "label": "DB", "summary": {}}],
+			 "edges": [{"id": "api-db", "source": "api", "target": "db", "callRps": 120.5, "summary": {}},
+			           {"id": "api-cache"}],
+			 "explain": {"system": [{"id": "throughput"}],
+			             "latencyBreakdown": [{"label": "API", "nodeId": "api", "meanMs": 8.0, "share": 0.6},
+			                                  {"label": "Network", "nodeId": null, "meanMs": 5.0, "share": null}]},
 			 "provenance": {"resultDigest": "abc", "seed": 42},
 			 "timeseries": {"bucketS": 0.5, "t": [0, 0.5], "throughputRps": [1.0, null],
 			                "offeredRps": null, "latencyP95Ms": [3.5]},
@@ -48,6 +53,41 @@ class RunReportTests {
 	}
 
 	@Test
+	void read_aReport_readsItsLinksAndWhereARequestsTimeGoes() {
+		RunReport report = RunReport.read(json(REPORT));
+
+		assertThat(report.edges()).extracting(ReportEdge::id).containsExactly("api-db", "api-cache");
+		assertThat(report.edges().getFirst().callRps()).isEqualTo(120.5);
+		assertThat(report.latencyBreakdown()).extracting(LatencyShare::label).containsExactly("API", "Network");
+		assertThat(report.latencyBreakdown().getFirst().nodeId()).isEqualTo("api");
+		assertThat(report.latencyBreakdown().getFirst().share()).isEqualTo(0.6);
+	}
+
+	@Test
+	void read_aReportWithoutLinksOrABreakdown_hasNone() {
+		RunReport report = RunReport.read(json(REPORT.replace("\"edges\"", "\"edgesGone\"")
+			.replace("\"latencyBreakdown\"", "\"latencyBreakdownGone\"")));
+
+		assertThat(report.edges()).isEmpty();
+		assertThat(report.latencyBreakdown()).isEmpty();
+	}
+
+	@Test
+	void read_aReportWithoutAnExplanation_hasNoBreakdown() {
+		RunReport report = RunReport.read(json(REPORT.replace("\"explain\"", "\"explainGone\"")));
+
+		assertThat(report.latencyBreakdown()).isEmpty();
+	}
+
+	@Test
+	void read_aLinkWithoutItsId_isRefused() {
+		JsonNode report = json(REPORT.replace("{\"id\": \"api-cache\"}", "{\"callRps\": 3.0}"));
+
+		assertThatExceptionOfType(JacksonException.class).isThrownBy(() -> RunReport.read(report))
+			.withMessageContaining("a report's link has its id");
+	}
+
+	@Test
 	void read_aValueTheReportLeavesOutOrWritesAsNull_isNull() {
 		RunReport report = RunReport.read(json(REPORT));
 
@@ -55,6 +95,9 @@ class RunReportTests {
 		assertThat(report.summary().latencyWithFailuresMs()).isNull();
 		assertThat(report.findings().get(1).kind()).isNull();
 		assertThat(report.nodes().get(1).summary().slots()).isNull();
+		assertThat(report.edges().get(1).callRps()).isNull();
+		assertThat(report.latencyBreakdown().get(1).nodeId()).isNull();
+		assertThat(report.latencyBreakdown().get(1).share()).isNull();
 	}
 
 	@Test

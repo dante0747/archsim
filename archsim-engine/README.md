@@ -13,7 +13,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 
 | Package | What |
 | --- | --- |
-| `cost` | the cost estimate before a run: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`), `SizePricing` (the price of a part's size) |
+| `cost` | the cost estimate, before a run or after one: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`; after a run, `estimateAfterRun` prices per-request parts at each part's rate the run measured at the base load, `MeasuredUsage`, autoscaled services and clusters at their average active instances, and gives the cost per million successful requests), `SizePricing` (the price of a part's size) |
 | `estimate` | the instant estimate: `InstantEstimator` (what textbook queueing formulas predict for a design at its peak, without a run: each part's utilization and wait, each request path's latency and a rough p95, where an average request's time goes, and where the design saturates: `InstantEstimate`) |
 | `analysis` | the static analysis of a design: `DesignAnalyzer` (its sizes, cost, review, technology tiers, inputs, instant estimate and confidence, and whether a quick check can answer it, as a run would use them: `DesignAnalysis`, which `POST /analyze` answers) |
 | `run` | preparing a run before it is queued: `RunPreparer` (the design resolved, its seed replaced, validated, and its requests counted against the run's limit: `PreparedRun`, or `SimulationLimitException`), `QuickCheck` (whether sampled mode can answer a run) |
@@ -29,14 +29,14 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `host` | the design's host machine (schema 1.7): `HostMachine` (threads that slow each other down), `PartWork`, `HostSpeeds` (on the host, or on a part's own hyperthreads) |
 | `provenance` | where each input came from: `InputProvenances` (each performance input of a design, measured, documented, assumed or illustrative, with its value: `Input`, `Provenance`), read from the model's `ComponentFacts`; `ValueText` (how a value reads) |
 | `technology` | each part's technology and its tier: `TechnologyTiers`; `TechnologyNames` (a technology's display name) |
-| `confidence` | how far a result can be trusted, and why: `Evidence` (inputs, each part's weight, technology tiers and the bottleneck) assessed as a `Confidence` (the level, its reasons, the inputs to replace first, how to raise it), `AnalysisConfidence` (an analysis's, weighed by each part's estimated utilization), `ConfidenceLevel` |
+| `confidence` | how far a result can be trusted, and why: `Evidence` (inputs, each part's weight, technology tiers and the bottleneck) assessed as a `Confidence` (the level, its reasons, the inputs to replace first, how to raise it), `AnalysisConfidence` (an analysis's, weighed by each part's estimated utilization), `RunConfidence` (a run's, weighed by each part's and link's share of a request's time, or by each part's utilization), `ConfidenceLevel` |
 | `slo` | whether a run is good enough: `SloResult` (each objective the design sets checked against the run's `RunFigures`, an `SloCheck`, and the verdict in words), `Objective`, `StoredObjectives` (the objectives stored with a run, a target left out being off) |
 | `seeds` | ranges across seeds: `SeedSummary` (how a seed group's verdicts split, their ranges, whether they are borderline, and the summary in words, which `GET /run-groups/{id}` answers), `ValueRange`, `Seeds` |
 | `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
 | `simulation` | where the engine meets the simulator: `SimulationLimits`, `Stationarity` (whether a sampled run reached a `SteadyState`) |
 | `explain` | the calculations behind a report's numbers: `QueueingFormulas` (any part's arrival rate, slot capacity, utilization, Little's law, M/M/c wait and CPU capacity), `Formula` |
 | `findings` | what a run found: `RunAnalysis` (each part's status, a `Classification`, from its utilization, CPU, rejections and queue; the root causes and the symptoms of a part downstream; what clients saw; work wasted on clients that gave up; caches; data stores' hot shards, replicas, lag and locks; third parties' errors and latency; throttling; pending pods; each fault's impact; autoscaling, serverless cold starts and queue lag), each a `RunFinding` with the figures it rests on |
-| `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest` |
+| `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
 reads the raw settings of a design that may not be valid yet (the load estimate, which kind of
@@ -55,8 +55,15 @@ summary (the run row's flat `p50`, `p95` and `p99`) reads into `RunFigures`, as 
 summary does, and the objectives stored with a run into `Objectives` with the targets the design
 leaves out off (`StoredObjectives`).
 
-Where the Python engine fails, the Java gives a result instead (the owner's decision; the Python
-engine stays frozen), and its tests say which:
+A list the Python reads with `get` (a report's links, the breakdown of a request's time) reads
+as empty when the report leaves it out. What a report copies from its design is read from the
+design the run simulated, as a part's settings are: a run's confidence takes its parts'
+technologies and its links' names from the design, not from the report's
+`assumptions.technologies` and `input`.
+
+The Java departs from the Python engine in a few places (the Python engine stays frozen), and
+its tests say which. Where the Python engine fails, the Java gives a result instead (the owner's
+decision):
 
 - A link to a part that does not exist: the Python estimate raises `KeyError`; the Java estimate
   leaves the calling part and the latency unestimated, so a half-drawn design still gets an
@@ -73,6 +80,13 @@ engine stays frozen), and its tests say which:
   without the setting whose removal skips only that check (a part's cores are also read for its
   speed on its hyperthreads, where cores not above zero and none read alike), which the Java
   review must match.
+
+Where the Python engine gives a result for a report no run writes, the Java refuses it:
+
+- A run's report that lists no parts: the Python cost prices the design as before a run, with
+  the cost per million requests from the run's throughput; the Java `estimateAfterRun` throws
+  `IllegalArgumentException`, since a run's report lists every part of its design and a design
+  has a client (`CostEstimatorTests.estimateAfterRun_aReportWithoutParts_isRefused`).
 
 ## Tests
 
@@ -93,9 +107,12 @@ engine stays frozen), and its tests say which:
     `evaluate`, `verdict_text`), the run as a load sweep's step (`sweep.row_from`, `meets`),
     whether it reached a steady state (`engine.stationary`) and each part's queueing formulas
     (`explain.generic`); on every pair of runs, the seed summary (`seeds.summarize_seeds`) and
-    the sweep's breaking point (`sweep.analyze`); the golden files have no run without
-    objectives or figures, no compact run summary and no latency knee: `report/cases.json`
-    covers them;
+    the sweep's breaking point (`sweep.analyze`); on every recorded run, its confidence
+    (`confidence.report_confidence`) and its cost (`cost.estimate_cost` with its report); the
+    golden files have no run without objectives or figures, no compact run summary, no latency
+    knee, no run weighed by utilization and none without base-load buckets, an offered rate, a
+    throughput or measured replicas, or with a base load of zero: `report/cases.json` covers
+    them; and the words reports are written with (`report.MODEL_NOTES`, `REASON_TEXT`);
   - the analysis of a design for every case of every template (`analyze.analyze_document`), its
     confidence (`confidence.analysis_confidence`) and its quick check (`engine.quick_check`); the
     golden files prepare no run and have no analysis of high or medium confidence:
@@ -107,8 +124,7 @@ engine stays frozen), and its tests say which:
   - the cost estimate before a run (`cost.estimate_cost` without a run's report, and
     `NOT_MODELLED`) and `sizing.sizing_summary`, for every case of every template (the golden
     files have neither for the invalid documents: `cost/cases.json` covers settings read
-    leniently); the cost with a run's report is ported with the report functions, and its 50
-    golden entries are skipped until then;
+    leniently); the cost with a run's report is checked with the report functions;
   - the instant estimate for every case of every template and of the invalid documents
     (`estimate.estimate_design`), and its `METHOD` and `NOT_INCLUDED`;
   - for every case of every template and of the invalid documents, where each input came from

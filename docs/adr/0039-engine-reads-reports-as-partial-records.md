@@ -50,7 +50,8 @@ such as the traces and most time series.
   `io.archsim.engine.report`) hold only what a ported function reads, under the report's own
   names. A port that needs another value adds it to the record.
 - A value the Python indexes (`report["window"]`) is a primitive or a non-null component. A
-  value it reads with `get` is `@Nullable`, null when the report omits it or writes `null`.
+  value it reads with `get` is `@Nullable`, null when the report omits it or writes `null`; a
+  list it reads with `get` (the links, the breakdown of a request's time) is empty then.
   Keys that are data, such as a part's counters or the names of its time series, are maps.
 - One reader decodes them: Jackson databind, which skips keys the records do not name, behind each
   record's own `read` (`RunReport.read`, `RunSummary.read`, `ReportNode.read`); the reader itself
@@ -74,7 +75,10 @@ such as the traces and most time series.
 - A part's settings are read from the design the run simulated, as its type's record
   ([ADR-0038](0038-engine-computes-on-typed-records.md)), not from the copy each part of the
   report carries (`config`). That copy is the same validated settings written out, so the two
-  agree, and the engine reads a part's settings in one way, typed, wherever it reads them.
+  agree, and the engine reads a part's settings in one way, typed, wherever it reads them. The
+  same holds for what the report copies from the design: a run's confidence takes its parts'
+  technologies and its links' names from the design, not from the report's
+  `assumptions.technologies` and `input`.
 - A finding's evidence, the figures it rests on by name, is a Jackson `ObjectNode`: which
   figures depend on the kind of finding, as a part's counters depend on its kind, and nothing in
   the engine reads them back. A finding copies its evidence, so it does not change once made.
