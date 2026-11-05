@@ -136,7 +136,9 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
   be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, the requests that need it answer
   `503` saying which: `/compare`, `/export`, `/import` and `/calibrate`. The Python API computed
-  in-process, with no time limit.
+  in-process, with no time limit. A call whose connection drops before an answer (uvicorn closes
+  one idle for 5 s, and the client may reuse it just then) is sent once more: every engine call is
+  a stateless POST.
 - The order of refusals differs. Java reads a request's body and query before it checks access,
   so a body or query parameter that does not fit is `422` where FastAPI first answered `404` or
   `403` (a project or workspace the asker may not use). In a server with sign-in, a body that is

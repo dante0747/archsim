@@ -2,6 +2,7 @@ package io.archsim.app.engine;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.http.HttpTimeoutException;
 import java.util.List;
 import java.util.Objects;
@@ -141,15 +142,7 @@ public final class EngineService {
 	 */
 	private JsonText call(String path, ObjectNode request, String whenSlow) {
 		try {
-			String answer = this.http.post()
-				.uri(path)
-				.contentType(MediaType.APPLICATION_JSON)
-				.body(request)
-				.retrieve()
-				.onStatus((status) -> status.isSameCodeAs(HttpStatus.UNPROCESSABLE_CONTENT),
-						(sent, response) -> refuse(response))
-				.body(String.class);
-			return new JsonText(Objects.requireNonNull(answer, "the engine service answered nothing"));
+			return postOnceMoreIfDropped(path, request);
 		}
 		catch (ResourceAccessException ex) {
 			if (ex.getCause() instanceof HttpTimeoutException) {
@@ -161,6 +154,57 @@ public final class EngineService {
 			throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
 					"The simulation engine is not available right now: try again in a moment", List.of());
 		}
+	}
+
+	/**
+	 * Posts a request, and once more when its connection drops before an answer. The
+	 * service closes a connection left idle for 5 s (uvicorn's keep-alive), and the
+	 * client may reuse it just then. Every call is a stateless POST, so sending it again
+	 * is safe.
+	 * @param path the endpoint
+	 * @param request its body
+	 * @return the answer, as the engine wrote it
+	 * @throws ResourceAccessException when the service cannot be reached, drops the
+	 * connection again, answers too late, or is interrupted
+	 */
+	private JsonText postOnceMoreIfDropped(String path, ObjectNode request) {
+		try {
+			return post(path, request);
+		}
+		catch (ResourceAccessException ex) {
+			if (!droppedConnection(ex)) {
+				throw ex;
+			}
+			LOGGER.debug("The engine service dropped the connection for {}: sending it once more", path, ex);
+			return post(path, request);
+		}
+	}
+
+	/**
+	 * Whether a call failed because its connection dropped before an answer. Not when it
+	 * timed out, nor when the service refused the connection (a reused connection is open
+	 * already, so it is never refused), nor when the calling thread was interrupted.
+	 * @param ex how the call failed
+	 * @return whether the connection dropped
+	 */
+	private static boolean droppedConnection(ResourceAccessException ex) {
+		Throwable cause = ex.getCause();
+		if (cause instanceof HttpTimeoutException || cause instanceof ConnectException) {
+			return false;
+		}
+		return !Thread.currentThread().isInterrupted();
+	}
+
+	private JsonText post(String path, ObjectNode request) {
+		String answer = this.http.post()
+			.uri(path)
+			.contentType(MediaType.APPLICATION_JSON)
+			.body(request)
+			.retrieve()
+			.onStatus((status) -> status.isSameCodeAs(HttpStatus.UNPROCESSABLE_CONTENT),
+					(sent, response) -> refuse(response))
+			.body(String.class);
+		return new JsonText(Objects.requireNonNull(answer, "the engine service answered nothing"));
 	}
 
 	/**
