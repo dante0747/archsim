@@ -4,11 +4,15 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.api.MigrationInfo;
+import org.flywaydb.core.api.MigrationState;
+import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -25,11 +29,31 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Flyway builds the schema the Python API's Alembic migrations build, and takes over a
- * database Alembic made only at the revision its baseline reproduces (ADR-0032).
+ * database Alembic made only at the revision its baseline reproduces (ADR-0032). The
+ * schema is compared at V1, the version that reproduces Alembic's revision 0008, so a
+ * later migration does not change the comparison.
  */
 class MigrationTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	/**
+	 * The version whose schema is Alembic's revision 0008, which the snapshot records:
+	 * the one a database Alembic made is taken over at.
+	 */
+	private static final String SNAPSHOT_VERSION = MigrationConfiguration.BASELINE_VERSION;
+
+	/** Flyway's own migrations. */
+	private static final String MIGRATIONS = "classpath:db/migration";
+
+	/** A migration after V1, standing in for a later change to the schema. */
+	private static final String LATER_MIGRATION = "classpath:db/after-v1";
+
+	/**
+	 * The later migration's version: far above any real one, since Flyway refuses two
+	 * migrations of one version across its locations.
+	 */
+	private static final MigrationVersion LATER_VERSION = MigrationVersion.fromVersion("9999");
 
 	private static final Path SCHEMA = Path.of(System.getProperty("archsim.repoRoot", "..")).resolve("parity/schema");
 
@@ -37,9 +61,20 @@ class MigrationTests {
 	void migrate_emptyDatabase_buildsTheSchemaAlembicBuilds() {
 		DataSource database = freshDatabase();
 
-		flyway(database).migrate();
+		flywayToTheSnapshot(database, MIGRATIONS).migrate();
 
 		assertThat(describe(database)).isEqualTo(JSON.readTree(read(SCHEMA.resolve("alembic-0008.json"))));
+	}
+
+	@Test
+	void migrate_toTheSnapshotWithALaterMigration_stillBuildsTheSchemaAlembicBuilds() {
+		DataSource database = freshDatabase();
+		Flyway flyway = flywayToTheSnapshot(database, MIGRATIONS, LATER_MIGRATION);
+
+		flyway.migrate();
+
+		assertThat(describe(database)).isEqualTo(JSON.readTree(read(SCHEMA.resolve("alembic-0008.json"))));
+		assertThat(laterMigration(flyway).getState()).isEqualTo(MigrationState.ABOVE_TARGET);
 	}
 
 	@Test
@@ -63,12 +98,24 @@ class MigrationTests {
 	void migrate_databaseAlembicLeftAtTheBaselineRevision_isTakenOverUnchanged() {
 		DataSource database = freshDatabase();
 		runScript(database, "db/migration/V1__schema_at_alembic_0008.sql");
+		Flyway flyway = flywayToTheSnapshot(database, MIGRATIONS);
 
-		flyway(database).migrate();
+		flyway.migrate();
 
-		assertThat(flyway(database).info().current().getVersion().getVersion())
+		assertThat(flyway.info().current().getVersion().getVersion())
 			.isEqualTo(MigrationConfiguration.BASELINE_VERSION);
 		assertThat(describe(database)).isEqualTo(JSON.readTree(read(SCHEMA.resolve("alembic-0008.json"))));
+	}
+
+	@Test
+	void migrate_databaseAlembicLeftAtTheBaselineRevision_appliesTheMigrationsAfterIt() {
+		DataSource database = freshDatabase();
+		runScript(database, "db/migration/V1__schema_at_alembic_0008.sql");
+		Flyway flyway = configuration(database).locations(MIGRATIONS, LATER_MIGRATION).load();
+
+		flyway.migrate();
+
+		assertThat(laterMigration(flyway).getState()).isEqualTo(MigrationState.SUCCESS);
 	}
 
 	@Test
@@ -128,9 +175,33 @@ class MigrationTests {
 	}
 
 	private static Flyway flyway(DataSource database) {
+		return configuration(database).load();
+	}
+
+	/**
+	 * Flyway as the application configures it, migrating no further than V1, whose schema
+	 * the snapshot records.
+	 * @param database the database to migrate
+	 * @param locations where to look for migrations, {@link #MIGRATIONS} first
+	 * @return Flyway that applies the migrations up to V1 and leaves later ones
+	 * {@code ABOVE_TARGET}
+	 */
+	private static Flyway flywayToTheSnapshot(DataSource database, String... locations) {
+		return configuration(database).locations(locations).target(SNAPSHOT_VERSION).load();
+	}
+
+	/** The later migration, as Flyway reports it. */
+	private static MigrationInfo laterMigration(Flyway flyway) {
+		return Arrays.stream(flyway.info().all())
+			.filter((migration) -> LATER_VERSION.equals(migration.getVersion()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("Flyway did not find the later migration"));
+	}
+
+	private static FluentConfiguration configuration(DataSource database) {
 		FluentConfiguration configuration = Flyway.configure().dataSource(database);
 		MigrationConfiguration.takeOverFromAlembic(configuration);
-		return configuration.load();
+		return configuration;
 	}
 
 	private static JsonNode describe(DataSource database) {
