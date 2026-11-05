@@ -71,6 +71,13 @@ such as the traces and most time series.
   them, `objectives.get(...)`: a target the design leaves out is off (`StoredObjectives.read`).
   The model's codec would give it its default (300 ms, 0.999), and judge stored runs by targets
   their designs never set.
+- A part's settings are read from the design the run simulated, as its type's record
+  ([ADR-0038](0038-engine-computes-on-typed-records.md)), not from the copy each part of the
+  report carries (`config`). That copy is the same validated settings written out, so the two
+  agree, and the engine reads a part's settings in one way, typed, wherever it reads them.
+- A finding's evidence, the figures it rests on by name, is a Jackson `ObjectNode`: which
+  figures depend on the kind of finding, as a part's counters depend on its kind, and nothing in
+  the engine reads them back. A finding copies its evidence, so it does not change once made.
 - In stage 4 the kernel writes reports, and these records grow to cover what it writes.
 
 ### Consequences
@@ -98,6 +105,8 @@ such as the traces and most time series.
 - Bad, because a number the Python indexes but the report lacks reads as zero, where the Python
   raises `KeyError`; one the report writes as `null` fails to decode (Jackson 3 refuses `null`
   for a primitive). The simulator always writes them; the non-null objects are checked.
+- Bad, because a finding's evidence is not typed: the compiler does not check the names of its
+  figures. The golden parity tests compare every finding's evidence.
 
 ### Confirmation
 

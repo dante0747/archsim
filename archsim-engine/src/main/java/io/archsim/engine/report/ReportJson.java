@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.DeserializationFeature;
@@ -69,6 +70,27 @@ final class ReportJson {
 			}
 		}
 		return Collections.unmodifiableMap(series);
+	}
+
+	/**
+	 * Counts by name, such as a part's counters or its rejections by reason.
+	 * @param byName the counts by name, or {@code null}
+	 * @return the counts, unmodifiable, in the report's order; none when the report has
+	 * none
+	 */
+	static Map<String, Long> countsByName(@Nullable Map<String, Long> byName) {
+		return (byName != null) ? Collections.unmodifiableMap(new LinkedHashMap<>(byName)) : Map.of();
+	}
+
+	/**
+	 * A list the report writes for every run.
+	 * @param <T> what it lists
+	 * @param values the list
+	 * @param what what it is, for the message when it is missing
+	 * @return the list, unmodifiable
+	 */
+	static <T> List<T> required(@Nullable List<T> values, String what) {
+		return List.copyOf(Objects.requireNonNull(values, what));
 	}
 
 }

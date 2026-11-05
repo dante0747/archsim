@@ -20,11 +20,12 @@ class SweepRowTests {
 	void of_aStepsReport_readsItsFiguresAndTheFirstBottlenecksPart() {
 		RunReport report = RunReport.read(JSON.readTree("""
 				{"summary": {"latencyMs": {"p50": 40.0, "p95": 90.0, "p99": 120.0}, "offeredRps": 401.5,
-				             "throughputRps": 398.5, "successRate": 0.99},
+				             "throughputRps": 398.5, "successRate": 0.99, "failureBreakdown": []},
 				 "findings": [{"kind": "hot_key", "nodeId": "api"}, {"kind": "bottleneck", "nodeId": "db"},
 				              {"kind": "bottleneck", "nodeId": "api"}],
-				 "nodes": [{"id": "api", "label": "API", "summary": {}},
-				         {"id": "db", "label": "Orders DB", "summary": {}}],
+				 "nodes": [{"id": "api", "type": "service", "category": "compute", "label": "API", "summary": {}},
+				         {"id": "db", "type": "database", "category": "storage",
+				            "label": "Orders DB", "summary": {}}],
 				 "provenance": {"resultDigest": "abc"},
 				 "timeseries": {"bucketS": 1.0},
 				 "window": {"warmupS": 2.0, "durationS": 12.0}}"""));

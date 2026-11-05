@@ -5,7 +5,8 @@ package io.archsim.engine.report;
  *
  * @param warmupS when the measured window starts, in seconds from the run's start
  * @param durationS when the offered load ends, in seconds from the run's start
+ * @param measuredS how long the measured window is, in seconds
  */
-public record ReportWindow(double warmupS, double durationS) {
+public record ReportWindow(double warmupS, double durationS, double measuredS) {
 
 }

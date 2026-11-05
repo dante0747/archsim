@@ -55,8 +55,10 @@ class StationarityTests {
 
 	private static RunReport report(double bucketS, double durationS, String queue) {
 		return RunReport.read(JSON.readTree("""
-				{"summary": {"latencyMs": {}}, "findings": [], "provenance": {"resultDigest": "abc"},
-				 "nodes": [{"id": "api", "label": "API", "summary": {}, "timeseries": {"queueLength": %s}}],
+				{"summary": {"latencyMs": {}, "failureBreakdown": []}, "findings": [],
+				 "provenance": {"resultDigest": "abc"},
+				 "nodes": [{"id": "api", "type": "service", "category": "compute", "label": "API", "summary": {},
+				            "timeseries": {"queueLength": %s}}],
 				 "timeseries": {"bucketS": %s, "throughputRps": %s, "offeredRps": %s, "latencyP95Ms": %s},
 				 "window": {"warmupS": 2.0, "durationS": %s}}""".formatted(queue, bucketS, FLAT, FLAT, FLAT,
 				durationS)));

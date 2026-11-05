@@ -35,6 +35,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
 | `simulation` | where the engine meets the simulator: `SimulationLimits`, `Stationarity` (whether a sampled run reached a `SteadyState`) |
 | `explain` | the calculations behind a report's numbers: `QueueingFormulas` (any part's arrival rate, slot capacity, utilization, Little's law, M/M/c wait and CPU capacity), `Formula` |
+| `findings` | what a run found: `RunAnalysis` (each part's status, a `Classification`, from its utilization, CPU, rejections and queue; the root causes and the symptoms of a part downstream; what clients saw; work wasted on clients that gave up; caches; data stores' hot shards, replicas, lag and locks; third parties' errors and latency; throttling; pending pods; each fault's impact; autoscaling, serverless cold starts and queue lag), each a `RunFinding` with the figures it rests on |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -83,6 +84,9 @@ engine stays frozen), and its tests say which:
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
   `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
   `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`). Ported so far:
+  - on every recorded run, its findings (`analysis.analyze`), and each part's status and why,
+    which the report carries as the analysis set them; the golden files reach 17 of the 22
+    kinds of finding: `findings/cases.json` covers the rest and branches they do not reach;
   - on every recorded run, the verdict against the design's objectives (`slo.slo_checks`,
     `evaluate`, `verdict_text`), the run as a load sweep's step (`sweep.row_from`, `meets`),
     whether it reached a steady state (`engine.stationary`) and each part's queueing formulas
@@ -136,6 +140,10 @@ engine stays frozen), and its tests say which:
   `DesignReviewTests` checks. The report functions' are in `report/cases.json`, each a call with
   the Python engine's output in the golden files' own format, from
   `scripts/export_report_cases.py`, which `ReportCasesTests` replays through `EngineFunctions`.
+  The run analysis's are in `findings/cases.json`: golden reports with the figures (or settings)
+  changed that reach each branch, cut to what the analysis reads, with the Python engine's
+  findings and each part's status, from `scripts/export_findings_cases.py`, which
+  `FindingsCasesTests` checks.
 - The other tests specify each class.
 - `ArchitectureTests` checks that the engine uses no framework or database class, and that its
   packages have no cycles.

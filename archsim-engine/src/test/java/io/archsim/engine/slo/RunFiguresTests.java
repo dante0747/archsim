@@ -17,7 +17,7 @@ class RunFiguresTests {
 	void read_aReportsSummary_readsItsLatenciesUnderLatencyMs() {
 		RunFigures figures = RunFigures.read(JSON.readTree("""
 				{"latencyMs": {"p50": 40.0, "p95": 90.0, "p99": 120.0, "max": 300.0},
-				 "successRate": 1.0, "throughputRps": 398.5, "p95": 1.0}"""));
+				 "successRate": 1.0, "throughputRps": 398.5, "p95": 1.0, "failureBreakdown": []}"""));
 
 		assertThat(figures).isEqualTo(new RunFigures(40.0, 90.0, 120.0, 1.0, 398.5));
 	}

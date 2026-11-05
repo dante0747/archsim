@@ -64,7 +64,9 @@ class QueueingFormulasTests {
 	}
 
 	private static ReportNode node(String summary) {
-		return ReportNode.read(JSON.readTree("{\"id\": \"api\", \"label\": \"API\", \"summary\": {" + summary + "}}"));
+		return ReportNode.read(
+				JSON.readTree("{\"id\": \"api\", \"type\": \"service\", \"category\": \"compute\", \"label\": \"API\", "
+						+ "\"summary\": {" + summary + "}}"));
 	}
 
 }

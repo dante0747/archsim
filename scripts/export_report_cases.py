@@ -55,6 +55,7 @@ def summary(p95: float | None, p99: float | None, success: float | None, rps: fl
         "successRate": success,
         "throughputRps": rps,
         "offeredRps": rps,
+        "failureBreakdown": [],
     }
 
 
@@ -155,8 +156,20 @@ STEADY = {"throughputRps": flat(400.0), "offeredRps": flat(400.0), "latencyP95Ms
 WINDOW = {"warmupS": 2.0, "durationS": 12.0, "measuredS": 10.0}
 
 
+def part(node_id: str, label: str, node_type: str, category: str, **more: Any) -> Json:
+    """A report's part, with what every part has."""
+    return {
+        "id": node_id,
+        "type": node_type,
+        "category": category,
+        "label": label,
+        "summary": {},
+        **more,
+    }
+
+
 def api(**timeseries: Any) -> Json:
-    return {"id": "api", "label": "API", "summary": {}, "timeseries": timeseries}
+    return part("api", "API", "service", "compute", timeseries=timeseries)
 
 
 def stationary_cases() -> list[tuple[str, str, Json]]:
@@ -171,18 +184,19 @@ def stationary_cases() -> list[tuple[str, str, Json]]:
                 WINDOW,
                 [
                     api(queueLength=ramp(0.0, 1.0), replicas=[2, 2, 2, 2, 2, 2, 3, 4, 4, 5, 6, 6]),
-                    {"id": "db", "label": "DB", "summary": {}, "timeseries": None},
-                    {"id": "queue", "label": "Queue", "summary": {}},
-                    {
-                        "id": "kafka",
-                        "label": "Kafka",
-                        "summary": {},
-                        "timeseries": {
+                    part("db", "DB", "database", "storage", timeseries=None),
+                    part("queue", "Queue", "message_queue", "messaging"),
+                    part(
+                        "kafka",
+                        "Kafka",
+                        "message_queue",
+                        "messaging",
+                        timeseries={
                             "lag": ramp(10.0, 10.0),
                             "backlog": flat(1.0),
                             "nodes": flat(3),
                         },
-                    },
+                    ),
                 ],
             ),
         ),
@@ -231,7 +245,7 @@ def finding(kind: str | None, node_id: str | None) -> Json:
 
 
 def row_cases() -> list[tuple[str, str, Json]]:
-    nodes = [api(), {"id": "db", "label": "Orders DB", "summary": {}, "timeseries": {}}]
+    nodes = [api(), part("db", "Orders DB", "database", "storage", timeseries={})]
     with_failures = summary(95.0, 130.0, 0.98, 390.0) | {"latencyWithFailuresMs": {"p95": 2000.0}}
     reports = [
         ("noBottleneck", report(STEADY, WINDOW, nodes), 400.0),
@@ -357,7 +371,7 @@ def analyze_cases() -> list[tuple[str, str, Json]]:
 
 
 def node(**node_summary: Any) -> Json:
-    return {"id": "api", "label": "API", "summary": node_summary}
+    return {**part("api", "API", "service", "compute"), "summary": node_summary}
 
 
 POOL = {

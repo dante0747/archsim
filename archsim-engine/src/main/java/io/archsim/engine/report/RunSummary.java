@@ -1,27 +1,37 @@
 package io.archsim.engine.report;
 
+import java.util.List;
 import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 /**
- * A run's figures as a whole: its latency, load and success.
+ * A run's figures as a whole: its latency, load and success, over the measured window.
  *
  * @param latencyMs the latency of the requests that succeeded, in milliseconds
  * @param latencyWithFailuresMs the latency of every request, failures included
  * @param offeredRps the requests offered per second
  * @param throughputRps the requests that succeeded per second
  * @param successRate the share of requests that succeeded
+ * @param arrived the requests that arrived
+ * @param failed the requests that failed
+ * @param timedOut the requests whose client gave up waiting
+ * @param attempts the attempts sent, retries included
+ * @param retryAmplification the attempts per request
+ * @param failureBreakdown where and why requests failed, the most first
  */
 public record RunSummary(LatencyStats latencyMs, @Nullable LatencyStats latencyWithFailuresMs,
-		@Nullable Double offeredRps, @Nullable Double throughputRps, @Nullable Double successRate) {
+		@Nullable Double offeredRps, @Nullable Double throughputRps, @Nullable Double successRate, long arrived,
+		long failed, long timedOut, long attempts, @Nullable Double retryAmplification,
+		List<FailureCause> failureBreakdown) {
 
 	/**
-	 * Checks that the summary has its latency, as every report's has.
+	 * Checks that the summary has its latency and its failures, as every report's has.
 	 */
 	public RunSummary {
 		Objects.requireNonNull(latencyMs, "a report's summary has its latency");
+		failureBreakdown = ReportJson.required(failureBreakdown, "a report's summary has its failures");
 	}
 
 	/**

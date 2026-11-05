@@ -19,12 +19,15 @@ class RunReportTests {
 	private static final String REPORT = """
 			{"reportVersion": "1.14",
 			 "summary": {"latencyMs": {"count": 10, "mean": 50.0, "p50": 40.0, "p90": 80, "p95": 90.5, "p99": null},
-			             "offeredRps": 400, "throughputRps": 398.5, "successRate": 1.0},
+			             "offeredRps": 400, "throughputRps": 398.5, "successRate": 1.0, "failureBreakdown": []},
 			 "findings": [{"kind": "bottleneck", "nodeId": "api", "evidence": {"share": 0.5}},
 			              {"title": "no kind"}],
-			 "nodes": [{"id": "api", "label": "API", "summary": {"arrivals": 1234, "slots": 16},
-			            "timeseries": {"queueLength": [1, null, 2], "replicas": null}},
-			           {"id": "db", "label": "DB", "summary": {}}],
+			 "nodes": [{"id": "api", "type": "service", "category": "compute", "label": "API",
+			            "summary": {"arrivals": 1234, "slots": 16, "counters": {"misses": 7},
+			                        "rejected": {"queue_full": 5}},
+			            "timeseries": {"queueLength": [1, null, 2], "replicas": null},
+			            "behaviour": [{"id": "primary_reads", "label": "Reads go to the primary"}]},
+			           {"id": "db", "type": "database", "category": "storage", "label": "DB", "summary": {}}],
 			 "provenance": {"resultDigest": "abc", "seed": 42},
 			 "timeseries": {"bucketS": 0.5, "t": [0, 0.5], "throughputRps": [1.0, null],
 			                "offeredRps": null, "latencyP95Ms": [3.5]},
@@ -70,6 +73,64 @@ class RunReportTests {
 
 		assertThatExceptionOfType(JacksonException.class).isThrownBy(() -> RunReport.read(report))
 			.withMessageContaining("a report has its window");
+	}
+
+	@Test
+	void read_aPartWithoutItsType_isRefused() {
+		JsonNode report = json(REPORT.replace("\"type\": \"service\", ", ""));
+
+		assertThatExceptionOfType(JacksonException.class).isThrownBy(() -> RunReport.read(report))
+			.withMessageContaining("a report's part has its type");
+	}
+
+	@Test
+	void read_aPartWithoutItsCategory_isRefused() {
+		JsonNode report = json(REPORT.replace("\"category\": \"compute\", ", ""));
+
+		assertThatExceptionOfType(JacksonException.class).isThrownBy(() -> RunReport.read(report))
+			.withMessageContaining("a report's part has its category");
+	}
+
+	@Test
+	void read_aSummaryWithoutItsFailureBreakdown_isRefused() {
+		JsonNode report = json(REPORT.replace(", \"failureBreakdown\": []", ""));
+
+		assertThatExceptionOfType(JacksonException.class).isThrownBy(() -> RunReport.read(report))
+			.withMessageContaining("a report's summary has its failures");
+	}
+
+	@Test
+	void counter_aCountThePartKeeps_isItsCount() {
+		assertThat(api().summary().counter("misses")).isEqualTo(7);
+	}
+
+	@Test
+	void counter_aCountThePartDoesNotKeep_isZero() {
+		assertThat(api().summary().counter("wasted")).isZero();
+	}
+
+	@Test
+	void rejectedFor_aReasonThePartRejectedFor_isHowMany() {
+		assertThat(api().summary().rejectedFor("queue_full")).isEqualTo(5);
+	}
+
+	@Test
+	void rejectedFor_aReasonThePartDidNotRejectFor_isZero() {
+		assertThat(api().summary().rejectedFor("throttled")).isZero();
+	}
+
+	@Test
+	void behaves_aBehaviourItsTechnologyAdds_isTrue() {
+		assertThat(api().behaves("primary_reads")).isTrue();
+	}
+
+	@Test
+	void behaves_aPartWithoutBehaviours_isFalse() {
+		assertThat(RunReport.read(json(REPORT)).nodes().get(1).behaves("primary_reads")).isFalse();
+	}
+
+	private static ReportNode api() {
+		return RunReport.read(json(REPORT)).nodes().getFirst();
 	}
 
 	private static JsonNode json(String text) {
