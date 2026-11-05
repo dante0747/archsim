@@ -40,9 +40,9 @@ public record RunFigures(@Nullable Double p50, @Nullable Double p95, @Nullable D
 		if (summary.path("latencyMs").isObject()) {
 			return of(RunSummary.read(summary));
 		}
-		return new RunFigures(StoredNumbers.of(summary, "p50"), StoredNumbers.of(summary, "p95"),
-				StoredNumbers.of(summary, "p99"), StoredNumbers.of(summary, "successRate"),
-				StoredNumbers.of(summary, "throughputRps"));
+		return new RunFigures(StoredNumbers.number(summary, "p50"), StoredNumbers.number(summary, "p95"),
+				StoredNumbers.number(summary, "p99"), StoredNumbers.number(summary, "successRate"),
+				StoredNumbers.number(summary, "throughputRps"));
 	}
 
 }

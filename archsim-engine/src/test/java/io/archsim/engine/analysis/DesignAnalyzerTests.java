@@ -6,11 +6,13 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 
+import io.archsim.engine.review.ReviewRule;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
@@ -44,6 +46,23 @@ class DesignAnalyzerTests {
 	Stream<DynamicTest> analyze_aDocumentThePythonEngineCannotRead_isInvalidWithItsIssues() throws IOException {
 		return cases().filter((entry) -> entry.path("analysis").has("error"))
 			.map((entry) -> DynamicTest.dynamicTest(entry.path("name").asString(), () -> assertRefusal(entry)));
+	}
+
+	@Test
+	void analyze_aPartWithALoadAndNoCpu_isAnalyzedWithoutItsCpuCheck() {
+		JsonNode design = JSON.readTree("""
+				{"schemaVersion": "1.7", "kind": "archsim.architecture", "metadata": {"name": "No CPU"},
+				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
+				                            {"id": "api", "type": "service",
+				                             "config": {"cpuCores": 0, "replicas": 2,
+				                                        "serviceTimeMs": {"kind": "constant", "value": 10}}}],
+				                  "edges": [{"id": "clients-api", "source": "clients", "target": "api"}]},
+				 "workload": {"rps": 100}}""");
+
+		DesignAnalysis analysis = this.analyzer.analyze(design, null);
+
+		assertThat(analysis.review()).isNotEmpty().noneMatch((finding) -> finding.rule() == ReviewRule.CPU_CAPACITY);
+		assertThat(analysis.estimate().parts()).isNotEmpty();
 	}
 
 	private void assertAnalysis(JsonNode entry) {

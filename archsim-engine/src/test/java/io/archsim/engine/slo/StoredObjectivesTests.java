@@ -18,7 +18,7 @@ class StoredObjectivesTests {
 	private static final Objectives NONE = new Objectives(null, null, null, null);
 
 	@Test
-	void read_aDesignThatSetsOnlyAP99_judgesOnlyTheP99() {
+	void read_aDesignThatSetsOnlyAP99_leavesTheOtherTargetsOff() {
 		assertThat(StoredObjectives.read(JSON.readTree("{\"latencyP99Ms\": 500}")))
 			.isEqualTo(new Objectives(null, 500.0, null, null));
 	}
@@ -32,6 +32,10 @@ class StoredObjectivesTests {
 	@Test
 	void read_noObjectives_setNone() {
 		assertThat(StoredObjectives.read(null)).isEqualTo(NONE);
+	}
+
+	@Test
+	void read_objectivesThatAreNull_setNone() {
 		assertThat(StoredObjectives.read(JSON.readTree("null"))).isEqualTo(NONE);
 	}
 

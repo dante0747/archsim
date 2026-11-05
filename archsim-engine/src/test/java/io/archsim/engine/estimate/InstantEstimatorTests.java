@@ -19,7 +19,6 @@ import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.JsonDiff;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * The instant estimate in the cases the golden files do not reach: a design on a host
@@ -68,7 +67,7 @@ class InstantEstimatorTests {
 	}
 
 	@Test
-	void estimate_aRateLimitFirstWhenNoPartUsesAnyOfItsLimits_failsAsThePythonEngineDoes() {
+	void estimate_aRateLimitFirstWhenNoPartUsesAnyOfItsLimits_namesNoSaturationPoint() {
 		ArchitectureDocument design = resolved("""
 				{"schemaVersion": "1.7", "kind": "archsim.architecture",
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
@@ -81,8 +80,10 @@ class InstantEstimatorTests {
 				                            {"id": "api-pay", "source": "api", "target": "pay"}]},
 				 "workload": {"rps": 0.001}}""");
 
-		assertThatIllegalStateException().isThrownBy(() -> this.estimator.estimate(design))
-			.withMessage("a rate limit in use at no load has no saturation point");
+		InstantEstimate estimate = this.estimator.estimate(design);
+
+		assertThat(estimate.saturationRps()).isNull();
+		assertThat(estimate.summary()).isEqualTo("p95 ≈ 22 ms; busiest api 0%; pay uses 0% of its rate limit");
 	}
 
 	private static ArchitectureDocument resolved(String design) {

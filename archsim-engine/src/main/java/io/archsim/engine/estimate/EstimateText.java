@@ -22,10 +22,8 @@ final class EstimateText {
 	 * @param saturation what limits the design
 	 * @param latency the latency, when it is estimated
 	 * @return the summary: what overloads first and where it saturates, or the p95 and
-	 * the busiest part
-	 * @throws IllegalStateException when a rate-limited part comes first among parts that
-	 * all use none of their limits at the peak, where the Python engine raises a
-	 * {@code TypeError} (it has no saturation point to write)
+	 * the busiest part, and, when a rate limit comes first, how much of it is used and,
+	 * if the design saturates, where it turns requests away
 	 */
 	static String summary(double peak, Saturation saturation, @Nullable Latency latency) {
 		EstimatedPart busiest = saturation.busiest();
@@ -42,8 +40,7 @@ final class EstimateText {
 		EstimatedPart first = saturation.firstLimited();
 		if (first != null && !first.id().equals(busiest.id()) && first.limitedBy() == Limit.RATE_LIMIT) {
 			summary += "; " + first.label() + " uses " + PythonFormat.format(Saturation.orZero(first.load()), ".0%")
-					+ " of its rate limit (turns requests away above about "
-					+ PythonFormat.format(saturationOrThrow(saturation.rps()), ",.0f") + " req/s)";
+					+ " of its rate limit" + turnsAway(saturation.rps());
 		}
 		return summary;
 	}
@@ -79,11 +76,17 @@ final class EstimateText {
 				+ saturates;
 	}
 
-	private static double saturationOrThrow(@Nullable Double saturation) {
+	/**
+	 * Where a rate limit turns requests away.
+	 * @param saturation the load the design saturates at, if any
+	 * @return {@code (turns requests away above about 1,000 req/s)}; nothing when the
+	 * design has no saturation point
+	 */
+	private static String turnsAway(@Nullable Double saturation) {
 		if (saturation == null) {
-			throw new IllegalStateException("a rate limit in use at no load has no saturation point");
+			return "";
 		}
-		return saturation;
+		return " (turns requests away above about " + PythonFormat.format(saturation, ",.0f") + " req/s)";
 	}
 
 }

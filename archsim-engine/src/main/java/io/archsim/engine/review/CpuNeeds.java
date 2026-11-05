@@ -2,7 +2,6 @@ package io.archsim.engine.review;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalDouble;
 
 import io.archsim.engine.load.LoadEstimate;
 import io.archsim.engine.load.NodeLoad;
@@ -60,16 +59,20 @@ final class CpuNeeds {
 	 * How busy a part's CPU is at the peak.
 	 * @param node the part
 	 * @return its busy share and how it was worked out; empty for a part without a CPU
-	 * size or a load, or of another type
+	 * size (none, or not above zero), a load or threads that run, or of another type
 	 */
 	Optional<Busy> busy(NodeSpec node) {
 		LenientSettings settings = this.graph.settings(node.id());
-		OptionalDouble cpuCores = settings.number("cpuCores");
+		double cores = settings.number("cpuCores").orElse(0.0);
 		Optional<NodeLoad> carried = this.load.node(node.id());
-		if (cpuCores.isEmpty() || carried.isEmpty() || carried.get().total() <= 0) {
+		if (cores <= 0 || carried.isEmpty() || carried.get().total() <= 0) {
 			return Optional.empty();
 		}
-		double cores = cpuCores.getAsDouble();
+		Double speed = this.speeds.get(node.id());
+		if (speed != null && speed == 0) {
+			// threads that never run: there is no CPU time to judge
+			return Optional.empty();
+		}
 		Optional<Busy> busy = switch (node.type()) {
 			case ServiceSpec.TYPE ->
 				this.graph.serverless(node.id()) ? Optional.empty() : service(settings, cores, carried.get());
@@ -77,7 +80,6 @@ final class CpuNeeds {
 			case CacheSpec.TYPE -> cache(settings, cores, carried.get());
 			default -> Optional.empty();
 		};
-		Double speed = this.speeds.get(node.id());
 		return (speed != null) ? busy.map((full) -> full.slowed(speed, this.sharedCores)) : busy;
 	}
 
@@ -87,11 +89,12 @@ final class CpuNeeds {
 	 * @param settings its settings
 	 * @param cores its vCPU per replica
 	 * @param load its load
-	 * @return how busy it is; empty for a service without work per request
+	 * @return how busy it is; empty for a service without CPU work per request (none, or
+	 * not above zero)
 	 */
 	private static Optional<Busy> service(LenientSettings settings, double cores, NodeLoad load) {
 		double ms = settings.meanMs("serviceTimeMs") * settings.number("cpuShare").orElse(1.0);
-		if (ms == 0) {
+		if (ms <= 0) {
 			return Optional.empty();
 		}
 		double configuredReplicas = settings.nonZero("replicas").orElse(1.0);

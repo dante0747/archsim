@@ -28,9 +28,9 @@ public final class StoredObjectives {
 		if (objectives == null || !objectives.isObject()) {
 			return NONE;
 		}
-		return new Objectives(StoredNumbers.of(objectives, "latencyP95Ms"),
-				StoredNumbers.of(objectives, "latencyP99Ms"), StoredNumbers.of(objectives, "availability"),
-				StoredNumbers.of(objectives, "minThroughputRps"));
+		return new Objectives(StoredNumbers.number(objectives, "latencyP95Ms"),
+				StoredNumbers.number(objectives, "latencyP99Ms"), StoredNumbers.number(objectives, "availability"),
+				StoredNumbers.number(objectives, "minThroughputRps"));
 	}
 
 }

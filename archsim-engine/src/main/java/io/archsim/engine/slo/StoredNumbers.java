@@ -18,7 +18,7 @@ final class StoredNumbers {
 	 * @param name the number's key
 	 * @return the number, or {@code null} when the object has no number there
 	 */
-	static @Nullable Double of(JsonNode json, String name) {
+	static @Nullable Double number(JsonNode json, String name) {
 		JsonNode value = json.path(name);
 		return value.isNumber() ? value.doubleValue() : null;
 	}

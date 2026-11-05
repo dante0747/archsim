@@ -12795,7 +12795,7 @@
    ]
   },
   {
-   "name": "aPartWithoutCpu_cannotBeReviewed",
+   "name": "aPartWithoutCpu_skipsTheCpuCheck",
    "doc": {
     "schemaVersion": "1.7",
     "metadata": {
@@ -12828,6 +12828,50 @@
         "replicas": 2,
         "cpuCores": 0
        }
+      },
+      {
+       "id": "worker",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 0.1,
+        "cpuShare": 1.0,
+        "memoryGib": 1.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
       }
      ],
      "edges": [
@@ -12848,6 +12892,30 @@
          "value": 0.5
         },
         "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-worker",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "worker",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": 1000.0,
         "maxAttempts": 1,
         "retryBackoffMs": 50.0,
         "order": 0,
@@ -12883,10 +12951,656 @@
    "error": {
     "type": "ZeroDivisionError",
     "message": "float division by zero"
+   },
+   "skipped": {
+    "nodeId": "api",
+    "setting": "cpuCores",
+    "findings": [
+     {
+      "id": "cpu-capacity:worker|",
+      "severity": "high",
+      "rule": "cpu-capacity",
+      "title": "worker needs more CPU at peak",
+      "detail": "At the 100 req/s peak about 100 req/s reach worker; 0.1 vCPU × 1 replica at 10.0 ms of CPU work per request handle about 10 req/s, so its CPU would be 1000% busy and requests queue for a core. This is a static estimate (first attempts, fixed hit ratios); a run measures it.",
+      "suggestion": "Give it more CPU cores or replicas, or reduce the CPU work per request.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "spof:worker|",
+      "severity": "high",
+      "rule": "spof",
+      "title": "worker runs a single replica",
+      "detail": "One crash, deploy or host failure takes down every request that passes through worker.",
+      "suggestion": "Run at least 2 replicas (3 across zones for critical paths) behind the load balancer.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "edge-rate-limit:api|",
+      "severity": "low",
+      "rule": "edge-rate-limit",
+      "title": "No rate limit at the edge",
+      "detail": "Nothing in front of the system caps traffic, so a spike, a retry storm or a bot flood reaches every tier at full force.",
+      "suggestion": "Add a rate limit on the gateway or load balancer sized to the capacity you have measured.",
+      "nodeIds": [
+       "api"
+      ],
+      "edgeIds": []
+     }
+    ]
    }
   },
   {
-   "name": "aDataStoreWithoutHotData_cannotBeReviewed",
+   "name": "aServiceWithNegativeCores_skipsTheCpuCheck",
+   "doc": {
+    "schemaVersion": "1.7",
+    "metadata": {
+     "name": "case"
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "replicas": 2,
+        "cpuCores": -2
+       }
+      },
+      {
+       "id": "worker",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 0.1,
+        "cpuShare": 1.0,
+        "memoryGib": 1.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-worker",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "worker",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": 1000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "error": {
+    "type": "ZeroDivisionError",
+    "message": "float division by zero"
+   },
+   "skipped": {
+    "nodeId": "api",
+    "setting": "cpuCores",
+    "findings": [
+     {
+      "id": "cpu-capacity:worker|",
+      "severity": "high",
+      "rule": "cpu-capacity",
+      "title": "worker needs more CPU at peak",
+      "detail": "At the 100 req/s peak about 100 req/s reach worker; 0.1 vCPU × 1 replica at 10.0 ms of CPU work per request handle about 10 req/s, so its CPU would be 1000% busy and requests queue for a core. This is a static estimate (first attempts, fixed hit ratios); a run measures it.",
+      "suggestion": "Give it more CPU cores or replicas, or reduce the CPU work per request.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "spof:worker|",
+      "severity": "high",
+      "rule": "spof",
+      "title": "worker runs a single replica",
+      "detail": "One crash, deploy or host failure takes down every request that passes through worker.",
+      "suggestion": "Run at least 2 replicas (3 across zones for critical paths) behind the load balancer.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "edge-rate-limit:api|",
+      "severity": "low",
+      "rule": "edge-rate-limit",
+      "title": "No rate limit at the edge",
+      "detail": "Nothing in front of the system caps traffic, so a spike, a retry storm or a bot flood reaches every tier at full force.",
+      "suggestion": "Add a rate limit on the gateway or load balancer sized to the capacity you have measured.",
+      "nodeIds": [
+       "api"
+      ],
+      "edgeIds": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "aServiceWithNegativeCpuShare_skipsTheCpuCheck",
+   "doc": {
+    "schemaVersion": "1.7",
+    "metadata": {
+     "name": "case"
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "replicas": 2,
+        "cpuCores": 2,
+        "cpuShare": -1
+       }
+      },
+      {
+       "id": "worker",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 0.1,
+        "cpuShare": 1.0,
+        "memoryGib": 1.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-worker",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "worker",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": 1000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 100.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "error": {
+    "type": "ZeroDivisionError",
+    "message": "float division by zero"
+   },
+   "skipped": {
+    "nodeId": "api",
+    "setting": "cpuCores",
+    "findings": [
+     {
+      "id": "cpu-capacity:worker|",
+      "severity": "high",
+      "rule": "cpu-capacity",
+      "title": "worker needs more CPU at peak",
+      "detail": "At the 100 req/s peak about 100 req/s reach worker; 0.1 vCPU × 1 replica at 10.0 ms of CPU work per request handle about 10 req/s, so its CPU would be 1000% busy and requests queue for a core. This is a static estimate (first attempts, fixed hit ratios); a run measures it.",
+      "suggestion": "Give it more CPU cores or replicas, or reduce the CPU work per request.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "spof:worker|",
+      "severity": "high",
+      "rule": "spof",
+      "title": "worker runs a single replica",
+      "detail": "One crash, deploy or host failure takes down every request that passes through worker.",
+      "suggestion": "Run at least 2 replicas (3 across zones for critical paths) behind the load balancer.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "edge-rate-limit:api|",
+      "severity": "low",
+      "rule": "edge-rate-limit",
+      "title": "No rate limit at the edge",
+      "detail": "Nothing in front of the system caps traffic, so a spike, a retry storm or a bot flood reaches every tier at full force.",
+      "suggestion": "Add a rate limit on the gateway or load balancer sized to the capacity you have measured.",
+      "nodeIds": [
+       "api"
+      ],
+      "edgeIds": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "aServiceOnHyperthreadsThatStop_skipsTheCpuCheck",
+   "doc": {
+    "schemaVersion": "1.7",
+    "metadata": {
+     "name": "case"
+    },
+    "architecture": {
+     "nodes": [
+      {
+       "id": "clients",
+       "type": "traffic_source",
+       "label": "",
+       "description": null,
+       "config": {
+        "timeoutMs": 3000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 100.0,
+        "trafficShare": 100.0
+       }
+      },
+      {
+       "id": "api",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10
+        },
+        "cpuCores": 2,
+        "siblingSpeed": 0
+       }
+      },
+      {
+       "id": "worker",
+       "type": "service",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "generic",
+        "platform": "vm",
+        "replicas": 1,
+        "workersPerReplica": 4,
+        "queueCapacity": 50,
+        "queueTimeoutMs": 1000.0,
+        "serviceTimeMs": {
+         "kind": "constant",
+         "value": 10.0
+        },
+        "blockingDownstream": true,
+        "cpuCores": 0.1,
+        "cpuShare": 1.0,
+        "memoryGib": 1.0,
+        "instanceType": null,
+        "memoryPerRequestMb": 2.0,
+        "memoryBaselineMb": 256.0,
+        "memoryPerRpsMb": 0.0,
+        "autoscaling": false,
+        "minReplicas": 1,
+        "maxReplicas": 10,
+        "targetUtilization": 0.6,
+        "scaleIntervalS": 15.0,
+        "startupS": 20.0,
+        "concurrencyLimit": 1000,
+        "coldStartMs": null,
+        "cluster": null,
+        "scaleOutRate": 1000,
+        "runtimeModel": "auto",
+        "processesPerReplica": 1,
+        "gcPauseMs": null,
+        "gcEveryRequests": null,
+        "warmupFactor": null,
+        "warmupS": null,
+        "keepWarmS": 300.0,
+        "costPerHour": 0.1
+       }
+      }
+     ],
+     "edges": [
+      {
+       "id": "clients-api",
+       "source": "clients",
+       "sourcePort": "out",
+       "target": "api",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": null,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      },
+      {
+       "id": "api-worker",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "worker",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": 1000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
+      }
+     ],
+     "autoSize": true
+    },
+    "workload": {
+     "rps": 300.0,
+     "durationS": 60.0,
+     "warmupS": 10.0,
+     "seed": 42,
+     "readRatio": 0.8,
+     "arrivalProcess": "poisson",
+     "pattern": {
+      "kind": "constant"
+     },
+     "keyCount": 100000,
+     "keySkew": 0.99,
+     "drainS": null,
+     "faults": []
+    },
+    "pricing": {
+     "provider": "generic",
+     "region": null,
+     "purchaseOption": "on_demand",
+     "families": []
+    }
+   },
+   "error": {
+    "type": "ZeroDivisionError",
+    "message": "float division by zero"
+   },
+   "skipped": {
+    "nodeId": "api",
+    "setting": "cpuCores",
+    "findings": [
+     {
+      "id": "cpu-capacity:worker|",
+      "severity": "high",
+      "rule": "cpu-capacity",
+      "title": "worker needs more CPU at peak",
+      "detail": "At the 300 req/s peak about 300 req/s reach worker; 0.1 vCPU × 1 replica at 10.0 ms of CPU work per request handle about 10 req/s, so its CPU would be 3000% busy and requests queue for a core. This is a static estimate (first attempts, fixed hit ratios); a run measures it.",
+      "suggestion": "Give it more CPU cores or replicas, or reduce the CPU work per request.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "spof:worker|",
+      "severity": "high",
+      "rule": "spof",
+      "title": "worker runs a single replica",
+      "detail": "One crash, deploy or host failure takes down every request that passes through worker.",
+      "suggestion": "Run at least 2 replicas (3 across zones for critical paths) behind the load balancer.",
+      "nodeIds": [
+       "worker"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "edge-rate-limit:api|",
+      "severity": "low",
+      "rule": "edge-rate-limit",
+      "title": "No rate limit at the edge",
+      "detail": "Nothing in front of the system caps traffic, so a spike, a retry storm or a bot flood reaches every tier at full force.",
+      "suggestion": "Add a rate limit on the gateway or load balancer sized to the capacity you have measured.",
+      "nodeIds": [
+       "api"
+      ],
+      "edgeIds": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "aDataStoreWithoutHotData_skipsTheBufferCacheCheck",
    "doc": {
     "schemaVersion": "1.7",
     "metadata": {
@@ -12959,6 +13673,74 @@
         "memoryGib": 8,
         "workingSetGib": 0
        }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 1.0,
+        "cpuShare": 0.5,
+        "memoryGib": 1.0,
+        "workingSetGib": 100.0,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
       }
      ],
      "edges": [
@@ -13009,6 +13791,30 @@
         "readsOnMiss": false,
         "continueOnFailure": false
        }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": 1000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
       }
      ],
      "autoSize": true
@@ -13038,10 +13844,64 @@
    "error": {
     "type": "ZeroDivisionError",
     "message": "float division by zero"
+   },
+   "skipped": {
+    "nodeId": "db",
+    "setting": "workingSetGib",
+    "findings": [
+     {
+      "id": "buffer-cache:orders|",
+      "severity": "medium",
+      "rule": "buffer-cache",
+      "title": "orders's hot data does not fit in memory",
+      "detail": "75% of 1 GiB is buffer cache for about 100 GiB of hot data per instance, so about 99% of reads go to disk.",
+      "suggestion": "Give each instance more memory, shard the data, or cache the hottest reads in front.",
+      "nodeIds": [
+       "orders"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "spof:db|",
+      "severity": "medium",
+      "rule": "spof",
+      "title": "db has no replica",
+      "detail": "A primary failure is an outage for every read and write that reaches it.",
+      "suggestion": "Add a standby or read replicas (relational), a replica set (document stores) or replication factor 3 (wide-column).",
+      "nodeIds": [
+       "db"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "spof:orders|",
+      "severity": "medium",
+      "rule": "spof",
+      "title": "orders has no replica",
+      "detail": "A primary failure is an outage for every read and write that reaches it.",
+      "suggestion": "Add a standby or read replicas (relational), a replica set (document stores) or replication factor 3 (wide-column).",
+      "nodeIds": [
+       "orders"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "edge-rate-limit:api|",
+      "severity": "low",
+      "rule": "edge-rate-limit",
+      "title": "No rate limit at the edge",
+      "detail": "Nothing in front of the system caps traffic, so a spike, a retry storm or a bot flood reaches every tier at full force.",
+      "suggestion": "Add a rate limit on the gateway or load balancer sized to the capacity you have measured.",
+      "nodeIds": [
+       "api"
+      ],
+      "edgeIds": []
+     }
+    ]
    }
   },
   {
-   "name": "aCacheOfItemsWithoutSize_cannotBeReviewed",
+   "name": "aCacheOfItemsWithoutSize_skipsTheCacheCapacityCheck",
    "doc": {
     "schemaVersion": "1.7",
     "metadata": {
@@ -13115,6 +13975,74 @@
         "memoryGib": 1,
         "itemSizeKb": 0
        }
+      },
+      {
+       "id": "orders",
+       "type": "database",
+       "label": "",
+       "description": null,
+       "config": {
+        "technology": "postgresql",
+        "maxConnections": 10,
+        "readServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 5.0,
+         "p95": 20.0
+        },
+        "writeServiceTimeMs": {
+         "kind": "lognormal",
+         "median": 10.0,
+         "p95": 40.0
+        },
+        "readReplicas": 0,
+        "shards": 1,
+        "replicationFactor": 1,
+        "consistency": "one",
+        "throughputLimitRps": null,
+        "queueCapacity": 200,
+        "queueTimeoutMs": 1000.0,
+        "rowLocks": "auto",
+        "readsWaitForWrites": "auto",
+        "commitFlush": "auto",
+        "commitFlushMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 3.0
+        },
+        "replication": "auto",
+        "replicaApplyWorkers": null,
+        "replicaApplyFactor": 0.5,
+        "replicationDelayMs": {
+         "kind": "lognormal",
+         "median": 0.5,
+         "p95": 2.0
+        },
+        "readFrom": "auto",
+        "readTickets": null,
+        "writeTickets": null,
+        "scatterReads": null,
+        "routerOverheadMs": null,
+        "sstablesPerRead": null,
+        "capacityUnits": "auto",
+        "capacityMode": "on_demand",
+        "readCapacityUnits": 1000.0,
+        "writeCapacityUnits": 500.0,
+        "itemSizeKb": 1.0,
+        "consistentReads": "eventual",
+        "cpuCores": 1.0,
+        "cpuShare": 0.5,
+        "memoryGib": 1.0,
+        "workingSetGib": 100.0,
+        "diskReadMs": {
+         "kind": "lognormal",
+         "median": 1.0,
+         "p95": 4.0
+        },
+        "storageGib": 10.0,
+        "instanceType": null,
+        "dataSizeGib": null,
+        "costPerHour": 0.35
+       }
       }
      ],
      "edges": [
@@ -13165,6 +14093,30 @@
         "readsOnMiss": false,
         "continueOnFailure": false
        }
+      },
+      {
+       "id": "api-orders",
+       "source": "api",
+       "sourcePort": "out",
+       "target": "orders",
+       "targetPort": "in",
+       "label": null,
+       "config": {
+        "requestTypes": [
+         "read",
+         "write"
+        ],
+        "latencyMs": {
+         "kind": "constant",
+         "value": 0.5
+        },
+        "timeoutMs": 1000.0,
+        "maxAttempts": 1,
+        "retryBackoffMs": 50.0,
+        "order": 0,
+        "readsOnMiss": false,
+        "continueOnFailure": false
+       }
       }
      ],
      "autoSize": true
@@ -13194,6 +14146,63 @@
    "error": {
     "type": "ZeroDivisionError",
     "message": "float floor division by zero"
+   },
+   "skipped": {
+    "nodeId": "cache",
+    "setting": "memoryGib",
+    "findings": [
+     {
+      "id": "buffer-cache:orders|",
+      "severity": "medium",
+      "rule": "buffer-cache",
+      "title": "orders's hot data does not fit in memory",
+      "detail": "75% of 1 GiB is buffer cache for about 100 GiB of hot data per instance, so about 99% of reads go to disk.",
+      "suggestion": "Give each instance more memory, shard the data, or cache the hottest reads in front.",
+      "nodeIds": [
+       "orders"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "cache-dependency:api+cache|api-cache",
+      "severity": "medium",
+      "rule": "cache-dependency",
+      "title": "Reads fail when cache is down",
+      "detail": "Every read from api goes through cache; if the cache itself is unavailable, reads have no other path.",
+      "suggestion": "Turn on 'Carry on if this call fails' on the link to cache and give api a link to the data store set to 'Reads only on a cache miss', so reads fall back to the data store (check it can take every read), or run the cache with replicas.",
+      "nodeIds": [
+       "api",
+       "cache"
+      ],
+      "edgeIds": [
+       "api-cache"
+      ]
+     },
+     {
+      "id": "spof:orders|",
+      "severity": "medium",
+      "rule": "spof",
+      "title": "orders has no replica",
+      "detail": "A primary failure is an outage for every read and write that reaches it.",
+      "suggestion": "Add a standby or read replicas (relational), a replica set (document stores) or replication factor 3 (wide-column).",
+      "nodeIds": [
+       "orders"
+      ],
+      "edgeIds": []
+     },
+     {
+      "id": "edge-rate-limit:api|",
+      "severity": "low",
+      "rule": "edge-rate-limit",
+      "title": "No rate limit at the edge",
+      "detail": "Nothing in front of the system caps traffic, so a spike, a retry storm or a bot flood reaches every tier at full force.",
+      "suggestion": "Add a rate limit on the gateway or load balancer sized to the capacity you have measured.",
+      "nodeIds": [
+       "api"
+      ],
+      "edgeIds": []
+     }
+    ]
    }
   },
   {

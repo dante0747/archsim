@@ -12,6 +12,12 @@ out, and writes the designs as simulated with the findings (or the error) to arc
 resources, where ``DesignReviewTests`` checks the Java against them as the golden files are
 checked.
 
+Where the engine divides by zero, the Java review skips the check that would (the owner's
+decision): a part with a load and no CPU above zero, a service with negative CPU work, one on
+hyperthreads that stop, a data store without hot data, a TTL cache whose items have no size. Each
+such case also records the engine's review of the same design without the setting whose removal
+skips only that check (``skipped``), which is what the Java review gives.
+
 Usage:
     uv run python scripts/export_review_cases.py           # write the cases
     uv run python scripts/export_review_cases.py --check   # exit 1 if a fresh export differs
@@ -24,6 +30,7 @@ that reason, not a CI one.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -78,6 +85,17 @@ def database(node_id: str = "db", **config: Any) -> Json:
 
 def timed(source: str, target: str, **config: Any) -> Json:
     return link(source, target, **{"timeoutMs": 1000, **config})
+
+
+def short_of_cpu() -> Json:
+    """A service after the part a check is skipped for, whose own CPU check still fires."""
+    return service("worker", replicas=1, cpuCores=0.1)
+
+
+def out_of_memory() -> Json:
+    """A data store after the part a check is skipped for, whose own buffer-cache check still
+    fires."""
+    return database("orders", memoryGib=1, workingSetGib=100)
 
 
 def layered(layers: int, width: int) -> Json:
@@ -389,28 +407,56 @@ def designs() -> list[tuple[str, Json]]:
             ),
         ),
         (
-            "aPartWithoutCpu_cannotBeReviewed",
+            "aPartWithoutCpu_skipsTheCpuCheck",
             design(
-                [clients(), service(replicas=2, cpuCores=0)],
-                [link("clients", "api")],
+                [clients(), service(replicas=2, cpuCores=0), short_of_cpu()],
+                [link("clients", "api"), timed("api", "worker")],
             ),
         ),
         (
-            "aDataStoreWithoutHotData_cannotBeReviewed",
+            "aServiceWithNegativeCores_skipsTheCpuCheck",
             design(
-                [clients(), service(replicas=2), database(memoryGib=8, workingSetGib=0)],
-                [link("clients", "api"), timed("api", "db")],
+                [clients(), service(replicas=2, cpuCores=-2), short_of_cpu()],
+                [link("clients", "api"), timed("api", "worker")],
             ),
         ),
         (
-            "aCacheOfItemsWithoutSize_cannotBeReviewed",
+            "aServiceWithNegativeCpuShare_skipsTheCpuCheck",
+            design(
+                [clients(), service(replicas=2, cpuCores=2, cpuShare=-1), short_of_cpu()],
+                [link("clients", "api"), timed("api", "worker")],
+            ),
+        ),
+        (
+            "aServiceOnHyperthreadsThatStop_skipsTheCpuCheck",
+            design(
+                [clients(), service(cpuCores=2, siblingSpeed=0), short_of_cpu()],
+                [link("clients", "api"), timed("api", "worker")],
+                workload={"rps": 300},
+            ),
+        ),
+        (
+            "aDataStoreWithoutHotData_skipsTheBufferCacheCheck",
+            design(
+                [
+                    clients(),
+                    service(replicas=2),
+                    database(memoryGib=8, workingSetGib=0),
+                    out_of_memory(),
+                ],
+                [link("clients", "api"), timed("api", "db"), timed("api", "orders")],
+            ),
+        ),
+        (
+            "aCacheOfItemsWithoutSize_skipsTheCacheCapacityCheck",
             design(
                 [
                     clients(),
                     service(replicas=2),
                     node("cache", "cache", hitModel="ttl_keyspace", memoryGib=1, itemSizeKb=0),
+                    out_of_memory(),
                 ],
-                [link("clients", "api"), timed("api", "cache")],
+                [link("clients", "api"), timed("api", "cache"), timed("api", "orders")],
             ),
         ),
         (
@@ -428,20 +474,51 @@ def designs() -> list[tuple[str, Json]]:
     ]
 
 
-def review(raw: Json) -> Json:
-    """The case's design as simulated, and its review or the error the engine raises."""
+SKIPPED_CHECKS = {
+    "aPartWithoutCpu_skipsTheCpuCheck": ("api", "cpuCores"),
+    "aServiceWithNegativeCores_skipsTheCpuCheck": ("api", "cpuCores"),
+    "aServiceWithNegativeCpuShare_skipsTheCpuCheck": ("api", "cpuCores"),
+    "aServiceOnHyperthreadsThatStop_skipsTheCpuCheck": ("api", "cpuCores"),
+    "aDataStoreWithoutHotData_skipsTheBufferCacheCheck": ("db", "workingSetGib"),
+    "aCacheOfItemsWithoutSize_skipsTheCacheCapacityCheck": ("cache", "memoryGib"),
+}
+"""Each case the engine cannot review: the part, and the setting whose removal skips only the check
+that divides by zero. A part's cores are also read for its speed on its own hyperthreads, where
+cores not above zero and none read alike; a TTL cache's memory is removed, since an item size left
+out defaults to 1 KiB. Each design has a part after it whose own check still fires, so the review
+must skip that one check, not the rest."""
+
+
+def without(snapshot: Json, node_id: str, setting: str) -> Json:
+    """The design as simulated, without one setting of one part."""
+    changed = copy.deepcopy(snapshot)
+    for node in changed["architecture"]["nodes"]:
+        if node["id"] == node_id:
+            del node["config"][setting]
+    return changed
+
+
+def review(name: str, raw: Json) -> Json:
+    """The case's design as simulated, and its review or the error the engine raises; for an
+    error, also the review without the setting the failing check reads."""
     doc = load_document(raw)
     resolved, _, _ = resolve_scenario_sized(doc, None, REGISTRY)
     snapshot = simulation_input(resolved)
     try:
         return {"doc": snapshot, "findings": review_design(snapshot, REGISTRY)}
     except ArithmeticError as exc:
-        return {"doc": snapshot, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        node_id, setting = SKIPPED_CHECKS[name]
+        skipped = review_design(without(snapshot, node_id, setting), REGISTRY)
+        return {
+            "doc": snapshot,
+            "error": {"type": type(exc).__name__, "message": str(exc)},
+            "skipped": {"nodeId": node_id, "setting": setting, "findings": skipped},
+        }
 
 
 def export() -> str:
     """The cases file's text: each case's design as simulated, and its findings or error."""
-    cases = [{"name": name, **review(raw)} for name, raw in designs()]
+    cases = [{"name": name, **review(name, raw)} for name, raw in designs()]
     document = {
         "generator": "scripts/export_review_cases.py (archsim_engine 0.16.0)",
         "cases": cases,

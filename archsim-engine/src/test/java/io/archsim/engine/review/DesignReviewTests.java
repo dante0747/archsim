@@ -18,7 +18,6 @@ import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.parity.JsonDiff;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * The design review in the cases the golden files do not reach: retries without backoff,
@@ -26,7 +25,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * cores, a walk past its step budget, titles that sort differently folded, settings read
  * leniently, and divisions by zero. Each case ({@code review/cases.json}, written by
  * {@code scripts/export_review_cases.py}) has the findings the Python engine 0.16.0
- * gives, or the error it raises.
+ * gives, or the error it raises. Where it divides by zero, the Java review skips the
+ * check that would, and gives the Python engine's review of the design without the
+ * setting whose removal skips only that check.
  */
 class DesignReviewTests {
 
@@ -41,24 +42,23 @@ class DesignReviewTests {
 	}
 
 	@TestFactory
-	Stream<DynamicTest> review_aCaseThePythonEngineDividesByZero_isAnArithmeticError() throws IOException {
-		return cases().filter((entry) -> entry.has("error"))
-			.map((entry) -> DynamicTest.dynamicTest(entry.path("name").asString(), () -> assertError(entry)));
+	Stream<DynamicTest> review_aCaseThePythonEngineDividesByZero_skipsTheCheckThatWould() throws IOException {
+		return cases().filter((entry) -> entry.has("skipped"))
+			.map((entry) -> DynamicTest.dynamicTest(entry.path("name").asString(), () -> assertSkipped(entry)));
 	}
 
 	private void assertFindings(JsonNode entry) {
-		ArrayNode findings = JSON.createArrayNode();
-		this.review.review(design(entry)).forEach((finding) -> findings.add(RecordCodec.write(finding)));
-
-		assertThat(JsonDiff.differences(entry.path("findings"), findings)).isEmpty();
+		assertThat(JsonDiff.differences(entry.path("findings"), findings(entry))).isEmpty();
 	}
 
-	private void assertError(JsonNode entry) {
-		JsonNode error = entry.path("error");
+	private void assertSkipped(JsonNode entry) {
+		assertThat(JsonDiff.differences(entry.path("skipped").path("findings"), findings(entry))).isEmpty();
+	}
 
-		assertThatExceptionOfType(ArithmeticException.class).isThrownBy(() -> this.review.review(design(entry)))
-			.withMessage(error.path("message").asString());
-		assertThat(error.path("type").asString()).isEqualTo("ZeroDivisionError");
+	private ArrayNode findings(JsonNode entry) {
+		ArrayNode findings = JSON.createArrayNode();
+		this.review.review(design(entry)).forEach((finding) -> findings.add(RecordCodec.write(finding)));
+		return findings;
 	}
 
 	private static ArchitectureDocument design(JsonNode entry) {

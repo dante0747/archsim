@@ -80,8 +80,11 @@ such as the traces and most time series.
 - Good, because a report of an older version reads as long as it has the parts the records
   require.
 - Good, because decoding builds only the records' values; the rest of the report is skipped.
-- Bad, because the engine decodes JSON in two ways: designs with the model's strict codec,
-  reports with plain Jackson. Each is in one place.
+- Bad, because the engine decodes JSON in three ways: designs with the model's strict codec,
+  reports with plain Jackson, and the numbers stored with a run (its compact summary, its
+  objectives) by hand (`StoredNumbers`). Each is in one place. A stored value that is not a
+  number reads as none there, a target as off, where the Python raised `TypeError` comparing it;
+  the stored designs are validated, so none has one.
 - Bad, because the records are partial until stage 4, and a reader of a record cannot tell a
   value the report lacks from one the records do not name yet.
 - Bad, because the compiler checks the engine against the records, not the records against the

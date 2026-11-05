@@ -102,6 +102,10 @@ final class CapacityRules {
 		}
 		double perInstance = workingSet.getAsDouble()
 				/ ReviewNumbers.larger(1.0, settings.nonZero("shards").orElse(1.0));
+		if (perInstance == 0) {
+			// no hot data per instance: all of it fits
+			return;
+		}
 		double hit = ReviewNumbers.smaller(1.0,
 				TrueDivision.of(BUFFER_CACHE_SHARE * memory.getAsDouble(), perInstance));
 		if (hit >= BUFFER_CACHE_HIT) {
@@ -123,6 +127,10 @@ final class CapacityRules {
 			return;
 		}
 		double item = settings.number("itemSizeKb").orElse(1.0);
+		if (item == 0) {
+			// items of no size: memory holds every key
+			return;
+		}
 		double keys = ReviewNumbers.larger(1, ReviewNumbers
 			.whole(FloorDivision.of(KEY_MEMORY_SHARE * memory.getAsDouble() * KIB_PER_GIB * KIB_PER_GIB, item)));
 		long keyCount = this.document.workload().keyCount();

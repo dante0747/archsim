@@ -31,12 +31,12 @@ public final class DesignReview {
 	}
 
 	/**
-	 * The findings of a design's review.
+	 * The findings of a design's review. A check a part's specs give nothing to judge is
+	 * skipped: CPU for a part without cores above zero, CPU work above zero or threads
+	 * that run, and memory for a data store without hot data or a cache of items without
+	 * size.
 	 * @param document the design as a run simulates it: resolved and auto-sized
 	 * @return its findings, by severity, rule and title
-	 * @throws ArithmeticException where the review divides by zero, as the Python engine
-	 * raises {@code ZeroDivisionError}: a part with a load and no CPU, a data store whose
-	 * hot data is zero, or a cache of keys whose items have no size
 	 */
 	public List<Finding> review(ArchitectureDocument document) {
 		ReviewGraph graph = new ReviewGraph(document.architecture(), this.registry);

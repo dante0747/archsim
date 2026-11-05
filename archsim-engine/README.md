@@ -52,17 +52,24 @@ summary (the run row's flat `p50`, `p95` and `p99`) reads into `RunFigures`, as 
 summary does, and the objectives stored with a run into `Objectives` with the targets the design
 leaves out off (`StoredObjectives`).
 
-Where the Python engine fails, the Java decides for itself, and its tests say how:
+Where the Python engine fails, the Java gives a result instead (the owner's decision; the Python
+engine stays frozen), and its tests say which:
 
 - A link to a part that does not exist: the Python estimate raises `KeyError`; the Java estimate
   leaves the calling part and the latency unestimated, so a half-drawn design still gets an
   estimate (validation reports the link).
 - A rate-limited part first among parts that use none of their limits at the peak: the Python
-  summary raises `TypeError` (it has no saturation point to write); the Java estimate throws
-  `IllegalStateException`.
-- A part with a load and no CPU (`cpuCores: 0`), a data store whose hot data is zero, or a TTL
-  cache whose items have no size: the Python review divides by zero and raises
-  `ZeroDivisionError`; the Java review throws `ArithmeticException` with the same words.
+  summary raises `TypeError` (it has no saturation point to write); the Java summary names the
+  rate limit's use without a saturation point, and `saturationRps` is `null`.
+- A part with a load and no CPU above zero (`cpuCores: 0` or less), a service whose CPU work per
+  request is below zero, a part on its own hyperthreads that stop (`siblingSpeed: 0` on 2 vCPU or
+  more, with any CPU work), a data store whose hot data is zero, or a TTL cache whose items have
+  no size: the Python review divides by zero and raises `ZeroDivisionError`; the
+  Java review skips the check that would (CPU capacity, buffer cache, cache capacity) and gives
+  the other findings. `review/cases.json` holds, for each, the Python review of the same design
+  without the setting whose removal skips only that check (a part's cores are also read for its
+  speed on its hyperthreads, where cores not above zero and none read alike), which the Java
+  review must match.
 
 ## Tests
 
