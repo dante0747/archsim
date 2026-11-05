@@ -27,7 +27,6 @@ from archsim_engine import (
     DocumentInvalidError,
     SimulationLimitError,
     SimulationLimits,
-    compare_reports,
     default_registry,
 )
 from archsim_engine.calibration import (
@@ -130,17 +129,6 @@ def limits_of(body: dict[str, Any]) -> SimulationLimits:
     return SimulationLimits(
         max_requests=max_requests, max_wall_seconds=number(body, "maxWallSeconds")
     )
-
-
-def compare(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
-    """``compare_reports`` of two finished runs' reports, named ``labelA`` and ``labelB``."""
-    a, b = body.get("a"), body.get("b")
-    label_a, label_b = body.get("labelA"), body.get("labelB")
-    if not isinstance(a, dict) or not isinstance(b, dict):
-        raise BadRequest("a and b must be reports")
-    if not isinstance(label_a, str) or not isinstance(label_b, str):
-        raise BadRequest("labelA and labelB must be strings")
-    return compare_reports(a, b, label_a, label_b)
 
 
 def export(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
@@ -284,7 +272,6 @@ def create_app() -> Starlette:
     app = Starlette(
         routes=[
             Route("/health", health, methods=["GET"]),
-            Route("/compare", endpoint(compare), methods=["POST"]),
             Route("/export", endpoint(export), methods=["POST"]),
             Route("/import", endpoint(import_), methods=["POST"]),
             Route("/calibrate", endpoint(calibrate), methods=["POST"]),

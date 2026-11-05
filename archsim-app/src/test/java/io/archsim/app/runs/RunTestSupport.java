@@ -180,12 +180,22 @@ abstract class RunTestSupport {
 	 * @param p95 the summary's p95 latency
 	 */
 	void finish(String runId, double p95) {
+		finish(runId, p95, "{\"summary\": {\"latencyMs\": {\"p95\": " + p95 + "}}, \"nodes\": []}");
+	}
+
+	/**
+	 * Finishes a run as a worker does, with a report of its own.
+	 * @param runId the run
+	 * @param p95 the compact summary's p95 latency
+	 * @param report the report
+	 */
+	void finish(String runId, double p95, String report) {
 		this.jdbc.sql("""
 				UPDATE simulation_runs SET status = 'succeeded', progress = 1,
 				       summary = CAST(:summary AS jsonb), report = CAST(:report AS jsonb)
 				WHERE id = :id""")
 			.param("summary", "{\"p95\": " + p95 + "}")
-			.param("report", "{\"summary\": {\"latencyMs\": {\"p95\": " + p95 + "}}, \"nodes\": []}")
+			.param("report", report)
 			.param("id", runId)
 			.update();
 	}

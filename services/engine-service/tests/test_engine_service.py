@@ -12,10 +12,9 @@ from starlette.testclient import TestClient
 
 from archsim_engine import (
     ENGINE_VERSION,
-    compare_reports,
     default_registry,
 )
-from archsim_engine.export import export_document
+from archsim_engine.export import FORMATS, export_document
 from archsim_engine_service.app import create_app
 
 EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
@@ -52,14 +51,6 @@ def test_unknown_path_is_not_found(client: TestClient) -> None:
     assert client.post("/nothing").status_code == 404
 
 
-# -- runs: compare
-
-
-def report() -> dict[str, Any]:
-    node = {"id": "api", "label": "API", "type": "service", "status": "ok", "summary": {}}
-    return {"summary": {"latencyP95Ms": 120.0, "successRate": 0.99}, "nodes": [node]}
-
-
 @pytest.mark.parametrize(
     ("body", "message"),
     [
@@ -79,41 +70,17 @@ def test_request_it_cannot_read_is_a_bad_request(
 
 def test_answer_is_the_bytes_fastapi_wrote(client: TestClient) -> None:
     fastapi = pytest.importorskip("fastapi.encoders")
-    expected = compare_reports(report(), report(), "before", "after")
+    suffix, media_type = FORMATS["mermaid"]
+    expected = {
+        "format": "mermaid",
+        "text": export_document(starter(), "mermaid", default_registry()),
+        "suffix": suffix,
+        "mediaType": media_type,
+    }
 
-    response = client.post(
-        "/compare", json={"a": report(), "b": report(), "labelA": "before", "labelB": "after"}
-    )
+    response = client.post("/export", json={"document": starter(), "format": "mermaid"})
 
     assert response.content == JSONResponse(fastapi.jsonable_encoder(expected)).body
-
-
-def test_compare_answers_what_the_engine_compares(client: TestClient) -> None:
-    body = {"a": report(), "b": report(), "labelA": "before", "labelB": "after"}
-
-    response = client.post("/compare", json=body)
-
-    assert response.json() == compare_reports(report(), report(), "before", "after")
-
-
-@pytest.mark.parametrize(
-    ("path", "body", "message"),
-    [
-        ("/compare", {"a": [], "b": {}, "labelA": "x", "labelB": "y"}, "a and b must be reports"),
-        (
-            "/compare",
-            {"a": {}, "b": {}, "labelA": None, "labelB": "y"},
-            "labelA and labelB must be strings",
-        ),
-    ],
-)
-def test_runs_request_it_cannot_read_is_a_bad_request(
-    client: TestClient, path: str, body: dict[str, Any], message: str
-) -> None:
-    response = client.post(path, json=body)
-
-    assert response.status_code == 400
-    assert response.json()["message"] == message
 
 
 def test_export_starter_answers_the_engines_text_with_its_suffix(client: TestClient) -> None:

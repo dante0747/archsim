@@ -14,13 +14,15 @@ import tools.jackson.databind.JsonNode;
  * @param type its type, such as {@code service}
  * @param category its type's category, such as {@code traffic} for a client group
  * @param label its name
+ * @param status how it fared in the run, as the run's analysis judged it, such as
+ * {@code hot}; {@code null} when the report does not say
  * @param summary its figures over the measured window
  * @param timeseries its figures per time bucket, by name; which series a part has depends
  * on its kind, and a series has a gap ({@code null}) where a bucket measured nothing
  * @param behaviour the behaviours its technology adds, such as {@code primary_reads}
  */
-public record ReportNode(String id, String type, String category, String label, NodeSummary summary,
-		Map<String, List<@Nullable Double>> timeseries, List<Behaviour> behaviour) {
+public record ReportNode(String id, String type, String category, String label, @Nullable String status,
+		NodeSummary summary, Map<String, List<@Nullable Double>> timeseries, List<Behaviour> behaviour) {
 
 	/**
 	 * Checks that the part has its id, type, category, name and figures, and copies its

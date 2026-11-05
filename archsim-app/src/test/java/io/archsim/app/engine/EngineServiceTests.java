@@ -83,16 +83,6 @@ class EngineServiceTests {
 	}
 
 	@Test
-	void compare_request_carriesBothReportsAndTheirNames() throws IOException {
-		EngineService engine = serving(200, "{\"kpis\": []}");
-
-		engine.compare(JSON.readTree("{\"summary\": 1}"), JSON.readTree("{\"summary\": 2}"), "before", "after");
-
-		assertThat(JSON.readTree(this.received.get())).isEqualTo(JSON.readTree(
-				"{\"a\": {\"summary\": 1}, \"b\": {\"summary\": 2}, \"labelA\": \"before\", \"labelB\": \"after\"}"));
-	}
-
-	@Test
 	void export_request_carriesTheDesignAndFormat() throws IOException {
 		EngineService engine = serving(200, "{}");
 

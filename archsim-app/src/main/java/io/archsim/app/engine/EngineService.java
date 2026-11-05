@@ -28,8 +28,8 @@ import io.archsim.model.issue.Issue;
 
 /**
  * The Python engine service (ADR-0036), which runs the engine's synchronous calls until
- * stage 3 of the port moves each one to Java: comparisons, exports, imports and
- * calibration. Its answers are passed on as it wrote them.
+ * stage 3 of the port moves each one to Java: exports, imports and calibration. Its
+ * answers are passed on as it wrote them.
  */
 public final class EngineService {
 
@@ -45,25 +45,6 @@ public final class EngineService {
 	 */
 	public EngineService(RestClient http) {
 		this.http = http;
-	}
-
-	/**
-	 * Compares two finished runs' reports ({@code compare_reports}).
-	 * @param first the first run's report
-	 * @param second the second run's report
-	 * @param firstLabel what to call the first
-	 * @param secondLabel what to call the second
-	 * @return the comparison: KPI deltas, input differences and explanations
-	 * @throws ApiException {@code 503} when the service cannot be reached or does not
-	 * answer in time
-	 */
-	public ObjectNode compare(JsonNode first, JsonNode second, String firstLabel, String secondLabel) {
-		ObjectNode body = JSON.createObjectNode();
-		body.set("a", first);
-		body.set("b", second);
-		body.put("labelA", firstLabel);
-		body.put("labelB", secondLabel);
-		return (ObjectNode) JSON.readTree(call("/compare", body).json());
 	}
 
 	/**

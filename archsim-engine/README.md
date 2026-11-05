@@ -36,6 +36,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `simulation` | where the engine meets the simulator: `SimulationLimits`, `Stationarity` (whether a sampled run reached a `SteadyState`) |
 | `explain` | the calculations behind a report's numbers: `QueueingFormulas` (any part's arrival rate, slot capacity, utilization, Little's law, M/M/c wait and CPU capacity), `Formula` |
 | `findings` | what a run found: `RunAnalysis` (each part's status, a `Classification`, from its utilization, CPU, rejections and queue; the root causes and the symptoms of a part downstream; what clients saw; work wasted on clients that gave up; caches; data stores' hot shards, replicas, lag and locks; third parties' errors and latency; throttling; pending pods; each fault's impact; autoscaling, serverless cold starts and queue lag), each a `RunFinding` with the figures it rests on |
+| `compare` | comparing two runs: `RunComparer` (each run figure with a verdict, each part side by side, what changed in words and why the runs may differ otherwise: `RunComparison`), `InputDiff` (the settings two simulated designs differ in, as the reports store them, compared as Python compares them; [ADR-0040](../docs/adr/0040-comparison-copies-what-it-does-not-read.md)) |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -106,13 +107,16 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   - on every recorded run, the verdict against the design's objectives (`slo.slo_checks`,
     `evaluate`, `verdict_text`), the run as a load sweep's step (`sweep.row_from`, `meets`),
     whether it reached a steady state (`engine.stationary`) and each part's queueing formulas
-    (`explain.generic`); on every pair of runs, the seed summary (`seeds.summarize_seeds`) and
-    the sweep's breaking point (`sweep.analyze`); on every recorded run, its confidence
+    (`explain.generic`); on every pair of runs, the seed summary (`seeds.summarize_seeds`),
+    the sweep's breaking point (`sweep.analyze`) and the comparison (`compare.compare_reports`,
+    `input_diff`); on every recorded run, its confidence
     (`confidence.report_confidence`) and its cost (`cost.estimate_cost` with its report); the
     golden files have no run without objectives or figures, no compact run summary, no latency
     knee, no run weighed by utilization and none without base-load buckets, an offered rate, a
-    throughput or measured replicas, or with a base load of zero: `report/cases.json` covers
-    them; and the words reports are written with (`report.MODEL_NOTES`, `REASON_TEXT`);
+    throughput or measured replicas, or with a base load of zero, and no comparison of identical
+    inputs, other seeds or engines, a bottleneck that went or came, or inputs equal only as
+    Python compares them: `report/cases.json` covers them; and the words reports are written with
+    (`report.MODEL_NOTES`, `REASON_TEXT`);
   - the analysis of a design for every case of every template (`analyze.analyze_document`), its
     confidence (`confidence.analysis_confidence`) and its quick check (`engine.quick_check`); the
     golden files prepare no run and have no analysis of high or medium confidence:

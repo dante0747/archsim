@@ -19,10 +19,11 @@ class RunReportTests {
 	private static final String REPORT = """
 			{"reportVersion": "1.14",
 			 "summary": {"latencyMs": {"count": 10, "mean": 50.0, "p50": 40.0, "p90": 80, "p95": 90.5, "p99": null},
-			             "offeredRps": 400, "throughputRps": 398.5, "successRate": 1.0, "failureBreakdown": []},
+			             "offeredRps": 400, "throughputRps": 398.5, "successRate": 1.0, "errorRate": 0.004,
+			             "timeoutRate": null, "failureBreakdown": []},
 			 "findings": [{"kind": "bottleneck", "nodeId": "api", "evidence": {"share": 0.5}},
 			              {"title": "no kind"}],
-			 "nodes": [{"id": "api", "type": "service", "category": "compute", "label": "API",
+			 "nodes": [{"id": "api", "type": "service", "category": "compute", "label": "API", "status": "hot",
 			            "summary": {"arrivals": 1234, "slots": 16, "counters": {"misses": 7},
 			                        "rejected": {"queue_full": 5}},
 			            "timeseries": {"queueLength": [1, null, 2], "replicas": null},
@@ -33,7 +34,7 @@ class RunReportTests {
 			 "explain": {"system": [{"id": "throughput"}],
 			             "latencyBreakdown": [{"label": "API", "nodeId": "api", "meanMs": 8.0, "share": 0.6},
 			                                  {"label": "Network", "nodeId": null, "meanMs": 5.0, "share": null}]},
-			 "provenance": {"resultDigest": "abc", "seed": 42},
+			 "provenance": {"resultDigest": "abc", "seed": 42, "engineVersion": "0.16.0"},
 			 "timeseries": {"bucketS": 0.5, "t": [0, 0.5], "throughputRps": [1.0, null],
 			                "offeredRps": null, "latencyP95Ms": [3.5]},
 			 "window": {"warmupS": 2.0, "durationS": 12.0, "measuredS": 10.0},
@@ -61,6 +62,16 @@ class RunReportTests {
 		assertThat(report.latencyBreakdown()).extracting(LatencyShare::label).containsExactly("API", "Network");
 		assertThat(report.latencyBreakdown().getFirst().nodeId()).isEqualTo("api");
 		assertThat(report.latencyBreakdown().getFirst().share()).isEqualTo(0.6);
+	}
+
+	@Test
+	void read_aReport_readsWhatAComparisonReads() {
+		RunReport report = RunReport.read(json(REPORT));
+
+		assertThat(report.summary().errorRate()).isEqualTo(0.004);
+		assertThat(report.nodes().getFirst().status()).isEqualTo("hot");
+		assertThat(report.provenance().seed()).isEqualTo(42L);
+		assertThat(report.provenance().engineVersion()).isEqualTo("0.16.0");
 	}
 
 	@Test
@@ -96,6 +107,8 @@ class RunReportTests {
 		assertThat(report.findings().get(1).kind()).isNull();
 		assertThat(report.nodes().get(1).summary().slots()).isNull();
 		assertThat(report.edges().get(1).callRps()).isNull();
+		assertThat(report.summary().timeoutRate()).isNull();
+		assertThat(report.nodes().get(1).status()).isNull();
 		assertThat(report.latencyBreakdown().get(1).nodeId()).isNull();
 		assertThat(report.latencyBreakdown().get(1).share()).isNull();
 	}

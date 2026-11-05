@@ -10,6 +10,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.compare.InputDiff;
+import io.archsim.engine.compare.Labels;
+import io.archsim.engine.compare.RunComparer;
 import io.archsim.engine.confidence.RunConfidence;
 import io.archsim.engine.explain.Formula;
 import io.archsim.engine.explain.QueueingFormulas;
@@ -28,7 +31,8 @@ import io.archsim.parity.GoldenEntry;
 
 /**
  * Reading a run's report: whether it reached a steady state, each part's formulas, what
- * the run found and how far it can be trusted; and the words a report is written with.
+ * the run found and how far it can be trusted, and how two runs compare; and the words a
+ * report is written with.
  */
 final class ReportFunctions {
 
@@ -38,7 +42,9 @@ final class ReportFunctions {
 			Map.entry("archsim_engine.analysis.analyze", ReportFunctions::analyze),
 			Map.entry("archsim_engine.confidence.report_confidence", ReportFunctions::reportConfidence),
 			Map.entry("archsim_engine.report.MODEL_NOTES", ReportFunctions::modelNotes),
-			Map.entry("archsim_engine.report.REASON_TEXT", ReportFunctions::reasonText));
+			Map.entry("archsim_engine.report.REASON_TEXT", ReportFunctions::reasonText),
+			Map.entry("archsim_engine.compare.compare_reports", ReportFunctions::compareReports),
+			Map.entry("archsim_engine.compare.input_diff", ReportFunctions::inputDiff));
 
 	private static final RunAnalysis ANALYSIS = new RunAnalysis(StandardComponents.registry());
 
@@ -91,6 +97,20 @@ final class ReportFunctions {
 		entry.input("linkMs").properties().forEach((link) -> linkMs.put(link.getKey(), link.getValue().doubleValue()));
 		return RecordCodec.write(CONFIDENCE.of(RunReport.read(report),
 				DesignDocuments.parse(report.path("input")).architecture(), inputs, linkMs));
+	}
+
+	/** {@code compare_reports(a, b, label_a, label_b)}. */
+	private static JsonNode compareReports(GoldenEntry entry) {
+		return RecordCodec.write(RunComparer.compare(entry.input("a"), entry.input("b"),
+				new Labels(entry.input("labelA").asString(), entry.input("labelB").asString())));
+	}
+
+	/** {@code input_diff(a, b)}: each setting the two simulated inputs differ in. */
+	private static JsonNode inputDiff(GoldenEntry entry) {
+		ArrayNode differences = GoldenJson.NODES.arrayNode();
+		InputDiff.between(entry.input("a"), entry.input("b"))
+			.forEach((difference) -> differences.add(RecordCodec.write(difference)));
+		return differences;
 	}
 
 	private static JsonNode modelNotes(GoldenEntry entry) {

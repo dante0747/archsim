@@ -14,6 +14,8 @@ import tools.jackson.databind.JsonNode;
  * @param offeredRps the requests offered per second
  * @param throughputRps the requests that succeeded per second
  * @param successRate the share of requests that succeeded
+ * @param errorRate the share of requests that failed
+ * @param timeoutRate the share of requests whose client gave up waiting
  * @param arrived the requests that arrived
  * @param failed the requests that failed
  * @param timedOut the requests whose client gave up waiting
@@ -22,9 +24,9 @@ import tools.jackson.databind.JsonNode;
  * @param failureBreakdown where and why requests failed, the most first
  */
 public record RunSummary(LatencyStats latencyMs, @Nullable LatencyStats latencyWithFailuresMs,
-		@Nullable Double offeredRps, @Nullable Double throughputRps, @Nullable Double successRate, long arrived,
-		long failed, long timedOut, long attempts, @Nullable Double retryAmplification,
-		List<FailureCause> failureBreakdown) {
+		@Nullable Double offeredRps, @Nullable Double throughputRps, @Nullable Double successRate,
+		@Nullable Double errorRate, @Nullable Double timeoutRate, long arrived, long failed, long timedOut,
+		long attempts, @Nullable Double retryAmplification, List<FailureCause> failureBreakdown) {
 
 	/**
 	 * Checks that the summary has its latency and its failures, as every report's has.

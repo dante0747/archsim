@@ -6,14 +6,17 @@ objective, a run without the figures to judge it, a seed group of compact run su
 rows' flat ``p50``, ``p95`` and ``p99``, which the API passes), a sweep with no completed step or
 a latency knee before a throughput one, a sampled run too short to judge, a part whose figures
 make the queueing formulas stop early, a run's confidence weighed by utilization or with its
-bottleneck found by load, or a run's cost without base-load buckets, an offered rate, a
-throughput, measured replicas or a part's time series, or with a base load of zero. This script asks the frozen engine
-(0.16.0) for ``slo.slo_checks``, ``evaluate`` and ``verdict_text``, ``seeds.summarize_seeds``,
+bottleneck found by load, a run's cost without base-load buckets, an offered rate, a
+throughput, measured replicas or a part's time series, or with a base load of zero, or a
+comparison of identical inputs, of other seeds or engines, of a bottleneck that moved, went or
+came, of figures not measured, of parts in one run only, or of inputs that differ only as
+Python's equality ignores. This script asks the frozen engine (0.16.0) for
+``slo.slo_checks``, ``evaluate`` and ``verdict_text``, ``seeds.summarize_seeds``,
 ``sweep.row_from``, ``meets`` and ``analyze``, ``engine.stationary``, ``explain.generic``,
-``confidence.report_confidence`` and ``cost.estimate_cost`` on small made-up inputs that do,
-and writes each call as a golden entry (``name``, ``fn``, ``input``, ``output``) to
-archsim-engine's test resources, where ``ReportCasesTests`` replays them as the golden files
-are replayed.
+``confidence.report_confidence``, ``cost.estimate_cost``, ``compare.compare_reports`` and
+``input_diff`` on small made-up inputs that do, and writes each call as a golden entry
+(``name``, ``fn``, ``input``, ``output``) to archsim-engine's test resources, where
+``ReportCasesTests`` replays them as the golden files are replayed.
 
 Usage:
     uv run python scripts/export_report_cases.py           # write the cases
@@ -29,7 +32,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from archsim_engine import confidence, cost, engine, explain, seeds, slo, sweep
+from archsim_engine import compare, confidence, cost, engine, explain, seeds, slo, sweep
 from archsim_engine.components import create_default_registry
 from archsim_engine.estimate import estimate_design
 from archsim_engine.provenance import input_provenance
@@ -691,6 +694,278 @@ def cost_cases() -> list[tuple[str, str, Json]]:
     ]
 
 
+def compared_part(node_id: str, label: str, node_type: str, status: str, **figures: Any) -> Json:
+    """A run's part with the status the analysis gave it and the figures a comparison reads."""
+    return {
+        **part(node_id, label, node_type, REGISTRY.get(node_type).category),
+        "status": status,
+        "summary": figures,
+    }
+
+
+def compared_parts(**changed: Json) -> list[Json]:
+    """The compared design's parts, busy at the API; ``changed`` replaces a part's figures."""
+    figures = {
+        "clients": {},
+        "api": {"utilization": 0.95, "cpuUtilization": 0.9, "arrivalRps": 400.0, "peakQueue": 12},
+        "cache": {"utilization": 0.2, "arrivalRps": 300.0, "hitRatio": 0.8, "rejectedTotal": 0},
+        "db": {"utilization": 0.3, "arrivalRps": 100.0, "meanQueue": 0.4, "p95QueueWaitMs": 2.5},
+    }
+    figures.update(changed)
+    kinds = [
+        ("clients", "Clients", "traffic_source"),
+        ("api", "API", "service"),
+        ("cache", "Sessions", "cache"),
+        ("db", "Orders DB", "database"),
+    ]
+    return [
+        compared_part(node_id, label, kind, "ok", **figures[node_id])
+        for node_id, label, kind in kinds
+    ]
+
+
+def bottleneck_at(node_id: str | None) -> Json:
+    return {
+        "kind": "bottleneck",
+        "severity": "critical",
+        "title": f"{node_id} is saturated",
+        "nodeId": node_id,
+        "evidence": {"utilization": 0.97},
+    }
+
+
+def compared_run(
+    snapshot: Json,
+    *,
+    parts: list[Json] | None = None,
+    findings: list[Json] | None = None,
+    provenance: Json | None = None,
+    **figures: Any,
+) -> Json:
+    """A finished run of the compared design, with the figures a comparison reads."""
+    run_summary = {
+        **summary(95.0, 130.0, 0.995, 398.0),
+        "offeredRps": 400.0,
+        "errorRate": 0.004,
+        "timeoutRate": 0.001,
+        "retryAmplification": 1.02,
+        **figures,
+    }
+    made = report(STEADY, WINDOW, parts or compared_parts(), summary=run_summary)
+    made["findings"] = findings or []
+    made["provenance"] = {
+        "engineVersion": "0.16.0",
+        "seed": 42,
+        "scenarioId": None,
+        "resultDigest": "a" * 64,
+        **(provenance or {}),
+    }
+    made["input"] = snapshot
+    return made
+
+
+def changed_input(snapshot: Json) -> Json:
+    """The compared design with eight settings changed, some only as Python's equality sees."""
+    changed = copy.deepcopy(snapshot)
+    api = next(n for n in changed["architecture"]["nodes"] if n["id"] == "api")
+    api["config"]["replicas"] = 3
+    api["config"]["queueCapacity"] = 500
+    api["config"]["timeoutMs"] = float(api["config"].get("timeoutMs") or 1000) + 250.0
+    db = next(n for n in changed["architecture"]["nodes"] if n["id"] == "db")
+    db["config"]["readReplicas"] = 2
+    db["config"]["shards"] = float(db["config"]["shards"])  # the same number, a float
+    changed["workload"]["rps"] = 600
+    changed["workload"]["readRatio"] = 0.6
+    changed["workload"]["durationS"] = 90
+    changed["workload"]["seed"] = 7
+    changed["architecture"]["edges"][0]["target"] = "api"
+    return changed
+
+
+def compare_cases() -> list[tuple[str, str, Json]]:
+    """Two runs of a design with a cache in front of its database."""
+    _, snapshot, _ = simulated(
+        [
+            design_node("clients", "traffic_source", "Clients"),
+            design_node("api", "service", "API", serviceTimeMs=CONST10, replicas=2),
+            design_node("cache", "cache", "Sessions"),
+            design_node("db", "database", "Orders DB"),
+        ],
+        [link("clients", "api"), link("api", "cache"), link("api", "db")],
+        {"provider": "generic"},
+    )
+    base = compared_run(snapshot, findings=[bottleneck_at("api")])
+    relieved = compared_parts(
+        api={"utilization": 0.6, "arrivalRps": 600.0},
+        cache={"utilization": 0.3, "arrivalRps": 200.0, "hitRatio": 0.9},
+        db={"utilization": 0.9, "arrivalRps": 400.0},
+    )
+    pairs = [
+        ("identicalRuns", base, copy.deepcopy(base)),
+        (
+            "identicalInputsDifferentResults",
+            base,
+            compared_run(
+                snapshot,
+                findings=[bottleneck_at("api")],
+                provenance={"resultDigest": "b" * 64},
+                latencyMs={"mean": 50.0, "p50": 40.0, "p95": 120.0, "p99": 130.0},
+            ),
+        ),
+        (
+            "otherSeedsAndEngines",
+            base,
+            compared_run(
+                snapshot,
+                findings=[bottleneck_at("api")],
+                provenance={"seed": 43, "engineVersion": "0.15.0"},
+            ),
+        ),
+        (
+            "throughputRoseAndTheBottleneckMoved",
+            base,
+            compared_run(
+                changed_input(snapshot),
+                parts=relieved,
+                findings=[bottleneck_at("db")],
+                throughputRps=480.0,
+                offeredRps=600.0,
+                successRate=0.999,
+                retryAmplification=1.3,
+                latencyMs={"mean": 40.0, "p50": 30.0, "p95": 60.0, "p99": 90.0},
+            ),
+        ),
+        (
+            "throughputFellAndABottleneckCame",
+            compared_run(snapshot),
+            compared_run(
+                snapshot,
+                findings=[bottleneck_at("api")],
+                throughputRps=300.0,
+                successRate=0.9,
+                errorRate=0.09,
+                latencyMs={"mean": 80.0, "p50": 70.0, "p95": 240.0, "p99": 400.0},
+            ),
+        ),
+        ("theBottleneckWent", base, compared_run(snapshot)),
+        ("theSameBottleneck", base, compared_run(snapshot, findings=[bottleneck_at("api")])),
+        (
+            "aBottleneckWithoutItsPart",
+            compared_run(snapshot, findings=[bottleneck_at(None)]),
+            base,
+        ),
+        (
+            "figuresNotMeasured",
+            compared_run(
+                snapshot,
+                throughputRps=0.0,
+                errorRate=0.0,
+                latencyMs={"mean": None, "p50": 40.0, "p95": None, "p99": 130.0},
+            ),
+            compared_run(
+                snapshot, throughputRps=50.0, errorRate=0.0, successRate=None, timeoutRate=None
+            ),
+        ),
+        (
+            "changesTooSmallToCount",
+            base,
+            compared_run(
+                snapshot,
+                findings=[bottleneck_at("api")],
+                throughputRps=398.0 + 1e-10,
+                offeredRps=410.0,
+                latencyMs={"mean": 50.5, "p50": 40.4, "p95": 96.0, "p99": 131.0},
+            ),
+        ),
+        (
+            "partsInOneRunOnly",
+            base,
+            compared_run(
+                snapshot,
+                parts=[
+                    *compared_parts()[:2],
+                    compared_part("search", "Search", "database", "hot", utilization=0.7),
+                ],
+                findings=[bottleneck_at("search")],
+            ),
+        ),
+        (
+            "loadsNotMeasuredAndTiedShifts",
+            compared_run(
+                snapshot,
+                parts=compared_parts(
+                    api={"utilization": 0.2},
+                    cache={"utilization": 0.2, "arrivalRps": None, "hitRatio": None},
+                    db={"utilization": 0.5},
+                ),
+            ),
+            compared_run(
+                snapshot,
+                parts=compared_parts(
+                    api={"utilization": 0.5},
+                    cache={"utilization": 0.5, "arrivalRps": None, "hitRatio": 0.5},
+                    db={"utilization": 0.2},
+                ),
+            ),
+        ),
+    ]
+    cases = [
+        (
+            name,
+            "archsim_engine.compare.compare_reports",
+            {"a": a, "b": b, "labelA": "Base design", "labelB": "Change"},
+        )
+        for name, a, b in pairs
+    ]
+    return cases + input_diff_cases(snapshot)
+
+
+def input_diff_cases(snapshot: Json) -> list[tuple[str, str, Json]]:
+    """Inputs that differ, or do not, only as Python compares and flattens JSON."""
+    alike = copy.deepcopy(snapshot)
+    api = next(n for n in alike["architecture"]["nodes"] if n["id"] == "api")
+    api["config"]["replicas"] = float(api["config"]["replicas"])
+    api["config"]["flag"] = 1
+    api["config"]["list"] = [1, 2.0, "x"]
+    first = copy.deepcopy(snapshot)
+    first_api = next(n for n in first["architecture"]["nodes"] if n["id"] == "api")
+    first_api["config"]["flag"] = True
+    first_api["config"]["list"] = [1.0, 2, "x"]
+    nested = copy.deepcopy(snapshot)
+    nested["workload"]["faults"] = [
+        {"kind": "outage", "target": "db", "startS": 10, "durationS": 5},
+        {"kind": "latency", "target": "api-db", "startS": 20, "durationS": 5, "extraMs": 50},
+    ]
+    nested["workload"]["points"] = [[0, 100], [10, 200]]
+    nested["workload"]["mixed"] = [{"a": 1}, 2]
+    other = copy.deepcopy(snapshot)
+    other["workload"]["faults"] = [
+        {"kind": "outage", "target": "db", "startS": 10.0, "durationS": 6}
+    ]
+    other["workload"]["points"] = [[0, 100], [10, 250]]
+    other["workload"]["mixed"] = [{"a": 1.0}, 3]
+    grown = copy.deepcopy(snapshot)
+    grown["architecture"]["nodes"].append({"id": "queue", "type": "message_queue"})
+    grown["architecture"]["nodes"][0]["config"] = None
+    grown["architecture"]["edges"].append(
+        {"id": "api-queue", "source": "api", "target": "queue", "config": {"weight": 2}}
+    )
+    del grown["architecture"]["nodes"][1]["label"]
+    before = {"workload": {"points": [[0, 100], [10, 200]], "mode": "auto"}}
+    after = {"workload": {"points": [[0, 100]], "mode": 3}}
+    objects = {"workload": {"steps": [[{"a": 1, "b": 2}]], "other": [[{"a": 1}]]}}
+    reordered = {"workload": {"steps": [[{"b": 2, "a": 1.0}]], "other": [[{"a": 2}]]}}
+    pairs = [
+        ("equalAsPythonComparesThem", first, alike),
+        ("faultsListsAndMixedLists", nested, other),
+        ("aPartAndALinkAddedAndAConfigNull", snapshot, grown),
+        ("noInputs", {}, {"workload": {"rps": 1}}),
+        ("aListOfAnotherLengthAndAValueOfAnotherKind", before, after),
+        ("objectsInListsKeyByKey", objects, reordered),
+    ]
+    return [(name, "archsim_engine.compare.input_diff", {"a": a, "b": b}) for name, a, b in pairs]
+
+
 ADAPTERS = {
     "archsim_engine.slo.slo_checks": lambda i: slo.slo_checks(i["objectives"], i["summary"]),
     "archsim_engine.slo.evaluate": lambda i: slo.evaluate(i["objectives"], i["summary"]),
@@ -708,6 +983,10 @@ ADAPTERS = {
     "archsim_engine.confidence.report_confidence": lambda i: confidence.report_confidence(
         i["report"], i["inputs"], i["linkMs"], REGISTRY
     ),
+    "archsim_engine.compare.compare_reports": lambda i: compare.compare_reports(
+        i["a"], i["b"], i["labelA"], i["labelB"]
+    ),
+    "archsim_engine.compare.input_diff": lambda i: compare.input_diff(i["a"], i["b"]),
     "archsim_engine.cost.estimate_cost": lambda i: cost.estimate_cost(
         i["nodes"],
         REGISTRY,
@@ -733,6 +1012,7 @@ def cases() -> list[Json]:
         + generic_cases()
         + confidence_cases()
         + cost_cases()
+        + compare_cases()
     ):
         output = ADAPTERS[fn](copy.deepcopy(given))
         out.append({"name": name, "fn": fn, "input": given, "output": output})
