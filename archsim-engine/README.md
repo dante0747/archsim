@@ -30,16 +30,27 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `provenance` | where each input came from: `InputProvenances` (each performance input of a design, measured, documented, assumed or illustrative, with its value: `Input`, `Provenance`), read from the model's `ComponentFacts`; `ValueText` (how a value reads) |
 | `technology` | each part's technology and its tier: `TechnologyTiers`; `TechnologyNames` (a technology's display name) |
 | `confidence` | how far a result can be trusted, and why: `Evidence` (inputs, each part's weight, technology tiers and the bottleneck) assessed as a `Confidence` (the level, its reasons, the inputs to replace first, how to raise it), `AnalysisConfidence` (an analysis's, weighed by each part's estimated utilization), `ConfidenceLevel` |
-| `seeds` | ranges across seeds: `ValueRange`, `Seeds` |
-| `sweep` | load sweeps: `SweepRange`, its levels and the highest load a step can run |
-| `simulation` | where the engine meets the simulator: `SimulationLimits` |
-| `report` | reading a report: `ReportDigest` |
+| `slo` | whether a run is good enough: `SloResult` (each objective the design sets checked against the run's `RunFigures`, an `SloCheck`, and the verdict in words), `Objective`, `StoredObjectives` (the objectives stored with a run, a target left out being off) |
+| `seeds` | ranges across seeds: `SeedSummary` (how a seed group's verdicts split, their ranges, whether they are borderline, and the summary in words, which `GET /run-groups/{id}` answers), `ValueRange`, `Seeds` |
+| `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
+| `simulation` | where the engine meets the simulator: `SimulationLimits`, `Stationarity` (whether a sampled run reached a `SteadyState`) |
+| `explain` | the calculations behind a report's numbers: `QueueingFormulas` (any part's arrival rate, slot capacity, utilization, Little's law, M/M/c wait and CPU capacity), `Formula` |
+| `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
 reads the raw settings of a design that may not be valid yet (the load estimate, which kind of
 machine a part runs on, the CPU work on the design's host, the design review), the Java reads them
 through `LenientSettings`, with the same lenient rules
 ([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md)).
+
+A run's report is read into records of the parts the engine reads (`RunReport`, `RunSummary`,
+`ReportNode` and the rest), each by its own `read`, which skips what they do not name: a value
+the Python indexes is required, one it reads with `get` is nullable, and a report of an older
+version reads as long as it has the parts the records require
+([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)). A run's compact
+summary (the run row's flat `p50`, `p95` and `p99`) reads into `RunFigures`, as a report's
+summary does, and the objectives stored with a run into `Objectives` with the targets the design
+leaves out off (`StoredObjectives`).
 
 Where the Python engine fails, the Java decides for itself, and its tests say how:
 
@@ -64,7 +75,14 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   `EngineFunctions` maps each Python name to its Java call, through one table per area
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
   `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
-  `ReviewFunctions`, `AnalysisFunctions`). Ported so far:
+  `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`). Ported so far:
+  - on every recorded run, the verdict against the design's objectives (`slo.slo_checks`,
+    `evaluate`, `verdict_text`), the run as a load sweep's step (`sweep.row_from`, `meets`),
+    whether it reached a steady state (`engine.stationary`) and each part's queueing formulas
+    (`explain.generic`); on every pair of runs, the seed summary (`seeds.summarize_seeds`) and
+    the sweep's breaking point (`sweep.analyze`); the golden files have no run without
+    objectives or figures, no compact run summary and no latency knee: `report/cases.json`
+    covers them;
   - the analysis of a design for every case of every template (`analyze.analyze_document`), its
     confidence (`confidence.analysis_confidence`) and its quick check (`engine.quick_check`); the
     golden files prepare no run and have no analysis of high or medium confidence:
@@ -108,7 +126,9 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   the technology names' are in `analysis/cases.json`, from `scripts/export_analysis_cases.py`,
   which `DesignAnalyzerTests`, `RunPreparerTests` and `TechnologyNamesTests` check. The design
   review's are in `review/cases.json`, from `scripts/export_review_cases.py`, which
-  `DesignReviewTests` checks.
+  `DesignReviewTests` checks. The report functions' are in `report/cases.json`, each a call with
+  the Python engine's output in the golden files' own format, from
+  `scripts/export_report_cases.py`, which `ReportCasesTests` replays through `EngineFunctions`.
 - The other tests specify each class.
 - `ArchitectureTests` checks that the engine uses no framework or database class, and that its
   packages have no cycles.

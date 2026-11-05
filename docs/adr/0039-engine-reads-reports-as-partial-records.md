@@ -1,0 +1,124 @@
+---
+status: proposed
+date: 2026-11-05
+decision-makers: Majid Abarghooei (owner)
+---
+
+# 0039. The engine reads a run's report as records of the parts it reads
+
+## Context and Problem Statement
+
+The rest of stage 3's deterministic parts work on a simulation's report, not on a design:
+judging a run against the design's objectives, summarizing a group of runs that differ only in
+their seed, a load sweep's rows and verdict, whether a sampled run reached a steady state, the
+formulas each part's figures come from, a run's findings and confidence, the cost with a run's
+report, comparisons and `archsim check`
+([proposal](../proposals/java-25-port.md#stage-3--the-engines-deterministic-parts-12-weeks)).
+Until stage 4, the report comes from the Python simulator. Each run stores it as JSON
+(`simulation_runs.report`) with its `reportVersion` (1.14 now), so older runs keep reports of
+older versions. A report is large: time series for every part and link, sample traces, the
+design it ran, its cost, review and estimate. The Python reads the few values each function
+needs with `report["summary"]` and `summary.get("p95")`. [ADR-0038](0038-engine-computes-on-typed-records.md)
+has the engine compute on records for a design, but says nothing about reports. How should the
+Java engine read a report?
+
+## Decision Drivers
+
+- Golden-file parity: the same numbers and words for every recorded report.
+- The engine should read a report's values by name in one place, checked by the compiler where
+  the engine uses them, as it reads a design's settings
+  ([ADR-0038](0038-engine-computes-on-typed-records.md)).
+- Stored reports of older versions must still read: a value an older report does not have reads
+  as missing, as Python's `get` reads it.
+- Stage 4 writes reports from Java, so the reader should be a step towards the writer's types,
+  not a second definition that has to be thrown away.
+
+## Considered Options
+
+- Records of the parts the engine reads, decoded by Jackson with unknown keys skipped
+- A complete record model of the report, read with the model's codec
+- Jackson trees, read as the Python reads its dicts
+
+## Decision Outcome
+
+Chosen option: "records of the parts the engine reads", because the engine then reads every
+report value through a record the compiler checks it against, a report of an older version still
+reads as long as it has the parts the records require, and decoding skips what no function reads,
+such as the traces and most time series.
+
+- `RunReport` and its parts (`RunSummary`, `ReportNode`, `ReportWindow` and so on, in
+  `io.archsim.engine.report`) hold only what a ported function reads, under the report's own
+  names. A port that needs another value adds it to the record.
+- A value the Python indexes (`report["window"]`) is a primitive or a non-null component. A
+  value it reads with `get` is `@Nullable`, null when the report omits it or writes `null`.
+  Keys that are data, such as a part's counters or the names of its time series, are maps.
+- One reader decodes them: Jackson databind, which skips keys the records do not name, behind each
+  record's own `read` (`RunReport.read`, `RunSummary.read`, `ReportNode.read`); the reader itself
+  is not public, so it decodes report records only. The model's codec is not used, because it is
+  strict where a design must be (it rejects unknown keys with pydantic's errors), and a report is
+  the engine's own output, not input to validate.
+- A function that takes part of a report in Python takes the same record in Java: the formulas
+  of one part take a `ReportNode`, a verdict takes a `RunSummary`. The golden inputs decode
+  into the records through the same `read` as the app's stored reports.
+- Python's truthiness is written out where the Python relies on it: `summary.get("slots") and
+  hold` treats a zero as missing, so the Java tests for a zero there too, and the tests pin
+  each case.
+- Results are records written by the model's `RecordCodec`, as in ADR-0038.
+- A run's compact summary (the run row's flat `p50`, `p95` and `p99`, which the workers write
+  for listings) is not a report. `RunFigures.read` reads either shape into the same figures, as
+  the Python did.
+- The objectives a run is judged by are read from the design stored with it as the Python read
+  them, `objectives.get(...)`: a target the design leaves out is off (`StoredObjectives.read`).
+  The model's codec would give it its default (300 ms, 0.999), and judge stored runs by targets
+  their designs never set.
+- In stage 4 the kernel writes reports, and these records grow to cover what it writes.
+
+### Consequences
+
+- Good, because a report value the engine reads is a record component: renamed in the records,
+  every reader stops compiling.
+- Good, because a report of an older version reads as long as it has the parts the records
+  require.
+- Good, because decoding builds only the records' values; the rest of the report is skipped.
+- Bad, because the engine decodes JSON in two ways: designs with the model's strict codec,
+  reports with plain Jackson. Each is in one place.
+- Bad, because the records are partial until stage 4, and a reader of a record cannot tell a
+  value the report lacks from one the records do not name yet.
+- Bad, because the compiler checks the engine against the records, not the records against the
+  report: since unknown keys are skipped, a component whose name differs from the report's key
+  (a typo, or a rename by stage 4's writer) reads as null or zero without an error. The golden
+  parity tests are what catch it.
+- Bad, because `RunReport` requires every part some function indexes (its summary, parts,
+  findings, provenance, time series and window), so a report without one fails every function
+  that takes a `RunReport`, even one that does not read that part: judging a steady state reads
+  neither the findings nor the provenance.
+- Bad, because a number the Python indexes but the report lacks reads as zero, where the Python
+  raises `KeyError`; one the report writes as `null` fails to decode (Jackson 3 refuses `null`
+  for a primitive). The simulator always writes them; the non-null objects are checked.
+
+### Confirmation
+
+`GoldenParityTests` in `archsim-engine` runs every recorded call of each ported report function,
+decoding its input with the records' `read`.
+
+## Pros and Cons of the Options
+
+### A complete record model of the report
+
+- Good, because the whole report would be typed, ready for stage 4's writer.
+- Bad, because most of it is read by nothing in stage 3, and the parts that vary by component
+  kind (each part's summary, counters and time series, each finding's evidence) would be
+  modelled before a writer defines them.
+- Bad, because the model's codec rejects unknown keys, so a report of a newer version would not
+  read.
+
+### Jackson trees
+
+- Good, because the port reads line for line like the Python.
+- Bad, because every value is a string looked up at run time, which ADR-0038 rejected for
+  designs for the same reason.
+
+## More Information
+
+- [ADR-0020](0020-golden-files-of-the-frozen-engine.md): the golden files.
+- [ADR-0038](0038-engine-computes-on-typed-records.md): the engine computes on records.

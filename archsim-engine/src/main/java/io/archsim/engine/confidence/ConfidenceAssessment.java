@@ -76,7 +76,7 @@ final class ConfidenceAssessment {
 
 	private final double share;
 
-	private final long grounded;
+	private final long groundedCount;
 
 	private final List<Input> badFits;
 
@@ -104,7 +104,7 @@ final class ConfidenceAssessment {
 				? FloatSum.of(this.weight.keySet().stream().mapToDouble((key) -> weightOf(key) * coveredOf(key)))
 						/ this.total
 				: 0.0;
-		this.grounded = evidence.inputs().stream().filter(ConfidenceAssessment::grounded).count();
+		this.groundedCount = evidence.inputs().stream().filter(ConfidenceAssessment::grounded).count();
 		this.badFits = badFits(evidence.inputs());
 		this.atBottleneck = experimental().stream()
 			.filter((part) -> part.id().equals(evidence.bottleneck()))
@@ -215,14 +215,14 @@ final class ConfidenceAssessment {
 
 	private Verdict verdictByShare() {
 		int inputs = this.evidence.inputs().size();
-		long ungrounded = inputs - this.grounded;
+		long ungrounded = inputs - this.groundedCount;
 		if (this.share < LOW_SHARE) {
 			return new Verdict(ConfidenceLevel.LOW, (ungrounded >= inputs / 2.0) ? this.ungroundedText
 					: "Only " + this.shareText + ": " + names() + " rest on assumed or illustrative inputs");
 		}
 		if (this.share >= HIGH_SHARE && this.onPathExperimental.isEmpty()) {
 			return new Verdict(ConfidenceLevel.HIGH,
-					this.grounded + " of " + inputs + " inputs are measured or documented");
+					this.groundedCount + " of " + inputs + " inputs are measured or documented");
 		}
 		if (this.share >= HIGH_SHARE) {
 			PartTechnology part = this.onPathExperimental.get(0);
@@ -243,7 +243,7 @@ final class ConfidenceAssessment {
 		if (!first.contains(this.shareText)) {
 			extra.add(this.shareText);
 		}
-		if (verdict.level() != ConfidenceLevel.HIGH && this.grounded < this.evidence.inputs().size()
+		if (verdict.level() != ConfidenceLevel.HIGH && this.groundedCount < this.evidence.inputs().size()
 				&& !this.ungroundedText.equals(first)) {
 			extra.add(this.ungroundedText);
 		}
@@ -308,10 +308,10 @@ final class ConfidenceAssessment {
 	private String ungroundedText() {
 		int inputs = this.evidence.inputs().size();
 		int illustrative = InputProvenances.counts(this.evidence.inputs()).getOrDefault(InputKind.ILLUSTRATIVE, 0);
-		if (inputs > 0 && illustrative >= inputs - this.grounded - illustrative) {
+		if (inputs > 0 && illustrative >= inputs - this.groundedCount - illustrative) {
 			return illustrative + " of " + inputs + " inputs are illustrative defaults";
 		}
-		return (inputs - this.grounded) + " of " + inputs + " inputs are assumed or illustrative, not measured";
+		return (inputs - this.groundedCount) + " of " + inputs + " inputs are assumed or illustrative, not measured";
 	}
 
 	/**

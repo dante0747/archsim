@@ -1,22 +1,20 @@
 package io.archsim.app.runs;
 
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.run.SimulationLimitException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 
 /**
  * Seed groups: one input run with consecutive seeds, queued all at once or not at all,
- * and read back with the engine's summary of the finished ones.
+ * and read back with the summary of the finished ones.
  */
 class RunGroupsTests extends RunTestSupport {
 
@@ -91,16 +89,50 @@ class RunGroupsTests extends RunTestSupport {
 	}
 
 	@Test
-	void get_groupWithARunQueued_isRunningWithTheEnginesSummary() {
+	void get_groupWithARunQueued_isRunningAndSummarizesTheFinishedRun() {
 		prepares(42, null, true);
 		String first = started(start(project("team", "editor"), "{\"seeds\": 2}")).path("id").asString();
 		finish(first, 100.0);
-		given(engine().summarizeSeeds(any(), any())).willReturn(JSON.createObjectNode().put("runs", 2));
 
 		JsonNode group = json(this.mvc().get().uri("/api/v1/run-groups/" + groupOf(first)).exchange());
 
 		assertThat(group.path("status").asString()).isEqualTo("running");
-		assertThat(group.path("summary")).isEqualTo(JSON.valueToTree(Map.of("runs", 2)));
+		assertThat(group.path("summary").path("runs").asInt()).isEqualTo(2);
+		assertThat(group.path("summary").path("verdict").asString()).isEqualTo("holds");
+		assertThat(group.path("summary").path("text").asString())
+			.isEqualTo("Meets the objectives in 1 of 1 runs · p95 100 ms · seeds 42–43");
+	}
+
+	@Test
+	void get_groupWhoseDesignLeavesTargetsOut_judgesOnlyTheTargetsItSets() {
+		ObjectNode onlyAP95 = PREPARED.deepCopy();
+		onlyAP95.putObject("objectives").put("latencyP95Ms", 300.0);
+		prepares(42, (seed) -> new PlannedRun(null, null, seed, onlyAP95, prepared(seed, null, true).quickCheck()));
+		String first = started(start(project("team", "editor"), "{\"seeds\": 2}")).path("id").asString();
+		finish(first, 100.0);
+
+		JsonNode summary = json(this.mvc().get().uri("/api/v1/run-groups/" + groupOf(first)).exchange())
+			.path("summary");
+
+		assertThat(summary.path("objectives").asInt()).isEqualTo(1);
+		assertThat(summary.path("verdict").asString()).isEqualTo("holds");
+	}
+
+	@Test
+	void get_groupWhoseRunsDisagree_isBorderlineWithItsConfidenceCapped() {
+		prepares(42, null, true);
+		String first = started(start(project("team", "editor"), "{\"seeds\": 2}")).path("id").asString();
+		List<String> runs = runsOf(groupOf(first));
+		finish(runs.get(0), 100.0);
+		finish(runs.get(1), 400.0);
+
+		JsonNode summary = json(this.mvc().get().uri("/api/v1/run-groups/" + groupOf(first)).exchange())
+			.path("summary");
+
+		assertThat(summary.path("verdict").asString()).isEqualTo("borderline");
+		assertThat(summary.path("confidenceCap").asString()).isEqualTo("medium");
+		assertThat(summary.path("perRun")).extracting((run) -> run.path("pass").asBoolean())
+			.containsExactly(true, false);
 	}
 
 	@Test
@@ -126,17 +158,20 @@ class RunGroupsTests extends RunTestSupport {
 	 */
 	private String groupStatus(String first, String second) {
 		prepares(42, null, true);
-		given(engine().summarizeSeeds(any(), any())).willReturn(JSON.createObjectNode());
 		String run = started(start(project("team", "editor"), "{\"seeds\": 2}")).path("id").asString();
 		String group = groupOf(run);
-		List<String> runs = this.jdbc()
-			.sql("SELECT id FROM simulation_runs WHERE group_id = :group ORDER BY seed_index")
-			.param("group", group)
-			.query((rows, number) -> rows.getString("id"))
-			.list();
+		List<String> runs = runsOf(group);
 		markStatus(runs.get(0), first);
 		markStatus(runs.get(1), second);
 		return json(this.mvc().get().uri("/api/v1/run-groups/" + group).exchange()).path("status").asString();
+	}
+
+	private List<String> runsOf(String groupId) {
+		return this.jdbc()
+			.sql("SELECT id FROM simulation_runs WHERE group_id = :group ORDER BY seed_index")
+			.param("group", groupId)
+			.query((rows, number) -> rows.getString("id"))
+			.list();
 	}
 
 	private String groupOf(String runId) {

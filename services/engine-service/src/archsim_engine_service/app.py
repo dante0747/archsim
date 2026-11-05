@@ -29,7 +29,6 @@ from archsim_engine import (
     SimulationLimits,
     compare_reports,
     default_registry,
-    summarize_seeds,
 )
 from archsim_engine.calibration import (
     HttpPrometheus,
@@ -142,15 +141,6 @@ def compare(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]
     if not isinstance(label_a, str) or not isinstance(label_b, str):
         raise BadRequest("labelA and labelB must be strings")
     return compare_reports(a, b, label_a, label_b)
-
-
-def seeds(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
-    """``summarize_seeds`` of a seed group's runs against the objectives they ran with."""
-    runs = body.get("runs")
-    objectives = body.get("objectives")
-    if not isinstance(runs, list) or not isinstance(objectives, dict):
-        raise BadRequest("runs must be a list and objectives an object")
-    return summarize_seeds(runs, objectives)
 
 
 def export(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
@@ -295,7 +285,6 @@ def create_app() -> Starlette:
         routes=[
             Route("/health", health, methods=["GET"]),
             Route("/compare", endpoint(compare), methods=["POST"]),
-            Route("/summarize-seeds", endpoint(seeds), methods=["POST"]),
             Route("/export", endpoint(export), methods=["POST"]),
             Route("/import", endpoint(import_), methods=["POST"]),
             Route("/calibrate", endpoint(calibrate), methods=["POST"]),

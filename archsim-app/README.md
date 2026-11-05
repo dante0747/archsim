@@ -67,7 +67,7 @@ ways.
 | `examples` | `GET /examples`, `GET /examples/{id}` |
 | `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (archsim-engine's `DesignAnalyzer`) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
-| `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the Python workers until stage 4 |
+| `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the Python workers until stage 4; a seed group is summarized by archsim-engine's `SeedSummary` |
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
@@ -135,8 +135,8 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   (`/signin?error=provider`); Python stored the account under the subject `None`.
 - The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
   be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, the requests that need it answer
-  `503` saying which: `/compare`, `GET /run-groups/{id}`, which summarizes its runs through it,
-  `/export`, `/import` and `/calibrate`. The Python API computed in-process, with no time limit.
+  `503` saying which: `/compare`, `/export`, `/import` and `/calibrate`. The Python API computed
+  in-process, with no time limit.
 - The order of refusals differs. Java reads a request's body and query before it checks access,
   so a body or query parameter that does not fit is `422` where FastAPI first answered `404` or
   `403` (a project or workspace the asker may not use). In a server with sign-in, a body that is

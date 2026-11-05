@@ -10,12 +10,18 @@ import java.util.function.Function;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.engine.confidence.ConfidenceLevel;
+import io.archsim.engine.seeds.SeedRun;
+import io.archsim.engine.seeds.SeedSummary;
 import io.archsim.engine.seeds.Seeds;
 import io.archsim.engine.seeds.ValueRange;
+import io.archsim.engine.slo.StoredObjectives;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.parity.GoldenEntry;
 
-/** Ranges across seeds: a figure's range, the seeds' text and the borderline cap. */
+/**
+ * Ranges across seeds: a figure's range, the seeds' text, the borderline cap and the
+ * summary of a seed group.
+ */
 final class SeedFunctions {
 
 	static final Map<String, Function<GoldenEntry, JsonNode>> PORTED = Map.ofEntries(
@@ -25,7 +31,8 @@ final class SeedFunctions {
 			Map.entry("archsim_engine.seeds.range_text", SeedFunctions::rangeText),
 			Map.entry("archsim_engine.seeds.seeds_text",
 					(entry) -> GoldenJson.text(new Seeds(seeds(entry)).describe())),
-			Map.entry("archsim_engine.seeds.cap_confidence", SeedFunctions::capConfidence));
+			Map.entry("archsim_engine.seeds.cap_confidence", SeedFunctions::capConfidence),
+			Map.entry("archsim_engine.seeds.summarize_seeds", SeedFunctions::summarizeSeeds));
 
 	private SeedFunctions() {
 	}
@@ -55,6 +62,17 @@ final class SeedFunctions {
 			return GoldenJson.NODES.nullNode();
 		}
 		return GoldenJson.text(RecordCodec.read(range, ValueRange.class).text(entry.input("label").stringValue()));
+	}
+
+	/**
+	 * {@code summarize_seeds(runs, objectives)}: a run whose summary is missing,
+	 * {@code None} or empty has not finished; a summary is a report's or a run's compact
+	 * one.
+	 */
+	private static JsonNode summarizeSeeds(GoldenEntry entry) {
+		List<SeedRun> runs = new ArrayList<>();
+		entry.input("runs").forEach((run) -> runs.add(SeedRun.read(run.get("seed").longValue(), run.get("summary"))));
+		return SeedSummary.of(runs, StoredObjectives.read(entry.input("objectives"))).toJson();
 	}
 
 	private static List<Long> seeds(GoldenEntry entry) {

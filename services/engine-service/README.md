@@ -13,7 +13,6 @@ uv run archsim-engine-service --port 8001
 | --- | --- | --- |
 | `GET /health` | | the Java API's checks |
 | `POST /compare` `{"a", "b", "labelA", "labelB"}` | `compare_reports` | `GET /api/v1/compare` |
-| `POST /summarize-seeds` `{"runs", "objectives"}` | `summarize_seeds` | `GET /api/v1/run-groups/{id}` |
 | `POST /export` `{"document", "format"}` | `export_document` | `POST /api/v1/export` |
 | `POST /import` `{"format", "text", "name"}` | `import_design` | `POST /api/v1/import` |
 | `POST /calibrate` (the request of `POST /api/v1/calibrate`, with the server's outbound policy) | `calibrate_prometheus`, `calibrate_otlp` | `POST /api/v1/calibrate` |

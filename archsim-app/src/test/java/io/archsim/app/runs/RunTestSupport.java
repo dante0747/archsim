@@ -175,7 +175,7 @@ abstract class RunTestSupport {
 	}
 
 	/**
-	 * Finishes a run as a worker does, with a report and its summary.
+	 * Finishes a run as a worker does, with a report and its compact summary.
 	 * @param runId the run
 	 * @param p95 the summary's p95 latency
 	 */
@@ -184,8 +184,8 @@ abstract class RunTestSupport {
 				UPDATE simulation_runs SET status = 'succeeded', progress = 1,
 				       summary = CAST(:summary AS jsonb), report = CAST(:report AS jsonb)
 				WHERE id = :id""")
-			.param("summary", "{\"latencyP95Ms\": " + p95 + "}")
-			.param("report", "{\"summary\": {\"latencyP95Ms\": " + p95 + "}, \"nodes\": []}")
+			.param("summary", "{\"p95\": " + p95 + "}")
+			.param("report", "{\"summary\": {\"latencyMs\": {\"p95\": " + p95 + "}}, \"nodes\": []}")
 			.param("id", runId)
 			.update();
 	}

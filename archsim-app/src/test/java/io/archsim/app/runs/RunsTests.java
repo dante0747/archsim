@@ -196,7 +196,7 @@ class RunsTests extends RunTestSupport {
 		assertThat(this.mvc().get().uri("/api/v1/runs/" + run + "/report")).hasStatusOk()
 			.bodyJson()
 			.extractingPath("$.summary")
-			.isEqualTo(Map.of("latencyP95Ms", 120.0));
+			.isEqualTo(Map.of("latencyMs", Map.of("p95", 120.0)));
 	}
 
 }

@@ -93,17 +93,6 @@ class EngineServiceTests {
 	}
 
 	@Test
-	void summarizeSeeds_request_carriesTheRunsAndObjectives() throws IOException {
-		EngineService engine = serving(200, "{}");
-
-		engine.summarizeSeeds(JSON.createArrayNode().add(JSON.createObjectNode().put("seed", 42).putNull("summary")),
-				JSON.readTree("{\"latencyP95Ms\": 300.0}"));
-
-		assertThat(JSON.readTree(this.received.get())).isEqualTo(JSON
-			.readTree("{\"runs\": [{\"seed\": 42, \"summary\": null}], \"objectives\": {\"latencyP95Ms\": 300.0}}"));
-	}
-
-	@Test
 	void export_request_carriesTheDesignAndFormat() throws IOException {
 		EngineService engine = serving(200, "{}");
 

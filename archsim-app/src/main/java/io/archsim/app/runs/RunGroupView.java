@@ -21,7 +21,7 @@ import tools.jackson.databind.JsonNode;
  * @param status {@code running} while a run is queued or running; then {@code succeeded}
  * when every run did, {@code failed} when none did, else {@code partial}
  * @param runs its runs, in seed order
- * @param summary {@code summarize_seeds} of the finished runs
+ * @param summary the finished runs' {@code SeedSummary}, as JSON
  */
 record RunGroupView(String id, String projectId, String kind, long baseSeed, int size, String mode,
 		@Nullable String scenarioId, @Nullable String label, Instant createdAt, String status, List<RunView> runs,

@@ -1,0 +1,4720 @@
+[
+ {
+  "name": "noObjectives",
+  "fn": "archsim_engine.slo.slo_checks",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": null,
+    "latencyP99Ms": null,
+    "availability": null,
+    "minThroughputRps": null
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 90.0,
+     "p99": 120.0
+    },
+    "successRate": 1.0,
+    "throughputRps": 400.0,
+    "offeredRps": 400.0
+   }
+  },
+  "output": []
+ },
+ {
+  "name": "noObjectives",
+  "fn": "archsim_engine.slo.evaluate",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": null,
+    "latencyP99Ms": null,
+    "availability": null,
+    "minThroughputRps": null
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 90.0,
+     "p99": 120.0
+    },
+    "successRate": 1.0,
+    "throughputRps": 400.0,
+    "offeredRps": 400.0
+   }
+  },
+  "output": {
+   "checks": [],
+   "pass": null,
+   "met": 0,
+   "total": 0
+  }
+ },
+ {
+  "name": "noObjectives",
+  "fn": "archsim_engine.slo.verdict_text",
+  "input": {
+   "result": {
+    "checks": [],
+    "pass": null,
+    "met": 0,
+    "total": 0
+   }
+  },
+  "output": "No objectives set"
+ },
+ {
+  "name": "everyObjectiveMet",
+  "fn": "archsim_engine.slo.slo_checks",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 300.0,
+     "p99": 500.0
+    },
+    "successRate": 0.999,
+    "throughputRps": 1200.0,
+    "offeredRps": 1200.0
+   }
+  },
+  "output": [
+   {
+    "key": "p95",
+    "label": "Latency p95",
+    "target": 300.0,
+    "actual": 300.0,
+    "pass": true,
+    "better": "lower"
+   },
+   {
+    "key": "p99",
+    "label": "Latency p99",
+    "target": 500,
+    "actual": 500.0,
+    "pass": true,
+    "better": "lower"
+   },
+   {
+    "key": "availability",
+    "label": "Availability",
+    "target": 0.999,
+    "actual": 0.999,
+    "pass": true,
+    "better": "higher"
+   },
+   {
+    "key": "throughput",
+    "label": "Throughput",
+    "target": 1200.0,
+    "actual": 1200.0,
+    "pass": true,
+    "better": "higher"
+   }
+  ]
+ },
+ {
+  "name": "everyObjectiveMet",
+  "fn": "archsim_engine.slo.evaluate",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 300.0,
+     "p99": 500.0
+    },
+    "successRate": 0.999,
+    "throughputRps": 1200.0,
+    "offeredRps": 1200.0
+   }
+  },
+  "output": {
+   "checks": [
+    {
+     "key": "p95",
+     "label": "Latency p95",
+     "target": 300.0,
+     "actual": 300.0,
+     "pass": true,
+     "better": "lower"
+    },
+    {
+     "key": "p99",
+     "label": "Latency p99",
+     "target": 500,
+     "actual": 500.0,
+     "pass": true,
+     "better": "lower"
+    },
+    {
+     "key": "availability",
+     "label": "Availability",
+     "target": 0.999,
+     "actual": 0.999,
+     "pass": true,
+     "better": "higher"
+    },
+    {
+     "key": "throughput",
+     "label": "Throughput",
+     "target": 1200.0,
+     "actual": 1200.0,
+     "pass": true,
+     "better": "higher"
+    }
+   ],
+   "pass": true,
+   "met": 4,
+   "total": 4
+  }
+ },
+ {
+  "name": "everyObjectiveMet",
+  "fn": "archsim_engine.slo.verdict_text",
+  "input": {
+   "result": {
+    "checks": [
+     {
+      "key": "p95",
+      "label": "Latency p95",
+      "target": 300.0,
+      "actual": 300.0,
+      "pass": true,
+      "better": "lower"
+     },
+     {
+      "key": "p99",
+      "label": "Latency p99",
+      "target": 500,
+      "actual": 500.0,
+      "pass": true,
+      "better": "lower"
+     },
+     {
+      "key": "availability",
+      "label": "Availability",
+      "target": 0.999,
+      "actual": 0.999,
+      "pass": true,
+      "better": "higher"
+     },
+     {
+      "key": "throughput",
+      "label": "Throughput",
+      "target": 1200.0,
+      "actual": 1200.0,
+      "pass": true,
+      "better": "higher"
+     }
+    ],
+    "pass": true,
+    "met": 4,
+    "total": 4
+   }
+  },
+  "output": "Meets all 4 objectives"
+ },
+ {
+  "name": "everyObjectiveMissed",
+  "fn": "archsim_engine.slo.slo_checks",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 1234.56,
+     "p99": 2500.04
+    },
+    "successRate": 0.99949,
+    "throughputRps": 1234.5,
+    "offeredRps": 1234.5
+   }
+  },
+  "output": [
+   {
+    "key": "p95",
+    "label": "Latency p95",
+    "target": 300.0,
+    "actual": 1234.56,
+    "pass": false,
+    "better": "lower"
+   },
+   {
+    "key": "p99",
+    "label": "Latency p99",
+    "target": 500,
+    "actual": 2500.04,
+    "pass": false,
+    "better": "lower"
+   },
+   {
+    "key": "availability",
+    "label": "Availability",
+    "target": 0.999,
+    "actual": 0.99949,
+    "pass": true,
+    "better": "higher"
+   },
+   {
+    "key": "throughput",
+    "label": "Throughput",
+    "target": 1200.0,
+    "actual": 1234.5,
+    "pass": true,
+    "better": "higher"
+   }
+  ]
+ },
+ {
+  "name": "everyObjectiveMissed",
+  "fn": "archsim_engine.slo.evaluate",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 1234.56,
+     "p99": 2500.04
+    },
+    "successRate": 0.99949,
+    "throughputRps": 1234.5,
+    "offeredRps": 1234.5
+   }
+  },
+  "output": {
+   "checks": [
+    {
+     "key": "p95",
+     "label": "Latency p95",
+     "target": 300.0,
+     "actual": 1234.56,
+     "pass": false,
+     "better": "lower"
+    },
+    {
+     "key": "p99",
+     "label": "Latency p99",
+     "target": 500,
+     "actual": 2500.04,
+     "pass": false,
+     "better": "lower"
+    },
+    {
+     "key": "availability",
+     "label": "Availability",
+     "target": 0.999,
+     "actual": 0.99949,
+     "pass": true,
+     "better": "higher"
+    },
+    {
+     "key": "throughput",
+     "label": "Throughput",
+     "target": 1200.0,
+     "actual": 1234.5,
+     "pass": true,
+     "better": "higher"
+    }
+   ],
+   "pass": false,
+   "met": 2,
+   "total": 4
+  }
+ },
+ {
+  "name": "everyObjectiveMissed",
+  "fn": "archsim_engine.slo.verdict_text",
+  "input": {
+   "result": {
+    "checks": [
+     {
+      "key": "p95",
+      "label": "Latency p95",
+      "target": 300.0,
+      "actual": 1234.56,
+      "pass": false,
+      "better": "lower"
+     },
+     {
+      "key": "p99",
+      "label": "Latency p99",
+      "target": 500,
+      "actual": 2500.04,
+      "pass": false,
+      "better": "lower"
+     },
+     {
+      "key": "availability",
+      "label": "Availability",
+      "target": 0.999,
+      "actual": 0.99949,
+      "pass": true,
+      "better": "higher"
+     },
+     {
+      "key": "throughput",
+      "label": "Throughput",
+      "target": 1200.0,
+      "actual": 1234.5,
+      "pass": true,
+      "better": "higher"
+     }
+    ],
+    "pass": false,
+    "met": 2,
+    "total": 4
+   }
+  },
+  "output": "Misses 2 of 4 objectives: Latency p95 1,234.6 ms (target <= 300.0 ms); Latency p99 2,500.0 ms (target <= 500.0 ms)"
+ },
+ {
+  "name": "aFigureMissing",
+  "fn": "archsim_engine.slo.slo_checks",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": null,
+     "p99": 120.0
+    },
+    "successRate": 1.0,
+    "throughputRps": 1500.0,
+    "offeredRps": 1500.0
+   }
+  },
+  "output": [
+   {
+    "key": "p95",
+    "label": "Latency p95",
+    "target": 300.0,
+    "actual": null,
+    "pass": null,
+    "better": "lower"
+   },
+   {
+    "key": "p99",
+    "label": "Latency p99",
+    "target": 500,
+    "actual": 120.0,
+    "pass": true,
+    "better": "lower"
+   },
+   {
+    "key": "availability",
+    "label": "Availability",
+    "target": 0.999,
+    "actual": 1.0,
+    "pass": true,
+    "better": "higher"
+   },
+   {
+    "key": "throughput",
+    "label": "Throughput",
+    "target": 1200.0,
+    "actual": 1500.0,
+    "pass": true,
+    "better": "higher"
+   }
+  ]
+ },
+ {
+  "name": "aFigureMissing",
+  "fn": "archsim_engine.slo.evaluate",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": null,
+     "p99": 120.0
+    },
+    "successRate": 1.0,
+    "throughputRps": 1500.0,
+    "offeredRps": 1500.0
+   }
+  },
+  "output": {
+   "checks": [
+    {
+     "key": "p95",
+     "label": "Latency p95",
+     "target": 300.0,
+     "actual": null,
+     "pass": null,
+     "better": "lower"
+    },
+    {
+     "key": "p99",
+     "label": "Latency p99",
+     "target": 500,
+     "actual": 120.0,
+     "pass": true,
+     "better": "lower"
+    },
+    {
+     "key": "availability",
+     "label": "Availability",
+     "target": 0.999,
+     "actual": 1.0,
+     "pass": true,
+     "better": "higher"
+    },
+    {
+     "key": "throughput",
+     "label": "Throughput",
+     "target": 1200.0,
+     "actual": 1500.0,
+     "pass": true,
+     "better": "higher"
+    }
+   ],
+   "pass": null,
+   "met": 3,
+   "total": 4
+  }
+ },
+ {
+  "name": "aFigureMissing",
+  "fn": "archsim_engine.slo.verdict_text",
+  "input": {
+   "result": {
+    "checks": [
+     {
+      "key": "p95",
+      "label": "Latency p95",
+      "target": 300.0,
+      "actual": null,
+      "pass": null,
+      "better": "lower"
+     },
+     {
+      "key": "p99",
+      "label": "Latency p99",
+      "target": 500,
+      "actual": 120.0,
+      "pass": true,
+      "better": "lower"
+     },
+     {
+      "key": "availability",
+      "label": "Availability",
+      "target": 0.999,
+      "actual": 1.0,
+      "pass": true,
+      "better": "higher"
+     },
+     {
+      "key": "throughput",
+      "label": "Throughput",
+      "target": 1200.0,
+      "actual": 1500.0,
+      "pass": true,
+      "better": "higher"
+     }
+    ],
+    "pass": null,
+    "met": 3,
+    "total": 4
+   }
+  },
+  "output": "Not enough data to decide"
+ },
+ {
+  "name": "aFigureMissingAndOneMissed",
+  "fn": "archsim_engine.slo.slo_checks",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": null,
+     "p99": 120.0
+    },
+    "successRate": 0.5,
+    "throughputRps": 1500.0,
+    "offeredRps": 1500.0
+   }
+  },
+  "output": [
+   {
+    "key": "p95",
+    "label": "Latency p95",
+    "target": 300.0,
+    "actual": null,
+    "pass": null,
+    "better": "lower"
+   },
+   {
+    "key": "p99",
+    "label": "Latency p99",
+    "target": 500,
+    "actual": 120.0,
+    "pass": true,
+    "better": "lower"
+   },
+   {
+    "key": "availability",
+    "label": "Availability",
+    "target": 0.999,
+    "actual": 0.5,
+    "pass": false,
+    "better": "higher"
+   },
+   {
+    "key": "throughput",
+    "label": "Throughput",
+    "target": 1200.0,
+    "actual": 1500.0,
+    "pass": true,
+    "better": "higher"
+   }
+  ]
+ },
+ {
+  "name": "aFigureMissingAndOneMissed",
+  "fn": "archsim_engine.slo.evaluate",
+  "input": {
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": null,
+     "p99": 120.0
+    },
+    "successRate": 0.5,
+    "throughputRps": 1500.0,
+    "offeredRps": 1500.0
+   }
+  },
+  "output": {
+   "checks": [
+    {
+     "key": "p95",
+     "label": "Latency p95",
+     "target": 300.0,
+     "actual": null,
+     "pass": null,
+     "better": "lower"
+    },
+    {
+     "key": "p99",
+     "label": "Latency p99",
+     "target": 500,
+     "actual": 120.0,
+     "pass": true,
+     "better": "lower"
+    },
+    {
+     "key": "availability",
+     "label": "Availability",
+     "target": 0.999,
+     "actual": 0.5,
+     "pass": false,
+     "better": "higher"
+    },
+    {
+     "key": "throughput",
+     "label": "Throughput",
+     "target": 1200.0,
+     "actual": 1500.0,
+     "pass": true,
+     "better": "higher"
+    }
+   ],
+   "pass": false,
+   "met": 2,
+   "total": 4
+  }
+ },
+ {
+  "name": "aFigureMissingAndOneMissed",
+  "fn": "archsim_engine.slo.verdict_text",
+  "input": {
+   "result": {
+    "checks": [
+     {
+      "key": "p95",
+      "label": "Latency p95",
+      "target": 300.0,
+      "actual": null,
+      "pass": null,
+      "better": "lower"
+     },
+     {
+      "key": "p99",
+      "label": "Latency p99",
+      "target": 500,
+      "actual": 120.0,
+      "pass": true,
+      "better": "lower"
+     },
+     {
+      "key": "availability",
+      "label": "Availability",
+      "target": 0.999,
+      "actual": 0.5,
+      "pass": false,
+      "better": "higher"
+     },
+     {
+      "key": "throughput",
+      "label": "Throughput",
+      "target": 1200.0,
+      "actual": 1500.0,
+      "pass": true,
+      "better": "higher"
+     }
+    ],
+    "pass": false,
+    "met": 2,
+    "total": 4
+   }
+  },
+  "output": "Misses 1 of 4 objectives: Availability 50.00% (target >= 99.90%)"
+ },
+ {
+  "name": "onlyThroughput",
+  "fn": "archsim_engine.slo.slo_checks",
+  "input": {
+   "objectives": {
+    "minThroughputRps": 10
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 90.0,
+     "p99": 120.0
+    },
+    "successRate": null,
+    "throughputRps": 9.5,
+    "offeredRps": 9.5
+   }
+  },
+  "output": [
+   {
+    "key": "throughput",
+    "label": "Throughput",
+    "target": 10,
+    "actual": 9.5,
+    "pass": false,
+    "better": "higher"
+   }
+  ]
+ },
+ {
+  "name": "onlyThroughput",
+  "fn": "archsim_engine.slo.evaluate",
+  "input": {
+   "objectives": {
+    "minThroughputRps": 10
+   },
+   "summary": {
+    "latencyMs": {
+     "mean": 50.0,
+     "p50": 40.0,
+     "p95": 90.0,
+     "p99": 120.0
+    },
+    "successRate": null,
+    "throughputRps": 9.5,
+    "offeredRps": 9.5
+   }
+  },
+  "output": {
+   "checks": [
+    {
+     "key": "throughput",
+     "label": "Throughput",
+     "target": 10,
+     "actual": 9.5,
+     "pass": false,
+     "better": "higher"
+    }
+   ],
+   "pass": false,
+   "met": 0,
+   "total": 1
+  }
+ },
+ {
+  "name": "onlyThroughput",
+  "fn": "archsim_engine.slo.verdict_text",
+  "input": {
+   "result": {
+    "checks": [
+     {
+      "key": "throughput",
+      "label": "Throughput",
+      "target": 10,
+      "actual": 9.5,
+      "pass": false,
+      "better": "higher"
+     }
+    ],
+    "pass": false,
+    "met": 0,
+    "total": 1
+   }
+  },
+  "output": "Misses 1 of 1 objectives: Throughput 10 req/s (target >= 10 req/s)"
+ },
+ {
+  "name": "compactSummaries",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 42,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 49.2,
+      "p95": 98.4,
+      "p99": 147.60000000000002,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 43,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 65.5,
+      "p95": 131.0,
+      "p99": 196.5,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 44,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 52.1,
+      "p95": 104.2,
+      "p99": 156.3,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   }
+  },
+  "output": {
+   "runs": 3,
+   "finished": 3,
+   "seeds": {
+    "first": 42,
+    "last": 44
+   },
+   "objectives": 4,
+   "met": 0,
+   "missed": 3,
+   "undecided": 0,
+   "verdict": "fails",
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 49.2,
+     "max": 65.5,
+     "median": 52.1
+    },
+    "p95": {
+     "min": 98.4,
+     "max": 131.0,
+     "median": 104.2
+    },
+    "p99": {
+     "min": 147.60000000000002,
+     "max": 196.5,
+     "median": 156.3
+    }
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 42,
+     "pass": false,
+     "p50": 49.2,
+     "p95": 98.4,
+     "p99": 147.60000000000002,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    },
+    {
+     "seed": 43,
+     "pass": false,
+     "p50": 65.5,
+     "p95": 131.0,
+     "p99": 196.5,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    },
+    {
+     "seed": 44,
+     "pass": false,
+     "p50": 52.1,
+     "p95": 104.2,
+     "p99": 156.3,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "Misses the objectives in 3 of 3 runs · p95 98–131 ms (median 104) · seeds 42–44"
+  }
+ },
+ {
+  "name": "aRunWithoutFigures",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 1,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 5,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 60.0,
+      "p95": 120.0,
+      "p99": 180.0,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 9,
+     "summary": null
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0
+   }
+  },
+  "output": {
+   "runs": 3,
+   "finished": 2,
+   "seeds": {
+    "first": 1,
+    "last": 9
+   },
+   "objectives": 1,
+   "met": 1,
+   "missed": 0,
+   "undecided": 1,
+   "verdict": null,
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 60.0,
+     "max": 60.0,
+     "median": 60.0
+    },
+    "p95": {
+     "min": 120.0,
+     "max": 120.0,
+     "median": 120.0
+    },
+    "p99": {
+     "min": 180.0,
+     "max": 180.0,
+     "median": 180.0
+    }
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 1,
+     "pass": null,
+     "p50": null,
+     "p95": null,
+     "p99": null,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    },
+    {
+     "seed": 5,
+     "pass": true,
+     "p50": 60.0,
+     "p95": 120.0,
+     "p99": 180.0,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "Meets the objectives in 1 of 2 runs · p95 120 ms · seeds 1, 5, 9"
+  }
+ },
+ {
+  "name": "everyRunUndecided",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 7,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 8,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0
+   }
+  },
+  "output": {
+   "runs": 2,
+   "finished": 2,
+   "seeds": {
+    "first": 7,
+    "last": 8
+   },
+   "objectives": 1,
+   "met": 0,
+   "missed": 0,
+   "undecided": 2,
+   "verdict": null,
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": null,
+    "p95": null,
+    "p99": null
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 7,
+     "pass": null,
+     "p50": null,
+     "p95": null,
+     "p99": null,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    },
+    {
+     "seed": 8,
+     "pass": null,
+     "p50": null,
+     "p95": null,
+     "p99": null,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "Meets the objectives in 0 of 2 runs · seeds 7–8"
+  }
+ },
+ {
+  "name": "missedAndUndecided",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 7,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 8,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 450.0,
+      "p95": 900.0,
+      "p99": 1350.0,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0
+   }
+  },
+  "output": {
+   "runs": 2,
+   "finished": 2,
+   "seeds": {
+    "first": 7,
+    "last": 8
+   },
+   "objectives": 1,
+   "met": 0,
+   "missed": 1,
+   "undecided": 1,
+   "verdict": null,
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 450.0,
+     "max": 450.0,
+     "median": 450.0
+    },
+    "p95": {
+     "min": 900.0,
+     "max": 900.0,
+     "median": 900.0
+    },
+    "p99": {
+     "min": 1350.0,
+     "max": 1350.0,
+     "median": 1350.0
+    }
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 7,
+     "pass": null,
+     "p50": null,
+     "p95": null,
+     "p99": null,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    },
+    {
+     "seed": 8,
+     "pass": false,
+     "p50": 450.0,
+     "p95": 900.0,
+     "p99": 1350.0,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "Misses the objectives in 1 of 2 runs · p95 900 ms · seeds 7–8"
+  }
+ },
+ {
+  "name": "noObjectives",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 42,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 49.0,
+      "p95": 98.0,
+      "p99": 147.0,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 43,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 49.02,
+      "p95": 98.04,
+      "p99": 147.06,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": null,
+    "latencyP99Ms": null,
+    "availability": null,
+    "minThroughputRps": null
+   }
+  },
+  "output": {
+   "runs": 2,
+   "finished": 2,
+   "seeds": {
+    "first": 42,
+    "last": 43
+   },
+   "objectives": 0,
+   "met": 0,
+   "missed": 0,
+   "undecided": 2,
+   "verdict": null,
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 49.0,
+     "max": 49.02,
+     "median": 49.010000000000005
+    },
+    "p95": {
+     "min": 98.0,
+     "max": 98.04,
+     "median": 98.02000000000001
+    },
+    "p99": {
+     "min": 147.0,
+     "max": 147.06,
+     "median": 147.03
+    }
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 42,
+     "pass": null,
+     "p50": 49.0,
+     "p95": 98.0,
+     "p99": 147.0,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    },
+    {
+     "seed": 43,
+     "pass": null,
+     "p50": 49.02,
+     "p95": 98.04,
+     "p99": 147.06,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "2 runs, no objectives set · p95 98 ms · seeds 42–43"
+  }
+ },
+ {
+  "name": "objectivesNone",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 42,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 4.975,
+      "p95": 9.95,
+      "p99": 14.924999999999999,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    },
+    {
+     "seed": 43,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 4.97,
+      "p95": 9.94,
+      "p99": 14.91,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    }
+   ],
+   "objectives": null
+  },
+  "output": {
+   "runs": 2,
+   "finished": 2,
+   "seeds": {
+    "first": 42,
+    "last": 43
+   },
+   "objectives": 0,
+   "met": 0,
+   "missed": 0,
+   "undecided": 2,
+   "verdict": null,
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 4.97,
+     "max": 4.975,
+     "median": 4.9725
+    },
+    "p95": {
+     "min": 9.94,
+     "max": 9.95,
+     "median": 9.945
+    },
+    "p99": {
+     "min": 14.91,
+     "max": 14.924999999999999,
+     "median": 14.9175
+    }
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 42,
+     "pass": null,
+     "p50": 4.975,
+     "p95": 9.95,
+     "p99": 14.924999999999999,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    },
+    {
+     "seed": 43,
+     "pass": null,
+     "p50": 4.97,
+     "p95": 9.94,
+     "p99": 14.91,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "2 runs, no objectives set · p95 9.9–10.0 ms (median 9.9) · seeds 42–43"
+  }
+ },
+ {
+  "name": "oneRun",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 42,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 2.625,
+      "p95": 5.25,
+      "p99": 7.875,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    }
+   ],
+   "objectives": {
+    "availability": 0.9
+   }
+  },
+  "output": {
+   "runs": 1,
+   "finished": 1,
+   "seeds": {
+    "first": 42,
+    "last": 42
+   },
+   "objectives": 1,
+   "met": 1,
+   "missed": 0,
+   "undecided": 0,
+   "verdict": "holds",
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 2.625,
+     "max": 2.625,
+     "median": 2.625
+    },
+    "p95": {
+     "min": 5.25,
+     "max": 5.25,
+     "median": 5.25
+    },
+    "p99": {
+     "min": 7.875,
+     "max": 7.875,
+     "median": 7.875
+    }
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 42,
+     "pass": true,
+     "p50": 2.625,
+     "p95": 5.25,
+     "p99": 7.875,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "Meets the objectives in 1 of 1 runs · p95 5.3 ms · seed 42"
+  }
+ },
+ {
+  "name": "anEmptySummary",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 42,
+     "summary": {}
+    },
+    {
+     "seed": 43,
+     "summary": {
+      "offeredRps": 400.0,
+      "throughputRps": 400.0,
+      "successRate": 1.0,
+      "timeoutRate": 0.0,
+      "errorRate": 0.0,
+      "p50": 25.0,
+      "p95": 50.0,
+      "p99": 75.0,
+      "bottleneck": null,
+      "bottleneckNodeId": null
+     }
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0
+   }
+  },
+  "output": {
+   "runs": 2,
+   "finished": 1,
+   "seeds": {
+    "first": 42,
+    "last": 43
+   },
+   "objectives": 1,
+   "met": 1,
+   "missed": 0,
+   "undecided": 0,
+   "verdict": "holds",
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 25.0,
+     "max": 25.0,
+     "median": 25.0
+    },
+    "p95": {
+     "min": 50.0,
+     "max": 50.0,
+     "median": 50.0
+    },
+    "p99": {
+     "min": 75.0,
+     "max": 75.0,
+     "median": 75.0
+    }
+   },
+   "successRate": {
+    "min": 1.0,
+    "max": 1.0,
+    "median": 1.0
+   },
+   "throughputRps": {
+    "min": 400.0,
+    "max": 400.0,
+    "median": 400.0
+   },
+   "perRun": [
+    {
+     "seed": 43,
+     "pass": true,
+     "p50": 25.0,
+     "p95": 50.0,
+     "p99": 75.0,
+     "successRate": 1.0,
+     "throughputRps": 400.0
+    }
+   ],
+   "text": "Meets the objectives in 1 of 1 runs · p95 50 ms · seeds 42–43"
+  }
+ },
+ {
+  "name": "noRuns",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [],
+   "objectives": {
+    "latencyP95Ms": 300.0
+   }
+  },
+  "output": {
+   "runs": 0,
+   "finished": 0,
+   "seeds": {
+    "first": null,
+    "last": null
+   },
+   "objectives": 0,
+   "met": 0,
+   "missed": 0,
+   "undecided": 0,
+   "verdict": null,
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": null,
+    "p95": null,
+    "p99": null
+   },
+   "successRate": null,
+   "throughputRps": null,
+   "perRun": [],
+   "text": ""
+  }
+ },
+ {
+  "name": "reportSummaries",
+  "fn": "archsim_engine.seeds.summarize_seeds",
+  "input": {
+   "runs": [
+    {
+     "seed": 3,
+     "summary": {
+      "latencyMs": {
+       "mean": 50.0,
+       "p50": 40.0,
+       "p95": 250.0,
+       "p99": 400.0
+      },
+      "successRate": 1.0,
+      "throughputRps": 900.0,
+      "offeredRps": 900.0
+     }
+    },
+    {
+     "seed": 2,
+     "summary": {
+      "latencyMs": {
+       "mean": 50.0,
+       "p50": 40.0,
+       "p95": 350.0,
+       "p99": 600.0
+      },
+      "successRate": 0.98,
+      "throughputRps": 880.0,
+      "offeredRps": 880.0
+     }
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   }
+  },
+  "output": {
+   "runs": 2,
+   "finished": 2,
+   "seeds": {
+    "first": 2,
+    "last": 3
+   },
+   "objectives": 4,
+   "met": 0,
+   "missed": 2,
+   "undecided": 0,
+   "verdict": "fails",
+   "borderline": false,
+   "confidenceCap": null,
+   "latencyMs": {
+    "p50": {
+     "min": 40.0,
+     "max": 40.0,
+     "median": 40.0
+    },
+    "p95": {
+     "min": 250.0,
+     "max": 350.0,
+     "median": 300.0
+    },
+    "p99": {
+     "min": 400.0,
+     "max": 600.0,
+     "median": 500.0
+    }
+   },
+   "successRate": {
+    "min": 0.98,
+    "max": 1.0,
+    "median": 0.99
+   },
+   "throughputRps": {
+    "min": 880.0,
+    "max": 900.0,
+    "median": 890.0
+   },
+   "perRun": [
+    {
+     "seed": 3,
+     "pass": false,
+     "p50": 40.0,
+     "p95": 250.0,
+     "p99": 400.0,
+     "successRate": 1.0,
+     "throughputRps": 900.0
+    },
+    {
+     "seed": 2,
+     "pass": false,
+     "p50": 40.0,
+     "p95": 350.0,
+     "p99": 600.0,
+     "successRate": 0.98,
+     "throughputRps": 880.0
+    }
+   ],
+   "text": "Misses the objectives in 2 of 2 runs · p95 250–350 ms (median 300) · seeds 2–3"
+  }
+ },
+ {
+  "name": "steady",
+  "fn": "archsim_engine.engine.stationary",
+  "input": {
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {
+       "queueLength": [
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0
+       ]
+      }
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 12.0,
+     "measuredS": 10.0
+    }
+   }
+  },
+  "output": [
+   true,
+   {
+    "throughputDrift": 0.0,
+    "keepsUp": 1.0,
+    "p95Drift": 0.0,
+    "growing": []
+   }
+  ]
+ },
+ {
+  "name": "tooShortToJudge",
+  "fn": "archsim_engine.engine.stationary",
+  "input": {
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {}
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 4.9
+    }
+   }
+  },
+  "output": [
+   false,
+   {
+    "reason": "too few time buckets to judge"
+   }
+  ]
+ },
+ {
+  "name": "warmupPastTheSeries",
+  "fn": "archsim_engine.engine.stationary",
+  "input": {
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {}
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 11.5,
+     "durationS": 12.0
+    }
+   }
+  },
+  "output": [
+   false,
+   {
+    "reason": "too few time buckets to judge"
+   }
+  ]
+ },
+ {
+  "name": "partsStillGrowing",
+  "fn": "archsim_engine.engine.stationary",
+  "input": {
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {
+       "queueLength": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+       ],
+       "replicas": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        4,
+        4,
+        5,
+        6,
+        6
+       ]
+      }
+     },
+     {
+      "id": "db",
+      "label": "DB",
+      "summary": {},
+      "timeseries": null
+     },
+     {
+      "id": "queue",
+      "label": "Queue",
+      "summary": {}
+     },
+     {
+      "id": "kafka",
+      "label": "Kafka",
+      "summary": {},
+      "timeseries": {
+       "lag": [
+        10.0,
+        20.0,
+        30.0,
+        40.0,
+        50.0,
+        60.0,
+        70.0,
+        80.0,
+        90.0,
+        100.0,
+        110.0,
+        120.0
+       ],
+       "backlog": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+       ],
+       "nodes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+       ]
+      }
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 12.0,
+     "measuredS": 10.0
+    }
+   }
+  },
+  "output": [
+   false,
+   {
+    "throughputDrift": 0.0,
+    "keepsUp": 1.0,
+    "p95Drift": 0.0,
+    "growing": [
+     "api.queueLength",
+     "api.replicas",
+     "kafka.lag"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "fallingBehindWithGaps",
+  "fn": "archsim_engine.engine.stationary",
+  "input": {
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {}
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      390.0,
+      380.0,
+      370.0,
+      360.0,
+      350.0,
+      340.0,
+      330.0,
+      320.0,
+      310.0,
+      300.0,
+      290.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      null,
+      92.0,
+      null,
+      95.0,
+      110.0,
+      null,
+      130.0,
+      150.0,
+      180.0,
+      null,
+      220.0
+     ]
+    },
+    "window": {
+     "warmupS": 1.5,
+     "durationS": 11.9
+    }
+   }
+  },
+  "output": [
+   false,
+   {
+    "throughputDrift": 0.1233,
+    "keepsUp": 0.8562,
+    "p95Drift": 0.5488,
+    "growing": []
+   }
+  ]
+ },
+ {
+  "name": "nothingOffered",
+  "fn": "archsim_engine.engine.stationary",
+  "input": {
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {
+       "nodes": null
+      }
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "offeredRps": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "latencyP95Ms": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 12.0,
+     "measuredS": 10.0
+    }
+   }
+  },
+  "output": [
+   false,
+   {
+    "throughputDrift": 0.0,
+    "keepsUp": 0.0,
+    "p95Drift": 0.0,
+    "growing": []
+   }
+  ]
+ },
+ {
+  "name": "noBottleneck",
+  "fn": "archsim_engine.sweep.row_from",
+  "input": {
+   "rps": 400.0,
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {}
+     },
+     {
+      "id": "db",
+      "label": "Orders DB",
+      "summary": {},
+      "timeseries": {}
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 12.0,
+     "measuredS": 10.0
+    }
+   }
+  },
+  "output": {
+   "rps": 400.0,
+   "offered": 398.0,
+   "throughput": 398.0,
+   "p50": 40.0,
+   "p95": 95.0,
+   "p99": 130.0,
+   "p95WithFailures": null,
+   "successRate": 1.0,
+   "bottleneck": null,
+   "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+ },
+ {
+  "name": "theFirstBottleneck",
+  "fn": "archsim_engine.sweep.row_from",
+  "input": {
+   "rps": 400.0,
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 0.98,
+     "throughputRps": 390.0,
+     "offeredRps": 390.0,
+     "latencyWithFailuresMs": {
+      "p95": 2000.0
+     }
+    },
+    "findings": [
+     {
+      "title": "x",
+      "nodeId": "api"
+     },
+     {
+      "title": "x",
+      "nodeId": "api",
+      "kind": "hot_key"
+     },
+     {
+      "title": "x",
+      "nodeId": "db",
+      "kind": "bottleneck"
+     },
+     {
+      "title": "x",
+      "nodeId": "api",
+      "kind": "bottleneck"
+     }
+    ],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {}
+     },
+     {
+      "id": "db",
+      "label": "Orders DB",
+      "summary": {},
+      "timeseries": {}
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 12.0,
+     "measuredS": 10.0
+    }
+   }
+  },
+  "output": {
+   "rps": 400.0,
+   "offered": 390.0,
+   "throughput": 390.0,
+   "p50": 40.0,
+   "p95": 95.0,
+   "p99": 130.0,
+   "p95WithFailures": 2000.0,
+   "successRate": 0.98,
+   "bottleneck": "Orders DB",
+   "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+ },
+ {
+  "name": "aBottleneckWithoutAPart",
+  "fn": "archsim_engine.sweep.row_from",
+  "input": {
+   "rps": 12.5,
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [
+     {
+      "title": "x",
+      "nodeId": null,
+      "kind": "bottleneck"
+     }
+    ],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {}
+     },
+     {
+      "id": "db",
+      "label": "Orders DB",
+      "summary": {},
+      "timeseries": {}
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 12.0,
+     "measuredS": 10.0
+    }
+   }
+  },
+  "output": {
+   "rps": 12.5,
+   "offered": 398.0,
+   "throughput": 398.0,
+   "p50": 40.0,
+   "p95": 95.0,
+   "p99": 130.0,
+   "p95WithFailures": null,
+   "successRate": 1.0,
+   "bottleneck": null,
+   "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+ },
+ {
+  "name": "aBottleneckOfAnotherPart",
+  "fn": "archsim_engine.sweep.row_from",
+  "input": {
+   "rps": 400.0,
+   "report": {
+    "summary": {
+     "latencyMs": {
+      "mean": 50.0,
+      "p50": 40.0,
+      "p95": 95.0,
+      "p99": 130.0
+     },
+     "successRate": 1.0,
+     "throughputRps": 398.0,
+     "offeredRps": 398.0
+    },
+    "findings": [
+     {
+      "title": "x",
+      "nodeId": "cache",
+      "kind": "bottleneck"
+     }
+    ],
+    "nodes": [
+     {
+      "id": "api",
+      "label": "API",
+      "summary": {},
+      "timeseries": {}
+     },
+     {
+      "id": "db",
+      "label": "Orders DB",
+      "summary": {},
+      "timeseries": {}
+     }
+    ],
+    "provenance": {
+     "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "timeseries": {
+     "bucketS": 1.0,
+     "throughputRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "offeredRps": [
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0,
+      400.0
+     ],
+     "latencyP95Ms": [
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0,
+      90.0
+     ]
+    },
+    "window": {
+     "warmupS": 2.0,
+     "durationS": 12.0,
+     "measuredS": 10.0
+    }
+   }
+  },
+  "output": {
+   "rps": 400.0,
+   "offered": 398.0,
+   "throughput": 398.0,
+   "p50": 40.0,
+   "p95": 95.0,
+   "p99": 130.0,
+   "p95WithFailures": null,
+   "successRate": 1.0,
+   "bottleneck": null,
+   "resultDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+ },
+ {
+  "name": "notCompleted",
+  "fn": "archsim_engine.sweep.meets",
+  "input": {
+   "row": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": null,
+    "p50": 25.0,
+    "p95": 50.0,
+    "p99": 70.0,
+    "p95WithFailures": 50.0,
+    "successRate": 1.0,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   }
+  },
+  "output": null
+ },
+ {
+  "name": "withoutAP99",
+  "fn": "archsim_engine.sweep.meets",
+  "input": {
+   "row": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": 99.0,
+    "p50": 25.0,
+    "p95": 50.0,
+    "p99": null,
+    "p95WithFailures": 50.0,
+    "successRate": 1.0,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   }
+  },
+  "output": false
+ },
+ {
+  "name": "aboveTheP99",
+  "fn": "archsim_engine.sweep.meets",
+  "input": {
+   "row": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": 99.0,
+    "p50": 25.0,
+    "p95": 50.0,
+    "p99": 500.5,
+    "p95WithFailures": 50.0,
+    "successRate": 1.0,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   }
+  },
+  "output": false
+ },
+ {
+  "name": "withoutASuccessRate",
+  "fn": "archsim_engine.sweep.meets",
+  "input": {
+   "row": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": 99.0,
+    "p50": 25.0,
+    "p95": 50.0,
+    "p99": 70.0,
+    "p95WithFailures": 50.0,
+    "successRate": null,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   }
+  },
+  "output": false
+ },
+ {
+  "name": "withoutAP95",
+  "fn": "archsim_engine.sweep.meets",
+  "input": {
+   "row": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": 99.0,
+    "p50": null,
+    "p95": null,
+    "p99": null,
+    "p95WithFailures": null,
+    "successRate": 1.0,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "objectives": {
+    "latencyP95Ms": 300.0
+   }
+  },
+  "output": false
+ },
+ {
+  "name": "noObjectives",
+  "fn": "archsim_engine.sweep.meets",
+  "input": {
+   "row": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": 99.0,
+    "p50": null,
+    "p95": null,
+    "p99": null,
+    "p95WithFailures": null,
+    "successRate": null,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "objectives": {
+    "latencyP95Ms": null,
+    "latencyP99Ms": null,
+    "availability": null,
+    "minThroughputRps": null
+   }
+  },
+  "output": true
+ },
+ {
+  "name": "everyObjective",
+  "fn": "archsim_engine.sweep.meets",
+  "input": {
+   "row": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": 99.0,
+    "p50": 150.0,
+    "p95": 300.0,
+    "p99": 500.0,
+    "p95WithFailures": 300.0,
+    "successRate": 0.999,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 500,
+    "availability": 0.999,
+    "minThroughputRps": 1200.0
+   }
+  },
+  "output": true
+ },
+ {
+  "name": "noCompletedStep",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": null,
+     "p50": null,
+     "p95": null,
+     "p99": null,
+     "p95WithFailures": null,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 200.0,
+     "offered": 200.0,
+     "throughput": null,
+     "p50": null,
+     "p95": null,
+     "p99": null,
+     "p95WithFailures": null,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "availability": null
+   }
+  },
+  "output": {
+   "rows": [],
+   "knee": null,
+   "kneeReason": null,
+   "maxWithinSlo": null,
+   "saturatedAt": null,
+   "verdict": "No completed steps yet."
+  }
+ },
+ {
+  "name": "noSteps",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "availability": null
+   }
+  },
+  "output": {
+   "rows": [],
+   "knee": null,
+   "kneeReason": null,
+   "maxWithinSlo": null,
+   "saturatedAt": null,
+   "verdict": "No completed steps yet."
+  }
+ },
+ {
+  "name": "aLatencyKnee",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [
+    {
+     "rps": 300.0,
+     "offered": 300.0,
+     "throughput": 300.0,
+     "p50": 6.0,
+     "p95": 12.0,
+     "p99": 16.799999999999997,
+     "p95WithFailures": 12.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 5.0,
+     "p95": 10.0,
+     "p99": 14.0,
+     "p95WithFailures": 10.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 500.0,
+     "offered": 500.0,
+     "throughput": 499.0,
+     "p50": 20.5,
+     "p95": 41.0,
+     "p99": 57.4,
+     "p95WithFailures": 41.0,
+     "successRate": 1.0,
+     "bottleneck": "DB",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 700.0,
+     "offered": 700.0,
+     "throughput": 690.0,
+     "p50": 130.0,
+     "p95": 260.0,
+     "p99": 364.0,
+     "p95WithFailures": 260.0,
+     "successRate": 1.0,
+     "bottleneck": "DB",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "availability": null
+   }
+  },
+  "output": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 5.0,
+     "p95": 10.0,
+     "p99": 14.0,
+     "p95WithFailures": 10.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 300.0,
+     "offered": 300.0,
+     "throughput": 300.0,
+     "p50": 6.0,
+     "p95": 12.0,
+     "p99": 16.799999999999997,
+     "p95WithFailures": 12.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 500.0,
+     "offered": 500.0,
+     "throughput": 499.0,
+     "p50": 20.5,
+     "p95": 41.0,
+     "p99": 57.4,
+     "p95WithFailures": 41.0,
+     "successRate": 1.0,
+     "bottleneck": "DB",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 700.0,
+     "offered": 700.0,
+     "throughput": 690.0,
+     "p50": 130.0,
+     "p95": 260.0,
+     "p99": 364.0,
+     "p95WithFailures": 260.0,
+     "successRate": 1.0,
+     "bottleneck": "DB",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "knee": {
+    "rps": 500.0,
+    "offered": 500.0,
+    "throughput": 499.0,
+    "p50": 20.5,
+    "p95": 41.0,
+    "p99": 57.4,
+    "p95WithFailures": 41.0,
+    "successRate": 1.0,
+    "bottleneck": "DB",
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "kneeReason": "latency",
+   "maxWithinSlo": {
+    "rps": 700.0,
+    "offered": 700.0,
+    "throughput": 690.0,
+    "p50": 130.0,
+    "p95": 260.0,
+    "p99": 364.0,
+    "p95WithFailures": 260.0,
+    "successRate": 1.0,
+    "bottleneck": "DB",
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "saturatedAt": "DB",
+   "verdict": "Holds 700 req/s within the objectives; latency climbs sharply around 500 req/s at DB."
+  }
+ },
+ {
+  "name": "aLatencyKneeTooSmallToCount",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 0.5,
+     "p95": 1.0,
+     "p99": 1.4,
+     "p95WithFailures": 1.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 200.0,
+     "offered": 200.0,
+     "throughput": 200.0,
+     "p50": 2.25,
+     "p95": 4.5,
+     "p99": 6.3,
+     "p95WithFailures": 4.5,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 300.0,
+     "offered": 300.0,
+     "throughput": 300.0,
+     "p50": 4.5,
+     "p95": 9.0,
+     "p99": 12.6,
+     "p95WithFailures": 9.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 8.0
+   }
+  },
+  "output": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 0.5,
+     "p95": 1.0,
+     "p99": 1.4,
+     "p95WithFailures": 1.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 200.0,
+     "offered": 200.0,
+     "throughput": 200.0,
+     "p50": 2.25,
+     "p95": 4.5,
+     "p99": 6.3,
+     "p95WithFailures": 4.5,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 300.0,
+     "offered": 300.0,
+     "throughput": 300.0,
+     "p50": 4.5,
+     "p95": 9.0,
+     "p99": 12.6,
+     "p95WithFailures": 9.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "knee": {
+    "rps": 300.0,
+    "offered": 300.0,
+    "throughput": 300.0,
+    "p50": 4.5,
+    "p95": 9.0,
+    "p99": 12.6,
+    "p95WithFailures": 9.0,
+    "successRate": 1.0,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "kneeReason": "latency",
+   "maxWithinSlo": {
+    "rps": 200.0,
+    "offered": 200.0,
+    "throughput": 200.0,
+    "p50": 2.25,
+    "p95": 4.5,
+    "p99": 6.3,
+    "p95WithFailures": 4.5,
+    "successRate": 1.0,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "saturatedAt": null,
+   "verdict": "Holds 200 req/s within the objectives; latency climbs sharply around 300 req/s."
+  }
+ },
+ {
+  "name": "missesTheObjectivesBeforeAnyKnee",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [
+    {
+     "rps": 1000.0,
+     "offered": 1000.0,
+     "throughput": 1000.0,
+     "p50": 50.0,
+     "p95": 100.0,
+     "p99": 140.0,
+     "p95WithFailures": 100.0,
+     "successRate": 1.0,
+     "bottleneck": "API",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 1234.5,
+     "offered": 1234.5,
+     "throughput": 1234.0,
+     "p50": 160.0,
+     "p95": 320.0,
+     "p99": 448.0,
+     "p95WithFailures": 320.0,
+     "successRate": 1.0,
+     "bottleneck": "API",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 1500.0,
+     "offered": 1500.0,
+     "throughput": 1500.0,
+     "p50": 165.0,
+     "p95": 330.0,
+     "p99": 461.99999999999994,
+     "p95WithFailures": 330.0,
+     "successRate": 1.0,
+     "bottleneck": "API",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "availability": null
+   }
+  },
+  "output": {
+   "rows": [
+    {
+     "rps": 1000.0,
+     "offered": 1000.0,
+     "throughput": 1000.0,
+     "p50": 50.0,
+     "p95": 100.0,
+     "p99": 140.0,
+     "p95WithFailures": 100.0,
+     "successRate": 1.0,
+     "bottleneck": "API",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 1234.5,
+     "offered": 1234.5,
+     "throughput": 1234.0,
+     "p50": 160.0,
+     "p95": 320.0,
+     "p99": 448.0,
+     "p95WithFailures": 320.0,
+     "successRate": 1.0,
+     "bottleneck": "API",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 1500.0,
+     "offered": 1500.0,
+     "throughput": 1500.0,
+     "p50": 165.0,
+     "p95": 330.0,
+     "p99": 461.99999999999994,
+     "p95WithFailures": 330.0,
+     "successRate": 1.0,
+     "bottleneck": "API",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "knee": null,
+   "kneeReason": null,
+   "maxWithinSlo": {
+    "rps": 1000.0,
+    "offered": 1000.0,
+    "throughput": 1000.0,
+    "p50": 50.0,
+    "p95": 100.0,
+    "p99": 140.0,
+    "p95WithFailures": 100.0,
+    "successRate": 1.0,
+    "bottleneck": "API",
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "saturatedAt": "API",
+   "verdict": "Holds 1,000 req/s within the objectives at API."
+  }
+ },
+ {
+  "name": "saturatesWhileMeetingTheObjectives",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 25.0,
+     "p95": 50.0,
+     "p99": 70.0,
+     "p95WithFailures": 50.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 200.0,
+     "offered": null,
+     "throughput": 150.0,
+     "p50": 30.0,
+     "p95": 60.0,
+     "p99": 84.0,
+     "p95WithFailures": 60.0,
+     "successRate": 1.0,
+     "bottleneck": "",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "availability": null
+   }
+  },
+  "output": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 25.0,
+     "p95": 50.0,
+     "p99": 70.0,
+     "p95WithFailures": 50.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 200.0,
+     "offered": null,
+     "throughput": 150.0,
+     "p50": 30.0,
+     "p95": 60.0,
+     "p99": 84.0,
+     "p95WithFailures": 60.0,
+     "successRate": 1.0,
+     "bottleneck": "",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "knee": {
+    "rps": 200.0,
+    "offered": null,
+    "throughput": 150.0,
+    "p50": 30.0,
+    "p95": 60.0,
+    "p99": 84.0,
+    "p95WithFailures": 60.0,
+    "successRate": 1.0,
+    "bottleneck": "",
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "kneeReason": "throughput",
+   "maxWithinSlo": {
+    "rps": 200.0,
+    "offered": null,
+    "throughput": 150.0,
+    "p50": 30.0,
+    "p95": 60.0,
+    "p99": 84.0,
+    "p95WithFailures": 60.0,
+    "successRate": 1.0,
+    "bottleneck": "",
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "saturatedAt": "",
+   "verdict": "Holds 200 req/s within the objectives; saturates around 200 req/s."
+  }
+ },
+ {
+  "name": "offeredZero",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 0.0,
+     "throughput": 50.0,
+     "p50": 25.0,
+     "p95": 50.0,
+     "p99": 70.0,
+     "p95WithFailures": 50.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 200.0,
+     "offered": 0.0,
+     "throughput": 120.0,
+     "p50": 27.5,
+     "p95": 55.0,
+     "p99": 77.0,
+     "p95WithFailures": 55.0,
+     "successRate": 1.0,
+     "bottleneck": "Workers",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "availability": null
+   }
+  },
+  "output": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 0.0,
+     "throughput": 50.0,
+     "p50": 25.0,
+     "p95": 50.0,
+     "p99": 70.0,
+     "p95WithFailures": 50.0,
+     "successRate": 1.0,
+     "bottleneck": null,
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 200.0,
+     "offered": 0.0,
+     "throughput": 120.0,
+     "p50": 27.5,
+     "p95": 55.0,
+     "p99": 77.0,
+     "p95WithFailures": 55.0,
+     "successRate": 1.0,
+     "bottleneck": "Workers",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "knee": {
+    "rps": 100.0,
+    "offered": 0.0,
+    "throughput": 50.0,
+    "p50": 25.0,
+    "p95": 50.0,
+    "p99": 70.0,
+    "p95WithFailures": 50.0,
+    "successRate": 1.0,
+    "bottleneck": null,
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "kneeReason": "throughput",
+   "maxWithinSlo": {
+    "rps": 200.0,
+    "offered": 0.0,
+    "throughput": 120.0,
+    "p50": 27.5,
+    "p95": 55.0,
+    "p99": 77.0,
+    "p95WithFailures": 55.0,
+    "successRate": 1.0,
+    "bottleneck": "Workers",
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "saturatedAt": null,
+   "verdict": "Holds 200 req/s within the objectives; saturates around 100 req/s."
+  }
+ },
+ {
+  "name": "equalLoads",
+  "fn": "archsim_engine.sweep.analyze",
+  "input": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 25.0,
+     "p95": 50.0,
+     "p99": 70.0,
+     "p95WithFailures": 50.0,
+     "successRate": 1.0,
+     "bottleneck": "first",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 30.0,
+     "p95": 60.0,
+     "p99": 84.0,
+     "p95WithFailures": 60.0,
+     "successRate": 1.0,
+     "bottleneck": "second",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "objectives": {
+    "latencyP95Ms": 300.0,
+    "availability": null
+   }
+  },
+  "output": {
+   "rows": [
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 25.0,
+     "p95": 50.0,
+     "p99": 70.0,
+     "p95WithFailures": 50.0,
+     "successRate": 1.0,
+     "bottleneck": "first",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+     "rps": 100.0,
+     "offered": 100.0,
+     "throughput": 100.0,
+     "p50": 30.0,
+     "p95": 60.0,
+     "p99": 84.0,
+     "p95WithFailures": 60.0,
+     "successRate": 1.0,
+     "bottleneck": "second",
+     "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "knee": null,
+   "kneeReason": null,
+   "maxWithinSlo": {
+    "rps": 100.0,
+    "offered": 100.0,
+    "throughput": 100.0,
+    "p50": 30.0,
+    "p95": 60.0,
+    "p99": 84.0,
+    "p95WithFailures": 60.0,
+    "successRate": 1.0,
+    "bottleneck": "second",
+    "resultDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   },
+   "saturatedAt": "second",
+   "verdict": "Holds 100 req/s within the objectives with no sign of saturation. Try a higher range to find the limit."
+  }
+ },
+ {
+  "name": "everyFormula",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   },
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "16 × 1000 ÷ 10 ms",
+    "result": 1600.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "1,234 × 10 ÷ (1000 × 16)",
+    "result": 0.7716,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "1,234 req/s × 10.5 ms ÷ 1000",
+    "result": 12.9622,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "Wq = C(c, a) ÷ (c·μ − λ),  a = λ ÷ μ,  μ = 1000 ÷ mean holding time",
+    "substituted": "C(16, 12.35) = 24.5% chance to wait; 24.5% ÷ (16 × 100 − 1,234) s",
+    "result": 0.6691,
+    "unit": "ms",
+    "note": "Simulated mean wait: 0.48 ms. M/M/c assumes random arrivals and exponential holding times; bursts, heavier tails and downstream waits push the real wait above it.",
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   },
+   {
+    "id": "cpu_capacity",
+    "title": "Capacity from CPU",
+    "formula": "CPU ceiling = cores × instances × 1000 ÷ CPU time per request",
+    "substituted": "from the CPU spec and 4.2 ms of work per request",
+    "result": 2400.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "cpuUtilization"
+   }
+  ]
+ },
+ {
+  "name": "notPoolBased",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": false
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   }
+  ]
+ },
+ {
+  "name": "noArrivals",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 0,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "16 × 1000 ÷ 10 ms",
+    "result": 1600.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "1,234 × 10 ÷ (1000 × 16)",
+    "result": 0.7716,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "1,234 req/s × 10.5 ms ÷ 1000",
+    "result": 12.9622,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "Wq = C(c, a) ÷ (c·μ − λ),  a = λ ÷ μ,  μ = 1000 ÷ mean holding time",
+    "substituted": "C(16, 12.35) = 24.5% chance to wait; 24.5% ÷ (16 × 100 − 1,234) s",
+    "result": 0.6691,
+    "unit": "ms",
+    "note": "Simulated mean wait: 0.48 ms. M/M/c assumes random arrivals and exponential holding times; bursts, heavier tails and downstream waits push the real wait above it.",
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   },
+   {
+    "id": "cpu_capacity",
+    "title": "Capacity from CPU",
+    "formula": "CPU ceiling = cores × instances × 1000 ÷ CPU time per request",
+    "substituted": "from the CPU spec and 4.2 ms of work per request",
+    "result": 2400.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "cpuUtilization"
+   }
+  ]
+ },
+ {
+  "name": "noWindow",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 0.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "16 × 1000 ÷ 10 ms",
+    "result": 1600.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "1,234 × 10 ÷ (1000 × 16)",
+    "result": 0.7716,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "1,234 req/s × 10.5 ms ÷ 1000",
+    "result": 12.9622,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "Wq = C(c, a) ÷ (c·μ − λ),  a = λ ÷ μ,  μ = 1000 ÷ mean holding time",
+    "substituted": "C(16, 12.35) = 24.5% chance to wait; 24.5% ÷ (16 × 100 − 1,234) s",
+    "result": 0.6691,
+    "unit": "ms",
+    "note": "Simulated mean wait: 0.48 ms. M/M/c assumes random arrivals and exponential holding times; bursts, heavier tails and downstream waits push the real wait above it.",
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   },
+   {
+    "id": "cpu_capacity",
+    "title": "Capacity from CPU",
+    "formula": "CPU ceiling = cores × instances × 1000 ÷ CPU time per request",
+    "substituted": "from the CPU spec and 4.2 ms of work per request",
+    "result": 2400.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "cpuUtilization"
+   }
+  ]
+ },
+ {
+  "name": "noArrivalRate",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": null,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": null,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   }
+  ]
+ },
+ {
+  "name": "noSlots",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 0,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   }
+  ]
+ },
+ {
+  "name": "noHoldingTime",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": null,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   }
+  ]
+ },
+ {
+  "name": "aHoldingTimeOfZero",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   }
+  ]
+ },
+ {
+  "name": "anArrivalRateOfZero",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 0,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   }
+  ]
+ },
+ {
+  "name": "nothingMeasured",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": null,
+     "meanInSystem": null,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": null,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   },
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "16 × 1000 ÷ 10 ms",
+    "result": 1600.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "1,234 × 10 ÷ (1000 × 16)",
+    "result": 0.7716,
+    "unit": "",
+    "note": null,
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "Wq = C(c, a) ÷ (c·μ − λ),  a = λ ÷ μ,  μ = 1000 ÷ mean holding time",
+    "substituted": "C(16, 12.35) = 24.5% chance to wait; 24.5% ÷ (16 × 100 − 1,234) s",
+    "result": 0.6691,
+    "unit": "ms",
+    "note": null,
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   },
+   {
+    "id": "cpu_capacity",
+    "title": "Capacity from CPU",
+    "formula": "CPU ceiling = cores × instances × 1000 ÷ CPU time per request",
+    "substituted": "from the CPU spec and 4.2 ms of work per request",
+    "result": 2400.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "cpuUtilization"
+   }
+  ]
+ },
+ {
+  "name": "halfASlot",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 10.0,
+     "slots": 0.5,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 10.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   },
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "0.5 × 1000 ÷ 10 ms",
+    "result": 50.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "10 × 10 ÷ (1000 × 0.5)",
+    "result": 0.2,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "10 req/s × 10.5 ms ÷ 1000",
+    "result": 0.105,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "cpu_capacity",
+    "title": "Capacity from CPU",
+    "formula": "CPU ceiling = cores × instances × 1000 ÷ CPU time per request",
+    "substituted": "from the CPU spec and 4.2 ms of work per request",
+    "result": 2400.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "cpuUtilization"
+   }
+  ]
+ },
+ {
+  "name": "twoAndAHalfSlots",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 100.0,
+     "slots": 2.5,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 100.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   },
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "2.5 × 1000 ÷ 10 ms",
+    "result": 250.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "100 × 10 ÷ (1000 × 2.5)",
+    "result": 0.4,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "100 req/s × 10.5 ms ÷ 1000",
+    "result": 1.05,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "Wq = C(c, a) ÷ (c·μ − λ),  a = λ ÷ μ,  μ = 1000 ÷ mean holding time",
+    "substituted": "C(2, 1) = 33.3% chance to wait; 33.3% ÷ (2 × 100 − 100) s",
+    "result": 3.3333,
+    "unit": "ms",
+    "note": "Simulated mean wait: 0.48 ms. M/M/c assumes random arrivals and exponential holding times; bursts, heavier tails and downstream waits push the real wait above it.",
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   },
+   {
+    "id": "cpu_capacity",
+    "title": "Capacity from CPU",
+    "formula": "CPU ceiling = cores × instances × 1000 ÷ CPU time per request",
+    "substituted": "from the CPU spec and 4.2 ms of work per request",
+    "result": 2400.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "cpuUtilization"
+   }
+  ]
+ },
+ {
+  "name": "overloaded",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 4,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   },
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "4 × 1000 ÷ 10 ms",
+    "result": 400.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "1,234 × 10 ÷ (1000 × 4)",
+    "result": 3.0863,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "1,234 req/s × 10.5 ms ÷ 1000",
+    "result": 12.9622,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "stable only if λ < slots × μ, with μ = 1000 ÷ mean holding time",
+    "substituted": "1,234 ≥ 4 × 100",
+    "result": null,
+    "unit": "ms",
+    "note": "Arrivals exceed what the slots can serve, so the queue grows until requests are rejected or time out; theory predicts no steady wait.",
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   },
+   {
+    "id": "cpu_capacity",
+    "title": "Capacity from CPU",
+    "formula": "CPU ceiling = cores × instances × 1000 ÷ CPU time per request",
+    "substituted": "from the CPU spec and 4.2 ms of work per request",
+    "result": 2400.0,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "cpuUtilization"
+   }
+  ]
+ },
+ {
+  "name": "noCpuCeiling",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": 4.2,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   },
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "16 × 1000 ÷ 10 ms",
+    "result": 1600.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "1,234 × 10 ÷ (1000 × 16)",
+    "result": 0.7716,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "1,234 req/s × 10.5 ms ÷ 1000",
+    "result": 12.9622,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "Wq = C(c, a) ÷ (c·μ − λ),  a = λ ÷ μ,  μ = 1000 ÷ mean holding time",
+    "substituted": "C(16, 12.35) = 24.5% chance to wait; 24.5% ÷ (16 × 100 − 1,234) s",
+    "result": 0.6691,
+    "unit": "ms",
+    "note": "Simulated mean wait: 0.48 ms. M/M/c assumes random arrivals and exponential holding times; bursts, heavier tails and downstream waits push the real wait above it.",
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   }
+  ]
+ },
+ {
+  "name": "noServiceTime",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {
+     "arrivals": 12345,
+     "arrivalRps": 1234.5,
+     "slots": 16,
+     "meanHoldMs": 10.0,
+     "utilization": 0.7716,
+     "meanInSystem": 12.9,
+     "latencyMs": {
+      "mean": 10.5
+     },
+     "meanServiceMs": null,
+     "meanQueueWaitMs": 0.48,
+     "cpuCapacityRps": 2400.0
+    }
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": [
+   {
+    "id": "arrival_rate",
+    "title": "Arrival rate",
+    "formula": "λ = arrivals ÷ measurement window",
+    "substituted": "12,345 ÷ 10 s",
+    "result": 1234.5,
+    "unit": "req/s",
+    "note": null,
+    "source": null,
+    "metric": "arrivalRps"
+   },
+   {
+    "id": "slot_capacity",
+    "title": "Capacity from slots",
+    "formula": "capacity = slots × 1000 ÷ mean holding time",
+    "substituted": "16 × 1000 ÷ 10 ms",
+    "result": 1600.0,
+    "unit": "req/s",
+    "note": "Holding time is how long a request keeps its slot (worker, connection or executor), including downstream calls when the slot blocks on them.",
+    "source": null,
+    "metric": null
+   },
+   {
+    "id": "utilization",
+    "title": "Utilization",
+    "formula": "ρ = λ × mean holding time ÷ (1000 × slots)",
+    "substituted": "1,234 × 10 ÷ (1000 × 16)",
+    "result": 0.7716,
+    "unit": "",
+    "note": "Measured by the simulation: 77.2% of slot-time busy.",
+    "source": null,
+    "metric": "utilization"
+   },
+   {
+    "id": "littles_law",
+    "title": "Little's law",
+    "formula": "requests inside = λ × mean time inside",
+    "substituted": "1,234 req/s × 10.5 ms ÷ 1000",
+    "result": 12.9622,
+    "unit": "requests",
+    "note": "Measured: 12.9 requests inside on average. Little's law holds for any stable system, so the two should agree closely.",
+    "source": "https://en.wikipedia.org/wiki/Little%27s_law",
+    "metric": "inflightMean"
+   },
+   {
+    "id": "mmc_wait",
+    "title": "Queueing model (M/M/c)",
+    "formula": "Wq = C(c, a) ÷ (c·μ − λ),  a = λ ÷ μ,  μ = 1000 ÷ mean holding time",
+    "substituted": "C(16, 12.35) = 24.5% chance to wait; 24.5% ÷ (16 × 100 − 1,234) s",
+    "result": 0.6691,
+    "unit": "ms",
+    "note": "Simulated mean wait: 0.48 ms. M/M/c assumes random arrivals and exponential holding times; bursts, heavier tails and downstream waits push the real wait above it.",
+    "source": "https://en.wikipedia.org/wiki/Erlang_(unit)#Erlang_C_formula",
+    "metric": "queueWaitMs"
+   }
+  ]
+ },
+ {
+  "name": "aSummaryWithoutFigures",
+  "fn": "archsim_engine.explain.generic",
+  "input": {
+   "node": {
+    "id": "api",
+    "label": "API",
+    "summary": {}
+   },
+   "windowS": 10.0,
+   "poolBased": true
+  },
+  "output": []
+ }
+]

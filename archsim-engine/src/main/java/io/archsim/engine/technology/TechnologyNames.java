@@ -80,8 +80,10 @@ public final class TechnologyNames {
 	 * A technology's words, separated by spaces, each starting with a capital, as the
 	 * Python engine capitalizes them: a word is a run of letters, numbers and
 	 * underscores, which a combining mark ends, as Python's {@code \w} reads a text.
-	 * Upper case follows the JDK's Unicode, newer than Python 3.12's: a letter added
-	 * since reads differently, which no technology the engine knows has.
+	 * Which characters are letters or numbers, and their upper case, follow the JDK's
+	 * Unicode (16.0 in Java 25), newer than Python 3.12's (15.0): a character added since
+	 * reads differently. No technology the engine knows has one; a technology a person
+	 * types may.
 	 * @param technology the technology
 	 * @return its words, capitalized
 	 */

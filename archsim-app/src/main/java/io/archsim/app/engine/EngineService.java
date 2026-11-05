@@ -27,8 +27,8 @@ import io.archsim.model.issue.Issue;
 
 /**
  * The Python engine service (ADR-0036), which runs the engine's synchronous calls until
- * stage 3 of the port moves each one to Java: comparisons, seed summaries, exports,
- * imports and calibration. Its answers are passed on as it wrote them.
+ * stage 3 of the port moves each one to Java: comparisons, exports, imports and
+ * calibration. Its answers are passed on as it wrote them.
  */
 public final class EngineService {
 
@@ -63,22 +63,6 @@ public final class EngineService {
 		body.put("labelA", firstLabel);
 		body.put("labelB", secondLabel);
 		return (ObjectNode) JSON.readTree(call("/compare", body).json());
-	}
-
-	/**
-	 * The summary of a seed group's runs against the objectives they ran with
-	 * ({@code summarize_seeds}).
-	 * @param runs each run's {@code seed} and, if it succeeded, {@code summary}
-	 * @param objectives the design's objectives
-	 * @return the summary: the verdict split, percentiles and ranges
-	 * @throws ApiException {@code 503} when the service cannot be reached or does not
-	 * answer in time
-	 */
-	public JsonNode summarizeSeeds(ArrayNode runs, JsonNode objectives) {
-		ObjectNode body = JSON.createObjectNode();
-		body.set("runs", runs);
-		body.set("objectives", objectives);
-		return JSON.readTree(call("/summarize-seeds", body).json());
 	}
 
 	/**

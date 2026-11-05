@@ -14,7 +14,6 @@ from archsim_engine import (
     ENGINE_VERSION,
     compare_reports,
     default_registry,
-    summarize_seeds,
 )
 from archsim_engine.export import export_document
 from archsim_engine_service.app import create_app
@@ -53,7 +52,7 @@ def test_unknown_path_is_not_found(client: TestClient) -> None:
     assert client.post("/nothing").status_code == 404
 
 
-# -- runs: compare, summarize seeds
+# -- runs: compare
 
 
 def report() -> dict[str, Any]:
@@ -97,16 +96,6 @@ def test_compare_answers_what_the_engine_compares(client: TestClient) -> None:
     assert response.json() == compare_reports(report(), report(), "before", "after")
 
 
-def test_summarize_seeds_answers_what_the_engine_summarizes(client: TestClient) -> None:
-    runs = [{"seed": 42, "summary": {"latencyP95Ms": 120.0}}, {"seed": 43, "summary": None}]
-
-    response = client.post(
-        "/summarize-seeds", json={"runs": runs, "objectives": {"latencyP95Ms": 300.0}}
-    )
-
-    assert response.json() == summarize_seeds(runs, {"latencyP95Ms": 300.0})
-
-
 @pytest.mark.parametrize(
     ("path", "body", "message"),
     [
@@ -115,11 +104,6 @@ def test_summarize_seeds_answers_what_the_engine_summarizes(client: TestClient) 
             "/compare",
             {"a": {}, "b": {}, "labelA": None, "labelB": "y"},
             "labelA and labelB must be strings",
-        ),
-        (
-            "/summarize-seeds",
-            {"runs": {}, "objectives": {}},
-            "runs must be a list and objectives an object",
         ),
     ],
 )
