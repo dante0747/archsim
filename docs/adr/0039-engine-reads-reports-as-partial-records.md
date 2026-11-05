@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
@@ -96,8 +96,10 @@ such as the traces and most time series.
   value the report lacks from one the records do not name yet.
 - Bad, because the compiler checks the engine against the records, not the records against the
   report: since unknown keys are skipped, a component whose name differs from the report's key
-  (a typo, or a rename by stage 4's writer) reads as null or zero without an error. The golden
-  parity tests are what catch it.
+  (a typo, or a rename) would read as null or zero without an error. A test catches it instead,
+  `ReportRecordKeysTests` (see Confirmation), but against the frozen engine's reports only: once
+  the Java engine writes reports in stage 4, the records must be checked against what it writes,
+  or become its types.
 - Bad, because `RunReport` requires every part some function indexes (its summary, parts,
   findings, provenance, time series and window), so a report without one fails every function
   that takes a `RunReport`, even one that does not read that part: judging a steady state reads
@@ -112,6 +114,11 @@ such as the traces and most time series.
 
 `GoldenParityTests` in `archsim-engine` runs every recorded call of each ported report function,
 decoding its input with the records' `read`.
+
+`ReportRecordKeysTests` checks the records against the report, so a misnamed component fails the
+build instead of reading as null or zero: every component of every record a `RunReport` holds
+names a key the golden files' reports (each template's runs) write where that record is read, and
+every record in `io.archsim.engine.report` is `RunReport` or one it holds.
 
 ## Pros and Cons of the Options
 

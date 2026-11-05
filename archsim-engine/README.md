@@ -48,7 +48,9 @@ A run's report is read into records of the parts the engine reads (`RunReport`, 
 `ReportNode` and the rest), each by its own `read`, which skips what they do not name: a value
 the Python indexes is required, one it reads with `get` is nullable, and a report of an older
 version reads as long as it has the parts the records require
-([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)). A run's compact
+([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)). Because what they do
+not name is skipped, `ReportRecordKeysTests` checks that each record's components name keys the
+golden reports write, so a misspelt name fails the build. A run's compact
 summary (the run row's flat `p50`, `p95` and `p99`) reads into `RunFigures`, as a report's
 summary does, and the objectives stored with a run into `Objectives` with the targets the design
 leaves out off (`StoredObjectives`).
