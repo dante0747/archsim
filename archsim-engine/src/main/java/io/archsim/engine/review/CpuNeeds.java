@@ -71,7 +71,8 @@ final class CpuNeeds {
 		}
 		double cores = cpuCores.getAsDouble();
 		Optional<Busy> busy = switch (node.type()) {
-			case ServiceSpec.TYPE -> service(settings, cores, carried.get());
+			case ServiceSpec.TYPE ->
+				this.graph.serverless(node.id()) ? Optional.empty() : service(settings, cores, carried.get());
 			case DatabaseSpec.TYPE -> Optional.of(database(settings, cores, carried.get()));
 			case CacheSpec.TYPE -> cache(settings, cores, carried.get());
 			default -> Optional.empty();
@@ -81,16 +82,14 @@ final class CpuNeeds {
 	}
 
 	/**
-	 * A service's replicas, at their most, each serving the rate at which its cores fill.
+	 * A service's replicas, at their most, each serving the rate at which its cores fill;
+	 * not for serverless functions.
 	 * @param settings its settings
 	 * @param cores its vCPU per replica
 	 * @param load its load
-	 * @return how busy it is; empty for a function, or a service without work per request
+	 * @return how busy it is; empty for a service without work per request
 	 */
 	private static Optional<Busy> service(LenientSettings settings, double cores, NodeLoad load) {
-		if (settings.is("platform", ReviewGraph.SERVERLESS)) {
-			return Optional.empty();
-		}
 		double ms = settings.meanMs("serviceTimeMs") * settings.number("cpuShare").orElse(1.0);
 		if (ms == 0) {
 			return Optional.empty();

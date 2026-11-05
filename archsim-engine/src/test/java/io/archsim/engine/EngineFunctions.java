@@ -24,7 +24,7 @@ final class EngineFunctions {
 	private static final Map<String, Function<GoldenEntry, JsonNode>> PORTED = merged(TextFunctions.PORTED,
 			QueueingFunctions.PORTED, LoadFunctions.PORTED, PricingFunctions.PORTED, SeedFunctions.PORTED,
 			SweepFunctions.PORTED, SizingFunctions.PORTED, InputFunctions.PORTED, EstimateFunctions.PORTED,
-			CostFunctions.PORTED, ReviewFunctions.PORTED);
+			CostFunctions.PORTED, ReviewFunctions.PORTED, AnalysisFunctions.PORTED);
 
 	private EngineFunctions() {
 	}

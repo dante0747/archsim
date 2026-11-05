@@ -43,7 +43,7 @@ class EngineConfigurationTests {
 	void engineService_request_asksForNoProtocolUpgrade() throws IOException {
 		EngineService engine = engine(Duration.ZERO, Duration.ofSeconds(5));
 
-		engine.analyze(JsonMapper.builder().build().createObjectNode(), null);
+		engine.export(JsonMapper.builder().build().createObjectNode(), "mermaid");
 
 		assertThat(this.upgrade.get()).isNull();
 	}
@@ -53,7 +53,7 @@ class EngineConfigurationTests {
 		EngineService engine = engine(Duration.ofSeconds(3), Duration.ofSeconds(1));
 
 		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> engine.analyze(JsonMapper.builder().build().createObjectNode(), null))
+			.isThrownBy(() -> engine.export(JsonMapper.builder().build().createObjectNode(), "mermaid"))
 			.satisfies((ex) -> {
 				assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
 				assertThat(ex.getMessage()).startsWith("The simulation engine took too long to answer");

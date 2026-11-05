@@ -3,8 +3,7 @@ package io.archsim.app.runs;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.TestPropertySource;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.PrepareRequest;
+import io.archsim.engine.run.SimulationLimitException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -49,7 +48,7 @@ class RunChargesTests extends RunTestSupport {
 	void create_runTheEngineRefuses_isNotCountedAgainstTheHour() {
 		String project = project("team", "editor");
 		runsPerHour(project, 1);
-		willThrow(EngineRefusalException.runOverLimits("Expected too many requests")).given(engine()).prepare(any());
+		willThrow(new SimulationLimitException("Expected too many requests")).given(preparation()).prepare(any());
 		assertThat(start(project, "{}")).hasStatus(422);
 		prepares(42, null, true);
 
@@ -62,7 +61,7 @@ class RunChargesTests extends RunTestSupport {
 		String project = project("team", "editor");
 		runsPerHour(project, 2);
 		String run = started(start(project, "{}")).path("id").asString();
-		willThrow(EngineRefusalException.runOverLimits("Expected too many requests")).given(engine()).prepare(any());
+		willThrow(new SimulationLimitException("Expected too many requests")).given(preparation()).prepare(any());
 		assertThat(post("/api/v1/runs/" + run + "/rerun", "")).hasStatus(422);
 		prepares(42, null, true);
 
@@ -82,7 +81,7 @@ class RunChargesTests extends RunTestSupport {
 	@Test
 	void create_seedGroupWhoseThirdSeedTheEngineRefuses_isNotCountedAgainstTheHour() {
 		prepares(42, null, true);
-		willThrow(EngineRefusalException.runOverLimits("Expected too many requests")).given(engine())
+		willThrow(new SimulationLimitException("Expected too many requests")).given(preparation())
 			.prepare(argThat((PrepareRequest request) -> Long.valueOf(44).equals(request.seed())));
 		String project = project("team", "editor");
 		runsPerHour(project, 3);

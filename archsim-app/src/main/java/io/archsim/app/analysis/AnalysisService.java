@@ -7,10 +7,9 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.EngineService;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
+import io.archsim.engine.analysis.DesignAnalyzer;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.document.ArchitectureDocument;
@@ -19,9 +18,8 @@ import io.archsim.model.issue.Issue;
 import io.archsim.model.validation.DocumentValidator;
 
 /**
- * Checks a design without saving or simulating it. A design, and one of its scenarios, is
- * resolved and validated in Java (archsim-engine and archsim-model); an analysis is the
- * Python engine's until stage 3 ports it (ADR-0036).
+ * Checks a design without saving or simulating it: a design, and one of its scenarios,
+ * resolved, validated and analyzed in Java (archsim-engine and archsim-model).
  */
 @Service
 class AnalysisService {
@@ -30,14 +28,14 @@ class AnalysisService {
 
 	private final ScenarioResolver resolver;
 
-	private final EngineService engine;
+	private final DesignAnalyzer analyzer;
 
 	private final JsonMapper json;
 
-	AnalysisService(DocumentValidator validator, ScenarioResolver resolver, EngineService engine, JsonMapper json) {
+	AnalysisService(DocumentValidator validator, ScenarioResolver resolver, DesignAnalyzer analyzer, JsonMapper json) {
 		this.validator = validator;
 		this.resolver = resolver;
-		this.engine = engine;
+		this.analyzer = analyzer;
 		this.json = json;
 	}
 
@@ -59,15 +57,16 @@ class AnalysisService {
 	 * The auto sizes, cost estimate and design review of a design or one of its
 	 * scenarios, as a run would use them, without simulating.
 	 * @param request the design and the scenario, if any
-	 * @return the analysis, as the engine wrote it
-	 * @throws ApiException {@code 422} with the engine's issues when it cannot read the
-	 * design
+	 * @return the analysis
+	 * @throws ApiException {@code 422} with the issues when the design cannot be read or
+	 * resolved
 	 */
 	JsonText analyze(AnalysisRequest request) {
 		try {
-			return this.engine.analyze(request.document(), request.scenario().orElse(null));
+			return new JsonText(this.json.writeValueAsString(
+					this.analyzer.analyze(request.document(), request.scenario().orElse(null)).toJson()));
 		}
-		catch (EngineRefusalException ex) {
+		catch (DocumentInvalidException ex) {
 			throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "The document cannot be analyzed", ex.issues());
 		}
 	}

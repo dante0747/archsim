@@ -6,9 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.PrepareRequest;
-import io.archsim.app.engine.PreparedRun;
+import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.model.issue.Issue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,9 +39,9 @@ class BatchesTests extends RunTestSupport {
 		willAnswer((invocation) -> {
 			PrepareRequest request = invocation.getArgument(0);
 			String scenario = request.scenarioId();
-			return new PreparedRun(scenario, (scenario != null) ? "Peak" : null, 42, PREPARED,
+			return new PlannedRun(scenario, (scenario != null) ? "Peak" : null, 42, PREPARED,
 					prepared(42, null, true).quickCheck());
-		}).given(engine()).prepare(any());
+		}).given(preparation()).prepare(any());
 		String project = project("team", "editor");
 
 		JsonNode runs = json(
@@ -55,7 +54,8 @@ class BatchesTests extends RunTestSupport {
 	@Test
 	void start_secondScenarioTheEngineRefuses_queuesNoneAndNamesIt() {
 		prepares(42, null, true);
-		willThrow(EngineRefusalException.invalidDesign("Unknown scenario", List.of())).given(engine())
+		willThrow(new DocumentInvalidException(List.of(Issue.error("scenario.unknown", "Unknown scenario"))))
+			.given(preparation())
 			.prepare(argThat((PrepareRequest request) -> "peak".equals(request.scenarioId())));
 		String project = project("team", "editor");
 

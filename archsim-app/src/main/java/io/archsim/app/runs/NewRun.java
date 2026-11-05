@@ -1,7 +1,5 @@
 package io.archsim.app.runs;
 
-import io.archsim.app.engine.PreparedRun;
-
 /**
  * A run to queue: what it simulates, where, and how.
  *
@@ -10,6 +8,6 @@ import io.archsim.app.engine.PreparedRun;
  * @param label what to call it
  * @param mode {@code full} or {@code sampled}
  */
-record NewRun(Destination destination, PreparedRun prepared, String label, RunMode mode) {
+record NewRun(Destination destination, PlannedRun prepared, String label, RunMode mode) {
 
 }

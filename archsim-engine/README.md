@@ -15,6 +15,8 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | --- | --- |
 | `cost` | the cost estimate before a run: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`), `SizePricing` (the price of a part's size) |
 | `estimate` | the instant estimate: `InstantEstimator` (what textbook queueing formulas predict for a design at its peak, without a run: each part's utilization and wait, each request path's latency and a rough p95, where an average request's time goes, and where the design saturates: `InstantEstimate`) |
+| `analysis` | the static analysis of a design: `DesignAnalyzer` (its sizes, cost, review, technology tiers, inputs, instant estimate and confidence, and whether a quick check can answer it, as a run would use them: `DesignAnalysis`, which `POST /analyze` answers) |
+| `run` | preparing a run before it is queued: `RunPreparer` (the design resolved, its seed replaced, validated, and its requests counted against the run's limit: `PreparedRun`, or `SimulationLimitException`), `QuickCheck` (whether sampled mode can answer a run) |
 | `review` | the design review: `DesignReview` (an architecture linter over a design as a run simulates it: single points of failure, missing timeouts, stacked retries, timeout inversion, pool exhaustion, unbounded queues, CPU at the peak and more, each a `Finding` with the design's numbers), `ReviewRule` (the rules and their titles), `SeverityCounts` |
 | `scenario` | `ScenarioResolver`: the document a run simulates, a design or one of its scenarios with its defaults in full, its prices pinned and its empty specs auto-sized (`ResolvedDesign`) |
 | `sizing` | auto-sizing: `AutoSizer` (each part's CPU, memory and storage for the design's own peak, snapped to an instance type or a standard shape, with what it needs and why: `PartSize`), one sizer per kind of part, `BaseBusy`, `SizingSummaries` (each part's specs and where they came from, its needs against its instance, the price of its size) |
@@ -26,8 +28,8 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `pricing` | instance types from price snapshots: `MachineKind` (which price list), `InstanceTypes` (the cheapest type that covers a size, the part's own type), `Busy` (burstable types' CPU credits), `PricingChoice` (a design's snapshot and purchase), `Purchase`, `MachineSize`, `Machine` |
 | `host` | the design's host machine (schema 1.7): `HostMachine` (threads that slow each other down), `PartWork`, `HostSpeeds` (on the host, or on a part's own hyperthreads) |
 | `provenance` | where each input came from: `InputProvenances` (each performance input of a design, measured, documented, assumed or illustrative, with its value: `Input`, `Provenance`), read from the model's `ComponentFacts`; `ValueText` (how a value reads) |
-| `technology` | each part's technology and its tier: `TechnologyTiers` |
-| `confidence` | how far a result can be trusted; `ConfidenceLevel` |
+| `technology` | each part's technology and its tier: `TechnologyTiers`; `TechnologyNames` (a technology's display name) |
+| `confidence` | how far a result can be trusted, and why: `Evidence` (inputs, each part's weight, technology tiers and the bottleneck) assessed as a `Confidence` (the level, its reasons, the inputs to replace first, how to raise it), `AnalysisConfidence` (an analysis's, weighed by each part's estimated utilization), `ConfidenceLevel` |
 | `seeds` | ranges across seeds: `ValueRange`, `Seeds` |
 | `sweep` | load sweeps: `SweepRange`, its levels and the highest load a step can run |
 | `simulation` | where the engine meets the simulator: `SimulationLimits` |
@@ -35,8 +37,8 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
 reads the raw settings of a design that may not be valid yet (the load estimate, which kind of
-machine a part runs on, the CPU work on the design's host, the design review), the Java reads them through
-`LenientSettings`, with the same lenient rules
+machine a part runs on, the CPU work on the design's host, the design review), the Java reads them
+through `LenientSettings`, with the same lenient rules
 ([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md)).
 
 Where the Python engine fails, the Java decides for itself, and its tests say how:
@@ -62,7 +64,11 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   `EngineFunctions` maps each Python name to its Java call, through one table per area
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
   `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
-  `ReviewFunctions`). Ported so far:
+  `ReviewFunctions`, `AnalysisFunctions`). Ported so far:
+  - the analysis of a design for every case of every template (`analyze.analyze_document`), its
+    confidence (`confidence.analysis_confidence`) and its quick check (`engine.quick_check`); the
+    golden files prepare no run and have no analysis of high or medium confidence:
+    `analysis/cases.json` covers them;
   - the design review for every case of every template (`review.review_design`,
     `count_by_severity` and `REVIEW_RULES`; the golden files have none for the invalid
     documents: `review/cases.json` covers the rules the templates never fire and settings
@@ -98,9 +104,11 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   export); `numeric/erfc.csv` holds Python's `math.erfc` at points over every interval of the
   approximation, from `scripts/export_erfc_points.py`. The cost estimate's and the sizing
   summary's cases are in `cost/cases.json`, from `scripts/export_cost_cases.py`, which
-  `CostEstimatorTests` and `SizingSummariesTests` check. The design review's are in
-  `review/cases.json`, from `scripts/export_review_cases.py`, which `DesignReviewTests`
-  checks.
+  `CostEstimatorTests` and `SizingSummariesTests` check. The analysis's, the prepared runs' and
+  the technology names' are in `analysis/cases.json`, from `scripts/export_analysis_cases.py`,
+  which `DesignAnalyzerTests`, `RunPreparerTests` and `TechnologyNamesTests` check. The design
+  review's are in `review/cases.json`, from `scripts/export_review_cases.py`, which
+  `DesignReviewTests` checks.
 - The other tests specify each class.
 - `ArchitectureTests` checks that the engine uses no framework or database class, and that its
   packages have no cycles.

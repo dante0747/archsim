@@ -23,6 +23,8 @@ OUT = (
     / "archsim-engine/src/main/resources/io/archsim/engine/text/casefold.tsv"
 )
 SURROGATES = range(0xD800, 0xE000)
+PYTHON = (3, 12)
+"""The frozen engine's Python, whose Unicode version the table records."""
 
 
 def export() -> str:
@@ -42,6 +44,9 @@ def export() -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if sys.version_info[:2] != PYTHON:
+        print(f"run this with Python {PYTHON[0]}.{PYTHON[1]}, the frozen engine's (uv run)")
+        return 1
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--check", action="store_true", help="exit 1 if a fresh export differs")
     args = parser.parse_args(argv)

@@ -2,7 +2,6 @@ package io.archsim.app.runs;
 
 import org.jspecify.annotations.Nullable;
 
-import io.archsim.app.engine.PreparedRun;
 import io.archsim.app.store.Text;
 
 /**
@@ -28,7 +27,7 @@ final class RunLabels {
 	 * @param mode how it is simulated
 	 * @return the label
 	 */
-	static String of(@Nullable String requested, PreparedRun prepared, RunMode mode) {
+	static String of(@Nullable String requested, PlannedRun prepared, RunMode mode) {
 		if (requested != null && !requested.isEmpty()) {
 			return requested;
 		}

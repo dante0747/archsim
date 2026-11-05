@@ -27,7 +27,8 @@ import io.archsim.model.issue.Issue;
 
 /**
  * The Python engine service (ADR-0036), which runs the engine's synchronous calls until
- * stage 3 of the port moves each one to Java. Its answers are passed on as it wrote them.
+ * stage 3 of the port moves each one to Java: comparisons, seed summaries, exports,
+ * imports and calibration. Its answers are passed on as it wrote them.
  */
 public final class EngineService {
 
@@ -43,38 +44,6 @@ public final class EngineService {
 	 */
 	public EngineService(RestClient http) {
 		this.http = http;
-	}
-
-	/**
-	 * The auto sizes, cost and design review of a design or one of its scenarios
-	 * ({@code analyze_document}).
-	 * @param document the design, as the request carries it
-	 * @param scenarioId the scenario to analyze, or {@code null} for the design itself
-	 * @return the analysis, as the engine wrote it
-	 * @throws EngineRefusalException when the engine cannot read the design
-	 * @throws ApiException {@code 503} when the service cannot be reached or does not
-	 * answer in time
-	 */
-	public JsonText analyze(JsonNode document, @Nullable String scenarioId) {
-		return call("/analyze", design(document, scenarioId));
-	}
-
-	/**
-	 * Prepares a run to be queued ({@code prepare_run}): the design to store with it, its
-	 * scenario and seed, and whether a quick check can answer it.
-	 * @param request the design, scenario, limits and seed
-	 * @return what the engine prepared
-	 * @throws EngineRefusalException when the engine cannot simulate the design, or the
-	 * run is over its limits
-	 * @throws ApiException {@code 503} when the service cannot be reached or does not
-	 * answer in time
-	 */
-	public PreparedRun prepare(PrepareRequest request) {
-		ObjectNode body = design(request.document(), request.scenarioId());
-		body.put("maxRequests", request.maxRequests());
-		body.put("maxWallSeconds", request.maxWallSeconds());
-		body.put("seed", request.seed());
-		return RecordCodec.read(JSON.readTree(call("/prepare", body).json()), PreparedRun.class);
 	}
 
 	/**
@@ -172,13 +141,6 @@ public final class EngineService {
 		return call("/calibrate", body, "calibrate with replay off, or over a shorter range");
 	}
 
-	private static ObjectNode design(JsonNode document, @Nullable String scenarioId) {
-		ObjectNode request = JSON.createObjectNode();
-		request.set("document", document);
-		request.put("scenarioId", scenarioId);
-		return request;
-	}
-
 	private JsonText call(String path, ObjectNode request) {
 		return call(path, request, "a smaller design may be quicker");
 	}
@@ -231,7 +193,6 @@ public final class EngineService {
 				.toList();
 			String message = refusal.path("message").asString("");
 			throw switch (refusal.path("kind").asString("")) {
-				case "limit" -> EngineRefusalException.runOverLimits(message);
 				case "unreadable" -> EngineRefusalException.unreadable(message);
 				default -> EngineRefusalException.invalidDesign(message, issues);
 			};

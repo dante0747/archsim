@@ -5,8 +5,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.app.engine.PrepareRequest;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.then;
@@ -115,7 +113,8 @@ class RunChangesTests extends RunTestSupport {
 
 		assertThat(again.path("reproducesRunId").asString()).isEqualTo(run);
 		assertThat(again.path("label").asString()).isEqualTo("Reproduce: Baseline");
-		then(engine()).should().prepare(argThat((PrepareRequest request) -> Long.valueOf(42).equals(request.seed())));
+		then(preparation()).should()
+			.prepare(argThat((PrepareRequest request) -> Long.valueOf(42).equals(request.seed())));
 	}
 
 	@Test

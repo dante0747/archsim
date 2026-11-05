@@ -3,6 +3,8 @@ package io.archsim.app.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import io.archsim.engine.analysis.DesignAnalyzer;
+import io.archsim.engine.run.RunPreparer;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.standard.StandardComponents;
@@ -12,7 +14,7 @@ import io.archsim.model.validation.DocumentValidator;
 /**
  * The design model and the engine the API works with: ArchSim's component types, the
  * price snapshots it ships plus those of {@code ARCHSIM_PRICES_DIR}, and what checks and
- * resolves designs with them.
+ * resolves, analyzes and prepares designs with them.
  */
 @Configuration(proxyBeanMethods = false)
 class ModelConfiguration {
@@ -35,6 +37,16 @@ class ModelConfiguration {
 	@Bean
 	ScenarioResolver scenarioResolver(ComponentRegistry registry, PriceSnapshots prices) {
 		return new ScenarioResolver(registry, prices);
+	}
+
+	@Bean
+	DesignAnalyzer designAnalyzer(ComponentRegistry registry, PriceSnapshots prices) {
+		return new DesignAnalyzer(registry, prices);
+	}
+
+	@Bean
+	RunPreparer runPreparer(ComponentRegistry registry, PriceSnapshots prices) {
+		return new RunPreparer(registry, prices);
 	}
 
 }

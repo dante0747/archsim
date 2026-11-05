@@ -1,10 +1,10 @@
 """The engine service's HTTP app: one ``POST`` endpoint per engine call, JSON in and out.
 
 A call the engine refuses answers ``422`` with ``{"message", "issues", "kind"}``: ``invalid``
-with the engine's words and issues for a document it cannot read, ``limit`` for a run over its
-limits, or ``unreadable`` for text, a mapping or telemetry that cannot be used, in the words the
-Python API answered. The Java API turns that into its own error body. Answers are written as
-FastAPI wrote them, so the Java API can pass them on unchanged.
+with the engine's words and issues for a document it cannot read, or ``unreadable`` for text, a
+mapping or telemetry that cannot be used, in the words the Python API answered. The Java API
+turns that into its own error body. Answers are written as FastAPI wrote them, so the Java API can
+pass them on unchanged.
 """
 
 from __future__ import annotations
@@ -29,11 +29,8 @@ from archsim_engine import (
     SimulationLimits,
     compare_reports,
     default_registry,
-    prepare_run,
-    quick_check,
     summarize_seeds,
 )
-from archsim_engine import analyze_document as engine_analyze
 from archsim_engine.calibration import (
     HttpPrometheus,
     PrometheusError,
@@ -99,13 +96,6 @@ def number(body: dict[str, Any], name: str) -> float:
     return float(value)
 
 
-def scenario_of(body: dict[str, Any]) -> str | None:
-    scenario = body.get("scenarioId")
-    if scenario is not None and not isinstance(scenario, str):
-        raise BadRequest("scenarioId must be a string")
-    return scenario
-
-
 Handler = Callable[[Request], Awaitable[Response]]
 
 
@@ -122,8 +112,6 @@ def endpoint(call: Callable[[dict[str, Any], ComponentRegistry], Any]) -> Handle
             return JSONResponse({"message": str(exc)}, status_code=400)
         except DocumentInvalidError as exc:
             return refused(str(exc), [issue.to_dict() for issue in exc.issues], "invalid")
-        except SimulationLimitError as exc:
-            return refused(str(exc), [], "limit")
         except Unreadable as exc:
             return refused(str(exc), [], "unreadable")
         return JSONResponse(result)
@@ -133,27 +121,6 @@ def endpoint(call: Callable[[dict[str, Any], ComponentRegistry], Any]) -> Handle
 
 def refused(message: str, issues: list[dict[str, Any]], kind: str) -> Response:
     return JSONResponse({"message": message, "issues": issues, "kind": kind}, status_code=422)
-
-
-def analyze(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
-    """``analyze_document``: the auto sizes, cost and review of a document or one of its scenarios."""
-    return engine_analyze(document_of(body), registry, scenario_of(body))
-
-
-def prepare(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
-    """``prepare_run`` of a run about to be queued, within ``maxRequests`` and ``maxWallSeconds``,
-    with ``seed`` replacing the workload's: the document to store with the run, its scenario,
-    the seed it runs with, and whether a quick check can answer it."""
-    prepared = prepare_run(
-        document_of(body), scenario_of(body), registry, limits_of(body), whole_number(body, "seed")
-    )
-    return {
-        "scenarioId": prepared.scenario_id,
-        "scenarioName": prepared.scenario_name,
-        "seed": prepared.resolved.workload.seed,
-        "document": prepared.document.to_json_dict(),
-        "quickCheck": quick_check(prepared.resolved.workload),
-    }
 
 
 def limits_of(body: dict[str, Any]) -> SimulationLimits:
@@ -327,8 +294,6 @@ def create_app() -> Starlette:
     app = Starlette(
         routes=[
             Route("/health", health, methods=["GET"]),
-            Route("/analyze", endpoint(analyze), methods=["POST"]),
-            Route("/prepare", endpoint(prepare), methods=["POST"]),
             Route("/compare", endpoint(compare), methods=["POST"]),
             Route("/summarize-seeds", endpoint(seeds), methods=["POST"]),
             Route("/export", endpoint(export), methods=["POST"]),

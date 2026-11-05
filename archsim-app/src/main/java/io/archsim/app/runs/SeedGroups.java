@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import io.archsim.app.access.Principal;
-import io.archsim.app.engine.PreparedRun;
 import io.archsim.app.web.ApiException;
 import io.archsim.model.document.Workload;
 
@@ -70,7 +69,7 @@ class SeedGroups {
 	 * @param seed the run's seed
 	 * @return what the engine prepared
 	 */
-	private PreparedRun prepareSeed(RunStart start, RunCreate request, long seed) {
+	private PlannedRun prepareSeed(RunStart start, RunCreate request, long seed) {
 		return this.planner.prepare(start.plan().request(start.document(), request.scenarioId(), seed));
 	}
 

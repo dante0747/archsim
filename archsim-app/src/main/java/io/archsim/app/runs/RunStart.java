@@ -2,8 +2,6 @@ package io.archsim.app.runs;
 
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.app.engine.PreparedRun;
-
 /**
  * A start checked and prepared, ready to be counted and queued: one run, or a seed
  * group's first.
@@ -13,6 +11,6 @@ import io.archsim.app.engine.PreparedRun;
  * @param document the design they simulate
  * @param first the design prepared with its own seed
  */
-record RunStart(RunPlanner.Plan plan, Destination destination, ObjectNode document, PreparedRun first) {
+record RunStart(RunPlanner.Plan plan, Destination destination, ObjectNode document, PlannedRun first) {
 
 }

@@ -55,10 +55,10 @@ class DesignReviewTests {
 
 	private void assertError(JsonNode entry) {
 		JsonNode error = entry.path("error");
-		assertThat(error.path("type").asString()).isEqualTo("ZeroDivisionError");
 
 		assertThatExceptionOfType(ArithmeticException.class).isThrownBy(() -> this.review.review(design(entry)))
 			.withMessage(error.path("message").asString());
+		assertThat(error.path("type").asString()).isEqualTo("ZeroDivisionError");
 	}
 
 	private static ArchitectureDocument design(JsonNode entry) {

@@ -8,9 +8,8 @@ import io.archsim.app.web.ApiException;
 import io.archsim.model.issue.Issue;
 
 /**
- * The engine refused a call: it could not read the design (its issues say why), the run
- * is over its limits, or what the request carries (text, a mapping, telemetry) cannot be
- * used.
+ * The engine service refused a call: it could not read the design (its issues say why),
+ * or what the request carries (text, a mapping, telemetry) cannot be used.
  */
 public final class EngineRefusalException extends RuntimeException {
 
@@ -40,15 +39,6 @@ public final class EngineRefusalException extends RuntimeException {
 	}
 
 	/**
-	 * A run over its limits ({@code SimulationLimitError}).
-	 * @param message what the engine said
-	 * @return the refusal
-	 */
-	public static EngineRefusalException runOverLimits(String message) {
-		return new EngineRefusalException(message, List.of(), Kind.LIMIT);
-	}
-
-	/**
 	 * Text, a mapping or telemetry that cannot be used: its message is the API's answer.
 	 * @param message what is wrong, in the words the Python API answered
 	 * @return the refusal
@@ -74,14 +64,6 @@ public final class EngineRefusalException extends RuntimeException {
 	}
 
 	/**
-	 * Whether the run is over its limits rather than a design the engine cannot read.
-	 * @return {@code true} for a run over its limits
-	 */
-	public boolean overLimits() {
-		return this.kind == Kind.LIMIT;
-	}
-
-	/**
 	 * The refusal as the API answers it: in the engine service's words for what it cannot
 	 * use, else with the design's issues under the call's own words.
 	 * @param invalid what the API says of a design the engine cannot read, such as
@@ -102,9 +84,6 @@ public final class EngineRefusalException extends RuntimeException {
 
 		/** A design it cannot read. */
 		INVALID,
-
-		/** A run over its limits. */
-		LIMIT,
 
 		/** Text, a mapping or telemetry that cannot be used. */
 		UNREADABLE

@@ -6,8 +6,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.PrepareRequest;
+import io.archsim.engine.run.SimulationLimitException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -70,7 +69,7 @@ class RunGroupsTests extends RunTestSupport {
 	@Test
 	void create_seedGroupWhoseThirdSeedTheEngineRefuses_queuesNothing() {
 		prepares(42, null, true);
-		willThrow(EngineRefusalException.runOverLimits("Expected too many requests")).given(engine())
+		willThrow(new SimulationLimitException("Expected too many requests")).given(preparation())
 			.prepare(argThat((PrepareRequest request) -> Long.valueOf(44).equals(request.seed())));
 		String project = project("team", "editor");
 

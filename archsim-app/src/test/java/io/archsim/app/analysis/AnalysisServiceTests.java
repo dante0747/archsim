@@ -3,7 +3,6 @@ package io.archsim.app.analysis;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -12,10 +11,9 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.EngineService;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
+import io.archsim.engine.analysis.DesignAnalyzer;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.issue.Issue;
@@ -24,23 +22,18 @@ import io.archsim.model.validation.DocumentValidator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
 
 /**
- * Checking a design: resolved and validated in Java, its analyses asked of the engine
- * service.
+ * Checking a design: resolved, validated and analyzed in Java.
  */
 class AnalysisServiceTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	private final EngineService engine = mock();
-
 	private final AnalysisService service = new AnalysisService(
 			new DocumentValidator(StandardComponents.registry(), PriceSnapshots.shipped()),
-			new ScenarioResolver(StandardComponents.registry(), PriceSnapshots.shipped()), this.engine, JSON);
+			new ScenarioResolver(StandardComponents.registry(), PriceSnapshots.shipped()),
+			new DesignAnalyzer(StandardComponents.registry(), PriceSnapshots.shipped()), JSON);
 
 	@Test
 	void validate_starterDesign_isValid() throws IOException {
@@ -90,7 +83,6 @@ class AnalysisServiceTests {
 		JsonNode answer = JSON.readTree(this.service.validate(new AnalysisRequest(withNoReplicas(), null)).json());
 
 		assertThat(answer.path("valid").asBoolean()).isTrue();
-		then(this.engine).shouldHaveNoInteractions();
 	}
 
 	@Test
@@ -102,17 +94,32 @@ class AnalysisServiceTests {
 	}
 
 	@Test
-	void analyze_designTheEngineCannotRead_isRefusedWithItsIssues() throws IOException {
-		ObjectNode design = starter();
-		given(this.engine.analyze(design, null))
-			.willThrow(EngineRefusalException.invalidDesign("bad", List.of(Issue.error("document.schema", "bad"))));
+	void analyze_starterDesign_answersItsAnalysis() throws IOException {
+		JsonNode answer = JSON.readTree(this.service.analyze(new AnalysisRequest(starter(), null)).json());
+
+		assertThat(answer.path("scenarioId").isNull()).isTrue();
+		assertThat(answer.path("peakRps").asDouble()).isEqualTo(400.0);
+		assertThat(answer.path("review").isArray()).isTrue();
+	}
+
+	@Test
+	void analyze_aScenario_answersTheScenariosAnalysis() throws IOException {
+		JsonNode answer = JSON
+			.readTree(this.service.analyze(new AnalysisRequest(starter(), "three-api-replicas")).json());
+
+		assertThat(answer.path("scenarioId").asString()).isEqualTo("three-api-replicas");
+	}
+
+	@Test
+	void analyze_designItCannotRead_isRefusedWithItsIssues() {
+		ObjectNode unreadable = JSON.createObjectNode().put("kind", "nope");
 
 		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> this.service.analyze(new AnalysisRequest(design, null)))
+			.isThrownBy(() -> this.service.analyze(new AnalysisRequest(unreadable, null)))
 			.satisfies((ex) -> {
 				assertThat(ex.status()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
 				assertThat(ex.getMessage()).isEqualTo("The document cannot be analyzed");
-				assertThat(ex.issues()).containsExactly(Issue.error("document.schema", "bad"));
+				assertThat(ex.issues()).extracting(Issue::code).containsExactly("document.version");
 			});
 	}
 

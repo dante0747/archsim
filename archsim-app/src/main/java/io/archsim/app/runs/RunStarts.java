@@ -7,7 +7,6 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
-import io.archsim.app.engine.PreparedRun;
 import io.archsim.app.projects.ProjectDesign;
 import io.archsim.app.projects.ProjectService;
 import io.archsim.app.web.ApiException;
@@ -58,7 +57,7 @@ class RunStarts {
 		ProjectDesign project = this.projects.design(principal, projectId, WorkspaceRole.EDITOR);
 		RunPlanner.Plan plan = this.planner.plan(project.workspaceId());
 		ObjectNode document = (request.document() != null) ? request.document() : project.document();
-		PreparedRun first = this.planner.prepare(plan.request(document, request.scenarioId(), null));
+		PlannedRun first = this.planner.prepare(plan.request(document, request.scenarioId(), null));
 		if (request.mode() == RunMode.SAMPLED) {
 			RunPlanner.requireQuickCheck(first);
 		}

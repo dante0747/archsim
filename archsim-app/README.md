@@ -65,9 +65,9 @@ ways.
 | `meta` | `GET /health`, `GET /meta` |
 | `catalog` | `GET /components`, `GET /pricing`, `GET /schema/architecture`, from [archsim-model](../archsim-model/README.md) |
 | `examples` | `GET /examples`, `GET /examples/{id}` |
-| `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (engine service) |
+| `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (archsim-engine's `DesignAnalyzer`) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
-| `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are queued in `simulation_runs`, and the Python workers simulate them until stage 4 |
+| `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the Python workers until stage 4 |
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
@@ -135,8 +135,7 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   (`/signin?error=provider`); Python stored the account under the subject `None`.
 - The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
   be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, the requests that need it answer
-  `503` saying which: `/analyze`, scenario validation, starting a run (one, a batch, a seed group
-  or a rerun), `/compare`, `GET /run-groups/{id}`, which summarizes its runs through it,
+  `503` saying which: `/compare`, `GET /run-groups/{id}`, which summarizes its runs through it,
   `/export`, `/import` and `/calibrate`. The Python API computed in-process, with no time limit.
 - The order of refusals differs. Java reads a request's body and query before it checks access,
   so a body or query parameter that does not fit is `422` where FastAPI first answered `404` or
@@ -156,8 +155,8 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote
   `1e-05`); `GET /compare` and `GET /run-groups/{id}` spell the engine's numbers as Java writes
   them. Clients read the same numbers.
-- Numbers in a stored design come back spelled as Java writes them (`0.0005` as `5.0E-4`,
-  `1e-05` as `1.0E-5`); clients read the same numbers.
+- Numbers in a stored design, and in `POST /analyze`'s answer, come back spelled as Java writes
+  them (`0.0005` as `5.0E-4`, `1e-05` as `1.0E-5`); clients read the same numbers.
 - `/api/v1/projects/` (a trailing slash) is `404`; Starlette redirected it (`307`) to
   `/api/v1/projects`. The same holds for every route.
 - A request Tomcat cannot parse at all (a bad percent escape, oversized headers) gets Tomcat's

@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
-import io.archsim.app.engine.PreparedRun;
 import io.archsim.app.web.ApiException;
 
 /**
@@ -42,7 +41,7 @@ class RunChanges {
 		StoredRun original = this.runs.require(principal, runId, WorkspaceRole.EDITOR);
 		RunView view = original.view();
 		RunPlanner.Plan plan = this.planner.plan(original.workspaceId());
-		PreparedRun prepared = this.planner
+		PlannedRun prepared = this.planner
 			.prepare(plan.request(this.runs.inputDocument(original), view.scenarioId(), view.seed()));
 		Destination destination = new Destination(view.projectId(), original.workspaceId(), plan.limits());
 		NewRun run = new NewRun(destination, prepared, RunLabels.cut("Reproduce: " + view.name()),

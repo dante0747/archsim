@@ -9,7 +9,6 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
-import io.archsim.app.engine.PreparedRun;
 import io.archsim.app.projects.ProjectDesign;
 import io.archsim.app.projects.ProjectService;
 import io.archsim.app.web.ApiException;
@@ -50,7 +49,7 @@ class Batches {
 		List<NewRun> runs = new ArrayList<>();
 		for (@Nullable
 		String scenario : request.scenarioIds()) {
-			PreparedRun prepared = this.planner.prepareScenario(plan.request(document, scenario, null));
+			PlannedRun prepared = this.planner.prepareScenario(plan.request(document, scenario, null));
 			runs.add(new NewRun(destination, prepared, RunLabels.of(null, prepared, RunMode.FULL), RunMode.FULL));
 		}
 		return this.admission.admit(plan.workspace(), principal, runs);

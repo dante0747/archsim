@@ -7,31 +7,29 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.EngineService;
-import io.archsim.app.engine.PrepareRequest;
-import io.archsim.app.engine.PreparedRun;
 import io.archsim.app.limits.WorkspaceLimits;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.workspaces.WorkspaceInfo;
 import io.archsim.app.workspaces.Workspaces;
+import io.archsim.engine.run.SimulationLimitException;
+import io.archsim.model.issue.DocumentInvalidException;
 
 /**
- * Plans a run before it is queued: the limits of its workspace, and what the engine
- * prepares to simulate. A design the engine cannot simulate, or a run over its limits, is
- * refused here, before anything is counted or queued.
+ * Plans a run before it is queued: the limits of its workspace, and what it simulates. A
+ * design the engine cannot simulate, or a run over its limits, is refused here, before
+ * anything is counted or queued.
  */
 @Component
 class RunPlanner {
 
-	private final EngineService engine;
+	private final RunPreparation preparation;
 
 	private final Workspaces workspaces;
 
 	private final WorkspaceLimits limits;
 
-	RunPlanner(EngineService engine, Workspaces workspaces, WorkspaceLimits limits) {
-		this.engine = engine;
+	RunPlanner(RunPreparation preparation, Workspaces workspaces, WorkspaceLimits limits) {
+		this.preparation = preparation;
 		this.workspaces = workspaces;
 		this.limits = limits;
 	}
@@ -49,34 +47,40 @@ class RunPlanner {
 	/**
 	 * Prepares a run.
 	 * @param request what to prepare
-	 * @return what the engine prepared
-	 * @throws ApiException {@code 422} when the engine cannot simulate it, with its
+	 * @return the run as planned
+	 * @throws ApiException {@code 422} when the design cannot be simulated, with its
 	 * issues, or the run is over its limits
 	 */
-	PreparedRun prepare(PrepareRequest request) {
+	PlannedRun prepare(PrepareRequest request) {
 		try {
-			return this.engine.prepare(request);
+			return this.preparation.prepare(request);
 		}
-		catch (EngineRefusalException ex) {
-			throw refusal(ex, "Cannot simulate: ");
+		catch (DocumentInvalidException ex) {
+			throw invalid(ex, "Cannot simulate: ");
+		}
+		catch (SimulationLimitException ex) {
+			throw overLimits(ex);
 		}
 	}
 
 	/**
 	 * Prepares one scenario of a batch, naming it if it cannot be simulated.
 	 * @param request what to prepare
-	 * @return what the engine prepared
+	 * @return the run as planned
 	 * @throws ApiException {@code 422} naming the scenario ({@code base} for the design
-	 * itself)
+	 * itself), or when the run is over its limits
 	 */
-	PreparedRun prepareScenario(PrepareRequest request) {
+	PlannedRun prepareScenario(PrepareRequest request) {
 		try {
-			return this.engine.prepare(request);
+			return this.preparation.prepare(request);
 		}
-		catch (EngineRefusalException ex) {
+		catch (DocumentInvalidException ex) {
 			String scenario = request.scenarioId();
 			String named = (scenario != null && !scenario.isEmpty()) ? scenario : "base";
-			throw refusal(ex, "Cannot simulate scenario '" + named + "': ");
+			throw invalid(ex, "Cannot simulate scenario '" + named + "': ");
+		}
+		catch (SimulationLimitException ex) {
+			throw overLimits(ex);
 		}
 	}
 
@@ -85,16 +89,19 @@ class RunPlanner {
 	 * @param prepared the run
 	 * @throws ApiException {@code 422} saying why
 	 */
-	static void requireQuickCheck(PreparedRun prepared) {
+	static void requireQuickCheck(PlannedRun prepared) {
 		if (!prepared.quickCheck().eligible()) {
 			throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT,
 					"Cannot run a quick check: " + prepared.quickCheck().reason(), List.of());
 		}
 	}
 
-	private static ApiException refusal(EngineRefusalException ex, String prefix) {
-		String message = ex.overLimits() ? ex.engineMessage() : prefix + ex.engineMessage();
-		return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, message, ex.issues());
+	private static ApiException invalid(DocumentInvalidException ex, String prefix) {
+		return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, prefix + ex.getMessage(), ex.issues());
+	}
+
+	private static ApiException overLimits(SimulationLimitException ex) {
+		return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), List.of());
 	}
 
 	/**

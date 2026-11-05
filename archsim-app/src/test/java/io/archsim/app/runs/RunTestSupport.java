@@ -21,8 +21,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.database.TestDatabases;
 import io.archsim.app.engine.EngineService;
-import io.archsim.app.engine.PrepareRequest;
-import io.archsim.app.engine.PreparedRun;
+import io.archsim.engine.run.QuickCheck;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,9 +29,10 @@ import static org.mockito.BDDMockito.willAnswer;
 
 /**
  * What the runs' tests share: the whole application on one real PostgreSQL, as the local
- * user without sign-in, with the engine service stood in for (a run is prepared as the
- * test says). Nothing simulates the runs: they stay queued unless a test says otherwise.
- * Each test uses projects of its own, so the tests share the context and the database.
+ * user without sign-in, with the engine service and the run preparation stood in for (a
+ * run is prepared as the test says). Nothing simulates the runs: they stay queued unless
+ * a test says otherwise. Each test uses projects of its own, so the tests share the
+ * context and the database.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -56,6 +56,9 @@ abstract class RunTestSupport {
 	@MockitoBean
 	private EngineService engine;
 
+	@MockitoBean
+	private RunPreparation preparation;
+
 	@DynamicPropertySource
 	static void database(DynamicPropertyRegistry registry) {
 		registry.add("archsim.database-url", () -> DATABASE);
@@ -71,6 +74,10 @@ abstract class RunTestSupport {
 
 	EngineService engine() {
 		return this.engine;
+	}
+
+	RunPreparation preparation() {
+		return this.preparation;
 	}
 
 	/**
@@ -90,13 +97,13 @@ abstract class RunTestSupport {
 	 * @param seed the design's seed
 	 * @param preparation what the engine answers for a seed
 	 */
-	void prepares(long seed, LongFunction<PreparedRun> preparation) {
+	void prepares(long seed, LongFunction<PlannedRun> preparation) {
 		willAnswer((invocation) -> {
 			PrepareRequest request = invocation.getArgument(0);
-			PreparedRun prepared = preparation.apply((request.seed() != null) ? request.seed() : seed);
-			return new PreparedRun(request.scenarioId(), prepared.scenarioName(), prepared.seed(), prepared.document(),
+			PlannedRun prepared = preparation.apply((request.seed() != null) ? request.seed() : seed);
+			return new PlannedRun(request.scenarioId(), prepared.scenarioName(), prepared.seed(), prepared.document(),
 					prepared.quickCheck());
-		}).given(this.engine).prepare(any());
+		}).given(this.preparation).prepare(any());
 	}
 
 	/**
@@ -106,8 +113,8 @@ abstract class RunTestSupport {
 	 * @param quickCheck whether a quick check can answer it
 	 * @return the prepared run
 	 */
-	static PreparedRun prepared(long seed, @Nullable String scenarioName, boolean quickCheck) {
-		return new PreparedRun(null, scenarioName, seed, PREPARED, new PreparedRun.QuickCheck(quickCheck,
+	static PlannedRun prepared(long seed, @Nullable String scenarioName, boolean quickCheck) {
+		return new PlannedRun(null, scenarioName, seed, PREPARED, new QuickCheck(quickCheck,
 				quickCheck ? "simulates 30 s" : "the traffic is not constant", 60.0, null, null));
 	}
 

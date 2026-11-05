@@ -6,8 +6,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.PrepareRequest;
+import io.archsim.engine.run.SimulationLimitException;
+import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,7 +68,7 @@ class RunsTests extends RunTestSupport {
 
 		start(project, "{}");
 
-		then(engine()).should()
+		then(preparation()).should()
 			.prepare(argThat(
 					(PrepareRequest request) -> request.maxRequests() == 200_000 && request.maxWallSeconds() == 20.0));
 	}
@@ -107,9 +107,8 @@ class RunsTests extends RunTestSupport {
 
 	@Test
 	void create_designTheEngineCannotRead_isRefusedWithItsIssues() {
-		willThrow(EngineRefusalException.invalidDesign("The document is not valid",
-				List.of(Issue.error("document.schema", "bad"))))
-			.given(engine())
+		willThrow(new DocumentInvalidException(List.of(Issue.error("document.schema", "The document is not valid"))))
+			.given(preparation())
 			.prepare(any());
 		String project = project("team", "editor");
 
@@ -121,7 +120,7 @@ class RunsTests extends RunTestSupport {
 
 	@Test
 	void create_runOverItsLimits_isRefusedInTheEnginesWords() {
-		willThrow(EngineRefusalException.runOverLimits("Expected 2,000,001 requests")).given(engine()).prepare(any());
+		willThrow(new SimulationLimitException("Expected 2,000,001 requests")).given(preparation()).prepare(any());
 		String project = project("team", "editor");
 
 		assertThat(start(project, "{}")).hasStatus(422)
