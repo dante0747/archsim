@@ -47,7 +47,9 @@ The rules follow Robert C. Martin's *Clean Code*. Most of all:
 - Classes are nouns (`TokenService`, `RunQueue`); methods are verbs or questions
   (`claimNextRun`, `isExpired`); booleans read as statements (`expired`, `hasRole`).
 - No one-letter names, except a `for` loop's index; lambda parameters too (`(node) -> ...`, not
-  `n -> ...`). `_` is fine for a parameter a lambda ignores.
+  `n -> ...`). `_` is fine for a lambda parameter or pattern variable the code ignores
+  (`(_) -> 0`, `case Circle _ ->`, `case Point(var left, var _)`); a local variable, a `try`
+  resource or a `catch` parameter still gets a name.
 - No abbreviations a newcomer has to decode (`count`, not `cnt`; `request`, not `req`).
   Acronyms are words: `JsonCodec`, `HttpClient`, not `JSONCodec`.
 - Constants are `UPPER_SNAKE_CASE`; a number with a meaning is a named constant, never a bare

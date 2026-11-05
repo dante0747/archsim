@@ -35,7 +35,10 @@ ArchSim's Java code is a reference for engineers. Every rule here is either chec
 
 - Names say what a thing is: classes are nouns, methods verbs or questions, booleans
   statements. No one-letter names except a `for` index; lambda parameters are named and in
-  parentheses: `(node) -> node.id()`. No abbreviations; acronyms are words (`JsonCodec`).
+  parentheses: `(node) -> node.id()`. `_` is fine for a lambda parameter or pattern variable
+  the code ignores (`case Circle _ ->`, `case Point(var left, var _)`); a local variable, a `try`
+  resource or a `catch` parameter still gets a name. No abbreviations; acronyms are words
+  (`JsonCodec`).
 - A number with a meaning is a named constant (only `-1`, `0`, `1`, `2` may stand alone).
 - One method, one job, one level of abstraction. Guard clauses instead of nested `if`s. No flag
   arguments: two behaviours are two methods. Queries don't change state.

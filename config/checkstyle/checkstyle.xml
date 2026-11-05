@@ -117,7 +117,8 @@
 			<property name="excludeClassesRegexps" value="^(Choice|Const|Default|DefaultFrom|Description|Ge|Gt|Le|Lt|Matches|MaxItems|MaxLength|MinItems|MinLength|OmitWhenDefault|Tag|Tagged|Ui|UniqueItems)$"/>
 		</module>
 
-		<!-- Names that say what they hold: no one-letter names outside for loops -->
+		<!-- Names that say what they hold: no one-letter names outside for loops; `_` marks a
+		     lambda parameter or pattern variable that is not used -->
 		<module name="PackageName">
 			<property name="format" value="^io\.archsim(\.[a-z][a-z0-9]*)*$"/>
 		</module>
@@ -142,8 +143,10 @@
 		<module name="LocalFinalVariableName">
 			<property name="format" value="^[a-z][a-zA-Z0-9]+$"/>
 		</module>
+		<!-- A pattern variable may be Java's unnamed `_`, as a lambda parameter may: it says the
+		     value is not used (ADR-0030). -->
 		<module name="PatternVariableName">
-			<property name="format" value="^[a-z][a-zA-Z0-9]+$"/>
+			<property name="format" value="^([a-z][a-zA-Z0-9]+|_)$"/>
 		</module>
 		<module name="ClassTypeParameterName"/>
 		<module name="MethodTypeParameterName"/>
