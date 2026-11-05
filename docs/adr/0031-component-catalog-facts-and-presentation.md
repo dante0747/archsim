@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-03
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 

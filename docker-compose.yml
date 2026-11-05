@@ -49,7 +49,7 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # The Python engine's synchronous calls (analyze, validate a scenario, prepare a run, compare,
+  # The Python engine's synchronous calls not yet in Java (compare, summarize a seed group,
   # export, import, calibrate), for the API only (ADR-0036). It checks no caller and calls the
   # Prometheus servers the API's requests name, so only the API shares its network.
   engine:

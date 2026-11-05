@@ -60,23 +60,23 @@ what the repository shows.
 | [0016](0016-drop-sqlite-development-mode.md) | Drop the SQLite development mode | Accepted | 2026-11-02 |
 | [0017](0017-freeze-python-engine-during-port.md) | Freeze the Python engine during the port; run the held-out campaign before stage 4 | Accepted | 2026-11-02 |
 | [0018](0018-p95-within-a-factor-of-two.md) | Judge p95 within a factor of two either way | Accepted | 2026-11-02 |
-| [0019](0019-black-box-api-tests-against-any-base-url.md) | Black-box API tests in Java, run against any base URL | Proposed | 2026-11-02 |
-| [0020](0020-golden-files-of-the-frozen-engine.md) | Record the frozen engine's deterministic functions as golden files | Proposed | 2026-11-02 |
-| [0021](0021-java-build-conventions.md) | Java build conventions: one convention plugin, warnings as errors, JUnit 6 | Proposed | 2026-11-02 |
-| [0022](0022-records-and-a-pydantic-compatible-codec.md) | Map the design document with records and a pydantic-compatible codec over Jackson trees | Proposed | 2026-11-02 |
-| [0023](0023-upgrade-chain-on-the-json.md) | Upgrade older documents with a chain of steps on the JSON, and model only the current schema | Proposed | 2026-11-02 |
-| [0024](0024-validation-issues-with-stable-codes.md) | Report what is wrong with a design as issues with stable codes and the Python engine's words | Proposed | 2026-11-02 |
-| [0025](0025-json-schema-generated-from-the-records.md) | Generate the design document's JSON Schema from the records, as pydantic writes it | Proposed | 2026-11-02 |
-| [0026](0026-component-specs-and-price-snapshots-in-the-model.md) | Component specifications and the price-snapshot lookup belong to the model | Proposed | 2026-11-02 |
-| [0027](0027-python-text-conventions-in-one-package.md) | Reproduce Python's text conventions for numbers and values in one package | Proposed | 2026-11-02 |
-| [0028](0028-golden-file-reader-as-test-fixtures.md) | Read the golden files with a reader shared as Gradle test fixtures | Proposed | 2026-11-02 |
-| [0029](0029-model-packages-in-layers-checked-by-archunit.md) | Build the model's packages in layers, one direction only, checked by ArchUnit | Proposed | 2026-11-02 |
-| [0030](0030-spring-style-and-clean-code-checks.md) | Write Java in Spring Framework's style, with clean-code rules the build enforces | Proposed | 2026-11-02 |
-| [0031](0031-component-catalog-facts-and-presentation.md) | Build the component catalog from the specifications, with its presentation as data | Proposed | 2026-11-03 |
-| [0032](0032-flyway-takes-over-from-alembic.md) | Flyway takes over from Alembic at revision 0008, proven by a schema snapshot | Proposed | 2026-11-03 |
-| [0033](0033-embedded-postgresql-for-tests.md) | Run the database tests on an embedded PostgreSQL, without Docker | Proposed | 2026-11-03 |
-| [0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md) | Keep the FastAPI API's HTTP contract in Spring MVC | Proposed | 2026-11-03 |
-| [0035](0035-read-the-python-apis-settings-unchanged.md) | Read the Python API's `ARCHSIM_*` settings unchanged | Proposed | 2026-11-03 |
-| [0036](0036-python-engine-service-for-synchronous-calls.md) | Run the engine's synchronous calls in a small internal Python service | Proposed | 2026-11-03 |
-| [0037](0037-sign-in-without-spring-security.md) | Sign people in with plain Spring MVC, not Spring Security | Proposed | 2026-11-03 |
-| [0038](0038-engine-computes-on-typed-records.md) | The engine computes on the model's records and typed configs, not on JSON trees | Proposed | 2026-11-04 |
+| [0019](0019-black-box-api-tests-against-any-base-url.md) | Black-box API tests in Java, run against any base URL | Accepted | 2026-11-05 |
+| [0020](0020-golden-files-of-the-frozen-engine.md) | Record the frozen engine's deterministic functions as golden files | Accepted | 2026-11-05 |
+| [0021](0021-java-build-conventions.md) | Java build conventions: one convention plugin, warnings as errors, JUnit 6 | Accepted | 2026-11-05 |
+| [0022](0022-records-and-a-pydantic-compatible-codec.md) | Map the design document with records and a pydantic-compatible codec over Jackson trees | Accepted | 2026-11-05 |
+| [0023](0023-upgrade-chain-on-the-json.md) | Upgrade older documents with a chain of steps on the JSON, and model only the current schema | Accepted | 2026-11-05 |
+| [0024](0024-validation-issues-with-stable-codes.md) | Report what is wrong with a design as issues with stable codes and the Python engine's words | Accepted | 2026-11-05 |
+| [0025](0025-json-schema-generated-from-the-records.md) | Generate the design document's JSON Schema from the records, as pydantic writes it | Accepted | 2026-11-05 |
+| [0026](0026-component-specs-and-price-snapshots-in-the-model.md) | Component specifications and the price-snapshot lookup belong to the model | Accepted | 2026-11-05 |
+| [0027](0027-python-text-conventions-in-one-package.md) | Reproduce Python's text conventions for numbers and values in one package | Accepted | 2026-11-05 |
+| [0028](0028-golden-file-reader-as-test-fixtures.md) | Read the golden files with a reader shared as Gradle test fixtures | Accepted | 2026-11-05 |
+| [0029](0029-model-packages-in-layers-checked-by-archunit.md) | Build the model's packages in layers, one direction only, checked by ArchUnit | Accepted | 2026-11-05 |
+| [0030](0030-spring-style-and-clean-code-checks.md) | Write Java in Spring Framework's style, with clean-code rules the build enforces | Accepted | 2026-11-05 |
+| [0031](0031-component-catalog-facts-and-presentation.md) | Build the component catalog from the specifications, with its presentation as data | Accepted | 2026-11-05 |
+| [0032](0032-flyway-takes-over-from-alembic.md) | Flyway takes over from Alembic at revision 0008, proven by a schema snapshot | Accepted | 2026-11-05 |
+| [0033](0033-embedded-postgresql-for-tests.md) | Run the database tests on an embedded PostgreSQL, without Docker | Accepted | 2026-11-05 |
+| [0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md) | Keep the FastAPI API's HTTP contract in Spring MVC | Accepted | 2026-11-05 |
+| [0035](0035-read-the-python-apis-settings-unchanged.md) | Read the Python API's `ARCHSIM_*` settings unchanged | Accepted | 2026-11-05 |
+| [0036](0036-python-engine-service-for-synchronous-calls.md) | Run the engine's synchronous calls in a small internal Python service | Accepted | 2026-11-05 |
+| [0037](0037-sign-in-without-spring-security.md) | Sign people in with plain Spring MVC, not Spring Security | Accepted | 2026-11-05 |
+| [0038](0038-engine-computes-on-typed-records.md) | The engine computes on the model's records and typed configs, not on JSON trees | Accepted | 2026-11-05 |

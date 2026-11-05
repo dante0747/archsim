@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-04
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -50,6 +50,13 @@ reads, the defaults stay in the model, and the golden files prove the answers di
   engine saw it in a normalized design: with every default written out when the config is valid
   for its type, as written otherwise. A design with a setting out of range or of the wrong type
   is then estimated and sized as before; the golden files' invalid documents check it.
+- JSON trees are still allowed where the engine handles a design as written, or writes the
+  document a run simulates: `ScenarioResolver` and `AutoSizer` fill in defaults, prices, sizes
+  and a scenario's overrides on the document's JSON; provenance (`InputProvenances`) reads each
+  input as the design writes it; `SizingSummaries` reads the specs, platform and technology from
+  a part's raw settings; the cost (`CostPart`) reads settings as written, over its type's
+  defaults; and `LenientSettings` reads them for the load estimate, sizing, the review and the
+  cost.
 - On the record path, Python's fallbacks for settings the schema always fills (`or 1.0`,
   `256 if None`) are not ported: the record's default and its bounds already give them.
 - A result with a fixed shape is a record, written by `RecordCodec`; a result that is a map by
@@ -74,7 +81,8 @@ reads, the defaults stay in the model, and the golden files prove the answers di
   replica count the schema rejects) is not reproduced; validation refuses such a design before
   the engine sees it. The lenient path reproduces it, as the Python reads it.
 - Bad, because a config is read in two ways, as a record and leniently. The lenient rules live
-  in one class, so a reader of raw settings cannot spread through the engine unnoticed.
+  in one class, but nothing enforces the boundary: a new reader of raw settings outside the
+  places above fails no test, so review has to catch it.
 
 ### Confirmation
 

@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-02
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -62,9 +62,12 @@ pydantic's error list and keeps each field's definition in one place.
 - Good, because every invalid fixture's errors, and every example's written JSON, match the Python
   engine's golden files.
 - Good, because a field is defined once; the JSON Schema comes from the same annotations.
-- Bad, because the codec is a small framework of its own (about 900 lines with its tests) that
-  imitates pydantic: a reader must learn its annotations. Its tests specify each pydantic rule it
-  copies.
+- Bad, because the codec is a framework of its own (53 files and about 3,100 lines with their
+  Javadoc, plus 700 lines of tests) that imitates pydantic: a reader must learn its annotations.
+  Its tests specify each pydantic rule it copies.
+- Bad, because the codec reads records by runtime reflection: their components, annotations and
+  canonical constructors. A GraalVM native CLI, optional at stage 5, would need reflection
+  configuration for them.
 - Bad, because pydantic's quirks are copied too (a boolean is a number, `"5.0"` is an integer),
   since the contract has them. Changing them is a contract change, after the port.
 - Neutral: Python's integers have no size limit; an unbounded integer beyond Java's `long` is

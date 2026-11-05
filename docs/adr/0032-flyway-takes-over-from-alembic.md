@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-03
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -51,6 +51,13 @@ it is the only one that needs no data migration and lets either API set up an em
   describe it with the same query and expect the same document.
 - The `api` role migrates at start unless `ARCHSIM_AUTO_MIGRATE=false`; the `migrate` role
   migrates and exits ([ADR-0014](0014-one-deployable-application-with-roles.md)).
+- The schema-snapshot test migrates only to `V1` (target version `1`), so a later `V2` doesn't
+  break the comparison.
+
+**Status (5 Nov 2026):** the FastAPI app is deleted. Alembic survives only in `services/api`,
+with the Python workers, until stage 4: `archsim-api migrate` brings an older database to
+revision 0008 for Flyway to take over, and the workers' tests and `scripts/schema_snapshot.py`
+build their schema with it.
 
 ### Consequences
 

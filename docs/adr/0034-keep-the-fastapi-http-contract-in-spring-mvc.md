@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-03
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -8,15 +8,15 @@ decision-makers: Majid Abarghooei (owner)
 
 ## Context and Problem Statement
 
-Stage 2 replaces the FastAPI API with archsim-app while the web app, the CLI, scripts and the
-black-box suite keep calling it ([ADR-0019](0019-black-box-api-tests-against-any-base-url.md)).
+Stage 2 replaced the FastAPI API with archsim-app while the web app, the CLI, scripts and the
+black-box suite kept calling it ([ADR-0019](0019-black-box-api-tests-against-any-base-url.md)).
 Spring MVC answers differently by default: `/error` bodies with `timestamp`, `status` and `path`
 for a missing route or method, a different 413, no security headers, controllers at the root.
-How much of FastAPI's behaviour does the Java API reproduce, and where does that code live?
+How much of FastAPI's behaviour should the Java API reproduce, and where does that code live?
 
 ## Decision Drivers
 
-- No client changes: what a client reads from the Python API it reads from the Java one.
+- Clients keep working: what a client read from the Python API it reads from the Java one.
 - One place for each cross-cutting rule, not repeated in every controller.
 - Features don't know about the contract's framing: a service throws, the web layer answers.
 
@@ -29,7 +29,7 @@ How much of FastAPI's behaviour does the Java API reproduce, and where does that
 
 ## Decision Outcome
 
-Chosen option: "reproduce the contract in the `web` package", because clients keep working
+Chosen option: "reproduce the contract in the `web` package", because clients kept working
 unchanged and each rule is written once.
 
 - **Error bodies.** A refusal is `{"detail": {"message": "...", "issues": [...]}}`, `issues`
@@ -63,12 +63,18 @@ unchanged and each rule is written once.
   by value, as the golden files compare them: where Python writes a whole number as `600` and
   Java as `600.0`, or the other way round, clients read the same number.
 
-Where the Python API has a bug, the Java API does not copy it; each such difference is listed in
-archsim-app's README.
+Where the Python API had a bug, the Java API does not copy it. It also differed from FastAPI in
+24 accepted ways.
+[archsim-app's README](../../archsim-app/README.md#differences-from-the-python-api) lists both.
+Among the differences: a trailing slash was `404` where Starlette redirected (`307`);
+a body that didn't fit was `422` before access was checked, where FastAPI answered `404` or `403`
+first; numbers came back spelled as Java writes them (`5.0E-4` for `0.0005`). The web app, the
+black-box suite and the Playwright tests passed with them.
 
 ### Consequences
 
-- Good, because the web app, CLI and black-box suite run against either API unchanged.
+- Good, because the web app, CLI and black-box suite ran against either API unchanged, apart
+  from the accepted differences.
 - Good, because a feature only throws `ApiException`; its controller has no error handling.
 - Bad, because Spring's own error page and problem-details support go unused, and a new kind of
   framework exception needs a mapping in `ApiExceptionHandler` to keep the contract.
@@ -77,7 +83,8 @@ archsim-app's README.
 
 `WebBehaviourTests` check the 404, 405, 411, 413 and 422 bodies, the headers, `Accept` and CORS;
 `ServedApplicationTests` check the container's answers on a real Tomcat; the controller tests check
-each body; the black-box suite runs against both APIs.
+each body; the black-box suite runs against the Java API in CI, as it ran against the Python
+one until stage 2 ([ADR-0019](0019-black-box-api-tests-against-any-base-url.md)).
 
 ## Pros and Cons of the Options
 

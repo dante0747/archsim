@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-02
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -63,6 +63,9 @@ What they are ([`parity/README.md`](../../parity/README.md)):
   map Python function names to Java ones.
 - Bad, because a few functions need test seams in Java: an injectable clock for calibration, and
   injected simulation results for `check` and calibration replays.
+- Neutral, because where the Python engine fails on an input, the Java decides for itself and
+  documents it ([`archsim-engine/README.md`](../../archsim-engine/README.md#packages)). The golden
+  files don't cover those cases; the module's own tests do.
 
 ### Confirmation
 

@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-03
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -8,13 +8,13 @@ decision-makers: Majid Abarghooei (owner)
 
 ## Context and Problem Statement
 
-Slice 3 of stage 2 ports sign-in: GitHub and Google OAuth with PKCE, browser sessions, CSRF
+Slice 3 of stage 2 ported sign-in: GitHub and Google OAuth with PKCE, browser sessions, CSRF
 tokens and personal API tokens. The [port's plan](../proposals/java-25-port.md) named Spring
 Security's OAuth2 client for it, and [ADR-0007](0007-spring-boot-4.md) chose Spring Boot partly
 because Spring Security's OAuth client, CSRF support and token authentication would cover today's
-sign-in, with security code the framework's maintainers review. While both APIs share one
-database, a person signed in through one must stay signed in through the other. That means the
-Java API has to keep each of these exactly as the Python API has it:
+sign-in, with security code the framework's maintainers review. While both APIs shared one
+database, a person signed in through one had to stay signed in through the other. So the Java
+API had to keep each of these exactly as the Python API had it:
 
 - the session cookie `__Host-archsim_session`, stored as the SHA-256 of its secret in `sessions`;
 - the CSRF token, an HMAC of the session's id under a key derived from `ARCHSIM_SECRET_KEY`, sent
@@ -30,7 +30,7 @@ How should the Java API sign people in?
 
 ## Decision Drivers
 
-- Sessions, tokens and CSRF tokens one API makes work in the other while both run.
+- Sessions, tokens and CSRF tokens one API made had to work in the other while both ran.
 - The HTTP contract stays as it is ([ADR-0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md)):
   statuses, bodies, headers, cookies, and which error wins when several apply.
 - Little security code of our own, and only standard primitives in it.
@@ -46,16 +46,18 @@ How should the Java API sign people in?
 
 ## Decision Outcome
 
-Chosen option: "plain Spring MVC", because each part of Spring Security that applies would have
-to be replaced to keep the contract, and what is left is about 150 lines of OAuth over HTTP.
+Chosen option: "plain Spring MVC", because each part of Spring Security that applied would have
+had to be replaced to keep the contract, and what was left was the OAuth code exchange over HTTP.
 
 - **Who is asking** is a controller parameter. `Principal` (in `access`) comes from
   `PrincipalResolver`: the local user without sign-in; otherwise an API token from
   `Authorization: Bearer asim_pat_…`, else the session in the cookie, else `401`. A cookie
   request that changes something must carry the CSRF header (`403`). A `Person` parameter is a
   principal that is not an API token, for managing tokens and workspaces. It is checked before
-  the body is read, so the errors come in the same order as in FastAPI. Public endpoints take no
-  such parameter, so they need nothing.
+  the body is read. The errors did not always come in FastAPI's order: signed out, a body that is
+  not JSON is `401` where FastAPI answered `422`
+  ([archsim-app's README](../../archsim-app/README.md#differences-from-the-python-api)). Public
+  endpoints take no such parameter, so they need nothing.
 - **Secrets** are made with `SecureRandom` (256 bits) and stored as their SHA-256. CSRF tokens
   and the state cookie use HMAC-SHA256, under keys derived from the secret key one per purpose.
   Comparisons use `MessageDigest.isEqual`. These are the Python API's formats exactly, and the
@@ -69,21 +71,26 @@ to be replaced to keep the contract, and what is left is about 150 lines of OAut
 
 ### Consequences
 
-- Good, because a person moves between the two APIs without signing in again, and the black-box
-  suite's sign-in tests pass against both.
+- Good, because a person could move between the two APIs without signing in again, and the
+  black-box suite's sign-in tests pass against the Java API.
 - Good, because the whole sign-in is in two packages (`access`, `signin`) of small classes, with
   no filter chain or framework configuration to find.
-- Bad, because it is security code we maintain, where ADR-0007 counted on Spring's. It is kept
-  small (the OAuth exchange is about 150 lines), uses only JDK primitives, and is tested against a
-  stand-in GitHub that checks PKCE and the client's credentials. The owner should weigh this
-  reversal of ADR-0007's expectation.
-- Bad, because adding a provider means writing its profile mapping, as it does in Python today.
+- Bad, because it is security code we maintain, where ADR-0007 counted on Spring's. The `access`
+  and `signin` packages hold 57 files and about 3,500 lines, 1,650 without Javadoc, comments and
+  blank lines; `access` also covers workspace roles and client addresses. The OAuth exchange
+  (`OAuthClient`) is about 100 lines of code. The code uses only JDK primitives and is tested
+  against a stand-in GitHub that checks PKCE and the client's credentials.
+- Bad, because it consciously departs from accepted [ADR-0007](0007-spring-boot-4.md) and from
+  the port plan, which both expected Spring Security. Moving to Spring Security is to be weighed
+  after the port, at stage 6, once the API contract can change.
+- Bad, because adding a provider means writing its profile mapping, as it did in Python.
 
 ### Confirmation
 
 `CsrfTests`, `SigningKeysTests` and `StateCookiesTests` check values the Python API produced.
 `HostedPrincipalTests`, `SignInTests` and `TokensTests` run the application on PostgreSQL against
-the stand-in GitHub. The black-box suite's `OAuthTests` and `TokensTests` run against both APIs.
+the stand-in GitHub. The black-box suite's `OAuthTests` and `TokensTests` run against the Java
+API.
 
 ## Pros and Cons of the Options
 
@@ -94,7 +101,7 @@ the stand-in GitHub. The black-box suite's `OAuthTests` and `TokensTests` run ag
   `sessions`, a CSRF token repository with the HMAC tokens, entry points and failure handlers for
   each error answer, and a token filter would all be ours anyway.
 - Bad, because the filter chain runs before Spring MVC. Unknown paths, `405`s and body errors
-  would be decided in a different order than FastAPI decides them.
+  would be decided in a different order than FastAPI decided them.
 
 ### Spring Security's OAuth2 client classes as a library
 
@@ -102,7 +109,7 @@ the stand-in GitHub. The black-box suite's `OAuthTests` and `TokensTests` run ag
 sign-in page's address, and `RestClientAuthorizationCodeTokenResponseClient` exchanges the code,
 without a filter chain.
 
-- Good, because the protocol's two steps (about 60 of the 150 lines) would be Spring's.
+- Good, because the protocol's two steps (about 60 lines) would be Spring's.
 - Bad, because the customizer makes its own verifier, which then has to be taken from the request's
   attributes into the state cookie that both APIs read, and the exchange takes a
   `ClientRegistration` built per provider for one call.
@@ -118,5 +125,7 @@ without a filter chain.
 ## More Information
 
 - [ADR-0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md): the HTTP contract this keeps.
-- This departs from the port's plan, which named Spring Security's OAuth2 client for sign-in, and
-  from what [ADR-0007](0007-spring-boot-4.md) expected of Spring Security.
+- This consciously departs from the port's plan, which named Spring Security's OAuth2 client for
+  sign-in, and from what [ADR-0007](0007-spring-boot-4.md) expected of Spring Security. ADR-0007
+  stays accepted. Moving to Spring Security is weighed at
+  [stage 6](../proposals/java-25-port.md#stage-6--clean-up-23-days).

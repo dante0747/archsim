@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-02
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -42,7 +42,8 @@ How it works ([`archsim-api-tests/README.md`](../../archsim-api-tests/README.md)
   `hosted`, `constrained`, `small-runs`, `rate-limited`, `allowlist`), the same for every
   implementation.
 - **Servers.** The suite starts the API once per profile on a fresh PostgreSQL database
-  (`-Parchsim.api.start=python`; stage 2 adds `java`), or takes the base URLs of running servers.
+  (`-Parchsim.api.start=java`; `python` until the FastAPI app was deleted), or takes the base URLs
+  of running servers.
 - **Sign-in.** The `hosted` profile signs people in through a stand-in GitHub that the API calls
   over HTTP.
 - **The database.** A step no route offers (expiring a session, making a sandbox workspace,
@@ -63,12 +64,16 @@ How it works ([`archsim-api-tests/README.md`](../../archsim-api-tests/README.md)
   runs without Docker or a database.
 - Bad, because database steps tie some tests to table and column names.
 - Bad, because Google sign-in can't be tested (the Python API calls Google's real addresses), and
-  42 Python tests stay in Python.
+  42 Python tests were not ported (the suite's README lists them and where each is checked now).
 
 ### Confirmation
 
-The CI job `java` runs `apiTest` against the Python API it starts. Stage 2's exit runs it against
-`archsim-app`.
+The CI job `java` runs `apiTest` against the Java API it starts (`-Parchsim.api.start=java`): 132
+test cases, from the 120 ported Python tests (122 methods, two of them parameterized). The
+FastAPI app was deleted at stage 2 (5a557ca), so the suite now checks only `archsim-app`.
+
+Parity with Python was only partly shown. The port plan's stage 0 notes record that 36 of the 120
+ported tests had not run against the Python API, and they never did before it was deleted.
 
 ## Pros and Cons of the Options
 

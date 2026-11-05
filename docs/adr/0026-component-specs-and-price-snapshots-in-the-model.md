@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-02
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -47,7 +47,11 @@ simulating it, and they are what a client needs to check a design.
 - The engine (stage 3 and 4) adds to a type what it does when simulated, keyed by the same type
   name.
 - While the Python engine exists, its shipped snapshot files are the one copy: the build copies
-  them into the model's resources.
+  them into the model's resources. That engine is frozen
+  ([ADR-0017](0017-freeze-python-engine-during-port.md)), so the monthly price refresh
+  ([`prices.yml`](../../.github/workflows/prices.yml)) can't add a snapshot there during the port.
+  Its schedule is off until stage 4, when the Python engine goes and the files move to the
+  model's resources; it can still be run by hand.
 
 ### Consequences
 

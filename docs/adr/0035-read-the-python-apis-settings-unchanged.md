@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-03
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -55,8 +55,9 @@ existing environment configures the Java API as it is.
 - Bad, because the Python API also read a `.env` file in its working directory by itself
   (pydantic-settings); Spring Boot does not. Compose's own `.env` and `env_file` still apply.
 - Good, because a wrong value fails at start with the setting's name, not at first use.
-- Bad, because the SQLAlchemy URL format outlives the Python API; a later change can accept
-  `jdbc:` URLs only.
+- Bad, because the SQLAlchemy URL format outlives the Python API. Accepting only `jdbc:` URLs
+  must wait until stage 4: until then the Python workers read the same `ARCHSIM_DATABASE_URL`
+  (compose gives both the same one).
 
 ### Confirmation
 
@@ -65,4 +66,6 @@ existing environment configures the Java API as it is.
 
 ## More Information
 
-- The Python settings: `services/api/src/archsim_api/config.py`.
+- The Python API's settings, as they were when it was deleted:
+  `git show 5a557ca^:services/api/src/archsim_api/config.py`. The file now holds only the
+  workers' settings.

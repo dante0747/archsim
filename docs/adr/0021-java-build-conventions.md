@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-02
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -38,9 +38,6 @@ sets:
 - **Java 25.** A Java 25 toolchain compiles with `--release 25`.
   `gradle/gradle-daemon-jvm.properties` makes Gradle itself run on JDK 25, downloading one if
   none is installed, so the build works whatever `JAVA_HOME` points to.
-- **Formatting.** Spotless with palantir-java-format checks it; `./gradlew spotlessApply` fixes
-  it. (Superseded by [ADR-0030](0030-spring-style-and-clean-code-checks.md): Spring's
-  formatter and Checkstyle.)
 - **Static analysis.** Error Prone with NullAway in JSpecify mode covers all of `io.archsim`.
   With `-Xlint:all -Werror`, every javac or Error Prone warning fails the build.
 - **Tests.** JUnit 6 and AssertJ. JUnit 6 is JUnit 5's Jupiter API, and the version Spring Boot
@@ -57,9 +54,10 @@ sets:
 - Good, because one command, `./gradlew build`, gives every module the same checks locally and
   in CI.
 - Good, because null-safety and Error Prone's bug patterns are enforced, not advisory.
-- Bad, because strictness has a cost: a contributor must follow Error Prone's suggestions or
-  suppress a check with a reason. NullAway's generic checks sometimes need a plain loop where a
-  stream would do.
+- Bad, because strictness has a cost: a contributor must follow Error Prone's suggestions. A
+  finding is never suppressed; where a rule seems wrong, the owner decides
+  ([`AGENTS.md`](../../AGENTS.md), [ADR-0030](0030-spring-style-and-clean-code-checks.md)).
+  NullAway's generic checks sometimes need a plain loop where a stream would do.
 - Bad, because a few third-party JUnit extensions may support JUnit 6 later than JUnit 5.
 
 ### Confirmation
@@ -71,5 +69,6 @@ job `java` runs it.
 
 - [ADR-0006](0006-build-with-gradle-kotlin-dsl.md) (Gradle, the Kotlin DSL and the version
   catalog)
+- [ADR-0030](0030-spring-style-and-clean-code-checks.md) (formatting and Checkstyle)
 - JUnit 6: <https://docs.junit.org/>
 - NullAway's JSpecify mode: <https://github.com/uber/NullAway/wiki/JSpecify-Support>

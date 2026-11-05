@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-02
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -47,9 +47,22 @@ formatter and a Checkstyle module for it that keep it without effort.
 - **Checkstyle** runs on every source set with Spring's checks (`SpringChecks`: import order,
   `this.` for fields, Javadoc form, lambdas, ternaries, `*Tests` classes, ...) and ArchSim's
   clean-code rules: sizes and complexity, names, Javadoc on the public API, no JSON in strings,
-  one enum constant per line, and test names. `maxWarnings` is 0; an exception to a rule is a
-  change to `config/checkstyle/`, never a suppression in the code.
-- Spring's checks are taken whole, except the `@author` tag on every type: git records authors.
+  one enum constant per line, and test names. `maxWarnings` is 0, and a finding is never
+  suppressed in the code.
+- **An exception to a rule** needs the owner's approval. It is a change to `config/checkstyle/`,
+  with its reason in a comment beside it. The owner approved two in 352b645:
+  `LineLength` ignores the last line of an annotated record component, which the formatter can't
+  wrap; `ClassFanOutComplexity` doesn't count the codec's annotations (`@Default`, `@Ge`, `@Ui`,
+  ...), which declare a record's JSON rather than couple it to other code.
+- Spring's checks are taken with two changes. The `@author` tag on every type isn't required:
+  git records authors. Spring's nesting limits (three levels of `if`, `for` and `try`) are
+  replaced with stricter ones: two levels of `if`, one of `for`, one of `try`.
+- **Test sources** (`src/test`, `src/apiTest`, `src/testFixtures`) are exempt from the Javadoc
+  checks, `MagicNumber` and the no-JSON-in-strings rule (`suppressions.xml`): their names
+  document them, and their inputs may be JSON text and literal numbers.
+- **Unnamed variables.** `_` is allowed as a pattern variable (`PatternVariableName`), as
+  `LambdaParameterName` already allows it. `catch (X _)` still fails Spring's catch check, which
+  refuses one-letter names.
 - **Tests** are named `method_state_result`. Checkstyle tells test methods from others by their
   JUnit or jqwik annotation, and checks each against its own pattern.
 - **The rules are written down** in [`docs/java-conventions.md`](../java-conventions.md), and the

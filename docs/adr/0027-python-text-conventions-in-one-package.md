@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-02
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -36,6 +36,14 @@ tested once.
   binary value half to even as Python does. A spec it does not support throws, so nothing is
   silently formatted differently.
 - Messages write numbers through these: `PythonFormat.format(memoryGib, "g")`.
+- **What belongs here:** Python's conventions for text that any module may need. Besides the two
+  above, `CanonicalJson` writes `json.dumps` text with sorted keys, which price-snapshot hashes
+  and report digests are taken over.
+- **What the engine adds of its own:** conventions only the engine uses stay in it.
+  `io.archsim.engine.text` has `NumberText` (how its formulas, percentages, figures and latencies
+  read), `HalfUp` (halves away from zero) and `PythonStrings` (`str.casefold()` and code-point
+  order). `io.archsim.engine.numeric` has Python's arithmetic, such as `PythonRound` and
+  `FloorDivision`.
 
 ### Consequences
 

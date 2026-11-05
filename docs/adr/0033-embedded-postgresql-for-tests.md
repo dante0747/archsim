@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-03
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -48,6 +48,10 @@ nothing but the Gradle dependency, so the database tests run everywhere the buil
 - Bad, because the binaries (about 10 MB per platform) are downloaded once per machine.
 - Bad, because extensions the image has and the binaries lack would not be testable; the schema
   uses none.
+- Bad, because the embedded server takes the host's locale (`TestDatabases` sets none), so text
+  ordering could differ from the compose image's.
+- Bad, because PostgreSQL refuses to run as root, so the database tests fail in a container that
+  runs the build as root.
 - Neutral: Testcontainers stays a valid option for CI should a test need the exact image.
 
 ### Confirmation

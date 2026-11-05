@@ -1,6 +1,6 @@
 ---
-status: proposed
-date: 2026-11-03
+status: accepted
+date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---
 
@@ -42,14 +42,15 @@ answers exactly as they are and can shrink one endpoint at a time.
 - `services/engine-service` is a uv workspace member, `archsim-engine-service`, depending on
   `archsim-engine`, Starlette, Uvicorn and pydantic only: no database, no settings beyond the engine's own
   (`ARCHSIM_PRICES_DIR`), no authentication. It listens inside compose only.
-- One `POST` endpoint per engine call, JSON in and out: `{"document", "scenarioId"}` for
-  `/analyze` and for `/validate`, which the Java API calls only with a scenario; `/prepare` for a
-  run about to be queued (`prepare_run` within the run's limits and seed, with `quick_check`);
-  `/compare` for two reports (`compare_reports`); `/summarize-seeds` for a seed group
-  (`summarize_seeds`); `/export` and `/import` for designs as infrastructure files
-  (`export_document`, `import_design`); `/calibrate` for `POST /calibrate`. A refusal answers
-  `422 {"message", "issues", "kind"}`: `invalid` with the engine's words and issues for a
-  document it cannot read, `limit` for a run over its limits, `unreadable` for text, a mapping or
+- One `POST` endpoint per engine call, JSON in and out. Stage 2 started with eight:
+  `{"document", "scenarioId"}` for `/analyze` and for `/validate`, which the Java API called only
+  with a scenario; `/prepare` for a run about to be queued (`prepare_run` within the run's limits
+  and seed, with `quick_check`); `/compare` for two reports (`compare_reports`);
+  `/summarize-seeds` for a seed group (`summarize_seeds`); `/export` and `/import` for designs as
+  infrastructure files (`export_document`, `import_design`); `/calibrate` for `POST /calibrate`.
+  A refusal answers `422 {"message", "issues", "kind"}`: `invalid` with the engine's words and
+  issues for a document it cannot read, `limit` for a run over its limits (until `/prepare`
+  went), `unreadable` for text, a mapping or
   telemetry that cannot be used, in the words the Python API answered; a request it cannot read,
   `400 {"message"}`. Answers are encoded as FastAPI encoded them, so the Java API passes the
   bytes on. Each call runs in a worker thread, as FastAPI ran sync routes, so a long analysis
@@ -69,9 +70,13 @@ answers exactly as they are and can shrink one endpoint at a time.
   today. The Python API had no such timeout.
 - The black-box suite starts the service next to the Java API.
 
+**Status (5 Nov 2026):** stage 3 has removed three endpoints: `/validate` (143c6fb), then
+`/analyze` and `/prepare` (dedd377). Five remain: `/compare`, `/summarize-seeds`, `/export`,
+`/import` and `/calibrate`.
+
 ### Consequences
 
-- Good, because `/analyze` and the others answer byte for byte what the Python API answered.
+- Good, because each endpoint answers byte for byte what the Python API answered.
 - Good, because the engine and the FastAPI code stay untouched until each is deleted.
 - Good, because the service is stateless: it can be restarted or scaled on its own.
 - Bad, because the service checks no caller: whatever can reach it chooses the outbound policy
@@ -85,8 +90,8 @@ answers exactly as they are and can shrink one endpoint at a time.
 ### Confirmation
 
 `services/engine-service/tests` compare each endpoint with the engine call it wraps, and its
-bytes with FastAPI's encoding. The Java client's tests use a stub server; CI runs the ported
-black-box tests, `/analyze` among them, against the Java API with the real service.
+bytes with FastAPI's encoding. The Java client's tests use a stub server; CI runs the
+black-box suite against the Java API with the real service.
 
 ## Pros and Cons of the Options
 
