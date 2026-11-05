@@ -15,10 +15,11 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | --- | --- |
 | `cost` | the cost estimate before a run: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`), `SizePricing` (the price of a part's size) |
 | `estimate` | the instant estimate: `InstantEstimator` (what textbook queueing formulas predict for a design at its peak, without a run: each part's utilization and wait, each request path's latency and a rough p95, where an average request's time goes, and where the design saturates: `InstantEstimate`) |
+| `review` | the design review: `DesignReview` (an architecture linter over a design as a run simulates it: single points of failure, missing timeouts, stacked retries, timeout inversion, pool exhaustion, unbounded queues, CPU at the peak and more, each a `Finding` with the design's numbers), `ReviewRule` (the rules and their titles), `SeverityCounts` |
 | `scenario` | `ScenarioResolver`: the document a run simulates, a design or one of its scenarios with its defaults in full, its prices pinned and its empty specs auto-sized (`ResolvedDesign`) |
 | `sizing` | auto-sizing: `AutoSizer` (each part's CPU, memory and storage for the design's own peak, snapped to an instance type or a standard shape, with what it needs and why: `PartSize`), one sizer per kind of part, `BaseBusy`, `SizingSummaries` (each part's specs and where they came from, its needs against its instance, the price of its size) |
-| `numeric` | arithmetic as Python does it: `ExactSum` (`math.fsum`), `FloatSum` (the built-in `sum()` of floats, compensated since Python 3.12), `PythonRound` (`round(x, n)`), `Median`, `Erf` (the complementary error function, as fdlibm and Python compute it) |
-| `text` | how the engine writes numbers: `NumberText` (formulas, percentages, short figures, latencies) and `HalfUp` (rounding halves away from zero, as the Python engine does, and JavaScript's `Math.round` as the Python engine computes it) |
+| `numeric` | arithmetic as Python does it: `ExactSum` (`math.fsum`), `FloatSum` (the built-in `sum()` of floats, compensated since Python 3.12), `PythonRound` (`round(x, n)`), `FloorDivision` (`//` on floats), `TrueDivision` (`/` on floats, an error on zero), `Median`, `Erf` (the complementary error function, as fdlibm and Python compute it) |
+| `text` | how the engine writes numbers: `NumberText` (formulas, percentages, short figures, latencies) and `HalfUp` (rounding halves away from zero, as the Python engine does, and JavaScript's `Math.round` as the Python engine computes it); `PythonStrings` (texts folded as Python 3.12 folds them, from `casefold.tsv`, which `scripts/export_casefold.py` writes, and ordered by code point) |
 | `queueing` | the Erlang C formula, the wait in an M/M/c queue, `Moments` of a time (its distribution's, or calls made on average), the p95 of a mix of times (`LognormalMixture`), Zipf key popularity |
 | `load` | the load each part carries without a run: `LoadEstimator` (clients' shares, balancers by replicas, caches' misses, cache-aside write-backs; TTL caches' miss shares), `BaseRate` beside the workload's peak, `TtlCacheTraffic` (a TTL cache's hit ratio) |
 | `settings` | reading a part's settings where the Python engine read the raw settings of a design that may not be valid yet: `LenientSettings` ([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md)), `LoadCurve` (service time by load) |
@@ -34,7 +35,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
 reads the raw settings of a design that may not be valid yet (the load estimate, which kind of
-machine a part runs on, the CPU work on the design's host), the Java reads them through
+machine a part runs on, the CPU work on the design's host, the design review), the Java reads them through
 `LenientSettings`, with the same lenient rules
 ([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md)).
 
@@ -46,6 +47,9 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
 - A rate-limited part first among parts that use none of their limits at the peak: the Python
   summary raises `TypeError` (it has no saturation point to write); the Java estimate throws
   `IllegalStateException`.
+- A part with a load and no CPU (`cpuCores: 0`), a data store whose hot data is zero, or a TTL
+  cache whose items have no size: the Python review divides by zero and raises
+  `ZeroDivisionError`; the Java review throws `ArithmeticException` with the same words.
 
 ## Tests
 
@@ -57,8 +61,12 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   every golden file, and expects the same output: text exactly, numbers to a relative 1e-9.
   `EngineFunctions` maps each Python name to its Java call, through one table per area
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
-  `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`).
-  Ported so far:
+  `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
+  `ReviewFunctions`). Ported so far:
+  - the design review for every case of every template (`review.review_design`,
+    `count_by_severity` and `REVIEW_RULES`; the golden files have none for the invalid
+    documents: `review/cases.json` covers the rules the templates never fire and settings
+    read leniently);
   - the cost estimate before a run (`cost.estimate_cost` without a run's report, and
     `NOT_MODELLED`) and `sizing.sizing_summary`, for every case of every template (the golden
     files have neither for the invalid documents: `cost/cases.json` covers settings read
@@ -90,7 +98,9 @@ Where the Python engine fails, the Java decides for itself, and its tests say ho
   export); `numeric/erfc.csv` holds Python's `math.erfc` at points over every interval of the
   approximation, from `scripts/export_erfc_points.py`. The cost estimate's and the sizing
   summary's cases are in `cost/cases.json`, from `scripts/export_cost_cases.py`, which
-  `CostEstimatorTests` and `SizingSummariesTests` check.
+  `CostEstimatorTests` and `SizingSummariesTests` check. The design review's are in
+  `review/cases.json`, from `scripts/export_review_cases.py`, which `DesignReviewTests`
+  checks.
 - The other tests specify each class.
 - `ArchitectureTests` checks that the engine uses no framework or database class, and that its
   packages have no cycles.

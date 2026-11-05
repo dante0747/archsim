@@ -65,13 +65,15 @@ public final class LenientSettings {
 
 	/**
 	 * A part's settings over its type's defaults: a setting the config leaves out has its
-	 * default, a setting it has is read as it is.
+	 * default, a setting it has is read as it is. A default of {@code null} is left out,
+	 * as the Python engine's {@code default_config()} leaves it out.
 	 * @param spec the part's component type
 	 * @param config the part's config
 	 * @return the settings
 	 */
 	public static LenientSettings overDefaults(ComponentSpec<?> spec, JsonNode config) {
 		ObjectNode merged = RecordCodec.write(spec.parseConfig(JsonNodeFactory.instance.objectNode()));
+		merged.properties().removeIf((setting) -> setting.getValue().isNull());
 		if (config instanceof ObjectNode object) {
 			merged.setAll(object);
 		}
@@ -119,6 +121,16 @@ public final class LenientSettings {
 	}
 
 	/**
+	 * Whether a setting is written as {@code null}: the config has it, without a value.
+	 * @param name the setting's JSON name
+	 * @return {@code true} only for the JSON value {@code null}; not for a setting the
+	 * config leaves out
+	 */
+	public boolean isNull(String name) {
+		return this.config.path(name).isNull();
+	}
+
+	/**
 	 * Whether a setting is exactly {@code true}.
 	 * @param name the setting's JSON name
 	 * @return {@code true} only for the JSON value {@code true}
@@ -126,6 +138,17 @@ public final class LenientSettings {
 	public boolean isTrue(String name) {
 		JsonNode value = this.config.path(name);
 		return value.isBoolean() && value.booleanValue();
+	}
+
+	/**
+	 * Whether a setting is exactly {@code false}, as Python's {@code value is False}
+	 * tests it.
+	 * @param name the setting's JSON name
+	 * @return {@code true} only for the JSON value {@code false}
+	 */
+	public boolean isFalse(String name) {
+		JsonNode value = this.config.path(name);
+		return value.isBoolean() && !value.booleanValue();
 	}
 
 	/**

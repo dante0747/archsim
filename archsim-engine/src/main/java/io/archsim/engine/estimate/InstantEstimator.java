@@ -1,7 +1,6 @@
 package io.archsim.engine.estimate;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -10,11 +9,9 @@ import java.util.OptionalDouble;
 import java.util.OptionalLong;
 
 import io.archsim.engine.host.HostSpeeds;
-import io.archsim.engine.host.PartWork;
 import io.archsim.engine.load.CacheMisses;
 import io.archsim.engine.load.LoadEstimate;
 import io.archsim.engine.load.LoadEstimator;
-import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.numeric.FloatSum;
 import io.archsim.engine.queueing.LognormalMixture;
 import io.archsim.engine.settings.LenientSettings;
@@ -25,7 +22,6 @@ import io.archsim.model.component.cache.CacheSpec;
 import io.archsim.model.component.database.DatabaseSpec;
 import io.archsim.model.component.service.ServiceSpec;
 import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.document.HostSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.Workload;
 import io.archsim.model.text.PythonFormat;
@@ -187,20 +183,11 @@ public final class InstantEstimator {
 	 */
 	private static Map<String, Double> speeds(ArchitectureDocument resolved, EstimateGraph graph, LoadEstimate load,
 			double peak) {
-		Map<String, PartWork> work = new LinkedHashMap<>();
-		Map<String, Double> siblingSpeeds = new LinkedHashMap<>();
-		for (NodeSpec node : resolved.architecture().nodes()) {
-			Optional<NodeLoad> carried = load.node(node.id());
-			Optional<Record> config = graph.config(node.id());
-			if (MACHINE_TYPES.contains(node.type()) && config.isPresent() && carried.isPresent()) {
-				LenientSettings settings = LenientSettings.of(RecordCodec.write(config.get()));
-				PartWork.withCpuSize(node.type(), settings, carried.get())
-					.ifPresentOrElse((found) -> work.put(node.id(), found), () -> work.remove(node.id()));
-				settings.number("siblingSpeed").ifPresent((speed) -> siblingSpeeds.put(node.id(), speed));
-			}
-		}
-		HostSpec host = resolved.architecture().host();
-		return (host != null) ? HostSpeeds.onHost(host, work, peak) : HostSpeeds.onOwnThreads(work, siblingSpeeds);
+		return HostSpeeds.at(resolved.architecture(), load,
+				(node) -> MACHINE_TYPES.contains(node.type())
+						? graph.config(node.id()).map((config) -> LenientSettings.of(RecordCodec.write(config)))
+						: Optional.empty(),
+				peak);
 	}
 
 }

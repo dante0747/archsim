@@ -35,6 +35,14 @@ class LenientSettingsTests {
 	}
 
 	@Test
+	void isFalse_onlyTheValueFalse_isFalse() {
+		assertThat(settings("{\"blocking\": false}").isFalse("blocking")).isTrue();
+		assertThat(settings("{\"blocking\": 0}").isFalse("blocking")).isFalse();
+		assertThat(settings("{\"blocking\": null}").isFalse("blocking")).isFalse();
+		assertThat(settings("{}").isFalse("blocking")).isFalse();
+	}
+
+	@Test
 	void truthy_aMissingSetting_isWhatTheCallerSays() {
 		assertThat(settings("{}").truthy("populateOnMiss", true)).isTrue();
 	}
@@ -107,6 +115,25 @@ class LenientSettingsTests {
 				JSON.readTree("{}"));
 
 		assertThat(cache.number("ttlSeconds")).isPresent();
+	}
+
+	@Test
+	void overDefaults_aDefaultOfNone_isLeftOut() {
+		LenientSettings queue = LenientSettings
+			.overDefaults(StandardComponents.registry().find("message_queue").orElseThrow(), JSON.readTree("{}"));
+
+		assertThat(queue.isNull("maxDepth")).isFalse();
+	}
+
+	@Test
+	void isNull_aSettingWrittenAsNull_isNull() {
+		assertThat(settings("{\"maxDepth\": null}").isNull("maxDepth")).isTrue();
+	}
+
+	@Test
+	void isNull_aMissingOrSetSetting_isNotNull() {
+		assertThat(settings("{\"maxDepth\": 5}").isNull("maxDepth")).isFalse();
+		assertThat(settings("{}").isNull("maxDepth")).isFalse();
 	}
 
 	private static LenientSettings settings(String json) {

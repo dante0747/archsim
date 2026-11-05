@@ -1,5 +1,9 @@
 package io.archsim.engine.cost;
 
+import java.util.List;
+
+import io.archsim.engine.numeric.FloatSum;
+
 /**
  * One priced quantity of a cost line, such as "3.94 M requests × $0.20/M".
  *
@@ -41,6 +45,15 @@ public record CostItem(String what, double quantity, String unit, double per, do
 	static CostItem perMillion(String what, double quantity, double unitPrice, String unit) {
 		return new CostItem(what, quantity, unit, MILLION, unitPrice, quantity / MILLION * unitPrice,
 				text(what, quantity, unitPrice, "M"));
+	}
+
+	/**
+	 * Items' monthly total, summed as Python's {@code sum()}.
+	 * @param items the items
+	 * @return the total
+	 */
+	static double total(List<CostItem> items) {
+		return FloatSum.of(items.stream().mapToDouble(CostItem::monthly));
 	}
 
 	private static String text(String what, double quantity, double unitPrice, String per) {

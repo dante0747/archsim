@@ -156,7 +156,7 @@ public final class CostEstimator {
 		}
 
 		/**
-		 * The part's line: on a cluster, per call, managed, on implied pods, or per
+		 * Adds the part's line: on a cluster, per call, managed, on implied pods, or per
 		 * instance-hour.
 		 * @param part the part
 		 */
@@ -168,44 +168,58 @@ public final class CostEstimator {
 				return;
 			}
 			if (ExternalApiSpec.TYPE.equals(part.type())) {
-				CostLine line = ExternalApiLine.of(part, this.usage.get(part.id()));
-				this.flags.markCalls(line);
-				this.lines.add(line);
+				addCalls(part);
 				return;
 			}
-			Optional<CostLine> line = (this.quotes.origin(part) != PriceBasis.SET) ? snapshotLine(part)
-					: Optional.empty();
-			if (line.isPresent()) {
-				this.flags.markPriced();
-				this.flags.markSnapshotPriced();
-				this.lines.add(line.get());
-				return;
+			if (this.quotes.origin(part) != PriceBasis.SET) {
+				Optional<CostLine> managedLine = this.managed.line(part, this.usage.get(part.id()),
+						this.document.workload().keyCount());
+				if (managedLine.isPresent()) {
+					addSnapshotPriced(managedLine.get());
+					return;
+				}
+				Optional<ImpliedPods> pods = ImpliedPods.of(part, this.snapshot, this.pricing.purchase().option());
+				if (pods.isPresent()) {
+					addImpliedPods(part, pods.get());
+					return;
+				}
 			}
+			addQuote(part);
+		}
+
+		private void addCalls(CostPart part) {
+			CostLine line = ExternalApiLine.of(part, this.usage.get(part.id()));
+			this.flags.markCalls(line);
+			this.lines.add(line);
+		}
+
+		/**
+		 * Adds a service's pods on implied nodes; their control plane is added once,
+		 * after every part.
+		 * @param part the service
+		 * @param pods the node type its pods run on
+		 */
+		private void addImpliedPods(CostPart part, ImpliedPods pods) {
+			this.flags.markImpliedPods();
+			addSnapshotPriced(KubernetesLines.onPods(part, pods, Instances.of(part, CostEstimator.this.registry),
+					this.snapshot.snapshotDate()));
+		}
+
+		/**
+		 * Adds a line the snapshot prices other than per instance-hour.
+		 * @param line the line
+		 */
+		private void addSnapshotPriced(CostLine line) {
+			this.flags.markPriced();
+			this.flags.markSnapshotPriced();
+			this.lines.add(line);
+		}
+
+		private void addQuote(CostPart part) {
 			Quote quote = this.quotes.quote(part);
 			this.flags.markQuote(quote, this.snapshot);
 			this.lines.add(QuoteLines.of(part, quote,
 					new QuoteLines.Context(this.snapshot, CostEstimator.this.registry, this.baseBusy.get(part.id()))));
-		}
-
-		/**
-		 * A part the snapshot prices other than per instance-hour: a managed part, or a
-		 * service's pods on implied nodes.
-		 * @param part the part
-		 * @return its line; empty for a part priced per instance-hour
-		 */
-		private Optional<CostLine> snapshotLine(CostPart part) {
-			Optional<CostLine> line = this.managed.line(part, this.usage.get(part.id()),
-					this.document.workload().keyCount());
-			if (line.isPresent()) {
-				return line;
-			}
-			Optional<ImpliedPods> pods = ImpliedPods.of(part, this.snapshot, this.pricing.purchase().option());
-			if (pods.isEmpty()) {
-				return Optional.empty();
-			}
-			this.flags.markImpliedPods();
-			return Optional.of(KubernetesLines.onPods(part, pods.get(), Instances.of(part, CostEstimator.this.registry),
-					this.snapshot.snapshotDate()));
 		}
 
 		private boolean perRequest() {

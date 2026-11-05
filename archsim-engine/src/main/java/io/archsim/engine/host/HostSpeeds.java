@@ -2,14 +2,49 @@ package io.archsim.engine.host;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 
+import io.archsim.engine.load.LoadEstimate;
+import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.numeric.FloatSum;
+import io.archsim.engine.settings.LenientSettings;
+import io.archsim.model.document.Architecture;
 import io.archsim.model.document.HostSpec;
+import io.archsim.model.document.NodeSpec;
 
 /** The speed each part's CPU work runs at on the design's host machine, at a load. */
 public final class HostSpeeds {
 
 	private HostSpeeds() {
+	}
+
+	/**
+	 * The speed of each part whose CPU threads slow each other down at a load (schema
+	 * 1.7): on the design's host, else on a part's own hyperthreads. Of two parts with
+	 * one id, the later counts, as in the Python engine's dictionaries.
+	 * @param architecture the design's architecture
+	 * @param load each part's load
+	 * @param settingsOf each part's settings as the caller reads them; empty for a part
+	 * it leaves out
+	 * @param clientRps the clients' requests per second
+	 * @return the speed of each slowed part, by its id
+	 */
+	public static Map<String, Double> at(Architecture architecture, LoadEstimate load,
+			Function<NodeSpec, Optional<LenientSettings>> settingsOf, double clientRps) {
+		Map<String, PartWork> work = new LinkedHashMap<>();
+		Map<String, Double> siblingSpeeds = new LinkedHashMap<>();
+		for (NodeSpec node : architecture.nodes()) {
+			Optional<NodeLoad> carried = load.node(node.id());
+			Optional<LenientSettings> settings = settingsOf.apply(node);
+			if (carried.isPresent() && settings.isPresent()) {
+				PartWork.withCpuSize(node.type(), settings.get(), carried.get())
+					.ifPresentOrElse((found) -> work.put(node.id(), found), () -> work.remove(node.id()));
+				settings.get().number("siblingSpeed").ifPresent((speed) -> siblingSpeeds.put(node.id(), speed));
+			}
+		}
+		HostSpec host = architecture.host();
+		return (host != null) ? onHost(host, work, clientRps) : onOwnThreads(work, siblingSpeeds);
 	}
 
 	/**

@@ -77,7 +77,7 @@ final class Quotes {
 	 * @param part the part
 	 * @param origin where its {@code costPerHour} came from; {@code null} for its size's
 	 * price only
-	 * @return the price; empty without a size
+	 * @return the price; empty without a preset price or a size
 	 */
 	private Optional<Quote> sized(CostPart part, @Nullable PriceBasis origin) {
 		Sizes sizes = sizes(part);

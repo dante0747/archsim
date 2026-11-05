@@ -7,8 +7,7 @@ import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 
-import io.archsim.engine.cost.ManagedLines.Billed;
-import io.archsim.engine.cost.ManagedLines.Billing;
+import io.archsim.engine.cost.SnapshotLines.Billing;
 import io.archsim.engine.text.HalfUp;
 import io.archsim.engine.text.NumberText;
 import io.archsim.model.codec.BindingException;
@@ -33,14 +32,14 @@ final class DynamoDbLine {
 	/** Bytes in a GiB, 2 to the 30th. */
 	private static final double BYTES_PER_GIB = 1L << 30;
 
-	private final PriceSnapshot snapshot;
+	private final SnapshotLines lines;
 
 	private final Map<String, @Nullable Double> rates;
 
 	private final Optional<ComponentSpec<?>> database;
 
 	DynamoDbLine(PriceSnapshot snapshot, ComponentRegistry registry) {
-		this.snapshot = snapshot;
+		this.lines = new SnapshotLines(snapshot.snapshotDate());
 		this.rates = snapshot.rates();
 		this.database = registry.find(DatabaseSpec.TYPE);
 	}
@@ -80,9 +79,9 @@ final class DynamoDbLine {
 						CostItem.of("WCU-hours", wcu * CostEstimator.HOURS_PER_MONTH, wcuHour, "WCU-hour")));
 		String basis = NumberText.plain(rcu) + " RCU + " + NumberText.plain(wcu) + " WCU provisioned";
 		addStorage(items, part, config, keyCount);
-		double total = ManagedLines.total(items);
-		return Optional.of(priced(part, new Billing(1, total / CostEstimator.HOURS_PER_MONTH, CostUnit.HOUR, total),
-				basis, items));
+		double total = CostItem.total(items);
+		return Optional.of(this.lines.line(part,
+				new Billing(1, total / CostEstimator.HOURS_PER_MONTH, CostUnit.HOUR, total), basis, items));
 	}
 
 	private Optional<CostLine> onDemand(CostPart part, DatabaseConfig config, @Nullable Usage use, double keyCount) {
@@ -92,7 +91,7 @@ final class DynamoDbLine {
 			return Optional.empty();
 		}
 		if (use == null) {
-			return Optional.of(priced(part, new Billing(0, null, CostUnit.MILLION, 0.0),
+			return Optional.of(this.lines.line(part, new Billing(0, null, CostUnit.MILLION, 0.0),
 					"per request unit (run a simulation to price it)", List.of()));
 		}
 		double perRead = config.unitsPerRead();
@@ -106,8 +105,8 @@ final class DynamoDbLine {
 				+ HalfUp.fixed(use.write(), 1) + " writes/s × " + NumberText.plain(perWrite)
 				+ " unit at the base load, on demand";
 		addStorage(items, part, config, keyCount);
-		double total = ManagedLines.total(items);
-		return Optional.of(priced(part, new Billing(0, null, CostUnit.MILLION, total), basis, items));
+		double total = CostItem.total(items);
+		return Optional.of(this.lines.line(part, new Billing(0, null, CostUnit.MILLION, total), basis, items));
 	}
 
 	/**
@@ -124,10 +123,6 @@ final class DynamoDbLine {
 		if (storage != null && size > 0) {
 			items.add(CostItem.of("GiB-months stored", size, storage, "GiB-month"));
 		}
-	}
-
-	private CostLine priced(CostPart part, Billing billing, String basis, List<CostItem> items) {
-		return ManagedLines.priced(part, new Billed(billing, this.snapshot.snapshotDate()), basis, items);
 	}
 
 	private Optional<DatabaseConfig> config(CostPart part) {

@@ -8,7 +8,7 @@ import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 
-import io.archsim.engine.numeric.FloatSum;
+import io.archsim.engine.cost.SnapshotLines.Billing;
 import io.archsim.engine.settings.LenientSettings;
 import io.archsim.engine.text.HalfUp;
 import io.archsim.engine.text.NumberText;
@@ -49,12 +49,15 @@ final class ManagedLines {
 
 	private final PriceSnapshot snapshot;
 
+	private final SnapshotLines lines;
+
 	private final Map<String, @Nullable Double> rates;
 
 	private final DynamoDbLine dynamoDb;
 
 	ManagedLines(PriceSnapshot snapshot, DynamoDbLine dynamoDb) {
 		this.snapshot = snapshot;
+		this.lines = new SnapshotLines(snapshot.snapshotDate());
 		this.rates = snapshot.rates();
 		this.dynamoDb = dynamoDb;
 	}
@@ -111,8 +114,9 @@ final class ManagedLines {
 		else {
 			basis += " (capacity units not included)";
 		}
-		double total = total(items);
-		return priced(part, new Billing(1, total / CostEstimator.HOURS_PER_MONTH, CostUnit.HOUR, total), basis, items);
+		double total = CostItem.total(items);
+		return this.lines.line(part, new Billing(1, total / CostEstimator.HOURS_PER_MONTH, CostUnit.HOUR, total), basis,
+				items);
 	}
 
 	private CostLine gateway(CostPart part, @Nullable Usage use, double perMillion) {
@@ -167,57 +171,9 @@ final class ManagedLines {
 	}
 
 	private CostLine perRequest(CostPart part, List<CostItem> items, String basis, @Nullable Double requests) {
-		double total = total(items);
+		double total = CostItem.total(items);
 		Double unitPrice = (requests != null && requests != 0) ? total / requests * CostItem.MILLION : null;
-		return priced(part, new Billing(0, unitPrice, CostUnit.MILLION, total), basis, items);
-	}
-
-	private CostLine priced(CostPart part, Billing billing, String basis, List<CostItem> items) {
-		return priced(part, new Billed(billing, this.snapshot.snapshotDate()), basis, items);
-	}
-
-	/**
-	 * A managed part's line.
-	 * @param part the part
-	 * @param billed how it is billed, and the date of the snapshot that prices it
-	 * @param basis how it was worked out
-	 * @param items each priced quantity
-	 * @return the line, priced by the snapshot
-	 */
-	static CostLine priced(CostPart part, Billed billed, String basis, List<CostItem> items) {
-		Billing billing = billed.billing();
-		return new CostLine(part.id(), part.label(), part.type(), part.technology(), billing.instances(),
-				billing.unitPrice(), PriceBasis.SNAPSHOT, billing.unit(), billing.monthly(), basis, null, null, null,
-				billed.snapshotDate(), items);
-	}
-
-	/**
-	 * The items' monthly total, summed as Python's {@code sum()}.
-	 * @param items the items
-	 * @return the total
-	 */
-	static double total(List<CostItem> items) {
-		return FloatSum.of(items.stream().mapToDouble(CostItem::monthly));
-	}
-
-	/**
-	 * How a managed part is billed.
-	 *
-	 * @param instances its billable instances
-	 * @param unitPrice its price per hour or per million; {@code null} when unknown
-	 * @param unit what the unit price is per
-	 * @param monthly its monthly cost
-	 */
-	record Billing(double instances, @Nullable Double unitPrice, CostUnit unit, double monthly) {
-	}
-
-	/**
-	 * How a managed part is billed, at a snapshot's rates.
-	 *
-	 * @param billing its instances, unit price, unit and monthly cost
-	 * @param snapshotDate the date of the snapshot that prices it
-	 */
-	record Billed(Billing billing, @Nullable String snapshotDate) {
+		return this.lines.line(part, new Billing(0, unitPrice, CostUnit.MILLION, total), basis, items);
 	}
 
 }

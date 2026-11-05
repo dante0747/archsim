@@ -1,5 +1,6 @@
 package io.archsim.engine.settings;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -19,6 +20,11 @@ public final class LoadCurve {
 
 	/** A curve without points: the factor is 1 at every rate. */
 	public static final LoadCurve FLAT = new LoadCurve(new TreeMap<>());
+
+	private static final double MILLIS_PER_SECOND = 1000;
+
+	/** How many times the search for a capacity halves its range. */
+	private static final int HALVINGS = 60;
 
 	private final NavigableMap<Double, Double> points;
 
@@ -84,6 +90,33 @@ public final class LoadCurve {
 		Map.Entry<Double, Double> above = this.points.ceilingEntry(rps);
 		double position = Math.log(rps / below.getKey()) / Math.log(above.getKey() / below.getKey());
 		return below.getValue() + (above.getValue() - below.getValue()) * position;
+	}
+
+	/**
+	 * The rate one replica can serve when it could serve {@code baseRps} at factor 1: the
+	 * rate at which {@code rate × factorAt(rate)} reaches {@code baseRps}, as its CPU
+	 * fills at that rate's cost. The busy time grows with the rate, so halving the range
+	 * in log(rate) 60 times finds the one crossing.
+	 * @param baseRps the rate one replica serves at factor 1
+	 * @return the rate it serves; {@code baseRps} without points, zero without a rate
+	 */
+	public double capacityRps(double baseRps) {
+		if (this.points.isEmpty() || baseRps <= 0) {
+			return (baseRps > 0) ? baseRps : 0.0;
+		}
+		double workMs = MILLIS_PER_SECOND / baseRps;
+		double low = MILLIS_PER_SECOND / (workMs * Collections.max(this.points.values()));
+		double high = MILLIS_PER_SECOND / (workMs * Collections.min(this.points.values()));
+		for (int i = 0; i < HALVINGS; i++) {
+			double middle = Math.sqrt(low * high);
+			if (middle * (workMs * factorAt(middle)) < MILLIS_PER_SECOND) {
+				low = middle;
+			}
+			else {
+				high = middle;
+			}
+		}
+		return high;
 	}
 
 	private static void add(NavigableMap<Double, Double> sorted, double rps, double factor) {

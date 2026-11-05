@@ -18,6 +18,10 @@ class LoadCurveTests {
 	private static final LoadCurve CURVE = LoadCurve
 		.ofJson(JSON.readTree("[{\"rps\": 400, \"factor\": 0.5}, {\"rps\": 100, \"factor\": 1.0}]"));
 
+	/** A service 1.8 times slower at 50 req/s than at 1,674 req/s. */
+	private static final LoadCurve SLOWING = LoadCurve
+		.ofJson(JSON.readTree("[{\"rps\": 50, \"factor\": 1.8}, {\"rps\": 1674, \"factor\": 1.0}]"));
+
 	@Test
 	void factorAt_noPoints_isOne() {
 		assertThat(LoadCurve.FLAT.factorAt(250)).isEqualTo(1.0);
@@ -51,6 +55,33 @@ class LoadCurveTests {
 			.ofJson(JSON.readTree("[{\"rps\": 0, \"factor\": 2}, {\"rps\": 50, \"factor\": true}]"));
 
 		assertThat(curve.isEmpty()).isTrue();
+	}
+
+	@Test
+	void capacityRps_aRateOnTheCurve_isWhereTheReplicasCpuFillsAtThatRatesCost() {
+		// the Python engine's value
+		assertThat(SLOWING.capacityRps(100)).isEqualTo(56.418049988530264);
+	}
+
+	@Test
+	void capacityRps_aRateAboveTheLastPoint_isItsCapacityAtTheLastFactor() {
+		assertThat(SLOWING.capacityRps(2000)).isEqualTo(2000.0);
+	}
+
+	@Test
+	void capacityRps_aRateBelowTheFirstPoint_isItsCapacityAtTheFirstFactor() {
+		assertThat(SLOWING.capacityRps(20)).isEqualTo(11.11111111111111);
+	}
+
+	@Test
+	void capacityRps_noPoints_isTheRateAtFactorOne() {
+		assertThat(LoadCurve.FLAT.capacityRps(123.5)).isEqualTo(123.5);
+	}
+
+	@Test
+	void capacityRps_noRate_isZero() {
+		assertThat(CURVE.capacityRps(0)).isZero();
+		assertThat(LoadCurve.FLAT.capacityRps(-3)).isZero();
 	}
 
 }
