@@ -230,6 +230,9 @@ demand): it rebuilds the us-east-1 snapshot, runs the price tests, and opens a p
 with the new file and a summary of what changed (`scripts/prices/diff.py`: types added, removed
 and repriced, largest changes first). When no price changed it opens nothing. A person reviews
 and merges it. Older snapshots stay in the package, so a design pinned to one reproduces.
+During the Java port the schedule is paused, because the snapshots live in the frozen Python
+engine ([ADR-0026](adr/0026-component-specs-and-price-snapshots-in-the-model.md)). It returns at
+stage 4, when the Java engine owns them.
 
 After the merge, **new projects** pin the new snapshot (the API pins the newest AWS us-east-1
 snapshot the engine ships). **Templates** keep the date they name, because a new snapshot can

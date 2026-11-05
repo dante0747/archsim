@@ -13,9 +13,12 @@ name: Price refresh
 # Pull requests opened with the default GITHUB_TOKEN do not start other workflows (CI): set a
 # PRICES_PR_TOKEN secret (a fine-grained token with contents and pull-requests write) to have CI
 # run on them, or close and reopen the pull request.
+#
+# Paused during the Java port: the snapshots live in the frozen Python engine, so a refresh can't
+# land there (ADR-0026, ADR-0017). The monthly schedule ("23 6 2 * *", 06:23 UTC on the 2nd)
+# comes back at stage 4, when the Python engine goes and the snapshots move to the model's
+# resources. It can still be run by hand.
 on:
-  schedule:
-    - cron: "23 6 2 * *" # 06:23 UTC on the 2nd of every month
   workflow_dispatch:
 
 permissions:
