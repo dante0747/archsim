@@ -9,8 +9,6 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.web.ApiException;
 
@@ -24,9 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  */
 class EngineServiceRetryTests {
 
-	private static final JsonNode DESIGN = JsonMapper.builder()
-		.build()
-		.readTree("{\"kind\": \"archsim.architecture\"}");
+	private static final String TEXT = "services: {}";
 
 	private final AtomicInteger attempts = new AtomicInteger();
 
@@ -36,40 +32,40 @@ class EngineServiceRetryTests {
 	}
 
 	@Test
-	void export_connectionDroppedBeforeAnAnswer_isSentOnceMore() {
+	void importDesign_connectionDroppedBeforeAnAnswer_isSentOnceMore() {
 		EngineService engine = failingWith(new IOException("HTTP/1.1 header parser received no bytes"));
 
-		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.export(DESIGN, "mermaid"))
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.importDesign("compose", TEXT, null))
 			.withMessageStartingWith("The simulation engine is not available right now");
 		assertThat(this.attempts).hasValue(2);
 	}
 
 	@Test
-	void export_timedOut_isSentOnce() {
+	void importDesign_timedOut_isSentOnce() {
 		EngineService engine = failingWith(new HttpTimeoutException("request timed out"));
 
-		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.export(DESIGN, "mermaid"))
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.importDesign("compose", TEXT, null))
 			.withMessageStartingWith("The simulation engine took too long to answer");
 		assertThat(this.attempts).hasValue(1);
 	}
 
 	@Test
-	void export_connectionRefused_isSentOnce() {
+	void importDesign_connectionRefused_isSentOnce() {
 		EngineService engine = failingWith(new ConnectException("Connection refused"));
 
-		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.export(DESIGN, "mermaid"))
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.importDesign("compose", TEXT, null))
 			.withMessageStartingWith("The simulation engine is not available right now");
 		assertThat(this.attempts).hasValue(1);
 	}
 
 	@Test
-	void export_interrupted_isSentOnce() {
+	void importDesign_interrupted_isSentOnce() {
 		EngineService engine = new EngineService(failingClient(() -> {
 			Thread.currentThread().interrupt();
 			return new IOException("Request was interrupted");
 		}));
 
-		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.export(DESIGN, "mermaid"));
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.importDesign("compose", TEXT, null));
 		assertThat(this.attempts).hasValue(1);
 	}
 

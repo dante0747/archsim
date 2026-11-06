@@ -2,6 +2,7 @@ package io.archsim.engine.settings;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.component.standard.StandardComponents;
 
@@ -23,6 +24,20 @@ class LenientSettingsTests {
 
 		assertThat(settings.number("replicas")).isEmpty();
 		assertThat(settings.number("workers")).isEmpty();
+	}
+
+	@Test
+	void value_settingLeftOut_isAMissingNode() {
+		assertThat(settings("{\"replicas\": 3}").value("platform").isMissingNode()).isTrue();
+	}
+
+	@Test
+	void value_objectSetting_isACopy() {
+		LenientSettings settings = settings("{\"serviceTimeMs\": {\"kind\": \"constant\", \"value\": 10}}");
+
+		((ObjectNode) settings.value("serviceTimeMs")).put("value", 20);
+
+		assertThat(settings.value("serviceTimeMs").path("value").intValue()).isEqualTo(10);
 	}
 
 	@Test

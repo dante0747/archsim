@@ -38,13 +38,16 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `findings` | what a run found: `RunAnalysis` (each part's status, a `Classification`, from its utilization, CPU, rejections and queue; the root causes and the symptoms of a part downstream; what clients saw; work wasted on clients that gave up; caches; data stores' hot shards, replicas, lag and locks; third parties' errors and latency; throttling; pending pods; each fault's impact; autoscaling, serverless cold starts and queue lag), each a `RunFinding` with the figures it rests on |
 | `check` | the SLO gate for CI, `archsim check`, as a library for stage 5's command: `Measurement` (what a check compares of a run: its figures, cost, objectives judged and confidence), `Regressions` (each figure against the baseline's, the breaking point to one step of its load grid), `CheckResult` (whether the check passes, as it fails on objectives or regressions), `CheckText` (its headline and pull-request comment, the design's text escaped); the sweep of the breaking point needs the simulator (stage 4) |
 | `compare` | comparing two runs: `RunComparer` (each run figure with a verdict, each part side by side, what changed in words and why the runs may differ otherwise: `RunComparison`), `InputDiff` (the settings two simulated designs differ in, as the reports store them, compared as Python compares them; [ADR-0040](../docs/adr/0040-comparison-copies-what-it-does-not-read.md)) |
+| `export` | exporting a design: `DesignExporter` (the design auto-sized as a run would simulate it, then written in an `ExportFormat`), `ComposeExport` (a docker-compose file), `KubernetesExport` (Kubernetes manifests, with a CPU request below the cores for an auto-sized part), `MermaidExport` (a Mermaid flowchart); each part's settings read leniently over its type's defaults, and the YAML written by a small writer of its own, `YamlText`, as the Python engine wrote it, so the texts match to the character ([ADR-0042](../docs/adr/0042-exports-read-settings-leniently-and-write-their-own-yaml.md)) |
+| `roundtrip` | what the exports carry so an import gives the design back: `RoundTrip` (each part's outgoing links as `target[/port][:types][!flag...]`, and the parts nothing deploys) |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
 reads the raw settings of a design that may not be valid yet (the load estimate, which kind of
-machine a part runs on, the CPU work on the design's host, the design review), the Java reads them
-through `LenientSettings`, with the same lenient rules
-([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md)).
+machine a part runs on, the CPU work on the design's host, the design review, the exports), the
+Java reads them through `LenientSettings`, with the same lenient rules
+([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md),
+[ADR-0042](../docs/adr/0042-exports-read-settings-leniently-and-write-their-own-yaml.md)).
 
 A run's report is read into records of the parts the engine reads (`RunReport`, `RunSummary`,
 `ReportNode` and the rest), each by its own `read`, which skips what they do not name: a value
@@ -69,7 +72,8 @@ decision):
 
 - A link to a part that does not exist: the Python estimate raises `KeyError`; the Java estimate
   leaves the calling part and the latency unestimated, so a half-drawn design still gets an
-  estimate (validation reports the link).
+  estimate (validation reports the link). Its export works too, without the link: the Python
+  export failed in its auto-sizing's estimate.
 - A rate-limited part first among parts that use none of their limits at the peak: the Python
   summary raises `TypeError` (it has no saturation point to write); the Java summary names the
   rate limit's use without a saturation point, and `saturationRps` is `null`.

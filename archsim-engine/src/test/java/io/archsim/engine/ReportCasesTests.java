@@ -1,19 +1,12 @@
 package io.archsim.engine;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.Parity;
@@ -35,11 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("The report functions match the frozen Python engine where the golden files do not reach")
 class ReportCasesTests {
 
-	private static final JsonMapper JSON = JsonMapper.builder().build();
-
 	private static final String CASES = "report/cases.json";
 
-	private static final List<GoldenEntry> ENTRIES = entries();
+	private static final List<GoldenEntry> ENTRIES = CaseFiles.entries(CASES);
 
 	@TestFactory
 	Stream<DynamicTest> reportFunction_everyCase_givesTheFrozenEnginesOutput() {
@@ -51,25 +42,6 @@ class ReportCasesTests {
 	@Test
 	void cases_everyFunctionTheyCall_isPorted() {
 		assertThat(ENTRIES).extracting(GoldenEntry::fn).allMatch(EngineFunctions.names()::contains);
-	}
-
-	private static List<GoldenEntry> entries() {
-		List<GoldenEntry> entries = new ArrayList<>();
-		for (JsonNode call : read()) {
-			entries.add(new GoldenEntry(CASES, call.get("name").stringValue(), call.get("fn").stringValue(),
-					(ObjectNode) call.get("input"), call.get("output"), null));
-		}
-		return entries;
-	}
-
-	private static JsonNode read() {
-		try (InputStream cases = Objects
-			.requireNonNull(ReportCasesTests.class.getResourceAsStream("/io/archsim/engine/" + CASES), CASES)) {
-			return JSON.readTree(cases);
-		}
-		catch (IOException ex) {
-			throw new IllegalStateException("cannot read " + CASES, ex);
-		}
 	}
 
 }

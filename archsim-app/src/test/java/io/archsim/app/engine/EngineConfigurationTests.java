@@ -16,7 +16,6 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
-import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
@@ -48,7 +47,7 @@ class EngineConfigurationTests {
 	void engineService_request_asksForNoProtocolUpgrade() throws IOException {
 		EngineService engine = engine(Duration.ZERO, Duration.ofSeconds(5));
 
-		engine.export(JsonMapper.builder().build().createObjectNode(), "mermaid");
+		engine.importDesign("compose", "services: {}", null);
 
 		assertThat(this.upgrade.get()).isNull();
 	}
@@ -58,7 +57,7 @@ class EngineConfigurationTests {
 		EngineService engine = engine(Duration.ofSeconds(3), Duration.ofSeconds(1));
 
 		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> engine.export(JsonMapper.builder().build().createObjectNode(), "mermaid"))
+			.isThrownBy(() -> engine.importDesign("compose", "services: {}", null))
 			.satisfies((ex) -> {
 				assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
 				assertThat(ex.getMessage()).startsWith("The simulation engine took too long to answer");
@@ -69,7 +68,7 @@ class EngineConfigurationTests {
 	void engineService_connectionDroppedBeforeTheAnswer_sendsTheCallOnceMore() throws IOException {
 		EngineService engine = droppingFirst(1);
 
-		JsonText answer = engine.export(JsonMapper.builder().build().createObjectNode(), "mermaid");
+		JsonText answer = engine.importDesign("compose", "services: {}", null);
 
 		assertThat(answer.json()).isEqualTo("{}");
 		assertThat(this.requests).hasValue(2);
@@ -80,7 +79,7 @@ class EngineConfigurationTests {
 		EngineService engine = droppingFirst(2);
 
 		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> engine.export(JsonMapper.builder().build().createObjectNode(), "mermaid"))
+			.isThrownBy(() -> engine.importDesign("compose", "services: {}", null))
 			.satisfies((ex) -> {
 				assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
 				assertThat(ex.getMessage()).startsWith("The simulation engine is not available right now");

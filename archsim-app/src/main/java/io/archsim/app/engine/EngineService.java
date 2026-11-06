@@ -28,8 +28,8 @@ import io.archsim.model.issue.Issue;
 
 /**
  * The Python engine service (ADR-0036), which runs the engine's synchronous calls until
- * stage 3 of the port moves each one to Java: exports, imports and calibration. Its
- * answers are passed on as it wrote them.
+ * stage 3 of the port moves each one to Java: imports and calibration. Its answers are
+ * passed on as it wrote them.
  */
 public final class EngineService {
 
@@ -45,22 +45,6 @@ public final class EngineService {
 	 */
 	public EngineService(RestClient http) {
 		this.http = http;
-	}
-
-	/**
-	 * A design as docker-compose, Kubernetes manifests or a Mermaid diagram.
-	 * @param document the design
-	 * @param format {@code compose}, {@code k8s} or {@code mermaid}
-	 * @return {@code {format, text, suffix, mediaType}}, as the engine wrote them
-	 * @throws EngineRefusalException when the engine cannot read the design
-	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
-	 * late
-	 */
-	public JsonText export(JsonNode document, String format) {
-		ObjectNode request = JSON.createObjectNode();
-		request.set("document", document);
-		request.put("format", format);
-		return call("/export", request);
 	}
 
 	/**

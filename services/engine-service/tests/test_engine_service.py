@@ -14,10 +14,12 @@ from archsim_engine import (
     ENGINE_VERSION,
     default_registry,
 )
-from archsim_engine.export import FORMATS, export_document
+from archsim_engine.importers import import_design
 from archsim_engine_service.app import create_app
 
 EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
+
+COMPOSE = "services:\n  api:\n    image: nginx\n"
 
 CALIBRATION = (
     Path(__file__).resolve().parents[3]
@@ -56,13 +58,12 @@ def test_unknown_path_is_not_found(client: TestClient) -> None:
     [
         (b"not json", "Request body is not JSON"),
         (b"[]", "Request body must be a JSON object"),
-        (b'{"document": 1, "format": "mermaid"}', "document must be a JSON object"),
     ],
 )
 def test_request_it_cannot_read_is_a_bad_request(
     client: TestClient, body: bytes, message: str
 ) -> None:
-    response = client.post("/export", content=body)
+    response = client.post("/import", content=body)
 
     assert response.status_code == 400
     assert response.json()["message"].startswith(message)
@@ -70,43 +71,12 @@ def test_request_it_cannot_read_is_a_bad_request(
 
 def test_answer_is_the_bytes_fastapi_wrote(client: TestClient) -> None:
     fastapi = pytest.importorskip("fastapi.encoders")
-    suffix, media_type = FORMATS["mermaid"]
-    expected = {
-        "format": "mermaid",
-        "text": export_document(starter(), "mermaid", default_registry()),
-        "suffix": suffix,
-        "mediaType": media_type,
-    }
+    document, report = import_design("compose", COMPOSE, default_registry(), "Shop")
+    expected = {"document": document, "report": report.to_dict()}
 
-    response = client.post("/export", json={"document": starter(), "format": "mermaid"})
+    response = client.post("/import", json={"format": "compose", "text": COMPOSE, "name": "Shop"})
 
     assert response.content == JSONResponse(fastapi.jsonable_encoder(expected)).body
-
-
-def test_export_starter_answers_the_engines_text_with_its_suffix(client: TestClient) -> None:
-    response = client.post("/export", json={"document": starter(), "format": "compose"})
-
-    assert response.status_code == 200
-    assert response.json()["text"] == export_document(starter(), "compose", default_registry())
-    assert response.json()["format"] == "compose"
-
-
-@pytest.mark.parametrize("fmt", ["helm", "Compose", None, 5, ["compose"]])
-def test_export_format_the_engine_does_not_export_to_is_a_bad_request(
-    client: TestClient, fmt: Any
-) -> None:
-    response = client.post("/export", json={"document": starter(), "format": fmt})
-
-    assert response.status_code == 400
-    assert response.json()["message"] == "format must be one of compose, k8s, mermaid"
-
-
-def test_export_unreadable_document_is_invalid(client: TestClient) -> None:
-    response = client.post("/export", json={"document": {"kind": "nope"}, "format": "mermaid"})
-
-    assert response.status_code == 422
-    assert response.json()["kind"] == "invalid"
-    assert response.json()["issues"]
 
 
 def test_import_compose_answers_a_design_and_its_report(client: TestClient) -> None:
@@ -152,6 +122,17 @@ def test_calibrate_recorded_prometheus_answers_the_calibrated_design(client: Tes
     assert response.status_code == 200, response.text
     assert len(response.json()["changes"]) == 13
     assert response.json()["summary"].startswith("This model reproduces the observed p95")
+
+
+def test_calibrate_document_that_is_not_an_object_is_a_bad_request(client: TestClient) -> None:
+    recorded = json.loads((CALIBRATION / "starter-prometheus.json").read_text("utf-8"))
+    mapping = (CALIBRATION / "starter-mapping.yaml").read_text("utf-8")
+    body = calibrate_body(source="prometheus", mapping=mapping, recorded=recorded, document=1)
+
+    response = client.post("/calibrate", json=body)
+
+    assert response.status_code == 400
+    assert response.json()["message"] == "document must be a JSON object"
 
 
 def test_calibrate_otlp_traces_answers_the_changes(client: TestClient) -> None:

@@ -16,7 +16,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.RestClient;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -36,7 +35,7 @@ class EngineServiceTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	private static final JsonNode DESIGN = JSON.readTree("{\"kind\": \"archsim.architecture\"}");
+	private static final String TEXT = "services: {}";
 
 	private static final OutboundPolicy POLICY = new OutboundPolicy(Outbound.ALLOWLIST, List.of("prom:9090"), 30.0,
 			1024);
@@ -55,48 +54,39 @@ class EngineServiceTests {
 	}
 
 	@Test
-	void export_answer_isPassedOnAsWritten() throws IOException {
-		EngineService engine = serving(200, "{\"format\":\"mermaid\",\"tiny\":1e-05}");
+	void importDesign_answer_isPassedOnAsWritten() throws IOException {
+		EngineService engine = serving(200, "{\"document\":{},\"tiny\":1e-05}");
 
-		JsonText answer = engine.export(DESIGN, "mermaid");
+		JsonText answer = engine.importDesign("compose", TEXT, null);
 
-		assertThat(answer.json()).isEqualTo("{\"format\":\"mermaid\",\"tiny\":1e-05}");
+		assertThat(answer.json()).isEqualTo("{\"document\":{},\"tiny\":1e-05}");
 	}
 
 	@Test
-	void export_designTheEngineCannotRead_throwsItsIssues() throws IOException {
+	void importDesign_designThatIsNotValid_throwsItsIssues() throws IOException {
 		EngineService engine = serving(422,
 				"{\"issues\": [{\"severity\": \"error\", \"code\": \"document.schema\", \"message\": \"bad\"}]}");
 
-		assertThatExceptionOfType(EngineRefusalException.class).isThrownBy(() -> engine.export(DESIGN, "mermaid"))
+		assertThatExceptionOfType(EngineRefusalException.class)
+			.isThrownBy(() -> engine.importDesign("compose", TEXT, null))
 			.extracting(EngineRefusalException::issues)
 			.isEqualTo(List.of(Issue.error("document.schema", "bad")));
 	}
 
 	@Test
-	void export_serviceDown_isServiceUnavailable() throws IOException {
+	void importDesign_serviceDown_isServiceUnavailable() throws IOException {
 		EngineService engine = new EngineService(RestClient.create("http://127.0.0.1:" + freePort()));
 
-		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.export(DESIGN, "mermaid"))
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.importDesign("compose", TEXT, null))
 			.extracting(ApiException::status)
 			.isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-	}
-
-	@Test
-	void export_request_carriesTheDesignAndFormat() throws IOException {
-		EngineService engine = serving(200, "{}");
-
-		engine.export(DESIGN, "mermaid");
-
-		assertThat(JSON.readTree(this.received.get()))
-			.isEqualTo(JSON.readTree("{\"document\": {\"kind\": \"archsim.architecture\"}, \"format\": \"mermaid\"}"));
 	}
 
 	@Test
 	void importDesign_request_carriesTheTextAndName() throws IOException {
 		EngineService engine = serving(200, "{}");
 
-		engine.importDesign("compose", "services: {}", null);
+		engine.importDesign("compose", TEXT, null);
 
 		assertThat(JSON.readTree(this.received.get()))
 			.isEqualTo(JSON.readTree("{\"format\": \"compose\", \"text\": \"services: {}\", \"name\": null}"));

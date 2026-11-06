@@ -5,9 +5,9 @@ which replaced the FastAPI API in `services/api` endpoint for endpoint. It serve
 cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI and the
 [black-box suite](../archsim-api-tests/README.md) work against it unchanged, and a database the
 Python API used carries on as it is. Simulations stay in Python until stage 4: runs go to the
-Python workers through the shared queue, and the engine's synchronous calls (an analysis, a
-scenario's validation, preparing a run, comparing two, summarizing a seed group) go to a small
-internal Python engine service, `services/engine-service`.
+Python workers through the shared queue. The engine's synchronous calls run in Java
+([archsim-engine](../archsim-engine/README.md)) as stage 3 ports them; the rest (imports and
+calibration) go to a small internal Python engine service, `services/engine-service`.
 
 ## Running it
 
@@ -72,7 +72,7 @@ ways.
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
 | `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
-| `conversion` | `POST /export` and `POST /import`: designs as docker-compose, Kubernetes manifests, Mermaid or a Terraform plan, through the engine service |
+| `conversion` | `POST /export`: a design as docker-compose, Kubernetes manifests or a Mermaid diagram (archsim-engine's `DesignExporter`); `POST /import`: a design from docker-compose, Kubernetes manifests or a Terraform plan, through the engine service |
 | `calibration` | `POST /calibrate`: the engine's Prometheus and OpenTelemetry calibration, run by the engine service under the server's outbound policy |
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
@@ -135,7 +135,7 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   (`/signin?error=provider`); Python stored the account under the subject `None`.
 - The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
   be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, the requests that need it answer
-  `503` saying which: `/export`, `/import` and `/calibrate`. The Python API computed
+  `503` saying which: `/import` and `/calibrate`. The Python API computed
   in-process, with no time limit. A call whose connection drops before an answer (uvicorn closes
   one idle for 5 s, and the client may reuse it just then) is sent once more: every engine call is
   a stateless POST.

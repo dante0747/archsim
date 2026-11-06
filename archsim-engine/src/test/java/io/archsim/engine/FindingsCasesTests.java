@@ -1,18 +1,14 @@
 package io.archsim.engine;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -20,7 +16,6 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.engine.findings.Classification;
 import io.archsim.engine.findings.RunAnalysis;
 import io.archsim.engine.report.RunReport;
-import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.GoldenFile;
 import io.archsim.parity.JsonDiff;
 import io.archsim.parity.Parity;
@@ -40,15 +35,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("A run's findings and each part's status match the frozen Python engine's")
 class FindingsCasesTests {
 
-	private static final JsonMapper JSON = JsonMapper.builder().build();
-
 	private static final String CASES = "findings/cases.json";
 
-	private static final JsonNode ENTRIES = read();
+	private static final JsonNode ENTRIES = CaseFiles.read(CASES);
 
 	@TestFactory
 	Stream<DynamicTest> analyze_everyCase_givesTheFrozenEnginesFindings() {
-		return cases().stream()
+		return CaseFiles.entries(CASES)
+			.stream()
 			.map((entry) -> DynamicTest.dynamicTest(entry.pointer(), () -> Parity.check(entry, EngineFunctions::call)));
 	}
 
@@ -100,25 +94,6 @@ class FindingsCasesTests {
 				.add(node.path("status").stringValue())
 				.add(node.path("statusReasons")));
 		return statuses;
-	}
-
-	private static List<GoldenEntry> cases() {
-		List<GoldenEntry> entries = new ArrayList<>();
-		for (JsonNode call : ENTRIES) {
-			entries.add(new GoldenEntry(CASES, call.get("name").stringValue(), call.get("fn").stringValue(),
-					(ObjectNode) call.get("input"), call.get("output"), null));
-		}
-		return entries;
-	}
-
-	private static JsonNode read() {
-		try (InputStream cases = Objects
-			.requireNonNull(FindingsCasesTests.class.getResourceAsStream("/io/archsim/engine/" + CASES), CASES)) {
-			return JSON.readTree(cases);
-		}
-		catch (IOException ex) {
-			throw new IllegalStateException("cannot read " + CASES, ex);
-		}
 	}
 
 }

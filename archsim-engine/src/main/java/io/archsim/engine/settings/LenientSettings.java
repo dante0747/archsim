@@ -18,10 +18,10 @@ import io.archsim.model.text.PythonText;
 
 /**
  * A part's settings read as the Python engine read the raw settings of a design that may
- * not be valid yet (ADR-0038): the load estimate runs on designs being edited, so a
- * setting that is not a value of the right kind counts as missing, and each reader says
- * what missing means. Everywhere else, the engine reads a part's config as its type's
- * record.
+ * not be valid yet (ADR-0038, ADR-0042): the load estimate, the review and the exports
+ * run on designs being edited, so a setting that is not a value of the right kind counts
+ * as missing, and each reader says what missing means. Everywhere else, the engine reads
+ * a part's config as its type's record.
  */
 public final class LenientSettings {
 
@@ -128,6 +128,16 @@ public final class LenientSettings {
 	 */
 	public boolean isNull(String name) {
 		return this.config.path(name).isNull();
+	}
+
+	/**
+	 * A setting of any kind, as the config holds it, for a reader that writes it out as
+	 * it is (an export's annotations and labels).
+	 * @param name the setting's JSON name
+	 * @return a copy of its value; a missing node when the config leaves it out
+	 */
+	public JsonNode value(String name) {
+		return this.config.path(name).deepCopy();
 	}
 
 	/**

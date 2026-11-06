@@ -2,6 +2,8 @@ package io.archsim.app.conversion;
 
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.export.ExportFormat;
+
 /**
  * What {@code POST /export} takes.
  *
