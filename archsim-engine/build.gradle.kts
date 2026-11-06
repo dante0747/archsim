@@ -9,6 +9,8 @@ plugins {
 dependencies {
     // the engine reads and writes the model's records (ADR-0012)
     api(project(":archsim-model"))
+    // the importers read YAML as PyYAML reads it (ADR-0043)
+    implementation(libs.snakeyaml)
 
     // the golden-file reader (ADR-0028)
     testImplementation(testFixtures(project(":archsim-model")))

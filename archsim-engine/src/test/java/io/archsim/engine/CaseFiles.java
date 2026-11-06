@@ -27,8 +27,8 @@ final class CaseFiles {
 	/**
 	 * A case file's calls, as written.
 	 * @param cases the file, under {@code io/archsim/engine/} in the test resources
-	 * @return its calls, each with its {@code name}, {@code fn}, {@code input} and
-	 * {@code output}
+	 * @return its calls, each with its {@code name}, {@code fn}, {@code input}, and the
+	 * {@code output} it returned or the {@code error} it raised
 	 */
 	static JsonNode read(String cases) {
 		try (InputStream file = Objects
@@ -41,7 +41,8 @@ final class CaseFiles {
 	}
 
 	/**
-	 * A case file's calls, as golden entries to check as the golden files are checked.
+	 * A case file's calls, as golden entries to check as the golden files are checked:
+	 * what each returned, or what it raised.
 	 * @param cases the file, under {@code io/archsim/engine/} in the test resources
 	 * @return its calls, in order
 	 */
@@ -49,7 +50,7 @@ final class CaseFiles {
 		List<GoldenEntry> entries = new ArrayList<>();
 		for (JsonNode call : read(cases)) {
 			entries.add(new GoldenEntry(cases, call.get("name").stringValue(), call.get("fn").stringValue(),
-					(ObjectNode) call.get("input"), call.get("output"), null));
+					(ObjectNode) call.get("input"), call.get("output"), call.get("error")));
 		}
 		return entries;
 	}

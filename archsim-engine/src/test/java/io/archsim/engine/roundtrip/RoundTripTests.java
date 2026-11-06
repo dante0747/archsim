@@ -1,8 +1,12 @@
 package io.archsim.engine.roundtrip;
 
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.document.ArchitectureDocument;
@@ -47,6 +51,28 @@ class RoundTripTests {
 		assertThat(parts).isEqualTo(JSON.readTree("""
 				[{"id": "clients", "type": "traffic_source", "label": "Shoppers", "config": {"timeoutMs": 3000},
 				  "calls": "api"}]"""));
+	}
+
+	@Test
+	void decodeCalls_linksWithPortsTypesAndFlags_areReadBack() {
+		List<ExportedLink> links = RoundTrip.decodeCalls("db/miss:read!on-miss!nope,  ,cache:read+write!carry-on");
+
+		assertThat(links).containsExactly(new ExportedLink("db", "miss", List.of("read"), Map.of("readsOnMiss", true)),
+				new ExportedLink("cache", null, List.of("read", "write"), Map.of("continueOnFailure", true)));
+	}
+
+	@Test
+	void parseParts_entriesThatAreNotParts_areSkipped() {
+		List<ObjectNode> parts = RoundTrip.parseParts(JSON.readTree("""
+				[{"id": "users", "type": "traffic_source"}, {"id": "db", "type": "database"}, "x",
+				 {"type": "traffic_source"}]"""));
+
+		assertThat(parts).extracting((part) -> part.path("id").stringValue()).containsExactly("users");
+	}
+
+	@Test
+	void parseParts_textThatIsNotJson_isNone() {
+		assertThat(RoundTrip.parseParts(JSON.getNodeFactory().stringNode("[not json"))).isEmpty();
 	}
 
 }
