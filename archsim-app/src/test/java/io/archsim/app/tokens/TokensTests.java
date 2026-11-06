@@ -1,5 +1,8 @@
 package io.archsim.app.tokens;
 
+import java.sql.Timestamp;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -8,6 +11,7 @@ import tools.jackson.databind.JsonNode;
 
 import io.archsim.app.access.Secrets;
 import io.archsim.app.support.HostedTestSupport;
+import io.archsim.app.support.SameInstant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -141,6 +145,16 @@ class TokensTests extends HostedTestSupport {
 	}
 
 	@Test
+	void list_tokensMadeAtTheSameInstant_highestIdFirst() {
+		SignedIn ada = signedIn("Ada");
+		List<String> lowestFirst = SameInstant.storeThree((id) -> storeTokenAtNine(id, ada.userId()));
+
+		JsonNode listed = json(ada.cookie(this.mvc().get().uri(TOKENS)).exchange());
+
+		assertThat(ids(listed)).containsExactlyElementsOf(lowestFirst.reversed());
+	}
+
+	@Test
 	void revoke_someoneElsesToken_isNotFound() {
 		SignedIn ada = signedIn("Ada");
 		String adas = created(create(ada, "{\"name\": \"CI\"}")).path("id").asString();
@@ -170,6 +184,18 @@ class TokensTests extends HostedTestSupport {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body)
 			.exchange();
+	}
+
+	private void storeTokenAtNine(String id, String userId) {
+		this.jdbc()
+			.sql("""
+					INSERT INTO api_tokens (id, user_id, name, prefix, token_hash, scope, created_at)
+					VALUES (:id, :user, 'CI', 'asim_pat_test', :hash, 'read', :at)""")
+			.param("id", id)
+			.param("user", userId)
+			.param("hash", Secrets.sha256Hex(id))
+			.param("at", Timestamp.from(SameInstant.NINE))
+			.update();
 	}
 
 }

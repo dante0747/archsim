@@ -1,9 +1,14 @@
 package io.archsim.app.projects;
 
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import io.archsim.app.support.SameInstant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,12 +61,49 @@ class ProjectRepositoryTests extends ProjectTestSupport {
 	}
 
 	@Test
+	void uneditedCopy_copiesMadeAtTheSameInstant_isTheHighestId() {
+		workspace("repo6", "team", "owner");
+		List<String> lowestFirst = SameInstant.storeThree((id) -> copiedAtNine(id, "repo6"));
+
+		Optional<Project> copy = this.projects.uneditedCopy("repo6", "local", "queueing-lab");
+
+		assertThat(copy).map(Project::id).contains(lowestFirst.getLast());
+	}
+
+	@Test
+	void inWorkspace_savedAtTheSameInstant_highestIdFirst() {
+		workspace("repo7", "team", "owner");
+		List<String> lowestFirst = SameInstant.storeThree((id) -> copiedAtNine(id, "repo7"));
+
+		List<Project> listed = this.projects.inWorkspace("repo7");
+
+		assertThat(listed).extracting(Project::id).containsExactlyElementsOf(lowestFirst.reversed());
+	}
+
+	@Test
 	void count_workspace_isItsProjects() {
 		workspace("repo5", "team", "owner");
 		storedProject("repo5a", "repo5", "local", null);
 		storedProject("repo5b", "repo5", "local", null);
 
 		assertThat(this.projects.count("repo5")).isEqualTo(2);
+	}
+
+	/**
+	 * Stores the local user's copy of {@code queueing-lab}, made at nine o'clock and
+	 * never saved since.
+	 * @param id its id
+	 * @param workspaceId its workspace
+	 */
+	private void copiedAtNine(String id, String workspaceId) {
+		jdbc().sql("""
+				INSERT INTO projects (id, workspace_id, created_by, name, document, schema_version, revision,
+				                      source_example, created_at, updated_at)
+				VALUES (:id, :workspace, 'local', 'Copy', CAST('{}' AS jsonb), '1.7', 1, 'queueing-lab', :at, :at)""")
+			.param("id", id)
+			.param("workspace", workspaceId)
+			.param("at", Timestamp.from(SameInstant.NINE))
+			.update();
 	}
 
 	private static Project next(Project stored) {

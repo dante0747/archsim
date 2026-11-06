@@ -1,13 +1,13 @@
 package io.archsim.app.reviews;
 
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import tools.jackson.databind.JsonNode;
+
+import io.archsim.app.support.SameInstant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,8 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Sign-offs as the asker sees them.
  */
 class SignoffsTests extends ReviewTestSupport {
-
-	private static final Instant NINE = Instant.parse("2026-11-06T09:00:00Z");
 
 	@Test
 	void ofProject_afterTheDesignIsSavedAgain_isStale() {
@@ -44,10 +42,10 @@ class SignoffsTests extends ReviewTestSupport {
 	}
 
 	@Test
-	void ofRun_twoSignoffsAtTheSameInstant_highestIdFirst() {
+	void ofRun_signoffsAtTheSameInstant_highestIdFirst() {
 		SignedIn ada = signedIn("Ada");
 		String run = run(project(ada), "succeeded");
-		List<String> lowestFirst = storeTwoAtNine(run, ada);
+		List<String> lowestFirst = SameInstant.storeThree((id) -> storeSignoffAtNine(id, run, ada.userId()));
 
 		JsonNode listed = json(send(ada, HttpMethod.GET, "/api/v1/runs/" + run + "/signoffs", null));
 
@@ -55,10 +53,11 @@ class SignoffsTests extends ReviewTestSupport {
 	}
 
 	@Test
-	void ofProject_twoSignoffsAtTheSameInstant_highestIdFirst() {
+	void ofProject_signoffsAtTheSameInstant_highestIdFirst() {
 		SignedIn ada = signedIn("Ada");
 		String project = project(ada);
-		List<String> lowestFirst = storeTwoAtNine(run(project, "succeeded"), ada);
+		String run = run(project, "succeeded");
+		List<String> lowestFirst = SameInstant.storeThree((id) -> storeSignoffAtNine(id, run, ada.userId()));
 
 		JsonNode listed = json(send(ada, HttpMethod.GET, PROJECTS + project + "/signoffs", null));
 
@@ -86,20 +85,7 @@ class SignoffsTests extends ReviewTestSupport {
 			.asString();
 	}
 
-	/**
-	 * Stores two approvals of a run at nine o'clock, as two of the API's servers could.
-	 * The lower id goes first, so the order they were stored in is not the answer.
-	 * @param runId the run
-	 * @param reviewer who approves it
-	 * @return their ids, lowest first
-	 */
-	private List<String> storeTwoAtNine(String runId, SignedIn reviewer) {
-		List<String> lowestFirst = Stream.of(newId(), newId()).sorted().toList();
-		lowestFirst.forEach((id) -> storeSignoff(id, runId, reviewer.userId()));
-		return lowestFirst;
-	}
-
-	private void storeSignoff(String id, String runId, String reviewerId) {
+	private void storeSignoffAtNine(String id, String runId, String reviewerId) {
 		this.jdbc()
 			.sql("""
 					INSERT INTO review_signoffs (id, project_id, run_id, project_revision, input_digest, result_digest,
@@ -109,7 +95,7 @@ class SignoffsTests extends ReviewTestSupport {
 			.param("id", id)
 			.param("run", runId)
 			.param("reviewer", reviewerId)
-			.param("at", Timestamp.from(NINE))
+			.param("at", Timestamp.from(SameInstant.NINE))
 			.update();
 	}
 

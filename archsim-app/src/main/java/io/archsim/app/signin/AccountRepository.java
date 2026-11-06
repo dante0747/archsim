@@ -52,13 +52,15 @@ class AccountRepository {
 	/**
 	 * The person a verified email belongs to, through any provider account.
 	 * @param email the email, lower case
-	 * @return the person, if any account has it verified
+	 * @return the person, if any account has it verified: of several, the one whose
+	 * account was stored first, by id among accounts stored at the same instant (by two
+	 * of the API's servers), so it is always the same person
 	 */
 	Optional<Account> accountWithVerifiedEmail(String email) {
 		return this.jdbc.sql("""
 				SELECT u.id, u.disabled_at IS NOT NULL AS disabled
 				FROM identities i JOIN users u ON u.id = i.user_id
-				WHERE i.email = :email AND i.email_verified ORDER BY i.created_at LIMIT 1""")
+				WHERE i.email = :email AND i.email_verified ORDER BY i.created_at, i.id LIMIT 1""")
 			.param("email", email)
 			.query((rows, number) -> new Account(rows.getString("id"), rows.getBoolean("disabled")))
 			.optional();

@@ -1,11 +1,13 @@
 package io.archsim.app.runs;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.app.support.SameInstant;
 import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
@@ -160,6 +162,17 @@ class RunsTests extends RunTestSupport {
 	}
 
 	@Test
+	void list_runsAtTheSameInstant_highestIdFirst() {
+		String project = project("team", "editor");
+		List<String> lowestFirst = SameInstant.storeThree((id) -> storeRunAtNine(id, project));
+
+		JsonNode runs = json(this.mvc().get().uri("/api/v1/projects/" + project + "/runs").exchange());
+
+		assertThat(runs.valueStream().map((run) -> run.path("id").asString()))
+			.containsExactlyElementsOf(lowestFirst.reversed());
+	}
+
+	@Test
 	void get_runOfAWorkspaceWithoutRole_isNotFound() {
 		prepares(42, null, true);
 		String project = project("team", "editor");
@@ -197,6 +210,19 @@ class RunsTests extends RunTestSupport {
 			.bodyJson()
 			.extractingPath("$.summary")
 			.isEqualTo(Map.of("latencyMs", Map.of("p95", 120.0)));
+	}
+
+	private void storeRunAtNine(String runId, String projectId) {
+		this.jdbc()
+			.sql("""
+					INSERT INTO simulation_runs (id, project_id, workspace_id, label, status, progress, seed,
+					                             engine_version, input_document, created_at)
+					SELECT :id, p.id, p.workspace_id, 'Baseline', 'queued', 0, 7, '0.16.0', p.document, :at
+					FROM projects p WHERE p.id = :project""")
+			.param("id", runId)
+			.param("project", projectId)
+			.param("at", Timestamp.from(SameInstant.NINE))
+			.update();
 	}
 
 }

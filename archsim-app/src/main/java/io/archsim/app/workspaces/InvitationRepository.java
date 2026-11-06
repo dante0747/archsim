@@ -33,12 +33,14 @@ class InvitationRepository {
 	 * A workspace's open invitations.
 	 * @param workspaceId the workspace
 	 * @param now the time it is
-	 * @return the invitations not accepted and not expired, newest first
+	 * @return the invitations not accepted and not expired, newest first; invitations
+	 * made at the same instant (by two of the API's servers) by id, so the list keeps its
+	 * order
 	 */
 	List<InvitationView> open(String workspaceId, Instant now) {
 		return this.jdbc
 			.sql("SELECT " + COLUMNS + " FROM invitations WHERE workspace_id = :workspace AND accepted_at IS NULL "
-					+ "AND expires_at > :now ORDER BY created_at DESC")
+					+ "AND expires_at > :now ORDER BY created_at DESC, id DESC")
 			.param("workspace", workspaceId)
 			.param("now", Timestamp.from(now))
 			.query((rows, number) -> view(rows))

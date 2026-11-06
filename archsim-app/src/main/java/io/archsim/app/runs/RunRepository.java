@@ -81,12 +81,13 @@ class RunRepository {
 	 * A project's latest runs.
 	 * @param projectId the project
 	 * @param limit how many at most
-	 * @return the runs, newest first
+	 * @return the runs, newest first; runs stored at the same instant (by two of the
+	 * API's servers) by id, so the list keeps its order
 	 */
 	List<RunView> ofProject(String projectId, int limit) {
 		return this.jdbc
-			.sql("SELECT " + COLUMNS + " FROM simulation_runs WHERE project_id = :project ORDER BY created_at DESC "
-					+ "LIMIT :limit")
+			.sql("SELECT " + COLUMNS + " FROM simulation_runs WHERE project_id = :project "
+					+ "ORDER BY created_at DESC, id DESC LIMIT :limit")
 			.param("project", projectId)
 			.param("limit", limit)
 			.query((rows, number) -> stored(rows).view())

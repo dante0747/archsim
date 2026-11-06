@@ -3,6 +3,7 @@ package io.archsim.app.support;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -109,10 +110,7 @@ public abstract class HostedTestSupport {
 	protected SignedIn signedIn(String name) {
 		String userId = newId();
 		String workspaceId = newId();
-		this.jdbc.sql("INSERT INTO users (id, name, created_at) VALUES (:id, :name, now())")
-			.param("id", userId)
-			.param("name", name)
-			.update();
+		person(userId, name);
 		this.jdbc
 			.sql("INSERT INTO workspaces (id, name, kind, created_by, created_at) "
 					+ "VALUES (:id, :name, 'personal', :user, now())")
@@ -146,18 +144,55 @@ public abstract class HostedTestSupport {
 	}
 
 	/**
-	 * Gives someone a role in a workspace.
+	 * Stores someone who belongs to no workspace yet.
+	 * @param userId their user id
+	 * @param name their name
+	 */
+	protected void person(String userId, String name) {
+		this.jdbc.sql("INSERT INTO users (id, name, created_at) VALUES (:id, :name, now())")
+			.param("id", userId)
+			.param("name", name)
+			.update();
+	}
+
+	/**
+	 * Stores a team workspace no one belongs to yet.
+	 * @param id its id
+	 */
+	protected void emptyTeam(String id) {
+		this.jdbc.sql("INSERT INTO workspaces (id, name, kind, created_at) VALUES (:id, 'Team', 'team', now())")
+			.param("id", id)
+			.update();
+	}
+
+	/**
+	 * Gives someone a role in a workspace, from now on: the database's time, which moves
+	 * every microsecond, where the JVM's moves only about once a millisecond on Windows
+	 * and would let two members made one after another tie.
 	 * @param workspaceId the workspace
 	 * @param userId the person
 	 * @param role {@code viewer}, {@code editor} or {@code owner}
 	 */
 	protected void member(String workspaceId, String userId, String role) {
+		Instant now = this.jdbc.sql("SELECT clock_timestamp()").query(OffsetDateTime.class).single().toInstant();
+		member(workspaceId, userId, role, now);
+	}
+
+	/**
+	 * Gives someone a role in a workspace, from a given time.
+	 * @param workspaceId the workspace
+	 * @param userId the person
+	 * @param role {@code viewer}, {@code editor} or {@code owner}
+	 * @param joinedAt when they joined
+	 */
+	protected void member(String workspaceId, String userId, String role, Instant joinedAt) {
 		this.jdbc
 			.sql("INSERT INTO memberships (workspace_id, user_id, role, created_at) "
-					+ "VALUES (:workspace, :user, :role, now())")
+					+ "VALUES (:workspace, :user, :role, :joinedAt)")
 			.param("workspace", workspaceId)
 			.param("user", userId)
 			.param("role", role)
+			.param("joinedAt", Timestamp.from(joinedAt))
 			.update();
 	}
 

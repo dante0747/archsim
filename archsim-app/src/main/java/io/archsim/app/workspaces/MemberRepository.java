@@ -27,10 +27,11 @@ class MemberRepository {
 	/**
 	 * A workspace's members.
 	 * @param workspaceId the workspace
-	 * @return its members, the longest-standing first
+	 * @return its members, the longest-standing first; members who joined at the same
+	 * instant (through two of the API's servers) by user id, so the list keeps its order
 	 */
 	List<MemberView> of(String workspaceId) {
-		return this.jdbc.sql(MEMBERS + " WHERE m.workspace_id = :workspace ORDER BY m.created_at")
+		return this.jdbc.sql(MEMBERS + " WHERE m.workspace_id = :workspace ORDER BY m.created_at, m.user_id")
 			.param("workspace", workspaceId)
 			.query((rows, number) -> member(rows))
 			.list();

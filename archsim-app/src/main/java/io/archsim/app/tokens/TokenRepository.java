@@ -30,12 +30,13 @@ class TokenRepository {
 	 * A person's tokens that still work.
 	 * @param userId the person
 	 * @param now the time
-	 * @return the tokens, newest first
+	 * @return the tokens, newest first; tokens made at the same instant (by two of the
+	 * API's servers) by id, so the list keeps its order
 	 */
 	List<TokenView> active(String userId, Instant now) {
 		return this.jdbc
 			.sql("SELECT " + COLUMNS + " FROM api_tokens WHERE user_id = :user AND revoked_at IS NULL "
-					+ "AND (expires_at IS NULL OR expires_at > :now) ORDER BY created_at DESC")
+					+ "AND (expires_at IS NULL OR expires_at > :now) ORDER BY created_at DESC, id DESC")
 			.param("user", userId)
 			.param("now", Timestamp.from(now))
 			.query((rows, number) -> view(rows))

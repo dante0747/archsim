@@ -1,13 +1,17 @@
 package io.archsim.app.workspaces;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.app.access.Secrets;
 import io.archsim.app.support.HistoryEvent;
+import io.archsim.app.support.SameInstant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -87,6 +91,17 @@ class InvitationsTests extends WorkspaceTestSupport {
 	}
 
 	@Test
+	void list_invitationsMadeAtTheSameInstant_highestIdFirst() {
+		SignedIn ada = signedIn("Ada");
+		String team = team(ada);
+		List<String> lowestFirst = SameInstant.storeThree((id) -> storeInvitationAtNine(id, team));
+
+		JsonNode listed = json(send(ada, HttpMethod.GET, WORKSPACES + "/" + team + "/invitations", null));
+
+		assertThat(ids(listed)).containsExactlyElementsOf(lowestFirst.reversed());
+	}
+
+	@Test
 	void revoke_invitationOfAnotherWorkspace_isNotFound() {
 		SignedIn ada = signedIn("Ada");
 		String team = team(ada);
@@ -106,6 +121,23 @@ class InvitationsTests extends WorkspaceTestSupport {
 
 		assertThat(history(team)).last()
 			.isEqualTo(new HistoryEvent("invitation.revoke", "invitation", id, json("{\"role\": \"editor\"}"), null));
+	}
+
+	/**
+	 * Stores an open invitation to a workspace, made at nine o'clock.
+	 * @param id its id
+	 * @param workspaceId the workspace
+	 */
+	private void storeInvitationAtNine(String id, String workspaceId) {
+		this.jdbc()
+			.sql("""
+					INSERT INTO invitations (id, workspace_id, token_hash, role, created_at, expires_at)
+					VALUES (:id, :workspace, :hash, 'viewer', :at, now() + interval '30 days')""")
+			.param("id", id)
+			.param("workspace", workspaceId)
+			.param("hash", Secrets.sha256Hex(id))
+			.param("at", Timestamp.from(SameInstant.NINE))
+			.update();
 	}
 
 }

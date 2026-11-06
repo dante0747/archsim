@@ -1,6 +1,7 @@
 package io.archsim.app.workspaces;
 
 import java.sql.SQLException;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,13 +14,14 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
 import io.archsim.app.support.HistoryEvent;
+import io.archsim.app.support.SameInstant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * A workspace's members: owners change roles and remove members, anyone may leave, and a
- * workspace always keeps an owner.
+ * A workspace's members: listed longest-standing first, owners change roles and remove
+ * members, anyone may leave, and a workspace always keeps an owner.
  */
 class MembersTests extends WorkspaceTestSupport {
 
@@ -31,6 +33,20 @@ class MembersTests extends WorkspaceTestSupport {
 
 	@Autowired
 	private Members members;
+
+	@Test
+	void list_membersWhoJoinedAtTheSameInstant_lowestIdFirst() {
+		SignedIn ada = signedIn("Ada");
+		String team = newId();
+		emptyTeam(team);
+		List<String> lowestFirst = SameInstant.storeThree((userId) -> joinAtNine(team, userId));
+		member(team, ada.userId(), "owner");
+
+		JsonNode listed = json(send(ada, HttpMethod.GET, WORKSPACES + "/" + team + "/members", null));
+
+		assertThat(listed.findValuesAsString("userId")).containsExactly(lowestFirst.getFirst(), lowestFirst.get(1),
+				lowestFirst.getLast(), ada.userId());
+	}
 
 	@Test
 	void changeRole_ofMember_givesTheNewRole() {
@@ -137,6 +153,16 @@ class MembersTests extends WorkspaceTestSupport {
 		assertThat(history(team)).last()
 			.isEqualTo(new HistoryEvent("member.remove", "user", bob.userId(),
 					json("{\"role\": \"editor\", \"left\": false}"), null));
+	}
+
+	/**
+	 * Stores someone new who joined a workspace at nine o'clock.
+	 * @param workspaceId the workspace
+	 * @param userId their user id
+	 */
+	private void joinAtNine(String workspaceId, String userId) {
+		person(userId, "Member");
+		member(workspaceId, userId, "editor", SameInstant.NINE);
 	}
 
 	/**

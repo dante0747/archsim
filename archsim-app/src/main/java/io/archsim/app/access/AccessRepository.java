@@ -49,12 +49,14 @@ class AccessRepository {
 	/**
 	 * The workspaces a user belongs to.
 	 * @param userId the user
-	 * @return the workspaces, oldest membership first
+	 * @return the workspaces, oldest membership first; memberships made at the same
+	 * instant (by two of the API's servers) by workspace id, so the oldest is always the
+	 * same one
 	 */
 	List<WorkspaceRef> memberships(String userId) {
 		return this.jdbc.sql("""
 				SELECT w.id, w.kind FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
-				WHERE m.user_id = :user ORDER BY m.created_at""")
+				WHERE m.user_id = :user ORDER BY m.created_at, m.workspace_id""")
 			.param("user", userId)
 			.query((rows, number) -> new WorkspaceRef(rows.getString("id"), rows.getString("kind")))
 			.list();

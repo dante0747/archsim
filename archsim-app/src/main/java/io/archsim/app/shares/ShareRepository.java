@@ -23,6 +23,12 @@ class ShareRepository {
 	private static final String COLUMNS = "id, slug, workspace_id, project_id, run_id, created_by, title, "
 			+ "payload_version, report_version, result_digest, created_at, expires_at, revoked_at, view_count";
 
+	/**
+	 * Newest first; links stored at the same instant (by two of the API's servers) by id,
+	 * so a list keeps its order.
+	 */
+	private static final String NEWEST_FIRST = " ORDER BY created_at DESC, id DESC";
+
 	/** The most shares a list holds. */
 	private static final int MAX_LISTED = 100;
 
@@ -87,8 +93,8 @@ class ShareRepository {
 
 	List<StoredShare> ofProject(String projectId) {
 		return this.jdbc
-			.sql("SELECT " + COLUMNS + ", NULL AS payload FROM shared_reports WHERE project_id = :project "
-					+ "ORDER BY created_at DESC LIMIT :limit")
+			.sql("SELECT " + COLUMNS + ", NULL AS payload FROM shared_reports WHERE project_id = :project"
+					+ NEWEST_FIRST + " LIMIT :limit")
 			.param("project", projectId)
 			.param("limit", MAX_LISTED)
 			.query((rows, number) -> stored(rows))
@@ -97,8 +103,8 @@ class ShareRepository {
 
 	List<StoredShare> ofWorkspace(String workspaceId) {
 		return this.jdbc
-			.sql("SELECT " + COLUMNS + ", NULL AS payload FROM shared_reports WHERE workspace_id = :workspace "
-					+ "ORDER BY created_at DESC LIMIT :limit")
+			.sql("SELECT " + COLUMNS + ", NULL AS payload FROM shared_reports WHERE workspace_id = :workspace"
+					+ NEWEST_FIRST + " LIMIT :limit")
 			.param("workspace", workspaceId)
 			.param("limit", MAX_LISTED)
 			.query((rows, number) -> stored(rows))

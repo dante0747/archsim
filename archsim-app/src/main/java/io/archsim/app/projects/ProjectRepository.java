@@ -23,10 +23,17 @@ class ProjectRepository {
 			id, workspace_id, created_by, name, description, document::text AS document, revision, source_example,
 			created_at, updated_at""";
 
+	/**
+	 * Most recently updated first; projects updated at the same instant (by two of the
+	 * API's servers) by id, so a list keeps its order and a pick of one is always the
+	 * same project.
+	 */
+	private static final String MOST_RECENTLY_UPDATED_FIRST = " ORDER BY updated_at DESC, id DESC";
+
 	/** The latest never-saved copy of an example someone made in a workspace. */
 	private static final String UNEDITED_COPY = """
-			WHERE workspace_id = :workspace AND created_by = :user AND source_example = :example AND revision = 1
-			ORDER BY updated_at DESC LIMIT 1""";
+			WHERE workspace_id = :workspace AND created_by = :user AND source_example = :example AND revision = 1"""
+			+ MOST_RECENTLY_UPDATED_FIRST + " LIMIT 1";
 
 	private final JdbcClient jdbc;
 
@@ -63,7 +70,7 @@ class ProjectRepository {
 	 */
 	List<Project> inWorkspace(String workspaceId) {
 		return this.jdbc
-			.sql("SELECT " + COLUMNS + " FROM projects WHERE workspace_id = :workspace ORDER BY updated_at DESC")
+			.sql("SELECT " + COLUMNS + " FROM projects WHERE workspace_id = :workspace" + MOST_RECENTLY_UPDATED_FIRST)
 			.param("workspace", workspaceId)
 			.query(this::project)
 			.list();
