@@ -1,8 +1,9 @@
 name: Accuracy benchmarks
 
 # Measures ArchSim's predictions against real stacks (benchmarks/, docs/validation.md). Slow
-# (about 1.5 hours) and noisy on shared runners, so never on pull requests: it runs every week, on
-# every release tag (v*) and by hand. Each run keeps the previous results in run-N/ folders
+# (about 1.5 hours) and noisy on shared runners, so never on pull requests: it runs by hand only
+# for now (the weekly and release-tag runs below are off, see NOT YET RUN ON LINUX). Each run keeps
+# the previous results in run-N/ folders
 # (run.py --archive), measures again, regenerates docs/validation.md, its charts and
 # docs/validation/accuracy.json with the web app's copy (report.py --json, which the /accuracy
 # page is built from), uploads the raw results as an artifact and opens a pull request. A person
@@ -10,9 +11,10 @@ name: Accuracy benchmarks
 #
 # NOT YET RUN ON LINUX. Every run so far was on Windows with Docker Desktop; on a hosted runner the
 # k6 container writes its summary as uid 12345 (run.py makes benchmarks/results/.k6
-# world-writable for it, untested on Linux). Start the first run by hand (Actions > Accuracy
-# benchmarks > Run workflow) and check its artifact and pull request before relying on the
-# schedule and the tag trigger.
+# world-writable for it, untested on Linux). The scheduled run on 2026-11-02 hit the 120-minute
+# timeout and was cancelled, and the hand-started runs on 2026-10-28 failed. Get a run started by
+# hand (Actions > Accuracy benchmarks > Run workflow) to pass, and check its artifact and pull
+# request, before turning the schedule and the tag trigger back on.
 #
 # Pull requests opened with the default GITHUB_TOKEN do not start other workflows (CI): set a
 # BENCHMARK_PR_TOKEN secret (a fine-grained token with contents and pull-requests write) to have
@@ -32,10 +34,12 @@ on:
   #   - the weekly run: the `schedule:` line and the `- cron:` line under it;
   #   - the run for every release tag: the `push:` line and the `tags:` line under it.
   # Manual runs above keep working either way.
-  schedule:
-    - cron: "17 3 * * 1" # 03:17 UTC every Monday
-  push:
-    tags: ["v*"]
+  # Off until a run started by hand passes on Linux (see NOT YET RUN ON LINUX above); uncomment the
+  # four lines below to turn them back on.
+  # schedule:
+  #   - cron: "17 3 * * 1" # 03:17 UTC every Monday
+  # push:
+  #   tags: ["v*"]
   # --------------------------------------------------------------- end of automatic runs ------
 
 permissions:
