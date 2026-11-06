@@ -122,3 +122,38 @@ objectives can check that file instead.
 This repository's CI runs the action on `examples/cache-aside-starter.json`
 (`.github/workflows/ci.yml`, job `archsim-check`): pull requests against their base branch
 (`origin/<base>`), pushes against the previous commit (`HEAD~1`).
+
+## This repository's Actions minutes
+
+The repository is private, so its workflows run on the account's 2,000 included Actions minutes
+a month (a Windows minute counts as two). When they run out, GitHub stops starting jobs until
+the month resets ("The job was not started because ... your spending limit needs to be
+increased"). In November 2026 a full CI run on every push to main, about 44 billed minutes
+each, used the month's minutes in five days. So:
+
+- **CI runs only the jobs a change can affect.** The `changes` job runs
+  `scripts/ci_changes.py` on the files a pull request or push changes; its log says which file
+  needs each job. A change to docs (other than the ones the Python tests read), the README or
+  `.claude/` runs no job but `Commit messages`; a web change runs Web and End-to-end; a Java
+  change runs Java and End-to-end. A path no rule names runs every job, and so does a change to
+  CI itself, a push that starts a branch or rewrites history, and a run started by hand
+  (Actions > CI > Run workflow). When a test starts reading a file from another part of the
+  repository, add it to the script's `RULES`.
+- **The engine's and the benchmarks' tests run only when they can fail.** They are about 7 and
+  9 of the Python job's minutes. The engine is frozen at 0.16.0, and the benchmarks' tests
+  calibrate, simulate and render `docs/validation.md` with it, so the Python job runs them
+  (steps `Engine tests` and `Benchmark tests`) only on a change to the engine, the Python
+  environment, the templates or a file they read (`engine_tests` and `benchmark_tests` in the
+  script's `RULES`). A change to the engine service, the workers, the MCP server or a script
+  runs the rest of the Python tests, about a minute.
+- **Pushes to main never cancel one another**, since each push's run tests only what that push
+  changed. A pull request's new commits still cancel its older run. A later push that skips a
+  job does not retest it: when a job fails, its failure is in that push's run, and the job only
+  runs again on a change it reads, or a run by hand.
+- **The accuracy benchmarks run by hand only** until a run passes on a hosted runner; the weekly
+  and release-tag runs are commented out in `.github/workflows/benchmark.yml`.
+- **Dependabot's version updates are monthly.** Every update pull request, and every rebase of
+  one when main moves, runs CI.
+
+Usage so far this month: Settings > Billing and licensing > Usage, or the run times under
+Actions.

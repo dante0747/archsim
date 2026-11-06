@@ -1,15 +1,23 @@
 name: CI
 
+# The repository is private, so every minute here is billed (2,000 included a month). The
+# `changes` job (scripts/ci_changes.py) works out which jobs a change can affect and the others
+# are skipped: a docs change runs none, a web change runs Web and End-to-end. A run started by
+# hand (Actions > CI > Run workflow) runs every job.
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# A pull request's new commits cancel its older run: the next run checks the whole pull request.
+# Pushes and runs by hand never cancel one another: a push's run tests only what that push
+# changed, so a cancelled run would leave its changes untested.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 env:
@@ -37,8 +45,39 @@ jobs:
           fi
           python3 scripts/check_commits.py --range "$RANGE"
 
+  changes:
+    # which of the jobs below this change needs; the log says which file needs each one
+    name: Changed parts
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.jobs.outputs.python }}
+      engine_tests: ${{ steps.jobs.outputs.engine_tests }}
+      benchmark_tests: ${{ steps.jobs.outputs.benchmark_tests }}
+      workers: ${{ steps.jobs.outputs.workers }}
+      java: ${{ steps.jobs.outputs.java }}
+      archsim_check: ${{ steps.jobs.outputs.archsim_check }}
+      web: ${{ steps.jobs.outputs.web }}
+      e2e: ${{ steps.jobs.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: jobs
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then
+            python3 scripts/ci_changes.py --all --github-output "$GITHUB_OUTPUT"
+          else
+            python3 scripts/ci_changes.py --base "$BASE_SHA" --head "$HEAD_SHA" --github-output "$GITHUB_OUTPUT"
+          fi
+
   python:
     name: Python (engine, engine service, workers; SQLite)
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -53,7 +92,17 @@ jobs:
       - name: Type check
         run: uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
       - name: Tests
-        run: uv run pytest
+        # every testpath but the two below (--ignore does not apply to a testpath itself)
+        run: uv run pytest --deselect packages/engine/tests --deselect benchmarks/tests
+      # About 7 and 9 minutes. The engine is frozen, and the benchmarks' tests calibrate and
+      # simulate with it, so only a change to the engine or to a file they read can change their
+      # result (scripts/ci_changes.py).
+      - name: Engine tests
+        if: needs.changes.outputs.engine_tests == 'true'
+        run: uv run pytest packages/engine/tests
+      - name: Benchmark tests
+        if: needs.changes.outputs.benchmark_tests == 'true'
+        run: uv run pytest benchmarks/tests
       - name: Type check the benchmark scripts
         run: uv run mypy benchmarks
       # the engine is frozen at 0.16.0 for the Java port: its outputs must still be the golden
@@ -63,6 +112,8 @@ jobs:
 
   api-postgres:
     name: Worker tests on PostgreSQL
+    needs: changes
+    if: needs.changes.outputs.workers == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -92,6 +143,9 @@ jobs:
     # simulation processes on Windows: the Job Object that kills them with their worker,
     # Ctrl+Break handling, and the venv launcher between a worker and its interpreter
     name: Worker tests on Windows
+    # a Windows minute counts as two of the 2,000 included ones
+    needs: changes
+    if: needs.changes.outputs.workers == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -107,6 +161,8 @@ jobs:
     # black-box API tests against the Java API they start on PostgreSQL; see
     # archsim-api-tests/README.md and docs/proposals/java-25-port.md
     name: Java (Gradle build, black-box API tests)
+    needs: changes
+    if: needs.changes.outputs.java == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -158,6 +214,8 @@ jobs:
     # the repository's own SLO gate action, on a template, against the base branch (pull
     # requests) or the previous commit (pushes); see docs/ci.md
     name: ArchSim check (action on a template)
+    needs: changes
+    if: needs.changes.outputs.archsim_check == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -174,6 +232,8 @@ jobs:
 
   web:
     name: Web (lint, types, tests, build)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -196,6 +256,8 @@ jobs:
     # the main path in Chromium against a production build and the real API: the Java API with
     # the Python engine service and a Python worker, on PostgreSQL; see apps/web/e2e/api-server.mjs
     name: End-to-end (Playwright, main path)
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:
