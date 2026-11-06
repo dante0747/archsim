@@ -83,4 +83,4 @@ what the repository shows.
 | [0039](0039-engine-reads-reports-as-partial-records.md) | The engine reads a run's report as records of the parts it reads | Accepted | 2026-11-05 |
 | [0040](0040-comparison-copies-what-it-does-not-read.md) | A run comparison copies the report parts it shows and diffs the simulated inputs as stored | Accepted | 2026-11-06 |
 | [0041](0041-application-clock-never-repeats-a-microsecond.md) | The application's clock never tells the same microsecond twice | Accepted | 2026-11-06 |
-| [0042](0042-exports-read-settings-leniently-and-write-their-own-yaml.md) | Exports read settings leniently and write their own YAML | Proposed | 2026-11-06 |
+| [0042](0042-exports-read-settings-leniently-and-write-their-own-yaml.md) | Exports read settings leniently and write their own YAML | Accepted | 2026-11-06 |
