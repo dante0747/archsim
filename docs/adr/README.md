@@ -85,4 +85,4 @@ what the repository shows.
 | [0041](0041-application-clock-never-repeats-a-microsecond.md) | The application's clock never tells the same microsecond twice | Accepted | 2026-11-06 |
 | [0042](0042-exports-read-settings-leniently-and-write-their-own-yaml.md) | Exports read settings leniently and write their own YAML | Accepted | 2026-11-06 |
 | [0043](0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md) | Read imported YAML with SnakeYAML, resolved as PyYAML resolves it | Accepted | 2026-11-06 |
-| [0044](0044-read-terraform-json-with-jackson-as-python-json-reads-it.md) | Read Terraform JSON with Jackson, as Python's json reads it | Proposed | 2026-11-06 |
+| [0044](0044-read-terraform-json-with-jackson-as-python-json-reads-it.md) | Read Terraform JSON with Jackson, as Python's json reads it | Accepted | 2026-11-06 |
