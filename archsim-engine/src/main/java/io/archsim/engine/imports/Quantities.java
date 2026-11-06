@@ -1,5 +1,6 @@
 package io.archsim.engine.imports;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -16,6 +17,9 @@ import io.archsim.engine.numeric.PythonRound;
  * CPU and memory as Kubernetes and Compose write them.
  */
 final class Quantities {
+
+	/** MiB in a GiB, for the exact divisions of Python's true division. */
+	static final BigDecimal MIB_PER_GIB = BigDecimal.valueOf(1024);
 
 	/** Decimals an imported CPU or memory figure is rounded to. */
 	private static final int DIGITS = 4;

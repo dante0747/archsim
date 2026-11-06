@@ -2,6 +2,7 @@ package io.archsim.engine.numeric;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -23,6 +24,13 @@ public final class PythonNumbers {
 
 	/** The first character past ASCII. */
 	private static final int ASCII_END = 0x80;
+
+	/**
+	 * The most digits Python converts in a base that is not a power of two
+	 * ({@code sys.int_info.default_max_str_digits}): its guard against conversions that
+	 * take quadratic time.
+	 */
+	private static final int MAX_DIGITS = 4300;
 
 	/** The prefix a base's digits may start with, by base. */
 	private static final Map<Integer, String> PREFIXES = Map.of(2, "0b", 8, "0o", 16, "0x");
@@ -67,7 +75,7 @@ public final class PythonNumbers {
 	 * @param radix the base: 2, 8, 10 or 16
 	 * @return its value
 	 * @throws NumberFormatException with Python's words when it is not a whole number in
-	 * the base
+	 * the base, or has more decimal digits than Python converts
 	 */
 	public static BigInteger parseInt(String text, int radix) {
 		String number = text.strip();
@@ -86,7 +94,7 @@ public final class PythonNumbers {
 			throw new NumberFormatException(
 					"invalid literal for int() with base " + radix + ": " + PythonText.repr(text));
 		}
-		BigInteger value = new BigInteger(ascii(number, radix), radix);
+		BigInteger value = fromDigits(ascii(number, radix), radix);
 		return negative ? value.negate() : value;
 	}
 
@@ -97,13 +105,63 @@ public final class PythonNumbers {
 	 * @throws NumberFormatException with Python's words for NaN or an infinity
 	 */
 	public static BigInteger truncate(double value) {
+		requireFinite(value);
+		return new BigDecimal(value).toBigInteger();
+	}
+
+	/**
+	 * A float rounded to a whole number, halves to even, as {@code round(x)} rounds it.
+	 * @param value the float
+	 * @return the nearest whole number
+	 * @throws NumberFormatException with Python's words for NaN or an infinity
+	 */
+	public static BigInteger round(double value) {
+		requireFinite(value);
+		return new BigDecimal(value).setScale(0, RoundingMode.HALF_EVEN).toBigIntegerExact();
+	}
+
+	/**
+	 * A whole number as a float, as {@code float(n)} converts it: the nearest float.
+	 * @param value the whole number
+	 * @return its float
+	 * @throws NumberFormatException with Python's words when it is beyond a float's range
+	 */
+	public static double toFloat(BigInteger value) {
+		double converted = value.doubleValue();
+		if (Double.isInfinite(converted)) {
+			throw new NumberFormatException("int too large to convert to float");
+		}
+		return converted;
+	}
+
+	/**
+	 * {@code n / divisor} of two whole numbers, as Python's true division gives it: the
+	 * float nearest the exact quotient.
+	 * @param value the whole number divided
+	 * @param divisor a whole number whose quotients end, such as 100 or 1024
+	 * @return the quotient
+	 * @throws NumberFormatException with Python's words when it is beyond a float's range
+	 */
+	public static double divide(BigInteger value, BigDecimal divisor) {
+		double quotient = new BigDecimal(value).divide(divisor).doubleValue();
+		if (Double.isInfinite(quotient)) {
+			throw new NumberFormatException("integer division result too large for a float");
+		}
+		return quotient;
+	}
+
+	/**
+	 * Refuses a float that is not finite, as Python's conversions to a whole number do.
+	 * @param value the float
+	 * @throws NumberFormatException with Python's words for NaN or an infinity
+	 */
+	private static void requireFinite(double value) {
 		if (Double.isNaN(value)) {
 			throw new NumberFormatException("cannot convert float NaN to integer");
 		}
 		if (Double.isInfinite(value)) {
 			throw new NumberFormatException("cannot convert float infinity to integer");
 		}
-		return new BigDecimal(value).toBigInteger();
 	}
 
 	private static double special(String number) {
@@ -112,6 +170,54 @@ public final class PythonNumbers {
 			return Double.NaN;
 		}
 		return word.startsWith("-") ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+	}
+
+	/**
+	 * The value of a base's digits, as Python converts them.
+	 * @param digits ASCII digits of the base
+	 * @param radix the base: 2, 8, 10 or 16
+	 * @return their value
+	 * @throws NumberFormatException with Python's words for more decimal digits than it
+	 * converts
+	 */
+	private static BigInteger fromDigits(String digits, int radix) {
+		if (Integer.bitCount(radix) == 1) {
+			return powerOfTwo(digits, radix);
+		}
+		if (digits.length() > MAX_DIGITS) {
+			throw new NumberFormatException(
+					"Exceeds the limit (" + MAX_DIGITS + " digits) for integer string conversion: value has "
+							+ digits.length() + " digits; use sys.set_int_max_str_digits() to increase the limit");
+		}
+		return new BigInteger(digits, radix);
+	}
+
+	/**
+	 * Digits of a base that is a power of two, read in time linear in their number, as
+	 * Python reads them, which sets no limit on them.
+	 * @param digits ASCII digits of the base
+	 * @param radix the base: 2, 8 or 16
+	 * @return their value
+	 */
+	private static BigInteger powerOfTwo(String digits, int radix) {
+		int bitsPerDigit = Integer.numberOfTrailingZeros(radix);
+		byte[] bytes = new byte[(digits.length() * bitsPerDigit + Byte.SIZE - 1) / Byte.SIZE];
+		int pending = 0;
+		int pendingBits = 0;
+		int next = bytes.length;
+		for (int i = digits.length() - 1; i >= 0; i--) {
+			pending |= Character.digit(digits.charAt(i), radix) << pendingBits;
+			pendingBits += bitsPerDigit;
+			while (pendingBits >= Byte.SIZE) {
+				bytes[--next] = (byte) pending;
+				pending >>>= Byte.SIZE;
+				pendingBits -= Byte.SIZE;
+			}
+		}
+		if (pendingBits > 0) {
+			bytes[--next] = (byte) pending;
+		}
+		return new BigInteger(1, bytes);
 	}
 
 	/**

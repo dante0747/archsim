@@ -14,7 +14,7 @@ import tools.jackson.databind.node.ObjectNode;
  * @param mapped what was read as it was written
  * @param guessed what was guessed, with why
  * @param ignored what was left out
- * @param suggestions links worth confirming, each {@code {source, target, why}}
+ * @param suggestions links worth confirming, each {@code {source, target, reason}}
  * @param issues what validation reported of the design
  */
 public record ImportReport(String source, List<String> mapped, List<String> guessed, List<String> ignored,
@@ -33,7 +33,7 @@ public record ImportReport(String source, List<String> mapped, List<String> gues
 
 	/**
 	 * The links worth confirming, as copies: a record does not change.
-	 * @return copies of the suggestions, each {@code {source, target, why}}
+	 * @return copies of the suggestions, each {@code {source, target, reason}}
 	 */
 	@Override
 	public List<ObjectNode> suggestions() {

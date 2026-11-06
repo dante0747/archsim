@@ -73,7 +73,7 @@ final class PythonMappings {
 		for (int index = 0; index < items.size(); index++) {
 			List<JsonNode> pair = pair(items.get(index), index);
 			if (pair.get(0).isContainer()) {
-				throw new ImportShapeException("unhashable type: '" + PythonValues.type(pair.get(0)) + "'");
+				throw PythonValues.unhashable(pair.get(0));
 			}
 			mapping.set(PythonValues.str(pair.get(0)), pair.get(1));
 		}

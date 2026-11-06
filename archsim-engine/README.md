@@ -40,7 +40,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `compare` | comparing two runs: `RunComparer` (each run figure with a verdict, each part side by side, what changed in words and why the runs may differ otherwise: `RunComparison`), `InputDiff` (the settings two simulated designs differ in, as the reports store them, compared as Python compares them; [ADR-0040](../docs/adr/0040-comparison-copies-what-it-does-not-read.md)) |
 | `export` | exporting a design: `DesignExporter` (the design auto-sized as a run would simulate it, then written in an `ExportFormat`), `ComposeExport` (a docker-compose file), `KubernetesExport` (Kubernetes manifests, with a CPU request below the cores for an auto-sized part), `MermaidExport` (a Mermaid flowchart); each part's settings read leniently over its type's defaults, and the YAML written by a small writer of its own, `YamlText`, as the Python engine wrote it, so the texts match to the character ([ADR-0042](../docs/adr/0042-exports-read-settings-leniently-and-write-their-own-yaml.md)) |
 | `roundtrip` | what the exports carry so an import gives the design back, written by the exports and read back by the importers: `RoundTrip` (each part's outgoing links as `target[/port][:types][!flag...]`, `ExportedLink`, and the parts nothing deploys) |
-| `imports` | importing what teams already have: `ComposeImport` (a docker-compose file) and `KubernetesImport` (Kubernetes manifests), each a design as built, before validation, with an `ImportReport` of what it mapped, guessed and ignored; parts by their image's full name (`Images`), replicas, specs, autoscalers, storage and links from what the file states, an entry point, cache misses and memory that fits added as guesses; `YamlDocuments` (YAML from anyone, read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)); `PythonValues` and `PythonMappings` (Python's ways with the values YAML gives, where the importers inherited them, failing in Python's words) |
+| `imports` | importing what teams already have: `ComposeImport` (a docker-compose file), `KubernetesImport` (Kubernetes manifests) and `TerraformImport` (`terraform show -json` output: resources by type, sized by their instance types (`InstanceSizes`), links the configuration states, guessed ones and suggestions), each a design as built, before validation, with an `ImportReport` of what it mapped, guessed and ignored; parts by their image's full name (`Images`), replicas, specs, autoscalers, storage and links from what the file states, an entry point, cache misses and memory that fits added as guesses; `YamlDocuments` (YAML from anyone, read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)); `PythonValues` and `PythonMappings` (Python's ways with the values YAML gives, where the importers inherited them, failing in Python's words) |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -97,12 +97,21 @@ refuse what they cannot read in the Python engine's words, with these difference
   explicit tag on the wrong kind of node, a value written `=`), a summary without its line and
   column.
 - A mapping key that is not text (`1:`, `yes:`) is read as its text, as Python's `str()` writes
-  it, so keys Python held apart or together (`1` and `True`) can read otherwise; a timestamp is
+  it, and so is a name or a Terraform address an importer keys its parts by: keys Python held
+  apart or together (`"1"` and `1`; `1`, `1.0` and `True`) can read otherwise; a timestamp is
   read as the text Python's `str()` gives its date or time, `!!binary` as its base64 text,
   `!!set` as a list of its items, `!!omap` as a mapping and `!!pairs` as a list of two-item lists
   (Python had bytes, a set and lists of tuples, whose `str()` differs).
-- A number Python's runtime could not turn into a whole number (`int(float("inf"))`) is refused in
-  Python's words, where the Python failed with an error the API answered `500` for.
+- A number Python's runtime could not turn into a whole number (`int(float("inf"))`), or into a
+  float (`float(10**400)`, `10**400 / 1024`), is refused in Python's words, where the Python
+  failed with an error the API answered `500` for.
+- Terraform text that is not JSON is refused in `json`'s words where no value starts (`Expecting
+  value: line 1 column 1 (char 0)`); past that, with Jackson's description of the problem in
+  `json`'s form. The Java reads up to 1,000 levels of nesting, where Python's limit was its C
+  recursion limit (3,000 on Windows, 10,000 on Linux), and numbers whose whole part, fraction and
+  exponent have up to 4,300 digits each: Python's most for a whole number, but it read floats of
+  any length. It also reads `-INF`, `+INF` and `+Infinity`, which `json` refuses
+  ([ADR-0044](../docs/adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md)).
 
 Where the Python engine gives a result for a report no run writes, the Java refuses it:
 

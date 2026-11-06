@@ -208,21 +208,48 @@ final class PythonValues {
 	 */
 	static String key(JsonNode value) {
 		if (value.isContainer()) {
-			throw new ImportShapeException("unhashable type: '" + type(value) + "'");
+			throw unhashable(value);
 		}
 		return str(value);
 	}
 
 	/**
+	 * Python's failure to hash a value used as a key, or looked up in a set.
+	 * @param value a list or a mapping
+	 * @return the failure
+	 */
+	static ImportShapeException unhashable(JsonNode value) {
+		return new ImportShapeException("unhashable type: '" + type(value) + "'");
+	}
+
+	/**
 	 * A number divided by 100, as Python's true division rounds it.
-	 * @param value a number, not a boolean
+	 * @param value a number or a boolean
 	 * @return the fraction
 	 */
 	static double percent(JsonNode value) {
-		if (value.isIntegralNumber()) {
-			return new BigDecimal(value.bigIntegerValue()).divide(HUNDRED).doubleValue();
+		return divided(value, HUNDRED);
+	}
+
+	/**
+	 * {@code value / divisor}, as Python's true division rounds it: a whole number or a
+	 * boolean divided exactly, then rounded once to a float; a float as floats divide.
+	 * @param value a number or a boolean
+	 * @param divisor a whole number whose quotients end, such as 100 or 1024
+	 * @return the quotient
+	 * @throws ImportRefusedException with Python's words for a quotient beyond a float's
+	 * range
+	 */
+	static double divided(JsonNode value, BigDecimal divisor) {
+		if (value.isBoolean() || value.isIntegralNumber()) {
+			try {
+				return PythonNumbers.divide(toInt(value), divisor);
+			}
+			catch (NumberFormatException ex) {
+				throw new ImportRefusedException(String.valueOf(ex.getMessage()), ex);
+			}
 		}
-		return value.doubleValue() / HUNDRED.doubleValue();
+		return value.doubleValue() / divisor.doubleValue();
 	}
 
 	/**
@@ -267,19 +294,21 @@ final class PythonValues {
 	 * {@code float(value)}.
 	 * @param value the value
 	 * @return its float
-	 * @throws ImportRefusedException with Python's words for text that is no float
+	 * @throws ImportRefusedException with Python's words for text that is no float, or a
+	 * whole number beyond a float's range
 	 * @throws ImportShapeException for a value of another kind
 	 */
 	static double toFloat(JsonNode value) {
 		if (value.isBoolean()) {
 			return value.booleanValue() ? 1 : 0;
 		}
-		if (value.isNumber()) {
+		if (value.isFloatingPointNumber()) {
 			return value.doubleValue();
 		}
-		if (value.isString()) {
+		if (value.isIntegralNumber() || value.isString()) {
 			try {
-				return PythonNumbers.parseFloat(value.stringValue());
+				return value.isString() ? PythonNumbers.parseFloat(value.stringValue())
+						: PythonNumbers.toFloat(value.bigIntegerValue());
 			}
 			catch (NumberFormatException ex) {
 				throw new ImportRefusedException(String.valueOf(ex.getMessage()), ex);

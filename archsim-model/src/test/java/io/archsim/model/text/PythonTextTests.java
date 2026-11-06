@@ -1,11 +1,14 @@
 package io.archsim.model.text;
 
+import java.math.BigInteger;
+
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,6 +19,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PythonTextTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	@Test
+	void truthy_wholeNumberBeyondADouble_isTrue() {
+		assertThat(PythonText.truthy(JSON.readTree("1" + "0".repeat(400)))).isTrue();
+	}
+
+	@Test
+	void truthy_wholeNumberZero_isFalse() {
+		assertThat(PythonText.truthy(JsonNodeFactory.instance.numberNode(BigInteger.ZERO))).isFalse();
+	}
 
 	@ParameterizedTest(name = "repr({0}) is {1}")
 	@CsvSource(delimiter = '|', textBlock = """

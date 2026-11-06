@@ -162,6 +162,10 @@ public final class PythonText {
 		if (value.isBoolean()) {
 			return value.booleanValue();
 		}
+		if (value.isIntegralNumber()) {
+			// exactly: a whole number beyond a double's range has no double
+			return value.bigIntegerValue().signum() != 0;
+		}
 		if (value.isNumber()) {
 			return value.doubleValue() != 0;
 		}

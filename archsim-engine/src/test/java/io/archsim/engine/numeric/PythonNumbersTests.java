@@ -1,5 +1,6 @@
 package io.archsim.engine.numeric;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
@@ -77,9 +78,64 @@ class PythonNumbersTests {
 	}
 
 	@Test
+	void parseInt_pythonsMostDigits_areRead() {
+		assertThat(PythonNumbers.parseInt("0" + "9".repeat(4299)).toString()).hasSize(4299);
+	}
+
+	@Test
+	void parseInt_moreDigitsThanPythonConverts_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.parseInt("-" + "1".repeat(4300) + "_1"))
+			.withMessage("Exceeds the limit (4300 digits) for integer string conversion: value has 4301 digits; "
+					+ "use sys.set_int_max_str_digits() to increase the limit");
+	}
+
+	@Test
+	void parseInt_hexOfAHundredThousandDigits_isReadWithoutALimit() {
+		assertThat(PythonNumbers.parseInt("f".repeat(100_000), 16).bitLength()).isEqualTo(400_000);
+	}
+
+	@Test
+	void parseInt_binaryAndOctal_areReadDigitByDigit() {
+		assertThat(PythonNumbers.parseInt("0b1_0110", 2)).isEqualTo(BigInteger.valueOf(22));
+		assertThat(PythonNumbers.parseInt("1777", 8)).isEqualTo(BigInteger.valueOf(1023));
+	}
+
+	@Test
 	void parseInt_doubleUnderscore_isRefused() {
 		assertThatExceptionOfType(NumberFormatException.class).isThrownBy(() -> PythonNumbers.parseInt("1__0"))
 			.withMessage("invalid literal for int() with base 10: '1__0'");
+	}
+
+	@Test
+	void round_halves_goToEven() {
+		assertThat(PythonNumbers.round(2.5)).isEqualTo(BigInteger.TWO);
+		assertThat(PythonNumbers.round(3.5)).isEqualTo(BigInteger.valueOf(4));
+	}
+
+	@Test
+	void round_nan_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(NumberFormatException.class).isThrownBy(() -> PythonNumbers.round(Double.NaN))
+			.withMessage("cannot convert float NaN to integer");
+	}
+
+	@Test
+	void toFloat_wholeNumberBeyondAFloat_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.toFloat(BigInteger.TEN.pow(400)))
+			.withMessage("int too large to convert to float");
+	}
+
+	@Test
+	void divide_wholeNumbers_isTheExactQuotientsNearestFloat() {
+		assertThat(PythonNumbers.divide(BigInteger.valueOf(7), BigDecimal.valueOf(100))).isEqualTo(0.07);
+	}
+
+	@Test
+	void divide_quotientBeyondAFloat_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.divide(BigInteger.TEN.pow(400), BigDecimal.valueOf(1024)))
+			.withMessage("integer division result too large for a float");
 	}
 
 	@Test

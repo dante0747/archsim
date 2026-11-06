@@ -1,5 +1,6 @@
 package io.archsim.engine.imports;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -11,6 +12,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.numeric.PythonNumbers;
 import io.archsim.engine.roundtrip.ExportedLink;
 import io.archsim.engine.settings.LenientSettings;
 import io.archsim.model.component.service.ServiceSpec;
@@ -24,9 +26,6 @@ import io.archsim.model.text.PythonFormat;
 final class ImportFinish {
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
-
-	/** MiB in a GiB. */
-	private static final double MIB_PER_GIB = 1024;
 
 	private final DesignBuilder design;
 
@@ -63,23 +62,32 @@ final class ImportFinish {
 			ObjectNode config = (ObjectNode) node.path("config");
 			JsonNode memory = config.path("memoryGib");
 			if (!node.path("type").stringValue().equals(ServiceSpec.TYPE) || config.has("memoryBaselineMb")
-					|| !memory.isNumber() || memory.doubleValue() <= 0) {
+					|| !memory.isNumber() || isAtMostZero(memory)) {
 				continue;
 			}
 			double baseline = defaults.number("memoryBaselineMb").orElseThrow();
 			double perRequest = config.has("memoryPerRequestMb")
 					? PythonValues.toFloat(config.path("memoryPerRequestMb"))
 					: defaults.number("memoryPerRequestMb").orElseThrow();
-			double mib = memory.doubleValue() * MIB_PER_GIB;
-			if (mib - baseline < perRequest) {
+			double mib = PythonValues.toFloat(memory) * Quantities.MIB_PER_GIB.doubleValue();
+			// NaN never fits, and is refused lowering it, as in Python
+			boolean fits = mib - baseline >= perRequest;
+			if (!fits) {
 				lowerBaseline(node, mib, baseline);
 			}
 		}
 	}
 
 	private void lowerBaseline(ObjectNode node, double mib, double baseline) {
-		long lowered = (long) Math.floor(mib / 2);
-		((ObjectNode) node.path("config")).put("memoryBaselineMb", lowered);
+		BigInteger lowered;
+		try {
+			lowered = PythonNumbers.truncate(Math.floor(mib / 2));
+		}
+		catch (NumberFormatException ex) {
+			// math.floor of NaN fails in these words
+			throw new ImportRefusedException(String.valueOf(ex.getMessage()), ex);
+		}
+		((ObjectNode) node.path("config")).set("memoryBaselineMb", PythonValues.number(lowered));
 		String nodeId = node.path("id").stringValue();
 		String limit = PythonFormat.format(mib, "g");
 		String idle = PythonFormat.format(baseline, "g");
@@ -195,6 +203,15 @@ final class ImportFinish {
 		if (this.design.link(cacheId, new ExportedLink(target, "miss", List.of("read"), Map.of()))) {
 			this.log.guessed("link " + cacheId + " -> " + target + " on its miss port (reads that miss; " + why + ")");
 		}
+	}
+
+	/**
+	 * {@code value <= 0}, of a number as Python compares it: NaN is not.
+	 * @param value a number
+	 * @return {@code true} for zero or less
+	 */
+	private static boolean isAtMostZero(JsonNode value) {
+		return value.isIntegralNumber() ? value.bigIntegerValue().signum() <= 0 : value.doubleValue() <= 0;
 	}
 
 	private static boolean carriesReads(ObjectNode link) {

@@ -1,5 +1,6 @@
 package io.archsim.engine.imports;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
@@ -110,6 +111,35 @@ class PythonValuesTests {
 	void percent_ofWholeNumbers_roundsAsPythonsTrueDivision() {
 		assertThat(PythonValues.percent(json("7"))).isEqualTo(0.07);
 		assertThat(PythonValues.percent(json("12345678901234567890123"))).isEqualTo(1.2345678901234568E20);
+	}
+
+	@Test
+	void divided_boolean_dividesItsWholeNumber() {
+		assertThat(PythonValues.divided(json("true"), BigDecimal.valueOf(1024))).isEqualTo(1 / 1024.0);
+	}
+
+	@Test
+	void divided_float_dividesAsFloats() {
+		assertThat(PythonValues.divided(json("256.5"), BigDecimal.valueOf(1024))).isEqualTo(256.5 / 1024);
+	}
+
+	@Test
+	void divided_wholeNumberWhoseQuotientIsBeyondAFloat_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(ImportRefusedException.class)
+			.isThrownBy(() -> PythonValues.divided(json("1" + "0".repeat(400)), BigDecimal.valueOf(1024)))
+			.withMessage("integer division result too large for a float");
+	}
+
+	@Test
+	void toFloat_wholeNumberBeyondAFloat_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(ImportRefusedException.class)
+			.isThrownBy(() -> PythonValues.toFloat(json("1" + "0".repeat(400))))
+			.withMessage("int too large to convert to float");
+	}
+
+	@Test
+	void truthy_wholeNumberBeyondAFloat_isTrue() {
+		assertThat(PythonValues.truthy(json("1" + "0".repeat(400)))).isTrue();
 	}
 
 	@Test

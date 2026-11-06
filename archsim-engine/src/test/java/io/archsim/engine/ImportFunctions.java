@@ -13,15 +13,16 @@ import io.archsim.engine.imports.ComposeImport;
 import io.archsim.engine.imports.ImportRefusedException;
 import io.archsim.engine.imports.ImportedDesign;
 import io.archsim.engine.imports.KubernetesImport;
+import io.archsim.engine.imports.TerraformImport;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.PythonError;
 
 /**
- * The YAML importers, each as the Java call that replaces it, taking a case's input and
- * giving its output as the frozen engine wrote it: the design as built, before
- * validation, with the import report. The golden files record {@code import_design},
- * which validates what they build, so these are checked on {@code imports/cases.json}.
+ * The importers, each as the Java call that replaces it, taking a case's input and giving
+ * its output as the frozen engine wrote it: the design as built, before validation, with
+ * the import report. The golden files record {@code import_design}, which validates what
+ * they build, so these are checked on {@code imports/cases.json}.
  */
 final class ImportFunctions {
 
@@ -29,11 +30,15 @@ final class ImportFunctions {
 
 	private static final KubernetesImport KUBERNETES = new KubernetesImport(StandardComponents.registry());
 
+	private static final TerraformImport TERRAFORM = new TerraformImport(StandardComponents.registry());
+
 	private static final Map<String, Function<GoldenEntry, ImportedDesign>> PORTED = Map.of(
 			"archsim_engine.importers.compose.import_compose",
 			(entry) -> COMPOSE.read(entry.input("text").stringValue(), name(entry)),
 			"archsim_engine.importers.k8s.import_k8s",
-			(entry) -> KUBERNETES.read(entry.input("text").stringValue(), name(entry)));
+			(entry) -> KUBERNETES.read(entry.input("text").stringValue(), name(entry)),
+			"archsim_engine.importers.terraform.import_terraform",
+			(entry) -> TERRAFORM.read(entry.input("text").stringValue(), name(entry)));
 
 	private ImportFunctions() {
 	}
