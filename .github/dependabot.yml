@@ -1,9 +1,12 @@
 version: 2
+# Version updates are monthly: the repository is private, so every update pull request, and each
+# rebase of one when main moves, runs CI on billed Actions minutes. Security updates still open
+# as soon as an advisory is published; the schedule does not apply to them.
 updates:
   - package-ecosystem: uv
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     commit-message:
       prefix: build
       include: scope
@@ -13,7 +16,7 @@ updates:
   - package-ecosystem: npm
     directory: /apps/web
     schedule:
-      interval: weekly
+      interval: monthly
     commit-message:
       prefix: build
       include: scope
@@ -33,7 +36,7 @@ updates:
   - package-ecosystem: gradle
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     commit-message:
       prefix: build
       include: scope
@@ -43,7 +46,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     commit-message:
       prefix: ci
       include: scope
