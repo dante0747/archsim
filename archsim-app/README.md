@@ -158,9 +158,9 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   `1e-05`); `GET /compare` and `GET /run-groups/{id}` spell the engine's numbers as Java writes
   them. Clients read the same numbers.
 - `GET /compare` of a run whose stored report lacks a part every report has (its summary,
-  parts, findings, provenance, time series or window) fails (`500`). The Python failed the same
-  way without the summary or the parts, and compared what it had without the others. Every report
-  the engine writes has them.
+  parts, findings, provenance, time series or window, or a design's metadata and name in its
+  input) fails (`500`). The Python failed the same way without the summary or the parts, and
+  compared what it had without the others. Every report the engine writes has them.
 - Numbers in a stored design, and in `POST /analyze`'s answer, come back spelled as Java writes
   them (`0.0005` as `5.0E-4`, `1e-05` as `1.0E-5`); clients read the same numbers.
 - `/api/v1/projects/` (a trailing slash) is `404`; Starlette redirected it (`307`) to

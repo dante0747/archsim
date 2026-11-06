@@ -6,8 +6,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -26,6 +28,14 @@ public final class PythonStrings {
 	private static final Map<Integer, String> FOLDS = folds();
 
 	private static final int HEX = 16;
+
+	/**
+	 * What Python 3.12's {@code str.isspace()} counts as whitespace (Unicode 15.0).
+	 * Java's {@link Character#isWhitespace} counts neither the next-line character
+	 * (U+0085) nor the no-break spaces (U+00A0, U+2007, U+202F); Python counts all four.
+	 */
+	private static final String WHITESPACE = "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680"
+			+ "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000";
 
 	private PythonStrings() {
 	}
@@ -58,6 +68,31 @@ public final class PythonStrings {
 	 */
 	public static int compare(String first, String second) {
 		return Arrays.compare(first.codePoints().toArray(), second.codePoints().toArray());
+	}
+
+	/**
+	 * A text split at runs of whitespace, as Python's {@code str.split()} with no
+	 * argument splits it: at what {@code str.isspace()} counts as whitespace, with no
+	 * empty words.
+	 * @param text a text
+	 * @return its words, in order
+	 */
+	public static List<String> words(String text) {
+		List<String> words = new ArrayList<>();
+		StringBuilder word = new StringBuilder();
+		text.codePoints().forEach((codePoint) -> {
+			if (WHITESPACE.indexOf(codePoint) < 0) {
+				word.appendCodePoint(codePoint);
+			}
+			else if (!word.isEmpty()) {
+				words.add(word.toString());
+				word.setLength(0);
+			}
+		});
+		if (!word.isEmpty()) {
+			words.add(word.toString());
+		}
+		return List.copyOf(words);
 	}
 
 	/**

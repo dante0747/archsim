@@ -80,7 +80,8 @@ class ComparisonsTests extends RunTestSupport {
 				 "findings": [], "provenance": {"resultDigest": "d", "seed": 42, "engineVersion": "0.16.0"},
 				 "timeseries": {"bucketS": 1.0, "t": [0.0]},
 				 "window": {"warmupS": 0.0, "durationS": 1.0, "measuredS": 1.0},
-				 "input": {"architecture": {"nodes": [{"id": "api", "type": "service", "label": "API",
+				 "input": {"metadata": {"name": "Checkout"},
+				           "architecture": {"nodes": [{"id": "api", "type": "service", "label": "API",
 				                                       "config": {"replicas": %d}}], "edges": []},
 				           "workload": {"rps": 400}}}""".formatted(p95, replicas);
 	}

@@ -1,5 +1,7 @@
 package io.archsim.engine.report;
 
+import java.util.Objects;
+
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -21,7 +23,8 @@ class RunReportTests {
 			 "summary": {"latencyMs": {"count": 10, "mean": 50.0, "p50": 40.0, "p90": 80, "p95": 90.5, "p99": null},
 			             "offeredRps": 400, "throughputRps": 398.5, "successRate": 1.0, "errorRate": 0.004,
 			             "timeoutRate": null, "failureBreakdown": []},
-			 "findings": [{"kind": "bottleneck", "nodeId": "api", "evidence": {"share": 0.5}},
+			 "findings": [{"kind": "bottleneck", "nodeId": "api", "title": "API is saturated",
+			               "evidence": {"share": 0.5}},
 			              {"title": "no kind"}],
 			 "nodes": [{"id": "api", "type": "service", "category": "compute", "label": "API", "status": "hot",
 			            "summary": {"arrivals": 1234, "slots": 16, "counters": {"misses": 7},
@@ -38,6 +41,9 @@ class RunReportTests {
 			 "timeseries": {"bucketS": 0.5, "t": [0, 0.5], "throughputRps": [1.0, null],
 			                "offeredRps": null, "latencyP95Ms": [3.5]},
 			 "window": {"warmupS": 2.0, "durationS": 12.0, "measuredS": 10.0},
+			 "input": {"schemaVersion": "1.7", "metadata": {"name": "Checkout"}, "workload": {"rps": 400}},
+			 "cost": {"monthly": 210.5, "hasCost": true, "byNode": []},
+			 "confidence": {"level": "low", "reason": "illustrative", "howToRaise": "Calibrate.", "drivers": []},
 			 "traces": [{"id": 1}]}""";
 
 	@Test
@@ -72,6 +78,45 @@ class RunReportTests {
 		assertThat(report.nodes().getFirst().status()).isEqualTo("hot");
 		assertThat(report.provenance().seed()).isEqualTo(42L);
 		assertThat(report.provenance().engineVersion()).isEqualTo("0.16.0");
+	}
+
+	@Test
+	void read_aReport_readsWhatACheckReads() {
+		RunReport report = RunReport.read(json(REPORT));
+
+		assertThat(Objects.requireNonNull(report.input()).metadata().name()).isEqualTo("Checkout");
+		assertThat(Objects.requireNonNull(report.cost()).monthly()).isEqualTo(210.5);
+		assertThat(Objects.requireNonNull(report.cost()).hasCost()).isTrue();
+		assertThat(Objects.requireNonNull(report.confidence()).level()).isEqualTo("low");
+		assertThat(Objects.requireNonNull(report.confidence()).howToRaise()).isEqualTo("Calibrate.");
+		assertThat(report.findings().getFirst().title()).isEqualTo("API is saturated");
+	}
+
+	@Test
+	void read_aReportWithoutItsInputCostOrConfidence_hasNone() {
+		RunReport report = RunReport.read(json(REPORT.replace("\"input\"", "\"inputGone\"")
+			.replace("\"cost\"", "\"costGone\"")
+			.replace("\"confidence\"", "\"confidenceGone\"")));
+
+		assertThat(report.input()).isNull();
+		assertThat(report.cost()).isNull();
+		assertThat(report.confidence()).isNull();
+	}
+
+	@Test
+	void read_anInputWithoutItsMetadata_isRefused() {
+		JsonNode report = json(REPORT.replace("\"metadata\": {\"name\": \"Checkout\"}, ", ""));
+
+		assertThatExceptionOfType(JacksonException.class).isThrownBy(() -> RunReport.read(report))
+			.withMessageContaining("a report's input has its metadata");
+	}
+
+	@Test
+	void read_metadataWithoutAName_isRefused() {
+		JsonNode report = json(REPORT.replace("\"metadata\": {\"name\": \"Checkout\"}", "\"metadata\": {}"));
+
+		assertThatExceptionOfType(JacksonException.class).isThrownBy(() -> RunReport.read(report))
+			.withMessageContaining("a design's metadata has its name");
 	}
 
 	@Test

@@ -19,10 +19,16 @@ import tools.jackson.databind.JsonNode;
  * @param provenance what the run was, and the digest of its result
  * @param timeseries the run's figures per time bucket
  * @param window the run's measured window
+ * @param input the design the run simulated; {@code null} when the report does not have
+ * it
+ * @param cost the run's monthly cost; {@code null} when the report does not have it
+ * @param confidence how far the run can be trusted; {@code null} when the report does not
+ * say
  */
 public record RunReport(RunSummary summary, List<ReportNode> nodes, List<ReportEdge> edges,
 		List<ReportFinding> findings, @Nullable ReportExplain explain, ReportProvenance provenance,
-		ReportTimeseries timeseries, ReportWindow window) {
+		ReportTimeseries timeseries, ReportWindow window, @Nullable ReportInput input, @Nullable ReportCost cost,
+		@Nullable ReportConfidence confidence) {
 
 	/**
 	 * Checks that the report has the parts every report has, and copies its lists; a

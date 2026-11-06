@@ -85,4 +85,24 @@ class PythonStringsTests {
 		}
 	}
 
+	@Test
+	void words_aTextWithRunsOfWhitespace_isItsWordsAlone() {
+		assertThat(PythonStrings.words("  a\t b\n\nc ")).containsExactly("a", "b", "c");
+	}
+
+	@Test
+	void words_whitespaceJavaDoesNotCountAsSuch_splitsAsPythonSplits() {
+		assertThat(PythonStrings.words("a\u0085b\u00a0c\u2007d\u202fe")).containsExactly("a", "b", "c", "d", "e");
+	}
+
+	@Test
+	void words_aZeroWidthSpace_isPartOfAWord() {
+		assertThat(PythonStrings.words("d\u200be")).containsExactly("d\u200be");
+	}
+
+	@Test
+	void words_onlyWhitespace_isNone() {
+		assertThat(PythonStrings.words(" \t\n")).isEmpty();
+	}
+
 }

@@ -21,7 +21,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `scenario` | `ScenarioResolver`: the document a run simulates, a design or one of its scenarios with its defaults in full, its prices pinned and its empty specs auto-sized (`ResolvedDesign`) |
 | `sizing` | auto-sizing: `AutoSizer` (each part's CPU, memory and storage for the design's own peak, snapped to an instance type or a standard shape, with what it needs and why: `PartSize`), one sizer per kind of part, `BaseBusy`, `SizingSummaries` (each part's specs and where they came from, its needs against its instance, the price of its size) |
 | `numeric` | arithmetic as Python does it: `ExactSum` (`math.fsum`), `FloatSum` (the built-in `sum()` of floats, compensated since Python 3.12), `PythonRound` (`round(x, n)`), `FloorDivision` (`//` on floats), `TrueDivision` (`/` on floats, an error on zero), `Median`, `Erf` (the complementary error function, as fdlibm and Python compute it) |
-| `text` | how the engine writes numbers: `NumberText` (formulas, percentages, short figures, latencies) and `HalfUp` (rounding halves away from zero, as the Python engine does, and JavaScript's `Math.round` as the Python engine computes it); `PythonStrings` (texts folded as Python 3.12 folds them, from `casefold.tsv`, which `scripts/export_casefold.py` writes, and ordered by code point) |
+| `text` | how the engine writes numbers: `NumberText` (formulas, percentages, short figures, latencies) and `HalfUp` (rounding halves away from zero, as the Python engine does, and JavaScript's `Math.round` as the Python engine computes it); `PythonStrings` (texts folded as Python 3.12 folds them, from `casefold.tsv`, which `scripts/export_casefold.py` writes, ordered by code point, and split into words as `str.split()` splits them) |
 | `queueing` | the Erlang C formula, the wait in an M/M/c queue, `Moments` of a time (its distribution's, or calls made on average), the p95 of a mix of times (`LognormalMixture`), Zipf key popularity |
 | `load` | the load each part carries without a run: `LoadEstimator` (clients' shares, balancers by replicas, caches' misses, cache-aside write-backs; TTL caches' miss shares), `BaseRate` beside the workload's peak, `TtlCacheTraffic` (a TTL cache's hit ratio) |
 | `settings` | reading a part's settings where the Python engine read the raw settings of a design that may not be valid yet: `LenientSettings` ([ADR-0038](../docs/adr/0038-engine-computes-on-typed-records.md)), `LoadCurve` (service time by load) |
@@ -36,6 +36,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `simulation` | where the engine meets the simulator: `SimulationLimits`, `Stationarity` (whether a sampled run reached a `SteadyState`) |
 | `explain` | the calculations behind a report's numbers: `QueueingFormulas` (any part's arrival rate, slot capacity, utilization, Little's law, M/M/c wait and CPU capacity), `Formula` |
 | `findings` | what a run found: `RunAnalysis` (each part's status, a `Classification`, from its utilization, CPU, rejections and queue; the root causes and the symptoms of a part downstream; what clients saw; work wasted on clients that gave up; caches; data stores' hot shards, replicas, lag and locks; third parties' errors and latency; throttling; pending pods; each fault's impact; autoscaling, serverless cold starts and queue lag), each a `RunFinding` with the figures it rests on |
+| `check` | the SLO gate for CI, `archsim check`, as a library for stage 5's command: `Measurement` (what a check compares of a run: its figures, cost, objectives judged and confidence), `Regressions` (each figure against the baseline's, the breaking point to one step of its load grid), `CheckResult` (whether the check passes, as it fails on objectives or regressions), `CheckText` (its headline and pull-request comment, the design's text escaped); the sweep of the breaking point needs the simulator (stage 4) |
 | `compare` | comparing two runs: `RunComparer` (each run figure with a verdict, each part side by side, what changed in words and why the runs may differ otherwise: `RunComparison`), `InputDiff` (the settings two simulated designs differ in, as the reports store them, compared as Python compares them; [ADR-0040](../docs/adr/0040-comparison-copies-what-it-does-not-read.md)) |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
@@ -100,22 +101,26 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   `EngineFunctions` maps each Python name to its Java call, through one table per area
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
   `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
-  `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`). Ported so far:
+  `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`, `CheckFunctions`).
+  Ported so far:
   - on every recorded run, its findings (`analysis.analyze`), and each part's status and why,
     which the report carries as the analysis set them; the golden files reach 17 of the 22
     kinds of finding: `findings/cases.json` covers the rest and branches they do not reach;
   - on every recorded run, the verdict against the design's objectives (`slo.slo_checks`,
     `evaluate`, `verdict_text`), the run as a load sweep's step (`sweep.row_from`, `meets`),
     whether it reached a steady state (`engine.stationary`) and each part's queueing formulas
-    (`explain.generic`); on every pair of runs, the seed summary (`seeds.summarize_seeds`),
-    the sweep's breaking point (`sweep.analyze`) and the comparison (`compare.compare_reports`,
-    `input_diff`); on every recorded run, its confidence
-    (`confidence.report_confidence`) and its cost (`cost.estimate_cost` with its report); the
-    golden files have no run without objectives or figures, no compact run summary, no latency
-    knee, no run weighed by utilization and none without base-load buckets, an offered rate, a
-    throughput or measured replicas, or with a base load of zero, and no comparison of identical
-    inputs, other seeds or engines, a bottleneck that went or came, or inputs equal only as
-    Python compares them: `report/cases.json` covers them; and the words reports are written with
+    (`explain.generic`); on every pair of runs, the seed summary (`seeds.summarize_seeds`), the
+    sweep's breaking point (`sweep.analyze`), the comparison (`compare.compare_reports`,
+    `input_diff`) and the check of one against the other (`check.regressions`, `run_check`,
+    `headline`, `to_markdown`); on every recorded run, its confidence
+    (`confidence.report_confidence`), its cost (`cost.estimate_cost` with its report) and what a
+    check measures of it (`check.measure`); the golden files have no run without objectives or
+    figures, no compact run summary, no latency knee, no run weighed by utilization and none
+    without base-load buckets, an offered rate, a throughput or measured replicas, or with a base
+    load of zero, no comparison of identical inputs, other seeds or engines, a bottleneck that
+    went or came, or inputs equal only as Python compares them, and no check of breaking points,
+    without a baseline or objectives, with other thresholds or fail-on choices, or of design text
+    with markup: `report/cases.json` covers them; and the words reports are written with
     (`report.MODEL_NOTES`, `REASON_TEXT`);
   - the analysis of a design for every case of every template (`analyze.analyze_document`), its
     confidence (`confidence.analysis_confidence`) and its quick check (`engine.quick_check`); the

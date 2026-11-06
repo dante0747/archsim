@@ -10,11 +10,14 @@ bottleneck found by load, a run's cost without base-load buckets, an offered rat
 throughput, measured replicas or a part's time series, or with a base load of zero, or a
 comparison of identical inputs, of other seeds or engines, of a bottleneck that moved, went or
 came, of figures not measured, of parts in one run only, or of inputs that differ only as
-Python's equality ignores. This script asks the frozen engine (0.16.0) for
+Python's equality ignores, or a check of breaking points, without a baseline or objectives, with
+other thresholds or fail-on choices, or of design text with Markdown or HTML in it. This script
+asks the frozen engine (0.16.0) for
 ``slo.slo_checks``, ``evaluate`` and ``verdict_text``, ``seeds.summarize_seeds``,
 ``sweep.row_from``, ``meets`` and ``analyze``, ``engine.stationary``, ``explain.generic``,
-``confidence.report_confidence``, ``cost.estimate_cost``, ``compare.compare_reports`` and
-``input_diff`` on small made-up inputs that do, and writes each call as a golden entry
+``confidence.report_confidence``, ``cost.estimate_cost``, ``compare.compare_reports``,
+``input_diff``, and ``check.measure``, ``regressions``, ``run_check``, ``headline`` and
+``to_markdown`` on small made-up inputs that do, and writes each call as a golden entry
 (``name``, ``fn``, ``input``, ``output``) to archsim-engine's test resources, where
 ``ReportCasesTests`` replays them as the golden files are replayed.
 
@@ -31,8 +34,10 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
-from archsim_engine import compare, confidence, cost, engine, explain, seeds, slo, sweep
+import archsim_engine
+from archsim_engine import check, compare, confidence, cost, engine, explain, seeds, slo, sweep
 from archsim_engine.components import create_default_registry
 from archsim_engine.estimate import estimate_design
 from archsim_engine.provenance import input_provenance
@@ -966,6 +971,376 @@ def input_diff_cases(snapshot: Json) -> list[tuple[str, str, Json]]:
     return [(name, "archsim_engine.compare.input_diff", {"a": a, "b": b}) for name, a, b in pairs]
 
 
+OBJECTIVES = {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": None,
+    "availability": 0.999,
+    "minThroughputRps": None,
+}
+CONFIDENT = {
+    "level": "medium",
+    "reason": "62% of the latency rests on measured or documented inputs",
+    "howToRaise": "Calibrate from telemetry.",
+}
+
+
+def measured(
+    p95: float | None = 95.0,
+    success: float | None = 0.999,
+    objectives: Json = OBJECTIVES,
+    **more: Any,
+) -> Json:
+    """A check's measurement of a run, as ``check.measure`` writes it."""
+    result = slo.evaluate(objectives, summary(p95, 130.0, success, 400.0))
+    return {
+        "name": "Checkout API",
+        "scenarioId": None,
+        "p95": p95,
+        "p99": 130.0,
+        "successRate": success,
+        "throughputRps": 400.0,
+        "offeredRps": 400.0,
+        "costMonthly": 120.0,
+        "objectives": objectives,
+        "slo": result,
+        "verdict": slo.verdict_text(result),
+        "bottleneck": None,
+        "resultDigest": "0123456789abcdef" * 4,
+        "engineVersion": "0.16.0",
+        "confidence": CONFIDENT,
+        "knee": None,
+        **more,
+    }
+
+
+def swept(knee: float | None, lightest: float = 200.0, step: float | None = 100.0) -> Json:
+    """What a breaking-point sweep adds to a measurement."""
+    return {
+        "knee": knee,
+        "kneeVerdict": "Breaks at about the highest load within the objectives.",
+        "kneeRange": [lightest, 3000.0],
+        "kneeResolution": step,
+    }
+
+
+THRESHOLDS = {"p95_increase": 0.1, "success_drop": 0.001, "cost_increase": 0.1, "knee_drop": 0.1}
+BOTH = ["objectives", "regression"]
+
+
+def checked(current: Json, baseline: Json | None, fail_on: list[str], **thresholds: float) -> Json:
+    """``run_check`` with its measurements given, as the golden files record it."""
+    measurements = [current] + ([baseline] if baseline is not None else [])
+
+    def measure(*_args: Any, **_kwargs: Any) -> Json:
+        return copy.deepcopy(measurements.pop(0))
+
+    with mock.patch.object(check, "measure", measure):
+        return check.run_check(
+            {},
+            REGISTRY,
+            baseline={} if baseline is not None else None,
+            thresholds=check.Thresholds(**{**THRESHOLDS, **thresholds}),
+            fail_on=tuple(fail_on),
+        )
+
+
+def regression_cases() -> list[tuple[str, str, Json]]:
+    pairs = [
+        ("kneeDroppedPastItsStep", measured(**swept(800.0)), measured(**swept(1000.0)), {}),
+        (
+            "kneeDroppedWithinItsStep",
+            measured(**swept(880.0, step=200.0)),
+            measured(**swept(1000.0)),
+            {},
+        ),
+        (
+            "kneeDroppedLessThanTheThreshold",
+            measured(**swept(950.0)),
+            measured(**swept(1000.0)),
+            {},
+        ),
+        ("kneeMissedAtTheLightestLoad", measured(**swept(None)), measured(**swept(1000.0)), {}),
+        ("kneeMissedInEither", measured(**swept(None)), measured(**swept(None)), {}),
+        (
+            "kneeRoseWithoutAStep",
+            measured(**swept(1200.0, step=None)),
+            measured(**swept(1000.0, step=None)),
+            {},
+        ),
+        ("kneeOnlyInTheBaseline", measured(), measured(**swept(1000.0)), {}),
+        (
+            "aBaselineOfZeroOrNone",
+            measured(costMonthly=50.0),
+            measured(p95=0.0, success=None, costMonthly=0.0),
+            {},
+        ),
+        (
+            "regressedEverywhere",
+            measured(p95=150.0, success=0.98, costMonthly=150.0),
+            measured(),
+            {},
+        ),
+        (
+            "aCurrentRunWithoutFigures",
+            measured(p95=None, success=None, costMonthly=None),
+            measured(),
+            {},
+        ),
+        (
+            "otherThresholds",
+            measured(p95=130.0, success=0.99, costMonthly=150.0),
+            measured(),
+            {"p95_increase": 0.5, "success_drop": 0.05, "cost_increase": 0.3, "knee_drop": 0.3},
+        ),
+    ]
+    return [
+        (
+            name,
+            "archsim_engine.check.regressions",
+            {"current": c, "baseline": b, "thresholds": {**THRESHOLDS, **th}},
+        )
+        for name, c, b, th in pairs
+    ]
+
+
+NO_OBJECTIVES = {
+    "latencyP95Ms": None,
+    "latencyP99Ms": None,
+    "availability": None,
+    "minThroughputRps": None,
+}
+ALL_SET = {
+    "latencyP95Ms": 300.0,
+    "latencyP99Ms": 100.0,
+    "availability": 0.999,
+    "minThroughputRps": 500.0,
+}
+
+
+def run_check_inputs() -> list[tuple[str, Json, Json | None, list[str], Json]]:
+    """The run_check cases: their measurements, fail-on choices and thresholds."""
+    return [
+        ("regressedButFailsOnObjectivesOnly", measured(p95=200.0), measured(), ["objectives"], {}),
+        (
+            "missedButFailsOnRegressionsOnly",
+            measured(p95=400.0),
+            measured(p95=390.0),
+            ["regression"],
+            {},
+        ),
+        ("withoutABaseline", measured(p95=400.0), None, BOTH, {}),
+        (
+            "withoutObjectives",
+            measured(objectives=NO_OBJECTIVES),
+            measured(objectives=NO_OBJECTIVES),
+            BOTH,
+            {},
+        ),
+        ("withOtherThresholds", measured(p95=130.0), measured(), BOTH, {"p95_increase": 0.5}),
+        (
+            "p95StaysAndCostFalls",
+            measured(p95=95.04, costMonthly=80.0),
+            measured(p95=95.02),
+            BOTH,
+            {},
+        ),
+        ("aBaselineWithoutItsP95", measured(), measured(p95=None), BOTH, {}),
+        (
+            "withoutAP95Objective",
+            measured(objectives={**OBJECTIVES, "latencyP95Ms": None}),
+            measured(),
+            BOTH,
+            {},
+        ),
+        (
+            "otherObjectivesMissed",
+            measured(p95=250.0, success=0.99, objectives=ALL_SET),
+            measured(),
+            BOTH,
+            {},
+        ),
+        ("kneeDrops", measured(**swept(800.0)), measured(**swept(1000.0)), BOTH, {}),
+        ("kneeRises", measured(**swept(1200.0)), measured(**swept(1000.0)), BOTH, {}),
+        (
+            "kneeDropsBelowTheLightestLoad",
+            measured(**swept(None)),
+            measured(**swept(1000.0)),
+            BOTH,
+            {},
+        ),
+        (
+            "kneeRisesFromBelowTheLightestLoad",
+            measured(**swept(1000.0)),
+            measured(**swept(None)),
+            BOTH,
+            {},
+        ),
+        ("kneeStays", measured(**swept(1000.0)), measured(**swept(1000.0)), BOTH, {}),
+        ("kneeMissedInBoth", measured(**swept(None)), measured(**swept(None)), BOTH, {}),
+        (
+            "kneeOnAGridWithoutSteps",
+            measured(**swept(800.0, step=0.0)),
+            measured(**swept(1000.0, step=0.0)),
+            BOTH,
+            {},
+        ),
+        (
+            "costRisesAndSuccessDrops",
+            measured(success=0.99, costMonthly=270.5),
+            measured(),
+            BOTH,
+            {},
+        ),
+        ("costBarelyChanges", measured(costMonthly=120.6), measured(), BOTH, {}),
+        (
+            "designTextWithMarkup",
+            measured(
+                name="Checkout <API> | *v2*\n  [beta] #1 & `more`",
+                scenarioId="black `friday`\t sale",
+                bottleneck="Orders_DB is ~90% busy! [hot]",
+                confidence={"level": None, "reason": None, "howToRaise": None},
+            ),
+            measured(),
+            BOTH,
+            {},
+        ),
+        (
+            "aMeasurementWithoutAvailability",
+            measured(
+                success=None,
+                confidence={"level": "high", "reason": "All <measured>", "howToRaise": "Keep it."},
+            ),
+            None,
+            ["objectives"],
+            {},
+        ),
+    ]
+
+
+def check_cases() -> list[tuple[str, str, Json]]:
+    cases: list[tuple[str, str, Json]] = regression_cases()
+    for name, current, baseline, fail_on, thresholds in run_check_inputs():
+        cases.append(
+            (
+                name,
+                "archsim_engine.check.run_check",
+                {
+                    "current": current,
+                    "baseline": baseline,
+                    "thresholds": {**THRESHOLDS, **thresholds},
+                    "failOn": fail_on,
+                },
+            )
+        )
+        result = checked(current, baseline, fail_on, **thresholds)
+        cases.append((name, "archsim_engine.check.headline", {"result": result}))
+        url = "https://example.com/runs/1" if name == "designTextWithMarkup" else None
+        cases.append(
+            (name, "archsim_engine.check.to_markdown", {"result": result, "reportUrl": url})
+        )
+    unreadable = checked_with_an_unreadable_baseline(measured(p95=120.0))
+    cases.append(("anUnreadableBaseline", "archsim_engine.check.headline", {"result": unreadable}))
+    cases.append(
+        (
+            "anUnreadableBaseline",
+            "archsim_engine.check.to_markdown",
+            {"result": unreadable, "reportUrl": None},
+        )
+    )
+    return cases + measure_cases()
+
+
+def checked_with_an_unreadable_baseline(current: Json) -> Json:
+    """``run_check`` whose baseline cannot be measured: the check notes it, and has none."""
+
+    def measure(document: Any, *_args: Any, **_kwargs: Any) -> Json:
+        if document == "baseline":
+            raise ValueError("schema version 0.1 of <unknown> is not supported")
+        return copy.deepcopy(current)
+
+    with mock.patch.object(check, "measure", measure):
+        return check.run_check(
+            "current",
+            REGISTRY,
+            baseline="baseline",
+            thresholds=check.Thresholds(**THRESHOLDS),
+            fail_on=tuple(BOTH),
+        )
+
+
+def measured_report(name: str, findings: list[Json], **more: Any) -> Json:
+    """A finished run's report with what ``check.measure`` reads."""
+    made = report(STEADY, WINDOW, [api()], summary=summary(110.0, 160.0, 0.998, 398.0))
+    made["findings"] = findings
+    made["provenance"] = {"resultDigest": "e" * 64, "engineVersion": "0.16.0", "seed": 42}
+    made["input"] = {"metadata": {"name": name}}
+    made.update(more)
+    return made
+
+
+def measure_cases() -> list[tuple[str, str, Json]]:
+    document: Json = {
+        "schemaVersion": "1.7",
+        "kind": "archsim.architecture",
+        "metadata": {"name": "Design as drawn"},
+        "architecture": {
+            "nodes": [
+                design_node("clients", "traffic_source", "Clients"),
+                design_node("api", "service", "API"),
+            ],
+            "edges": [link("clients", "api")],
+        },
+        "workload": {"rps": 400},
+        "objectives": {"latencyP95Ms": 100.0, "availability": 0.99},
+    }
+    without_objectives = {k: v for k, v in document.items() if k != "objectives"}
+    titled = {"kind": "bottleneck", "nodeId": "api", "title": "API is saturated"}
+    untitled = {"kind": "bottleneck", "nodeId": "api"}
+    runs = [
+        (
+            "aRunWithItsCostAndConfidence",
+            document,
+            None,
+            measured_report(
+                "Design as drawn",
+                [{"kind": "slow", "title": "not this one"}, titled],
+                cost={"monthly": 210.5, "hasCost": True},
+                confidence=CONFIDENT,
+            ),
+        ),
+        (
+            "aRunWithoutACostOrConfidence",
+            without_objectives,
+            "bigger",
+            measured_report(
+                "Design as drawn (bigger)",
+                [untitled, titled],
+                cost={"monthly": 0.0, "hasCost": False},
+            ),
+        ),
+    ]
+    return [
+        (
+            name,
+            "archsim_engine.check.measure",
+            {"document": doc, "scenarioId": scenario, "simulation": made},
+        )
+        for name, doc, scenario, made in runs
+    ]
+
+
+def measure_with(given: Json) -> Json:
+    """``check.measure`` with the run's report given, as the golden files record it."""
+    with mock.patch.object(
+        archsim_engine, "run_simulation", lambda *_a, **_k: copy.deepcopy(given["simulation"])
+    ):
+        return check.measure(given["document"], REGISTRY, given["scenarioId"])
+
+
+def run_check_with(given: Json) -> Json:
+    return checked(given["current"], given["baseline"], given["failOn"], **given["thresholds"])
+
+
 ADAPTERS = {
     "archsim_engine.slo.slo_checks": lambda i: slo.slo_checks(i["objectives"], i["summary"]),
     "archsim_engine.slo.evaluate": lambda i: slo.evaluate(i["objectives"], i["summary"]),
@@ -987,6 +1362,13 @@ ADAPTERS = {
         i["a"], i["b"], i["labelA"], i["labelB"]
     ),
     "archsim_engine.compare.input_diff": lambda i: compare.input_diff(i["a"], i["b"]),
+    "archsim_engine.check.measure": measure_with,
+    "archsim_engine.check.regressions": lambda i: check.regressions(
+        i["current"], i["baseline"], check.Thresholds(**i["thresholds"])
+    ),
+    "archsim_engine.check.run_check": run_check_with,
+    "archsim_engine.check.headline": lambda i: check.headline(i["result"]),
+    "archsim_engine.check.to_markdown": lambda i: check.to_markdown(i["result"], i["reportUrl"]),
     "archsim_engine.cost.estimate_cost": lambda i: cost.estimate_cost(
         i["nodes"],
         REGISTRY,
@@ -1013,6 +1395,7 @@ def cases() -> list[Json]:
         + confidence_cases()
         + cost_cases()
         + compare_cases()
+        + check_cases()
     ):
         output = ADAPTERS[fn](copy.deepcopy(given))
         out.append({"name": name, "fn": fn, "input": given, "output": output})
