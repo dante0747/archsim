@@ -81,3 +81,5 @@ what the repository shows.
 | [0037](0037-sign-in-without-spring-security.md) | Sign people in with plain Spring MVC, not Spring Security | Accepted | 2026-11-05 |
 | [0038](0038-engine-computes-on-typed-records.md) | The engine computes on the model's records and typed configs, not on JSON trees | Accepted | 2026-11-05 |
 | [0039](0039-engine-reads-reports-as-partial-records.md) | The engine reads a run's report as records of the parts it reads | Accepted | 2026-11-05 |
+| [0040](0040-comparison-copies-what-it-does-not-read.md) | A run comparison copies the report parts it shows and diffs the simulated inputs as stored | Accepted | 2026-11-06 |
+| [0041](0041-application-clock-never-repeats-a-microsecond.md) | The application's clock never tells the same microsecond twice | Accepted | 2026-11-06 |
