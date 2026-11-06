@@ -22,6 +22,12 @@ class SignoffRepository {
 			FROM review_signoffs s JOIN projects p ON p.id = s.project_id
 			LEFT JOIN simulation_runs r ON r.id = s.run_id""";
 
+	/**
+	 * Newest first; sign-offs stored at the same instant (by two of the API's servers) by
+	 * id, so a list keeps its order.
+	 */
+	private static final String NEWEST_FIRST = " ORDER BY s.created_at DESC, s.id DESC";
+
 	/** The most sign-offs a list holds. */
 	private static final int MAX_LISTED = 500;
 
@@ -32,7 +38,7 @@ class SignoffRepository {
 	}
 
 	List<StoredSignoff> ofRun(String runId) {
-		return this.jdbc.sql(SELECT_SIGNOFFS + " WHERE s.run_id = :run ORDER BY s.created_at DESC LIMIT :limit")
+		return this.jdbc.sql(SELECT_SIGNOFFS + " WHERE s.run_id = :run" + NEWEST_FIRST + " LIMIT :limit")
 			.param("run", runId)
 			.param("limit", MAX_LISTED)
 			.query((rows, number) -> stored(rows))
@@ -40,7 +46,7 @@ class SignoffRepository {
 	}
 
 	List<StoredSignoff> ofProject(String projectId) {
-		return this.jdbc.sql(SELECT_SIGNOFFS + " WHERE s.project_id = :project ORDER BY s.created_at DESC LIMIT :limit")
+		return this.jdbc.sql(SELECT_SIGNOFFS + " WHERE s.project_id = :project" + NEWEST_FIRST + " LIMIT :limit")
 			.param("project", projectId)
 			.param("limit", MAX_LISTED)
 			.query((rows, number) -> stored(rows))
