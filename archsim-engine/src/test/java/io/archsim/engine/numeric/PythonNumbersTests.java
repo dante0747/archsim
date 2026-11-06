@@ -96,7 +96,7 @@ class PythonNumbersTests {
 	}
 
 	@Test
-	void parseInt_binaryAndOctal_areReadDigitByDigit() {
+	void parseInt_binaryAndOctal_areReadWithoutALimit() {
 		assertThat(PythonNumbers.parseInt("0b1_0110", 2)).isEqualTo(BigInteger.valueOf(22));
 		assertThat(PythonNumbers.parseInt("1777", 8)).isEqualTo(BigInteger.valueOf(1023));
 	}

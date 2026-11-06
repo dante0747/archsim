@@ -40,7 +40,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `compare` | comparing two runs: `RunComparer` (each run figure with a verdict, each part side by side, what changed in words and why the runs may differ otherwise: `RunComparison`), `InputDiff` (the settings two simulated designs differ in, as the reports store them, compared as Python compares them; [ADR-0040](../docs/adr/0040-comparison-copies-what-it-does-not-read.md)) |
 | `export` | exporting a design: `DesignExporter` (the design auto-sized as a run would simulate it, then written in an `ExportFormat`), `ComposeExport` (a docker-compose file), `KubernetesExport` (Kubernetes manifests, with a CPU request below the cores for an auto-sized part), `MermaidExport` (a Mermaid flowchart); each part's settings read leniently over its type's defaults, and the YAML written by a small writer of its own, `YamlText`, as the Python engine wrote it, so the texts match to the character ([ADR-0042](../docs/adr/0042-exports-read-settings-leniently-and-write-their-own-yaml.md)) |
 | `roundtrip` | what the exports carry so an import gives the design back, written by the exports and read back by the importers: `RoundTrip` (each part's outgoing links as `target[/port][:types][!flag...]`, `ExportedLink`, and the parts nothing deploys) |
-| `imports` | importing what teams already have: `ComposeImport` (a docker-compose file), `KubernetesImport` (Kubernetes manifests) and `TerraformImport` (`terraform show -json` output: resources by type, sized by their instance types (`InstanceSizes`), links the configuration states, guessed ones and suggestions), each a design as built, before validation, with an `ImportReport` of what it mapped, guessed and ignored; parts by their image's full name (`Images`), replicas, specs, autoscalers, storage and links from what the file states, an entry point, cache misses and memory that fits added as guesses; `YamlDocuments` (YAML from anyone, read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)); `PythonValues` and `PythonMappings` (Python's ways with the values YAML gives, where the importers inherited them, failing in Python's words) |
+| `imports` | importing what teams already have: `ComposeImport` (a docker-compose file), `KubernetesImport` (Kubernetes manifests) and `TerraformImport` (`terraform show -json` output: resources by type, sized by their instance types (`InstanceSizes`), links the configuration states, guessed ones and suggestions), each a design as built, before validation, with an `ImportReport` of what it mapped, guessed and ignored; `DesignImporter` (the Python engine's `import_design`, behind `POST /import`: the design read and validated, the report with the issues found); parts by their image's full name (`Images`), replicas, specs, autoscalers, storage and links from what the file states, an entry point, cache misses and memory that fits added as guesses; `YamlDocuments` (YAML from anyone, read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)); `PythonValues` and `PythonMappings` (Python's ways with the values YAML gives, where the importers inherited them, failing in Python's words) |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -131,7 +131,10 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   `EngineFunctions` maps each Python name to its Java call, through one table per area
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
   `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
-  `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`, `CheckFunctions`).
+  `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`, `CheckFunctions`,
+  `ExportFunctions`, `ImportDesignFunctions`). The few entries whose words are a library's are
+  listed in `GoldenDepartures`, which checks the error's type, its words up to where the two
+  libraries' words part, and that the rest still differs.
   Ported so far:
   - on every recorded run, its findings (`analysis.analyze`), and each part's status and why,
     which the report carries as the analysis set them; the golden files reach 17 of the 22
@@ -177,6 +180,9 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   - the load estimate for every case of every template (`load.estimate_load`,
     `ttl_miss_shares`, `base_rps`, and `peak_rps`, whose counterpart is the model's
     `Workload.peakRate()`); `pricing.Snapshot.cover` and `machine_kind`;
+  - importing the engine's fixtures, every template's compose file and manifests as the exports
+    write them, and the text the importers refuse (`importers.import_design`); one entry departs,
+    `compose-bad-yaml`, whose description of the YAML is SnakeYAML's (ADR-0043);
   - the number formats and small numeric helpers of `catalog/formatting` (`explain.num`, `pct`,
     `erlang_c`, `zipf_share`; `load.js_num`, `fmt_int`, `fixed`, `round_half_up`,
     `ttl_hit_ratio`, and `mean_ms`, whose counterpart is `LenientSettings.meanMs`; `sizing.fmt`;

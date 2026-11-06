@@ -17,7 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Every recorded call of a Python function this module ports, in every golden file, gives
- * the same output or the same error in Java: the exit check of stage 3.
+ * the same output or the same error in Java: the exit check of stage 3. The few entries
+ * whose words are a library's are listed in {@link GoldenDepartures}.
  */
 @DisplayName("The engine matches the frozen Python engine's golden files")
 class GoldenParityTests {
@@ -27,10 +28,17 @@ class GoldenParityTests {
 	@TestFactory
 	Stream<DynamicContainer> portedFunction_everyRecordedCall_givesTheSameOutputOrError() {
 		return FILES.stream()
-			.map((file) -> DynamicContainer.dynamicContainer(file.name(),
-					ported(file).stream()
-						.map((entry) -> DynamicTest.dynamicTest(entry.pointer(),
-								() -> Parity.check(entry, EngineFunctions::call)))));
+			.map((file) -> DynamicContainer.dynamicContainer(file.name(), ported(file).stream()
+				.map((entry) -> DynamicTest.dynamicTest(entry.pointer(), () -> check(entry)))));
+	}
+
+	@Test
+	void departures_everyEntryListed_isARecordedCallOfAPortedFunction() {
+		List<GoldenDepartures.Recorded> recorded = FILES.stream()
+			.flatMap((file) -> ported(file).stream())
+			.map(GoldenDepartures.Recorded::of)
+			.toList();
+		assertThat(recorded).containsAll(GoldenDepartures.entries());
 	}
 
 	@Test
@@ -41,6 +49,16 @@ class GoldenParityTests {
 			.distinct()
 			.toList();
 		assertThat(checked).containsExactlyInAnyOrderElementsOf(EngineFunctions.names());
+	}
+
+	/**
+	 * Checks an entry exactly, or as its departure says.
+	 * @param entry the entry
+	 */
+	private static void check(GoldenEntry entry) {
+		GoldenDepartures.of(entry)
+			.ifPresentOrElse((departure) -> departure.check(entry, EngineFunctions::call),
+					() -> Parity.check(entry, EngineFunctions::call));
 	}
 
 	private static List<GoldenEntry> ported(GoldenFile file) {

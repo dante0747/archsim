@@ -67,7 +67,7 @@ public final class EngineRefusalException extends RuntimeException {
 	 * The refusal as the API answers it: in the engine service's words for what it cannot
 	 * use, else with the design's issues under the call's own words.
 	 * @param invalid what the API says of a design the engine cannot read, such as
-	 * {@code The imported design is not valid}
+	 * {@code The document cannot be calibrated}
 	 * @return the API's {@code 422}
 	 */
 	public ApiException answer(String invalid) {

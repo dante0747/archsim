@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 
 import io.archsim.engine.analysis.DesignAnalyzer;
 import io.archsim.engine.export.DesignExporter;
+import io.archsim.engine.imports.DesignImporter;
 import io.archsim.engine.run.RunPreparer;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.model.component.ComponentRegistry;
@@ -48,6 +49,11 @@ class ModelConfiguration {
 	@Bean
 	DesignExporter designExporter(ComponentRegistry registry, PriceSnapshots prices) {
 		return new DesignExporter(registry, prices);
+	}
+
+	@Bean
+	DesignImporter designImporter(ComponentRegistry registry, PriceSnapshots prices) {
+		return new DesignImporter(registry, prices);
 	}
 
 	@Bean

@@ -55,16 +55,21 @@ final class ImportFunctions {
 	static JsonNode call(GoldenEntry entry) {
 		Function<GoldenEntry, ImportedDesign> counterpart = Objects.requireNonNull(PORTED.get(entry.fn()), entry.fn());
 		try {
-			ImportedDesign imported = counterpart.apply(entry);
-			ObjectNode output = GoldenJson.NODES.objectNode();
-			output.set("document", imported.document());
-			output.set("report", imported.report().toJson());
-			return output;
+			return counterpart.apply(entry).toJson();
 		}
 		catch (ImportRefusedException ex) {
-			ObjectNode error = GoldenJson.NODES.objectNode().put("message", ex.getMessage()).put("type", "ValueError");
-			throw new PythonError(error, ex);
+			throw valueError(ex);
 		}
+	}
+
+	/**
+	 * A refusal as the {@code ValueError} the Python engine raises in its place.
+	 * @param refusal the refusal
+	 * @return the error, to throw
+	 */
+	static PythonError valueError(ImportRefusedException refusal) {
+		ObjectNode error = GoldenJson.NODES.objectNode().put("message", refusal.getMessage()).put("type", "ValueError");
+		return new PythonError(error, refusal);
 	}
 
 	private static @Nullable String name(GoldenEntry entry) {

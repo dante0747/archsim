@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -16,7 +17,10 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import tools.jackson.databind.node.JsonNodeFactory;
 
+import io.archsim.app.config.CalibrationProperties.Outbound;
+import io.archsim.app.limits.WorkspaceLimits.RunLimits;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
 
@@ -29,6 +33,10 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * when the service drops its connection before answering.
  */
 class EngineConfigurationTests {
+
+	private static final OutboundPolicy POLICY = new OutboundPolicy(Outbound.OFF, List.of(), 1, 1);
+
+	private static final RunLimits REPLAY = new RunLimits(1, 1);
 
 	private final AtomicReference<@Nullable String> upgrade = new AtomicReference<>();
 
@@ -47,7 +55,7 @@ class EngineConfigurationTests {
 	void engineService_request_asksForNoProtocolUpgrade() throws IOException {
 		EngineService engine = engine(Duration.ZERO, Duration.ofSeconds(5));
 
-		engine.importDesign("compose", "services: {}", null);
+		calibrate(engine);
 
 		assertThat(this.upgrade.get()).isNull();
 	}
@@ -56,19 +64,17 @@ class EngineConfigurationTests {
 	void engineService_answerSlowerThanTheTimeout_isServiceUnavailableSayingSo() throws IOException {
 		EngineService engine = engine(Duration.ofSeconds(3), Duration.ofSeconds(1));
 
-		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> engine.importDesign("compose", "services: {}", null))
-			.satisfies((ex) -> {
-				assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-				assertThat(ex.getMessage()).startsWith("The simulation engine took too long to answer");
-			});
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> calibrate(engine)).satisfies((ex) -> {
+			assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+			assertThat(ex.getMessage()).startsWith("The simulation engine took too long to answer");
+		});
 	}
 
 	@Test
 	void engineService_connectionDroppedBeforeTheAnswer_sendsTheCallOnceMore() throws IOException {
 		EngineService engine = droppingFirst(1);
 
-		JsonText answer = engine.importDesign("compose", "services: {}", null);
+		JsonText answer = calibrate(engine);
 
 		assertThat(answer.json()).isEqualTo("{}");
 		assertThat(this.requests).hasValue(2);
@@ -78,13 +84,15 @@ class EngineConfigurationTests {
 	void engineService_connectionDroppedAgain_isServiceUnavailable() throws IOException {
 		EngineService engine = droppingFirst(2);
 
-		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> engine.importDesign("compose", "services: {}", null))
-			.satisfies((ex) -> {
-				assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-				assertThat(ex.getMessage()).startsWith("The simulation engine is not available right now");
-			});
+		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> calibrate(engine)).satisfies((ex) -> {
+			assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+			assertThat(ex.getMessage()).startsWith("The simulation engine is not available right now");
+		});
 		assertThat(this.requests).hasValue(2);
+	}
+
+	private static JsonText calibrate(EngineService engine) {
+		return engine.calibrate(JsonNodeFactory.instance.objectNode(), POLICY, REPLAY);
 	}
 
 	private EngineService engine(Duration delay, Duration timeout) throws IOException {

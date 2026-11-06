@@ -12,7 +12,6 @@ uv run archsim-engine-service --port 8001
 | Endpoint | Engine call | Used by |
 | --- | --- | --- |
 | `GET /health` | | the Java API's checks |
-| `POST /import` `{"format", "text", "name"}` | `import_design` | `POST /api/v1/import` |
 | `POST /calibrate` (the request of `POST /api/v1/calibrate`, with the server's outbound policy) | `calibrate_prometheus`, `calibrate_otlp` | `POST /api/v1/calibrate` |
 
 A call the engine refuses answers `422 {"message", "issues", "kind"}`: `invalid` with the

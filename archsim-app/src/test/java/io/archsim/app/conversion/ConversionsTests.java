@@ -1,31 +1,26 @@
 package io.archsim.app.conversion;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.EngineService;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
 import io.archsim.engine.export.DesignExporter;
 import io.archsim.engine.export.ExportFormat;
+import io.archsim.engine.imports.DesignImporter;
+import io.archsim.engine.imports.ImportFormat;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.issue.Issue;
 import io.archsim.model.pricing.PriceSnapshots;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 
 /**
- * Exports, as archsim-engine writes them, and imports, as the engine service answers
- * them, and as the API refuses them.
+ * Exports and imports, as archsim-engine makes them, and as the API refuses them.
  */
 class ConversionsTests {
 
@@ -40,12 +35,9 @@ class ConversionsTests {
 			   "edges": [{"id": "clients-api", "source": "clients", "target": "api"}]},
 			 "workload": {"rps": 100, "readRatio": 0.8, "durationS": 60}}""");
 
-	private static final List<Issue> ISSUES = List.of(Issue.error("document.schema", "bad"));
-
-	private final EngineService engine = mock();
-
 	private final Conversions conversions = new Conversions(
-			new DesignExporter(StandardComponents.registry(), PriceSnapshots.shipped()), this.engine, JSON);
+			new DesignExporter(StandardComponents.registry(), PriceSnapshots.shipped()),
+			new DesignImporter(StandardComponents.registry(), PriceSnapshots.shipped()), JSON);
 
 	@Test
 	void export_design_isTheTextWithItsSuffixAndMediaType() {
@@ -73,28 +65,40 @@ class ConversionsTests {
 	}
 
 	@Test
-	void importDesign_textOfAnotherFormat_isRefusedInTheEnginesWords() {
-		given(this.engine.importDesign("terraform", "x", null))
-			.willThrow(EngineRefusalException.unreadable("Cannot import: expected the JSON of terraform show -json"));
+	void importDesign_composeFile_isTheValidatedDesignWithItsReport() {
+		JsonText answer = this.conversions
+			.importDesign(new ImportRequest(ImportFormat.COMPOSE, "services:\n  web:\n    image: nginx\n", "Shop"));
 
+		JsonNode imported = JSON.readTree(answer.json());
+		assertThat(imported.path("document").path("metadata").path("name").stringValue()).isEqualTo("Shop");
+		assertThat(imported.path("report").path("source").stringValue()).isEqualTo("docker-compose");
+		assertThat(imported.path("report").path("issues").findValuesAsString("code"))
+			.containsExactly("port.missing_link");
+	}
+
+	@Test
+	void importDesign_textOfAnotherFormat_isRefusedInTheImportersWords() {
 		assertThatExceptionOfType(ApiException.class)
 			.isThrownBy(() -> this.conversions.importDesign(new ImportRequest(ImportFormat.TERRAFORM, "x", null)))
 			.satisfies((refusal) -> {
-				assertThat(refusal.getMessage()).isEqualTo("Cannot import: expected the JSON of terraform show -json");
+				assertThat(refusal.status()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+				assertThat(refusal.getMessage())
+					.isEqualTo("Cannot import: not JSON: run `terraform show -json plan.out` "
+							+ "(or state) first (Expecting value: line 1 column 1 (char 0))");
 				assertThat(refusal.issues()).isEmpty();
 			});
 	}
 
 	@Test
 	void importDesign_designThatIsNotValid_isRefusedWithItsIssues() {
-		given(this.engine.importDesign("compose", "x", "Shop"))
-			.willThrow(EngineRefusalException.invalidDesign("x", ISSUES));
+		String manifests = "kind: Deployment\nmetadata: {name: a, labels: {app.kubernetes.io/part-of: [x]}}\n";
 
 		assertThatExceptionOfType(ApiException.class)
-			.isThrownBy(() -> this.conversions.importDesign(new ImportRequest(ImportFormat.COMPOSE, "x", "Shop")))
+			.isThrownBy(() -> this.conversions.importDesign(new ImportRequest(ImportFormat.K8S, manifests, null)))
 			.satisfies((refusal) -> {
+				assertThat(refusal.status()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
 				assertThat(refusal.getMessage()).isEqualTo("The imported design is not valid");
-				assertThat(refusal.issues()).isEqualTo(ISSUES);
+				assertThat(refusal.issues()).extracting(Issue::code).containsExactly("document.schema");
 			});
 	}
 

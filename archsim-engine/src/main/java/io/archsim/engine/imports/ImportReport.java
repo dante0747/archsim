@@ -32,6 +32,15 @@ public record ImportReport(String source, List<String> mapped, List<String> gues
 	}
 
 	/**
+	 * This report with the issues validation found in the design.
+	 * @param found the issues, each as JSON
+	 * @return a copy of this report with those issues
+	 */
+	public ImportReport withIssues(List<ObjectNode> found) {
+		return new ImportReport(this.source, this.mapped, this.guessed, this.ignored, this.suggestions, found);
+	}
+
+	/**
 	 * The links worth confirming, as copies: a record does not change.
 	 * @return copies of the suggestions, each {@code {source, target, reason}}
 	 */

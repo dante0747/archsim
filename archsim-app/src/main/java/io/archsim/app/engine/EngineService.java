@@ -7,7 +7,6 @@ import java.net.http.HttpTimeoutException;
 import java.util.List;
 import java.util.Objects;
 
-import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -28,7 +27,7 @@ import io.archsim.model.issue.Issue;
 
 /**
  * The Python engine service (ADR-0036), which runs the engine's synchronous calls until
- * stage 3 of the port moves each one to Java: imports and calibration. Its answers are
+ * stage 3 of the port moves each one to Java: calibration, the last. Its answers are
  * passed on as it wrote them.
  */
 public final class EngineService {
@@ -36,6 +35,10 @@ public final class EngineService {
 	private static final Logger LOGGER = LoggerFactory.getLogger(EngineService.class);
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	/** What the API answers when the service takes too long. */
+	private static final String TOO_SLOW = "The simulation engine took too long to answer: "
+			+ "calibrate with replay off, or over a shorter range";
 
 	private final RestClient http;
 
@@ -45,25 +48,6 @@ public final class EngineService {
 	 */
 	public EngineService(RestClient http) {
 		this.http = http;
-	}
-
-	/**
-	 * A design from docker-compose, Kubernetes manifests or a Terraform plan.
-	 * @param format {@code compose}, {@code k8s} or {@code terraform}
-	 * @param text the file's content
-	 * @param name the design's name, if not the text's
-	 * @return {@code {document, report}}, as the engine wrote them
-	 * @throws EngineRefusalException when the text is not the format, or makes a design
-	 * that is not valid
-	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
-	 * late
-	 */
-	public JsonText importDesign(String format, String text, @Nullable String name) {
-		ObjectNode request = JSON.createObjectNode();
-		request.put("format", format);
-		request.put("text", text);
-		request.put("name", name);
-		return call("/import", request);
 	}
 
 	/**
@@ -88,32 +72,26 @@ public final class EngineService {
 		body.put("maxBytes", policy.maxBytes());
 		body.put("maxRequests", replay.maxRequests());
 		body.put("maxWallSeconds", replay.maxWallSeconds());
-		return call("/calibrate", body, "calibrate with replay off, or over a shorter range");
-	}
-
-	private JsonText call(String path, ObjectNode request) {
-		return call(path, request, "a smaller design may be quicker");
+		return call("/calibrate", body);
 	}
 
 	/**
 	 * Calls the engine service.
 	 * @param path the endpoint
 	 * @param request its body
-	 * @param whenSlow what to try when the service answers too late
 	 * @return the answer, as the engine wrote it
 	 * @throws EngineRefusalException when the engine refuses
 	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
 	 * late
 	 */
-	private JsonText call(String path, ObjectNode request, String whenSlow) {
+	private JsonText call(String path, ObjectNode request) {
 		try {
 			return postOnceMoreIfDropped(path, request);
 		}
 		catch (ResourceAccessException ex) {
 			if (ex.getCause() instanceof HttpTimeoutException) {
 				LOGGER.warn("The engine service did not answer {} in time", path, ex);
-				throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
-						"The simulation engine took too long to answer: " + whenSlow, List.of());
+				throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, TOO_SLOW, List.of());
 			}
 			LOGGER.warn("The engine service cannot be reached at {}", path, ex);
 			throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,

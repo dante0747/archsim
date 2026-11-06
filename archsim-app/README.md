@@ -6,8 +6,8 @@ cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI 
 [black-box suite](../archsim-api-tests/README.md) work against it unchanged, and a database the
 Python API used carries on as it is. Simulations stay in Python until stage 4: runs go to the
 Python workers through the shared queue. The engine's synchronous calls run in Java
-([archsim-engine](../archsim-engine/README.md)) as stage 3 ports them; the rest (imports and
-calibration) go to a small internal Python engine service, `services/engine-service`.
+([archsim-engine](../archsim-engine/README.md)) as stage 3 ports them; the rest (calibration)
+goes to a small internal Python engine service, `services/engine-service`.
 
 ## Running it
 
@@ -72,7 +72,7 @@ ways.
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
 | `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
-| `conversion` | `POST /export`: a design as docker-compose, Kubernetes manifests or a Mermaid diagram (archsim-engine's `DesignExporter`); `POST /import`: a design from docker-compose, Kubernetes manifests or a Terraform plan, through the engine service |
+| `conversion` | `POST /export`: a design as docker-compose, Kubernetes manifests or a Mermaid diagram (archsim-engine's `DesignExporter`); `POST /import`: a design from docker-compose, Kubernetes manifests or a Terraform plan (archsim-engine's `DesignImporter`) |
 | `calibration` | `POST /calibrate`: the engine's Prometheus and OpenTelemetry calibration, run by the engine service under the server's outbound policy |
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
@@ -133,9 +133,9 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   wrote `1793690103.358`. Each API reads the other's.
 - An OAuth provider whose profile names no account id (`"id": null`) fails the sign-in
   (`/signin?error=provider`); Python stored the account under the subject `None`.
-- The engine's synchronous calls go to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot
-  be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, the requests that need it answer
-  `503` saying which: `/import` and `/calibrate`. The Python API computed
+- The engine's last synchronous call, calibration, goes to the engine service at
+  `ARCHSIM_ENGINE_URL`; when it cannot be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds,
+  `POST /calibrate` answers `503`, saying why. The Python API computed
   in-process, with no time limit. A call whose connection drops before an answer (uvicorn closes
   one idle for 5 s, and the client may reuse it just then) is sent once more: every engine call is
   a stateless POST.
@@ -161,8 +161,19 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   parts, findings, provenance, time series or window, or a design's metadata and name in its
   input) fails (`500`). The Python failed the same way without the summary or the parts, and
   compared what it had without the others. Every report the engine writes has them.
-- Numbers in a stored design, and in `POST /analyze`'s answer, come back spelled as Java writes
-  them (`0.0005` as `5.0E-4`, `1e-05` as `1.0E-5`); clients read the same numbers.
+- Numbers in a stored design, and in `POST /analyze`'s and `POST /import`'s answers, come back
+  spelled as Java writes them (`0.0005` as `5.0E-4`, `1e-05` as `1.0E-5`); clients read the same
+  numbers.
+- `POST /import` reads YAML with SnakeYAML and Terraform's JSON with Jackson, set to read them as
+  PyYAML and `json` did, with the departures archsim-engine's README lists
+  ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md),
+  [ADR-0044](../docs/adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md)):
+  - text that is not YAML, or not JSON past where its value starts, is described in the library's
+    words;
+  - a number Python's runtime could not convert, which it answered `500` for, is refused with
+    `422`;
+  - a few rare forms read otherwise: keys that are not text, `!!binary`, `!!set` and `!!omap`
+    values, `-INF`, `+INF`, and JSON nested deeper than 1,000 levels, which is refused.
 - `/api/v1/projects/` (a trailing slash) is `404`; Starlette redirected it (`307`) to
   `/api/v1/projects`. The same holds for every route.
 - A request Tomcat cannot parse at all (a bad percent escape, oversized headers) gets Tomcat's

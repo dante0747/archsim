@@ -7,19 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
 
-from archsim_engine import (
-    ENGINE_VERSION,
-    default_registry,
-)
-from archsim_engine.importers import import_design
+from archsim_engine import ENGINE_VERSION
 from archsim_engine_service.app import create_app
 
 EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
-
-COMPOSE = "services:\n  api:\n    image: nginx\n"
 
 CALIBRATION = (
     Path(__file__).resolve().parents[3]
@@ -63,38 +56,10 @@ def test_unknown_path_is_not_found(client: TestClient) -> None:
 def test_request_it_cannot_read_is_a_bad_request(
     client: TestClient, body: bytes, message: str
 ) -> None:
-    response = client.post("/import", content=body)
+    response = client.post("/calibrate", content=body)
 
     assert response.status_code == 400
     assert response.json()["message"].startswith(message)
-
-
-def test_answer_is_the_bytes_fastapi_wrote(client: TestClient) -> None:
-    fastapi = pytest.importorskip("fastapi.encoders")
-    document, report = import_design("compose", COMPOSE, default_registry(), "Shop")
-    expected = {"document": document, "report": report.to_dict()}
-
-    response = client.post("/import", json={"format": "compose", "text": COMPOSE, "name": "Shop"})
-
-    assert response.content == JSONResponse(fastapi.jsonable_encoder(expected)).body
-
-
-def test_import_compose_answers_a_design_and_its_report(client: TestClient) -> None:
-    text = "services:\n  api:\n    image: nginx\n"
-
-    response = client.post("/import", json={"format": "compose", "text": text, "name": "Shop"})
-
-    assert response.status_code == 200
-    assert response.json()["document"]["metadata"]["name"] == "Shop"
-    assert "mapped" in response.json()["report"]
-
-
-def test_import_text_of_another_format_is_unreadable(client: TestClient) -> None:
-    response = client.post("/import", json={"format": "terraform", "text": "not json"})
-
-    assert response.status_code == 422
-    assert response.json()["kind"] == "unreadable"
-    assert response.json()["message"].startswith("Cannot import: ")
 
 
 def calibrate_body(**more: Any) -> dict[str, Any]:
@@ -216,12 +181,6 @@ def test_calibrate_policy_it_cannot_read_is_a_bad_request(
 
 def test_calibrate_unknown_source_is_a_bad_request(client: TestClient) -> None:
     response = client.post("/calibrate", json=calibrate_body(source="statsd"))
-
-    assert response.status_code == 400
-
-
-def test_import_unknown_format_is_a_bad_request(client: TestClient) -> None:
-    response = client.post("/import", json={"format": "helm", "text": "x"})
 
     assert response.status_code == 400
 

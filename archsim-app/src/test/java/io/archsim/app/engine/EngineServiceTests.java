@@ -35,8 +35,6 @@ class EngineServiceTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	private static final String TEXT = "services: {}";
-
 	private static final OutboundPolicy POLICY = new OutboundPolicy(Outbound.ALLOWLIST, List.of("prom:9090"), 30.0,
 			1024);
 
@@ -54,42 +52,33 @@ class EngineServiceTests {
 	}
 
 	@Test
-	void importDesign_answer_isPassedOnAsWritten() throws IOException {
+	void calibrate_answer_isPassedOnAsWritten() throws IOException {
 		EngineService engine = serving(200, "{\"document\":{},\"tiny\":1e-05}");
 
-		JsonText answer = engine.importDesign("compose", TEXT, null);
+		JsonText answer = engine.calibrate(JSON.createObjectNode(), POLICY, REPLAY);
 
 		assertThat(answer.json()).isEqualTo("{\"document\":{},\"tiny\":1e-05}");
 	}
 
 	@Test
-	void importDesign_designThatIsNotValid_throwsItsIssues() throws IOException {
+	void calibrate_designThatIsNotValid_throwsItsIssues() throws IOException {
 		EngineService engine = serving(422,
 				"{\"issues\": [{\"severity\": \"error\", \"code\": \"document.schema\", \"message\": \"bad\"}]}");
 
 		assertThatExceptionOfType(EngineRefusalException.class)
-			.isThrownBy(() -> engine.importDesign("compose", TEXT, null))
+			.isThrownBy(() -> engine.calibrate(JSON.createObjectNode(), POLICY, REPLAY))
 			.extracting(EngineRefusalException::issues)
 			.isEqualTo(List.of(Issue.error("document.schema", "bad")));
 	}
 
 	@Test
-	void importDesign_serviceDown_isServiceUnavailable() throws IOException {
+	void calibrate_serviceDown_isServiceUnavailable() throws IOException {
 		EngineService engine = new EngineService(RestClient.create("http://127.0.0.1:" + freePort()));
 
-		assertThatExceptionOfType(ApiException.class).isThrownBy(() -> engine.importDesign("compose", TEXT, null))
+		assertThatExceptionOfType(ApiException.class)
+			.isThrownBy(() -> engine.calibrate(JSON.createObjectNode(), POLICY, REPLAY))
 			.extracting(ApiException::status)
 			.isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-	}
-
-	@Test
-	void importDesign_request_carriesTheTextAndName() throws IOException {
-		EngineService engine = serving(200, "{}");
-
-		engine.importDesign("compose", TEXT, null);
-
-		assertThat(JSON.readTree(this.received.get()))
-			.isEqualTo(JSON.readTree("{\"format\": \"compose\", \"text\": \"services: {}\", \"name\": null}"));
 	}
 
 	@Test

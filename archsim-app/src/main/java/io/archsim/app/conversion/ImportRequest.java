@@ -2,6 +2,7 @@ package io.archsim.app.conversion;
 
 import org.jspecify.annotations.Nullable;
 
+import io.archsim.engine.imports.ImportFormat;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinLength;
 

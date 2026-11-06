@@ -42,12 +42,9 @@ from archsim_engine.calibration import (
     validation_message,
 )
 from archsim_engine.calibration.prometheus import host_allowed
-from archsim_engine.importers import import_design
 
 OUTBOUND_MODES = ("open", "allowlist", "off")
 """How freely a calibration may call the Prometheus server it names (``ARCHSIM_OUTBOUND``)."""
-
-IMPORT_FORMATS = ("compose", "k8s", "terraform")
 
 
 class BadRequest(Exception):
@@ -128,23 +125,6 @@ def limits_of(body: dict[str, Any]) -> SimulationLimits:
     return SimulationLimits(
         max_requests=max_requests, max_wall_seconds=number(body, "maxWallSeconds")
     )
-
-
-def import_(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
-    """``import_design``: a design from docker-compose, Kubernetes manifests or a Terraform plan,
-    with the import report. Text that is not the format is unreadable, in the API's words."""
-    fmt, text, name = body.get("format"), body.get("text"), body.get("name")
-    if fmt not in IMPORT_FORMATS or not isinstance(text, str):
-        raise BadRequest(f"format must be one of {', '.join(IMPORT_FORMATS)}, and text a string")
-    if name is not None and not isinstance(name, str):
-        raise BadRequest("name must be a string or null")
-    try:
-        document, report = import_design(fmt, text, registry, name)
-    except DocumentInvalidError:
-        raise
-    except (ValueError, TypeError, KeyError) as exc:  # not the format
-        raise Unreadable(f"Cannot import: {exc}") from None
-    return {"document": document, "report": report.to_dict()}
 
 
 def calibrate(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
@@ -255,7 +235,6 @@ def create_app() -> Starlette:
     app = Starlette(
         routes=[
             Route("/health", health, methods=["GET"]),
-            Route("/import", endpoint(import_), methods=["POST"]),
             Route("/calibrate", endpoint(calibrate), methods=["POST"]),
         ]
     )
