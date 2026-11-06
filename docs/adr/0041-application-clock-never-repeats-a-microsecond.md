@@ -44,7 +44,12 @@ every call.
   is the system's time to the microsecond, or a microsecond after the last reading, whichever is
   later. On Linux it moves a reading on only when it falls in the same microsecond as the last
   one, or after the clock is set back.
-- Sign-offs are listed by `created_at`, then `id`, as comments already are.
+- Every list and every one-row pick ordered by a time also sorts by `id` after it, in the same
+  direction, as comments already did. Newest first: sign-offs, runs, share links, API tokens, open
+  invitations, a workspace's projects and the latest unedited copy of an example. Oldest first: the
+  person a verified email belongs to. Memberships have no id, so a workspace's members sort by
+  `user_id` after the time and a user's workspaces by `workspace_id`, the other half of the
+  membership's key.
 
 ### Consequences
 
@@ -60,14 +65,19 @@ every call.
   chrony, as Linux distributions usually set it up, slews the clock and steps it only at boot,
   so such a hold is rare and short.
 - Bad, because rows two servers make at the same instant are ordered by id, not by when they were
-  made. The other lists (runs, shares, tokens, invitations, members) still return such ties as
-  PostgreSQL returns them, so only sign-offs and comments keep the same order on every call.
+  made.
 - Neutral: times the database writes (`now()`) or the Python workers write are not covered.
 
 ### Confirmation
 
 `StrictlyIncreasingClockTests`, `ClockConfigurationTests` (10,000 readings in a row, sorted and
-distinct), and `SignoffsTests` (sign-offs stored at the same instant come back by id).
+distinct), and a same-instant test for each list and pick: `SignoffsTests`, `RunsTests`,
+`SharesTests`, `TokensTests`, `InvitationsTests`, `MembersTests`, `ProjectRepositoryTests`,
+`AccessRepositoryTests` and `AccountRepositoryTests`. Each stores three rows at the same instant
+through `SameInstant.storeThree` (the middle id first, then the highest, then the lowest) and
+checks they come back by id. Three, because two rows stored lowest first can pass without a
+tie-break: PostgreSQL reads a `(parent, time)` index backwards for a newest-first list, which
+returns the last row stored first.
 
 ## Pros and Cons of the Options
 
