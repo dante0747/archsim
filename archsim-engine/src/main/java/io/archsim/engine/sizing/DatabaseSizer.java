@@ -168,7 +168,7 @@ final class DatabaseSizer {
 				.formatted(SizingText.gib(forConnections), connections,
 						PythonFormat.format(Sizing.DB_BYTES_PER_CONNECTION, ","),
 						SizingText.plain(Sizing.DB_MIN_MEMORY_GIB));
-			String cache = SizingText.percent(Sizing.BUFFER_CACHE_SHARE);
+			String cache = SizingText.percent(DatabaseConfig.BUFFER_CACHE_SHARE);
 			String why = (workingSet != null)
 					? "%s of hot data per instance in a buffer cache of %s of memory, so reads stay in memory%s"
 						.formatted(SizingText.gib(hot), cache, floor)
@@ -176,7 +176,7 @@ final class DatabaseSizer {
 							+ "better estimate) in a buffer cache of %s of memory%s")
 						.formatted(SizingText.gib(hot), SizingText.percent(Sizing.DB_HOT_SHARE),
 								SizingText.gib(data.perInstanceGib()), cache, floor);
-			return new Memory(Math.max(hot / Sizing.BUFFER_CACHE_SHARE, forConnections), why);
+			return new Memory(Math.max(hot / DatabaseConfig.BUFFER_CACHE_SHARE, forConnections), why);
 		}
 
 	}

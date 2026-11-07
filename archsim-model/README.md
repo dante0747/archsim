@@ -50,7 +50,12 @@ resources by the build while the engine exists.
   `load_document`, `migrate_document`, `validate_document`, `normalize_document`,
   `apply_overrides`, `simulation_input`, `document_json_schema`, the component catalog
   (`ComponentRegistry.catalog_document` and `types`), the distributions' and the price
-  snapshots' functions. `ModelFunctions` maps each Python name to its Java call.
+  snapshots' functions, the experimental badge's words (`technology.TIER_NOTE`) and the schema's
+  version (`version.SCHEMA_VERSION`). `ModelFunctions` maps each Python name to its Java call.
+  The catalog's objects are compared regardless of their keys' order, but the assumptions page
+  lists technologies and preset settings in it, so they keep the Python engine's order: each
+  type's technology profiles in the order they are added, and each preset's settings in
+  `catalog/<type>.json` as the Python engine defines them.
 - The other tests specify the parts: the pydantic rules the codec copies, the upgrades, each
   check of validation, Python's number formats, the component types, the price snapshots; jqwik
   properties feed random and mutated documents and numbers.

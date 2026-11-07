@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import io.archsim.app.config.ArchsimProperties;
 import io.archsim.app.config.TestProperties;
+import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;

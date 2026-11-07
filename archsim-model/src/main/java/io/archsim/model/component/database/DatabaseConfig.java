@@ -193,6 +193,12 @@ public record DatabaseConfig(
 	/** The write units an on-demand table is sized for at first. */
 	public static final double ON_DEMAND_WRITE_UNITS = 4000.0;
 
+	/** The seconds of unused capacity a metered table banks for bursts. */
+	public static final double BURST_SECONDS = 300.0;
+
+	/** The share of a database's memory that caches hot data (illustrative). */
+	public static final double BUFFER_CACHE_SHARE = 0.75;
+
 	/** The default time of a read on a connection: 5 ms median, 20 ms p95. */
 	static final Distribution DEFAULT_READ_SERVICE_TIME = new LogNormal(5.0, 20.0);
 

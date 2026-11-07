@@ -79,7 +79,7 @@ final class KubernetesLines {
 		double unitPrice = HalfUp.round(pods.perHour() * FOUR_PLACES, 0) / FOUR_PLACES;
 		String basis = count.basis().replace("replica", "pod") + " on implied " + pods.sku().sku()
 				+ " nodes (no cluster in the design): " + HalfUp.fixed(pods.share(), 2) + " of a node each, "
-				+ CostText.percent(ImpliedPods.ALLOCATABLE) + " of a node allocatable";
+				+ CostText.percent(CostEstimator.KUBERNETES_ALLOCATABLE) + " of a node allocatable";
 		return new CostLine(part.id(), part.label(), part.type(), part.technology(), count.count(), unitPrice,
 				PriceBasis.SNAPSHOT, CostUnit.HOUR, pods.perHour() * count.count() * CostEstimator.HOURS_PER_MONTH,
 				basis, null, null, pods.sku().sku(), snapshotDate, null);

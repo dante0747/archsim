@@ -20,26 +20,26 @@
   "presets": [
     {
       "config": {
-        "brokers": 3,
-        "consumerTimeMs": {
-          "kind": "lognormal",
-          "median": 2,
-          "p95": 8
-        },
-        "consumers": 6,
-        "costPerHour": 0.21,
         "cpuCores": 4,
-        "maxDeliveries": 3,
-        "maxDepth": 10000000,
         "memoryGib": 16,
+        "storageGib": 1000,
+        "technology": "kafka",
         "partitions": 12,
+        "consumers": 6,
+        "maxDepth": 10000000,
         "publishTimeMs": {
           "kind": "lognormal",
           "median": 1,
           "p95": 4
         },
-        "storageGib": 1000,
-        "technology": "kafka"
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 2,
+          "p95": 8
+        },
+        "maxDeliveries": 3,
+        "brokers": 3,
+        "costPerHour": 0.21
       },
       "description": "Partitioned log: messages hash by key to 12 ordered partitions, one consumer each; acks=all and 5 ms linger on publish.",
       "family": "Log / stream",
@@ -55,27 +55,27 @@
     },
     {
       "config": {
-        "brokers": 1,
-        "consumerTimeMs": {
-          "kind": "lognormal",
-          "median": 3,
-          "p95": 12
-        },
-        "consumers": 8,
-        "costPerHour": 0.1,
         "cpuCores": 2,
-        "maxDeliveries": 5,
-        "maxDepth": 10000000,
         "memoryGib": 8,
-        "messageSizeKb": 4,
+        "storageGib": 200,
+        "technology": "rabbitmq",
         "partitions": 1000,
+        "consumers": 8,
+        "maxDepth": 10000000,
         "publishTimeMs": {
           "kind": "lognormal",
           "median": 1,
           "p95": 4
         },
-        "storageGib": 200,
-        "technology": "rabbitmq"
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 3,
+          "p95": 12
+        },
+        "maxDeliveries": 5,
+        "messageSizeKb": 4,
+        "brokers": 1,
+        "costPerHour": 0.1
       },
       "description": "Message broker with competing consumers on a queue; past the memory high watermark it blocks publishers.",
       "family": "Broker",
@@ -90,23 +90,23 @@
     },
     {
       "config": {
-        "brokers": 1,
-        "consumerTimeMs": {
-          "kind": "lognormal",
-          "median": 5,
-          "p95": 20
-        },
-        "consumers": 10,
-        "costPerHour": 0.0,
-        "maxDeliveries": 5,
-        "maxDepth": null,
+        "technology": "sqs",
         "partitions": 10000,
+        "consumers": 10,
+        "maxDepth": null,
         "publishTimeMs": {
           "kind": "lognormal",
           "median": 15,
           "p95": 40
         },
-        "technology": "sqs"
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 5,
+          "p95": 20
+        },
+        "maxDeliveries": 5,
+        "brokers": 1,
+        "costPerHour": 0.0
       },
       "description": "Managed HTTP queue: slower publishes, unbounded backlog, 30 s visibility timeout (slow processing gets delivered twice).",
       "family": "Managed queue",
@@ -121,23 +121,23 @@
     },
     {
       "config": {
-        "brokers": 1,
-        "consumerTimeMs": {
-          "kind": "lognormal",
-          "median": 5,
-          "p95": 20
-        },
-        "consumers": 10,
-        "costPerHour": 0.0,
-        "maxDeliveries": 5,
-        "maxDepth": null,
+        "technology": "pubsub",
         "partitions": 10000,
+        "consumers": 10,
+        "maxDepth": null,
         "publishTimeMs": {
           "kind": "lognormal",
           "median": 20,
           "p95": 60
         },
-        "technology": "pubsub"
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 5,
+          "p95": 20
+        },
+        "maxDeliveries": 5,
+        "brokers": 1,
+        "costPerHour": 0.0
       },
       "description": "Managed publish/subscribe with a 10 s ack deadline (illustrative numbers).",
       "family": "Managed queue",
@@ -152,25 +152,25 @@
     },
     {
       "config": {
-        "brokers": 3,
-        "consumerTimeMs": {
-          "kind": "lognormal",
-          "median": 2,
-          "p95": 8
-        },
-        "consumers": 8,
-        "costPerHour": 0.08,
         "cpuCores": 2,
-        "maxDepth": 1000000,
         "memoryGib": 4,
+        "storageGib": 100,
+        "technology": "nats",
         "partitions": 1000,
+        "consumers": 8,
+        "maxDepth": 1000000,
         "publishTimeMs": {
           "kind": "lognormal",
           "median": 0.5,
           "p95": 2
         },
-        "storageGib": 100,
-        "technology": "nats"
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 2,
+          "p95": 8
+        },
+        "brokers": 3,
+        "costPerHour": 0.08
       },
       "description": "Lightweight messaging with JetStream persistence (at-least-once); switch delivery to at-most-once for core NATS.",
       "family": "Broker",
@@ -185,24 +185,24 @@
     },
     {
       "config": {
-        "brokers": 1,
-        "consumerTimeMs": {
-          "kind": "lognormal",
-          "median": 2,
-          "p95": 8
-        },
-        "consumers": 4,
-        "costPerHour": 0.1,
         "cpuCores": 2,
-        "maxDepth": 1000000,
         "memoryGib": 6.4,
+        "technology": "redis_streams",
         "partitions": 1000,
+        "consumers": 4,
+        "maxDepth": 1000000,
         "publishTimeMs": {
           "kind": "lognormal",
           "median": 0.5,
           "p95": 2
         },
-        "technology": "redis_streams"
+        "consumerTimeMs": {
+          "kind": "lognormal",
+          "median": 2,
+          "p95": 8
+        },
+        "brokers": 1,
+        "costPerHour": 0.1
       },
       "description": "Append-only stream with consumer groups, in memory.",
       "family": "Log / stream",

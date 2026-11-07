@@ -19,6 +19,7 @@ import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.distribution.Distribution;
 import io.archsim.model.distribution.Empirical;
+import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.ScenarioOverride;
 import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
@@ -87,7 +88,10 @@ final class ModelFunctions {
 					(entry) -> PRICES.forPricing(entry.input("pricing")).toJson()),
 			Map.entry("archsim_engine.pricing.pinned",
 					(entry) -> Objects.requireNonNullElse(PRICES.pinned(entry.input("pricing")), NODES.nullNode())),
-			Map.entry("archsim_engine.pricing.unknown_families", ModelFunctions::unknownFamilies));
+			Map.entry("archsim_engine.pricing.unknown_families", ModelFunctions::unknownFamilies),
+			Map.entry("archsim_engine.technology.TIER_NOTE", (entry) -> NODES.stringNode(ComponentCatalog.TIER_NOTE)),
+			Map.entry("archsim_engine.version.SCHEMA_VERSION",
+					(entry) -> NODES.stringNode(ArchitectureDocument.SCHEMA_VERSION)));
 
 	private ModelFunctions() {
 	}

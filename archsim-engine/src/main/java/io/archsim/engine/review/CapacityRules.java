@@ -12,7 +12,9 @@ import io.archsim.engine.numeric.TrueDivision;
 import io.archsim.engine.settings.LenientSettings;
 import io.archsim.engine.text.HalfUp;
 import io.archsim.engine.text.NumberText;
+import io.archsim.model.component.cache.CacheConfig;
 import io.archsim.model.component.cache.CacheSpec;
+import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.component.database.DatabaseSpec;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.NodeSpec;
@@ -25,9 +27,6 @@ import io.archsim.model.text.PythonFormat;
  */
 final class CapacityRules {
 
-	/** A data store keeps this share of its memory as buffer cache. */
-	private static final double BUFFER_CACHE_SHARE = 0.75;
-
 	/** A data store with less of its hot data in memory than this reads from disk. */
 	private static final double BUFFER_CACHE_HIT = 0.9;
 
@@ -39,9 +38,6 @@ final class CapacityRules {
 
 	/** A cache whose hit ratio follows from its keys' TTL and how popular they are. */
 	private static final String TTL_KEYSPACE = "ttl_keyspace";
-
-	/** A cache keeps this share of its memory for its keys. */
-	private static final double KEY_MEMORY_SHARE = 0.8;
 
 	private static final double KIB_PER_GIB = 1024;
 
@@ -107,7 +103,7 @@ final class CapacityRules {
 			return;
 		}
 		double hit = ReviewNumbers.smaller(1.0,
-				TrueDivision.of(BUFFER_CACHE_SHARE * memory.getAsDouble(), perInstance));
+				TrueDivision.of(DatabaseConfig.BUFFER_CACHE_SHARE * memory.getAsDouble(), perInstance));
 		if (hit >= BUFFER_CACHE_HIT) {
 			return;
 		}
@@ -131,8 +127,8 @@ final class CapacityRules {
 			// items of no size: memory holds every key
 			return;
 		}
-		double keys = ReviewNumbers.larger(1, ReviewNumbers
-			.whole(FloorDivision.of(KEY_MEMORY_SHARE * memory.getAsDouble() * KIB_PER_GIB * KIB_PER_GIB, item)));
+		double keys = ReviewNumbers.larger(1, ReviewNumbers.whole(FloorDivision
+			.of(CacheConfig.KEY_MEMORY_SHARE * memory.getAsDouble() * KIB_PER_GIB * KIB_PER_GIB, item)));
 		long keyCount = this.document.workload().keyCount();
 		if (keys >= keyCount) {
 			return;

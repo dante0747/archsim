@@ -15,15 +15,15 @@
   "presets": [
     {
       "config": {
-        "costPerMillionRequests": 0,
-        "errorRate": 0.002,
+        "technology": "payments",
         "latencyMs": {
           "kind": "lognormal",
           "median": 250,
           "p95": 900
         },
+        "errorRate": 0.002,
         "rateLimitRps": 100,
-        "technology": "payments"
+        "costPerMillionRequests": 0
       },
       "description": "Card payment provider: a few hundred ms per charge, rare errors, per-account rate limit. Usually priced per transaction amount, so no per-call price is set. Numbers are illustrative assumptions, not a provider's published figures.",
       "family": "SaaS API",
@@ -38,15 +38,15 @@
     },
     {
       "config": {
-        "costPerMillionRequests": 1000,
-        "errorRate": 0.001,
+        "technology": "email",
         "latencyMs": {
           "kind": "lognormal",
           "median": 120,
           "p95": 400
         },
+        "errorRate": 0.001,
         "rateLimitRps": 50,
-        "technology": "email"
+        "costPerMillionRequests": 1000
       },
       "description": "Transactional email sending. Numbers are illustrative assumptions, not a provider's published figures.",
       "family": "SaaS API",
@@ -61,15 +61,15 @@
     },
     {
       "config": {
-        "costPerMillionRequests": 7500,
-        "errorRate": 0.005,
+        "technology": "sms",
         "latencyMs": {
           "kind": "lognormal",
           "median": 300,
           "p95": 1200
         },
+        "errorRate": 0.005,
         "rateLimitRps": 30,
-        "technology": "sms"
+        "costPerMillionRequests": 7500
       },
       "description": "SMS / messaging provider: slower and pricier per call. Numbers are illustrative assumptions, not a provider's published figures.",
       "family": "SaaS API",
@@ -84,15 +84,15 @@
     },
     {
       "config": {
-        "costPerMillionRequests": 0,
-        "errorRate": 0.0005,
+        "technology": "identity",
         "latencyMs": {
           "kind": "lognormal",
           "median": 80,
           "p95": 250
         },
+        "errorRate": 0.0005,
         "rateLimitRps": 200,
-        "technology": "identity"
+        "costPerMillionRequests": 0
       },
       "description": "OAuth/OIDC identity provider for token checks and logins. Usually priced per active user, so no per-call price is set. Numbers are illustrative assumptions, not a provider's published figures.",
       "family": "SaaS API",
@@ -107,16 +107,16 @@
     },
     {
       "config": {
-        "concurrencyLimit": 100,
-        "costPerMillionRequests": 2000,
-        "errorRate": 0.01,
+        "technology": "llm",
         "latencyMs": {
           "kind": "lognormal",
           "median": 1500,
           "p95": 6000
         },
+        "errorRate": 0.01,
         "rateLimitRps": 50,
-        "technology": "llm"
+        "concurrencyLimit": 100,
+        "costPerMillionRequests": 2000
       },
       "description": "Hosted model inference: seconds per call with a heavy tail, tight rate and concurrency limits, noticeable error rate. Numbers are illustrative assumptions, not a provider's published figures.",
       "family": "SaaS API",
@@ -132,15 +132,15 @@
     },
     {
       "config": {
-        "costPerMillionRequests": 0.4,
-        "errorRate": 0.0001,
+        "technology": "object_storage",
         "latencyMs": {
           "kind": "lognormal",
           "median": 25,
           "p95": 80
         },
+        "errorRate": 0.0001,
         "rateLimitRps": 5500,
-        "technology": "object_storage"
+        "costPerMillionRequests": 0.4
       },
       "description": "Object GETs from S3-compatible storage: tens of ms, very high limits. Numbers are illustrative assumptions, not a provider's published figures.",
       "family": "SaaS API",

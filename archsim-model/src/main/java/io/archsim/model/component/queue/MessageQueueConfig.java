@@ -136,38 +136,37 @@ public record MessageQueueConfig(
 					.with("partitioning", "key")
 					.with("acks", "all")
 					.with("lingerMs", 5.0)
-					.with("flowControl", "off")
 					.with("delivery", "at_least_once")
-					.withoutDefault("visibilityTimeoutS"))
+					.withoutDefault("visibilityTimeoutS")
+					.with("flowControl", "off"))
 		.with(QueueTechnology.RABBITMQ,
-				unpartitioned(TechnologyProfile.experimental(), "on").with("delivery", "at_least_once")
-					.withoutDefault("visibilityTimeoutS"))
+				unpartitioned(TechnologyProfile.experimental()).with("delivery", "at_least_once")
+					.withoutDefault("visibilityTimeoutS")
+					.with("flowControl", "on"))
 		.with(QueueTechnology.SQS,
-				unpartitioned(TechnologyProfile.core(), "off").with("delivery", "at_least_once")
-					.with("visibilityTimeoutS", 30.0))
+				unpartitioned(TechnologyProfile.core()).with("delivery", "at_least_once")
+					.with("visibilityTimeoutS", 30.0)
+					.with("flowControl", "off"))
 		.with(QueueTechnology.PUBSUB,
-				unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once")
-					.with("visibilityTimeoutS", 10.0))
+				unpartitioned(TechnologyProfile.experimental()).with("delivery", "at_least_once")
+					.with("visibilityTimeoutS", 10.0)
+					.with("flowControl", "off"))
 		.with(QueueTechnology.NATS,
-				unpartitioned(TechnologyProfile.experimental(), "off").with("delivery", "at_least_once")
-					.withoutDefault("visibilityTimeoutS"))
-		.with(QueueTechnology.REDIS_STREAMS, unpartitioned(TechnologyProfile.experimental(), "off"))
-		.with(QueueTechnology.GENERIC, unpartitioned(TechnologyProfile.core(), "off"))
+				unpartitioned(TechnologyProfile.experimental()).with("delivery", "at_least_once")
+					.withoutDefault("visibilityTimeoutS")
+					.with("flowControl", "off"))
+		.with(QueueTechnology.REDIS_STREAMS, unpartitioned(TechnologyProfile.experimental()).with("flowControl", "off"))
+		.with(QueueTechnology.GENERIC, unpartitioned(TechnologyProfile.core()).with("flowControl", "off"))
 		.build();
 
 	/**
 	 * The profile of one shared queue: no partitions, publishes acknowledged by the
 	 * leader, no batching.
 	 * @param tier the profile to fill in
-	 * @param flowControl whether a memory alarm blocks publishers ({@code on} or
-	 * {@code off})
 	 * @return the filled-in profile
 	 */
-	private static TechnologyProfile unpartitioned(TechnologyProfile tier, String flowControl) {
-		return tier.with("partitioning", "none")
-			.with("acks", "leader")
-			.with("lingerMs", 0.0)
-			.with("flowControl", flowControl);
+	private static TechnologyProfile unpartitioned(TechnologyProfile tier) {
+		return tier.with("partitioning", "none").with("acks", "leader").with("lingerMs", 0.0);
 	}
 
 	public TechnologyProfile profile() {

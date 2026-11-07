@@ -32,15 +32,6 @@ final class ManagedLines {
 	/** Billed per request at the snapshot's {@code queuePerMillionRequests}. */
 	private static final Set<String> QUEUES = Set.of("sqs", "pubsub");
 
-	/** SQS bills each API call: a message is sent, received and deleted. */
-	private static final int SQS_REQUESTS_PER_MESSAGE = 3;
-
-	/** Illustrative: what a load balancer processes per request, in KB. */
-	private static final double ALB_KB_PER_REQUEST = 10.0;
-
-	/** A load balancer's capacity unit covers this many GB processed an hour. */
-	private static final double ALB_GB_PER_LCU_HOUR = 1.0;
-
 	private static final double SECONDS_PER_HOUR = 3600;
 
 	private static final double KB_PER_GB = 1e6;
@@ -101,11 +92,12 @@ final class ManagedLines {
 		String basis = "1 load balancer";
 		Double lcuHour = this.rates.get("loadBalancerLcuHour");
 		if (lcuHour != null && use != null) {
-			double lcus = use.rps() * ALB_KB_PER_REQUEST * SECONDS_PER_HOUR / KB_PER_GB / ALB_GB_PER_LCU_HOUR;
+			double lcus = use.rps() * CostEstimator.ALB_KB_PER_REQUEST * SECONDS_PER_HOUR / KB_PER_GB
+					/ CostEstimator.ALB_GB_PER_LCU_HOUR;
 			items.add(CostItem.of("LCU-hours", lcus * CostEstimator.HOURS_PER_MONTH, lcuHour, "LCU-hour"));
 			basis += " + " + HalfUp.fixed(lcus, 2) + " capacity units (" + HalfUp.fixed(use.rps(), 1)
-					+ " req/s at the base load × " + NumberText.plain(ALB_KB_PER_REQUEST)
-					+ " KB processed each, assumed; 1 LCU per " + NumberText.plain(ALB_GB_PER_LCU_HOUR)
+					+ " req/s at the base load × " + NumberText.plain(CostEstimator.ALB_KB_PER_REQUEST)
+					+ " KB processed each, assumed; 1 LCU per " + NumberText.plain(CostEstimator.ALB_GB_PER_LCU_HOUR)
 					+ " GB an hour)";
 		}
 		else if (lcuHour != null) {
@@ -163,9 +155,9 @@ final class ManagedLines {
 		if (use == null) {
 			return perRequest(part, List.of(), "per request (run a simulation to price it)", null);
 		}
-		int each = "sqs".equals(part.technology()) ? SQS_REQUESTS_PER_MESSAGE : 1;
+		int each = "sqs".equals(part.technology()) ? CostEstimator.SQS_REQUESTS_PER_MESSAGE : 1;
 		double requests = use.rps() * each * CostEstimator.SECONDS_PER_MONTH;
-		String how = (each == SQS_REQUESTS_PER_MESSAGE) ? " × 3 requests (send, receive, delete)" : "";
+		String how = (each == CostEstimator.SQS_REQUESTS_PER_MESSAGE) ? " × 3 requests (send, receive, delete)" : "";
 		return perRequest(part, List.of(CostItem.perMillion("requests", requests, perMillion, "request")),
 				HalfUp.fixed(use.rps(), 1) + " messages/s at the base load" + how, requests);
 	}

@@ -2,7 +2,6 @@ package io.archsim.model.component;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,8 +55,8 @@ public final class TechnologyProfiles<E extends Enum<E> & JsonEnum> {
 	}
 
 	/**
-	 * Every profile by its technology's JSON name, in the order the technologies are
-	 * declared.
+	 * Every profile by its technology's JSON name, in the order they were added: the
+	 * Python engine's, which the catalog and the assumptions page list them in.
 	 * @return the profiles, keyed by JSON name
 	 */
 	public Map<String, TechnologyProfile> byName() {
@@ -77,7 +76,7 @@ public final class TechnologyProfiles<E extends Enum<E> & JsonEnum> {
 
 		private Builder(Class<E> technologies) {
 			this.technologies = technologies;
-			this.profiles = new EnumMap<>(technologies);
+			this.profiles = new LinkedHashMap<>();
 		}
 
 		/**
@@ -106,7 +105,7 @@ public final class TechnologyProfiles<E extends Enum<E> & JsonEnum> {
 			if (!missing.isEmpty()) {
 				throw new IllegalArgumentException("technologies without a profile: " + missing);
 			}
-			return new TechnologyProfiles<>(new EnumMap<>(this.profiles));
+			return new TechnologyProfiles<>(Collections.unmodifiableMap(new LinkedHashMap<>(this.profiles)));
 		}
 
 	}

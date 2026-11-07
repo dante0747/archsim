@@ -20,11 +20,11 @@
   "presets": [
     {
       "config": {
-        "concurrency": 1,
-        "costPerHour": 0.1,
         "cpuCores": 2,
         "memoryGib": 6.4,
-        "technology": "redis"
+        "technology": "redis",
+        "concurrency": 1,
+        "costPerHour": 0.1
       },
       "description": "Single Redis node: commands run on one thread, sub-millisecond; extra cores do not add command throughput. Illustrative defaults.",
       "family": "In-memory",
@@ -41,15 +41,15 @@
     },
     {
       "config": {
-        "concurrency": 1,
-        "costPerHour": 0.1,
         "cpuCores": 2,
         "memoryGib": 6.4,
+        "technology": "valkey",
+        "concurrency": 1,
         "serviceTimeMs": {
           "kind": "exponential",
           "mean": 0.035
         },
-        "technology": "valkey"
+        "costPerHour": 0.1
       },
       "description": "Redis-compatible; I/O threads take socket work off the command thread, so each command is shorter, but commands still run one at a time. Illustrative defaults.",
       "family": "In-memory",
@@ -66,15 +66,15 @@
     },
     {
       "config": {
-        "concurrency": 4,
-        "costPerHour": 0.09,
         "cpuCores": 2,
         "memoryGib": 6.4,
+        "technology": "memcached",
+        "concurrency": 4,
         "serviceTimeMs": {
           "kind": "exponential",
           "mean": 0.04
         },
-        "technology": "memcached"
+        "costPerHour": 0.09
       },
       "description": "Multi-threaded get/set cache with its default 4 worker threads. Illustrative defaults.",
       "family": "In-memory",
@@ -91,16 +91,16 @@
     },
     {
       "config": {
+        "technology": "cdn",
         "concurrency": 1024,
-        "costPerHour": 0.2,
-        "hitRatio": 0.9,
         "queueCapacity": 100000,
+        "hitRatio": 0.9,
         "serviceTimeMs": {
           "kind": "lognormal",
           "median": 1.5,
           "p95": 4
         },
-        "technology": "cdn"
+        "costPerHour": 0.2
       },
       "description": "Edge cache in front of the origin: huge parallelism, a few ms per request, most reads served at the edge. Put user-to-edge latency on the incoming link. Illustrative defaults.",
       "family": "Edge cache",
@@ -116,17 +116,17 @@
     },
     {
       "config": {
-        "concurrency": 256,
-        "costPerHour": 0.08,
         "cpuCores": 2,
-        "hitRatio": 0.85,
         "memoryGib": 8,
+        "technology": "varnish",
+        "concurrency": 256,
+        "hitRatio": 0.85,
         "serviceTimeMs": {
           "kind": "lognormal",
           "median": 0.3,
           "p95": 1.2
         },
-        "technology": "varnish"
+        "costPerHour": 0.08
       },
       "description": "Reverse-proxy HTTP cache in front of the application. Illustrative defaults.",
       "family": "HTTP accelerator",

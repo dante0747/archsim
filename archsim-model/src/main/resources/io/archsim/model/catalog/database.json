@@ -21,22 +21,22 @@
   "presets": [
     {
       "config": {
-        "costPerHour": 0.35,
         "cpuCores": 4,
-        "maxConnections": 20,
         "memoryGib": 16,
+        "storageGib": 200,
+        "technology": "postgresql",
+        "maxConnections": 20,
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 4,
           "p95": 15
         },
-        "storageGib": 200,
-        "technology": "postgresql",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 7,
           "p95": 28
-        }
+        },
+        "costPerHour": 0.35
       },
       "description": "Single PostgreSQL primary behind an application connection pool: row locks, group commit on the write-ahead log. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Relational",
@@ -52,23 +52,23 @@
     },
     {
       "config": {
-        "costPerHour": 0.35,
         "cpuCores": 4,
-        "maxConnections": 20,
         "memoryGib": 16,
+        "storageGib": 200,
+        "technology": "postgresql",
+        "maxConnections": 20,
         "readReplicas": 2,
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 4,
           "p95": 15
         },
-        "storageGib": 200,
-        "technology": "postgresql",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 7,
           "p95": 28
-        }
+        },
+        "costPerHour": 0.35
       },
       "description": "Primary for writes, two streaming replicas that share the reads and replay the write-ahead log on one worker each (lag under heavy writes). Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Relational",
@@ -84,22 +84,22 @@
     },
     {
       "config": {
-        "costPerHour": 0.33,
         "cpuCores": 4,
-        "maxConnections": 20,
         "memoryGib": 16,
+        "storageGib": 200,
+        "technology": "mysql",
+        "maxConnections": 20,
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 4,
           "p95": 16
         },
-        "storageGib": 200,
-        "technology": "mysql",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 8,
           "p95": 32
-        }
+        },
+        "costPerHour": 0.33
       },
       "description": "Single MySQL (InnoDB) primary: row locks, binary log group commit. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Relational",
@@ -115,22 +115,22 @@
     },
     {
       "config": {
-        "costPerHour": 0.9,
         "cpuCores": 4,
-        "maxConnections": 30,
         "memoryGib": 32,
+        "storageGib": 250,
+        "technology": "sqlserver",
+        "maxConnections": 30,
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 5,
           "p95": 20
         },
-        "storageGib": 250,
-        "technology": "sqlserver",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 9,
           "p95": 36
-        }
+        },
+        "costPerHour": 0.9
       },
       "description": "Single SQL Server instance with the default READ COMMITTED locking: reads of a row being written wait. The hourly price includes a licence. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Relational",
@@ -146,25 +146,25 @@
     },
     {
       "config": {
-        "consistency": "quorum",
-        "costPerHour": 0.5,
         "cpuCores": 4,
-        "maxConnections": 20,
         "memoryGib": 16,
+        "storageGib": 300,
+        "technology": "cockroachdb",
+        "maxConnections": 20,
+        "shards": 3,
+        "replicationFactor": 3,
+        "consistency": "quorum",
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 6,
           "p95": 25
         },
-        "replicationFactor": 3,
-        "shards": 3,
-        "storageGib": 300,
-        "technology": "cockroachdb",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 13,
           "p95": 55
-        }
+        },
+        "costPerHour": 0.5
       },
       "description": "Three ranges/shards, each replicated three times with quorum (Raft) writes: survives a node loss, pays a consensus round trip. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Distributed SQL",
@@ -183,25 +183,25 @@
     },
     {
       "config": {
-        "costPerHour": 0.3,
         "cpuCores": 4,
-        "maxConnections": 500,
         "memoryGib": 16,
+        "storageGib": 250,
+        "technology": "mongodb",
+        "maxConnections": 500,
         "queueCapacity": 1000,
-        "readFrom": "replicas",
         "readReplicas": 2,
+        "readFrom": "replicas",
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 3,
           "p95": 12
         },
-        "storageGib": 250,
-        "technology": "mongodb",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 5,
           "p95": 20
-        }
+        },
+        "costPerHour": 0.3
       },
       "description": "Primary plus two secondaries. Writes wait for a majority (the default write concern); reads use the secondaries (secondaryPreferred). Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Document",
@@ -217,26 +217,26 @@
     },
     {
       "config": {
-        "costPerHour": 0.3,
         "cpuCores": 4,
-        "maxConnections": 500,
         "memoryGib": 16,
+        "storageGib": 250,
+        "technology": "mongodb",
+        "maxConnections": 500,
         "queueCapacity": 1000,
+        "shards": 4,
         "readReplicas": 2,
+        "scatterReads": 0.1,
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 3,
           "p95": 12
         },
-        "scatterReads": 0.1,
-        "shards": 4,
-        "storageGib": 250,
-        "technology": "mongodb",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 5,
           "p95": 20
-        }
+        },
+        "costPerHour": 0.3
       },
       "description": "Four shards, each a replica set, behind mongos. Operations with the shard key go to one shard; 10% of reads lack it and are broadcast to all four. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Document",
@@ -252,25 +252,25 @@
     },
     {
       "config": {
-        "consistency": "quorum",
-        "costPerHour": 0.4,
         "cpuCores": 8,
-        "maxConnections": 32,
         "memoryGib": 32,
+        "storageGib": 1000,
+        "technology": "cassandra",
+        "maxConnections": 32,
+        "shards": 6,
+        "replicationFactor": 3,
+        "consistency": "quorum",
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 4,
           "p95": 18
         },
-        "replicationFactor": 3,
-        "shards": 6,
-        "storageGib": 1000,
-        "technology": "cassandra",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 1.5,
           "p95": 6
-        }
+        },
+        "costPerHour": 0.4
       },
       "description": "Six token ranges, replication factor 3, QUORUM reads and writes. LSM storage makes writes cheaper than reads. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Wide-column",
@@ -286,21 +286,21 @@
     },
     {
       "config": {
-        "capacityMode": "on_demand",
-        "costPerHour": 0.5,
+        "technology": "dynamodb",
         "maxConnections": 5000,
         "queueCapacity": 1000,
+        "capacityMode": "on_demand",
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 3,
           "p95": 8
         },
-        "technology": "dynamodb",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 5,
           "p95": 12
-        }
+        },
+        "costPerHour": 0.5
       },
       "description": "Managed key-value table in on-demand mode: capacity units with per-partition limits, so a hot key is throttled. The hourly price stands in for the request charges. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Key-value",
@@ -316,25 +316,25 @@
     },
     {
       "config": {
-        "costPerHour": 0.45,
         "cpuCores": 4,
-        "maxConnections": 7,
         "memoryGib": 32,
+        "storageGib": 500,
+        "technology": "elasticsearch",
+        "maxConnections": 7,
         "queueCapacity": 1000,
+        "shards": 3,
         "readReplicas": 1,
         "readServiceTimeMs": {
           "kind": "lognormal",
           "median": 12,
           "p95": 50
         },
-        "shards": 3,
-        "storageGib": 500,
-        "technology": "elasticsearch",
         "writeServiceTimeMs": {
           "kind": "lognormal",
           "median": 20,
           "p95": 100
-        }
+        },
+        "costPerHour": 0.45
       },
       "description": "Three primary shards with one replica each. Every search hits all three shards; the search thread pool (7 threads for 4 cores) and its 1,000-request queue (Elasticsearch 8 defaults) reject the excess with 429. Numbers are illustrative assumptions, not vendor benchmarks.",
       "family": "Search",

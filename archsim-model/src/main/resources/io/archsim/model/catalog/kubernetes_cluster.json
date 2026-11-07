@@ -17,14 +17,14 @@
   "presets": [
     {
       "config": {
-        "clusterAutoscaler": true,
-        "costPerHour": 0.19,
-        "maxNodes": 10,
+        "technology": "kubernetes",
+        "nodes": 3,
+        "nodeVcpu": 4,
         "nodeMemoryGib": 16,
         "nodeProvisionS": 120,
-        "nodeVcpu": 4,
-        "nodes": 3,
-        "technology": "kubernetes"
+        "costPerHour": 0.19,
+        "clusterAutoscaler": true,
+        "maxNodes": 10
       },
       "description": "Three 4 vCPU / 16 GiB nodes with the cluster autoscaler (up to 10 nodes, 2 minutes per node). Node sizes, provisioning times and prices are illustrative.",
       "family": "Cluster",
@@ -39,14 +39,14 @@
     },
     {
       "config": {
-        "clusterAutoscaler": true,
-        "costPerHour": 0.192,
-        "maxNodes": 12,
+        "technology": "eks",
+        "nodes": 3,
+        "nodeVcpu": 4,
         "nodeMemoryGib": 16,
         "nodeProvisionS": 150,
-        "nodeVcpu": 4,
-        "nodes": 3,
-        "technology": "eks"
+        "costPerHour": 0.192,
+        "clusterAutoscaler": true,
+        "maxNodes": 12
       },
       "description": "Managed control plane with a node group of 4 vCPU / 16 GiB instances, about 2.5 minutes per new node. Node sizes, provisioning times and prices are illustrative.",
       "family": "Cluster",
@@ -61,14 +61,14 @@
     },
     {
       "config": {
-        "clusterAutoscaler": true,
-        "costPerHour": 0.17,
-        "maxNodes": 12,
+        "technology": "gke",
+        "nodes": 3,
+        "nodeVcpu": 4,
         "nodeMemoryGib": 16,
         "nodeProvisionS": 90,
-        "nodeVcpu": 4,
-        "nodes": 3,
-        "technology": "gke"
+        "costPerHour": 0.17,
+        "clusterAutoscaler": true,
+        "maxNodes": 12
       },
       "description": "Managed cluster with 4 vCPU / 16 GiB nodes and node auto-provisioning, about 1.5 minutes per new node. Node sizes, provisioning times and prices are illustrative.",
       "family": "Cluster",
@@ -83,14 +83,14 @@
     },
     {
       "config": {
-        "clusterAutoscaler": true,
-        "costPerHour": 0.19,
-        "maxNodes": 12,
+        "technology": "aks",
+        "nodes": 3,
+        "nodeVcpu": 4,
         "nodeMemoryGib": 16,
         "nodeProvisionS": 180,
-        "nodeVcpu": 4,
-        "nodes": 3,
-        "technology": "aks"
+        "costPerHour": 0.19,
+        "clusterAutoscaler": true,
+        "maxNodes": 12
       },
       "description": "Managed cluster with 4 vCPU / 16 GiB nodes, about 3 minutes per new node. Node sizes, provisioning times and prices are illustrative.",
       "family": "Cluster",
@@ -105,14 +105,14 @@
     },
     {
       "config": {
-        "allocatableShare": 0.85,
-        "clusterAutoscaler": false,
-        "costPerHour": 0.04,
+        "technology": "k3s",
+        "nodes": 2,
+        "nodeVcpu": 2,
         "nodeMemoryGib": 4,
         "nodeProvisionS": 0,
-        "nodeVcpu": 2,
-        "nodes": 2,
-        "technology": "k3s"
+        "costPerHour": 0.04,
+        "clusterAutoscaler": false,
+        "allocatableShare": 0.85
       },
       "description": "Lightweight Kubernetes on two small nodes and no cluster autoscaler: what fits is what you get. Node sizes, provisioning times and prices are illustrative.",
       "family": "Cluster",

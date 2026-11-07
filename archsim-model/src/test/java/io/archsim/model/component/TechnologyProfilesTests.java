@@ -32,7 +32,7 @@ class TechnologyProfilesTests {
 	}
 
 	@Test
-	void byName_everyTechnology_isKeyedByItsJsonNameInDeclarationOrder() {
+	void byName_everyTechnology_isKeyedByItsJsonNameInTheOrderAdded() {
 		TechnologyProfiles<Two> profiles = TechnologyProfiles.builder(Two.class)
 			.with(Two.TWO, TechnologyProfile.experimental())
 			.with(Two.ONE, TechnologyProfile.core())
@@ -40,8 +40,8 @@ class TechnologyProfilesTests {
 
 		Map<String, TechnologyProfile> byName = profiles.byName();
 
-		assertThat(byName).containsExactly(Map.entry("one", TechnologyProfile.core()),
-				Map.entry("two", TechnologyProfile.experimental()));
+		assertThat(byName).containsExactly(Map.entry("two", TechnologyProfile.experimental()),
+				Map.entry("one", TechnologyProfile.core()));
 	}
 
 	@Test

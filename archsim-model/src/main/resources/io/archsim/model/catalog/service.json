@@ -23,8 +23,8 @@
       "config": {
         "cpuCores": 2,
         "memoryGib": 4,
-        "platform": "vm",
-        "technology": "generic"
+        "technology": "generic",
+        "platform": "vm"
       },
       "description": "Fixed replicas on virtual machines, thread-per-request workers.",
       "family": "VM",
@@ -39,22 +39,22 @@
     },
     {
       "config": {
-        "blockingDownstream": true,
-        "costPerHour": 0.17,
         "cpuCores": 2,
-        "memoryBaselineMb": 768,
         "memoryGib": 4,
         "memoryPerRequestMb": 1,
+        "memoryBaselineMb": 768,
+        "technology": "java",
         "platform": "docker",
-        "queueCapacity": 100,
         "replicas": 2,
+        "workersPerReplica": 200,
+        "queueCapacity": 100,
         "serviceTimeMs": {
           "kind": "lognormal",
           "median": 12,
           "p95": 40
         },
-        "technology": "java",
-        "workersPerReplica": 200
+        "blockingDownstream": true,
+        "costPerHour": 0.17
       },
       "description": "Spring Boot containers with a large blocking thread pool (Tomcat-style).",
       "family": "Container",
@@ -73,22 +73,22 @@
     },
     {
       "config": {
-        "blockingDownstream": false,
-        "costPerHour": 0.05,
         "cpuCores": 1,
-        "memoryBaselineMb": 128,
         "memoryGib": 1,
         "memoryPerRequestMb": 0.5,
+        "memoryBaselineMb": 128,
+        "technology": "nodejs",
         "platform": "docker",
-        "queueCapacity": 1000,
         "replicas": 4,
+        "workersPerReplica": 1,
+        "queueCapacity": 1000,
         "serviceTimeMs": {
           "kind": "lognormal",
           "median": 4,
           "p95": 12
         },
-        "technology": "nodejs",
-        "workersPerReplica": 1
+        "blockingDownstream": false,
+        "costPerHour": 0.05
       },
       "description": "One event loop per container: every request's CPU work queues for that single thread, while I/O waits don't hold it.",
       "family": "Container",
@@ -106,27 +106,27 @@
     },
     {
       "config": {
-        "autoscaling": true,
-        "costPerHour": 0.05,
         "cpuCores": 2,
-        "maxReplicas": 10,
-        "memoryBaselineMb": 64,
         "memoryGib": 1,
         "memoryPerRequestMb": 0.25,
-        "minReplicas": 2,
+        "memoryBaselineMb": 64,
+        "technology": "go",
         "platform": "kubernetes",
-        "queueCapacity": 200,
         "replicas": 2,
-        "scaleIntervalS": 15,
+        "workersPerReplica": 64,
+        "queueCapacity": 200,
         "serviceTimeMs": {
           "kind": "lognormal",
           "median": 5,
           "p95": 15
         },
-        "startupS": 10,
+        "autoscaling": true,
+        "minReplicas": 2,
+        "maxReplicas": 10,
         "targetUtilization": 0.6,
-        "technology": "go",
-        "workersPerReplica": 64
+        "scaleIntervalS": 15,
+        "startupS": 10,
+        "costPerHour": 0.05
       },
       "description": "Go pods behind a Kubernetes Service with a Horizontal Pod Autoscaler.",
       "family": "Kubernetes",
@@ -144,27 +144,27 @@
     },
     {
       "config": {
-        "autoscaling": true,
-        "costPerHour": 0.05,
         "cpuCores": 2,
-        "maxReplicas": 12,
-        "memoryBaselineMb": 512,
         "memoryGib": 2,
         "memoryPerRequestMb": 4,
-        "minReplicas": 2,
+        "memoryBaselineMb": 512,
+        "technology": "python",
         "platform": "kubernetes",
-        "queueCapacity": 64,
         "replicas": 2,
-        "scaleIntervalS": 15,
+        "workersPerReplica": 4,
+        "queueCapacity": 64,
         "serviceTimeMs": {
           "kind": "lognormal",
           "median": 15,
           "p95": 60
         },
-        "startupS": 25,
+        "autoscaling": true,
+        "minReplicas": 2,
+        "maxReplicas": 12,
         "targetUtilization": 0.6,
-        "technology": "python",
-        "workersPerReplica": 4
+        "scaleIntervalS": 15,
+        "startupS": 25,
+        "costPerHour": 0.05
       },
       "description": "Gunicorn-style worker processes in pods, autoscaled by an HPA.",
       "family": "Kubernetes",
@@ -182,18 +182,18 @@
     },
     {
       "config": {
-        "concurrencyLimit": 1000,
-        "costPerHour": 0.06,
         "cpuCores": 1,
-        "keepWarmS": 300,
         "memoryGib": 1.75,
+        "technology": "nodejs",
         "platform": "serverless",
+        "concurrencyLimit": 1000,
+        "keepWarmS": 300,
         "serviceTimeMs": {
           "kind": "lognormal",
           "median": 20,
           "p95": 60
         },
-        "technology": "nodejs"
+        "costPerHour": 0.06
       },
       "description": "Function-as-a-service: an instance per concurrent request, cold starts when scaling out.",
       "family": "Serverless",

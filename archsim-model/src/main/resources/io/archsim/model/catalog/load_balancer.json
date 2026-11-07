@@ -18,14 +18,14 @@
     {
       "config": {
         "cpuCores": 2,
-        "maxConnections": 1024,
         "memoryGib": 2,
+        "technology": "nginx",
+        "policy": "round_robin",
+        "maxConnections": 1024,
         "overheadMs": {
           "kind": "constant",
           "value": 0.2
-        },
-        "policy": "round_robin",
-        "technology": "nginx"
+        }
       },
       "description": "Reverse proxy with very low per-request overhead: 2 workers x 1,024 connections, two per proxied request, so 1,024 requests at once; 60 s upstream timeout.",
       "family": "Load balancer",
@@ -42,12 +42,12 @@
       "config": {
         "cpuCores": 2,
         "memoryGib": 2,
+        "technology": "haproxy",
+        "policy": "least_connections",
         "overheadMs": {
           "kind": "constant",
           "value": 0.15
-        },
-        "policy": "least_connections",
-        "technology": "haproxy"
+        }
       },
       "description": "High-performance TCP/HTTP load balancer, least-connections balancing.",
       "family": "Load balancer",
@@ -64,12 +64,12 @@
       "config": {
         "cpuCores": 2,
         "memoryGib": 2,
+        "technology": "envoy",
+        "policy": "least_connections",
         "overheadMs": {
           "kind": "constant",
           "value": 0.3
-        },
-        "policy": "least_connections",
-        "technology": "envoy"
+        }
       },
       "description": "Service proxy (also the data plane of most service meshes): circuit breakers at 1,024 requests per target, 15 s route timeout.",
       "family": "Load balancer",
@@ -84,17 +84,17 @@
     },
     {
       "config": {
-        "costPerHour": 0.05,
         "cpuCores": 2,
         "memoryGib": 4,
+        "technology": "kong",
         "overheadMs": {
           "kind": "lognormal",
           "median": 1.0,
           "p95": 3.0
         },
-        "rateLimitBurst": 200,
         "rateLimitRps": 1000,
-        "technology": "kong"
+        "rateLimitBurst": 200,
+        "costPerHour": 0.05
       },
       "description": "API gateway in front of services, with a global rate limit.",
       "family": "API gateway",
@@ -109,14 +109,14 @@
     },
     {
       "config": {
-        "costPerHour": 0.0225,
-        "maxConnections": 100000,
+        "technology": "aws_alb",
         "overheadMs": {
           "kind": "lognormal",
           "median": 1.5,
           "p95": 5.0
         },
-        "technology": "aws_alb"
+        "maxConnections": 100000,
+        "costPerHour": 0.0225
       },
       "description": "Managed cloud application load balancer (illustrative numbers, not a vendor benchmark).",
       "family": "Load balancer",
@@ -131,15 +131,15 @@
     },
     {
       "config": {
-        "costPerHour": 0.0,
+        "technology": "api_gateway",
         "overheadMs": {
           "kind": "lognormal",
           "median": 6.0,
           "p95": 20.0
         },
-        "rateLimitBurst": 5000,
         "rateLimitRps": 10000,
-        "technology": "api_gateway"
+        "rateLimitBurst": 5000,
+        "costPerHour": 0.0
       },
       "description": "Managed API gateway: higher overhead per request and an account-level rate limit.",
       "family": "API gateway",

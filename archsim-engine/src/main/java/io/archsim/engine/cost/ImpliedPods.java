@@ -23,9 +23,6 @@ import io.archsim.model.pricing.SkuCategory;
  */
 record ImpliedPods(Sku sku, double share, double perHour) {
 
-	/** The share of a node's CPU and memory left for pods (the cluster's default). */
-	static final double ALLOCATABLE = 0.9;
-
 	private static final double TOLERANCE = 1e-9;
 
 	/** Ties in price per pod go to the smaller node, then the type's name. */
@@ -72,8 +69,8 @@ record ImpliedPods(Sku sku, double share, double perHour) {
 		if (!nodePool(sku) || price == null || price == 0) {
 			return null;
 		}
-		double allocatableCpu = sku.vcpu() * ALLOCATABLE;
-		double allocatableMemory = sku.memoryGib() * ALLOCATABLE;
+		double allocatableCpu = sku.vcpu() * CostEstimator.KUBERNETES_ALLOCATABLE;
+		double allocatableMemory = sku.memoryGib() * CostEstimator.KUBERNETES_ALLOCATABLE;
 		if (allocatableCpu < cpu - TOLERANCE || allocatableMemory < memory - TOLERANCE) {
 			return null;
 		}

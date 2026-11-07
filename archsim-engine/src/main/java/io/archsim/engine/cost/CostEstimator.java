@@ -35,6 +35,21 @@ public final class CostEstimator {
 	/** The hours a month is billed for. */
 	public static final int HOURS_PER_MONTH = 730;
 
+	/**
+	 * The share of an implied Kubernetes node's CPU and memory left for pods (the
+	 * cluster's default).
+	 */
+	public static final double KUBERNETES_ALLOCATABLE = 0.9;
+
+	/** SQS bills each API call: a message is sent, received and deleted. */
+	public static final int SQS_REQUESTS_PER_MESSAGE = 3;
+
+	/** Illustrative: what a load balancer processes per request, in KB. */
+	public static final double ALB_KB_PER_REQUEST = 10.0;
+
+	/** A load balancer's capacity unit covers this many GB processed an hour. */
+	public static final double ALB_GB_PER_LCU_HOUR = 1.0;
+
 	/** What a snapshot's prices leave out. */
 	public static final String NOT_MODELLED = "Not modelled: Multi-AZ deployments, reserved instances and savings "
 			+ "plans, data transfer and NAT, and free tiers.";
