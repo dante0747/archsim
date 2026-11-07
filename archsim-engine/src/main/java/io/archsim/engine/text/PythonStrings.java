@@ -71,6 +71,26 @@ public final class PythonStrings {
 	}
 
 	/**
+	 * A text without whitespace at either end, as Python's {@code str.strip()} with no
+	 * argument strips it: what {@code str.isspace()} counts as whitespace, where Java's
+	 * {@link String#strip} counts what {@link Character#isWhitespace} does.
+	 * @param text a text
+	 * @return the text without its leading and trailing whitespace
+	 */
+	public static String strip(String text) {
+		int[] codePoints = text.codePoints().toArray();
+		int start = 0;
+		int end = codePoints.length;
+		while (start < end && WHITESPACE.indexOf(codePoints[start]) >= 0) {
+			start++;
+		}
+		while (end > start && WHITESPACE.indexOf(codePoints[end - 1]) >= 0) {
+			end--;
+		}
+		return new String(codePoints, start, end - start);
+	}
+
+	/**
 	 * A text split at runs of whitespace, as Python's {@code str.split()} with no
 	 * argument splits it: at what {@code str.isspace()} counts as whitespace, with no
 	 * empty words.

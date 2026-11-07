@@ -73,13 +73,19 @@ class OtlpSpansTests {
 	}
 
 	@Test
-	void parse_emptyParentAndPlainTextValue_areNone() {
+	void parse_emptyParentSpanId_isNoParent() {
+		Span span = OtlpSpans.parse(export("{" + SPAN + ", \"parentSpanId\": \"\"}")).getFirst();
+
+		assertThat(span.parentId()).isNull();
+	}
+
+	@Test
+	void parse_attributeValueThatIsNotAnAnyValueObject_isNone() {
 		Span span = OtlpSpans
-			.parse(export("{" + SPAN + ", \"parentSpanId\": \"\", \"attributes\": "
+			.parse(export("{" + SPAN + ", \"attributes\": "
 					+ "[{\"key\": \"k\", \"value\": \"plain\"}, {\"key\": \"m\", \"value\": [\"a\"]}]}"))
 			.getFirst();
 
-		assertThat(span.parentId()).isNull();
 		assertThat(span.attrs()).isEqualTo(JSON.readTree("{\"k\": null, \"m\": null}"));
 	}
 

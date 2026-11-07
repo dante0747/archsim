@@ -67,6 +67,12 @@ class HistogramTests {
 	}
 
 	@Test
+	void meanUpper_buckets_isTheMidpointsMeanWithTheInfiniteBucketAtTheLastBound() {
+		assertThat(new Histogram(List.of(10.0, 100.0), List.of(3.0, 9.0), 11.0).meanUpper())
+			.isEqualTo(49.54545454545455);
+	}
+
+	@Test
 	void constructor_boundsAndCountsThatDoNotPair_areRefused() {
 		assertThatIllegalArgumentException().isThrownBy(() -> new Histogram(List.of(1.0), List.of(), 1.0))
 			.withMessage("each bound needs its cumulative count");

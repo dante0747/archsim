@@ -1,6 +1,5 @@
 package io.archsim.engine.calibration.mapping;
 
-import io.archsim.engine.calibration.prometheus.LatencyUnit;
 import io.archsim.model.codec.Default;
 
 /**

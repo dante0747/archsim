@@ -11,7 +11,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.json.JsonMapper;
 
-import io.archsim.engine.calibration.prometheus.Reduction;
 import io.archsim.engine.yaml.YamlKeyException;
 import io.archsim.engine.yaml.YamlValueException;
 
@@ -102,6 +101,14 @@ class MappingLoaderTests {
 						"nodes.a.x.ratio: Value error, ratio needs exactly 'hits' and 'misses' queries"),
 				Arguments.of("{\"range\": {\"start\": \"a\", \"end\": \"b\", \"step\": 0}}",
 						"range.step: Input should be greater than 0"));
+	}
+
+	@Test
+	void memoryUnit_bytes_areTheUnitsPowersOfTwo() {
+		assertThat(MemoryUnit.values()).extracting(MemoryUnit::bytes)
+			.containsExactly(1.0, 1024.0, 1_048_576.0, 1_073_741_824.0);
+		assertThat(MemoryUnit.named("GiB")).hasValue(MemoryUnit.GIB);
+		assertThat(MemoryUnit.named("ms")).isEmpty();
 	}
 
 	@Test

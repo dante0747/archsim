@@ -2,7 +2,6 @@ package io.archsim.engine.calibration.mapping;
 
 import org.jspecify.annotations.Nullable;
 
-import io.archsim.engine.calibration.prometheus.LatencyUnit;
 import io.archsim.model.codec.Default;
 
 /**

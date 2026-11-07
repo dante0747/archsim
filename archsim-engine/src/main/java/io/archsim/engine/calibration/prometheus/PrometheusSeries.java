@@ -10,6 +10,8 @@ import java.util.TreeMap;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.engine.calibration.fit.Histogram;
+import io.archsim.engine.calibration.mapping.LatencyUnit;
+import io.archsim.engine.calibration.mapping.Reduction;
 import io.archsim.engine.numeric.FloatSum;
 import io.archsim.engine.numeric.PythonFloats;
 import io.archsim.model.text.PythonText;

@@ -1,7 +1,6 @@
 package io.archsim.engine.calibration.mapping;
 
 import io.archsim.engine.calibration.fit.FitKind;
-import io.archsim.engine.calibration.prometheus.LatencyUnit;
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.KeyTag;
 

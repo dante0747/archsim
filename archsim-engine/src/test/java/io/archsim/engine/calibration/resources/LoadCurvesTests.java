@@ -3,6 +3,7 @@ package io.archsim.engine.calibration.resources;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,6 +27,19 @@ class LoadCurvesTests {
 		assertThat(curve.measured()).containsExactly(new RatePoint(50, 1.0), new RatePoint(100, 0.8),
 				new RatePoint(200, 1.0), new RatePoint(400, 0.75));
 		assertThat(curve.error()).isEqualTo(0.1667);
+	}
+
+	@Test
+	void loadCurve_spanTableAndText_areThePythonEnginesWords() {
+		LoadCurve curve = new LoadCurve(List.of(new RatePoint(25, 1.2), new RatePoint(50, 0.8)), 4.0,
+				List.of(new RatePoint(25, 4.8), new RatePoint(1250, 3.2)), 0.1);
+
+		assertThat(curve.span()).isEqualTo(0.4999999999999998);
+		assertThat(curve.table()).isEqualTo(JsonMapper.builder()
+			.build()
+			.readTree("[{\"rps\": 25.0, \"factor\": 1.2}, {\"rps\": 50.0, \"factor\": 0.8}]"));
+		assertThat(curve.text()).isEqualTo("CPU per request 4.8 ms at about 25 req/s per replica, 3.2 ms at about "
+				+ "1,250 req/s (2 bins by rate, fitted never rising)");
 	}
 
 	@Test

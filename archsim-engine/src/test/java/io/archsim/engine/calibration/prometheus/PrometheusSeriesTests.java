@@ -12,6 +12,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.calibration.fit.Histogram;
+import io.archsim.engine.calibration.mapping.LatencyUnit;
+import io.archsim.engine.calibration.mapping.Reduction;
 import io.archsim.engine.calibration.prometheus.PrometheusSeries.Point;
 
 import static org.assertj.core.api.Assertions.assertThat;

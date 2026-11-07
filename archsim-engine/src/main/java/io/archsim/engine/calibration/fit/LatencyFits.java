@@ -156,10 +156,7 @@ public final class LatencyFits {
 		DoubleUnaryOperator fitted;
 		if (kind == FitKind.EMPIRICAL && table != null && !table.isEmpty()) {
 			distribution.put("kind", "empirical");
-			ArrayNode quantiles = distribution.putArray("quantiles");
-			table.forEach((point) -> quantiles.addArray()
-				.add(PythonRound.round(point.share(), DISTRIBUTION_DIGITS))
-				.add(PythonRound.round(point.value(), DISTRIBUTION_DIGITS)));
+			distribution.set("quantiles", rounded(table));
 			fitted = tableQuantiles(table);
 		}
 		else {
@@ -203,6 +200,28 @@ public final class LatencyFits {
 	 */
 	private static double observedAt(Map<Double, Double> observed, double quantile) {
 		return Objects.requireNonNull(observed.get(quantile), () -> "the observed quantiles need " + quantile);
+	}
+
+	/**
+	 * A table as a design writes it, its shares and values to six places. Where shares
+	 * round alike (a histogram's last buckets, a fraction of a millionth apart), only the
+	 * last of them is kept, so the shares rise strictly as an empirical distribution
+	 * needs: the Python engine kept them all, writing a table the design's validation
+	 * refused.
+	 * @param table the table, its shares rising
+	 * @return the {@code [share, value]} pairs
+	 */
+	private static ArrayNode rounded(List<QuantilePoint> table) {
+		ArrayNode quantiles = NODES.arrayNode();
+		for (int i = 0; i < table.size(); i++) {
+			double share = PythonRound.round(table.get(i).share(), DISTRIBUTION_DIGITS);
+			boolean collides = i + 1 < table.size()
+					&& PythonRound.round(table.get(i + 1).share(), DISTRIBUTION_DIGITS) == share;
+			if (!collides) {
+				quantiles.addArray().add(share).add(PythonRound.round(table.get(i).value(), DISTRIBUTION_DIGITS));
+			}
+		}
+		return quantiles;
 	}
 
 	private static DoubleUnaryOperator tableQuantiles(List<QuantilePoint> table) {

@@ -1,4 +1,4 @@
-package io.archsim.engine.calibration.prometheus;
+package io.archsim.engine.calibration.mapping;
 
 import io.archsim.model.codec.JsonEnum;
 

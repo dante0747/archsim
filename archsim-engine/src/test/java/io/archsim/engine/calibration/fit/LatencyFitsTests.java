@@ -6,6 +6,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.distribution.Distribution;
+import io.archsim.model.distribution.Empirical;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
@@ -47,6 +51,23 @@ class LatencyFitsTests {
 						+ "above, so the table spreads them between 100 and 200 ms",
 				"an empirical table from histogram buckets passes through every bucket bound, so no fit error can be "
 						+ "measured; inside a bucket it is only as precise as the bucket (p50 between 10 and 100 ms)");
+	}
+
+	/**
+	 * Shares closer than the table's six decimals: the Python engine wrote
+	 * {@code [1.0, 2.0]} and {@code [1.0, 3.0]}, a table the design's validation refuses;
+	 * the Java keeps the last point of each run of equal shares.
+	 */
+	@Test
+	void fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid() {
+		Histogram close = new Histogram(List.of(1.0, 2.0, 3.0), List.of(5.0, 9.9999999, 10.0), 10.0);
+
+		Fit fit = LatencyFits.fitHistogram(close, FitKind.EMPIRICAL);
+
+		assertThat(fit.distribution())
+			.isEqualTo(JSON.readTree("{\"kind\": \"empirical\", \"quantiles\": [[0.0, 0.0], [0.5, 1.0], [1.0, 3.0]]}"));
+		assertThat(RecordCodec.read(fit.distribution(), Distribution.class)).isInstanceOfSatisfying(Empirical.class,
+				(empirical) -> assertThat(empirical.quantiles()).hasSize(3));
 	}
 
 	@Test

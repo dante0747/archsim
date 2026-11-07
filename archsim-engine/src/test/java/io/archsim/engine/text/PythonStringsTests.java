@@ -18,6 +18,16 @@ class PythonStringsTests {
 	private static final int HEX = 16;
 
 	@Test
+	void strip_whitespacePythonCountsAndJavaDoesNot_isStripped() {
+		assertThat(PythonStrings.strip("  a b 	")).isEqualTo("a b");
+	}
+
+	@Test
+	void strip_zeroWidthSpace_isNotWhitespace() {
+		assertThat(PythonStrings.strip("​ x ​")).isEqualTo("​ x ​");
+	}
+
+	@Test
 	void casefold_upperAndLowerCase_foldTogether() {
 		assertThat(PythonStrings.casefold("API Servers")).isEqualTo("api servers");
 	}

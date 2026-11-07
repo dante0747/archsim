@@ -66,7 +66,7 @@ public record Histogram(List<Double> bounds, List<Double> cumulative, double tot
 	 * @param quantile the quantile, such as 0.95
 	 * @return its value in milliseconds; empty without observations or bounds
 	 */
-	OptionalDouble quantile(double quantile) {
+	public OptionalDouble quantile(double quantile) {
 		if (this.total <= 0 || this.bounds.isEmpty()) {
 			return OptionalDouble.empty();
 		}
@@ -84,6 +84,27 @@ public record Histogram(List<Double> bounds, List<Double> cumulative, double tot
 			lowerCount = count;
 		}
 		return OptionalDouble.of(this.bounds.getLast());
+	}
+
+	/**
+	 * An estimate of the mean from the buckets' midpoints, the {@code +Inf} bucket's
+	 * observations at the highest finite bound.
+	 * @return the mean, in milliseconds; 0 without observations
+	 */
+	public double meanUpper() {
+		if (this.total <= 0) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		double previousBound = 0.0;
+		double previousCount = 0.0;
+		for (int i = 0; i < this.bounds.size(); i++) {
+			sum += (this.cumulative.get(i) - previousCount) * (previousBound + this.bounds.get(i)) / 2;
+			previousBound = this.bounds.get(i);
+			previousCount = this.cumulative.get(i);
+		}
+		sum += (this.total - previousCount) * previousBound;
+		return sum / this.total;
 	}
 
 	/**
