@@ -51,6 +51,9 @@ Java now and keeps the replay's report the frozen engine's, without opening anyt
 - This amends ADR-0036, whose last remaining call it replaces. Stage 4's exit removes
   `/simulate`, when the Java simulator replays calibrations; the service is deleted with it.
 
+**Status (7 Nov 2026):** compose's `engine` network is now internal: the service has no route
+beyond the API.
+
 ### Consequences
 
 - Good, because the calibrations, their Prometheus client and their error words are Java, under

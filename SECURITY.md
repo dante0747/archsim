@@ -112,7 +112,8 @@ server at `https://<host>/api/v1`.
   to the answer's last byte, and caps on the answer's size, the length of a header line and the
   number of headers. A calibration's replay is simulated by the internal engine service, within
   the replay's limits; the service calls nothing, but it checks no caller, so only the API may
-  reach it: Compose gives it a network that it shares with the API alone.
+  reach it: Compose gives it an internal network, with no route to the outside, that it shares
+  with the API alone.
 - **Client addresses.** The web server sends the visitor's address as `X-ArchSim-Client-IP`,
   taken from `X-Forwarded-For` at the depth `ARCHSIM_TRUSTED_HOPS` says (1 behind one reverse
   proxy; 0 sends nothing, since the header would be the client's own word). The API believes it

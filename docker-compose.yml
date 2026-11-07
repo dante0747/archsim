@@ -51,7 +51,8 @@ services:
     restart: "no"
 
   # The simulation a calibration replays, until stage 4 ports the simulator (ADR-0036,
-  # ADR-0045), for the API only. It checks no caller, so only the API shares its network.
+  # ADR-0045), for the API only. It checks no caller, so only the API shares its network, which
+  # is internal: the service calls nothing.
   engine:
     build:
       context: .
@@ -136,7 +137,10 @@ services:
       - "127.0.0.1:3000:3000"
 
 networks:
-  engine: {}
+  # Internal: no way out. Only the engine service and the API are on it; the service calls
+  # nothing, and the API reaches the outside (Prometheus, sign-in providers) through `default`.
+  engine:
+    internal: true
 
 volumes:
   pgdata:
