@@ -1,12 +1,12 @@
-package io.archsim.app.engine;
+package io.archsim.app.calibration;
 
 import java.util.List;
 
 import io.archsim.app.config.CalibrationProperties.Outbound;
 
 /**
- * Which servers a call may reach that a request names (a calibration's Prometheus), as
- * the engine service is told with each such call: it holds no settings of its own.
+ * Which servers a calibration may reach that its request names (its Prometheus), worked
+ * out from the server's settings and the workspace.
  *
  * @param mode {@code open}, {@code allowlist} or {@code off}
  * @param allowedHosts the hosts it may call ({@code host} or {@code host:port}); none for
@@ -14,12 +14,12 @@ import io.archsim.app.config.CalibrationProperties.Outbound;
  * @param timeoutSeconds the deadline of one query, body included
  * @param maxBytes the largest answer it accepts
  */
-public record OutboundPolicy(Outbound mode, List<String> allowedHosts, double timeoutSeconds, long maxBytes) {
+record OutboundPolicy(Outbound mode, List<String> allowedHosts, double timeoutSeconds, long maxBytes) {
 
 	/**
 	 * A policy, with a copy of its hosts.
 	 */
-	public OutboundPolicy {
+	OutboundPolicy {
 		allowedHosts = List.copyOf(allowedHosts);
 	}
 

@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.flyway.database.postgresql)
     implementation(libs.springdoc.openapi.webmvc.ui)
+    implementation(libs.httpclient5)
     runtimeOnly(libs.postgresql)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)

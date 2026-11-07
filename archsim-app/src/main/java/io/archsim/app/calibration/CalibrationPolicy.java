@@ -5,13 +5,12 @@ import org.springframework.stereotype.Component;
 import io.archsim.app.config.ArchsimProperties;
 import io.archsim.app.config.CalibrationProperties;
 import io.archsim.app.config.CalibrationProperties.Outbound;
-import io.archsim.app.engine.OutboundPolicy;
 import io.archsim.app.limits.WorkspaceLimits;
 import io.archsim.app.limits.WorkspaceLimits.RunLimits;
 
 /**
- * What a calibration in a workspace may do, sent to the engine service with it: which
- * Prometheus servers it may call, and how far its replay may run.
+ * What a calibration in a workspace may do: which Prometheus servers it may call, and how
+ * far its replay may run.
  */
 @Component
 class CalibrationPolicy {

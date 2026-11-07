@@ -1,4 +1,5 @@
-"""``archsim-engine-service``: serve the engine's synchronous calls on an internal port."""
+"""``archsim-engine-service``: serve the simulation a calibration replays on an internal port
+(ADR-0045)."""
 
 from __future__ import annotations
 
@@ -8,7 +9,7 @@ import argparse
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="archsim-engine-service",
-        description="Serve the Python engine's synchronous calls for the Java API (internal only).",
+        description="Serve the replays of calibrations for the Java API (internal only).",
     )
     parser.add_argument(
         "--host", default="127.0.0.1", help="address to listen on (default: 127.0.0.1)"

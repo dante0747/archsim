@@ -49,6 +49,8 @@ spring-boot-starter-validation = { module = "org.springframework.boot:spring-boo
 spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
 spring-boot-starter-jdbc-test = { module = "org.springframework.boot:spring-boot-starter-jdbc-test" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+# the Prometheus client of calibrations: a connection pinned to the address checked (ADR-0046)
+httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5" }
 springdoc-openapi-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 # PostgreSQL for tests, from Maven Central rather than Docker (ADR-0033)
 embedded-postgres = { module = "io.zonky.test:embedded-postgres", version.ref = "embedded-postgres" }

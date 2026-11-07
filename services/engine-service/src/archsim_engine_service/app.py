@@ -1,10 +1,9 @@
-"""The engine service's HTTP app: one ``POST`` endpoint per engine call, JSON in and out.
+"""The engine service's HTTP app: the simulation a calibration replays, until stage 4 of the Java
+port moves the simulator to Java (ADR-0045). JSON in and out.
 
 A call the engine refuses answers ``422`` with ``{"message", "issues", "kind"}``: ``invalid``
-with the engine's words and issues for a document it cannot read, or ``unreadable`` for text, a
-mapping or telemetry that cannot be used, in the words the Python API answered. The Java API
-turns that into its own error body. Answers are written as FastAPI wrote them, so the Java API can
-pass them on unchanged.
+with the engine's words and issues for a document it cannot read, or ``limit`` with the engine's
+words for a run over its limits. The Java API turns that into its own error body.
 """
 
 from __future__ import annotations
@@ -12,9 +11,7 @@ from __future__ import annotations
 import json
 from collections.abc import Awaitable, Callable
 from typing import Any
-from urllib.parse import urlparse
 
-from pydantic import ValidationError
 from starlette.applications import Starlette
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
@@ -28,32 +25,16 @@ from archsim_engine import (
     SimulationLimitError,
     SimulationLimits,
     default_registry,
+    run_simulation,
 )
-from archsim_engine.calibration import (
-    HttpPrometheus,
-    PrometheusError,
-    RecordedPrometheus,
-    calibrate_otlp,
-    calibrate_prometheus,
-    load_mapping,
-    load_otlp_mapping,
-    parse_range,
-    replay_summary,
-    validation_message,
-)
-from archsim_engine.calibration.prometheus import host_allowed
-
-OUTBOUND_MODES = ("open", "allowlist", "off")
-"""How freely a calibration may call the Prometheus server it names (``ARCHSIM_OUTBOUND``)."""
 
 
 class BadRequest(Exception):
     """The request is not what an endpoint takes: not JSON, or missing a field."""
 
 
-class Unreadable(Exception):
-    """Text, a mapping or telemetry that cannot be used; the message says why, in the words the
-    Python API answered."""
+class OverLimit(Exception):
+    """A run over its limits; the message is the engine's."""
 
 
 async def read_json(request: Request) -> dict[str, Any]:
@@ -106,8 +87,8 @@ def endpoint(call: Callable[[dict[str, Any], ComponentRegistry], Any]) -> Handle
             return JSONResponse({"message": str(exc)}, status_code=400)
         except DocumentInvalidError as exc:
             return refused(str(exc), [issue.to_dict() for issue in exc.issues], "invalid")
-        except Unreadable as exc:
-            return refused(str(exc), [], "unreadable")
+        except OverLimit as exc:
+            return refused(str(exc), [], "limit")
         return JSONResponse(result)
 
     return handle
@@ -118,7 +99,8 @@ def refused(message: str, issues: list[dict[str, Any]], kind: str) -> Response:
 
 
 def limits_of(body: dict[str, Any]) -> SimulationLimits:
-    """The run's limits: ``maxRequests`` and ``maxWallSeconds``, its workspace's."""
+    """The run's limits: ``maxRequests`` and ``maxWallSeconds``, its workspace's. Both are
+    required, so the service never runs a simulation without bounds."""
     max_requests = whole_number(body, "maxRequests")
     if max_requests is None:
         raise BadRequest("maxRequests must be a whole number")
@@ -127,103 +109,17 @@ def limits_of(body: dict[str, Any]) -> SimulationLimits:
     )
 
 
-def calibrate(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
-    """``POST /calibrate`` as the Python API answered it. The server's outbound policy comes with
-    the request: ``outbound`` (``open``, ``allowlist`` or ``off``, the workspace's),
-    ``allowedHosts``, ``timeoutS`` and ``maxBytes``; the replay's limits are ``maxRequests`` and
-    ``maxWallSeconds``. A policy it cannot read is refused: the service never calls out on a
-    guess."""
+def simulate(body: dict[str, Any], registry: ComponentRegistry) -> dict[str, Any]:
+    """``POST /simulate``: the replay of a calibration the Java API runs (ADR-0045).
+    ``run_simulation`` of ``document`` within ``maxRequests`` and ``maxWallSeconds``, as the
+    engine's calibrations ran it; the report as the engine wrote it."""
     limits = limits_of(body)
-    policy = policy_of(body)
-    source = body.get("source")
-    if source not in ("prometheus", "otlp"):
-        raise BadRequest("source must be prometheus or otlp")
+    document = document_of(body)
     try:
-        if source == "prometheus":
-            outcome = _calibrate_prometheus(body, registry, limits, policy)
-        else:
-            if body.get("traces") is None:
-                raise Unreadable("An OpenTelemetry calibration needs the traces (OTLP JSON)")
-            mapping = load_otlp_mapping(body.get("mapping"))
-            outcome = calibrate_otlp(
-                document_of(body), body["traces"], registry, mapping, limits=limits
-            )
-    except (Unreadable, BadRequest, DocumentInvalidError):
-        raise
+        report: dict[str, Any] = run_simulation(document, registry=registry, limits=limits)
     except SimulationLimitError as exc:
-        raise Unreadable(
-            f"Cannot calibrate: the replay run hit a limit ({exc}). Shorten the design's "
-            "durationS, lower the load, or calibrate with replay off."
-        ) from None
-    except ValidationError as exc:  # before ValueError: its str() repeats the input values
-        raise Unreadable(f"Cannot calibrate: {validation_message(exc)}") from None
-    except (PrometheusError, ValueError, KeyError) as exc:
-        raise Unreadable(f"Cannot calibrate: {exc}") from None
-    result: dict[str, Any] = outcome.to_dict()
-    result["summary"] = replay_summary(outcome.document.get("calibration"))
-    return result
-
-
-def _calibrate_prometheus(
-    body: dict[str, Any],
-    registry: ComponentRegistry,
-    limits: SimulationLimits,
-    policy: tuple[str, tuple[str, ...]],
-) -> Any:
-    if body.get("mapping") is None:
-        raise Unreadable("A Prometheus calibration needs a mapping")
-    mapping = load_mapping(body["mapping"])
-    client: Any
-    if body.get("recorded") is not None:
-        client = RecordedPrometheus.from_dict(body["recorded"])
-    elif body.get("prometheusUrl"):
-        client = _http_prometheus(body, body["prometheusUrl"], policy)
-    else:
-        raise Unreadable("Give a Prometheus URL or recorded responses")
-    step = body.get("step") or (mapping.range.step if mapping.range else 60)
-    span = parse_range(body["range"], step) if body.get("range") else None
-    return calibrate_prometheus(
-        document_of(body), mapping, client, registry, span, body.get("replay", True), limits
-    )
-
-
-def policy_of(body: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
-    """The outbound policy a calibration comes with: ``outbound`` and ``allowedHosts``."""
-    mode, hosts = body.get("outbound"), body.get("allowedHosts")
-    if mode not in OUTBOUND_MODES:
-        raise BadRequest(f"outbound must be one of {', '.join(OUTBOUND_MODES)}")
-    if not isinstance(hosts, list) or not all(isinstance(host, str) for host in hosts):
-        raise BadRequest("allowedHosts must be a list of strings")
-    return mode, tuple(hosts)
-
-
-def _http_prometheus(
-    body: dict[str, Any], url: str, policy: tuple[str, tuple[str, ...]]
-) -> HttpPrometheus:
-    """A Prometheus client for ``url``, if the server's outbound policy lets it be called."""
-    mode, allowed = policy
-    if mode == "off":
-        raise Unreadable(
-            "This server does not call Prometheus servers (ARCHSIM_OUTBOUND): send "
-            "recorded responses instead (archsim calibrate --record makes them)"
-        )
-    parts = urlparse(url)
-    if parts.scheme not in ("http", "https") or not parts.netloc:
-        raise Unreadable("The Prometheus URL must be http(s)://host[:port]")
-    if not host_allowed(url, allowed):
-        raise Unreadable(
-            "This Prometheus host is not allowed here (ARCHSIM_PROMETHEUS_ALLOWED_HOSTS)"
-        )
-    max_bytes = whole_number(body, "maxBytes")
-    if max_bytes is None:
-        raise BadRequest("maxBytes must be a whole number")
-    return HttpPrometheus(
-        url,
-        timeout_s=number(body, "timeoutS"),
-        max_bytes=max_bytes,
-        allowed_hosts=allowed,
-        require_global=mode == "allowlist",
-    )
+        raise OverLimit(str(exc)) from None
+    return report
 
 
 async def health(request: Request) -> Response:
@@ -235,7 +131,7 @@ def create_app() -> Starlette:
     app = Starlette(
         routes=[
             Route("/health", health, methods=["GET"]),
-            Route("/calibrate", endpoint(calibrate), methods=["POST"]),
+            Route("/simulate", endpoint(simulate), methods=["POST"]),
         ]
     )
     app.state.registry = default_registry()

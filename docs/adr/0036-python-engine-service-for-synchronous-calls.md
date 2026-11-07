@@ -117,3 +117,5 @@ black-box suite against the Java API with the real service.
 - [ADR-0014](0014-one-deployable-application-with-roles.md): the Java application's roles.
 - Stage 3 of the port removes each endpoint as its call moves to `archsim-engine`; when the last
   one goes, the service is deleted.
+- [ADR-0045](0045-replay-calibrations-through-an-interim-simulate.md) amends this decision: the
+  service keeps one call, the interim `/simulate` a calibration replays, until stage 4.

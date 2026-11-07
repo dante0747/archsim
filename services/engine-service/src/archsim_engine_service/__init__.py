@@ -1,7 +1,7 @@
-"""The Python engine's synchronous calls over HTTP, for the Java API during the port.
+"""The simulation a calibration replays, over HTTP, for the Java API during the port.
 
-The Java API (archsim-app) serves every endpoint, but some answers still need the Python engine:
-imports and calibrations. This service runs those calls, one endpoint each, on the
-engine frozen at 0.16.0. It keeps no state and no database, and listens only inside compose.
-Each endpoint goes away when stage 3 of the port moves its call to Java (ADR-0036).
+The Java API (archsim-app) serves every endpoint and calibrates in Java, but a calibration's
+replay still needs the Python engine's simulator until stage 4 of the port. This service runs it
+(``POST /simulate``) on the engine frozen at 0.16.0. It keeps no state and no database, calls
+nothing, and listens only inside compose (ADR-0036, ADR-0045).
 """

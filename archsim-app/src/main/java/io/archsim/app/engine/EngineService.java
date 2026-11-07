@@ -7,6 +7,7 @@ import java.net.http.HttpTimeoutException;
 import java.util.List;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,21 +17,20 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.app.limits.WorkspaceLimits.RunLimits;
 import io.archsim.app.web.ApiException;
-import io.archsim.app.web.JsonText;
+import io.archsim.engine.calibration.ReplaySimulator;
+import io.archsim.engine.run.SimulationLimitException;
+import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.issue.Issue;
 
 /**
- * The Python engine service (ADR-0036), which runs the engine's synchronous calls until
- * stage 3 of the port moves each one to Java: calibration, the last. Its answers are
- * passed on as it wrote them.
+ * The Python engine service (ADR-0036): until stage 4 of the port moves the simulator to
+ * Java, it runs the simulation a calibration replays (ADR-0045), its one call.
  */
-public final class EngineService {
+public final class EngineService implements ReplaySimulator {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EngineService.class);
 
@@ -51,28 +51,25 @@ public final class EngineService {
 	}
 
 	/**
-	 * A design calibrated from telemetry. The engine service calls the Prometheus server
-	 * the request names, if the policy sent with it allows.
-	 * @param request what {@code POST /calibrate} takes
-	 * @param policy which Prometheus servers it may call, and how
-	 * @param replay the limits of the replay that checks the result
-	 * @return the calibrated design, the changes, notes and the calibration record
-	 * @throws EngineRefusalException when the design, the mapping or the telemetry cannot
-	 * be used
+	 * The engine's simulation of a design, as a calibration replays it.
+	 * @param document the design
+	 * @param limits the run's limits, which the service requires: it never runs a
+	 * simulation without them
+	 * @return the run's report, as the engine wrote it
+	 * @throws SimulationLimitException in the engine's words when the run is over its
+	 * limits
+	 * @throws EngineRefusalException when the engine cannot read the design
 	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
 	 * late
 	 */
-	public JsonText calibrate(ObjectNode request, OutboundPolicy policy, RunLimits replay) {
-		ObjectNode body = request.deepCopy();
-		// the policy last, so that nothing the request carries stands in for it
-		body.put("outbound", policy.mode().json());
-		ArrayNode hosts = body.putArray("allowedHosts");
-		policy.allowedHosts().forEach(hosts::add);
-		body.put("timeoutS", policy.timeoutSeconds());
-		body.put("maxBytes", policy.maxBytes());
-		body.put("maxRequests", replay.maxRequests());
-		body.put("maxWallSeconds", replay.maxWallSeconds());
-		return call("/calibrate", body);
+	@Override
+	public JsonNode simulate(ObjectNode document, @Nullable SimulationLimits limits) {
+		SimulationLimits bounds = Objects.requireNonNull(limits, "a replay runs within its workspace's limits");
+		ObjectNode body = JSON.createObjectNode();
+		body.set("document", document);
+		body.put("maxRequests", bounds.maxRequests());
+		body.put("maxWallSeconds", bounds.maxWallSeconds());
+		return JSON.readTree(call("/simulate", body));
 	}
 
 	/**
@@ -81,10 +78,11 @@ public final class EngineService {
 	 * @param request its body
 	 * @return the answer, as the engine wrote it
 	 * @throws EngineRefusalException when the engine refuses
+	 * @throws SimulationLimitException when the run is over its limits
 	 * @throws ApiException {@code 503} when the service cannot be reached or answers too
 	 * late
 	 */
-	private JsonText call(String path, ObjectNode request) {
+	private String call(String path, ObjectNode request) {
 		try {
 			return postOnceMoreIfDropped(path, request);
 		}
@@ -110,7 +108,7 @@ public final class EngineService {
 	 * @throws ResourceAccessException when the service cannot be reached, drops the
 	 * connection again, answers too late, or is interrupted
 	 */
-	private JsonText postOnceMoreIfDropped(String path, ObjectNode request) {
+	private String postOnceMoreIfDropped(String path, ObjectNode request) {
 		try {
 			return post(path, request);
 		}
@@ -138,7 +136,7 @@ public final class EngineService {
 		return !Thread.currentThread().isInterrupted();
 	}
 
-	private JsonText post(String path, ObjectNode request) {
+	private String post(String path, ObjectNode request) {
 		String answer = this.http.post()
 			.uri(path)
 			.contentType(MediaType.APPLICATION_JSON)
@@ -147,13 +145,14 @@ public final class EngineService {
 			.onStatus((status) -> status.isSameCodeAs(HttpStatus.UNPROCESSABLE_CONTENT),
 					(sent, response) -> refuse(response))
 			.body(String.class);
-		return new JsonText(Objects.requireNonNull(answer, "the engine service answered nothing"));
+		return Objects.requireNonNull(answer, "the engine service answered nothing");
 	}
 
 	/**
 	 * Reads a {@code 422} answer and throws it.
 	 * @param response the engine service's answer
-	 * @throws EngineRefusalException always, with the answer's words and issues
+	 * @throws SimulationLimitException for a run over its limits, in the engine's words
+	 * @throws EngineRefusalException otherwise, with the answer's words and issues
 	 */
 	private static void refuse(ClientHttpResponse response) throws IOException {
 		try (InputStream body = response.getBody()) {
@@ -163,10 +162,10 @@ public final class EngineService {
 				.map((issue) -> RecordCodec.read(issue, Issue.class))
 				.toList();
 			String message = refusal.path("message").asString("");
-			throw switch (refusal.path("kind").asString("")) {
-				case "unreadable" -> EngineRefusalException.unreadable(message);
-				default -> EngineRefusalException.invalidDesign(message, issues);
-			};
+			if ("limit".equals(refusal.path("kind").asString(""))) {
+				throw new SimulationLimitException(message);
+			}
+			throw EngineRefusalException.invalidDesign(message, issues);
 		}
 	}
 

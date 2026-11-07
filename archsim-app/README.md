@@ -6,14 +6,15 @@ cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI 
 [black-box suite](../archsim-api-tests/README.md) work against it unchanged, and a database the
 Python API used carries on as it is. Simulations stay in Python until stage 4: runs go to the
 Python workers through the shared queue. The engine's synchronous calls run in Java
-([archsim-engine](../archsim-engine/README.md)) as stage 3 ports them; the rest (calibration)
-goes to a small internal Python engine service, `services/engine-service`.
+([archsim-engine](../archsim-engine/README.md)), calibration included; until stage 4, the
+simulation a calibration replays goes to a small internal Python engine service,
+`services/engine-service` ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)).
 
 ## Running it
 
 ```bash
 ./gradlew :archsim-app:bootJar
-uv run archsim-engine-service --port 8001       # the engine's synchronous calls (ADR-0036)
+uv run archsim-engine-service --port 8001       # the replays of calibrations (ADR-0045)
 uv run archsim-api worker                       # simulates the runs the API queues (Python, until stage 4)
 java -jar archsim-app/build/libs/archsim-app.jar api --server.port=8000
 java -jar archsim-app/build/libs/archsim-app.jar migrate
@@ -73,13 +74,13 @@ ways.
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
 | `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
 | `conversion` | `POST /export`: a design as docker-compose, Kubernetes manifests or a Mermaid diagram (archsim-engine's `DesignExporter`); `POST /import`: a design from docker-compose, Kubernetes manifests or a Terraform plan (archsim-engine's `DesignImporter`) |
-| `calibration` | `POST /calibrate`: the engine's Prometheus and OpenTelemetry calibration, run by the engine service under the server's outbound policy |
+| `calibration` | `POST /calibrate`: archsim-engine's Prometheus and OpenTelemetry calibrations, whose replay the engine service simulates; `HttpPrometheus`, the Prometheus client, under the workspace's outbound policy: one lookup per query, the connection pinned to the address checked, public addresses only on a hosted server, one deadline and a size cap ([ADR-0046](../docs/adr/0046-call-prometheus-with-apache-httpclient-5.md)) |
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
-| `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) |
+| `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)), which simulates a calibration's replay ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)) |
 
 ## Endpoints ported
 
@@ -133,12 +134,31 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   wrote `1793690103.358`. Each API reads the other's.
 - An OAuth provider whose profile names no account id (`"id": null`) fails the sign-in
   (`/signin?error=provider`); Python stored the account under the subject `None`.
-- The engine's last synchronous call, calibration, goes to the engine service at
-  `ARCHSIM_ENGINE_URL`; when it cannot be reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds,
-  `POST /calibrate` answers `503`, saying why. The Python API computed
-  in-process, with no time limit. A call whose connection drops before an answer (uvicorn closes
-  one idle for 5 s, and the client may reuse it just then) is sent once more: every engine call is
-  a stateless POST.
+- A calibration's replay goes to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot be
+  reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, `POST /calibrate` answers `503`, saying
+  why. The Python API simulated in-process, with no time limit. A call whose connection drops
+  before an answer (uvicorn closes one idle for 5 s, and the client may reuse it just then) is sent
+  once more: the call is a stateless POST.
+- `POST /calibrate` answers in Java what the Python API answered, numbers spelled as Java writes
+  them, with these departures:
+  - its refusals never repeat what a request sent, where Python's did: a port that is not one
+    (`Port could not be cast to integer value as '...'`, under an allowlist) is
+    `the Prometheus URL has an invalid port`; a bracketed host that is no address is
+    `Invalid IPv6 URL`; a netloc that NFKC normalization turns into a delimiter is
+    `netloc contains invalid characters under NFKC normalization`;
+  - what Python's runtime failed on, which it answered `500` for, is refused with `422`: a
+    mapping's YAML scalar PyYAML failed to read, and a Prometheus answer nested deeper than
+    Python's recursion limit (`did not answer like a Prometheus server`);
+  - a Prometheus answer that is not HTTP names Java's failure in its reason
+    (`not a valid HTTP response (ParseException)`, Python's `BadStatusLine`); a TLS failure other
+    than the certificate's is `the TLS handshake failed`, not OpenSSL's words; and a URL path
+    a URI may not hold unescaped is refused before anything is sent, as Python refused control
+    characters, and every refusal of a path comes before the host is looked up, where Python's
+    came after connecting;
+  - a deprecated site-local IPv6 address (`fec0::/10`) is not public, so a hosted server never
+    calls it; Python's `ipaddress` counts it as global;
+  - a host name with several addresses is called at the first Java's resolver gives, which may
+    not be the one `getaddrinfo` gave first; every one of them is checked on a hosted server.
 - The order of refusals differs. Java reads a request's body and query before it checks access,
   so a body or query parameter that does not fit is `422` where FastAPI first answered `404` or
   `403` (a project or workspace the asker may not use). In a server with sign-in, a body that is

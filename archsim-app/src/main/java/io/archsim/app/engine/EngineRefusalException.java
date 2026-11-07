@@ -8,24 +8,17 @@ import io.archsim.app.web.ApiException;
 import io.archsim.model.issue.Issue;
 
 /**
- * The engine service refused a call: it could not read the design (its issues say why),
- * or what the request carries (text, a mapping, telemetry) cannot be used.
+ * The engine service refused a design it cannot read; its issues say why.
  */
 public final class EngineRefusalException extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;
 
-	private final String engineMessage;
-
 	private final transient List<Issue> issues;
 
-	private final Kind kind;
-
-	private EngineRefusalException(String engineMessage, List<Issue> issues, Kind kind) {
+	private EngineRefusalException(String engineMessage, List<Issue> issues) {
 		super("The engine refused: " + engineMessage);
-		this.engineMessage = engineMessage;
 		this.issues = List.copyOf(issues);
-		this.kind = kind;
 	}
 
 	/**
@@ -35,59 +28,25 @@ public final class EngineRefusalException extends RuntimeException {
 	 * @return the refusal
 	 */
 	public static EngineRefusalException invalidDesign(String message, List<Issue> issues) {
-		return new EngineRefusalException(message, issues, Kind.INVALID);
-	}
-
-	/**
-	 * Text, a mapping or telemetry that cannot be used: its message is the API's answer.
-	 * @param message what is wrong, in the words the Python API answered
-	 * @return the refusal
-	 */
-	public static EngineRefusalException unreadable(String message) {
-		return new EngineRefusalException(message, List.of(), Kind.UNREADABLE);
-	}
-
-	/**
-	 * What the engine said.
-	 * @return its words
-	 */
-	public String engineMessage() {
-		return this.engineMessage;
+		return new EngineRefusalException(message, issues);
 	}
 
 	/**
 	 * Why the engine could not read the design.
-	 * @return the engine's issues, none for a run over its limits
+	 * @return the engine's issues
 	 */
 	public List<Issue> issues() {
 		return this.issues;
 	}
 
 	/**
-	 * The refusal as the API answers it: in the engine service's words for what it cannot
-	 * use, else with the design's issues under the call's own words.
+	 * The refusal as the API answers it: the design's issues under the call's own words.
 	 * @param invalid what the API says of a design the engine cannot read, such as
 	 * {@code The document cannot be calibrated}
 	 * @return the API's {@code 422}
 	 */
 	public ApiException answer(String invalid) {
-		if (this.kind == Kind.UNREADABLE) {
-			return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, this.engineMessage, List.of());
-		}
 		return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, invalid, this.issues);
-	}
-
-	/**
-	 * Why the engine refused, as the engine service's {@code kind} says.
-	 */
-	private enum Kind {
-
-		/** A design it cannot read. */
-		INVALID,
-
-		/** Text, a mapping or telemetry that cannot be used. */
-		UNREADABLE
-
 	}
 
 }

@@ -8,7 +8,6 @@ import io.archsim.app.config.ArchsimProperties;
 import io.archsim.app.config.CalibrationProperties;
 import io.archsim.app.config.CalibrationProperties.Outbound;
 import io.archsim.app.config.TestProperties;
-import io.archsim.app.engine.OutboundPolicy;
 import io.archsim.app.limits.WorkspaceLimits;
 import io.archsim.app.limits.WorkspaceLimits.RunLimits;
 

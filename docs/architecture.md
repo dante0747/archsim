@@ -17,7 +17,7 @@ flowchart LR
     Repos["repositories (JdbcClient)<br/>+ Flyway migrations"]
   end
   subgraph engsvc["services/engine-service"]
-    Sync["the engine's synchronous calls:<br/>analyze, prepare, compare,<br/>export, import, calibrate"]
+    Sync["the simulation a calibration<br/>replays (until stage 4)"]
   end
   subgraph workers["services/api (archsim-api worker)"]
     Jobs["queue claims + workers<br/>(a process per run)"]
@@ -107,11 +107,11 @@ the Python (FastAPI) API endpoint for endpoint, with the same JSON, cookies and 
 
 ### Engine service (`services/engine-service`)
 
-An internal Python HTTP service the API calls for what the engine answers at once: analyzing a
-design, preparing a run (migrate, resolve the scenario, validate, check its size), comparing
-reports, export, import and calibration
-([ADR-0036](adr/0036-python-engine-service-for-synchronous-calls.md)). It checks no caller, so
-only the API may reach it. The API sends each calibration's outbound policy with the request.
+An internal Python HTTP service the API calls for the simulation a calibration replays, until
+stage 4 ports the simulator ([ADR-0036](adr/0036-python-engine-service-for-synchronous-calls.md),
+[ADR-0045](adr/0045-replay-calibrations-through-an-interim-simulate.md)). It checks no caller, so
+only the API may reach it. It calls nothing: the API calls the Prometheus servers calibrations
+name, under its own outbound policy.
 
 ### Workers (`services/api`, import name `archsim_api`)
 

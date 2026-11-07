@@ -1,6 +1,6 @@
 /**
- * The Python engine service (ADR-0036): the engine's synchronous calls the Java API makes
- * until stage 3 of the port moves them to Java.
+ * The Python engine service (ADR-0036): the simulation a calibration replays, until stage
+ * 4 of the port moves the simulator to Java (ADR-0045).
  */
 @NullMarked
 package io.archsim.app.engine;
