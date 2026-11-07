@@ -38,6 +38,12 @@ public final class PythonNumbers {
 	/** The radix of the digits Python reads. */
 	private static final int DECIMAL = 10;
 
+	/**
+	 * The most characters of a text's repr that {@code int()}'s refusal quotes: CPython
+	 * words it with {@code %.200R}.
+	 */
+	private static final int QUOTED_CHARACTERS = 200;
+
 	private PythonNumbers() {
 	}
 
@@ -92,7 +98,7 @@ public final class PythonNumbers {
 		}
 		if (!isDigits(number, radix)) {
 			throw new NumberFormatException(
-					"invalid literal for int() with base " + radix + ": " + PythonText.repr(text));
+					"invalid literal for int() with base " + radix + ": " + quoted(PythonText.repr(text)));
 		}
 		BigInteger value = fromDigits(ascii(number, radix), radix);
 		return negative ? value.negate() : value;
@@ -218,6 +224,19 @@ public final class PythonNumbers {
 			bytes[--next] = (byte) pending;
 		}
 		return new BigInteger(1, bytes);
+	}
+
+	/**
+	 * A repr as {@code %.200R} quotes it: its first 200 characters, which may end inside
+	 * an escape or before the closing quote.
+	 * @param repr the repr
+	 * @return its first characters
+	 */
+	private static String quoted(String repr) {
+		if (repr.codePointCount(0, repr.length()) <= QUOTED_CHARACTERS) {
+			return repr;
+		}
+		return repr.substring(0, repr.offsetByCodePoints(0, QUOTED_CHARACTERS));
 	}
 
 	/**

@@ -40,6 +40,38 @@ class PythonNumbersTests {
 			.withMessage("invalid literal for int() with base 10: '3.5'");
 	}
 
+	/** CPython words the refusal with {@code %.200R}: the repr's first 200 characters. */
+	@Test
+	void parseInt_longText_isQuotedToTwoHundredCharacters() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.parseInt("  " + "x".repeat(300)))
+			.withMessage("invalid literal for int() with base 10: '  " + "x".repeat(197));
+	}
+
+	@Test
+	void parseInt_longTextOfEscapes_isCutInsideAnEscape() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.parseInt("\0".repeat(100)))
+			.withMessage("invalid literal for int() with base 10: '" + "\\x00".repeat(49) + "\\x0");
+	}
+
+	@Test
+	void parseInt_longTextBeyondTheBasicPlane_isCutByCharactersNotUtf16Units() {
+		String emoji = Character.toString(0x1F600);
+
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.parseInt(emoji.repeat(300)))
+			.withMessage("invalid literal for int() with base 10: '" + emoji.repeat(199));
+	}
+
+	/** CPython words this refusal with {@code %R}: the whole repr. */
+	@Test
+	void parseFloat_longText_isQuotedWhole() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.parseFloat("x".repeat(300)))
+			.withMessage("could not convert string to float: '" + "x".repeat(300) + "'");
+	}
+
 	@Test
 	void parseInt_underscoresAndSpaces_areRead() {
 		assertThat(PythonNumbers.parseInt(" 1_000 ")).isEqualTo(BigInteger.valueOf(1000));
