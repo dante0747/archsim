@@ -30,7 +30,7 @@ Ask the owner instead.
 - `packages/engine/`: the Python engine, **frozen at 0.16.0**: don't change it; report its bugs.
 - `services/api/`: the Python simulation workers (`archsim-api worker`) and the Alembic schema
   Flyway took over from; the Java API replaced its FastAPI app. `services/engine-service/`: the
-  engine's synchronous calls, for the Java API. `apps/web/`: the Next.js app.
+  simulation a calibration replays, for the Java API, until stage 4. `apps/web/`: the Next.js app.
 - `docs/adr/`: architecture decisions. A significant decision gets a new ADR with
   `status: proposed`; never mark one accepted, that is the owner's call.
 

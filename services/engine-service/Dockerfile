@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# ArchSim engine service image: the Python engine's synchronous calls for the Java API
-# (ADR-0036). It listens inside compose only. Build from the repository root:
+# ArchSim engine service image: the simulation a calibration replays, for the Java API
+# (ADR-0036, ADR-0045). It listens inside compose only. Build from the repository root:
 #   docker build -f services/engine-service/Dockerfile -t archsim-engine-service .
 FROM python:3.12-slim
 

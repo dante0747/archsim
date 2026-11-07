@@ -99,15 +99,20 @@ server at `https://<host>/api/v1`.
 - **Outbound requests (SSRF).** `ARCHSIM_OUTBOUND` decides whether `POST /calibrate` may call a
   Prometheus server: `off` by default when hosted (recorded responses and OTLP traces still
   work), `allowlist` when `ARCHSIM_PROMETHEUS_ALLOWED_HOSTS` is set, and always `off` for
-  sandbox workspaces. With `allowlist`, the host is resolved once, every address it resolves to
-  must be public (`ipaddress.is_global`: no loopback, private, link-local and metadata,
-  CGNAT, unique-local IPv6, or IPv4 hidden in IPv6), the connection goes to that checked
-  address (no second lookup an attacker could change), TLS is still verified against the host
-  name, and redirects are never followed. An IP address written in the allowlist itself is
-  trusted as written (for a Prometheus on a private network the operator chose). The API works
-  out this policy and sends it with each calibration to the engine service, which makes the
-  call. The service checks no caller, so only the API may reach it: Compose gives it a network
-  that it shares with the API alone.
+  sandbox workspaces. With `allowlist`, the host is resolved once, and every address it resolves
+  to must be public by the frozen engine's rules: Python's `ipaddress.is_global` (no loopback,
+  private, link-local and metadata, CGNAT or unique-local address), and no multicast, reserved or
+  unspecified address; an IPv4 address inside IPv6 (mapped or NAT64) is judged as the one it
+  carries, and deprecated site-local IPv6 is refused too. The connection goes to that checked
+  address (no second lookup an attacker could change), and TLS and the `Host` header still use
+  the host name. An IP address written in the allowlist itself is trusted as written (for a
+  Prometheus on a private network the operator chose). The API makes the call itself
+  ([ADR-0046](docs/adr/0046-call-prometheus-with-apache-httpclient-5.md)): no redirects,
+  retries, proxies, cookies, decompression or reused connections, one deadline from connecting
+  to the answer's last byte, and caps on the answer's size, the length of a header line and the
+  number of headers. A calibration's replay is simulated by the internal engine service, within
+  the replay's limits; the service calls nothing, but it checks no caller, so only the API may
+  reach it: Compose gives it a network that it shares with the API alone.
 - **Client addresses.** The web server sends the visitor's address as `X-ArchSim-Client-IP`,
   taken from `X-Forwarded-For` at the depth `ARCHSIM_TRUSTED_HOPS` says (1 behind one reverse
   proxy; 0 sends nothing, since the header would be the client's own word). The API believes it

@@ -7,8 +7,9 @@
 #   docker compose up --build                # everything: http://localhost:3000
 #   docker compose up --build --scale worker=3   # more simulation workers
 #
-# The API is the Java one (archsim-app). It calls the Python engine service for the engine's
-# synchronous calls, and Python workers simulate the runs it queues (docs/proposals/java-25-port.md).
+# The API is the Java one (archsim-app). It calls the Python engine service only for the
+# simulation a calibration replays, and Python workers simulate the runs it queues
+# (docs/proposals/java-25-port.md).
 name: archsim
 
 # archsim-app's image, which Jib builds into the local Docker (ADR-0014); compose does not

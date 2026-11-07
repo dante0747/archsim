@@ -14,6 +14,8 @@ flowchart LR
   subgraph api["archsim-app (Java, Spring Boot)"]
     Controllers["controllers: projects, runs, workspaces,<br/>reviews, shares, sign-in, tokens"]
     Model["archsim-model:<br/>the document, read and checked"]
+    JEngine["archsim-engine: sizing, cost, review,<br/>compare, exports, imports, calibration"]
+    Client["engine client:<br/>implements ReplaySimulator"]
     Repos["repositories (JdbcClient)<br/>+ Flyway migrations"]
   end
   subgraph engsvc["services/engine-service"]
@@ -31,13 +33,14 @@ flowchart LR
   DB[("PostgreSQL")]
   UI --> Store --> Proxy --> Controllers
   Controllers --> Model
-  Controllers --> Sync
+  Controllers --> JEngine --> Model
+  JEngine -->|replay| Client -->|POST /simulate| Sync
   Controllers --> Repos --> DB
-  Sync --> Schema
-  Sync --> Registry
-  Sync --> Analysis
+  Sync --> Sim
   Jobs --> DB
   Jobs --> Sim
+  Sim --> Schema
+  Sim --> Registry
   Sim --> Analysis
 ```
 
@@ -45,7 +48,10 @@ flowchart LR
 
 ### Engine (`packages/engine`, import name `archsim_engine`)
 
-Pure Python, depends only on SimPy and Pydantic. It owns:
+Pure Python, depends only on SimPy, Pydantic and PyYAML, and frozen at 0.16.0 during the Java
+port ([ADR-0017](adr/0017-freeze-python-engine-during-port.md)). It simulates the runs the
+workers take and the replays the engine service runs, and the CLI and the MCP server use it. The
+API works out the rest with its Java port, `archsim-engine` (below). It owns:
 
 | Module | Responsibility |
 | --- | --- |
@@ -63,15 +69,15 @@ Pure Python, depends only on SimPy and Pydantic. It owns:
 | `analysis.py` | Node status classification and bottleneck findings. |
 | `load.py` | Static peak-load estimate per part (no simulation). |
 | `sizing.py` | Auto-sizing: CPU, memory and storage for empty specs, applied before every run. |
-| `cost.py` | Monthly cost estimate (per run in the report, per design via `/analyze`). |
+| `cost.py` | Monthly cost estimate (per run in the report, per design in `analyze.py`). |
 | `review.py` | Design review: the architecture linter (single points of failure, timeouts, retries...). |
 | `analyze.py` | `analyze_document`: sizes, cost, review and technology tiers of a design without simulating. |
 | `technology.py` | Technology profiles: "auto" defaults, traits with documentation links, tier (core or experimental). |
 | `provenance.py` | Where every input came from: measured (with source and fit), assumed or illustrative. |
 | `calibration/` | Calibration from Prometheus (`prometheus.py`, `mapping.py`, `apply.py`) and OpenTelemetry (`otlp.py`), fitting (`fit.py`) and the replay check. |
 | `assumptions.py` | Renders docs/assumptions.md: every default, preset number and constant, documented or illustrative. |
-| `export/` | docker-compose, Kubernetes and Mermaid scaffolding (`export_document`; the web app's Export dialog and the MCP server use it through `POST /export` or directly). |
-| `importers/` | docker-compose, Kubernetes and Terraform to a design plus an import report (`import_design`; `POST /import`, `archsim import`). |
+| `export/` | docker-compose, Kubernetes and Mermaid scaffolding (`export_document`; `archsim export` and the MCP server; the API's `POST /export` uses its Java port). |
+| `importers/` | docker-compose, Kubernetes and Terraform to a design plus an import report (`import_design`; `archsim import`; the API's `POST /import` uses its Java port). |
 | `pricing/` | Price snapshots (`archsim.prices/1`), the generic illustrative rates, and choosing the cheapest instance type that covers a part (used by sizing and cost). |
 | `roundtrip.py` | What exports carry so an import gives the design's structure back (part ids, technologies, links, clients and clusters; not service times or the workload), shared by both sides. |
 | `sweep.py` | Breaking point: constant-load steps, the knee and the highest load within the objectives. |
@@ -98,12 +104,26 @@ See [`agents.md`](agents.md).
 
 A Spring Boot application ([`archsim-app/README.md`](../archsim-app/README.md)). It stores
 projects, runs, workspaces, reviews and share links in PostgreSQL, with SQL written by hand
-(`JdbcClient`) and a schema Flyway owns; it reads and checks documents with `archsim-model`;
-it signs people in and enforces roles, CSRF, rate limits and the outbound policy. Runs are only
-queued: the workers simulate them. All endpoints live under `/api/v1`; see [`api.md`](api.md).
+(`JdbcClient`) and a schema Flyway owns; it reads and checks documents with `archsim-model`,
+and analyzes, prepares, compares, exports, imports and calibrates them with `archsim-engine`;
+it signs people in and enforces roles, CSRF, rate limits and the outbound policy, under which it
+calls the Prometheus servers calibrations name. Runs are only queued: the workers simulate them.
+All endpoints live under `/api/v1`; see [`api.md`](api.md).
 OpenAPI is served at `/api/v1/openapi.json` and interactive docs at `/api/v1/docs`. It replaced
 the Python (FastAPI) API endpoint for endpoint, with the same JSON, cookies and tables
 ([the Java port](proposals/java-25-port.md)).
+
+### Engine in Java (`archsim-engine`)
+
+A plain Java library over `archsim-model`, with no framework: the engine's deterministic parts,
+what ArchSim works out from a design without simulating it and from a run's report
+([`archsim-engine/README.md`](../archsim-engine/README.md)). Sizing, cost and pricing, the instant
+estimate, the design review and findings, confidence, comparisons and seed summaries, exports,
+importers, calibration and the assumptions page are ported from the frozen engine and checked
+against its [golden files](../parity/README.md), with their departures listed in the README. The
+API calls it directly, in the API's process. It does not simulate until stage 4: a calibration's
+replay goes through its `ReplaySimulator` seam, which the API's engine client implements, to the
+engine service.
 
 ### Engine service (`services/engine-service`)
 
@@ -127,10 +147,11 @@ a route handler forwards those requests to the API at `ARCHSIM_API_URL`
 (default `http://127.0.0.1:8000`). The editor keeps the working document in a Zustand store,
 renders it with React Flow, and builds the technology library, the inspector forms and the
 technology presets from the component catalog returned by `GET /api/v1/components`. Domain
-rules have one source of truth, the engine: auto sizes, cost estimates and the design review
-come from `POST /api/v1/analyze` (called with live validation) and from each run's report, so
-the CLI, the API and the web app give the same answers; the docker-compose / Kubernetes /
-Mermaid exports come from `POST /api/v1/export`. SLO evaluation, replay events and load sweep
+rules live in the engine, not the web app (in the API, its Java port, held to the frozen engine's
+golden files): auto sizes, cost estimates and the design review come from
+`POST /api/v1/analyze` (called with live validation) and from each run's report, so the CLI, the
+API and the web app give the same answers; the docker-compose / Kubernetes / Mermaid exports
+come from `POST /api/v1/export`. SLO evaluation, replay events and load sweep
 analysis still have TypeScript modules in `apps/web/src/lib/` (the engine has its own
 `slo.py` and `sweep.py` for the CLI and the MCP server; moving the web app onto them is open)
 with unit tests (web tests use engine fixtures written by
@@ -172,13 +193,11 @@ no API or frontend changes; see [`extending-components.md`](extending-components
 sequenceDiagram
   participant B as Browser
   participant A as API
-  participant S as Engine service
   participant D as Database
   participant W as Worker (any instance)
   participant E as Simulation process (one per run)
   B->>A: POST /projects/{id}/runs {scenarioId, document?}
-  A->>S: POST /prepare (migrate, resolve scenario, validate, size check)
-  S-->>A: the prepared input, or the issues
+  A->>A: prepare in archsim-engine (migrate, resolve scenario, validate, size check)
   alt invalid or too large
     A-->>B: 422 {message, issues[]}
   else ok

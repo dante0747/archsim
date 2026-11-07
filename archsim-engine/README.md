@@ -5,9 +5,12 @@ it, and from a simulation's report. It is a plain library with no framework, ove
 model in [`archsim-model`](../archsim-model/README.md)
 ([ADR-0012](../docs/adr/0012-separate-model-and-engine-modules.md)). It is stage 3 of the
 [Java port](../docs/proposals/java-25-port.md#stage-3--the-engines-deterministic-parts-12-weeks):
-each part replaces a call of the Python engine service
-([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) once it matches the
-frozen Python engine's [golden files](../parity/README.md). The simulation kernel is stage 4.
+each part replaced a call of the Python engine service
+([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) once it matched the
+frozen Python engine's [golden files](../parity/README.md), and all of them have. The simulation
+kernel is stage 4; until then a calibration's replay goes through `ReplaySimulator` to the
+service's one remaining call, `/simulate`
+([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)).
 
 ## Packages
 

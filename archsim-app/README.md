@@ -93,6 +93,10 @@ ways.
 | 5 | workspaces, members and invitations; comments, sign-offs and history; share links; import and export; calibration | done |
 | 6 | compose runs the Java API; FastAPI deleted | done |
 
+Stage 3 then moved every call these endpoints made to the engine service into
+[archsim-engine](../archsim-engine/README.md), analyze and validate included; the service now
+only simulates a calibration's replay.
+
 ## Tests
 
 ```bash

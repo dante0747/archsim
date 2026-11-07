@@ -232,8 +232,9 @@ docker compose up -d postgres
 ./gradlew :archsim-app:bootJar
 ```
 
-Then start the back end, each part in a terminal of its own: the engine service, the API (it
-migrates the database when it starts) and a simulation worker.
+Then start the back end, each part in a terminal of its own: the engine service (it simulates
+calibrations' replays), the API (it migrates the database when it starts) and a simulation
+worker.
 
 ```bash
 uv run archsim-engine-service
@@ -378,7 +379,7 @@ packages/engine/   Python simulation engine and domain model (no web dependencie
 archsim-app/       Java API (Spring Boot): projects, runs, workspaces, reviews, sharing, sign-in
 archsim-model/     Java design model: the document's records, upgrades and validation
 archsim-engine/    Java engine: its deterministic parts (sizing, cost, review, exports, ...)
-services/engine-service/  Python engine service: the engine's synchronous calls, for the API
+services/engine-service/  Python engine service: calibrations' replays, for the API
 services/api/      Python simulation workers: they simulate the runs the API queues
 apps/web/          Next.js editor: canvas, inspector, results and comparison
 examples/          Example architectures (versioned JSON) with scenarios

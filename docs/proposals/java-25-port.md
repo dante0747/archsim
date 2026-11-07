@@ -180,7 +180,25 @@ doesn't change.
 - **Parity bar:** the golden files from stage 0. Text must match exactly, and numbers to a relative
   1e-9.
 - **Exit:** each part moves from the Python engine service to Java when it passes. When the last
-  one moves, the service is gone.
+  one moves, the service keeps only the simulation a calibration replays, an interim
+  `POST /simulate` within the replay's limits, until stage 4's exit removes it and the service
+  with it ([ADR-0045](../adr/0045-replay-calibrations-through-an-interim-simulate.md)).
+- **Built (7 Nov 2026):** [`archsim-engine/`](../../archsim-engine/README.md), on the model's
+  records ([ADR-0038](../adr/0038-engine-computes-on-typed-records.md)), in slices that each moved
+  calls off the engine service.
+  - All 117 functions the golden files record are ported to Java (archsim-model and
+    archsim-engine), and their 6,018 entries match, with one listed departure: a YAML library's
+    own words for text that is not YAML.
+  - The API answers from Java what the service answered: validating a scenario, `POST /analyze`,
+    preparing a run, `GET /compare`, seed-group summaries, `POST /export`, `POST /import` and
+    `POST /calibrate`, with the engine's versions in `GET /meta`. Departures from the Python
+    engine are listed in the engine's README, and from the Python API in the app's.
+  - Calibrations call Prometheus from the Java API, under its outbound policy, pinned to the
+    address they check ([ADR-0046](../adr/0046-call-prometheus-with-apache-httpclient-5.md)).
+  - What stays: the engine service with `POST /simulate` alone (ADR-0045). Compose, the
+    black-box suite, CI and the end-to-end launcher still start it, for calibrations' replays.
+  - The assumptions page and the `archsim check` gate are ported as libraries, for stage 5's
+    commands.
 
 ### Stage 4 · The simulation kernel and components (2–4 weeks, including parity runs)
 - **What it covers:**
@@ -200,6 +218,8 @@ doesn't change.
   - the parity report is published in `docs/validation/java-parity.md`;
   - the Java engine ships as engine 1.0.0;
   - /accuracy shows its in-sample results, labelled re-simulated;
+  - calibrations replay on the Java simulator, and `/simulate` and the engine service are
+    deleted ([ADR-0045](../adr/0045-replay-calibrations-through-an-interim-simulate.md));
   - the harness calls the Java CLI, and the Python engine is deleted.
 
 ### Stage 5 · CLI, MCP server and GitHub Action (3–5 days)
@@ -286,6 +306,33 @@ Stage 1 proposes eight more:
 | Python's text conventions for numbers and values in one package | [0027](../adr/0027-python-text-conventions-in-one-package.md) |
 | The golden-file reader shared as Gradle test fixtures | [0028](../adr/0028-golden-file-reader-as-test-fixtures.md) |
 | The model's packages in layers, checked by ArchUnit | [0029](../adr/0029-model-packages-in-layers-checked-by-archunit.md) |
+
+The Java conventions and stage 2 added eight:
+
+| Decision | ADR |
+| --- | --- |
+| Java in Spring Framework's style, with clean-code rules the build enforces | [0030](../adr/0030-spring-style-and-clean-code-checks.md) |
+| The component catalog built from the specifications, its presentation as data | [0031](../adr/0031-component-catalog-facts-and-presentation.md) |
+| Flyway takes over from Alembic at revision 0008 | [0032](../adr/0032-flyway-takes-over-from-alembic.md) |
+| The database tests on an embedded PostgreSQL, without Docker | [0033](../adr/0033-embedded-postgresql-for-tests.md) |
+| The FastAPI API's HTTP contract kept in Spring MVC | [0034](../adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md) |
+| The Python API's `ARCHSIM_*` settings read unchanged | [0035](../adr/0035-read-the-python-apis-settings-unchanged.md) |
+| The engine's synchronous calls in a small internal Python service | [0036](../adr/0036-python-engine-service-for-synchronous-calls.md) |
+| Sign-in with plain Spring MVC, not Spring Security | [0037](../adr/0037-sign-in-without-spring-security.md) |
+
+Stage 3 added nine:
+
+| Decision | ADR |
+| --- | --- |
+| The engine computes on the model's records and typed configs, not on JSON trees | [0038](../adr/0038-engine-computes-on-typed-records.md) |
+| A run's report read as records of the parts the engine reads | [0039](../adr/0039-engine-reads-reports-as-partial-records.md) |
+| A comparison copies the report parts it shows and diffs the inputs as stored | [0040](../adr/0040-comparison-copies-what-it-does-not-read.md) |
+| The application's clock never tells the same microsecond twice | [0041](../adr/0041-application-clock-never-repeats-a-microsecond.md) |
+| Exports read settings leniently and write their own YAML | [0042](../adr/0042-exports-read-settings-leniently-and-write-their-own-yaml.md) |
+| Imported YAML read with SnakeYAML, resolved as PyYAML resolves it | [0043](../adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md) |
+| Terraform JSON read with Jackson, as Python's `json` reads it | [0044](../adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md) |
+| Calibrations replayed through an interim `/simulate` on the engine service | [0045](../adr/0045-replay-calibrations-through-an-interim-simulate.md) |
+| Prometheus called with Apache HttpClient 5, pinned to the address it checks | [0046](../adr/0046-call-prometheus-with-apache-httpclient-5.md) |
 
 **Rough total:** 6–10 weeks of sessions for stages 0–6, plus overnight parity runs, then the
 harness port.

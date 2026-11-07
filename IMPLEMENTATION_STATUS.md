@@ -1,12 +1,39 @@
 # Implementation status
 
-State as of 2026-11-04 (engine 0.16.0, frozen and measured on the held-out experiments; schema 1.7,
-report 1.14; the API in Java). This file separates what is
+State as of 2026-11-07 (engine 0.16.0, frozen and measured on the held-out experiments; schema 1.7,
+report 1.14; the API and the engine's deterministic parts in Java). This file separates what is
 implemented, how it was verified, what is known to be limited, and what comes next. Nothing
 listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**The engine's deterministic parts in Java: stage 3 of the Java port (2026-11-07).**
+
+- `archsim-engine` (Java 25, a plain library over `archsim-model`) works out what ArchSim
+  computes without simulating: sizing, cost and pricing, the instant estimate, the design review
+  and findings, confidence, comparisons and seed summaries, exports, importers, calibration, the
+  assumptions page and the `archsim check` gate (the last two as libraries for stage 5).
+- Checked against the frozen engine's golden files: all 117 functions they record are ported and
+  their 6,018 entries match, with one listed departure (a YAML library's words for text that is
+  not YAML). Eight areas (analysis, cost, estimate, review, findings, reports, exports, imports)
+  also have case files recorded from Python for what the golden files miss, and the number, text,
+  time and URL rules were compared with Python on hundreds of thousands of generated inputs. The
+  departures are listed in [archsim-engine/README.md](archsim-engine/README.md).
+- The API answers from Java what the engine service answered: validating a scenario,
+  `POST /analyze`, preparing a run, `GET /compare`, seed-group summaries, `POST /export`,
+  `POST /import` and `POST /calibrate`.
+- Calibrations call Prometheus from the API, pinned to the address they check
+  ([ADR 0046](docs/adr/0046-call-prometheus-with-apache-httpclient-5.md)). Tests cover DNS
+  rebinding, every redirect status, special addresses (unique-local IPv6, IPv4-mapped,
+  link-local, 169.254.169.254, loopback) and TLS at the pinned address, and the address and URL rules matched
+  Python on 320,000 generated cases.
+- The engine service keeps one call, `POST /simulate`, the simulation a calibration replays,
+  until stage 4 ports the simulator
+  ([ADR 0045](docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)). It no longer
+  calls out.
+- Not run during stage 3: the Playwright end-to-end tests, and CI on GitHub, which has started
+  no job since 2026-11-05. Every slice passed CI's other steps locally.
 
 **The held-out campaign: engine 0.16.0 out of sample, three runs each (2026-11-04).**
 
@@ -1911,8 +1938,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stage 3 now;
-   stage 4, the simulation kernel, next (the held-out campaign it waited for is done).
+1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–3
+   are built; stage 4, the simulation kernel, is next (the held-out campaign it waited for is
+   done).
 2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
    experiments before they were measured (the harness can't predict with a second engine), so a
    before-and-after on them can only re-simulate 0.14.0, labelled as such.

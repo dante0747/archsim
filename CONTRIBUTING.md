@@ -16,7 +16,7 @@ packages/engine/   Python package `archsim_engine`: schema, component registry, 
 services/api/      Python package `archsim_api`: the simulation workers, the SQLAlchemy models
                    and Alembic migrations the schema started from, CLI (`archsim-api`).
 services/engine-service/
-                   Python: the engine's synchronous calls, for the Java API only.
+                   Python: calibrations' replays, for the Java API only, until stage 4.
 apps/web/          Next.js 16 + React Flow editor and results UI.
 examples/          Example architecture documents (served by the API, used by tests).
 docs/              Design and reference documentation.

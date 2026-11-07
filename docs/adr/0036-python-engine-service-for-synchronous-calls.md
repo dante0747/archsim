@@ -74,6 +74,11 @@ answers exactly as they are and can shrink one endpoint at a time.
 `/analyze` and `/prepare` (dedd377). Five remain: `/compare`, `/summarize-seeds`, `/export`,
 `/import` and `/calibrate`.
 
+**Status (7 Nov 2026):** stage 3 has removed the other five: `/summarize-seeds` (9c994a6),
+`/compare` (a2d8d10), `/export` (6fe584d), `/import` (7283d62) and `/calibrate` (2150472).
+Until stage 4's exit, the service keeps one call, the interim `/simulate` a calibration replays
+([ADR-0045](0045-replay-calibrations-through-an-interim-simulate.md)); it no longer calls out.
+
 ### Consequences
 
 - Good, because each endpoint answers byte for byte what the Python API answered.
