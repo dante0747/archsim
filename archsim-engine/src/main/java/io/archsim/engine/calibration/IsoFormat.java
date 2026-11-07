@@ -61,7 +61,7 @@ final class IsoFormat {
 			throw invalid(text);
 		}
 		int separator = separator(bytes);
-		int @Nullable [] date = (separator >= 0) ? date(bytes, separator) : null;
+		CalendarDate date = (separator >= 0) ? date(bytes, separator) : null;
 		if (date == null) {
 			throw invalid(text);
 		}
@@ -75,7 +75,7 @@ final class IsoFormat {
 			time = read;
 		}
 		long offset = offsetMicros(time.offset());
-		LocalDate day = checkedDate(date);
+		LocalDate day = date.checked();
 		return day.toEpochDay() * MICROS_PER_DAY + time.clock().micros() - offset;
 	}
 
@@ -136,9 +136,9 @@ final class IsoFormat {
 	 * The date before the separator, as {@code parse_isoformat_date} reads it.
 	 * @param text the text
 	 * @param length where the separator is
-	 * @return the year, month and day; {@code null} when it is no date
+	 * @return the date as written; {@code null} when it is no date
 	 */
-	private static int @Nullable [] date(IsoBytes text, int length) {
+	private static @Nullable CalendarDate date(IsoBytes text, int length) {
 		int year = text.digits(0, YEAR_DIGITS);
 		if (year < 0) {
 			return null;
@@ -154,7 +154,7 @@ final class IsoFormat {
 			return null;
 		}
 		int day = text.digits(dashed ? pos + 1 : pos, 2);
-		return (day < 0) ? null : new int[] { year, month, day };
+		return (day < 0) ? null : new CalendarDate(year, month, day);
 	}
 
 	/**
@@ -162,9 +162,9 @@ final class IsoFormat {
 	 * @param text the text
 	 * @param start the year and where the week number starts
 	 * @param length where the separator is
-	 * @return the year, month and day; {@code null} when it is no date
+	 * @return the date as written; {@code null} when it is no date
 	 */
-	private static int @Nullable [] weekDate(IsoBytes text, WeekStart start, int length) {
+	private static @Nullable CalendarDate weekDate(IsoBytes text, WeekStart start, int length) {
 		int week = text.digits(start.at(), 2);
 		if (week < 0) {
 			return null;
@@ -185,9 +185,9 @@ final class IsoFormat {
 	 * @param year the ISO year
 	 * @param week its week
 	 * @param day the day of the week, from Monday as 1
-	 * @return the year, month and day; {@code null} when the week date is not one
+	 * @return the calendar date; {@code null} when the week date is not one
 	 */
-	private static int @Nullable [] gregorian(int year, int week, int day) {
+	private static @Nullable CalendarDate gregorian(int year, int week, int day) {
 		if (year < 1 || year > MAX_YEAR) {
 			return null;
 		}
@@ -199,7 +199,7 @@ final class IsoFormat {
 		LocalDate monday = first.minusDays(sinceMonday)
 			.plusDays((sinceMonday > LAST_FIRST_WEEK_DAY) ? DAYS_IN_WEEK : 0);
 		LocalDate date = monday.plusDays((week - 1L) * DAYS_IN_WEEK + day - 1);
-		return new int[] { date.getYear(), date.getMonthValue(), date.getDayOfMonth() };
+		return new CalendarDate(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
 	}
 
 	/**
@@ -305,26 +305,6 @@ final class IsoFormat {
 	}
 
 	/**
-	 * A date whose fields are in range, as the C code's {@code check_date_args} checks
-	 * them.
-	 * @param date the year, month and day
-	 * @return the date
-	 * @throws IllegalArgumentException in Python's words when a field is out of range
-	 */
-	private static LocalDate checkedDate(int[] date) {
-		if (date[0] < 1 || date[0] > MAX_YEAR) {
-			throw new IllegalArgumentException("year " + date[0] + " is out of range");
-		}
-		if (date[1] < 1 || date[1] > MONTHS) {
-			throw new IllegalArgumentException("month must be in 1..12");
-		}
-		if (date[2] < 1 || date[2] > YearMonth.of(date[0], date[1]).lengthOfMonth()) {
-			throw new IllegalArgumentException("day is out of range for month");
-		}
-		return LocalDate.of(date[0], date[1], date[2]);
-	}
-
-	/**
 	 * How many bytes the UTF-8 character starting with a byte takes, as the C code skips
 	 * the separator.
 	 * @param lead its first byte
@@ -337,6 +317,36 @@ final class IsoFormat {
 			}
 		}
 		return 0;
+	}
+
+	/**
+	 * A date as written, its fields not yet checked.
+	 *
+	 * @param year the year
+	 * @param month the month
+	 * @param day the day of the month
+	 */
+	private record CalendarDate(int year, int month, int day) {
+
+		/**
+		 * The date, its fields in range as the C code's {@code check_date_args} checks
+		 * them.
+		 * @return the date
+		 * @throws IllegalArgumentException in Python's words when a field is out of range
+		 */
+		LocalDate checked() {
+			if (this.year < 1 || this.year > MAX_YEAR) {
+				throw new IllegalArgumentException("year " + this.year + " is out of range");
+			}
+			if (this.month < 1 || this.month > MONTHS) {
+				throw new IllegalArgumentException("month must be in 1..12");
+			}
+			if (this.day < 1 || this.day > YearMonth.of(this.year, this.month).lengthOfMonth()) {
+				throw new IllegalArgumentException("day is out of range for month");
+			}
+			return LocalDate.of(this.year, this.month, this.day);
+		}
+
 	}
 
 	/**
