@@ -33,7 +33,7 @@ Each package uses only those below it, and ArchUnit checks it
 | `upgrade` | the chain of upgrades from schema 1.0 to 1.7, on the JSON | [0023](../docs/adr/0023-upgrade-chain-on-the-json.md) |
 | `issue` | `Issue`, `Severity`, `DocumentInvalidException`; codec errors as issues | [0024](../docs/adr/0024-validation-issues-with-stable-codes.md) |
 | `document`, `distribution` | the records of schema 1.7 | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md) |
-| `codec` | `RecordCodec`: records to JSON and back as pydantic does, and their JSON Schema | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md), [0025](../docs/adr/0025-json-schema-generated-from-the-records.md) |
+| `codec` | `RecordCodec`: records to JSON and back as pydantic does, and their JSON Schema; unions told apart by a property (`@Tagged`) or by which key an object has (`@TaggedByKey`), maps keyed by text or by a `JsonEnum` | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md), [0025](../docs/adr/0025-json-schema-generated-from-the-records.md) |
 | `text` | Python's way of writing numbers and values: `repr`, `format`, `json.dumps` | [0027](../docs/adr/0027-python-text-conventions-in-one-package.md) |
 
 The price snapshots ArchSim ships are the Python engine's files, copied into this module's

@@ -1,11 +1,18 @@
 package io.archsim.engine.yaml;
 
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
  * YAML from sources ArchSim does not control, read as PyYAML's safe loader reads it,
@@ -257,6 +264,54 @@ class YamlDocumentsTests {
 
 		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.all(large))
 			.withMessage("the YAML is larger than 5 MB");
+	}
+
+	@ParameterizedTest
+	@MethodSource("textsThatAreNotValidYaml")
+	void description_textThatIsNotValidYaml_isTheProblemAndWhereAsPythonDescribesIt(String text, String description) {
+		InvalidYamlException ex = catchThrowableOfType(InvalidYamlException.class, () -> YamlDocuments.one(text));
+
+		assertThat(ex.description()).isEqualTo(description);
+	}
+
+	/** Texts that are not valid YAML, each as the Python engine describes it. */
+	static Stream<Arguments> textsThatAreNotValidYaml() {
+		String unhashable = "found unhashable key at line ";
+		return Stream.of(Arguments.of(": bad yaml : [\n", "expected <block end>, but found ':' at line 1, column 1"),
+				Arguments.of("a: !!int [1]\n", "expected a scalar node, but found sequence at line 1, column 4"),
+				Arguments.of("a: !!seq {b: 1}\n", "expected a sequence node, but found mapping at line 1, column 4"),
+				Arguments.of("a: [b]\n[c]: 1\n", unhashable + "2, column 1"),
+				Arguments.of("s: !!set {[a]: null}\n", unhashable + "1, column 11"),
+				Arguments.of("base: &b {x: 1}\nc: {<<: *b, [k]: 1}\n", unhashable + "2, column 13"),
+				Arguments.of("a: {<<: 1}\n",
+						"expected a mapping or list of mappings for merging, but found scalar at line 1, column 9"),
+				Arguments.of("a: {<<: [1]}\n", "expected a mapping for merging, but found scalar at line 1, column 10"),
+				Arguments.of("a: 1\n---\nb: 2\n", "expected one YAML document, found several"));
+	}
+
+	/**
+	 * Where SnakeYAML's parser words a problem otherwise than PyYAML's (ADR-0043): a
+	 * token or an alias without PyYAML's quotes, at the same line and column.
+	 */
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', quoteCharacter = '"', textBlock = """
+			"{a: 1, b: [2}\\n"  | expected ',' or ']', but got } at line 1, column 13
+			"a: *nope\\n"       | found undefined alias nope at line 1, column 4
+			""")
+	void description_problemSnakeYamlWordsOtherwise_isInItsWordsAtTheSamePlace(String text, String description) {
+		InvalidYamlException ex = catchThrowableOfType(InvalidYamlException.class,
+				() -> YamlDocuments.one(text.translateEscapes()));
+
+		assertThat(ex.description()).isEqualTo(description);
+	}
+
+	@Test
+	void description_problemInText_leavesTheTextOut() {
+		InvalidYamlException ex = catchThrowableOfType(InvalidYamlException.class,
+				() -> YamlDocuments.one("token: [s3cr3t\n"));
+
+		assertThat(ex.getMessage()).contains("s3cr3t");
+		assertThat(ex.description()).doesNotContain("s3cr3t");
 	}
 
 }

@@ -78,6 +78,8 @@ final class YamlTrees {
 	 * @return its text
 	 */
 	private static String key(@Nullable Object key) {
+		// the constructor refuses such keys where PyYAML does (PyYamlConstructor's
+		// flattenMapping); only an !!omap's pairs reach here with one, which PyYAML keeps
 		if (key instanceof Map<?, ?> || key instanceof Collection<?>) {
 			throw new InvalidYamlException("while constructing a mapping: found unhashable key");
 		}

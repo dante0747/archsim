@@ -100,7 +100,7 @@ public final class YamlDocuments {
 		if (message.startsWith(PARSER_TOO_DEEP)) {
 			return new YamlValueException(AliasBounds.TOO_DEEP, ex);
 		}
-		return new InvalidYamlException(message, ex);
+		return InvalidYamlException.of(ex);
 	}
 
 }

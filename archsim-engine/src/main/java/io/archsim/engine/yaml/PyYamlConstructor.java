@@ -10,6 +10,7 @@ import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.constructor.AbstractConstruct;
 import org.yaml.snakeyaml.constructor.Construct;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.nodes.CollectionNode;
 import org.yaml.snakeyaml.nodes.MappingNode;
 import org.yaml.snakeyaml.nodes.Node;
 import org.yaml.snakeyaml.nodes.NodeId;
@@ -33,6 +34,9 @@ final class PyYamlConstructor extends SafeConstructor {
 	 * PyYAML's tag for a scalar written {@code =}, which its safe loader cannot build.
 	 */
 	static final Tag VALUE = new Tag("tag:yaml.org,2002:value");
+
+	/** What PyYAML says it was doing when it refuses a mapping. */
+	private static final String MAPPING = "while constructing a mapping";
 
 	/**
 	 * A constructor under these options.
@@ -75,9 +79,12 @@ final class PyYamlConstructor extends SafeConstructor {
 	 * Merges a mapping's {@code <<} mappings into it as PyYAML does: the merged pairs
 	 * before the mapping's own, a list of mappings taken from its last, and no pair
 	 * removed, so a key keeps the first place it is written in and the last value it is
-	 * given.
+	 * given. A key that is a list or a mapping is refused, as Python cannot hash it; it
+	 * is refused here, before any key is built, where PyYAML refuses it when it reaches
+	 * it, so a mapping with another problem before it can report another.
 	 * @param node the mapping
 	 * @param forceStringKeys unused: PyYAML keeps a key's own type
+	 * @throws InvalidYamlException for a key that is a list or a mapping
 	 */
 	@Override
 	protected void flattenMapping(MappingNode node, boolean forceStringKeys) {
@@ -96,6 +103,11 @@ final class PyYamlConstructor extends SafeConstructor {
 			}
 		}
 		merged.addAll(own);
+		for (NodeTuple pair : merged) {
+			if (pair.getKeyNode() instanceof CollectionNode<?> key) {
+				throw InvalidYamlException.constructing(MAPPING, "found unhashable key", key.getStartMark());
+			}
+		}
 		node.setValue(merged);
 	}
 
@@ -110,14 +122,15 @@ final class PyYamlConstructor extends SafeConstructor {
 			return mapping.getValue();
 		}
 		if (!(value instanceof SequenceNode sequence)) {
-			throw PyYamlScalars.notValid("while constructing a mapping: expected a mapping or list of mappings for "
-					+ "merging, but found " + value.getNodeId());
+			throw InvalidYamlException.constructing(MAPPING,
+					"expected a mapping or list of mappings for merging, but found " + value.getNodeId(),
+					value.getStartMark());
 		}
 		List<List<NodeTuple>> mappings = new ArrayList<>();
 		for (Node item : sequence.getValue()) {
 			if (!(item instanceof MappingNode mapping)) {
-				throw PyYamlScalars.notValid(
-						"while constructing a mapping: expected a mapping for merging, but found " + item.getNodeId());
+				throw InvalidYamlException.constructing(MAPPING,
+						"expected a mapping for merging, but found " + item.getNodeId(), item.getStartMark());
 			}
 			flattenMapping(mapping, false);
 			mappings.add(mapping.getValue());
@@ -130,7 +143,7 @@ final class PyYamlConstructor extends SafeConstructor {
 
 	/**
 	 * A scalar's value, refused when the node is not a scalar, as PyYAML's
-	 * {@code construct_scalar} refuses it.
+	 * {@code construct_scalar} refuses it, and a refusal of its text marked where it is.
 	 */
 	private final class Scalar extends AbstractConstruct {
 
@@ -143,9 +156,15 @@ final class PyYamlConstructor extends SafeConstructor {
 		@Override
 		public @Nullable Object construct(Node node) {
 			if (!(node instanceof ScalarNode scalar)) {
-				throw PyYamlScalars.notValid("expected a scalar node, but found " + node.getNodeId());
+				throw InvalidYamlException.constructing(null, "expected a scalar node, but found " + node.getNodeId(),
+						node.getStartMark());
 			}
-			return this.reading.read(constructScalar(scalar));
+			try {
+				return this.reading.read(constructScalar(scalar));
+			}
+			catch (InvalidYamlException ex) {
+				throw ex.at(scalar.getStartMark());
+			}
 		}
 
 	}
@@ -179,7 +198,8 @@ final class PyYamlConstructor extends SafeConstructor {
 
 		private void check(Node node) {
 			if (node.getNodeId() != this.kind) {
-				throw PyYamlScalars.notValid("expected a " + this.kind + " node, but found " + node.getNodeId());
+				throw InvalidYamlException.constructing(null,
+						"expected a " + this.kind + " node, but found " + node.getNodeId(), node.getStartMark());
 			}
 		}
 

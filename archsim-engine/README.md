@@ -42,6 +42,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `roundtrip` | what the exports carry so an import gives the design back, written by the exports and read back by the importers: `RoundTrip` (each part's outgoing links as `target[/port][:types][!flag...]`, `ExportedLink`, and the parts nothing deploys) |
 | `imports` | importing what teams already have: `ComposeImport` (a docker-compose file), `KubernetesImport` (Kubernetes manifests) and `TerraformImport` (`terraform show -json` output: resources by type, sized by their instance types (`InstanceSizes`), links the configuration states, guessed ones and suggestions), each a design as built, before validation, with an `ImportReport` of what it mapped, guessed and ignored; `DesignImporter` (the Python engine's `import_design`, behind `POST /import`: the design read and validated, the report with the issues found); parts by their image's full name (`Images`), replicas, specs, autoscalers, storage and links from what the file states, an entry point, cache misses and memory that fits added as guesses; `ImportYaml` (the files' YAML, read by `yaml`, what is wrong with it in the importers' words); `PythonValues` and `PythonMappings` (Python's ways with the values YAML gives, where the importers inherited them, failing in Python's words) |
 | `yaml` | YAML from anyone (imported files, calibration mappings): `YamlDocuments` (read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), what is wrong with a text is one of four exceptions, as Python told them apart: `InvalidYamlException` (not valid YAML), `YamlValueException` (a value Python refuses, or beyond the bounds), `YamlKeyException` (a scalar Python looks up in vain) and `YamlScalarException` (another scalar Python fails to read) |
+| `calibration` | calibration's deterministic parts, as the Python engine's `calibration` package: `mapping` (`MappingLoader`: the mapping file read into a `CalibrationMapping` of each part's, link's and the workload's sources, refused in the Python engine's words without the text or its values; `TimeRange.parse`), `prometheus` (`PrometheusSeries`: a range query's series as a `Histogram`, one figure, or summed per timestamp), `fit` (`LatencyFits`: a histogram's or samples' latencies fitted to a lognormal or an empirical table, with the fit's error; `NormalQuantile`, Python's `NormalDist().inv_cdf`) and `ReplaySummary` (the line on how well a calibrated model reproduces what was observed) |
 | `assumptions` | `AssumptionsPage`: `docs/assumptions.md`, every number ArchSim uses without the user typing it (technology tiers and defaults, preset numbers, the defaults of a new part, from the catalog the editor reads) and where each comes from, documented or illustrative; `EngineConstants`: the engine-wide constants behind sizing, prices and the component models, read from the code that uses them, each an `EngineConstant` named as the Python engine named it |
 | `version` | `EngineVersions`: the engine's version and its reports', which every run and `GET /meta` record (the frozen Python engine's until stage 4) |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
@@ -116,6 +117,23 @@ refuse what they cannot read in the Python engine's words, with these difference
   any length. It also reads `-INF`, `+INF` and `+Infinity`, which `json` refuses
   ([ADR-0044](../docs/adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md)).
 
+Calibration reads its mapping's YAML as the importers do, and words what is wrong with it as the
+Python engine's `describe_yaml_error` did, the problem and its line and column without the text,
+with these differences:
+
+- Where SnakeYAML's parser words a problem otherwise than PyYAML's, the Java keeps its words, at
+  the same line and column (`but got }` for `but got '}'`, `found undefined alias nope` for
+  `'nope'`); `!!binary` text that is not base64 is described without Python's codec detail, and
+  a value written `=` in SnakeYAML's words for its tag.
+- A mapping key that is a list or a mapping is refused before any of the mapping's keys is built,
+  where PyYAML refused it on reaching it, so a mapping with another problem before it reports the
+  key instead (the importers too).
+- A Prometheus point is a two-item list; the Python also unpacked a two-character string as one.
+  A whole number beyond a float's range is refused as malformed, where the Python let Python's
+  `OverflowError` through and its API answered `500`.
+- An `!!omap` whose key is a list or a mapping is refused, in the importers too; PyYAML kept it
+  as a pair.
+
 Where the Python engine gives a result for a report no run writes, the Java refuses it:
 
 - A run's report that lists no parts: the Python cost prices the design as before a run, with
@@ -135,9 +153,10 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
   `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
   `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`, `CheckFunctions`,
-  `ExportFunctions`, `ImportDesignFunctions`, `AssumptionFunctions`). The few entries whose
-  words are a library's are listed in `GoldenDepartures`, which checks the error's type, its
-  words up to where the two libraries' words part, and that the rest still differs.
+  `ExportFunctions`, `ImportDesignFunctions`, `AssumptionFunctions`, `CalibrationFunctions`). The
+  few entries whose words are a library's are listed in `GoldenDepartures`, which checks the
+  error's type, its words up to where the two libraries' words part, and that the rest still
+  differs.
   Ported so far:
   - on every recorded run, its findings (`analysis.analyze`), and each part's status and why,
     which the report carries as the analysis set them; the golden files reach 17 of the 22
@@ -190,6 +209,12 @@ Where the Python engine gives a result for a report no run writes, the Java refu
     `docs/assumptions.md` until the Python engine goes), the constants it lists
     (`assumptions.constants`) and the engine's versions (`version.ENGINE_VERSION`,
     `REPORT_VERSION`);
+  - calibration's mapping (`calibration.mapping.load_mapping`), ranges (`apply.parse_range`),
+    the recorded Prometheus results read as histograms and figures (`prometheus.histogram`,
+    `reduce`), the latency fits (`fit.fit_histogram`, `fit_samples`) and the replay summary of
+    every recorded calibration (`apply.replay_summary`); the golden files have no YAML that is
+    not valid past one parser error, no malformed Prometheus result and no empirical fit of a
+    histogram: the unit tests cover them;
   - the number formats and small numeric helpers of `catalog/formatting` (`explain.num`, `pct`,
     `erlang_c`, `zipf_share`; `load.js_num`, `fmt_int`, `fixed`, `round_half_up`,
     `ttl_hit_ratio`, and `mean_ms`, whose counterpart is `LenientSettings.meanMs`; `sizing.fmt`;

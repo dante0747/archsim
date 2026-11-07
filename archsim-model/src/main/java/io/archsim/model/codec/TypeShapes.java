@@ -15,10 +15,11 @@ import tools.jackson.databind.node.ObjectNode;
  *
  * <p>
  * The types a record may use: {@link String}, {@code double}, {@code int}, {@code long},
- * {@code boolean} (or their boxes), a {@link JsonEnum}, a {@link List} or a {@link Map}
- * with string keys of these, {@link JsonNode} (any JSON), {@link ObjectNode} (any JSON
- * object), another record, or a {@link Tagged} sealed interface; {@code @Nullable} on any
- * of them allows {@code null}. The shapes of records and unions come from {@link Shapes}.
+ * {@code boolean} (or their boxes), a {@link JsonEnum}, a {@link List} of these or a
+ * {@link Map} of them with string or {@link JsonEnum} keys, {@link JsonNode} (any JSON),
+ * {@link ObjectNode} (any JSON object), another record, or a {@link Tagged} or
+ * {@link TaggedByKey} sealed interface; {@code @Nullable} on any of them allows
+ * {@code null}. The shapes of records and unions come from {@link Shapes}.
  */
 final class TypeShapes {
 
@@ -120,10 +121,15 @@ final class TypeShapes {
 	}
 
 	private static Shape map(AnnotatedType annotated) {
-		if (raw(typeArgument(annotated, 0)) != String.class) {
-			throw new IllegalArgumentException("a map's keys are strings: " + annotated);
+		Class<?> key = raw(typeArgument(annotated, 0));
+		Shape value = of(typeArgument(annotated, 1));
+		if (key == String.class) {
+			return new MapShape(null, value);
 		}
-		return new MapShape(of(typeArgument(annotated, 1)));
+		if (key.isEnum() && JsonEnum.class.isAssignableFrom(key)) {
+			return new MapShape(new EnumShape(key), value);
+		}
+		throw new IllegalArgumentException("a map's keys are strings or a JsonEnum: " + annotated);
 	}
 
 	private static AnnotatedType typeArgument(AnnotatedType annotated, int index) {

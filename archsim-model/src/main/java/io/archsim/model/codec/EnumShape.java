@@ -54,6 +54,15 @@ final class EnumShape implements Shape {
 
 	@Override
 	public ObjectNode schema(Definitions definitions) {
+		return choices().put("type", "string");
+	}
+
+	/**
+	 * The strings this shape takes, in JSON Schema, as pydantic names a dictionary's
+	 * keys: a {@code const} for one, an {@code enum} for several.
+	 * @return the schema of the strings, without their type
+	 */
+	ObjectNode choices() {
 		ObjectNode schema = NODES.objectNode();
 		if (this.constants.size() == 1) {
 			schema.put("const", this.constants.getFirst().json());
@@ -61,7 +70,7 @@ final class EnumShape implements Shape {
 		else {
 			strings().forEach(schema.putArray("enum")::add);
 		}
-		return schema.put("type", "string");
+		return schema;
 	}
 
 }

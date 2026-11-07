@@ -10,7 +10,8 @@ import tools.jackson.databind.node.ObjectNode;
  * back, and describing it in JSON Schema. {@link Shapes} builds the shape of a type from
  * its annotations.
  */
-sealed interface Shape permits AnyShape, BooleanShape, EnumShape, FloatShape, IntChoiceShape, IntegerShape, ListShape,
+sealed interface Shape
+		permits AnyShape, BooleanShape, EnumShape, FloatShape, IntChoiceShape, IntegerShape, KeyUnionShape, ListShape,
 		MapShape, NullableShape, ObjectAnyShape, RecordShape, StringShape, TupleShape, UnionShape {
 
 	/** The factory every shape makes its JSON nodes with. */

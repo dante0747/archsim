@@ -1,6 +1,7 @@
 package io.archsim.model.codec;
 
 import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
@@ -123,6 +124,50 @@ final class SampleRecords {
 	}
 
 	record InstanceFieldDefault(@DefaultFrom("fallback") Window window, Window fallback) {
+	}
+
+	@TaggedByKey(members = { Round.class, Box.class }, errorType = "outline_kind",
+			errorMessage = "an outline is {radius} or {sideLength}")
+	sealed interface Outline permits Round, Box {
+
+	}
+
+	@KeyTag("radius")
+	record Round(@Gt(0) double radius) implements Outline {
+	}
+
+	@KeyTag("sideLength")
+	record Box(double sideLength) implements Outline {
+	}
+
+	record Sketch(Outline outline) {
+	}
+
+	@TaggedByKey(members = Ring.class, errorType = "halo_kind", errorMessage = "a halo is {radius}")
+	sealed interface Unlisted permits Ring, Disc {
+
+	}
+
+	@KeyTag("radius")
+	record Ring(double radius) implements Unlisted {
+	}
+
+	@TaggedByKey(members = Disc.class, errorType = "disc_kind", errorMessage = "a disc is {diameter}")
+	sealed interface Misnamed permits Disc {
+
+	}
+
+	@KeyTag("diameter")
+	record Disc(double width) implements Unlisted, Misnamed {
+	}
+
+	record Halo(Unlisted shape) {
+	}
+
+	record Plate(Misnamed shape) {
+	}
+
+	record Budget(Map<Mode, Double> limits) {
 	}
 
 }

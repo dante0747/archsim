@@ -1,6 +1,5 @@
 package io.archsim.model.codec;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -9,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.model.codec.SampleRecords.Circle;
 import io.archsim.model.codec.SampleRecords.Curve;
@@ -23,11 +20,9 @@ import io.archsim.model.codec.SampleRecords.Settings;
 import io.archsim.model.codec.SampleRecords.Square;
 import io.archsim.model.codec.SampleRecords.Threads;
 import io.archsim.model.codec.SampleRecords.Window;
-import io.archsim.model.text.CanonicalJson;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
  * The codec reads JSON as pydantic does: the same coercions, the same errors in the same
@@ -36,64 +31,48 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
  */
 class RecordCodecTests {
 
-	private static final JsonMapper JSON = JsonMapper.builder().build();
-
-	private static JsonNode json(String text) {
-		return JSON.readTree(text);
-	}
-
-	private static List<BindingError> errors(String text, Class<?> type) {
-		return catchThrowableOfType(BindingException.class, () -> RecordCodec.read(json(text), type)).errors();
-	}
-
-	private static BindingError error(String type, String location, String message) {
-		List<Object> parts = new ArrayList<>();
-		if (!location.isEmpty()) {
-			for (String part : location.split("[.]", -1)) {
-				parts.add(part.chars().allMatch(Character::isDigit) ? Integer.valueOf(part) : part);
-			}
-		}
-		return new BindingError(type, new Location(parts), message);
-	}
-
 	@Nested
 	@DisplayName("Reading")
 	class Reading {
 
 		@Test
 		void read_fieldsLeftOut_takeTheirDefaults() {
-			assertThat(RecordCodec.read(json("{}"), Sample.class))
+			assertThat(RecordCodec.read(CodecTestSupport.json("{}"), Sample.class))
 				.isEqualTo(new Sample("Untitled", 1.0, 2, false, null, List.of(), Mode.AUTO));
 		}
 
 		@Test
 		void read_requiredFieldLeftOut_isReportedAsRequired() {
-			assertThat(errors("{}", Part.class)).containsExactly(error("missing", "id", "Field required"),
-					error("missing", "size", "Field required"));
+			assertThat(CodecTestSupport.errors("{}", Part.class)).containsExactly(
+					CodecTestSupport.error("missing", "id", "Field required"),
+					CodecTestSupport.error("missing", "size", "Field required"));
 		}
 
 		@Test
 		void read_severalErrors_areReportedAtOnceFieldsFirstThenUnknownKeys() {
-			assertThat(errors("""
+			assertThat(CodecTestSupport.errors("""
 					{"zz": 1, "count": 0, "name": "", "aa": 2, "rate": "fast"}""", Sample.class)).containsExactly(
-					error("string_too_short", "name", "String should have at least 1 character"),
-					error("float_parsing", "rate",
+					CodecTestSupport.error("string_too_short", "name", "String should have at least 1 character"),
+					CodecTestSupport.error("float_parsing", "rate",
 							"Input should be a valid number, unable to parse string as a number"),
-					error("greater_than_equal", "count", "Input should be greater than or equal to 1"),
-					error("extra_forbidden", "zz", "Extra inputs are not permitted"),
-					error("extra_forbidden", "aa", "Extra inputs are not permitted"));
+					CodecTestSupport.error("greater_than_equal", "count", "Input should be greater than or equal to 1"),
+					CodecTestSupport.error("extra_forbidden", "zz", "Extra inputs are not permitted"),
+					CodecTestSupport.error("extra_forbidden", "aa", "Extra inputs are not permitted"));
 		}
 
 		@Test
 		void read_fieldByItsPythonName_isAccepted() {
-			assertThat(RecordCodec.read(json("{\"id\": \"a\", \"size\": 1, \"read_ratio\": 0.25}"), Part.class))
+			assertThat(RecordCodec.read(CodecTestSupport.json("{\"id\": \"a\", \"size\": 1, \"read_ratio\": 0.25}"),
+					Part.class))
 				.isEqualTo(new Part("a", 1, 0.25));
 		}
 
 		@Test
 		void read_bothNamesOfAField_takesTheJsonNameAndRefusesThePythonOne() {
-			assertThat(errors("{\"id\": \"a\", \"size\": 1, \"read_ratio\": 0.25, \"readRatio\": 0.5}", Part.class))
-				.containsExactly(error("extra_forbidden", "read_ratio", "Extra inputs are not permitted"));
+			assertThat(CodecTestSupport.errors("{\"id\": \"a\", \"size\": 1, \"read_ratio\": 0.25, \"readRatio\": 0.5}",
+					Part.class))
+				.containsExactly(
+						CodecTestSupport.error("extra_forbidden", "read_ratio", "Extra inputs are not permitted"));
 		}
 
 		@ParameterizedTest(name = "{0} reads as {1}")
@@ -105,7 +84,7 @@ class RecordCodecTests {
 				{"rate": 7}            | 7.0
 				""")
 		void read_numberAsNumericStringBooleanOrInteger_isCoerced(String input, double rate) {
-			assertThat(RecordCodec.read(json(input), Sample.class).rate()).isEqualTo(rate);
+			assertThat(RecordCodec.read(CodecTestSupport.json(input), Sample.class).rate()).isEqualTo(rate);
 		}
 
 		@ParameterizedTest(name = "{0} reads as {1}")
@@ -117,7 +96,7 @@ class RecordCodecTests {
 				{"count": true}       | 1
 				""")
 		void read_integerAsWholeFloatOrIntegerString_isCoerced(String input, int count) {
-			assertThat(RecordCodec.read(json(input), Sample.class).count()).isEqualTo(count);
+			assertThat(RecordCodec.read(CodecTestSupport.json(input), Sample.class).count()).isEqualTo(count);
 		}
 
 		@ParameterizedTest(name = "count {0}: {1}")
@@ -130,7 +109,8 @@ class RecordCodecTests {
 				""")
 		void read_integerWithFractionOrNoIntegerAtAll_isRefused(String count, String type, String message) {
 			String input = "{\"count\": " + count + "}";
-			assertThat(errors(input, Sample.class)).containsExactly(error(type, "count", message));
+			assertThat(CodecTestSupport.errors(input, Sample.class))
+				.containsExactly(CodecTestSupport.error(type, "count", message));
 		}
 
 		@ParameterizedTest(name = "{0} reads as {1}")
@@ -141,42 +121,43 @@ class RecordCodecTests {
 				{"enabled": 0.0}     | false
 				""")
 		void read_booleanAsPydanticWordOrZeroOrOne_isCoerced(String input, boolean enabled) {
-			assertThat(RecordCodec.read(json(input), Sample.class).enabled()).isEqualTo(enabled);
+			assertThat(RecordCodec.read(CodecTestSupport.json(input), Sample.class).enabled()).isEqualTo(enabled);
 		}
 
 		@Test
 		void read_otherBooleans_areRefusedAsPydanticRefusesThem() {
-			assertThat(errors("{\"enabled\": 2}", Sample.class)).containsExactly(
-					error("bool_parsing", "enabled", "Input should be a valid boolean, unable to interpret input"));
-			assertThat(errors("{\"enabled\": 0.5}", Sample.class))
-				.containsExactly(error("bool_type", "enabled", "Input should be a valid boolean"));
+			assertThat(CodecTestSupport.errors("{\"enabled\": 2}", Sample.class)).containsExactly(CodecTestSupport
+				.error("bool_parsing", "enabled", "Input should be a valid boolean, unable to interpret input"));
+			assertThat(CodecTestSupport.errors("{\"enabled\": 0.5}", Sample.class))
+				.containsExactly(CodecTestSupport.error("bool_type", "enabled", "Input should be a valid boolean"));
 		}
 
 		@Test
 		void read_valueOutOfBounds_isReportedAsPydanticWritesIt() {
-			assertThat(errors("{\"rate\": 0, \"share\": 0.05}", Sample.class)).containsExactly(
-					error("greater_than", "rate", "Input should be greater than 0"),
-					error("greater_than_equal", "share", "Input should be greater than or equal to 0.1"));
-			assertThat(errors("{\"rate\": 700000}", Sample.class))
-				.containsExactly(error("less_than_equal", "rate", "Input should be less than or equal to 600000"));
+			assertThat(CodecTestSupport.errors("{\"rate\": 0, \"share\": 0.05}", Sample.class)).containsExactly(
+					CodecTestSupport.error("greater_than", "rate", "Input should be greater than 0"), CodecTestSupport
+						.error("greater_than_equal", "share", "Input should be greater than or equal to 0.1"));
+			assertThat(CodecTestSupport.errors("{\"rate\": 700000}", Sample.class)).containsExactly(
+					CodecTestSupport.error("less_than_equal", "rate", "Input should be less than or equal to 600000"));
 		}
 
 		@Test
 		void read_numberForString_isRefused() {
-			assertThat(errors("{\"name\": 5}", Sample.class))
-				.containsExactly(error("string_type", "name", "Input should be a valid string"));
+			assertThat(CodecTestSupport.errors("{\"name\": 5}", Sample.class))
+				.containsExactly(CodecTestSupport.error("string_type", "name", "Input should be a valid string"));
 		}
 
 		@Test
 		void read_patternMatchedBeforeTheEnd_isRefused() {
-			assertThat(errors("{\"tags\": [\"ok\", \"no\\n\"]}", Sample.class))
-				.containsExactly(error("string_pattern_mismatch", "tags.1", "String should match pattern '^[a-z]+$'"));
+			assertThat(CodecTestSupport.errors("{\"tags\": [\"ok\", \"no\\n\"]}", Sample.class))
+				.containsExactly(CodecTestSupport.error("string_pattern_mismatch", "tags.1",
+						"String should match pattern '^[a-z]+$'"));
 		}
 
 		@Test
 		void read_listLongerThanItsMaximum_isReportedAsThatAlone() {
-			assertThat(errors("{\"tags\": [1, 2, 3]}", Sample.class))
-				.containsExactly(error("too_long", "tags", "List should have at most 2 items after validation, not 3"));
+			assertThat(CodecTestSupport.errors("{\"tags\": [1, 2, 3]}", Sample.class)).containsExactly(CodecTestSupport
+				.error("too_long", "tags", "List should have at most 2 items after validation, not 3"));
 		}
 
 		@ParameterizedTest(name = "{0} reads as {1}")
@@ -186,44 +167,46 @@ class RecordCodecTests {
 				{"perCore": true}    | 1
 				""")
 		void read_choiceAsIntegerWholeFloatOrBoolean_isAccepted(String input, int perCore) {
-			assertThat(RecordCodec.read(json(input), Threads.class).perCore()).isEqualTo(perCore);
+			assertThat(RecordCodec.read(CodecTestSupport.json(input), Threads.class).perCore()).isEqualTo(perCore);
 		}
 
 		@ParameterizedTest(name = "perCore {0}")
 		@ValueSource(strings = { "3", "1.5", "\"2\"" })
 		void read_integerNotAChoice_listsTheChoicesInWrittenOrder(String perCore) {
-			assertThat(errors("{\"perCore\": " + perCore + "}", Threads.class))
-				.containsExactly(error("literal_error", "perCore", "Input should be 4, 1 or 2"));
+			assertThat(CodecTestSupport.errors("{\"perCore\": " + perCore + "}", Threads.class))
+				.containsExactly(CodecTestSupport.error("literal_error", "perCore", "Input should be 4, 1 or 2"));
 		}
 
 		@Test
 		void read_unknownLiteral_listsWhatItAccepts() {
-			assertThat(errors("{\"mode\": \"fast\"}", Sample.class))
-				.containsExactly(error("literal_error", "mode", "Input should be 'auto', 'steady' or 'ramp'"));
+			assertThat(CodecTestSupport.errors("{\"mode\": \"fast\"}", Sample.class)).containsExactly(
+					CodecTestSupport.error("literal_error", "mode", "Input should be 'auto', 'steady' or 'ramp'"));
 		}
 
 		@Test
 		void read_tuple_takesExactlyItsItems() {
-			assertThat(RecordCodec.read(json("{\"points\": [[0, 1], [5, 2.5]]}"), Curve.class))
+			assertThat(RecordCodec.read(CodecTestSupport.json("{\"points\": [[0, 1], [5, 2.5]]}"), Curve.class))
 				.isEqualTo(new Curve(List.of(new Point(0, 1), new Point(5, 2.5))));
-			assertThat(errors("{\"points\": [[0, 1], [1]]}", Curve.class))
-				.containsExactly(error("missing", "points.1.1", "Field required"));
-			assertThat(errors("{\"points\": [[0, 1], [1, 2, 3]]}", Curve.class)).containsExactly(
-					error("too_long", "points.1", "Tuple should have at most 2 items after validation, not 3"));
-			assertThat(errors("{\"points\": [[0, 1]]}", Curve.class)).containsExactly(
-					error("too_short", "points", "List should have at least 2 items after validation, not 1"));
+			assertThat(CodecTestSupport.errors("{\"points\": [[0, 1], [1]]}", Curve.class))
+				.containsExactly(CodecTestSupport.error("missing", "points.1.1", "Field required"));
+			assertThat(CodecTestSupport.errors("{\"points\": [[0, 1], [1, 2, 3]]}", Curve.class))
+				.containsExactly(CodecTestSupport.error("too_long", "points.1",
+						"Tuple should have at most 2 items after validation, not 3"));
+			assertThat(CodecTestSupport.errors("{\"points\": [[0, 1]]}", Curve.class)).containsExactly(CodecTestSupport
+				.error("too_short", "points", "List should have at least 2 items after validation, not 1"));
 		}
 
 		@Test
 		void read_recordsOwnCheckFailing_isValueErrorAtTheRecord() {
-			assertThat(errors("{\"start\": 5, \"end\": 1}", Window.class))
-				.containsExactly(error("value_error", "", "Value error, end must come after start"));
+			assertThat(CodecTestSupport.errors("{\"start\": 5, \"end\": 1}", Window.class))
+				.containsExactly(CodecTestSupport.error("value_error", "", "Value error, end must come after start"));
 		}
 
 		@Test
 		void read_nestedRecordNotAnObject_isRefused() {
-			assertThat(errors("{\"figure\": 5}", Drawing.class)).containsExactly(error("model_attributes_type",
-					"figure", "Input should be a valid dictionary or object to extract fields from"));
+			assertThat(CodecTestSupport.errors("{\"figure\": 5}", Drawing.class))
+				.containsExactly(CodecTestSupport.error("model_attributes_type", "figure",
+						"Input should be a valid dictionary or object to extract fields from"));
 		}
 
 	}
@@ -234,21 +217,24 @@ class RecordCodecTests {
 
 		@Test
 		void read_tag_picksTheRecord() {
-			assertThat(RecordCodec.read(json("{\"figure\": {\"kind\": \"square\", \"side\": 2}}"), Drawing.class))
+			assertThat(RecordCodec.read(CodecTestSupport.json("{\"figure\": {\"kind\": \"square\", \"side\": 2}}"),
+					Drawing.class))
 				.isEqualTo(new Drawing(new Square(2)));
 		}
 
 		@Test
 		void read_errorInsideTaggedRecord_isLocatedUnderItsTag() {
-			assertThat(errors("{\"figure\": {\"kind\": \"circle\", \"radius\": -1}}", Drawing.class))
-				.containsExactly(error("greater_than", "figure.circle.radius", "Input should be greater than 0"));
+			assertThat(CodecTestSupport.errors("{\"figure\": {\"kind\": \"circle\", \"radius\": -1}}", Drawing.class))
+				.containsExactly(CodecTestSupport.error("greater_than", "figure.circle.radius",
+						"Input should be greater than 0"));
 		}
 
 		@Test
 		void read_unknownTag_listsTheTagsThereAre() {
-			assertThat(errors("{\"figure\": {\"kind\": 5}}", Drawing.class)).containsExactly(error("union_tag_invalid",
-					"figure", "Input tag '5' found using 'kind' does not match any of the expected tags: 'circle',"
-							+ " 'square'"));
+			assertThat(CodecTestSupport.errors("{\"figure\": {\"kind\": 5}}", Drawing.class))
+				.containsExactly(CodecTestSupport.error("union_tag_invalid", "figure",
+						"Input tag '5' found using 'kind' does not match any of the expected tags: 'circle',"
+								+ " 'square'"));
 		}
 
 		@Test
@@ -264,8 +250,9 @@ class RecordCodecTests {
 
 		@Test
 		void read_missingTag_isReportedAsSuch() {
-			assertThat(errors("{\"figure\": {\"radius\": 1}}", Drawing.class)).containsExactly(
-					error("union_tag_not_found", "figure", "Unable to extract tag using discriminator 'kind'"));
+			assertThat(CodecTestSupport.errors("{\"figure\": {\"radius\": 1}}", Drawing.class))
+				.containsExactly(CodecTestSupport.error("union_tag_not_found", "figure",
+						"Unable to extract tag using discriminator 'kind'"));
 		}
 
 	}
@@ -277,27 +264,28 @@ class RecordCodecTests {
 		@Test
 		void write_record_hasEveryFieldInOrder() {
 			assertThat(RecordCodec.write(new Sample("x", 2.0, 3, true, null, List.of("a"), Mode.RAMP)))
-				.isEqualTo(json("""
+				.isEqualTo(CodecTestSupport.json("""
 						{"name": "x", "rate": 2.0, "count": 3, "enabled": true, "share": null,
 						 "tags": ["a"], "mode": "ramp"}"""));
 		}
 
 		@Test
 		void write_taggedRecord_hasItsTag() {
-			assertThat(RecordCodec.write(new Circle(1.5))).isEqualTo(json("{\"kind\": \"circle\", \"radius\": 1.5}"));
+			assertThat(RecordCodec.write(new Circle(1.5)))
+				.isEqualTo(CodecTestSupport.json("{\"kind\": \"circle\", \"radius\": 1.5}"));
 		}
 
 		@Test
 		void write_fieldOmittedWhenDefault_isLeftOutWhileItHasItsDefault() {
-			assertThat(RecordCodec.write(new Settings(Mode.AUTO, null))).isEqualTo(json("{}"));
+			assertThat(RecordCodec.write(new Settings(Mode.AUTO, null))).isEqualTo(CodecTestSupport.json("{}"));
 			assertThat(RecordCodec.write(new Settings(Mode.RAMP, 2.0)))
-				.isEqualTo(json("{\"mode\": \"ramp\", \"extra\": 2.0}"));
+				.isEqualTo(CodecTestSupport.json("{\"mode\": \"ramp\", \"extra\": 2.0}"));
 		}
 
 		@Test
 		void write_arrayRecord_isAnArray() {
 			assertThat(RecordCodec.write(new Curve(List.of(new Point(0, 1), new Point(2, 3)))))
-				.isEqualTo(json("{\"points\": [[0.0, 1.0], [2.0, 3.0]]}"));
+				.isEqualTo(CodecTestSupport.json("{\"points\": [[0.0, 1.0], [2.0, 3.0]]}"));
 		}
 
 	}
@@ -306,18 +294,9 @@ class RecordCodecTests {
 	@DisplayName("JSON Schema")
 	class Schema {
 
-		/**
-		 * The schemas compared as Python's {@code json.dumps(sort_keys=True)} writes
-		 * them.
-		 */
-		private static void assertSchema(Class<? extends Record> type, String pydantic) {
-			assertThat(CanonicalJson.write(RecordCodec.jsonSchema(type)))
-				.isEqualTo(CanonicalJson.write(json(pydantic)));
-		}
-
 		@Test
 		void jsonSchema_property_isTitledAsPythonTitlesItsJsonName() {
-			assertSchema(Part.class, """
+			CodecTestSupport.assertSchema(Part.class, """
 					{"additionalProperties": false, "title": "Part", "type": "object",
 					 "properties": {
 					   "id": {"title": "Id", "type": "string"},
@@ -328,7 +307,7 @@ class RecordCodecTests {
 
 		@Test
 		void jsonSchema_boundsDefaultsAndNullableFields_areAsPydanticWritesThemWithListDefaultHidden() {
-			assertSchema(Sample.class, """
+			CodecTestSupport.assertSchema(Sample.class, """
 					{"additionalProperties": false, "title": "Sample", "type": "object",
 					 "properties": {
 					   "name": {"default": "Untitled", "maxLength": 10, "minLength": 1, "title": "Name",
@@ -347,7 +326,7 @@ class RecordCodecTests {
 
 		@Test
 		void jsonSchema_taggedUnion_isDiscriminatedOneOfWithEachRecordUnderDefs() {
-			assertSchema(Drawing.class, """
+			CodecTestSupport.assertSchema(Drawing.class, """
 					{"additionalProperties": false, "title": "Drawing", "type": "object",
 					 "properties": {
 					   "figure": {
@@ -371,7 +350,7 @@ class RecordCodecTests {
 
 		@Test
 		void jsonSchema_integerChoices_areAnEnumInWrittenOrder() {
-			assertSchema(Threads.class, """
+			CodecTestSupport.assertSchema(Threads.class, """
 					{"additionalProperties": false, "title": "Threads", "type": "object",
 					 "properties": {"perCore": {"enum": [4, 1, 2], "title": "Percore", "type": "integer"}},
 					 "required": ["perCore"]}""");
@@ -379,7 +358,7 @@ class RecordCodecTests {
 
 		@Test
 		void jsonSchema_arrayRecord_isATuple() {
-			assertSchema(Curve.class, """
+			CodecTestSupport.assertSchema(Curve.class, """
 					{"additionalProperties": false, "title": "Curve", "type": "object",
 					 "properties": {
 					   "points": {

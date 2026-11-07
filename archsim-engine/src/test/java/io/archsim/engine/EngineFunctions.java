@@ -26,7 +26,7 @@ final class EngineFunctions {
 			SweepFunctions.PORTED, SizingFunctions.PORTED, InputFunctions.PORTED, EstimateFunctions.PORTED,
 			CostFunctions.PORTED, ReviewFunctions.PORTED, AnalysisFunctions.PORTED, SloFunctions.PORTED,
 			ReportFunctions.PORTED, CheckFunctions.PORTED, ExportFunctions.PORTED, ImportDesignFunctions.PORTED,
-			AssumptionFunctions.PORTED);
+			AssumptionFunctions.PORTED, CalibrationFunctions.PORTED);
 
 	private EngineFunctions() {
 	}
