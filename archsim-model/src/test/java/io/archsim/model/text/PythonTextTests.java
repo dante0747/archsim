@@ -1,12 +1,14 @@
 package io.archsim.model.text;
 
 import java.math.BigInteger;
+import java.util.HexFormat;
 
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.JsonNodeFactory;
 
@@ -95,6 +97,40 @@ class PythonTextTests {
 	@Test
 	void repr_controlCharacter_isEscaped() {
 		assertThat(PythonText.repr("tab\there")).isEqualTo("'tab\\there'");
+	}
+
+	@ParameterizedTest(name = "{2} (U+{0}) is escaped as {1}", quoteTextArguments = false)
+	@CsvSource(delimiter = '|', quoteCharacter = '`', textBlock = """
+			0000   | 'a\\x00b'       | null, a C0 control character
+			007F   | 'a\\x7fb'       | delete, a control character
+			0085   | 'a\\x85b'       | next line, a control character
+			00A0   | 'a\\xa0b'       | no-break space, a space separator
+			00AD   | 'a\\xadb'       | soft hyphen, a format character
+			0378   | 'a\\u0378b'     | unassigned
+			200B   | 'a\\u200bb'     | zero width space, a format character
+			2028   | 'a\\u2028b'     | line separator
+			2029   | 'a\\u2029b'     | paragraph separator
+			3000   | 'a\\u3000b'     | ideographic space, a space separator
+			D800   | 'a\\ud800b'     | a surrogate on its own
+			E000   | 'a\\ue000b'     | private use
+			FEFF   | 'a\\ufeffb'     | byte order mark, a format character
+			FFFF   | 'a\\uffffb'     | a noncharacter, the last escaped in four hex digits
+			1C89   | 'a\\u1c89b'     | a letter since Unicode 16.0, unassigned in Python's 15.0
+			E0001  | 'a\\U000e0001b' | language tag, a format character
+			10FFFF | 'a\\U0010ffffb' | the last noncharacter, unassigned
+			""")
+	void repr_characterPythonDoesNotPrint_isEscaped(String hex, String python, String kind) {
+		String text = "a" + Character.toString(HexFormat.fromHexDigits(hex)) + "b";
+
+		assertThat(PythonText.repr(text)).as(kind).isEqualTo(python);
+	}
+
+	@ParameterizedTest(name = "U+{0} is kept as it is", quoteTextArguments = false)
+	@ValueSource(strings = { "00E9", "00A1", "0301", "0627", "4E2D", "1F600", "10000" })
+	void repr_characterPythonPrints_isKeptAsItIs(String hex) {
+		String text = Character.toString(HexFormat.fromHexDigits(hex));
+
+		assertThat(PythonText.repr(text)).isEqualTo("'" + text + "'");
 	}
 
 	@ParameterizedTest(name = "{0}.title() is {1}")

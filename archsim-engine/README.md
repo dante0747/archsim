@@ -148,9 +148,6 @@ with these differences:
   `calibrate_otlp` named (`not an OTLP JSON export (TypeError)`).
 - An OTLP mapping read from YAML keys its names as text, so a name that is not text (`1: api`) is
   accepted where the Python refused the mapping.
-- A refusal that quotes a text as Python's `repr()` does (`Invalid isoformat string: '...'`)
-  escapes only ASCII control characters: Python also escapes the characters it cannot print
-  beyond ASCII (no-break spaces, lone surrogates), which the Java shows as they are.
 
 Where the Python engine gives a result for a report no run writes, the Java refuses it:
 

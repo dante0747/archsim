@@ -35,6 +35,11 @@ EVERY_JOB = {
         (["archsim-app/src/main/java/io/archsim/app/runs/Comparisons.java"], {"java", "e2e"}),
         (["archsim-api-tests/src/main/java/io/archsim/apitests/Examples.java"], {"java"}),
         (["gradle/libs.versions.toml", "config/checkstyle/checkstyle.xml"], {"java", "e2e"}),
+        # the Python job checks the table repr reads against Python
+        (
+            ["archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv"],
+            {"python", "java", "e2e"},
+        ),
         (["apps/web/src/app/page.tsx", "apps/web/package-lock.json"], {"web", "e2e"}),
         (["apps/web/src/data/accuracy.json"], {"python", "benchmark_tests", "web", "e2e"}),
         # the engine tests check the web fixtures export_web_fixtures.py writes; the Java model's

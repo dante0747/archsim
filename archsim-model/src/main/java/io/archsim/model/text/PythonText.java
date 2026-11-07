@@ -31,11 +31,11 @@ public final class PythonText {
 	 */
 	private static final int FIXED_NOTATION_POINT_UP_TO = 16;
 
-	/** The first character that is not a C0 control character. */
-	private static final int SPACE = 0x20;
+	/** The last character {@code repr} escapes in two hex digits. */
+	private static final int LAST_LATIN1 = 0xff;
 
-	/** The DEL control character, which {@code repr} escapes too. */
-	private static final int DELETE = 0x7f;
+	/** The last character {@code repr} escapes in four hex digits. */
+	private static final int LAST_BMP = 0xffff;
 
 	private static final Map<Integer, String> ESCAPES = Map.of((int) '\\', "\\\\", (int) '\n', "\\n", (int) '\r', "\\r",
 			(int) '\t', "\\t");
@@ -97,8 +97,9 @@ public final class PythonText {
 
 	/**
 	 * Python's {@code repr()} of a string: in single quotes, or in double quotes when it
-	 * holds a single quote and no double quote, with backslashes and control characters
-	 * escaped.
+	 * holds a single quote and no double quote, with backslashes, control characters and
+	 * every other character {@code str.isprintable()} rejects escaped, as
+	 * <code>&#92;xa0</code>, <code>&#92;u200b</code> or <code>&#92;U000e0001</code>.
 	 * @param text the string
 	 * @return its repr
 	 */
@@ -221,12 +222,25 @@ public final class PythonText {
 		else if (codePoint == quote) {
 			out.append('\\').append(quote);
 		}
-		else if (codePoint < SPACE || codePoint == DELETE) {
-			out.append("\\x%02x".formatted(codePoint));
-		}
-		else {
+		else if (PrintableCharacters.isPrintable(codePoint)) {
 			out.appendCodePoint(codePoint);
 		}
+		else {
+			out.append(hexEscape(codePoint));
+		}
+	}
+
+	/**
+	 * How {@code repr()} escapes a character it does not print: in two, four or eight hex
+	 * digits.
+	 * @param codePoint the character
+	 * @return its escape
+	 */
+	private static String hexEscape(int codePoint) {
+		if (codePoint <= LAST_LATIN1) {
+			return "\\x%02x".formatted(codePoint);
+		}
+		return (codePoint <= LAST_BMP) ? "\\u%04x".formatted(codePoint) : "\\U%08x".formatted(codePoint);
 	}
 
 }

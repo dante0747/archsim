@@ -75,6 +75,9 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("archsim-api-tests/", frozenset({"java"})),
     ("archsim-app/", JAVA),
     ("archsim-engine/", JAVA),
+    # scripts/export_printable.py writes the table PythonText reads, and scripts/tests checks
+    # it against Python in the Python job
+    ("archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv", JAVA | {"python"}),
     ("archsim-model/", JAVA),
     ("build-logic/", JAVA),
     ("config/", JAVA),
