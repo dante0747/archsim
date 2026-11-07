@@ -12,6 +12,7 @@ import tools.jackson.databind.JsonNode;
 
 import io.archsim.engine.numeric.PythonNumbers;
 import io.archsim.engine.numeric.PythonRound;
+import io.archsim.engine.text.PythonStrings;
 
 /**
  * CPU and memory as Kubernetes and Compose write them.
@@ -47,8 +48,14 @@ final class Quantities {
 	/** The units Docker writes, binary in practice. */
 	private static final Pattern DOCKER_UNIT = Pattern.compile("[kmgt]b?");
 
-	private static final Pattern MEMORY = Pattern.compile("\\s*([0-9.]+)\\s*([A-Za-z]*)\\s*",
-			Pattern.UNICODE_CHARACTER_CLASS);
+	/**
+	 * A memory figure, once stripped: digits and dots, then the rest. The importer's
+	 * {@code re.fullmatch(r"\s*([0-9.]+)\s*([A-Za-z]*)\s*")} reads the rest as whitespace
+	 * and a unit, its whitespace what {@code str.isspace()} accepts.
+	 */
+	private static final Pattern MEMORY = Pattern.compile("([0-9.]+)(.*)", Pattern.DOTALL);
+
+	private static final Pattern UNIT = Pattern.compile("[A-Za-z]*");
 
 	private Quantities() {
 	}
@@ -62,7 +69,7 @@ final class Quantities {
 		if (value.isNull() || value.isMissingNode()) {
 			return OptionalDouble.empty();
 		}
-		String text = PythonValues.str(value).strip();
+		String text = PythonStrings.strip(PythonValues.str(value));
 		try {
 			if (text.endsWith("m")) {
 				return OptionalDouble.of(PythonRound
@@ -87,8 +94,12 @@ final class Quantities {
 		if (value.isNull() || value.isMissingNode()) {
 			return OptionalDouble.empty();
 		}
-		Matcher memory = MEMORY.matcher(PythonValues.str(value));
+		Matcher memory = MEMORY.matcher(PythonStrings.strip(PythonValues.str(value)));
 		if (!memory.matches()) {
+			return OptionalDouble.empty();
+		}
+		String unit = PythonStrings.strip(memory.group(2));
+		if (!UNIT.matcher(unit).matches()) {
 			return OptionalDouble.empty();
 		}
 		double number;
@@ -98,9 +109,9 @@ final class Quantities {
 		catch (NumberFormatException ex) {
 			throw new ImportRefusedException(String.valueOf(ex.getMessage()), ex);
 		}
-		return factor(memory.group(2).toLowerCase(Locale.ROOT))
-			.map((factor) -> PythonRound.round(number * factor / GIB, DIGITS))
-			.map(OptionalDouble::of)
+		Optional<Double> multiplier = factor(unit.toLowerCase(Locale.ROOT));
+		return multiplier
+			.map((bytesPerUnit) -> OptionalDouble.of(PythonRound.round(number * bytesPerUnit / GIB, DIGITS)))
 			.orElseGet(OptionalDouble::empty);
 	}
 
