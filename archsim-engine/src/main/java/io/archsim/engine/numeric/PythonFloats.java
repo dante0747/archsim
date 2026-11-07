@@ -1,13 +1,11 @@
-package io.archsim.engine.calibration.prometheus;
+package io.archsim.engine.numeric;
 
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.engine.numeric.PythonNumbers;
-
 /**
- * Python's {@code float(value)} of a JSON value that telemetry gave.
+ * Python's {@code float(value)} of a JSON value: a number, a boolean or text.
  */
-final class PythonFloats {
+public final class PythonFloats {
 
 	private PythonFloats() {
 	}
@@ -16,12 +14,12 @@ final class PythonFloats {
 	 * {@code float(value)}.
 	 * @param value a number, a boolean or text
 	 * @return its float
-	 * @throws NumberFormatException where Python raises: text that is no float or a value
-	 * of another kind (a {@code ValueError} or {@code TypeError}, which the series refuse
-	 * as malformed), and a whole number beyond a float's range (an {@code OverflowError},
-	 * which the Python series let through, so that its API answered 500)
+	 * @throws NumberFormatException where Python raises: for text that is no float (a
+	 * {@code ValueError}), a value of another kind (a {@code TypeError}) and a whole
+	 * number beyond a float's range (an {@code OverflowError}); each caller words them as
+	 * its Python counterpart handled them
 	 */
-	static double of(JsonNode value) {
+	public static double of(JsonNode value) {
 		if (value.isBoolean()) {
 			return value.booleanValue() ? 1 : 0;
 		}

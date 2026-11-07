@@ -42,7 +42,7 @@ frozen Python engine's [golden files](../parity/README.md). The simulation kerne
 | `roundtrip` | what the exports carry so an import gives the design back, written by the exports and read back by the importers: `RoundTrip` (each part's outgoing links as `target[/port][:types][!flag...]`, `ExportedLink`, and the parts nothing deploys) |
 | `imports` | importing what teams already have: `ComposeImport` (a docker-compose file), `KubernetesImport` (Kubernetes manifests) and `TerraformImport` (`terraform show -json` output: resources by type, sized by their instance types (`InstanceSizes`), links the configuration states, guessed ones and suggestions), each a design as built, before validation, with an `ImportReport` of what it mapped, guessed and ignored; `DesignImporter` (the Python engine's `import_design`, behind `POST /import`: the design read and validated, the report with the issues found); parts by their image's full name (`Images`), replicas, specs, autoscalers, storage and links from what the file states, an entry point, cache misses and memory that fits added as guesses; `ImportYaml` (the files' YAML, read by `yaml`, what is wrong with it in the importers' words); `PythonValues` and `PythonMappings` (Python's ways with the values YAML gives, where the importers inherited them, failing in Python's words) |
 | `yaml` | YAML from anyone (imported files, calibration mappings): `YamlDocuments` (read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), what is wrong with a text is one of four exceptions, as Python told them apart: `InvalidYamlException` (not valid YAML), `YamlValueException` (a value Python refuses, or beyond the bounds), `YamlKeyException` (a scalar Python looks up in vain) and `YamlScalarException` (another scalar Python fails to read) |
-| `calibration` | calibration's deterministic parts, as the Python engine's `calibration` package: `mapping` (`MappingLoader`: the mapping file read into a `CalibrationMapping` of each part's, link's and the workload's sources, refused in the Python engine's words without the text or its values; `TimeRange.parse`), `prometheus` (`PrometheusSeries`: a range query's series as a `Histogram`, one figure, or summed per timestamp), `fit` (`LatencyFits`: a histogram's or samples' latencies fitted to a lognormal or an empirical table, with the fit's error; `NormalQuantile`, Python's `NormalDist().inv_cdf`) and `ReplaySummary` (the line on how well a calibrated model reproduces what was observed) |
+| `calibration` | calibration's deterministic parts, as the Python engine's `calibration` package: `mapping` (`MappingLoader`: the mapping file read into a `CalibrationMapping` of each part's, link's and the workload's sources, refused in the Python engine's words without the text or its values; `TimeRange.parse`), `prometheus` (`PrometheusSeries`: a range query's series as a `Histogram`, one figure, or summed per timestamp), `fit` (`LatencyFits`: a histogram's or samples' latencies fitted to a lognormal or an empirical table, with the fit's error; `NormalQuantile`, Python's `NormalDist().inv_cdf`), `resources` (`CpuFits`: `cpuShare` from CPU in use against the request rate; `LoadCurves`: CPU per request against load, fitted never rising; `CurveExtensions`: how that curve continues above its top rate; `MemoryFits`: the working set against the request rate and requests held, by non-negative least squares), `otlp` (`OtlpSpans`: the spans of an OTLP JSON export; `TraceSummaries`: each service's own time, each database's reads and writes, the call graph and CPU time; `OtlpMappings`: services and databases to parts) and `ReplaySummary` (the line on how well a calibrated model reproduces what was observed) |
 | `assumptions` | `AssumptionsPage`: `docs/assumptions.md`, every number ArchSim uses without the user typing it (technology tiers and defaults, preset numbers, the defaults of a new part, from the catalog the editor reads) and where each comes from, documented or illustrative; `EngineConstants`: the engine-wide constants behind sizing, prices and the component models, read from the code that uses them, each an `EngineConstant` named as the Python engine named it |
 | `version` | `EngineVersions`: the engine's version and its reports', which every run and `GET /meta` record (the frozen Python engine's until stage 4) |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
@@ -133,6 +133,14 @@ with these differences:
   `OverflowError` through and its API answered `500`.
 - An `!!omap` whose key is a list or a mapping is refused, in the importers too; PyYAML kept it
   as a pair.
+- An OTLP span whose id, name or kind is not text is read as the text Python's `str()` gives it,
+  where the Python kept the value; a time beyond a long's range (before 1677 or after 2262) is
+  refused; a CPU-time attribute holding a whole number beyond a float's range is left out, where
+  Python's `OverflowError` failed the calibration. Data that is not an export fails as the
+  Python's did: `OtlpExportException` carries the `AttributeError` or `TypeError` its
+  `calibrate_otlp` named (`not an OTLP JSON export (TypeError)`).
+- An OTLP mapping read from YAML keys its names as text, so a name that is not text (`1: api`) is
+  accepted where the Python refused the mapping.
 
 Where the Python engine gives a result for a report no run writes, the Java refuses it:
 
@@ -153,10 +161,10 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   (`TextFunctions`, `QueueingFunctions`, `LoadFunctions`, `PricingFunctions`, `SeedFunctions`,
   `SweepFunctions`, `SizingFunctions`, `InputFunctions`, `EstimateFunctions`, `CostFunctions`,
   `ReviewFunctions`, `AnalysisFunctions`, `SloFunctions`, `ReportFunctions`, `CheckFunctions`,
-  `ExportFunctions`, `ImportDesignFunctions`, `AssumptionFunctions`, `CalibrationFunctions`). The
-  few entries whose words are a library's are listed in `GoldenDepartures`, which checks the
-  error's type, its words up to where the two libraries' words part, and that the rest still
-  differs.
+  `ExportFunctions`, `ImportDesignFunctions`, `AssumptionFunctions`, `CalibrationFunctions`,
+  `ResourceFitFunctions`, `OtlpFunctions`). The few entries whose words are a library's are
+  listed in `GoldenDepartures`, which checks the error's type, its words up to where the two
+  libraries' words part, and that the rest still differs.
   Ported so far:
   - on every recorded run, its findings (`analysis.analyze`), and each part's status and why,
     which the report carries as the analysis set them; the golden files reach 17 of the 22
@@ -214,7 +222,12 @@ Where the Python engine gives a result for a report no run writes, the Java refu
     `reduce`), the latency fits (`fit.fit_histogram`, `fit_samples`) and the replay summary of
     every recorded calibration (`apply.replay_summary`); the golden files have no YAML that is
     not valid past one parser error, no malformed Prometheus result and no empirical fit of a
-    histogram: the unit tests cover them;
+    histogram: the unit tests cover them; the CPU and memory fits (`resources.fit_cpu_share`,
+    `fit_load_curve`, `extend_load_curve`, `fit_memory`), the recorded OTLP export's spans and
+    their summary (`otlp.parse_otlp`, `summarize`) and the OTLP mapping
+    (`otlp.load_otlp_mapping`); the golden files have no capped CPU share, curve that stays flat
+    for most of its reasons, memory that hardly changed, malformed span or parent-link loop: the
+    unit tests cover them;
   - the number formats and small numeric helpers of `catalog/formatting` (`explain.num`, `pct`,
     `erlang_c`, `zipf_share`; `load.js_num`, `fmt_int`, `fixed`, `round_half_up`,
     `ttl_hit_ratio`, and `mean_ms`, whose counterpart is `LenientSettings.meanMs`; `sizing.fmt`;
