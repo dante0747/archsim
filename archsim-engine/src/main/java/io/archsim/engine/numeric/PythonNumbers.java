@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import io.archsim.engine.text.PythonStrings;
 import io.archsim.model.text.PythonText;
 
 /**
@@ -44,6 +45,12 @@ public final class PythonNumbers {
 	 */
 	private static final int QUOTED_CHARACTERS = 200;
 
+	/**
+	 * The ASCII whitespace C's {@code isspace()} accepts, which CPython strips from a
+	 * number's text once it has turned the spaces beyond ASCII into spaces.
+	 */
+	private static final String ASCII_SPACES = " \t\n\u000b\f\r";
+
 	private PythonNumbers() {
 	}
 
@@ -54,7 +61,7 @@ public final class PythonNumbers {
 	 * @throws NumberFormatException with Python's words when it is not a float
 	 */
 	public static double parseFloat(String text) {
-		String number = text.strip();
+		String number = stripSpaces(text);
 		if (SPECIAL.matcher(number).matches()) {
 			return special(number);
 		}
@@ -84,7 +91,7 @@ public final class PythonNumbers {
 	 * the base, or has more decimal digits than Python converts
 	 */
 	public static BigInteger parseInt(String text, int radix) {
-		String number = text.strip();
+		String number = stripSpaces(text);
 		boolean negative = number.startsWith("-");
 		if (negative || number.startsWith("+")) {
 			number = number.substring(1);
@@ -224,6 +231,29 @@ public final class PythonNumbers {
 			bytes[--next] = (byte) pending;
 		}
 		return new BigInteger(1, bytes);
+	}
+
+	/**
+	 * A number's text without the whitespace CPython strips from its ends: ASCII's, and
+	 * beyond ASCII what {@code str.isspace()} accepts, but not the information separators
+	 * {@code 0x1c} to {@code 0x1f}, which are whitespace to Python's strings.
+	 * @param text the text
+	 * @return the text stripped
+	 */
+	private static String stripSpaces(String text) {
+		int start = 0;
+		int end = text.length();
+		while (start < end && isStrippedSpace(text.charAt(start))) {
+			start++;
+		}
+		while (end > start && isStrippedSpace(text.charAt(end - 1))) {
+			end--;
+		}
+		return text.substring(start, end);
+	}
+
+	private static boolean isStrippedSpace(char character) {
+		return (character < ASCII_END) ? ASCII_SPACES.indexOf(character) >= 0 : PythonStrings.isSpace(character);
 	}
 
 	/**

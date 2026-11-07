@@ -71,6 +71,15 @@ public final class PythonStrings {
 	}
 
 	/**
+	 * Whether Python 3.12's {@code str.isspace()} accepts a character.
+	 * @param codePoint the character
+	 * @return whether it is whitespace to Python
+	 */
+	public static boolean isSpace(int codePoint) {
+		return WHITESPACE.indexOf(codePoint) >= 0;
+	}
+
+	/**
 	 * A text without whitespace at either end, as Python's {@code str.strip()} with no
 	 * argument strips it: what {@code str.isspace()} counts as whitespace, where Java's
 	 * {@link String#strip} counts what {@link Character#isWhitespace} does.
@@ -81,10 +90,10 @@ public final class PythonStrings {
 		int[] codePoints = text.codePoints().toArray();
 		int start = 0;
 		int end = codePoints.length;
-		while (start < end && WHITESPACE.indexOf(codePoints[start]) >= 0) {
+		while (start < end && isSpace(codePoints[start])) {
 			start++;
 		}
-		while (end > start && WHITESPACE.indexOf(codePoints[end - 1]) >= 0) {
+		while (end > start && isSpace(codePoints[end - 1])) {
 			end--;
 		}
 		return new String(codePoints, start, end - start);
@@ -101,7 +110,7 @@ public final class PythonStrings {
 		List<String> words = new ArrayList<>();
 		StringBuilder word = new StringBuilder();
 		text.codePoints().forEach((codePoint) -> {
-			if (WHITESPACE.indexOf(codePoint) < 0) {
+			if (!isSpace(codePoint)) {
 				word.appendCodePoint(codePoint);
 			}
 			else if (!word.isEmpty()) {

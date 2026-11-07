@@ -2,8 +2,11 @@ package io.archsim.engine.numeric;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.HexFormat;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -21,6 +24,45 @@ class PythonNumbersTests {
 	@Test
 	void parseFloat_digitsOfAnotherScript_areRead() {
 		assertThat(PythonNumbers.parseFloat("١٢")).isEqualTo(12.0);
+	}
+
+	/**
+	 * CPython strips a number's text of ASCII whitespace and of the spaces beyond ASCII
+	 * that {@code str.isspace()} accepts, which Java's {@code strip()} does not all
+	 * strip.
+	 */
+	@ParameterizedTest(name = "U+{0} around a number is stripped", quoteTextArguments = false)
+	@ValueSource(strings = { "000B", "000C", "0085", "00A0", "1680", "2007", "2028", "202F", "3000" })
+	void parseFloat_spaceAround_isStripped(String hex) {
+		String space = Character.toString(HexFormat.fromHexDigits(hex));
+
+		assertThat(PythonNumbers.parseFloat(space + "1.5" + space)).isEqualTo(1.5);
+	}
+
+	@ParameterizedTest(name = "U+{0} around a whole number is stripped", quoteTextArguments = false)
+	@ValueSource(strings = { "000B", "0085", "00A0", "205F", "3000" })
+	void parseInt_spaceAround_isStripped(String hex) {
+		String space = Character.toString(HexFormat.fromHexDigits(hex));
+
+		assertThat(PythonNumbers.parseInt(space + "f" + space, 16)).isEqualTo(BigInteger.valueOf(15));
+	}
+
+	/**
+	 * The information separators are whitespace to Java's {@code strip()}, not to
+	 * CPython's numbers.
+	 */
+	@Test
+	void parseFloat_unitSeparatorAfterTheNumber_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.parseFloat("1" + Character.toString(0x1F)))
+			.withMessage("could not convert string to float: '1\\x1f'");
+	}
+
+	@Test
+	void parseInt_fileSeparatorBeforeTheNumber_isRefusedInPythonsWords() {
+		assertThatExceptionOfType(NumberFormatException.class)
+			.isThrownBy(() -> PythonNumbers.parseInt(Character.toString(0x1C) + "1"))
+			.withMessage("invalid literal for int() with base 10: '\\x1c1'");
 	}
 
 	@Test

@@ -23,6 +23,17 @@ class PythonStringsTests {
 	}
 
 	@Test
+	void isSpace_fileSeparatorAndNoBreakSpace_areWhitespaceToPython() {
+		assertThat(PythonStrings.isSpace(0x1C)).isTrue();
+		assertThat(PythonStrings.isSpace(0xA0)).isTrue();
+	}
+
+	@Test
+	void isSpace_zeroWidthSpace_isNotWhitespace() {
+		assertThat(PythonStrings.isSpace(0x200B)).isFalse();
+	}
+
+	@Test
 	void strip_zeroWidthSpace_isNotWhitespace() {
 		assertThat(PythonStrings.strip("​ x ​")).isEqualTo("​ x ​");
 	}
