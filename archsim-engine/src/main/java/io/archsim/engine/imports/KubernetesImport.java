@@ -87,7 +87,7 @@ public final class KubernetesImport {
 	 * @throws ImportRefusedException when the text is not YAML, or holds no object
 	 */
 	private static List<ObjectNode> objects(String text) {
-		List<ObjectNode> documents = YamlDocuments.all(text)
+		List<ObjectNode> documents = ImportYaml.all(text)
 			.stream()
 			.filter(JsonNode::isObject)
 			.map(ObjectNode.class::cast)

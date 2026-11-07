@@ -1,4 +1,4 @@
-package io.archsim.engine.imports;
+package io.archsim.engine.yaml;
 
 import java.util.ArrayList;
 import java.util.Collections;

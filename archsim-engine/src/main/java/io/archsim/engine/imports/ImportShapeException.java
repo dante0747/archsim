@@ -17,4 +17,13 @@ final class ImportShapeException extends RuntimeException {
 		super(detail);
 	}
 
+	/**
+	 * A value of the wrong kind, as another exception showed it.
+	 * @param detail what was wrong, as Python said it
+	 * @param cause what showed it
+	 */
+	ImportShapeException(String detail, Throwable cause) {
+		super(detail, cause);
+	}
+
 }

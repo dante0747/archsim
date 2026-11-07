@@ -1,4 +1,4 @@
-package io.archsim.engine.imports;
+package io.archsim.engine.yaml;
 
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -29,7 +29,7 @@ final class YamlTrees {
 	 * A value as a Jackson tree.
 	 * @param value what the constructor built
 	 * @return the tree
-	 * @throws ImportRefusedException for a mapping keyed by a list or a mapping, which
+	 * @throws InvalidYamlException for a mapping keyed by a list or a mapping, which
 	 * Python cannot hash
 	 */
 	static JsonNode of(@Nullable Object value) {
@@ -79,7 +79,7 @@ final class YamlTrees {
 	 */
 	private static String key(@Nullable Object key) {
 		if (key instanceof Map<?, ?> || key instanceof Collection<?>) {
-			throw new ImportRefusedException("not valid YAML: while constructing a mapping: found unhashable key");
+			throw new InvalidYamlException("while constructing a mapping: found unhashable key");
 		}
 		JsonNode value = of(key);
 		return PythonText.str(value);

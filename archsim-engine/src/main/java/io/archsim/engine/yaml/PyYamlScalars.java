@@ -1,4 +1,4 @@
-package io.archsim.engine.imports;
+package io.archsim.engine.yaml;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -14,11 +14,10 @@ import io.archsim.model.text.PythonText;
 /**
  * Scalars read as PyYAML's safe constructor reads them, whether their tag is written or
  * resolved: {@code construct_yaml_int}, {@code construct_yaml_float} and
- * {@code construct_yaml_bool}, failing as they fail. A failure of Python's runtime (a
- * missing key, an index past the end) is an {@link ImportShapeException} in its words, a
- * number Python cannot read an {@link ImportRefusedException} in its words, and what
- * PyYAML's constructor refuses an {@link ImportRefusedException} of text that is not
- * valid YAML.
+ * {@code construct_yaml_bool}, failing as they fail: a key looked up in vain as a
+ * {@link YamlKeyException} and an index past the end as a {@link YamlScalarException}, in
+ * Python's words; a number Python cannot read as a {@link YamlValueException} in its
+ * words; and what PyYAML's constructor refuses as an {@link InvalidYamlException}.
  */
 final class PyYamlScalars {
 
@@ -109,13 +108,13 @@ final class PyYamlScalars {
 	 * {@code off}, in any case.
 	 * @param scalar the scalar
 	 * @return the boolean
-	 * @throws ImportShapeException in Python's words for any other word
+	 * @throws YamlKeyException in Python's words for any other word
 	 */
 	static boolean bool(String scalar) {
 		String word = scalar.toLowerCase(Locale.ROOT);
 		Boolean value = BOOLEANS.get(word);
 		if (value == null) {
-			throw new ImportShapeException("missing " + PythonText.repr(word));
+			throw new YamlKeyException(PythonText.repr(word));
 		}
 		return value;
 	}
@@ -142,7 +141,7 @@ final class PyYamlScalars {
 	 * Binary data, kept as its base64 text once it decodes.
 	 * @param scalar the scalar
 	 * @return the scalar
-	 * @throws ImportRefusedException when it is not base64
+	 * @throws InvalidYamlException when it is not base64
 	 */
 	static String base64(String scalar) {
 		if (!StandardCharsets.US_ASCII.newEncoder().canEncode(scalar)) {
@@ -158,12 +157,12 @@ final class PyYamlScalars {
 	}
 
 	/**
-	 * A refusal of text that is not valid YAML.
-	 * @param problem what PyYAML's constructor refuses
-	 * @return the refusal
+	 * What PyYAML's constructor refuses as not valid YAML.
+	 * @param problem what it refuses, in its words
+	 * @return the exception
 	 */
-	static ImportRefusedException notValid(String problem) {
-		return new ImportRefusedException("not valid YAML: " + problem);
+	static InvalidYamlException notValid(String problem) {
+		return new InvalidYamlException(problem);
 	}
 
 	private static BigInteger sexagesimal(String value) {
@@ -186,7 +185,7 @@ final class PyYamlScalars {
 			return PythonNumbers.parseInt(digits, radix);
 		}
 		catch (NumberFormatException ex) {
-			throw new ImportRefusedException(String.valueOf(ex.getMessage()), ex);
+			throw new YamlValueException(String.valueOf(ex.getMessage()), ex);
 		}
 	}
 
@@ -195,7 +194,7 @@ final class PyYamlScalars {
 			return PythonNumbers.parseFloat(digits);
 		}
 		catch (NumberFormatException ex) {
-			throw new ImportRefusedException(String.valueOf(ex.getMessage()), ex);
+			throw new YamlValueException(String.valueOf(ex.getMessage()), ex);
 		}
 	}
 
@@ -222,11 +221,11 @@ final class PyYamlScalars {
 	 * {@code value[0]}.
 	 * @param value the value
 	 * @return its first character
-	 * @throws ImportShapeException in Python's words for an empty value
+	 * @throws YamlScalarException in Python's words for an empty value
 	 */
 	private static char first(String value) {
 		if (value.isEmpty()) {
-			throw new ImportShapeException("string index out of range");
+			throw new YamlScalarException("string index out of range");
 		}
 		return value.charAt(0);
 	}

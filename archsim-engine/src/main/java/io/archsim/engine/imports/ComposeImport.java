@@ -96,7 +96,7 @@ public final class ComposeImport {
 	 * mapping
 	 */
 	private static JsonNode composeFile(String text) {
-		JsonNode loaded = YamlDocuments.one(text);
+		JsonNode loaded = ImportYaml.one(text);
 		JsonNode data = PythonValues.truthy(loaded) ? loaded : JsonNodeFactory.instance.objectNode();
 		if (!data.isObject() || !data.path("services").isObject()) {
 			throw new ImportRefusedException("not a docker-compose file: no 'services' mapping");

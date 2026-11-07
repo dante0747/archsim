@@ -1,4 +1,4 @@
-package io.archsim.engine.imports;
+package io.archsim.engine.yaml;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -36,8 +36,8 @@ final class AliasBounds {
 	/**
 	 * Checks a document against the bounds.
 	 * @param document the document's root node
-	 * @throws ImportRefusedException when it nests too deeply, contains a recursive alias
-	 * or expands to too many values
+	 * @throws YamlValueException when it nests too deeply, contains a recursive alias or
+	 * expands to too many values
 	 */
 	static void check(Node document) {
 		new AliasBounds().size(document, 0);
@@ -51,19 +51,19 @@ final class AliasBounds {
 	 */
 	private int size(Node node, int depth) {
 		if (depth > MAX_DEPTH) {
-			throw new ImportRefusedException(TOO_DEEP);
+			throw new YamlValueException(TOO_DEEP);
 		}
 		Integer known = this.sizes.get(node);
 		if (known != null) {
 			return known;
 		}
 		if (!this.inProgress.add(node)) {
-			throw new ImportRefusedException("the YAML contains a recursive alias");
+			throw new YamlValueException("the YAML contains a recursive alias");
 		}
 		int total = 1 + children(node, depth + 1);
 		this.inProgress.remove(node);
 		if (total > MAX_EXPANDED_NODES) {
-			throw new ImportRefusedException("the YAML expands to more than 200,000 values through aliases");
+			throw new YamlValueException("the YAML expands to more than 200,000 values through aliases");
 		}
 		this.sizes.put(node, total);
 		return total;

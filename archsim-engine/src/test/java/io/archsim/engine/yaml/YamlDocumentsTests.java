@@ -1,4 +1,4 @@
-package io.archsim.engine.imports;
+package io.archsim.engine.yaml;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -53,7 +53,7 @@ class YamlDocumentsTests {
 
 	@Test
 	void one_timestampThatIsNoDate_isRefusedInPythonsWords() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: 2024-02-30"))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.one("a: 2024-02-30"))
 			.withMessage("day is out of range for month");
 	}
 
@@ -111,56 +111,55 @@ class YamlDocumentsTests {
 
 	@Test
 	void one_explicitIntThatIsNoNumber_isRefusedInPythonsWords() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: !!int abc"))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.one("a: !!int abc"))
 			.withMessage("invalid literal for int() with base 10: 'abc'");
 	}
 
 	@Test
 	void one_explicitFloatThatIsNoNumber_isRefusedInPythonsWords() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: !!float abc"))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.one("a: !!float abc"))
 			.withMessage("could not convert string to float: 'abc'");
 	}
 
 	@Test
 	void one_explicitEmptyInt_failsAsPythonIndexesIt() {
-		assertThatExceptionOfType(ImportShapeException.class).isThrownBy(() -> YamlDocuments.one("a: !!int ''"))
+		assertThatExceptionOfType(YamlScalarException.class).isThrownBy(() -> YamlDocuments.one("a: !!int ''"))
 			.withMessage("string index out of range");
 	}
 
 	@Test
 	void one_explicitBoolThatIsNoBoolean_failsAsPythonLooksItUp() {
-		assertThatExceptionOfType(ImportShapeException.class).isThrownBy(() -> YamlDocuments.one("a: !!bool Maybe"))
-			.withMessage("missing 'maybe'");
+		assertThatExceptionOfType(YamlKeyException.class).isThrownBy(() -> YamlDocuments.one("a: !!bool Maybe"))
+			.withMessage("'maybe'");
 	}
 
 	@Test
 	void one_explicitTimestampThatIsNoTimestamp_failsAsPythonMatchesIt() {
-		assertThatExceptionOfType(ImportShapeException.class).isThrownBy(() -> YamlDocuments.one("a: !!timestamp soon"))
+		assertThatExceptionOfType(YamlScalarException.class).isThrownBy(() -> YamlDocuments.one("a: !!timestamp soon"))
 			.withMessage("'NoneType' object has no attribute 'groupdict'");
 	}
 
 	@Test
-	void one_explicitBinaryThatIsNoBase64_isRefusedAsNotValidYaml() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: !!binary é"))
-			.withMessage("not valid YAML: failed to convert base64 data into ascii");
+	void one_explicitBinaryThatIsNoBase64_isNotValidYaml() {
+		assertThatExceptionOfType(InvalidYamlException.class).isThrownBy(() -> YamlDocuments.one("a: !!binary é"))
+			.withMessage("failed to convert base64 data into ascii");
 	}
 
 	@Test
-	void one_explicitScalarTagOnASequence_isRefusedAsNotValidYaml() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: !!int [1]"))
-			.withMessage("not valid YAML: expected a scalar node, but found sequence");
+	void one_explicitScalarTagOnASequence_isNotValidYaml() {
+		assertThatExceptionOfType(InvalidYamlException.class).isThrownBy(() -> YamlDocuments.one("a: !!int [1]"))
+			.withMessage("expected a scalar node, but found sequence");
 	}
 
 	@Test
-	void one_explicitSequenceTagOnAMapping_isRefusedAsNotValidYaml() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: !!seq {b: 1}"))
-			.withMessage("not valid YAML: expected a sequence node, but found mapping");
+	void one_explicitSequenceTagOnAMapping_isNotValidYaml() {
+		assertThatExceptionOfType(InvalidYamlException.class).isThrownBy(() -> YamlDocuments.one("a: !!seq {b: 1}"))
+			.withMessage("expected a sequence node, but found mapping");
 	}
 
 	@Test
-	void one_valueWrittenAsEquals_isRefusedAsNotValidYaml() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: =\n"))
-			.withMessageStartingWith("not valid YAML: ")
+	void one_valueWrittenAsEquals_isNotValidYaml() {
+		assertThatExceptionOfType(InvalidYamlException.class).isThrownBy(() -> YamlDocuments.one("a: =\n"))
 			.withMessageContaining("tag:yaml.org,2002:value");
 	}
 
@@ -183,24 +182,24 @@ class YamlDocumentsTests {
 	}
 
 	@Test
-	void one_severalDocuments_isRefusedAsNotValidYaml() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.one("a: 1\n---\nb: 2\n"))
-			.withMessage("not valid YAML: expected one YAML document, found several");
+	void one_severalDocuments_isNotValidYaml() {
+		assertThatExceptionOfType(InvalidYamlException.class).isThrownBy(() -> YamlDocuments.one("a: 1\n---\nb: 2\n"))
+			.withMessage("expected one YAML document, found several");
 	}
 
 	@Test
-	void one_textThatIsNotYaml_isRefusedAsNotValidYamlInTheParsersWords() {
-		assertThatExceptionOfType(ImportRefusedException.class)
+	void one_textThatIsNotYaml_isNotValidYamlInTheParsersWords() {
+		assertThatExceptionOfType(InvalidYamlException.class)
 			.isThrownBy(() -> YamlDocuments.one("services: [unclosed\n"))
-			.withMessageStartingWith("not valid YAML: while parsing a flow sequence")
+			.withMessageStartingWith("while parsing a flow sequence")
 			.withMessageContaining("expected ',' or ']'");
 	}
 
 	@Test
-	void one_pythonTag_isRefusedAsNotValidYaml() {
-		assertThatExceptionOfType(ImportRefusedException.class)
+	void one_pythonTag_isNotValidYaml() {
+		assertThatExceptionOfType(InvalidYamlException.class)
 			.isThrownBy(() -> YamlDocuments.one("a: !!python/object/apply:os.system [echo]\n"))
-			.withMessageStartingWith("not valid YAML: ");
+			.withMessageContaining("tag:yaml.org,2002:python/object/apply:os.system");
 	}
 
 	@Test
@@ -219,13 +218,13 @@ class YamlDocumentsTests {
 				f: [*e, *e, *e, *e, *e, *e, *e, *e, *e, *e]
 				""";
 
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.all(bomb))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.all(bomb))
 			.withMessage("the YAML expands to more than 200,000 values through aliases");
 	}
 
 	@Test
 	void all_recursiveAlias_isRefused() {
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.all("a: &a [*a]\n"))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.all("a: &a [*a]\n"))
 			.withMessage("the YAML contains a recursive alias");
 	}
 
@@ -233,7 +232,7 @@ class YamlDocumentsTests {
 	void all_nestingPastAHundredLevels_isRefused() {
 		String deep = "[".repeat(102) + "]".repeat(102);
 
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.all(deep))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.all(deep))
 			.withMessage("the YAML nests deeper than 100 levels");
 	}
 
@@ -241,7 +240,7 @@ class YamlDocumentsTests {
 	void all_nestingPastWhatTheParserAllows_isRefusedInTheBoundsWords() {
 		String deep = "[".repeat(1001) + "]".repeat(1001);
 
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.all(deep))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.all(deep))
 			.withMessage("the YAML nests deeper than 100 levels");
 	}
 
@@ -256,7 +255,7 @@ class YamlDocumentsTests {
 	void all_textOverFiveMegabytes_isRefused() {
 		String large = "a: " + "x".repeat(5 * 1024 * 1024) + "\n";
 
-		assertThatExceptionOfType(ImportRefusedException.class).isThrownBy(() -> YamlDocuments.all(large))
+		assertThatExceptionOfType(YamlValueException.class).isThrownBy(() -> YamlDocuments.all(large))
 			.withMessage("the YAML is larger than 5 MB");
 	}
 

@@ -1,4 +1,4 @@
-package io.archsim.engine.imports;
+package io.archsim.engine.yaml;
 
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +20,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
  * document measured before it is built, its aliases followed, and refused past 200,000
  * values or 100 levels, or with a recursive alias.
  */
-final class YamlDocuments {
+public final class YamlDocuments {
 
 	/** The largest text accepted, in UTF-8: the API's request body limit. */
 	private static final int MAX_BYTES = 5 * 1024 * 1024;
@@ -41,11 +41,15 @@ final class YamlDocuments {
 	 * Every document in a text, empty ones as {@code null}.
 	 * @param text the text
 	 * @return the documents, in order
-	 * @throws ImportRefusedException when the text is not YAML or is beyond the bounds
+	 * @throws InvalidYamlException when the text is not YAML
+	 * @throws YamlValueException when it is beyond the bounds, or holds a value Python
+	 * refuses
+	 * @throws YamlKeyException when it holds a scalar Python looks up in vain
+	 * @throws YamlScalarException when it holds another scalar Python fails to read
 	 */
-	static List<JsonNode> all(String text) {
+	public static List<JsonNode> all(String text) {
 		if (text.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
-			throw new ImportRefusedException("the YAML is larger than 5 MB");
+			throw new YamlValueException("the YAML is larger than 5 MB");
 		}
 		LoaderOptions options = options();
 		PyYamlConstructor constructor = new PyYamlConstructor(options);
@@ -68,13 +72,16 @@ final class YamlDocuments {
 	 * The one document in a text.
 	 * @param text the text
 	 * @return the document; a JSON null node for an empty text
-	 * @throws ImportRefusedException when the text is not YAML, holds several documents
-	 * or is beyond the bounds
+	 * @throws InvalidYamlException when the text is not YAML, or holds several documents
+	 * @throws YamlValueException when it is beyond the bounds, or holds a value Python
+	 * refuses
+	 * @throws YamlKeyException when it holds a scalar Python looks up in vain
+	 * @throws YamlScalarException when it holds another scalar Python fails to read
 	 */
-	static JsonNode one(String text) {
+	public static JsonNode one(String text) {
 		List<JsonNode> documents = all(text);
 		if (documents.size() > 1) {
-			throw new ImportRefusedException("not valid YAML: expected one YAML document, found several");
+			throw new InvalidYamlException("expected one YAML document, found several");
 		}
 		return documents.isEmpty() ? JsonNodeFactory.instance.nullNode() : documents.getFirst();
 	}
@@ -88,12 +95,12 @@ final class YamlDocuments {
 		return options;
 	}
 
-	private static ImportRefusedException refusal(YAMLException ex) {
+	private static RuntimeException refusal(YAMLException ex) {
 		String message = String.valueOf(ex.getMessage());
 		if (message.startsWith(PARSER_TOO_DEEP)) {
-			return new ImportRefusedException(AliasBounds.TOO_DEEP, ex);
+			return new YamlValueException(AliasBounds.TOO_DEEP, ex);
 		}
-		return new ImportRefusedException("not valid YAML: " + message, ex);
+		return new InvalidYamlException(message, ex);
 	}
 
 }

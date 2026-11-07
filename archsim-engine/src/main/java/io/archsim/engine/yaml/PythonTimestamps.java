@@ -1,4 +1,4 @@
-package io.archsim.engine.imports;
+package io.archsim.engine.yaml;
 
 import java.time.YearMonth;
 import java.util.regex.Matcher;
@@ -44,15 +44,15 @@ final class PythonTimestamps {
 	 * A timestamp scalar as Python's {@code str()} writes what PyYAML builds from it.
 	 * @param scalar the scalar, which PyYAML's timestamp resolver matched
 	 * @return {@code 2024-05-01}, {@code 2002-12-14 01:02:03+00:00}, ...
-	 * @throws ImportRefusedException with Python's words when it is no date or time
-	 * @throws ImportShapeException in Python's words when it is no timestamp at all
+	 * @throws YamlValueException with Python's words when it is no date or time
+	 * @throws YamlScalarException in Python's words when it is no timestamp at all
 	 */
 	static String text(String scalar) {
 		Matcher timestamp = TIMESTAMP.matcher(scalar);
 		if (!timestamp.matches()) {
 			// PyYAML matches the scalar after reading it as a timestamp: one that is none
 			// fails
-			throw new ImportShapeException("'NoneType' object has no attribute 'groupdict'");
+			throw new YamlScalarException("'NoneType' object has no attribute 'groupdict'");
 		}
 		String date = "%04d-%02d-%02d".formatted(number(timestamp, "year"), number(timestamp, "month"),
 				number(timestamp, "day"));
@@ -73,25 +73,25 @@ final class PythonTimestamps {
 		int month = number(timestamp, "month");
 		int day = number(timestamp, "day");
 		if (year < 1) {
-			throw new ImportRefusedException("year " + year + " is out of range");
+			throw new YamlValueException("year " + year + " is out of range");
 		}
 		if (month < 1 || month > LAST_MONTH) {
-			throw new ImportRefusedException("month must be in 1..12");
+			throw new YamlValueException("month must be in 1..12");
 		}
 		if (day < 1 || day > YearMonth.of(year, month).lengthOfMonth()) {
-			throw new ImportRefusedException("day is out of range for month");
+			throw new YamlValueException("day is out of range for month");
 		}
 	}
 
 	private static void checkTime(Matcher timestamp) {
 		if (number(timestamp, "hour") > LAST_HOUR) {
-			throw new ImportRefusedException("hour must be in 0..23");
+			throw new YamlValueException("hour must be in 0..23");
 		}
 		if (number(timestamp, "minute") > LAST_MINUTE) {
-			throw new ImportRefusedException("minute must be in 0..59");
+			throw new YamlValueException("minute must be in 0..59");
 		}
 		if (number(timestamp, "second") > LAST_MINUTE) {
-			throw new ImportRefusedException("second must be in 0..59");
+			throw new YamlValueException("second must be in 0..59");
 		}
 	}
 
@@ -112,7 +112,7 @@ final class PythonTimestamps {
 	 * The UTC offset as Python writes it after the time.
 	 * @param timestamp the matched timestamp
 	 * @return {@code +00:00} for {@code Z}, {@code -05:00}, ...; nothing for a local time
-	 * @throws ImportRefusedException with Python's words for an offset of a day or more
+	 * @throws YamlValueException with Python's words for an offset of a day or more
 	 */
 	private static String offset(Matcher timestamp) {
 		String sign = timestamp.group("sign");
@@ -123,7 +123,7 @@ final class PythonTimestamps {
 		int minutes = number(timestamp, "zoneHour") * MINUTES_PER_HOUR
 				+ ((zoneMinute != null) ? Integer.parseInt(zoneMinute) : 0);
 		if (minutes >= MINUTES_PER_DAY) {
-			throw new ImportRefusedException("offset must be a timedelta strictly between -timedelta(hours=24) and "
+			throw new YamlValueException("offset must be a timedelta strictly between -timedelta(hours=24) and "
 					+ "timedelta(hours=24), not " + timedelta("-".equals(sign) ? -minutes : minutes) + ".");
 		}
 		if (minutes == 0) {
