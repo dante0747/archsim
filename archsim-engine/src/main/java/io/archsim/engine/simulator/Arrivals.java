@@ -1,11 +1,15 @@
 package io.archsim.engine.simulator;
 
+import java.util.function.IntSupplier;
+
 import io.archsim.engine.components.client.TrafficSourceRuntime;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.numeric.FloorDivision;
 import io.archsim.engine.random.PythonRandom;
+import io.archsim.engine.random.ZipfSampler;
 import io.archsim.engine.runtime.Request;
+import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.model.document.ArrivalProcess;
 import io.archsim.model.document.ConstantPattern;
@@ -15,8 +19,9 @@ import io.archsim.model.document.Workload;
 /**
  * The workload's user requests, as a routine: open-loop arrivals at the offered rate
  * (Poisson arrivals thinned to the pattern's rate, or evenly spaced ones), each a read or
- * a write of a key, sent by a client group picked by its share. Every n-th request is
- * traced, so about 1,200 are, drawing no random number.
+ * a write of a key, sent by a client group picked by its share. A key is drawn from the
+ * workload's Zipf keyspace when a part uses keys, else every request has key 0. Every
+ * n-th request is traced, so about 1,200 are, drawing no random number.
  */
 final class Arrivals {
 
@@ -38,6 +43,8 @@ final class Arrivals {
 
 	private final Streams streams;
 
+	private final IntSupplier keys;
+
 	private final double peak;
 
 	private final double durationMs;
@@ -48,12 +55,19 @@ final class Arrivals {
 
 	private double next;
 
+	/**
+	 * The arrivals of a run.
+	 * @param context the run
+	 * @param workload its workload
+	 * @param clients the client groups that send the requests
+	 */
 	Arrivals(SimContext context, Workload workload, ClientPicker clients) {
 		this.simulation = context.simulation();
 		this.workload = workload;
 		this.timeline = context.timeline();
 		this.clients = clients;
 		this.streams = new Streams(context);
+		this.keys = keys(context, workload);
 		this.peak = workload.peakRate();
 		this.durationMs = workload.durationS() * MS_PER_SECOND;
 		this.traceEvery = Math.max(1, (long) FloorDivision.of(workload.expectedArrivals(), TRACE_TARGET));
@@ -80,6 +94,22 @@ final class Arrivals {
 			send();
 			sendNext(finish);
 		});
+	}
+
+	/**
+	 * The requests' keys: drawn from the workload's Zipf keyspace when a part uses keys,
+	 * else key 0 for every request.
+	 * @param context the run, its parts built
+	 * @param workload its workload
+	 * @return what draws each request's key
+	 */
+	private static IntSupplier keys(SimContext context, Workload workload) {
+		if (context.components().stream().noneMatch(RuntimeComponent::usesKeys)) {
+			return () -> 0;
+		}
+		ZipfSampler sampler = new ZipfSampler(workload.keyCount(), workload.keySkew());
+		PythonRandom stream = context.stream("keys");
+		return () -> sampler.sample(stream);
 	}
 
 	/**
@@ -125,8 +155,9 @@ final class Arrivals {
 		this.sent++;
 		RequestType operation = (this.streams.mix().nextDouble() < this.workload.readRatio()) ? RequestType.READ
 				: RequestType.WRITE;
+		int key = this.keys.getAsInt();
 		double now = this.simulation.now();
-		Request.Arrival arrival = new Request.Arrival(this.sent, operation, 0, now, this.timeline.inWindow(now));
+		Request.Arrival arrival = new Request.Arrival(this.sent, operation, key, now, this.timeline.inWindow(now));
 		Request request = (this.sent % this.traceEvery == 0) ? Request.withTrace(arrival)
 				: Request.withoutTrace(arrival);
 		TrafficSourceRuntime source = this.clients.next();

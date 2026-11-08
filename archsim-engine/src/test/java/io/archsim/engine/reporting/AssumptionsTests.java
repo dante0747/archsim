@@ -14,8 +14,8 @@ import io.archsim.model.component.Tier;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The note about experimental technologies, which no part the simulator runs so far has:
- * the Python engine's {@code _tier_notes}.
+ * The note about experimental technologies: the Python engine's {@code _tier_notes}, for
+ * the counts of parts the recorded runs ({@code SimulationCasesTests}) do not reach.
  */
 class AssumptionsTests {
 

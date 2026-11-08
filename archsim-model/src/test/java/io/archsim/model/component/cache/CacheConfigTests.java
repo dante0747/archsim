@@ -23,6 +23,43 @@ class CacheConfigTests {
 		assertThat(config("{}").heldKeys()).isEmpty();
 	}
 
+	@Test
+	void evictionInEffect_onAuto_isTheTechnologysLeastRecentlyUsed() {
+		assertThat(config("{\"technology\": \"memcached\"}").evictionInEffect()).isEqualTo(EvictionPolicy.ALLKEYS_LRU);
+	}
+
+	@Test
+	void evictionInEffect_setExplicitly_isTheSetting() {
+		assertThat(config("{\"evictionPolicy\": \"noeviction\"}").evictionInEffect())
+			.isEqualTo(EvictionPolicy.NOEVICTION);
+	}
+
+	@Test
+	void persistenceInEffect_onAutoForRedis_isNone() {
+		assertThat(config("{}").persistenceInEffect()).isEqualTo(Persistence.NONE);
+	}
+
+	@Test
+	void persistenceInEffect_onAutoForATechnologyWithoutADefault_isNone() {
+		assertThat(config("{\"technology\": \"cdn\"}").persistenceInEffect()).isEqualTo(Persistence.NONE);
+	}
+
+	@Test
+	void persistenceInEffect_setExplicitly_isTheSetting() {
+		assertThat(config("{\"technology\": \"varnish\", \"persistence\": \"rdb\"}").persistenceInEffect())
+			.isEqualTo(Persistence.RDB);
+	}
+
+	@Test
+	void keysExpire_withTheTtlModel_isTrue() {
+		assertThat(config("{\"hitModel\": \"ttl_keyspace\"}").keysExpire()).isTrue();
+	}
+
+	@Test
+	void keysExpire_withAFixedRatio_isFalse() {
+		assertThat(config("{}").keysExpire()).isFalse();
+	}
+
 	private static CacheConfig config(String json) {
 		return RecordCodec.read((ObjectNode) JSON.readTree(json), CacheConfig.class);
 	}

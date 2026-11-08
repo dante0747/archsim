@@ -1,10 +1,15 @@
 package io.archsim.engine.runtime;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.kernel.Resource;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Gauge;
+import io.archsim.engine.numeric.PythonRound;
 
 /**
  * The CPU of one instance of a part. Work runs on executors: {@code floor(cores)} of
@@ -22,6 +27,8 @@ public final class Cores {
 	 * cost an executor, and allowed between a speed and 1 for them to count as equal.
 	 */
 	private static final double ROUNDING_TOLERANCE = 1e-9;
+
+	private static final int UTILIZATION_DIGITS = 4;
 
 	private final Simulation simulation;
 
@@ -82,6 +89,29 @@ public final class Cores {
 	 */
 	public CpuMachine machine() {
 		return this.machine;
+	}
+
+	/**
+	 * The mean share of a part's executors busy inside the measurement window.
+	 * @param busy the part's busy executors, over all its instances
+	 * @param executors its executors, over all its instances
+	 * @return the share, rounded to 4 decimals; empty without executors
+	 */
+	public static Optional<Double> utilization(Gauge busy, double executors) {
+		return (executors > 0) ? Optional.of(PythonRound.round(busy.windowMean() / executors, UTILIZATION_DIGITS))
+				: Optional.empty();
+	}
+
+	/**
+	 * The CPU cores a part's busy executors kept busy in each bucket: the executors times
+	 * their speed (a fraction of a core below one vCPU).
+	 * @param busy the part's busy executors, over all its instances
+	 * @param speed an executor's speed, as {@link #speed()} gives it
+	 * @return the cores, one value per bucket of the whole timeline
+	 */
+	public static List<@Nullable Double> busyCores(Gauge busy, double speed) {
+		return RuntimeComponent
+			.series(Arrays.stream(busy.meanSeries()).map((executors) -> executors * speed).toArray());
 	}
 
 	/**

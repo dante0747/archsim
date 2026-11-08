@@ -6,8 +6,8 @@ import io.archsim.engine.report.FailureReason;
 import io.archsim.model.codec.JsonEnum;
 
 /**
- * How a request ended at a part: served, refused by a part, or given up on by a caller,
- * with where and why a failure started.
+ * How a request ended at a part: served, a cache's miss left to its caller, refused by a
+ * part, or given up on by a caller, with where and why a failure started.
  *
  * @param status how it ended
  * @param reason why it failed; {@code null} when it did not
@@ -18,6 +18,12 @@ public record Outcome(Status status, @Nullable FailureReason reason, @Nullable S
 
 	/** Served. */
 	public static final Outcome OK = new Outcome(Status.OK, null, null, null);
+
+	/**
+	 * A cache lookup that did not find the key and leaves fetching it to the caller
+	 * (cache-aside): served, as far as the cache goes.
+	 */
+	public static final Outcome MISS = new Outcome(Status.MISS, null, null, null);
 
 	/**
 	 * A request a part refused.
@@ -45,7 +51,15 @@ public record Outcome(Status status, @Nullable FailureReason reason, @Nullable S
 	 * @return {@code true} unless it failed
 	 */
 	public boolean ok() {
-		return this.status == Status.OK;
+		return this.status == Status.OK || this.status == Status.MISS;
+	}
+
+	/**
+	 * Whether a cache left fetching the data to its caller.
+	 * @return {@code true} for a cache-aside miss
+	 */
+	public boolean missed() {
+		return this.status == Status.MISS;
 	}
 
 	/**
@@ -64,6 +78,9 @@ public record Outcome(Status status, @Nullable FailureReason reason, @Nullable S
 
 		/** Served. */
 		OK("ok"),
+
+		/** Not found in a cache, which leaves fetching it to the caller. */
+		MISS("miss"),
 
 		/** Refused by a part. */
 		REJECTED("rejected"),

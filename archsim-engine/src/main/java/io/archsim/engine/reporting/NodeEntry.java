@@ -48,7 +48,7 @@ final class NodeEntry {
 		summary.set("meanHoldMs", Figures.rounded(this.metrics.hold().windowMean()));
 		summary.set("meanServiceMs", Figures.rounded(this.metrics.service().windowMean()));
 		Capacity.of(this.component).write(summary);
-		summary.putNull("hitRatio");
+		summary.set("hitRatio", HitRatio.of(this.metrics).map(HitRatio::summary).orElse(Figures.NODES.nullNode()));
 		ObjectNode counters = summary.putObject("counters");
 		this.metrics.counters()
 			.entrySet()

@@ -4,8 +4,8 @@ The Java simulator keeps the frozen engine's order of events and draws its rando
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
 patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
-services, and each component as later slices add them), with the frozen engine (0.16.0) and records each design,
-the scenario simulated and the report.
+services, load balancers, hosts, caches, and each component as later slices add them), with
+the frozen engine (0.16.0) and records each design, the scenario simulated and the report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
 
@@ -67,6 +67,10 @@ def balancer(node_id: str = "lb", **config: Any) -> Json:
     return {"id": node_id, "type": "load_balancer", "label": "Balancer", "config": config}
 
 
+def cache(node_id: str, label: str, **config: Any) -> Json:
+    return {"id": node_id, "type": "cache", "label": label, "config": config}
+
+
 def link(source: str, target: str, **config: Any) -> Json:
     return {
         "id": f"{source}-{target}",
@@ -76,6 +80,13 @@ def link(source: str, target: str, **config: Any) -> Json:
         "targetPort": "in",
         "config": {"latencyMs": {"kind": "constant", "value": 1}, **config},
     }
+
+
+def miss(source: str, target: str, **config: Any) -> Json:
+    """A cache's read-through link, from its miss port."""
+    edge = link(source, target, requestTypes=["read"], **config)
+    edge["sourcePort"] = "miss"
+    return edge
 
 
 def calibrated(doc: Json) -> Json:
@@ -500,6 +511,184 @@ CASES: dict[str, Json] = {
         ],
         [link("clients", "gw"), link("gw", "svc")],
         {"rps": 300, "arrivalProcess": "poisson"},
+    ),
+    "aReadThroughCacheWithAFixedHitRatio": design(
+        [
+            clients(timeoutMs=800),
+            service(
+                "svc", "Catalog", replicas=1, workersPerReplica=16, serviceTimeMs=lognormal(2, 6)
+            ),
+            cache(
+                "cache",
+                "Memcached",
+                technology="memcached",
+                hitRatio=0.7,
+                concurrency=4,
+                cpuCores=2,
+                siblingSpeed=0.7,
+                queueCapacity=3,
+                queueTimeoutMs=8,
+                serviceTimeMs=lognormal(1.5, 6),
+            ),
+            external("db", latencyMs=lognormal(20, 60), errorRate=0.05),
+        ],
+        [
+            link("clients", "svc"),
+            link("svc", "cache", continueOnFailure=True),
+            miss("cache", "db", maxAttempts=2, timeoutMs=100),
+        ],
+        {"rps": 400, "arrivalProcess": "poisson"},
+    ),
+    "aTtlCacheWithShardsEvictingKeys": design(
+        [
+            clients(timeoutMs=1000),
+            cache(
+                "cache",
+                "Redis",
+                technology="redis",
+                hitModel="ttl_keyspace",
+                ttlSeconds=2,
+                shards=3,
+                concurrency=4,
+                cpuCores=1,
+                memoryGib=0.01,
+                itemSizeKb=100,
+                serviceTimeMs=lognormal(0.5, 2),
+            ),
+            service(
+                "db", "Database", replicas=1, workersPerReplica=8, serviceTimeMs=lognormal(8, 20)
+            ),
+        ],
+        [link("clients", "cache"), miss("cache", "db")],
+        {"rps": 300, "arrivalProcess": "poisson", "keyCount": 2000, "keySkew": 0.9},
+    ),
+    "aFullCacheRefusingNewKeysWhileSnapshotting": design(
+        [
+            clients(timeoutMs=1000),
+            cache(
+                "cache",
+                "Redis",
+                technology="redis",
+                hitModel="ttl_keyspace",
+                ttlSeconds=3,
+                evictionPolicy="noeviction",
+                persistence="rdb",
+                snapshotIntervalS=1,
+                forkMsPerGib=10000,
+                memoryGib=0.01,
+                itemSizeKb=100,
+                serviceTimeMs=lognormal(0.3, 1),
+            ),
+            external("db", latencyMs=lognormal(10, 30)),
+        ],
+        [link("clients", "cache"), miss("cache", "db")],
+        {"rps": 200, "arrivalProcess": "poisson", "keyCount": 500, "keySkew": 0.6},
+    ),
+    "cacheAsideFromAService": design(
+        [
+            clients(timeoutMs=1000),
+            service(
+                "svc", "Products", replicas=2, workersPerReplica=8, serviceTimeMs=lognormal(3, 9)
+            ),
+            cache(
+                "local",
+                "Memcached",
+                technology="memcached",
+                hitModel="ttl_keyspace",
+                ttlSeconds=2,
+                evictionPolicy="noeviction",
+                memoryGib=0.005,
+                itemSizeKb=100,
+                concurrency=2,
+                queueCapacity=1,
+                serviceTimeMs=lognormal(0.8, 3),
+            ),
+            cache(
+                "redis",
+                "Valkey",
+                technology="valkey",
+                hitRatio=0.6,
+                shards=2,
+                persistence="rdb",
+                snapshotIntervalS=1,
+                memoryGib=1,
+                forkMsPerGib=50,
+                serviceTimeMs=lognormal(0.3, 1),
+            ),
+            cache(
+                "hot",
+                "Hot keys",
+                technology="generic",
+                hitRatio=1.0,
+                queueCapacity=0,
+                serviceTimeMs=lognormal(0.5, 2),
+            ),
+            service(
+                "db",
+                "Database",
+                replicas=1,
+                workersPerReplica=3,
+                queueCapacity=2,
+                serviceTimeMs=lognormal(12, 40),
+            ),
+        ],
+        [
+            link("clients", "svc"),
+            link("svc", "local", continueOnFailure=True),
+            link("svc", "redis"),
+            link("svc", "hot", requestTypes=["read"], continueOnFailure=True),
+            link("svc", "db", requestTypes=["read"], readsOnMiss=True, continueOnFailure=True),
+        ],
+        {"rps": 250, "arrivalProcess": "poisson", "keyCount": 1000},
+    ),
+    "readThroughCachesThatNeitherFillNorFork": design(
+        [
+            clients(timeoutMs=1000),
+            service("svc", "Pages", replicas=1, workersPerReplica=8, serviceTimeMs=lognormal(2, 6)),
+            cache(
+                "ttl",
+                "Redis",
+                hitModel="ttl_keyspace",
+                ttlSeconds=1,
+                persistence="rdb",
+                forkMsPerGib=0,
+                cpuCores=1,
+                serviceTimeMs={"kind": "constant", "value": 0},
+            ),
+            cache(
+                "edge",
+                "CDN",
+                technology="cdn",
+                hitRatio=0.9,
+                persistence="rdb",
+                populateOnMiss=False,
+            ),
+            external("api", latencyMs=lognormal(15, 45)),
+        ],
+        [
+            link("clients", "svc"),
+            link("svc", "ttl", requestTypes=["read"]),
+            link("svc", "edge"),
+            miss("ttl", "api"),
+            miss("edge", "api"),
+        ],
+        {"rps": 150, "arrivalProcess": "poisson", "keyCount": 300},
+    ),
+    "cacheAsideWithoutWritingBack": design(
+        [
+            clients(timeoutMs=1000),
+            service(
+                "svc", "Products", replicas=1, workersPerReplica=8, serviceTimeMs=lognormal(3, 9)
+            ),
+            cache("cache", "Redis", hitRatio=0.7, populateOnMiss=False),
+            external("db", latencyMs=lognormal(10, 30), errorRate=0.1),
+        ],
+        [
+            link("clients", "svc"),
+            link("svc", "cache"),
+            link("svc", "db", requestTypes=["read"], readsOnMiss=True),
+        ],
+        {"rps": 100, "arrivalProcess": "poisson"},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

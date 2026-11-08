@@ -60,6 +60,7 @@ final class NodeSeries {
 				Figures.series(this.metrics.residence().percentileSeries(Percentiles.MEDIAN), this.used));
 		series.set("latencyP95Ms",
 				Figures.series(this.metrics.residence().percentileSeries(Percentiles.P95), this.used));
+		HitRatio.of(this.metrics).ifPresent((lookups) -> series.set("hitRatio", lookups.series(this.used)));
 		return series;
 	}
 

@@ -103,7 +103,7 @@ public record CacheConfig(
 	public static final double KEY_MEMORY_SHARE = 0.8;
 
 	/** The KiB in a GiB, to count the items that fit in a shard's memory. */
-	static final int KIB_PER_GIB = 1024 * 1024;
+	public static final int KIB_PER_GIB = 1024 * 1024;
 
 	/** The default time of one command: 0.05 ms on average. */
 	static final Distribution DEFAULT_SERVICE_TIME = new Exponential(0.05);
@@ -135,11 +135,36 @@ public record CacheConfig(
 	}
 
 	/**
+	 * What the cache does when its memory is full, after the technology's default.
+	 * @return the policy in effect; evicting the least recently used key by default
+	 */
+	public EvictionPolicy evictionInEffect() {
+		return profile().choice("evictionPolicy", this.evictionPolicy, EvictionPolicy.AUTO, EvictionPolicy.ALLKEYS_LRU);
+	}
+
+	/**
+	 * Whether the cache snapshots its data to disk, after the technology's default.
+	 * @return the persistence in effect; none by default
+	 */
+	public Persistence persistenceInEffect() {
+		return profile().choice("persistence", this.persistence, Persistence.AUTO, Persistence.NONE);
+	}
+
+	/**
 	 * Whether a read can miss: keys expire, or the hit ratio is below 1.
 	 * @return {@code true} when some reads miss
 	 */
 	public boolean canMiss() {
-		return this.hitModel == HitModel.TTL_KEYSPACE || this.hitRatio < 1.0;
+		return keysExpire() || this.hitRatio < 1.0;
+	}
+
+	/**
+	 * Whether a read hits by its key, filled less than the TTL ago (the TTL keyspace
+	 * model), rather than with a fixed ratio.
+	 * @return {@code true} with the TTL model
+	 */
+	public boolean keysExpire() {
+		return this.hitModel == HitModel.TTL_KEYSPACE;
 	}
 
 	/**

@@ -9,7 +9,6 @@ import io.archsim.engine.kernel.Promise;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.report.FailureReason;
 import io.archsim.model.document.FaultKind;
-import io.archsim.model.document.RequestType;
 import io.archsim.model.text.PythonFormat;
 
 /**
@@ -67,30 +66,35 @@ public final class Calls {
 	 * @param done what to do with the last attempt's outcome
 	 */
 	public void call(EdgeRuntime edge, Request request, String callerId, Consumer<Outcome> done) {
-		Handler callee = this.context.component(edge.targetId())::handle;
-		attempt(new Call(edge, callee, edge.config().timeoutMs(), callerId, FailureReason.DEPENDENCY_TIMEOUT), request,
-				0, done);
+		call(Call.dependency(edge, this.context.component(edge.targetId())::handle, callerId), request, done);
+	}
+
+	/**
+	 * A call across a link, retrying a failure as often as the link allows, the backoff
+	 * doubling each time: to a handler of the part at its end other than its own, such as
+	 * a cache's write-back.
+	 * @param call the link, the callee's handler and the caller's timeout
+	 * @param request the request
+	 * @param done what to do with the last attempt's outcome
+	 */
+	public void call(Call call, Request request, Consumer<Outcome> done) {
+		attempt(call, request, 0, done);
 	}
 
 	/**
 	 * A service's calls for one request, one after another in the links' order: the first
-	 * failure fails the request, unless its link carries on after failures. Cache-aside
-	 * (a read sent on to the links set to read on a cache miss) comes with the cache's
-	 * slice of the port: until then the simulator refuses a cache, a design with such a
-	 * link and no cache is not valid, and a read that meets one is refused.
+	 * failure fails the request, unless its link carries on after failures. A read skips
+	 * the links set to read on a cache miss until a cache lookup misses or fails on a
+	 * link that carries on; then it reads them, and writes the value back to that cache
+	 * (see {@link Dependencies}).
 	 * @param dependencies the links the request takes, in order
 	 * @param request the request
 	 * @param callerId the calling part
 	 * @param done what to do with the outcome: the first failure that stopped the calls,
 	 * or success
-	 * @throws IllegalStateException for a read across a link set to read on a cache miss
 	 */
 	public void dependencies(List<EdgeRuntime> dependencies, Request request, String callerId, Consumer<Outcome> done) {
-		if (request.operation() == RequestType.READ
-				&& dependencies.stream().anyMatch((edge) -> edge.config().readsOnMiss())) {
-			throw new IllegalStateException("cache-aside reads come with the cache's slice of the port");
-		}
-		new InOrder(dependencies, request, callerId, done).from(0);
+		new Dependencies(this.context, dependencies, new Dependencies.Caller(request, callerId), done).from(0);
 	}
 
 	private void attempt(Call call, Request request, int made, Consumer<Outcome> done) {
@@ -144,6 +148,18 @@ public final class Calls {
 	 */
 	public record Call(EdgeRuntime edge, Handler handler, @Nullable Double timeoutMs, String callerId,
 			FailureReason timeoutReason) {
+
+		/**
+		 * A part's call to one of its dependencies, which it gives up on after the link's
+		 * timeout.
+		 * @param edge the link
+		 * @param handler the callee's handler
+		 * @param callerId the calling part
+		 * @return the call
+		 */
+		public static Call dependency(EdgeRuntime edge, Handler handler, String callerId) {
+			return new Call(edge, handler, edge.config().timeoutMs(), callerId, FailureReason.DEPENDENCY_TIMEOUT);
+		}
 
 	}
 
@@ -269,43 +285,6 @@ public final class Calls {
 			}
 			FailureReason reason = outcome.reason();
 			return (reason != null) ? reason.json() : outcome.status().json();
-		}
-
-	}
-
-	/**
-	 * A service's calls for one request, made one after another.
-	 */
-	private final class InOrder {
-
-		private final List<EdgeRuntime> links;
-
-		private final Request request;
-
-		private final String callerId;
-
-		private final Consumer<Outcome> done;
-
-		InOrder(List<EdgeRuntime> links, Request request, String callerId, Consumer<Outcome> done) {
-			this.links = links;
-			this.request = request;
-			this.callerId = callerId;
-			this.done = done;
-		}
-
-		void from(int index) {
-			if (index == this.links.size()) {
-				this.done.accept(Outcome.OK);
-				return;
-			}
-			EdgeRuntime edge = this.links.get(index);
-			call(edge, this.request, this.callerId, (outcome) -> {
-				if (!outcome.ok() && !edge.config().continueOnFailure()) {
-					this.done.accept(outcome);
-					return;
-				}
-				from(index + 1);
-			});
 		}
 
 	}

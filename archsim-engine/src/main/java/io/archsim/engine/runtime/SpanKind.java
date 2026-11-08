@@ -32,7 +32,19 @@ public enum SpanKind implements JsonEnum {
 	SERVICE("service"),
 
 	/** Stalled by a stop-the-world garbage collection. */
-	GC("gc");
+	GC("gc"),
+
+	/** Served from a cache. */
+	HIT("hit"),
+
+	/** Not found in a cache. */
+	MISS("miss"),
+
+	/** A cache's command stalled by a snapshot's fork. */
+	FORK("fork"),
+
+	/** A value written back to a cache after a miss. */
+	POPULATE("populate");
 
 	private final String json;
 

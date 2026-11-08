@@ -3,6 +3,7 @@ package io.archsim.engine.runtime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.SequencedMap;
@@ -108,6 +109,24 @@ public abstract class RuntimeComponent {
 	 */
 	public Gauge occupancy() {
 		return this.metrics.busy();
+	}
+
+	/**
+	 * Whether the part's behaviour depends on the requests' keys, so the run draws a key
+	 * for each request from the workload's keyspace.
+	 * @return {@code false} unless the part says so
+	 */
+	public boolean usesKeys() {
+		return false;
+	}
+
+	/**
+	 * What a cache-aside caller sends the part after it read the data a lookup here
+	 * missed: the value written back.
+	 * @return the write-back's handler; none unless the part takes one
+	 */
+	public Optional<Handler> writeBack() {
+		return Optional.empty();
 	}
 
 	/**

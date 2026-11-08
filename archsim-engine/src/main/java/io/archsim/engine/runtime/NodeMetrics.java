@@ -21,6 +21,12 @@ import io.archsim.engine.report.FailureReason;
  */
 public final class NodeMetrics {
 
+	/** The counter of a part's lookups that hit, which its hit ratio reads. */
+	public static final String HITS = "hits";
+
+	/** The counter of a part's lookups that missed, which its hit ratio reads. */
+	public static final String MISSES = "misses";
+
 	/** The counter of requests a part finished after their client gave up. */
 	private static final String WASTED = "wasted";
 

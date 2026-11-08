@@ -14,6 +14,7 @@ import io.archsim.engine.metrics.Counter;
 import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.numeric.PythonRound;
+import io.archsim.engine.runtime.Cores;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.model.catalog.TechnologyTrait;
@@ -29,8 +30,6 @@ final class ServiceReport {
 	private static final double MS_PER_SECOND = 1000.0;
 
 	private static final double MIB_PER_GIB = 1024.0;
-
-	private static final int UTILIZATION_DIGITS = 4;
 
 	private static final int MEMORY_DIGITS = 3;
 
@@ -51,8 +50,7 @@ final class ServiceReport {
 		Gauge busy = service.coreBusy();
 		if (busy != null) {
 			double executors = service.replicas().getFirst().cores().executors() * service.replicasMean();
-			figures.put("cpuCoreUtilization",
-					(executors > 0) ? PythonRound.round(busy.windowMean() / executors, UTILIZATION_DIGITS) : null);
+			figures.put("cpuCoreUtilization", Cores.utilization(busy, executors).orElse(null));
 		}
 		Double memoryGib = config.memoryGib();
 		if (service.memorySlots().isPresent() && memoryGib != null) {
@@ -81,9 +79,7 @@ final class ServiceReport {
 		series.put("inflightMean", RuntimeComponent.series(metrics.inflight().meanSeries()));
 		Gauge busy = service.coreBusy();
 		if (busy != null) {
-			double speed = service.replicas().getFirst().cores().speed();
-			series.put("cpuBusyCores",
-					RuntimeComponent.series(Arrays.stream(busy.meanSeries()).map((cores) -> cores * speed).toArray()));
+			series.put("cpuBusyCores", Cores.busyCores(busy, service.replicas().getFirst().cores().speed()));
 		}
 		double bucketS = metrics.timeline().bucketMs() / MS_PER_SECOND;
 		if (service.gc() != null) {
