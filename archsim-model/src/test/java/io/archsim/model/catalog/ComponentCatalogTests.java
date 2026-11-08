@@ -7,6 +7,8 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.codec.Default;
@@ -42,6 +44,16 @@ class ComponentCatalogTests {
 			String type = expected.path("type").asString();
 			return DynamicTest.dynamicTest(type,
 					() -> assertThat(JsonDiff.differences(expected, entryOf(type))).isEmpty());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> technologyTraits_eachStandardType_areThoseThePythonEngineLists() {
+		return GOLDEN.path("components").valueStream().map((expected) -> {
+			String type = expected.path("type").asString();
+			return DynamicTest.dynamicTest(type,
+					() -> assertThat(JsonDiff.differences(expected.path("technologyTraits"), traitsOf(type)))
+						.isEmpty());
 		});
 	}
 
@@ -91,6 +103,15 @@ class ComponentCatalogTests {
 
 		assertThatIllegalStateException().isThrownBy(() -> ComponentCatalog.of(registry))
 			.withMessageContaining("io/archsim/model/catalog/gadget.json");
+	}
+
+	private static ObjectNode traitsOf(String type) {
+		ObjectNode traits = JsonNodeFactory.instance.objectNode();
+		ComponentCatalog.technologyTraits(type).forEach((technology, brought) -> {
+			ArrayNode written = traits.putArray(technology);
+			brought.forEach((trait) -> written.add(RecordCodec.write(trait)));
+		});
+		return traits;
 	}
 
 	/**

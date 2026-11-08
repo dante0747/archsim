@@ -105,6 +105,21 @@ final class Figures {
 	}
 
 	/**
+	 * A series of figures, rounded and cut to the buckets the run reached.
+	 * @param values the figures, one per bucket; {@code null} where there is none
+	 * @param used how many buckets to keep
+	 * @return the series
+	 */
+	static ArrayNode roundedSeries(List<@Nullable Double> values, int used) {
+		ArrayNode series = NODES.arrayNode();
+		for (int bucket = 0; bucket < used; bucket++) {
+			Double value = values.get(bucket);
+			series.add((value != null) ? rounded(value) : NODES.nullNode());
+		}
+		return series;
+	}
+
+	/**
 	 * A series of counts, cut to the buckets the run reached.
 	 * @param values the counts, one per bucket
 	 * @param used how many buckets to keep

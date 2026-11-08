@@ -3,8 +3,8 @@
 The Java simulator keeps the frozen engine's order of events and draws its random numbers, so a
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
-patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API, and
-each component as later slices add them), with the frozen engine (0.16.0) and records each design,
+patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
+services, and each component as later slices add them), with the frozen engine (0.16.0) and records each design,
 the scenario simulated and the report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
@@ -57,6 +57,10 @@ def clients(node_id: str = "clients", **config: Any) -> Json:
 
 def external(node_id: str = "api", **config: Any) -> Json:
     return {"id": node_id, "type": "external_api", "label": "API", "config": config}
+
+
+def service(node_id: str, label: str, **config: Any) -> Json:
+    return {"id": node_id, "type": "service", "label": label, "config": config}
 
 
 def link(source: str, target: str, **config: Any) -> Json:
@@ -208,6 +212,124 @@ CASES: dict[str, Json] = {
         ],
         [link("clients", "api")],
         {"rps": 250, "arrivalProcess": "poisson"},
+    ),
+    "aBlockingServiceWithRetryingLinks": design(
+        [
+            clients(timeoutMs=400),
+            service(
+                "svc",
+                "Orders",
+                replicas=2,
+                workersPerReplica=3,
+                queueCapacity=10,
+                queueTimeoutMs=80,
+                serviceTimeMs=lognormal(8, 25),
+            ),
+            external(latencyMs=lognormal(15, 60), errorRate=0.05),
+        ],
+        [
+            link("clients", "svc"),
+            link("svc", "api", timeoutMs=60, maxAttempts=3, retryBackoffMs=5),
+        ],
+        {"rps": 250, "arrivalProcess": "poisson"},
+    ),
+    "anEventLoopServiceOnContendedCores": design(
+        [
+            clients(timeoutMs=800),
+            service(
+                "svc",
+                "Gateway",
+                technology="nodejs",
+                replicas=1,
+                processesPerReplica=2,
+                cpuCores=1,
+                cpuShare=0.7,
+                queueCapacity=100,
+                queueTimeoutMs=None,
+                gcEveryRequests=100,
+                serviceTimeMs=lognormal(3, 9),
+                serviceTimeByLoad=[{"rps": 50, "factor": 1}, {"rps": 400, "factor": 1.6}],
+            ),
+            external(latencyMs={"kind": "exponential", "mean": 12}),
+        ],
+        [link("clients", "svc"), link("svc", "api")],
+        {"rps": 200, "arrivalProcess": "poisson"},
+    ),
+    "aJavaServiceOutOfMemoryWithALoadCurve": design(
+        [
+            clients(timeoutMs=1500),
+            service(
+                "svc",
+                "Catalog",
+                technology="java",
+                replicas=2,
+                workersPerReplica=40,
+                memoryGib=0.26,
+                memoryPerRpsMb=0.5,
+                gcEveryRequests=200,
+                warmupFactor=3,
+                warmupS=30,
+                serviceTimeMs=lognormal(30, 90),
+                serviceTimeByLoad=[{"rps": 20, "factor": 1}, {"rps": 200, "factor": 2}],
+            ),
+        ],
+        [link("clients", "svc")],
+        {"rps": 300, "arrivalProcess": "poisson"},
+    ),
+    "aGatewayCallingInOrder": design(
+        [
+            clients(timeoutMs=600),
+            service(
+                "gw",
+                "Gateway",
+                blockingDownstream=False,
+                cpuCores=0.5,
+                serviceTimeMs={"kind": "constant", "value": 2},
+            ),
+            service("users", "Users", replicas=1, workersPerReplica=8),
+            external("orders", errorRate=0.2, latencyMs=lognormal(10, 40)),
+            service("audit", "Audit", replicas=1, serviceTimeMs={"kind": "constant", "value": 4}),
+        ],
+        [
+            link("clients", "gw"),
+            link("gw", "users", order=1, requestTypes=["read"]),
+            link("gw", "orders", order=2, continueOnFailure=True, timeoutMs=50),
+            link("gw", "audit", requestTypes=["write"]),
+        ],
+        {"rps": 120, "arrivalProcess": "poisson", "readRatio": 0.6},
+    ),
+    "aServiceNearItsCpuCeiling": design(
+        [
+            clients(timeoutMs=2000),
+            service(
+                "svc",
+                "Pricing",
+                replicas=1,
+                workersPerReplica=4,
+                queueCapacity=50,
+                cpuCores=2,
+                cpuShare=0.8,
+                serviceTimeMs=lognormal(10, 30),
+            ),
+        ],
+        [link("clients", "svc")],
+        {"rps": 250, "arrivalProcess": "poisson"},
+    ),
+    "aServiceWithCoresToSpare": design(
+        [
+            clients(),
+            service(
+                "svc",
+                "Search",
+                replicas=3,
+                workersPerReplica=4,
+                cpuCores=8,
+                cpuShare=0.5,
+                serviceTimeMs=lognormal(20, 50),
+            ),
+        ],
+        [link("clients", "svc")],
+        {"rps": 150, "arrivalProcess": "deterministic"},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

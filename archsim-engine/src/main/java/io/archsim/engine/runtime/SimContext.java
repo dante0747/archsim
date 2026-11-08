@@ -164,8 +164,17 @@ public final class SimContext {
 		return Collections.unmodifiableList(this.traces);
 	}
 
-	List<EdgeRuntime> outEdges(String nodeId) {
-		return this.outEdges.getOrDefault(nodeId, List.of());
+	/**
+	 * A part's links out of one of its ports.
+	 * @param nodeId the part
+	 * @param port the port, such as {@code out}
+	 * @return the links, in the design's order
+	 */
+	public List<EdgeRuntime> outEdges(String nodeId, String port) {
+		return this.outEdges.getOrDefault(nodeId, List.of())
+			.stream()
+			.filter((edge) -> edge.sourcePort().equals(port))
+			.toList();
 	}
 
 	void enterTransit() {

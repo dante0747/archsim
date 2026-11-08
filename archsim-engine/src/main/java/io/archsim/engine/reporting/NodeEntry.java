@@ -18,9 +18,12 @@ import io.archsim.engine.runtime.RuntimeComponent;
  */
 final class NodeEntry {
 
+	private final RuntimeComponent component;
+
 	private final NodeMetrics metrics;
 
 	NodeEntry(RuntimeComponent component) {
+		this.component = component;
 		this.metrics = component.metrics();
 	}
 
@@ -44,7 +47,7 @@ final class NodeEntry {
 		writeQueue(summary);
 		summary.set("meanHoldMs", Figures.rounded(this.metrics.hold().windowMean()));
 		summary.set("meanServiceMs", Figures.rounded(this.metrics.service().windowMean()));
-		Capacity.of(this.metrics).write(summary);
+		Capacity.of(this.component).write(summary);
 		summary.putNull("hitRatio");
 		ObjectNode counters = summary.putObject("counters");
 		this.metrics.counters()
@@ -82,7 +85,8 @@ final class NodeEntry {
 		OptionalDouble count = Capacity.slots(this.metrics);
 		summary.set("utilization", count.isPresent()
 				? Figures.rounded(this.metrics.busy().windowMean() / count.getAsDouble()) : Figures.NODES.nullNode());
-		summary.putNull("cpuUtilization");
+		summary.set("cpuUtilization", (count.isPresent() && this.component.splitsCpu())
+				? Figures.rounded(this.metrics.cpu().windowMean() / count.getAsDouble()) : Figures.NODES.nullNode());
 	}
 
 	private void writeQueue(ObjectNode summary) {

@@ -85,12 +85,7 @@ public final class ExternalApiRuntime extends RuntimeComponent {
 		this.active++;
 		metrics().busy().add(start, 1);
 		double took = sampleTime(this.latency, this.latencyStream);
-		if (took > 0) {
-			simulation().timeout(took).then(() -> answer(request, start, took, done));
-		}
-		else {
-			answer(request, start, took, done);
-		}
+		simulation().after(took, () -> answer(request, start, took, done));
 	}
 
 	private void answer(Request request, double start, double took, Consumer<Outcome> done) {

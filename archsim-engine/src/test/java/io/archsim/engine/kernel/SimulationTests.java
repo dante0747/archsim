@@ -36,6 +36,26 @@ class SimulationTests {
 	}
 
 	@Test
+	void after_noDelay_goesOnAtOnceWithoutAnEvent() {
+		List<Double> went = new ArrayList<>();
+
+		this.simulation.after(0.0, () -> went.add(this.simulation.now()));
+
+		assertThat(went).containsExactly(0.0);
+		assertThat(this.simulation.step()).isFalse();
+	}
+
+	@Test
+	void after_aDelay_goesOnWhenItsTimeoutHappens() {
+		List<Double> went = new ArrayList<>();
+		this.simulation.after(2.5, () -> went.add(this.simulation.now()));
+
+		this.simulation.step();
+
+		assertThat(went).containsExactly(2.5);
+	}
+
+	@Test
 	void succeed_signalTriggeredAlready_isRefused() {
 		Signal signal = this.simulation.event();
 		signal.succeed();

@@ -61,6 +61,22 @@ public final class Simulation {
 	}
 
 	/**
+	 * Goes on after a delay: at once for none, as the Python engine's
+	 * {@code if d > 0: yield env.timeout(d)} does, else when a timeout of the delay
+	 * happens.
+	 * @param delay milliseconds from now; zero or less for none
+	 * @param next what to do then
+	 */
+	public void after(double delay, Runnable next) {
+		if (delay > 0) {
+			timeout(delay).then(next);
+		}
+		else {
+			next.run();
+		}
+	}
+
+	/**
 	 * Starts a routine: its body runs when the routine starts, ahead of every normal
 	 * event due at the same time, and the routine happens when its body calls the finish
 	 * it is given.

@@ -23,7 +23,16 @@ public enum SpanKind implements JsonEnum {
 	BACKOFF("backoff"),
 
 	/** A call to a third-party API. */
-	EXTERNAL("external");
+	EXTERNAL("external"),
+
+	/** Waiting in a part's queue for a free worker. */
+	QUEUE("queue"),
+
+	/** A service's own work on a request. */
+	SERVICE("service"),
+
+	/** Stalled by a stop-the-world garbage collection. */
+	GC("gc");
 
 	private final String json;
 

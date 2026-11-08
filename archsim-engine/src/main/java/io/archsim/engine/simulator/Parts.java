@@ -3,10 +3,14 @@ package io.archsim.engine.simulator;
 import io.archsim.engine.components.client.ClientMetrics;
 import io.archsim.engine.components.client.TrafficSourceRuntime;
 import io.archsim.engine.components.external.ExternalApiRuntime;
+import io.archsim.engine.components.service.ServiceRuntime;
+import io.archsim.engine.host.HostSpeeds;
 import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.model.component.client.ClientConfig;
 import io.archsim.model.component.external.ExternalApiConfig;
+import io.archsim.model.component.service.Platform;
+import io.archsim.model.component.service.ServiceConfig;
 import io.archsim.model.document.NodeSpec;
 
 /**
@@ -31,9 +35,26 @@ final class Parts {
 		return switch (config) {
 			case ClientConfig client -> new TrafficSourceRuntime(context, node, client, clients);
 			case ExternalApiConfig api -> new ExternalApiRuntime(context, node, api);
+			case ServiceConfig service -> service(context, node, service);
 			default -> throw new UnsupportedOperationException(
 					"the Java simulator does not simulate a " + node.type() + " yet");
 		};
+	}
+
+	// a service with fixed replicas; the others and a replica's own hyperthreads come
+	// with their slices (a Kubernetes cluster's services are refused with the cluster)
+	private static RuntimeComponent service(SimContext context, NodeSpec node, ServiceConfig config) {
+		if (config.platform() == Platform.SERVERLESS) {
+			throw new UnsupportedOperationException("the Java simulator does not simulate a serverless service yet");
+		}
+		if (config.autoscaling()) {
+			throw new UnsupportedOperationException("the Java simulator does not simulate an autoscaling service yet");
+		}
+		Double cores = config.cpuCores();
+		if (cores != null && HostSpeeds.runsOnOwnHyperthreads(cores, config.siblingSpeed())) {
+			throw new UnsupportedOperationException("the Java simulator does not simulate hyperthreads yet");
+		}
+		return new ServiceRuntime(context, node, config);
 	}
 
 }

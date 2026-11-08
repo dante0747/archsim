@@ -54,6 +54,46 @@ class ServiceConfigTests {
 		assertThat(config("{\"blockingDownstream\": false}").holdsHandlerThroughCalls()).isFalse();
 	}
 
+	@Test
+	void gcPauses_aJavaService_areItsRuntimes() {
+		assertThat(config("{\"technology\": \"java\"}").gcPauses()).contains(new GcPauses(12.0, 2000));
+	}
+
+	@Test
+	void gcPauses_aJavaServiceWithoutPauses_haveNone() {
+		assertThat(config("{\"technology\": \"java\", \"gcPauseMs\": 0}").gcPauses()).isEmpty();
+	}
+
+	@Test
+	void gcPauses_aGenericServiceThatSetsThem_areItsOwn() {
+		assertThat(config("{\"gcPauseMs\": 5, \"gcEveryRequests\": 300}").gcPauses()).contains(new GcPauses(5.0, 300));
+	}
+
+	@Test
+	void warmup_aJavaService_isItsJits() {
+		assertThat(config("{\"technology\": \"java\"}").warmup()).contains(new Warmup(2.5, 45_000.0));
+	}
+
+	@Test
+	void warmup_aGoService_hasNone() {
+		assertThat(config("{\"technology\": \"go\"}").warmup()).isEmpty();
+	}
+
+	@Test
+	void warmup_aGenericServiceThatSetsIt_isItsOwnInMilliseconds() {
+		assertThat(config("{\"warmupFactor\": 2, \"warmupS\": 10}").warmup()).contains(new Warmup(2.0, 10_000.0));
+	}
+
+	@Test
+	void cpuFraction_aServiceWithACpuSize_isItsCpuShare() {
+		assertThat(config("{\"cpuCores\": 2, \"cpuShare\": 0.4}").cpuFraction()).isEqualTo(0.4);
+	}
+
+	@Test
+	void cpuFraction_aServiceWithoutACpuSize_isAllOfIt() {
+		assertThat(config("{\"cpuShare\": 0.4}").cpuFraction()).isEqualTo(1.0);
+	}
+
 	private static ServiceConfig config(String json) {
 		return RecordCodec.read((ObjectNode) JSON.readTree(json), ServiceConfig.class);
 	}

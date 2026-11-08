@@ -84,4 +84,48 @@ class LoadCurveTests {
 		assertThat(LoadCurve.FLAT.capacityRps(-3)).isZero();
 	}
 
+	@Test
+	void rateFilling_noPoints_isTheBudgetOverTheTimeARequestTakes() {
+		double rate = LoadCurve.FLAT.rateFilling(10.0, 1000.0, 5.0);
+
+		assertThat(rate).isEqualTo(1000.0 / 15.0);
+	}
+
+	@Test
+	void rateFilling_aRequestThatTakesNoTime_isInfinite() {
+		double rate = SLOWING.rateFilling(0.0, 1000.0, 0.0);
+
+		assertThat(rate).isInfinite();
+	}
+
+	@Test
+	void rateFilling_workThatFollowsTheCurveAndTimeThatDoesNot_isWherePythonFindsIt() {
+		LoadCurve doubling = LoadCurve
+			.ofJson(JSON.readTree("[{\"rps\": 20, \"factor\": 1}, {\"rps\": 200, \"factor\": 2}]"));
+
+		double rate = doubling.rateFilling(30.0, 20_000.0, 15.0);
+
+		assertThat(rate).isCloseTo(266.66666666666674, within(1e-9));
+	}
+
+	@Test
+	void describe_noPoints_saysSo() {
+		assertThat(LoadCurve.FLAT.describe()).isEqualTo("no load curve");
+	}
+
+	@Test
+	void describe_onePoint_isItsFactorAtEveryRate() {
+		LoadCurve flat = LoadCurve.ofJson(JSON.readTree("[{\"rps\": 50, \"factor\": 1.5}]"));
+
+		assertThat(flat.describe()).isEqualTo("×1.5 at every rate");
+	}
+
+	@Test
+	void describe_points_runsFromTheFirstToTheLast() {
+		LoadCurve curve = LoadCurve.ofJson(JSON.readTree("[{\"rps\": 50, \"factor\": 1.8}, "
+				+ "{\"rps\": 1674.4, \"factor\": 1.0}, {\"rps\": 300, \"factor\": 1.2}]"));
+
+		assertThat(curve.describe()).isEqualTo("×1.8 at 50 req/s to ×1 at 1,674 req/s (3 points)");
+	}
+
 }

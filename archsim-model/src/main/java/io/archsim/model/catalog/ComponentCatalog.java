@@ -1,9 +1,17 @@
 package io.archsim.model.catalog;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.document.EdgeConfig;
 import io.archsim.model.document.Workload;
@@ -37,6 +45,26 @@ public final class ComponentCatalog {
 		catalog.set("workloadFields", FieldDescriptors.of(Workload.class));
 		catalog.put("tierNote", TIER_NOTE);
 		return catalog;
+	}
+
+	/**
+	 * The behaviours each technology of a component type brings.
+	 * @param type the component type's name, such as {@code service}
+	 * @return the traits by technology, in the catalog's order; a technology that brings
+	 * none is left out
+	 * @throws IllegalStateException when the type has no presentation data on the
+	 * classpath
+	 */
+	public static Map<String, List<TechnologyTrait>> technologyTraits(String type) {
+		Map<String, List<TechnologyTrait>> traits = new LinkedHashMap<>();
+		Presentation.of(type).technologyTraits().properties().forEach((technology) -> {
+			List<TechnologyTrait> brought = new ArrayList<>();
+			for (JsonNode trait : technology.getValue()) {
+				brought.add(RecordCodec.read((ObjectNode) trait, TechnologyTrait.class));
+			}
+			traits.put(technology.getKey(), List.copyOf(brought));
+		});
+		return Collections.unmodifiableMap(traits);
 	}
 
 }

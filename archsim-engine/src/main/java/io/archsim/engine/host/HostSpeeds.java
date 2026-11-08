@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.engine.load.LoadEstimate;
 import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.numeric.FloatSum;
@@ -67,6 +69,17 @@ public final class HostSpeeds {
 	}
 
 	/**
+	 * Whether a part's vCPUs are hyperthreads, two per physical core, whose sibling slows
+	 * them when busy too.
+	 * @param cores the part's vCPU
+	 * @param siblingSpeed the speed of a vCPU whose sibling is busy too, if set
+	 * @return {@code true} for 2 vCPU or more with a sibling speed below 1
+	 */
+	public static boolean runsOnOwnHyperthreads(double cores, @Nullable Double siblingSpeed) {
+		return siblingSpeed != null && cores >= 2 && siblingSpeed < 1.0;
+	}
+
+	/**
 	 * The speed of each part on its own hyperthreads, when the design has no host: a part
 	 * with a sibling speed set and at least 2 vCPU runs on {@code vCPU / 2} cores of two
 	 * threads each, at their speed for its busiest instance. Parts at full speed are left
@@ -80,7 +93,7 @@ public final class HostSpeeds {
 		Map<String, Double> speeds = new LinkedHashMap<>();
 		parts.forEach((id, work) -> {
 			Double sibling = siblingSpeeds.get(id);
-			if (sibling != null && work.cores() >= 2 && sibling < 1.0) {
+			if (sibling != null && runsOnOwnHyperthreads(work.cores(), sibling)) {
 				HostMachine own = new HostMachine(work.cores() / 2.0, 2, sibling, 1.0, 0.0, 0.0);
 				double speed = own.solve(work.busiest(), 0.0).speed();
 				if (speed < 1.0) {

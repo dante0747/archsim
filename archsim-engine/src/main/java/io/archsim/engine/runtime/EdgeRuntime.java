@@ -4,7 +4,9 @@ import io.archsim.engine.metrics.Counter;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.random.PythonRandom;
 import io.archsim.engine.random.Sampler;
+import io.archsim.model.document.EdgeConfig;
 import io.archsim.model.document.EdgeSpec;
+import io.archsim.model.document.RequestType;
 
 /**
  * A link during a run: its settings, its latency stream and what it counts (attempts,
@@ -64,6 +66,23 @@ public final class EdgeRuntime {
 
 	public String targetId() {
 		return this.spec.target();
+	}
+
+	/**
+	 * The link's settings.
+	 * @return its config
+	 */
+	public EdgeConfig config() {
+		return this.spec.config();
+	}
+
+	/**
+	 * Whether the link carries an operation.
+	 * @param operation a read or a write
+	 * @return {@code true} when the link's request types include it
+	 */
+	public boolean carries(RequestType operation) {
+		return this.spec.config().requestTypes().contains(operation);
 	}
 
 	public Counter attempts() {

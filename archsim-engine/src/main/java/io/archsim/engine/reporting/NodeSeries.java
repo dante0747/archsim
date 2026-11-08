@@ -1,7 +1,10 @@
 package io.archsim.engine.reporting;
 
+import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -16,6 +19,8 @@ import io.archsim.engine.runtime.RuntimeComponent;
  */
 final class NodeSeries {
 
+	private final RuntimeComponent component;
+
 	private final NodeMetrics metrics;
 
 	private final Timeline timeline;
@@ -23,6 +28,7 @@ final class NodeSeries {
 	private final int used;
 
 	NodeSeries(RuntimeComponent component, int used) {
+		this.component = component;
 		this.metrics = component.metrics();
 		this.timeline = this.metrics.timeline();
 		this.used = used;
@@ -39,7 +45,15 @@ final class NodeSeries {
 		series.set("queueWaitMs", Figures.series(this.metrics.queueWait().series(), this.used));
 		OptionalDouble slots = Capacity.slots(this.metrics);
 		if (slots.isPresent()) {
-			series.set("utilization", utilization(slots.getAsDouble() * this.timeline.bucketMs()));
+			double slotTime = slots.getAsDouble() * this.timeline.bucketMs();
+			series.set("utilization", shares(this.metrics.busy().area(), slotTime));
+			if (this.component.splitsCpu()) {
+				series.set("cpuUtilization", shares(this.metrics.cpu().area(), slotTime));
+			}
+		}
+		// the part's own series; a series it shares with every part keeps its place
+		for (Map.Entry<String, List<@Nullable Double>> extra : this.component.extraTimeseries().entrySet()) {
+			series.set(extra.getKey(), Figures.roundedSeries(extra.getValue(), this.used));
 		}
 		series.set("inflightMean", Figures.roundedSeries(this.metrics.inflight().meanSeries(), this.used));
 		series.set("latencyP50Ms",
@@ -79,8 +93,7 @@ final class NodeSeries {
 		return sum;
 	}
 
-	private ArrayNode utilization(double slotTime) {
-		double[] areas = this.metrics.busy().area();
+	private ArrayNode shares(double[] areas, double slotTime) {
 		double[] ratios = new double[areas.length];
 		for (int bucket = 0; bucket < ratios.length; bucket++) {
 			ratios[bucket] = areas[bucket] / slotTime;

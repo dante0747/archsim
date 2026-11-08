@@ -45,6 +45,25 @@ class TechnologyProfilesTests {
 	}
 
 	@Test
+	void wholeNumber_set_isTheSetting() {
+		TechnologyProfile profile = TechnologyProfile.core().with("gcEveryRequests", 2000);
+
+		assertThat(profile.wholeNumber("gcEveryRequests", 300)).hasValue(300);
+	}
+
+	@Test
+	void wholeNumber_notSet_isTheTechnologysDefault() {
+		TechnologyProfile profile = TechnologyProfile.core().with("gcEveryRequests", 2000);
+
+		assertThat(profile.wholeNumber("gcEveryRequests", null)).hasValue(2000);
+	}
+
+	@Test
+	void wholeNumber_noDefault_isEmpty() {
+		assertThat(TechnologyProfile.core().wholeNumber("gcEveryRequests", null)).isEmpty();
+	}
+
+	@Test
 	void number_fieldWithoutDefault_isEmpty() {
 		TechnologyProfile profile = TechnologyProfile.core().withoutDefault("upstreamTimeoutMs");
 

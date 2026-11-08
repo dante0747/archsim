@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -51,6 +52,7 @@ final class PartsWriter {
 			ObjectNode summary = entry.summary();
 			ObjectNode timeseries = series.write();
 			summary.set("latencyMs", Figures.latency(component.metrics().residence().window().summary()));
+			component.extraSummary().forEach((name, value) -> summary.set(name, number(value)));
 			summary.set("peakUtilization", series.peakUtilization(timeseries));
 			ObjectNode written = nodes.addObject();
 			written.put("id", node.id());
@@ -61,8 +63,10 @@ final class PartsWriter {
 			written.set("accounting", entry.accounting());
 			written.set("timeseries", timeseries);
 			written.set("config", RecordCodec.write(Objects.requireNonNull(configs.get(node.id()))));
-			written.putArray("behaviour");
-			written.set("explain", spec.isTrafficSource() ? Figures.NODES.arrayNode() : formulas(written, run));
+			ArrayNode behaviour = written.putArray("behaviour");
+			component.behaviour().forEach((trait) -> behaviour.add(RecordCodec.write(trait)));
+			written.set("explain",
+					spec.isTrafficSource() ? Figures.NODES.arrayNode() : formulas(written, component, run));
 		}
 		return nodes;
 	}
@@ -125,15 +129,29 @@ final class PartsWriter {
 		return edges;
 	}
 
-	// the queueing formulas of a part that serves requests: every part ported so far
-	// measures its utilization by its busy slots (the Python engine's pool-based
-	// parts); the load balancer, measured by the requests in flight, comes with its
-	// slice
-	private static ArrayNode formulas(ObjectNode node, SimulatedRun run) {
+	// the queueing formulas of a part that serves requests, then its own: every part
+	// ported so far measures its utilization by its busy slots (the Python engine's
+	// pool-based parts); the load balancer, measured by the requests in flight, comes
+	// with its slice
+	private static ArrayNode formulas(ObjectNode node, RuntimeComponent component, SimulatedRun run) {
+		ReportNode written = ReportNode.read(node);
 		ArrayNode formulas = Figures.NODES.arrayNode();
-		QueueingFormulas.ofSlots(ReportNode.read(node), run.windowSeconds())
+		QueueingFormulas.ofSlots(written, run.windowSeconds())
 			.forEach((formula) -> formulas.add(RecordCodec.write(formula)));
+		component.explain(written.summary()).forEach((formula) -> formulas.add(RecordCodec.write(formula)));
 		return formulas;
+	}
+
+	// a count as an integer, any other figure as a float, as the digests hash them
+	private static JsonNode number(@Nullable Number value) {
+		return switch (value) {
+			case null -> Figures.NODES.nullNode();
+			case Double figure -> Figures.NODES.numberNode(figure);
+			case Long count -> Figures.NODES.numberNode(count);
+			case Integer count -> Figures.NODES.numberNode(count);
+			default -> throw new IllegalArgumentException(
+					"a part's own figure is a Long, an Integer or a Double; got a " + value.getClass().getSimpleName());
+		};
 	}
 
 }

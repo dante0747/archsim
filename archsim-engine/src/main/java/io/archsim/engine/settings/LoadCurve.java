@@ -9,6 +9,7 @@ import java.util.TreeMap;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.model.component.service.LoadPoint;
+import io.archsim.model.text.PythonFormat;
 
 /**
  * A service's time per request as its load changes ({@code serviceTimeByLoad}): at each
@@ -22,6 +23,12 @@ public final class LoadCurve {
 	public static final LoadCurve FLAT = new LoadCurve(new TreeMap<>());
 
 	private static final double MILLIS_PER_SECOND = 1000;
+
+	/** How the words write a factor. */
+	private static final String FACTOR = ".3g";
+
+	/** How the words write a rate. */
+	private static final String RATE = ",.0f";
 
 	/** How many times the search for a capacity halves its range. */
 	private static final int HALVINGS = 60;
@@ -104,12 +111,32 @@ public final class LoadCurve {
 		if (this.points.isEmpty() || baseRps <= 0) {
 			return (baseRps > 0) ? baseRps : 0.0;
 		}
-		double workMs = MILLIS_PER_SECOND / baseRps;
-		double low = MILLIS_PER_SECOND / (workMs * Collections.max(this.points.values()));
-		double high = MILLIS_PER_SECOND / (workMs * Collections.min(this.points.values()));
+		return rateFilling(MILLIS_PER_SECOND / baseRps, MILLIS_PER_SECOND, 0.0);
+	}
+
+	/**
+	 * The rate at which {@code rate × (workMs × factorAt(rate) + fixedMs)} reaches a
+	 * budget: where a replica's cores (a thousand milliseconds a second each) or its
+	 * slots fill, when each request needs work that follows the curve and time that does
+	 * not. The busy time grows with the rate, so halving the range in log(rate) 60 times
+	 * finds the one crossing.
+	 * @param workMs the work per request at factor 1
+	 * @param budgetMs the busy time there is per second
+	 * @param fixedMs the time per request that does not follow the curve
+	 * @return requests per second; infinite when a request takes no time
+	 */
+	public double rateFilling(double workMs, double budgetMs, double fixedMs) {
+		if (workMs <= 0 && fixedMs <= 0) {
+			return Double.POSITIVE_INFINITY;
+		}
+		if (this.points.isEmpty()) {
+			return budgetMs / (workMs + fixedMs);
+		}
+		double low = budgetMs / (workMs * Collections.max(this.points.values()) + fixedMs);
+		double high = budgetMs / (workMs * Collections.min(this.points.values()) + fixedMs);
 		for (int i = 0; i < HALVINGS; i++) {
 			double middle = Math.sqrt(low * high);
-			if (middle * (workMs * factorAt(middle)) < MILLIS_PER_SECOND) {
+			if (middle * (workMs * factorAt(middle) + fixedMs) < budgetMs) {
 				low = middle;
 			}
 			else {
@@ -117,6 +144,25 @@ public final class LoadCurve {
 			}
 		}
 		return high;
+	}
+
+	/**
+	 * The curve in words, such as
+	 * {@code ×1.8 at 50 req/s to ×1 at 1,674 req/s (3 points)}.
+	 * @return the words; {@code no load curve} without points
+	 */
+	public String describe() {
+		if (this.points.isEmpty()) {
+			return "no load curve";
+		}
+		Map.Entry<Double, Double> first = this.points.firstEntry();
+		if (this.points.size() == 1) {
+			return "×" + PythonFormat.format(first.getValue(), FACTOR) + " at every rate";
+		}
+		Map.Entry<Double, Double> last = this.points.lastEntry();
+		return "×" + PythonFormat.format(first.getValue(), FACTOR) + " at " + PythonFormat.format(first.getKey(), RATE)
+				+ " req/s to ×" + PythonFormat.format(last.getValue(), FACTOR) + " at "
+				+ PythonFormat.format(last.getKey(), RATE) + " req/s (" + this.points.size() + " points)";
 	}
 
 	private static void add(NavigableMap<Double, Double> sorted, double rps, double factor) {

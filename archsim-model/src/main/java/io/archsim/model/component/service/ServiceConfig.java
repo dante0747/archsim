@@ -1,6 +1,7 @@
 package io.archsim.model.component.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 import org.jspecify.annotations.Nullable;
@@ -158,33 +159,39 @@ public record ServiceConfig(
 	/** What each runtime does by default (technology.py's {@code SERVICE_PROFILES}). */
 	static final TechnologyProfiles<ServiceTechnology> PROFILES = TechnologyProfiles.builder(ServiceTechnology.class)
 		.with(ServiceTechnology.NODEJS,
-				runtime(TechnologyProfile.core(), "event_loop", new Gc(2.0, 1500), new Startup(1.0, 0.0, 250, 700)))
+				runtime(TechnologyProfile.core(), "event_loop", new GcDefaults(2.0, 1500),
+						new Startup(1.0, 0.0, 250, 700)))
 		.with(ServiceTechnology.JAVA,
-				runtime(TechnologyProfile.core(), "thread_pool", new Gc(12.0, 2000),
+				runtime(TechnologyProfile.core(), "thread_pool", new GcDefaults(12.0, 2000),
 						new Startup(2.5, 45.0, 1200, 3500)))
 		.with(ServiceTechnology.DOTNET,
-				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(6.0, 2000),
+				runtime(TechnologyProfile.experimental(), "thread_pool", new GcDefaults(6.0, 2000),
 						new Startup(1.5, 20.0, 600, 1500)))
 		.with(ServiceTechnology.GO,
-				runtime(TechnologyProfile.core(), "thread_pool", new Gc(0.1, 1000), new Startup(1.0, 0.0, 100, 300)))
+				runtime(TechnologyProfile.core(), "thread_pool", new GcDefaults(0.1, 1000),
+						new Startup(1.0, 0.0, 100, 300)))
 		.with(ServiceTechnology.RUST,
-				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(0.0, null),
+				runtime(TechnologyProfile.experimental(), "thread_pool", new GcDefaults(0.0, null),
 						new Startup(1.0, 0.0, 60, 200)))
 		.with(ServiceTechnology.PYTHON,
-				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(1.0, 2000),
+				runtime(TechnologyProfile.experimental(), "thread_pool", new GcDefaults(1.0, 2000),
 						new Startup(1.0, 0.0, 250, 700)))
 		.with(ServiceTechnology.PHP,
-				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(0.0, null),
+				runtime(TechnologyProfile.experimental(), "thread_pool", new GcDefaults(0.0, null),
 						new Startup(1.0, 0.0, 300, 900)))
 		.with(ServiceTechnology.RUBY,
-				runtime(TechnologyProfile.experimental(), "thread_pool", new Gc(3.0, 1500),
+				runtime(TechnologyProfile.experimental(), "thread_pool", new GcDefaults(3.0, 1500),
 						new Startup(1.0, 0.0, 300, 900)))
 		.with(ServiceTechnology.GENERIC,
-				runtime(TechnologyProfile.core(), "thread_pool", new Gc(0.0, null), new Startup(1.0, 0.0, 300, 900)))
+				runtime(TechnologyProfile.core(), "thread_pool", new GcDefaults(0.0, null),
+						new Startup(1.0, 0.0, 300, 900)))
 		.build();
 
 	/** The MiB in a GiB. */
 	private static final double MIB_PER_GIB = 1024.0;
+
+	/** The milliseconds in a second. */
+	private static final double MS_PER_SECOND = 1000.0;
 
 	/**
 	 * Added before rounding down, so floating-point error does not cost a request slot.
@@ -206,7 +213,7 @@ public record ServiceConfig(
 	 * @param startup how the runtime starts and warms up
 	 * @return the filled-in profile
 	 */
-	private static TechnologyProfile runtime(TechnologyProfile tier, String model, Gc gc, Startup startup) {
+	private static TechnologyProfile runtime(TechnologyProfile tier, String model, GcDefaults gc, Startup startup) {
 		TechnologyProfile profile = tier.with("runtimeModel", model).with("gcPauseMs", gc.pauseMs());
 		Integer everyRequests = gc.everyRequests();
 		if (everyRequests != null) {
@@ -294,12 +301,48 @@ public record ServiceConfig(
 	}
 
 	/**
-	 * A runtime's garbage collection.
+	 * The stop-the-world garbage collections in effect: the service's own settings, else
+	 * its technology's.
+	 * @return the median pause and the requests between collections; empty when either is
+	 * zero or not set
+	 */
+	public Optional<GcPauses> gcPauses() {
+		TechnologyProfile profile = profile();
+		double pause = profile.number("gcPauseMs", this.gcPauseMs).orElse(0.0);
+		int every = profile.wholeNumber("gcEveryRequests", this.gcEveryRequests).orElse(0);
+		return (pause > 0 && every > 0) ? Optional.of(new GcPauses(pause, every)) : Optional.empty();
+	}
+
+	/**
+	 * The JIT warm-up in effect: the service's own settings, else its technology's.
+	 * @return the slowdown and its duration; empty when the slowdown is not above 1 or
+	 * takes no time
+	 */
+	public Optional<Warmup> warmup() {
+		TechnologyProfile profile = profile();
+		double factor = profile.number("warmupFactor", this.warmupFactor).orElse(1.0);
+		double seconds = profile.number("warmupS", this.warmupS).orElse(0.0);
+		return (factor > 1.0 && seconds > 0) ? Optional.of(new Warmup(factor, seconds * MS_PER_SECOND))
+				: Optional.empty();
+	}
+
+	/**
+	 * The share of the service time that needs a core: the CPU share when the CPU is set,
+	 * else all of it (without a CPU size nothing waits for a core).
+	 * @return a share between 0 and 1
+	 */
+	public double cpuFraction() {
+		return (this.cpuCores != null) ? this.cpuShare : 1.0;
+	}
+
+	/**
+	 * A runtime's default garbage collection, as its profile records it: a pause of zero,
+	 * or no count, where it pauses for none ({@link GcPauses} is what is in effect).
 	 *
 	 * @param pauseMs the median stop-the-world pause
 	 * @param everyRequests requests between collections; {@code null}: not modelled
 	 */
-	private record Gc(double pauseMs, @Nullable Integer everyRequests) {
+	private record GcDefaults(double pauseMs, @Nullable Integer everyRequests) {
 	}
 
 	/**
