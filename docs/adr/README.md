@@ -88,3 +88,4 @@ what the repository shows.
 | [0044](0044-read-terraform-json-with-jackson-as-python-json-reads-it.md) | Read Terraform JSON with Jackson, as Python's json reads it | Accepted | 2026-11-06 |
 | [0045](0045-replay-calibrations-through-an-interim-simulate.md) | Replay calibrations through an interim `/simulate` on the engine service | Accepted | 2026-11-07 |
 | [0046](0046-call-prometheus-with-apache-httpclient-5.md) | Call Prometheus with Apache HttpClient 5, pinned to the address it checks | Accepted | 2026-11-07 |
+| [0047](0047-draw-python-random-streams-in-java.md) | Draw the Python engine's random streams in Java | Proposed | 2026-11-08 |

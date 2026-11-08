@@ -14,6 +14,7 @@ import io.archsim.engine.numeric.FloatSum;
 import io.archsim.model.codec.BindingException;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.ComponentSpec;
+import io.archsim.model.distribution.LogNormal;
 import io.archsim.model.text.PythonText;
 
 /**
@@ -24,9 +25,6 @@ import io.archsim.model.text.PythonText;
  * a part's config as its type's record.
  */
 public final class LenientSettings {
-
-	/** The 95th percentile of the standard normal distribution. */
-	private static final double Z95 = 1.6448536269514722;
 
 	private final JsonNode config;
 
@@ -203,7 +201,7 @@ public final class LenientSettings {
 	}
 
 	private static double logNormalMean(double median, double p95) {
-		double sigma = Math.log(p95 / median) / Z95;
+		double sigma = Math.log(p95 / median) / LogNormal.Z95;
 		return Math.exp(Math.log(median) + sigma * sigma / 2);
 	}
 

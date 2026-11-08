@@ -23,8 +23,10 @@ public record LogNormal(@Description("Median (p50) in ms") @Gt(0) @Le(MAX_SAMPLE
 
 		@Description("95th percentile in ms") @Gt(0) @Le(MAX_SAMPLE_MS) double p95) implements Distribution {
 
-	/** The standard normal quantile of 0.95. */
-	private static final double Z95 = 1.6448536269514722;
+	/**
+	 * The standard normal quantile of 0.95, which ties a lognormal's p95 to its median.
+	 */
+	public static final double Z95 = 1.6448536269514722;
 
 	public LogNormal {
 		if (p95 < median) {
@@ -32,16 +34,20 @@ public record LogNormal(@Description("Median (p50) in ms") @Gt(0) @Le(MAX_SAMPLE
 		}
 	}
 
-	/** The mean of the underlying normal distribution: {@code ln(median)}. */
+	/**
+	 * The mean of the underlying normal distribution: {@code ln(median)}, with
+	 * {@link StrictMath}'s logarithm, so a simulation samples alike on every platform.
+	 */
 	public double mu() {
-		return Math.log(this.median);
+		return StrictMath.log(this.median);
 	}
 
 	/**
-	 * The standard deviation of the underlying normal: {@code ln(p95 / median) / 1.645}.
+	 * The standard deviation of the underlying normal: {@code ln(p95 / median) / 1.645},
+	 * with {@link StrictMath}'s logarithm.
 	 */
 	public double sigma() {
-		return Math.log(this.p95 / this.median) / Z95;
+		return StrictMath.log(this.p95 / this.median) / Z95;
 	}
 
 	@Override
