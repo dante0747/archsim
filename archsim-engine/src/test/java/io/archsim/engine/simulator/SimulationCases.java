@@ -15,8 +15,8 @@ import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.pricing.PriceSnapshots;
 
 /**
- * The designs the frozen engine simulated, each with the scenario it simulated and its
- * report: {@code simulator/cases.json.gz}, from
+ * The designs the frozen engine simulated, each with the scenario, seed and mode it
+ * simulated and its report: {@code simulator/cases.json.gz}, from
  * {@code scripts/export_simulation_cases.py}; and the Java simulator that replays them
  * and the golden files' runs.
  */
@@ -29,8 +29,9 @@ public final class SimulationCases {
 
 	/**
 	 * Each recorded case.
-	 * @return each case's {@code name}, {@code design}, {@code scenarioId} and
-	 * {@code report}, in the file's order
+	 * @return each case's {@code name}, {@code design}, {@code scenarioId}, {@code seed}
+	 * ({@code null} for the workload's own), {@code mode} ({@code full} or
+	 * {@code sampled}) and {@code report}, in the file's order
 	 */
 	public static List<JsonNode> recorded() {
 		try (InputStream compressed = Objects.requireNonNull(SimulationCases.class.getResourceAsStream("cases.json.gz"),
@@ -47,11 +48,20 @@ public final class SimulationCases {
 	/**
 	 * A recorded case simulated in Java.
 	 * @param recorded the case
-	 * @return the Java simulator's report of its design, with the scenario Python
-	 * simulated
+	 * @return the Java simulator's report of its design, with the scenario, the seed and
+	 * the mode Python simulated
 	 */
 	public static ObjectNode simulate(JsonNode recorded) {
-		return simulate(recorded.get("design"), recorded.get("scenarioId"));
+		JsonNode scenario = recorded.get("scenarioId");
+		RunRequest request = RunRequest.of(scenario.isNull() ? null : scenario.stringValue());
+		JsonNode seed = recorded.path("seed");
+		if (seed.isIntegralNumber()) {
+			request = request.withSeed(seed.longValue());
+		}
+		if ("sampled".equals(recorded.path("mode").asString())) {
+			request = request.withMode(SimulationMode.SAMPLED);
+		}
+		return SIMULATOR.run(recorded.get("design"), request);
 	}
 
 	/**
@@ -62,7 +72,7 @@ public final class SimulationCases {
 	 * @return the Java simulator's report
 	 */
 	static ObjectNode simulate(JsonNode design, JsonNode scenarioId) {
-		return SIMULATOR.run(design, scenarioId.isNull() ? null : scenarioId.stringValue());
+		return SIMULATOR.run(design, RunRequest.of(scenarioId.isNull() ? null : scenarioId.stringValue()));
 	}
 
 }

@@ -1,24 +1,26 @@
 package io.archsim.engine.simulator;
 
-import org.jspecify.annotations.Nullable;
+import java.util.function.LongSupplier;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.report.RunReport;
 import io.archsim.engine.reporting.ReportWriter;
 import io.archsim.engine.reporting.SimulatedRun;
 import io.archsim.engine.run.PreparedRun;
 import io.archsim.engine.run.RunPreparer;
-import io.archsim.engine.simulation.SimulationLimits;
+import io.archsim.engine.simulation.Stationarity;
+import io.archsim.engine.simulation.SteadyState;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.pricing.PriceSnapshots;
 
 /**
  * Simulates a design and writes its report, as the Python engine's {@code run_simulation}
- * did: the run prepared (resolved, sized, validated), simulated, and its report written.
+ * did: the run prepared (resolved, sized, validated), simulated, and its report written;
+ * or, for a quick check, answered from a steady sample when it can be.
  */
 public final class Simulator {
-
-	private static final double NANOS_PER_SECOND = 1e9;
 
 	private final ComponentRegistry registry;
 
@@ -26,30 +28,74 @@ public final class Simulator {
 
 	private final ReportWriter writer;
 
+	private final LongSupplier clock;
+
 	/**
 	 * A simulator.
 	 * @param registry the component types
 	 * @param prices the price snapshots a design's prices are pinned to
 	 */
 	public Simulator(ComponentRegistry registry, PriceSnapshots prices) {
-		this.registry = registry;
-		this.preparer = new RunPreparer(registry, prices);
-		this.writer = new ReportWriter(registry, prices);
+		this(registry, prices, System::nanoTime);
 	}
 
 	/**
-	 * Simulates a design, or one of its scenarios, with its own seed, refused above the
-	 * default limit of requests. The run has no wall-clock bound yet: the port adds it
-	 * with the workers.
-	 * @param document the design
-	 * @param scenarioId the scenario to simulate; {@code null} for the design as drawn
-	 * @return the run's report ({@link ReportWriter})
+	 * A simulator that reads the wall clock from {@code clock}.
+	 * @param registry the component types
+	 * @param prices the price snapshots a design's prices are pinned to
+	 * @param clock the wall clock, in nanoseconds, as {@link System#nanoTime()} reads it
 	 */
-	public ObjectNode run(JsonNode document, @Nullable String scenarioId) {
-		long started = System.nanoTime();
-		PreparedRun prepared = this.preparer.prepare(document, scenarioId, SimulationLimits.DEFAULT, null);
-		SimulatedRun run = new RunSimulation(this.registry, prepared).simulate();
-		return this.writer.write(run, (System.nanoTime() - started) / NANOS_PER_SECOND);
+	Simulator(ComponentRegistry registry, PriceSnapshots prices, LongSupplier clock) {
+		this.registry = registry;
+		this.preparer = new RunPreparer(registry, prices);
+		this.writer = new ReportWriter(registry, prices);
+		this.clock = clock;
+	}
+
+	/**
+	 * Simulates a design as asked. A quick check of a steady load that runs much longer
+	 * than it takes to settle simulates its warm-up and a steady sample, and answers from
+	 * the sample when its halves agree; the report's {@code simulationMode} says so, or
+	 * why the whole run was simulated instead.
+	 * @param document the design
+	 * @param request the scenario, seed, mode and limits
+	 * @return the run's report ({@link ReportWriter})
+	 * @throws io.archsim.model.issue.DocumentInvalidException when the design is invalid,
+	 * asks for an unknown scenario, or the seed is out of range
+	 * @throws io.archsim.engine.run.SimulationLimitException when the run would generate
+	 * more requests than its limit, or takes longer than its wall-clock limit
+	 */
+	public ObjectNode run(JsonNode document, RunRequest request) {
+		if (request.mode() == SimulationMode.SAMPLED) {
+			return runSampled(document, request);
+		}
+		return runWhole(document, request);
+	}
+
+	private ObjectNode runWhole(JsonNode document, RunRequest request) {
+		WallClock wallClock = new WallClock(this.clock, request.limits().maxWallSeconds());
+		PreparedRun prepared = this.preparer.prepare(document, request.scenarioId(), request.limits(), request.seed());
+		SimulatedRun run = new RunSimulation(this.registry, prepared, wallClock).simulate();
+		return this.writer.write(run, wallClock.elapsedS());
+	}
+
+	// the warm-up and a steady sample simulated whole, answering for the run when the
+	// sample is steady; else the run simulated whole, saying why
+	private ObjectNode runSampled(JsonNode document, RunRequest request) {
+		PreparedRun prepared = this.preparer.prepare(document, request.scenarioId(), request.limits(), request.seed());
+		Double simulatedS = prepared.quickCheck().simulatedS();
+		if (simulatedS == null) {
+			return runWhole(document, request);
+		}
+		ObjectNode sample = runWhole(Sampling.shortened(prepared.resolved(), simulatedS),
+				RunRequest.of(null).withLimits(request.limits()));
+		SteadyState steady = Stationarity.judge(RunReport.read(sample));
+		if (!steady.reached()) {
+			ObjectNode full = runWhole(document, request);
+			full.set("simulationMode", Sampling.wholeInstead(prepared.resolved().workload(), simulatedS, steady));
+			return full;
+		}
+		return Sampling.answer(sample, prepared, simulatedS, steady);
 	}
 
 }

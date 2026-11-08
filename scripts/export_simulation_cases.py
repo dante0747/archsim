@@ -6,8 +6,9 @@ reaching one feature of the runtime (clients with timeouts and retries, client g
 patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
 services (autoscaling, serverless and Kubernetes ones too), Kubernetes clusters, load
 balancers, hosts, caches, databases, message queues, and each component as later slices add
-them), with the frozen engine (0.16.0) and records each design, the scenario simulated and the
-report.
+them, a seed that replaces the workload's, and quick checks that answer from a sample or fall back
+to the whole run), with the frozen engine (0.16.0) and records each design, the scenario, seed and
+mode simulated and the report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
 
@@ -139,6 +140,39 @@ def calibrated(doc: Json) -> Json:
 def on_host(doc: Json, host: Json) -> Json:
     """The design on one host machine, which every part with a CPU size shares."""
     doc["architecture"]["host"] = host
+    return doc
+
+
+def faster_api(doc: Json) -> Json:
+    """The design with a scenario whose API answers in 20 ms."""
+    doc["scenarios"] = [
+        {
+            "id": "faster",
+            "name": "Faster API",
+            "overrides": [
+                {
+                    "target": {"kind": "node", "id": "api"},
+                    "path": "latencyMs",
+                    "value": {"kind": "constant", "value": 20},
+                }
+            ],
+        }
+    ]
+    return doc
+
+
+def busy_hour(doc: Json) -> Json:
+    """The design with a scenario that doubles its load and sets a seed of its own."""
+    doc["scenarios"] = [
+        {
+            "id": "busy",
+            "name": "Busy hour",
+            "overrides": [
+                {"target": {"kind": "workload"}, "path": "rps", "value": 240},
+                {"target": {"kind": "workload"}, "path": "seed", "value": 99},
+            ],
+        }
+    ]
     return doc
 
 
@@ -1398,21 +1432,79 @@ CASES: dict[str, Json] = {
             {"rps": 150, "arrivalProcess": "poisson"},
         )
     ),
+    "aScenarioWhoseSeedTheRunReplaces": busy_hour(
+        design(
+            [clients(), external(latencyMs=lognormal(25, 90))],
+            [link("clients", "api")],
+            {"rps": 120, "arrivalProcess": "poisson"},
+        )
+    ),
+    # a steady sample: the warm-up and 10 s of 50,000 requests answer for the 30 s run of
+    # the scenario
+    "aSteadyLoadAnsweredFromASample": faster_api(
+        design(
+            [clients(), external(latencyMs={"kind": "constant", "value": 25})],
+            [link("clients", "api")],
+            {"rps": 5000, "arrivalProcess": "deterministic", "warmupS": 2, "durationS": 30},
+        )
+    ),
+    # a tenth of the requests fail, so the sample serves under 97% of the load: not steady,
+    # and the scenario's whole run with its seed is simulated instead
+    "aSampleNotSteadySoTheRunIsSimulatedWhole": faster_api(
+        design(
+            [clients(), external(latencyMs={"kind": "constant", "value": 25}, errorRate=0.1)],
+            [link("clients", "api")],
+            {"rps": 5000, "arrivalProcess": "deterministic", "warmupS": 2, "durationS": 26},
+        )
+    ),
+    "aQuickCheckOfARunTooShortToSample": design(
+        [clients(), external(latencyMs={"kind": "constant", "value": 20})],
+        [link("clients", "api")],
+        {"rps": 100, "arrivalProcess": "deterministic"},
+    ),
 }
 
 # The scenario each case simulates; a case left out simulates the design itself.
-SCENARIOS = {"aCalibratedScenarioOfAPricedApi": "peak"}
+SCENARIOS = {
+    "aCalibratedScenarioOfAPricedApi": "peak",
+    "aScenarioWhoseSeedTheRunReplaces": "busy",
+    "aSteadyLoadAnsweredFromASample": "faster",
+    "aSampleNotSteadySoTheRunIsSimulatedWhole": "faster",
+}
+# The seed that replaces the workload's once the scenario is applied, as a seed group's runs do.
+SEEDS = {
+    "aScenarioWhoseSeedTheRunReplaces": 11,
+    "aSteadyLoadAnsweredFromASample": 3,
+    "aSampleNotSteadySoTheRunIsSimulatedWhole": 5,
+}
+# The cases asked for a quick check (sampled mode); the others are simulated whole.
+SAMPLED = {
+    "aSteadyLoadAnsweredFromASample",
+    "aSampleNotSteadySoTheRunIsSimulatedWhole",
+    "aQuickCheckOfARunTooShortToSample",
+}
 
 
 def cases() -> list[Json]:
     out = []
     for name, doc in CASES.items():
         scenario_id = SCENARIOS.get(name)
-        report = run_simulation(copy.deepcopy(doc), scenario_id=scenario_id)
+        seed = SEEDS.get(name)
+        mode = "sampled" if name in SAMPLED else "full"
+        report = run_simulation(copy.deepcopy(doc), scenario_id=scenario_id, seed=seed, mode=mode)
         report["provenance"]["wallSeconds"] = 0.0
         report["provenance"]["python"] = "normalized"
         report["provenance"]["simpy"] = "normalized"
-        out.append({"name": name, "design": doc, "scenarioId": scenario_id, "report": report})
+        out.append(
+            {
+                "name": name,
+                "design": doc,
+                "scenarioId": scenario_id,
+                "seed": seed,
+                "mode": mode,
+                "report": report,
+            }
+        )
     return out
 
 

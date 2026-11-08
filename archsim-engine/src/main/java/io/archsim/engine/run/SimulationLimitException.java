@@ -4,7 +4,8 @@ import java.io.Serial;
 import java.util.Objects;
 
 /**
- * A run over its limits: it would generate more requests than it may simulate.
+ * A run over its limits: it would generate more requests than it may simulate, or it ran
+ * longer than it may.
  */
 public final class SimulationLimitException extends RuntimeException {
 
