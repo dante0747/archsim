@@ -19,4 +19,15 @@ public record Warmup(double factor, double durationMs) {
 		}
 	}
 
+	/**
+	 * How much slower an instance runs some time after it started: the factor at first,
+	 * falling in a straight line to 1 at the end of the warm-up.
+	 * @param elapsedMs the time since the instance started, in milliseconds
+	 * @return the factor on its service time, 1 once it is warm
+	 */
+	public double slowdownAfter(double elapsedMs) {
+		double left = 1.0 - elapsedMs / this.durationMs;
+		return (left > 0) ? 1.0 + (this.factor - 1.0) * left : 1.0;
+	}
+
 }

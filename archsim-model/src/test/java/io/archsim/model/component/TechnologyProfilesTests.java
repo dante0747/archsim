@@ -6,6 +6,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import io.archsim.model.codec.JsonEnum;
+import io.archsim.model.distribution.Constant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -61,6 +62,25 @@ class TechnologyProfilesTests {
 	@Test
 	void wholeNumber_noDefault_isEmpty() {
 		assertThat(TechnologyProfile.core().wholeNumber("gcEveryRequests", null)).isEmpty();
+	}
+
+	@Test
+	void distribution_set_isTheSetting() {
+		TechnologyProfile profile = TechnologyProfile.core().with("coldStartMs", new Constant(300));
+
+		assertThat(profile.distribution("coldStartMs", new Constant(50))).hasValue(new Constant(50));
+	}
+
+	@Test
+	void distribution_notSet_isTheTechnologysDefault() {
+		TechnologyProfile profile = TechnologyProfile.core().with("coldStartMs", new Constant(300));
+
+		assertThat(profile.distribution("coldStartMs", null)).hasValue(new Constant(300));
+	}
+
+	@Test
+	void distribution_noDefault_isEmpty() {
+		assertThat(TechnologyProfile.core().distribution("coldStartMs", null)).isEmpty();
 	}
 
 	@Test

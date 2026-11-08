@@ -1,9 +1,6 @@
 package io.archsim.engine.components.queue;
 
-import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
@@ -13,13 +10,13 @@ import org.jspecify.annotations.Nullable;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.LatencyHistogram;
 import io.archsim.engine.metrics.MeanAccumulator;
+import io.archsim.engine.runtime.DependencyLinks;
 import io.archsim.engine.runtime.EdgeRuntime;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.Outcome;
 import io.archsim.engine.runtime.Request;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.engine.runtime.SpanKind;
-import io.archsim.model.document.RequestType;
 
 /**
  * What a queue's consumer does with a message: it takes it off the backlog, works on it,
@@ -53,7 +50,7 @@ final class Deliveries {
 
 	private final Rules rules;
 
-	private final Map<RequestType, List<EdgeRuntime>> links = new EnumMap<>(RequestType.class);
+	private final DependencyLinks links;
 
 	private final MeanAccumulator ages;
 
@@ -75,6 +72,7 @@ final class Deliveries {
 		this.metrics = owner.metrics();
 		this.backlog = backlog;
 		this.rules = rules;
+		this.links = new DependencyLinks(context, owner.nodeId());
 		this.ages = new MeanAccumulator(context.timeline());
 	}
 
@@ -102,7 +100,7 @@ final class Deliveries {
 		simulation().after(consumeMs, () -> {
 			this.metrics.cpu().add(now(), -1);
 			request.span(this.nodeId, SpanKind.CONSUME, new Request.Interval(now, now()), null);
-			callFrom(linksFor(message.operation()), 0, request,
+			callFrom(this.links.carrying(message.operation()), 0, request,
 					(outcome) -> delivered(new Delivery(message, lease, now), outcome, done));
 		});
 	}
@@ -193,15 +191,6 @@ final class Deliveries {
 			}
 		}
 		done.run();
-	}
-
-	// the queue's links that carry a kind of request, by their order, then their id
-	private List<EdgeRuntime> linksFor(RequestType operation) {
-		return this.links.computeIfAbsent(operation, (kind) -> this.context.outEdges(this.nodeId, "out")
-			.stream()
-			.filter((edge) -> edge.carries(kind))
-			.sorted(Comparator.comparingInt((EdgeRuntime edge) -> edge.config().order()).thenComparing(EdgeRuntime::id))
-			.toList());
 	}
 
 	private Simulation simulation() {

@@ -4,9 +4,9 @@ The Java simulator keeps the frozen engine's order of events and draws its rando
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
 patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
-services (autoscaling ones too), load balancers, hosts, caches, databases, message queues,
-and each component as later slices add them), with the frozen engine (0.16.0) and records each
-design, the scenario simulated and the report.
+services (autoscaling and serverless ones too), load balancers, hosts, caches, databases,
+message queues, and each component as later slices add them), with the frozen engine (0.16.0)
+and records each design, the scenario simulated and the report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
 
@@ -1118,6 +1118,92 @@ CASES: dict[str, Json] = {
         ],
         [link("clients", "lb"), link("lb", "svc")],
         {"rps": 250, "arrivalProcess": "poisson", "durationS": 8},
+    ),
+    "aJavaFunctionThrottledAsItScalesOut": design(
+        [
+            clients(timeoutMs=4000),
+            service(
+                "fn",
+                "Resize",
+                technology="java",
+                platform="serverless",
+                concurrencyLimit=24,
+                scaleOutRate=20,
+                keepWarmS=1,
+                cpuCores=0.5,
+                cpuShare=0.6,
+                serviceTimeMs=lognormal(20, 60),
+                serviceTimeByLoad=[{"rps": 5, "factor": 1}, {"rps": 40, "factor": 1.4}],
+            ),
+            external("api", latencyMs=lognormal(5, 15)),
+        ],
+        [link("clients", "fn"), link("fn", "api")],
+        {
+            "rps": 200,
+            "arrivalProcess": "poisson",
+            "durationS": 10,
+            "pattern": {
+                "kind": "trace",
+                "points": [[0, 40], [2, 400], [4, 400], [4.5, 5], [8, 5], [8.5, 250], [10, 250]],
+            },
+        },
+    ),
+    "aFunctionBehindAServiceWithASlowdown": design(
+        [
+            clients(timeoutMs=3000),
+            service(
+                "svc", "Orders", replicas=2, workersPerReplica=16, serviceTimeMs=lognormal(4, 10)
+            ),
+            service(
+                "fn",
+                "Notify",
+                technology="go",
+                platform="serverless",
+                concurrencyLimit=200,
+                scaleOutRate=1000,
+                keepWarmS=0.05,
+                coldStartMs={"kind": "constant", "value": 80},
+                serviceTimeMs=lognormal(6, 18),
+            ),
+            service(
+                "audit",
+                "Audit",
+                platform="serverless",
+                cpuCores=2,
+                cpuShare=0.5,
+                serviceTimeMs=lognormal(3, 9),
+            ),
+        ],
+        [
+            link("clients", "svc"),
+            link("svc", "fn", requestTypes=["read"]),
+            link("svc", "audit", requestTypes=["write"]),
+        ],
+        {
+            "rps": 150,
+            "arrivalProcess": "poisson",
+            "durationS": 6,
+            "readRatio": 0.8,
+            "faults": [
+                {
+                    "id": "slow",
+                    "kind": "slowdown",
+                    "target": "fn",
+                    "startS": 2,
+                    "durationS": 1,
+                    "factor": 3,
+                },
+            ],
+        },
+    ),
+    "aFunctionNoRequestReaches": design(
+        [
+            clients(),
+            service("svc", "Reports", serviceTimeMs=lognormal(4, 10)),
+            service("fn", "Export", platform="serverless"),
+        ],
+        [link("clients", "svc"), link("svc", "fn", requestTypes=["write"])],
+        {"rps": 50, "durationS": 3, "readRatio": 1.0},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

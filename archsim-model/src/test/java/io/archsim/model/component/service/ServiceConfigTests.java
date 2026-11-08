@@ -5,6 +5,8 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.distribution.Constant;
+import io.archsim.model.distribution.LogNormal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -92,6 +94,17 @@ class ServiceConfigTests {
 	@Test
 	void cpuFraction_aServiceWithoutACpuSize_isAllOfIt() {
 		assertThat(config("{\"cpuShare\": 0.4}").cpuFraction()).isEqualTo(1.0);
+	}
+
+	@Test
+	void coldStartInEffect_setOnThePart_isWhatIsSet() {
+		assertThat(config("{\"coldStartMs\": {\"kind\": \"constant\", \"value\": 50}}").coldStartInEffect())
+			.isEqualTo(new Constant(50));
+	}
+
+	@Test
+	void coldStartInEffect_aJvmRuntime_isItsDefault() {
+		assertThat(config("{\"technology\": \"java\"}").coldStartInEffect()).isEqualTo(new LogNormal(1200, 3500));
 	}
 
 	private static ServiceConfig config(String json) {

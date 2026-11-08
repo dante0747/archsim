@@ -1,5 +1,11 @@
 package io.archsim.engine.metrics;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
+
 /**
  * A level that changes over time (a queue's depth, busy workers), integrated exactly: the
  * area under it in each bucket and over the measurement window, and its highest value.
@@ -19,6 +25,8 @@ public final class Gauge {
 	private double windowArea;
 
 	private long windowPeak;
+
+	private double finishedAt;
 
 	/**
 	 * A gauge at zero.
@@ -55,6 +63,7 @@ public final class Gauge {
 	 */
 	public void finish(double end) {
 		advance(end);
+		this.finishedAt = end;
 	}
 
 	/**
@@ -78,11 +87,35 @@ public final class Gauge {
 	}
 
 	/**
+	 * The mean level in each bucket over the part of it the run simulated, up to the end
+	 * the gauge was finished at, so the last bucket, cut short, does not look like a
+	 * drop.
+	 * @return one mean per bucket; {@code null} for a bucket the run never reached
+	 */
+	public List<@Nullable Double> meanSeriesUntilEnd() {
+		List<@Nullable Double> means = new ArrayList<>(this.area.length);
+		for (int bucket = 0; bucket < this.area.length; bucket++) {
+			double covered = Math.min(this.timeline.bucketMs(),
+					this.finishedAt - (double) bucket * this.timeline.bucketMs());
+			means.add((covered > 0) ? this.area[bucket] / covered : null);
+		}
+		return means;
+	}
+
+	/**
 	 * The highest level in each bucket.
 	 * @return a copy of the highest levels, one per bucket
 	 */
 	public long[] maxSeries() {
 		return this.maxes.clone();
+	}
+
+	/**
+	 * The highest level over the whole run, outside the measurement window too.
+	 * @return the level
+	 */
+	public long runPeak() {
+		return Arrays.stream(this.maxes).max().orElseThrow();
 	}
 
 	/**

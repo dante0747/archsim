@@ -2,7 +2,6 @@ package io.archsim.engine.components.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
@@ -16,11 +15,9 @@ import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.engine.runtime.WorkerPool;
 import io.archsim.engine.settings.LoadCurve;
-import io.archsim.model.catalog.ComponentCatalog;
 import io.archsim.model.catalog.TechnologyTrait;
 import io.archsim.model.component.service.GcPauses;
 import io.archsim.model.component.service.ServiceConfig;
-import io.archsim.model.component.service.ServiceSpec;
 import io.archsim.model.component.service.Warmup;
 import io.archsim.model.document.NodeSpec;
 
@@ -31,10 +28,6 @@ import io.archsim.model.document.NodeSpec;
  * requests a replica held).
  */
 final class ServiceState {
-
-	/** What each technology brings, read once from the component catalog. */
-	private static final Map<String, List<TechnologyTrait>> TRAITS = ComponentCatalog
-		.technologyTraits(ServiceSpec.TYPE);
 
 	private final String nodeId;
 
@@ -83,7 +76,7 @@ final class ServiceState {
 		this.nodeId = node.id();
 		this.metrics = metrics;
 		this.config = config;
-		this.traits = TRAITS.getOrDefault(config.technology().json(), List.of());
+		this.traits = ServiceTraits.of(config);
 		this.perReplica = config.handlersPerReplica();
 		this.gc = config.gcPauses().orElse(null);
 		this.warmup = config.warmup().orElse(null);

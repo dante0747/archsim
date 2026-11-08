@@ -1,15 +1,13 @@
 package io.archsim.engine.components.service;
 
-import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
 import io.archsim.engine.kernel.Resource;
 import io.archsim.engine.report.FailureReason;
+import io.archsim.engine.runtime.DependencyLinks;
 import io.archsim.engine.runtime.EdgeRuntime;
 import io.archsim.engine.runtime.Outcome;
 import io.archsim.engine.runtime.Request;
@@ -18,7 +16,6 @@ import io.archsim.engine.runtime.SimContext;
 import io.archsim.engine.runtime.SpanKind;
 import io.archsim.engine.runtime.WorkerPool;
 import io.archsim.model.component.service.Warmup;
-import io.archsim.model.document.RequestType;
 
 /**
  * A request's way through a service's replica: refused when the replica's memory is full,
@@ -36,7 +33,7 @@ final class Serving {
 
 	private final DoubleSupplier serviceTime;
 
-	private final Map<RequestType, List<EdgeRuntime>> dependencies = new EnumMap<>(RequestType.class);
+	private final DependencyLinks dependencies;
 
 	/**
 	 * A service's handling of requests.
@@ -50,6 +47,7 @@ final class Serving {
 		this.state = state;
 		this.collector = collector;
 		this.serviceTime = serviceTime;
+		this.dependencies = new DependencyLinks(context, state.nodeId());
 	}
 
 	/**
@@ -117,7 +115,7 @@ final class Serving {
 	}
 
 	private void callDependencies(Request request, Held held, Consumer<Outcome> done) {
-		List<EdgeRuntime> calls = dependenciesFor(request.operation());
+		List<EdgeRuntime> calls = this.dependencies.carrying(request.operation());
 		Consumer<Outcome> finish = (outcome) -> {
 			held.replica().letGo();
 			this.state.metrics().depart(now(), outcome, request);
@@ -141,15 +139,11 @@ final class Serving {
 		this.state.metrics().hold().record(now, now - held.since());
 	}
 
-	// a replica started during the run is slower while it warms up, less and less; one
-	// present at the start is warm
+	// a replica started during the run is slower while it warms up; one present at the
+	// start is warm
 	private double warmFactor(Replica replica, double now) {
 		Warmup warmup = this.state.warmup();
-		if (warmup == null || replica.born() <= 0) {
-			return 1.0;
-		}
-		double left = 1.0 - (now - replica.born()) / warmup.durationMs();
-		return (left > 0) ? 1.0 + (warmup.factor() - 1.0) * left : 1.0;
+		return (warmup != null && replica.born() > 0) ? warmup.slowdownAfter(now - replica.born()) : 1.0;
 	}
 
 	// the service-time factor at the replica's rate over the last second
@@ -157,14 +151,6 @@ final class Serving {
 		double factor = this.state.curve().factorAt(meter.rps(now));
 		this.state.recordFactor(now, factor);
 		return factor;
-	}
-
-	private List<EdgeRuntime> dependenciesFor(RequestType operation) {
-		return this.dependencies.computeIfAbsent(operation, (type) -> this.context.outEdges(this.state.nodeId(), "out")
-			.stream()
-			.filter((edge) -> edge.carries(type))
-			.sorted(Comparator.comparingInt((EdgeRuntime edge) -> edge.config().order()).thenComparing(EdgeRuntime::id))
-			.toList());
 	}
 
 	private double now() {

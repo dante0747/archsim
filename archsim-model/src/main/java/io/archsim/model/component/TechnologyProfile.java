@@ -11,6 +11,7 @@ import java.util.OptionalInt;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.JsonEnum;
+import io.archsim.model.distribution.Distribution;
 
 /**
  * What a technology does by default, for the settings a config leaves on {@code auto} (or
@@ -120,6 +121,20 @@ public record TechnologyProfile(Tier tier, Map<String, @Nullable Object> values)
 		}
 		Object value = this.values.get(field);
 		return (value != null) ? OptionalInt.of(((Number) value).intValue()) : OptionalInt.empty();
+	}
+
+	/**
+	 * The distribution in effect: {@code explicit} when set, else the technology's
+	 * default, if any.
+	 * @param field the config field's JSON name
+	 * @param explicit the config's setting; {@code null} when it is not set
+	 * @return the distribution in effect, if there is one
+	 */
+	public Optional<Distribution> distribution(String field, @Nullable Distribution explicit) {
+		if (explicit != null) {
+			return Optional.of(explicit);
+		}
+		return Optional.ofNullable(this.values.get(field)).map(Distribution.class::cast);
 	}
 
 	private TechnologyProfile withValue(String field, @Nullable Object value) {

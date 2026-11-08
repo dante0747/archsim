@@ -142,8 +142,6 @@ final class ReplicaSet {
 
 		private final int perReplica;
 
-		private double end;
-
 		private Scaling(Timeline timeline, int perReplica) {
 			this.capacity = new Gauge(timeline);
 			this.active = new Gauge(timeline);
@@ -192,27 +190,19 @@ final class ReplicaSet {
 		 * @return the peak
 		 */
 		long peak() {
-			return Arrays.stream(this.active.maxSeries()).max().orElse(ReplicaSet.this.routable.size());
+			return this.active.runPeak();
 		}
 
 		/**
 		 * The replicas taking requests in each bucket, over the part of the bucket the
 		 * run simulated, so the last bucket, cut short, does not look like a drop.
-		 * @param timeline the run's timeline
 		 * @return one mean per bucket; {@code null} for a bucket the run never reached
 		 */
-		List<@Nullable Double> countSeries(Timeline timeline) {
-			double[] area = this.active.area();
-			List<@Nullable Double> series = new ArrayList<>(area.length);
-			for (int bucket = 0; bucket < area.length; bucket++) {
-				double covered = Math.min(timeline.bucketMs(), this.end - (double) bucket * timeline.bucketMs());
-				series.add((covered > 0) ? area[bucket] / covered : null);
-			}
-			return series;
+		List<@Nullable Double> countSeries() {
+			return this.active.meanSeriesUntilEnd();
 		}
 
 		private void finish(double endMs) {
-			this.end = endMs;
 			this.capacity.finish(endMs);
 			this.active.finish(endMs);
 		}

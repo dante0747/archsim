@@ -31,6 +31,9 @@ public enum SpanKind implements JsonEnum {
 	/** A service's own work on a request. */
 	SERVICE("service"),
 
+	/** Starting a new serverless instance for a request. */
+	COLD_START("cold_start"),
+
 	/** Stalled by a stop-the-world garbage collection. */
 	GC("gc"),
 

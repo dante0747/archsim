@@ -229,6 +229,15 @@ public record ServiceConfig(
 	}
 
 	/**
+	 * The extra time to start a serverless instance: as set, else its technology's (every
+	 * runtime has one).
+	 * @return the time's distribution, in milliseconds
+	 */
+	public Distribution coldStartInEffect() {
+		return profile().distribution("coldStartMs", this.coldStartMs).orElseThrow();
+	}
+
+	/**
 	 * Whether the service runs on Kubernetes (its pods scheduled on a cluster's nodes).
 	 * @return {@code true} on the Kubernetes platform
 	 */

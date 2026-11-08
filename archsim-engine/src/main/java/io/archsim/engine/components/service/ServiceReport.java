@@ -100,9 +100,7 @@ final class ServiceReport {
 		if (service.config().runsEventLoop()) {
 			series.put("eventLoopLagMs", metrics.queueWait().series());
 		}
-		service.replicas()
-			.scaling()
-			.ifPresent((scaling) -> series.put("replicas", scaling.countSeries(metrics.timeline())));
+		service.replicas().scaling().ifPresent((scaling) -> series.put("replicas", scaling.countSeries()));
 		return series;
 	}
 

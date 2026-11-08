@@ -64,8 +64,7 @@ class ReplicaSetTests {
 
 		replicas.finish(bucketMs * 1.5);
 
-		assertThat(replicas.scaling().orElseThrow().countSeries(this.timeline).subList(0, 3)).containsExactly(2.0, 2.0,
-				null);
+		assertThat(replicas.scaling().orElseThrow().countSeries().subList(0, 3)).containsExactly(2.0, 2.0, null);
 	}
 
 	private List<Replica> present(int count) {

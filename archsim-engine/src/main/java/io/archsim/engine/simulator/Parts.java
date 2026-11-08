@@ -7,6 +7,7 @@ import io.archsim.engine.components.database.DatabaseRuntime;
 import io.archsim.engine.components.external.ExternalApiRuntime;
 import io.archsim.engine.components.loadbalancer.LoadBalancerRuntime;
 import io.archsim.engine.components.queue.MessageQueueRuntime;
+import io.archsim.engine.components.service.ServerlessRuntime;
 import io.archsim.engine.components.service.ServiceRuntime;
 import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.engine.runtime.SimContext;
@@ -52,11 +53,11 @@ final class Parts {
 		};
 	}
 
-	// a service with fixed or autoscaling replicas; serverless ones come with their
-	// slice (a Kubernetes cluster's services are refused with the cluster)
+	// a serverless function, or a service with fixed or autoscaling replicas (a
+	// Kubernetes cluster's services are refused with the cluster)
 	private static RuntimeComponent service(SimContext context, NodeSpec node, ServiceConfig config) {
 		if (config.platform() == Platform.SERVERLESS) {
-			throw new UnsupportedOperationException("the Java simulator does not simulate a serverless service yet");
+			return new ServerlessRuntime(context, node, config);
 		}
 		return new ServiceRuntime(context, node, config);
 	}
