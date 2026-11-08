@@ -11,8 +11,10 @@ frozen Python engine's [golden files](../parity/README.md), and all of them have
 the simulator, part by part: the random streams, kernel, metrics, runtime, client groups,
 third-party APIs, services (fixed, autoscaling and serverless), load balancers, CPU contention
 on a shared host or a part's own hyperthreads, Kubernetes clusters, caches, databases and
-message queues so far, with the whole report, each checked by replaying the frozen engine's runs
-([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)). A
+message queues: every part of the frozen engine, with the whole report. Each is checked by
+replaying the frozen engine's runs
+([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)): the
+designs `scripts/export_simulation_cases.py` records and the golden files' 50 template runs. A
 report repeats itself on every platform: every transcendental function goes through `StrictMath`,
 which an ArchUnit rule checks, and the digests keep the Python engine's definitions
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
@@ -117,7 +119,7 @@ decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in three ways, none in a digest
+A report differs from the Python engine's in four ways, none in a digest
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)):
 
 - it is report 1.15, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
@@ -125,7 +127,9 @@ A report differs from the Python engine's in three ways, none in a digest
 - its provenance names the Java runtime (`java`, the `java.version` property) where Python's
   named `python` and `simpy`;
 - a cost line's `instances` is always a number with a fraction, where Python wrote a literal `0`
-  or `1` on a line billed per use or by the hour.
+  or `1` on a line billed per use or by the hour;
+- a cost item's `quantity` is always a number with a fraction, where Python wrote the literal
+  `730` on a load balancer's and a control plane's hours.
 
 A run comparison of a Python run and a Java run names the two engines, as it names two engine
 versions.
@@ -315,10 +319,15 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   simulated and the frozen engine's report, which `SimulationCasesTests` replays
   ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)):
   the whole report must match, digests, counts and events processed exactly, numbers to a
-  relative 1e-9, and an integer wherever Python wrote one but for a cost line's `instances`,
-  leaving out only the report's version and the provenance's wall-clock time and runtime. The
-  note about experimental technologies, which the recorded balancers and caches reach, is also
-  checked by `AssumptionsTests` for counts of parts they do not.
+  relative 1e-9, and an integer wherever Python wrote one but for a cost line's `instances` and
+  an item's `quantity`, leaving out only the report's version and the provenance's wall-clock
+  time and runtime (`ReportComparison`). The note about experimental technologies, which the
+  recorded balancers and caches reach, is also checked by `AssumptionsTests` for counts of parts
+  they do not.
+- `GoldenRunsTests` replays the golden files' 50 template runs the same way: each template's
+  base design and one scenario, its time axis compressed (`runs/<key>`: `document`,
+  `scenarioId`, `report`), simulated in Java and compared whole with the frozen engine's report,
+  digests included.
 - The kernel's order of events is in `kernel/cases.json`, from `scripts/export_kernel_cases.py`:
   small SimPy programs (timeouts and process starts at equal times, processes waiting on
   processes, resource contention, a request granting the oldest waiter, queue timeouts, stores,

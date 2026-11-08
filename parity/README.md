@@ -145,10 +145,13 @@ the composition checked against `analyze_document`; the exporter fails if they d
 Functions that read a simulation report (`analysis.analyze` and the findings, `report_confidence`,
 `estimate_cost` after a run, `explain.generic`, `engine.stationary`, `report.canonical_digest`,
 `slo.*`, `sweep.row_from`/`meets`/`analyze`, `check.*`, `compare.*`, `seeds.summarize_seeds`) are
-deterministic given the report, but the Java kernel will not reproduce Python's reports bit for bit.
-So the report is recorded as an **input**: `runs/<key>` holds `document` (what was simulated),
-`timeScale`, `report` and the entries on it. Do not compare a Java simulation with `report`; that is
-stage 4's statistical parity.
+deterministic given the report, so the report is recorded as an **input**: `runs/<key>` holds
+`document` (what was simulated), `timeScale`, `report` and the entries on it. The Java simulator
+also replays each run: `archsim-engine`'s `GoldenRunsTests` simulates `document` with the run's
+scenario and compares the whole report with `report`, as the recorded simulation cases are
+compared (counts, events processed and digests exactly, numbers to a relative 1e-9, Python's
+integers kept but for two cost fields). Stage 4's statistical parity, 20 seeds a template, is
+measured apart.
 
 - Two runs per template: the base design, and the first scenario with faults (else the first that
   changes the traffic pattern, else the last). Every scenario's static analysis is recorded, but
@@ -183,8 +186,8 @@ Calibration records the time it ran (`fittedAt`, `calibration.at`): it is fixed 
 ## What is left out
 
 - **The simulation kernel, components, runtime and report building** (`run_simulation`,
-  `build_report`, trace selection, latency breakdown, metrics): not functions a recorded JSON input
-  determines across implementations. Stage 4's parity is statistical.
+  `build_report`, trace selection, latency breakdown, metrics): not recorded function by function.
+  The recorded runs (above) and `archsim-engine`'s simulation cases replay them whole.
 - **Sweeps, knee search and seed groups** (`breaking_point`, `knee_sweeps`, `run_check --knee`):
   many simulations each. Their pure parts are recorded (`sweep_range`, `levels`, `suggest_range`,
   `rps_cap`, `row_from`, `meets`, `analyze`, `summarize_seeds`, `regressions`, `run_check`).

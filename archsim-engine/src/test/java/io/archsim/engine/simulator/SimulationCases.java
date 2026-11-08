@@ -17,7 +17,8 @@ import io.archsim.model.pricing.PriceSnapshots;
 /**
  * The designs the frozen engine simulated, each with the scenario it simulated and its
  * report: {@code simulator/cases.json.gz}, from
- * {@code scripts/export_simulation_cases.py}.
+ * {@code scripts/export_simulation_cases.py}; and the Java simulator that replays them
+ * and the golden files' runs.
  */
 public final class SimulationCases {
 
@@ -50,8 +51,18 @@ public final class SimulationCases {
 	 * simulated
 	 */
 	public static ObjectNode simulate(JsonNode recorded) {
-		JsonNode scenario = recorded.get("scenarioId");
-		return SIMULATOR.run(recorded.get("design"), scenario.isNull() ? null : scenario.stringValue());
+		return simulate(recorded.get("design"), recorded.get("scenarioId"));
+	}
+
+	/**
+	 * A design the frozen engine simulated, simulated in Java.
+	 * @param design the design
+	 * @param scenarioId the scenario Python simulated; JSON {@code null} for the design
+	 * as drawn
+	 * @return the Java simulator's report
+	 */
+	static ObjectNode simulate(JsonNode design, JsonNode scenarioId) {
+		return SIMULATOR.run(design, scenarioId.isNull() ? null : scenarioId.stringValue());
 	}
 
 }
