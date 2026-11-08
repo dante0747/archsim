@@ -23,10 +23,10 @@ import io.archsim.model.document.NodeSpec;
  * A database during a run: shards of a primary and its read replicas, a request routed to
  * its key's shard or, for a scattered read, to every shard ({@link DatabaseRequests}),
  * each operation on a connection, with tickets, row locks, its time and disk reads, and a
- * write's log flush ({@link Operation}). Its report adds its CPU's, buffer cache's and
- * waits' figures and series ({@link DatabaseReport}) and formulas
- * ({@link DatabaseExplain}). Replicas that replay the primary's writes and capacity
- * metered in units come with the next part of the port.
+ * write's log flush ({@link Operation}), then its shard's replicas replaying it
+ * ({@link ReplicationPipeline}). Its report adds its CPU's, buffer cache's, waits' and
+ * replicas' figures and series ({@link DatabaseReport}) and formulas
+ * ({@link DatabaseExplain}).
  */
 public final class DatabaseRuntime extends RuntimeComponent {
 
@@ -39,27 +39,15 @@ public final class DatabaseRuntime extends RuntimeComponent {
 	 * @param context the run
 	 * @param node the part
 	 * @param config its settings
-	 * @throws UnsupportedOperationException for a database whose replicas replay its
-	 * writes, or one metered in capacity units, which the Java simulator does not
-	 * simulate yet
 	 */
 	public DatabaseRuntime(SimContext context, NodeSpec node, DatabaseConfig config) {
 		super(context, node,
 				OptionalInt.of(config.partitions() * (1 + config.readReplicas()) * config.maxConnections()));
-		refuseWhatComesLater(config);
 		this.state = DatabaseState.of(context, config, new DatabaseState.Owner(node.id(), metrics(), this::sampleTime));
 		this.requests = new DatabaseRequests(this.state, context.stream("node:" + node.id() + ":scatter"));
-	}
-
-	// replicas that replay writes and capacity units come with the next part of the port
-	private static void refuseWhatComesLater(DatabaseConfig config) {
-		if (new DatabaseSettings(config).replication() != Replication.NONE) {
-			throw new UnsupportedOperationException(
-					"the Java simulator does not simulate a database that replicates to its read replicas yet");
-		}
-		if (config.metered()) {
-			throw new UnsupportedOperationException(
-					"the Java simulator does not simulate a database metered in capacity units yet");
+		ReplicationPipeline replication = this.state.replication();
+		if (replication != null) {
+			replication.start();
 		}
 	}
 
@@ -77,6 +65,15 @@ public final class DatabaseRuntime extends RuntimeComponent {
 		DatabaseSettings settings = this.state.settings();
 		return settings.partitions() > 1 || settings.locksRows() || settings.readersWaitForWriters()
 				|| settings.replication() != Replication.NONE;
+	}
+
+	/**
+	 * Whether a replica still has writes to replay.
+	 */
+	@Override
+	public boolean backgroundBusy() {
+		ReplicationPipeline replication = this.state.replication();
+		return replication != null && replication.behind();
 	}
 
 	@Override

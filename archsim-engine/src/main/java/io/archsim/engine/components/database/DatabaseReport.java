@@ -24,6 +24,7 @@ import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.component.database.DatabaseSpec;
 import io.archsim.model.component.database.ReadFrom;
 import io.archsim.model.component.database.Replication;
+import io.archsim.model.document.RequestType;
 
 /**
  * What a database adds to its part of a run's report: its CPU's utilization and ceiling,
@@ -78,8 +79,9 @@ final class DatabaseReport {
 
 	/**
 	 * The database's own summary figures, each when it is modelled: its cores'
-	 * utilization, its buffer cache's hit ratio, its mean waits, and the commits each log
-	 * flush covered.
+	 * utilization, its buffer cache's hit ratio, its partitions when they are not its
+	 * shards, its mean waits, the commits each log flush covered, and its replicas'
+	 * highest lag.
 	 * @param state the database
 	 * @return the figures, in the report's order
 	 */
@@ -93,22 +95,24 @@ final class DatabaseReport {
 					Cores.utilization(busy, state.shards().first().cores().executors() * instances).orElse(null));
 		}
 		settings.bufferHitRatio().ifPresent((hit) -> figures.put("bufferHitRatio", PythonRound.round(hit, DIGITS)));
-		for (String wait : WAITS) {
-			MeanAccumulator means = state.metrics().means().get(wait);
-			if (means != null && means.windowMean().isPresent()) {
-				figures.put("mean" + Character.toUpperCase(wait.charAt(0)) + wait.substring(1),
-						PythonRound.round(means.windowMean().getAsDouble(), DIGITS));
-			}
+		if (settings.partitions() != settings.config().shards()) {
+			figures.put("partitions", settings.partitions());
 		}
+		putMeanWaits(state.metrics(), figures);
 		state.controls()
 			.flushers()
 			.ifPresent((logs) -> figures.put("commitsPerFlush", commitsPerFlush(logs).orElse(null)));
+		ReplicationPipeline replication = state.replication();
+		if (replication != null) {
+			figures.put("maxReplicationLagMs", replication.maxLagMs().orElse(null));
+		}
 		return figures;
 	}
 
 	/**
 	 * The database's own series, each when it is modelled: its busy cores, its mean
-	 * waits, its disk reads and its refusals by its throughput limit.
+	 * waits, its replicas' lag and stale reads, its disk reads, the capacity units it
+	 * consumed, and its refusals by its throughput limit or its units.
 	 * @param state the database
 	 * @return the series over the whole timeline, in the report's order
 	 */
@@ -125,14 +129,17 @@ final class DatabaseReport {
 				series.put(wait, means.series());
 			}
 		}
-		Counter diskReads = metrics.counters().get(DatabaseCounters.DISK_READS);
-		if (diskReads != null) {
-			series.put("diskReadRps", RuntimeComponent.series(diskReads.rateSeries()));
+		ReplicationPipeline replication = state.replication();
+		if (replication != null) {
+			series.put("replicationLagMs", replication.lagSeries());
 		}
-		Counter throttled = metrics.rejected().get(FailureReason.THROTTLED);
-		if (throttled != null) {
-			series.put("throttledRps", RuntimeComponent.series(throttled.rateSeries()));
+		putRate(series, "staleReadRps", metrics.counters().get(DatabaseCounters.STALE_READS));
+		putRate(series, "diskReadRps", metrics.counters().get(DatabaseCounters.DISK_READS));
+		if (state.settings().config().metered()) {
+			series.put("consumedReadUnits", CapacityUnits.consumedPerSecond(metrics, RequestType.READ));
+			series.put("consumedWriteUnits", CapacityUnits.consumedPerSecond(metrics, RequestType.WRITE));
 		}
+		putRate(series, "throttledRps", metrics.rejected().get(FailureReason.THROTTLED));
 		return series;
 	}
 
@@ -165,6 +172,25 @@ final class DatabaseReport {
 			.stream()
 			.filter((trait) -> active.getOrDefault(trait.id(), true))
 			.toList();
+	}
+
+	// the waits averaged in the window, each it recorded
+	private static void putMeanWaits(NodeMetrics metrics, SequencedMap<String, @Nullable Number> figures) {
+		for (String wait : WAITS) {
+			MeanAccumulator means = metrics.means().get(wait);
+			if (means != null && means.windowMean().isPresent()) {
+				figures.put("mean" + Character.toUpperCase(wait.charAt(0)) + wait.substring(1),
+						PythonRound.round(means.windowMean().getAsDouble(), DIGITS));
+			}
+		}
+	}
+
+	// a count's rate per second in each bucket, when the database counted it
+	private static void putRate(SequencedMap<String, List<@Nullable Double>> series, String name,
+			@Nullable Counter counter) {
+		if (counter != null) {
+			series.put(name, RuntimeComponent.series(counter.rateSeries()));
+		}
 	}
 
 	/**

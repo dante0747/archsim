@@ -71,10 +71,9 @@ final class NodeSeries {
 	 */
 	JsonNode peakUtilization(ObjectNode series) {
 		JsonNode utilization = series.path("utilization");
-		int first = (int) Math.ceil(this.timeline.windowStart() / this.timeline.bucketMs());
-		int last = Math.max(first + 1, (int) Math.floor(this.timeline.windowEnd() / this.timeline.bucketMs()));
+		int last = Math.min(this.timeline.windowBucketsEnd(), utilization.size());
 		OptionalDouble peak = OptionalDouble.empty();
-		for (int bucket = first; bucket < Math.min(last, utilization.size()); bucket++) {
+		for (int bucket = this.timeline.firstWindowBucket(); bucket < last; bucket++) {
 			JsonNode value = utilization.get(bucket);
 			if (!value.isNull() && (peak.isEmpty() || value.asDouble() > peak.getAsDouble())) {
 				peak = OptionalDouble.of(value.asDouble());

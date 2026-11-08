@@ -59,9 +59,8 @@ public final class BucketedHistograms {
 	 */
 	public LatencyHistogram window() {
 		LatencyHistogram merged = new LatencyHistogram();
-		int first = (int) Math.ceil(this.timeline.windowStart() / this.timeline.bucketMs());
-		int last = Math.max(first + 1, (int) Math.floor(this.timeline.windowEnd() / this.timeline.bucketMs()));
-		for (int bucket = first; bucket < Math.min(last, this.histograms.length); bucket++) {
+		int last = Math.min(this.timeline.windowBucketsEnd(), this.histograms.length);
+		for (int bucket = this.timeline.firstWindowBucket(); bucket < last; bucket++) {
 			LatencyHistogram histogram = this.histograms[bucket];
 			if (histogram != null) {
 				merged.merge(histogram);

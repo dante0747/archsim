@@ -29,8 +29,20 @@ final class DatabaseCounters {
 	/** The counter of reads a replica served. */
 	static final String REPLICA_READS = "replicaReads";
 
+	/** The counter of reads a replica served before it replayed the latest write. */
+	static final String STALE_READS = "staleReads";
+
 	/** The counter of reads from disk after a buffer-cache miss. */
 	static final String DISK_READS = "diskReads";
+
+	/** The counter of writes replicas replayed. */
+	static final String REPLAYED = "replayed";
+
+	/** The counter of read capacity units consumed, in tenths. */
+	static final String READ_UNITS_X10 = "readUnitsX10";
+
+	/** The counter of write capacity units consumed, in tenths. */
+	static final String WRITE_UNITS_X10 = "writeUnitsX10";
 
 	/** The mean time a write waited for its row's lock. */
 	static final String LOCK_WAIT_MS = "lockWaitMs";

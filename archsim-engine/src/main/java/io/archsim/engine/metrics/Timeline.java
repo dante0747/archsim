@@ -114,4 +114,21 @@ public final class Timeline {
 		return this.windowEnd - this.windowStart;
 	}
 
+	/**
+	 * The first whole bucket inside the measurement window: the first that starts in it.
+	 * @return the bucket's index
+	 */
+	public int firstWindowBucket() {
+		return (int) Math.ceil(this.windowStart / this.bucketMs);
+	}
+
+	/**
+	 * Where the window's whole buckets end: past the last bucket that ends in the window,
+	 * and past the first one at least, so a window shorter than a bucket has one.
+	 * @return the index past the last bucket, which may be past the timeline's end
+	 */
+	public int windowBucketsEnd() {
+		return Math.max(firstWindowBucket() + 1, (int) Math.floor(this.windowEnd / this.bucketMs));
+	}
+
 }

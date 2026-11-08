@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.kernel.Resource;
+import io.archsim.engine.kernel.Signal;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.runtime.NodeMetrics;
@@ -71,11 +72,11 @@ final class Operation {
 		if (settings().partitions() > 1 && this.counted) {
 			metrics().count(DatabaseCounters.SHARD + this.shard, now);
 		}
-		if (!controls().admits(this.shard, now)) {
+		if (!controls().admits(this.shard, operation(), now)) {
 			refused.accept(FailureReason.THROTTLED);
 			return;
 		}
-		DatabaseInstance instance = this.state.shards().pick(this.shard, operation());
+		DatabaseInstance instance = shards().pick(this.shard, operation());
 		instance.pool().acquire(this.request, this.state.nodeId(), (acquired) -> {
 			switch (acquired) {
 				case WorkerPool.Taken taken -> new Connected(instance, taken.slot(), ran).takeTicket();
@@ -102,6 +103,14 @@ final class Operation {
 
 	private Simulation simulation() {
 		return this.state.simulation();
+	}
+
+	private DatabaseShards shards() {
+		return this.state.shards();
+	}
+
+	private @Nullable ReplicationPipeline replication() {
+		return this.state.replication();
 	}
 
 	private RequestType operation() {
@@ -138,6 +147,8 @@ final class Operation {
 		private LockTable.@Nullable Held lock;
 
 		private double serviceMs;
+
+		private @Nullable Shipped shipped;
 
 		Connected(DatabaseInstance instance, Resource.Request slot, Runnable ran) {
 			this.instance = instance;
@@ -218,7 +229,7 @@ final class Operation {
 		private void execute() {
 			double started = now();
 			this.serviceMs = draws().serviceMs(operation());
-			runFor(this.serviceMs, () -> {
+			shards().work(this.instance, this.serviceMs, () -> {
 				OperationDraws draws = draws();
 				if (!draws.missesBuffer(operation())) {
 					executed(started);
@@ -228,16 +239,6 @@ final class Operation {
 				metrics().count(DatabaseCounters.DISK_READS, now(), reads);
 				readDisk(reads, () -> executed(started));
 			});
-		}
-
-		// the part of the time that needs a core on the instance's CPU, the rest off it
-		private void runFor(double timeMs, Runnable next) {
-			if (settings().config().cpuCores() == null) {
-				simulation().after(timeMs, next);
-				return;
-			}
-			double cpuMs = timeMs * settings().config().cpuShare();
-			this.instance.cores().run(cpuMs, () -> simulation().after(timeMs - cpuMs, next));
 		}
 
 		private void readDisk(int reads, Runnable next) {
@@ -255,6 +256,11 @@ final class Operation {
 			if (write) {
 				commit();
 				return;
+			}
+			ReplicationPipeline replication = replication();
+			if (replication != null && replication.stale(Operation.this.shard, key(), this.instance)) {
+				metrics().count(DatabaseCounters.STALE_READS, now());
+				span(SpanKind.STALE, now(), "replica had not replayed the latest write");
 			}
 			finish();
 		}
@@ -274,19 +280,46 @@ final class Operation {
 			});
 		}
 
+		// lets the row's lock go, then ships the write to the shard's replicas
 		private void committed() {
 			LockTable.Held held = this.lock;
 			if (held != null) {
 				controls().locks(Operation.this.shard).orElseThrow().release(held);
 			}
+			ReplicationPipeline replication = replication();
+			if (replication != null) {
+				this.shipped = new Shipped(replication,
+						replication.replicate(Operation.this.shard, key(), this.serviceMs));
+			}
 			finish();
 		}
 
+		// lets the ticket go, waits for the replicas a write waits for, then lets the
+		// connection go
 		private void finish() {
 			Ticket held = this.ticket;
 			if (held != null) {
 				held.pool().release(held.request());
 			}
+			Shipped write = this.shipped;
+			Signal acknowledged = (write != null) ? write.job().acknowledged() : null;
+			if (write == null || acknowledged == null) {
+				release();
+				return;
+			}
+			awaitReplicas(write, acknowledged);
+		}
+
+		private void awaitReplicas(Shipped write, Signal acknowledged) {
+			double asked = now();
+			write.replication().afterAcknowledged(acknowledged, () -> {
+				metrics().recordMean(DatabaseCounters.REPLICA_ACK_MS, now(), now() - asked);
+				span(SpanKind.REPLICATION, asked, "waiting for " + write.job().acksNeeded() + " replica(s)");
+				release();
+			});
+		}
+
+		private void release() {
 			this.instance.pool().release(this.slot);
 			if (Operation.this.counted) {
 				double now = now();
@@ -308,6 +341,15 @@ final class Operation {
 	 * @param request the operation's request for one
 	 */
 	private record Ticket(Resource pool, Resource.Request request) {
+	}
+
+	/**
+	 * A write shipped to its shard's replicas.
+	 *
+	 * @param replication the database's replication
+	 * @param job the write to replay
+	 */
+	private record Shipped(ReplicationPipeline replication, ApplyJob job) {
 	}
 
 }

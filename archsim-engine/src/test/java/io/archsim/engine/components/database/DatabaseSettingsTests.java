@@ -116,6 +116,31 @@ class DatabaseSettingsTests {
 		assertThat(settings("{}").readFrom()).isEqualTo(ReadFrom.ALL);
 	}
 
+	@Test
+	void applyWorkers_ofPostgresql_isItsOneWorker() {
+		assertThat(settings("{}").applyWorkers()).isOne();
+	}
+
+	@Test
+	void applyWorkers_withoutADefault_isFour() {
+		assertThat(settings("{\"technology\": \"cassandra\"}").applyWorkers()).isEqualTo(4);
+	}
+
+	@ParameterizedTest
+	@CsvSource(textBlock = """
+			async,    2, 0
+			majority, 2, 1
+			majority, 4, 2
+			all,      2, 2
+			all,      0, 0
+			""")
+	void replicaAcks_aReplication_isTheReplicasAWriteWaitsFor(String replication, int replicas, int acks) {
+		DatabaseSettings settings = settings(
+				"{\"replication\": \"%s\", \"readReplicas\": %d}".formatted(replication, replicas));
+
+		assertThat(settings.replicaAcks()).isEqualTo(acks);
+	}
+
 	private static DatabaseSettings settings(String json) {
 		return new DatabaseSettings(
 				RecordCodec.read(JsonMapper.builder().build().readTree(json), DatabaseConfig.class));

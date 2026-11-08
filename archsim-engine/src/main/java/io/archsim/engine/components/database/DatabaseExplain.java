@@ -14,7 +14,8 @@ import io.archsim.model.text.PythonFormat;
 
 /**
  * The calculations behind a database's own figures, each when it applies: its buffer
- * cache's hit ratio, its hottest row's lock, its group commit, and its search fan-out.
+ * cache's hit ratio, its hottest row's lock, its group commit, its replicas' and its
+ * capacity units' ({@link DatabaseReplicaExplain}), and its search fan-out.
  */
 final class DatabaseExplain {
 
@@ -55,6 +56,7 @@ final class DatabaseExplain {
 			.flatMap(DatabaseReport::commitsPerFlush)
 			.filter((commits) -> commits != 0);
 		commitsPerFlush.ifPresent((commits) -> formulas.add(groupCommit(config, commits)));
+		formulas.addAll(DatabaseReplicaExplain.of(settings, writesPerSecond));
 		if (settings.scatterShare() > 0) {
 			formulas.add(fanOut(settings, summary));
 		}

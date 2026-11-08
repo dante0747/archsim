@@ -17,6 +17,11 @@ import io.archsim.model.component.database.Replication;
  */
 final class DatabaseSettings {
 
+	/**
+	 * The threads a replica replays writes with, when neither it nor its technology says.
+	 */
+	private static final int DEFAULT_APPLY_WORKERS = 4;
+
 	private final DatabaseConfig config;
 
 	private final TechnologyProfile profile;
@@ -70,6 +75,29 @@ final class DatabaseSettings {
 			return Replication.NONE;
 		}
 		return this.profile.choice("replication", this.config.replication(), Replication.AUTO, Replication.NONE);
+	}
+
+	/**
+	 * The threads a replica replays writes with.
+	 * @return the workers; 4 when neither the database nor its technology says
+	 */
+	int applyWorkers() {
+		return this.profile.wholeNumber("replicaApplyWorkers", this.config.replicaApplyWorkers())
+			.orElse(DEFAULT_APPLY_WORKERS);
+	}
+
+	/**
+	 * The replicas a write waits for: a majority of the copies, the primary being one, or
+	 * all of them.
+	 * @return the acknowledgements; none with asynchronous replication or no replication
+	 */
+	int replicaAcks() {
+		int replicas = this.config.readReplicas();
+		return switch (replication()) {
+			case ALL -> replicas;
+			case MAJORITY -> (1 + replicas) / 2;
+			case AUTO, ASYNC, NONE -> 0;
+		};
 	}
 
 	/**

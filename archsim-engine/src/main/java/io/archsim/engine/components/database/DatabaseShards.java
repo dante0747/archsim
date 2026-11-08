@@ -7,6 +7,7 @@ import java.util.OptionalInt;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.kernel.Resource;
+import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.runtime.Cores;
 import io.archsim.engine.runtime.NodeMetrics;
@@ -14,6 +15,7 @@ import io.archsim.engine.runtime.SimContext;
 import io.archsim.engine.runtime.WorkerPool;
 import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.component.database.ReadFrom;
+import io.archsim.model.component.database.Replication;
 import io.archsim.model.document.RequestType;
 
 /**
@@ -22,6 +24,10 @@ import io.archsim.model.document.RequestType;
  * primary, to the replicas in turn, or to every instance in turn, as the database reads.
  */
 final class DatabaseShards {
+
+	private final Simulation simulation;
+
+	private final DatabaseConfig config;
 
 	private final List<List<DatabaseInstance>> groups;
 
@@ -38,21 +44,24 @@ final class DatabaseShards {
 	 * @param metrics its metrics, which its instances' queues count in
 	 */
 	DatabaseShards(SimContext context, DatabaseSettings settings, NodeMetrics metrics) {
-		DatabaseConfig config = settings.config();
+		this.simulation = context.simulation();
+		this.config = settings.config();
 		this.readFrom = settings.readFrom();
 		this.turns = new int[settings.partitions()];
-		this.coreBusy = (config.cpuCores() != null) ? new Gauge(context.timeline()) : null;
-		WorkerPool.Queue queue = new WorkerPool.Queue(config.queueCapacity(), config.queueTimeoutMs());
+		this.coreBusy = (this.config.cpuCores() != null) ? new Gauge(context.timeline()) : null;
+		WorkerPool.Queue queue = new WorkerPool.Queue(this.config.queueCapacity(), this.config.queueTimeoutMs());
+		boolean replicates = settings.replication() != Replication.NONE;
 		List<List<DatabaseInstance>> built = new ArrayList<>(settings.partitions());
 		for (int shard = 0; shard < settings.partitions(); shard++) {
 			List<DatabaseInstance> group = new ArrayList<>();
-			for (int index = 0; index <= config.readReplicas(); index++) {
-				WorkerPool pool = new WorkerPool(context.simulation(), config.maxConnections(), queue, metrics);
-				Cores cores = new Cores(context.simulation(), config.cpuCores(), config.maxConnections(),
+			for (int index = 0; index <= this.config.readReplicas(); index++) {
+				ReplicaLog log = (index > 0 && replicates) ? new ReplicaLog(context.simulation()) : null;
+				WorkerPool pool = new WorkerPool(context.simulation(), this.config.maxConnections(), queue, metrics);
+				Cores cores = new Cores(context.simulation(), this.config.cpuCores(), this.config.maxConnections(),
 						new Cores.Accounts(this.coreBusy,
-								context.machineFor(config.cpuCores(), config.siblingSpeed())));
+								context.machineFor(this.config.cpuCores(), this.config.siblingSpeed())));
 				group.add(new DatabaseInstance(index, pool, cores, tickets(context, settings.readTickets()),
-						tickets(context, settings.writeTickets())));
+						tickets(context, settings.writeTickets()), log));
 			}
 			built.add(List.copyOf(group));
 		}
@@ -79,6 +88,40 @@ final class DatabaseShards {
 		}
 		this.turns[shard] = (turn + 1) % group.size();
 		return group.get(turn);
+	}
+
+	/**
+	 * Works on an instance for a time: the CPU's share of it on the instance's cores,
+	 * waiting for a free one, the rest off them.
+	 * @param instance the instance
+	 * @param timeMs the time, in milliseconds
+	 * @param next what to do once it is done
+	 */
+	void work(DatabaseInstance instance, double timeMs, Runnable next) {
+		if (this.config.cpuCores() == null) {
+			this.simulation.after(timeMs, next);
+			return;
+		}
+		double cpuMs = timeMs * this.config.cpuShare();
+		instance.cores().run(cpuMs, () -> this.simulation.after(timeMs - cpuMs, next));
+	}
+
+	/**
+	 * A shard's read replicas.
+	 * @param shard the shard
+	 * @return its instances but the primary
+	 */
+	List<DatabaseInstance> replicas(int shard) {
+		List<DatabaseInstance> group = this.groups.get(shard);
+		return group.subList(1, group.size());
+	}
+
+	/**
+	 * Every instance, shard by shard, each shard's primary first.
+	 * @return the instances
+	 */
+	List<DatabaseInstance> all() {
+		return this.groups.stream().flatMap(List::stream).toList();
 	}
 
 	/**

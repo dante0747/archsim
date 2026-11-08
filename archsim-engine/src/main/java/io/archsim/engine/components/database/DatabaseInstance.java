@@ -19,9 +19,11 @@ import io.archsim.model.document.RequestType;
  * them
  * @param writeTickets the writes it runs at once; {@code null} when tickets do not limit
  * them
+ * @param log a replica's replay of its primary's writes; {@code null} for the primary, or
+ * without replication
  */
 record DatabaseInstance(int index, WorkerPool pool, Cores cores, @Nullable Resource readTickets,
-		@Nullable Resource writeTickets) {
+		@Nullable Resource writeTickets, @Nullable ReplicaLog log) {
 
 	/**
 	 * The tickets that limit an operation.

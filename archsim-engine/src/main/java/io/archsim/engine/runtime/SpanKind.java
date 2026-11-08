@@ -59,7 +59,13 @@ public enum SpanKind implements JsonEnum {
 	COMMIT("commit"),
 
 	/** A read sent to every shard of a database. */
-	SCATTER("scatter");
+	SCATTER("scatter"),
+
+	/** A read a replica served before it replayed the latest write. */
+	STALE("stale"),
+
+	/** Waiting for a database's replicas to replay a write. */
+	REPLICATION("replication");
 
 	private final String json;
 

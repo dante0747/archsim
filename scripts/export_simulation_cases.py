@@ -830,6 +830,102 @@ CASES: dict[str, Json] = {
         [link("web", "db"), link("batch", "primary")],
         {"rps": 400, "arrivalProcess": "poisson", "readRatio": 0.8},
     ),
+    "aPostgresWhoseReplicasLag": design(
+        [
+            clients(timeoutMs=1500),
+            database(
+                "db",
+                "PostgreSQL",
+                readReplicas=2,
+                replicaApplyFactor=1.0,
+                cpuCores=2,
+                cpuShare=0.5,
+                readServiceTimeMs=lognormal(2, 6),
+                writeServiceTimeMs=lognormal(8, 25),
+                replicationDelayMs=lognormal(1, 3),
+            ),
+        ],
+        [link("clients", "db")],
+        {"rps": 300, "arrivalProcess": "poisson", "readRatio": 0.5, "keyCount": 30, "keySkew": 1.1},
+    ),
+    "aMongoReplicaSetWaitingForAMajority": design(
+        [
+            clients(timeoutMs=1500),
+            database(
+                "db",
+                "MongoDB",
+                technology="mongodb",
+                readReplicas=2,
+                replicaApplyWorkers=2,
+                replicaApplyFactor=0.8,
+                replicationDelayMs=lognormal(2, 6),
+                writeServiceTimeMs=lognormal(5, 15),
+            ),
+        ],
+        [link("clients", "db")],
+        {"rps": 200, "arrivalProcess": "poisson", "readRatio": 0.6, "keyCount": 100},
+    ),
+    "aStoreWaitingForEveryReplica": design(
+        [
+            clients(timeoutMs=1500),
+            database(
+                "db",
+                "Store",
+                technology="generic",
+                replication="all",
+                readReplicas=2,
+                readFrom="replicas",
+                shards=2,
+                replicaApplyWorkers=1,
+                cpuCores=1,
+                cpuShare=1.0,
+            ),
+        ],
+        [link("clients", "db")],
+        {"rps": 150, "arrivalProcess": "poisson", "readRatio": 0.7, "keyCount": 50},
+    ),
+    "aReadOnlyProvisionedDynamoDbTable": design(
+        [
+            clients(timeoutMs=1000),
+            database(
+                "db",
+                "DynamoDB",
+                technology="dynamodb",
+                capacityMode="provisioned",
+                readCapacityUnits=2,
+                writeCapacityUnits=2,
+                itemSizeKb=6,
+                dataSizeGib=25,
+                readServiceTimeMs=lognormal(4, 10),
+                writeServiceTimeMs=lognormal(6, 15),
+            ),
+        ],
+        [link("clients", "db")],
+        {"rps": 300, "arrivalProcess": "poisson", "readRatio": 1.0},
+    ),
+    "anOnDemandDynamoDbTableWithAHotKey": design(
+        [
+            clients(timeoutMs=1000),
+            database(
+                "db",
+                "DynamoDB",
+                technology="dynamodb",
+                consistentReads="strong",
+                itemSizeKb=8,
+                maxConnections=200,
+                readServiceTimeMs=lognormal(3, 8),
+                writeServiceTimeMs=lognormal(5, 12),
+            ),
+        ],
+        [link("clients", "db")],
+        {
+            "rps": 1000,
+            "arrivalProcess": "poisson",
+            "readRatio": 0.6,
+            "keyCount": 10,
+            "keySkew": 2.0,
+        },
+    ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(
             [

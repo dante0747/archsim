@@ -1,11 +1,14 @@
 package io.archsim.engine.components.database;
 
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.random.PythonRandom;
 import io.archsim.engine.random.Sampler;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.model.component.database.DatabaseConfig;
+import io.archsim.model.component.database.Replication;
 
 /**
  * What a database's operations share during a run.
@@ -17,9 +20,11 @@ import io.archsim.model.component.database.DatabaseConfig;
  * @param shards its shards' instances
  * @param controls its shards' locks, logs and throughput limits
  * @param draws what its operations draw
+ * @param replication its replicas' replay of its writes; {@code null} without replication
  */
 record DatabaseState(Simulation simulation, String nodeId, NodeMetrics metrics, DatabaseSettings settings,
-		DatabaseShards shards, ShardControls controls, OperationDraws draws) {
+		DatabaseShards shards, ShardControls controls, OperationDraws draws,
+		@Nullable ReplicationPipeline replication) {
 
 	/**
 	 * A database at the start of a run.
@@ -39,10 +44,15 @@ record DatabaseState(Simulation simulation, String nodeId, NodeMetrics metrics, 
 		Timing timing = owner.timing();
 		OperationDraws.ServiceTimes times = new OperationDraws.ServiceTimes(() -> timing.sample(read, service),
 				() -> timing.sample(write, service));
-		return new DatabaseState(context.simulation(), owner.nodeId(), owner.metrics(), settings,
-				new DatabaseShards(context, settings, owner.metrics()),
-				new ShardControls(context.simulation(), settings, () -> timing.sample(flushTime, flush)),
-				new OperationDraws(settings, times, context.stream(prefix + "buffer")));
+		DatabaseShards shards = new DatabaseShards(context, settings, owner.metrics());
+		ReplicationPipeline replication = (settings.replication() != Replication.NONE)
+				? new ReplicationPipeline(context, settings, shards,
+						new ReplicationPipeline.Accounts(owner.metrics(), context.stream(prefix + "replication")))
+				: null;
+		return new DatabaseState(context.simulation(), owner.nodeId(), owner.metrics(), settings, shards,
+				new ShardControls(context.simulation(), settings,
+						new ShardControls.Accounts(owner.metrics(), () -> timing.sample(flushTime, flush))),
+				new OperationDraws(settings, times, context.stream(prefix + "buffer")), replication);
 	}
 
 	/**
