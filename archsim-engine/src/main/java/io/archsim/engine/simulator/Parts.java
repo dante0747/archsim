@@ -36,8 +36,6 @@ final class Parts {
 	 * @param config its validated config
 	 * @param clients the run's end-to-end client metrics, which client groups share
 	 * @return the part
-	 * @throws UnsupportedOperationException for an autoscaling service on a Kubernetes
-	 * cluster, which the Java simulator does not simulate yet
 	 * @throws IllegalArgumentException for a config no standard part has
 	 */
 	static RuntimeComponent build(SimContext context, NodeSpec node, Record config, ClientMetrics clients) {

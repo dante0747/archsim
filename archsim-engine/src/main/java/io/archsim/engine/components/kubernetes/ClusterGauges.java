@@ -111,6 +111,17 @@ final class ClusterGauges {
 		this.memoryRequested.add(now, request.memoryGib());
 	}
 
+	/**
+	 * Counts a pod that left its node.
+	 * @param now the time
+	 * @param request what it requested
+	 */
+	void releasePod(double now, PodRequest request) {
+		this.running.add(now, -1);
+		this.cpuRequested.add(now, -request.cpu());
+		this.memoryRequested.add(now, -request.memoryGib());
+	}
+
 	Gauge nodes() {
 		return this.nodes;
 	}

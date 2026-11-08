@@ -21,16 +21,10 @@ public final class ServiceRuntimes {
 	 * @param node the part
 	 * @param config its settings
 	 * @return its runtime
-	 * @throws UnsupportedOperationException for an autoscaling service on a Kubernetes
-	 * cluster, which comes with its slice of the port
 	 */
 	public static RuntimeComponent of(SimContext context, NodeSpec node, ServiceConfig config) {
 		if (config.platform() == Platform.SERVERLESS) {
 			return new ServerlessRuntime(context, node, config);
-		}
-		if (config.autoscaling() && config.clusterIn(context.clusterIds()) != null) {
-			throw new UnsupportedOperationException(
-					"the Java simulator does not simulate an autoscaling service on a Kubernetes cluster yet");
 		}
 		return new ServiceRuntime(context, node, config);
 	}

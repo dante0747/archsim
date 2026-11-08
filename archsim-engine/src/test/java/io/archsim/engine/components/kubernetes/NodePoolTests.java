@@ -1,5 +1,6 @@
 package io.archsim.engine.components.kubernetes;
 
+import java.util.Optional;
 import java.util.OptionalInt;
 
 import org.junit.jupiter.api.Test;
@@ -34,16 +35,16 @@ class NodePoolTests {
 	void request_aNodeWithRoom_isBoundAtOnce() {
 		NodePool pool = pool();
 
-		assertThat(pool.request(new PodRequest(1, 1)).triggered()).isTrue();
+		assertThat(pool.request("svc", new PodRequest(1, 1)).triggered()).isTrue();
 	}
 
 	@Test
 	void request_noNodeWithRoom_waitsPending() {
 		NodePool pool = pool();
-		pool.request(new PodRequest(2, 1));
-		pool.request(new PodRequest(2, 1));
+		pool.request("svc", new PodRequest(2, 1));
+		pool.request("svc", new PodRequest(2, 1));
 
-		Promise<ClusterNode> third = pool.request(new PodRequest(2, 1));
+		Promise<Optional<ClusterNode>> third = pool.request("svc", new PodRequest(2, 1));
 
 		assertThat(third.triggered()).isFalse();
 		assertThat(pool.pendingCount()).isOne();
@@ -52,26 +53,26 @@ class NodePoolTests {
 	@Test
 	void request_aSecondPod_goesToTheEmptierNode() {
 		NodePool pool = pool();
-		Promise<ClusterNode> first = pool.request(new PodRequest(1, 1));
+		Promise<Optional<ClusterNode>> first = pool.request("svc", new PodRequest(1, 1));
 
-		Promise<ClusterNode> second = pool.request(new PodRequest(1, 1));
+		Promise<Optional<ClusterNode>> second = pool.request("svc", new PodRequest(1, 1));
 
-		assertThat(second.value()).isNotSameAs(first.value());
+		assertThat(second.value().orElseThrow()).isNotSameAs(first.value().orElseThrow());
 	}
 
 	@Test
 	void request_nodesEquallyAllocated_goesToTheFirst() {
 		NodePool pool = pool();
 
-		Promise<ClusterNode> first = pool.request(new PodRequest(1, 1));
+		Promise<Optional<ClusterNode>> first = pool.request("svc", new PodRequest(1, 1));
 
-		assertThat(first.value()).isSameAs(pool.nodes().getFirst());
+		assertThat(first.value().orElseThrow()).isSameAs(pool.nodes().getFirst());
 	}
 
 	@Test
 	void meanWaitMs_podsBoundAtOnce_isNone() {
 		NodePool pool = pool();
-		pool.request(new PodRequest(1, 1));
+		pool.request("svc", new PodRequest(1, 1));
 
 		assertThat(pool.meanWaitMs()).isEmpty();
 	}
@@ -89,14 +90,52 @@ class NodePoolTests {
 	@Test
 	void addProvisioned_aPendingPodThatFits_bindsIt() {
 		NodePool pool = pool();
-		pool.request(new PodRequest(2, 1));
-		pool.request(new PodRequest(2, 1));
-		Promise<ClusterNode> waiting = pool.request(new PodRequest(2, 1));
+		pool.request("svc", new PodRequest(2, 1));
+		pool.request("svc", new PodRequest(2, 1));
+		Promise<Optional<ClusterNode>> waiting = pool.request("svc", new PodRequest(2, 1));
 		pool.startProvisioning(0);
 
 		pool.addProvisioned();
 
 		assertThat(waiting.triggered()).isTrue();
+	}
+
+	@Test
+	void release_aPodOnAFullNode_bindsAPendingPodThatFitsNow() {
+		NodePool pool = pool();
+		Promise<Optional<ClusterNode>> first = pool.request("svc", new PodRequest(2, 1));
+		pool.request("svc", new PodRequest(2, 1));
+		Promise<Optional<ClusterNode>> waiting = pool.request("svc", new PodRequest(2, 1));
+
+		pool.release(first.value().orElseThrow(), new PodRequest(2, 1));
+
+		assertThat(waiting.triggered()).isTrue();
+	}
+
+	@Test
+	void cancelPending_aServicesPendingPods_deletesTheNewestFirst() {
+		NodePool pool = pool();
+		pool.request("full", new PodRequest(2, 1));
+		pool.request("full", new PodRequest(2, 1));
+		Promise<Optional<ClusterNode>> older = pool.request("svc", new PodRequest(1, 1));
+		Promise<Optional<ClusterNode>> newer = pool.request("svc", new PodRequest(1, 1));
+
+		pool.cancelPending("svc", 1);
+
+		assertThat(older.triggered()).isFalse();
+		assertThat(newer.value()).isEmpty();
+	}
+
+	@Test
+	void cancelPending_anotherServicesPendingPod_keepsIt() {
+		NodePool pool = pool();
+		pool.request("full", new PodRequest(2, 1));
+		pool.request("full", new PodRequest(2, 1));
+		Promise<Optional<ClusterNode>> other = pool.request("other", new PodRequest(1, 1));
+
+		pool.cancelPending("svc", 1);
+
+		assertThat(other.triggered()).isFalse();
 	}
 
 	private NodePool pool() {

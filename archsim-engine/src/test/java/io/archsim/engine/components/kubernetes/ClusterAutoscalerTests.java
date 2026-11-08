@@ -1,5 +1,6 @@
 package io.archsim.engine.components.kubernetes;
 
+import java.util.Optional;
 import java.util.OptionalInt;
 
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class ClusterAutoscalerTests {
 	@Test
 	void scan_aPodNoNodeHasTheCpuFor_addsNoNode() {
 		NodePool pool = startedOn(oneNode());
-		pool.request(new PodRequest(3, 1));
+		pool.request("svc", new PodRequest(3, 1));
 
 		scanOnce();
 
@@ -44,7 +45,7 @@ class ClusterAutoscalerTests {
 	@Test
 	void scan_aPodNoNodeHasTheMemoryFor_addsNoNode() {
 		NodePool pool = startedOn(oneNode());
-		pool.request(new PodRequest(1, 5));
+		pool.request("svc", new PodRequest(1, 5));
 
 		scanOnce();
 
@@ -54,9 +55,9 @@ class ClusterAutoscalerTests {
 	@Test
 	void scan_twoPodsTooBigForOneNodeTogether_addsTwo() {
 		NodePool pool = startedOn(oneNode());
-		pool.request(new PodRequest(2, 4));
-		pool.request(new PodRequest(1, 3));
-		pool.request(new PodRequest(1, 3));
+		pool.request("svc", new PodRequest(2, 4));
+		pool.request("svc", new PodRequest(1, 3));
+		pool.request("svc", new PodRequest(1, 3));
 
 		scanOnce();
 
@@ -66,11 +67,11 @@ class ClusterAutoscalerTests {
 	@Test
 	void scan_podsThatPackLargestFirst_addTheFewestNodes() {
 		NodePool pool = startedOn(oneNode());
-		pool.request(new PodRequest(2, 4));
-		pool.request(new PodRequest(0.5, 1));
-		pool.request(new PodRequest(0.5, 1));
-		pool.request(new PodRequest(1.5, 1));
-		pool.request(new PodRequest(1.5, 1));
+		pool.request("svc", new PodRequest(2, 4));
+		pool.request("svc", new PodRequest(0.5, 1));
+		pool.request("svc", new PodRequest(0.5, 1));
+		pool.request("svc", new PodRequest(1.5, 1));
+		pool.request("svc", new PodRequest(1.5, 1));
 
 		scanOnce();
 
@@ -80,8 +81,8 @@ class ClusterAutoscalerTests {
 	@Test
 	void scan_aNodeOnItsWay_addsNoMoreForTheSamePod() {
 		NodePool pool = startedOn(oneNode());
-		pool.request(new PodRequest(2, 4));
-		pool.request(new PodRequest(1, 1));
+		pool.request("svc", new PodRequest(2, 4));
+		pool.request("svc", new PodRequest(1, 1));
 
 		this.simulation.runUntil(2_500, 1, () -> {
 		});
@@ -92,8 +93,8 @@ class ClusterAutoscalerTests {
 	@Test
 	void scan_noProvisioningTime_bindsThePendingPodAtTheScan() {
 		NodePool pool = startedOn(oneNode().put("nodeProvisionS", 0));
-		pool.request(new PodRequest(2, 4));
-		Promise<ClusterNode> waiting = pool.request(new PodRequest(1, 1));
+		pool.request("svc", new PodRequest(2, 4));
+		Promise<Optional<ClusterNode>> waiting = pool.request("svc", new PodRequest(1, 1));
 
 		scanOnce();
 

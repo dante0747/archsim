@@ -104,8 +104,9 @@ final class ServiceState {
 	 * Starts a replica during the run: it takes requests from now, warming up first when
 	 * the service warms up.
 	 * @param now the time
+	 * @return the replica
 	 */
-	void startReplica(double now) {
+	Replica startReplica(double now) {
 		Replica replica = newReplica(now);
 		if (this.warmup != null) {
 			this.warming.add(now, 1);
@@ -116,6 +117,7 @@ final class ServiceState {
 			}));
 		}
 		this.replicas.scaling().orElseThrow().start(replica, now);
+		return replica;
 	}
 
 	// a replica born now: its handlers, its CPU on its machine (its own hyperthreads, the

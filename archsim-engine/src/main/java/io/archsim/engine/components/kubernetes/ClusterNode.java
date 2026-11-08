@@ -22,7 +22,7 @@ public final class ClusterNode {
 
 	private final Set<String> images = new HashSet<>();
 
-	private final double emptySince;
+	private double emptySince;
 
 	private double usedCpu;
 
@@ -69,6 +69,20 @@ public final class ClusterNode {
 		this.usedCpu += request.cpu();
 		this.usedMemoryGib += request.memoryGib();
 		this.pods++;
+	}
+
+	/**
+	 * Frees a pod's request on the node; the node is empty from now when it was its last.
+	 * @param request the pod's request
+	 * @param now the time
+	 */
+	void release(PodRequest request, double now) {
+		this.usedCpu = Math.max(0.0, this.usedCpu - request.cpu());
+		this.usedMemoryGib = Math.max(0.0, this.usedMemoryGib - request.memoryGib());
+		this.pods = Math.max(0, this.pods - 1);
+		if (this.pods == 0) {
+			this.emptySince = now;
+		}
 	}
 
 	/**

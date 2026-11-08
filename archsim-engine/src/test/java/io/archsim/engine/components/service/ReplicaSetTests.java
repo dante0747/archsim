@@ -108,7 +108,83 @@ class ReplicaSetTests {
 
 		assertThatIllegalStateException()
 			.isThrownBy(() -> replicas.scaling().orElseThrow().rejoin(present.getFirst(), 10))
-			.withMessage("a replica that takes requests cannot rejoin");
+			.withMessage("only a withdrawn replica can rejoin");
+	}
+
+	@Test
+	void rejoin_aReplicaNeverStarted_isRefused() {
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present(1));
+
+		assertThatIllegalStateException().isThrownBy(() -> replicas.scaling().orElseThrow().rejoin(replica(0), 10))
+			.withMessage("only a withdrawn replica can rejoin");
+	}
+
+	@Test
+	void rejoin_aRetiredReplica_isRefused() {
+		List<Replica> present = present(2);
+		ReplicaSet.Scaling scaling = ReplicaSet.changing(this.timeline, 4, present).scaling().orElseThrow();
+		scaling.retireNewest(10);
+
+		assertThatIllegalStateException().isThrownBy(() -> scaling.rejoin(present.get(1), 20))
+			.withMessage("only a withdrawn replica can rejoin");
+	}
+
+	@Test
+	void retireNewest_twoReplicas_givesTheRetiredOne() {
+		List<Replica> present = present(2);
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present);
+
+		assertThat(replicas.scaling().orElseThrow().retireNewest(10)).containsSame(present.get(1));
+	}
+
+	@Test
+	void expect_aReplica_countsItOnItsWay() {
+		ReplicaSet.Scaling scaling = ReplicaSet.changing(this.timeline, 4, present(1)).scaling().orElseThrow();
+
+		scaling.expect();
+
+		assertThat(scaling.starting()).isEqualTo(1);
+	}
+
+	@Test
+	void start_anExpectedReplica_isNoLongerOnItsWay() {
+		ReplicaSet.Scaling scaling = ReplicaSet.changing(this.timeline, 4, present(1)).scaling().orElseThrow();
+		scaling.expect();
+
+		scaling.start(replica(10), 10);
+
+		assertThat(scaling.starting()).isZero();
+	}
+
+	@Test
+	void abandon_anExpectedReplica_isNoLongerOnItsWay() {
+		ReplicaSet.Scaling scaling = ReplicaSet.changing(this.timeline, 4, present(1)).scaling().orElseThrow();
+		scaling.expect();
+
+		scaling.abandon();
+
+		assertThat(scaling.starting()).isZero();
+	}
+
+	@Test
+	void withdraw_aReplicaWhosePodIsPending_countsItOnItsWay() {
+		List<Replica> present = present(2);
+		ReplicaSet.Scaling scaling = ReplicaSet.changing(this.timeline, 4, present).scaling().orElseThrow();
+
+		scaling.withdraw(present.getFirst(), 0);
+
+		assertThat(scaling.starting()).isEqualTo(1);
+	}
+
+	@Test
+	void rejoin_aWithdrawnReplica_isNoLongerOnItsWay() {
+		List<Replica> present = present(2);
+		ReplicaSet.Scaling scaling = ReplicaSet.changing(this.timeline, 4, present).scaling().orElseThrow();
+		scaling.withdraw(present.getFirst(), 0);
+
+		scaling.rejoin(present.getFirst(), 10);
+
+		assertThat(scaling.starting()).isZero();
 	}
 
 	private List<Replica> present(int count) {

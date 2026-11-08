@@ -44,8 +44,6 @@ public final class Simulator {
 	 * @param document the design
 	 * @param scenarioId the scenario to simulate; {@code null} for the design as drawn
 	 * @return the run's report ({@link ReportWriter})
-	 * @throws UnsupportedOperationException for a part or a host machine the Java
-	 * simulator does not simulate yet
 	 */
 	public ObjectNode run(JsonNode document, @Nullable String scenarioId) {
 		long started = System.nanoTime();

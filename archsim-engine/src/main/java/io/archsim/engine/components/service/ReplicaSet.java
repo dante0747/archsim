@@ -2,8 +2,10 @@ package io.archsim.engine.components.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 
@@ -141,8 +143,8 @@ final class ReplicaSet {
 	}
 
 	/**
-	 * Replicas that change: their gauges, and the replicas started, retired, withdrawn
-	 * and rejoining.
+	 * Replicas that change: their gauges, the replicas on their way, and those started,
+	 * retired, withdrawn and rejoining.
 	 */
 	final class Scaling {
 
@@ -151,6 +153,10 @@ final class ReplicaSet {
 		private final Gauge active;
 
 		private final int perReplica;
+
+		private final Set<Integer> withdrawn = new HashSet<>();
+
+		private int starting;
 
 		private Scaling(Timeline timeline, int perReplica) {
 			this.capacity = new Gauge(timeline);
@@ -169,17 +175,41 @@ final class ReplicaSet {
 		}
 
 		/**
-		 * Adds a replica started during the run, which takes requests from now.
+		 * The replicas on their way: asked for, or whose pod is Pending or starting.
+		 * @return how many
+		 */
+		int starting() {
+			return this.starting;
+		}
+
+		/**
+		 * Counts a replica asked for, on its way until it starts.
+		 */
+		void expect() {
+			this.starting++;
+		}
+
+		/**
+		 * Counts a replica no longer on its way: its pod was deleted while Pending.
+		 */
+		void abandon() {
+			this.starting--;
+		}
+
+		/**
+		 * Adds a replica asked for during the run, which takes requests from now.
 		 * @param replica the replica
 		 * @param now the time
 		 */
 		void start(Replica replica, double now) {
+			this.starting--;
 			addRoutable(replica);
 			changeBy(1, now);
 		}
 
 		/**
-		 * Stops sending requests to a replica whose pod is Pending, until it rejoins.
+		 * Stops sending requests to a replica whose pod is Pending, on its way again
+		 * until it rejoins.
 		 * @param replica the replica
 		 * @param now the time
 		 * @throws IllegalStateException when the replica takes no requests
@@ -189,6 +219,8 @@ final class ReplicaSet {
 			if (!ReplicaSet.this.routable.remove(Integer.valueOf(index))) {
 				throw new IllegalStateException("a replica that takes no requests cannot be withdrawn");
 			}
+			this.withdrawn.add(index);
+			this.starting++;
 			changeBy(-1, now);
 		}
 
@@ -196,13 +228,14 @@ final class ReplicaSet {
 		 * Sends requests again to a replica whose pod is ready, after the others.
 		 * @param replica the replica
 		 * @param now the time
-		 * @throws IllegalStateException when the replica takes requests already
+		 * @throws IllegalStateException when the replica was not withdrawn
 		 */
 		void rejoin(Replica replica, double now) {
 			int index = ReplicaSet.this.started.indexOf(replica);
-			if (ReplicaSet.this.routable.contains(index)) {
-				throw new IllegalStateException("a replica that takes requests cannot rejoin");
+			if (!this.withdrawn.remove(index)) {
+				throw new IllegalStateException("only a withdrawn replica can rejoin");
 			}
+			this.starting--;
 			ReplicaSet.this.routable.add(index);
 			changeBy(1, now);
 		}
@@ -211,13 +244,15 @@ final class ReplicaSet {
 		 * Stops sending requests to the newest replica, unless it is the last; it drains
 		 * what it holds.
 		 * @param now the time
+		 * @return the replica retired; none when it was the last
 		 */
-		void retireNewest(double now) {
+		Optional<Replica> retireNewest(double now) {
 			if (ReplicaSet.this.routable.size() <= 1) {
-				return;
+				return Optional.empty();
 			}
-			ReplicaSet.this.routable.removeLast();
+			int index = ReplicaSet.this.routable.removeLast();
 			changeBy(-1, now);
+			return Optional.of(ReplicaSet.this.started.get(index));
 		}
 
 		/**

@@ -1,6 +1,10 @@
 package io.archsim.engine.components.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
@@ -18,7 +22,8 @@ import io.archsim.model.component.service.ServiceConfig;
  * A service's pods on its Kubernetes cluster: each replica is a pod, bound to a node with
  * room for its request. A pod that finds none waits Pending, its replica taking no
  * requests; once bound it pulls the service's image (on a node new to the service) and
- * starts before its replica takes requests again.
+ * starts before its replica takes requests. A pod deleted while Pending never starts; a
+ * retired replica's pod frees its node.
  */
 final class Pods {
 
@@ -35,6 +40,8 @@ final class Pods {
 	private final Gauge pending;
 
 	private final Gauge starting;
+
+	private final Map<Replica, ClusterNode> nodes = new HashMap<>();
 
 	private @Nullable ClusterRuntime cluster;
 
@@ -66,6 +73,54 @@ final class Pods {
 			replicas.routableReplicas().forEach((replica) -> place(replica, replicas.scaling().orElseThrow()));
 			simulation.timeout(0).then(finish);
 		});
+	}
+
+	/**
+	 * Asks for the pod of a replica the service scales up to: once it is bound, has
+	 * pulled the image and started, the replica takes requests.
+	 * @param ready what to do with the node of a pod that is ready
+	 * @param deleted what to do when the pod is deleted while Pending
+	 */
+	void startPod(Consumer<ClusterNode> ready, Runnable deleted) {
+		awaitPod(cluster().requestPod(this.serviceId, request()), ready, deleted);
+	}
+
+	/**
+	 * Notes the node a replica's pod runs on.
+	 * @param replica the replica
+	 * @param node its pod's node
+	 */
+	void recordNode(Replica replica, ClusterNode node) {
+		this.nodes.put(replica, node);
+	}
+
+	/**
+	 * Frees the node of a retired replica's pod.
+	 * @param replica the replica
+	 * @throws IllegalStateException when the replica has no pod on a node
+	 */
+	void release(Replica replica) {
+		ClusterNode node = this.nodes.remove(replica);
+		if (node == null) {
+			throw new IllegalStateException("a replica with no pod on a node cannot be released");
+		}
+		cluster().releasePod(node, request());
+	}
+
+	/**
+	 * Deletes the service's Pending pods, the newest first.
+	 * @param count how many at most
+	 */
+	void cancelPending(int count) {
+		cluster().cancelPending(this.serviceId, count);
+	}
+
+	/**
+	 * The service's pods Pending now.
+	 * @return how many
+	 */
+	int pendingCount() {
+		return (int) this.pending.value();
 	}
 
 	/**
@@ -117,31 +172,47 @@ final class Pods {
 	// takes no requests until the pod is ready
 	private void place(Replica replica, ReplicaSet.Scaling scaling) {
 		Simulation simulation = this.context.simulation();
-		Promise<ClusterNode> placed = cluster().requestPod(PodRequest.of(this.config, clusterConfig()));
+		Promise<Optional<ClusterNode>> placed = cluster().requestPod(this.serviceId, request());
 		if (placed.triggered()) {
-			cluster().cacheImage(placed.value(), this.serviceId);
+			ClusterNode node = placed.value().orElseThrow();
+			cluster().cacheImage(node, this.serviceId);
+			recordNode(replica, node);
 			return;
 		}
 		scaling.withdraw(replica, simulation.now());
-		simulation.start((done) -> awaitPod(placed, () -> {
+		simulation.start((done) -> awaitPod(placed, (node) -> {
+			recordNode(replica, node);
 			scaling.rejoin(replica, simulation.now());
+			done.run();
+		}, () -> {
+			scaling.abandon();
 			done.run();
 		}));
 	}
 
 	// a Pending pod: once bound, its image pull and start-up, then ready
-	private void awaitPod(Promise<ClusterNode> placed, Runnable ready) {
+	private void awaitPod(Promise<Optional<ClusterNode>> placed, Consumer<ClusterNode> ready, Runnable deleted) {
 		Simulation simulation = this.context.simulation();
 		this.pending.add(simulation.now(), 1);
-		placed.thenAccept((node) -> {
+		placed.thenAccept((bound) -> {
 			this.pending.add(simulation.now(), -1);
-			this.starting.add(simulation.now(), 1);
-			double delayMs = cluster().pullImage(node, this.serviceId) + this.config.startupS() * MS_PER_SECOND;
-			simulation.after(delayMs, () -> {
-				this.starting.add(simulation.now(), -1);
-				ready.run();
-			});
+			bound.ifPresentOrElse((node) -> startOn(node, ready), deleted);
 		});
+	}
+
+	// a bound pod pulls the service's image (on a node new to the service) and starts
+	private void startOn(ClusterNode node, Consumer<ClusterNode> ready) {
+		Simulation simulation = this.context.simulation();
+		this.starting.add(simulation.now(), 1);
+		double delayMs = cluster().pullImage(node, this.serviceId) + this.config.startupS() * MS_PER_SECOND;
+		simulation.after(delayMs, () -> {
+			this.starting.add(simulation.now(), -1);
+			ready.accept(node);
+		});
+	}
+
+	private PodRequest request() {
+		return PodRequest.of(this.config, clusterConfig());
 	}
 
 	// the cluster, found once the run starts, when every part is built

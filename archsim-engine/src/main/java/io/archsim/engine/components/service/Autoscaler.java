@@ -1,6 +1,7 @@
 package io.archsim.engine.components.service;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Gauge;
@@ -12,8 +13,9 @@ import io.archsim.model.component.service.ServiceConfig;
  * measures the utilization of the replicas taking requests over the last interval (with a
  * CPU size, CPU use counts too), and wants {@code ceil(replicas × utilization ÷ target)}
  * replicas within its bounds. It starts the replicas it lacks, which take requests after
- * their start-up; it removes replicas only after three low readings in a row, the newest
- * first, never the last.
+ * their start-up (on a cluster, once their pod is bound, has pulled the image and
+ * started); it removes replicas only after three low readings in a row: on a cluster the
+ * Pending pods first, else the newest replicas, never the last.
  */
 final class Autoscaler {
 
@@ -35,7 +37,7 @@ final class Autoscaler {
 
 	private final ServiceState service;
 
-	private int starting;
+	private final ReplicaSet.Scaling scaling;
 
 	private int lowReadings;
 
@@ -53,6 +55,7 @@ final class Autoscaler {
 	Autoscaler(Simulation simulation, ServiceState service) {
 		this.simulation = simulation;
 		this.service = service;
+		this.scaling = service.replicas().scaling().orElseThrow();
 	}
 
 	/**
@@ -70,17 +73,22 @@ final class Autoscaler {
 		double now = this.simulation.now();
 		int active = this.service.replicas().routableCount();
 		int wanted = wanted(utilization(now), active);
-		int planned = active + this.starting;
+		int planned = active + this.scaling.starting();
+		int pending = this.service.pods().map(Pods::pendingCount).orElse(0);
 		if (wanted > planned) {
 			this.lowReadings = 0;
 			this.service.metrics().count(SCALE_UPS, now);
 			for (int replica = 0; replica < wanted - planned; replica++) {
-				this.starting++;
+				this.scaling.expect();
 				this.simulation.start(this::startReplica);
 			}
 		}
-		else if (wanted < active && this.starting == 0) {
-			lowReading(now, active - wanted);
+		else if (pending > 0 && wanted < planned) {
+			int surplus = Math.min(pending, planned - wanted);
+			countLowReading(() -> this.service.pods().orElseThrow().cancelPending(surplus));
+		}
+		else if (wanted < active && this.scaling.starting() == 0) {
+			countLowReading(() -> retireNewest(now, active - wanted));
 		}
 		else {
 			this.lowReadings = 0;
@@ -99,7 +107,7 @@ final class Autoscaler {
 	// the busy handlers over the handlers taking requests since the last evaluation; with
 	// a CPU size, at least the busy executors over theirs
 	private double utilization(double now) {
-		Gauge capacity = this.service.replicas().scaling().orElseThrow().capacity();
+		Gauge capacity = this.scaling.capacity();
 		double busy = integral(this.service.metrics().busy(), now);
 		double handlers = integral(capacity, now);
 		double newBusy = busy - this.busySeen;
@@ -121,23 +129,51 @@ final class Autoscaler {
 		return utilization;
 	}
 
-	private void lowReading(double now, int surplus) {
+	// counts a low reading; the third in a row scales down and starts the count again
+	private void countLowReading(Runnable scaleDown) {
 		this.lowReadings++;
 		if (this.lowReadings < LOW_READINGS_TO_SCALE_DOWN) {
 			return;
 		}
 		this.lowReadings = 0;
+		scaleDown.run();
+	}
+
+	// the newest replicas retire, never the last; on a cluster, their pods free their
+	// nodes
+	private void retireNewest(double now, int surplus) {
 		this.service.metrics().count(SCALE_DOWNS, now);
+		Optional<Pods> pods = this.service.pods();
 		for (int replica = 0; replica < surplus; replica++) {
-			this.service.replicas().scaling().orElseThrow().retireNewest(now);
+			Optional<Replica> retired = this.scaling.retireNewest(now);
+			if (retired.isPresent() && pods.isPresent()) {
+				pods.get().release(retired.get());
+			}
 		}
 	}
 
-	// a replica takes requests after its start-up
+	// a replica asked for takes requests after its start-up; on a cluster, once its pod
+	// is ready
 	private void startReplica(Runnable finish) {
+		this.service.pods().ifPresentOrElse((pods) -> startPod(pods, finish), () -> startAfterStartup(finish));
+	}
+
+	private void startAfterStartup(Runnable finish) {
 		this.simulation.after(this.service.config().startupS() * MS_PER_SECOND, () -> {
-			this.starting--;
 			this.service.startReplica(this.simulation.now());
+			finish.run();
+		});
+	}
+
+	// the replica's pod is bound, pulls the image and starts, unless it is deleted while
+	// Pending
+	private void startPod(Pods pods, Runnable finish) {
+		pods.startPod((node) -> {
+			Replica started = this.service.startReplica(this.simulation.now());
+			pods.recordNode(started, node);
+			finish.run();
+		}, () -> {
+			this.scaling.abandon();
 			finish.run();
 		});
 	}

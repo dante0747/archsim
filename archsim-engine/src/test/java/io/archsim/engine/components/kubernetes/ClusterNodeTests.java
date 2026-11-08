@@ -33,6 +33,26 @@ class ClusterNodeTests {
 	}
 
 	@Test
+	void release_itsLastPod_leavesItEmpty() {
+		ClusterNode node = new ClusterNode(2, 4, 0);
+		node.bind(new PodRequest(1, 1));
+
+		node.release(new PodRequest(1, 1), 500);
+
+		assertThat(node.emptyFor(500, 0)).isTrue();
+	}
+
+	@Test
+	void release_itsLastPod_startsTheEmptyTimeThen() {
+		ClusterNode node = new ClusterNode(2, 4, 0);
+		node.bind(new PodRequest(1, 1));
+
+		node.release(new PodRequest(1, 1), 500);
+
+		assertThat(node.emptyFor(1_000, 600)).isFalse();
+	}
+
+	@Test
 	void cacheImage_aSecondTime_needsNoPull() {
 		ClusterNode node = new ClusterNode(2, 4, 0);
 		node.cacheImage("svc");

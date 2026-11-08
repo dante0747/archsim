@@ -1,6 +1,7 @@
 package io.archsim.engine.components.kubernetes;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.SequencedMap;
 import java.util.function.Consumer;
@@ -66,13 +67,33 @@ public final class ClusterRuntime extends RuntimeComponent {
 	}
 
 	/**
-	 * Asks for a pod: bound now to the least allocated node with room for its request,
-	 * else Pending until a node has room.
+	 * Asks for a pod of a service: bound now to the least allocated node with room for
+	 * its request, else Pending until a node has room.
+	 * @param serviceId the service
 	 * @param request what the pod requests
-	 * @return the node the pod is bound to, once it is: at once when it is bound now
+	 * @return the node the pod is bound to, once it is: at once when it is bound now;
+	 * none for a pod deleted while Pending
 	 */
-	public Promise<ClusterNode> requestPod(PodRequest request) {
-		return this.pool.request(request);
+	public Promise<Optional<ClusterNode>> requestPod(String serviceId, PodRequest request) {
+		return this.pool.request(serviceId, request);
+	}
+
+	/**
+	 * Frees the node of a pod that stopped, and binds the Pending pods that fit now.
+	 * @param node the node the pod ran on
+	 * @param request what it requested
+	 */
+	public void releasePod(ClusterNode node, PodRequest request) {
+		this.pool.release(node, request);
+	}
+
+	/**
+	 * Deletes a service's Pending pods, the newest first.
+	 * @param serviceId the service
+	 * @param count how many at most
+	 */
+	public void cancelPending(String serviceId, int count) {
+		this.pool.cancelPending(serviceId, count);
 	}
 
 	/**

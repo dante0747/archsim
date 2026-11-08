@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 import org.jspecify.annotations.Nullable;
@@ -27,6 +28,9 @@ final class NodePool {
 
 	/** The counter of pods bound to a node. */
 	static final String PODS_SCHEDULED = "podsScheduled";
+
+	/** The counter of Pending pods deleted as their service scaled down. */
+	static final String PODS_CANCELLED = "podsCancelled";
 
 	private final Simulation simulation;
 
@@ -68,12 +72,14 @@ final class NodePool {
 
 	/**
 	 * Asks for a pod: bound now to the least allocated node with room, else Pending.
+	 * @param serviceId the service whose pod it is
 	 * @param request what it requests
-	 * @return the node the pod is bound to, once it is
+	 * @return the node the pod is bound to, once it is; none for a pod deleted while
+	 * Pending
 	 */
-	Promise<ClusterNode> request(PodRequest request) {
+	Promise<Optional<ClusterNode>> request(String serviceId, PodRequest request) {
 		double now = this.simulation.now();
-		PodClaim claim = new PodClaim(request, this.simulation.promise(), now);
+		PodClaim claim = new PodClaim(serviceId, request, this.simulation.promise(), now);
 		ClusterNode node = fit(request);
 		if (node != null) {
 			bind(node, claim);
@@ -108,6 +114,46 @@ final class NodePool {
 			}
 		}
 		this.pending.addAll(still);
+	}
+
+	/**
+	 * Frees a pod's node, and binds the Pending pods that fit now.
+	 * @param node the node the pod ran on
+	 * @param request what it requested
+	 */
+	void release(ClusterNode node, PodRequest request) {
+		double now = this.simulation.now();
+		node.release(request, now);
+		this.gauges.releasePod(now, request);
+		schedulePending();
+	}
+
+	/**
+	 * Deletes a service's Pending pods, the newest first, as a ReplicaSet scaled down
+	 * deletes its unscheduled pods first: each learns it has no node.
+	 * @param serviceId the service
+	 * @param count how many at most
+	 */
+	void cancelPending(String serviceId, int count) {
+		double now = this.simulation.now();
+		List<PodClaim> cancelled = new ArrayList<>();
+		Deque<PodClaim> kept = new ArrayDeque<>();
+		for (PodClaim claim : this.pending.reversed()) {
+			if (cancelled.size() < count && claim.serviceId().equals(serviceId)) {
+				cancelled.add(claim);
+			}
+			else {
+				kept.addFirst(claim);
+			}
+		}
+		this.pending.clear();
+		this.pending.addAll(kept);
+		for (PodClaim claim : cancelled) {
+			this.maxWaitMs = Math.max(this.maxWaitMs, now - claim.requestedAt());
+			this.gauges.dequeuePod(now);
+			this.metrics.count(PODS_CANCELLED, now);
+			claim.placed().succeed(Optional.empty());
+		}
 	}
 
 	/**
@@ -230,17 +276,21 @@ final class NodePool {
 			this.maxWaitMs = Math.max(this.maxWaitMs, waitMs);
 		}
 		this.metrics.count(PODS_SCHEDULED, now);
-		claim.placed().succeed(node);
+		claim.placed().succeed(Optional.of(node));
 	}
 
 	/**
-	 * A pod's claim on a node: bound at once, or Pending until a node has room.
+	 * A pod's claim on a node: bound at once, or Pending until a node has room or the pod
+	 * is deleted.
 	 *
+	 * @param serviceId the service whose pod it is
 	 * @param request what the pod requests
-	 * @param placed the node it is bound to, once it is
+	 * @param placed the node it is bound to, once it is; none for a pod deleted while
+	 * Pending
 	 * @param requestedAt when it asked
 	 */
-	private record PodClaim(PodRequest request, Promise<ClusterNode> placed, double requestedAt) {
+	private record PodClaim(String serviceId, PodRequest request, Promise<Optional<ClusterNode>> placed,
+			double requestedAt) {
 	}
 
 }
