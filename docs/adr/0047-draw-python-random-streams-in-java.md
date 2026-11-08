@@ -61,7 +61,9 @@ then draws the same numbers in the same order, so the two runs can be compared d
   timeout), or the acceptance test of `normal`, which then draws again and shifts every later
   draw on that stream. Each is about as likely as 1e-16 per draw.
 - The model's `LogNormal` computes its `mu()` and `sigma()` with `StrictMath` as well, so the
-  parameters every sampler reads are the same on every platform.
+  parameters every sampler reads are the same on every platform. The estimate and sizing read
+  them through a lognormal's mean, so their figures may move by one unit in the last place, far
+  inside the golden files' 1e-9.
 
 ### Consequences
 
