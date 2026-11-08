@@ -3,12 +3,14 @@ package io.archsim.engine.simulator;
 import io.archsim.engine.components.client.ClientMetrics;
 import io.archsim.engine.components.client.TrafficSourceRuntime;
 import io.archsim.engine.components.external.ExternalApiRuntime;
+import io.archsim.engine.components.loadbalancer.LoadBalancerRuntime;
 import io.archsim.engine.components.service.ServiceRuntime;
 import io.archsim.engine.host.HostSpeeds;
 import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.model.component.client.ClientConfig;
 import io.archsim.model.component.external.ExternalApiConfig;
+import io.archsim.model.component.loadbalancer.LoadBalancerConfig;
 import io.archsim.model.component.service.Platform;
 import io.archsim.model.component.service.ServiceConfig;
 import io.archsim.model.document.NodeSpec;
@@ -36,6 +38,7 @@ final class Parts {
 			case ClientConfig client -> new TrafficSourceRuntime(context, node, client, clients);
 			case ExternalApiConfig api -> new ExternalApiRuntime(context, node, api);
 			case ServiceConfig service -> service(context, node, service);
+			case LoadBalancerConfig balancer -> new LoadBalancerRuntime(context, node, balancer);
 			default -> throw new UnsupportedOperationException(
 					"the Java simulator does not simulate a " + node.type() + " yet");
 		};

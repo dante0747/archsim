@@ -10,6 +10,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.explain.Formula;
 import io.archsim.engine.explain.QueueingFormulas;
 import io.archsim.engine.findings.Classification;
 import io.archsim.engine.findings.RunAnalysis;
@@ -129,15 +130,14 @@ final class PartsWriter {
 		return edges;
 	}
 
-	// the queueing formulas of a part that serves requests, then its own: every part
-	// ported so far measures its utilization by its busy slots (the Python engine's
-	// pool-based parts); the load balancer, measured by the requests in flight, comes
-	// with its slice
+	// the queueing formulas of a part that serves requests (its slots' when its
+	// utilization is its busy slots), then its own
 	private static ArrayNode formulas(ObjectNode node, RuntimeComponent component, SimulatedRun run) {
 		ReportNode written = ReportNode.read(node);
 		ArrayNode formulas = Figures.NODES.arrayNode();
-		QueueingFormulas.ofSlots(written, run.windowSeconds())
-			.forEach((formula) -> formulas.add(RecordCodec.write(formula)));
+		List<Formula> queueing = Capacity.poolBased(component) ? QueueingFormulas.ofSlots(written, run.windowSeconds())
+				: QueueingFormulas.of(written, run.windowSeconds());
+		queueing.forEach((formula) -> formulas.add(RecordCodec.write(formula)));
 		component.explain(written.summary()).forEach((formula) -> formulas.add(RecordCodec.write(formula)));
 		return formulas;
 	}

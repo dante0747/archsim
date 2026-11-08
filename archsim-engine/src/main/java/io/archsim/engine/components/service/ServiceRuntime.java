@@ -22,11 +22,11 @@ import io.archsim.model.document.NodeSpec;
 
 /**
  * A service with a fixed number of replicas during a run: each replica is a pool of
- * handlers with its own queue, sent requests in turn ({@link Serving}), its CPU work
- * stalled by its garbage collector ({@link GarbageCollector}). Its report adds its
- * cores', memory's and pauses' figures and ceilings ({@link ServiceReport}) and formulas
- * ({@link ServiceExplain}). Autoscaling, serverless and Kubernetes services come with
- * their slice of the port.
+ * handlers with its own queue, sent requests in turn, or to the replica a load balancer
+ * picks ({@link Serving}), its CPU work stalled by its garbage collector
+ * ({@link GarbageCollector}). Its report adds its cores', memory's and pauses' figures
+ * and ceilings ({@link ServiceReport}) and formulas ({@link ServiceExplain}).
+ * Autoscaling, serverless and Kubernetes services come with their slice of the port.
  */
 public final class ServiceRuntime extends RuntimeComponent {
 
@@ -63,6 +63,21 @@ public final class ServiceRuntime extends RuntimeComponent {
 		int index = this.next;
 		this.next = (index + 1) % replicas.size();
 		this.serving.serve(request, replicas.get(index), done);
+	}
+
+	@Override
+	public void handleOn(Request request, int index, Consumer<Outcome> done) {
+		this.serving.serve(request, this.state.replicas().get(index), done);
+	}
+
+	@Override
+	public int instanceCount() {
+		return this.state.replicas().size();
+	}
+
+	@Override
+	public long instanceLoad(int index) {
+		return this.state.replicas().get(index).load();
 	}
 
 	@Override

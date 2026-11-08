@@ -14,7 +14,7 @@ import io.archsim.engine.runtime.RuntimeComponent;
 /**
  * A part's summary and accounting in a report: its load, refusals, utilization, queue,
  * times, capacity and counters over the measurement window. A part's utilization is its
- * busy slots over its slots.
+ * occupancy (its busy slots, or a balancer's requests in flight) over its slots.
  */
 final class NodeEntry {
 
@@ -83,8 +83,9 @@ final class NodeEntry {
 			summary.putNull("slots");
 		}
 		OptionalDouble count = Capacity.slots(this.metrics);
-		summary.set("utilization", count.isPresent()
-				? Figures.rounded(this.metrics.busy().windowMean() / count.getAsDouble()) : Figures.NODES.nullNode());
+		summary.set("utilization",
+				count.isPresent() ? Figures.rounded(this.component.occupancy().windowMean() / count.getAsDouble())
+						: Figures.NODES.nullNode());
 		summary.set("cpuUtilization", (count.isPresent() && this.component.splitsCpu())
 				? Figures.rounded(this.metrics.cpu().windowMean() / count.getAsDouble()) : Figures.NODES.nullNode());
 	}

@@ -46,7 +46,7 @@ final class NodeSeries {
 		OptionalDouble slots = Capacity.slots(this.metrics);
 		if (slots.isPresent()) {
 			double slotTime = slots.getAsDouble() * this.timeline.bucketMs();
-			series.set("utilization", shares(this.metrics.busy().area(), slotTime));
+			series.set("utilization", shares(this.component.occupancy().area(), slotTime));
 			if (this.component.splitsCpu()) {
 				series.set("cpuUtilization", shares(this.metrics.cpu().area(), slotTime));
 			}

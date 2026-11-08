@@ -77,6 +77,16 @@ public final class EdgeRuntime {
 	}
 
 	/**
+	 * The wait before a retry across the link: its backoff, doubled for each retry
+	 * before.
+	 * @param retry the retry, from 1
+	 * @return milliseconds
+	 */
+	public double backoffMs(int retry) {
+		return this.spec.config().retryBackoffMs() * (double) (1L << (retry - 1));
+	}
+
+	/**
 	 * Whether the link carries an operation.
 	 * @param operation a read or a write
 	 * @return {@code true} when the link's request types include it

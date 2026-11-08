@@ -63,6 +63,10 @@ def service(node_id: str, label: str, **config: Any) -> Json:
     return {"id": node_id, "type": "service", "label": label, "config": config}
 
 
+def balancer(node_id: str = "lb", **config: Any) -> Json:
+    return {"id": node_id, "type": "load_balancer", "label": "Balancer", "config": config}
+
+
 def link(source: str, target: str, **config: Any) -> Json:
     return {
         "id": f"{source}-{target}",
@@ -330,6 +334,89 @@ CASES: dict[str, Json] = {
         ],
         [link("clients", "svc")],
         {"rps": 150, "arrivalProcess": "deterministic"},
+    ),
+    "aBalancerRetryingAnotherReplica": design(
+        [
+            clients(timeoutMs=1000),
+            balancer(technology="nginx", policy="round_robin"),
+            service(
+                "svc",
+                "Orders",
+                replicas=3,
+                workersPerReplica=2,
+                queueCapacity=5,
+                queueTimeoutMs=100,
+                serviceTimeMs=lognormal(15, 60),
+            ),
+        ],
+        [
+            link("clients", "lb"),
+            link("lb", "svc", timeoutMs=200, maxAttempts=2, retryBackoffMs=5),
+        ],
+        {"rps": 300, "arrivalProcess": "poisson"},
+    ),
+    "anEnvoyWithACircuitBreakerAndAnUpstreamTimeout": design(
+        [
+            clients(timeoutMs=1000),
+            balancer(
+                technology="envoy",
+                policy="least_connections",
+                circuitBreakerMaxRequests=6,
+                upstreamTimeoutMs=80,
+                overheadMs={"kind": "exponential", "mean": 0.5},
+            ),
+            service(
+                "svc", "Search", replicas=2, workersPerReplica=3, serviceTimeMs=lognormal(20, 90)
+            ),
+            external("api", latencyMs=lognormal(30, 150)),
+        ],
+        [
+            link("clients", "lb"),
+            link("lb", "svc", maxAttempts=2),
+            link("lb", "api", requestTypes=["read"], timeoutMs=120),
+        ],
+        {"rps": 250, "arrivalProcess": "poisson"},
+    ),
+    "aRandomBalancerWithARateLimit": design(
+        [
+            clients(timeoutMs=800),
+            balancer(
+                technology="api_gateway",
+                policy="random",
+                rateLimitRps=150,
+                rateLimitBurst=20,
+                maxConnections=8,
+            ),
+            service(
+                "svc",
+                "Profile",
+                replicas=2,
+                workersPerReplica=3,
+                queueCapacity=2,
+                serviceTimeMs=lognormal(25, 70),
+            ),
+        ],
+        [link("clients", "lb"), link("lb", "svc", maxAttempts=2)],
+        {"rps": 250, "arrivalProcess": "poisson", "readRatio": 0.85},
+    ),
+    "aDefaultBalancerOverTwoServices": design(
+        [
+            clients(timeoutMs=1500),
+            balancer(),
+            service("a", "Orders", replicas=2, workersPerReplica=2, queueCapacity=1),
+            service("b", "Orders (canary)", replicas=1, workersPerReplica=2, queueCapacity=1),
+        ],
+        [
+            link("clients", "lb"),
+            link("lb", "a", maxAttempts=2, retryBackoffMs=10),
+            link("lb", "b", maxAttempts=2, retryBackoffMs=10),
+        ],
+        {"rps": 400, "arrivalProcess": "poisson"},
+    ),
+    "aBalancerRateLimitedBelowOneRequestASecond": design(
+        [clients(), balancer(rateLimitRps=0.5), service("svc", "Reports", replicas=1)],
+        [link("clients", "lb"), link("lb", "svc")],
+        {"rps": 20, "arrivalProcess": "deterministic"},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

@@ -1,6 +1,5 @@
 package io.archsim.engine.components.service;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,6 +15,7 @@ import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.numeric.PythonRound;
 import io.archsim.engine.runtime.NodeMetrics;
+import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.model.catalog.TechnologyTrait;
 import io.archsim.model.component.service.ServiceConfig;
 
@@ -78,20 +78,20 @@ final class ServiceReport {
 	static SequencedMap<String, List<@Nullable Double>> extraTimeseries(ServiceState service) {
 		SequencedMap<String, List<@Nullable Double>> series = new LinkedHashMap<>();
 		NodeMetrics metrics = service.metrics();
-		series.put("inflightMean", values(metrics.inflight().meanSeries()));
+		series.put("inflightMean", RuntimeComponent.series(metrics.inflight().meanSeries()));
 		Gauge busy = service.coreBusy();
 		if (busy != null) {
 			double speed = service.replicas().getFirst().cores().speed();
 			series.put("cpuBusyCores",
-					values(Arrays.stream(busy.meanSeries()).map((cores) -> cores * speed).toArray()));
+					RuntimeComponent.series(Arrays.stream(busy.meanSeries()).map((cores) -> cores * speed).toArray()));
 		}
 		double bucketS = metrics.timeline().bucketMs() / MS_PER_SECOND;
 		if (service.gc() != null) {
-			series.put("gcPauseMs",
-					values(Arrays.stream(service.pauseMs()).map((pausedMs) -> pausedMs / bucketS).toArray()));
+			series.put("gcPauseMs", RuntimeComponent
+				.series(Arrays.stream(service.pauseMs()).map((pausedMs) -> pausedMs / bucketS).toArray()));
 		}
 		if (service.warmup() != null) {
-			series.put("warmingReplicas", values(service.warming().meanSeries()));
+			series.put("warmingReplicas", RuntimeComponent.series(service.warming().meanSeries()));
 		}
 		if (service.config().runsEventLoop()) {
 			series.put("eventLoopLagMs", metrics.queueWait().series());
@@ -182,12 +182,6 @@ final class ServiceReport {
 			}
 		}
 		return peak;
-	}
-
-	private static List<@Nullable Double> values(double[] series) {
-		List<@Nullable Double> values = new ArrayList<>(series.length);
-		Arrays.stream(series).forEach(values::add);
-		return values;
 	}
 
 }

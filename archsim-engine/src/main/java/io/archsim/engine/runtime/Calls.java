@@ -101,8 +101,7 @@ public final class Calls {
 				return;
 			}
 			edge.retries().increment(this.context.simulation().now());
-			double backoff = edge.config().retryBackoffMs() * (double) (1L << made);
-			this.context.simulation().after(backoff, () -> attempt(call, request, made + 1, done));
+			this.context.simulation().after(edge.backoffMs(made + 1), () -> attempt(call, request, made + 1, done));
 		});
 	}
 

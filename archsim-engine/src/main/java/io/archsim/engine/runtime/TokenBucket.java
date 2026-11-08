@@ -1,5 +1,7 @@
 package io.archsim.engine.runtime;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A token bucket, for rate limits and provisioned throughput: {@code ratePerSecond}
  * tokens a second, at most {@code burst} held, full at the start. Time is in
@@ -33,7 +35,18 @@ public final class TokenBucket {
 	 * @throws IllegalArgumentException for a rate of 0 or less
 	 */
 	public static TokenBucket ofRate(double ratePerSecond) {
-		return new TokenBucket(ratePerSecond, Math.max(1.0, ratePerSecond));
+		return of(ratePerSecond, null);
+	}
+
+	/**
+	 * A full bucket.
+	 * @param ratePerSecond tokens added a second, above 0
+	 * @param burst the most it holds; {@code null} for a second's tokens, at least one
+	 * @return the bucket
+	 * @throws IllegalArgumentException for a rate of 0 or less
+	 */
+	public static TokenBucket of(double ratePerSecond, @Nullable Double burst) {
+		return new TokenBucket(ratePerSecond, (burst != null) ? burst : Math.max(1.0, ratePerSecond));
 	}
 
 	/**

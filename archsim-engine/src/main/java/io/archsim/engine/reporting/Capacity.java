@@ -20,9 +20,9 @@ import io.archsim.engine.runtime.RuntimeComponent;
  * holds one as long as it did on average) and the ceilings its resource specs set (CPU
  * cores, memory), and what it would be were a request to hold a slot for its own work
  * alone. At saturation the slots' ceiling reflects the time spent waiting for a core or
- * memory, so a resource ceiling within 3% of it is named as the limit instead. Every part
- * ported so far is limited by its busy slots; a load balancer, limited by the requests in
- * flight, comes with its slice.
+ * memory, so a resource ceiling within 3% of it is named as the limit instead. Only a
+ * part whose utilization is its busy slots has a slots' ceiling: not a load balancer,
+ * whose utilization is the requests in flight over its connections.
  */
 final class Capacity {
 
@@ -56,17 +56,28 @@ final class Capacity {
 		OptionalDouble serviceMs = metrics.service().windowMean();
 		SequencedMap<String, Double> limits = component.resourceCapacity(holdMs, serviceMs);
 		SequencedMap<String, Double> ceilings = new LinkedHashMap<>(limits);
-		if (slots.isPresent() && holdMs.orElse(0.0) > 0) {
+		boolean poolBased = poolBased(component);
+		if (poolBased && slots.isPresent() && holdMs.orElse(0.0) > 0) {
 			ceilings.put(SLOTS, component.slotCapacity(slots.getAsDouble(), holdMs.getAsDouble(), serviceMs));
 		}
 		List<Double> serviceOnly = new ArrayList<>();
 		if (limits.containsKey(CPU)) {
 			serviceOnly.add(limits.get(CPU));
 		}
-		if (slots.isPresent() && serviceMs.orElse(0.0) > 0) {
+		if (poolBased && slots.isPresent() && serviceMs.orElse(0.0) > 0) {
 			serviceOnly.add(component.slotCapacity(slots.getAsDouble(), serviceMs.getAsDouble(), serviceMs));
 		}
 		return new Capacity(limits, ceilings, serviceOnly.stream().mapToDouble(Double::doubleValue).reduce(Math::min));
+	}
+
+	/**
+	 * Whether a part's utilization is its busy slots, so its slots set a ceiling and have
+	 * their formulas.
+	 * @param component the part
+	 * @return {@code true} unless the part measures its occupancy otherwise
+	 */
+	static boolean poolBased(RuntimeComponent component) {
+		return component.occupancy() == component.metrics().busy();
 	}
 
 	/**

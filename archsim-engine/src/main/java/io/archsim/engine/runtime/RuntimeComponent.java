@@ -1,5 +1,6 @@
 package io.archsim.engine.runtime;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.OptionalDouble;
@@ -11,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.explain.Formula;
 import io.archsim.engine.kernel.Simulation;
+import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.random.PythonRandom;
 import io.archsim.engine.random.Sampler;
 import io.archsim.engine.report.NodeSummary;
@@ -71,6 +73,41 @@ public abstract class RuntimeComponent {
 	 */
 	public final List<EdgeRuntime> outEdges(String port) {
 		return this.context.outEdges(id(), port);
+	}
+
+	/**
+	 * Takes a request on one of the part's instances, as a load balancer sends it there.
+	 * @param request the request
+	 * @param index the instance, from 0
+	 * @param done what to do with the outcome
+	 */
+	public void handleOn(Request request, int index, Consumer<Outcome> done) {
+		handle(request, done);
+	}
+
+	/**
+	 * How many instances the part has, for a load balancer to choose from.
+	 * @return one, unless the part has replicas
+	 */
+	public int instanceCount() {
+		return 1;
+	}
+
+	/**
+	 * The requests one instance holds, for a load balancer's least-connections policy.
+	 * @param index the instance, from 0
+	 * @return the requests in flight at the part, unless it counts them per instance
+	 */
+	public long instanceLoad(int index) {
+		return this.metrics.inflight().value();
+	}
+
+	/**
+	 * The gauge whose level over the part's slots is its utilization.
+	 * @return its busy slots, unless it says otherwise
+	 */
+	public Gauge occupancy() {
+		return this.metrics.busy();
 	}
 
 	/**
@@ -143,8 +180,21 @@ public abstract class RuntimeComponent {
 	}
 
 	/**
-	 * The calculations behind the part's own figures, after the queueing formulas every
-	 * part with slots has.
+	 * A series of a part's figures, as {@link #extraTimeseries} gives one.
+	 * @param values one figure per bucket of the whole timeline
+	 * @return the figures, in order
+	 */
+	public static List<@Nullable Double> series(double[] values) {
+		List<@Nullable Double> series = new ArrayList<>(values.length);
+		for (double value : values) {
+			series.add(value);
+		}
+		return series;
+	}
+
+	/**
+	 * The calculations behind the part's own figures, after the queueing formulas of
+	 * every part that serves requests in slots.
 	 * @param summary the part's summary in the report
 	 * @return the formulas; none by default
 	 */
