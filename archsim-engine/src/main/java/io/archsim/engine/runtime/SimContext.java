@@ -22,6 +22,7 @@ import io.archsim.engine.random.RandomStreams;
 import io.archsim.model.document.Fault;
 import io.archsim.model.document.FaultKind;
 import io.archsim.model.document.HostSpec;
+import io.archsim.model.document.Workload;
 
 /**
  * Everything a part needs during a run: the clock, the random streams, the other parts
@@ -35,6 +36,8 @@ public final class SimContext {
 	private final RandomStreams streams;
 
 	private final Timeline timeline;
+
+	private final Workload workload;
 
 	private final Faults faults;
 
@@ -57,13 +60,14 @@ public final class SimContext {
 	 * @param simulation the run's clock
 	 * @param streams the run's random streams
 	 * @param timeline the run's timeline
-	 * @param faults the faults planned for the run
+	 * @param workload the run's workload, with the faults planned for it
 	 */
-	public SimContext(Simulation simulation, RandomStreams streams, Timeline timeline, List<Fault> faults) {
+	public SimContext(Simulation simulation, RandomStreams streams, Timeline timeline, Workload workload) {
 		this.simulation = simulation;
 		this.streams = streams;
 		this.timeline = timeline;
-		this.faults = new Faults(faults);
+		this.workload = workload;
+		this.faults = new Faults(workload.faults());
 	}
 
 	/**
@@ -184,6 +188,10 @@ public final class SimContext {
 
 	public Timeline timeline() {
 		return this.timeline;
+	}
+
+	public Workload workload() {
+		return this.workload;
 	}
 
 	public Calls calls() {

@@ -58,7 +58,7 @@ final class RunSimulation {
 		double durationMs = workload.durationS() * MS_PER_SECOND;
 		double endMs = durationMs + drainS * MS_PER_SECOND;
 		SimContext context = new SimContext(new Simulation(), new RandomStreams(workload.seed()),
-				new Timeline(endMs, workload.warmupS() * MS_PER_SECOND, durationMs), workload.faults());
+				new Timeline(endMs, workload.warmupS() * MS_PER_SECOND, durationMs), workload);
 		ClientMetrics clients = new ClientMetrics(context.timeline());
 		build(context, resolved, clients);
 		List<TrafficSourceRuntime> sources = sourceNodes.stream()

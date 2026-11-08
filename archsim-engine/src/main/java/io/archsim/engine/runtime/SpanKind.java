@@ -44,7 +44,22 @@ public enum SpanKind implements JsonEnum {
 	FORK("fork"),
 
 	/** A value written back to a cache after a miss. */
-	POPULATE("populate");
+	POPULATE("populate"),
+
+	/** Waiting for a database's ticket. */
+	TICKETS("tickets"),
+
+	/** Waiting for a row's lock. */
+	LOCK("lock"),
+
+	/** A database's own work on an operation. */
+	EXECUTE("execute"),
+
+	/** Waiting for a database's log flush. */
+	COMMIT("commit"),
+
+	/** A read sent to every shard of a database. */
+	SCATTER("scatter");
 
 	private final String json;
 

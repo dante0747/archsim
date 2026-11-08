@@ -1,7 +1,5 @@
 package io.archsim.engine.components.client;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -14,6 +12,7 @@ import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.client.TrafficSourceConfig;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.RequestType;
+import io.archsim.model.document.Workload;
 
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
@@ -25,7 +24,8 @@ class TrafficSourceRuntimeTests {
 	@Test
 	void handle_aCallToAClientGroup_isRefused() {
 		Timeline timeline = new Timeline(1000, 0, 1000);
-		SimContext context = new SimContext(new Simulation(), new RandomStreams(7), timeline, List.of());
+		Workload workload = RecordCodec.read(JsonMapper.builder().build().readTree("{}"), Workload.class);
+		SimContext context = new SimContext(new Simulation(), new RandomStreams(7), timeline, workload);
 		NodeSpec node = RecordCodec.read(
 				JsonMapper.builder().build().readTree("{\"id\": \"clients\", \"type\": \"traffic_source\"}"),
 				NodeSpec.class);

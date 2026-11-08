@@ -20,7 +20,8 @@ class SimulatorTests {
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', textBlock = """
-			database | {}                                   | a database
+			database | {"readReplicas": 1}                  | a database that replicates to its read replicas
+			database | {"technology": "dynamodb"}           | a database metered in capacity units
 			service  | {"platform": "serverless"}           | a serverless service
 			service  | {"autoscaling": true}                | an autoscaling service
 			""")

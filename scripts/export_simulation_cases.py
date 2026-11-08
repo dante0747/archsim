@@ -4,8 +4,9 @@ The Java simulator keeps the frozen engine's order of events and draws its rando
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
 patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
-services, load balancers, hosts, caches, and each component as later slices add them), with
-the frozen engine (0.16.0) and records each design, the scenario simulated and the report.
+services, load balancers, hosts, caches, databases, and each component as later slices add
+them), with the frozen engine (0.16.0) and records each design, the scenario simulated and the
+report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
 
@@ -69,6 +70,10 @@ def balancer(node_id: str = "lb", **config: Any) -> Json:
 
 def cache(node_id: str, label: str, **config: Any) -> Json:
     return {"id": node_id, "type": "cache", "label": label, "config": config}
+
+
+def database(node_id: str, label: str, **config: Any) -> Json:
+    return {"id": node_id, "type": "database", "label": label, "config": config}
 
 
 def link(source: str, target: str, **config: Any) -> Json:
@@ -689,6 +694,141 @@ CASES: dict[str, Json] = {
             link("svc", "db", requestTypes=["read"], readsOnMiss=True),
         ],
         {"rps": 100, "arrivalProcess": "poisson"},
+    ),
+    "aPostgresLockingHotRowsWithGroupCommit": design(
+        [
+            clients(timeoutMs=1500),
+            service(
+                "svc", "Orders", replicas=1, workersPerReplica=16, serviceTimeMs=lognormal(2, 6)
+            ),
+            database(
+                "db",
+                "PostgreSQL",
+                maxConnections=4,
+                queueCapacity=8,
+                queueTimeoutMs=150,
+                cpuCores=2,
+                cpuShare=0.6,
+                memoryGib=4,
+                workingSetGib=10,
+                readServiceTimeMs=lognormal(3, 10),
+                writeServiceTimeMs=lognormal(6, 20),
+            ),
+        ],
+        [link("clients", "svc"), link("svc", "db")],
+        {"rps": 250, "arrivalProcess": "poisson", "readRatio": 0.5, "keyCount": 40, "keySkew": 1.2},
+    ),
+    "aShardedMongoWaitingForTickets": design(
+        [
+            clients(timeoutMs=1000),
+            database(
+                "db",
+                "MongoDB",
+                technology="mongodb",
+                shards=3,
+                readTickets=2,
+                writeTickets=1,
+                replicationFactor=3,
+                consistency="quorum",
+                throughputLimitRps=90,
+                readServiceTimeMs=lognormal(4, 12),
+                writeServiceTimeMs=lognormal(5, 15),
+            ),
+        ],
+        [link("clients", "db")],
+        {"rps": 300, "arrivalProcess": "poisson", "readRatio": 0.7, "keyCount": 200},
+    ),
+    "aSqlServerWhoseReadsWaitForWriters": design(
+        [
+            clients(timeoutMs=1000),
+            database(
+                "db",
+                "SQL Server",
+                technology="sqlserver",
+                maxConnections=8,
+                cpuCores=1.5,
+                siblingSpeed=0.7,
+                readServiceTimeMs=lognormal(2, 6),
+                writeServiceTimeMs=lognormal(8, 25),
+                commitFlushMs=lognormal(2, 5),
+            ),
+        ],
+        [link("clients", "db")],
+        {"rps": 120, "arrivalProcess": "poisson", "readRatio": 0.6, "keyCount": 15, "keySkew": 1.0},
+    ),
+    "aScyllaReadingSstablesFromDisk": design(
+        [
+            clients(timeoutMs=1000),
+            database(
+                "db",
+                "ScyllaDB",
+                technology="scylladb",
+                replicationFactor=3,
+                consistency="all",
+                readReplicas=1,
+                memoryGib=2,
+                workingSetGib=8,
+                diskReadMs=lognormal(2, 6),
+            ),
+        ],
+        [link("clients", "db")],
+        {"rps": 150, "arrivalProcess": "poisson", "readRatio": 0.9},
+    ),
+    "searchStoresScatteringReads": design(
+        [
+            clients(timeoutMs=1000),
+            service(
+                "svc", "Search API", replicas=1, workersPerReplica=16, serviceTimeMs=lognormal(2, 6)
+            ),
+            database(
+                "es",
+                "Elasticsearch",
+                technology="elasticsearch",
+                shards=3,
+                readServiceTimeMs=lognormal(4, 12),
+            ),
+            database(
+                "os",
+                "OpenSearch",
+                technology="opensearch",
+                shards=4,
+                scatterReads=0.5,
+                routerOverheadMs=1.0,
+                maxConnections=2,
+                queueCapacity=1,
+                readServiceTimeMs=lognormal(5, 15),
+            ),
+        ],
+        [link("clients", "svc"), link("svc", "es"), link("svc", "os")],
+        {"rps": 120, "arrivalProcess": "poisson", "readRatio": 0.85},
+    ),
+    "aStoreReadingFromItsReplicas": design(
+        [
+            clients("web", timeoutMs=1000, trafficShare=3),
+            clients("batch", timeoutMs=1000, trafficShare=1),
+            database(
+                "db",
+                "Store",
+                technology="generic",
+                readReplicas=2,
+                readFrom="replicas",
+                shards=2,
+                maxConnections=1,
+                queueCapacity=2,
+                queueTimeoutMs=None,
+                readServiceTimeMs=lognormal(8, 25),
+            ),
+            database(
+                "primary",
+                "Store (primary reads)",
+                technology="generic",
+                readReplicas=1,
+                readFrom="primary",
+                replicationFactor=2,
+            ),
+        ],
+        [link("web", "db"), link("batch", "primary")],
+        {"rps": 400, "arrivalProcess": "poisson", "readRatio": 0.8},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

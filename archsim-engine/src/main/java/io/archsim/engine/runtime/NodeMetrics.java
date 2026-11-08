@@ -62,6 +62,8 @@ public final class NodeMetrics {
 
 	private final Map<String, Counter> counters = new LinkedHashMap<>();
 
+	private final Map<String, MeanAccumulator> means = new LinkedHashMap<>();
+
 	/**
 	 * A part's metrics, all at zero.
 	 * @param timeline the run's timeline
@@ -127,7 +129,27 @@ public final class NodeMetrics {
 	 * @param time when
 	 */
 	public void count(String name, double time) {
-		this.counters.computeIfAbsent(name, (ignored) -> new Counter(this.timeline)).increment(time);
+		count(name, time, 1);
+	}
+
+	/**
+	 * Counts several of something the part does at once, under the name the report shows.
+	 * @param name such as {@code diskReads}
+	 * @param time when
+	 * @param count how many
+	 */
+	public void count(String name, double time, long count) {
+		this.counters.computeIfAbsent(name, (ignored) -> new Counter(this.timeline)).increment(time, count);
+	}
+
+	/**
+	 * Records a sample of a figure the part averages per bucket, such as a lock's wait.
+	 * @param name such as {@code lockWaitMs}
+	 * @param time when
+	 * @param value the sample
+	 */
+	public void recordMean(String name, double time, double value) {
+		this.means.computeIfAbsent(name, (ignored) -> new MeanAccumulator(this.timeline)).record(time, value);
 	}
 
 	/**
@@ -223,6 +245,14 @@ public final class NodeMetrics {
 	 */
 	public Map<String, Counter> counters() {
 		return Collections.unmodifiableMap(this.counters);
+	}
+
+	/**
+	 * What the part averaged of its own per bucket, by name.
+	 * @return each name's means, in the order the names first came up
+	 */
+	public Map<String, MeanAccumulator> means() {
+		return Collections.unmodifiableMap(this.means);
 	}
 
 }

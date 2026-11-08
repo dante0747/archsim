@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.runtime.Cores;
+import io.archsim.engine.runtime.KeyShards;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.engine.runtime.WorkerPool;
@@ -20,11 +21,6 @@ import io.archsim.model.component.cache.EvictionPolicy;
  * keys as fit in its memory.
  */
 final class CacheShards {
-
-	/** Knuth's multiplicative hash, which spreads the keys over the shards. */
-	private static final long HASH_MULTIPLIER = 2_654_435_761L;
-
-	private static final long LOW_32_BITS = 0xFFFF_FFFFL;
 
 	private final List<CacheShard> shards;
 
@@ -65,10 +61,7 @@ final class CacheShards {
 		if (this.shards.size() == 1) {
 			return this.shards.getFirst();
 		}
-		// as the Python engine hashes a key: its rank plus one, so that rank 0 does not
-		// hash to 0, times the multiplier, in 32 bits
-		long hash = ((key + 1L) * HASH_MULTIPLIER) & LOW_32_BITS;
-		return this.shards.get((int) (hash % this.shards.size()));
+		return this.shards.get(KeyShards.of(key, this.shards.size()));
 	}
 
 	List<CacheShard> all() {
