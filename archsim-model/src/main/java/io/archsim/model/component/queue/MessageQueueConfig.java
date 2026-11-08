@@ -1,5 +1,7 @@
 package io.archsim.model.component.queue;
 
+import java.util.OptionalDouble;
+
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
@@ -159,6 +161,9 @@ public record MessageQueueConfig(
 		.with(QueueTechnology.GENERIC, unpartitioned(TechnologyProfile.core()).with("flowControl", "off"))
 		.build();
 
+	/** The KiB in a GiB, to count the messages that fit in memory. */
+	private static final double KIB_PER_GIB = 1024.0 * 1024.0;
+
 	/**
 	 * The profile of one shared queue: no partitions, publishes acknowledged by the
 	 * leader, no batching.
@@ -230,6 +235,64 @@ public record MessageQueueConfig(
 	 */
 	public boolean acknowledgedByAll() {
 		return profile().choice("acks", this.acks, Acks.AUTO, Acks.LEADER) == Acks.ALL;
+	}
+
+	/**
+	 * How messages are spread over partitions, after the technology's default.
+	 * @return by key, in turn, or none
+	 */
+	public Partitioning partitioningInEffect() {
+		return profile().choice("partitioning", this.partitioning, Partitioning.AUTO, Partitioning.NONE);
+	}
+
+	/**
+	 * Whether a message is delivered at most once, so a full backlog drops it, after the
+	 * technology's default.
+	 * @return {@code true} at most once; {@code false} at least once, the default
+	 */
+	public boolean deliversAtMostOnce() {
+		Delivery effective = profile().choice("delivery", this.delivery, Delivery.AUTO, Delivery.AT_LEAST_ONCE);
+		return effective == Delivery.AT_MOST_ONCE;
+	}
+
+	/**
+	 * How long a message stays hidden while a consumer holds it, after the technology's
+	 * default.
+	 * @return seconds; empty when a message is never delivered again for taking long
+	 */
+	public OptionalDouble visibilityTimeoutSInEffect() {
+		return profile().number("visibilityTimeoutS", this.visibilityTimeoutS)
+			.map(OptionalDouble::of)
+			.orElse(OptionalDouble.empty());
+	}
+
+	/**
+	 * Whether consumers poll in cycles (a fetch overhead, or more than one message at
+	 * once) rather than taking each message as soon as they are free.
+	 * @return {@code true} when they poll in cycles
+	 */
+	public boolean fetchesInCycles() {
+		return this.fetchOverheadMs != null || concurrencyPerConsumer() > 1;
+	}
+
+	/**
+	 * The backlog at which the memory alarm blocks publishers: the high watermark's share
+	 * of memory, in messages.
+	 * @return messages; empty without flow control or a memory size
+	 */
+	public OptionalDouble flowThreshold() {
+		if (!blocksOnMemoryAlarm() || this.memoryGib == null) {
+			return OptionalDouble.empty();
+		}
+		return OptionalDouble.of(this.memoryHighWatermark * this.memoryGib * KIB_PER_GIB / this.messageSizeKb);
+	}
+
+	/**
+	 * Whether publishes are limited to a FIFO queue's throughput: an SQS FIFO queue's.
+	 * @return {@code true} when its publish limit applies
+	 */
+	public boolean limitsFifoPublishes() {
+		return this.fifo && this.technology == QueueTechnology.SQS;
 	}
 
 	/**

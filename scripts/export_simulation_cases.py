@@ -4,9 +4,9 @@ The Java simulator keeps the frozen engine's order of events and draws its rando
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
 patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
-services, load balancers, hosts, caches, databases, and each component as later slices add
-them), with the frozen engine (0.16.0) and records each design, the scenario simulated and the
-report.
+services, load balancers, hosts, caches, databases, message queues, and each component as
+later slices add them), with the frozen engine (0.16.0) and records each design, the
+scenario simulated and the report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
 
@@ -74,6 +74,10 @@ def cache(node_id: str, label: str, **config: Any) -> Json:
 
 def database(node_id: str, label: str, **config: Any) -> Json:
     return {"id": node_id, "type": "database", "label": label, "config": config}
+
+
+def queue(node_id: str, label: str, **config: Any) -> Json:
+    return {"id": node_id, "type": "message_queue", "label": label, "config": config}
 
 
 def link(source: str, target: str, **config: Any) -> Json:
@@ -925,6 +929,137 @@ CASES: dict[str, Json] = {
             "keyCount": 10,
             "keySkew": 2.0,
         },
+    ),
+    "aKafkaTopicWithAHotKey": design(
+        [
+            clients(timeoutMs=1000),
+            queue(
+                "topic",
+                "Kafka",
+                technology="kafka",
+                partitions=6,
+                consumers=3,
+                consumerTimeMs=lognormal(4, 12),
+                maxDeliveries=2,
+            ),
+            external("api", latencyMs=lognormal(10, 30), errorRate=0.2),
+            service(
+                "ledger", "Ledger", replicas=1, workersPerReplica=4, serviceTimeMs=lognormal(2, 5)
+            ),
+        ],
+        [
+            link("clients", "topic"),
+            link("topic", "api", maxAttempts=1, order=2),
+            link("topic", "ledger", order=1),
+        ],
+        {"rps": 300, "arrivalProcess": "poisson", "keyCount": 50, "keySkew": 1.5},
+    ),
+    "aRabbitMqBlockingPublishers": design(
+        [
+            clients(timeoutMs=2000),
+            queue(
+                "q",
+                "RabbitMQ",
+                technology="rabbitmq",
+                consumers=2,
+                memoryGib=0.001,
+                messageSizeKb=10,
+                consumerTimeMs=lognormal(12, 30),
+            ),
+            service(
+                "worker", "Worker", replicas=1, workersPerReplica=4, serviceTimeMs=lognormal(3, 9)
+            ),
+        ],
+        [link("clients", "q"), link("q", "worker")],
+        {"rps": 250, "arrivalProcess": "poisson"},
+    ),
+    "anSqsQueueRedeliveringSlowMessages": design(
+        [
+            clients(timeoutMs=1000),
+            queue(
+                "q",
+                "SQS",
+                technology="sqs",
+                consumers=4,
+                visibilityTimeoutS=0.05,
+                fifo=True,
+                fifoLimitRps=120,
+                maxDepth=40,
+                consumerTimeMs=lognormal(30, 90),
+            ),
+            external("api", latencyMs=lognormal(15, 40)),
+        ],
+        [link("clients", "q"), link("q", "api")],
+        {"rps": 150, "arrivalProcess": "poisson"},
+    ),
+    "aNatsSubjectDroppingOverflow": design(
+        [
+            clients(timeoutMs=1000),
+            queue(
+                "q",
+                "NATS",
+                technology="nats",
+                delivery="at_most_once",
+                maxDepth=20,
+                consumers=1,
+                consumerTimeMs=lognormal(8, 20),
+            ),
+            external("api", latencyMs={"kind": "constant", "value": 2}),
+        ],
+        [link("clients", "q"), link("q", "api")],
+        {"rps": 200, "arrivalProcess": "poisson"},
+    ),
+    "consumersPollingInCycles": design(
+        [
+            clients(timeoutMs=1000),
+            service(
+                "svc", "Orders", replicas=1, workersPerReplica=16, serviceTimeMs=lognormal(2, 6)
+            ),
+            queue(
+                "events",
+                "Kafka",
+                technology="kafka",
+                partitions=4,
+                consumers=2,
+                consumerConcurrency=2,
+                fetchOverheadMs=lognormal(3, 8),
+                consumerTimeMs=lognormal(5, 15),
+            ),
+            queue(
+                "jobs",
+                "Jobs",
+                technology="generic",
+                consumers=1,
+                consumerConcurrency=2,
+                consumerTimeMs=lognormal(60, 150),
+            ),
+            external("api", latencyMs=lognormal(5, 15)),
+        ],
+        [
+            link("clients", "svc"),
+            link("svc", "events"),
+            link("svc", "jobs", requestTypes=["write"]),
+            link("events", "api"),
+            link("jobs", "api"),
+        ],
+        {"rps": 200, "arrivalProcess": "poisson", "keyCount": 100},
+    ),
+    "aQueueSpreadOverPartitionsInTurn": design(
+        [
+            clients(timeoutMs=1000),
+            queue(
+                "q",
+                "Queue",
+                technology="generic",
+                partitioning="round_robin",
+                partitions=3,
+                consumers=5,
+                consumerTimeMs=lognormal(6, 18),
+            ),
+            external("api", latencyMs=lognormal(5, 15)),
+        ],
+        [link("clients", "q"), link("q", "api")],
+        {"rps": 300, "arrivalProcess": "poisson", "drainS": 3},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

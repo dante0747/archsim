@@ -62,6 +62,77 @@ class MessageQueueConfigTests {
 		assertThat(config("{\"technology\": \"kafka\", \"acks\": \"leader\"}").acknowledgedByAll()).isFalse();
 	}
 
+	@Test
+	void partitioningInEffect_kafka_isByKey() {
+		assertThat(config("{\"technology\": \"kafka\"}").partitioningInEffect()).isEqualTo(Partitioning.KEY);
+	}
+
+	@Test
+	void partitioningInEffect_aTechnologyWithoutPartitions_isNone() {
+		assertThat(config("{\"technology\": \"sqs\"}").partitioningInEffect()).isEqualTo(Partitioning.NONE);
+	}
+
+	@Test
+	void deliversAtMostOnce_setOnThePart_isTrue() {
+		assertThat(config("{\"technology\": \"nats\", \"delivery\": \"at_most_once\"}").deliversAtMostOnce()).isTrue();
+	}
+
+	@Test
+	void deliversAtMostOnce_aTechnologyWithoutADefault_isFalse() {
+		assertThat(config("{\"technology\": \"generic\"}").deliversAtMostOnce()).isFalse();
+	}
+
+	@Test
+	void visibilityTimeoutSInEffect_sqs_isItsDefault() {
+		assertThat(config("{\"technology\": \"sqs\"}").visibilityTimeoutSInEffect()).hasValue(30.0);
+	}
+
+	@Test
+	void visibilityTimeoutSInEffect_kafka_isEmpty() {
+		assertThat(config("{\"technology\": \"kafka\"}").visibilityTimeoutSInEffect()).isEmpty();
+	}
+
+	@Test
+	void fetchesInCycles_aConcurrencyAboveOne_isTrue() {
+		assertThat(config("{\"consumerConcurrency\": 2}").fetchesInCycles()).isTrue();
+	}
+
+	@Test
+	void fetchesInCycles_aFetchOverhead_isTrue() {
+		assertThat(config("{\"fetchOverheadMs\": {\"kind\": \"constant\", \"value\": 2}}").fetchesInCycles()).isTrue();
+	}
+
+	@Test
+	void fetchesInCycles_neither_isFalse() {
+		assertThat(config("{}").fetchesInCycles()).isFalse();
+	}
+
+	@Test
+	void flowThreshold_rabbitMqWithMemory_isTheBacklogTheWatermarkHolds() {
+		assertThat(config("{\"technology\": \"rabbitmq\", \"memoryGib\": 1, \"messageSizeKb\": 4}").flowThreshold())
+			.hasValue(157_286.4);
+	}
+
+	@Test
+	void flowThreshold_rabbitMqWithoutMemory_isEmpty() {
+		assertThat(config("{\"technology\": \"rabbitmq\"}").flowThreshold()).isEmpty();
+	}
+
+	@Test
+	void flowThreshold_withoutFlowControl_isEmpty() {
+		assertThat(config("{\"memoryGib\": 1}").flowThreshold()).isEmpty();
+	}
+
+	@Test
+	void limitsFifoPublishes_anSqsFifoQueue_isTrue() {
+		assertThat(config("{\"technology\": \"sqs\", \"fifo\": true}").limitsFifoPublishes()).isTrue();
+	}
+
+	@Test
+	void limitsFifoPublishes_aFifoQueueOfAnotherTechnology_isFalse() {
+		assertThat(config("{\"technology\": \"rabbitmq\", \"fifo\": true}").limitsFifoPublishes()).isFalse();
+	}
+
 	private static MessageQueueConfig config(String json) {
 		return RecordCodec.read((ObjectNode) JSON.readTree(json), MessageQueueConfig.class);
 	}

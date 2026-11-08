@@ -60,6 +60,22 @@ public final class Request {
 	}
 
 	/**
+	 * The request a message queue's consumer handles for a message this request
+	 * published: the same user request and trace, sent when the message was published, at
+	 * the depth it was published at, not given up on.
+	 * @param publishedAt when the message was published
+	 * @param depth the call depth it was published at
+	 * @return the consumer's request
+	 */
+	public Request delivered(double publishedAt, int depth) {
+		Arrival published = new Arrival(this.arrival.id(), this.arrival.operation(), this.arrival.key(), publishedAt,
+				this.arrival.measured());
+		Request delivered = new Request(published, this.trace);
+		delivered.depth = depth;
+		return delivered;
+	}
+
+	/**
 	 * What the request asks and when it was sent.
 	 * @return the arrival
 	 */

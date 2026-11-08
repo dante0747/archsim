@@ -13,6 +13,7 @@ import io.archsim.engine.reporting.SimulatedRun;
 import io.archsim.engine.run.PreparedRun;
 import io.archsim.engine.runtime.EdgeRuntime;
 import io.archsim.engine.runtime.SimContext;
+import io.archsim.model.component.Category;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.client.ClientConfig;
 import io.archsim.model.document.ArchitectureDocument;
@@ -36,6 +37,9 @@ final class RunSimulation {
 
 	private static final double MAX_DRAIN_S = 600.0;
 
+	/** The least drain a design with a messaging part gets. */
+	private static final double ASYNC_MIN_DRAIN_S = 60.0;
+
 	private final ComponentRegistry registry;
 
 	private final PreparedRun prepared;
@@ -54,7 +58,7 @@ final class RunSimulation {
 			.filter((node) -> this.registry.find(node.type()).orElseThrow().isTrafficSource())
 			.toList();
 		List<ClientConfig> sourceConfigs = sourceNodes.stream().map((node) -> (ClientConfig) config(node)).toList();
-		double drainS = drainSeconds(workload, sourceConfigs);
+		double drainS = drainSeconds(resolved, sourceConfigs);
 		double durationMs = workload.durationS() * MS_PER_SECOND;
 		double endMs = durationMs + drainS * MS_PER_SECOND;
 		SimContext context = new SimContext(new Simulation(), new RandomStreams(workload.seed()),
@@ -112,12 +116,25 @@ final class RunSimulation {
 	}
 
 	// the workload's drain, or the time by which every client has given up or finished
-	private static double drainSeconds(Workload workload, List<ClientConfig> sources) {
-		Double set = workload.drainS();
+	// with a messaging part, at least a minute: its backlog outlives the clients'
+	// deadlines, and the run still stops as soon as nothing is queued or in flight
+	private double drainSeconds(ArchitectureDocument resolved, List<ClientConfig> sources) {
+		Double set = resolved.workload().drainS();
 		if (set != null) {
 			return set;
 		}
-		return sources.stream().mapToDouble(RunSimulation::clientDeadline).max().orElseThrow();
+		double drainS = sources.stream().mapToDouble(RunSimulation::clientDeadline).max().orElseThrow();
+		if (hasMessaging(resolved)) {
+			return Math.min(MAX_DRAIN_S, Math.max(drainS, ASYNC_MIN_DRAIN_S));
+		}
+		return drainS;
+	}
+
+	private boolean hasMessaging(ArchitectureDocument resolved) {
+		return resolved.architecture()
+			.nodes()
+			.stream()
+			.anyMatch((node) -> this.registry.find(node.type()).orElseThrow().category() == Category.MESSAGING);
 	}
 
 	private static double clientDeadline(ClientConfig client) {

@@ -65,7 +65,19 @@ public enum SpanKind implements JsonEnum {
 	STALE("stale"),
 
 	/** Waiting for a database's replicas to replay a write. */
-	REPLICATION("replication");
+	REPLICATION("replication"),
+
+	/** A publisher blocked by a queue's memory alarm. */
+	BLOCKED("blocked"),
+
+	/** Publishing a message to a queue, until it is acknowledged. */
+	PUBLISH("publish"),
+
+	/** A message waiting in a queue's backlog for a consumer. */
+	QUEUED("queued"),
+
+	/** A consumer's own work on a message. */
+	CONSUME("consume");
 
 	private final String json;
 

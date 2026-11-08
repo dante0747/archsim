@@ -6,6 +6,7 @@ import io.archsim.engine.components.client.TrafficSourceRuntime;
 import io.archsim.engine.components.database.DatabaseRuntime;
 import io.archsim.engine.components.external.ExternalApiRuntime;
 import io.archsim.engine.components.loadbalancer.LoadBalancerRuntime;
+import io.archsim.engine.components.queue.MessageQueueRuntime;
 import io.archsim.engine.components.service.ServiceRuntime;
 import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.engine.runtime.SimContext;
@@ -14,6 +15,7 @@ import io.archsim.model.component.client.ClientConfig;
 import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.component.external.ExternalApiConfig;
 import io.archsim.model.component.loadbalancer.LoadBalancerConfig;
+import io.archsim.model.component.queue.MessageQueueConfig;
 import io.archsim.model.component.service.Platform;
 import io.archsim.model.component.service.ServiceConfig;
 import io.archsim.model.document.NodeSpec;
@@ -44,6 +46,7 @@ final class Parts {
 			case LoadBalancerConfig balancer -> new LoadBalancerRuntime(context, node, balancer);
 			case CacheConfig cache -> new CacheRuntime(context, node, cache);
 			case DatabaseConfig database -> new DatabaseRuntime(context, node, database);
+			case MessageQueueConfig queue -> new MessageQueueRuntime(context, node, queue);
 			default -> throw new UnsupportedOperationException(
 					"the Java simulator does not simulate a " + node.type() + " yet");
 		};

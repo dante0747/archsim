@@ -7,6 +7,7 @@ import io.archsim.engine.random.PythonRandom;
 import io.archsim.engine.random.Sampler;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.SimContext;
+import io.archsim.engine.runtime.Timing;
 import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.component.database.Replication;
 
@@ -53,23 +54,6 @@ record DatabaseState(Simulation simulation, String nodeId, NodeMetrics metrics, 
 				new ShardControls(context.simulation(), settings,
 						new ShardControls.Accounts(owner.metrics(), () -> timing.sample(flushTime, flush))),
 				new OperationDraws(settings, times, context.stream(prefix + "buffer")), replication);
-	}
-
-	/**
-	 * Draws a time from a distribution, stretched by a slowdown planned for the database
-	 * now.
-	 */
-	@FunctionalInterface
-	interface Timing {
-
-		/**
-		 * Draws a time.
-		 * @param sampler the distribution's sampler
-		 * @param stream the stream to draw from
-		 * @return milliseconds
-		 */
-		double sample(Sampler sampler, PythonRandom stream);
-
 	}
 
 	/**
