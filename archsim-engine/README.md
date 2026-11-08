@@ -7,9 +7,12 @@ model in [`archsim-model`](../archsim-model/README.md)
 [Java port](../docs/proposals/java-25-port.md#stage-3--the-engines-deterministic-parts-12-weeks):
 each part replaced a call of the Python engine service
 ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) once it matched the
-frozen Python engine's [golden files](../parity/README.md), and all of them have. The simulation
-kernel is stage 4; until then a calibration's replay goes through `ReplaySimulator` to the
-service's one remaining call, `/simulate`
+frozen Python engine's [golden files](../parity/README.md), and all of them have. Stage 4 ports
+the simulator, part by part: the random streams, the kernel, the metrics, the runtime, client
+groups and third-party APIs so far, each checked by replaying the frozen engine's runs
+([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)).
+Until it is complete, runs are simulated by the Python workers and a calibration's replay goes
+through `ReplaySimulator` to the engine service's one remaining call, `/simulate`
 ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)).
 
 ## Packages
@@ -36,6 +39,10 @@ service's one remaining call, `/simulate`
 | `slo` | whether a run is good enough: `SloResult` (each objective the design sets checked against the run's `RunFigures`, an `SloCheck`, and the verdict in words), `Objective`, `StoredObjectives` (the objectives stored with a run, a target left out being off) |
 | `seeds` | ranges across seeds: `SeedSummary` (how a seed group's verdicts split, their ranges, whether they are borderline, and the summary in words, which `GET /run-groups/{id}` answers), `ValueRange`, `Seeds` |
 | `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
+| `runtime` | what every part shares during a run: `Request` (what it asks, when it was sent, its call depth, whether its client gave it up, its trace), `Outcome` (served, refused or given up on, where and why), `NodeMetrics` (what every part measures), `EdgeRuntime` (a link's latency and counts), `SimContext` (the run's clock, streams, parts, links, planned faults and traces), `Calls` (an attempt across a link: latency out, an outage, the callee, latency back, the caller's timeout), `RuntimeComponent` (a part during a run), `TokenBucket` |
+| `components` | each part's behaviour during a run: `client.TrafficSourceRuntime` (a client group: attempts, timeouts, retries; `ClientMetrics`, what users experienced), `external.ExternalApiRuntime` (a third-party API: latency, errors, rate and concurrency limits) |
+| `simulator` | `Simulator`: a design simulated as the Python engine's `run_simulation` did it (the run prepared, its parts built, the workload's `Arrivals` sent by client groups a `ClientPicker` picks by share, the simulation run in chunks) and its report written |
+| `reporting` | `ReportWriter`: a finished run's report, as the Python engine's `build_report` wrote it, figures rounded as Python rounds them and integers kept integers; so far the window, the summary (`ClientSummary`), the time series, each part (`NodeEntry`, `NodeSeries`, `Capacity`) and link, the traces (`Traces`) and where a request's time goes (`LatencyBreakdown`, `SystemExplain`) |
 | `kernel` | the simulation kernel: `Simulation` (simulated time in milliseconds and its events, processed in SimPy 4.1.2's order: time, then priority, then scheduling; `runUntil` runs a chunk as the Python engine did), `Signal`, `Promise`, `Timeout`, `Routine` (a process, written as steps that continue when the event they wait for is processed), `Condition` (any of, all of), `Resource` and `Store`, each as SimPy writes it, quirks included ([ADR-0048](../docs/adr/0048-keep-simpys-order-of-events.md)) |
 | `metrics` | what a run measures, in memory bounded by its time buckets and histogram bins: `Timeline` (a run's buckets of a round width and its measurement window), `Counter`, `Gauge` (a level integrated exactly over time), `LatencyHistogram` (log-sized bins, about 2% wide), `LatencyWithFailures` (what users waited, failures at their timeout), `BucketedHistograms`, `MeanAccumulator`, `LatencySummary` (a distribution's count, mean, percentiles and largest, rounded as a report writes them) |
 | `random` | the simulation's random numbers, as the Python engine drew them ([ADR-0047](../docs/adr/0047-draw-python-random-streams-in-java.md)): `PythonRandom` (Python's Mersenne Twister, `random()` and samplers, step for step, under Java names: `nextDouble`, `nextBits`, `below`, `uniform`, `exponential`, `normal`, `logNormal`), `RandomStreams` (one stream per name, derived from the run's seed), `Sampler` (a distribution's values, capped at ten minutes), `ZipfSampler` (key ranks) |
@@ -272,6 +279,14 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   changed that reach each branch, cut to what the analysis reads, with the Python engine's
   findings and each part's status, from `scripts/export_findings_cases.py`, which
   `FindingsCasesTests` checks.
+- Whole simulations are in `simulator/cases.json.gz`, from `scripts/export_simulation_cases.py`:
+  small designs, each reaching a feature of the simulator (clients' timeouts and retries, client
+  groups, traffic patterns, faults, a set drain), with the frozen engine's report, which
+  `SimulationCasesTests` replays ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)):
+  the parts the Java simulator writes so far (the window, the summary, the time series, each
+  part's summary, accounting, series and config, each link, the sampled requests' traces, where
+  a request's time goes, the counts of the provenance) must match, counts and events processed
+  exactly, numbers to a relative 1e-9, and an integer wherever Python wrote one.
 - The kernel's order of events is in `kernel/cases.json`, from `scripts/export_kernel_cases.py`:
   small SimPy programs (timeouts and process starts at equal times, processes waiting on
   processes, resource contention, a request granting the oldest waiter, queue timeouts, stores,

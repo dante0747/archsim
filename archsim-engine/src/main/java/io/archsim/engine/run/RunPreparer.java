@@ -72,7 +72,8 @@ public final class RunPreparer {
 					+ ". Reduce RPS or duration.");
 		}
 		return new PreparedRun(design, resolved, resolution.scenario().map(Scenario::id).orElse(null),
-				resolution.scenario().map(Scenario::name).orElse(null));
+				resolution.scenario().map(Scenario::name).orElse(null),
+				resolution.scenario().map(Scenario::overrides).orElse(List.of()), result, resolution.sizes());
 	}
 
 	/**

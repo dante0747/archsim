@@ -212,6 +212,12 @@ doesn't change.
   - **Every kept benchmark calibration:** the re-simulated knee is within 2% of Python's.
   - **Internal counters** such as commits per flush and lock wait match per component on fixed
     inputs, so a semantic slip can't hide inside the tolerance.
+  - **Replays, on top (decided during the stage):** the Java simulator draws Python's random
+    numbers and keeps SimPy's order of events
+    ([ADR-0047](../adr/0047-draw-python-random-streams-in-java.md),
+    [ADR-0048](../adr/0048-keep-simpys-order-of-events.md)), so it replays the frozen engine's
+    runs number by number, counters included, and the statistical bar stays as above
+    ([ADR-0049](../adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)).
 - **Speed:** measure against `docs/performance.md`. A Java kernel should be several times faster,
   but that's an estimate until it's measured.
 - **Exit:**
