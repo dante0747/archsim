@@ -49,9 +49,9 @@ public final class LognormalMixture {
 		if (finite.isEmpty()) {
 			return OptionalDouble.of(0.0);
 		}
-		double low = Math
+		double low = StrictMath
 			.exp(finite.stream().mapToDouble((part) -> part.mu() - SPREAD * part.sigma()).min().orElseThrow());
-		double high = Math
+		double high = StrictMath
 			.exp(finite.stream().mapToDouble((part) -> part.mu() + SPREAD * part.sigma()).max().orElseThrow());
 		for (int i = 0; i < BISECTIONS; i++) {
 			double middle = Math.sqrt(low * high);
@@ -72,7 +72,7 @@ public final class LognormalMixture {
 	 * @return the share of the mix at or below it
 	 */
 	private static double cdf(List<Fitted> fitted, double time) {
-		double logX = Math.log(time);
+		double logX = StrictMath.log(time);
 		double below = 0.0;
 		for (Fitted part : fitted) {
 			if (part.sigma() == 0) {
@@ -105,8 +105,9 @@ public final class LognormalMixture {
 			if (time.mean() <= 0) {
 				return new Fitted(part.weight() / total, Double.NEGATIVE_INFINITY, 0.0);
 			}
-			double logVariance = Math.log1p(time.variance() / (time.mean() * time.mean()));
-			return new Fitted(part.weight() / total, Math.log(time.mean()) - logVariance / 2, Math.sqrt(logVariance));
+			double logVariance = StrictMath.log1p(time.variance() / (time.mean() * time.mean()));
+			return new Fitted(part.weight() / total, StrictMath.log(time.mean()) - logVariance / 2,
+					Math.sqrt(logVariance));
 		}
 
 	}

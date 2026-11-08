@@ -71,6 +71,10 @@ final class RunSimulation {
 	}
 
 	private void build(SimContext context, ArchitectureDocument resolved, ClientMetrics clients) {
+		if (resolved.architecture().host() != null) {
+			// its shared threads and the report's host summary come with their slice
+			throw new UnsupportedOperationException("the Java simulator does not simulate a host machine yet");
+		}
 		for (EdgeSpec edge : resolved.architecture().edges()) {
 			context
 				.addEdge(new EdgeRuntime(edge, context.timeline(), context.stream("edge:" + edge.id() + ":latency")));

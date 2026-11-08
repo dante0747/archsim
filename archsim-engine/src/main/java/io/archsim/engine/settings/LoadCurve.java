@@ -88,7 +88,7 @@ public final class LoadCurve {
 		}
 		Map.Entry<Double, Double> below = this.points.lowerEntry(rps);
 		Map.Entry<Double, Double> above = this.points.ceilingEntry(rps);
-		double position = Math.log(rps / below.getKey()) / Math.log(above.getKey() / below.getKey());
+		double position = StrictMath.log(rps / below.getKey()) / StrictMath.log(above.getKey() / below.getKey());
 		return below.getValue() + (above.getValue() - below.getValue()) * position;
 	}
 

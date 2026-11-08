@@ -23,8 +23,9 @@ final class AssumptionFunctions {
 			Map.entry("archsim_engine.assumptions.constants", (entry) -> constants()),
 			Map.entry("archsim_engine.assumptions.render",
 					(entry) -> GoldenJson.text(AssumptionsPage.render(StandardComponents.registry()))),
-			Map.entry("archsim_engine.version.ENGINE_VERSION", (entry) -> GoldenJson.text(EngineVersions.ENGINE)),
-			Map.entry("archsim_engine.version.REPORT_VERSION", (entry) -> GoldenJson.text(EngineVersions.REPORT)));
+			// REPORT_VERSION is not checked: the Java writes report 1.15, a departure
+			// the engine's README lists (ADR-0050)
+			Map.entry("archsim_engine.version.ENGINE_VERSION", (entry) -> GoldenJson.text(EngineVersions.ENGINE)));
 
 	private AssumptionFunctions() {
 	}

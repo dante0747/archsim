@@ -176,11 +176,11 @@ public final class LatencyFits {
 	 * @return the quantile's value
 	 */
 	static double lognormalQuantile(double median, double p95, double quantile) {
-		return median * Math.exp(sigma(median, p95) * z(quantile));
+		return median * StrictMath.exp(sigma(median, p95) * z(quantile));
 	}
 
 	private static double sigma(double median, double p95) {
-		return (p95 > median) ? Math.log(p95 / median) / z(P95) : 0.0;
+		return (p95 > median) ? StrictMath.log(p95 / median) / z(P95) : 0.0;
 	}
 
 	/**
@@ -260,7 +260,7 @@ public final class LatencyFits {
 			double bound = histogram.bounds().get(i);
 			double share = histogram.cumulative().get(i) / histogram.total();
 			if (share >= MEDIAN && share <= P99 && bound > 0) {
-				double error = Math.abs(median * Math.exp(sigma * NormalQuantile.of(share)) - bound) / bound;
+				double error = Math.abs(median * StrictMath.exp(sigma * NormalQuantile.of(share)) - bound) / bound;
 				largest = OptionalDouble.of(Math.max(largest.orElse(error), error));
 			}
 		}

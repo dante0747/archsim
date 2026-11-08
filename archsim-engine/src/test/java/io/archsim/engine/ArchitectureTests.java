@@ -5,6 +5,8 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
 
+import io.archsim.parity.StrictMathRule;
+
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
@@ -37,6 +39,11 @@ class ArchitectureTests {
 			.resideInAnyPackage("java..", "org.jspecify..", "io.archsim.engine.kernel..")
 			.because("the kernel is the bottom layer of the simulator: time, events and queues (ADR-0048)")
 			.check(ENGINE);
+	}
+
+	@Test
+	void engineClasses_anyClass_computeTranscendentalFunctionsWithStrictMath() {
+		StrictMathRule.rule().check(ENGINE);
 	}
 
 	@Test

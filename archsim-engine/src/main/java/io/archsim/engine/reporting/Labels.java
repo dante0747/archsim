@@ -47,10 +47,7 @@ final class Labels {
 	 * for none
 	 */
 	@Nullable String of(@Nullable String id) {
-		if (id == null) {
-			return null;
-		}
-		return this.byId.getOrDefault(id, id);
+		return (id != null) ? name(id) : null;
 	}
 
 }

@@ -9,8 +9,12 @@ each part replaced a call of the Python engine service
 ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) once it matched the
 frozen Python engine's [golden files](../parity/README.md), and all of them have. Stage 4 ports
 the simulator, part by part: the random streams, the kernel, the metrics, the runtime, client
-groups and third-party APIs so far, each checked by replaying the frozen engine's runs
-([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)).
+groups and third-party APIs so far, with the whole report, each checked by replaying the frozen
+engine's runs
+([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)). A
+report repeats itself on every platform: every transcendental function goes through `StrictMath`,
+which an ArchUnit rule checks, and the digests keep the Python engine's definitions
+([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
 Until it is complete, runs are simulated by the Python workers and a calibration's replay goes
 through `ReplaySimulator` to the engine service's one remaining call, `/simulate`
 ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)).
@@ -41,8 +45,8 @@ through `ReplaySimulator` to the engine service's one remaining call, `/simulate
 | `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
 | `runtime` | what every part shares during a run: `Request` (what it asks, when it was sent, its call depth, whether its client gave it up, its trace), `Outcome` (served, refused or given up on, where and why), `NodeMetrics` (what every part measures), `EdgeRuntime` (a link's latency and counts), `SimContext` (the run's clock, streams, parts, links, planned faults and traces), `Calls` (an attempt across a link: latency out, an outage, the callee, latency back, the caller's timeout), `RuntimeComponent` (a part during a run), `TokenBucket` |
 | `components` | each part's behaviour during a run: `client.TrafficSourceRuntime` (a client group: attempts, timeouts, retries; `ClientMetrics`, what users experienced), `external.ExternalApiRuntime` (a third-party API: latency, errors, rate and concurrency limits) |
-| `simulator` | `Simulator`: a design simulated as the Python engine's `run_simulation` did it (the run prepared, its parts built, the workload's `Arrivals` sent by client groups a `ClientPicker` picks by share, the simulation run in chunks) and its report written |
-| `reporting` | `ReportWriter`: a finished run's report, as the Python engine's `build_report` wrote it, figures rounded as Python rounds them and integers kept integers; so far the window, the summary (`ClientSummary`), the time series, each part (`NodeEntry`, `NodeSeries`, `Capacity`) and link, the traces (`Traces`) and where a request's time goes (`LatencyBreakdown`, `SystemExplain`) |
+| `simulator` | `Simulator`: a design, or one of its scenarios, simulated as the Python engine's `run_simulation` did it (the run prepared, its parts built, the workload's `Arrivals` sent by client groups a `ClientPicker` picks by share, the simulation run in chunks) and its report written |
+| `reporting` | `ReportWriter`: a finished run's report, as the Python engine's `build_report` wrote it, figures rounded as Python rounds them and integers kept integers: the window, the summary (`ClientSummary`), the time series, each part with its formulas and status (`PartsWriter`, `NodeEntry`, `NodeSeries`, `Capacity`) and each link, the traces (`Traces`), where a request's time goes (`LatencyBreakdown`, `SystemExplain`), the `Assumptions`, the analyses the engine's ports give (`RunAnalyses`: findings, sizing, cost, review, estimate, confidence, read from a `DraftReport` as Python read its report so far) and the `Provenance` with its digests |
 | `kernel` | the simulation kernel: `Simulation` (simulated time in milliseconds and its events, processed in SimPy 4.1.2's order: time, then priority, then scheduling; `runUntil` runs a chunk as the Python engine did), `Signal`, `Promise`, `Timeout`, `Routine` (a process, written as steps that continue when the event they wait for is processed), `Condition` (any of, all of), `Resource` and `Store`, each as SimPy writes it, quirks included ([ADR-0048](../docs/adr/0048-keep-simpys-order-of-events.md)) |
 | `metrics` | what a run measures, in memory bounded by its time buckets and histogram bins: `Timeline` (a run's buckets of a round width and its measurement window), `Counter`, `Gauge` (a level integrated exactly over time), `LatencyHistogram` (log-sized bins, about 2% wide), `LatencyWithFailures` (what users waited, failures at their timeout), `BucketedHistograms`, `MeanAccumulator`, `LatencySummary` (a distribution's count, mean, percentiles and largest, rounded as a report writes them) |
 | `random` | the simulation's random numbers, as the Python engine drew them ([ADR-0047](../docs/adr/0047-draw-python-random-streams-in-java.md)): `PythonRandom` (Python's Mersenne Twister, `random()` and samplers, step for step, under Java names: `nextDouble`, `nextBits`, `below`, `uniform`, `exponential`, `normal`, `logNormal`), `RandomStreams` (one stream per name, derived from the run's seed), `Sampler` (a distribution's values, capped at ten minutes), `ZipfSampler` (key ranks) |
@@ -111,6 +115,19 @@ decision):
   fit keeps the last quantile of each run of shares that round alike, so the probabilities rise
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
+
+A report differs from the Python engine's in three ways, none in a digest
+([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)):
+
+- it is report 1.15, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
+  checked;
+- its provenance names the Java runtime (`java`, the `java.version` property) where Python's
+  named `python` and `simpy`;
+- a cost line's `instances` is always a number with a fraction, where Python wrote a literal `0`
+  or `1` on a line billed per use or by the hour.
+
+A run comparison of a Python run and a Java run names the two engines, as it names two engine
+versions.
 
 The importers read YAML as PyYAML reads it
 ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and
@@ -281,12 +298,14 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   `FindingsCasesTests` checks.
 - Whole simulations are in `simulator/cases.json.gz`, from `scripts/export_simulation_cases.py`:
   small designs, each reaching a feature of the simulator (clients' timeouts and retries, client
-  groups, traffic patterns, faults, a set drain), with the frozen engine's report, which
-  `SimulationCasesTests` replays ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)):
-  the parts the Java simulator writes so far (the window, the summary, the time series, each
-  part's summary, accounting, series and config, each link, the sampled requests' traces, where
-  a request's time goes, the counts of the provenance) must match, counts and events processed
-  exactly, numbers to a relative 1e-9, and an integer wherever Python wrote one.
+  groups, traffic patterns, faults, a set drain, a calibrated scenario of a priced API), with the
+  scenario simulated and the frozen engine's report, which `SimulationCasesTests` replays
+  ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)):
+  the whole report must match, digests, counts and events processed exactly, numbers to a
+  relative 1e-9, and an integer wherever Python wrote one but for a cost line's `instances`,
+  leaving out only the report's version and the provenance's wall-clock time and runtime. The
+  note about experimental technologies, which no part simulated so far has, is checked by
+  `AssumptionsTests`.
 - The kernel's order of events is in `kernel/cases.json`, from `scripts/export_kernel_cases.py`:
   small SimPy programs (timeouts and process starts at equal times, processes waiting on
   processes, resource contention, a request granting the oldest waiter, queue timeouts, stores,

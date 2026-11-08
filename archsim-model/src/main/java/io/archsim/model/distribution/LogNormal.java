@@ -52,7 +52,7 @@ public record LogNormal(@Description("Median (p50) in ms") @Gt(0) @Le(MAX_SAMPLE
 
 	@Override
 	public double expected() {
-		return Math.exp(mu() + Math.pow(sigma(), 2) / 2.0);
+		return StrictMath.exp(mu() + StrictMath.pow(sigma(), 2) / 2.0);
 	}
 
 	@Override

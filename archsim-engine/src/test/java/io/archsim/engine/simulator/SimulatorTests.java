@@ -27,8 +27,23 @@ class SimulatorTests {
 				 "workload": {"rps": 10, "durationS": 2, "warmupS": 1}}
 				""");
 
-		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> SIMULATOR.run(design))
+		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> SIMULATOR.run(design, null))
 			.withMessage("the Java simulator does not simulate a service yet");
+	}
+
+	@Test
+	void run_aDesignOnAHostMachine_isRefusedUntilTheHostIsPorted() {
+		JsonNode design = JsonMapper.builder().build().readTree("""
+				{"schemaVersion": "1.7", "kind": "archsim.architecture", "metadata": {"name": "case"},
+				 "architecture": {"autoSize": false, "host": {"physicalCores": 4},
+				  "nodes": [{"id": "clients", "type": "traffic_source", "config": {}},
+				            {"id": "api", "type": "external_api", "config": {}}],
+				  "edges": [{"id": "e", "source": "clients", "target": "api"}]},
+				 "workload": {"rps": 10, "durationS": 2, "warmupS": 1}}
+				""");
+
+		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> SIMULATOR.run(design, null))
+			.withMessage("the Java simulator does not simulate a host machine yet");
 	}
 
 }

@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -22,24 +23,32 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.engine.simulator.SimulationCases;
 import io.archsim.parity.GoldenFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Every component of the report's records names a key the frozen engine writes where that
- * record is read (ADR-0039). The records skip the keys they do not name, so a component
- * spelt differently from its key would read as null or zero; this test fails instead. The
- * golden files' reports, from each template's runs, are what the frozen engine writes,
- * and a component is read under its own name.
+ * Every component of the report's records names a key a report writes where that record
+ * is read (ADR-0039). The records skip the keys they do not name, so a component spelt
+ * differently from its key would read as null or zero; this test fails instead. The
+ * reports are the golden files' (each template's runs, as the frozen engine writes them)
+ * and the Java simulator's of the designs {@code SimulationCasesTests} replays, which
+ * write the Python engine's keys but for the provenance's runtime (ADR-0050).
  */
-@DisplayName("The report's records name keys the frozen engine writes")
+@DisplayName("The report's records name keys the frozen engine or the Java simulator writes")
 class ReportRecordKeysTests {
 
-	private static final Map<Class<?>, Set<String>> KEYS_WRITTEN = keysWritten(goldenReports());
+	private static final List<JsonNode> JAVA_REPORTS = SimulationCases.recorded()
+		.stream()
+		.map((recorded) -> (JsonNode) SimulationCases.simulate(recorded))
+		.toList();
+
+	private static final Map<Class<?>, Set<String>> KEYS_WRITTEN = keysWritten(
+			Stream.concat(goldenReports().stream(), JAVA_REPORTS.stream()).toList());
 
 	@TestFactory
-	Stream<DynamicTest> reportRecords_everyComponent_namesAKeyTheGoldenReportsWrite() {
+	Stream<DynamicTest> reportRecords_everyComponent_namesAKeyAReportWrites() {
 		return KEYS_WRITTEN.entrySet()
 			.stream()
 			.map((written) -> DynamicTest.dynamicTest(written.getKey().getSimpleName(),
@@ -56,6 +65,16 @@ class ReportRecordKeysTests {
 			.toList();
 
 		assertThat(KEYS_WRITTEN.keySet()).containsExactlyInAnyOrderElementsOf(records);
+	}
+
+	@Test
+	void provenance_ofAReportTheJavaSimulatorWrote_readsItsRuntimeAndDigest() {
+		JsonNode written = JAVA_REPORTS.getFirst().get("provenance");
+
+		ReportProvenance read = RunReport.read(JAVA_REPORTS.getFirst()).provenance();
+
+		assertThat(List.of(Objects.requireNonNull(read.java()), read.resultDigest()))
+			.containsExactly(written.get("java").stringValue(), written.get("resultDigest").stringValue());
 	}
 
 	private static List<String> componentNames(Class<?> record) {

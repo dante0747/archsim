@@ -56,9 +56,9 @@ public final class Zipf {
 	 */
 	public static double popularity(double from, double to, double skew) {
 		if (Math.abs(skew - 1.0) < SKEW_OF_ONE) {
-			return Math.log(to / from);
+			return StrictMath.log(to / from);
 		}
-		return (Math.pow(to, 1 - skew) - Math.pow(from, 1 - skew)) / (1 - skew);
+		return (StrictMath.pow(to, 1 - skew) - StrictMath.pow(from, 1 - skew)) / (1 - skew);
 	}
 
 	/**
@@ -68,7 +68,8 @@ public final class Zipf {
 	 * @return the sum of {@code 1 / k^skew} for {@code k} up to {@code count}
 	 */
 	private static double harmonic(long count, double skew) {
-		return ExactSum.of(LongStream.rangeClosed(1, count).mapToDouble((rank) -> Math.pow((double) rank, -skew)));
+		return ExactSum
+			.of(LongStream.rangeClosed(1, count).mapToDouble((rank) -> StrictMath.pow((double) rank, -skew)));
 	}
 
 	/**
@@ -83,7 +84,7 @@ public final class Zipf {
 		if (Math.abs(skew - 1.0) < SKEW_OF_ONE) {
 			// the Python engine's quirk, kept so shares match: it misses the last half
 			// rank
-			return Math.log(keys / TAIL_START);
+			return StrictMath.log(keys / TAIL_START);
 		}
 		return popularity(TAIL_START, keys + HALF_RANK, skew);
 	}

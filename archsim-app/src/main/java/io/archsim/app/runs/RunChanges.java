@@ -31,7 +31,8 @@ class RunChanges {
 
 	/**
 	 * Simulates a run's stored input again (same design, scenario, seed and mode): the
-	 * new run's {@code resultDigest} should equal the original's.
+	 * new run's {@code resultDigest} should equal the original's when the same engine
+	 * simulates it (ADR-0050).
 	 * @param principal who asks
 	 * @param runId the run to reproduce
 	 * @return the new run, naming the one it reproduces

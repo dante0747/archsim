@@ -105,8 +105,8 @@ class RunController {
 
 	/**
 	 * Simulate the exact stored input again (same design, scenario, seed and mode) to
-	 * check it reproduces: the new run's {@code resultDigest} should equal the
-	 * original's.
+	 * check it reproduces: the new run's {@code resultDigest} should equal the original's
+	 * when the same engine simulates it (ADR-0050).
 	 * @param principal who is asking
 	 * @param runId the run to reproduce
 	 * @return {@code 202} with the new run

@@ -138,7 +138,7 @@ public record SweepRange(double fromRps, double toRps) {
 		if (raw <= 0) {
 			return 1.0;
 		}
-		double magnitude = Math.pow(DECIMAL_BASE, Math.floor(Math.log10(raw)));
+		double magnitude = StrictMath.pow(DECIMAL_BASE, Math.floor(StrictMath.log10(raw)));
 		double ratio = raw / magnitude;
 		double multiple = ROUND_MULTIPLES.stream().filter((round) -> ratio <= round).findFirst().orElse(DECIMAL_BASE);
 		return multiple * magnitude;

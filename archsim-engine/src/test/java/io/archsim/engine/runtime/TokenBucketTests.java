@@ -17,13 +17,22 @@ class TokenBucketTests {
 	}
 
 	@Test
-	void tryTake_aFullBucketOfOneToken_takesOneThenRefuses() {
+	void tryTake_aFullBucketOfOneToken_takes() {
 		TokenBucket bucket = TokenBucket.ofRate(0.5);
 
-		boolean first = bucket.tryTake(0, 1.0);
-		boolean second = bucket.tryTake(0, 1.0);
+		boolean taken = bucket.tryTake(0, 1.0);
 
-		assertThat(new boolean[] { first, second }).containsExactly(true, false);
+		assertThat(taken).isTrue();
+	}
+
+	@Test
+	void tryTake_aBucketOfOneTokenJustEmptied_refuses() {
+		TokenBucket bucket = TokenBucket.ofRate(0.5);
+		bucket.tryTake(0, 1.0);
+
+		boolean taken = bucket.tryTake(0, 1.0);
+
+		assertThat(taken).isFalse();
 	}
 
 }

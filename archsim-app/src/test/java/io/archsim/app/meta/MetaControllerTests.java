@@ -40,10 +40,10 @@ class MetaControllerTests {
 	@Test
 	void meta_always_answersTheVersionsAndLimitsInCamelCase() {
 		given(this.meta.meta())
-			.willReturn(new Meta("0.16.0", "1.7", "1.14", "postgresql", new Meta.Limits(2_000_000, 300.0, 3)));
+			.willReturn(new Meta("0.16.0", "1.7", "1.15", "postgresql", new Meta.Limits(2_000_000, 300.0, 3)));
 
 		assertThat(this.mvc.get().uri("/api/v1/meta")).hasStatusOk().bodyJson().isEqualTo("""
-				{"engineVersion": "0.16.0", "schemaVersion": "1.7", "reportVersion": "1.14",
+				{"engineVersion": "0.16.0", "schemaVersion": "1.7", "reportVersion": "1.15",
 				 "database": "postgresql",
 				 "limits": {"maxRequests": 2000000, "maxWallSeconds": 300.0, "maxConcurrentRuns": 3}}""");
 	}

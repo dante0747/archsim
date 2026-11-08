@@ -3,10 +3,11 @@
 The Java simulator keeps the frozen engine's order of events and draws its random numbers, so a
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
-patterns, faults, delays of zero, no traffic at all, and each component as later slices add
-them), with the frozen engine (0.16.0) and records each design and its report.
-``SimulationCasesTests`` simulates each design in Java and compares the reports: counts and events
-processed exactly, numbers to a relative 1e-9.
+patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API, and
+each component as later slices add them), with the frozen engine (0.16.0) and records each design,
+the scenario simulated and the report.
+``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
+counts and events processed exactly, numbers to a relative 1e-9.
 
 The report's machine-dependent provenance (``wallSeconds``, ``python``, ``simpy``) is blanked.
 
@@ -67,6 +68,39 @@ def link(source: str, target: str, **config: Any) -> Json:
         "targetPort": "in",
         "config": {"latencyMs": {"kind": "constant", "value": 1}, **config},
     }
+
+
+def calibrated(doc: Json) -> Json:
+    """The design auto-sized, with a measured input, a calibration and a scenario that
+    overrides the workload and the API: the report's assumptions, cost and provenance
+    reach their other branches."""
+    doc["architecture"]["autoSize"] = True
+    doc["provenance"] = {
+        "nodes/api/latencyMs": {
+            "kind": "measured",
+            "source": "Prometheus",
+            "fitError": 0.08,
+            "fittedAt": "2026-10-01T12:00:00Z",
+            "value": lognormal(40, 150),
+        }
+    }
+    doc["calibration"] = {
+        "at": "2026-10-01T12:00:00Z",
+        "source": "Prometheus",
+        "inputs": 1,
+        "notes": ["The API's latency is fitted from a week of calls."],
+    }
+    doc["scenarios"] = [
+        {
+            "id": "peak",
+            "name": "Peak hour",
+            "overrides": [
+                {"target": {"kind": "workload"}, "path": "rps", "value": 220},
+                {"target": {"kind": "node", "id": "api"}, "path": "errorRate", "value": 0.02},
+            ],
+        }
+    ]
+    return doc
 
 
 CASES: dict[str, Json] = {
@@ -175,17 +209,36 @@ CASES: dict[str, Json] = {
         [link("clients", "api")],
         {"rps": 250, "arrivalProcess": "poisson"},
     ),
+    "aCalibratedScenarioOfAPricedApi": calibrated(
+        design(
+            [
+                clients(timeoutMs=250),
+                external(
+                    technology="payments",
+                    latencyMs=lognormal(40, 150),
+                    concurrencyLimit=20,
+                    costPerMillionRequests=500,
+                ),
+            ],
+            [link("clients", "api")],
+            {"rps": 150, "arrivalProcess": "poisson"},
+        )
+    ),
 }
+
+# The scenario each case simulates; a case left out simulates the design itself.
+SCENARIOS = {"aCalibratedScenarioOfAPricedApi": "peak"}
 
 
 def cases() -> list[Json]:
     out = []
     for name, doc in CASES.items():
-        report = run_simulation(copy.deepcopy(doc))
+        scenario_id = SCENARIOS.get(name)
+        report = run_simulation(copy.deepcopy(doc), scenario_id=scenario_id)
         report["provenance"]["wallSeconds"] = 0.0
         report["provenance"]["python"] = "normalized"
         report["provenance"]["simpy"] = "normalized"
-        out.append({"name": name, "design": doc, "report": report})
+        out.append({"name": name, "design": doc, "scenarioId": scenario_id, "report": report})
     return out
 
 

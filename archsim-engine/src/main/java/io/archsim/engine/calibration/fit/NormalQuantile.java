@@ -56,7 +56,7 @@ final class NormalQuantile {
 			double central = CENTRAL_R - offset * offset;
 			return horner(CENTRAL_NUMERATOR, central) * offset / horner(CENTRAL_DENOMINATOR, central);
 		}
-		double tail = Math.sqrt(-Math.log((offset <= 0.0) ? share : 1.0 - share));
+		double tail = Math.sqrt(-StrictMath.log((offset <= 0.0) ? share : 1.0 - share));
 		double value;
 		if (tail <= TAIL_SPLIT) {
 			tail -= NEAR_TAIL_SHIFT;

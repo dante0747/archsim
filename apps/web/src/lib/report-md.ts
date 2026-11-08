@@ -173,7 +173,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     lines.push("## Results", "");
     const p = report.provenance;
     lines.push(
-      `Run${run?.label ? ` "${run.label}"` : ""}: seed ${p.seed}, engine ${p.engineVersion}, ${p.requestsGenerated.toLocaleString("en-US")} requests simulated, input digest \`${p.inputDigest.slice(0, 12)}\`, result digest \`${p.resultDigest.slice(0, 12)}\` (re-running the same input reproduces it exactly).`,
+      `Run${run?.label ? ` "${run.label}"` : ""}: seed ${p.seed}, engine ${p.engineVersion}, ${p.requestsGenerated.toLocaleString("en-US")} requests simulated, input digest \`${p.inputDigest.slice(0, 12)}\`, result digest \`${p.resultDigest.slice(0, 12)}\` (re-running the same input on the same engine reproduces it exactly).`,
       "",
     );
     lines.push(...seedResultLines(input.seedRuns, table));

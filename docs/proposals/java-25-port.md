@@ -218,6 +218,9 @@ doesn't change.
     [ADR-0048](../adr/0048-keep-simpys-order-of-events.md)), so it replays the frozen engine's
     runs number by number, counters included, and the statistical bar stays as above
     ([ADR-0049](../adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)).
+    A Java report repeats itself on every platform; its digests keep their definitions and
+    name a result within one engine
+    ([ADR-0050](../adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
 - **Speed:** measure against `docs/performance.md`. A Java kernel should be several times faster,
   but that's an estimate until it's measured.
 - **Exit:**

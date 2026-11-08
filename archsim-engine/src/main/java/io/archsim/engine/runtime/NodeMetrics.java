@@ -22,7 +22,7 @@ import io.archsim.engine.report.FailureReason;
 public final class NodeMetrics {
 
 	/** The counter of requests a part finished after their client gave up. */
-	static final String WASTED = "wasted";
+	private static final String WASTED = "wasted";
 
 	private final Timeline timeline;
 

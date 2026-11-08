@@ -27,19 +27,19 @@ import io.archsim.model.document.RequestType;
 public final class ExternalApiRuntime extends RuntimeComponent {
 
 	/** The counter of calls refused by the provider's rate limit. */
-	static final String RATE_LIMITED = "rateLimited";
+	private static final String RATE_LIMITED = "rateLimited";
 
 	/** The counter of calls refused by the provider's concurrency limit. */
-	static final String THROTTLED = "throttled";
+	private static final String THROTTLED = "throttled";
 
 	/** The counter of calls the provider answered with an error. */
-	static final String UPSTREAM_ERRORS = "upstreamErrors";
+	private static final String UPSTREAM_ERRORS = "upstreamErrors";
 
 	/** The counter of reads served. */
-	static final String READS = "reads";
+	private static final String READS = "reads";
 
 	/** The counter of writes served. */
-	static final String WRITES = "writes";
+	private static final String WRITES = "writes";
 
 	private final ExternalApiConfig config;
 

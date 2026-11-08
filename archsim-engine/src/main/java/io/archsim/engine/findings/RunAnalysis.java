@@ -8,6 +8,7 @@ import java.util.Map;
 
 import io.archsim.engine.numeric.TrueDivision;
 import io.archsim.engine.report.ReportNode;
+import io.archsim.engine.report.ReportWindow;
 import io.archsim.engine.report.RunReport;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.document.ArchitectureDocument;
@@ -67,11 +68,23 @@ public final class RunAnalysis {
 	 * @throws ArithmeticException when the report's buckets have no length
 	 */
 	public static Map<String, Classification> classify(RunReport report) {
-		double bucket = report.timeseries().bucketS();
-		int from = (int) Math.ceil(TrueDivision.of(report.window().warmupS(), bucket));
-		int to = (int) Math.floor(TrueDivision.of(report.window().durationS(), bucket));
+		return classify(report.window(), report.timeseries().bucketS(), report.nodes());
+	}
+
+	/**
+	 * Each part's status in a run whose report is being written: the simulator classifies
+	 * its parts before the report has its findings or its provenance.
+	 * @param window the run's measured window
+	 * @param bucketS the length of the run's time buckets, in seconds
+	 * @param nodes each part's figures, in the design's order
+	 * @return each part's status and why, by its id, in the parts' order
+	 * @throws ArithmeticException when the buckets have no length
+	 */
+	public static Map<String, Classification> classify(ReportWindow window, double bucketS, List<ReportNode> nodes) {
+		int from = (int) Math.ceil(TrueDivision.of(window.warmupS(), bucketS));
+		int to = (int) Math.floor(TrueDivision.of(window.durationS(), bucketS));
 		Map<String, Classification> statuses = new LinkedHashMap<>();
-		for (ReportNode node : report.nodes()) {
+		for (ReportNode node : nodes) {
 			statuses.put(node.id(), Classification.of(node, from, to));
 		}
 		return Collections.unmodifiableMap(statuses);

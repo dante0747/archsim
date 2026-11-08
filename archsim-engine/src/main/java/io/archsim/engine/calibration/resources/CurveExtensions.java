@@ -96,7 +96,7 @@ public final class CurveExtensions {
 			return top
 				.flat("one rate kept the CPUs at least " + PythonFormat.format(bounds.baseBusy(), ".0%") + " busy");
 		}
-		Slope slope = Slope.of(base.stream().map((point) -> Math.log(point.rate() / top.rate())).toList(),
+		Slope slope = Slope.of(base.stream().map((point) -> StrictMath.log(point.rate() / top.rate())).toList(),
 				base.stream().map(RatePoint::value).toList());
 		if (slope.value() >= 0 || slope.error() == null || -slope.value() <= bounds.standardErrors() * slope.error()) {
 			String what = (slope.error() == null) ? "no scatter to tell it from"
@@ -107,7 +107,7 @@ public final class CurveExtensions {
 		if (stop <= 0) {
 			return top.flat("a fall so steep the CPUs' busy time would shrink", slope);
 		}
-		return top.carried(slope, Math.min(stop, Math.log(top.rate() / rates.first())), passes.fill());
+		return top.carried(slope, Math.min(stop, StrictMath.log(top.rate() / rates.first())), passes.fill());
 	}
 
 	/**
@@ -194,7 +194,7 @@ public final class CurveExtensions {
 					}
 				}
 			}
-			double endRps = this.rate * Math.exp(high);
+			double endRps = this.rate * StrictMath.exp(high);
 			double error = Objects.requireNonNull(slope.error());
 			String reason = "a fall of " + PythonFormat.format(-slope.value(), ".3g") + " ms per unit of ln(rate) ("
 					+ PythonFormat.format(-slope.value() / error, ".1f") + " standard errors) carried from "
@@ -205,7 +205,7 @@ public final class CurveExtensions {
 		}
 
 		private double busyMs(double logRatio, Slope slope) {
-			return this.rate * Math.exp(logRatio) * (this.ms + slope.value() * logRatio);
+			return this.rate * StrictMath.exp(logRatio) * (this.ms + slope.value() * logRatio);
 		}
 
 	}

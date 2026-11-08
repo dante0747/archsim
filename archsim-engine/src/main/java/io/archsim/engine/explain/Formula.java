@@ -35,7 +35,7 @@ public record Formula(String id, String title, String formula, String substitute
 	 * @param substituted the formula with the run's numbers
 	 * @return the formula
 	 */
-	static Formula of(String id, String title, String formula, String substituted) {
+	public static Formula of(String id, String title, String formula, String substituted) {
 		return new Formula(id, title, formula, substituted, null, "", null, null, null);
 	}
 
@@ -46,7 +46,7 @@ public record Formula(String id, String title, String formula, String substitute
 	 * @return the formula with the result rounded to four decimals, none when it is not
 	 * finite
 	 */
-	Formula withResult(@Nullable Double value, String resultUnit) {
+	public Formula withResult(@Nullable Double value, String resultUnit) {
 		Double rounded = (value != null && Double.isFinite(value)) ? PythonRound.round(value, DECIMALS) : null;
 		return new Formula(this.id, this.title, this.formula, this.substituted, rounded, resultUnit, this.note,
 				this.source, this.metric);
@@ -57,7 +57,7 @@ public record Formula(String id, String title, String formula, String substitute
 	 * @param text the note, or {@code null} for none
 	 * @return the formula with the note
 	 */
-	Formula withNote(@Nullable String text) {
+	public Formula withNote(@Nullable String text) {
 		return new Formula(this.id, this.title, this.formula, this.substituted, this.result, this.unit, text,
 				this.source, this.metric);
 	}
@@ -77,7 +77,7 @@ public record Formula(String id, String title, String formula, String substitute
 	 * @param series the part's time series, such as {@code arrivalRps}
 	 * @return the formula with the metric
 	 */
-	Formula withMetric(String series) {
+	public Formula withMetric(String series) {
 		return new Formula(this.id, this.title, this.formula, this.substituted, this.result, this.unit, this.note,
 				this.source, series);
 	}

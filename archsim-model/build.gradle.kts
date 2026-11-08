@@ -14,6 +14,8 @@ dependencies {
 
     testFixturesApi(libs.jackson.databind)
     testFixturesApi(libs.assertj.core)
+    // the rule that keeps a report the same on every platform, which both modules check
+    testFixturesApi(libs.archunit)
     testFixturesImplementation(libs.jspecify)
 
     testImplementation(libs.archunit)

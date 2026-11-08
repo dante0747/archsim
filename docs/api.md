@@ -96,7 +96,7 @@ document. Schema-invalid documents (unknown keys, out-of-range link settings, wr
 | GET | `/runs/{runId}/report` | Full report (`409` unless `succeeded`). See below. |
 | GET | `/runs/{runId}/input` | The exact document submitted for the run (re-importable). |
 | POST | `/runs/{runId}/cancel` | Cancels a queued run immediately. A running one is stopped by the worker holding it, on any instance, within about 2 s (its next heartbeat; at once when that worker is in the same process); one still going `ARCHSIM_CANCEL_GRACE_SECONDS` (10 s) later is killed. The response shows `cancelled`, or `running` while the cancel is on its way. |
-| POST | `/runs/{runId}/rerun` | Re-simulates the stored input with the same scenario, seed (a seed group's run keeps its own) and mode. Response has `reproducesRunId`; compare `resultDigest` values. `202`. |
+| POST | `/runs/{runId}/rerun` | Re-simulates the stored input with the same scenario, seed (a seed group's run keeps its own) and mode. Response has `reproducesRunId`; compare `resultDigest` values, which match on the same engine (a Python run re-run in Java agrees to the parity bar and need not share its digest). `202`. |
 | GET | `/run-groups/{groupId}` | A seed group: `kind`, `baseSeed`, `size`, `mode`, `scenarioId`, `label`, `status` (`running`, then `succeeded`, `partial` or `failed`), its `runs` by seed, and `summary` from the engine's `summarize_seeds` against the objectives of the document the runs used: `met`/`missed`/`undecided` of `finished`, `verdict` (`holds`, `fails`, `borderline` when the runs disagree, or null), `confidenceCap` (`medium` when borderline), `latencyMs.p50/p95/p99`, `successRate` and `throughputRps` ranges (`{min, max, median}`), and `text` ("Meets the objectives in 4 of 5 runs · p95 98–131 ms (median 104) · seeds 42–46"). Viewers of the workspace; others get 404. |
 | DELETE | `/runs/{runId}` | Cancels if active, then deletes. `204`. |
 
@@ -312,7 +312,7 @@ curl -s "$API/compare?a=$A&b=$B" | jq '{inputDiff, explanations}'
 R=$(curl -s -X POST $API/runs/$A/rerun | jq -r .id)
 wait_run $R
 curl -s $API/runs/$R | jq -r .resultDigest
-curl -s $API/runs/$A | jq -r .resultDigest      # same value
+curl -s $API/runs/$A | jq -r .resultDigest      # same value, on the same engine
 
 # 7. Export and re-import
 curl -s $API/projects/$PID/export -o starter.archsim.json

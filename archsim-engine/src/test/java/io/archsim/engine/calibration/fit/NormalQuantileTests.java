@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.withinPercentage;
 
 /**
  * The standard normal distribution's inverse, equal to what Python's
@@ -14,11 +15,22 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  */
 class NormalQuantileTests {
 
+	/** A relative 1e-15, as a percentage. */
+	private static final double TAIL_TOLERANCE_PERCENT = 1e-13;
+
 	@ParameterizedTest
-	@CsvSource({ "0.5, 0.0", "0.75, 0.6744897501960817", "0.99, 2.3263478740408408", "0.01, -2.3263478740408408",
-			"0.999999999999, 7.0344869100478356", "1e-300, -37.0470962993612" })
-	void of_share_isPythonsInverse(double share, double expected) {
+	@CsvSource({ "0.5, 0.0", "0.75, 0.6744897501960817" })
+	void of_shareInTheCentralRange_isPythonsInverseExactly(double share, double expected) {
 		assertThat(NormalQuantile.of(share)).isEqualTo(expected);
+	}
+
+	// a tail goes through a logarithm, StrictMath's here and the C library's in Python,
+	// which may part in the last places (ADR-0050)
+	@ParameterizedTest
+	@CsvSource({ "0.99, 2.3263478740408408", "0.01, -2.3263478740408408", "0.999999999999, 7.0344869100478356",
+			"1e-300, -37.0470962993612" })
+	void of_shareInATail_isPythonsInverseToALogarithmsLastPlaces(double share, double expected) {
+		assertThat(NormalQuantile.of(share)).isCloseTo(expected, withinPercentage(TAIL_TOLERANCE_PERCENT));
 	}
 
 	@ParameterizedTest

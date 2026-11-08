@@ -49,6 +49,10 @@ final class ComparisonText {
 	private static final String OTHER_BUILDS = "Inputs are identical but results differ; this indicates different "
 			+ "engine builds or platforms.";
 
+	private static final String OTHER_ENGINES = "The runs were simulated by different engines, one by the Python "
+			+ "engine and one by the Java engine, so their result digests need not match even for the same inputs "
+			+ "and seed.";
+
 	private ComparisonText() {
 	}
 
@@ -87,7 +91,11 @@ final class ComparisonText {
 			warnings.add("The runs used different engine versions (" + Objects.toString(first.engineVersion(), NONE)
 					+ " vs " + Objects.toString(second.engineVersion(), NONE) + ").");
 		}
-		if (facts.inputDiff().isEmpty() && !first.resultDigest().equals(second.resultDigest()) && sameSeed) {
+		if ((first.java() == null) != (second.java() == null)) {
+			// a result digest names a result within one engine (ADR-0050)
+			warnings.add(OTHER_ENGINES);
+		}
+		else if (facts.inputDiff().isEmpty() && !first.resultDigest().equals(second.resultDigest()) && sameSeed) {
 			warnings.add(OTHER_BUILDS);
 		}
 		return warnings;

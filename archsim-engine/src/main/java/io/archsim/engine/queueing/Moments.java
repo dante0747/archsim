@@ -88,7 +88,7 @@ public record Moments(double mean, double variance) {
 
 	private static Moments logNormal(LogNormal distribution) {
 		double mean = distribution.expected();
-		return new Moments(mean, mean * mean * Math.expm1(distribution.sigma() * distribution.sigma()));
+		return new Moments(mean, mean * mean * StrictMath.expm1(distribution.sigma() * distribution.sigma()));
 	}
 
 	/**

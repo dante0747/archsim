@@ -6,6 +6,8 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.library.Architectures.LayeredArchitecture;
 import org.junit.jupiter.api.Test;
 
+import io.archsim.parity.StrictMathRule;
+
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
@@ -36,6 +38,11 @@ class ArchitectureTests {
 			.resideInAPackage("io.archsim.engine..")
 			.because("the engine builds on the model, not the other way round (ADR-0012)")
 			.check(MODEL);
+	}
+
+	@Test
+	void modelClasses_anyClass_computeTranscendentalFunctionsWithStrictMath() {
+		StrictMathRule.rule().check(MODEL);
 	}
 
 	@Test

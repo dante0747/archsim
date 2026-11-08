@@ -68,7 +68,7 @@ public record TtlCacheTraffic(double readRps, double writeRps, long keys, double
 		int alone = (int) Math.min(this.keys, KEYS_WEIGHED_ALONE);
 		List<Bucket> buckets = new ArrayList<>();
 		for (int rank = 1; rank <= alone; rank++) {
-			buckets.add(new Bucket(Math.pow(rank, -this.skew), 1.0, rank - 1));
+			buckets.add(new Bucket(StrictMath.pow(rank, -this.skew), 1.0, rank - 1));
 		}
 		long low = alone;
 		while (low < this.keys) {
@@ -90,7 +90,7 @@ public record TtlCacheTraffic(double readRps, double writeRps, long keys, double
 		double reads = this.readRps * share;
 		double writes = this.writeRps * share;
 		double window = (writes * this.ttlSeconds < NO_WRITES) ? this.ttlSeconds
-				: -Math.expm1(-writes * this.ttlSeconds) / writes;
+				: -StrictMath.expm1(-writes * this.ttlSeconds) / writes;
 		return reads * window / (1 + reads * window);
 	}
 

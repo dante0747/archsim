@@ -5,6 +5,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { ApiError, api } from "@/lib/api";
+import { reproduction } from "@/lib/reproduction";
 import { type RunMode, getRunGroup } from "@/lib/seed-groups";
 import { SWEEP_SCENARIO_PREFIX } from "@/lib/sweep";
 import type { ArchitectureDocument, Comparison, Report, Run } from "@/lib/types";
@@ -115,14 +116,13 @@ export const useRuns = create<RunsState>()((set, get) => {
       }
       if (run.reproducesRunId) {
         const original = get().runs.find((r) => r.id === run.reproducesRunId);
-        if (original?.resultDigest && original.resultDigest === run.resultDigest) {
-          toast.success("Reproduced exactly", {
-            description: `Same input and seed gave an identical result digest (${run.resultDigest?.slice(0, 10)}).`,
-          });
-        } else if (original) {
-          toast.warning("Reproduction differs", {
-            description: "Results differ from the original run (different engine build or platform?).",
-          });
+        if (original) {
+          const outcome = reproduction(original, run);
+          if (outcome.exact) {
+            toast.success("Reproduced exactly", { description: outcome.description });
+          } else {
+            toast.warning("Reproduction differs", { description: outcome.description });
+          }
         }
       }
     } else if (run.status === "failed") {

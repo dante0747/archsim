@@ -760,8 +760,11 @@ export interface Provenance {
   /** Simulation events processed (report 1.7+). */
   eventsProcessed?: number;
   wallSeconds: number;
-  python: string;
-  simpy: string;
+  /** The Python runtime and SimPy that simulated it (reports before 1.15). */
+  python?: string;
+  simpy?: string;
+  /** The Java runtime that simulated it (report 1.15+). */
+  java?: string;
 }
 
 export interface Report {

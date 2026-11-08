@@ -1,8 +1,6 @@
 package io.archsim.engine.reporting;
 
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.List;
 
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -10,46 +8,59 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.engine.components.client.ClientMetrics;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.numeric.PythonRound;
-import io.archsim.engine.runtime.EdgeRuntime;
-import io.archsim.engine.runtime.RuntimeComponent;
+import io.archsim.engine.provenance.Input;
+import io.archsim.engine.provenance.InputProvenances;
+import io.archsim.engine.run.PreparedRun;
 import io.archsim.engine.version.EngineVersions;
-import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.DesignDocuments;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.document.EdgeSpec;
-import io.archsim.model.document.NodeSpec;
-import io.archsim.model.document.RequestType;
 import io.archsim.model.document.Workload;
+import io.archsim.model.pricing.PriceSnapshots;
 
 /**
- * Writes a finished run's report, as the Python engine's {@code build_report} wrote it,
- * as far as the port has come: the window, what clients experienced, time series, each
- * part and each link, the sampled requests' traces, where a request's time goes, and the
- * provenance's counts. The analyses a full report adds (findings, the parts' formulas and
- * status, assumptions, sizing, cost, review, estimate, confidence, digests) come with a
- * later slice of the port.
+ * Writes a finished run's report, as the Python engine's {@code build_report} wrote it:
+ * the window, what clients experienced, time series, each part (with its formulas and
+ * status) and each link, the findings, the sampled requests' traces, where a request's
+ * time goes, the assumptions, the sizing, the design simulated, its cost, review and
+ * instant estimate, the run's confidence, and the provenance with its digests. A host
+ * machine's summary comes with the shared host's slice; until then the simulator refuses
+ * a design with one.
  */
 public final class ReportWriter {
 
 	private static final int TIME_DIGITS = 3;
 
-	private final ComponentRegistry registry;
+	private final PartsWriter parts;
+
+	private final InputProvenances provenances;
+
+	private final Assumptions assumptions;
+
+	private final RunAnalyses analyses;
 
 	/**
 	 * A writer of reports.
-	 * @param registry the component types, for each part's category
+	 * @param registry the component types
+	 * @param prices the price snapshots a design's prices are pinned to
 	 */
-	public ReportWriter(ComponentRegistry registry) {
-		this.registry = registry;
+	public ReportWriter(ComponentRegistry registry, PriceSnapshots prices) {
+		this.parts = new PartsWriter(registry);
+		this.provenances = new InputProvenances(registry);
+		this.assumptions = new Assumptions(registry);
+		this.analyses = new RunAnalyses(registry, prices);
 	}
 
 	/**
-	 * The report of a run, as far as the port has come.
+	 * The report of a run.
 	 * @param run the finished run
+	 * @param wallSeconds the wall-clock time the run took, from the design to its last
+	 * event, in seconds
 	 * @return the report
 	 */
-	public ObjectNode write(SimulatedRun run) {
-		ArchitectureDocument resolved = run.prepared().resolved();
+	public ObjectNode write(SimulatedRun run, double wallSeconds) {
+		PreparedRun prepared = run.prepared();
+		ArchitectureDocument resolved = prepared.resolved();
 		Labels labels = new Labels(resolved);
 		ObjectNode report = Figures.NODES.objectNode();
 		report.put("reportVersion", EngineVersions.REPORT);
@@ -57,15 +68,21 @@ public final class ReportWriter {
 		ObjectNode summary = new ClientSummary(run, labels).write();
 		report.set("summary", summary);
 		report.set("timeseries", timeseries(run));
-		report.set("nodes", nodes(run, resolved));
-		report.set("edges", edges(run, resolved));
-		report.set("traces", new Traces(run.context().traces(), labels).write());
-		report.set("explain", SystemExplain.write(run, summary, labels));
-		ObjectNode provenance = report.putObject("provenance");
-		provenance.put("seed", resolved.workload().seed());
-		provenance.put("requestsGenerated", run.clients().offered().total());
-		provenance.put("eventsProcessed", run.events());
-		return report;
+		ArrayNode nodes = this.parts.nodes(run);
+		report.set("nodes", nodes);
+		report.set("edges", this.parts.edges(run));
+		this.parts.writeStatuses(report);
+		ObjectNode input = DesignDocuments.simulationInput(resolved);
+		DraftReport draft = new DraftReport(report, Provenance.write(run, report, input, wallSeconds));
+		draft.set("findings", this.analyses.findings(draft.read(), resolved));
+		draft.set("traces", new Traces(run.context().traces(), labels).write());
+		draft.set("explain", SystemExplain.write(run, summary, labels));
+		List<Input> inputs = this.provenances.of(resolved);
+		draft.set("assumptions", this.assumptions.write(prepared, inputs));
+		ArchitectureDocument simulated = DesignDocuments.parse(input);
+		this.analyses.writeDesign(draft, prepared, input, simulated);
+		this.analyses.writeConfidence(draft, simulated.architecture(), inputs);
+		return draft.finish();
 	}
 
 	private static ObjectNode window(SimulatedRun run) {
@@ -99,60 +116,6 @@ public final class ReportWriter {
 		series.set("latencyP95Ms", Figures.series(clients.latencySeries().percentileSeries(Percentiles.P95), used));
 		series.set("latencyP99Ms", Figures.series(clients.latencySeries().percentileSeries(Percentiles.P99), used));
 		return series;
-	}
-
-	private ArrayNode nodes(SimulatedRun run, ArchitectureDocument resolved) {
-		ArrayNode nodes = Figures.NODES.arrayNode();
-		Map<String, Record> configs = run.prepared().validation().configs();
-		for (NodeSpec node : resolved.architecture().nodes()) {
-			RuntimeComponent component = run.context().component(node.id());
-			NodeEntry entry = new NodeEntry(component);
-			NodeSeries series = new NodeSeries(component, run.usedBuckets());
-			ObjectNode summary = entry.summary();
-			ObjectNode timeseries = series.write();
-			summary.set("latencyMs", Figures.latency(component.metrics().residence().window().summary()));
-			summary.set("peakUtilization", series.peakUtilization(timeseries));
-			ObjectNode written = nodes.addObject();
-			written.put("id", node.id());
-			written.put("type", node.type());
-			written.put("label", Labels.name(node));
-			written.put("category", this.registry.find(node.type()).orElseThrow().category().json());
-			written.set("summary", summary);
-			written.set("accounting", entry.accounting());
-			written.set("timeseries", timeseries);
-			written.set("config", RecordCodec.write(Objects.requireNonNull(configs.get(node.id()))));
-			written.putArray("behaviour");
-		}
-		return nodes;
-	}
-
-	private static ArrayNode edges(SimulatedRun run, ArchitectureDocument resolved) {
-		ArrayNode edges = Figures.NODES.arrayNode();
-		Map<String, Set<RequestType>> flows = run.prepared().validation().edgeFlows();
-		int used = run.usedBuckets();
-		for (EdgeSpec spec : resolved.architecture().edges()) {
-			EdgeRuntime edge = run.context().edge(spec.id());
-			ObjectNode written = edges.addObject();
-			written.put("id", spec.id());
-			written.put("source", spec.source());
-			written.put("sourcePort", spec.sourcePort());
-			written.put("target", spec.target());
-			ArrayNode types = written.putArray("requestTypes");
-			spec.config().requestTypes().forEach((type) -> types.add(type.json()));
-			ArrayNode flowTypes = written.putArray("flowTypes");
-			flows.getOrDefault(spec.id(), Set.of()).stream().map(RequestType::json).sorted().forEach(flowTypes::add);
-			written.put("attempts", edge.attempts().windowCount());
-			written.put("attemptsTotal", edge.attempts().total());
-			written.set("callRps", Figures.rounded(edge.attempts().windowRate()));
-			written.put("retries", edge.retries().windowCount());
-			written.put("timeouts", edge.timeouts().windowCount());
-			written.put("failures", edge.failures().windowCount());
-			ObjectNode series = written.putObject("timeseries");
-			series.set("callRps", Figures.roundedSeries(edge.attempts().rateSeries(), used));
-			series.set("timeoutRps", Figures.roundedSeries(edge.timeouts().rateSeries(), used));
-			series.set("failureRps", Figures.roundedSeries(edge.failures().rateSeries(), used));
-		}
-		return edges;
 	}
 
 }
