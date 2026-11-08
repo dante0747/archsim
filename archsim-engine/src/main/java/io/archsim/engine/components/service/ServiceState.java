@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.metrics.MeanAccumulator;
 import io.archsim.engine.runtime.Cores;
+import io.archsim.engine.runtime.CpuMachine;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.engine.runtime.WorkerPool;
@@ -90,9 +91,16 @@ final class ServiceState {
 		WorkerPool.Queue queue = new WorkerPool.Queue(config.queueCapacity(), config.queueTimeoutMs());
 		for (int index = 0; index < config.replicas(); index++) {
 			this.replicas.add(new Replica(new WorkerPool(context.simulation(), this.perReplica, queue, metrics),
-					new Cores(context.simulation(), config.cpuCores(), this.perReplica, this.coreBusy),
-					this.curve.isEmpty() ? null : new RateMeter(0.0)));
+					newCores(context), this.curve.isEmpty() ? null : new RateMeter(0.0)));
 		}
+	}
+
+	// a replica's CPU, on its machine: its own hyperthreads, the design's host the
+	// replicas share, or full cores
+	private Cores newCores(SimContext context) {
+		Cores.Accounts accounts = new Cores.Accounts(this.coreBusy,
+				context.machineFor(this.config.cpuCores(), this.config.siblingSpeed()));
+		return new Cores(context.simulation(), this.config.cpuCores(), this.perReplica, accounts);
 	}
 
 	String nodeId() {
@@ -137,6 +145,14 @@ final class ServiceState {
 
 	Gauge warming() {
 		return this.warming;
+	}
+
+	/**
+	 * The machine the replicas' CPU work runs on.
+	 * @return the design's host, the first replica's own hyperthreads, or full cores
+	 */
+	CpuMachine machine() {
+		return this.replicas.getFirst().cores().machine();
 	}
 
 	List<Replica> replicas() {

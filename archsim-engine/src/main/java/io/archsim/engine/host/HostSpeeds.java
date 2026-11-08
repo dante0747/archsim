@@ -94,7 +94,7 @@ public final class HostSpeeds {
 		parts.forEach((id, work) -> {
 			Double sibling = siblingSpeeds.get(id);
 			if (sibling != null && runsOnOwnHyperthreads(work.cores(), sibling)) {
-				HostMachine own = new HostMachine(work.cores() / 2.0, 2, sibling, 1.0, 0.0, 0.0);
+				HostMachine own = HostMachine.ownHyperthreads(work.cores(), sibling);
 				double speed = own.solve(work.busiest(), 0.0).speed();
 				if (speed < 1.0) {
 					speeds.put(id, speed);

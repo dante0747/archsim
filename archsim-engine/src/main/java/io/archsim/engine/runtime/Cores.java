@@ -12,8 +12,8 @@ import io.archsim.engine.metrics.Gauge;
  * runs proportionally slower and between whole numbers above it faster (2.5 vCPU: two
  * executors at 1.25). Without a CPU size, or with a whole number of cores and at least
  * one per handler that could run at once, work simply takes its time; otherwise it queues
- * for a free executor. Each instance's own hyperthreads and the design's shared host come
- * with their slice of the port, and the simulator refuses them until then.
+ * for a free executor. On a machine (the design's host, or the instance's own
+ * hyperthreads) work runs at the speed of its threads when it starts.
  */
 public final class Cores {
 
@@ -27,6 +27,8 @@ public final class Cores {
 
 	private final @Nullable Gauge busy;
 
+	private final CpuMachine machine;
+
 	private final int executors;
 
 	private final double speed;
@@ -38,12 +40,13 @@ public final class Cores {
 	 * @param simulation the run
 	 * @param cores its vCPU; {@code null} when its CPU is not modelled
 	 * @param concurrency the handlers that could run work at once
-	 * @param busy the part's gauge of busy executors, over all its instances;
-	 * {@code null} when it counts none
+	 * @param accounts where its work is counted: the part's busy executors and the
+	 * machine whose threads it runs on
 	 */
-	public Cores(Simulation simulation, @Nullable Double cores, int concurrency, @Nullable Gauge busy) {
+	public Cores(Simulation simulation, @Nullable Double cores, int concurrency, Accounts accounts) {
 		this.simulation = simulation;
-		this.busy = busy;
+		this.busy = accounts.busy();
+		this.machine = accounts.machine();
 		if (cores == null) {
 			this.executors = concurrency;
 			this.speed = 1.0;
@@ -74,7 +77,16 @@ public final class Cores {
 	}
 
 	/**
-	 * Runs CPU work, waiting for a free executor when they are all busy.
+	 * The machine the instance's work runs on.
+	 * @return the design's host, the instance's own hyperthreads, or full cores
+	 */
+	public CpuMachine machine() {
+		return this.machine;
+	}
+
+	/**
+	 * Runs CPU work, waiting for a free executor when they are all busy, at the speed of
+	 * its machine's threads when it starts.
 	 * @param workMs the work at full speed, in milliseconds
 	 * @param done what to do when it is done
 	 */
@@ -82,7 +94,8 @@ public final class Cores {
 		Resource executorPool = this.pool;
 		if (executorPool == null) {
 			count(1);
-			this.simulation.after(workMs, () -> {
+			this.simulation.after(this.machine.start(workMs), () -> {
+				this.machine.stop();
 				count(-1);
 				done.run();
 			});
@@ -91,7 +104,8 @@ public final class Cores {
 		Resource.Request executor = executorPool.request();
 		executor.then(() -> {
 			count(1);
-			this.simulation.after(workMs / this.speed, () -> {
+			this.simulation.after(this.machine.start(workMs / this.speed), () -> {
+				this.machine.stop();
 				count(-1);
 				executorPool.release(executor);
 				done.run();
@@ -103,6 +117,16 @@ public final class Cores {
 		if (this.busy != null) {
 			this.busy.add(this.simulation.now(), delta);
 		}
+	}
+
+	/**
+	 * Where an instance's CPU work is counted.
+	 *
+	 * @param busy the part's gauge of busy executors, over all its instances;
+	 * {@code null} when it counts none
+	 * @param machine the machine whose threads the work runs on
+	 */
+	public record Accounts(@Nullable Gauge busy, CpuMachine machine) {
 	}
 
 }

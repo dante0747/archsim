@@ -1,5 +1,6 @@
 package io.archsim.engine.host;
 
+import java.util.function.DoublePredicate;
 import java.util.function.DoubleUnaryOperator;
 
 import io.archsim.model.document.HostSpec;
@@ -33,6 +34,9 @@ public record HostMachine(double cores, int threadsPerCore, double siblingSpeed,
 
 	private static final double MILLIS_PER_SECOND = 1000.0;
 
+	/** A multiple of a load this small that fills a part's threads fills them at once. */
+	private static final double FILLED_AT_ONCE = 1e-12;
+
 	/**
 	 * The machine a design's host describes.
 	 * @param host the host
@@ -41,6 +45,17 @@ public record HostMachine(double cores, int threadsPerCore, double siblingSpeed,
 	public static HostMachine of(HostSpec host) {
 		return new HostMachine(host.physicalCores(), host.threadsPerCore(), host.siblingSpeed(), host.allCoreClock(),
 				host.otherBusyThreads(), host.clientCpuMs());
+	}
+
+	/**
+	 * A part's own vCPUs as hyperthreads, two per physical core, at full clock and with
+	 * nothing else on them.
+	 * @param cores the part's vCPU
+	 * @param siblingSpeed the speed of a vCPU whose sibling is busy too
+	 * @return the machine
+	 */
+	public static HostMachine ownHyperthreads(double cores, double siblingSpeed) {
+		return new HostMachine(cores / 2.0, 2, siblingSpeed, 1.0, 0.0, 0.0);
 	}
 
 	/**
@@ -114,6 +129,46 @@ public record HostMachine(double cores, int threadsPerCore, double siblingSpeed,
 			}
 		}
 		return new HostLoad(high, speed(high));
+	}
+
+	/**
+	 * The multiple of a load at which one part's threads fill: the part needs
+	 * {@code ownBase} threads at full speed and has {@code ownThreads}; the machine's
+	 * parts need {@code baseBusy} (the part's included) and the clients send
+	 * {@code clientRps}, and all of it grows in proportion.
+	 * @param baseBusy the threads every part needs at full speed
+	 * @param ownBase the threads the part needs at full speed
+	 * @param ownThreads the part's vCPUs
+	 * @param clientRps the clients' requests per second
+	 * @return the multiple; zero when the part's threads are full already; infinite
+	 * without CPU work
+	 */
+	public double scaleFilling(double baseBusy, double ownBase, double ownThreads, double clientRps) {
+		if (ownBase <= 0 || ownThreads <= 0) {
+			return Double.POSITIVE_INFINITY;
+		}
+		DoublePredicate fills = (multiple) -> multiple * ownBase
+				/ solve(multiple * baseBusy, multiple * clientRps).speed() >= ownThreads;
+		double low = 0.0;
+		double high = ownThreads / ownBase;
+		if (fills.test(low + FILLED_AT_ONCE)) {
+			return 0.0;
+		}
+		// a thread never runs above full speed, so the threads fill by this multiple; the
+		// doubling is kept as the Python engine keeps it, against a speed above 1
+		while (!fills.test(high)) {
+			high *= 2.0;
+		}
+		for (int i = 0; i < BISECTIONS; i++) {
+			double middle = (low + high) / 2;
+			if (fills.test(middle)) {
+				high = middle;
+			}
+			else {
+				low = middle;
+			}
+		}
+		return high;
 	}
 
 }

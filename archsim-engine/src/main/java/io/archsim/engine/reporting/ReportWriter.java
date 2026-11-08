@@ -21,11 +21,10 @@ import io.archsim.model.pricing.PriceSnapshots;
 /**
  * Writes a finished run's report, as the Python engine's {@code build_report} wrote it:
  * the window, what clients experienced, time series, each part (with its formulas and
- * status) and each link, the findings, the sampled requests' traces, where a request's
- * time goes, the assumptions, the sizing, the design simulated, its cost, review and
- * instant estimate, the run's confidence, and the provenance with its digests. A host
- * machine's summary comes with the shared host's slice; until then the simulator refuses
- * a design with one.
+ * status) and each link, the design's host machine (its busy threads and their speed)
+ * when it has one, the findings, the sampled requests' traces, where a request's time
+ * goes, the assumptions, the sizing, the design simulated, its cost, review and instant
+ * estimate, the run's confidence, and the provenance with its digests.
  */
 public final class ReportWriter {
 
@@ -71,6 +70,7 @@ public final class ReportWriter {
 		ArrayNode nodes = this.parts.nodes(run);
 		report.set("nodes", nodes);
 		report.set("edges", this.parts.edges(run));
+		HostSummary.of(run).ifPresent((host) -> report.set("host", host));
 		this.parts.writeStatuses(report);
 		ObjectNode input = DesignDocuments.simulationInput(resolved);
 		DraftReport draft = new DraftReport(report, Provenance.write(run, report, input, wallSeconds));

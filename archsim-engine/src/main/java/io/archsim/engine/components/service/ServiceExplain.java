@@ -32,6 +32,9 @@ final class ServiceExplain {
 	 */
 	private static final int CURVE_DIGITS = 3;
 
+	/** The places a share of full speed on a machine is written to. */
+	private static final int SPEED_SHARE_DIGITS = 3;
+
 	private ServiceExplain() {
 	}
 
@@ -50,7 +53,7 @@ final class ServiceExplain {
 			formulas.add(loadCurve(service, serviceMs, arrivalRps(summary)));
 		}
 		if (service.config().runsEventLoop() && serviceMs != 0) {
-			formulas.add(eventLoop(service, serviceMs));
+			formulas.add(eventLoop(service, serviceMs, arrivalRps(summary)));
 		}
 		GcPauses pauses = service.gc();
 		if (pauses != null) {
@@ -85,15 +88,20 @@ final class ServiceExplain {
 					+ ", interpolated in log(req/s) and flat outside the points.");
 	}
 
-	// the loops' capacity: each runs only the CPU part of a request; each instance's own
-	// hyperthreads and a shared host, which slow its CPU, come with their slice
-	private static Formula eventLoop(ServiceState service, double serviceMs) {
+	// the loops' capacity: each runs only the CPU part of a request, at the speed of its
+	// machine's threads as the machine fills
+	private static Formula eventLoop(ServiceState service, double serviceMs, double arrivalRps) {
 		ServiceConfig config = service.config();
 		LoadCurve curve = service.curve();
 		double loops = service.perReplica() * service.replicasMean();
 		double perLoop = curve.capacityRps(MS_PER_SECOND / service.baseServiceMs(serviceMs));
 		String at = curve.isEmpty() ? ""
 				: " (at the factor of that rate, ×" + num(curve.factorAt(perLoop), CURVE_DIGITS) + ")";
+		double slowed = service.machine().capacity(perLoop, 1.0, arrivalRps / Math.max(1.0, loops));
+		if (perLoop > 0 && slowed < perLoop) {
+			at += " at " + num(slowed / perLoop, SPEED_SHARE_DIGITS) + " of full speed on its machine";
+			perLoop = slowed;
+		}
 		String cpuShare = (config.cpuCores() != null && config.cpuShare() < 1) ? " The whole service time holds the "
 				+ "loop; " + PythonFormat.format(config.cpuShare(), ".0%") + " of it (the CPU share) counts as CPU use."
 				: "";

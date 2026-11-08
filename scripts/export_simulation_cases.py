@@ -111,6 +111,12 @@ def calibrated(doc: Json) -> Json:
     return doc
 
 
+def on_host(doc: Json, host: Json) -> Json:
+    """The design on one host machine, which every part with a CPU size shares."""
+    doc["architecture"]["host"] = host
+    return doc
+
+
 CASES: dict[str, Json] = {
     "constantRateToAnApi": design(
         [clients(), external(latencyMs={"kind": "constant", "value": 20})],
@@ -417,6 +423,83 @@ CASES: dict[str, Json] = {
         [clients(), balancer(rateLimitRps=0.5), service("svc", "Reports", replicas=1)],
         [link("clients", "lb"), link("lb", "svc")],
         {"rps": 20, "arrivalProcess": "deterministic"},
+    ),
+    "servicesSharingAHost": on_host(
+        design(
+            [
+                clients(timeoutMs=1000),
+                service(
+                    "gw",
+                    "Gateway",
+                    technology="nodejs",
+                    replicas=1,
+                    processesPerReplica=2,
+                    cpuCores=2,
+                    cpuShare=0.8,
+                    serviceTimeMs=lognormal(4, 12),
+                ),
+                service(
+                    "svc",
+                    "Orders",
+                    replicas=2,
+                    workersPerReplica=4,
+                    cpuCores=2,
+                    cpuShare=0.6,
+                    serviceTimeMs=lognormal(10, 30),
+                ),
+                service(
+                    "audit", "Audit", replicas=1, serviceTimeMs={"kind": "constant", "value": 3}
+                ),
+            ],
+            [link("clients", "gw"), link("gw", "svc"), link("gw", "audit", requestTypes=["write"])],
+            {
+                "rps": 150,
+                "arrivalProcess": "poisson",
+                "pattern": {"kind": "ramp", "startRps": 100, "endRps": 250},
+            },
+        ),
+        {
+            "physicalCores": 2,
+            "siblingSpeed": 0.6,
+            "allCoreClock": 0.85,
+            "otherBusyThreads": 0.5,
+            "clientCpuMs": 0.3,
+        },
+    ),
+    "aHostWithNoCpuWork": on_host(
+        design(
+            [clients(), external(latencyMs={"kind": "constant", "value": 20})],
+            [link("clients", "api")],
+            {"rps": 20, "arrivalProcess": "deterministic"},
+        ),
+        {"physicalCores": 2, "clientCpuMs": 0.2},
+    ),
+    "servicesOnTheirOwnHyperthreads": design(
+        [
+            clients(timeoutMs=1000),
+            service(
+                "gw",
+                "Gateway",
+                technology="nodejs",
+                replicas=1,
+                processesPerReplica=2,
+                cpuCores=2,
+                siblingSpeed=0.7,
+                serviceTimeMs=lognormal(3, 9),
+            ),
+            service(
+                "svc",
+                "Search",
+                replicas=2,
+                workersPerReplica=8,
+                cpuCores=4,
+                cpuShare=0.9,
+                siblingSpeed=0.6,
+                serviceTimeMs=lognormal(15, 40),
+            ),
+        ],
+        [link("clients", "gw"), link("gw", "svc")],
+        {"rps": 300, "arrivalProcess": "poisson"},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

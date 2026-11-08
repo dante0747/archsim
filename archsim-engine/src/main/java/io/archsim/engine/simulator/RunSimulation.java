@@ -17,6 +17,7 @@ import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.client.ClientConfig;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.EdgeSpec;
+import io.archsim.model.document.HostSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.Workload;
 
@@ -66,14 +67,15 @@ final class RunSimulation {
 		Arrivals arrivals = new Arrivals(context, workload, new ClientPicker(context, sources));
 		context.simulation().start(arrivals::start);
 		Chunks ran = runInChunks(context, durationMs, endMs);
-		context.components().forEach((component) -> component.finish(ran.finalTime()));
+		context.finish(ran.finalTime());
 		return new SimulatedRun(this.prepared, context, clients, sources, ran.finalTime(), drainS, ran.events());
 	}
 
 	private void build(SimContext context, ArchitectureDocument resolved, ClientMetrics clients) {
-		if (resolved.architecture().host() != null) {
-			// its shared threads and the report's host summary come with their slice
-			throw new UnsupportedOperationException("the Java simulator does not simulate a host machine yet");
+		HostSpec host = resolved.architecture().host();
+		if (host != null) {
+			// every part with a CPU size shares the design's host machine
+			context.useHost(host, resolved.workload()::rateAt);
 		}
 		for (EdgeSpec edge : resolved.architecture().edges()) {
 			context

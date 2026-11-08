@@ -9,13 +9,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.DoubleUnaryOperator;
 
+import org.jspecify.annotations.Nullable;
+
+import io.archsim.engine.host.HostMachine;
+import io.archsim.engine.host.HostSpeeds;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.random.PythonRandom;
 import io.archsim.engine.random.RandomStreams;
 import io.archsim.model.document.Fault;
 import io.archsim.model.document.FaultKind;
+import io.archsim.model.document.HostSpec;
 
 /**
  * Everything a part needs during a run: the clock, the random streams, the other parts
@@ -42,6 +48,8 @@ public final class SimContext {
 
 	private final Calls calls = new Calls(this);
 
+	private @Nullable SharedHost host;
+
 	private int inTransit;
 
 	/**
@@ -56,6 +64,60 @@ public final class SimContext {
 		this.streams = streams;
 		this.timeline = timeline;
 		this.faults = new Faults(faults);
+	}
+
+	/**
+	 * Puts the run on the design's host machine, which every part with a CPU size shares,
+	 * before the parts are added.
+	 * @param spec the host
+	 * @param rateAt the clients' offered rate, in requests per second, at a time in
+	 * seconds
+	 * @throws IllegalStateException once parts were added, which would run without it
+	 */
+	public void useHost(HostSpec spec, DoubleUnaryOperator rateAt) {
+		if (!this.components.isEmpty()) {
+			throw new IllegalStateException("a run is put on its host before its parts are added");
+		}
+		this.host = new SharedHost(this.simulation, HostMachine.of(spec), this.timeline, rateAt);
+	}
+
+	/**
+	 * Ends every part's time series, then the host's, at the end of the run.
+	 * @param end when the run stopped
+	 */
+	public void finish(double end) {
+		this.components.values().forEach((component) -> component.finish(end));
+		if (this.host != null) {
+			this.host.finish(end);
+		}
+	}
+
+	/**
+	 * The design's host machine.
+	 * @return the host; empty when the design has none
+	 */
+	public Optional<SharedHost> host() {
+		return Optional.ofNullable(this.host);
+	}
+
+	/**
+	 * The machine one instance's CPU work runs on: the design's host, else the instance's
+	 * own hyperthreads, else full cores.
+	 * @param cores the instance's vCPU; {@code null} when its CPU is not modelled
+	 * @param siblingSpeed the speed of a vCPU whose sibling is busy too, if set
+	 * @return the machine
+	 */
+	public CpuMachine machineFor(@Nullable Double cores, @Nullable Double siblingSpeed) {
+		if (cores == null) {
+			return FullCores.INSTANCE;
+		}
+		if (this.host != null) {
+			return this.host;
+		}
+		if (siblingSpeed == null || !HostSpeeds.runsOnOwnHyperthreads(cores, siblingSpeed)) {
+			return FullCores.INSTANCE;
+		}
+		return new OwnHyperthreads(HostMachine.ownHyperthreads(cores, siblingSpeed));
 	}
 
 	/**

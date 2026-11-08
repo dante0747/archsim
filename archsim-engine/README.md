@@ -9,8 +9,9 @@ each part replaced a call of the Python engine service
 ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)) once it matched the
 frozen Python engine's [golden files](../parity/README.md), and all of them have. Stage 4 ports
 the simulator, part by part: the random streams, the kernel, the metrics, the runtime, client
-groups, third-party APIs, services with fixed replicas and load balancers so far, with the whole
-report, each checked by replaying the frozen engine's runs
+groups, third-party APIs, services with fixed replicas, load balancers and CPU contention on a
+shared host or a part's own hyperthreads so far, with the whole report, each checked by replaying
+the frozen engine's runs
 ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)). A
 report repeats itself on every platform: every transcendental function goes through `StrictMath`,
 which an ArchUnit rule checks, and the digests keep the Python engine's definitions
@@ -43,7 +44,7 @@ through `ReplaySimulator` to the engine service's one remaining call, `/simulate
 | `slo` | whether a run is good enough: `SloResult` (each objective the design sets checked against the run's `RunFigures`, an `SloCheck`, and the verdict in words), `Objective`, `StoredObjectives` (the objectives stored with a run, a target left out being off) |
 | `seeds` | ranges across seeds: `SeedSummary` (how a seed group's verdicts split, their ranges, whether they are borderline, and the summary in words, which `GET /run-groups/{id}` answers), `ValueRange`, `Seeds` |
 | `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
-| `runtime` | what every part shares during a run: `Request` (what it asks, when it was sent, its call depth, whether its client gave it up, its trace), `Outcome` (served, refused or given up on, where and why), `NodeMetrics` (what every part measures), `EdgeRuntime` (a link's latency and counts), `SimContext` (the run's clock, streams, parts, links, planned faults and traces), `Calls` (an attempt across a link: latency out, an outage, the callee, latency back, the caller's timeout if it has one; a call with the link's retries and backoff; a service's calls in order), `WorkerPool` (slots with a bounded queue and its timeout), `Cores` (an instance's CPU: executors, contention), `RuntimeComponent` (a part during a run: its instances, as a balancer picks one, its occupancy, and what it adds to its part of the report), `TokenBucket` |
+| `runtime` | what every part shares during a run: `Request` (what it asks, when it was sent, its call depth, whether its client gave it up, its trace), `Outcome` (served, refused or given up on, where and why), `NodeMetrics` (what every part measures), `EdgeRuntime` (a link's latency and counts), `SimContext` (the run's clock, streams, parts, links, planned faults and traces), `Calls` (an attempt across a link: latency out, an outage, the callee, latency back, the caller's timeout if it has one; a call with the link's retries and backoff; a service's calls in order), `WorkerPool` (slots with a bounded queue and its timeout), `Cores` (an instance's CPU: executors, contention, on its machine), `CpuMachine` (the machine CPU work runs on: a `SharedHost`, an instance's `OwnHyperthreads` or `FullCores`; the speed of a thread as the machine fills, and a part's CPU ceiling on it), `RuntimeComponent` (a part during a run: its instances, as a balancer picks one, its occupancy, and what it adds to its part of the report), `TokenBucket` |
 | `components` | each part's behaviour during a run: `client.TrafficSourceRuntime` (a client group: attempts, timeouts, retries; `ClientMetrics`, what users experienced), `external.ExternalApiRuntime` (a third-party API: latency, errors, rate and concurrency limits), `service.ServiceRuntime` (a service with fixed replicas: `Serving` a request through a replica's handlers, its service time on the replica's cores stalled by its `GarbageCollector`, its memory and its load curve, its calls; `ServiceReport` and `ServiceExplain`, what it adds to the report), `loadbalancer.LoadBalancerRuntime` (connection and rate limits, overhead, `Routing` to an instance of its targets by policy, upstream timeout, circuit breaker, retries on another instance; `LoadBalancerExplain`) |
 | `simulator` | `Simulator`: a design, or one of its scenarios, simulated as the Python engine's `run_simulation` did it (the run prepared, its parts built, the workload's `Arrivals` sent by client groups a `ClientPicker` picks by share, the simulation run in chunks) and its report written |
 | `reporting` | `ReportWriter`: a finished run's report, as the Python engine's `build_report` wrote it, figures rounded as Python rounds them and integers kept integers: the window, the summary (`ClientSummary`), the time series, each part with its formulas and status (`PartsWriter`, `NodeEntry`, `NodeSeries`, `Capacity`) and each link, the traces (`Traces`), where a request's time goes (`LatencyBreakdown`, `SystemExplain`), the `Assumptions`, the analyses the engine's ports give (`RunAnalyses`: findings, sizing, cost, review, estimate, confidence, read from a `DraftReport` as Python read its report so far) and the `Provenance` with its digests |
@@ -301,8 +302,9 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   groups, traffic patterns, faults, a set drain, a calibrated scenario of a priced API, services
   with queues, retrying links, event loops on contended cores, garbage collection, memory limits,
   load curves, a CPU ceiling just above the slots' and calls in order, load balancers by each
-  policy with retries, circuit breakers, upstream timeouts and rate limits, or none of them),
-  with the scenario simulated and the frozen engine's report, which `SimulationCasesTests` replays
+  policy with retries, circuit breakers, upstream timeouts and rate limits, or none of them;
+  and services sharing a host or on their own hyperthreads), with the scenario simulated and the
+  frozen engine's report, which `SimulationCasesTests` replays
   ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)):
   the whole report must match, digests, counts and events processed exactly, numbers to a
   relative 1e-9, and an integer wherever Python wrote one but for a cost line's `instances`,

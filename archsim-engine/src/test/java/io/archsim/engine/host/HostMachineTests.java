@@ -48,4 +48,32 @@ class HostMachineTests {
 		assertThat(load.speed()).isCloseTo(0.007403123192596876, within(1e-15));
 	}
 
+	@Test
+	void scaleFilling_aPartOnABusyHost_fillsAtTheMultiplePythonFinds() {
+		HostMachine host = new HostMachine(2, 2, 0.6, 0.85, 0.5, 0.3);
+
+		double multiple = host.scaleFilling(1.5, 0.8, 2.0, 120.0);
+
+		assertThat(multiple).isCloseTo(1.1880441965952262, within(1e-12));
+	}
+
+	@Test
+	void scaleFilling_aPartAloneOnItsHyperthreads_fillsWhereEveryThreadIsBusy() {
+		HostMachine own = HostMachine.ownHyperthreads(4.0, 0.6);
+
+		double multiple = own.scaleFilling(3.0, 3.0, 4.0, 0.0);
+
+		assertThat(multiple).isCloseTo(0.8, within(1e-12));
+	}
+
+	@Test
+	void scaleFilling_noCpuWork_isInfinite() {
+		assertThat(LAPTOP.scaleFilling(1.0, 0.0, 2.0, 0.0)).isInfinite();
+	}
+
+	@Test
+	void scaleFilling_threadsFullAlready_isZero() {
+		assertThat(LAPTOP.scaleFilling(1.0, 1.0, 1e-15, 0.0)).isZero();
+	}
+
 }

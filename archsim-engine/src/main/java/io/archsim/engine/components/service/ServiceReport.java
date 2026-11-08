@@ -101,8 +101,10 @@ final class ServiceReport {
 
 	/**
 	 * The ceilings the service's cores and memory set: the rate at which a replica's
-	 * cores fill at that rate's factor, and the rate at which its memory fills with
-	 * requests.
+	 * cores fill at that rate's factor, slowed on a machine (on the design's host, the
+	 * multiple of the load at which its threads fill with the other parts and the
+	 * clients' traffic on it; on its own hyperthreads, every vCPU busy); and the rate at
+	 * which its memory fills with requests.
 	 * @param service the service
 	 * @param holdMs the mean time a request held a handler, if any did
 	 * @param serviceMs the mean service time, if any request was served
@@ -117,8 +119,12 @@ final class ServiceReport {
 		if (cores != null && serviceMs.orElse(0.0) > 0 && config.cpuShare() > 0) {
 			double perReplica = cores * MS_PER_SECOND
 					/ (service.baseServiceMs(serviceMs.getAsDouble()) * config.cpuShare());
-			// each instance's own hyperthreads and a shared host come with their slice
-			ceilings.put("cpu", service.curve().capacityRps(perReplica) * replicas);
+			// the replicas' cores fill at that rate's factor, at the speed of their
+			// machine
+			double fullSpeed = service.curve().capacityRps(perReplica) * replicas;
+			double ceiling = service.machine()
+				.capacity(fullSpeed, cores * replicas, service.metrics().arrivals().windowRate());
+			ceilings.put("cpu", ceiling);
 		}
 		OptionalInt memorySlots = service.memorySlots();
 		if (memorySlots.isPresent() && memorySlots.getAsInt() < config.workersPerReplica() && holdMs.orElse(0.0) > 0) {
