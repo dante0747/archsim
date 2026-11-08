@@ -60,6 +60,8 @@ then draws the same numbers in the same order, so the two runs can be compared d
   when it flips a comparison: the order of two events that close, a threshold (a hit ratio, a
   timeout), or the acceptance test of `normal`, which then draws again and shifts every later
   draw on that stream. Each is about as likely as 1e-16 per draw.
+- The model's `LogNormal` computes its `mu()` and `sigma()` with `StrictMath` as well, so the
+  parameters every sampler reads are the same on every platform.
 
 ### Consequences
 
