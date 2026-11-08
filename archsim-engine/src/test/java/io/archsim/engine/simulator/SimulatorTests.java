@@ -21,7 +21,6 @@ class SimulatorTests {
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', textBlock = """
 			service  | {"platform": "serverless"}           | a serverless service
-			service  | {"autoscaling": true}                | an autoscaling service
 			""")
 	void run_aPartNotPortedYet_isRefused(String type, String config, String what) {
 		JsonNode design = design("{\"id\": \"part\", \"type\": \"" + type + "\", \"config\": " + config + "}");

@@ -17,9 +17,9 @@ import io.archsim.model.document.RequestType;
 /**
  * Which instance a load balancer sends a request to: every instance of every target
  * linked for the request's operation, in the links' order, picked in turn, by the fewest
- * requests held, or at random, avoiding the instance a retry follows. The targets'
- * instances are fixed so far: the candidates are listed once per operation; autoscaling
- * targets, whose instances come and go, come with their slice of the port.
+ * requests held, or at random, avoiding the instance a retry follows. The candidates are
+ * listed again whenever a target's instances change (an autoscaling target's), the turn
+ * kept within the new list.
  */
 final class Routing {
 
@@ -32,6 +32,8 @@ final class Routing {
 	private final PythonRandom random;
 
 	private final Map<RequestType, List<Candidate>> candidates = new EnumMap<>(RequestType.class);
+
+	private final Map<RequestType, List<Integer>> versions = new EnumMap<>(RequestType.class);
 
 	private final Map<RequestType, Integer> turns = new EnumMap<>(RequestType.class);
 
@@ -55,14 +57,16 @@ final class Routing {
 	 * @param avoid the instance a retry avoids, when there is another; {@code null} for
 	 * none
 	 * @return the instance
-	 * @throws IllegalStateException when no target has an instance: only a target scaled
-	 * to none has none, which comes with the autoscaling slice of the port
+	 * @throws IllegalStateException when no target has an instance: only a Kubernetes
+	 * service whose pods are all pending has none, which comes with the Kubernetes slice
+	 * of the port
 	 */
 	Candidate pick(RequestType operation, @Nullable Candidate avoid) {
 		List<Candidate> listed = candidates(operation);
 		int count = listed.size();
 		if (count == 0) {
-			throw new IllegalStateException("a target with no instance comes with the autoscaling slice of the port");
+			throw new IllegalStateException(
+					"a target with no ready instance comes with the Kubernetes slice of the port");
 		}
 		if (this.policy == BalancingPolicy.RANDOM) {
 			int index = this.random.below(count);
@@ -109,7 +113,20 @@ final class Routing {
 	}
 
 	private List<Candidate> candidates(RequestType operation) {
-		return this.candidates.computeIfAbsent(operation, this::list);
+		List<Integer> current = this.context.outEdges(this.nodeId, "out")
+			.stream()
+			.filter((edge) -> edge.carries(operation))
+			.map((edge) -> this.context.component(edge.targetId()).instancesVersion())
+			.toList();
+		List<Candidate> listed = this.candidates.get(operation);
+		if (listed != null && current.equals(this.versions.get(operation))) {
+			return listed;
+		}
+		List<Candidate> fresh = list(operation);
+		this.candidates.put(operation, fresh);
+		this.versions.put(operation, current);
+		this.turns.put(operation, this.turns.getOrDefault(operation, 0) % Math.max(1, fresh.size()));
+		return fresh;
 	}
 
 	private List<Candidate> list(RequestType operation) {

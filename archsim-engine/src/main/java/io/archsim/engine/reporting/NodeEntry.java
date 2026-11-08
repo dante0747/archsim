@@ -2,12 +2,14 @@ package io.archsim.engine.reporting;
 
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.metrics.Counter;
+import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.RuntimeComponent;
 
@@ -75,6 +77,11 @@ final class NodeEntry {
 	}
 
 	private void writeUtilization(ObjectNode summary) {
+		Optional<Gauge> capacity = this.component.capacityGauge();
+		if (capacity.isPresent()) {
+			writeUtilization(summary, capacity.get());
+			return;
+		}
 		OptionalInt slots = this.metrics.slots();
 		if (slots.isPresent()) {
 			summary.put("slots", slots.getAsInt());
@@ -82,12 +89,22 @@ final class NodeEntry {
 		else {
 			summary.putNull("slots");
 		}
-		OptionalDouble count = Capacity.slots(this.metrics);
+		OptionalDouble count = Capacity.slots(this.component);
 		summary.set("utilization",
 				count.isPresent() ? Figures.rounded(this.component.occupancy().windowMean() / count.getAsDouble())
 						: Figures.NODES.nullNode());
 		summary.set("cpuUtilization", (count.isPresent() && this.component.splitsCpu())
 				? Figures.rounded(this.metrics.cpu().windowMean() / count.getAsDouble()) : Figures.NODES.nullNode());
+	}
+
+	// slots that change during the run: busy slot-time over the slot-time available
+	private void writeUtilization(ObjectNode summary, Gauge capacity) {
+		summary.set("slots", Figures.rounded(capacity.windowMean(), Capacity.SLOTS_DIGITS));
+		double available = capacity.windowArea();
+		summary.set("utilization", (available != 0)
+				? Figures.rounded(this.component.occupancy().windowArea() / available) : Figures.NODES.nullNode());
+		summary.set("cpuUtilization", (available != 0 && this.component.splitsCpu())
+				? Figures.rounded(this.metrics.cpu().windowArea() / available) : Figures.NODES.nullNode());
 	}
 
 	private void writeQueue(ObjectNode summary) {

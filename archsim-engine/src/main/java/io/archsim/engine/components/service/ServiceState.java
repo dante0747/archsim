@@ -1,7 +1,6 @@
 package io.archsim.engine.components.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -63,18 +62,24 @@ final class ServiceState {
 
 	private final @Nullable MeanAccumulator factors;
 
-	private final List<Replica> replicas = new ArrayList<>();
+	private final SimContext context;
+
+	private final WorkerPool.Queue queue;
+
+	private final ReplicaSet replicas;
 
 	private int peakLoad;
 
 	/**
-	 * A service's state at the start of a run, its replicas present and warm.
+	 * A service's state at the start of a run, its replicas present and warm: as many as
+	 * set, or for an autoscaling service as many within its bounds.
 	 * @param context the run
 	 * @param node the service
 	 * @param metrics its metrics
 	 * @param config its settings
 	 */
 	ServiceState(SimContext context, NodeSpec node, NodeMetrics metrics, ServiceConfig config) {
+		this.context = context;
 		this.nodeId = node.id();
 		this.metrics = metrics;
 		this.config = config;
@@ -88,11 +93,51 @@ final class ServiceState {
 		this.warming = new Gauge(context.timeline());
 		this.pauseMs = new double[context.timeline().buckets()];
 		this.factors = this.curve.isEmpty() ? null : new MeanAccumulator(context.timeline());
-		WorkerPool.Queue queue = new WorkerPool.Queue(config.queueCapacity(), config.queueTimeoutMs());
-		for (int index = 0; index < config.replicas(); index++) {
-			this.replicas.add(new Replica(new WorkerPool(context.simulation(), this.perReplica, queue, metrics),
-					newCores(context), this.curve.isEmpty() ? null : new RateMeter(0.0)));
+		this.queue = new WorkerPool.Queue(config.queueCapacity(), config.queueTimeoutMs());
+		List<Replica> present = new ArrayList<>();
+		for (int index = 0; index < initialReplicas(config); index++) {
+			present.add(newReplica(0.0));
 		}
+		this.replicas = config.autoscaling() ? ReplicaSet.autoscaling(context.timeline(), this.perReplica, present)
+				: ReplicaSet.fixed(present);
+	}
+
+	/**
+	 * The replicas a service starts with: as many as set, or for an autoscaling service
+	 * as many within its bounds.
+	 * @param config its settings
+	 * @return the replicas
+	 */
+	static int initialReplicas(ServiceConfig config) {
+		if (!config.autoscaling()) {
+			return config.replicas();
+		}
+		return Math.min(Math.max(config.replicas(), config.minReplicas()), config.maxReplicas());
+	}
+
+	/**
+	 * Starts a replica during the run: it takes requests from now, warming up first when
+	 * the service warms up.
+	 * @param now the time
+	 */
+	void startReplica(double now) {
+		Replica replica = newReplica(now);
+		if (this.warmup != null) {
+			this.warming.add(now, 1);
+			double warmupMs = this.warmup.durationMs();
+			this.context.simulation().start((finish) -> this.context.simulation().after(warmupMs, () -> {
+				this.warming.add(this.context.simulation().now(), -1);
+				finish.run();
+			}));
+		}
+		this.replicas.scaling().orElseThrow().start(replica, now);
+	}
+
+	// a replica born now: its handlers, its CPU on its machine (its own hyperthreads, the
+	// design's host the replicas share, or full cores) and its arrival rate
+	private Replica newReplica(double born) {
+		WorkerPool pool = new WorkerPool(this.context.simulation(), this.perReplica, this.queue, this.metrics);
+		return new Replica(pool, newCores(this.context), this.curve.isEmpty() ? null : new RateMeter(born), born);
 	}
 
 	// a replica's CPU, on its machine: its own hyperthreads, the design's host the
@@ -152,19 +197,19 @@ final class ServiceState {
 	 * @return the design's host, the first replica's own hyperthreads, or full cores
 	 */
 	CpuMachine machine() {
-		return this.replicas.getFirst().cores().machine();
+		return this.replicas.first().cores().machine();
 	}
 
-	List<Replica> replicas() {
-		return Collections.unmodifiableList(this.replicas);
+	ReplicaSet replicas() {
+		return this.replicas;
 	}
 
 	/**
-	 * The replicas taking requests, on average over the run.
-	 * @return the fixed count
+	 * The replicas taking requests, on average over the measurement window.
+	 * @return the replicas
 	 */
 	double replicasMean() {
-		return this.replicas.size();
+		return this.replicas.mean();
 	}
 
 	/**
@@ -188,7 +233,7 @@ final class ServiceState {
 	}
 
 	void addPause(double time, double durationMs) {
-		this.pauseMs[this.metrics.timeline().index(time)] += durationMs / Math.max(1, this.replicas.size());
+		this.pauseMs[this.metrics.timeline().index(time)] += durationMs / Math.max(1, this.replicas.routableCount());
 	}
 
 	void recordFactor(double time, double factor) {
@@ -211,6 +256,7 @@ final class ServiceState {
 	}
 
 	void finish(double end) {
+		this.replicas.finish(end);
 		this.warming.finish(end);
 		if (this.coreBusy != null) {
 			this.coreBusy.finish(end);

@@ -4,9 +4,9 @@ The Java simulator keeps the frozen engine's order of events and draws its rando
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
 patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
-services, load balancers, hosts, caches, databases, message queues, and each component as
-later slices add them), with the frozen engine (0.16.0) and records each design, the
-scenario simulated and the report.
+services (autoscaling ones too), load balancers, hosts, caches, databases, message queues,
+and each component as later slices add them), with the frozen engine (0.16.0) and records each
+design, the scenario simulated and the report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
 
@@ -1060,6 +1060,64 @@ CASES: dict[str, Json] = {
         ],
         [link("clients", "q"), link("q", "api")],
         {"rps": 300, "arrivalProcess": "poisson", "drainS": 3},
+    ),
+    "anAutoscalingServiceRampingUpAndDown": design(
+        [
+            clients(timeoutMs=2000),
+            balancer(policy="round_robin"),
+            service(
+                "svc",
+                "Checkout",
+                technology="java",
+                replicas=2,
+                autoscaling=True,
+                minReplicas=1,
+                maxReplicas=6,
+                targetUtilization=0.5,
+                scaleIntervalS=0.5,
+                startupS=0.4,
+                workersPerReplica=4,
+                gcPauseMs=20,
+                gcEveryRequests=100,
+                warmupS=0.8,
+                serviceTimeMs=lognormal(12, 36),
+            ),
+            external("api", latencyMs=lognormal(5, 15)),
+        ],
+        [link("clients", "lb"), link("lb", "svc"), link("svc", "api")],
+        {
+            "rps": 200,
+            "arrivalProcess": "poisson",
+            "durationS": 10,
+            "pattern": {
+                "kind": "trace",
+                "points": [[0, 60], [2, 450], [5, 450], [6, 30], [8.5, 30], [8.6, 0], [10, 0]],
+            },
+        },
+    ),
+    "anAutoscalingServiceOnCpuBehindABalancer": design(
+        [
+            clients(timeoutMs=1500),
+            balancer(policy="least_connections"),
+            service(
+                "svc",
+                "Search",
+                replicas=1,
+                autoscaling=True,
+                minReplicas=1,
+                maxReplicas=4,
+                targetUtilization=0.6,
+                scaleIntervalS=0.5,
+                startupS=0,
+                workersPerReplica=8,
+                cpuCores=1,
+                cpuShare=0.8,
+                serviceTimeMs=lognormal(8, 20),
+                serviceTimeByLoad=[{"rps": 20, "factor": 1}, {"rps": 200, "factor": 1.5}],
+            ),
+        ],
+        [link("clients", "lb"), link("lb", "svc")],
+        {"rps": 250, "arrivalProcess": "poisson", "durationS": 8},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

@@ -95,6 +95,24 @@ public abstract class RuntimeComponent {
 	}
 
 	/**
+	 * How often the part's instances changed, so a load balancer lists them again when it
+	 * changes.
+	 * @return 0 unless the part's instances come and go
+	 */
+	public int instancesVersion() {
+		return 0;
+	}
+
+	/**
+	 * The slots taking requests over time, when they change during the run (an
+	 * autoscaling service's), over which its utilization is measured.
+	 * @return the gauge; empty for slots that stay as they are
+	 */
+	public Optional<Gauge> capacityGauge() {
+		return Optional.empty();
+	}
+
+	/**
 	 * The requests one instance holds, for a load balancer's least-connections policy.
 	 * @param index the instance, from 0
 	 * @return the requests in flight at the part, unless it counts them per instance

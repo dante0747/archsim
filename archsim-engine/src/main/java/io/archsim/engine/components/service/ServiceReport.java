@@ -33,6 +33,8 @@ final class ServiceReport {
 
 	private static final int MEMORY_DIGITS = 3;
 
+	private static final int REPLICAS_DIGITS = 3;
+
 	private static final double HALF_BUCKET = 0.5;
 
 	private ServiceReport() {
@@ -49,7 +51,7 @@ final class ServiceReport {
 		ServiceConfig config = service.config();
 		Gauge busy = service.coreBusy();
 		if (busy != null) {
-			double executors = service.replicas().getFirst().cores().executors() * service.replicasMean();
+			double executors = service.replicas().first().cores().executors() * service.replicasMean();
 			figures.put("cpuCoreUtilization", Cores.utilization(busy, executors).orElse(null));
 		}
 		Double memoryGib = config.memoryGib();
@@ -64,6 +66,12 @@ final class ServiceReport {
 			Counter pauses = service.metrics().counters().get(GarbageCollector.PAUSES);
 			figures.put(GarbageCollector.PAUSES, (pauses != null) ? pauses.windowCount() : 0L);
 		}
+		ReplicaSet replicas = service.replicas();
+		replicas.scaling().ifPresent((scaling) -> {
+			figures.put("replicasMean", PythonRound.round(replicas.mean(), REPLICAS_DIGITS));
+			figures.put("replicasPeak", scaling.peak());
+			figures.put("replicasEnd", replicas.routableCount());
+		});
 		return figures;
 	}
 
@@ -79,7 +87,7 @@ final class ServiceReport {
 		series.put("inflightMean", RuntimeComponent.series(metrics.inflight().meanSeries()));
 		Gauge busy = service.coreBusy();
 		if (busy != null) {
-			series.put("cpuBusyCores", Cores.busyCores(busy, service.replicas().getFirst().cores().speed()));
+			series.put("cpuBusyCores", Cores.busyCores(busy, service.replicas().first().cores().speed()));
 		}
 		double bucketS = metrics.timeline().bucketMs() / MS_PER_SECOND;
 		if (service.gc() != null) {
@@ -92,6 +100,9 @@ final class ServiceReport {
 		if (service.config().runsEventLoop()) {
 			series.put("eventLoopLagMs", metrics.queueWait().series());
 		}
+		service.replicas()
+			.scaling()
+			.ifPresent((scaling) -> series.put("replicas", scaling.countSeries(metrics.timeline())));
 		return series;
 	}
 
@@ -175,12 +186,13 @@ final class ServiceReport {
 		int bucketMs = timeline.bucketMs();
 		long[] completed = metrics.completed().buckets();
 		long[] failed = metrics.failedDownstream().buckets();
-		double replicas = service.replicasMean();
+		double[] replicas = service.replicas().meanSeries(timeline.buckets());
 		double peak = 0.0;
 		for (int bucket = 0; bucket < timeline.buckets(); bucket++) {
 			double middle = (bucket + HALF_BUCKET) * bucketMs;
-			if (timeline.windowStart() <= middle && middle < timeline.windowEnd() && replicas > 0) {
-				peak = Math.max(peak, (completed[bucket] + failed[bucket]) * MS_PER_SECOND / bucketMs / replicas);
+			if (timeline.windowStart() <= middle && middle < timeline.windowEnd() && replicas[bucket] > 0) {
+				peak = Math.max(peak,
+						(completed[bucket] + failed[bucket]) * MS_PER_SECOND / bucketMs / replicas[bucket]);
 			}
 		}
 		return peak;

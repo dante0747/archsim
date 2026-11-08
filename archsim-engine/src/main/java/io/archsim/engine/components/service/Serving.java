@@ -17,6 +17,7 @@ import io.archsim.engine.runtime.Request.Interval;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.engine.runtime.SpanKind;
 import io.archsim.engine.runtime.WorkerPool;
+import io.archsim.model.component.service.Warmup;
 import io.archsim.model.document.RequestType;
 
 /**
@@ -100,11 +101,9 @@ final class Serving {
 	private void work(Request request, Held held, Runnable then) {
 		Replica replica = held.replica();
 		double start = held.since();
-		// a replica present at the start is warm; one started during the run comes with
-		// the autoscaling slice of the port
-		double sampled = this.serviceTime.getAsDouble();
+		double warm = this.serviceTime.getAsDouble() * warmFactor(replica, start);
 		RateMeter meter = replica.meter();
-		double serviceMs = (meter != null) ? sampled * loadFactor(meter, start) : sampled;
+		double serviceMs = (meter != null) ? warm * loadFactor(meter, start) : warm;
 		double cpuMs = serviceMs * this.state.config().cpuFraction();
 		this.state.metrics().cpu().add(start, 1);
 		this.collector.cpu(request, replica, cpuMs, () -> this.context.simulation().after(serviceMs - cpuMs, () -> {
@@ -140,6 +139,17 @@ final class Serving {
 		held.replica().pool().release(held.slot());
 		double now = now();
 		this.state.metrics().hold().record(now, now - held.since());
+	}
+
+	// a replica started during the run is slower while it warms up, less and less; one
+	// present at the start is warm
+	private double warmFactor(Replica replica, double now) {
+		Warmup warmup = this.state.warmup();
+		if (warmup == null || replica.born() <= 0) {
+			return 1.0;
+		}
+		double left = 1.0 - (now - replica.born()) / warmup.durationMs();
+		return (left > 0) ? 1.0 + (warmup.factor() - 1.0) * left : 1.0;
 	}
 
 	// the service-time factor at the replica's rate over the last second

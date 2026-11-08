@@ -1,7 +1,9 @@
 package io.archsim.engine.reporting;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 import org.jspecify.annotations.Nullable;
@@ -10,6 +12,7 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.metrics.Counter;
+import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.RuntimeComponent;
@@ -43,14 +46,7 @@ final class NodeSeries {
 		series.set("queueMean", Figures.roundedSeries(this.metrics.queue().meanSeries(), this.used));
 		series.set("queueMax", Figures.countSeries(this.metrics.queue().maxSeries(), this.used));
 		series.set("queueWaitMs", Figures.series(this.metrics.queueWait().series(), this.used));
-		OptionalDouble slots = Capacity.slots(this.metrics);
-		if (slots.isPresent()) {
-			double slotTime = slots.getAsDouble() * this.timeline.bucketMs();
-			series.set("utilization", shares(this.component.occupancy().area(), slotTime));
-			if (this.component.splitsCpu()) {
-				series.set("cpuUtilization", shares(this.metrics.cpu().area(), slotTime));
-			}
-		}
+		writeUtilization(series);
 		// the part's own series; a series it shares with every part keeps its place
 		for (Map.Entry<String, List<@Nullable Double>> extra : this.component.extraTimeseries().entrySet()) {
 			series.set(extra.getKey(), Figures.roundedSeries(extra.getValue(), this.used));
@@ -62,6 +58,27 @@ final class NodeSeries {
 				Figures.series(this.metrics.residence().percentileSeries(Percentiles.P95), this.used));
 		HitRatio.of(this.metrics).ifPresent((lookups) -> series.set("hitRatio", lookups.series(this.used)));
 		return series;
+	}
+
+	// the busy slots over the slots, or, when they change during the run, over the slots
+	// available in each bucket
+	private void writeUtilization(ObjectNode series) {
+		Optional<Gauge> capacity = this.component.capacityGauge();
+		OptionalDouble slots = Capacity.slots(this.component);
+		if (capacity.isPresent()) {
+			double[] available = capacity.get().area();
+			series.set("utilization", ratios(this.component.occupancy().area(), available));
+			if (this.component.splitsCpu()) {
+				series.set("cpuUtilization", ratios(this.metrics.cpu().area(), available));
+			}
+		}
+		else if (slots.isPresent()) {
+			double slotTime = slots.getAsDouble() * this.timeline.bucketMs();
+			series.set("utilization", shares(this.component.occupancy().area(), slotTime));
+			if (this.component.splitsCpu()) {
+				series.set("cpuUtilization", shares(this.metrics.cpu().area(), slotTime));
+			}
+		}
 	}
 
 	/**
@@ -91,6 +108,15 @@ final class NodeSeries {
 			}
 		}
 		return sum;
+	}
+
+	// each bucket's busy slot-time over its available slot-time
+	private ArrayNode ratios(double[] busy, double[] available) {
+		List<@Nullable Double> ratios = new ArrayList<>(busy.length);
+		for (int bucket = 0; bucket < busy.length; bucket++) {
+			ratios.add((available[bucket] != 0) ? busy[bucket] / available[bucket] : null);
+		}
+		return Figures.roundedSeries(ratios, this.used);
 	}
 
 	private ArrayNode shares(double[] areas, double slotTime) {

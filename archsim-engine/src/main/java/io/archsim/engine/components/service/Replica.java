@@ -17,6 +17,8 @@ final class Replica {
 
 	private final @Nullable RateMeter meter;
 
+	private final double born;
+
 	private int load;
 
 	private long served;
@@ -28,15 +30,18 @@ final class Replica {
 	private double pauseEnd = -1.0;
 
 	/**
-	 * A replica present at the start of the run.
+	 * A replica.
 	 * @param pool its handlers and their queue
 	 * @param cores its CPU
 	 * @param meter its arrival rate, when its service time follows its load
+	 * @param born when it started: 0 for one present at the start of the run, which is
+	 * warm
 	 */
-	Replica(WorkerPool pool, Cores cores, @Nullable RateMeter meter) {
+	Replica(WorkerPool pool, Cores cores, @Nullable RateMeter meter, double born) {
 		this.pool = pool;
 		this.cores = cores;
 		this.meter = meter;
+		this.born = born;
 	}
 
 	WorkerPool pool() {
@@ -49,6 +54,14 @@ final class Replica {
 
 	@Nullable RateMeter meter() {
 		return this.meter;
+	}
+
+	/**
+	 * When the replica started.
+	 * @return 0 for one present at the start of the run
+	 */
+	double born() {
+		return this.born;
 	}
 
 	/**

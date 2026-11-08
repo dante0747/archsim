@@ -5,13 +5,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.SequencedMap;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.metrics.Gauge;
+import io.archsim.engine.numeric.PythonRound;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.RuntimeComponent;
 
@@ -25,6 +29,11 @@ import io.archsim.engine.runtime.RuntimeComponent;
  * whose utilization is the requests in flight over its connections.
  */
 final class Capacity {
+
+	/**
+	 * The decimals a part's mean slots are rounded to, when they change during the run.
+	 */
+	static final int SLOTS_DIGITS = 3;
 
 	private static final String SLOTS = "slots";
 
@@ -51,7 +60,7 @@ final class Capacity {
 
 	static Capacity of(RuntimeComponent component) {
 		NodeMetrics metrics = component.metrics();
-		OptionalDouble slots = slots(metrics);
+		OptionalDouble slots = slots(component);
 		OptionalDouble holdMs = metrics.hold().windowMean();
 		OptionalDouble serviceMs = metrics.service().windowMean();
 		SequencedMap<String, Double> limits = component.resourceCapacity(holdMs, serviceMs);
@@ -81,13 +90,21 @@ final class Capacity {
 	}
 
 	/**
-	 * A part's slots, as the capacity and the utilization count them.
-	 * @param metrics the part's metrics
+	 * A part's slots, as the capacity and the utilization count them: its slots, or, when
+	 * they change during the run (an autoscaling service's), their mean over the window,
+	 * rounded to 3 decimals.
+	 * @param component the part
 	 * @return its slots; empty when it has none, or none at all
 	 */
-	static OptionalDouble slots(NodeMetrics metrics) {
-		return (metrics.slots().isPresent() && metrics.slots().getAsInt() != 0)
-				? OptionalDouble.of(metrics.slots().getAsInt()) : OptionalDouble.empty();
+	static OptionalDouble slots(RuntimeComponent component) {
+		Optional<Gauge> capacity = component.capacityGauge();
+		if (capacity.isPresent()) {
+			double mean = PythonRound.round(capacity.get().windowMean(), SLOTS_DIGITS);
+			return (mean != 0) ? OptionalDouble.of(mean) : OptionalDouble.empty();
+		}
+		OptionalInt slots = component.metrics().slots();
+		return (slots.isPresent() && slots.getAsInt() != 0) ? OptionalDouble.of(slots.getAsInt())
+				: OptionalDouble.empty();
 	}
 
 	void write(ObjectNode summary) {
