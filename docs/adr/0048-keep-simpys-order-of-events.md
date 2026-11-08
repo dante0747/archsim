@@ -78,12 +78,12 @@ Python run event for event.
 
 ### Confirmation
 
-`scripts/export_kernel_cases.py` runs small SimPy programs (timeouts and process starts at equal
-times, processes waiting on processes, resource contention, a request granting the oldest waiter,
-queue timeouts with cancellation, stores, conditions, a condition nested in another, a chunked
-run) and records what each saw,
-when, and how many events it processed. `TimingCasesTests` and `QueueCasesTests` run each
-program's Java twin and expect the same lines and counts.
+`scripts/export_kernel_cases.py` runs small SimPy programs (timeouts and process starts at
+equal times, processes waiting on processes, resource contention, a request granting the oldest
+waiter, queue timeouts with cancellation, stores, conditions, a condition nested in another, a
+chunked run) and records what each saw, when, and how many events it processed.
+`TimingCasesTests` and `QueueCasesTests` run each program's Java twin and expect the same lines
+and counts.
 
 ## Pros and Cons of the Options
 

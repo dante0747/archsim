@@ -117,10 +117,11 @@ public final class Simulation {
 	 * event between checks
 	 */
 	public long runUntil(double until, int every, Runnable check) {
-		if (until <= this.now || every < 1) {
-			throw new IllegalArgumentException(
-					"a chunk runs to a later time, checking every 1 or more events; got until " + until + " at "
-							+ this.now + ", every " + every);
+		if (until <= this.now) {
+			throw new IllegalArgumentException("a chunk runs to a later time; got " + until + " at " + this.now);
+		}
+		if (every < 1) {
+			throw new IllegalArgumentException("a chunk checks every 1 or more events; got " + every);
 		}
 		Signal stop = new Signal(this);
 		stop.scheduleTriggered(URGENT, until - this.now);

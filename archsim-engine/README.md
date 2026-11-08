@@ -37,6 +37,7 @@ service's one remaining call, `/simulate`
 | `seeds` | ranges across seeds: `SeedSummary` (how a seed group's verdicts split, their ranges, whether they are borderline, and the summary in words, which `GET /run-groups/{id}` answers), `ValueRange`, `Seeds` |
 | `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
 | `kernel` | the simulation kernel: `Simulation` (simulated time in milliseconds and its events, processed in SimPy 4.1.2's order: time, then priority, then scheduling; `runUntil` runs a chunk as the Python engine did), `Signal`, `Promise`, `Timeout`, `Routine` (a process, written as steps that continue when the event they wait for is processed), `Condition` (any of, all of), `Resource` and `Store`, each as SimPy writes it, quirks included ([ADR-0048](../docs/adr/0048-keep-simpys-order-of-events.md)) |
+| `metrics` | what a run measures, in memory bounded by its time buckets and histogram bins: `Timeline` (a run's buckets of a round width and its measurement window), `Counter`, `Gauge` (a level integrated exactly over time), `LatencyHistogram` (log-sized bins, about 2% wide), `LatencyWithFailures` (what users waited, failures at their timeout), `BucketedHistograms`, `MeanAccumulator`, `LatencySummary` (a distribution's count, mean, percentiles and largest, rounded as a report writes them) |
 | `random` | the simulation's random numbers, as the Python engine drew them ([ADR-0047](../docs/adr/0047-draw-python-random-streams-in-java.md)): `PythonRandom` (Python's Mersenne Twister, `random()` and samplers, step for step, under Java names: `nextDouble`, `nextBits`, `below`, `uniform`, `exponential`, `normal`, `logNormal`), `RandomStreams` (one stream per name, derived from the run's seed), `Sampler` (a distribution's values, capped at ten minutes), `ZipfSampler` (key ranks) |
 | `simulation` | where the engine meets the simulator: `SimulationLimits`, `Stationarity` (whether a sampled run reached a `SteadyState`) |
 | `explain` | the calculations behind a report's numbers: `QueueingFormulas` (any part's arrival rate, slot capacity, utilization, Little's law, M/M/c wait and CPU capacity), `Formula` |
@@ -274,8 +275,14 @@ Where the Python engine gives a result for a report no run writes, the Java refu
 - The kernel's order of events is in `kernel/cases.json`, from `scripts/export_kernel_cases.py`:
   small SimPy programs (timeouts and process starts at equal times, processes waiting on
   processes, resource contention, a request granting the oldest waiter, queue timeouts, stores,
-  conditions, a condition nested in another, a chunked run), each with what it saw, when, and how many events SimPy processed;
-  `TimingCasesTests` and `QueueCasesTests` run each program's Java twin and expect the same.
+  conditions, a condition nested in another, a chunked run), each with what it saw, when, and
+  how many events SimPy processed; `TimingCasesTests` and `QueueCasesTests` run each program's
+  Java twin and expect the same.
+- The metric primitives' cases are in `metrics/cases.json`, from `scripts/export_metrics_cases.py`:
+  recorded increments, level changes (some at one moment), latencies and values on timelines of
+  several lengths, with every series, total and summary the frozen engine's `metrics` module
+  gives, which `SeriesCasesTests` and `HistogramCasesTests` check: bit for bit, except a
+  histogram's percentiles before they are rounded, to a relative 1e-14 (they go through `pow`).
 - The simulator's random draws are in `random/cases.json`, from `scripts/export_random_cases.py`
   (the frozen engine's `derive_rng`, `random.Random` on edge seeds, `getrandbits`, `randrange`,
   the samplers, each distribution and the Zipf sampler), which `RandomCasesTests` checks: draws

@@ -24,7 +24,7 @@ public class Event {
 
 	private int priority;
 
-	private long order;
+	private long sequence;
 
 	Event(Simulation simulation) {
 		this.simulation = simulation;
@@ -94,10 +94,10 @@ public class Event {
 		}
 	}
 
-	final void scheduleAt(double time, int priority, long order) {
+	final void scheduleAt(double time, int priority, long sequence) {
 		this.time = time;
 		this.priority = priority;
-		this.order = order;
+		this.sequence = sequence;
 	}
 
 	/**
@@ -134,7 +134,7 @@ public class Event {
 		if (first.priority != second.priority) {
 			return Integer.compare(first.priority, second.priority);
 		}
-		return Long.compare(first.order, second.order);
+		return Long.compare(first.sequence, second.sequence);
 	}
 
 }

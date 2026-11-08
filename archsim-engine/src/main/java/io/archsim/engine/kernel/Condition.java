@@ -44,7 +44,7 @@ public final class Condition extends Event {
 		addCallback((event) -> stopChecking());
 	}
 
-	private void check(Event processed) {
+	private void check(Event event) {
 		if (triggered()) {
 			return;
 		}

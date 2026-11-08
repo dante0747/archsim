@@ -87,13 +87,13 @@ class SimulationTests {
 	@Test
 	void runUntil_aTimeNotLaterThanNow_isRefused() {
 		assertThatIllegalArgumentException().isThrownBy(() -> this.simulation.runUntil(0, 1, () -> {
-		})).withMessage("a chunk runs to a later time, checking every 1 or more events; got until 0.0 at 0.0, every 1");
+		})).withMessage("a chunk runs to a later time; got 0.0 at 0.0");
 	}
 
 	@Test
 	void runUntil_noEventsBetweenChecks_isRefused() {
 		assertThatIllegalArgumentException().isThrownBy(() -> this.simulation.runUntil(5, 0, () -> {
-		})).withMessage("a chunk runs to a later time, checking every 1 or more events; got until 5.0 at 0.0, every 0");
+		})).withMessage("a chunk checks every 1 or more events; got 0");
 	}
 
 	@Property

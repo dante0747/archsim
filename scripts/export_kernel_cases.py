@@ -3,13 +3,13 @@
 The Java kernel keeps SimPy 4.1.2's order of events: by time, then priority (a process starts
 URGENT, everything else is NORMAL), then the order events were scheduled in, with SimPy's
 conditions, resource queues and stores. Each program below exercises one part of that order and
-writes what happened, in order, as ``[time, what]`` lines; ``TimingCasesTests`` and ``QueueCasesTests`` run the same
-program on the Java kernel and expects the same lines. Times are written as Python's
-``float.hex()``. Each program also records how many events SimPy processed, and the chunked
-run (``engine._run_until``) how many each chunk counted.
+writes what happened, in order, as ``[time, what]`` lines; ``TimingCasesTests`` and
+``QueueCasesTests`` run the same programs on the Java kernel and expect the same lines. Times are
+written as Python's ``float.hex()``. Each program also records how many events SimPy processed,
+and the chunked run (``engine._run_until``) how many each chunk counted.
 
-Keep each program here and its Java twin in ``TimingCasesTests`` or ``QueueCasesTests`` side by side:
-the test names the program it mirrors.
+Keep each program here and its Java twin in ``TimingCasesTests`` or ``QueueCasesTests`` side by
+side: the test names the program it mirrors.
 
 Usage:
     uv run python scripts/export_kernel_cases.py           # write the cases

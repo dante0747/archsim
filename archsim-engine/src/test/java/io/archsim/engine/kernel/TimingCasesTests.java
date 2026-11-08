@@ -2,7 +2,6 @@ package io.archsim.engine.kernel;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
@@ -104,20 +103,20 @@ class TimingCasesTests {
 		this.trace.log("parent waits for the early event");
 		this.simulation.timeout(1).then(() -> early.thenAccept((value) -> {
 			this.trace.log("parent got " + value + " without waiting");
-			AtomicReference<String> result = new AtomicReference<>();
+			Result result = new Result();
 			Routine first = this.simulation.start((done) -> child("first", 0.5, result, done));
-			first.then(() -> waitForTheSecondChild(result.get(), finish));
+			first.then(() -> waitForTheSecondChild(result.value, finish));
 		}));
 	}
 
 	private void waitForTheSecondChild(String firstResult, Runnable finish) {
 		this.trace.log("parent got " + firstResult);
-		AtomicReference<String> result = new AtomicReference<>();
+		Result result = new Result();
 		Routine second = this.simulation.start((done) -> child("second", 0, result, done));
 		this.simulation.timeout(0).then(() -> {
 			this.trace.log("parent past a zero timeout");
 			second.then(() -> {
-				this.trace.log("parent got " + result.get());
+				this.trace.log("parent got " + result.value);
 				finish.run();
 			});
 		});
@@ -127,10 +126,10 @@ class TimingCasesTests {
 	 * A child routine that returns its name: Python's process value, set by the step that
 	 * finishes the routine.
 	 */
-	private void child(String name, double delay, AtomicReference<String> result, Runnable finish) {
+	private void child(String name, double delay, Result result, Runnable finish) {
 		this.simulation.timeout(delay).then(() -> {
 			this.trace.log(name + " done");
-			result.set(name);
+			result.value = name;
 			finish.run();
 		});
 	}
@@ -142,7 +141,7 @@ class TimingCasesTests {
 		for (int index = 0; index < delays.size(); index++) {
 			String name = "c" + index;
 			double delay = delays.get(index);
-			children.add(this.simulation.start((done) -> child(name, delay, new AtomicReference<>(), done)));
+			children.add(this.simulation.start((done) -> child(name, delay, new Result(), done)));
 		}
 		this.simulation.allOf(children).then(() -> anyOfTwoTimeouts(finish));
 	}
@@ -218,6 +217,15 @@ class TimingCasesTests {
 	private Run run() {
 		long events = KernelCases.runAll(this.simulation);
 		return new Run(this.trace.lines(), events);
+	}
+
+	/**
+	 * A child routine's result, set by the step that finishes it and read by its waiter.
+	 */
+	private static final class Result {
+
+		private String value = "";
+
 	}
 
 	/**
