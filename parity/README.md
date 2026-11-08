@@ -189,8 +189,10 @@ Calibration records the time it ran (`fittedAt`, `calibration.at`): it is fixed 
   `build_report`, trace selection, latency breakdown, metrics): not recorded function by function.
   The recorded runs (above) and `archsim-engine`'s simulation cases replay them whole.
 - **Sweeps, knee search and seed groups** (`breaking_point`, `knee_sweeps`, `run_check --knee`):
-  many simulations each. Their pure parts are recorded (`sweep_range`, `levels`, `suggest_range`,
-  `rps_cap`, `row_from`, `meets`, `analyze`, `summarize_seeds`, `regressions`, `run_check`).
+  many simulations each. Their pure parts are recorded here (`sweep_range`, `levels`,
+  `suggest_range`, `rps_cap`, `row_from`, `meets`, `analyze`, `summarize_seeds`, `regressions`,
+  `run_check`); whole sweeps, knee searches and checks are in `archsim-engine`'s
+  `sweep/cases.json.gz`, which `SweepCasesTests` runs in Java.
 - **Component-specific explain formulas** (`RuntimeComponent.explain`) need a live runtime component;
   they are in the recorded reports.
 - **Reports of every scenario**: two runs per template (above).

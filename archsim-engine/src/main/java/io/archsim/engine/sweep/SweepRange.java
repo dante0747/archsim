@@ -24,6 +24,9 @@ public record SweepRange(double fromRps, double toRps) {
 	/** The most steps a sweep takes. */
 	public static final int MAX_STEPS = 10;
 
+	/** A breaking-point sweep's steps run at least this long, in seconds. */
+	static final double SHORTEST_SWEEP_STEP_S = 2.0;
+
 	/** The load a sweep is centred on when the design has none. */
 	private static final double DEFAULT_RPS = 100.0;
 
@@ -49,9 +52,6 @@ public record SweepRange(double fromRps, double toRps) {
 	 * A step of no duration counts as this long, so the cap is a division by something.
 	 */
 	private static final double SHORTEST_STEP_S = 1e-9;
-
-	/** A breaking-point sweep's steps run at least this long, in seconds. */
-	private static final double SHORTEST_SWEEP_STEP_S = 2.0;
 
 	/** Loads from here on are rounded to multiples of {@link #COARSE_ROUNDING}. */
 	private static final double COARSE_FROM = 100;

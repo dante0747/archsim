@@ -88,4 +88,16 @@ public record Measurement(String name, @Nullable String scenarioId, @Nullable Do
 				null);
 	}
 
+	/**
+	 * This measurement with the design's breaking point, read on a shared load grid.
+	 * @param found the breaking point
+	 * @return the measurement
+	 */
+	public Measurement withKnee(KneeFinding found) {
+		return new Measurement(this.name, this.scenarioId, this.p95, this.p99, this.successRate, this.throughputRps,
+				this.offeredRps, this.costMonthly, this.objectives, this.slo, this.verdict, this.bottleneck,
+				this.resultDigest, this.engineVersion, this.confidence, found.knee(), found.kneeVerdict(),
+				found.kneeRange(), found.kneeResolution());
+	}
+
 }
