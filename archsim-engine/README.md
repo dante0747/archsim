@@ -36,6 +36,7 @@ service's one remaining call, `/simulate`
 | `slo` | whether a run is good enough: `SloResult` (each objective the design sets checked against the run's `RunFigures`, an `SloCheck`, and the verdict in words), `Objective`, `StoredObjectives` (the objectives stored with a run, a target left out being off) |
 | `seeds` | ranges across seeds: `SeedSummary` (how a seed group's verdicts split, their ranges, whether they are borderline, and the summary in words, which `GET /run-groups/{id}` answers), `ValueRange`, `Seeds` |
 | `sweep` | load sweeps: `SweepRange` (its levels and the highest load a step can run), `SweepRow` (a step's figures), `SweepAnalysis` (the knee and the heaviest load within the objectives) |
+| `kernel` | the simulation kernel: `Simulation` (simulated time in milliseconds and its events, processed in SimPy 4.1.2's order: time, then priority, then scheduling; `runUntil` runs a chunk as the Python engine did), `Signal`, `Promise`, `Timeout`, `Routine` (a process, written as steps that continue when the event they wait for is processed), `Condition` (any of, all of), `Resource` and `Store`, each as SimPy writes it, quirks included ([ADR-0048](../docs/adr/0048-keep-simpys-order-of-events.md)) |
 | `random` | the simulation's random numbers, as the Python engine drew them ([ADR-0047](../docs/adr/0047-draw-python-random-streams-in-java.md)): `PythonRandom` (Python's Mersenne Twister, `random()` and samplers, step for step, under Java names: `nextDouble`, `nextBits`, `below`, `uniform`, `exponential`, `normal`, `logNormal`), `RandomStreams` (one stream per name, derived from the run's seed), `Sampler` (a distribution's values, capped at ten minutes), `ZipfSampler` (key ranks) |
 | `simulation` | where the engine meets the simulator: `SimulationLimits`, `Stationarity` (whether a sampled run reached a `SteadyState`) |
 | `explain` | the calculations behind a report's numbers: `QueueingFormulas` (any part's arrival rate, slot capacity, utilization, Little's law, M/M/c wait and CPU capacity), `Formula` |
@@ -270,6 +271,11 @@ Where the Python engine gives a result for a report no run writes, the Java refu
   changed that reach each branch, cut to what the analysis reads, with the Python engine's
   findings and each part's status, from `scripts/export_findings_cases.py`, which
   `FindingsCasesTests` checks.
+- The kernel's order of events is in `kernel/cases.json`, from `scripts/export_kernel_cases.py`:
+  small SimPy programs (timeouts and process starts at equal times, processes waiting on
+  processes, resource contention, a request granting the oldest waiter, queue timeouts, stores,
+  conditions, a condition nested in another, a chunked run), each with what it saw, when, and how many events SimPy processed;
+  `TimingCasesTests` and `QueueCasesTests` run each program's Java twin and expect the same.
 - The simulator's random draws are in `random/cases.json`, from `scripts/export_random_cases.py`
   (the frozen engine's `derive_rng`, `random.Random` on edge seeds, `getrandbits`, `randrange`,
   the samplers, each distribution and the Zipf sampler), which `RandomCasesTests` checks: draws

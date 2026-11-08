@@ -5,6 +5,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
@@ -24,6 +25,17 @@ class ArchitectureTests {
 			.dependOnClassesThat()
 			.resideInAnyPackage("org.springframework..", "jakarta..", "javax.sql..", "java.sql..", "org.hibernate..")
 			.because("the engine is a plain library the app, the CLI and the MCP server share (ADR-0012)")
+			.check(ENGINE);
+	}
+
+	@Test
+	void kernel_anyClass_usesNothingElseOfTheEngineOrModel() {
+		classes().that()
+			.resideInAPackage("io.archsim.engine.kernel..")
+			.should()
+			.onlyDependOnClassesThat()
+			.resideInAnyPackage("java..", "org.jspecify..", "io.archsim.engine.kernel..")
+			.because("the kernel is the bottom layer of the simulator: time, events and queues (ADR-0048)")
 			.check(ENGINE);
 	}
 

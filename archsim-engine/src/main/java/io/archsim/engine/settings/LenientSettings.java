@@ -201,8 +201,8 @@ public final class LenientSettings {
 	}
 
 	private static double logNormalMean(double median, double p95) {
-		double sigma = Math.log(p95 / median) / LogNormal.Z95;
-		return Math.exp(Math.log(median) + sigma * sigma / 2);
+		double sigma = StrictMath.log(p95 / median) / LogNormal.Z95;
+		return Math.exp(StrictMath.log(median) + sigma * sigma / 2);
 	}
 
 	/**

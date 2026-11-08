@@ -1,0 +1,413 @@
+{
+ "generator": "scripts/export_kernel_cases.py (SimPy 4.1.2, archsim_engine 0.16.0)",
+ "timeoutsAndStarts": {
+  "trace": [
+   [
+    "0x0.0p+0",
+    "a starts"
+   ],
+   [
+    "0x0.0p+0",
+    "b starts"
+   ],
+   [
+    "0x0.0p+0",
+    "c starts"
+   ],
+   [
+    "0x1.999999999999ap-4",
+    "a woke after 0.1"
+   ],
+   [
+    "0x1.3333333333333p-2",
+    "b woke after 0.3"
+   ],
+   [
+    "0x1.3333333333333p-2",
+    "b woke after 0.0"
+   ],
+   [
+    "0x1.3333333333334p-2",
+    "c woke after 0.30000000000000004"
+   ],
+   [
+    "0x1.3333333333334p-2",
+    "a woke after 0.2"
+   ],
+   [
+    "0x1.3333333333334p-2",
+    "a woke after 0.0"
+   ],
+   [
+    "0x1.999999999999ap-2",
+    "c woke after 0.1"
+   ]
+  ],
+  "events": 14
+ },
+ "nestedWaits": {
+  "trace": [
+   [
+    "0x0.0p+0",
+    "parent waits for the early event"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "parent got early without waiting"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "first done"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "parent got first"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "parent past a zero timeout"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "second done"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "parent got second"
+   ]
+  ],
+  "events": 11
+ },
+ "resourceContention": {
+  "trace": [
+   [
+    "0x0.0p+0",
+    "u0 asks, triggered=True count=1 queue=0"
+   ],
+   [
+    "0x0.0p+0",
+    "u1 asks, triggered=True count=2 queue=0"
+   ],
+   [
+    "0x0.0p+0",
+    "u2 asks, triggered=False count=2 queue=1"
+   ],
+   [
+    "0x0.0p+0",
+    "u3 asks, triggered=False count=2 queue=2"
+   ],
+   [
+    "0x0.0p+0",
+    "u0 holds"
+   ],
+   [
+    "0x0.0p+0",
+    "u1 holds"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "u4 asks, triggered=False count=2 queue=3"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "u0 releases, count=1 queue=3"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "u2 holds"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "u5 asks, triggered=False count=2 queue=3"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "u1 releases, count=1 queue=3"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "u2 releases, count=0 queue=3"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "u3 holds"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "u4 holds"
+   ],
+   [
+    "0x1.4000000000000p+1",
+    "u3 releases, count=1 queue=1"
+   ],
+   [
+    "0x1.4000000000000p+1",
+    "u5 holds"
+   ],
+   [
+    "0x1.6000000000000p+1",
+    "u5 releases, count=1 queue=0"
+   ],
+   [
+    "0x1.8000000000000p+1",
+    "u4 releases, count=0 queue=0"
+   ]
+  ],
+  "events": 32
+ },
+ "requestGrantsOldest": {
+  "trace": [
+   [
+    "0x0.0p+0",
+    "holder holds"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "holder released, count=0 queue=2"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "holder asks again: triggered=False queue=2"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "w1 holds"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "w1 releases"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "w2 holds"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "w2 releases"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "holder holds again"
+   ]
+  ],
+  "events": 17
+ },
+ "queueTimeouts": {
+  "trace": [
+   [
+    "0x0.0p+0",
+    "a holds"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "b gave up, queue=3"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "a releases"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "c holds"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "d gave up, queue=1"
+   ],
+   [
+    "0x1.8000000000000p+1",
+    "c releases"
+   ],
+   [
+    "0x1.8000000000000p+1",
+    "e holds"
+   ],
+   [
+    "0x1.0000000000000p+2",
+    "e releases"
+   ]
+  ],
+  "events": 29
+ },
+ "stores": {
+  "trace": [
+   [
+    "0x1.0000000000000p+0",
+    "put x, items=1"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "late get triggered=False"
+   ],
+   [
+    "0x1.0000000000000p+0",
+    "g1 got x"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "put y and z, items=2"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "g2 got y"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "late got z"
+   ],
+   [
+    "0x1.0000000000000p+1",
+    "put w, items=1"
+   ],
+   [
+    "0x1.8000000000000p+1",
+    "g3 got w"
+   ]
+  ],
+  "events": 19
+ },
+ "conditions": {
+  "trace": [
+   [
+    "0x0.0p+0",
+    "empty all-of passed"
+   ],
+   [
+    "0x0.0p+0",
+    "c1 done"
+   ],
+   [
+    "0x1.0000000000000p-2",
+    "c2 done"
+   ],
+   [
+    "0x1.0000000000000p-1",
+    "c0 done"
+   ],
+   [
+    "0x1.0000000000000p-1",
+    "all children done"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "any-of fired, a=True b=True"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "any-of of a processed event passed"
+   ],
+   [
+    "0x1.4000000000000p+1",
+    "any-of fired before the late timeout, late=False"
+   ],
+   [
+    "0x1.c000000000000p+1",
+    "late timeout seen"
+   ]
+  ],
+  "events": 24
+ },
+ "nestedConditions": {
+  "trace": [
+   [
+    "0x1.0000000000000p+0",
+    "outer fired, inner triggered=False"
+   ],
+   [
+    "0x1.8000000000000p+2",
+    "later, inner triggered=False a=True b=True"
+   ]
+  ],
+  "events": 8
+ },
+ "chunks": {
+  "trace": [
+   [
+    "0x1.3333333333333p-2",
+    "fast tick"
+   ],
+   [
+    "0x1.3333333333333p-2",
+    "check"
+   ],
+   [
+    "0x1.3333333333333p-1",
+    "fast tick"
+   ],
+   [
+    "0x1.8000000000000p-1",
+    "chunk to 0.75"
+   ],
+   [
+    "0x1.cccccccccccccp-1",
+    "fast tick"
+   ],
+   [
+    "0x1.199999999999ap+0",
+    "slow tick"
+   ],
+   [
+    "0x1.199999999999ap+0",
+    "check"
+   ],
+   [
+    "0x1.3333333333333p+0",
+    "fast tick"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "chunk to 1.5"
+   ],
+   [
+    "0x1.8000000000000p+0",
+    "fast tick"
+   ],
+   [
+    "0x1.ccccccccccccdp+0",
+    "fast tick"
+   ],
+   [
+    "0x1.ccccccccccccdp+0",
+    "check"
+   ],
+   [
+    "0x1.0cccccccccccdp+1",
+    "fast tick"
+   ],
+   [
+    "0x1.199999999999ap+1",
+    "slow tick"
+   ],
+   [
+    "0x1.2000000000000p+1",
+    "chunk to 2.25"
+   ],
+   [
+    "0x1.3333333333333p+1",
+    "fast tick"
+   ],
+   [
+    "0x1.5999999999999p+1",
+    "fast tick"
+   ],
+   [
+    "0x1.5999999999999p+1",
+    "check"
+   ],
+   [
+    "0x1.7ffffffffffffp+1",
+    "fast tick"
+   ],
+   [
+    "0x1.8000000000000p+1",
+    "chunk to 3.0"
+   ]
+  ],
+  "counts": [
+   4,
+   4,
+   5,
+   4
+  ]
+ }
+}
