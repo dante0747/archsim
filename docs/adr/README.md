@@ -90,4 +90,4 @@ what the repository shows.
 | [0046](0046-call-prometheus-with-apache-httpclient-5.md) | Call Prometheus with Apache HttpClient 5, pinned to the address it checks | Accepted | 2026-11-07 |
 | [0047](0047-draw-python-random-streams-in-java.md) | Draw the Python engine's random streams in Java | Accepted | 2026-11-08 |
 | [0048](0048-keep-simpys-order-of-events.md) | Keep SimPy's order of events in the Java kernel | Accepted | 2026-11-08 |
-| [0049](0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md) | Measure the Java simulator by replaying the frozen engine's runs | Proposed | 2026-11-08 |
+| [0049](0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md) | Measure the Java simulator by replaying the frozen engine's runs | Accepted | 2026-11-08 |
