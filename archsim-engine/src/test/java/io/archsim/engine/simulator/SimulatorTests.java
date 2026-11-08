@@ -18,13 +18,13 @@ class SimulatorTests {
 	private static final Simulator SIMULATOR = new Simulator(StandardComponents.registry(), PriceSnapshots.shipped());
 
 	@Test
-	void run_aKubernetesCluster_isRefused() {
+	void run_anAutoscalingServiceOnAKubernetesCluster_isRefused() {
 		JsonNode design = design("""
-				{"id": "part", "type": "service", "config": {"platform": "kubernetes"}},
+				{"id": "part", "type": "service", "config": {"platform": "kubernetes", "autoscaling": true}},
 				{"id": "cluster", "type": "kubernetes_cluster", "config": {}}""");
 
 		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> SIMULATOR.run(design, null))
-			.withMessage("the Java simulator does not simulate a kubernetes_cluster yet");
+			.withMessage("the Java simulator does not simulate an autoscaling service on a Kubernetes cluster yet");
 	}
 
 	// clients calling a part, among others

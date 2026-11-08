@@ -98,15 +98,17 @@ public final class KubernetesClusterSpec extends ComponentSpec<ClusterConfig> {
 	private static Optional<Issue> podTooBig(NodeSpec node, ClusterConfig config, ServicePods pods) {
 		double allocatableCpu = config.allocatableCpu();
 		double allocatableMemoryGib = config.allocatableMemoryGib();
-		if (!exceeds(pods.cpu(), allocatableCpu) && !exceeds(pods.memoryGib(), allocatableMemoryGib)) {
+		if (!exceeds(pods.request().cpu(), allocatableCpu)
+				&& !exceeds(pods.request().memoryGib(), allocatableMemoryGib)) {
 			return Optional.empty();
 		}
 		return Optional.of(Issue
 			.error("kubernetes.pod_too_big",
 					("Pods of %s request %s vCPU and %s GiB, more than one node of %s can offer (%s"
 							+ " vCPU, %s GiB allocatable), so they can never be scheduled.")
-						.formatted(pods.service().name(), format(pods.cpu()), format(pods.memoryGib()), node.name(),
-								format(allocatableCpu), format(allocatableMemoryGib)))
+						.formatted(pods.service().name(), format(pods.request().cpu()),
+								format(pods.request().memoryGib()), node.name(), format(allocatableCpu),
+								format(allocatableMemoryGib)))
 			.atNode(pods.service().id())
 			.atPath("cpuCores")
 			.withHint("Use bigger nodes or smaller pod requests."));
@@ -116,8 +118,8 @@ public final class KubernetesClusterSpec extends ComponentSpec<ClusterConfig> {
 		double requestedCpu = 0.0;
 		double requestedMemoryGib = 0.0;
 		for (ServicePods pods : members) {
-			requestedCpu += pods.cpu() * pods.count();
-			requestedMemoryGib += pods.memoryGib() * pods.count();
+			requestedCpu += pods.request().cpu() * pods.count();
+			requestedMemoryGib += pods.request().memoryGib() * pods.count();
 		}
 		double offeredCpu = config.allocatableCpu() * config.nodes();
 		double offeredMemoryGib = config.allocatableMemoryGib() * config.nodes();
@@ -155,27 +157,20 @@ public final class KubernetesClusterSpec extends ComponentSpec<ClusterConfig> {
 	 * The pods of one service on the cluster, and what each of them requests.
 	 *
 	 * @param service the service's node
-	 * @param cpu the vCPU each pod requests
-	 * @param memoryGib the memory each pod requests, in GiB
+	 * @param request what each pod requests
 	 * @param count the pods the service starts with
 	 */
-	private record ServicePods(NodeSpec service, double cpu, double memoryGib, int count) {
+	private record ServicePods(NodeSpec service, PodRequest request, int count) {
 
 		/**
-		 * The pods of a service: its own requests, or else the cluster's defaults; with
-		 * autoscaling, its replicas brought within its range.
+		 * The pods of a service: one per replica it starts with.
 		 * @param node the service's node
 		 * @param service the service's config
 		 * @param cluster the cluster's config
 		 * @return the service's pods
 		 */
 		static ServicePods of(NodeSpec node, ServiceConfig service, ClusterConfig cluster) {
-			double cpu = (service.cpuCores() != null) ? service.cpuCores() : cluster.defaultCpuRequest();
-			double memoryGib = (service.memoryGib() != null) ? service.memoryGib() : cluster.defaultMemoryRequestGib();
-			int count = service.autoscaling()
-					? Math.min(Math.max(service.replicas(), service.minReplicas()), service.maxReplicas())
-					: service.replicas();
-			return new ServicePods(node, cpu, memoryGib, count);
+			return new ServicePods(node, PodRequest.of(service, cluster), service.initialReplicas());
 		}
 
 	}

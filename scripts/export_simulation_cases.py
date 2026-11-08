@@ -4,9 +4,10 @@ The Java simulator keeps the frozen engine's order of events and draws its rando
 Java run of a design follows the Python run of it. This script simulates small designs, each
 reaching one feature of the runtime (clients with timeouts and retries, client groups, traffic
 patterns, faults, delays of zero, no traffic at all, a calibrated scenario of a priced API,
-services (autoscaling and serverless ones too), load balancers, hosts, caches, databases,
-message queues, and each component as later slices add them), with the frozen engine (0.16.0)
-and records each design, the scenario simulated and the report.
+services (autoscaling, serverless and Kubernetes ones too), Kubernetes clusters, load
+balancers, hosts, caches, databases, message queues, and each component as later slices add
+them), with the frozen engine (0.16.0) and records each design, the scenario simulated and the
+report.
 ``SimulationCasesTests`` simulates each design in Java and compares the whole reports: digests,
 counts and events processed exactly, numbers to a relative 1e-9.
 
@@ -78,6 +79,10 @@ def database(node_id: str, label: str, **config: Any) -> Json:
 
 def queue(node_id: str, label: str, **config: Any) -> Json:
     return {"id": node_id, "type": "message_queue", "label": label, "config": config}
+
+
+def cluster(node_id: str = "k8s", **config: Any) -> Json:
+    return {"id": node_id, "type": "kubernetes_cluster", "label": "Cluster", "config": config}
 
 
 def link(source: str, target: str, **config: Any) -> Json:
@@ -1204,6 +1209,69 @@ CASES: dict[str, Json] = {
         ],
         [link("clients", "svc"), link("svc", "fn", requestTypes=["write"])],
         {"rps": 50, "durationS": 3, "readRatio": 1.0},
+    ),
+    "podsWaitingForNodes": design(
+        [
+            clients(timeoutMs=3000),
+            balancer(policy="round_robin"),
+            service(
+                "web",
+                "Web",
+                platform="kubernetes",
+                replicas=4,
+                cpuCores=0.8,
+                startupS=0.3,
+                workersPerReplica=8,
+                serviceTimeMs=lognormal(6, 18),
+            ),
+            service(
+                "jobs",
+                "Jobs",
+                platform="kubernetes",
+                replicas=2,
+                memoryGib=7,
+                startupS=0.2,
+                workersPerReplica=1,
+                serviceTimeMs=lognormal(10, 30),
+            ),
+            cluster(
+                nodes=1,
+                nodeVcpu=2,
+                nodeMemoryGib=8,
+                maxNodes=4,
+                nodeProvisionS=1.5,
+                scanIntervalS=1,
+                imagePullS=0.4,
+            ),
+        ],
+        [
+            link("clients", "lb"),
+            link("lb", "web"),
+            link("web", "jobs", requestTypes=["write"]),
+        ],
+        {"rps": 120, "arrivalProcess": "poisson", "durationS": 6, "readRatio": 0.7},
+    ),
+    "aBalancerWhosePodsStayPending": design(
+        [
+            clients(timeoutMs=1000),
+            balancer(policy="least_connections"),
+            service("hog", "Batch", platform="kubernetes", replicas=1, cpuCores=3),
+            service("api", "API", platform="kubernetes", replicas=2, cpuCores=3),
+            cluster(nodes=1, clusterAutoscaler=False, minNodes=1, maxNodes=1),
+        ],
+        [link("clients", "lb"), link("lb", "api")],
+        {"rps": 40, "durationS": 3},
+    ),
+    "aClusterRemovingItsEmptyNodes": design(
+        [
+            clients(),
+            service(
+                "svc", "Shop", platform="kubernetes", replicas=1, serviceTimeMs=lognormal(5, 15)
+            ),
+            cluster(nodes=4, minNodes=2, maxNodes=5, scanIntervalS=0.5, scaleDownUnneededS=1),
+        ],
+        [link("clients", "svc")],
+        {"rps": 60, "arrivalProcess": "poisson", "durationS": 4},
     ),
     "aCalibratedScenarioOfAPricedApi": calibrated(
         design(

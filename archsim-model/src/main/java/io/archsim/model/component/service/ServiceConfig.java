@@ -238,6 +238,18 @@ public record ServiceConfig(
 	}
 
 	/**
+	 * The replicas the service starts with: as many as set, or for an autoscaling service
+	 * as many within its bounds.
+	 * @return the replicas
+	 */
+	public int initialReplicas() {
+		if (!this.autoscaling) {
+			return this.replicas;
+		}
+		return Math.min(Math.max(this.replicas, this.minReplicas), this.maxReplicas);
+	}
+
+	/**
 	 * Whether the service runs on Kubernetes (its pods scheduled on a cluster's nodes).
 	 * @return {@code true} on the Kubernetes platform
 	 */

@@ -72,6 +72,7 @@ final class ServiceReport {
 			figures.put("replicasPeak", scaling.peak());
 			figures.put("replicasEnd", replicas.routableCount());
 		});
+		service.pods().ifPresent((pods) -> figures.put("podsPendingPeak", pods.pendingPeak()));
 		return figures;
 	}
 
@@ -101,6 +102,11 @@ final class ServiceReport {
 			series.put("eventLoopLagMs", metrics.queueWait().series());
 		}
 		service.replicas().scaling().ifPresent((scaling) -> series.put("replicas", scaling.countSeries()));
+		service.pods().ifPresent((pods) -> {
+			series.put("podsReady", service.replicas().scaling().orElseThrow().countSeries());
+			series.put("podsStarting", pods.startingSeries());
+			series.put("podsPending", pods.pendingSeries());
+		});
 		return series;
 	}
 

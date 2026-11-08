@@ -16,6 +16,7 @@ import io.archsim.engine.runtime.SimContext;
 import io.archsim.model.component.Category;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.client.ClientConfig;
+import io.archsim.model.component.kubernetes.KubernetesClusterSpec;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.HostSpec;
@@ -85,6 +86,13 @@ final class RunSimulation {
 			context
 				.addEdge(new EdgeRuntime(edge, context.timeline(), context.stream("edge:" + edge.id() + ":latency")));
 		}
+		// every service on Kubernetes finds its cluster as it is built
+		context.useClusters(resolved.architecture()
+			.nodes()
+			.stream()
+			.filter((node) -> KubernetesClusterSpec.TYPE.equals(node.type()))
+			.map(NodeSpec::id)
+			.toList());
 		for (NodeSpec node : resolved.architecture().nodes()) {
 			context.addComponent(Parts.build(context, node, config(node), clients));
 		}

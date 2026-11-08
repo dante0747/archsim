@@ -73,6 +73,17 @@ final class Serving {
 		replica.pool().acquire(request, this.state.nodeId(), (acquired) -> handle(request, replica, acquired, done));
 	}
 
+	/**
+	 * Refuses a request because no replica takes requests: every pod of the service is
+	 * Pending or starting (503).
+	 * @param request the request
+	 * @param done what to do with the outcome
+	 */
+	void refuseWithoutPods(Request request, Consumer<Outcome> done) {
+		this.state.metrics().arrive(now());
+		refuse(request, FailureReason.NO_READY_PODS, "no ready pod (503)", done);
+	}
+
 	// served with the handler taken, or refused by the queue
 	private void handle(Request request, Replica replica, WorkerPool.Acquired acquired, Consumer<Outcome> done) {
 		switch (acquired) {

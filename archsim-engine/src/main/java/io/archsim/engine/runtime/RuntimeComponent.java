@@ -208,6 +208,15 @@ public abstract class RuntimeComponent {
 	}
 
 	/**
+	 * The part's own summary entries that are text, beyond its figures (such as the
+	 * cluster a service runs on).
+	 * @return the entries, in the report's order; none unless the part has some
+	 */
+	public SequencedMap<String, String> extraSummaryTexts() {
+		return new LinkedHashMap<>();
+	}
+
+	/**
 	 * The part's own time series, one value per bucket of the whole timeline, which the
 	 * report rounds and cuts where the run stopped.
 	 * @return the series by name, in order; none by default

@@ -11,9 +11,10 @@ import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.metrics.Timeline;
 
 /**
- * A service's replicas during a run: every replica started, and those that take requests,
- * in the order they started. An autoscaling service's set changes ({@link Scaling}): a
- * replica started joins it, the newest leaves it to scale down (it drains what it holds),
+ * A service's replicas during a run: every replica started, and those that take requests.
+ * The set of an autoscaling service, or of a service on a Kubernetes cluster, changes
+ * ({@link Scaling}): a replica started joins it, the newest leaves it to scale down (it
+ * drains what it holds), a replica whose pod is Pending leaves it until the pod is ready,
  * and its gauges follow the replicas and the handlers taking requests. Each change is a
  * new version, which tells a load balancer to list the service's instances again.
  */
@@ -42,13 +43,14 @@ final class ReplicaSet {
 	}
 
 	/**
-	 * An autoscaling service's replicas, its gauges at the replicas present.
+	 * Replicas that change during the run, an autoscaling service's or a Kubernetes
+	 * service's, their gauges at the replicas present.
 	 * @param timeline the run's timeline
 	 * @param perReplica the handlers of each replica
 	 * @param replicas the replicas present at the start of the run
 	 * @return the set
 	 */
-	static ReplicaSet autoscaling(Timeline timeline, int perReplica, List<Replica> replicas) {
+	static ReplicaSet changing(Timeline timeline, int perReplica, List<Replica> replicas) {
 		return new ReplicaSet(replicas, timeline, perReplica);
 	}
 
@@ -59,6 +61,14 @@ final class ReplicaSet {
 	 */
 	Replica routed(int turn) {
 		return this.started.get(this.routable.get(turn % this.routable.size()));
+	}
+
+	/**
+	 * The replicas taking requests now.
+	 * @return a copy, in the order they take turns
+	 */
+	List<Replica> routableReplicas() {
+		return this.routable.stream().map(this.started::get).toList();
 	}
 
 	/**
@@ -86,8 +96,8 @@ final class ReplicaSet {
 	}
 
 	/**
-	 * How an autoscaling service's replicas change.
-	 * @return its scaling; empty for fixed replicas
+	 * How the replicas change.
+	 * @return their scaling; empty for fixed replicas
 	 */
 	Optional<Scaling> scaling() {
 		return Optional.ofNullable(this.scaling);
@@ -131,8 +141,8 @@ final class ReplicaSet {
 	}
 
 	/**
-	 * An autoscaling service's changing replicas: their gauges, and the replicas started
-	 * and retired.
+	 * Replicas that change: their gauges, and the replicas started, retired, withdrawn
+	 * and rejoining.
 	 */
 	final class Scaling {
 
@@ -165,9 +175,36 @@ final class ReplicaSet {
 		 */
 		void start(Replica replica, double now) {
 			addRoutable(replica);
-			this.capacity.add(now, this.perReplica);
-			this.active.add(now, 1);
-			ReplicaSet.this.version++;
+			changeBy(1, now);
+		}
+
+		/**
+		 * Stops sending requests to a replica whose pod is Pending, until it rejoins.
+		 * @param replica the replica
+		 * @param now the time
+		 * @throws IllegalStateException when the replica takes no requests
+		 */
+		void withdraw(Replica replica, double now) {
+			int index = ReplicaSet.this.started.indexOf(replica);
+			if (!ReplicaSet.this.routable.remove(Integer.valueOf(index))) {
+				throw new IllegalStateException("a replica that takes no requests cannot be withdrawn");
+			}
+			changeBy(-1, now);
+		}
+
+		/**
+		 * Sends requests again to a replica whose pod is ready, after the others.
+		 * @param replica the replica
+		 * @param now the time
+		 * @throws IllegalStateException when the replica takes requests already
+		 */
+		void rejoin(Replica replica, double now) {
+			int index = ReplicaSet.this.started.indexOf(replica);
+			if (ReplicaSet.this.routable.contains(index)) {
+				throw new IllegalStateException("a replica that takes requests cannot rejoin");
+			}
+			ReplicaSet.this.routable.add(index);
+			changeBy(1, now);
 		}
 
 		/**
@@ -180,9 +217,7 @@ final class ReplicaSet {
 				return;
 			}
 			ReplicaSet.this.routable.removeLast();
-			this.capacity.add(now, -this.perReplica);
-			this.active.add(now, -1);
-			ReplicaSet.this.version++;
+			changeBy(-1, now);
 		}
 
 		/**
@@ -200,6 +235,13 @@ final class ReplicaSet {
 		 */
 		List<@Nullable Double> countSeries() {
 			return this.active.meanSeriesUntilEnd();
+		}
+
+		// the replicas taking requests rose or fell: a new version
+		private void changeBy(int replicas, double now) {
+			this.capacity.add(now, (long) replicas * this.perReplica);
+			this.active.add(now, replicas);
+			ReplicaSet.this.version++;
 		}
 
 		private void finish(double endMs) {

@@ -107,6 +107,23 @@ class ServiceConfigTests {
 		assertThat(config("{\"technology\": \"java\"}").coldStartInEffect()).isEqualTo(new LogNormal(1200, 3500));
 	}
 
+	@Test
+	void initialReplicas_fixedReplicas_isTheReplicasSet() {
+		assertThat(config("{\"replicas\": 5}").initialReplicas()).isEqualTo(5);
+	}
+
+	@Test
+	void initialReplicas_anAutoscalingServiceSetBelowItsBounds_isItsMinimum() {
+		assertThat(config("{\"autoscaling\": true, \"replicas\": 1, \"minReplicas\": 3, \"maxReplicas\": 6}")
+			.initialReplicas()).isEqualTo(3);
+	}
+
+	@Test
+	void initialReplicas_anAutoscalingServiceSetAboveItsBounds_isItsMaximum() {
+		assertThat(config("{\"autoscaling\": true, \"replicas\": 9, \"minReplicas\": 3, \"maxReplicas\": 6}")
+			.initialReplicas()).isEqualTo(6);
+	}
+
 	private static ServiceConfig config(String json) {
 		return RecordCodec.read((ObjectNode) JSON.readTree(json), ServiceConfig.class);
 	}

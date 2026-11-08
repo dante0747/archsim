@@ -2,6 +2,7 @@ package io.archsim.engine.components.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
@@ -61,6 +62,8 @@ final class ServiceState {
 
 	private final ReplicaSet replicas;
 
+	private final @Nullable Pods pods;
+
 	private int peakLoad;
 
 	/**
@@ -88,24 +91,13 @@ final class ServiceState {
 		this.factors = this.curve.isEmpty() ? null : new MeanAccumulator(context.timeline());
 		this.queue = new WorkerPool.Queue(config.queueCapacity(), config.queueTimeoutMs());
 		List<Replica> present = new ArrayList<>();
-		for (int index = 0; index < initialReplicas(config); index++) {
+		for (int index = 0; index < config.initialReplicas(); index++) {
 			present.add(newReplica(0.0));
 		}
-		this.replicas = config.autoscaling() ? ReplicaSet.autoscaling(context.timeline(), this.perReplica, present)
-				: ReplicaSet.fixed(present);
-	}
-
-	/**
-	 * The replicas a service starts with: as many as set, or for an autoscaling service
-	 * as many within its bounds.
-	 * @param config its settings
-	 * @return the replicas
-	 */
-	static int initialReplicas(ServiceConfig config) {
-		if (!config.autoscaling()) {
-			return config.replicas();
-		}
-		return Math.min(Math.max(config.replicas(), config.minReplicas()), config.maxReplicas());
+		String clusterId = config.clusterIn(context.clusterIds());
+		this.pods = (clusterId != null) ? new Pods(context, this.nodeId, clusterId, config) : null;
+		this.replicas = (config.autoscaling() || this.pods != null)
+				? ReplicaSet.changing(context.timeline(), this.perReplica, present) : ReplicaSet.fixed(present);
 	}
 
 	/**
@@ -198,6 +190,14 @@ final class ServiceState {
 	}
 
 	/**
+	 * The service's pods on its Kubernetes cluster.
+	 * @return its pods; empty for a service on no cluster
+	 */
+	Optional<Pods> pods() {
+		return Optional.ofNullable(this.pods);
+	}
+
+	/**
 	 * The replicas taking requests, on average over the measurement window.
 	 * @return the replicas
 	 */
@@ -251,6 +251,9 @@ final class ServiceState {
 	void finish(double end) {
 		this.replicas.finish(end);
 		this.warming.finish(end);
+		if (this.pods != null) {
+			this.pods.finish(end);
+		}
 		if (this.coreBusy != null) {
 			this.coreBusy.finish(end);
 		}

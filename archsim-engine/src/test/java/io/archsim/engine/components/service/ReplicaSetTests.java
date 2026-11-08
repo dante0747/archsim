@@ -14,6 +14,7 @@ import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.WorkerPool;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * An autoscaling service's replicas: started ones join, the newest leaves to scale down
@@ -27,7 +28,7 @@ class ReplicaSetTests {
 
 	@Test
 	void start_aReplica_takesRequestsAsANewVersion() {
-		ReplicaSet replicas = ReplicaSet.autoscaling(this.timeline, 4, present(1));
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present(1));
 
 		replicas.scaling().orElseThrow().start(replica(10), 10);
 
@@ -37,7 +38,7 @@ class ReplicaSetTests {
 
 	@Test
 	void retireNewest_theLastReplica_keepsIt() {
-		ReplicaSet replicas = ReplicaSet.autoscaling(this.timeline, 4, present(1));
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present(1));
 
 		replicas.scaling().orElseThrow().retireNewest(10);
 
@@ -47,7 +48,7 @@ class ReplicaSetTests {
 
 	@Test
 	void retireNewest_twoReplicas_stopsSendingToTheNewest() {
-		ReplicaSet replicas = ReplicaSet.autoscaling(this.timeline, 4, present(1));
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present(1));
 		Replica started = replica(10);
 		replicas.scaling().orElseThrow().start(started, 10);
 
@@ -59,12 +60,55 @@ class ReplicaSetTests {
 
 	@Test
 	void countSeries_aRunEndingInsideABucket_averagesOverWhatItSimulated() {
-		ReplicaSet replicas = ReplicaSet.autoscaling(this.timeline, 4, present(2));
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present(2));
 		int bucketMs = this.timeline.bucketMs();
 
 		replicas.finish(bucketMs * 1.5);
 
 		assertThat(replicas.scaling().orElseThrow().countSeries().subList(0, 3)).containsExactly(2.0, 2.0, null);
+	}
+
+	@Test
+	void withdraw_aReplicaWhosePodIsPending_stopsSendingToItAsANewVersion() {
+		List<Replica> present = present(2);
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present);
+
+		replicas.scaling().orElseThrow().withdraw(present.getFirst(), 0);
+
+		assertThat(replicas.routableReplicas()).containsExactly(present.get(1));
+		assertThat(replicas.version()).isOne();
+	}
+
+	@Test
+	void rejoin_aWithdrawnReplica_takesTurnsAfterTheOthers() {
+		List<Replica> present = present(2);
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present);
+		replicas.scaling().orElseThrow().withdraw(present.getFirst(), 0);
+
+		replicas.scaling().orElseThrow().rejoin(present.getFirst(), 10);
+
+		assertThat(replicas.routableReplicas()).containsExactly(present.get(1), present.getFirst());
+	}
+
+	@Test
+	void withdraw_aReplicaTakingNoRequests_isRefused() {
+		List<Replica> present = present(2);
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present);
+		replicas.scaling().orElseThrow().withdraw(present.getFirst(), 0);
+
+		assertThatIllegalStateException()
+			.isThrownBy(() -> replicas.scaling().orElseThrow().withdraw(present.getFirst(), 10))
+			.withMessage("a replica that takes no requests cannot be withdrawn");
+	}
+
+	@Test
+	void rejoin_aReplicaTakingRequests_isRefused() {
+		List<Replica> present = present(2);
+		ReplicaSet replicas = ReplicaSet.changing(this.timeline, 4, present);
+
+		assertThatIllegalStateException()
+			.isThrownBy(() -> replicas.scaling().orElseThrow().rejoin(present.getFirst(), 10))
+			.withMessage("a replica that takes requests cannot rejoin");
 	}
 
 	private List<Replica> present(int count) {

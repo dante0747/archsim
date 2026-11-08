@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 
@@ -56,29 +57,27 @@ final class Routing {
 	 * @param operation the request's operation
 	 * @param avoid the instance a retry avoids, when there is another; {@code null} for
 	 * none
-	 * @return the instance
-	 * @throws IllegalStateException when no target has an instance: only a Kubernetes
-	 * service whose pods are all pending has none, which comes with the Kubernetes slice
-	 * of the port
+	 * @return the instance; empty when no target has an instance taking requests (a
+	 * Kubernetes service whose pods are all Pending or starting)
 	 */
-	Candidate pick(RequestType operation, @Nullable Candidate avoid) {
+	Optional<Candidate> pick(RequestType operation, @Nullable Candidate avoid) {
 		List<Candidate> listed = candidates(operation);
 		int count = listed.size();
 		if (count == 0) {
-			throw new IllegalStateException(
-					"a target with no ready instance comes with the Kubernetes slice of the port");
+			return Optional.empty();
 		}
 		if (this.policy == BalancingPolicy.RANDOM) {
 			int index = this.random.below(count);
-			return avoided(listed.get(index), avoid, count) ? listed.get((index + 1) % count) : listed.get(index);
+			return Optional
+				.of(avoided(listed.get(index), avoid, count) ? listed.get((index + 1) % count) : listed.get(index));
 		}
 		int start = this.turns.getOrDefault(operation, 0);
 		this.turns.put(operation, (start + 1) % count);
 		if (this.policy == BalancingPolicy.LEAST_CONNECTIONS) {
-			return leastLoaded(listed, start, avoid);
+			return Optional.of(leastLoaded(listed, start, avoid));
 		}
 		Candidate turn = listed.get(start);
-		return avoided(turn, avoid, count) ? listed.get((start + 1) % count) : turn;
+		return Optional.of(avoided(turn, avoid, count) ? listed.get((start + 1) % count) : turn);
 	}
 
 	// in rotation order from the turn's, the first idle instance, else the least loaded

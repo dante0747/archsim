@@ -7,6 +7,8 @@ import io.archsim.engine.explain.Formula;
 import io.archsim.engine.report.NodeSummary;
 import io.archsim.engine.settings.LoadCurve;
 import io.archsim.engine.text.NumberText;
+import io.archsim.model.component.kubernetes.ClusterConfig;
+import io.archsim.model.component.kubernetes.PodRequest;
 import io.archsim.model.component.service.GcPauses;
 import io.archsim.model.component.service.ServiceConfig;
 import io.archsim.model.component.service.Warmup;
@@ -31,6 +33,13 @@ final class ServiceExplain {
 	 * The places a load curve's figures (a time at factor 1, a factor) are written to.
 	 */
 	private static final int CURVE_DIGITS = 3;
+
+	/**
+	 * Absorbs floating-point error in the pods a node holds, as the Python engine does.
+	 */
+	private static final double ROUNDING_TOLERANCE = 1e-9;
+
+	private static final String POD_RESOURCES = "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/";
 
 	/** The places a share of full speed on a machine is written to. */
 	private static final int SPEED_SHARE_DIGITS = 3;
@@ -70,7 +79,27 @@ final class ServiceExplain {
 						+ "it makes scale-out slower to help.")
 				.withMetric("warmingReplicas"));
 		}
+		service.pods().ifPresent((pods) -> formulas.add(podsPerNode(service.config(), pods)));
 		return formulas;
+	}
+
+	// the pods of this service alone a node holds, by its requests
+	private static Formula podsPerNode(ServiceConfig config, Pods pods) {
+		ClusterConfig cluster = pods.clusterConfig();
+		PodRequest request = PodRequest.of(config, cluster);
+		double cpu = cluster.allocatableCpu();
+		double memoryGib = cluster.allocatableMemoryGib();
+		double perNode = Math.min(Math.floor(cpu / request.cpu() + ROUNDING_TOLERANCE),
+				Math.floor(memoryGib / request.memoryGib() + ROUNDING_TOLERANCE));
+		return Formula
+			.of("pods_per_node", "Pods per node",
+					"pods per node = min(⌊allocatable CPU ÷ CPU request⌋, ⌊allocatable memory ÷ memory request⌋)",
+					"min(⌊" + num(cpu, 2) + " ÷ " + num(request.cpu(), 2) + "⌋, ⌊" + num(memoryGib, 2) + " ÷ "
+							+ num(request.memoryGib(), 2) + "⌋)")
+			.withResult(perNode, "pods")
+			.withNote("Counts this service alone; pods of other services on the same nodes take their share.")
+			.withSource(POD_RESOURCES)
+			.withMetric("podsPending");
 	}
 
 	private static Formula loadCurve(ServiceState service, double serviceMs, double arrivalRps) {

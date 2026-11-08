@@ -53,6 +53,8 @@ public final class SimContext {
 
 	private @Nullable SharedHost host;
 
+	private List<String> clusterIds = List.of();
+
 	private int inTransit;
 
 	/**
@@ -83,6 +85,27 @@ public final class SimContext {
 			throw new IllegalStateException("a run is put on its host before its parts are added");
 		}
 		this.host = new SharedHost(this.simulation, HostMachine.of(spec), this.timeline, rateAt);
+	}
+
+	/**
+	 * Names the design's Kubernetes clusters before the parts are added, so each service
+	 * on Kubernetes finds its cluster as it is built.
+	 * @param ids the clusters' ids, in the design's order
+	 * @throws IllegalStateException once parts were added, which were built without them
+	 */
+	public void useClusters(List<String> ids) {
+		if (!this.components.isEmpty()) {
+			throw new IllegalStateException("a run names its clusters before its parts are added");
+		}
+		this.clusterIds = List.copyOf(ids);
+	}
+
+	/**
+	 * The design's Kubernetes clusters.
+	 * @return their ids, in the design's order; none when it has none
+	 */
+	public List<String> clusterIds() {
+		return this.clusterIds;
 	}
 
 	/**

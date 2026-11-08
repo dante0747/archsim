@@ -34,6 +34,7 @@ import org.jspecify.annotations.Nullable;
  * @param podsPendingEnd a cluster's pods still Pending at the end
  * @param podsPendingPeak the most of a cluster's pods Pending at once
  * @param cpuRequestedRatio the share of a cluster's node CPU its pods request
+ * @param meanPendingS how long a cluster's pod waited for a node on average, in seconds
  * @param maxPendingS the longest a cluster's pod was Pending, in seconds
  * @param maxReplicationLagMs the furthest a data store's replicas fell behind, in
  * milliseconds
@@ -52,9 +53,9 @@ public record NodeSummary(@Nullable Long arrivals, @Nullable Double arrivalRps, 
 		@Nullable Double cpuCapacityRps, @Nullable Double capacityRps, @Nullable String capacityLimit,
 		Map<String, Long> rejected, @Nullable Long rejectedTotal, Map<String, Long> counters, @Nullable Double hitRatio,
 		@Nullable Long podsPendingEnd, @Nullable Long podsPendingPeak, @Nullable Double cpuRequestedRatio,
-		@Nullable Double maxPendingS, @Nullable Double maxReplicationLagMs, @Nullable Double meanLockWaitMs,
-		@Nullable Long replicasPeak, @Nullable Long coldStartsTotal, @Nullable Long backlogAtEnd,
-		@Nullable Double p95QueueWaitMs, @Nullable Double p95MessageAgeMs) {
+		@Nullable Double meanPendingS, @Nullable Double maxPendingS, @Nullable Double maxReplicationLagMs,
+		@Nullable Double meanLockWaitMs, @Nullable Long replicasPeak, @Nullable Long coldStartsTotal,
+		@Nullable Long backlogAtEnd, @Nullable Double p95QueueWaitMs, @Nullable Double p95MessageAgeMs) {
 
 	/**
 	 * Copies the counts by reason and by name; a part without them has none.

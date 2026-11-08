@@ -54,6 +54,7 @@ final class PartsWriter {
 			ObjectNode timeseries = series.write();
 			summary.set("latencyMs", Figures.latency(component.metrics().residence().window().summary()));
 			component.extraSummary().forEach((name, value) -> summary.set(name, number(value)));
+			component.extraSummaryTexts().forEach(summary::put);
 			summary.set("peakUtilization", series.peakUtilization(timeseries));
 			ObjectNode written = nodes.addObject();
 			written.put("id", node.id());

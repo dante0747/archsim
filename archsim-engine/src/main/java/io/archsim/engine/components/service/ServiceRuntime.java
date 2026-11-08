@@ -1,5 +1,6 @@
 package io.archsim.engine.components.service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -27,9 +28,9 @@ import io.archsim.model.document.NodeSpec;
  * handlers with its own queue, sent requests in turn, or to the replica a load balancer
  * picks ({@link Serving}), its CPU work stalled by its garbage collector
  * ({@link GarbageCollector}); an {@link Autoscaler} starts and retires replicas as an HPA
- * does. Its report adds its cores', memory's, pauses' and replicas' figures and ceilings
- * ({@link ServiceReport}) and formulas ({@link ServiceExplain}). Serverless and
- * Kubernetes services come with their slices of the port.
+ * does; on a Kubernetes cluster each replica is one of its {@link Pods}. Its report adds
+ * its cores', memory's, pauses', replicas' and pods' figures and ceilings
+ * ({@link ServiceReport}) and formulas ({@link ServiceExplain}).
  */
 public final class ServiceRuntime extends RuntimeComponent {
 
@@ -50,7 +51,7 @@ public final class ServiceRuntime extends RuntimeComponent {
 	 * @param config its settings
 	 */
 	public ServiceRuntime(SimContext context, NodeSpec node, ServiceConfig config) {
-		super(context, node, OptionalInt.of(ServiceState.initialReplicas(config) * config.handlersPerReplica()));
+		super(context, node, OptionalInt.of(config.initialReplicas() * config.handlersPerReplica()));
 		this.state = new ServiceState(context, node, metrics(), config);
 		this.serviceTime = Sampler.of(config.serviceTimeMs());
 		this.random = context.stream("node:" + node.id() + ":service");
@@ -60,18 +61,28 @@ public final class ServiceRuntime extends RuntimeComponent {
 		if (config.autoscaling()) {
 			new Autoscaler(context.simulation(), this.state).start();
 		}
+		this.state.pods().ifPresent((pods) -> pods.placeInitial(this.state.replicas()));
 	}
 
 	@Override
 	public void handle(Request request, Consumer<Outcome> done) {
-		// called without a load balancer: the replicas taking requests take turns
-		int index = this.next % this.state.replicas().routableCount();
-		this.next = index + 1;
-		this.serving.serve(request, this.state.replicas().routed(index), done);
+		// called without a load balancer: the replicas taking requests take turns; with
+		// none, the turn stays where it is and handleOn refuses the request
+		int routable = this.state.replicas().routableCount();
+		int turn = 0;
+		if (routable > 0) {
+			turn = this.next % routable;
+			this.next = turn + 1;
+		}
+		handleOn(request, turn, done);
 	}
 
 	@Override
 	public void handleOn(Request request, int index, Consumer<Outcome> done) {
+		if (this.state.replicas().routableCount() == 0) {
+			this.serving.refuseWithoutPods(request, done);
+			return;
+		}
 		this.serving.serve(request, this.state.replicas().routed(index), done);
 	}
 
@@ -116,6 +127,13 @@ public final class ServiceRuntime extends RuntimeComponent {
 	@Override
 	public SequencedMap<String, @Nullable Number> extraSummary() {
 		return ServiceReport.extraSummary(this.state);
+	}
+
+	@Override
+	public SequencedMap<String, String> extraSummaryTexts() {
+		SequencedMap<String, String> texts = new LinkedHashMap<>();
+		this.state.pods().ifPresent((pods) -> texts.put("cluster", pods.clusterId()));
+		return texts;
 	}
 
 	@Override

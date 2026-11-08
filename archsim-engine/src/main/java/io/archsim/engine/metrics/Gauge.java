@@ -14,15 +14,13 @@ public final class Gauge {
 
 	private final Timeline timeline;
 
-	private final double[] area;
+	private final LevelArea levels;
 
 	private final long[] maxes;
 
 	private long value;
 
 	private double lastTime;
-
-	private double windowArea;
 
 	private long windowPeak;
 
@@ -34,7 +32,7 @@ public final class Gauge {
 	 */
 	public Gauge(Timeline timeline) {
 		this.timeline = timeline;
-		this.area = new double[timeline.buckets()];
+		this.levels = new LevelArea(timeline);
 		this.maxes = new long[timeline.buckets()];
 	}
 
@@ -79,9 +77,9 @@ public final class Gauge {
 	 * @return one mean per bucket
 	 */
 	public double[] meanSeries() {
-		double[] means = new double[this.area.length];
+		double[] means = this.levels.area();
 		for (int bucket = 0; bucket < means.length; bucket++) {
-			means[bucket] = this.area[bucket] / this.timeline.bucketMs();
+			means[bucket] /= this.timeline.bucketMs();
 		}
 		return means;
 	}
@@ -93,11 +91,12 @@ public final class Gauge {
 	 * @return one mean per bucket; {@code null} for a bucket the run never reached
 	 */
 	public List<@Nullable Double> meanSeriesUntilEnd() {
-		List<@Nullable Double> means = new ArrayList<>(this.area.length);
-		for (int bucket = 0; bucket < this.area.length; bucket++) {
+		double[] area = this.levels.area();
+		List<@Nullable Double> means = new ArrayList<>(area.length);
+		for (int bucket = 0; bucket < area.length; bucket++) {
 			double covered = Math.min(this.timeline.bucketMs(),
 					this.finishedAt - (double) bucket * this.timeline.bucketMs());
-			means.add((covered > 0) ? this.area[bucket] / covered : null);
+			means.add((covered > 0) ? area[bucket] / covered : null);
 		}
 		return means;
 	}
@@ -123,7 +122,7 @@ public final class Gauge {
 	 * @return a copy of the areas (level times milliseconds), one per bucket
 	 */
 	public double[] area() {
-		return this.area.clone();
+		return this.levels.area();
 	}
 
 	/**
@@ -131,7 +130,7 @@ public final class Gauge {
 	 * @return level times milliseconds
 	 */
 	public double windowArea() {
-		return this.windowArea;
+		return this.levels.windowArea();
 	}
 
 	/**
@@ -147,8 +146,7 @@ public final class Gauge {
 	 * @return the mean, 0 for an empty window
 	 */
 	public double windowMean() {
-		double windowMs = this.timeline.windowMs();
-		return (windowMs > 0) ? this.windowArea / windowMs : 0.0;
+		return this.levels.windowMean();
 	}
 
 	private void advance(double time) {
@@ -157,33 +155,17 @@ public final class Gauge {
 			return;
 		}
 		if (this.value != 0) {
-			integrateWindow(last, time);
-			integrateBuckets(last, time);
+			// the buckets the span reached, as the integration split it: its last cannot
+			// be told exactly from the time alone
+			int reached = this.levels.add((double) this.value, last, time);
+			for (int bucket = this.timeline.index(last); bucket <= reached; bucket++) {
+				this.maxes[bucket] = Math.max(this.maxes[bucket], this.value);
+			}
+			if (this.levels.overlapsWindow(last, time)) {
+				this.windowPeak = Math.max(this.windowPeak, this.value);
+			}
 		}
 		this.lastTime = time;
-	}
-
-	private void integrateWindow(double from, double to) {
-		double low = Math.max(from, this.timeline.windowStart());
-		double high = Math.min(to, this.timeline.windowEnd());
-		if (high > low) {
-			this.windowArea += this.value * (high - low);
-			this.windowPeak = Math.max(this.windowPeak, this.value);
-		}
-	}
-
-	private void integrateBuckets(double from, double to) {
-		int last = this.timeline.buckets() - 1;
-		int bucket = this.timeline.index(from);
-		double current = from;
-		while (current < to) {
-			double edge = (bucket >= last) ? to : (double) (bucket + 1) * this.timeline.bucketMs();
-			double end = Math.min(to, edge);
-			this.area[bucket] += this.value * (end - current);
-			this.maxes[bucket] = Math.max(this.maxes[bucket], this.value);
-			current = end;
-			bucket++;
-		}
 	}
 
 }

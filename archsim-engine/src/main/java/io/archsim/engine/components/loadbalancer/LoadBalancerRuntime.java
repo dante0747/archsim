@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.SequencedMap;
 import java.util.function.Consumer;
@@ -52,6 +53,9 @@ public final class LoadBalancerRuntime extends RuntimeComponent {
 
 	/** The counter of requests given up on after the upstream timeout. */
 	private static final String UPSTREAM_TIMEOUTS = "upstreamTimeouts";
+
+	/** The counter of requests with no instance taking requests behind the balancer. */
+	private static final String NO_READY_TARGETS = "noReadyTargets";
 
 	private final LoadBalancerConfig config;
 
@@ -176,7 +180,13 @@ public final class LoadBalancerRuntime extends RuntimeComponent {
 		}
 
 		void next() {
-			Candidate picked = LoadBalancerRuntime.this.routing.pick(this.request.operation(), this.avoid);
+			Optional<Candidate> found = LoadBalancerRuntime.this.routing.pick(this.request.operation(), this.avoid);
+			if (found.isEmpty()) {
+				answerNoReadyTarget();
+				finish();
+				return;
+			}
+			Candidate picked = found.get();
 			String targetId = picked.edge().targetId();
 			Integer limit = LoadBalancerRuntime.this.breaker;
 			if (limit != null && LoadBalancerRuntime.this.active.getOrDefault(targetId, 0) >= limit) {
@@ -233,6 +243,15 @@ public final class LoadBalancerRuntime extends RuntimeComponent {
 
 		private boolean exhausted(Candidate picked) {
 			return this.attempts >= picked.edge().config().maxAttempts();
+		}
+
+		// no instance behind the balancer takes requests: 503
+		private void answerNoReadyTarget() {
+			double now = now();
+			metrics().count(NO_READY_TARGETS, now);
+			this.request.span(id(), SpanKind.REJECTED, new Interval(now, now),
+					"no ready instance behind the balancer (503)");
+			this.outcome = Outcome.rejected(FailureReason.NO_READY_PODS, id());
 		}
 
 		// the target's circuit breaker is open: 503 for this attempt

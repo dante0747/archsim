@@ -67,7 +67,7 @@ public record Formula(String id, String title, String formula, String substitute
 	 * @param url where it comes from
 	 * @return the formula with the source
 	 */
-	Formula withSource(String url) {
+	public Formula withSource(String url) {
 		return new Formula(this.id, this.title, this.formula, this.substituted, this.result, this.unit, this.note, url,
 				this.metric);
 	}
