@@ -365,8 +365,14 @@ def test_speed_page_says_how_many_runs_and_that_strictmath_is_included() -> None
     assert "| queueing-lab | 24,154 | 1.50 s | 0.15 s | x10.0 | yes |" in text
     assert (
         f"- The speed: `{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`, one after the "
-        "other with nothing else running." in text
+        "other with no other heavy work running." in text
     )
+
+
+def test_speed_page_points_to_performance_for_how_much_the_runs_spread() -> None:
+    text = report.render(parity(MET), [], report.speed(timed([1.5, 1.5, 1.5]), timed([0.15] * 3)))
+
+    assert "[docs/performance.md](../performance.md) says how much the runs spread" in text
 
 
 def test_speed_measured_with_no_template_timed_says_so() -> None:
@@ -391,7 +397,10 @@ def test_speed_not_yet_measured_says_so_with_the_commands_that_measure_it() -> N
     section = text.split("## Speed")[1].split("\n## ")[0]
     assert "Not yet measured" in section
     assert "a quiet machine" in section
-    assert f"`{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`" in section
+    assert (
+        f"`{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`, with no other heavy work"
+        in section
+    )
     assert "not part of the bar" in section
     assert "- The speed:" not in text
 

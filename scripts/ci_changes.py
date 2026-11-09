@@ -104,6 +104,9 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("scripts/prices/", ENGINE_TESTS),
     ("scripts/sizing_audit.py", ENGINE_TESTS),
     ("scripts/", PYTHON),
+    # the engines' speed (scripts/perf.py, the speed task): the Python job's parity page check
+    # reads two of these files, and no benchmark test reads any
+    ("benchmarks/perf/", PYTHON),
     ("benchmarks/", BENCHMARK_TESTS),
     # The golden files: export_golden.py --check writes them, the Java parity tests read them.
     ("parity/", frozenset({"python", "java", "e2e"})),

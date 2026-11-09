@@ -140,7 +140,7 @@ def render(
     speed_method = (
         [
             f"- The speed: `{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`, one after the "
-            "other with nothing else running."
+            "other with no other heavy work running."
         ]
         if speed_rows
         else []
@@ -315,15 +315,16 @@ def _speed(rows: Sequence[Json] | None) -> list[str]:
         return [
             "Not yet measured. Speed is compared with [docs/performance.md](../performance.md) "
             "and is not part of the bar; it waits for a quiet machine, since other work skews "
-            f"wall-clock times. `{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`, with nothing "
-            "else running, write its inputs; this section then gives each template's median wall "
-            "time on both engines."
+            f"wall-clock times. `{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`, with no other "
+            "heavy work running, write its inputs; this section then gives each template's median "
+            "wall time on both engines."
         ]
     if not rows:
         return ["No template was timed."]
     return [
         f"Each template as shipped (no scenarios): the median of {_runs(rows)} on each engine, "
-        "measured one engine after the other on the same machine with nothing else running. The "
+        "measured one engine after the other on the same machine with no other heavy work "
+        "running; [docs/performance.md](../performance.md) says how much the runs spread. The "
         "Java runs follow a warm-up run in the same JVM and include StrictMath's cost: the "
         "simulator takes its logarithms, exponentials and powers from `StrictMath`, so it draws "
         "Python's random numbers on every platform "

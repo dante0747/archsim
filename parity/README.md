@@ -218,8 +218,8 @@ report, `docs/validation/java-parity.md`, from that file (written to `docs/valid
 engines by the same harness over every kept run with a two-pass calibration
 (`benchmarks/results/dev/0.16.0-port/`, from `uv run python benchmarks/run.py resimulate --label
 0.16.0-port`, and `0.16.0-java/`, paired over both folders, with whether each pair derived the
-same inputs) and both engines' speed, the median of several runs each with nothing else running
-(`benchmarks/perf/`, from `scripts/perf.py` and `./gradlew :archsim-engine:speed`; while
+same inputs) and both engines' speed, the median of several runs each with no other heavy work
+running (`benchmarks/perf/`, from `scripts/perf.py` and `./gradlew :archsim-engine:speed`; while
 neither is there, the page says speed is not yet measured, and with only one the script fails
 and names the other); `--check` fails when the page is stale.
 

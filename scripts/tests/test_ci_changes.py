@@ -69,6 +69,10 @@ EVERY_JOB = {
         # stage 4's parity page and its runs: the page check in the Python job reads them, no
         # benchmark test does
         (["docs/validation/java-parity.md", "docs/validation/simulation-parity.json"], {"python"}),
+        # the engines' speed, which only the page check reads, and the earlier measurements, which
+        # nothing does
+        (["benchmarks/perf/java-port.json", "benchmarks/perf/python-0.16.0.json"], {"python"}),
+        (["benchmarks/perf/baseline.json"], {"python"}),
         (["docs/assumptions.md"], {"python", "engine_tests"}),
         (
             [".github/actions/archsim-check/action.yml"],

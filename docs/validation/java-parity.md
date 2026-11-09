@@ -86,7 +86,35 @@ None: every metric of every case is inside Python's range and within 2% of its m
 
 ## Speed
 
-Not yet measured. Speed is compared with [docs/performance.md](../performance.md) and is not part of the bar; it waits for a quiet machine, since other work skews wall-clock times. `uv run python scripts/perf.py --label python-0.16.0 --repeats 5`, then `./gradlew :archsim-engine:speed -Parchsim.speed.out=benchmarks/perf/java-port.json -Parchsim.speed.repeats=5`, with nothing else running, write its inputs; this section then gives each template's median wall time on both engines.
+Each template as shipped (no scenarios): the median of 5 runs on each engine, measured one engine after the other on the same machine with no other heavy work running; [docs/performance.md](../performance.md) says how much the runs spread. The Java runs follow a warm-up run in the same JVM and include StrictMath's cost: the simulator takes its logarithms, exponentials and powers from `StrictMath`, so it draws Python's random numbers on every platform ([ADR-0047](../adr/0047-draw-python-random-streams-in-java.md)).
+
+| Template | Requests | Python 0.16.0 | Java | Speed-up | Same result |
+| --- | --- | --- | --- | --- | --- |
+| auth-token-introspection | 112,701 | 27.67 s | 2.01 s | x13.8 | yes |
+| black-friday-kubernetes | 107,990 | 36.72 s | 1.78 s | x20.6 | yes |
+| cache-aside-starter | 23,980 | 4.00 s | 0.33 s | x12.0 | yes |
+| cdn-video-streaming | 149,940 | 16.62 s | 1.15 s | x14.5 | yes |
+| cqrs-kafka-read-model | 102,483 | 33.98 s | 2.26 s | x15.0 | yes |
+| flash-sale-order-flow | 107,976 | 25.90 s | 1.87 s | x13.9 | yes |
+| iot-cassandra-quorum | 99,869 | 17.56 s | 1.30 s | x13.5 | yes |
+| kafka-order-pipeline | 54,106 | 8.29 s | 0.53 s | x15.7 | yes |
+| kubernetes-pods-pending | 108,476 | 18.93 s | 1.33 s | x14.2 | yes |
+| kubernetes-shared-pool | 110,391 | 28.86 s | 2.08 s | x13.9 | yes |
+| llm-rag-assistant | 5,975 | 1.78 s | 0.16 s | x11.4 | yes |
+| microservices-call-chain | 60,115 | 17.92 s | 1.29 s | x13.9 | yes |
+| mongodb-hot-shard | 111,811 | 34.20 s | 2.35 s | x14.6 | yes |
+| mysql-replica-lag | 89,666 | 17.29 s | 1.26 s | x13.7 | yes |
+| nats-live-telemetry | 99,869 | 30.15 s | 2.00 s | x15.1 | yes |
+| notification-fanout-quotas | 4,875 | 2.32 s | 0.18 s | x12.5 | yes |
+| public-api-slow-dependency | 134,825 | 30.36 s | 2.09 s | x14.5 | yes |
+| queueing-lab | 24,154 | 1.34 s | 0.08 s | x17.0 | yes |
+| retry-storm-ttl-cache | 103,083 | 19.26 s | 1.31 s | x14.7 | yes |
+| right-size-catalog-api | 107,845 | 20.10 s | 1.53 s | x13.1 | yes |
+| search-opensearch-catalog | 111,811 | 32.89 s | 2.71 s | x12.1 | yes |
+| serverless-burst | 95,689 | 19.58 s | 1.15 s | x17.1 | yes |
+| serverless-image-pipeline | 43,761 | 13.18 s | 1.12 s | x11.8 | yes |
+| social-feed-hot-key | 119,888 | 26.88 s | 2.06 s | x13.0 | yes |
+| sqlserver-saas-blocking | 134,462 | 24.83 s | 2.63 s | x9.4 | yes |
 
 ## Each case
 
@@ -247,3 +275,4 @@ Not yet measured. Speed is compared with [docs/performance.md](../performance.md
 - The baselines: `scripts/export_simulation_baselines.py` simulated every template case in full on the frozen engine, with the workload's seed and the 19 after it ([ADR-0052](../adr/0052-record-the-frozen-engines-simulation-baselines-once.md)).
 - The Java runs: `./gradlew :archsim-engine:parity -Parchsim.parity.out=docs/validation` simulated the same runs (4 at a time) and wrote `simulation-parity.json`; the `javaSeconds` it records is not a speed figure.
 - The knees: `BENCH_ENGINE=java uv run python benchmarks/run.py resimulate` wrote `benchmarks/results/dev/0.16.0-java/`, and the same harness on the frozen engine, `uv run python benchmarks/run.py resimulate --label 0.16.0-port`, `benchmarks/results/dev/0.16.0-port/`, each over every kept run with a two-pass calibration, the only kind with a knee to re-simulate (`dev/0.16.0/` predates the spread anchor every check now derives, `dev/0.16.0-w29/` the held-out runs).
+- The speed: `uv run python scripts/perf.py --label python-0.16.0 --repeats 5`, then `./gradlew :archsim-engine:speed -Parchsim.speed.out=benchmarks/perf/java-port.json -Parchsim.speed.repeats=5`, one after the other with no other heavy work running.
