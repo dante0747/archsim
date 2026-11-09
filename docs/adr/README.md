@@ -95,4 +95,4 @@ what the repository shows.
 | [0051](0051-start-the-java-cli-in-stage-4-with-archsim-run.md) | Start the Java CLI in stage 4 with `archsim run` | Accepted | 2026-11-09 |
 | [0052](0052-record-the-frozen-engines-simulation-baselines-once.md) | Record the frozen engine's simulation baselines once, and judge the Java simulator by them | Accepted | 2026-11-09 |
 | [0053](0053-simulate-runs-in-the-java-apps-worker-role.md) | Simulate runs in the Java app's worker role, one thread per run | Accepted | 2026-11-09 |
-| [0054](0054-replay-calibrations-on-a-pool-of-platform-threads.md) | Replay calibrations on a pool of platform threads, never on the request's thread | Proposed | 2026-11-09 |
+| [0054](0054-replay-calibrations-on-a-pool-of-platform-threads.md) | Replay calibrations on a pool of platform threads, never on the request's thread | Accepted | 2026-11-09 |
