@@ -8,6 +8,8 @@ import java.sql.Statement;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import org.flywaydb.core.Flyway;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 /**
  * PostgreSQL for the tests: the real server, from binaries Gradle fetches from Maven
@@ -35,6 +37,17 @@ public final class TestDatabases {
 			throw new IllegalStateException("cannot create the test database " + name, ex);
 		}
 		return Server.INSTANCE.getJdbcUrl("postgres", name);
+	}
+
+	/**
+	 * A new database at the latest schema, as the {@code api} or {@code migrate} role
+	 * leaves it.
+	 * @return its JDBC URL, user included
+	 */
+	public static String migratedJdbcUrl() {
+		String url = freshJdbcUrl();
+		Flyway.configure().dataSource(new DriverManagerDataSource(url)).load().migrate();
+		return url;
 	}
 
 	/** The server, started when a test first needs it and stopped when the JVM exits. */

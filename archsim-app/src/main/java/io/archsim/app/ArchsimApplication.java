@@ -14,10 +14,10 @@ import io.archsim.app.config.SignInProperties;
 
 /**
  * ArchSim's application: the HTTP API over PostgreSQL, started in one of its {@link Role
- * roles} ({@code archsim-app api}, {@code archsim-app migrate}). Settings come from the
- * same {@code ARCHSIM_*} environment variables as the Python API's. They are bound here,
- * not scanned for, so that test slices such as {@code @WebMvcTest} have them too: the web
- * layer's filters read them.
+ * roles} ({@code archsim-app api}, {@code archsim-app migrate},
+ * {@code archsim-app worker}). Settings come from the same {@code ARCHSIM_*} environment
+ * variables as the Python API's. They are bound here, not scanned for, so that test
+ * slices such as {@code @WebMvcTest} have them too: the web layer's filters read them.
  */
 @SpringBootApplication
 @EnableConfigurationProperties({ ArchsimProperties.class, SignInProperties.class, CalibrationProperties.class })

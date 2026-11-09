@@ -25,9 +25,17 @@ class RoleTests {
 	}
 
 	@Test
+	void of_worker_runsUntilStoppedWithoutServingHttp() {
+		Role role = Role.of(new String[] { "worker" });
+
+		assertThat(role.webApplicationType()).isEqualTo(WebApplicationType.NONE);
+		assertThat(role.exitsWhenStarted()).isFalse();
+	}
+
+	@Test
 	void of_noArguments_saysWhichRolesThereAre() {
 		assertThatIllegalArgumentException().isThrownBy(() -> Role.of(new String[0]))
-			.withMessageContaining("[api, migrate]");
+			.withMessageContaining("[api, migrate, worker]");
 	}
 
 	@Test

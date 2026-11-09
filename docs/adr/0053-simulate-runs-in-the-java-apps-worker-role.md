@@ -59,10 +59,11 @@ until the leases ran out.
   layer exiting); it never migrates the database (`ARCHSIM_AUTO_MIGRATE` applies to `api`
   alone). Instead it checks at start-up that Flyway's history is at the version its build
   expects, and stops at once if not ("the database is at V…, this worker needs V…; start the
-  API first"), rather than meet a missing column in the middle of a run. Its beans live in a
-  new feature package, `io.archsim.app.worker`, under the `worker` profile: `runs` keeps the
-  API's side of `simulation_runs` (queueing, reading, asking for a cancel) and `worker` owns
-  the rest (the lease columns, progress and the outcome), with `job_workers`.
+  API first", or, for a database a later release migrated, "start a worker of the API's
+  release"), rather than meet a column it does not know in the middle of a run. Its beans
+  live in a new feature package, `io.archsim.app.worker`, under the `worker` profile: `runs`
+  keeps the API's side of `simulation_runs` (queueing, reading, asking for a cancel) and
+  `worker` owns the rest (the lease columns, progress and the outcome), with `job_workers`.
 - **The claim is the Python worker's, ported exactly:** `pg_advisory_xact_lock`, a
   `row_number()` pick per workspace in queue order, the per-workspace caps, then the lease.
   The caps come from the app's `WorkspaceLimits`, so the API's admission and the worker agree;

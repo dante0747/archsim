@@ -26,3 +26,13 @@ springdoc:
     path: /api/v1/openapi.json
   swagger-ui:
     path: /api/v1/docs
+
+---
+# the worker role serves no HTTP and runs its work on daemon threads: keep the JVM running
+# until the role is stopped (ADR-0053)
+spring:
+  config:
+    activate:
+      on-profile: worker
+  main:
+    keep-alive: true

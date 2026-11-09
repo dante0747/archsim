@@ -23,7 +23,12 @@ java -jar archsim-app/build/libs/archsim-app.jar migrate
 One jar runs in one of its roles, named by the first argument
 ([ADR-0014](../docs/adr/0014-one-deployable-application-with-roles.md)): `api` serves the API (and
 migrates the database first unless `ARCHSIM_AUTO_MIGRATE=false`); `migrate` brings the database
-to the latest schema and exits. The rest of the command line is Spring Boot's
+to the latest schema and exits; `worker` takes the runs the API queues
+([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)), without the web
+layer, until it is stopped. The worker never migrates: it starts only on a database at its own
+build's schema, and otherwise says which version the database is at and to start the API first.
+It is being built in stage 4: today it registers and beats in `job_workers` and claims no runs,
+so `archsim-api worker` still simulates them. The rest of the command line is Spring Boot's
 (`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
 address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
 [SECURITY.md](../SECURITY.md) first.
@@ -39,8 +44,11 @@ Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 may be a SQLAlchemy URL (`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`, the
 default) or a JDBC one. Two settings are the Java API's own: `ARCHSIM_ENGINE_URL`, where the
 engine service listens (default `http://127.0.0.1:8001`), and `ARCHSIM_ENGINE_TIMEOUT`, how many
-seconds an engine call may take (default 120). The OpenAPI document is at `/api/v1/openapi.json`,
-the interactive docs at `/api/v1/docs`.
+seconds an engine call may take (default 120). The worker reads the Python worker's timings,
+`ARCHSIM_LEASE_SECONDS` (30), `ARCHSIM_HEARTBEAT_SECONDS` (2, at most half the lease),
+`ARCHSIM_REAP_SECONDS` (10) and `ARCHSIM_CANCEL_GRACE_SECONDS` (10), and takes
+`ARCHSIM_MAX_CONCURRENT_RUNS` runs at once (the cores less one). The OpenAPI document is at
+`/api/v1/openapi.json`, the interactive docs at `/api/v1/docs`.
 
 ## The database
 
@@ -61,7 +69,7 @@ ways.
 | --- | --- |
 | `io.archsim.app` | `ArchsimApplication` and its `Role`s |
 | `config` | `ArchsimProperties` (the `ARCHSIM_*` settings), the database URL and connection pool, the model's registry and price snapshots |
-| `migration` | Flyway's takeover from Alembic |
+| `migration` | Flyway's takeover from Alembic; the worker's check that the database is at its build's schema |
 | `web` | the HTTP contract every endpoint shares: `/api/v1`, error bodies, request bodies read by the model's codec, security headers, CORS, body-size limits ([ADR-0034](../docs/adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md)) |
 | `meta` | `GET /health`, `GET /meta` |
 | `catalog` | `GET /components`, `GET /pricing`, `GET /schema/architecture`, from [archsim-model](../archsim-model/README.md) |
@@ -78,6 +86,7 @@ ways.
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
+| `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
 | `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)), which simulates a calibration's replay ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)) |

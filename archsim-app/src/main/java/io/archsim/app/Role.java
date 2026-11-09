@@ -12,15 +12,24 @@ import org.springframework.boot.WebApplicationType;
 public enum Role {
 
 	/** Serves the HTTP API, and migrates the database first unless told not to. */
-	API(WebApplicationType.SERVLET),
+	API(WebApplicationType.SERVLET, Lifetime.UNTIL_STOPPED),
 
 	/** Brings the database to the latest schema, then exits. */
-	MIGRATE(WebApplicationType.NONE);
+	MIGRATE(WebApplicationType.NONE, Lifetime.ONE_SHOT),
+
+	/**
+	 * Simulates the runs the API queues until it is stopped, on a database the API has
+	 * migrated (ADR-0053).
+	 */
+	WORKER(WebApplicationType.NONE, Lifetime.UNTIL_STOPPED);
 
 	private final WebApplicationType webApplicationType;
 
-	Role(WebApplicationType webApplicationType) {
+	private final Lifetime lifetime;
+
+	Role(WebApplicationType webApplicationType, Lifetime lifetime) {
 		this.webApplicationType = webApplicationType;
+		this.lifetime = lifetime;
 	}
 
 	/**
@@ -58,15 +67,28 @@ public enum Role {
 	}
 
 	/**
-	 * Whether the role exits once it has started, instead of serving until it is stopped.
+	 * Whether the role exits once it has started, instead of running until it is stopped.
 	 * @return {@code true} for a one-shot role
 	 */
 	public boolean exitsWhenStarted() {
-		return this.webApplicationType == WebApplicationType.NONE;
+		return this.lifetime == Lifetime.ONE_SHOT;
 	}
 
 	private static String[] names() {
 		return Arrays.stream(values()).map(Role::profile).toArray(String[]::new);
+	}
+
+	/**
+	 * How long a started role runs.
+	 */
+	private enum Lifetime {
+
+		/** It does its work, then exits. */
+		ONE_SHOT,
+
+		/** It runs until it is stopped. */
+		UNTIL_STOPPED
+
 	}
 
 }
