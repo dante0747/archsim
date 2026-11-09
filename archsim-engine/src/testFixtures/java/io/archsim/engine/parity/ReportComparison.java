@@ -1,4 +1,4 @@
-package io.archsim.engine.simulator;
+package io.archsim.engine.parity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ import io.archsim.parity.JsonDiff;
  * Java writes as its own (ADR-0050): the report's version, the wall-clock time, and the
  * runtime that ran it.
  */
-final class ReportComparison {
+public final class ReportComparison {
 
 	/**
 	 * The keys of Python's provenance that name its report's version, machine and
@@ -49,7 +49,7 @@ final class ReportComparison {
 	 * @param java the Java simulator's report of the same run
 	 * @return each difference, by JSON Pointer; none when the reports agree
 	 */
-	static List<String> differences(JsonNode python, JsonNode java) {
+	public static List<String> differences(JsonNode python, JsonNode java) {
 		Compared compared = new Compared(comparable(python, PYTHON_RUNTIME), comparable(java, JAVA_RUNTIME));
 		List<String> differences = new ArrayList<>(JsonDiff.differences(compared.expected(), compared.actual()));
 		numberKinds("", compared, differences);

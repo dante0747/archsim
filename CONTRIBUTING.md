@@ -26,8 +26,9 @@ archsim-model/     Java: the design document's records, upgrades, JSON Schema an
 archsim-engine/    Java: the engine's deterministic parts (stage 3 of the port).
 archsim-app/       Java: the HTTP API on Spring Boot 4 (stage 2 of the port); Flyway owns
                    the database schema.
-archsim-api-tests/ Java: black-box tests of the HTTP API. build-logic/ and gradle/ hold the
-                   build.
+archsim-api-tests/ Java: black-box tests of the HTTP API.
+archsim-cli/       Java: the `archsim` command line (`archsim run` from stage 4 of the port).
+                   build-logic/ and gradle/ hold the build.
 parity/golden/     The Python engine's golden files, the reference for the Java port.
 ```
 

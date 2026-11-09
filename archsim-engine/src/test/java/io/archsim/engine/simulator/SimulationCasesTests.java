@@ -9,6 +9,8 @@ import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.parity.ReportComparison;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

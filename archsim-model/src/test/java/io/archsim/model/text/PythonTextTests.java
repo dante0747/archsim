@@ -23,6 +23,17 @@ class PythonTextTests {
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	@Test
+	void capitalize_aWordInCapitals_keepsItsFirstLetterOnly() {
+		assertThat(PythonText.capitalize("HIGH")).isEqualTo("High");
+	}
+
+	@Test
+	void capitalize_aWordStartingWithALigature_writesItsTitleCase() {
+		// U+01C6 (dž) title-cases to U+01C5 (Dž), as Python's str.capitalize() writes it
+		assertThat(PythonText.capitalize("ǆungla")).isEqualTo("ǅungla");
+	}
+
+	@Test
 	void truthy_wholeNumberBeyondADouble_isTrue() {
 		assertThat(PythonText.truthy(JSON.readTree("1" + "0".repeat(400)))).isTrue();
 	}

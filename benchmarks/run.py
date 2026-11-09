@@ -160,6 +160,24 @@ SIM_WALL_S = 3600.0
 """Wall-clock limit of one simulation here (the engine's default, 300 s, guards the API server).
 An overloaded ladder step holds up to 100,000 queued requests, which takes minutes when other
 work shares the CPU; the limit only decides whether a run finishes, never what it returns."""
+ENGINE_VARIABLE = "BENCH_ENGINE"
+"""Set to ``java`` to simulate on the Java engine's ``archsim run`` instead of the frozen Python
+engine (ADR-0051)."""
+JAVA_CLI = (
+    HERE.parent
+    / "archsim-cli"
+    / "build"
+    / "install"
+    / "archsim"
+    / "bin"
+    / ("archsim.bat" if os.name == "nt" else "archsim")
+)
+"""The Java engine's command, as ``./gradlew :archsim-cli:installDist`` installs it."""
+JAVA_ENGINE_SOURCES = ("archsim-engine", "archsim-model", "archsim-cli")
+"""The Java engine's source trees, which provenance names (and counts changes to) on it."""
+JAVA_COMMANDS = ("resimulate", "range-fit")
+"""What runs on the Java engine: what writes under its own label. Every other command writes an
+experiment's own files, which name the frozen Python engine."""
 
 
 @dataclass(frozen=True)
@@ -2887,10 +2905,7 @@ def design(
 
 
 def simulate(doc: dict[str, Any]) -> dict[str, Any]:
-    from archsim_engine import run_simulation
-    from archsim_engine.engine import SimulationLimits
-
-    r = run_simulation(doc, limits=SimulationLimits(max_wall_seconds=SIM_WALL_S))
+    r = engine_report(doc)
     s = r["summary"]
     lat = s["latencyMs"]
     nodes = {n["id"]: n["summary"] for n in r["nodes"]}
@@ -2925,6 +2940,84 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
             "p95MessageAgeMs": k.get("p95MessageAgeMs"),
         }
     return out
+
+
+def java_engine() -> bool:
+    """Whether ``BENCH_ENGINE=java`` asks for the Java engine."""
+    return os.environ.get(ENGINE_VARIABLE) == "java"
+
+
+def engine_label() -> str:
+    """The engine as what the harness writes names it: the frozen Python engine's version, or that
+    version with ``-java`` on the Java engine, so the two engines' development checks and range
+    fits never share a name or a path."""
+    from archsim_engine.version import ENGINE_VERSION
+
+    return f"{ENGINE_VERSION}-java" if java_engine() else ENGINE_VERSION
+
+
+def python_engine_only(command: str) -> None:
+    """Refuses ``command`` on the Java engine: it writes an experiment's own files, which name the
+    frozen Python engine."""
+    if java_engine():
+        raise RuntimeError(
+            f"{command} runs on the frozen Python engine only: unset {ENGINE_VARIABLE} (ADR-0051)"
+        )
+
+
+def range_fit_path() -> Path:
+    """Where ``range-fit`` writes: the committed fit, or one labelled with the Java engine."""
+    return HERE / f"knee-range-{engine_label()}.json" if java_engine() else RANGE_FIT
+
+
+def java_build() -> str | None:
+    """The installed Java engine: a SHA-256 over its jars, by name, or None when it is not
+    installed. It may be older than the sources provenance names."""
+    jars = sorted((JAVA_CLI.parent.parent / "lib").glob("*.jar"))
+    if not jars:
+        return None
+    digest = hashlib.sha256()
+    for jar in jars:
+        digest.update(jar.name.encode() + b"\0" + hashlib.sha256(jar.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def engine_report(doc: dict[str, Any]) -> dict[str, Any]:
+    """The report of a run of ``doc`` within ``SIM_WALL_S``: on the Java engine when
+    ``BENCH_ENGINE=java``, else on the frozen Python engine."""
+    if java_engine():
+        return java_report(doc)
+    from archsim_engine import run_simulation
+    from archsim_engine.engine import SimulationLimits
+
+    return run_simulation(doc, limits=SimulationLimits(max_wall_seconds=SIM_WALL_S))
+
+
+def java_report(doc: dict[str, Any]) -> dict[str, Any]:
+    """The Java engine's report of a run of ``doc``: ``archsim run --out``, from a file each way."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as folder:
+        design, out = Path(folder) / "design.json", Path(folder) / "report.json"
+        design.write_text(json.dumps(doc), encoding="utf-8")
+        ran = subprocess.run(
+            [
+                str(JAVA_CLI),
+                "run",
+                str(design),
+                "--out",
+                str(out),
+                "--max-wall-seconds",
+                f"{SIM_WALL_S:g}",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        if ran.returncode != 0:
+            raise RuntimeError(f"archsim run failed ({ran.returncode}): {ran.stderr.strip()}")
+        result: dict[str, Any] = json.loads(out.read_text(encoding="utf-8"))
+        return result
 
 
 def node_resources(doc: Mapping[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
@@ -3241,6 +3334,7 @@ def in_range(knee_range: Mapping[str, Any] | None, measured: Mapping[str, Any]) 
 def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
     from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION
 
+    python_engine_only("predict")
     inputs = calibration["inputs"]
     log(f"predicting {exp.id}: searching the knee")
     knee = predicted_knee(exp, inputs)
@@ -3766,6 +3860,7 @@ def predict_resources(results: Path = RESULTS) -> list[Path]:
     no CPU or memory: every predicted step simulated again with this engine (no Docker)."""
     from archsim_engine.version import ENGINE_VERSION
 
+    python_engine_only("predict-resources")
     written = []
     for exp_id in EXPERIMENTS:
         d = results / exp_id
@@ -3902,8 +3997,6 @@ def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] |
     and the knee simulated, and the comparison with what it measured. None for a run whose
     calibration today's code cannot read (run 1 had one pass, not two). A Node.js service that
     did not report its garbage collection gets its trial's (``trial_gc``)."""
-    from archsim_engine.version import ENGINE_VERSION
-
     exp = EXPERIMENTS[exp_id]
     cal, meas = read_json(d / "calibration.json"), read_json(d / "measured.json")
     if not (cal and meas) or not {"low", "high"} <= set(cal.get("passes", {})):
@@ -3933,7 +4026,7 @@ def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] |
         "designedAfterMeasurements": True,
         "how": DEV_HOW,
         "at": now(),
-        "engineVersion": ENGINE_VERSION,
+        "engineVersion": engine_label(),
         "provenance": provenance(),
         # True when today's run.py derives the very inputs the run's predictions used
         "inputsAsCalibrated": inputs == cal.get("inputs"),
@@ -3959,10 +4052,9 @@ def dev_path(results: Path, engine: str, exp_id: str, check: Mapping[str, Any]) 
 def resimulate(results: Path = RESULTS, only: str | None = None) -> list[Path]:
     """A development check of every kept run (``dev_check``), written under results/dev/. One
     process per run; no Docker."""
-    from archsim_engine.version import ENGINE_VERSION
-
+    engine = engine_label()
     runs = [(e, d) for e, d in result_dirs(results) if only in (None, e)]
-    log(f"checking {len(runs)} kept runs with engine {ENGINE_VERSION} (in-sample)")
+    log(f"checking {len(runs)} kept runs with engine {engine} (in-sample)")
     with ProcessPoolExecutor(max_workers=min(len(runs) or 1, os.cpu_count() or 2)) as pool:
         checks = list(
             pool.map(dev_check, [e for e, _ in runs], [d for _, d in runs], [results] * len(runs))
@@ -3972,7 +4064,7 @@ def resimulate(results: Path = RESULTS, only: str | None = None) -> list[Path]:
         if check is None:
             log(f"{exp_id} ({d.name}): skipped, no two-pass calibration")
             continue
-        path = dev_path(results, ENGINE_VERSION, exp_id, check)
+        path = dev_path(results, engine, exp_id, check)
         path.parent.mkdir(parents=True, exist_ok=True)
         write_json(path, check)
         written.append(path)
@@ -4265,10 +4357,9 @@ def range_fit(
     whose engine simulated exactly as today's (only the label changed since); missing ones are
     derived here. Each counted kept run's sensitivity to its inputs is simulated (one knee
     search per input, and one unperturbed). Finished work is kept in ``range_cache_path``."""
-    from archsim_engine.version import ENGINE_VERSION
-
-    label = reuse or ENGINE_VERSION
-    cache_path = range_cache_path(ENGINE_VERSION)
+    engine = engine_label()
+    label = reuse or engine
+    cache_path = range_cache_path(engine)
     cache: dict[str, Any] = read_json(cache_path) or {}
     sources = range_sources(results)
     checks: list[dict[str, Any] | None] = []
@@ -4278,7 +4369,7 @@ def range_fit(
         checks.append(c if c and c.get("engineVersion") == label else None)
     todo = [i for i, c in enumerate(checks) if c is None]
     log(
-        f"range fit, engine {ENGINE_VERSION}: {len(sources)} calibrations, {len(sources) - len(todo)} "
+        f"range fit, engine {engine}: {len(sources)} calibrations, {len(sources) - len(todo)} "
         f"with engine {label}'s development checks, {len(todo)} to derive (or in the cache)"
     )
 
@@ -4369,7 +4460,7 @@ def range_fit(
     before = [r["before"] for r in fitted if r["before"]]
     doc = {
         "at": now(),
-        "engineVersion": ENGINE_VERSION,
+        "engineVersion": engine,
         "inputsAndKneesFrom": label,
         "commit": git("rev-parse", "HEAD"),
         "provenance": provenance(),
@@ -4993,10 +5084,23 @@ def provenance() -> dict[str, Any]:
     object ids, so the same on every machine and line-ending setting), whether either had
     uncommitted changes (then the ids do not describe what ran), and the machine."""
     parts = [f"{p} {git('rev-parse', f'HEAD:{p}')}" for p in HARNESS]
-    status = git("status", "--porcelain", "--", "packages/engine", *HARNESS)
+    engine: dict[str, Any]
+    sources: tuple[str, ...]
+    if java_engine():
+        sources = JAVA_ENGINE_SOURCES
+        trees = [f"{p} {git('rev-parse', f'HEAD:{p}')}" for p in sources]
+        # a hash over the Java engine's three source trees, and the build that ran
+        engine = {
+            "engineSources": hashlib.sha256("\n".join(trees).encode()).hexdigest(),
+            "javaBuild": java_build(),
+        }
+    else:
+        sources = ("packages/engine",)
+        engine = {"engineTree": git("rev-parse", "HEAD:packages/engine")}
+    status = git("status", "--porcelain", "--", *sources, *HARNESS)
     return {
         "commit": git("rev-parse", "HEAD"),
-        "engineTree": git("rev-parse", "HEAD:packages/engine"),
+        **engine,
         "harnessHash": hashlib.sha256("\n".join(parts).encode()).hexdigest(),
         "dirty": None if status is None else bool(status),
         "machineId": machine_id(),
@@ -5325,6 +5429,11 @@ def main(argv: list[str] | None = None) -> int:
         "experiments; with more than one, every run first archives the one before",
     )
     args = ap.parse_args(argv)
+    if java_engine() and args.stack not in JAVA_COMMANDS:
+        ap.error(
+            f"{args.stack} runs on the frozen Python engine only: unset {ENGINE_VARIABLE} "
+            f"(ADR-0051); on the Java engine, run {' or '.join(JAVA_COMMANDS)}"
+        )
     if (args.experiment is not None) != (args.stack == "smoke"):
         ap.error("an experiment is named with smoke, and only with smoke")
     if args.stack == "smoke":
@@ -5340,11 +5449,12 @@ def main(argv: list[str] | None = None) -> int:
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
         return 0
     if args.stack == "range-fit":
-        fit = range_fit(reuse=args.reuse_dev)
+        out = range_fit_path()
+        fit = range_fit(out=out, reuse=args.reuse_dev)
         for fold, by in fit["check"]["counts"].items():
             hits, n = by[f"{RANGE_COVERAGE:g}"]
             log(f"range fit: {fold}: {hits} of {n} runs inside the {RANGE_COVERAGE:.0%} range")
-        log(f"wrote {RANGE_FIT.relative_to(HERE.parent).as_posix()}")
+        log(f"wrote {out.relative_to(HERE.parent).as_posix()}")
         return 0
     if args.stack == "envcheck":
         log(f"wrote {envcheck().relative_to(HERE.parent).as_posix()}")

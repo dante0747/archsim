@@ -3,9 +3,11 @@ synthetic data and on the committed results. Nothing here starts Docker."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import shutil
+import subprocess
 import time
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,9 @@ from typing import Any
 import pytest
 import report
 import run
+
+from archsim_engine import run_simulation
+from archsim_engine.version import ENGINE_VERSION
 
 PG_MIXED = run.EXPERIMENTS["pg-mixed"]
 
@@ -981,6 +986,104 @@ def test_simulate_reports_what_the_database_did() -> None:
     r = run.simulate(run.design(PG_MIXED, cal["inputs"], 500, warm=2, duration=5))
     assert set(r["database"]) == {"commitsPerFlush", "meanLockWaitMs", "meanCommitWaitMs"}
     assert r["database"]["commitsPerFlush"] >= 1
+
+
+def test_simulate_on_the_java_engine_reads_the_report_archsim_run_writes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # stands for `archsim run FILE --out REPORT --max-wall-seconds S`: the frozen engine's report
+    def fake_cli(command: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
+        assert command[:2] == [str(run.JAVA_CLI), "run"]
+        assert command[3:] == ["--out", command[4], "--max-wall-seconds", "3600"]
+        doc = json.loads(Path(command[2]).read_text(encoding="utf-8"))
+        Path(command[4]).write_text(json.dumps(run_simulation(doc)), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    cal = json.loads((run.RESULTS / "pg-mixed" / "calibration.json").read_text(encoding="utf-8"))
+    doc = run.design(PG_MIXED, cal["inputs"], 500, warm=2, duration=5)
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    monkeypatch.setattr(run.subprocess, "run", fake_cli)
+
+    assert run.simulate(doc)["resultDigest"] == run_simulation(doc)["provenance"]["resultDigest"]
+
+
+def test_simulate_on_the_java_engine_says_why_archsim_run_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def failing_cli(command: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 1, "", "Cannot simulate: document is invalid\n")
+
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    monkeypatch.setattr(run.subprocess, "run", failing_cli)
+
+    with pytest.raises(
+        RuntimeError, match=r"archsim run failed \(1\): Cannot simulate: document is invalid$"
+    ):
+        run.simulate({"workload": {"rps": 1}})
+
+
+def test_engine_label_names_the_java_engine_apart(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+
+    assert run.engine_label() == f"{ENGINE_VERSION}-java"
+
+
+def test_predict_refuses_the_java_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    # a prediction is an experiment's own file: it names the frozen Python engine
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+
+    with pytest.raises(RuntimeError, match="predict runs on the frozen Python engine only"):
+        run.predict(PG_MIXED, {"inputs": {}})
+
+
+def test_provenance_on_the_java_engine_hashes_its_three_source_trees(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    trees = [f"{p} {run.git('rev-parse', f'HEAD:{p}')}" for p in run.JAVA_ENGINE_SOURCES]
+
+    assert (
+        run.provenance()["engineSources"] == hashlib.sha256("\n".join(trees).encode()).hexdigest()
+    )
+
+
+def test_java_build_is_a_hash_of_the_installed_jars(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "b.jar").write_bytes(b"second")
+    (tmp_path / "lib" / "a.jar").write_bytes(b"first")
+    monkeypatch.setattr(run, "JAVA_CLI", tmp_path / "bin" / "archsim")
+    expected = hashlib.sha256(
+        b"a.jar\0"
+        + hashlib.sha256(b"first").digest()
+        + b"b.jar\0"
+        + hashlib.sha256(b"second").digest()
+    ).hexdigest()
+
+    assert run.java_build() == expected
+
+
+def test_range_fit_on_the_java_engine_writes_a_fit_of_its_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+
+    assert run.range_fit_path() == run.HERE / f"knee-range-{ENGINE_VERSION}-java.json"
+
+
+def test_an_experiment_on_the_java_engine_is_refused_before_its_stack_starts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def started(*_: Any, **__: Any) -> None:
+        raise AssertionError("the stack started")
+
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    monkeypatch.setattr(run, "stack_up", started)
+
+    with pytest.raises(SystemExit) as refused:
+        run.main(["postgres"])
+    assert refused.value.code == 2
 
 
 def test_dev_checks_reproduce_the_committed_predictions() -> None:

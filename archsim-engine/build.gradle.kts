@@ -4,6 +4,8 @@
 plugins {
     id("archsim.java-conventions")
     `java-library`
+    // the comparison of a Java report with the frozen engine's, shared with archsim-cli's tests
+    `java-test-fixtures`
 }
 
 dependencies {
@@ -14,6 +16,8 @@ dependencies {
 
     // the golden-file reader (ADR-0028)
     testImplementation(testFixtures(project(":archsim-model")))
+    testFixturesImplementation(testFixtures(project(":archsim-model")))
+    testFixturesImplementation(libs.jspecify)
     testImplementation(libs.archunit)
     testImplementation(libs.jqwik)
 }

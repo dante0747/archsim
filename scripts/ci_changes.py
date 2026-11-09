@@ -71,8 +71,10 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("apps/web/src/test/fixtures/catalog.json", ENGINE_TESTS | {"web", "e2e"}),
     ("apps/web/src/test/fixtures/analysis-starter.json", ENGINE_TESTS | {"web", "e2e"}),
     ("apps/web/", frozenset({"web", "e2e"})),
-    # The Java build. The black-box API tests are not part of the app the end-to-end tests run.
+    # The Java build. The black-box API tests and the command line are not part of the app the
+    # end-to-end tests run.
     ("archsim-api-tests/", frozenset({"java"})),
+    ("archsim-cli/", frozenset({"java"})),
     ("archsim-app/", JAVA),
     ("archsim-engine/", JAVA),
     # scripts/export_printable.py writes the table PythonText reads, and scripts/tests checks

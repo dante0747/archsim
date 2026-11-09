@@ -25,8 +25,9 @@ Ask the owner instead.
 
 ## The repository
 
-- `archsim-model/`, `archsim-engine/`, `archsim-app/`, `archsim-api-tests/`, `build-logic/`: Java 25,
-  one Gradle build (`./gradlew build`). The Java port's plan is `docs/proposals/java-25-port.md`.
+- `archsim-model/`, `archsim-engine/`, `archsim-app/`, `archsim-api-tests/`, `archsim-cli/`,
+  `build-logic/`: Java 25, one Gradle build (`./gradlew build`). The Java port's plan is
+  `docs/proposals/java-25-port.md`.
 - `packages/engine/`: the Python engine, **frozen at 0.16.0**: don't change it; report its bugs.
 - `services/api/`: the Python simulation workers (`archsim-api worker`) and the Alembic schema
   Flyway took over from; the Java API replaced its FastAPI app. `services/engine-service/`: the

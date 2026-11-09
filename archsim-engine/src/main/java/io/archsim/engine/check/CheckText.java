@@ -13,6 +13,7 @@ import io.archsim.engine.slo.Better;
 import io.archsim.engine.slo.Objective;
 import io.archsim.engine.slo.SloCheck;
 import io.archsim.model.text.PythonFormat;
+import io.archsim.model.text.PythonText;
 
 /**
  * A check in words: its headline ({@code headline}), and the pull-request comment
@@ -253,7 +254,7 @@ public final class CheckText {
 			return Optional.empty();
 		}
 		return Optional
-			.of("**" + MarkdownText.capitalized(level) + " confidence**: " + MarkdownText.escaped(confidence.reason())
+			.of("**" + PythonText.capitalize(level) + " confidence**: " + MarkdownText.escaped(confidence.reason())
 					+ ". To raise it: " + MarkdownText.escaped(confidence.howToRaise()));
 	}
 

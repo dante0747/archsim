@@ -220,7 +220,9 @@ doesn't change.
     ([ADR-0049](../adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)).
     A Java report repeats itself on every platform; its digests keep their definitions and
     name a result within one engine
-    ([ADR-0050](../adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
+    ([ADR-0050](../adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)). The
+    harness runs the Java engine through `archsim run`, the first command of stage 5's CLI
+    ([ADR-0051](../adr/0051-start-the-java-cli-in-stage-4-with-archsim-run.md)).
 - **Speed:** measure against `docs/performance.md`. A Java kernel should be several times faster,
   but that's an estimate until it's measured.
 - **Exit:**

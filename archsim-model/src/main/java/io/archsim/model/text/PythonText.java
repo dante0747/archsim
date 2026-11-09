@@ -131,6 +131,24 @@ public final class PythonText {
 	}
 
 	/**
+	 * Python's {@code str.capitalize()}: the first letter a capital and the rest small,
+	 * as the engine capitalizes the words it writes ({@code high}, {@code medium},
+	 * {@code low}): Java's simple case mappings, where Python's full ones differ for a
+	 * few letters ({@code ß}).
+	 * @param word the word
+	 * @return the word, capitalized
+	 */
+	public static String capitalize(String word) {
+		if (word.isEmpty()) {
+			return word;
+		}
+		int first = word.codePointAt(0);
+		return new StringBuilder().appendCodePoint(Character.toTitleCase(first))
+			.append(word.substring(Character.charCount(first)).toLowerCase(Locale.ROOT))
+			.toString();
+	}
+
+	/**
 	 * Python's {@code str.title()}: each word starts with a capital and goes on in lower
 	 * case, a word being a run of cased letters ({@code "latencyP95Ms"} becomes
 	 * {@code "Latencyp95Ms"}).

@@ -330,7 +330,8 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   the whole report must match, digests, counts and events processed exactly, numbers to a
   relative 1e-9, and an integer wherever Python wrote one but for a cost line's `instances` and
   an item's `quantity`, leaving out only the report's version and the provenance's wall-clock
-  time and runtime (`ReportComparison`). The note about experimental technologies, which the
+  time and runtime (`ReportComparison`, in the test fixtures `archsim-cli`'s tests share). The
+  note about experimental technologies, which the
   recorded balancers and caches reach, is also checked by `AssumptionsTests` for counts of parts
   they do not.
 - `GoldenRunsTests` replays the golden files' 50 template runs the same way: each template's

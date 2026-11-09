@@ -1,6 +1,5 @@
 package io.archsim.engine.check;
 
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,24 +43,6 @@ final class MarkdownText {
 	 */
 	static String code(String value) {
 		return "`" + oneLine(value).replace('`', '\'') + "`";
-	}
-
-	/**
-	 * A word with its first letter a capital and the rest small, as Python's
-	 * {@code str.capitalize()} writes the words a check capitalizes ({@code high},
-	 * {@code medium}, {@code low}): Java's simple case mappings, where Python's full ones
-	 * differ for a few letters ({@code ß}).
-	 * @param word the word
-	 * @return the word, capitalized
-	 */
-	static String capitalized(String word) {
-		if (word.isEmpty()) {
-			return word;
-		}
-		int first = word.codePointAt(0);
-		return new StringBuilder().appendCodePoint(Character.toTitleCase(first))
-			.append(word.substring(Character.charCount(first)).toLowerCase(Locale.ROOT))
-			.toString();
 	}
 
 	private static String oneLine(@Nullable String value) {

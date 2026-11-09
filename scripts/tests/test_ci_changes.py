@@ -34,6 +34,7 @@ EVERY_JOB = {
     [
         (["archsim-app/src/main/java/io/archsim/app/runs/Comparisons.java"], {"java", "e2e"}),
         (["archsim-api-tests/src/main/java/io/archsim/apitests/Examples.java"], {"java"}),
+        (["archsim-cli/src/main/java/io/archsim/cli/RunCommand.java"], {"java"}),
         (["gradle/libs.versions.toml", "config/checkstyle/checkstyle.xml"], {"java", "e2e"}),
         # the Python job checks the table repr reads against Python
         (
