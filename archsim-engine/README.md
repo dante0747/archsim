@@ -338,6 +338,18 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   base design and one scenario, its time axis compressed (`runs/<key>`: `document`,
   `scenarioId`, `report`), simulated in Java and compared whole with the frozen engine's report,
   digests included.
+- `./gradlew :archsim-engine:parity` runs `SimulationParityTests` (tagged `parity`, left out of
+  `test`): every template case of the frozen engine's simulation baselines (149 cases, 20 seeds
+  each; `parity/simulation/` once recorded), simulated in Java and judged by the port plan's bar
+  ([ADR-0052](../docs/adr/0052-record-the-frozen-engines-simulation-baselines-once.md)): the
+  Java median p50, p95, throughput and each part's utilization inside Python's range and within
+  2% of its median (`ParityBar`), and no seed failing otherwise than Python's (`CaseResult`),
+  each case and in total, with the runs that replay Python's exactly, the metric furthest from
+  Python's and the cases that miss, written to `build/parity/simulation-parity.json`. A failed
+  run is recorded with its error, as the baselines record one (`RunError`).
+  `-Parchsim.parity.baselines=DIR` judges another recording, `.out=DIR` writes elsewhere,
+  `.threads=N` and `.only=TEMPLATE,...` choose how; hours of simulation, under a six-hour
+  timeout.
 - Load sweeps and checks are in `sweep/cases.json.gz`, from `scripts/export_sweep_cases.py`:
   breaking points over a range found from the load or asked for (one capped by the request
   limit, one capped below the lowest load a step runs, steps too short for their warm-up), a

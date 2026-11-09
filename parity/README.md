@@ -183,6 +183,35 @@ injects it instead of simulating:
 Calibration records the time it ran (`fittedAt`, `calibration.at`): it is fixed at
 `2026-11-02T00:00:00Z`. A Java calibration needs an injectable clock.
 
+## The simulation baselines
+
+`parity/simulation/` is for the frozen engine's runs of every template case (the 25 templates'
+designs and their scenarios, 149 cases) with 20 seeds each, the workload's seed and the 19 after
+it, simulated in full: the Python side of stage 4's statistical bar. They land there with the
+parity report once recorded
+([ADR-0052](../docs/adr/0052-record-the-frozen-engines-simulation-baselines-once.md)). Each run
+keeps its figures, not its whole report: the events processed, the requests generated, both
+digests, the summary's values and latencies, and each part's summary values; a run that failed
+keeps its error. `<template>.json.gz` holds a template's cases, each its runs by seed; the
+manifest has each file's SHA-256 and size (uncompressed) and its count of runs and failures.
+
+They are recorded once, by
+[`scripts/export_simulation_baselines.py`](../scripts/export_simulation_baselines.py), in about
+twenty hours on four cores; a stopped recording resumes from its log under
+`build/simulation-baselines/`. `--check` simulates chosen runs again:
+
+```sh
+uv run python scripts/export_simulation_baselines.py --jobs 4          # record, resuming
+uv run python scripts/export_simulation_baselines.py --only queueing-lab --seeds 2 --check
+```
+
+`./gradlew :archsim-engine:parity` simulates the same runs in Java, judges each case by the bar
+(the Java median p50, p95, throughput and each part's utilization inside Python's range and
+within 2% of its median, and no seed failing otherwise than Python's), counts the runs that give
+exactly Python's figures and digest, and writes
+`archsim-engine/build/parity/simulation-parity.json`, with the cases that miss and what they
+missed. `-Parchsim.parity.baselines=DIR` judges another recording, a partial one say.
+
 ## What is left out
 
 - **The simulation kernel, components, runtime and report building** (`run_simulation`,
