@@ -1821,3 +1821,37 @@ def test_archive_keeps_the_latest_run(tmp_path: Path) -> None:
     assert run.archive("pg-hot-row", tmp_path) is None  # nothing left to keep
     assert run.archive("kafka", tmp_path) == tmp_path / "kafka" / "run-1"
     assert run.archive("cache-aside", tmp_path) is None  # no results at all
+
+
+def test_dev_label_is_the_engines_unless_one_is_asked_for() -> None:
+    assert (run.dev_label(), run.dev_label(f"{ENGINE_VERSION}-port")) == (
+        ENGINE_VERSION,
+        f"{ENGINE_VERSION}-port",
+    )
+
+
+@pytest.mark.parametrize("label", [f"{ENGINE_VERSION}-java", "0.15.0", f"{ENGINE_VERSION}port"])
+def test_dev_label_refuses_a_folder_that_does_not_name_the_frozen_engine(label: str) -> None:
+    with pytest.raises(ValueError, match=f"names this engine: not {label}"):
+        run.dev_label(label)
+
+
+def test_dev_label_on_the_java_engine_keeps_to_its_own_folders(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+
+    assert run.dev_label(f"{ENGINE_VERSION}-java-port") == f"{ENGINE_VERSION}-java-port"
+    with pytest.raises(ValueError, match="names this engine"):
+        run.dev_label(f"{ENGINE_VERSION}-port")
+
+
+def test_resimulate_with_another_engines_label_is_refused_before_it_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(run, "resimulate", lambda **_: pytest.fail("resimulate ran"))
+
+    with pytest.raises(SystemExit) as stopped:
+        run.main(["resimulate", "--label", f"{ENGINE_VERSION}-java"])
+
+    assert stopped.value.code == 2

@@ -62,8 +62,9 @@ record CaseResult(String template, String scenario, int runs, int exact, int dig
 	List<String> missed() {
 		List<String> missed = new ArrayList<>();
 		if (this.failures.mismatched() > 0) {
-			missed.add("%d seeds failed otherwise than Python's (Java failed %d, Python %d)"
-				.formatted(this.failures.mismatched(), this.failures.java(), this.failures.python()));
+			int seeds = this.failures.mismatched();
+			missed.add("%d %s failed otherwise than Python's (Java failed %d, Python %d)".formatted(seeds,
+					(seeds == 1) ? "seed" : "seeds", this.failures.java(), this.failures.python()));
 		}
 		this.metrics.stream().filter((verdict) -> !verdict.holds()).map(MetricVerdict::metric).forEach(missed::add);
 		return List.copyOf(missed);

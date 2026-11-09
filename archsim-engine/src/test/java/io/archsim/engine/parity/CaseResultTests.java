@@ -65,7 +65,7 @@ class CaseResultTests {
 
 		CaseResult result = CaseResult.of(recorded, List.of(java(10, 20, "a"), java(10, 20, "a"), failed()));
 
-		assertThat(result.missed()).containsExactly("1 seeds failed otherwise than Python's (Java failed 1, Python 0)");
+		assertThat(result.missed()).containsExactly("1 seed failed otherwise than Python's (Java failed 1, Python 0)");
 		assertThat(result.meetsTheBar()).isFalse();
 	}
 
@@ -95,7 +95,7 @@ class CaseResultTests {
 		CaseResult result = CaseResult.of(recorded,
 				List.of(failed(), JSON.createObjectNode().put("error", "NullPointerException: no part")));
 
-		assertThat(result.missed()).containsExactly("1 seeds failed otherwise than Python's (Java failed 2, Python 2)");
+		assertThat(result.missed()).containsExactly("1 seed failed otherwise than Python's (Java failed 2, Python 2)");
 	}
 
 	private static RecordedCase recorded(JsonNode... runs) {

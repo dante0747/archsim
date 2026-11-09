@@ -350,6 +350,12 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   `-Parchsim.parity.baselines=DIR` judges another recording, `.out=DIR` writes elsewhere,
   `.threads=N` and `.only=TEMPLATE,...` choose how; hours of simulation, under a six-hour
   timeout.
+- `./gradlew :archsim-engine:speed` runs `SimulationSpeedTests` (tagged `speed`, left out of
+  `test`): every template as shipped, timed as `scripts/perf.py` times the frozen engine's
+  (five runs, or `-Parchsim.speed.repeats=N`, with its limits, after one that warms the JVM)
+  and written in its shape (`SpeedRow`) to `build/parity/speed.json`, or
+  `-Parchsim.speed.out=FILE`. Minutes, on a quiet machine. Both measured tasks run without the
+  coverage agent.
 - Load sweeps and checks are in `sweep/cases.json.gz`, from `scripts/export_sweep_cases.py`:
   breaking points over a range found from the load or asked for (one capped by the request
   limit, one capped below the lowest load a step runs, steps too short for their warm-up), a

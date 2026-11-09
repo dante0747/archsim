@@ -28,8 +28,27 @@ dependencies {
 tasks.test {
     // the golden files of the frozen Python engine (parity/golden/) and the examples
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
-    // the simulation baselines' run takes hours: the parity task below runs it
-    useJUnitPlatform { excludeTags("parity") }
+    // the simulator's measured runs take minutes to hours: the parity and speed tasks run them
+    useJUnitPlatform { excludeTags("parity", "speed") }
+}
+
+// A measured run of the simulator, over the tests tagged with its name: never up to date (it
+// says something about the simulator, not about these files), not under the coverage agent
+// (it is timed), and -Parchsim.<tag>.* forwarded as system properties over its defaults.
+fun Test.measuredRun(tag: String, defaults: Map<String, String>) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags(tag) }
+    outputs.upToDateWhen { false }
+    systemProperty("archsim.repoRoot", rootDir.absolutePath)
+    val forwarded = providers.gradlePropertiesPrefixedBy("archsim.$tag.")
+    jvmArgumentProviders.add(
+        CommandLineArgumentProvider { (defaults + forwarded.get()).map { (key, value) -> "-D$key=$value" } },
+    )
+    extensions.configure<JacocoTaskExtension> { isEnabled = false }
+    maxHeapSize = "4g"
+    testLogging { showStandardStreams = true }
 }
 
 // The Java simulator over the frozen engine's simulation baselines (parity/simulation/,
@@ -41,21 +60,18 @@ tasks.test {
 //   ./gradlew :archsim-engine:parity -Parchsim.parity.threads=4 -Parchsim.parity.only=queueing-lab
 val parity by tasks.registering(Test::class) {
     description = "Simulates the frozen engine's simulation baselines in Java and judges them (hours)."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    testClassesDirs = sourceSets.test.get().output.classesDirs
-    classpath = sourceSets.test.get().runtimeClasspath
-    useJUnitPlatform { includeTags("parity") }
-    // a run of it says something about the simulator, not about these files
-    outputs.upToDateWhen { false }
-    systemProperty("archsim.repoRoot", rootDir.absolutePath)
-    val defaults = mapOf("archsim.parity.out" to layout.buildDirectory.dir("parity").get().asFile.absolutePath)
-    val forwarded = providers.gradlePropertiesPrefixedBy("archsim.parity.")
-    jvmArgumentProviders.add(
-        CommandLineArgumentProvider { (defaults + forwarded.get()).map { (key, value) -> "-D$key=$value" } },
-    )
-    // hours of simulation, timed for the report: not under the coverage agent
-    extensions.configure<JacocoTaskExtension> { isEnabled = false }
-    maxHeapSize = "4g"
+    measuredRun("parity", mapOf("archsim.parity.out" to layout.buildDirectory.dir("parity").get().asFile.absolutePath))
     timeout = Duration.ofHours(6)
-    testLogging { showStandardStreams = true }
+}
+
+// The Java simulator's speed on every template as shipped, timed as scripts/perf.py times the
+// frozen engine's (docs/performance.md); it writes build/parity/speed.json. .out=FILE writes
+// it elsewhere (a relative one from the repository's root), .repeats=N times N runs (five)
+// and .label=NAME names the run.
+//
+//   ./gradlew :archsim-engine:speed -Parchsim.speed.out=benchmarks/perf/java-port.json
+val speed by tasks.registering(Test::class) {
+    description = "Times the Java simulator on every template, as scripts/perf.py times the frozen engine."
+    measuredRun("speed", mapOf("archsim.speed.out" to layout.buildDirectory.file("parity/speed.json").get().asFile.absolutePath))
+    timeout = Duration.ofHours(1)
 }

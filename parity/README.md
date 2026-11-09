@@ -212,6 +212,15 @@ exactly Python's figures and digest, and writes
 `archsim-engine/build/parity/simulation-parity.json`, with the cases that miss and what they
 missed. `-Parchsim.parity.baselines=DIR` judges another recording, a partial one say.
 
+[`scripts/java_parity_report.py`](../scripts/java_parity_report.py) writes stage 4's parity
+report, `docs/validation/java-parity.md`, from that file (written to `docs/validation/` with
+`-Parchsim.parity.out=docs/validation`), the kept calibrations' knees re-simulated on both
+engines by the same harness over every kept run (`benchmarks/results/dev/0.16.0-port/`, from
+`uv run python benchmarks/run.py resimulate --label 0.16.0-port`, and `0.16.0-java/`, paired
+over both folders, with whether each pair derived the same inputs) and both engines' speed, the median of several runs
+each with nothing else running (`benchmarks/perf/`, from `scripts/perf.py` and
+`./gradlew :archsim-engine:speed`); `--check` fails when the page is stale.
+
 ## What is left out
 
 - **The simulation kernel, components, runtime and report building** (`run_simulation`,

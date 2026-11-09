@@ -2956,6 +2956,22 @@ def engine_label() -> str:
     return f"{ENGINE_VERSION}-java" if java_engine() else ENGINE_VERSION
 
 
+def dev_label(label: str | None = None) -> str:
+    """The folder under results/dev/ that ``resimulate`` writes: the engine's label, or a label
+    that starts with it (``0.16.0-port`` for checks kept apart from earlier ones). It never names
+    the other engine, so neither writes over the other's checks."""
+    engine = engine_label()
+    if label is None:
+        return engine
+    if not label.startswith(f"{engine}-") or (
+        not java_engine() and label.startswith(f"{engine}-java")
+    ):
+        raise ValueError(
+            f"a development check's label starts with {engine}- and names this engine: not {label}"
+        )
+    return label
+
+
 def python_engine_only(command: str) -> None:
     """Refuses ``command`` on the Java engine: it writes an experiment's own files, which name the
     frozen Python engine."""
@@ -4049,10 +4065,13 @@ def dev_path(results: Path, engine: str, exp_id: str, check: Mapping[str, Any]) 
     return results / "dev" / engine / exp_id / f"{name.replace(':', '-')}.json"
 
 
-def resimulate(results: Path = RESULTS, only: str | None = None) -> list[Path]:
-    """A development check of every kept run (``dev_check``), written under results/dev/. One
-    process per run; no Docker."""
-    engine = engine_label()
+def resimulate(
+    results: Path = RESULTS, only: str | None = None, label: str | None = None
+) -> list[Path]:
+    """A development check of every kept run (``dev_check``), written under results/dev/, in
+    the engine's folder or the one ``label`` names (``dev_label``). One process per run; no
+    Docker."""
+    engine = dev_label(label)
     runs = [(e, d) for e, d in result_dirs(results) if only in (None, e)]
     log(f"checking {len(runs)} kept runs with engine {engine} (in-sample)")
     with ProcessPoolExecutor(max_workers=min(len(runs) or 1, os.cpu_count() or 2)) as pool:
@@ -5417,6 +5436,12 @@ def main(argv: list[str] | None = None) -> int:
         "development checks (only when nothing but the label changed since)",
     )
     ap.add_argument(
+        "--label",
+        help="with resimulate: write the checks under results/dev/LABEL/, a label that starts "
+        "with the engine's (0.16.0-port, say) and names no other engine; the engine's own by "
+        "default",
+    )
+    ap.add_argument(
         "--archive",
         action="store_true",
         help="first move each experiment's latest results into its next run-N/ (kept history)",
@@ -5445,7 +5470,11 @@ def main(argv: list[str] | None = None) -> int:
         log(f"smoke {args.experiment}: {'FAILED' if problems else 'passed'}")
         return 1 if problems else 0
     if args.stack == "resimulate":
-        for path in resimulate(only=args.only):
+        try:
+            dev_label(args.label)
+        except ValueError as exc:
+            ap.error(str(exc))
+        for path in resimulate(only=args.only, label=args.label):
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
         return 0
     if args.stack == "range-fit":
