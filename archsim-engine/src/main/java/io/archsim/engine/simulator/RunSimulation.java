@@ -21,8 +21,9 @@ import io.archsim.model.document.Workload;
 /**
  * One prepared run, simulated: its timeline (the arrival period, then a drain), its links
  * and parts built, the workload's requests sent, and the simulation run in 200 chunks
- * until the end, or until nothing is in flight once the arrivals are over; its wall clock
- * checked every 4,096 events and after each chunk.
+ * until the end, or until nothing is in flight once the arrivals are over; its observer
+ * told its progress after each chunk, and asked whether to stop, then its wall clock
+ * checked, every 4,096 events and after each chunk.
  */
 final class RunSimulation {
 
@@ -38,10 +39,13 @@ final class RunSimulation {
 
 	private final WallClock wallClock;
 
-	RunSimulation(ComponentRegistry registry, PreparedRun prepared, WallClock wallClock) {
+	private final RunObserver observer;
+
+	RunSimulation(ComponentRegistry registry, PreparedRun prepared, WallClock wallClock, RunObserver observer) {
 		this.registry = registry;
 		this.prepared = prepared;
 		this.wallClock = wallClock;
+		this.observer = observer;
 	}
 
 	SimulatedRun simulate() {
@@ -85,14 +89,23 @@ final class RunSimulation {
 		while (time < endMs) {
 			time = Math.min(time + step, endMs);
 			if (time > simulation.now()) {
-				events += simulation.runUntil(time, CHECK_EVERY, () -> this.wallClock.check(simulation.now()));
+				events += simulation.runUntil(time, CHECK_EVERY, () -> check(simulation.now()));
 			}
-			this.wallClock.check(simulation.now());
+			this.observer.progress(time / endMs);
+			check(simulation.now());
 			if (time >= durationMs && context.idle()) {
 				break;
 			}
 		}
 		return new Chunks(time, events);
+	}
+
+	// a cancel wins: a run cancelled past its wall-clock limit ends cancelled, not failed
+	private void check(double simulatedMs) {
+		if (this.observer.cancelRequested()) {
+			throw new SimulationCancelledException();
+		}
+		this.wallClock.check(simulatedMs);
 	}
 
 	/**
