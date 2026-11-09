@@ -109,6 +109,11 @@ jobs:
       # files the Java tests compare with (parity/README.md)
       - name: Golden files match the engine
         run: uv run python scripts/export_golden.py --check
+      # stage 4's parity page is written from the committed runs (docs/validation's parity JSON,
+      # the knees in benchmarks/results/dev/0.16.0-port and 0.16.0-java, the speed in
+      # benchmarks/perf): it must still say what they say
+      - name: The Java parity page matches its runs
+        run: uv run python scripts/java_parity_report.py --check
 
   api-postgres:
     name: Worker tests on PostgreSQL

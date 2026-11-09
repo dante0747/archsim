@@ -4008,11 +4008,12 @@ def with_trial_gc(calibration: Mapping[str, Any], gc: Mapping[str, Any]) -> dict
     return out
 
 
-def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] | None:
+def dev_check(exp_id: str, d: Path, label: str, results: Path = RESULTS) -> dict[str, Any] | None:
     """One kept run checked with today's model: its inputs derived again, its measured ladder
-    and the knee simulated, and the comparison with what it measured. None for a run whose
-    calibration today's code cannot read (run 1 had one pass, not two). A Node.js service that
-    did not report its garbage collection gets its trial's (``trial_gc``)."""
+    and the knee simulated, and the comparison with what it measured, recorded as ``label``'s
+    (the folder it is written to, ``dev_label``). None for a run whose calibration
+    today's code cannot read (run 1 had one pass, not two). A Node.js service that did not
+    report its garbage collection gets its trial's (``trial_gc``)."""
     exp = EXPERIMENTS[exp_id]
     cal, meas = read_json(d / "calibration.json"), read_json(d / "measured.json")
     if not (cal and meas) or not {"low", "high"} <= set(cal.get("passes", {})):
@@ -4042,7 +4043,7 @@ def dev_check(exp_id: str, d: Path, results: Path = RESULTS) -> dict[str, Any] |
         "designedAfterMeasurements": True,
         "how": DEV_HOW,
         "at": now(),
-        "engineVersion": engine_label(),
+        "engineVersion": label,
         "provenance": provenance(),
         # True when today's run.py derives the very inputs the run's predictions used
         "inputsAsCalibrated": inputs == cal.get("inputs"),
@@ -4076,7 +4077,13 @@ def resimulate(
     log(f"checking {len(runs)} kept runs with engine {engine} (in-sample)")
     with ProcessPoolExecutor(max_workers=min(len(runs) or 1, os.cpu_count() or 2)) as pool:
         checks = list(
-            pool.map(dev_check, [e for e, _ in runs], [d for _, d in runs], [results] * len(runs))
+            pool.map(
+                dev_check,
+                [e for e, _ in runs],
+                [d for _, d in runs],
+                [engine] * len(runs),
+                [results] * len(runs),
+            )
         )
     written = []
     for (exp_id, d), check in zip(runs, checks, strict=True):
@@ -5439,7 +5446,8 @@ def main(argv: list[str] | None = None) -> int:
         "--label",
         help="with resimulate: write the checks under results/dev/LABEL/, a label that starts "
         "with the engine's (0.16.0-port, say) and names no other engine; the engine's own by "
-        "default",
+        "default. It writes over that folder's checks of the same calibrations, committed or "
+        "not",
     )
     ap.add_argument(
         "--archive",

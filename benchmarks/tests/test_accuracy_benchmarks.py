@@ -9,6 +9,7 @@ import math
 import shutil
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -1855,3 +1856,35 @@ def test_resimulate_with_another_engines_label_is_refused_before_it_runs(
         run.main(["resimulate", "--label", f"{ENGINE_VERSION}-java"])
 
     assert stopped.value.code == 2
+
+
+def stand_in_check(exp_id: str, d: Path, label: str, results: Path) -> dict[str, Any]:
+    """A development check as ``run.dev_check`` makes one, without simulating."""
+    return {
+        "experiment": exp_id,
+        "results": d.relative_to(results).as_posix(),
+        "calibratedAt": "2026-10-26T12:22:50Z",
+        "engineVersion": label,
+        "inputsAsCalibrated": True,
+        "comparison": {
+            "measuredKnee": {"kneeRps": 2000.0},
+            "predictedKnee": {"kneeRps": 2100.0},
+            "kneeError": 0.05,
+        },
+    }
+
+
+def test_resimulate_passes_the_label_it_writes_under_to_each_check(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    label = f"{ENGINE_VERSION}-port"
+    monkeypatch.setattr(run, "ProcessPoolExecutor", ThreadPoolExecutor)
+    monkeypatch.setattr(
+        run, "result_dirs", lambda results: [("kafka", results / "kafka" / "run-1")]
+    )
+    monkeypatch.setattr(run, "dev_check", stand_in_check)
+
+    (written,) = run.resimulate(tmp_path, label=label)
+
+    assert written == tmp_path / "dev" / label / "kafka" / "2026-10-26T12-22-50Z.json"
+    assert json.loads(written.read_text(encoding="utf-8"))["engineVersion"] == label

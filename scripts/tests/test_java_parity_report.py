@@ -4,6 +4,7 @@ speed, as docs/validation/java-parity.md shows them."""
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import java_parity_report as report
@@ -92,6 +93,83 @@ def test_totals_count_each_test_of_the_bar_and_the_exact_replays() -> None:
     assert "**32 of 40** runs replay the frozen engine's exactly" in text
 
 
+def knee_row(python: float, java: float) -> dict:
+    return {
+        "experiment": "pg-mixed",
+        "calibration": "2026-10-26T08-23-18Z",
+        "python": python,
+        "java": java,
+        "checked": True,
+        "resimulated": True,
+        "sameInputs": True,
+        "withinTwoPercent": abs(java - python) <= 0.02 * python,
+    }
+
+
+def headline(text: str) -> str:
+    return text.split("The formal criterion")[0]
+
+
+def test_every_case_run_and_knee_matching_exactly_is_the_headline_above_the_formal_bar() -> None:
+    text = report.render(parity(MET), [knee_row(1000.0, 1000.0)], [])
+
+    assert (
+        "**Every case, run and kept knee matches the frozen engine exactly.** All 20 runs of the "
+        "1 template cases replay it figure for figure and digest for digest, and all 1 kept "
+        "calibrations' knees are its knees." in headline(text)
+    )
+
+
+def test_knees_that_differ_within_the_bar_keep_the_headline_from_claiming_an_exact_match() -> None:
+    text = report.render(parity(MET), [knee_row(1000.0, 1015.0)], [])
+
+    assert (
+        "**Stage 4's bar is met.** 1 of 1 template cases and 1 of 1 kept knees meet it; 20 of 20 "
+        "runs replay the frozen engine exactly." in headline(text)
+    )
+
+
+def test_a_bar_not_met_is_the_headline_with_its_counts() -> None:
+    text = report.render(parity(MET, MISSED), [knee_row(1000.0, 1000.0)], [])
+
+    assert (
+        "**Stage 4's bar is not met.** 1 of 2 template cases and 1 of 1 kept knees meet it; 32 of "
+        "40 runs replay the frozen engine exactly." in headline(text)
+    )
+
+
+def test_a_knee_beyond_the_bar_is_a_bar_not_met_even_when_every_run_replays() -> None:
+    text = report.render(parity(MET), [knee_row(1000.0, 1100.0)], [])
+
+    assert "**Stage 4's bar is not met.** 1 of 1 template cases and 0 of 1 kept knees" in headline(
+        text
+    )
+
+
+def test_no_knee_checked_is_no_bar_met() -> None:
+    assert "**Stage 4's bar is not met.**" in headline(report.render(parity(MET), [], []))
+
+
+def test_counts_of_runs_are_written_with_thousands_separators() -> None:
+    whole = {**parity(MET), "runs": 2980, "exactReplays": 2980, "digestsEqual": 2980}
+
+    text = report.render(whole, [knee_row(1000.0, 1000.0)], [])
+
+    assert "All 2,980 runs" in text
+    assert "**2,980 of 2,980** runs replay the frozen engine's exactly" in text
+    assert "2,980 give its result digest" in text
+
+
+def test_the_parity_run_gives_no_speed_figure() -> None:
+    text = report.render(parity(MET, MISSED), [], [])
+
+    assert (
+        "- The Java runs: `./gradlew :archsim-engine:parity -Parchsim.parity.out=docs/validation` "
+        "simulated the same runs (4 at a time) and wrote `simulation-parity.json`; the "
+        "`javaSeconds` it records is not a speed figure." in text
+    )
+
+
 def test_a_case_that_misses_is_shown_with_each_number_it_missed_by() -> None:
     text = report.render(parity(MET, MISSED), [], [])
 
@@ -104,6 +182,19 @@ def test_no_case_missing_says_so() -> None:
 
     section = text.split("## Cases that miss the bar")[1].split("\n## ")[0]
     assert "None:" in section
+
+
+def test_no_metric_off_says_so_instead_of_naming_one() -> None:
+    text = report.render(parity(MET), [], [])
+
+    assert "- No metric is off: every Java median is Python's." in text
+    assert "The metric furthest" not in text
+
+
+def test_a_case_with_no_metric_off_shows_none_off() -> None:
+    text = report.render(parity(MET), [], [])
+
+    assert "| queueing-lab | base | 20 | 20 | yes | none off | | | |" in text
 
 
 def test_the_worst_metric_is_named_with_its_numbers() -> None:
@@ -128,6 +219,11 @@ def test_a_metric_no_java_run_measured_is_shown_as_unmeasured() -> None:
 
 PYTHON_KNEES = report.PYTHON_KNEES
 JAVA_KNEES = report.JAVA_KNEES
+PYTHON_SPEED_COMMAND = "uv run python scripts/perf.py --label python-0.16.0 --repeats 5"
+JAVA_SPEED_COMMAND = (
+    "./gradlew :archsim-engine:speed -Parchsim.speed.out=benchmarks/perf/java-port.json "
+    "-Parchsim.speed.repeats=5"
+)
 
 
 def check(
@@ -267,6 +363,17 @@ def test_speed_page_says_how_many_runs_and_that_strictmath_is_included() -> None
     assert "the median of 3 runs on each engine" in text
     assert "include StrictMath's cost" in text
     assert "| queueing-lab | 24,154 | 1.50 s | 0.15 s | x10.0 | yes |" in text
+    assert (
+        f"- The speed: `{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`, one after the "
+        "other with nothing else running." in text
+    )
+
+
+def test_speed_measured_with_no_template_timed_says_so() -> None:
+    text = report.render(parity(MET), [], [])
+
+    assert "No template was timed." in text.split("## Speed")[1].split("\n## ")[0]
+    assert "- The speed:" not in text
 
 
 def test_speed_shows_a_template_java_did_not_time() -> None:
@@ -276,6 +383,17 @@ def test_speed_shows_a_template_java_did_not_time() -> None:
     assert "| queueing-lab | 24,154 | 1.50 s | not measured | not measured | no |" in report.render(
         parity(MET), [], rows
     )
+
+
+def test_speed_not_yet_measured_says_so_with_the_commands_that_measure_it() -> None:
+    text = report.render(parity(MET), [], None)
+
+    section = text.split("## Speed")[1].split("\n## ")[0]
+    assert "Not yet measured" in section
+    assert "a quiet machine" in section
+    assert f"`{PYTHON_SPEED_COMMAND}`, then `{JAVA_SPEED_COMMAND}`" in section
+    assert "not part of the bar" in section
+    assert "- The speed:" not in text
 
 
 def test_a_case_whose_runs_failed_otherwise_than_pythons_is_listed_in_its_own_words() -> None:
@@ -326,28 +444,50 @@ def test_check_passes_on_the_page_just_written_and_fails_once_it_changes(
     assert report.main(["--check"]) == 1
 
 
-def test_a_missing_input_is_named_with_the_command_that_writes_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_a_page_with_speed_not_yet_measured_is_written_and_passes_the_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _inputs(tmp_path, monkeypatch)
+    page = _inputs(tmp_path, monkeypatch)
+    monkeypatch.setattr(report, "PYTHON_SPEED", tmp_path / "python-0.16.0.json")
     monkeypatch.setattr(report, "JAVA_SPEED", tmp_path / "java-port.json")
 
+    assert report.main([]) == 0
+    assert report.main(["--check"]) == 0
+    assert "Not yet measured" in page.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("engine", "name", "command"),
+    [
+        ("PYTHON_SPEED", "python-0.16.0.json", PYTHON_SPEED_COMMAND),
+        ("JAVA_SPEED", "java-port.json", JAVA_SPEED_COMMAND),
+    ],
+)
+def test_one_engines_speed_without_the_others_is_named_with_the_command_that_writes_it(
+    engine: str,
+    name: str,
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _inputs(tmp_path, monkeypatch)
+    monkeypatch.setattr(report, engine, tmp_path / name)
+
     assert report.main([]) == 1
-    assert (
-        "java-port.json is missing: run ./gradlew :archsim-engine:speed" in capsys.readouterr().err
-    )
+    assert f"{name} is missing: run {command}" in capsys.readouterr().err
 
 
 def test_a_missing_knee_folder_is_named_with_the_command_that_writes_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _inputs(tmp_path, monkeypatch)
-    monkeypatch.setattr(report, "JAVA_KNEES", "0.16.0-java-absent")
+    shutil.rmtree(tmp_path / "dev" / JAVA_KNEES)
 
     assert report.main([]) == 1
     assert (
-        "0.16.0-java-absent is missing: run BENCH_ENGINE=java uv run python benchmarks/run.py "
-        "resimulate" in capsys.readouterr().err
+        "0.16.0-java is missing: run BENCH_ENGINE=java uv run python benchmarks/run.py resimulate"
+        in capsys.readouterr().err
     )
 
 
@@ -355,10 +495,10 @@ def test_the_frozen_engines_checks_are_named_with_the_labelled_run_that_writes_t
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _inputs(tmp_path, monkeypatch)
-    monkeypatch.setattr(report, "PYTHON_KNEES", "0.16.0-absent")
+    shutil.rmtree(tmp_path / "dev" / PYTHON_KNEES)
 
     assert report.main([]) == 1
     assert (
-        "0.16.0-absent is missing: run uv run python benchmarks/run.py resimulate --label "
-        "0.16.0-absent" in capsys.readouterr().err
+        "0.16.0-port is missing: run uv run python benchmarks/run.py resimulate --label "
+        "0.16.0-port" in capsys.readouterr().err
     )

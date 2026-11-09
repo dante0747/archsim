@@ -66,6 +66,9 @@ EVERY_JOB = {
         (["scripts/export_web_fixtures.py"], {"python", "engine_tests", "java"}),
         (["parity/golden/manifest.json"], {"python", "java", "e2e"}),
         (["docs/validation.md", "docs/validation/accuracy.json"], {"python", "benchmark_tests"}),
+        # stage 4's parity page and its runs: the page check in the Python job reads them, no
+        # benchmark test does
+        (["docs/validation/java-parity.md", "docs/validation/simulation-parity.json"], {"python"}),
         (["docs/assumptions.md"], {"python", "engine_tests"}),
         (
             [".github/actions/archsim-check/action.yml"],

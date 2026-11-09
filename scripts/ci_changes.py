@@ -112,6 +112,9 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # The documents the Python tests compare with what the scripts generate; no job reads the rest.
     ("docs/assumptions.md", ENGINE_TESTS),
     ("docs/validation.md", BENCHMARK_TESTS),
+    # stage 4's parity page and its runs, which the Python job's page check reads
+    ("docs/validation/java-parity.md", PYTHON),
+    ("docs/validation/simulation-parity.json", PYTHON),
     ("docs/validation/", BENCHMARK_TESTS),
     ("docs/", NONE),
     # For people and assistants only.
