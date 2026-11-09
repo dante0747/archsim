@@ -3,6 +3,8 @@ package io.archsim.app.worker;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.engine.simulation.SimulationLimits;
+import io.archsim.engine.simulator.RunRequest;
 import io.archsim.engine.simulator.SimulationMode;
 
 /**
@@ -21,5 +23,26 @@ import io.archsim.engine.simulator.SimulationMode;
  */
 record ClaimedRun(String id, JsonNode document, @Nullable String scenarioId, int attempts, @Nullable Long maxRequests,
 		@Nullable Double maxWallSeconds, long seed, SimulationMode mode) {
+
+	/**
+	 * The limits the run simulates under: the worker's, tightened by the run's own.
+	 * @param worker the worker's limits
+	 * @return the tighter of each
+	 */
+	SimulationLimits limits(SimulationLimits worker) {
+		return new SimulationLimits(
+				(this.maxRequests != null) ? Math.min(worker.maxRequests(), this.maxRequests) : worker.maxRequests(),
+				(this.maxWallSeconds != null) ? Math.min(worker.maxWallSeconds(), this.maxWallSeconds)
+						: worker.maxWallSeconds());
+	}
+
+	/**
+	 * What the simulator is asked: the run's scenario, seed and mode, under limits.
+	 * @param limits the limits it simulates under
+	 * @return the request
+	 */
+	RunRequest request(SimulationLimits limits) {
+		return RunRequest.of(this.scenarioId).withSeed(this.seed).withMode(this.mode).withLimits(limits);
+	}
 
 }

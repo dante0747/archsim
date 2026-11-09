@@ -6,9 +6,23 @@ package io.archsim.app.worker;
 enum Released {
 
 	/** Queued again, its attempt not counted. */
-	QUEUED,
+	QUEUED("queued"),
 
 	/** Cancelled, as someone had asked. */
-	CANCELLED
+	CANCELLED("cancelled");
+
+	private final String status;
+
+	Released(String status) {
+		this.status = status;
+	}
+
+	/**
+	 * The run's status now.
+	 * @return {@code queued} or {@code cancelled}
+	 */
+	String status() {
+		return this.status;
+	}
 
 }

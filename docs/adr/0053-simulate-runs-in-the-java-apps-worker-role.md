@@ -76,10 +76,12 @@ until the leases ran out.
   reap every 10 s; progress written at most once a second; an outcome written only by the
   worker that holds the lease, in the shapes the API reads today (the report, its summary, both
   digests, the wall time; the error shapes, crashes named by their Java type).
-- **A run that does not stop:** a cancel or a lost lease asks the simulator to stop; past the
-  hard deadline (the run's wall-clock limit and 30 s) the worker fails the run with today's
-  message, its observer keeps asking the run to stop, and its slot stays held until the thread
-  ends.
+- **A run that does not stop:** a cancel or a lost lease asks the simulator to stop; a
+  cancelled run that has not stopped once its grace is over (`ARCHSIM_CANCEL_GRACE_SECONDS`)
+  is written cancelled, as the Python worker's terminated process left it; past the hard
+  deadline (the run's wall-clock limit and 30 s) the worker fails the run with today's
+  message. Either way its observer keeps asking the run to stop, and its slot stays held until
+  the thread ends.
 - **Memory is sized per run.** Runs share the worker's heap, so its maximum is set
   deliberately, in compose and in the image's JVM flags, from the heap one run needs at most
   and `ARCHSIM_MAX_CONCURRENT_RUNS`; the rule is in the app's README. The JVM runs with

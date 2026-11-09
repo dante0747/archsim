@@ -8,6 +8,12 @@ import tools.jackson.databind.JsonNode;
 sealed interface RunOutcome {
 
 	/**
+	 * The run's status once this is written.
+	 * @return {@code succeeded}, {@code failed} or {@code cancelled}
+	 */
+	String status();
+
+	/**
 	 * The run simulated: its report, its summary for the lists, both digests and its
 	 * time.
 	 *
@@ -20,6 +26,11 @@ sealed interface RunOutcome {
 	record Succeeded(JsonNode report, JsonNode summary, String inputDigest, String resultDigest,
 			double wallSeconds) implements RunOutcome {
 
+		@Override
+		public String status() {
+			return "succeeded";
+		}
+
 	}
 
 	/**
@@ -29,12 +40,22 @@ sealed interface RunOutcome {
 	 */
 	record Failed(JsonNode error) implements RunOutcome {
 
+		@Override
+		public String status() {
+			return "failed";
+		}
+
 	}
 
 	/**
 	 * The run stopped because someone asked.
 	 */
 	record Cancelled() implements RunOutcome {
+
+		@Override
+		public String status() {
+			return "cancelled";
+		}
 
 	}
 

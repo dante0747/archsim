@@ -124,6 +124,32 @@ final class QueueFixture {
 	}
 
 	/**
+	 * Hands a running run to another worker, as a reap and a claim elsewhere would.
+	 * @param runId the run
+	 * @param workerId the worker that takes it
+	 */
+	void takeOver(String runId, String workerId) {
+		this.jdbc.sql("UPDATE simulation_runs SET lease_owner = :worker WHERE id = :id")
+			.param("worker", workerId)
+			.param("id", runId)
+			.update();
+	}
+
+	/**
+	 * A column of a run's row, as text.
+	 * @param runId the run
+	 * @param column the column
+	 * @return its value
+	 */
+	@Nullable String text(String runId, String column) {
+		return this.jdbc.sql("SELECT CAST(" + column + " AS text) FROM simulation_runs WHERE id = :id")
+			.param("id", runId)
+			.query(String.class)
+			.optional()
+			.orElse(null);
+	}
+
+	/**
 	 * Sets how many times a run was claimed.
 	 * @param runId the run
 	 * @param attempts its attempts
