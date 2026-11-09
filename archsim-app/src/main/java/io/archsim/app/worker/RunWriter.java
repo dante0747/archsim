@@ -1,6 +1,5 @@
 package io.archsim.app.worker;
 
-import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -9,32 +8,48 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.TransactionException;
 
 /**
- * Writes how a worker's runs ended, or gives them back, without losing a write to a brief
- * database outage: each write is tried three times, a second and then two apart, as the
- * Python worker did, and only while the worker holds the run.
+ * Writes a worker's runs: their progress, and how they ended or their giving back, the
+ * latter without losing a write to a brief database outage: tried three times, a second
+ * and then two apart, as the Python worker did. Every write needs the worker to hold the
+ * run.
  */
-final class OutcomeWriter {
+final class RunWriter {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(OutcomeWriter.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(RunWriter.class);
 
 	/** The tries a write gets. */
 	private static final int ATTEMPTS = 3;
 
 	private final LeaseRepository leases;
 
-	private final String workerId;
-
-	private final Clock clock;
+	private final WorkerContext context;
 
 	private final Pause pause;
 
-	OutcomeWriter(LeaseRepository leases, String workerId, Clock clock, Pause pause) {
+	RunWriter(LeaseRepository leases, WorkerContext context, Pause pause) {
 		this.leases = leases;
-		this.workerId = workerId;
-		this.clock = clock;
+		this.context = context;
 		this.pause = pause;
+	}
+
+	/**
+	 * Writes how far a run has got, if the worker holds it. A write the database misses
+	 * is left for the next.
+	 * @param runId the run
+	 * @param fraction how far it got
+	 * @return {@code false} when another worker holds the run now
+	 */
+	boolean progress(String runId, double fraction) {
+		try {
+			return this.leases.progress(runId, this.context.workerId(), fraction);
+		}
+		catch (DataAccessException ex) {
+			LOGGER.debug("could not record progress of run {}", runId, ex);
+			return true;
+		}
 	}
 
 	/**
@@ -44,7 +59,7 @@ final class OutcomeWriter {
 	 */
 	void finish(String runId, RunOutcome outcome) {
 		Boolean written = tried("recording run " + runId,
-				() -> this.leases.finish(runId, this.workerId, outcome, this.clock.instant()));
+				() -> this.leases.finish(runId, this.context.workerId(), outcome, this.context.clock().instant()));
 		if (Boolean.TRUE.equals(written)) {
 			LOGGER.info("run {}: {}", runId, outcome.status());
 		}
@@ -59,7 +74,7 @@ final class OutcomeWriter {
 	 */
 	void release(String runId) {
 		Optional<Released> released = tried("giving back run " + runId,
-				() -> this.leases.release(runId, this.workerId, this.clock.instant()));
+				() -> this.leases.release(runId, this.context.workerId(), this.context.clock().instant()));
 		LOGGER.info("run {}: given back ({})", runId,
 				(released != null) ? released.map(Released::status).orElse("no longer held") : "not known");
 	}
@@ -69,7 +84,7 @@ final class OutcomeWriter {
 			try {
 				return write.get();
 			}
-			catch (DataAccessException ex) {
+			catch (DataAccessException | TransactionException ex) {
 				LOGGER.warn("{} failed (attempt {} of {})", what, attempt, ATTEMPTS, ex);
 				if (attempt == ATTEMPTS) {
 					return null;

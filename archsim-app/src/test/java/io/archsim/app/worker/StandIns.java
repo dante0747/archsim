@@ -62,6 +62,20 @@ final class StandIns {
 	}
 
 	/**
+	 * A simulator that reports no progress and runs until it is asked to stop, or its
+	 * thread is interrupted: only the heartbeat can tell it another worker took its run.
+	 * @return the stand-in
+	 */
+	static RunSimulator quietUntilAskedToStop() {
+		return (document, request, observer) -> {
+			while (!observer.cancelRequested() && !Thread.currentThread().isInterrupted()) {
+				LockSupport.parkNanos(A_MOMENT);
+			}
+			throw new SimulationCancelledException();
+		};
+	}
+
+	/**
 	 * A simulator that does not stop when asked, only when released, then reports; or
 	 * when its thread is interrupted.
 	 * @param released counted down to let it end

@@ -33,27 +33,27 @@ class WorkerRepositoryTests {
 	void beat_newWorker_registersIt() {
 		WorkerIdentity worker = worker();
 
-		this.repository.beat(new Heartbeat(worker, 3, 0), START);
+		this.repository.beat(new Heartbeat(worker, 3, 0, false), START);
 
 		assertThat(row(worker)).isEqualTo(new WorkerRow("host-a", 4242, 3, 0, "running", START, START));
 	}
 
 	@Test
-	void beat_registeredWorker_renewsItsBeatAndCountsButKeepsItsStart() {
+	void beat_registeredWorker_renewsItsBeatCountsAndStatusButKeepsItsStart() {
 		WorkerIdentity worker = worker();
-		this.repository.beat(new Heartbeat(worker, 3, 0), START);
+		this.repository.beat(new Heartbeat(worker, 3, 0, false), START);
 
-		this.repository.beat(new Heartbeat(worker, 4, 2), LATER);
+		this.repository.beat(new Heartbeat(worker, 4, 2, true), LATER);
 
-		assertThat(row(worker)).isEqualTo(new WorkerRow("host-a", 4242, 4, 2, "running", START, LATER));
+		assertThat(row(worker)).isEqualTo(new WorkerRow("host-a", 4242, 4, 2, "draining", START, LATER));
 	}
 
 	@Test
 	void forget_registeredWorker_removesIt() {
 		WorkerIdentity worker = worker();
 		WorkerIdentity other = worker();
-		this.repository.beat(new Heartbeat(worker, 3, 0), START);
-		this.repository.beat(new Heartbeat(other, 3, 0), START);
+		this.repository.beat(new Heartbeat(worker, 3, 0, false), START);
+		this.repository.beat(new Heartbeat(other, 3, 0, false), START);
 
 		this.repository.forget(worker);
 
@@ -65,8 +65,8 @@ class WorkerRepositoryTests {
 	void forgetStale_aWorkerSilentForOverAnHour_isRemoved() {
 		WorkerIdentity silent = worker();
 		WorkerIdentity alive = worker();
-		this.repository.beat(new Heartbeat(silent, 1, 0), START);
-		this.repository.beat(new Heartbeat(alive, 1, 0), START.plus(Duration.ofMinutes(30)));
+		this.repository.beat(new Heartbeat(silent, 1, 0, false), START);
+		this.repository.beat(new Heartbeat(alive, 1, 0, false), START.plus(Duration.ofMinutes(30)));
 
 		this.repository.forgetStale(START.plus(Duration.ofMinutes(61)));
 

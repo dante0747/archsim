@@ -77,6 +77,27 @@ final class QueueFixture {
 	}
 
 	/**
+	 * Queues a run of a design, in a team workspace made the first time.
+	 * @param design the design, as JSON
+	 * @param seed the seed it simulates with
+	 * @param mode {@code full} or {@code sampled}
+	 * @return the run's id
+	 */
+	String queueDesign(String design, long seed, String mode) {
+		String run = queue("designs", 1).getFirst();
+		this.jdbc.sql("""
+				UPDATE simulation_runs SET input_document = CAST(:design AS jsonb), seed = :seed, mode = :mode,
+				    max_requests = NULL, max_wall_seconds = NULL
+				WHERE id = :id""")
+			.param("design", design)
+			.param("seed", seed)
+			.param("mode", mode)
+			.param("id", run)
+			.update();
+		return run;
+	}
+
+	/**
 	 * Gives a workspace a cap of its own on runs at once.
 	 * @param workspace the workspace
 	 * @param maxConcurrentRuns its cap

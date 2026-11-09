@@ -48,6 +48,22 @@ record WorkerProperties(@DefaultValue("30") @DecimalMin("1") @DecimalMax("3600")
 	}
 
 	/**
+	 * How long a cancelled run may take to stop before it is written cancelled.
+	 * @return the grace
+	 */
+	Duration cancelGrace() {
+		return seconds(this.cancelGraceSeconds);
+	}
+
+	/**
+	 * How often the worker looks for leases that ran out.
+	 * @return the time between two reaps
+	 */
+	Duration reapPeriod() {
+		return seconds(this.reapSeconds);
+	}
+
+	/**
 	 * How often the worker beats.
 	 * @return the time between two beats
 	 */

@@ -18,7 +18,9 @@ import io.archsim.model.pricing.PriceSnapshots;
 /**
  * Simulates a design and writes its report, as the Python engine's {@code run_simulation}
  * did: the run prepared (resolved, sized, validated), simulated, and its report written;
- * or, for a quick check, answered from a steady sample when it can be.
+ * or, for a quick check, answered from a steady sample when it can be. It keeps nothing
+ * between runs, so one simulator is safe to share between threads, each simulating a run
+ * of its own.
  */
 public final class Simulator {
 

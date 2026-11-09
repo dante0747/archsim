@@ -27,8 +27,9 @@ to the latest schema and exits; `worker` takes the runs the API queues
 ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)), without the web
 layer, until it is stopped. The worker never migrates: it starts only on a database at its own
 build's schema, and otherwise says which version the database is at and to start the API first.
-It is being built in stage 4: today it registers and beats in `job_workers` and claims no runs,
-so `archsim-api worker` still simulates them. The rest of the command line is Spring Boot's
+It is being built in stage 4: it claims and simulates runs on the Java simulator as the Python
+worker does, but compose, the black-box suite and the end-to-end launcher still start
+`archsim-api worker` until the cut-over. The rest of the command line is Spring Boot's
 (`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
 address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
 [SECURITY.md](../SECURITY.md) first.
@@ -86,7 +87,7 @@ ways.
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
-| `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it: `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`); an `Execution`, one claimed run simulated by a `RunSimulator` on a platform thread of the worker's (`RunParts`), observed for its progress and asked to stop, its hard deadline and cancel grace on `RunTimers`, its outcome shaped by `RunOutcomes` and written by an `OutcomeWriter` that tries three times |
+| `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it: `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`); an `Execution`, one claimed run simulated by a `RunSimulator` on a platform thread of the worker's (`RunParts`), observed for its progress and asked to stop, its hard deadline and cancel grace on `RunTimers`, its outcome shaped by `RunOutcomes` and written by a `RunWriter` that tries three times; and the worker at work: `Worker` starts and stops it, a `ClaimLoop` claims runs into its `Executions` on `WorkerThreads` while its `Heart` renews their leases, passes on cancels, beats and reaps, all wired in `WorkerConfiguration` with the Java `Simulator` as its `RunSimulator` and a `WorkerContext` |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
 | `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)), which simulates a calibration's replay ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)) |
@@ -188,6 +189,9 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - With the hosted limits on, the Java worker gives a workspace of a kind it does not know the
   personal cap of runs at once (2), as the API's admission does; the Python worker gave it no
   cap.
+- The Java worker does not prune the rate-limit counters (`rate_limits`), which the Python
+  worker's reaper did: until the cut-over moves that to the API, a deployment whose workers are
+  all Java keeps the counters of windows that ended.
 - There is no `--reload`, which `archsim-api serve` had: rebuild the jar, or run the API from an
   IDE.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote

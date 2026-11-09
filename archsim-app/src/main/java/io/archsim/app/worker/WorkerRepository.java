@@ -36,14 +36,15 @@ class WorkerRepository {
 		WorkerIdentity worker = heartbeat.worker();
 		this.jdbc.sql("""
 				INSERT INTO job_workers (id, hostname, pid, slots, running, status, started_at, heartbeat_at)
-				VALUES (:id, :hostname, :pid, :slots, :running, 'running', :now, :now)
+				VALUES (:id, :hostname, :pid, :slots, :running, :status, :now, :now)
 				ON CONFLICT (id) DO UPDATE
-				SET heartbeat_at = :now, running = :running, slots = :slots, status = 'running'""")
+				SET heartbeat_at = :now, running = :running, slots = :slots, status = :status""")
 			.param("id", worker.id())
 			.param("hostname", worker.hostname())
 			.param("pid", worker.pid())
 			.param("slots", heartbeat.slots())
 			.param("running", heartbeat.running())
+			.param("status", heartbeat.status())
 			.param("now", Timestamp.from(now))
 			.update();
 	}

@@ -6,9 +6,13 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.transaction.CannotCreateTransactionException;
+
+import io.archsim.engine.simulation.SimulationLimits;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -20,10 +24,11 @@ import static org.mockito.BDDMockito.times;
 import static org.mockito.Mockito.mock;
 
 /**
- * An outcome written through a brief database outage, as the Python worker wrote it:
- * tried three times, a second and then two apart, and given up after the third.
+ * A run's writes through a brief database outage, as the Python worker wrote them: an
+ * outcome tried three times, a second and then two apart, and given up after the third;
+ * progress left for the next write.
  */
-class OutcomeWriterTests {
+class RunWriterTests {
 
 	private static final Instant NOW = Instant.parse("2026-11-09T12:00:00Z");
 
@@ -33,8 +38,8 @@ class OutcomeWriterTests {
 
 	private final List<Duration> pauses = new ArrayList<>();
 
-	private final OutcomeWriter writer = new OutcomeWriter(this.leases, "a", Clock.fixed(NOW, ZoneOffset.UTC),
-			this.pauses::add);
+	private final RunWriter writer = new RunWriter(this.leases, new WorkerContext(new WorkerIdentity("a", "host-a", 1),
+			1, SimulationLimits.DEFAULT, QueueParts.SETTINGS, Clock.fixed(NOW, ZoneOffset.UTC)), this.pauses::add);
 
 	@Test
 	void finish_aDatabaseThatFailsTwice_isTriedASecondThenTwoLater() {
@@ -54,6 +59,30 @@ class OutcomeWriterTests {
 
 		assertThatNoException().isThrownBy(() -> this.writer.finish("r", CANCELLED));
 		then(this.leases).should(times(3)).finish(eq("r"), eq("a"), any(), any());
+	}
+
+	@Test
+	void progress_aRunAnotherWorkerHolds_isRefused() {
+		given(this.leases.progress("r", "a", 0.5)).willReturn(false);
+
+		assertThat(this.writer.progress("r", 0.5)).isFalse();
+	}
+
+	@Test
+	void progress_aDatabaseThatFails_isLeftForTheNextWrite() {
+		given(this.leases.progress("r", "a", 0.5)).willThrow(new DataAccessResourceFailureException("down"));
+
+		assertThat(this.writer.progress("r", 0.5)).isTrue();
+	}
+
+	@Test
+	void release_aDatabaseWithoutConnections_isTriedAgain() {
+		given(this.leases.release("r", "a", NOW)).willThrow(new CannotCreateTransactionException("no connection"))
+			.willReturn(Optional.of(Released.QUEUED));
+
+		this.writer.release("r");
+
+		then(this.leases).should(times(2)).release("r", "a", NOW);
 	}
 
 }

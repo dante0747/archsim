@@ -4,8 +4,8 @@ import java.util.Objects;
 import java.util.stream.StreamSupport;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.run.SimulationLimitException;
@@ -29,11 +29,7 @@ final class RunOutcomes {
 
 	private static final String MESSAGE = "message";
 
-	private final JsonMapper json;
-
-	RunOutcomes(JsonMapper json) {
-		this.json = json;
-	}
+	private final JsonNodeFactory json = JsonNodeFactory.instance;
 
 	/**
 	 * A run that simulated: its report, the summary the run lists show, its digests and
@@ -73,19 +69,19 @@ final class RunOutcomes {
 	}
 
 	private RunOutcome invalid(DocumentInvalidException invalid) {
-		ObjectNode error = this.json.createObjectNode().put(MESSAGE, invalid.getMessage());
+		ObjectNode error = this.json.objectNode().put(MESSAGE, invalid.getMessage());
 		ArrayNode issues = error.putArray("issues");
 		invalid.issues().stream().map(Issue::toJson).forEach(issues::add);
 		return new RunOutcome.Failed(error);
 	}
 
 	private RunOutcome error(String message) {
-		return new RunOutcome.Failed(this.json.createObjectNode().put(MESSAGE, message));
+		return new RunOutcome.Failed(this.json.objectNode().put(MESSAGE, message));
 	}
 
 	// the figures the run lists show, and the first bottleneck the run found
 	private ObjectNode summary(JsonNode report) {
-		ObjectNode summary = this.json.createObjectNode();
+		ObjectNode summary = this.json.objectNode();
 		JsonNode figures = report.path("summary");
 		for (String figure : FIGURES) {
 			summary.set(figure, figures.get(figure));

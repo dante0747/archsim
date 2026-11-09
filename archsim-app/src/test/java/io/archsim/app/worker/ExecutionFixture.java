@@ -76,11 +76,13 @@ final class ExecutionFixture implements AutoCloseable {
 	 * @return the execution, not started
 	 */
 	Execution execution(ClaimedRun run, RunSimulator simulator, Duration deadlineMargin, LongSupplier time) {
-		LeaseRepository leases = QueueParts.leases(this.queue);
-		OutcomeWriter writer = new OutcomeWriter(leases, "a", Clock.fixed(NOW, ZoneOffset.UTC), (duration) -> {
+		WorkerContext context = new WorkerContext(new WorkerIdentity("a", "host-a", 1), 3, SimulationLimits.DEFAULT,
+				new WorkerProperties(30.0, 2.0, 10.0, this.grace.toMillis() / 1000.0),
+				Clock.fixed(NOW, ZoneOffset.UTC));
+		RunWriter writer = new RunWriter(QueueParts.leases(this.queue), context, (duration) -> {
 		});
-		return new Execution(run, new RunParts(simulator, leases, writer, new RunOutcomes(QueueParts.JSON), "a",
-				SimulationLimits.DEFAULT, deadlineMargin, this.grace, time, this.runs, this.timers));
+		return new Execution(run, new RunParts(simulator, writer, new RunOutcomes(), context, deadlineMargin, time,
+				this.runs, this.timers));
 	}
 
 	@Override

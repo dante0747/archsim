@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.engine.simulation.SimulationLimits;
@@ -59,7 +58,7 @@ final class Execution implements RunObserver {
 	Execution(ClaimedRun run, RunParts parts) {
 		this.run = run;
 		this.parts = parts;
-		this.limits = run.limits(parts.limits());
+		this.limits = run.limits(parts.context().limits());
 		this.timers = new RunTimers(parts.timers());
 		this.lastProgress = new AtomicLong(parts.nanos().getAsLong() - PROGRESS_EVERY);
 	}
@@ -74,7 +73,7 @@ final class Execution implements RunObserver {
 	 * free
 	 */
 	CompletableFuture<Void> start() {
-		LOGGER.info("run {}: attempt {} on worker {}", id(), this.run.attempts(), this.parts.workerId());
+		LOGGER.info("run {}: attempt {} on worker {}", id(), this.run.attempts(), this.parts.context().workerId());
 		Duration deadline = Duration.ofNanos((long) (this.limits.maxWallSeconds() * NANOS_PER_SECOND))
 			.plus(this.parts.deadlineMargin());
 		this.timers.after(deadline, this::overrun);
@@ -93,7 +92,7 @@ final class Execution implements RunObserver {
 	 */
 	void requestCancel() {
 		if (this.cancel.compareAndSet(false, true)) {
-			this.timers.after(this.parts.cancelGrace(), () -> settle(new RunOutcome.Cancelled()));
+			this.timers.after(this.parts.context().timings().cancelGrace(), () -> settle(new RunOutcome.Cancelled()));
 		}
 	}
 
@@ -112,13 +111,8 @@ final class Execution implements RunObserver {
 			return;
 		}
 		this.lastProgress.set(now);
-		try {
-			if (!this.parts.leases().progress(id(), this.parts.workerId(), fraction)) {
-				abandon(Abandoned.LOST);
-			}
-		}
-		catch (DataAccessException ex) {
-			LOGGER.debug("could not record progress of run {}", id(), ex);
+		if (!this.parts.writer().progress(id(), fraction)) {
+			abandon(Abandoned.LOST);
 		}
 	}
 
