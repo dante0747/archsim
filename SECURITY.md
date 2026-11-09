@@ -110,10 +110,10 @@ server at `https://<host>/api/v1`.
   ([ADR-0046](docs/adr/0046-call-prometheus-with-apache-httpclient-5.md)): no redirects,
   retries, proxies, cookies, decompression or reused connections, one deadline from connecting
   to the answer's last byte, and caps on the answer's size, the length of a header line and the
-  number of headers. A calibration's replay is simulated by the internal engine service, within
-  the replay's limits; the service calls nothing, but it checks no caller, so only the API may
-  reach it: Compose gives it an internal network, with no route to the outside, that it shares
-  with the API alone.
+  number of headers. A calibration's replay is simulated in the API's process, within the
+  replay's limits, on threads of its own so that replays cannot hold up the API's other requests
+  ([ADR-0054](docs/adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)); the
+  simulation calls nothing.
 - **Client addresses.** The web server sends the visitor's address as `X-ArchSim-Client-IP`,
   taken from `X-Forwarded-For` at the depth `ARCHSIM_TRUSTED_HOPS` says (1 behind one reverse
   proxy; 0 sends nothing, since the header would be the client's own word). The API believes it

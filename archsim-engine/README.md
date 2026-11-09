@@ -18,9 +18,8 @@ designs `scripts/export_simulation_cases.py` records and the golden files' 50 te
 report repeats itself on every platform: every transcendental function goes through `StrictMath`,
 which an ArchUnit rule checks, and the digests keep the Python engine's definitions
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
-Until it is complete, runs are simulated by the Python workers and a calibration's replay goes
-through `ReplaySimulator` to the engine service's one remaining call, `/simulate`
-([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)).
+The app simulates on it: a calibration's replay, through `ReplaySimulator.of`, and the runs its
+worker role claims ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
 
 ## Packages
 
@@ -338,6 +337,10 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   base design and one scenario, its time axis compressed (`runs/<key>`: `document`,
   `scenarioId`, `report`), simulated in Java and compared whole with the frozen engine's report,
   digests included.
+- `CalibrationReplaysTests` runs the golden files' three calibrations that replay their result
+  with each replay simulated in Java (`ReplaySimulator.of`, as the app replays it) in place of
+  the report the frozen engine recorded: each replay gives that report, and the calibration its
+  recorded outcome.
 - `./gradlew :archsim-engine:parity` runs `SimulationParityTests` (tagged `parity`, left out of
   `test`): every template case of the frozen engine's simulation baselines (149 cases, 20 seeds
   each; `parity/simulation/` once recorded), simulated in Java and judged by the port plan's bar

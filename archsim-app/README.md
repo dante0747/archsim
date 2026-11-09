@@ -4,17 +4,16 @@ ArchSim's HTTP API on Spring Boot 4: stage 2 of the [Java port](../docs/proposal
 which replaced the FastAPI API in `services/api` endpoint for endpoint. It serves the same JSON,
 cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI and the
 [black-box suite](../archsim-api-tests/README.md) work against it unchanged, and a database the
-Python API used carries on as it is. Simulations stay in Python until stage 4: runs go to the
-Python workers through the shared queue. The engine's synchronous calls run in Java
-([archsim-engine](../archsim-engine/README.md)), calibration included; until stage 4, the
-simulation a calibration replays goes to a small internal Python engine service,
-`services/engine-service` ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)).
+Python API used carries on as it is. The engine runs in Java
+([archsim-engine](../archsim-engine/README.md)): every synchronous call, calibration included,
+and since stage 4 the simulation a calibration replays, which runs on the Java simulator in the
+API's process ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). Runs
+go to the workers through the shared queue (the worker role, below).
 
 ## Running it
 
 ```bash
 ./gradlew :archsim-app:bootJar
-uv run archsim-engine-service --port 8001       # the replays of calibrations (ADR-0045)
 uv run archsim-api worker                       # simulates the runs the API queues (Python, until stage 4)
 java -jar archsim-app/build/libs/archsim-app.jar api --server.port=8000
 java -jar archsim-app/build/libs/archsim-app.jar migrate
@@ -43,9 +42,7 @@ next to the engine service and a Python worker, and publishes the API on `127.0.
 Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 ([ADR-0035](../docs/adr/0035-read-the-python-apis-settings-unchanged.md)): `ARCHSIM_DATABASE_URL`
 may be a SQLAlchemy URL (`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`, the
-default) or a JDBC one. Two settings are the Java API's own: `ARCHSIM_ENGINE_URL`, where the
-engine service listens (default `http://127.0.0.1:8001`), and `ARCHSIM_ENGINE_TIMEOUT`, how many
-seconds an engine call may take (default 120). The worker reads the Python worker's timings,
+default) or a JDBC one. The worker reads the Python worker's timings,
 `ARCHSIM_LEASE_SECONDS` (30), `ARCHSIM_HEARTBEAT_SECONDS` (2, at most half the lease),
 `ARCHSIM_REAP_SECONDS` (10) and `ARCHSIM_CANCEL_GRACE_SECONDS` (10), and takes
 `ARCHSIM_MAX_CONCURRENT_RUNS` runs at once (the cores less one). The OpenAPI document is at
@@ -69,7 +66,7 @@ ways.
 | Package | What |
 | --- | --- |
 | `io.archsim.app` | `ArchsimApplication` and its `Role`s |
-| `config` | `ArchsimProperties` (the `ARCHSIM_*` settings), the database URL and connection pool, the model's registry and price snapshots |
+| `config` | `ArchsimProperties` (the `ARCHSIM_*` settings), the database URL and connection pool, the model's registry and price snapshots, and the `Simulator` the whole application shares |
 | `migration` | Flyway's takeover from Alembic; the worker's check that the database is at its build's schema |
 | `web` | the HTTP contract every endpoint shares: `/api/v1`, error bodies, request bodies read by the model's codec, security headers, CORS, body-size limits ([ADR-0034](../docs/adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md)) |
 | `meta` | `GET /health`, `GET /meta` |
@@ -83,14 +80,13 @@ ways.
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
 | `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
 | `conversion` | `POST /export`: a design as docker-compose, Kubernetes manifests or a Mermaid diagram (archsim-engine's `DesignExporter`); `POST /import`: a design from docker-compose, Kubernetes manifests or a Terraform plan (archsim-engine's `DesignImporter`) |
-| `calibration` | `POST /calibrate`: archsim-engine's Prometheus and OpenTelemetry calibrations, whose replay the engine service simulates; `HttpPrometheus`, the Prometheus client, under the workspace's outbound policy: one lookup per query, the connection pinned to the address checked, public addresses only on a hosted server, one deadline and a size cap ([ADR-0046](../docs/adr/0046-call-prometheus-with-apache-httpclient-5.md)) |
+| `calibration` | `POST /calibrate`: archsim-engine's Prometheus and OpenTelemetry calibrations, whose replay the Java simulator runs in-process on `ReplayPool`'s platform threads, the cores less one ([ADR-0054](../docs/adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)); `HttpPrometheus`, the Prometheus client, under the workspace's outbound policy: one lookup per query, the connection pinned to the address checked, public addresses only on a hosted server, one deadline and a size cap ([ADR-0046](../docs/adr/0046-call-prometheus-with-apache-httpclient-5.md)) |
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
 | `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it: `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`); an `Execution`, one claimed run simulated by a `RunSimulator` on a platform thread of the worker's (`RunParts`), observed for its progress and asked to stop, its hard deadline and cancel grace on `RunTimers`, its outcome shaped by `RunOutcomes` and written by a `RunWriter` that tries three times; and the worker at work: `Worker` starts and stops it, a `ClaimLoop` claims runs into its `Executions` on `WorkerThreads` while its `Heart` renews their leases, passes on cancels, beats and reaps, all wired in `WorkerConfiguration` with the Java `Simulator` as its `RunSimulator` and a `WorkerContext` |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
-| `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)), which simulates a calibration's replay ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)) |
 
 ## Endpoints ported
 
@@ -104,8 +100,8 @@ ways.
 | 6 | compose runs the Java API; FastAPI deleted | done |
 
 Stage 3 then moved every call these endpoints made to the engine service into
-[archsim-engine](../archsim-engine/README.md), analyze and validate included; the service now
-only simulates a calibration's replay.
+[archsim-engine](../archsim-engine/README.md), analyze and validate included, and stage 4 the
+last, a calibration's replay: the API no longer calls the service.
 
 ## Tests
 
@@ -148,11 +144,6 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   wrote `1793690103.358`. Each API reads the other's.
 - An OAuth provider whose profile names no account id (`"id": null`) fails the sign-in
   (`/signin?error=provider`); Python stored the account under the subject `None`.
-- A calibration's replay goes to the engine service at `ARCHSIM_ENGINE_URL`; when it cannot be
-  reached, or takes over `ARCHSIM_ENGINE_TIMEOUT` seconds, `POST /calibrate` answers `503`, saying
-  why. The Python API simulated in-process, with no time limit. A call whose connection drops
-  before an answer (uvicorn closes one idle for 5 s, and the client may reuse it just then) is sent
-  once more: the call is a stateless POST.
 - `POST /calibrate` answers in Java what the Python API answered, numbers spelled as Java writes
   them, with these departures:
   - its refusals never repeat what a request sent, where Python's did: a port that is not one

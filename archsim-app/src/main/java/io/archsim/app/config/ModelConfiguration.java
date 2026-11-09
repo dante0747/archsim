@@ -8,6 +8,7 @@ import io.archsim.engine.export.DesignExporter;
 import io.archsim.engine.imports.DesignImporter;
 import io.archsim.engine.run.RunPreparer;
 import io.archsim.engine.scenario.ScenarioResolver;
+import io.archsim.engine.simulator.Simulator;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.pricing.PriceSnapshots;
@@ -16,7 +17,8 @@ import io.archsim.model.validation.DocumentValidator;
 /**
  * The design model and the engine the API works with: ArchSim's component types, the
  * price snapshots it ships plus those of {@code ARCHSIM_PRICES_DIR}, and what checks and
- * resolves, analyzes, prepares and exports designs with them.
+ * resolves, analyzes, prepares, simulates and exports designs with them. One simulator
+ * serves the whole application: the worker's runs and a calibration's replay.
  */
 @Configuration(proxyBeanMethods = false)
 class ModelConfiguration {
@@ -59,6 +61,11 @@ class ModelConfiguration {
 	@Bean
 	RunPreparer runPreparer(ComponentRegistry registry, PriceSnapshots prices) {
 		return new RunPreparer(registry, prices);
+	}
+
+	@Bean
+	Simulator simulator(ComponentRegistry registry, PriceSnapshots prices) {
+		return new Simulator(registry, prices);
 	}
 
 }

@@ -20,7 +20,6 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.app.database.TestDatabases;
-import io.archsim.app.engine.EngineService;
 import io.archsim.engine.run.QuickCheck;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,10 +28,9 @@ import static org.mockito.BDDMockito.willAnswer;
 
 /**
  * What the runs' tests share: the whole application on one real PostgreSQL, as the local
- * user without sign-in, with the engine service and the run preparation stood in for (a
- * run is prepared as the test says). Nothing simulates the runs: they stay queued unless
- * a test says otherwise. Each test uses projects of its own, so the tests share the
- * context and the database.
+ * user without sign-in, with the run preparation stood in for (a run is prepared as the
+ * test says). Nothing simulates the runs: they stay queued unless a test says otherwise.
+ * Each test uses projects of its own, so the tests share the context and the database.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -54,9 +52,6 @@ abstract class RunTestSupport {
 	private JdbcClient jdbc;
 
 	@MockitoBean
-	private EngineService engine;
-
-	@MockitoBean
 	private RunPreparation preparation;
 
 	@DynamicPropertySource
@@ -70,10 +65,6 @@ abstract class RunTestSupport {
 
 	JdbcClient jdbc() {
 		return this.jdbc;
-	}
-
-	EngineService engine() {
-		return this.engine;
 	}
 
 	RunPreparation preparation() {

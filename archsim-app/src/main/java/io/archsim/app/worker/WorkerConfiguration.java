@@ -11,13 +11,11 @@ import org.springframework.context.annotation.Profile;
 import io.archsim.app.config.ArchsimProperties;
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.engine.simulator.Simulator;
-import io.archsim.model.component.ComponentRegistry;
-import io.archsim.model.pricing.PriceSnapshots;
 
 /**
  * The worker role's parts, made only when the role starts, so the API never reads or
- * refuses its settings: who the worker is, the Java simulator its runs simulate on, and
- * what every run shares.
+ * refuses its settings: who the worker is, the application's Java simulator its runs
+ * simulate on, and what every run shares.
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("worker")
@@ -36,8 +34,8 @@ class WorkerConfiguration {
 	}
 
 	@Bean
-	RunSimulator runSimulator(ComponentRegistry registry, PriceSnapshots prices) {
-		return new Simulator(registry, prices)::run;
+	RunSimulator runSimulator(Simulator simulator) {
+		return simulator::run;
 	}
 
 	@Bean

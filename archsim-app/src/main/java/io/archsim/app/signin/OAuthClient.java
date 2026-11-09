@@ -46,9 +46,9 @@ class OAuthClient implements DisposableBean {
 	private final RestClient rest;
 
 	OAuthClient() {
-		// HTTP/1.1, as the engine service's client: a plain-HTTP provider (GitHub
-		// Enterprise inside a network, the black-box suite's stand-in) would otherwise be
-		// asked to upgrade to HTTP/2 first, and three small requests gain nothing from it
+		// HTTP/1.1: a plain-HTTP provider (GitHub Enterprise inside a network, the
+		// black-box suite's stand-in) would otherwise be asked to upgrade to HTTP/2
+		// first, and three small requests gain nothing from it
 		this.http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(TIMEOUT).build();
 		JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(this.http);
 		requests.setReadTimeout(TIMEOUT);

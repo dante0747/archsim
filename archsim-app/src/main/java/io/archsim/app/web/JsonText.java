@@ -4,7 +4,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 /**
- * JSON written elsewhere, such as by the Python engine service, sent to the client as it
+ * JSON written elsewhere, by the engine or into the database, sent to the client as it
  * is: reading and writing it again would respell numbers such as {@code 1e-05}.
  *
  * @param json the JSON text

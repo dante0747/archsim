@@ -5,7 +5,6 @@ import java.util.function.Supplier;
 
 import org.springframework.http.HttpStatus;
 
-import io.archsim.app.engine.EngineRefusalException;
 import io.archsim.app.web.ApiException;
 import io.archsim.engine.calibration.CalibrationOutcome;
 import io.archsim.engine.calibration.mapping.MappingException;
@@ -44,9 +43,6 @@ final class CalibrationRefusals {
 		}
 		catch (DocumentInvalidException ex) {
 			throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, NOT_CALIBRATED, ex.issues());
-		}
-		catch (EngineRefusalException ex) {
-			throw ex.answer(NOT_CALIBRATED);
 		}
 		catch (SimulationLimitException ex) {
 			throw unreadable("Cannot calibrate: the replay run hit a limit (" + ex.getMessage()

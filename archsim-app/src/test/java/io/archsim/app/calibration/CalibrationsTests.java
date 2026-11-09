@@ -18,13 +18,13 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.apitests.Examples;
-import io.archsim.app.engine.EngineRefusalException;
-import io.archsim.app.engine.EngineService;
 import io.archsim.app.limits.RateLimit;
 import io.archsim.app.support.HostedTestSupport;
 import io.archsim.app.support.UsedUpLimits;
+import io.archsim.engine.calibration.ReplaySimulator;
 import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.engine.simulation.SimulationLimits;
+import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,8 +35,8 @@ import static org.mockito.BDDMockito.then;
 
 /**
  * Calibrations on a hosted server, in Java: who may run them, how many an hour, the
- * replay the engine service simulates within the workspace's limits, and every refusal in
- * the words the Python API answered. Rate limits are on.
+ * replay the simulator runs within the workspace's limits (stood in for here), and every
+ * refusal in the words the Python API answered. Rate limits are on.
  */
 @TestPropertySource(properties = { "archsim.rate-limits=true", "archsim.prometheus-allowed-hosts=prom:9090" })
 class CalibrationsTests extends HostedTestSupport {
@@ -64,7 +64,7 @@ class CalibrationsTests extends HostedTestSupport {
 	private static final String MAPPING = Examples.text(Examples.engineFixture("calibration/starter-mapping.yaml"));
 
 	@MockitoBean
-	private EngineService engine;
+	private ReplaySimulator replay;
 
 	@Test
 	void calibrate_byViewer_isForbidden() {
@@ -73,7 +73,7 @@ class CalibrationsTests extends HostedTestSupport {
 		member(ada.workspaceId(), viv.userId(), "viewer");
 
 		assertThat(calibrate(viv, ada.workspaceId(), otlp(NO_SPANS))).hasStatus(403);
-		then(this.engine).shouldHaveNoInteractions();
+		then(this.replay).shouldHaveNoInteractions();
 	}
 
 	@Test
@@ -116,13 +116,13 @@ class CalibrationsTests extends HostedTestSupport {
 		assertThat(answer.path("changes")).isEmpty();
 		assertThat(answer.path("calibration").isNull()).isTrue();
 		assertThat(answer.path("summary").isNull()).isTrue();
-		then(this.engine).shouldHaveNoInteractions();
+		then(this.replay).shouldHaveNoInteractions();
 	}
 
 	@Test
-	void calibrate_replay_isSimulatedByTheEngineServiceWithinTheWorkspacesLimits() {
+	void calibrate_replay_isSimulatedWithinTheWorkspacesLimits() {
 		SignedIn ada = signedIn("Ada");
-		given(this.engine.simulate(any(), any()))
+		given(this.replay.simulate(any(), any()))
 			.willReturn(JSON.readTree("{\"nodes\": [], \"provenance\": {\"resultDigest\": \"d\"}}"));
 
 		MvcTestResult result = calibrate(ada, ada.workspaceId(), otlp(TRACES));
@@ -132,7 +132,7 @@ class CalibrationsTests extends HostedTestSupport {
 		assertThat(answer.path("notes").get(0).asString())
 			.isEqualTo("service 'checkout' (3 spans) matches no service part: map it in the mapping's 'services'");
 		assertThat(answer.path("document").path("calibration").path("replayDigest").asString()).isEqualTo("d");
-		then(this.engine).should().simulate(any(), eq(new SimulationLimits(2_000_000, 20.0)));
+		then(this.replay).should().simulate(any(), eq(new SimulationLimits(2_000_000, 20.0)));
 	}
 
 	@Test
@@ -148,13 +148,13 @@ class CalibrationsTests extends HostedTestSupport {
 		assertThat(answer.path("notes").toString()).contains("the recording covers");
 		assertThat(answer.path("document").path("provenance").path("nodes/api/serviceTimeMs").path("kind").asString())
 			.isEqualTo("measured");
-		then(this.engine).shouldHaveNoInteractions();
+		then(this.replay).shouldHaveNoInteractions();
 	}
 
 	@Test
 	void calibrate_replayOverItsLimits_isRefusedSayingWhatToChange() {
 		SignedIn ada = signedIn("Ada");
-		given(this.engine.simulate(any(), any()))
+		given(this.replay.simulate(any(), any()))
 			.willThrow(new SimulationLimitException("the run would generate 2,400,000 requests (limit 2,000,000)"));
 
 		assertThat(calibrate(ada, ada.workspaceId(), otlp(TRACES))).hasStatus(422)
@@ -181,10 +181,10 @@ class CalibrationsTests extends HostedTestSupport {
 	}
 
 	@Test
-	void calibrate_replayTheEngineServiceCannotRead_isRefusedWithItsIssues() {
+	void calibrate_replayTheSimulatorCannotRead_isRefusedWithItsIssues() {
 		SignedIn ada = signedIn("Ada");
-		given(this.engine.simulate(any(), any()))
-			.willThrow(EngineRefusalException.invalidDesign("x", List.of(Issue.error("document.schema", "bad"))));
+		given(this.replay.simulate(any(), any()))
+			.willThrow(new DocumentInvalidException(List.of(Issue.error("document.schema", "bad"))));
 
 		MvcTestResult result = calibrate(ada, ada.workspaceId(), otlp(TRACES));
 
@@ -204,7 +204,7 @@ class CalibrationsTests extends HostedTestSupport {
 			.bodyJson()
 			.extractingPath("$.detail.message")
 			.isEqualTo(message);
-		then(this.engine).shouldHaveNoInteractions();
+		then(this.replay).shouldHaveNoInteractions();
 	}
 
 	static Stream<Arguments> unusable() {

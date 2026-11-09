@@ -8,12 +8,12 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.app.engine.EngineService;
 import io.archsim.app.web.ApiException;
 import io.archsim.app.web.JsonText;
 import io.archsim.engine.calibration.CalibrationOutcome;
 import io.archsim.engine.calibration.OtlpCalibration;
 import io.archsim.engine.calibration.OtlpRequest;
+import io.archsim.engine.calibration.ReplaySimulator;
 import io.archsim.engine.calibration.ReplaySummary;
 import io.archsim.engine.calibration.otlp.OtlpMappings;
 import io.archsim.engine.simulation.SimulationLimits;
@@ -21,8 +21,9 @@ import io.archsim.model.component.ComponentRegistry;
 
 /**
  * Runs a calibration request as the Python API ran it: the engine's calibration from
- * Prometheus or from OpenTelemetry traces, whose replay the engine service simulates
- * (ADR-0045). What it cannot use is refused with {@code 422} in the Python API's words.
+ * Prometheus or from OpenTelemetry traces, whose replay the Java simulator runs in the
+ * API's process (ADR-0053), on a thread of the replay pool (ADR-0054). What it cannot use
+ * is refused with {@code 422} in the Python API's words.
  */
 @Component
 class Calibrator {
@@ -33,9 +34,9 @@ class Calibrator {
 
 	private final JsonMapper json;
 
-	Calibrator(ComponentRegistry registry, EngineService engine, Clock clock, JsonMapper json) {
-		this.prometheus = new PrometheusCalibrations(registry, engine, clock);
-		this.otlp = new OtlpCalibration(engine, clock);
+	Calibrator(ComponentRegistry registry, ReplaySimulator replay, Clock clock, JsonMapper json) {
+		this.prometheus = new PrometheusCalibrations(registry, replay, clock);
+		this.otlp = new OtlpCalibration(replay, clock);
 		this.json = json;
 	}
 

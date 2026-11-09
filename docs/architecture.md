@@ -49,8 +49,8 @@ flowchart LR
 ### Engine (`packages/engine`, import name `archsim_engine`)
 
 Pure Python, depends only on SimPy, Pydantic and PyYAML, and frozen at 0.16.0 during the Java
-port ([ADR-0017](adr/0017-freeze-python-engine-during-port.md)). It simulates the runs the
-workers take and the replays the engine service runs, and the CLI and the MCP server use it. The
+port ([ADR-0017](adr/0017-freeze-python-engine-during-port.md)). It simulates the runs the Python
+workers take, until the cut-over to the Java worker, and the CLI and the MCP server use it. The
 API works out the rest with its Java port, `archsim-engine` (below). It owns:
 
 | Module | Responsibility |
@@ -121,17 +121,19 @@ what ArchSim works out from a design without simulating it and from a run's repo
 estimate, the design review and findings, confidence, comparisons and seed summaries, exports,
 importers, calibration and the assumptions page are ported from the frozen engine and checked
 against its [golden files](../parity/README.md), with their departures listed in the README. The
-API calls it directly, in the API's process. It does not simulate until stage 4: a calibration's
-replay goes through its `ReplaySimulator` seam, which the API's engine client implements, to the
-engine service.
+API calls it directly, in the API's process, and since stage 4 simulates on it too: a
+calibration's replay runs on its `Simulator` through `ReplaySimulator.of`, on the API's pool of
+replay threads ([ADR-0054](adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)), and
+the worker role simulates the runs it claims
+([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
 
 ### Engine service (`services/engine-service`)
 
-An internal Python HTTP service the API calls for the simulation a calibration replays, until
-stage 4 ports the simulator ([ADR-0036](adr/0036-python-engine-service-for-synchronous-calls.md),
-[ADR-0045](adr/0045-replay-calibrations-through-an-interim-simulate.md)). It checks no caller, so
-only the API may reach it. It calls nothing: the API calls the Prometheus servers calibrations
-name, under its own outbound policy.
+An internal Python HTTP service that simulated a calibration's replay for the API
+([ADR-0036](adr/0036-python-engine-service-for-synchronous-calls.md),
+[ADR-0045](adr/0045-replay-calibrations-through-an-interim-simulate.md)). Since stage 4 the API
+replays in Java and calls it no more; compose and the test launchers still start it until the
+cut-over deletes it. It checks no caller and calls nothing.
 
 ### Workers (`services/api`, import name `archsim_api`)
 
