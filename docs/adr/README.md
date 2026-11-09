@@ -92,4 +92,4 @@ what the repository shows.
 | [0048](0048-keep-simpys-order-of-events.md) | Keep SimPy's order of events in the Java kernel | Accepted | 2026-11-08 |
 | [0049](0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md) | Measure the Java simulator by replaying the frozen engine's runs | Accepted | 2026-11-08 |
 | [0050](0050-one-report-per-seed-with-pythons-digest-definitions.md) | One report per seed on every platform, with the Python engine's digest definitions | Accepted | 2026-11-08 |
-| [0051](0051-start-the-java-cli-in-stage-4-with-archsim-run.md) | Start the Java CLI in stage 4 with `archsim run` | Proposed | 2026-11-09 |
+| [0051](0051-start-the-java-cli-in-stage-4-with-archsim-run.md) | Start the Java CLI in stage 4 with `archsim run` | Accepted | 2026-11-09 |
