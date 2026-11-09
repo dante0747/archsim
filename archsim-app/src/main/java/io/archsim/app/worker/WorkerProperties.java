@@ -40,11 +40,23 @@ record WorkerProperties(@DefaultValue("30") @DecimalMin("1") @DecimalMax("3600")
 	}
 
 	/**
+	 * How long a run stays the worker's without a renewal.
+	 * @return the lease's length
+	 */
+	Duration lease() {
+		return seconds(this.leaseSeconds);
+	}
+
+	/**
 	 * How often the worker beats.
 	 * @return the time between two beats
 	 */
 	Duration heartbeatPeriod() {
-		return Duration.ofNanos(Math.round(this.heartbeatSeconds * NANOS_PER_SECOND));
+		return seconds(this.heartbeatSeconds);
+	}
+
+	private static Duration seconds(double seconds) {
+		return Duration.ofNanos(Math.round(seconds * NANOS_PER_SECOND));
 	}
 
 }

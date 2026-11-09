@@ -1,6 +1,7 @@
 package io.archsim.app.worker;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 
 import org.springframework.context.annotation.Profile;
@@ -15,6 +16,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 @Profile("worker")
 class WorkerRepository {
+
+	/** How long a worker's row outlives its last beat. */
+	private static final Duration STALE = Duration.ofHours(1);
 
 	private final JdbcClient jdbc;
 
@@ -41,6 +45,16 @@ class WorkerRepository {
 			.param("slots", heartbeat.slots())
 			.param("running", heartbeat.running())
 			.param("now", Timestamp.from(now))
+			.update();
+	}
+
+	/**
+	 * Removes the workers silent for over an hour, long gone, as each reap does.
+	 * @param now the time of the reap
+	 */
+	void forgetStale(Instant now) {
+		this.jdbc.sql("DELETE FROM job_workers WHERE heartbeat_at < :before")
+			.param("before", Timestamp.from(now.minus(STALE)))
 			.update();
 	}
 

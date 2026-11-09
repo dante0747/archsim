@@ -86,7 +86,7 @@ ways.
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
-| `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings |
+| `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it: `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`) |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
 | `engine` | the client of the Python engine service ([ADR-0036](../docs/adr/0036-python-engine-service-for-synchronous-calls.md)), which simulates a calibration's replay ([ADR-0045](../docs/adr/0045-replay-calibrations-through-an-interim-simulate.md)) |
@@ -185,6 +185,9 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   writes one) keeps `unknown`; Python kept `str()` of it.
 - The Java API has no embedded worker: the runs it queues are simulated by `archsim-api worker`
   processes (Python) on the same database. `ARCHSIM_EMBEDDED_WORKER` is gone.
+- With the hosted limits on, the Java worker gives a workspace of a kind it does not know the
+  personal cap of runs at once (2), as the API's admission does; the Python worker gave it no
+  cap.
 - There is no `--reload`, which `archsim-api serve` had: rebuild the jar, or run the API from an
   IDE.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote

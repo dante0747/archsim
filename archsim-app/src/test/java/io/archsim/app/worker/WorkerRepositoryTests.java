@@ -1,5 +1,6 @@
 package io.archsim.app.worker;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -58,6 +59,19 @@ class WorkerRepositoryTests {
 
 		assertThat(workers(worker)).isZero();
 		assertThat(workers(other)).isOne();
+	}
+
+	@Test
+	void forgetStale_aWorkerSilentForOverAnHour_isRemoved() {
+		WorkerIdentity silent = worker();
+		WorkerIdentity alive = worker();
+		this.repository.beat(new Heartbeat(silent, 1, 0), START);
+		this.repository.beat(new Heartbeat(alive, 1, 0), START.plus(Duration.ofMinutes(30)));
+
+		this.repository.forgetStale(START.plus(Duration.ofMinutes(61)));
+
+		assertThat(workers(silent)).isZero();
+		assertThat(workers(alive)).isOne();
 	}
 
 	private static WorkerIdentity worker() {
