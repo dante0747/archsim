@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 
@@ -11,7 +12,8 @@ import tools.jackson.databind.node.JsonNodeFactory;
  * JSON text exactly as Python's {@code json.dumps(value, separators=(",", ":"))} writes
  * it: no spaces, floats as their repr, NaN and the infinities by name, the keys in their
  * order or sorted by code point ({@code sort_keys=True}), and non-ASCII characters either
- * escaped (Python's default) or as they are ({@code ensure_ascii=False}).
+ * escaped (Python's default) or as they are ({@code ensure_ascii=False}); or, indented,
+ * as {@code json.dumps(value, indent=n)} writes it.
  */
 public final class PythonJson {
 
@@ -29,14 +31,22 @@ public final class PythonJson {
 
 	private final Characters characters;
 
+	/** One level of indentation; {@code null} for none, the whole value on one line. */
+	private final @Nullable String indentation;
+
 	/**
-	 * A writer with these options.
+	 * A writer with these options, writing a value on one line.
 	 * @param keys the order of an object's keys
 	 * @param characters which characters are written as they are
 	 */
 	PythonJson(Keys keys, Characters characters) {
+		this(keys, characters, null);
+	}
+
+	private PythonJson(Keys keys, Characters characters, @Nullable String indentation) {
 		this.keys = keys;
 		this.characters = characters;
+		this.indentation = indentation;
 	}
 
 	/**
@@ -49,6 +59,19 @@ public final class PythonJson {
 	 */
 	public static String write(JsonNode value) {
 		return IN_ORDER_ASCII.text(value);
+	}
+
+	/**
+	 * The JSON text of a value as {@code json.dumps(value, indent=spaces)} writes it: its
+	 * keys in their order, each item of an array or object on a line of its own, indented
+	 * by {@code spaces} for each level, and in printable ASCII as
+	 * {@link #write(JsonNode)}.
+	 * @param value the JSON value
+	 * @param spaces the spaces each level is indented by
+	 * @return its text
+	 */
+	public static String writeIndented(JsonNode value, int spaces) {
+		return new PythonJson(Keys.IN_ORDER, Characters.ASCII, " ".repeat(spaces)).text(value);
 	}
 
 	/**
@@ -68,11 +91,11 @@ public final class PythonJson {
 	 */
 	String text(JsonNode value) {
 		StringBuilder out = new StringBuilder();
-		append(value, out);
+		append(value, out, 0);
 		return out.toString();
 	}
 
-	private void append(JsonNode value, StringBuilder out) {
+	private void append(JsonNode value, StringBuilder out, int depth) {
 		if (value.isNull() || value.isMissingNode()) {
 			out.append("null");
 		}
@@ -89,25 +112,36 @@ public final class PythonJson {
 			string(value.stringValue(), out);
 		}
 		else if (value.isArray()) {
-			array(value, out);
+			array(value, out, depth);
 		}
 		else {
-			object(value, out);
+			object(value, out, depth);
 		}
 	}
 
-	private void array(JsonNode array, StringBuilder out) {
+	// an empty array or object stays on one line, indented or not, as in Python
+	private void array(JsonNode array, StringBuilder out, int depth) {
+		if (array.isEmpty()) {
+			out.append("[]");
+			return;
+		}
 		out.append('[');
 		for (int i = 0; i < array.size(); i++) {
 			if (i > 0) {
 				out.append(',');
 			}
-			append(array.get(i), out);
+			newLine(out, depth + 1);
+			append(array.get(i), out, depth + 1);
 		}
+		newLine(out, depth);
 		out.append(']');
 	}
 
-	private void object(JsonNode object, StringBuilder out) {
+	private void object(JsonNode object, StringBuilder out, int depth) {
+		if (object.isEmpty()) {
+			out.append("{}");
+			return;
+		}
 		List<Map.Entry<String, JsonNode>> properties = new ArrayList<>(object.properties());
 		if (this.keys == Keys.SORTED) {
 			properties.sort(Map.Entry.comparingByKey(PythonJson::compareCodePoints));
@@ -117,11 +151,20 @@ public final class PythonJson {
 			if (i > 0) {
 				out.append(',');
 			}
+			newLine(out, depth + 1);
 			string(properties.get(i).getKey(), out);
-			out.append(':');
-			append(properties.get(i).getValue(), out);
+			out.append((this.indentation != null) ? ": " : ":");
+			append(properties.get(i).getValue(), out, depth + 1);
 		}
+		newLine(out, depth);
 		out.append('}');
+	}
+
+	// indented, an item starts a line at its depth; on one line, nothing
+	private void newLine(StringBuilder out, int depth) {
+		if (this.indentation != null) {
+			out.append('\n').append(this.indentation.repeat(depth));
+		}
 	}
 
 	/**

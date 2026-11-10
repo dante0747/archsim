@@ -9,8 +9,10 @@ dependencies {
     implementation(project(":archsim-engine"))
     implementation(libs.picocli)
 
-    // the recorded runs of the Python CLI are compared as the simulator's recorded runs are
+    // the recorded runs of the Python CLI are compared as the simulator's recorded runs are, and
+    // the JSON its commands printed as the golden files are
     testImplementation(testFixtures(project(":archsim-engine")))
+    testImplementation(testFixtures(project(":archsim-model")))
 }
 
 application {

@@ -32,6 +32,32 @@ class PythonJsonTests {
 	}
 
 	@Test
+	void writeIndented_nestedValues_putsEachItemOnALineOfItsOwn() {
+		JsonNode value = JSON.readTree("{\"b\": 1, \"a\": [1, 2.5, {}, [], {\"c\": \"café\"}], \"d\": {}}");
+
+		String text = PythonJson.writeIndented(value, 2);
+
+		assertThat(text).isEqualTo("{\n  \"b\": 1,\n  \"a\": [\n    1,\n    2.5,\n    {},\n    [],\n    {\n"
+				+ "      \"c\": \"caf\\u00e9\"\n    }\n  ],\n  \"d\": {}\n}");
+	}
+
+	@Test
+	void writeIndented_oneSpace_indentsEachLevelByOneSpace() {
+		JsonNode value = JSON.readTree("{\"x\": [[]]}");
+
+		String text = PythonJson.writeIndented(value, 1);
+
+		assertThat(text).isEqualTo("{\n \"x\": [\n  []\n ]\n}");
+	}
+
+	@Test
+	void writeIndented_anEmptyArray_isWrittenOnOneLine() {
+		String text = PythonJson.writeIndented(JSON.readTree("[]"), 2);
+
+		assertThat(text).isEqualTo("[]");
+	}
+
+	@Test
 	void quote_textWithQuotesAndControlCharacters_isEscapedAsJson() {
 		String text = PythonJson.quote("say \"hi\"\t\\ \u0001");
 

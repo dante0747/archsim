@@ -66,6 +66,11 @@ harness's move to the Java CLI and the Python engine's deletion moved there on 8
 the MCP server and the `archsim check` action import the Python engine until stage 5 ports them,
 so `BENCH_ENGINE` stays explicit until then.
 
+**Status (10 Nov 2026, later):** `--out` writes the report as Python's `json.dumps(report,
+indent=2)` writes it, as every command that writes JSON does
+([ADR-0055](0055-the-java-clis-output-contract.md), proposed): the same values as before, in the
+Python layout rather than Jackson's.
+
 ### Consequences
 
 - Good, because the harness simulates the same designs on both engines, so the knee bar can be

@@ -9,14 +9,19 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Help;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParseResult;
 import picocli.CommandLine.Spec;
 
 import io.archsim.engine.version.EngineVersions;
 
 /**
- * The {@code archsim} command, whose subcommands do the work: {@code archsim run}.
+ * The {@code archsim} command, whose subcommands do the work, as the Python engine's
+ * CLI's did: {@code validate}, {@code run}, {@code analyze}, {@code catalog} and
+ * {@code schema}.
  */
-@Command(name = "archsim", description = "ArchSim architecture simulator", subcommands = RunCommand.class,
+@Command(
+		name = "archsim", description = "ArchSim architecture simulator", subcommands = { ValidateCommand.class,
+				RunCommand.class, AnalyzeCommand.class, CatalogCommand.class, SchemaCommand.class },
 		mixinStandardHelpOptions = true, version = Archsim.VERSION)
 public final class Archsim implements Runnable {
 
@@ -41,11 +46,24 @@ public final class Archsim implements Runnable {
 
 	/**
 	 * The {@code archsim} command line, before its arguments are parsed: its help and its
-	 * errors in plain text, as Python's argparse wrote them.
+	 * errors in plain text, an option named by the start of its name as argparse took it,
+	 * and a command refused ({@link CommandException}) by its message alone, exit code 1.
 	 * @return the command line
 	 */
 	static CommandLine commandLine() {
-		return new CommandLine(new Archsim()).setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF));
+		return new CommandLine(new Archsim()).setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF))
+			.setAbbreviatedOptionsAllowed(true)
+			.setExecutionExceptionHandler(Archsim::printRefusal);
+	}
+
+	// a refusal the user can act on needs its words, not a stack trace; anything
+	// else is a bug, which picocli reports with its stack trace
+	private static int printRefusal(Exception ex, CommandLine commandLine, ParseResult parsed) throws Exception {
+		if (!(ex instanceof CommandException refusal)) {
+			throw ex;
+		}
+		commandLine.getErr().println(refusal.getMessage());
+		return 1;
 	}
 
 	/**

@@ -2,19 +2,15 @@ package io.archsim.cli;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
-import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.model.issue.Issue;
 import io.archsim.model.text.PythonFormat;
 import io.archsim.model.text.PythonText;
 
 /**
  * What {@code archsim run} prints, in the Python engine's CLI's words: a run's summary, a
- * quick check's note, how far to trust the run, its findings and its digests; or an
- * invalid design's issues.
+ * quick check's note, how far to trust the run, its findings and its digests.
  */
 final class RunText {
 
@@ -47,28 +43,6 @@ final class RunText {
 		JsonNode provenance = report.get("provenance");
 		lines.add("  seed=%s inputDigest=%s resultDigest=%s".formatted(PythonText.str(provenance.get("seed")),
 				digest(provenance.get("inputDigest")), digest(provenance.get("resultDigest"))));
-		return lines;
-	}
-
-	/**
-	 * An invalid design's issues: each its severity, code, part and words, and the hint
-	 * that follows.
-	 * @param issues what validating it found
-	 * @return each line, in order
-	 */
-	static List<String> issues(List<Issue> issues) {
-		List<String> lines = new ArrayList<>();
-		for (Issue issue : issues) {
-			// the node, else the edge, an empty one counting as none
-			String part = present(issue.nodeId()) ? issue.nodeId() : issue.edgeId();
-			String where = present(part) ? " [%s]".formatted(part) : "";
-			// the severity padded to the longest one's width
-			String severity = "%-7s".formatted(issue.severity().json().toUpperCase(Locale.ROOT));
-			lines.add("  " + severity + " " + issue.code() + where + ": " + issue.message());
-			if (present(issue.hint())) {
-				lines.add("          hint: " + issue.hint());
-			}
-		}
 		return lines;
 	}
 
@@ -111,10 +85,6 @@ final class RunText {
 	private static String digest(JsonNode value) {
 		String digest = value.stringValue();
 		return digest.substring(0, Math.min(DIGEST_CHARACTERS, digest.length()));
-	}
-
-	private static boolean present(@Nullable String text) {
-		return text != null && !text.isEmpty();
 	}
 
 }

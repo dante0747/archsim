@@ -1,9 +1,6 @@
 package io.archsim.cli;
 
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -16,7 +13,6 @@ import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Spec;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.run.SimulationLimitException;
@@ -36,8 +32,6 @@ import io.archsim.model.pricing.PriceSnapshots;
 @Command(name = "run", description = "simulate an architecture document", mixinStandardHelpOptions = true,
 		version = Archsim.VERSION)
 final class RunCommand implements Callable<Integer> {
-
-	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	@Spec
 	private CommandSpec spec = CommandSpec.create();
@@ -68,11 +62,11 @@ final class RunCommand implements Callable<Integer> {
 	/**
 	 * Simulates the design and prints the run.
 	 * @return 0 for a run, 1 for a design refused
-	 * @throws IOException when the design cannot be read or the report written
+	 * @throws CommandException when the design cannot be read or the report written
 	 * @throws ParameterException when a limit is not a number above zero
 	 */
 	@Override
-	public Integer call() throws IOException {
+	public Integer call() {
 		PrintWriter stdout = this.spec.commandLine().getOut();
 		PrintWriter stderr = this.spec.commandLine().getErr();
 		RunRequest request = request();
@@ -83,7 +77,7 @@ final class RunCommand implements Callable<Integer> {
 		}
 		catch (DocumentInvalidException ex) {
 			stderr.println("Cannot simulate: document is invalid");
-			RunText.issues(ex.issues()).forEach(stdout::println);
+			IssueLines.of(ex.issues()).forEach(stdout::println);
 			return 1;
 		}
 		catch (SimulationLimitException ex) {
@@ -92,8 +86,7 @@ final class RunCommand implements Callable<Integer> {
 		}
 		RunText.lines(report).forEach(stdout::println);
 		if (this.out != null) {
-			Files.writeString(Path.of(this.out), JSON.writerWithDefaultPrettyPrinter().writeValueAsString(report),
-					StandardCharsets.UTF_8);
+			CommandFiles.write(this.out, JsonOutput.text(report));
 			stdout.println("report written to " + this.out);
 		}
 		return 0;
@@ -101,8 +94,8 @@ final class RunCommand implements Callable<Integer> {
 
 	// the seed goes into the workload before any scenario applies, as the Python CLI
 	// did; a workload that is not an object is left for validation to refuse
-	private JsonNode readDesign() throws IOException {
-		JsonNode document = JSON.readTree(Files.readString(Objects.requireNonNull(this.file), StandardCharsets.UTF_8));
+	private JsonNode readDesign() {
+		JsonNode document = CommandFiles.readJson(Objects.requireNonNull(this.file));
 		if (this.seed != null && document instanceof ObjectNode design) {
 			JsonNode workload = design.get("workload");
 			if (workload == null) {
