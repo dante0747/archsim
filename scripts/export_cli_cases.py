@@ -21,6 +21,9 @@ JSON it prints as values, as the golden files compare them (ADR-0055).
   as an HTML page, or a port nothing listens on), and ``otlp`` from trace exports, with the
   refusals of each. The mapping, recording and traces a case reads are kept in ``inputs``, and
   the time a calibration stamps is fixed (``NOW``), as the Java tests fix it.
+- ``check``: the starter checked against its objectives and against baselines, from files and
+  at git refs (``repo``: a repository made for the case, one commit of the files it names),
+  with its breaking point, and what it refuses.
 - ``catalog`` and ``schema``.
 
 Keys are kept in the order Python wrote them, as the Java tests read them.
@@ -38,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import codecs
 import contextlib
 import copy
 import gzip
@@ -45,6 +49,7 @@ import http.server
 import io
 import json
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -714,6 +719,243 @@ CALIBRATES: list[Json] = [
 ]
 
 
+BASELINE = "{baseline}"
+"""Stands for the baseline design's file (check --baseline)."""
+JSON_OUT = "{json}"
+"""Stands for the file check writes its JSON result to (--json-out)."""
+NOWHERE = "{nowhere}"
+"""Stands for a file in a folder that does not exist."""
+
+
+def starter(**objectives: float) -> Json:
+    """The starter as the Python engine's check tests check it: a short run, no scenarios, and
+    two objectives."""
+    d = copy.deepcopy(STARTER)
+    d["workload"].update(durationS=12, warmupS=2)
+    d["scenarios"] = []
+    d["objectives"] = {"latencyP95Ms": 400.0, "availability": 0.99, **objectives}
+    return d
+
+
+def fewer_api_replicas(document: Json) -> Json:
+    """The design with one API replica: slower than the starter, a regression against it."""
+    d = copy.deepcopy(document)
+    next(n for n in d["architecture"]["nodes"] if n["id"] == "api")["config"]["replicas"] = 1
+    return d
+
+
+CHECKED = starter()
+STRICT = starter(latencyP95Ms=1.0)
+SLOWER = fewer_api_replicas(CHECKED)
+WITH_SCENARIOS = {
+    **copy.deepcopy(STARTER),
+    "workload": {**STARTER["workload"], "durationS": 12, "warmupS": 2},
+}
+NAMED = {
+    **copy.deepcopy(CHECKED),
+    "metadata": {**CHECKED["metadata"], "name": "Café → 東京 checkout"},
+}
+DESIGN_IN_GIT = "archsim/design.json"
+
+
+def committed(content: Json | list[Any] | bytes, file: str = DESIGN_IN_GIT) -> Json:
+    """A repository whose one commit holds the design's file (archsim/design.json unless
+    named), the case's design beside it."""
+    data = (
+        content if isinstance(content, bytes) else json.dumps(content, ensure_ascii=False).encode()
+    )
+    return {"files": {file: base64.b64encode(data).decode("ascii")}, "file": file}
+
+
+def check(name: str, *args: str, **case: Any) -> Json:
+    """A check of the starter, as the GitHub Action runs it."""
+    return {"name": name, "design": CHECKED, "args": ["check", FILE, *args], **case}
+
+
+CHECKS: list[Json] = [
+    check("aDesignMeetingItsObjectives"),
+    check("aDesignMissingItsObjectives", design=STRICT),
+    check("objectivesMissedFailingOnRegressionsOnly", "--fail-on", "regression", design=STRICT),
+    check("failingOnBoth", "--fail-on", "objectives", "--fail-on", "regression", design=STRICT),
+    check("asJson", "--format", "json"),
+    check("toAFile", "--out", OUT_FILE),
+    check("asJsonToAFile", "--format", "json", "--out", OUT_FILE),
+    check("withTheJsonToo", "--json-out", JSON_OUT),
+    check("withAReportUrl", "--report-url", "https://example.test/runs/1"),
+    check("aScenarioOfTheDesign", "--scenario", "one-api-replica", design=WITH_SCENARIOS),
+    check("aScenarioTheDesignLacks", "--scenario", "nope"),
+    check(
+        "againstASlowerBaseline", "--baseline", BASELINE, "--fail-on", "regression", baseline=SLOWER
+    ),
+    check(
+        "againstAFasterBaseline",
+        "--baseline",
+        BASELINE,
+        "--fail-on",
+        "regression",
+        design=SLOWER,
+        baseline=CHECKED,
+    ),
+    check(
+        "againstAFasterBaselineAsJson",
+        "--baseline",
+        BASELINE,
+        "--format",
+        "json",
+        design=SLOWER,
+        baseline=CHECKED,
+    ),
+    check("againstItself", "--baseline", BASELINE, "--fail-on", "regression", baseline=CHECKED),
+    # thresholds, read as Python's float() reads them
+    check(
+        "againstAFasterBaselineWithLooseThresholds",
+        "--baseline",
+        BASELINE,
+        "--fail-on",
+        "regression",
+        "--max-p95-increase",
+        "1e3",
+        "--max-success-drop",
+        " 0.5 ",
+        "--max-cost-increase",
+        "inf",
+        "--max-knee-drop",
+        "1_0",
+        design=SLOWER,
+        baseline=CHECKED,
+    ),
+    check(
+        "aThresholdThatIsNan",
+        "--baseline",
+        BASELINE,
+        "--fail-on",
+        "regression",
+        "--max-p95-increase",
+        "nan",
+        "--format",
+        "json",
+        design=SLOWER,
+        baseline=CHECKED,
+    ),
+    # a baseline that cannot be simulated is a note, not a failure
+    check(
+        "againstABaselineThatIsNotADesign",
+        "--baseline",
+        BASELINE,
+        "--format",
+        "json",
+        baseline=[1, 2],
+    ),
+    check("againstAnInvalidBaseline", "--baseline", BASELINE, "--format", "json", baseline=INVALID),
+    check("againstABaselineThatIsNotJson", "--baseline", BASELINE, baseline=NOT_JSON),
+    check("againstAMissingBaseline", "--baseline", MISSING),
+    # what cannot be checked: exit code 2
+    check("anInvalidDesign", design=INVALID),
+    check("aDesignThatIsNotADesign", design=[1, 2]),
+    {**{k: v for k, v in check("aDesignThatIsNotJson").items() if k != "design"}, "text": NOT_JSON},
+    {**check("aMissingDesign"), "args": ["check", MISSING]},
+    check("aRunOverTheRequestLimit", design=TOO_BIG),
+    check("anOutputThatCannotBeWritten", "--out", NOWHERE),
+    check("aJsonOutputThatCannotBeWritten", "--json-out", NOWHERE),
+    # an option given empty is not given
+    check("optionsGivenEmpty", "--baseline", "", "--out", "", "--json-out", "", "--report-url", ""),
+    check("anEmptyScenario", "--scenario", ""),
+    check("anEmptyScenarioAsJson", "--scenario", "", "--format", "json"),
+    check("anEmptyRef", "--baseline-ref", ""),
+    # the baseline at a git ref
+    check(
+        "againstTheDesignAtARef",
+        "--baseline-ref",
+        "HEAD",
+        "--fail-on",
+        "regression",
+        design=SLOWER,
+        repo=committed(CHECKED),
+    ),
+    check(
+        "aDesignNewAtTheRef",
+        "--baseline-ref",
+        "HEAD",
+        "--fail-on",
+        "regression",
+        repo={**committed(CHECKED), "file": "archsim/new.json"},
+    ),
+    check("aRefThatIsNotThere", "--baseline-ref", "origin/mian", repo=committed(CHECKED)),
+    check("aRefBeforeTheFirstCommit", "--baseline-ref", "HEAD~1", repo=committed(CHECKED)),
+    check("aDesignOutsideARepository", "--baseline-ref", "HEAD"),
+    check(
+        "aBaselineAtARefInAFolderNamedInUnicode",
+        "--baseline-ref",
+        "HEAD",
+        "--fail-on",
+        "regression",
+        design=SLOWER,
+        repo=committed(CHECKED, "archsim/東京 café/design.json"),
+    ),
+    check(
+        "aBaselineAtARefNamedInUnicode",
+        "--baseline-ref",
+        "HEAD",
+        "--format",
+        "json",
+        design=NAMED,
+        repo=committed(NAMED),
+    ),
+    check(
+        "aBaselineAtARefWithAByteOrderMark",
+        "--baseline-ref",
+        "HEAD",
+        "--format",
+        "json",
+        repo=committed(codecs.BOM_UTF8 + json.dumps(CHECKED).encode()),
+    ),
+    check(
+        "aBaselineAtARefInUtf16",
+        "--baseline-ref",
+        "HEAD",
+        "--format",
+        "json",
+        repo=committed(json.dumps(CHECKED).encode("utf-16")),
+    ),
+    check(
+        "aBaselineAtARefInUtf16WithoutAMark",
+        "--baseline-ref",
+        "HEAD",
+        "--format",
+        "json",
+        repo=committed(json.dumps(CHECKED).encode("utf-16-le")),
+    ),
+    check(
+        "aBaselineAtARefThatIsNotText",
+        "--baseline-ref",
+        "HEAD",
+        repo=committed(bytes([0x7B, 0xFF])),
+    ),
+    check(
+        "aBaselineAtARefThatIsNotJson", "--baseline-ref", "HEAD", repo=committed(NOT_JSON.encode())
+    ),
+    # the breaking point, swept on one load grid for the design and its baseline
+    check("withItsBreakingPoint", "--knee", "--format", "json"),
+    check(
+        "againstAFasterBaselineWithBreakingPoints",
+        "--knee",
+        "--baseline",
+        BASELINE,
+        "--fail-on",
+        "regression",
+        design=SLOWER,
+        baseline=CHECKED,
+    ),
+    # usage errors: exit code 2
+    check("bothBaselines", "--baseline", BASELINE, "--baseline-ref", "HEAD", baseline=CHECKED),
+    check("aFailOnThatIsNotOne", "--fail-on", "bogus"),
+    check("aFormatThatIsNotOne", "--format", "xml"),
+    check("aRefStartingWithADash", "--baseline-ref=-x"),
+    check("aThresholdThatIsNotANumber", "--max-p95-increase", "0x10"),
+    {"name": "noDesign", "args": ["check"]},
+]
+
+
 class StubPrometheus(http.server.BaseHTTPRequestHandler):
     """A Prometheus server for a calibration's queries: ``recorded`` answers each query with
     its recorded response, ``badData`` refuses every query as Prometheus refuses bad PromQL,
@@ -787,13 +1029,39 @@ COMMANDS: dict[str, list[Json]] = {
     "export": EXPORTS,
     "import": IMPORTS,
     "calibrate": CALIBRATES,
+    "check": CHECKS,
     "catalog": [{"name": "theCatalog", "args": ["catalog"]}],
     "schema": [{"name": "theSchema", "args": ["schema"]}],
 }
 
 
+def repository(spec: Json, folder: Path) -> Path:
+    """A git repository with one commit of the files ``spec`` names (in base64); the file of
+    the case's design in it."""
+    folder.mkdir()
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=folder, check=True, capture_output=True, timeout=60)
+
+    git("init", "-q")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test")
+    git("config", "core.autocrlf", "false")
+    git("config", "commit.gpgsign", "false")  # a fixture, whatever the developer's git signs with
+    for name, data in spec["files"].items():
+        (folder / name).parent.mkdir(parents=True, exist_ok=True)
+        (folder / name).write_bytes(base64.b64decode(data))
+    git("add", ".")
+    git("commit", "-q", "-m", "base")
+    path = folder / spec["file"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def run(case: Json, folder: Path) -> Json:
     path = folder / f"{case['name']}.json"
+    if "repo" in case:
+        path = repository(case["repo"], folder / f"{case['name']}-repo")
     if "design" in case:
         path.write_text(json.dumps(case["design"]), encoding="utf-8")
     elif "text" in case:
@@ -804,6 +1072,13 @@ def run(case: Json, folder: Path) -> Json:
     names |= {REPORT: str(folder / f"{case['name']}-report.json")}
     names |= {OUT_FILE: str(folder / f"{case['name']}-out.txt")}
     names |= {RECORD: str(folder / f"{case['name']}-record.json")}
+    names |= {BASELINE: str(folder / f"{case['name']}-baseline.json")}
+    names |= {JSON_OUT: str(folder / f"{case['name']}-result.json")}
+    names |= {NOWHERE: str(folder / "nowhere" / "check.md")}
+    if "baseline" in case:
+        baseline = case["baseline"]
+        text = baseline if isinstance(baseline, str) else json.dumps(baseline)
+        Path(names[BASELINE]).write_text(text, encoding="utf-8", newline="")
     for placeholder, text in case.get("inputs", {}).items():
         names[placeholder] = str(folder / f"{case['name']}-{INPUT_FILES[placeholder]}")
         Path(names[placeholder]).write_text(text, encoding="utf-8", newline="")
@@ -823,7 +1098,7 @@ def run(case: Json, folder: Path) -> Json:
         recorded["report"] = report
     elif written := {
         p: placeheld(Path(names[p]).read_text(encoding="utf-8"), names)
-        for p in OUTPUT_FILES
+        for p in (*OUTPUT_FILES, JSON_OUT)
         if p in case["args"] and Path(names[p]).exists()
     }:
         recorded["files"] = written

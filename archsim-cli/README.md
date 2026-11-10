@@ -33,6 +33,7 @@ errors are picocli's words; a usage error exits with code 2, as argparse's did.
 | `archsim calibrate otlp FILE --traces FILE [--map FILE] [-o FILE]` | a design's inputs set from an OpenTelemetry trace export (OTLP JSON), with an optional mapping of services and databases to parts |
 | `archsim import compose\|k8s\|terraform FILE [--name NAME] [-o FILE] [--report FILE]` | a design from a docker-compose file, Kubernetes manifests or a Terraform plan (`FILE` `-` for standard input; UTF-8, or UTF-16 after its byte order mark), as JSON; what was mapped, guessed and ignored, the links to confirm and the counts on standard error; text the import refuses: `cannot import: ...`, exit code 2 |
 | `archsim export compose\|k8s\|mermaid FILE [-o FILE]` | docker-compose, Kubernetes manifests or a Mermaid diagram of a design, auto-sized; an invalid design's issues on standard output, exit code 1 |
+| `archsim check FILE [--scenario ID] [--baseline FILE \| --baseline-ref REF] [--fail-on objectives\|regression]... [--max-p95-increase X] [--max-success-drop X] [--max-cost-increase X] [--max-knee-drop X] [--knee] [--format markdown\|json] [-o FILE] [--json-out FILE] [--report-url URL]` | an SLO gate for CI, as the GitHub Action runs it: the design simulated and judged against its objectives and, with a baseline from a file or the design's file at a git ref, against it; the pull-request comment (Markdown) or the result (JSON) on standard output or `-o`, the verdict on standard error; exit code 0 for a pass, 1 for a failure, 2 for anything else ([below](#archsim-check)) |
 | `archsim catalog` | every component type, as JSON |
 | `archsim schema` | the design document's JSON Schema |
 
@@ -80,6 +81,30 @@ for `--recorded` to replay. `--step` is read as argparse's `type=float` read it,
 numbers, `1d` and `0x1p3` are not. The HTTP client logs through SLF4J, which the CLI binds to
 `slf4j-nop`, so nothing but the command's own lines reaches standard error.
 
+### `archsim check`
+
+Exit code 1 only ever means the check failed: whatever stops a check is exit code 2 and one line,
+`cannot check: ...`, in the Python CLI's words. That covers an invalid design (its issues follow, on
+standard error), a run over its limits, a file that cannot be read or written, and a baseline git
+cannot give: a design outside a repository, a ref that cannot be read (`git ref 'origin/mian' cannot
+be read: check the name, and fetch it in a shallow checkout (actions/checkout with fetch-depth:
+0)`), or git not installed. An error nobody expected, an error of the JVM's included, is answered
+the same way, `cannot check: unexpected error: ...`, exit code 2, without Python's traceback or a
+Java stack trace. A baseline that cannot be simulated is a note in the result, not a failure, as in
+Python. The result on standard output is UTF-8 with `\n` line ends on every system, as Python wrote
+it to `sys.stdout.buffer`.
+
+`--baseline-ref` reads the design's file at the ref through the `git` on the `PATH`, with the
+commands the Python CLI ran (`rev-parse --show-toplevel`, `rev-parse --verify`, `cat-file`), each
+under a 60-second deadline that Python did not have. A design the ref's commit does not hold is said
+(`... does not exist at HEAD: no baseline`), and checked against its objectives alone. The file at
+the ref is read as Python's `json.loads(bytes)` read it (`PythonJsonBytes`): UTF-8 with or without a
+byte order mark, UTF-16 or UTF-32 with one or found from the zero bytes of the first four, with
+`surrogatepass`. The thresholds are read as Python's `float()` reads them (`PythonFloat`), and an
+option given empty is not given, but for `--scenario`: an empty one is no scenario, which the JSON
+result names as given, `"scenarioId": ""`. The result names the engine that ran the check, `1.0.0`,
+in its JSON (`engineVersion`) and its Markdown, where Python's named `0.16.0`.
+
 ### Departures
 
 Where the Python CLI crashed with a traceback, the Java CLI answers:
@@ -101,6 +126,11 @@ Where the Python CLI crashed with a traceback, the Java CLI answers:
 - `calibrate` of a file nested more than 1,000 levels deep: `Cannot calibrate: the JSON nests more
   than 1000 levels deep`, exit code 1. Python read it up to its C recursion limit (about 3,000
   levels on Windows, more elsewhere) and raised `RecursionError` past it.
+- `check` of a design whose run raises an error nobody expected, an error of the JVM's such as a
+  stack overflow or running out of memory included: `cannot check: unexpected error: ...`, exit code
+  2, as in Python, which answered `RecursionError` and `MemoryError` so, without its traceback.
+  `main` answers an error of the JVM's through an uncaught-exception handler, which no handler of
+  picocli's sees; for any other command it ends the command as the JVM ends it.
 
 Elsewhere:
 
@@ -127,9 +157,11 @@ Elsewhere:
   Python printed pydantic's whole error over four lines, with its count, model, type, the value
   and a link to pydantic's documentation.
 - A file a command writes (`run --out`, `import -o` and `--report`, `export -o`, `calibrate -o`
-  and `--record`) ends its lines
+  and `--record`, `check -o` and `--json-out`) ends its lines
   with `\n` on every system; Python's `write_text` wrote the system's line ends, `\r\n` on
   Windows.
+- `check --baseline-ref` gives each git command 60 seconds, and refuses one that takes longer
+  (`cannot check: git cat-file took more than 60 s`); Python waited without end.
 - An option is named in full
   ([ADR-0056](../docs/adr/0056-the-java-cli-takes-options-by-their-full-names.md)):
   argparse took the start of its name (`--scen` for `--scenario`); picocli's abbreviations would
@@ -139,7 +171,7 @@ Elsewhere:
 
 | Package | What it holds |
 | --- | --- |
-| `io.archsim.cli` | `Archsim` (the `archsim` command, its `main`, and the answer to a `CommandException`: its message alone, exit code 1), one class per command (`ValidateCommand`, `RunCommand`, `CompareCommand`, `AnalyzeCommand`, `ImportCommand`, `ExportCommand`, `CatalogCommand`, `SchemaCommand`, and `CalibrateCommand` with `CalibratePrometheusCommand` and `CalibrateOtlpCommand`), `Choices` (the formats `import` and `export` take, by name), `RunText` (what `run` and `compare` print of a run), `IssueLines` (a design's issues, in the Python CLI's words), `CommandFiles` (the files a command reads and writes, refused with the reason), `JsonOutput` (JSON as `json.dumps(value, indent=2)` wrote it), `TextOutput` (text as `sys.stdout.write` wrote it), `TextDecoding` (a file's text as `decode_text` read it: `Utf16` after its byte order mark, else `Utf8`, each finding where bytes stop being text in CPython's words), `PythonFiles` (the files `calibrate` reads, as `read_text` read them, named as `pathlib` named them and refused in the words of Python's `OSError`, codec and `json`), `PythonOptions` (an option given empty is not given), `PrometheusCalibrator` (a calibration from Prometheus, in the Python CLI's order, from the `PrometheusOptions` asked and a `PrometheusSource`: a server or a recording), `PrometheusClients` (the server, on the open policy, the recorded responses, and a recording written), `CalibrationAttempt` (what stops a calibration, as `Cannot calibrate: ...`), `CalibrationText` (what a calibration prints, and the calibrated design) and `PythonFloat` (a number option read as Python's `float()` reads it) |
+| `io.archsim.cli` | `Archsim` (the `archsim` command, its `main`, and the answer to a `CommandException`: its message alone, exit code 1), one class per command (`ValidateCommand`, `RunCommand`, `CompareCommand`, `AnalyzeCommand`, `ImportCommand`, `ExportCommand`, `CatalogCommand`, `SchemaCommand`, and `CalibrateCommand` with `CalibratePrometheusCommand` and `CalibrateOtlpCommand`), `Choices` (what `import` and `export` take, and `check`'s `--fail-on` and `--format`, by name), `RunText` (what `run` and `compare` print of a run), `IssueLines` (a design's issues, in the Python CLI's words), `CommandFiles` (the files a command reads and writes, refused with the reason), `JsonOutput` (JSON as `json.dumps(value, indent=2)` wrote it), `TextOutput` (text as `sys.stdout.write` wrote it), `TextDecoding` (a file's text as `decode_text` read it: `Utf16` after its byte order mark, else `Utf8`, each finding where bytes stop being text in CPython's words), `PythonFiles` (the files `calibrate` and `check` read and write, as `read_text` and `write_text` did, named as `pathlib` named them and refused in the words of Python's `OSError`, codec and `json`), `PythonOptions` (an option given empty is not given), `PrometheusCalibrator` (a calibration from Prometheus, in the Python CLI's order, from the `PrometheusOptions` asked and a `PrometheusSource`: a server or a recording), `PrometheusClients` (the server, on the open policy, the recorded responses, and a recording written), `CalibrationAttempt` (what stops a calibration, as `Cannot calibrate: ...`), `CalibrationText` (what a calibration prints, and the calibrated design), `PythonFloat` (a number option read as Python's `float()` reads it), `CheckCommand` with its `Refs` (a git ref, never one starting with `-`) and `CheckOptions` (what a check was asked) and `CheckRun` (the check, in the Python CLI's order, and what stops it), `Checks` (what runs a check: the engine's `CheckRunner`), `CheckFormat` (Markdown or JSON), `GitBaseline` (the design's file at a git ref, through `git`), `PythonJsonBytes` (JSON from bytes as `json.loads(bytes)` read it) and `AnswersUnexpectedErrors` (a command that answers an error nobody expected itself, as `check` does) |
 
 ## Tests
 
@@ -184,20 +216,33 @@ Elsewhere:
     refused or failed to read, traces replayed over the request limit; and the usage errors. The
     files a case reads, byte for byte, and the files it writes are recorded with it, and the time
     a calibration stamps is fixed (`2026-11-10T12:00:00Z`) in Python and Java alike;
+  - `check`: a design meeting and missing its objectives, failing on objectives, regressions or
+    both, as JSON, to files, with the JSON too and a report's link; a scenario, one the design
+    lacks, an empty one (as JSON too); against baselines slower and faster, itself, with loose and
+    NaN thresholds, and baselines that cannot be simulated, are not JSON or are missing; designs
+    invalid, not designs, not JSON, missing or over the request limit; outputs that cannot be
+    written; options given empty; at a git ref (a repository the case makes, as the recorder made
+    it): a regression, a design new at the ref, refs that cannot be read, a design outside a
+    repository, a folder and a baseline named in Unicode, with a byte order mark, in UTF-16 with and
+    without one, not text or not JSON; breaking points; and the usage errors;
   - `catalog` and `schema`.
-- Where Python crashed, the case records the exception instead of the traceback, and a test of
-  the Java answer replaces the replay: each file recorded as unreadable is refused in one line
-  with Python's exit code (`Replays.unreadableFiles`); `AnalyzeCommandTests`,
-  `ExportCommandTests` and `CompareCommandTests` check the designs Python crashed on, and
-  `ImportCommandTests` and `CalibrateCommandTests` the YAML and JSON refused in the libraries'
-  words (and `CalibrateCommandTests` the steps refused in pydantic's, and the mappings and
-  recordings Python crashed on); `PythonFilesTests` what the recordings cannot show on every
-  system: line ends, a byte order mark, bytes that are not UTF-8, folders, names Windows refuses,
-  files it may not read, and names as `pathlib` gives them; `PythonFloatTests` numbers as Python's `float()` reads them, each checked against
-  Python 3.12; `PrometheusClientsTests` the open policy (a loopback address and name, with no
-  allowlist, are called) and `slf4j-nop` as the only SLF4J provider; `CommandFilesTests` and
-  `ArchsimTests` (a refusal prints no stack trace) the rest. `TextDecodingTests` checks text that
-  decodes, at the edges of each codec.
+- Where Python crashed, the case records the exception instead of the traceback, and a test of the
+  Java answer replaces the replay: each file recorded as unreadable is refused in one line with
+  Python's exit code (`Replays.unreadableFiles`); `AnalyzeCommandTests`, `ExportCommandTests` and
+  `CompareCommandTests` check the designs Python crashed on, and `ImportCommandTests` and
+  `CalibrateCommandTests` the YAML and JSON refused in the libraries' words (and
+  `CalibrateCommandTests` the steps refused in pydantic's, and the mappings and recordings Python
+  crashed on); `PythonFilesTests` what the recordings cannot show on every system: line ends, a byte
+  order mark, bytes that are not UTF-8, folders, names Windows refuses, files it may not read, and
+  names as `pathlib` gives them; `PythonFloatTests` numbers as Python's `float()` reads them, each
+  checked against Python 3.12; `CheckCommandTests` an error nobody expected (a check that throws,
+  and an error of the JVM's: one line, exit code 2), the result's line feeds, and each recorded
+  check with the Java engine named; `PythonJsonBytesTests` JSON from bytes in every encoding `json`
+  finds, each checked against Python 3.12; `GitBaselineTests` git not installed, a git slower than
+  the deadline (a Java program that sleeps) and refs starting with `-`; `PrometheusClientsTests` the
+  open policy (a loopback address and name, with no allowlist, are called) and `slf4j-nop` as the
+  only SLF4J provider; `CommandFilesTests` and `ArchsimTests` (a refusal prints no stack trace) the
+  rest. `TextDecodingTests` checks text that decodes, at the edges of each codec.
 - `RunOptionsTests` checks what the recordings cannot: the two limits the Python `run` did not
   have, a seed for a workload that is not an object, an option named by the start of its name, a
   report that cannot be written, and `archsim` without a command.

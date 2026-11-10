@@ -87,6 +87,19 @@ public final class PythonJsonReader {
 		if (!text.isEmpty() && text.charAt(0) == BYTE_ORDER_MARK) {
 			throw notJson("Unexpected UTF-8 BOM (decode using utf-8-sig)", text, 0);
 		}
+		return decode(text);
+	}
+
+	/**
+	 * The value JSON text holds, as {@code JSONDecoder.decode} reads it: without the
+	 * check for a byte order mark that {@code json.loads} makes only of text, not of
+	 * bytes it decodes, so that a mark is no value.
+	 * @param text the text, decoded from bytes
+	 * @return its value
+	 * @throws JsonDecodeException when the text is not JSON
+	 * @throws JsonTooDeepException when it nests more than 1,000 levels deep
+	 */
+	public static JsonNode decode(String text) {
 		int start = skipWhitespace(text, 0);
 		if (!startsValue(text, start)) {
 			throw notJson("Expecting value", text, start);

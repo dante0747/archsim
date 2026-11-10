@@ -69,7 +69,18 @@ final class Utf8 {
 	 * @return the first error, positions counted from the first byte; empty for UTF-8
 	 */
 	static Optional<DecodeError> firstError(byte[] input) {
-		int at = 0;
+		return firstError(input, 0);
+	}
+
+	/**
+	 * Where bytes stop being UTF-8, from a place on, in CPython's words.
+	 * @param input the bytes
+	 * @param from where to start reading them
+	 * @return the first error from there, positions counted from the bytes' first; empty
+	 * for UTF-8
+	 */
+	static Optional<DecodeError> firstError(byte[] input, int from) {
+		int at = from;
 		while (at < input.length) {
 			int length = length(Byte.toUnsignedInt(input[at]));
 			if (length == 0) {

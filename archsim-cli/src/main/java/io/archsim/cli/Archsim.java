@@ -5,6 +5,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.util.OptionalInt;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -19,12 +20,13 @@ import io.archsim.engine.version.EngineVersions;
 /**
  * The {@code archsim} command, whose subcommands do the work, as the Python engine's
  * CLI's did: {@code validate}, {@code run}, {@code compare}, {@code analyze},
- * {@code calibrate}, {@code import}, {@code export}, {@code catalog} and {@code schema}.
+ * {@code calibrate}, {@code import}, {@code export}, {@code check}, {@code catalog} and
+ * {@code schema}.
  */
 @Command(name = "archsim", description = "ArchSim architecture simulator",
 		subcommands = { ValidateCommand.class, RunCommand.class, CompareCommand.class, AnalyzeCommand.class,
-				CalibrateCommand.class, ImportCommand.class, ExportCommand.class, CatalogCommand.class,
-				SchemaCommand.class },
+				CalibrateCommand.class, ImportCommand.class, ExportCommand.class, CheckCommand.class,
+				CatalogCommand.class, SchemaCommand.class },
 		mixinStandardHelpOptions = true, version = Archsim.VERSION)
 public final class Archsim implements Runnable {
 
@@ -38,9 +40,12 @@ public final class Archsim implements Runnable {
 
 	private final Clock clock;
 
-	private Archsim(InputStream standardInput, Clock clock) {
+	private final Checks checks;
+
+	private Archsim(InputStream standardInput, Clock clock, Checks checks) {
 		this.standardInput = standardInput;
 		this.clock = clock;
+		this.checks = checks;
 	}
 
 	/**
@@ -49,11 +54,37 @@ public final class Archsim implements Runnable {
 	 * @param args the command and its arguments
 	 */
 	public static void main(String[] args) {
-		int exitCode = commandLine()
+		CommandLine commandLine = commandLine()
 			.setOut(new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8), true))
-			.setErr(new PrintWriter(new OutputStreamWriter(System.err, StandardCharsets.UTF_8), true))
-			.execute(args);
-		System.exit(exitCode);
+			.setErr(new PrintWriter(new OutputStreamWriter(System.err, StandardCharsets.UTF_8), true));
+		// an error of the JVM's, which no handler of picocli's sees, ends the
+		// command: the command answers it when it answers what it did not expect,
+		// else the JVM does
+		Thread.currentThread().setUncaughtExceptionHandler((thread, error) -> {
+			OptionalInt answered = answeredError(commandLine, error);
+			if (answered.isPresent()) {
+				System.exit(answered.getAsInt());
+			}
+			thread.getThreadGroup().uncaughtException(thread, error);
+		});
+		System.exit(commandLine.execute(args));
+	}
+
+	/**
+	 * Answers an error of the JVM's that ended the command, when the command answers what
+	 * it did not expect itself, as {@code check} does.
+	 * @param commandLine the command line, its arguments parsed
+	 * @param error the error
+	 * @return the exit code the command answered with; empty when it answers none
+	 */
+	static OptionalInt answeredError(CommandLine commandLine, Throwable error) {
+		ParseResult parsed = commandLine.getParseResult();
+		if (parsed == null) {
+			return OptionalInt.empty();
+		}
+		Object command = parsed.asCommandLineList().getLast().getCommand();
+		return (command instanceof AnswersUnexpectedErrors answering)
+				? OptionalInt.of(answering.answerUnexpected(error)) : OptionalInt.empty();
 	}
 
 	/**
@@ -76,18 +107,35 @@ public final class Archsim implements Runnable {
 	 * @return the command line
 	 */
 	static CommandLine commandLine(InputStream standardInput, Clock clock) {
-		return new CommandLine(new Archsim(standardInput, clock)).setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF))
+		return commandLine(standardInput, clock, Checks.standard());
+	}
+
+	/**
+	 * The {@code archsim} command line, with what runs {@code archsim check}'s check of
+	 * its own besides.
+	 * @param standardInput the stream
+	 * @param clock the clock
+	 * @param checks what runs a check
+	 * @return the command line
+	 */
+	static CommandLine commandLine(InputStream standardInput, Clock clock, Checks checks) {
+		return new CommandLine(new Archsim(standardInput, clock, checks))
+			.setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF))
 			.setExecutionExceptionHandler(Archsim::printRefusal);
 	}
 
 	// a refusal the user can act on needs its words, not a stack trace; anything
-	// else is a bug, which picocli reports with its stack trace
+	// else is a bug, which picocli reports with its stack trace, unless the command
+	// answers it itself, as check does
 	private static int printRefusal(Exception ex, CommandLine commandLine, ParseResult parsed) throws Exception {
-		if (!(ex instanceof CommandException refusal)) {
-			throw ex;
+		if (ex instanceof CommandException refusal) {
+			commandLine.getErr().println(refusal.getMessage());
+			return 1;
 		}
-		commandLine.getErr().println(refusal.getMessage());
-		return 1;
+		if (commandLine.getCommand() instanceof AnswersUnexpectedErrors command) {
+			return command.answerUnexpected(ex);
+		}
+		throw ex;
 	}
 
 	/**
@@ -104,6 +152,14 @@ public final class Archsim implements Runnable {
 	 */
 	Clock clock() {
 		return this.clock;
+	}
+
+	/**
+	 * What runs {@code archsim check}'s check.
+	 * @return the checks
+	 */
+	Checks checks() {
+		return this.checks;
 	}
 
 	/**

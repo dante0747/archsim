@@ -58,6 +58,15 @@ final class RecordedCases {
 	/** The stub Prometheus server's base URL. */
 	private static final String URL = "{url}";
 
+	/** The baseline design's file ({@code check --baseline}). */
+	private static final String BASELINE = "{baseline}";
+
+	/** The file {@code check} writes its JSON result to ({@code --json-out}). */
+	private static final String JSON_OUT = "{json}";
+
+	/** A file in a folder that does not exist. */
+	private static final String NOWHERE = "{nowhere}";
+
 	/**
 	 * The files a calibration reads, by placeholder, named as the recording named them.
 	 */
@@ -104,15 +113,17 @@ final class RecordedCases {
 	}
 
 	/**
-	 * Runs a recorded case in Java, with the files it reads written, the Prometheus it
-	 * queries started, and the clock the recording stopped.
+	 * Runs a recorded case in Java, with the files it reads written (in the git
+	 * repository it names, if any), the Prometheus it queries started, and the clock the
+	 * recording stopped.
 	 * @param recorded the case
 	 * @param folder where its files are written
 	 * @return what the command did
-	 * @throws IOException when a file cannot be written or the stub cannot listen
+	 * @throws IOException when a file cannot be written, git fails or the stub cannot
+	 * listen
 	 */
 	static Ran run(JsonNode recorded, Path folder) throws IOException {
-		Map<String, Path> files = files(recorded.get("name").stringValue(), folder);
+		Map<String, Path> files = files(recorded, folder);
 		writeInputs(recorded, files);
 		try (PrometheusStub prometheus = PrometheusStub.behaving(recorded)) {
 			Map<String, String> names = new LinkedHashMap<>();
@@ -128,7 +139,7 @@ final class RecordedCases {
 				.setErr(new PrintWriter(err))
 				.execute(args.toArray(String[]::new));
 			Map<String, String> written = new LinkedHashMap<>();
-			for (String placeholder : List.of(REPORT, OUT, RECORD)) {
+			for (String placeholder : List.of(REPORT, OUT, RECORD, JSON_OUT)) {
 				Path file = files.get(placeholder);
 				if (Files.exists(file)) {
 					written.put(placeholder, placeheld(Files.readString(file), names));
@@ -139,19 +150,27 @@ final class RecordedCases {
 		}
 	}
 
-	// every file a case's arguments may name, as the recording named them
-	private static Map<String, Path> files(String name, Path folder) {
+	// every file a case's arguments may name, as the recording named them; its design in
+	// the git repository it names, if any
+	private static Map<String, Path> files(JsonNode recorded, Path folder) throws IOException {
+		String name = recorded.get("name").stringValue();
 		Map<String, Path> files = new LinkedHashMap<>();
 		files.put(REPORT, folder.resolve(name + "-report.json"));
 		files.put(OUT, folder.resolve(name + "-out.txt"));
 		files.put(RECORD, folder.resolve(name + "-record.json"));
-		files.put(DESIGN, folder.resolve(name + ".json"));
+		files.put(DESIGN,
+				recorded.has("repo") ? RecordedRepositories.create(recorded.get("repo"), folder.resolve(name + "-repo"))
+						: folder.resolve(name + ".json"));
 		files.put(MISSING, folder.resolve("missing.json"));
+		files.put(BASELINE, folder.resolve(name + "-baseline.json"));
+		files.put(JSON_OUT, folder.resolve(name + "-result.json"));
+		files.put(NOWHERE, folder.resolve("nowhere").resolve("check.md"));
 		INPUT_FILES.forEach((placeholder, suffix) -> files.put(placeholder, folder.resolve(name + "-" + suffix)));
 		return files;
 	}
 
-	// the design (as JSON, text, or bytes in base64) and the other files the case reads
+	// the design (as JSON, text, or bytes in base64), the baseline (as JSON or text) and
+	// the other files the case reads
 	private static void writeInputs(JsonNode recorded, Map<String, Path> files) throws IOException {
 		Path design = files.get(DESIGN);
 		if (recorded.has("design")) {
@@ -162,6 +181,11 @@ final class RecordedCases {
 		}
 		else if (recorded.has("bytes")) {
 			Files.write(design, Base64.getDecoder().decode(recorded.get("bytes").stringValue()));
+		}
+		JsonNode baseline = recorded.path("baseline");
+		if (!baseline.isMissingNode()) {
+			Files.writeString(files.get(BASELINE), baseline.isString() ? baseline.stringValue() : baseline.toString(),
+					StandardCharsets.UTF_8);
 		}
 		for (Map.Entry<String, JsonNode> input : recorded.path("inputs").properties()) {
 			Files.writeString(files.get(input.getKey()), input.getValue().stringValue(), StandardCharsets.UTF_8);

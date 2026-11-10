@@ -7,6 +7,7 @@ import java.util.List;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.TypeConversionException;
 
+import io.archsim.engine.check.FailOn;
 import io.archsim.engine.export.ExportFormat;
 import io.archsim.engine.imports.ImportFormat;
 import io.archsim.model.codec.JsonEnum;
@@ -60,6 +61,24 @@ abstract class Choices<T extends Enum<T> & JsonEnum> implements ITypeConverter<T
 
 		ImportFormats() {
 			super(ImportFormat.class);
+		}
+
+	}
+
+	/** What fails a check: {@code objectives} or {@code regression}. */
+	static final class FailOns extends Choices<FailOn> {
+
+		FailOns() {
+			super(FailOn.class);
+		}
+
+	}
+
+	/** What a check writes its result as: {@code markdown} or {@code json}. */
+	static final class CheckFormats extends Choices<CheckFormat> {
+
+		CheckFormats() {
+			super(CheckFormat.class);
 		}
 
 	}

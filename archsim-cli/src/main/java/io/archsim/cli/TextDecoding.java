@@ -15,7 +15,7 @@ import io.archsim.engine.imports.ImportRefusedException;
 final class TextDecoding {
 
 	/** The byte order mark of UTF-8, which UTF-8 text may start with. */
-	private static final byte[] UTF8_MARK = { (byte) 0xef, (byte) 0xbb, (byte) 0xbf };
+	static final byte[] UTF8_MARK = { (byte) 0xef, (byte) 0xbb, (byte) 0xbf };
 
 	private TextDecoding() {
 	}
@@ -43,7 +43,13 @@ final class TextDecoding {
 		throw new ImportRefusedException("the file is not UTF-8 or UTF-16 text (%s)".formatted(error.describe(codec)));
 	}
 
-	private static boolean startsWith(byte[] raw, byte[] prefix) {
+	/**
+	 * Whether bytes start with others.
+	 * @param raw the bytes
+	 * @param prefix what they may start with
+	 * @return {@code true} when they do
+	 */
+	static boolean startsWith(byte[] raw, byte[] prefix) {
 		return raw.length >= prefix.length && Arrays.equals(raw, 0, prefix.length, prefix, 0, prefix.length);
 	}
 

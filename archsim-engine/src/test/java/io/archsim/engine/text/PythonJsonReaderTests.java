@@ -36,6 +36,22 @@ class PythonJsonReaderTests {
 	}
 
 	@Test
+	void decode_aByteOrderMark_isNoValueAsJsonsDecoderFindsNone() {
+		// json.loads(bytes) decodes the bytes and leaves out str's check for the mark
+		assertThatExceptionOfType(JsonDecodeException.class)
+			.isThrownBy(() -> PythonJsonReader.decode(BYTE_ORDER_MARK + "{}"))
+			.withMessage("Expecting value: line 1 column 1 (char 0)");
+	}
+
+	@Test
+	void decode_json_isItsValue() {
+		JsonNode value = PythonJsonReader.decode(" {\"a\": [1, NaN]} ");
+
+		assertThat(value.at("/a/0").intValue()).isEqualTo(1);
+		assertThat(value.at("/a/1").doubleValue()).isNaN();
+	}
+
+	@Test
 	void read_textCutShort_isRefusedInTheParsersWordsInJsonsForm() {
 		assertThatExceptionOfType(JsonDecodeException.class).isThrownBy(() -> PythonJsonReader.read("[1, 2"))
 			.withMessageEndingWith(": line 1 column 6 (char 5)");

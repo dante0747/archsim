@@ -10,6 +10,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,8 +22,9 @@ import io.archsim.engine.text.PythonJsonReader;
 import io.archsim.model.text.PythonText;
 
 /**
- * The files {@code calibrate} reads, where the Python CLI caught what went wrong and
- * printed it, read as Python read them and refused in the words its exceptions said:
+ * The files {@code calibrate} and {@code check} read and write, where the Python CLI
+ * caught what went wrong and printed it, read and written as Python did, and refused in
+ * the words its exceptions said:
  * {@code [Errno 2] No such file or directory: 'mapping.yaml'}, a codec's
  * {@code 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte}, or
  * {@code json}'s {@code Expecting value: line 1 column 1 (char 0)}. A file is named as
@@ -30,7 +32,8 @@ import io.archsim.model.text.PythonText;
  */
 final class PythonFiles {
 
-	private static final boolean WINDOWS = File.separatorChar == '\\';
+	/** Whether this is Windows, where Python's OSError said other words. */
+	static final boolean WINDOWS = File.separatorChar == '\\';
 
 	private static final Pattern SEPARATOR = Pattern.compile(Pattern.quote(File.separator));
 
@@ -67,9 +70,19 @@ final class PythonFiles {
 	 * or nests deeper than it is read
 	 */
 	static JsonNode readJson(String file) {
-		String text = readText(file);
+		return json(PythonJsonReader::read, readText(file));
+	}
+
+	/**
+	 * The JSON text holds, refused as a file Python could not use when it is not JSON.
+	 * @param reader how the text is read, such as {@link PythonJsonReader#read}
+	 * @param text the text
+	 * @return its value
+	 * @throws PythonFileException when it is not JSON, or nests deeper than it is read
+	 */
+	static JsonNode json(Function<String, JsonNode> reader, String text) {
 		try {
-			return PythonJsonReader.read(text);
+			return reader.apply(text);
 		}
 		catch (JsonDecodeException | JsonTooDeepException ex) {
 			throw new PythonFileException(String.valueOf(ex.getMessage()), ex);
@@ -98,8 +111,38 @@ final class PythonFiles {
 		return parts.isEmpty() ? "" : parts.getLast();
 	}
 
+	/**
+	 * Writes a file's text, as Python's {@code Path.write_text(text, encoding="utf-8")}
+	 * wrote it, but for its line ends: {@code \n} on every system.
+	 * @param file the file, as given
+	 * @param text its text
+	 * @throws PythonFileException when the file cannot be written, in the words of
+	 * Python's {@code OSError}
+	 */
+	static void writeText(String file, String text) {
+		String name = PythonText.repr(name(file));
+		Path path = openable(file, name);
+		try {
+			Files.writeString(path, text, StandardCharsets.UTF_8);
+		}
+		catch (IOException ex) {
+			throw new PythonFileException(osError(ex, name), ex);
+		}
+	}
+
 	private static byte[] bytes(String file) {
 		String name = PythonText.repr(name(file));
+		Path path = openable(file, name);
+		try {
+			return Files.readAllBytes(path);
+		}
+		catch (IOException ex) {
+			throw new PythonFileException(osError(ex, name), ex);
+		}
+	}
+
+	// a file Python's open() would have tried: a name the system takes, not a folder
+	private static Path openable(String file, String name) {
 		Path path;
 		try {
 			path = Path.of(file);
@@ -113,12 +156,7 @@ final class PythonFiles {
 			throw new PythonFileException(
 					WINDOWS ? "[Errno 13] Permission denied: " + name : "[Errno 21] Is a directory: " + name);
 		}
-		try {
-			return Files.readAllBytes(path);
-		}
-		catch (IOException ex) {
-			throw new PythonFileException(osError(ex, name), ex);
-		}
+		return path;
 	}
 
 	// an OSError's str(): its errno, its strerror and the file's repr

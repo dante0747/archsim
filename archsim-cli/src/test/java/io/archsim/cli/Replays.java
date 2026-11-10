@@ -4,9 +4,11 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
+import tools.jackson.core.json.JsonReadFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -25,7 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 final class Replays {
 
-	private static final JsonMapper JSON = JsonMapper.builder().build();
+	/** Python's JSON, NaN and the infinities included, as json.dumps writes them. */
+	private static final JsonMapper JSON = JsonMapper.builder()
+		.enable(JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS)
+		.build();
 
 	private Replays() {
 	}
@@ -42,6 +47,22 @@ final class Replays {
 	 * @return a test for each case
 	 */
 	static Stream<DynamicTest> of(String command, Path folder, String... departures) {
+		return of(command, folder, UnaryOperator.identity(), departures);
+	}
+
+	/**
+	 * Each recorded case of a command run in Java, as a test, against what Python printed
+	 * as Java prints it: for a command whose text names what differs by design, such as
+	 * the engine's version.
+	 * @param command the command, such as {@code check}
+	 * @param folder where the cases' files are written
+	 * @param asJavaPrints Python's text (standard output and error, a file) as Java
+	 * prints it
+	 * @param departures the names of the cases the command's tests check otherwise
+	 * @return a test for each case
+	 */
+	static Stream<DynamicTest> of(String command, Path folder, UnaryOperator<String> asJavaPrints,
+			String... departures) {
 		Set<String> skipped = Set.of(departures);
 		return RecordedCases.of(command)
 			.stream()
@@ -51,9 +72,9 @@ final class Replays {
 				Ran java = RecordedCases.run(recorded, folder);
 
 				assertThat(List.of(java.exitCode(), java.err())).containsExactly(recorded.get("exitCode").intValue(),
-						recorded.get("stderr").stringValue());
-				assertSameText(recorded.get("stdout").stringValue(), java.out());
-				assertSameFiles(recorded.path("files"), java.written());
+						asJavaPrints.apply(recorded.get("stderr").stringValue()));
+				assertSameText(asJavaPrints.apply(recorded.get("stdout").stringValue()), java.out());
+				assertSameFiles(recorded.path("files"), java.written(), asJavaPrints);
 			}));
 	}
 
@@ -109,9 +130,18 @@ final class Replays {
 			assertThat(text).isEqualTo(python);
 			return;
 		}
+		JsonNode expected = JSON.readTree(python);
 		JsonNode printed = JSON.readTree(text);
-		assertThat(JsonDiff.differences(JSON.readTree(python), printed)).isEmpty();
+		// both NaN is the same value: json.dumps and Java print it alike, but the golden
+		// files' comparison, like Python's, finds NaN unequal to itself
+		assertThat(JsonDiff.differences(expected, printed))
+			.filteredOn((pointer) -> !(isNan(expected.at(pointer)) && isNan(printed.at(pointer))))
+			.isEmpty();
 		assertThat(text).isEqualTo(PythonJson.writeIndented(printed, indent(python)) + "\n");
+	}
+
+	private static boolean isNan(JsonNode value) {
+		return value.isNumber() && Double.isNaN(value.doubleValue());
 	}
 
 	// the spaces Python indented its JSON by: two for what it printed and most files, one
@@ -121,10 +151,11 @@ final class Replays {
 		return second.length() - second.stripLeading().length();
 	}
 
-	private static void assertSameFiles(JsonNode recorded, Map<String, String> written) {
+	private static void assertSameFiles(JsonNode recorded, Map<String, String> written,
+			UnaryOperator<String> asJavaPrints) {
 		assertThat(written.keySet()).containsAll(recorded.propertyNames());
 		for (Map.Entry<String, JsonNode> file : recorded.properties()) {
-			assertSameText(file.getValue().stringValue(), written.getOrDefault(file.getKey(), ""));
+			assertSameText(asJavaPrints.apply(file.getValue().stringValue()), written.getOrDefault(file.getKey(), ""));
 		}
 	}
 

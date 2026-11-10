@@ -96,6 +96,33 @@ class PythonFilesTests {
 	}
 
 	@Test
+	void writeText_aFile_isWrittenInUtf8WithItsLineFeeds(@TempDir Path folder) throws IOException {
+		Path file = folder.resolve("check.md");
+
+		PythonFiles.writeText(file.toString(), "\u2705 a\nb\n");
+
+		assertThat(Files.readAllBytes(file)).isEqualTo("\u2705 a\nb\n".getBytes(StandardCharsets.UTF_8));
+	}
+
+	@Test
+	void writeText_aFolder_isRefusedAsPythonsOpenRefusesItThere(@TempDir Path folder) {
+		String refusal = OS.WINDOWS.isCurrentOs() ? "[Errno 13] Permission denied: " : "[Errno 21] Is a directory: ";
+
+		assertThatExceptionOfType(PythonFileException.class)
+			.isThrownBy(() -> PythonFiles.writeText(folder.toString(), "x"))
+			.withMessage(refusal + PythonText.repr(folder.toString()));
+	}
+
+	@Test
+	void writeText_aFileInAFolderThatIsNotThere_isPythonsNoSuchFile(@TempDir Path folder) {
+		Path file = folder.resolve("nowhere").resolve("check.md");
+
+		assertThatExceptionOfType(PythonFileException.class)
+			.isThrownBy(() -> PythonFiles.writeText(file.toString(), "x"))
+			.withMessage("[Errno 2] No such file or directory: " + PythonText.repr(file.toString()));
+	}
+
+	@Test
 	void readText_noName_isTheCurrentFolder() {
 		String refusal = OS.WINDOWS.isCurrentOs() ? "[Errno 13] Permission denied: " : "[Errno 21] Is a directory: ";
 

@@ -23,8 +23,11 @@ import io.archsim.model.DesignDocuments;
  */
 public final class KneeSweeps {
 
-	/** The constant-load runs of each sweep. */
-	private static final int STEPS = 6;
+	/**
+	 * The constant-load runs of each sweep, the Python engine's {@code KNEE_STEPS}, which
+	 * also bounds the runs it made at once.
+	 */
+	public static final int STEPS = 6;
 
 	private final BreakingPoint breakingPoint;
 
