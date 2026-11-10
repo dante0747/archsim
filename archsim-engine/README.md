@@ -20,6 +20,7 @@ which an ArchUnit rule checks, and the digests keep the Python engine's definiti
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
 The app simulates on it: a calibration's replay, through `ReplaySimulator.of`, and the runs its
 worker role claims ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
+It is engine 1.0.0, and stage 4 is done: its exit is checked off in the port plan.
 
 ## Packages
 

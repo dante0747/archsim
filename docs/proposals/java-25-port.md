@@ -230,10 +230,13 @@ doesn't change.
   - the Java engine ships as engine 1.0.0;
   - /accuracy shows its in-sample results, labelled re-simulated;
   - calibrations replay on the Java simulator, and `/simulate` and the engine service are
-    deleted ([ADR-0045](../adr/0045-replay-calibrations-through-an-interim-simulate.md));
-  - the harness calls the Java CLI, and the Python engine is deleted.
-- **Built so far (10 Nov 2026):** [`archsim-engine/`](../../archsim-engine/README.md)'s simulator,
-  in slices that each replayed the frozen engine.
+    deleted ([ADR-0045](../adr/0045-replay-calibrations-through-an-interim-simulate.md)).
+
+  The harness's move to the Java CLI and the Python engine's deletion were in this exit until
+  8 Nov 2026; they are stage 5's now (below), because the MCP server and the `archsim check`
+  action import the Python engine until stage 5 ports them.
+- **Built (10 Nov 2026):** [`archsim-engine/`](../../archsim-engine/README.md)'s simulator, in
+  slices that each replayed the frozen engine. Every item of the exit is met.
   - The parity report is published ([java-parity.md](../validation/java-parity.md)): all 149
     template cases meet the bar, every one of their 2,980 runs replays the frozen engine figure
     for figure with its digests, and all 65 kept calibrations' knees are the frozen engine's.
@@ -246,16 +249,29 @@ doesn't change.
     ([ADR-0054](../adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)). The Python
     worker, `/simulate` and the engine service are deleted; `services/api` keeps the Alembic
     migrations, `migrate` and `seed` until stage 6.
+  - The Java engine is engine 1.0.0: new runs, `GET /meta`, reports and `archsim --version`
+    name it, and runs stored before keep 0.16.0. `benchmarks/engines.json` records it, not
+    frozen yet: its source trees are pinned when it is frozen, before the next held-out
+    campaign.
+  - /accuracy and `docs/validation.md` say in one sentence, labelled re-simulated and in-sample
+    and never in the headline, that 1.0.0 re-simulates every kept calibration with exactly
+    0.16.0's knees (65 of 65), so the latest predictions they show are 0.16.0's, which 1.0.0
+    reproduces. Per-experiment figures would repeat 0.16.0's numbers beside themselves.
   - The harness simulates on the Java engine through `archsim run` when asked
-    (`BENCH_ENGINE=java`).
-  - Left from the exit: engine 1.0.0, /accuracy's re-simulated results, and the harness on the
-    Java CLI by default, after which the Python engine is deleted.
+    (`BENCH_ENGINE=java`), and names its checks by the engine's version
+    ([ADR-0051](../adr/0051-start-the-java-cli-in-stage-4-with-archsim-run.md)).
 
 ### Stage 5 · CLI, MCP server and GitHub Action (3–5 days)
 - **What it covers:** `archsim` commands with the same flags and output, and the MCP tools with the
   same names and schemas.
 - **The `archsim-check` action** runs the CLI from a container image. A GraalVM native binary is
   optional, for faster start-up.
+- **Exit** (from stage 4's, 8 Nov 2026): the harness calls the Java CLI, and the Python engine is
+  deleted, with the scripts that recorded its oracles (their data stays). Before it goes, the
+  price snapshots move into `archsim-model`'s resources and the test fixtures out of
+  `packages/engine`, and the harness takes the fits, the machine speed and the versions it
+  imports from the Python engine from the Java CLI
+  ([ADR-0015](../adr/0015-benchmark-harness-stays-python-until-port-completes.md)).
 
 ### Stage 6 · Clean-up (2–3 days)
 - **Remove Python:** everything except the benchmark harness.

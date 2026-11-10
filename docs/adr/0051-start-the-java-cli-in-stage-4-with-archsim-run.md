@@ -61,7 +61,10 @@ Chosen option: an `archsim-cli` module with `archsim run`, because it is the fir
 with its own version, as `archsim --version` prints it: `1.0.0`, `results/dev/1.0.0/`,
 `knee-range-1.0.0.json`. `results/dev/0.16.0-java/`, written before, stays as the record that
 [java-parity.md](../validation/java-parity.md) reads, and the frozen engine never writes a label
-that starts with `0.16.0-java`.
+that starts with `0.16.0-java`. "Until stage 4's exit" above is now until stage 5's: the
+harness's move to the Java CLI and the Python engine's deletion moved there on 8 Nov 2026, since
+the MCP server and the `archsim check` action import the Python engine until stage 5 ports them,
+so `BENCH_ENGINE` stays explicit until then.
 
 ### Consequences
 

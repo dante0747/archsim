@@ -821,7 +821,8 @@ versions differ.
   a different order and streams are consumed in that order. Scenario comparisons are therefore
   not perfectly paired. Differences of a few percent may be noise; re-run with other seeds to
   check.
-- Engine semantics changes bump `ENGINE_VERSION`, which every report records.
+- Engine semantics changes bump the engine's version (`EngineVersions.ENGINE`), which every
+  report records.
 
 ## Sampled mode (opt-in)
 

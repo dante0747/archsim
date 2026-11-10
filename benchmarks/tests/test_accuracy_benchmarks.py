@@ -1202,6 +1202,72 @@ def test_dev_checks_page_is_generated_from_the_committed_checks() -> None:
     assert "_No development checks yet._" in report.dev_text(Path("nowhere"))
 
 
+def test_the_java_engine_reproduces_every_kept_knee_of_the_frozen_engine() -> None:
+    assert report.java_engine() == {
+        "version": "1.0.0",
+        "reproduces": "0.16.0",
+        "sameKnees": 65,
+        "keptCalibrations": 65,
+        "text": "Re-simulated, in-sample: engine 1.0.0 (Java) re-simulates every kept calibration "
+        "with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which "
+        "1.0.0 reproduces.",
+    }
+
+
+def test_the_latest_predictions_shown_are_the_frozen_engines_the_java_engine_reproduces() -> None:
+    java_engine = report.java_engine()
+
+    assert java_engine is not None
+    assert {(report.load(e, "predictions") or {}).get("engineVersion") for e in report.ORDER} == {
+        java_engine["reproduces"]
+    }
+
+
+def test_the_java_engine_counts_the_same_knees_as_its_parity_report() -> None:
+    java_engine = report.java_engine()
+    parity = (run.HERE.parent / "docs" / "validation" / "java-parity.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert java_engine is not None
+    assert f", {java_engine['sameKnees']} the same;" in parity
+
+
+def test_the_java_engine_missing_knees_says_how_many_it_reproduces(tmp_path: Path) -> None:
+    frozen, java = (tmp_path / "dev" / label / "kafka" for label in report.JAVA_ENGINE_KNEES)
+    for folder, knees in ((frozen, [1000.0, 2000.0, 900.0]), (java, [1000.0, 2100.0])):
+        folder.mkdir(parents=True)
+        for i, knee in enumerate(knees):
+            check = {"comparison": {"predictedKnee": {"kneeRps": knee}}}
+            (folder / f"{i}.json").write_text(json.dumps(check), encoding="utf-8")
+
+    java_engine = report.java_engine(tmp_path)
+
+    assert java_engine is not None
+    assert [java_engine[k] for k in ("sameKnees", "keptCalibrations", "text")] == [
+        1,
+        3,
+        "Re-simulated, in-sample: engine 1.0.0 (Java) re-simulates 1 of 3 kept calibrations with "
+        "exactly 0.16.0's knees; the latest predictions shown are 0.16.0's.",
+    ]
+
+
+def test_the_java_engine_without_checks_says_nothing(tmp_path: Path) -> None:
+    assert report.java_engine(tmp_path) is None
+
+
+def test_the_validation_page_and_accuracy_json_say_what_the_java_engine_reproduces() -> None:
+    data = report.accuracy()
+    java_engine = report.java_engine()
+
+    assert data is not None and java_engine is not None
+    assert data["javaEngine"] == java_engine
+    assert (
+        f"{java_engine['text'].removesuffix('.')} ([java-parity.md](validation/java-parity.md))."
+        in report.DOC.read_text(encoding="utf-8")
+    )
+
+
 def test_cpusets_follow_compose_and_the_runner() -> None:
     declared = run.compose_cpusets()
     assert {s for services in run.STACK_SERVICES.values() for s in services} <= set(declared)

@@ -13,6 +13,7 @@ import {
   BENCHMARK_WORKFLOW,
   CALIBRATION_DOC,
   type Experiment,
+  JAVA_PARITY_DOC,
   VALIDATION_DOC,
   byKneeError,
   coverageAsClaimed,
@@ -35,6 +36,16 @@ const navLink = "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs 
 /** A file of the repository, named rather than linked (the repository is private). */
 function RepoFile({ path, small }: { path: string; small?: boolean }) {
   return <code className={cn("font-code text-ink", small ? "text-[12px]" : "text-[13px]")}>{path}</code>;
+}
+
+/** A term of "How to read these numbers" with what it means. */
+function Term({ term, children }: { term: string; children: React.ReactNode }) {
+  return (
+    <div className="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
+      <dt className="font-semibold text-ink">{term}</dt>
+      <dd className="mt-1 text-ink-2 sm:mt-0">{children}</dd>
+    </div>
+  );
 }
 
 function Section({ id, title, children, lead }: { id: string; title: string; lead?: React.ReactNode; children: React.ReactNode }) {
@@ -667,11 +678,15 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
                 "Each experiment calibrates the model from a staircase of runs well below the knee, then ArchSim predicts every higher step and the predictions are saved before the first step is measured. Nothing measured afterwards feeds back into the model.",
               ],
             ].map(([term, text]) => (
-              <div key={term} className="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
-                <dt className="font-semibold text-ink">{term}</dt>
-                <dd className="mt-1 text-ink-2 sm:mt-0">{text}</dd>
-              </div>
+              <Term key={term} term={term}>
+                {text}
+              </Term>
             ))}
+            {data.javaEngine && (
+              <Term term="Java engine">
+                {data.javaEngine.text} The comparison is in <RepoFile path={JAVA_PARITY_DOC} small /> in the repository.
+              </Term>
+            )}
           </dl>
         </Section>
 

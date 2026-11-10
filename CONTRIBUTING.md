@@ -162,9 +162,11 @@ for feature requests. The weekly count of opened and closed bugs in
 Users compare runs and rely on reproducibility, so engine changes are held to a higher bar:
 
 1. Any change that can alter results for the same document and seed (event ordering, RNG
-   stream usage, distributions, metric definitions, analysis thresholds) **must bump
-   `ENGINE_VERSION`** in `packages/engine/src/archsim_engine/version.py`. Every report records
-   the engine version, and comparisons warn when two runs used different versions.
+   stream usage, distributions, metric definitions, analysis thresholds) **must bump the engine's
+   version**, `EngineVersions.ENGINE` in
+   `archsim-engine/src/main/java/io/archsim/engine/version/EngineVersions.java` (the Python
+   engine is frozen at 0.16.0). Every report records the engine version, and comparisons warn
+   when two runs used different versions.
 2. Update the reference benchmark in `packages/engine/tests/test_reference_benchmark.py`
    if expectations legitimately change, and explain why in the PR. The analytic M/M/c checks
    must keep passing.
@@ -176,8 +178,8 @@ Changing the document schema requires bumping `SCHEMA_VERSION`, adding a migrati
 `packages/engine/src/archsim_engine/migrations.py`, and a test that an old document still
 loads. Changing the database schema requires a new Flyway migration in
 `archsim-app/src/main/resources/db/migration/` (Flyway owns the schema,
-[ADR-0032](docs/adr/0032-flyway-takes-over-from-alembic.md)), and a change to the workers'
-SQLAlchemy models in `services/api` when they use the columns. Alembic stays at revision 0008:
+[ADR-0032](docs/adr/0032-flyway-takes-over-from-alembic.md)), and a change to `services/api`'s
+SQLAlchemy models when they use the columns. Alembic stays at revision 0008:
 a later revision would make Flyway refuse the database.
 
 ## Adding a component type

@@ -1,18 +1,21 @@
 # Implementation status
 
-State as of 2026-11-10 (engine 0.16.0, frozen and measured on the held-out experiments; schema 1.7,
-report 1.15, the Java simulator's; the API, the engine's deterministic parts and the simulator in
-Java). This file separates what is implemented, how it was verified, what is known to be
-limited, and what comes next. Nothing listed under "Implemented" is a stub or a mock. The
-product and UX brief for v2 is
+State as of 2026-11-10 (engine 1.0.0, the Java engine, which reproduces the frozen engine 0.16.0
+measured on the held-out experiments; schema 1.7, report 1.15; the API, the engine's
+deterministic parts and the simulator in Java). This file separates what is implemented, how it
+was verified, what is known to be limited, and what comes next. Nothing listed under
+"Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
 
-**The simulator in Java: stage 4 of the Java port (2026-11-10).**
+**The simulator in Java, engine 1.0.0: stage 4 of the Java port (2026-11-10).**
 
 - `archsim-engine` simulates: the kernel and every component, runs with their faults and
-  autoscaling, sweeps and the breaking point, sampled mode and seed groups.
+  autoscaling, sweeps and the breaking point, sampled mode and seed groups. It ships as engine
+  1.0.0: new runs, `GET /meta`, reports and `archsim --version` name it, and runs stored before
+  keep 0.16.0. `benchmarks/engines.json` records it, not frozen yet (its source trees are pinned
+  at its freeze, before the next held-out campaign).
 - It replays the frozen engine 0.16.0 figure for figure
   ([docs/validation/java-parity.md](docs/validation/java-parity.md)): all 149 template cases meet
   the parity bar, every one of their 2,980 runs gives the frozen engine's figures and digests,
@@ -28,6 +31,13 @@ product and UX brief for v2 is
   its own ([ADR 0054](docs/adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)).
 - The Python worker, `POST /simulate` and the engine service are deleted; `services/api` keeps
   the Alembic migrations, `migrate` and `seed` until stage 6.
+- /accuracy and docs/validation.md say, in one sentence labelled re-simulated and in-sample, that
+  1.0.0 re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65): the latest
+  predictions they show are 0.16.0's, which 1.0.0 reproduces (older runs' are older engines').
+- The harness's move to the Java CLI and the Python engine's deletion moved to stage 5's exit
+  (8 Nov): the MCP server and the `archsim check` action import the Python engine until stage 5
+  ports them. Until then the harness simulates on the Java engine when asked (`BENCH_ENGINE=java`)
+  and names those checks by its version.
 - Not run during stage 4: CI on GitHub, which has started no job since 2026-11-05. Every slice
   passed CI's steps locally.
 
@@ -1967,10 +1977,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–3
-   are built, and stage 4's simulator, Java worker and cut-over are done. Engine 1.0.0,
-   /accuracy's re-simulated results and the harness on the Java CLI finish stage 4; stage 5 is
-   the CLI, the MCP server and the GitHub Action.
+1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–4
+   are built (engine 1.0.0). Stage 5 is next: the CLI, the MCP server and the GitHub Action,
+   then the harness on the Java CLI and the Python engine deleted.
 2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
    experiments before they were measured (the harness can't predict with a second engine), so a
    before-and-after on them can only re-simulate 0.14.0, labelled as such.

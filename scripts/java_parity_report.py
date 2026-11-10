@@ -218,6 +218,8 @@ def _headline(parity: Mapping[str, Any], knee_rows: Sequence[Json]) -> str:
     )
 
 
+# the rule benchmarks/report.py's _same_knee keeps for the /accuracy sentence; a test there
+# compares the counts
 def _same_knee(row: Json) -> bool:
     return row["checked"] and row["resimulated"] and row["java"] == row["python"]
 

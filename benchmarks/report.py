@@ -1190,6 +1190,7 @@ def render(text: str, results: Path = RESULTS) -> tuple[str, dict[str, str]]:
     text = replace_block(text, "tiers", tiers_block(cmps, hist) if cmps else "_No results yet._")
     envs = {e: env for e in ORDER if (env := load(e, "environment", results))}
     text = replace_block(text, "environment", environment_block(envs))
+    text = replace_block(text, "java-engine", java_engine_block(results))
     charts = {}
     for exp in ORDER:
         text = replace_block(text, exp, experiment_block(exp, results))
@@ -1528,6 +1529,7 @@ def accuracy(results: Path = RESULTS) -> dict[str, Any] | None:
         },
         "experiments": exps,
         "history": history_json(hist),
+        "javaEngine": java_engine(results),
     }
 
 
@@ -1541,6 +1543,66 @@ def accuracy_text(results: Path = RESULTS) -> str:
 # ---------------------------------------------------------------------------------------------
 
 DEV_DOC = CHARTS / "dev-checks.md"
+FROZEN_ENGINE = "0.16.0"
+"""The frozen engine the Java engine is checked against, which predicted every experiment's latest
+run."""
+JAVA_ENGINE_KNEES = (f"{FROZEN_ENGINE}-port", f"{FROZEN_ENGINE}-java")
+"""The development checks docs/validation/java-parity.md pairs: every kept calibration re-simulated
+by the same harness on the frozen engine and on the Java engine, which wrote its folder before it
+was engine 1.0.0 and replays its runs unchanged."""
+
+
+def java_engine(results: Path = RESULTS) -> dict[str, Any] | None:
+    """What the Java engine reproduces of the frozen engine's predictions: of the kept
+    calibrations either engine re-simulated, how many it gave exactly the frozen engine's knee,
+    with the one sentence the validation page and /accuracy show of it (in-sample, never in the
+    headline). The page's older runs were predicted by older engines, so the sentence speaks of
+    the latest predictions only. None while neither engine has re-simulated any."""
+    folders = [results / "dev" / label for label in JAVA_ENGINE_KNEES]
+    names = sorted({p.relative_to(f) for f in folders for p in f.rglob("*.json")})
+    if not names:
+        return None
+    same = sum(1 for name in names if _same_knee(*(f / name for f in folders)))
+    version = next(e["version"] for e in reversed(engines()) if e.get("engine") == "java")
+    if same == len(names):
+        text = (
+            f"Re-simulated, in-sample: engine {version} (Java) re-simulates every kept calibration "
+            f"with exactly {FROZEN_ENGINE}'s knees ({same} of {len(names)}); the latest "
+            f"predictions shown are {FROZEN_ENGINE}'s, which {version} reproduces."
+        )
+    else:
+        text = (
+            f"Re-simulated, in-sample: engine {version} (Java) re-simulates {same} of "
+            f"{len(names)} kept calibrations with exactly {FROZEN_ENGINE}'s knees; the latest "
+            f"predictions shown are {FROZEN_ENGINE}'s."
+        )
+    return {
+        "version": version,
+        "reproduces": FROZEN_ENGINE,
+        "sameKnees": same,
+        "keptCalibrations": len(names),
+        "text": text,
+    }
+
+
+def _same_knee(frozen: Path, java: Path) -> bool:
+    """Whether both engines re-simulated a calibration and found the same knee (or none): the
+    rule of scripts/java_parity_report.py's ``_same_knee``, whose count a test compares."""
+    if not (frozen.exists() and java.exists()):
+        return False
+    knees = [
+        json.loads(p.read_text(encoding="utf-8"))["comparison"]["predictedKnee"].get("kneeRps")
+        for p in (frozen, java)
+    ]
+    return knees[0] == knees[1]
+
+
+def java_engine_block(results: Path = RESULTS) -> str:
+    """The validation page's sentence on the Java engine, linked to its parity report."""
+    java = java_engine(results)
+    if java is None:
+        return "_Not re-simulated yet._"
+    return f"{java['text'].removesuffix('.')} ([java-parity.md](validation/java-parity.md))."
 
 
 def version_key(v: str) -> tuple[int, ...]:
@@ -1570,8 +1632,9 @@ def dev_text(results: Path = RESULTS) -> str:
         "calibration passes are turned into model inputs again with today's `run.py`, and its "
         "measured load steps are simulated with the engine in each column. These checks are "
         "designed after the measurements were seen, so they show what a model change does on data "
-        "it may have been tuned on. They are never predictions, and neither docs/validation.md "
-        "nor the /accuracy page shows them.",
+        "it may have been tuned on. They are never predictions: docs/validation.md and the "
+        "/accuracy page show only one sentence from them, labelled re-simulated, on how many of "
+        "the frozen engine's knees the Java engine reproduces.",
         "",
     ]
     if not checks:

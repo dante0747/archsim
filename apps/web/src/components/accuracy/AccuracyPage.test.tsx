@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AccuracyPage } from "@/components/accuracy/AccuracyPage";
-import { CALIBRATION_DOC, VALIDATION_DOC, accuracy, cpuSentence, kneeSentence, minus, spreadSentence, topStepText } from "@/lib/accuracy";
+import { CALIBRATION_DOC, JAVA_PARITY_DOC, VALIDATION_DOC, accuracy, cpuSentence, kneeSentence, minus, spreadSentence, topStepText } from "@/lib/accuracy";
 
 // Expectations come from the data, so this keeps passing when the benchmarks rerun.
 describe("AccuracyPage", () => {
@@ -72,5 +72,23 @@ describe("AccuracyPage", () => {
     expect(text).toContain(CALIBRATION_DOC);
     const hrefs = [...container.querySelectorAll("a[href]")].map((a) => a.getAttribute("href") ?? "");
     expect(hrefs.filter((h) => !h.startsWith("/") && !h.startsWith("#"))).toEqual([]);
+  });
+
+  it("says once, under how to read the numbers, what the Java engine reproduces, re-simulated", () => {
+    const java = accuracy.javaEngine;
+    expect(java).toBeTruthy();
+    const { container } = render(<AccuracyPage data={accuracy} />);
+
+    const read = container.querySelector("section#read") as HTMLElement;
+    const entry = within(read).getByText("Java engine").closest("div") as HTMLElement;
+    expect(entry.textContent).toContain(java?.text);
+    expect(within(entry).getByText(JAVA_PARITY_DOC)).toBeInTheDocument();
+    expect(container.textContent?.split(java?.text ?? "").length).toBe(2);
+  });
+
+  it("says nothing of the Java engine before it has re-simulated", () => {
+    const { container } = render(<AccuracyPage data={{ ...accuracy, javaEngine: null }} />);
+
+    expect(within(container).queryByText("Java engine")).toBeNull();
   });
 });

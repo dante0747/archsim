@@ -122,6 +122,12 @@ Read these numbers as runs on one laptop, three to six per experiment:
 - **Nothing is validated.** No experiment meets all the [proposed tier
   thresholds](#proposed-tier-thresholds): criterion 3b needs a second machine.
 
+## The Java engine
+
+<!-- BEGIN GENERATED: java-engine -->
+Re-simulated, in-sample: engine 1.0.0 (Java) re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which 1.0.0 reproduces ([java-parity.md](validation/java-parity.md)).
+<!-- END GENERATED: java-engine -->
+
 ## Reproduce
 
 Each stack is one command (Docker and [uv](https://docs.astral.sh/uv/) needed; 20 to 30 minutes

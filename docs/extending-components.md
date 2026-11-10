@@ -239,5 +239,5 @@ The web unit tests use a copy of the component catalog. After adding or changing
 regenerate it with `uv run python scripts/export_web_fixtures.py`; the engine test
 `test_web_catalog_fixture_matches_registry` fails until you do.
 
-If the component changes results for existing documents, bump `ENGINE_VERSION`
-(see [CONTRIBUTING.md](../CONTRIBUTING.md#changing-simulation-semantics)).
+If the component changes results for existing documents, bump the engine's version,
+`EngineVersions.ENGINE` (see [CONTRIBUTING.md](../CONTRIBUTING.md#changing-simulation-semantics)).

@@ -14,7 +14,8 @@
 - [ ] Web: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` pass (if `apps/web` changed)
 - [ ] Docs updated (schema, API, modeling assumptions or UI workflow, if affected)
 - [ ] **Simulation semantics changed?** If results can differ for the same document and seed:
-      `ENGINE_VERSION` bumped, reference benchmark reviewed, `docs/simulation-model.md` updated
+      the engine's version (`EngineVersions.ENGINE`) bumped, reference benchmark reviewed,
+      `docs/simulation-model.md` updated
 - [ ] **Schema changed?** `SCHEMA_VERSION` bumped with a migration and a test
 - [ ] **Database changed?** New Flyway migration added (`archsim-app/src/main/resources/db/migration`)
 - [ ] No secrets, `.env` files or local databases committed

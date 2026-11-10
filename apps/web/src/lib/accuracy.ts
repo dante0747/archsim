@@ -10,6 +10,7 @@ import raw from "@/data/accuracy.json";
 export const VALIDATION_DOC = "docs/validation.md";
 export const CALIBRATION_DOC = "docs/calibration.md";
 export const BENCHMARK_WORKFLOW = ".github/workflows/benchmark.yml";
+export const JAVA_PARITY_DOC = "docs/validation/java-parity.md";
 
 export interface Knee {
   kneeRps: number | null;
@@ -280,6 +281,19 @@ export interface Accuracy {
   };
   experiments: Experiment[];
   history: Record<string, HistoryRun[]>;
+  /** What the Java engine reproduces of the frozen engine's knees, re-simulated in-sample; null before it has. */
+  javaEngine: JavaEngine | null;
+}
+
+/** The Java engine's re-simulation of every kept calibration against the frozen engine's knees. */
+export interface JavaEngine {
+  version: string;
+  /** The frozen engine whose predictions the page shows. */
+  reproduces: string;
+  sameKnees: number;
+  keptCalibrations: number;
+  /** The one sentence the page shows, labelled re-simulated and in-sample. */
+  text: string;
 }
 
 export const accuracy = raw as unknown as Accuracy;
