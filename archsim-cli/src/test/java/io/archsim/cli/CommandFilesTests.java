@@ -76,6 +76,20 @@ class CommandFilesTests {
 	}
 
 	@Test
+	void readBytes_aMissingFile_isRefusedWithItsName() {
+		Path missing = this.folder.resolve("missing.yml");
+
+		assertThatExceptionOfType(CommandException.class).isThrownBy(() -> CommandFiles.readBytes(missing.toString()))
+			.withMessage("Cannot read %s: there is no such file or folder", missing);
+	}
+
+	@Test
+	void readBytes_aNameThatIsNotAPath_isRefusedWithTheReason() {
+		assertThatExceptionOfType(CommandException.class).isThrownBy(() -> CommandFiles.readBytes("design\0.json"))
+			.withMessageStartingWith("Cannot read design\0.json: ");
+	}
+
+	@Test
 	void write_intoAFolderThatIsNotThere_isRefusedWithTheFilesName() {
 		Path file = this.folder.resolve("nowhere").resolve("report.json");
 

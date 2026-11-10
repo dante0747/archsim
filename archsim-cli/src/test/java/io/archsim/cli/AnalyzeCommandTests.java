@@ -32,13 +32,13 @@ class AnalyzeCommandTests {
 
 	@TestFactory
 	Stream<DynamicTest> analyze_eachRecordedCase_printsWhatThePythonCliPrinted(@TempDir Path folder) {
-		return RecordedCases.replays("analyze", folder);
+		return Replays.of("analyze", folder);
 	}
 
 	// Python crashed with a traceback, exit code 1
 	@TestFactory
 	Stream<DynamicTest> analyze_eachFileRecordedAsUnreadable_isRefusedInOneLine(@TempDir Path folder) {
-		return RecordedCases.unreadableFiles("analyze", folder);
+		return Replays.unreadableFiles("analyze", folder);
 	}
 
 	// Python's analyze_document raised KeyError on a link to a part that is not there;

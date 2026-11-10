@@ -16,13 +16,13 @@ class ValidateCommandTests {
 
 	@TestFactory
 	Stream<DynamicTest> validate_eachRecordedCase_printsWhatThePythonCliPrinted(@TempDir Path folder) {
-		return RecordedCases.replays("validate", folder);
+		return Replays.of("validate", folder);
 	}
 
 	// Python crashed with a traceback, exit code 1
 	@TestFactory
 	Stream<DynamicTest> validate_eachFileRecordedAsUnreadable_isRefusedInOneLine(@TempDir Path folder) {
-		return RecordedCases.unreadableFiles("validate", folder);
+		return Replays.unreadableFiles("validate", folder);
 	}
 
 }

@@ -65,6 +65,24 @@ final class CommandFiles {
 	}
 
 	/**
+	 * The bytes a file holds.
+	 * @param file the file, as the command line names it
+	 * @return its bytes
+	 * @throws CommandException when the file cannot be read, or its name is not one
+	 */
+	static byte[] readBytes(String file) {
+		try {
+			return Files.readAllBytes(Path.of(file));
+		}
+		catch (InvalidPathException ex) {
+			throw new CommandException("Cannot read %s: %s".formatted(file, ex.getReason()));
+		}
+		catch (IOException ex) {
+			throw new CommandException("Cannot read %s: %s".formatted(file, reason(ex)));
+		}
+	}
+
+	/**
 	 * Writes text to a file in UTF-8, replacing what it held.
 	 * @param file the file, as the command line names it
 	 * @param text the text

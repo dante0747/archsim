@@ -1,5 +1,6 @@
 package io.archsim.cli;
 
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -16,12 +17,12 @@ import io.archsim.engine.version.EngineVersions;
 
 /**
  * The {@code archsim} command, whose subcommands do the work, as the Python engine's
- * CLI's did: {@code validate}, {@code run}, {@code analyze}, {@code catalog} and
- * {@code schema}.
+ * CLI's did: {@code validate}, {@code run}, {@code compare}, {@code analyze},
+ * {@code import}, {@code export}, {@code catalog} and {@code schema}.
  */
-@Command(
-		name = "archsim", description = "ArchSim architecture simulator", subcommands = { ValidateCommand.class,
-				RunCommand.class, AnalyzeCommand.class, CatalogCommand.class, SchemaCommand.class },
+@Command(name = "archsim", description = "ArchSim architecture simulator",
+		subcommands = { ValidateCommand.class, RunCommand.class, CompareCommand.class, AnalyzeCommand.class,
+				ImportCommand.class, ExportCommand.class, CatalogCommand.class, SchemaCommand.class },
 		mixinStandardHelpOptions = true, version = Archsim.VERSION)
 public final class Archsim implements Runnable {
 
@@ -30,6 +31,12 @@ public final class Archsim implements Runnable {
 
 	@Spec
 	private CommandSpec spec = CommandSpec.create();
+
+	private final InputStream standardInput;
+
+	private Archsim(InputStream standardInput) {
+		this.standardInput = standardInput;
+	}
 
 	/**
 	 * Runs the command its arguments name and exits with its exit code, writing UTF-8 to
@@ -46,13 +53,23 @@ public final class Archsim implements Runnable {
 
 	/**
 	 * The {@code archsim} command line, before its arguments are parsed: its help and its
-	 * errors in plain text, an option named by the start of its name as argparse took it,
-	 * and a command refused ({@link CommandException}) by its message alone, exit code 1.
+	 * errors in plain text, and a command refused ({@link CommandException}) by its
+	 * message alone, exit code 1. An option is named in full: picocli's abbreviations,
+	 * which would take argparse's, fail on {@code -}, the name of standard input.
 	 * @return the command line
 	 */
 	static CommandLine commandLine() {
-		return new CommandLine(new Archsim()).setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF))
-			.setAbbreviatedOptionsAllowed(true)
+		return commandLine(System.in);
+	}
+
+	/**
+	 * The {@code archsim} command line, reading what a command reads from standard input
+	 * ({@code archsim import FORMAT -}) from a stream of its own.
+	 * @param standardInput the stream
+	 * @return the command line
+	 */
+	static CommandLine commandLine(InputStream standardInput) {
+		return new CommandLine(new Archsim(standardInput)).setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF))
 			.setExecutionExceptionHandler(Archsim::printRefusal);
 	}
 
@@ -64,6 +81,14 @@ public final class Archsim implements Runnable {
 		}
 		commandLine.getErr().println(refusal.getMessage());
 		return 1;
+	}
+
+	/**
+	 * What the command reads as standard input.
+	 * @return the stream
+	 */
+	InputStream standardInput() {
+		return this.standardInput;
 	}
 
 	/**

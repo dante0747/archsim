@@ -65,6 +65,10 @@ crash", because it keeps everything a caller reads or branches on, and is checka
   command, and the Java tests run every case and compare it as above. The recordings stay when the
   Python engine is deleted.
 
+**Status (10 Nov 2026, later):** [ADR-0056](0056-the-java-cli-takes-options-by-their-full-names.md)
+(proposed) takes options by their full names only: picocli's abbreviations fail on `-`, the name
+`archsim import` gives standard input.
+
 ### Consequences
 
 - Good, because every line a script or CI job greps, and every exit code, is the Python CLI's.
@@ -78,7 +82,7 @@ crash", because it keeps everything a caller reads or branches on, and is checka
 
 The `*CommandTests` classes in `archsim-cli` replay every recorded case and check that printed
 JSON is laid out as `json.dumps(value, indent=2)` lays it out. The departures' tests check the
-Java CLI's answers where Python crashed: `RecordedCases.unreadableFiles` replays each file
+Java CLI's answers where Python crashed: `Replays.unreadableFiles` replays each file
 recorded as unreadable, and `CommandFilesTests`, `ArchsimTests` (a refusal prints no stack trace)
 and `AnalyzeCommandTests` the rest.
 

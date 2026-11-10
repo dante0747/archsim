@@ -29,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import copy
 import gzip
@@ -157,13 +158,13 @@ def versions() -> list[Json]:
     return [*cases, {"name": "noSchemaVersion", "design": without, "args": ["validate", FILE]}]
 
 
-def unreadable(command: str) -> list[Json]:
+def unreadable(*command: str) -> list[Json]:
     """Files a command cannot use: not JSON, missing, a JSON array, an empty object."""
     return [
-        {"name": "aFileThatIsNotJson", "text": NOT_JSON, "args": [command, FILE]},
-        {"name": "aMissingFile", "args": [command, MISSING]},
-        {"name": "aJsonArray", "design": [QUEUEING_LAB], "args": [command, FILE]},
-        {"name": "anEmptyObject", "design": {}, "args": [command, FILE]},
+        {"name": "aFileThatIsNotJson", "text": NOT_JSON, "args": [*command, FILE]},
+        {"name": "aMissingFile", "args": [*command, MISSING]},
+        {"name": "aJsonArray", "design": [QUEUEING_LAB], "args": [*command, FILE]},
+        {"name": "anEmptyObject", "design": {}, "args": [*command, FILE]},
     ]
 
 
@@ -202,10 +203,145 @@ ANALYZES: list[Json] = [
     *unreadable("analyze"),
 ]
 
+FIXTURES = Path(__file__).resolve().parent.parent / "packages/engine/tests/fixtures"
+OUT_FILE = "{out}"
+"""Stands for a file a command writes its result to (-o)."""
+
+
+def fixture(name: str) -> str:
+    return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+COMPOSE = fixture("import/voting-compose.yml")
+K8S = fixture("import/shop-k8s.yaml")
+TERRAFORM = fixture("import/orders-aws-plan.json")
+SEEDED = busy_hour(copy.deepcopy(CASES["constantRateToAnApi"]))
+
+
+def two_scenarios() -> Json:
+    """The small design with a busy hour and a faster API, each a scenario."""
+    doc = busy_hour(copy.deepcopy(CASES["constantRateToAnApi"]))
+    doc["scenarios"] += faster_api(copy.deepcopy(CASES["constantRateToAnApi"]))["scenarios"]
+    return doc
+
+
+COMPARES: list[Json] = [
+    {"name": "theDesignWithItself", "design": NO_FAILURES, "args": ["compare", FILE]},
+    {
+        "name": "aScenarioAgainstTheDesign",
+        "design": SEEDED,
+        "args": ["compare", FILE, "--b", "busy"],
+    },
+    {
+        "name": "theDesignAgainstAScenario",
+        "design": SEEDED,
+        "args": ["compare", FILE, "--a", "busy"],
+    },
+    {
+        "name": "twoScenarios",
+        "design": two_scenarios(),
+        "args": ["compare", FILE, "--a", "busy", "--b", "faster"],
+    },
+    {"name": "aDesignThatFails", "design": EVERY_CALL_FAILS, "args": ["compare", FILE]},
+    {"name": "anUnknownScenario", "design": SEEDED, "args": ["compare", FILE, "--b", "nowhere"]},
+    {"name": "anInvalidDesign", "design": INVALID, "args": ["compare", FILE]},
+    {"name": "aRunOverTheRequestLimit", "design": TOO_BIG, "args": ["compare", FILE]},
+    *unreadable("compare"),
+]
+
+EXPORTED = (
+    "cache-aside-starter",
+    "black-friday-kubernetes",
+    "microservices-call-chain",
+    "kafka-order-pipeline",
+    "serverless-image-pipeline",
+    "queueing-lab",
+)
+EXPORTS: list[Json] = [
+    *(
+        {"name": f"{name} {fmt}", "design": template(name), "args": ["export", fmt, FILE]}
+        for name in EXPORTED
+        for fmt in ("compose", "k8s", "mermaid")
+    ),
+    {
+        "name": "toAFile",
+        "design": template("cache-aside-starter"),
+        "args": ["export", "k8s", FILE, "-o", OUT_FILE],
+    },
+    {"name": "anInvalidDesign", "design": INVALID, "args": ["export", "compose", FILE]},
+    {"name": "anUnknownFormat", "design": QUEUEING_LAB, "args": ["export", "terraform", FILE]},
+    *unreadable("export", "mermaid"),
+]
+
+IMPORTS: list[Json] = [
+    {"name": "compose", "text": COMPOSE, "args": ["import", "compose", FILE]},
+    {"name": "k8s", "text": K8S, "args": ["import", "k8s", FILE]},
+    {"name": "terraform", "text": TERRAFORM, "args": ["import", "terraform", FILE]},
+    {"name": "aName", "text": COMPOSE, "args": ["import", "compose", FILE, "--name", "Votes"]},
+    {
+        "name": "toFiles",
+        "text": K8S,
+        "args": ["import", "k8s", FILE, "-o", OUT_FILE, "--report", REPORT],
+    },
+    {"name": "fromStandardInput", "stdin": COMPOSE, "args": ["import", "compose", "-"]},
+    {
+        "name": "utf16WithAByteOrderMark",
+        "bytes": base64.b64encode(COMPOSE.encode("utf-16")).decode(),
+        "args": ["import", "compose", FILE],
+    },
+    {
+        "name": "utf8WithAByteOrderMark",
+        "bytes": base64.b64encode(COMPOSE.encode("utf-8-sig")).decode(),
+        "args": ["import", "compose", FILE],
+    },
+    {
+        "name": "notUtf8",
+        "bytes": base64.b64encode(b"a: \xff\n").decode(),
+        "args": ["import", "compose", FILE],
+    },
+    {
+        "name": "aTruncatedUtf8Character",
+        "bytes": base64.b64encode(b"a: \xc3").decode(),
+        "args": ["import", "compose", FILE],
+    },
+    {
+        "name": "anOddUtf16",
+        "bytes": base64.b64encode(b"\xff\xfea\x00b").decode(),
+        "args": ["import", "compose", FILE],
+    },
+    *(
+        {"name": name, "bytes": base64.b64encode(raw).decode(), "args": ["import", "compose", FILE]}
+        for name, raw in {
+            "anInvalidContinuation": b"a\xe2\x28\xa1",
+            "aContinuationByteAlone": b"a\x80",
+            "anOverlongTwoByteLead": b"a\xc0\x80",
+            "anUnfinishedThreeByteCharacter": b"a\xe2\x82",
+            "anOverlongForm": b"a: \xe0\x80\x80",
+            "aSurrogateInUtf8": b"\xed\xa0\x80",
+            "pastU10ffff": b"\xf4\x90\x80\x80",
+            "aTruncatedFourByteCharacter": b"a: \xf0\x9f\x98",
+            "aBadThirdByteOfFour": b"\xf0\x9f\x28\x80",
+            "anInvalidMarkedUtf8": b"\xef\xbb\xbfa: \xff",
+            "aLoneLowSurrogate": b"\xff\xfea\x00\x00\xdc",
+            "aHighSurrogateWithoutItsPair": b"\xff\xfe\x00\xd8a\x00",
+            "aHighSurrogateAtTheEnd": b"\xfe\xff\x00a\xd8\x00",
+            "aBigEndianOddLength": b"\xfe\xff\x00a\x00",
+        }.items()
+    ),
+    {"name": "notTheFormat", "text": "[1, 2]", "args": ["import", "compose", FILE]},
+    {"name": "terraformThatIsNotJson", "text": "{", "args": ["import", "terraform", FILE]},
+    {"name": "notYaml", "text": "a: [1, 2", "args": ["import", "compose", FILE]},
+    {"name": "anUnknownFormat", "text": COMPOSE, "args": ["import", "helm", FILE]},
+    {"name": "aMissingFile", "args": ["import", "compose", MISSING]},
+]
+
 COMMANDS: dict[str, list[Json]] = {
     "run": RUNS,
     "validate": VALIDATES,
     "analyze": ANALYZES,
+    "compare": COMPARES,
+    "export": EXPORTS,
+    "import": IMPORTS,
     "catalog": [{"name": "theCatalog", "args": ["catalog"]}],
     "schema": [{"name": "theSchema", "args": ["schema"]}],
 }
@@ -217,32 +353,61 @@ def run(case: Json, folder: Path) -> Json:
         path.write_text(json.dumps(case["design"]), encoding="utf-8")
     elif "text" in case:
         path.write_text(case["text"], encoding="utf-8")
+    elif "bytes" in case:
+        path.write_bytes(base64.b64decode(case["bytes"]))
     report_path = folder / f"{case['name']}-report.json"
+    out_path = folder / f"{case['name']}-out.txt"
     missing = folder / "missing.json"
-    names = {FILE: str(path), REPORT: str(report_path), MISSING: str(missing)}
+    names = {
+        FILE: str(path),
+        REPORT: str(report_path),
+        OUT_FILE: str(out_path),
+        MISSING: str(missing),
+    }
     args = [names.get(a, a) for a in case["args"]]
-    out, err = io.StringIO(), io.StringIO()
-    crash = None
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            code = cli.main(args)
-        except Exception as exc:  # what Python left uncaught: a traceback, exit code 1
-            code, crash = 1, f"{type(exc).__name__}: {exc}"
-    recorded: Json = {**case, "exitCode": code, "stdout": out.getvalue()}
-    if crash is None:
-        recorded["stderr"] = err.getvalue()
-    else:
-        recorded["crash"] = crash
+    recorded: Json = {**case, **called(args, case.get("stdin", ""))}
     for key in ("stdout", "stderr", "crash"):
         if key in recorded:
             recorded[key] = placeheld(recorded[key], names)
-    if REPORT in case["args"]:
+    if REPORT in case["args"] and case["args"][0] == "run":
         report = json.loads(report_path.read_text(encoding="utf-8"))
         report["provenance"]["wallSeconds"] = 0.0
         report["provenance"]["python"] = "normalized"
         report["provenance"]["simpy"] = "normalized"
         recorded["report"] = report
+    elif written := {
+        p: Path(names[p]).read_text(encoding="utf-8")
+        for p in (REPORT, OUT_FILE)
+        if p in case["args"] and Path(names[p]).exists()
+    }:
+        recorded["files"] = written
     return recorded
+
+
+def called(args: list[str], stdin: str) -> Json:
+    """The CLI run with ``args`` and ``stdin``: its exit code and what it printed; an uncaught
+    exception as ``crash`` (Python's traceback, exit code 1), argparse's refusal as ``usage``."""
+    out, err = io.StringIO(), io.StringIO()
+    crash, usage = None, False
+    standard_input = sys.stdin
+    sys.stdin = io.TextIOWrapper(io.BytesIO(stdin.encode("utf-8")), encoding="utf-8")
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        try:
+            code = cli.main(args)
+        except SystemExit as exc:
+            code, usage = int(exc.code or 0), True
+        except Exception as exc:  # what Python left uncaught: a traceback, exit code 1
+            code, crash = 1, f"{type(exc).__name__}: {exc}"
+        finally:
+            sys.stdin = standard_input
+    result: Json = {"exitCode": code, "stdout": out.getvalue()}
+    if usage:
+        result["usage"] = True
+    if crash is None:
+        result["stderr"] = err.getvalue()
+    else:
+        result["crash"] = crash
+    return result
 
 
 def placeheld(text: str, names: dict[str, str]) -> str:
@@ -256,9 +421,7 @@ def placeheld(text: str, names: dict[str, str]) -> str:
 def export(command: str) -> bytes:
     with tempfile.TemporaryDirectory() as folder:
         cases = [run(case, Path(folder)) for case in COMMANDS[command]]
-    text = json.dumps(
-        {"generator": GENERATOR, "cases": cases}, sort_keys=True, separators=(",", ":")
-    )
+    text = json.dumps({"generator": GENERATOR, "cases": cases}, separators=(",", ":"))
     return gzip.compress(text.encode(), mtime=0)
 
 

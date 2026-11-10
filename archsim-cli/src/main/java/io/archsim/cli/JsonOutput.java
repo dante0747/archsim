@@ -28,6 +28,16 @@ final class JsonOutput {
 	}
 
 	/**
+	 * The text of a file that holds a value, as the Python CLI wrote one:
+	 * {@code json.dumps(value, indent=2) + "\n"}.
+	 * @param value the value
+	 * @return its text, with a line end
+	 */
+	static String file(JsonNode value) {
+		return text(value) + "\n";
+	}
+
+	/**
 	 * Prints a value as {@code print(json.dumps(value, indent=2))} did, a line at a time
 	 * so that every line ends as the console's do.
 	 * @param out where to print it

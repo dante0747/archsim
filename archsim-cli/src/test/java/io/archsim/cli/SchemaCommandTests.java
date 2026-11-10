@@ -16,7 +16,7 @@ class SchemaCommandTests {
 
 	@TestFactory
 	Stream<DynamicTest> schema_eachRecordedCase_printsWhatThePythonCliPrinted(@TempDir Path folder) {
-		return RecordedCases.replays("schema", folder);
+		return Replays.of("schema", folder);
 	}
 
 }

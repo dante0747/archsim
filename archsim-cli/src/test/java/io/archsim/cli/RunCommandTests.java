@@ -29,7 +29,7 @@ class RunCommandTests {
 
 	@TestFactory
 	Stream<DynamicTest> run_eachRecordedRun_printsWhatThePythonCliPrinted(@TempDir Path folder) {
-		return RecordedCases.replays("run", folder);
+		return Replays.of("run", folder);
 	}
 
 	@TestFactory

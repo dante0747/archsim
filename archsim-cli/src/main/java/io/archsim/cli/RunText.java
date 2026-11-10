@@ -30,7 +30,7 @@ final class RunText {
 	 */
 	static List<String> lines(JsonNode report) {
 		List<String> lines = new ArrayList<>();
-		lines.add(summary(report.get("summary")));
+		lines.add(summaryLine(report));
 		JsonNode mode = report.path("simulationMode");
 		if (PythonText.truthy(mode)) {
 			lines.add("  " + mode.get("note").stringValue());
@@ -46,7 +46,16 @@ final class RunText {
 		return lines;
 	}
 
-	// throughput, success and latency, and the p95 counting failures when any failed
+	/**
+	 * A run's summary line: its throughput, success and latency, and the p95 counting
+	 * failures when any failed.
+	 * @param report the run's report
+	 * @return the line
+	 */
+	static String summaryLine(JsonNode report) {
+		return summary(report.get("summary"));
+	}
+
 	private static String summary(JsonNode summary) {
 		JsonNode latency = summary.get("latencyMs");
 		String line = "offered %s req/s | throughput %s req/s | success %s | p50 %s ms | p95 %s ms | p99 %s ms"

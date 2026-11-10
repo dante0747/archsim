@@ -16,7 +16,7 @@ class CatalogCommandTests {
 
 	@TestFactory
 	Stream<DynamicTest> catalog_eachRecordedCase_printsWhatThePythonCliPrinted(@TempDir Path folder) {
-		return RecordedCases.replays("catalog", folder);
+		return Replays.of("catalog", folder);
 	}
 
 }

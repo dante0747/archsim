@@ -14,8 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * What the recorded runs of the Python CLI cannot show: the limits {@code archsim run}
  * takes that the Python {@code run} did not (ADR-0051), a seed for a workload that is not
- * an object, an option named by the start of its name, a report that cannot be written,
- * and {@code archsim} without a command.
+ * an object, an option named by the start of its name (argparse took it; picocli does
+ * not), a report that cannot be written, and {@code archsim} without a command.
  */
 class RunOptionsTests {
 
@@ -71,11 +71,10 @@ class RunOptionsTests {
 	}
 
 	@Test
-	void run_anOptionNamedByTheStartOfItsName_isTakenAsArgparseTookIt() throws IOException {
+	void run_anOptionNamedByTheStartOfItsName_isAUsageError() throws IOException {
 		Ran ran = run(WORKLOAD, "--max-req", "100");
 
-		assertThat(ran).isEqualTo(new Ran(1, "Cannot simulate: This run would generate about 600 requests, above the "
-				+ "limit of 100. Reduce RPS or duration."));
+		assertThat(ran.exitCode()).isEqualTo(2);
 	}
 
 	@Test
