@@ -2948,18 +2948,41 @@ def java_engine() -> bool:
 
 
 def engine_label() -> str:
-    """The engine as what the harness writes names it: the frozen Python engine's version, or that
-    version with ``-java`` on the Java engine, so the two engines' development checks and range
-    fits never share a name or a path."""
+    """The engine as what the harness writes names it: its version, the frozen Python engine's or
+    the installed Java engine's (1.0.0 on), so the two engines' development checks and range fits
+    never share a name or a path. Before it had a version of its own the Java engine wrote
+    ``0.16.0-java``, which stays its record."""
     from archsim_engine.version import ENGINE_VERSION
 
-    return f"{ENGINE_VERSION}-java" if java_engine() else ENGINE_VERSION
+    return java_engine_version() if java_engine() else ENGINE_VERSION
+
+
+def java_engine_version() -> str:
+    """The installed Java engine's version, as ``archsim --version`` prints it
+    (``archsim, engine 1.0.0``)."""
+    if not JAVA_CLI.exists():
+        raise RuntimeError(
+            f"the Java engine is not installed at {JAVA_CLI}: run ./gradlew :archsim-cli:installDist"
+        )
+    ran = subprocess.run(
+        [str(JAVA_CLI), "--version"], capture_output=True, text=True, encoding="utf-8"
+    )
+    if ran.returncode != 0:
+        raise RuntimeError(f"archsim --version failed ({ran.returncode}): {ran.stderr.strip()}")
+    printed = ran.stdout.strip()
+    match = re.fullmatch(r"archsim, engine (\S+)", printed)
+    if match is None:
+        raise RuntimeError(
+            f"archsim --version printed {printed!r}, not 'archsim, engine <version>'"
+        )
+    return match.group(1)
 
 
 def dev_label(label: str | None = None) -> str:
     """The folder under results/dev/ that ``resimulate`` writes: the engine's label, or a label
     that starts with it (``0.16.0-port`` for checks kept apart from earlier ones). It never names
-    the other engine, so neither writes over the other's checks."""
+    the other engine, so neither writes over the other's checks; the frozen engine never writes
+    ``0.16.0-java``, the Java engine's record."""
     engine = engine_label()
     if label is None:
         return engine

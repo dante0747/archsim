@@ -487,16 +487,17 @@ def test_one_engines_speed_without_the_others_is_named_with_the_command_that_wri
     assert f"{name} is missing: run {command}" in capsys.readouterr().err
 
 
-def test_a_missing_knee_folder_is_named_with_the_command_that_writes_it(
+def test_the_java_engines_missing_knees_are_restored_from_git(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # the Java engine wrote them before it was 1.0.0; resimulate now writes dev/1.0.0/
     _inputs(tmp_path, monkeypatch)
     shutil.rmtree(tmp_path / "dev" / JAVA_KNEES)
 
     assert report.main([]) == 1
     assert (
-        "0.16.0-java is missing: run BENCH_ENGINE=java uv run python benchmarks/run.py resimulate"
-        in capsys.readouterr().err
+        "0.16.0-java is missing: restore it with git checkout HEAD -- "
+        "benchmarks/results/dev/0.16.0-java" in capsys.readouterr().err
     )
 
 

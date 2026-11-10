@@ -9,25 +9,33 @@ import tools.jackson.databind.node.ArrayNode;
 import io.archsim.engine.assumptions.AssumptionsPage;
 import io.archsim.engine.assumptions.EngineConstant;
 import io.archsim.engine.assumptions.EngineConstants;
-import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.parity.GoldenEntry;
+import io.archsim.parity.GoldenFile;
 
 /**
- * The page of every number ArchSim uses without the user typing it, the engine-wide
- * constants it lists, and the engine's versions.
+ * The page of every number ArchSim uses without the user typing it, and the engine-wide
+ * constants it lists.
  */
 final class AssumptionFunctions {
 
+	// ENGINE_VERSION and REPORT_VERSION are not checked: the Java engine is 1.0.0 and
+	// writes report 1.15 (ADR-0050), departures the engine's README lists
 	static final Map<String, Function<GoldenEntry, JsonNode>> PORTED = Map.ofEntries(
 			Map.entry("archsim_engine.assumptions.constants", (entry) -> constants()),
-			Map.entry("archsim_engine.assumptions.render",
-					(entry) -> GoldenJson.text(AssumptionsPage.render(StandardComponents.registry()))),
-			// REPORT_VERSION is not checked: the Java writes report 1.15, a departure
-			// the engine's README lists (ADR-0050)
-			Map.entry("archsim_engine.version.ENGINE_VERSION", (entry) -> GoldenJson.text(EngineVersions.ENGINE)));
+			Map.entry("archsim_engine.assumptions.render", (entry) -> GoldenJson
+				.text(AssumptionsPage.render(StandardComponents.registry(), recordingEngine(entry)))));
 
 	private AssumptionFunctions() {
+	}
+
+	/**
+	 * The version of the engine that recorded an entry, which the page it rendered names.
+	 * @param entry a golden entry
+	 * @return the version its golden file records
+	 */
+	private static String recordingEngine(GoldenEntry entry) {
+		return GoldenFile.read(entry.file()).root().required("engineVersion").stringValue();
 	}
 
 	/**

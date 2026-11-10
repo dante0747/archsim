@@ -1023,10 +1023,75 @@ def test_simulate_on_the_java_engine_says_why_archsim_run_failed(
         run.simulate({"workload": {"rps": 1}})
 
 
-def test_engine_label_names_the_java_engine_apart(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+JAVA_VERSION = "1.0.0"
 
-    assert run.engine_label() == f"{ENGINE_VERSION}-java"
+
+def on_the_java_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``BENCH_ENGINE=java``, with an installed Java engine that says it is 1.0.0."""
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    monkeypatch.setattr(run, "java_engine_version", lambda: JAVA_VERSION)
+
+
+def test_engine_label_on_the_java_engine_is_its_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    on_the_java_engine(monkeypatch)
+
+    assert run.engine_label() == JAVA_VERSION
+
+
+def installed_cli(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, code: int, out: str, err: str = ""
+) -> None:
+    """An installed ``archsim`` that exits with ``code``, printing ``out`` and ``err``."""
+    cli_path = tmp_path / "bin" / "archsim"
+    cli_path.parent.mkdir()
+    cli_path.write_text("", encoding="utf-8")
+
+    def cli(command: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
+        assert command == [str(cli_path), "--version"]
+        return subprocess.CompletedProcess(command, code, out, err)
+
+    monkeypatch.setattr(run, "JAVA_CLI", cli_path)
+    monkeypatch.setattr(run.subprocess, "run", cli)
+
+
+def test_java_engine_version_is_what_archsim_version_prints(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    installed_cli(monkeypatch, tmp_path, 0, "archsim, engine 1.0.0\r\n")
+
+    assert run.java_engine_version() == "1.0.0"
+
+
+def test_java_engine_version_refuses_what_it_cannot_read(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    installed_cli(monkeypatch, tmp_path, 0, "archsim 1.0.0\n")
+
+    with pytest.raises(RuntimeError, match=r"archsim --version printed 'archsim 1\.0\.0'"):
+        run.java_engine_version()
+
+
+def test_java_engine_version_says_why_archsim_version_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    installed_cli(monkeypatch, tmp_path, 1, "", "ERROR: JAVA_HOME is set to an invalid directory\n")
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"archsim --version failed \(1\): ERROR: JAVA_HOME is set to an invalid directory$",
+    ):
+        run.java_engine_version()
+
+
+def test_java_engine_version_without_the_java_engine_says_how_to_install_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(run, "JAVA_CLI", tmp_path / "bin" / "archsim")
+
+    with pytest.raises(
+        RuntimeError, match=r"not installed .*: run \./gradlew :archsim-cli:installDist"
+    ):
+        run.java_engine_version()
 
 
 def test_predict_refuses_the_java_engine(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1068,9 +1133,9 @@ def test_java_build_is_a_hash_of_the_installed_jars(
 def test_range_fit_on_the_java_engine_writes_a_fit_of_its_own(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    on_the_java_engine(monkeypatch)
 
-    assert run.range_fit_path() == run.HERE / f"knee-range-{ENGINE_VERSION}-java.json"
+    assert run.range_fit_path() == run.HERE / f"knee-range-{JAVA_VERSION}.json"
 
 
 def test_an_experiment_on_the_java_engine_is_refused_before_its_stack_starts(
@@ -1840,11 +1905,15 @@ def test_dev_label_refuses_a_folder_that_does_not_name_the_frozen_engine(label: 
 def test_dev_label_on_the_java_engine_keeps_to_its_own_folders(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    on_the_java_engine(monkeypatch)
 
-    assert run.dev_label(f"{ENGINE_VERSION}-java-port") == f"{ENGINE_VERSION}-java-port"
-    with pytest.raises(ValueError, match="names this engine"):
-        run.dev_label(f"{ENGINE_VERSION}-port")
+    assert (run.dev_label(), run.dev_label(f"{JAVA_VERSION}-port")) == (
+        JAVA_VERSION,
+        f"{JAVA_VERSION}-port",
+    )
+    for other in (f"{ENGINE_VERSION}-port", f"{ENGINE_VERSION}-java"):
+        with pytest.raises(ValueError, match="names this engine"):
+            run.dev_label(other)
 
 
 def test_resimulate_with_another_engines_label_is_refused_before_it_runs(

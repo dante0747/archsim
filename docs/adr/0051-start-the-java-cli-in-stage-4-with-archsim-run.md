@@ -57,6 +57,12 @@ Chosen option: an `archsim-cli` module with `archsim run`, because it is the fir
   fit's cache and its file, `knee-range-0.16.0-java.json`), and provenance hashes the Java
   engine's three source trees and the jars installed (`javaBuild`), which may be older.
 
+**Status (10 Nov 2026):** the Java engine is engine 1.0.0, so its checks and fits are labelled
+with its own version, as `archsim --version` prints it: `1.0.0`, `results/dev/1.0.0/`,
+`knee-range-1.0.0.json`. `results/dev/0.16.0-java/`, written before, stays as the record that
+[java-parity.md](../validation/java-parity.md) reads, and the frozen engine never writes a label
+that starts with `0.16.0-java`.
+
 ### Consequences
 
 - Good, because the harness simulates the same designs on both engines, so the knee bar can be

@@ -63,7 +63,7 @@ worker role claims ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-w
 | `yaml` | YAML from anyone (imported files, calibration mappings): `YamlDocuments` (read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), what is wrong with a text is one of four exceptions, as Python told them apart: `InvalidYamlException` (not valid YAML), `YamlValueException` (a value Python refuses, or beyond the bounds), `YamlKeyException` (a scalar Python looks up in vain) and `YamlScalarException` (another scalar Python fails to read) |
 | `calibration` | calibration's deterministic parts, as the Python engine's `calibration` package: `mapping` (`MappingLoader`: the mapping file read into a `CalibrationMapping` of each part's, link's and the workload's sources, refused in the Python engine's words without the text or its values; `TimeRange.parse`), `prometheus` (`PrometheusSeries`: a range query's series as a `Histogram`, one figure, or summed per timestamp), `fit` (`LatencyFits`: a histogram's or samples' latencies fitted to a lognormal or an empirical table, with the fit's error; `NormalQuantile`, Python's `NormalDist().inv_cdf`), `resources` (`CpuFits`: `cpuShare` from CPU in use against the request rate; `LoadCurves`: CPU per request against load, fitted never rising; `CurveExtensions`: how that curve continues above its top rate; `MemoryFits`: the working set against the request rate and requests held, by non-negative least squares), `otlp` (`OtlpSpans`: the spans of an OTLP JSON export; `TraceSummaries`: each service's own time, each database's reads and writes, the call graph and CPU time; `OtlpMappings`: services and databases to parts) `ReplaySummary` (the line on how well a calibrated model reproduces what was observed), and the whole calibrations: `PrometheusCalibration` (a design calibrated from a `PrometheusClient`'s range queries: `RecordedPrometheus` reads recorded responses, `Matrices` checks a response as the Python engine did) and `OtlpCalibration` (from an OTLP export), each giving a `CalibrationOutcome` and replaying the calibrated design through a `ReplaySimulator`, with the time it stamps from a `Clock`; a range's times are read as Python 3.12's C `datetime.fromisoformat` reads them (`IsoFormat`, checked against Python on 120,000 generated texts) |
 | `assumptions` | `AssumptionsPage`: `docs/assumptions.md`, every number ArchSim uses without the user typing it (technology tiers and defaults, preset numbers, the defaults of a new part, from the catalog the editor reads) and where each comes from, documented or illustrative; `EngineConstants`: the engine-wide constants behind sizing, prices and the component models, read from the code that uses them, each an `EngineConstant` named as the Python engine named it |
-| `version` | `EngineVersions`: the engine's version and its reports', which every run and `GET /meta` record (the frozen Python engine's until stage 4) |
+| `version` | `EngineVersions`: the engine's version (1.0.0) and its reports' (1.15), which every run and `GET /meta` record; runs the Python worker stored name the frozen Python engine (0.16.0, report 1.14), and runs the Java worker stored before 1.0.0 name 0.16.0 with report 1.15 |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -118,9 +118,12 @@ decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in four ways, none in a digest
+A report differs from the Python engine's in five ways, none in a digest
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)):
 
+- it names engine 1.0.0, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
+  not checked (the assumptions page names the engine too, and the golden page is checked
+  rendered for 0.16.0, the version its file records);
 - it is report 1.15, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
   checked;
 - its provenance names the Java runtime (`java`, the `java.version` property) where Python's
@@ -130,8 +133,8 @@ A report differs from the Python engine's in four ways, none in a digest
 - a cost item's `quantity` is always a number with a fraction, where Python wrote the literal
   `730` on a load balancer's and a control plane's hours.
 
-A run comparison of a Python run and a Java run names the two engines, as it names two engine
-versions.
+A run comparison of a Python run and a Java run names the two engines, and their two versions
+(0.16.0 and 1.0.0), as it names any two engine versions.
 
 The importers read YAML as PyYAML reads it
 ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and
@@ -263,9 +266,9 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
     write them, and the text the importers refuse (`importers.import_design`); one entry departs,
     `compose-bad-yaml`, whose description of the YAML is SnakeYAML's (ADR-0043);
   - the assumptions page (`assumptions.render`, which `scripts/gen_assumptions.py` writes to
-    `docs/assumptions.md` until the Python engine goes), the constants it lists
-    (`assumptions.constants`) and the engine's versions (`version.ENGINE_VERSION`,
-    `REPORT_VERSION`);
+    `docs/assumptions.md` until the Python engine goes), rendered for the version its golden
+    file records, and the constants it lists (`assumptions.constants`); the engine's versions
+    (`version.ENGINE_VERSION`, `REPORT_VERSION`) are the Java engine's own;
   - calibration's mapping (`calibration.mapping.load_mapping`), ranges (`apply.parse_range`),
     the recorded Prometheus results read as histograms and figures (`prometheus.histogram`,
     `reduce`), the latency fits (`fit.fit_histogram`, `fit_samples`) and the replay summary of
@@ -328,11 +331,11 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)):
   the whole report must match, digests, counts and events processed exactly, numbers to a
   relative 1e-9, and an integer wherever Python wrote one but for a cost line's `instances` and
-  an item's `quantity`, leaving out only the report's version and the provenance's wall-clock
-  time and runtime (`ReportComparison`, in the test fixtures `archsim-cli`'s tests share). The
-  note about experimental technologies, which the
-  recorded balancers and caches reach, is also checked by `AssumptionsTests` for counts of parts
-  they do not.
+  an item's `quantity`, leaving out only the engine's and the report's versions and the
+  provenance's wall-clock time and runtime (`ReportComparison`, in the test fixtures
+  `archsim-cli`'s tests share). The note about experimental technologies, which the recorded
+  balancers and caches reach, is also checked by `AssumptionsTests` for counts of parts they do
+  not.
 - `GoldenRunsTests` replays the golden files' 50 template runs the same way: each template's
   base design and one scenario, its time axis compressed (`runs/<key>`: `document`,
   `scenarioId`, `report`), simulated in Java and compared whole with the frozen engine's report,

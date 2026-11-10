@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import gc
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -24,6 +25,9 @@ TREE = "f" * 40
 CLEAN = {"engineTree": TREE, "dirty": False}
 FROZEN = [{"version": "0.15.0", "engineTree": TREE, "frozenAt": "2026-11-05", "tag": "t"}]
 LAPTOP_SIBLINGS = {c: [c - c % 2, c - c % 2 + 1] for c in range(8)}
+JAVA_VERSIONS = (
+    run.HERE.parent / "archsim-engine/src/main/java/io/archsim/engine/version/EngineVersions.java"
+)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -75,7 +79,7 @@ def test_the_registration_commit_added_them() -> None:
 def test_engine_0_16_0_is_frozen_for_the_held_out_campaign() -> None:
     # docs/adr/0017: frozen for the held-out campaign and as the Java port's parity reference
     entries = report.engines()
-    assert [e["version"] for e in entries] == ["0.14.0", "0.16.0"]
+    assert [e["version"] for e in entries] == ["0.14.0", "0.16.0", "1.0.0"]
     for e in entries:
         assert {"version", "engineTree", "frozenAt", "tag", "tunedOn"} <= set(e)
         assert e["tunedOn"] == TUNED_ON
@@ -87,19 +91,36 @@ def test_engine_0_16_0_is_frozen_for_the_held_out_campaign() -> None:
         assert tagged == frozen["engineTree"]
 
 
-def test_the_last_engine_entry_is_the_engine_in_this_tree() -> None:
+def test_the_python_engines_entry_is_the_engine_in_this_tree() -> None:
     """A commit under packages/engine changes its tree. It then needs a new engine version and a
     new entry in engines.json (and a new freeze before it predicts a held-out experiment), never
-    an edit of a frozen one."""
+    an edit of a frozen one. The frozen engine keeps its entry until the Java port deletes it."""
     head = run.git("rev-parse", "HEAD:packages/engine")
     if head is None:
         pytest.skip("not a git checkout")
-    last = report.engines()[-1]
-    assert last["version"] == ENGINE_VERSION
-    assert last["engineTree"] == head, (
-        f"packages/engine has changed since engine {last['version']} was recorded in "
+    (entry,) = [e for e in report.engines() if e["version"] == ENGINE_VERSION]
+    assert entry["engineTree"] == head, (
+        f"packages/engine has changed since engine {ENGINE_VERSION} was recorded in "
         "benchmarks/engines.json: give it a new version and a new entry"
     )
+
+
+def test_the_last_engine_entry_is_the_java_engine_not_frozen_yet() -> None:
+    """The Java engine's version is its own (EngineVersions.ENGINE). Its source trees are pinned
+    when it is frozen, before the next held-out campaign; until then nothing pins them."""
+    (java_version,) = re.findall(
+        r'String ENGINE = "([^"]+)";', JAVA_VERSIONS.read_text(encoding="utf-8")
+    )
+    last = report.engines()[-1]
+
+    assert [last.get(k) for k in ("version", "engine", "engineTree", "frozenAt", "tag")] == [
+        java_version,
+        "java",
+        None,
+        None,
+        None,
+    ]
+    assert last not in run.frozen_engines()
 
 
 def test_frozen_engines_need_a_date_a_tag_and_a_tree(tmp_path: Path) -> None:

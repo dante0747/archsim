@@ -16,6 +16,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.check.CheckRequest;
 import io.archsim.engine.check.CheckRunner;
@@ -27,6 +28,7 @@ import io.archsim.engine.check.Thresholds;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.engine.simulator.Simulator;
+import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.pricing.PriceSnapshots;
@@ -39,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code sweep/cases.json.gz} ({@code scripts/export_sweep_cases.py}), run in Java, gives
  * what Python gave (a breaking point's rows, digests and verdict; breaking points on one
  * grid; a measurement with its knee; whole checks): text and digests exactly, numbers to
- * a relative 1e-9.
+ * a relative 1e-9, and the engine's own version wherever Python named its own.
  */
 class SweepCasesTests {
 
@@ -54,11 +56,17 @@ class SweepCasesTests {
 
 	private static final CheckRunner CHECKS = new CheckRunner(SIMULATOR, KNEE_SWEEPS);
 
+	private static final String ENGINE_VERSION = "engineVersion";
+
+	/** The version of the engine that recorded the cases. */
+	private static final String FROZEN_ENGINE = "0.16.0";
+
 	@TestFactory
 	Stream<DynamicTest> run_eachRecordedCase_givesWhatThePythonEngineGave() {
 		return recorded().stream()
 			.map((recorded) -> DynamicTest.dynamicTest(recorded.get("name").stringValue(),
-					() -> assertThat(JsonDiff.differences(recorded.get("output"), run(recorded))).isEmpty()));
+					() -> assertThat(JsonDiff.differences(asTheJavaEngine(recorded.get("output")), run(recorded)))
+						.isEmpty()));
 	}
 
 	@Test
@@ -73,6 +81,21 @@ class SweepCasesTests {
 		JsonNode atOnce = BREAKING_POINT.sweep(document, SweepRequest.of(null)).toJson();
 
 		assertThat(atOnce).isEqualTo(oneAtATime.sweep(document, SweepRequest.of(null)).toJson());
+	}
+
+	// Python's output with this engine's version where it named its own: a measurement
+	// names the engine that simulated it
+	private static JsonNode asTheJavaEngine(JsonNode output) {
+		JsonNode copy = output.deepCopy();
+		nameTheJavaEngine(copy);
+		return copy;
+	}
+
+	private static void nameTheJavaEngine(JsonNode node) {
+		if (node instanceof ObjectNode object && FROZEN_ENGINE.equals(object.path(ENGINE_VERSION).asString())) {
+			object.put(ENGINE_VERSION, EngineVersions.ENGINE);
+		}
+		node.forEach(SweepCasesTests::nameTheJavaEngine);
 	}
 
 	private static JsonNode run(JsonNode recorded) {

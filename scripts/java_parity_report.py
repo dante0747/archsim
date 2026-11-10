@@ -40,8 +40,9 @@ PYTHON_KNEES = "0.16.0-port"
 are made with: dev/0.16.0/ predates the spread anchor every check now derives (7 of its 38
 knees differ), and dev/0.16.0-w29/ the held-out runs."""
 JAVA_KNEES = "0.16.0-java"
-"""The Java engine's, as `BENCH_ENGINE=java uv run python benchmarks/run.py resimulate` names
-them."""
+"""The Java engine's, as `BENCH_ENGINE=java uv run python benchmarks/run.py resimulate` named them
+before the Java engine had a version of its own. It names them by its version now (1.0.0 on), so
+this folder is the record, kept in git."""
 REPEATS = 5
 """How many times each engine runs each template for the speed comparison."""
 PYTHON_SPEED_LABEL = f"python-{PYTHON_ENGINE}"
@@ -55,7 +56,9 @@ PARITY_COMMAND = "./gradlew :archsim-engine:parity -Parchsim.parity.out=docs/val
 PYTHON_KNEES_COMMAND = f"uv run python benchmarks/run.py resimulate --label {PYTHON_KNEES}"
 """Writes the frozen engine's knees, dev/0.16.0-port/."""
 JAVA_KNEES_COMMAND = "BENCH_ENGINE=java uv run python benchmarks/run.py resimulate"
-"""Writes the Java engine's knees, dev/0.16.0-java/."""
+"""Wrote the Java engine's knees, dev/0.16.0-java/; it writes dev/<its version>/ now."""
+JAVA_KNEES_RESTORE = f"git checkout HEAD -- benchmarks/results/dev/{JAVA_KNEES}"
+"""Brings the Java engine's knees back: no command writes that folder any more."""
 PYTHON_SPEED_COMMAND = (
     f"uv run python scripts/perf.py --label {PYTHON_SPEED_LABEL} --repeats {REPEATS}"
 )
@@ -182,7 +185,9 @@ def render(
         f"- The Java runs: `{PARITY_COMMAND}` simulated the same runs ({parity['threads']} at a "
         "time) and wrote `simulation-parity.json`; the `javaSeconds` it records is not a speed "
         "figure.",
-        f"- The knees: `{JAVA_KNEES_COMMAND}` wrote `benchmarks/results/dev/{JAVA_KNEES}/`, and "
+        f"- The knees: `{JAVA_KNEES_COMMAND}` wrote `benchmarks/results/dev/{JAVA_KNEES}/` "
+        "before the Java engine had a version of its own (it names the folder by its version "
+        "now), and "
         f"the same harness on the frozen engine, `{PYTHON_KNEES_COMMAND}`, "
         f"`benchmarks/results/dev/{PYTHON_KNEES}/`, each over every kept run with a two-pass "
         "calibration, the only kind with a knee to re-simulate "
@@ -439,20 +444,20 @@ def _load(path: Path) -> Json:
 
 
 def _missing() -> list[str]:
-    """The inputs not there yet, each with the command that writes it. Speed is optional while
-    neither engine is measured, never with one engine's measurement and not the other's."""
+    """The inputs not there yet, each with the command that writes it, or for the Java engine's
+    knees the one that restores them. Speed is optional while neither engine is measured, never
+    with one engine's measurement and not the other's."""
     inputs = {
-        DEV / PYTHON_KNEES: PYTHON_KNEES_COMMAND,
-        DEV / JAVA_KNEES: JAVA_KNEES_COMMAND,
-        PARITY: PARITY_COMMAND,
+        DEV / PYTHON_KNEES: f"run {PYTHON_KNEES_COMMAND}",
+        DEV / JAVA_KNEES: f"restore it with {JAVA_KNEES_RESTORE}",
+        PARITY: f"run {PARITY_COMMAND}",
     }
     if _speed_started():
-        inputs |= {PYTHON_SPEED: PYTHON_SPEED_COMMAND, JAVA_SPEED: JAVA_SPEED_COMMAND}
-    return [
-        f"{path.name} is missing: run {command}"
-        for path, command in inputs.items()
-        if not path.exists()
-    ]
+        inputs |= {
+            PYTHON_SPEED: f"run {PYTHON_SPEED_COMMAND}",
+            JAVA_SPEED: f"run {JAVA_SPEED_COMMAND}",
+        }
+    return [f"{path.name} is missing: {what}" for path, what in inputs.items() if not path.exists()]
 
 
 def _speed_started() -> bool:

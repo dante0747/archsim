@@ -2,6 +2,7 @@ package io.archsim.engine.assumptions;
 
 import org.junit.jupiter.api.Test;
 
+import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.component.standard.StandardComponents;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,7 +13,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AssumptionsPageTests {
 
-	private static final String PAGE = AssumptionsPage.render(StandardComponents.registry());
+	private static final String PAGE = AssumptionsPage.render(StandardComponents.registry(), EngineVersions.ENGINE);
+
+	@Test
+	void render_anEngineVersion_namesTheEngineThePageDescribes() {
+		String page = AssumptionsPage.render(StandardComponents.registry(), "2.5.0");
+
+		assertThat(page).contains("Every number ArchSim 2.5.0 uses without you typing it");
+	}
 
 	@Test
 	void render_documentedValue_linksTheDocumentationByItsHost() {

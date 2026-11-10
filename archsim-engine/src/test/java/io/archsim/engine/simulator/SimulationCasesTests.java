@@ -33,15 +33,15 @@ class SimulationCasesTests {
 	}
 
 	@Test
-	void run_aDesign_namesItsReportVersionTheJavaRuntimeAndTheWallClockTime() {
+	void run_aDesign_namesItsEngineAndReportVersionsTheJavaRuntimeAndTheWallClockTime() {
 		JsonNode recorded = SimulationCases.recorded().getFirst();
 
 		JsonNode report = SimulationCases.simulate(recorded);
 
 		JsonNode provenance = report.get("provenance");
-		assertThat(List.of(report.get("reportVersion").stringValue(), provenance.get("reportVersion").stringValue(),
-				provenance.get("java").stringValue()))
-			.containsExactly("1.15", "1.15", System.getProperty("java.version"));
+		assertThat(List.of(provenance.get("engineVersion").stringValue(), report.get("reportVersion").stringValue(),
+				provenance.get("reportVersion").stringValue(), provenance.get("java").stringValue()))
+			.containsExactly("1.0.0", "1.15", "1.15", System.getProperty("java.version"));
 		assertThat(provenance.get("wallSeconds").doubleValue()).isNotNegative();
 	}
 

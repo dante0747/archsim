@@ -14,21 +14,23 @@ import io.archsim.parity.JsonDiff;
  * A report of the Java simulator against the frozen engine's report of the same run:
  * counts, events processed and digests exactly, numbers to a relative 1e-9, and an
  * integer where Python wrote one (but for two fields, below). Left out are only what the
- * Java writes as its own (ADR-0050): the report's version, the wall-clock time, and the
- * runtime that ran it.
+ * Java writes as its own (ADR-0050): the engine's and the report's versions, the
+ * wall-clock time, and the runtime that ran it.
  */
 public final class ReportComparison {
 
 	/**
-	 * The keys of Python's provenance that name its report's version, machine and
-	 * runtime.
+	 * The keys of Python's provenance that name its engine's and report's versions,
+	 * machine and runtime.
 	 */
-	private static final Set<String> PYTHON_RUNTIME = Set.of("reportVersion", "wallSeconds", "python", "simpy");
+	private static final Set<String> PYTHON_RUNTIME = Set.of("engineVersion", "reportVersion", "wallSeconds", "python",
+			"simpy");
 
 	/**
-	 * The keys of Java's provenance that name its report's version, machine and runtime.
+	 * The keys of Java's provenance that name its engine's and report's versions, machine
+	 * and runtime.
 	 */
-	private static final Set<String> JAVA_RUNTIME = Set.of("reportVersion", "wallSeconds", "java");
+	private static final Set<String> JAVA_RUNTIME = Set.of("engineVersion", "reportVersion", "wallSeconds", "java");
 
 	/**
 	 * Where Python writes an integer or a float by the line, and the Java a float: a cost

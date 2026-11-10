@@ -1,15 +1,16 @@
 package io.archsim.engine.version;
 
 /**
- * The versions of the engine and of the reports it writes. Until stage 4 of the Java port
- * ends, the runs are simulated by the frozen Python engine (ADR-0017), so the engine's is
- * still its version; the report's is the Java simulator's own (ADR-0050). The design
+ * The versions of the engine and of the reports it writes. The engine is the Java
+ * simulator, which every run has simulated since stage 4 of the Java port: 1.0.0 replays
+ * the frozen Python engine 0.16.0 run for run (ADR-0049), and runs stored before it name
+ * 0.16.0. The report's version is the Java simulator's own too (ADR-0050). The design
  * schema's is the model's ({@code ArchitectureDocument.SCHEMA_VERSION}).
  */
 public final class EngineVersions {
 
 	/** The engine every run records. Bump it when what a simulation means changes. */
-	public static final String ENGINE = "0.16.0";
+	public static final String ENGINE = "1.0.0";
 
 	/**
 	 * The version of the report format the Java simulator writes: 1.15 names the Java
