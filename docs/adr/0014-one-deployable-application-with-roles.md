@@ -40,6 +40,10 @@ just to hold shared code.
 
 Images are built with Jib, and `docker compose up` works as it does today.
 
+**Status (10 Nov 2026):** the `worker` role runs since stage 4 of the port
+([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)), and compose starts it.
+`archsim-api serve` and `archsim-api worker` are gone; `archsim-api migrate` stays until stage 6.
+
 ### Consequences
 
 - Good, because operators see the same three services as before the port.

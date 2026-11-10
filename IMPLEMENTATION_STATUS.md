@@ -1,12 +1,35 @@
 # Implementation status
 
-State as of 2026-11-07 (engine 0.16.0, frozen and measured on the held-out experiments; schema 1.7,
-report 1.14; the API and the engine's deterministic parts in Java). This file separates what is
-implemented, how it was verified, what is known to be limited, and what comes next. Nothing
-listed under "Implemented" is a stub or a mock. The product and UX brief for v2 is
+State as of 2026-11-10 (engine 0.16.0, frozen and measured on the held-out experiments; schema 1.7,
+report 1.15, the Java simulator's; the API, the engine's deterministic parts and the simulator in
+Java). This file separates what is implemented, how it was verified, what is known to be
+limited, and what comes next. Nothing listed under "Implemented" is a stub or a mock. The
+product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**The simulator in Java: stage 4 of the Java port (2026-11-10).**
+
+- `archsim-engine` simulates: the kernel and every component, runs with their faults and
+  autoscaling, sweeps and the breaking point, sampled mode and seed groups.
+- It replays the frozen engine 0.16.0 figure for figure
+  ([docs/validation/java-parity.md](docs/validation/java-parity.md)): all 149 template cases meet
+  the parity bar, every one of their 2,980 runs gives the frozen engine's figures and digests,
+  and all 65 kept calibrations' knees are the frozen engine's. It runs the templates about 14
+  times faster (34 s for all 25 against 484 s, best of 5;
+  [docs/performance.md](docs/performance.md)).
+- The Java app's worker role simulates every run
+  ([ADR 0053](docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)): each run is
+  claimed under the advisory lock the Python worker took and simulated on a platform thread,
+  with the same lease, heartbeat, cancel-grace and deadline timings. Compose starts it, and the
+  black-box suite (132 tests) and the Playwright end-to-end tests pass with it.
+- A calibration's replay runs on the Java simulator in the API's process, on platform threads of
+  its own ([ADR 0054](docs/adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)).
+- The Python worker, `POST /simulate` and the engine service are deleted; `services/api` keeps
+  the Alembic migrations, `migrate` and `seed` until stage 6.
+- Not run during stage 4: CI on GitHub, which has started no job since 2026-11-05. Every slice
+  passed CI's steps locally.
 
 **The engine's deterministic parts in Java: stage 3 of the Java port (2026-11-07).**
 
@@ -1897,11 +1920,17 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   so).
 - Replay resolution is the report bucket (1 s); playback is throttled by the browser when the
   tab is in the background.
-- Heavy designs take a while: full simulation runs about 2,000-5,000 requests per second per
-  core on a laptop (the Black Friday template takes 35-45 s; a 10k req/s, 10-minute design
-  about 55 minutes). Sampled mode answers long steady runs much faster (65 s for that design)
-  but is opt-in and engine/CLI/MCP only. "Run all & compare" runs at most
-  `ARCHSIM_MAX_CONCURRENT_RUNS` (default 2) simulations at a time.
+- Heavy designs take a while: the frozen Python engine simulates about 2,000-5,000 requests per
+  second per core on a laptop (the Black Friday template takes 35-45 s; a 10k req/s, 10-minute
+  design about 55 minutes), and the Java simulator the workers run is about 14 times faster on
+  the templates (the 10k req/s design has not been timed in Java). Sampled mode answers long
+  steady runs much faster but is opt-in. "Run all & compare" runs at most
+  `ARCHSIM_MAX_CONCURRENT_RUNS` (default: the cores less one) simulations at a time per worker.
+- A worker's runs are threads sharing its heap
+  ([ADR 0053](docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)), so a run that
+  exhausts the heap stops every run of its worker: the reaper requeues them once, then fails them. A run that ignores a
+  cancel, or runs past its hard deadline, is written cancelled or failed but holds its slot until
+  its thread ends. Under the Python workers a crash failed only its own run (2026-10-27).
 - Imports read what infrastructure files state: no latency, traffic or call graph beyond
   links and URLs (Terraform states almost none); Helm and Kustomize must be rendered first and
   HCL is not read (only `terraform show -json`); image matching is by name. See
@@ -1939,8 +1968,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 ## Next steps
 
 1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–3
-   are built; stage 4, the simulation kernel, is next (the held-out campaign it waited for is
-   done).
+   are built, and stage 4's simulator, Java worker and cut-over are done. Engine 1.0.0,
+   /accuracy's re-simulated results and the harness on the Java CLI finish stage 4; stage 5 is
+   the CLI, the MCP server and the GitHub Action.
 2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
    experiments before they were measured (the harness can't predict with a second engine), so a
    before-and-after on them can only re-simulate 0.14.0, labelled as such.

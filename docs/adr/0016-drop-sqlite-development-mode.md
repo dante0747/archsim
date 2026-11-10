@@ -33,6 +33,11 @@ Chosen option: "Drop it", because:
 - tests run on the database that production uses;
 - Docker is already needed for `docker compose up`, the benchmark stacks and Testcontainers.
 
+**Status (10 Nov 2026):** by the time this was written the PostgreSQL claim no longer used
+`SELECT … FOR UPDATE SKIP LOCKED`: since W8's workspace caps (`0b4550c`, 27 Oct) it took a
+transaction advisory lock (`pg_advisory_xact_lock`) and ordered the runs with `row_number`, as the
+Java worker does ([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)).
+
 ### Consequences
 
 - Good, because there is no second, weaker claim path in the queue, and no dialect switches in the

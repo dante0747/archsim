@@ -101,6 +101,11 @@ until the leases ran out.
   Pruning the rate-limit counters, which the Python reaper did, moves to the API, which owns
   them.
 
+**Status (10 Nov 2026):** a correction to the last consequence below: the queue did use `SKIP
+LOCKED` at first. ADR-0003's claim (`a32ac7c`, 27 Oct) took the runs with `FOR UPDATE SKIP
+LOCKED`; the same day W8's workspace caps (`0b4550c`) replaced it with a transaction advisory lock
+and a `row_number` pick, which this worker ports. The dated notes say so.
+
 ### Consequences
 
 - Good, because one image and one language run the whole service; the engine service, the

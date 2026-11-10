@@ -87,6 +87,10 @@ Java report a function of its input and seed alone; name the Java runtime in the
   otherwise passes the version through. The golden files' `REPORT_VERSION`, the Python engine's
   1.14, is no longer checked.
 
+**Status (10 Nov 2026):** the Java worker writes every run since stage 4
+([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)), so new runs store 1.15 reports;
+the 1.14 reports the Python workers stored stay readable.
+
 ### Consequences
 
 - Good, because a Java run reproduces on any machine, which the Python engine could not promise.

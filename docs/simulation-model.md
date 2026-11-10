@@ -811,9 +811,12 @@ versions differ.
 
 ## Determinism
 
-- Same document + scenario + seed + engine version ⇒ identical `resultDigest` **on the same
-  platform and Python version**. Across platforms, floating-point library differences could
-  in principle change low-order digits; results then agree within statistical noise.
+- Same document + scenario + seed + engine version ⇒ identical `resultDigest`. The Java
+  simulator, which every run and replay uses since stage 4 of the port, gives it **on every
+  platform**: it takes its logarithms, exponentials and powers from `StrictMath`
+  ([ADR-0050](adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)). The frozen Python
+  engine gives it on the same platform and Python version; across platforms its floating-point
+  library could change low-order digits, and results then agree within statistical noise.
 - Changing one parameter can change random samples elsewhere, because events are processed in
   a different order and streams are consumed in that order. Scenario comparisons are therefore
   not perfectly paired. Differences of a few percent may be noise; re-run with other seeds to

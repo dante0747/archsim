@@ -41,6 +41,10 @@ nothing but the Gradle dependency, so the database tests run everywhere the buil
 - The black-box suite needs only a PostgreSQL to create its databases in
   (`archsim.api.postgres`); such an embedded server, started by hand, serves for it too.
 
+**Status (10 Nov 2026):** by the time this was written the run queue no longer claimed with `FOR
+UPDATE SKIP LOCKED` (since `0b4550c`, 27 Oct) but under a transaction advisory lock
+(`pg_advisory_xact_lock`), which H2 lacks too, so the claim stays one of H2's gaps below.
+
 ### Consequences
 
 - Good, because the migration, repository and queue tests run on every `./gradlew build`.

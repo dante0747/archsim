@@ -11,37 +11,24 @@ flowchart LR
     Store["Zustand store<br/>(document, history, runs)"]
     Proxy["/api/v1/* route handler<br/>(proxy to ARCHSIM_API_URL)"]
   end
-  subgraph api["archsim-app (Java, Spring Boot)"]
-    Controllers["controllers: projects, runs, workspaces,<br/>reviews, shares, sign-in, tokens"]
-    Model["archsim-model:<br/>the document, read and checked"]
-    JEngine["archsim-engine: sizing, cost, review,<br/>compare, exports, imports, calibration"]
-    Client["engine client:<br/>implements ReplaySimulator"]
+  subgraph app["archsim-app (Java, Spring Boot): one jar, started as api, worker or migrate"]
+    Controllers["api: controllers for projects, runs, workspaces,<br/>reviews, shares, sign-in, tokens, calibration"]
+    Replay["api: ReplayPool<br/>(a calibration's replay on platform threads)"]
+    Worker["worker: claims, leases, a thread per run"]
     Repos["repositories (JdbcClient)<br/>+ Flyway migrations"]
   end
-  subgraph engsvc["services/engine-service"]
-    Sync["the simulation a calibration<br/>replays (until stage 4)"]
-  end
-  subgraph workers["services/api (archsim-api worker)"]
-    Jobs["queue claims + workers<br/>(a process per run)"]
-  end
-  subgraph engine["packages/engine (archsim_engine)"]
-    Schema["schema + migrations"]
-    Registry["component registry"]
-    Sim["SimPy engine + metrics"]
-    Analysis["analysis + compare"]
+  subgraph jengine["archsim-engine + archsim-model (Java)"]
+    Model["the document, read and checked"]
+    JEngine["sizing, cost, review, compare,<br/>exports, imports, calibration"]
+    Sim["simulator: kernel, components, metrics"]
   end
   DB[("PostgreSQL")]
   UI --> Store --> Proxy --> Controllers
-  Controllers --> Model
   Controllers --> JEngine --> Model
-  JEngine -->|replay| Client -->|POST /simulate| Sync
+  Controllers --> Replay --> Sim
   Controllers --> Repos --> DB
-  Sync --> Sim
-  Jobs --> DB
-  Jobs --> Sim
-  Sim --> Schema
-  Sim --> Registry
-  Sim --> Analysis
+  Worker --> Repos
+  Worker --> Sim --> Model
 ```
 
 ## Layers
@@ -49,9 +36,11 @@ flowchart LR
 ### Engine (`packages/engine`, import name `archsim_engine`)
 
 Pure Python, depends only on SimPy, Pydantic and PyYAML, and frozen at 0.16.0 during the Java
-port ([ADR-0017](adr/0017-freeze-python-engine-during-port.md)). It simulates the runs the Python
-workers take, until the cut-over to the Java worker, and the CLI and the MCP server use it. The
-API works out the rest with its Java port, `archsim-engine` (below). It owns:
+port ([ADR-0017](adr/0017-freeze-python-engine-during-port.md)). Since stage 4 the API and the
+workers run none of it: the Java engine, `archsim-engine` (below), simulates every run and
+replay, checked against this engine's recorded runs. It serves the `archsim` CLI, the MCP server
+and the benchmark harness, and the golden files and baselines the Java parity tests compare
+with. It owns:
 
 | Module | Responsibility |
 | --- | --- |
@@ -127,20 +116,24 @@ replay threads ([ADR-0054](adr/0054-replay-calibrations-on-a-pool-of-platform-th
 the worker role simulates the runs it claims
 ([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
 
-### Engine service (`services/engine-service`)
+### Workers (`archsim-app`'s `worker` role)
 
-An internal Python HTTP service that simulated a calibration's replay for the API
+`archsim-app worker` processes take the runs the API queues in PostgreSQL and simulate each with
+the Java simulator, on a thread of their own
+([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)): the run lifecycle below
+says how. Run as many as needed, on any host that reaches the database, each with a heap for the
+runs it takes at once ([archsim-app's README](../archsim-app/README.md#the-workers-heap)). Until
+stage 4 the Python workers (`archsim-api worker`) did this, and a Python engine service simulated
+a calibration's replay for the API
 ([ADR-0036](adr/0036-python-engine-service-for-synchronous-calls.md),
-[ADR-0045](adr/0045-replay-calibrations-through-an-interim-simulate.md)). Since stage 4 the API
-replays in Java and calls it no more; compose and the test launchers still start it until the
-cut-over deletes it. It checks no caller and calls nothing.
+[ADR-0045](adr/0045-replay-calibrations-through-an-interim-simulate.md)); both are deleted.
 
-### Workers (`services/api`, import name `archsim_api`)
+### Alembic migrations (`services/api`, import name `archsim_api`)
 
-`archsim-api worker` processes take the runs the API queues in PostgreSQL and simulate each with
-the engine, until the Java port's stage 4. The package also keeps the SQLAlchemy models and
-Alembic migrations the schema started from (Flyway's `V1` reproduces their revision 0008), and
-`archsim-api seed`.
+The SQLAlchemy models and Alembic migrations the schema started from (Flyway's `V1` reproduces
+their revision 0008, [ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)), with
+`archsim-api migrate`, which brings an older database to that revision, and `archsim-api seed`.
+They stay until stage 6 of the port.
 
 ### Web app (`apps/web`)
 
@@ -197,7 +190,7 @@ sequenceDiagram
   participant A as API
   participant D as Database
   participant W as Worker (any instance)
-  participant E as Simulation process (one per run)
+  participant R as Run thread (one per run)
   B->>A: POST /projects/{id}/runs {scenarioId, document?}
   A->>A: prepare in archsim-engine (migrate, resolve scenario, validate, size check)
   alt invalid or too large
@@ -207,13 +200,13 @@ sequenceDiagram
     A-->>B: 202 run
   end
   W->>D: claim: status=running, lease_owner=W, lease 30 s, attempts+1
-  W->>E: the run, down a pipe
+  W->>R: simulate the run
   loop while it simulates
-    E-->>W: progress(p), up the pipe
+    R-->>W: progress after each chunk
     W->>D: progress (at most once a second)
     W->>D: heartbeat every 2 s: renew lease, read cancel requests
   end
-  E-->>W: result
+  R-->>W: report
   W->>D: status=succeeded + report JSON + digests (only while W holds the lease)
   B->>A: GET /runs/{id} (polling)
   B->>A: GET /runs/{id}/report
@@ -225,35 +218,37 @@ sequenceDiagram
   `422` with structured issues.
 - **Unsaved edits.** A run request may include the current (unsaved) document. It is stored
   with the run, so results stay reproducible without forcing a save.
-- **Progress** is simulated time divided by total simulated time. The worker writes it to the
-  database at most once per second; the API reads it from there, so any instance can answer.
-- **Queue** (`services/api/src/archsim_api/jobs/queue.py`): the run row is the job. A worker
-  claims the oldest queued runs under a lease (PostgreSQL: `FOR UPDATE SKIP LOCKED`; SQLite:
-  `BEGIN IMMEDIATE`, one host only) and renews it every heartbeat. Progress and the outcome are
-  written only while the worker still holds the lease, so a worker that lost a run cannot
-  overwrite the one that took it over.
-- **Workers** (`jobs/worker.py`): `archsim-api worker --slots N`, as many as needed, on any
-  host that reaches the database; the API simulates nothing itself. Each run simulates in a
-  `spawn` process of its own (`jobs/child.py`) with a pipe each way: the run and "cancel" go
-  down, progress and the result come up. One process is started ahead, so a run does not wait
-  for the engine to import. A process that crashes fails only its own run.
-  `ARCHSIM_RUNNER=thread` simulates in the worker's threads instead (tests).
+- **Progress** is simulated time divided by total simulated time, told after each of a run's 200
+  chunks. The worker writes it to the database at most once per second; the API reads it from
+  there, so any instance can answer.
+- **Queue** (`archsim-app`'s `worker` package): the run row is the job. A worker claims as many
+  queued runs as it has free slots, oldest first and every workspace's oldest before any
+  workspace's second, one claim at a time under a PostgreSQL advisory lock, each workspace kept
+  under its cap of runs at once, and leases them; it renews the leases every heartbeat. Progress
+  and the outcome are written only while the worker still holds the lease, so a worker that lost
+  a run cannot overwrite the one that took it over.
+- **Workers** (`archsim-app worker`), as many as needed, on any host that reaches the database;
+  the API simulates nothing but a calibration's replay. Each run simulates on a platform thread
+  of its worker's, never a virtual one, and a claim waits for a slot to free, a run to be
+  requeued, or a second. The runs share their worker's heap, sized for them, and the worker runs
+  with `-XX:+ExitOnOutOfMemoryError`: a run that exhausts the heap stops the worker, whose runs
+  the reaper then settles as below (compose starts it again).
 - **Cancellation:** a queued run is cancelled immediately, by any instance. A running one gets
-  `cancel_requested_at`; its worker sees it at the next heartbeat (2 s) and tells the process,
-  which stops at its next check (every 4,096 events). A process still running
-  `ARCHSIM_CANCEL_GRACE_SECONDS` (10 s) later is terminated, then killed.
+  `cancel_requested_at`; its worker sees it at the next heartbeat (2 s) and asks the run to
+  stop, which it does at its next check (every 4,096 events and after each chunk). A run still
+  going `ARCHSIM_CANCEL_GRACE_SECONDS` (10 s) later is written `cancelled`; its thread is asked
+  to stop until it does.
 - **Limits:** `ARCHSIM_MAX_CONCURRENT_RUNS` runs per worker (default: CPU count - 1); per-run
-  wall-clock limit `ARCHSIM_MAX_WALL_SECONDS`, checked by the engine every 4,096 events, and a
-  hard deadline 30 s later at which the worker kills the process.
-- **Workers that stop:** a worker that is stopped (SIGTERM, Ctrl+C) requeues its runs without
-  counting the attempt. One that dies stops renewing its leases;
-  every worker reaps expired leases every 10 s (and at start-up): requeued after a first
-  attempt, `failed` with "The simulation worker stopped unexpectedly…" after a second,
-  `cancelled` if a cancel was requested.
-- **No orphans:** a simulation process exits when its worker's pipe closes, gets SIGKILL from
-  the kernel when its worker dies on Linux (`PR_SET_PDEATHSIG`), and sits in a Windows Job
-  Object that kills it with its worker. Containers run workers under an init (`init: true`).
-  Simulation processes ignore Ctrl+C: the worker decides when they stop.
+  wall-clock limit `ARCHSIM_MAX_WALL_SECONDS`, checked by the simulator every 4,096 events and
+  after each chunk, and a hard deadline 30 s later at which the worker writes the run `failed`;
+  a run's slot stays held until its thread ends.
+- **Workers that stop:** a worker that is stopped (SIGTERM, Ctrl+C) claims no more and gives its
+  runs back to the queue without counting the attempt, keeping their leases while they stop
+  (15 s at most). One that dies stops renewing its leases; every worker reaps expired leases
+  every 10 s (and at start-up): requeued after a first attempt, `failed` with "The simulation
+  worker stopped unexpectedly…" after a second, `cancelled` if a cancel was requested. Workers
+  silent for an hour leave `job_workers`.
+- **No orphans:** a run is a thread of its worker's process and ends with it.
 - **Reproduce:** `POST /runs/{id}/rerun` re-simulates the stored input with the same scenario
   and seed. Equal `resultDigest` values confirm reproducibility.
 
@@ -278,14 +273,16 @@ Deleting a project deletes its runs (`ON DELETE CASCADE`). Queue columns: `attem
 **`job_workers`** - one row per worker: host, process id, slots, runs in flight, status
 (`running` or `draining`) and its latest heartbeat.
 
-Flyway owns the schema: its `V1` reproduces Alembic's revision 0008, which the workers' models
-still describe ([ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)). Documents are `JSONB`.
-The workers' tests also run on SQLite, as CI does.
+Flyway owns the schema: its `V1` reproduces Alembic's revision 0008, which `services/api`'s
+SQLAlchemy models still describe ([ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)).
+Documents are `JSONB`. The Alembic migrations' tests also run on SQLite, as CI does.
 
 ## Determinism and provenance
 
 Every report carries `provenance`: engine, schema and report versions, seed, scenario id and
 name, the exact overrides applied, `inputDigest` (SHA-256 of the canonical resolved input) and
 `resultDigest` (SHA-256 of the canonical results). The same input, scenario, seed and engine
-version produce the same `resultDigest` on the same platform. See
+version produce the same `resultDigest`: on every platform with the Java simulator, which takes
+its transcendental functions from `StrictMath`, and on the same platform with the frozen Python
+engine ([ADR-0050](adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)). See
 [`simulation-model.md`](simulation-model.md#determinism).

@@ -59,6 +59,11 @@ with the Python workers, until stage 4: `archsim-api migrate` brings an older da
 revision 0008 for Flyway to take over, and the workers' tests and `scripts/schema_snapshot.py`
 build their schema with it.
 
+**Status (10 Nov 2026):** the Python workers are deleted
+([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)). `services/api` keeps the models,
+the Alembic migrations, `archsim-api migrate` and `seed` until stage 6, and the migration tests and
+`scripts/schema_snapshot.py` still build their schema with it.
+
 ### Consequences
 
 - Good, because a database moves between the APIs with no data migration and no downtime.

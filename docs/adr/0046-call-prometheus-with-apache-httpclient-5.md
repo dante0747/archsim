@@ -54,6 +54,10 @@ address given with the request while it names the host for `Host` and TLS.
 - One deadline: a watchdog cancels the request when it passes, closing its connection, so a
   server that trickles bytes cannot hold a query longer.
 
+**Status (10 Nov 2026):** the engine service and the API's client for it are deleted
+([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)); the JDK client still serves the
+sign-in calls.
+
 ### Consequences
 
 - Good, because the check and the connection read one lookup, and HttpClient cannot look up

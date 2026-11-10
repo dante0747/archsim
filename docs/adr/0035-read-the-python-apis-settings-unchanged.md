@@ -49,6 +49,11 @@ existing environment configures the Java API as it is.
 - The role is the first argument (`archsim-app api`, `archsim-app migrate`), as the Python
   entry points are ([ADR-0014](0014-one-deployable-application-with-roles.md)).
 
+**Status (10 Nov 2026):** stage 4 has come, and the Java worker reads these settings too
+([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)); but `archsim-api migrate` and
+`seed` still read the SQLAlchemy form of `ARCHSIM_DATABASE_URL`, so accepting only `jdbc:` URLs
+waits for stage 6.
+
 ### Consequences
 
 - Good, because the environment compose and deployments give the API carries over unchanged.

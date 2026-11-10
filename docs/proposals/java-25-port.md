@@ -44,7 +44,7 @@ apps/web (Next.js, unchanged)
 archsim-app (Spring Boot 4: one image, started as api, worker or migrate)
    one package per feature: io.archsim.app.projects · .runs · .auth · .tokens · .shared …
    each holds its controller, service and repository (JdbcClient, PostgreSQL)
-   worker: a Spring profile without the web layer; claims runs from the queue (SKIP LOCKED)
+   worker: a Spring profile without the web layer; claims runs from the queue (advisory lock)
 
 archsim-cli (picocli)      archsim-mcp (MCP Java SDK)      benchmarks (Python → archsim-cli)
 
@@ -71,9 +71,9 @@ archsim-model (plain Java library, usable without the simulator)
   `archsim-app`**, organised by feature: one package per feature, holding that feature's
   controller, service and repository classes. It builds one image, started as `api`, `worker`
   or `migrate` like today's Python image; the worker is a Spring profile without the web layer.
-- **PostgreSQL** through Spring's `JdbcClient` with explicit SQL. The run queue already relies on
-  `SELECT … FOR UPDATE SKIP LOCKED` and leases, which read best as plain SQL. **Flyway** takes over
-  from Alembic at the current schema revision.
+- **PostgreSQL** through Spring's `JdbcClient` with explicit SQL. The run queue's claim (an
+  advisory lock and a `row_number` pick) and its leases read best as plain SQL. **Flyway** takes
+  over from Alembic at the current schema revision.
 - **Model and engine without Spring.** `archsim-model` holds the design document's records, the
   upgrades from schema 1.0 to 1.7 and validation, so the app, CLI and MCP server can read and
   check a design without the simulator. `archsim-engine` holds the rest: the kernel, components,
@@ -232,6 +232,24 @@ doesn't change.
   - calibrations replay on the Java simulator, and `/simulate` and the engine service are
     deleted ([ADR-0045](../adr/0045-replay-calibrations-through-an-interim-simulate.md));
   - the harness calls the Java CLI, and the Python engine is deleted.
+- **Built so far (10 Nov 2026):** [`archsim-engine/`](../../archsim-engine/README.md)'s simulator,
+  in slices that each replayed the frozen engine.
+  - The parity report is published ([java-parity.md](../validation/java-parity.md)): all 149
+    template cases meet the bar, every one of their 2,980 runs replays the frozen engine figure
+    for figure with its digests, and all 65 kept calibrations' knees are the frozen engine's.
+    The Java simulator runs the templates about 14 times faster
+    ([performance.md](../performance.md)).
+  - The Java worker simulates every run
+    ([ADR-0053](../adr/0053-simulate-runs-in-the-java-apps-worker-role.md)): compose, the
+    black-box suite (132 tests) and the end-to-end tests run on it. A calibration's replay runs
+    on the Java simulator in the API's process, on platform threads of its own
+    ([ADR-0054](../adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)). The Python
+    worker, `/simulate` and the engine service are deleted; `services/api` keeps the Alembic
+    migrations, `migrate` and `seed` until stage 6.
+  - The harness simulates on the Java engine through `archsim run` when asked
+    (`BENCH_ENGINE=java`).
+  - Left from the exit: engine 1.0.0, /accuracy's re-simulated results, and the harness on the
+    Java CLI by default, after which the Python engine is deleted.
 
 ### Stage 5 · CLI, MCP server and GitHub Action (3–5 days)
 - **What it covers:** `archsim` commands with the same flags and output, and the MCP tools with the

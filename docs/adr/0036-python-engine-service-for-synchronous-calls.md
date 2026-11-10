@@ -79,6 +79,11 @@ answers exactly as they are and can shrink one endpoint at a time.
 Until stage 4's exit, the service keeps one call, the interim `/simulate` a calibration replays
 ([ADR-0045](0045-replay-calibrations-through-an-interim-simulate.md)); it no longer calls out.
 
+**Status (10 Nov 2026):** stage 4 moved the service's last call, the simulation a calibration
+replays, into the API ([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md),
+[ADR-0054](0054-replay-calibrations-on-a-pool-of-platform-threads.md)). Nothing called the service
+any more, and it was deleted with the Python worker.
+
 ### Consequences
 
 - Good, because each endpoint answers byte for byte what the Python API answered.

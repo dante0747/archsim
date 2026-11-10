@@ -93,11 +93,12 @@ optimistic concurrency (`expectedRevision`), and every run stores its exact inpu
 
 ## 7. Scalable job execution
 
-Done: runs are queued in the database with leases (`services/api/src/archsim_api/jobs/`), so
-they survive API restarts, cancel works from any instance, and `archsim-api worker` processes on
-any number of machines share the queue through PostgreSQL. Each run simulates in a process of
-its own. Next, if a single database becomes the limit: a broker (Redis, NATS) for wake-ups
-instead of polling once a second, and fair sharing between workspaces once they exist.
+Done: runs are queued in the database with leases, so they survive API restarts, cancel works
+from any instance, and `archsim-app worker` processes on any number of machines share the queue
+through PostgreSQL, each run on a thread of its worker
+([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)); a claim keeps each
+workspace under its cap of runs at once. Next, if a single database becomes the limit: a broker
+(Redis, NATS) for wake-ups instead of polling once a second.
 
 ## 8. Engine performance
 

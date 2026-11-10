@@ -54,6 +54,11 @@ Java now and keeps the replay's report the frozen engine's, without opening anyt
 **Status (7 Nov 2026):** compose's `engine` network is now internal: the service has no route
 beyond the API.
 
+**Status (10 Nov 2026):** this interim is over. A calibration's replay runs on the Java simulator in
+the API's process ([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)), on a pool of
+platform threads ([ADR-0054](0054-replay-calibrations-on-a-pool-of-platform-threads.md)); `POST
+/simulate`, the engine service and the API's client for it are deleted.
+
 ### Consequences
 
 - Good, because the calibrations, their Prometheus client and their error words are Java, under

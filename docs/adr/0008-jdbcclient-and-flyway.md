@@ -39,6 +39,12 @@ Chosen option: "`JdbcClient` with explicit SQL, and Flyway", because:
 Flyway takes over from Alembic at the current schema revision. Existing databases carry on without
 a data migration.
 
+**Status (10 Nov 2026):** by the time this was written the claim no longer used `SKIP LOCKED`:
+since W8's workspace caps (`0b4550c`, 27 Oct) it took a PostgreSQL transaction advisory lock
+(`pg_advisory_xact_lock`) and ordered the queued runs with `row_number`. The Java worker ports that
+claim ([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)), in plain SQL through
+`JdbcClient` (`ClaimRepository`).
+
 ### Consequences
 
 - Good, because what runs against the database is what the code says.

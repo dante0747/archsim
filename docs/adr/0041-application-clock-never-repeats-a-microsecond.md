@@ -51,6 +51,11 @@ every call.
   `user_id` after the time and a user's workspaces by `workspace_id`, the other half of the
   membership's key.
 
+**Status (10 Nov 2026):** the Python workers are gone
+([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)). The Java worker writes the times
+it sets (leases, outcomes, beats) from the application clock, so only the times the database writes
+(`now()`) are not covered.
+
 ### Consequences
 
 - Good, because the rows a server makes one after another are listed in that order on any host.

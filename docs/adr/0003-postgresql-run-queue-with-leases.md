@@ -46,6 +46,16 @@ How it works (`services/api/src/archsim_api/jobs/`):
 - **Isolation:** each run simulates in a process of its own (`jobs/child.py`), so a crash fails
   only that run.
 
+**Status (10 Nov 2026):** the queue works as decided here, but its worker is `archsim-app worker`,
+in Java, since stage 4 of the port ([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)),
+and `jobs/` went with the Python worker. A run simulates on a thread of its worker, not in a process
+of its own, so a run that exhausts the worker's heap stops its other runs too; the reaper settles
+them like the runs of any worker that stops: requeued once, then failed. The claim above is its
+first version (`a32ac7c`). The same day W8's workspace caps (`0b4550c`) replaced `SKIP LOCKED`:
+to count each workspace's running runs and pick consistently, claims take turns under a
+transaction advisory lock (`pg_advisory_xact_lock`), and a `row_number` pick takes every
+workspace's oldest queued run before any workspace's second. The Java worker ports that claim.
+
 ### Consequences
 
 - Good, because API instances and workers scale independently, with nothing to run but the

@@ -64,7 +64,9 @@ every accuracy check at risk for a speed-up that sampling gives without touching
    (out of memory, killed) fails only its own run (tested by killing one of two). One process
    is started ahead of time: importing the engine takes about a second on Windows, so a run
    that finds it ready starts in a tenth of a second. More workers (`archsim-api worker`) on
-   more machines share the queue.
+   more machines share the queue. (Stage 4 of the Java port replaced these workers: a run is a
+   thread of the Java worker, with no interpreter to start;
+   [ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md).)
 2. **Parallel sweeps.** The breaking-point sweep runs its steps in separate processes
    (`workers`), used by `archsim check --knee` and the MCP `breaking_point` tool; every step is
    seeded, so the curve is the same either way (tested). An invalid design reports its issues
