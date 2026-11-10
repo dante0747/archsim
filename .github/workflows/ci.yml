@@ -53,7 +53,7 @@ jobs:
       python: ${{ steps.jobs.outputs.python }}
       engine_tests: ${{ steps.jobs.outputs.engine_tests }}
       benchmark_tests: ${{ steps.jobs.outputs.benchmark_tests }}
-      workers: ${{ steps.jobs.outputs.workers }}
+      migrations: ${{ steps.jobs.outputs.migrations }}
       java: ${{ steps.jobs.outputs.java }}
       archsim_check: ${{ steps.jobs.outputs.archsim_check }}
       web: ${{ steps.jobs.outputs.web }}
@@ -75,7 +75,7 @@ jobs:
           fi
 
   python:
-    name: Python (engine, engine service, workers; SQLite)
+    name: Python (engine, tools, migrations; SQLite)
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
@@ -90,7 +90,7 @@ jobs:
       - name: Format
         run: uv run ruff format --check packages services benchmarks
       - name: Type check
-        run: uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
+        run: uv run mypy packages/engine/src services/api/src packages/mcp/src
       - name: Tests
         # every testpath but the two below (--ignore does not apply to a testpath itself)
         run: uv run pytest --deselect packages/engine/tests --deselect benchmarks/tests
@@ -116,9 +116,11 @@ jobs:
         run: uv run python scripts/java_parity_report.py --check
 
   api-postgres:
-    name: Worker tests on PostgreSQL
+    # services/api's Alembic migrations on PostgreSQL, until stage 6: they build the models'
+    # schema, and processes that migrate at once take turns
+    name: Migrations on PostgreSQL
     needs: changes
-    if: needs.changes.outputs.workers == 'true'
+    if: needs.changes.outputs.migrations == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -136,22 +138,6 @@ jobs:
           --health-retries 10
     env:
       ARCHSIM_TEST_DATABASE_URL: postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
-      - run: uv run pytest services/api/tests
-
-  api-windows:
-    # simulation processes on Windows: the Job Object that kills them with their worker,
-    # Ctrl+Break handling, and the venv launcher between a worker and its interpreter
-    name: Worker tests on Windows
-    # a Windows minute counts as two of the 2,000 included ones
-    needs: changes
-    if: needs.changes.outputs.workers == 'true'
-    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7

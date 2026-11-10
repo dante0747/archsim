@@ -116,13 +116,15 @@ ported:
 
 - **In-process internals (26):** `test_api_queue.py`, `test_api_worker.py`,
   `test_api_process_runner.py` and `test_api_migrations.py`. They drive the run queue, workers,
-  simulation processes and Alembic from inside the process, and stay with the Python workers in
-  `services/api/tests` (the process-runner tests are now part of `test_api_worker.py`).
+  simulation processes and Alembic from inside the process. The migrations' stay in
+  `services/api/tests`; the queue's and the workers' that apply to threads were ported to
+  `archsim-app`'s worker tests (`RunClaimsTests`, `LeaseRepositoryTests`, `WorkerLoopTests`),
+  and went with the Python worker in stage 4.
 - **Not observable over HTTP (16),** listed below with the reason in each class's Javadoc. Where
   they are checked now:
-  - with the Python workers, in `services/api/tests`: `queue.claim` (`test_api_queue.py`), the
-    quick checks (`test_api_worker.py`, one test for both), and the restarts with leases (the
-    lease tests of `test_api_worker.py`, and `test_api_queue.py`'s reaping tests);
+  - in `archsim-app`'s worker tests: `queue.claim` (`RunClaimsTests`), the quick checks
+    (`WorkerSimulationTests`), and the restarts with leases (`LeaseRepositoryTests`,
+    `WorkerLoopTests`);
   - in `archsim-app`'s own tests, for its versions: the settings parsed (`SettingListsTests`,
     `SignInPropertiesTests`), the rate-limit counter and its pruning (`RateLimitsTests`,
     `RateLimitPruningTests`) and the share helpers

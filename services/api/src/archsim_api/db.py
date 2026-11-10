@@ -1,5 +1,6 @@
 """Database engine, session factory and ORM models: the schema at Alembic's revision 0008, which
-Flyway's ``V1`` in ``archsim-app`` reproduces, as the workers read and write it.
+Flyway's ``V1`` in ``archsim-app`` reproduces. ``seed`` writes projects through them, and the
+migration tests compare them with what the migrations build.
 
 PostgreSQL is the target (JSONB columns); the tests also run on SQLite. Reports are written once
 per run as a single JSON document, never per event.
@@ -8,8 +9,6 @@ per run as a single JSON document, never per event.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -29,7 +28,7 @@ from sqlalchemy import (
     event,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -225,7 +224,7 @@ class Project(Base):
 
 
 class SimulationRun(Base):
-    """A simulation run, which is also its job in the queue (see ``archsim_api.jobs.queue``)."""
+    """A simulation run, which is also its job in the queue that ``archsim-app``'s workers claim."""
 
     __tablename__ = "simulation_runs"
     __table_args__ = (
@@ -339,7 +338,7 @@ class JobWorker(Base):
 
 class RateLimit(Base):
     """A rate-limit counter: requests counted against ``key`` in the window starting at
-    ``window_start`` (Unix seconds). See ``archsim_api.limits``."""
+    ``window_start`` (Unix seconds), as ``archsim-app`` counts them."""
 
     __tablename__ = "rate_limits"
 
@@ -514,25 +513,3 @@ class Database:
 
     def session(self) -> Session:
         return self.session_factory()
-
-    @contextmanager
-    def write_transaction(self) -> Iterator[Connection]:
-        """A transaction that takes the write lock before it reads anything.
-
-        On SQLite that is ``BEGIN IMMEDIATE``: processes sharing the file wait for each other
-        (up to the busy timeout) instead of failing when a read turns into a write. Elsewhere it
-        is an ordinary transaction; PostgreSQL callers lock rows themselves. Commits on success,
-        rolls back on error."""
-        with self.engine.connect() as conn:
-            if self.dialect == "sqlite":
-                conn.exec_driver_sql("BEGIN IMMEDIATE")
-            try:
-                yield conn
-            except BaseException:
-                conn.rollback()
-                raise
-            conn.commit()
-
-    @property
-    def dialect(self) -> str:
-        return self.engine.dialect.name

@@ -20,8 +20,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * fresh personal workspace, so the counters a test fills are its own.
  *
  * <p>
- * Not ported, because they call {@code archsim_api.limits} directly rather than over
- * HTTP: {@code test_a_counter_allows_up_to_its_limit_then_says_how_long_to_wait}, {@code
+ * Not ported, because they called {@code archsim_api.limits} directly rather than over
+ * HTTP (archsim-app's {@code RateLimitsTests} and {@code RateLimitPruningTests} check the
+ * Java API's counters):
+ * {@code test_a_counter_allows_up_to_its_limit_then_says_how_long_to_wait}, {@code
  * test_a_refused_batch_costs_nothing},
  * {@code test_counters_hold_across_instances_and_threads} and
  * {@code test_old_windows_are_pruned}. {@code test_profiles_per_kind} and {@code

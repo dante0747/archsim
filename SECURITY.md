@@ -139,10 +139,10 @@ bounded by the limits above, not prevented.
   `extra="forbid"`), and component types must already be registered in the engine. There is no
   endpoint that evaluates expressions, templates or user code.
 - **Plugins are local only.** Third-party component models are loaded from Python packages
-  installed in the engine's environment (the engine service and the workers) via the
-  `archsim.components` entry point group, and only when `ARCHSIM_ENABLE_PLUGINS=1`. Plugins run
-  with those processes' privileges, so install only packages you trust. Plugins can never be
-  uploaded through the API.
+  installed in the Python engine's environment (its CLI and MCP server; the Java API and
+  workers load none) via the `archsim.components` entry point group, and only when
+  `ARCHSIM_ENABLE_PLUGINS=1`. Plugins run with those processes' privileges, so install only
+  packages you trust. Plugins can never be uploaded through the API.
 - **Bounded resource use.** Each request body is capped (`ARCHSIM_MAX_BODY_BYTES`, default
   5 MB). Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked
@@ -152,7 +152,8 @@ bounded by the limits above, not prevented.
   design sets no backlog limit. Each worker simulates at most `ARCHSIM_MAX_CONCURRENT_RUNS` runs
   at once (default: CPU count - 1), each on a thread of its own; extra runs wait in the queue.
   The runs share their worker's heap, sized for them (archsim-app's README): one that exhausts
-  it stops the worker, whose runs are then requeued once, then failed.
+  it stops the worker, whose runs are then requeued, each failed only if its worker stops a
+  second time.
 - **Several instances and workers.** API instances and `archsim-app worker` processes trust each
   other through the database: whoever can write to it can queue, cancel or change runs, so keep
   it reachable only by them. A worker's runs are threads of its own process and end with it.

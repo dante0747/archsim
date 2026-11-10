@@ -107,10 +107,11 @@ instance reports the same value.
 
 ### Background runs and several instances
 
-Runs are queued in the database, and workers (`archsim-api worker`) take them: the API only
-queues. Each run simulates in a process of its own
-(`ARCHSIM_RUNNER=process`), up to `ARCHSIM_MAX_CONCURRENT_RUNS` at once per worker (default:
-CPU count - 1).
+Runs are queued in the database, and workers (`archsim-app worker`,
+[ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)) take them: the API only
+queues. Each run simulates on a thread of its own, up to `ARCHSIM_MAX_CONCURRENT_RUNS` at once
+per worker (default: CPU count - 1), and the runs share the worker's heap, sized for them
+([archsim-app's README](../archsim-app/README.md#the-workers-heap)).
 
 - **Restarts.** A worker that stops normally (Ctrl+C, SIGTERM) gives its runs back to the
   queue, and the next worker simulates them again from the start. One that dies without warning
@@ -118,14 +119,20 @@ CPU count - 1).
   `ARCHSIM_LEASE_SECONDS` (30 s) another worker, or the same one after a restart, requeues them.
   A run whose worker stops twice is `failed` with "The simulation worker stopped
   unexpectedly…".
-- **A crashed simulation** (its process ran out of memory or was killed) fails only that run,
-  with the same message; the worker and its other runs carry on.
-- **Deadline.** A run still going `ARCHSIM_MAX_WALL_SECONDS` + 30 s after it started is killed and
-  `failed`, even if the simulation stopped checking its limits.
+- **A run that exhausts the heap** stops its worker, which runs with
+  `-XX:+ExitOnOutOfMemoryError` (the image, `make worker` and archsim-app's README start it so),
+  and the worker's other runs stop with it: each is requeued, as above, and `failed` only if its
+  worker stops a second time.
+- **Deadline.** A run still going `ARCHSIM_MAX_WALL_SECONDS` + 30 s after it started is
+  `failed`, even if the simulation stopped checking its limits; its thread runs on until it
+  stops.
 - **Several instances.** Any number of API instances and workers can share one database: the API
-  only queues runs, workers claim them with `FOR UPDATE SKIP LOCKED`, and cancel requests reach the
-  worker holding a run wherever it is. Run more workers with `archsim-api worker --slots N` (`docker
-  compose up --scale worker=3`). Hosts need synchronised clocks (NTP): leases compare their times.
+  only queues runs, workers claim them one claim at a time under a PostgreSQL advisory lock, and
+  cancel requests reach the worker holding a run wherever it is. Run more workers with
+  `java -Xmx… -XX:+ExitOnOutOfMemoryError -jar archsim-app.jar worker`
+  (`ARCHSIM_MAX_CONCURRENT_RUNS` each, with the heap archsim-app's README asks for), or
+  `docker compose up --scale worker=3`. Hosts need synchronised clocks (NTP): leases compare
+  their times.
 - **Migrations** (Flyway) take a PostgreSQL lock, so instances starting together migrate one at
   a time. The `migrate` role (`java -jar archsim-app.jar migrate`, the Compose `migrate`
   service) migrates once and exits; then set `ARCHSIM_AUTO_MIGRATE=false` on the API instances.

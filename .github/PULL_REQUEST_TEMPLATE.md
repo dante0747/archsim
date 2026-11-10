@@ -9,7 +9,7 @@
 ## Checklist
 
 - [ ] `uv run ruff check packages services` and `uv run ruff format --check packages services` pass
-- [ ] `uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src` passes
+- [ ] `uv run mypy packages/engine/src services/api/src packages/mcp/src` passes
 - [ ] `uv run pytest` passes
 - [ ] Web: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` pass (if `apps/web` changed)
 - [ ] Docs updated (schema, API, modeling assumptions or UI workflow, if affected)

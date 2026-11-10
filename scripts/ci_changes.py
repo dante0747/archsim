@@ -33,7 +33,7 @@ JOBS = (
     "python",
     "engine_tests",
     "benchmark_tests",
-    "workers",
+    "migrations",
     "java",
     "archsim_check",
     "web",
@@ -46,9 +46,9 @@ PYTHON = frozenset({"python"})
 ENGINE_TESTS = frozenset({"python", "engine_tests"})
 BENCHMARK_TESTS = frozenset({"python", "benchmark_tests"})
 JAVA = frozenset({"java", "e2e"})
-# The frozen engine and the Python environment: every Python process imports them (the workers,
-# the engine service the Java API and the end-to-end tests start, the archsim CLI), and the Java
-# build reads the engine's pricing data and test fixtures.
+# The frozen engine and the Python environment: every Python process imports them (the archsim
+# CLI, the MCP server, the migrations and seed, the end-to-end launcher's database maker), and
+# the Java build reads the engine's pricing data and test fixtures.
 PYTHON_RUNTIME = EVERY - {"web"}
 
 # (path, jobs). A path ending in "/" is a folder and covers everything in it, a path with a "*"
@@ -94,8 +94,10 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("packages/engine/", PYTHON_RUNTIME),
     ("pyproject.toml", PYTHON_RUNTIME),
     ("uv.lock", PYTHON_RUNTIME),
-    ("services/api/", frozenset({"python", "workers", "java", "e2e"})),
-    ("services/engine-service/", frozenset({"python", "java", "e2e"})),
+    # the Alembic migrations and seed, until stage 6; the end-to-end launcher makes its database
+    # through the environment their project declares (psycopg)
+    ("services/api/pyproject.toml", frozenset({"python", "migrations", "e2e"})),
+    ("services/api/", frozenset({"python", "migrations"})),
     ("packages/mcp/", PYTHON),
     # The exporters write the Java tests' resources (archsim-engine/src/test/resources) and the
     # golden files (scripts/golden/, which export_golden.py --check compares in the Python job);

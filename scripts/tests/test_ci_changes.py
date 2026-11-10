@@ -21,7 +21,7 @@ EVERY_JOB = {
     "python",
     "engine_tests",
     "benchmark_tests",
-    "workers",
+    "migrations",
     "java",
     "archsim_check",
     "web",
@@ -53,8 +53,10 @@ EVERY_JOB = {
         (["apps/web/src/test/fixtures/share.ts"], {"web", "e2e"}),
         # the end-to-end launcher starts the worker, whose command line the Java tests check
         (["apps/web/e2e/api-server.mjs"], {"web", "java", "e2e"}),
-        (["services/api/src/archsim_api/db.py"], {"python", "workers", "java", "e2e"}),
-        (["services/engine-service/src/archsim_engine_service/app.py"], {"python", "java", "e2e"}),
+        # the Alembic migrations and seed; the end-to-end launcher makes its database through
+        # the environment their project declares
+        (["services/api/src/archsim_api/db.py"], {"python", "migrations"}),
+        (["services/api/pyproject.toml"], {"python", "migrations", "e2e"}),
         (["packages/mcp/src/archsim_mcp/server.py"], {"python"}),
         (["scripts/check_commits.py", "packages/mcp/tests/test_server.py"], {"python"}),
         (

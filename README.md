@@ -232,20 +232,16 @@ docker compose up -d postgres
 ./gradlew :archsim-app:bootJar
 ```
 
-Then start the back end, each part in a terminal of its own: the engine service (it simulates
-calibrations' replays), the API (it migrates the database when it starts) and a simulation
-worker.
-
-```bash
-uv run archsim-engine-service
-```
+Then start the back end, each part in a terminal of its own: the API (it migrates the database
+when it starts) and a simulation worker (three runs at once, with the heap
+[archsim-app's README](archsim-app/README.md#the-workers-heap) asks for).
 
 ```bash
 java -jar archsim-app/build/libs/archsim-app.jar api
 ```
 
 ```bash
-uv run archsim-api worker
+ARCHSIM_MAX_CONCURRENT_RUNS=3 java -Xmx2g -XX:+ExitOnOutOfMemoryError -jar archsim-app/build/libs/archsim-app.jar worker
 ```
 
 In another terminal, start the web app:
@@ -258,10 +254,12 @@ npm run dev
 
 Open <http://localhost:3000>, pick **Cache-aside web API (starter)**, and press **Run**.
 
-The parts find each other with their defaults: PostgreSQL at
-`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim` (compose's) and the engine service
-at `http://127.0.0.1:8001`. For another database, set `ARCHSIM_DATABASE_URL` for the API and the
-worker alike (on Windows PowerShell: `$env:ARCHSIM_DATABASE_URL = "postgresql+psycopg://..."`).
+The parts find each other with their default: PostgreSQL at
+`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim` (compose's). For another database,
+set `ARCHSIM_DATABASE_URL` for the API and the worker alike (on Windows PowerShell:
+`$env:ARCHSIM_DATABASE_URL = "postgresql+psycopg://..."`, and likewise
+`$env:ARCHSIM_MAX_CONCURRENT_RUNS = "3"` before the worker's `java` command; `make worker` runs
+that command on a POSIX shell).
 Use `127.0.0.1` rather than `localhost`: with Docker Desktop on Windows, `localhost` may try
 IPv6 first and stall.
 All settings are listed in [.env.example](.env.example).
@@ -359,18 +357,18 @@ loop, and a design whose one request would fan out into more than 10,000 calls i
 ## Tests and checks
 
 ```bash
-uv run pytest                                   # engine, engine service and workers
+uv run pytest                                   # the engine, its tools and the migrations
 uv run ruff check packages services benchmarks
 uv run ruff format --check packages services benchmarks
-uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
+uv run mypy packages/engine/src services/api/src packages/mcp/src
 ./gradlew build                                 # the Java code: format, Checkstyle, tests
 cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
 ```
 
 The engine suite includes analytic checks against M/M/1 and M/M/c (Erlang C) queues, request
 accounting invariants, determinism, and a directional reference benchmark on the starter
-example. CI (GitHub Actions) also runs the worker tests against PostgreSQL and the black-box
-API tests against the Java API. `make` targets wrap
+example. CI (GitHub Actions) also runs the migrations against PostgreSQL and the black-box
+API tests against the Java API and its worker. `make` targets wrap
 these commands (see the [Makefile](Makefile)).
 
 ## Repository layout
@@ -379,9 +377,8 @@ these commands (see the [Makefile](Makefile)).
 packages/engine/   Python simulation engine and domain model (no web dependencies)
 archsim-app/       Java API (Spring Boot): projects, runs, workspaces, reviews, sharing, sign-in
 archsim-model/     Java design model: the document's records, upgrades and validation
-archsim-engine/    Java engine: its deterministic parts (sizing, cost, review, exports, ...)
-services/engine-service/  Python engine service: calibrations' replays, for the API
-services/api/      Python simulation workers: they simulate the runs the API queues
+archsim-engine/    Java engine: the simulator and its deterministic parts (sizing, cost, ...)
+services/api/      Python Alembic migrations and seed, until stage 6 of the Java port
 apps/web/          Next.js editor: canvas, inspector, results and comparison
 examples/          Example architectures (versioned JSON) with scenarios
 docs/              Architecture, simulation model, schema, API, extension guide, roadmap
@@ -434,8 +431,8 @@ Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 - **The web app says it cannot reach the API.** Start it as the [quick start](#quick-start)
   shows. If it runs elsewhere, set `ARCHSIM_API_URL` for the web server (default
   `http://127.0.0.1:8000`).
-- **Runs stay queued.** No worker is running: start one (`uv run archsim-api worker`), with the
-  API's `ARCHSIM_DATABASE_URL`.
+- **Runs stay queued.** No worker is running: start one (`make worker`, or the `worker` role of
+  archsim-app's jar), with the API's `ARCHSIM_DATABASE_URL`.
 - **Windows: `DLL load failed ... The filename or extension is too long`.** The checkout path is
   too deep for Windows' path limit. Clone into a short path such as `C:\src\archsim`, or put the
   virtual environment somewhere short with `UV_PROJECT_ENVIRONMENT`.

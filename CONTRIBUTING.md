@@ -13,10 +13,9 @@ through [SECURITY.md](SECURITY.md), not public issues.
 ```
 packages/engine/   Python package `archsim_engine`: schema, component registry, simulator,
                    analysis, comparison, CLI (`archsim`). No web dependencies.
-services/api/      Python package `archsim_api`: the simulation workers, the SQLAlchemy models
-                   and Alembic migrations the schema started from, CLI (`archsim-api`).
-services/engine-service/
-                   Python: calibrations' replays, for the Java API only, until stage 4.
+services/api/      Python package `archsim_api`: the SQLAlchemy models and Alembic migrations
+                   the schema started from, and their CLI (`archsim-api migrate`, `seed`),
+                   until stage 6 of the Java port.
 apps/web/          Next.js 16 + React Flow editor and results UI.
 examples/          Example architecture documents (served by the API, used by tests).
 docs/              Design and reference documentation.
@@ -38,7 +37,7 @@ Prerequisites: a JDK 25, Python 3.11+ (3.12 recommended), [uv](https://docs.astr
 Node.js 24 with npm, and PostgreSQL 16 (Docker Compose starts one).
 
 ```bash
-# Python workspace (engine, engine service, workers, dev tools) into .venv
+# Python workspace (the frozen engine, its tools, the migrations, dev tools) into .venv
 uv sync
 
 # Web app
@@ -76,10 +75,10 @@ Run everything CI runs before opening a pull request:
 # Python
 uv run ruff check packages services
 uv run ruff format --check packages services
-uv run mypy packages/engine/src services/api/src packages/mcp/src services/engine-service/src
-uv run pytest                                   # engine, engine service and worker tests (SQLite)
+uv run mypy packages/engine/src services/api/src packages/mcp/src
+uv run pytest                                   # the engine, its tools and the migrations (SQLite)
 
-# Worker tests against PostgreSQL (drops all tables in the target database!)
+# The migration tests against PostgreSQL (drops all tables in the target database!)
 docker compose up -d postgres
 docker compose exec postgres createdb -U archsim archsim_test   # once
 ARCHSIM_TEST_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test \

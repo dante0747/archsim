@@ -144,7 +144,7 @@ each, used the month's minutes in five days. So:
   calibrate, simulate and render `docs/validation.md` with it, so the Python job runs them
   (steps `Engine tests` and `Benchmark tests`) only on a change to the engine, the Python
   environment, the templates or a file they read (`engine_tests` and `benchmark_tests` in the
-  script's `RULES`). A change to the engine service, the workers, the MCP server or a script
+  script's `RULES`). A change to the migrations (`services/api`), the MCP server or a script
   runs the rest of the Python tests, about a minute.
 - **Pushes to main never cancel one another**, since each push's run tests only what that push
   changed. A pull request's new commits still cancel its older run. A later push that skips a

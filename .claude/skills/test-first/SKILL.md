@@ -44,7 +44,7 @@ what the code must do before the code exists, and it proves the code does it.
 ./gradlew :archsim-model:test --tests 'io.archsim.model.catalog.ComponentCatalogTests'
 ./gradlew :archsim-app:test --tests '*TokenServiceTests'
 ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java --tests '*TokensTests'
-uv run pytest services/api/tests/test_api_queue.py -k reap
+uv run pytest services/api/tests/test_api_migrations.py -k lock
 cd apps/web && npx vitest run src/lib/tier.test.ts
 ```
 

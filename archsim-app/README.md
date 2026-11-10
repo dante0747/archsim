@@ -59,7 +59,7 @@ and 256 MB besides for the application. Three runs at once take 1,792 MB; compos
 its workers' heaps out by the rule. Raising the runs at once means raising the heap with them.
 The image runs every role with `-XX:+ExitOnOutOfMemoryError`, and so should any other way of
 starting a worker: one whose heap runs out stops, compose starts it again, and once its lease
-ends the reaper requeues its runs once, then fails them.
+ends the reaper requeues its runs; a run is failed only if its worker stops a second time.
 
 512 MB is about twice what the heaviest run measured needed, at the default
 `ARCHSIM_MAX_REQUESTS` of 2 million; a run can hold its requests in flight, so the heap a run
