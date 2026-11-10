@@ -19,7 +19,6 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.flyway.database.postgresql)
     implementation(libs.springdoc.openapi.webmvc.ui)
-    implementation(libs.httpclient5)
     runtimeOnly(libs.postgresql)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
@@ -40,6 +39,45 @@ tasks.test {
     inputs.files(rootDir.resolve("docker-compose.yml"), rootDir.resolve("apps/web/e2e/api-server.mjs"), buildFile)
         .withPropertyName("workerCommandLines")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+// The libraries the engine shares with the app are pinned in the catalog at the versions Spring
+// Boot manages (ADR-0043, ADR-0057): the engine has no BOM, and the CLI ships it alone. A Boot
+// upgrade that moves one of them fails the build here, until the catalog follows.
+val bootManaged = configurations.create("bootManaged") {
+    isCanBeConsumed = false
+    description = "The versions Spring Boot manages of the libraries pinned in the catalog."
+}
+val pinnedAtBootsVersion = listOf(libs.snakeyaml, libs.httpclient5).map { it.get() }
+
+dependencies {
+    bootManaged(platform(libs.spring.boot.dependencies))
+    pinnedAtBootsVersion.forEach { bootManaged(it.module.toString()) }
+}
+
+val checkBootManagedVersions = tasks.register("checkBootManagedVersions") {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Fails when a library pinned in the catalog is not at the version Spring Boot manages."
+    val pinned = pinnedAtBootsVersion.associate { it.module.name to it.version.orEmpty() }
+    val managed = bootManaged.incoming.resolutionResult.rootComponent.map { root ->
+        root.dependencies.filterIsInstance<ResolvedDependencyResult>()
+            .mapNotNull { it.selected.moduleVersion }
+            .filter { it.name in pinned }
+            .associate { it.name to it.version }
+    }
+    inputs.property("pinned", pinned)
+    inputs.property("managed", managed)
+    doLast {
+        val differing = pinned.filter { (name, version) -> managed.get()[name] != version }
+        check(differing.isEmpty()) {
+            "gradle/libs.versions.toml pins ${differing.keys} at ${differing.values}, but Spring Boot manages " +
+                "${differing.keys.associateWith { managed.get()[it] }}: set the catalog to Boot's versions"
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(checkBootManagedVersions)
 }
 
 tasks.bootJar {

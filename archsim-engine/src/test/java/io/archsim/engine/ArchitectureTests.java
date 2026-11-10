@@ -31,6 +31,18 @@ class ArchitectureTests {
 	}
 
 	@Test
+	void engineClasses_outsideThePrometheusClient_useNoHttpClient() {
+		noClasses().that()
+			.resideOutsideOfPackage("io.archsim.engine.calibration.prometheus.http..")
+			.should()
+			.dependOnClassesThat()
+			.resideInAnyPackage("org.apache.hc..", "java.net.http..")
+			.because("the Prometheus client, for a calibration from a live server, is the engine's only HTTP "
+					+ "client (ADR-0057)")
+			.check(ENGINE);
+	}
+
+	@Test
 	void kernel_anyClass_usesNothingElseOfTheEngineOrModel() {
 		classes().that()
 			.resideInAPackage("io.archsim.engine.kernel..")

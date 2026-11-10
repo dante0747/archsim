@@ -98,3 +98,4 @@ what the repository shows.
 | [0054](0054-replay-calibrations-on-a-pool-of-platform-threads.md) | Replay calibrations on a pool of platform threads, never on the request's thread | Accepted | 2026-11-09 |
 | [0055](0055-the-java-clis-output-contract.md) | The Java CLI keeps the Python CLI's words, exit codes and JSON values | Accepted | 2026-11-10 |
 | [0056](0056-the-java-cli-takes-options-by-their-full-names.md) | The Java CLI takes options by their full names | Accepted | 2026-11-10 |
+| [0057](0057-move-the-prometheus-client-into-the-engine.md) | Move the Prometheus client into the engine, for the app and the CLI | Proposed | 2026-11-10 |

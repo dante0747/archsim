@@ -1,4 +1,4 @@
-package io.archsim.app.calibration;
+package io.archsim.engine.calibration.prometheus.http;
 
 import java.io.IOException;
 import java.io.InputStream;

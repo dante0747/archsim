@@ -58,6 +58,12 @@ address given with the request while it names the host for `Host` and TLS.
 ([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)); the JDK client still serves the
 sign-in calls.
 
+**Status (10 Nov 2026, later):** the client moves into `archsim-engine`, for the app and the
+CLI's `archsim calibrate prometheus --url`
+([ADR-0057](0057-move-the-prometheus-client-into-the-engine.md), proposed); the app keeps its
+outbound policy, `OutboundPolicy.serverFor(url)`. The engine has no Spring BOM, so HttpClient's
+version is pinned in the catalog at the one Boot manages, and the build fails when they differ.
+
 ### Consequences
 
 - Good, because the check and the connection read one lookup, and HttpClient cannot look up

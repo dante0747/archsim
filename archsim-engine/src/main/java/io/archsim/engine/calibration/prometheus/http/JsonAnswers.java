@@ -1,4 +1,4 @@
-package io.archsim.app.calibration;
+package io.archsim.engine.calibration.prometheus.http;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;

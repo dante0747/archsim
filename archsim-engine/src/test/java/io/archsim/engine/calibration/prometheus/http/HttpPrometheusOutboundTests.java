@@ -1,4 +1,4 @@
-package io.archsim.app.calibration;
+package io.archsim.engine.calibration.prometheus.http;
 
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
@@ -15,8 +15,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import io.archsim.app.calibration.StubPrometheus.Request;
 import io.archsim.engine.calibration.prometheus.PrometheusException;
+import io.archsim.engine.calibration.prometheus.http.StubPrometheus.Request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;

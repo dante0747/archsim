@@ -1,4 +1,4 @@
-package io.archsim.app.calibration;
+package io.archsim.engine.calibration.prometheus.http;
 
 import javax.net.ssl.SSLContext;
 
@@ -30,7 +30,7 @@ import io.archsim.engine.calibration.prometheus.PrometheusException;
  * names is trusted as written. Errors never repeat what the server said:
  * {@link PrometheusException#detail()} keeps it.
  */
-final class HttpPrometheus implements PrometheusClient, AutoCloseable {
+public final class HttpPrometheus implements PrometheusClient, AutoCloseable {
 
 	private static final int OK = 200;
 
@@ -58,7 +58,7 @@ final class HttpPrometheus implements PrometheusClient, AutoCloseable {
 	 * @param server the server and how it is called
 	 * @return the client
 	 */
-	static HttpPrometheus of(PrometheusServer server) {
+	public static HttpPrometheus of(PrometheusServer server) {
 		return new HttpPrometheus(server, SSLContexts.createSystemDefault(), HostResolver.SYSTEM);
 	}
 

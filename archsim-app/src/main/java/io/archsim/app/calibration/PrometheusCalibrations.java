@@ -14,6 +14,7 @@ import io.archsim.engine.calibration.mapping.MappingLoader;
 import io.archsim.engine.calibration.mapping.TimeRange;
 import io.archsim.engine.calibration.prometheus.PrometheusClient;
 import io.archsim.engine.calibration.prometheus.RecordedPrometheus;
+import io.archsim.engine.calibration.prometheus.http.HttpPrometheus;
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.model.component.ComponentRegistry;
 
@@ -63,7 +64,7 @@ final class PrometheusCalibrations {
 		if (url == null || url.isEmpty()) {
 			throw CalibrationRefusals.unreadable("Give a Prometheus URL or recorded responses");
 		}
-		try (HttpPrometheus client = HttpPrometheus.of(PrometheusServer.allowedBy(outbound, url))) {
+		try (HttpPrometheus client = HttpPrometheus.of(outbound.serverFor(url))) {
 			return calibrate(request, mapping, client, replay);
 		}
 	}

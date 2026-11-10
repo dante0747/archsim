@@ -1,9 +1,10 @@
 import java.time.Duration
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
-// The engine's deterministic parts: sizing, cost, the instant estimate, the design review,
-// confidence, comparisons, exports, importers and calibration fits, over the design model. A plain
-// Java library: no Spring, no JDBC (ADR-0012). Stage 3 of the Java port; see README.md.
+// The engine: sizing, cost, the instant estimate, the design review, confidence, comparisons,
+// exports, importers and calibration, over the design model, and the simulator. A plain Java
+// library: no Spring, no JDBC (ADR-0012); its only HTTP client is the one Prometheus is queried with
+// (ADR-0057). Stages 3 and 4 of the Java port; see README.md.
 plugins {
     id("archsim.java-conventions")
     `java-library`
@@ -16,6 +17,8 @@ dependencies {
     api(project(":archsim-model"))
     // the importers read YAML as PyYAML reads it (ADR-0043)
     implementation(libs.snakeyaml)
+    // calibrations query Prometheus over HTTP, pinned to the address checked (ADR-0046, ADR-0057)
+    implementation(libs.httpclient5)
 
     // the golden-file reader (ADR-0028)
     testImplementation(testFixtures(project(":archsim-model")))

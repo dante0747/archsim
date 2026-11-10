@@ -1,4 +1,4 @@
-package io.archsim.app.calibration;
+package io.archsim.engine.calibration.prometheus.http;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -15,8 +15,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.app.calibration.StubPrometheus.Request;
 import io.archsim.engine.calibration.prometheus.PrometheusException;
+import io.archsim.engine.calibration.prometheus.http.StubPrometheus.Request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;

@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
+import io.archsim.engine.calibration.prometheus.http.PrometheusServer;
 import io.archsim.model.codec.JsonEnum;
 
 /**
@@ -31,9 +32,17 @@ import io.archsim.model.codec.JsonEnum;
 @Validated
 public record CalibrationProperties(@Nullable Outbound outbound,
 		@DefaultValue("") PrometheusHosts prometheusAllowedHosts,
-		@DefaultValue("30.0") @Positive @DecimalMax("600") double prometheusTimeoutS,
-		@DefaultValue("52428800") @Min(1024) long prometheusMaxBytes,
+		@DefaultValue(DEFAULT_TIMEOUT_S) @Positive @DecimalMax("600") double prometheusTimeoutS,
+		@DefaultValue(DEFAULT_MAX_BYTES) @Min(1024) long prometheusMaxBytes,
 		@DefaultValue("60.0") @Positive @DecimalMax("3600") double calibrateMaxWallSeconds) {
+
+	/** A Prometheus query's deadline unless one is set: the engine's, as text. */
+	static final String DEFAULT_TIMEOUT_S = "" + PrometheusServer.DEFAULT_TIMEOUT_SECONDS;
+
+	/**
+	 * The largest Prometheus answer accepted unless a cap is set: the engine's, as text.
+	 */
+	static final String DEFAULT_MAX_BYTES = "" + PrometheusServer.DEFAULT_MAX_BYTES;
 
 	/**
 	 * How freely a request may call a server it names.
