@@ -358,10 +358,16 @@ class EndpointsTests {
 		assertThat(response.message()).contains("Reduce RPS or duration");
 	}
 
-	/** One run at a time (constrained profile): the second waits, and both cancel. */
+	/**
+	 * One run at a time (constrained profile): the second waits, and both cancel. The
+	 * starter at 400 requests a second for 3,600 s, the most a design may ask for, is
+	 * about 1.4 million requests: under the server's limit (2 million) and tens of
+	 * seconds' work for the Java simulator, so the first run is still running when it is
+	 * cancelled.
+	 */
 	@Test
 	void cancel_queuedAndRunningRuns_cancelsBoth(@On(Profile.CONSTRAINED) ApiClient client) {
-		String project = Json.id(Runs.createProject(client, Examples.starter(120, 5)));
+		String project = Json.id(Runs.createProject(client, Examples.starter(3600, 5)));
 		String first = Runs.startRun(client, project);
 		String second = Runs.startRun(client, project);
 		// cancel the queued one immediately and the running one cooperatively

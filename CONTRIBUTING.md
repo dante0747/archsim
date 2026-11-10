@@ -48,10 +48,9 @@ cd apps/web && npm ci && cd ../..
 docker compose up -d postgres
 ./gradlew :archsim-app:bootJar
 
-# The engine service, the API, a worker and the web app, each in a terminal of its own
-uv run archsim-engine-service                          # http://127.0.0.1:8001 (the API's only)
+# The API, a worker and the web app, each in a terminal of its own
 java -jar archsim-app/build/libs/archsim-app.jar api   # http://127.0.0.1:8000 (docs: /api/v1/docs)
-uv run archsim-api worker                              # simulates the runs the API queues
+make worker                                            # simulates the runs the API queues
 cd apps/web && npm run dev                             # http://localhost:3000
 
 uv run archsim-api seed           # optional: one project per example file
@@ -60,7 +59,7 @@ uv run archsim-api seed           # optional: one project per example file
 The API and the worker both default to compose's PostgreSQL
 (`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`); set `ARCHSIM_DATABASE_URL` for
 both to use another. The `Makefile` wraps these commands (`make setup`, `make dev-db`,
-`make engine`, `make api`, `make worker`, `make web`, `make test`, ...). On Windows without
+`make api`, `make worker`, `make web`, `make test`, ...). On Windows without
 `make`, run the underlying commands shown in the Makefile directly; nothing depends on a POSIX
 shell.
 
@@ -112,8 +111,8 @@ of its own (`archsim_api_tests_*`) in the PostgreSQL above;
 [archsim-api-tests/README.md](archsim-api-tests/README.md) says how to run them against servers
 that are already running.
 
-`npm run e2e` starts its own back end on :8002 (the Java API, the engine service and a worker,
-on a throwaway database `archsim_e2e_8002` in the PostgreSQL above, with the templates shortened
+`npm run e2e` starts its own back end on :8002 (the Java API and a Java worker, on a throwaway
+database `archsim_e2e_8002` in the PostgreSQL above, with the templates shortened
 to 20 s) and `next start` on :3002, so a stack running on :3000/:8000 is left alone; set
 `E2E_API_PORT`/`E2E_WEB_PORT` to move them, and `E2E_POSTGRES_URL` for another PostgreSQL. It
 needs `uv` on PATH, the API's jar (`./gradlew :archsim-app:bootJar`) and a fresh

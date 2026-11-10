@@ -80,6 +80,14 @@ public class RateLimits {
 	}
 
 	/**
+	 * Deletes the counters of windows that ended: they count nothing any more.
+	 * @return how many were deleted
+	 */
+	int pruneEnded() {
+		return this.repository.prune(this.clock.instant());
+	}
+
+	/**
 	 * Returns what to add to a key's count in the window that holds this moment.
 	 * @param charge the key and its limit
 	 * @param now this moment, in seconds since the epoch

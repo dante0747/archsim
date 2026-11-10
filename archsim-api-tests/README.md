@@ -9,8 +9,7 @@ are part of the contract, since the Java API took them over unchanged.
 
 ## Running them
 
-PostgreSQL must be running (`docker compose up -d postgres`) and the Python environment
-synced (`uv sync`). Then:
+PostgreSQL must be running (`docker compose up -d postgres`). Then:
 
 ```bash
 ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
@@ -19,10 +18,9 @@ synced (`uv sync`). Then:
 builds the Java API's jar and starts it, on the JDK the suite runs on, once for each
 [profile](#profiles) the tests use: each on its own port (8101 and up) and its own database
 (`archsim_api_tests_<profile>`, dropped and created afresh). Next to each server the suite
-starts the Python engine service (`uv run archsim-engine-service`), 500 ports above it, with
-only `ARCHSIM_PRICES_DIR`, and a Python worker (`uv run archsim-api worker`) with the server's
-settings. Then it runs the tests and stops them all. The logs are in
-`archsim-api-tests/build/api-servers/`: `<profile>.log`, `<profile>-engine.log` and
+starts a Java worker from the same jar (`archsim-app.jar worker`, with a heap and
+`-XX:+ExitOnOutOfMemoryError`) with the server's settings. Then it runs the tests and stops
+them all. The logs are in `archsim-api-tests/build/api-servers/`: `<profile>.log` and
 `<profile>-worker.log`.
 
 Against servers that are already running, give their URLs instead; tests of a profile without
@@ -123,11 +121,11 @@ ported:
 - **Not observable over HTTP (16),** listed below with the reason in each class's Javadoc. Where
   they are checked now:
   - with the Python workers, in `services/api/tests`: `queue.claim` (`test_api_queue.py`), the
-    quick checks (`test_api_worker.py`, one test for both), `limits.prune`
-    (`test_api_limits.py`), and the restarts with leases (the lease tests of
-    `test_api_worker.py`, and `test_api_queue.py`'s reaping tests);
+    quick checks (`test_api_worker.py`, one test for both), and the restarts with leases (the
+    lease tests of `test_api_worker.py`, and `test_api_queue.py`'s reaping tests);
   - in `archsim-app`'s own tests, for its versions: the settings parsed (`SettingListsTests`,
-    `SignInPropertiesTests`), the rate-limit counter (`RateLimitsTests`) and the share helpers
+    `SignInPropertiesTests`), the rate-limit counter and its pruning (`RateLimitsTests`,
+    `RateLimitPruningTests`) and the share helpers
     (`SlugsTests`, `SharePayloadsTests`);
   - nowhere: the database going down mid-run, a test that swapped the Python API's engine
     in-process, went with it.
@@ -140,7 +138,7 @@ ported:
 | `test_api_oauth.py` | `OAuthTests` | 16 | the validation of the sign-in settings (a `Settings` unit test) |
 | `test_api_tokens.py` | `TokensTests` | 12 | |
 | `test_api_workspaces.py` | `WorkspacesTests` | 15 | three tests of `queue.claim`, called directly |
-| `test_api_limits.py` | `LimitsTests` | 13 | four tests of the rate-limit counter (`limits.hit`, `limits.prune`), called directly |
+| `test_api_limits.py` | `LimitsTests` | 13 | four tests of the rate-limit counter (`limits.hit`, `limits.prune`), called directly: `RateLimitsTests` and `RateLimitPruningTests` check the Java API's |
 | `test_api_run_groups.py` | `RunGroupsTests` | 8 | two quick-check tests that shrink the engine's sampling thresholds in-process |
 | `test_api_shares.py` | `SharesTests` | 15 | unit tests of `new_slug` and `public_report`; the API tests check both through the routes |
 | `test_api_review.py` | `ReviewTests`, `ReviewHistoryTests` | 15 | |

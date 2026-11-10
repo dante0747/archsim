@@ -192,16 +192,11 @@ jobs:
           java-version: 25
       # also checks the committed Gradle wrapper against Gradle's published checksums
       - uses: gradle/actions/setup-gradle@v6
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
       - name: Build
         run: ./gradlew build
       - name: Build the API's image (a tarball, no Docker needed)
         run: ./gradlew :archsim-app:jibBuildTar
-      # the whole suite, against the Java API with the Python engine service and a Python worker
-      # next to it
+      # the whole suite, against the Java API with a Java worker next to it (ADR-0053)
       - name: Black-box API tests
         run: ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java
       - name: Upload the test reports and server logs
@@ -258,8 +253,9 @@ jobs:
       - run: npm run typecheck
 
   e2e:
-    # the main path in Chromium against a production build and the real API: the Java API with
-    # the Python engine service and a Python worker, on PostgreSQL; see apps/web/e2e/api-server.mjs
+    # the main path in Chromium against a production build and the real API: the Java API with a
+    # Java worker, on PostgreSQL; see apps/web/e2e/api-server.mjs, which makes the database with
+    # the Python environment's driver
     name: End-to-end (Playwright, main path)
     needs: changes
     if: needs.changes.outputs.e2e == 'true'

@@ -279,16 +279,17 @@ docker compose up --build
 The first command builds the Java API's image into your local Docker with Jib (`make image`; run
 it again after changing the Java code); compose builds the rest. Then open
 <http://localhost:3000>. Ports are bound to 127.0.0.1 because the stack runs without sign-in by
-default. A one-shot `migrate` service updates the database first, the `engine` service answers
-the API's engine calls, and a `worker` simulates the runs.
+default. A one-shot `migrate` service updates the database first, and a `worker` simulates the
+runs the API queues.
 
 ### Several API instances and workers
 
 Runs wait in a queue in the database, and workers simulate them. To share the work, start more
 workers against the same PostgreSQL (`docker compose up --build --scale worker=3`, or
-`uv run archsim-api worker --slots 4` on any machine that reaches the database).
-A run survives a restart (it is queued again), cancel works from any instance, and a crashed
-simulation fails only its own run. Details and limits:
+`java -jar archsim-app.jar worker` on any machine that reaches the database, with the heap
+[archsim-app's README](archsim-app/README.md#the-workers-heap) asks for). A run survives a
+restart (it is queued again), and cancel works from any instance. A worker's runs share its
+heap: a run that exhausts it stops the worker, whose runs are then requeued. Details and limits:
 [docs/api.md](docs/api.md#background-runs-and-several-instances).
 
 ### Sign-in, teams and API tokens

@@ -8,18 +8,26 @@ import java.util.Locale;
 
 /**
  * An API the suite can start ({@code archsim.api.start}), and the commands that serve it
- * on the loopback interface, with the Python engine service and worker next to it.
+ * on the loopback interface, with a worker next to it.
  */
 public enum StartableApi {
 
 	/**
-	 * The Java API ({@code java -jar archsim-app.jar api}), on the JDK the suite runs on.
-	 * Gradle builds the jar first when {@code archsim.api.start=java}. The Python engine
-	 * service answers its engine calls (ADR-0036), and a Python worker simulates the runs
-	 * it queues, until stage 4 of the port. Both need {@code uv} on the PATH and a synced
-	 * environment ({@code uv sync}).
+	 * The Java API ({@code java -jar archsim-app.jar api}), on the JDK the suite runs on,
+	 * and the Java worker that simulates the runs it queues
+	 * ({@code archsim-app.jar worker}, ADR-0053). Gradle builds the jar first when
+	 * {@code archsim.api.start=java}.
 	 */
 	JAVA;
+
+	/** How many runs a worker the suite starts takes at once, unless its profile says. */
+	static final int WORKER_RUNS = 3;
+
+	/** The heap archsim-app's README gives each run a worker takes at once, in MB. */
+	private static final int RUN_HEAP_MB = 512;
+
+	/** The heap it gives the application besides, in MB. */
+	private static final int APP_HEAP_MB = 256;
 
 	/** Where a started API listens: only this machine can reach it. */
 	private static final String LOOPBACK = "127.0.0.1";
@@ -49,33 +57,38 @@ public enum StartableApi {
 	 * @throws IllegalStateException when the API's jar is not built
 	 */
 	List<String> command(SuiteConfig config, int port) {
-		Path jar = config.repoRoot().resolve(APP_JAR);
-		if (!Files.isRegularFile(jar)) {
-			throw new IllegalStateException("no " + jar + ": build it with ./gradlew :archsim-app:bootJar");
-		}
-		Path java = Path.of(System.getProperty("java.home"), "bin", "java");
-		return List.of(java.toString(), "-jar", jar.toString(), "api", "--server.address=" + LOOPBACK,
+		return List.of(java(), "-jar", jar(config).toString(), "api", "--server.address=" + LOOPBACK,
 				"--server.port=" + port);
 	}
 
 	/**
-	 * Returns the command that runs a Python worker.
+	 * Returns the command that runs the Java worker: a heap for the runs it takes at
+	 * once, by the rule of archsim-app's README, and an exit when the heap runs out, so
+	 * its runs are requeued (ADR-0053).
 	 * @param config what the suite was told: the repository
+	 * @param runs how many runs it takes at once ({@code ARCHSIM_MAX_CONCURRENT_RUNS})
 	 * @return the command and its arguments
+	 * @throws IllegalStateException when the API's jar is not built
 	 */
-	static List<String> workerCommand(SuiteConfig config) {
-		return List.of("uv", "run", "--no-sync", "--project", config.repoRoot().toString(), "archsim-api", "worker");
+	static List<String> workerCommand(SuiteConfig config, int runs) {
+		return List.of(java(), "-Xmx" + (RUN_HEAP_MB * runs + APP_HEAP_MB) + "m", "-XX:+ExitOnOutOfMemoryError", "-jar",
+				jar(config).toString(), "worker");
+	}
+
+	private static Path jar(SuiteConfig config) {
+		Path jar = config.repoRoot().resolve(APP_JAR);
+		if (!Files.isRegularFile(jar)) {
+			throw new IllegalStateException("no " + jar + ": build it with ./gradlew :archsim-app:bootJar");
+		}
+		return jar;
 	}
 
 	/**
-	 * Returns the command that serves the Python engine service.
-	 * @param config what the suite was told: the repository
-	 * @param port the port to listen on
-	 * @return the command and its arguments
+	 * Returns the JDK's {@code java}, the one the suite runs on.
+	 * @return its path
 	 */
-	static List<String> engineServiceCommand(SuiteConfig config, int port) {
-		return List.of("uv", "run", "--no-sync", "--project", config.repoRoot().toString(), "archsim-engine-service",
-				"--host", LOOPBACK, "--port", Integer.toString(port));
+	private static String java() {
+		return Path.of(System.getProperty("java.home"), "bin", "java").toString();
 	}
 
 	private String id() {

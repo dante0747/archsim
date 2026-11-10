@@ -1,6 +1,6 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup hooks image engine api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
+.PHONY: setup hooks image api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
 
 setup:            ## install Python and web dependencies, and the commit-message hook
 	uv sync
@@ -13,15 +13,13 @@ hooks:            ## check commit messages against Conventional Commits on every
 image:            ## build the Java API's image for docker compose (Jib, into the local Docker)
 	./gradlew :archsim-app:jibDockerBuild
 
-engine:           ## run the engine service the API calls, on http://127.0.0.1:8001
-	uv run archsim-engine-service
-
 api:              ## build and run the API on http://127.0.0.1:8000 (needs PostgreSQL: make dev-db)
 	./gradlew :archsim-app:bootJar
 	java -jar archsim-app/build/libs/archsim-app.jar api
 
-worker:           ## run a simulation worker on the API's database
-	uv run archsim-api worker
+worker:           ## run a simulation worker on the API's database (three runs at once)
+	./gradlew :archsim-app:bootJar
+	ARCHSIM_MAX_CONCURRENT_RUNS=3 java -Xmx2g -XX:+ExitOnOutOfMemoryError -jar archsim-app/build/libs/archsim-app.jar worker
 
 web:              ## run the web app on http://localhost:3000
 	cd apps/web && npm run dev

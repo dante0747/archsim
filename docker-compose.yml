@@ -7,20 +7,15 @@
 #   docker compose up --build                # everything: http://localhost:3000
 #   docker compose up --build --scale worker=3   # more simulation workers
 #
-# The API is the Java one (archsim-app). It calls the Python engine service only for the
-# simulation a calibration replays, and Python workers simulate the runs it queues
-# (docs/proposals/java-25-port.md).
+# The API and the workers are Java (archsim-app): the workers simulate the runs the API queues
+# (ADR-0053), and the API replays calibrations itself (docs/proposals/java-25-port.md).
 name: archsim
 
 # archsim-app's image, which Jib builds into the local Docker (ADR-0014); compose does not
-# build it. Started as migrate or api.
+# build it. Started as migrate, api or worker.
 x-archsim-app: &archsim-app
   image: archsim-app:local
   pull_policy: never
-
-x-worker-build: &worker-build
-  context: .
-  dockerfile: services/api/Dockerfile
 
 services:
   postgres:
@@ -50,30 +45,11 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # The simulation a calibration replays, until stage 4 ports the simulator (ADR-0036,
-  # ADR-0045), for the API only. It checks no caller, so only the API shares its network, which
-  # is internal: the service calls nothing.
-  engine:
-    build:
-      context: .
-      dockerfile: services/engine-service/Dockerfile
-    networks: [engine]
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
   api:
     <<: *archsim-app
     command: ["api"]
+    # the image exits when its heap runs out; start it again
+    restart: on-failure
     # Settings for this machine, such as sign-in and its secrets: put them in .env.docker (git
     # ignores it; see the sign-in block of .env.example). Without the file, no sign-in.
     env_file:
@@ -83,13 +59,9 @@ services:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
       ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
       ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
-      ARCHSIM_ENGINE_URL: http://engine:8001
     depends_on:
       migrate:
         condition: service_completed_successfully
-      engine:
-        condition: service_healthy
-    networks: [default, engine]
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -106,12 +78,15 @@ services:
       retries: 12
       start_period: 20s
 
-  # Simulation workers: they take the runs the API queues in PostgreSQL and, on SIGTERM, give
-  # the runs in flight back to the queue. Scale with --scale worker=N.
+  # Simulation workers: they take the runs the API queues in PostgreSQL, each on a thread of its
+  # own, and on SIGTERM give the runs in flight back to the queue. Scale with --scale worker=N.
+  # The runs share a worker's heap, sized for its runs at once (archsim-app/README.md). A worker
+  # whose heap runs out exits (the image's -XX:+ExitOnOutOfMemoryError) and is started again,
+  # and once its lease ends the reaper requeues its runs (ADR-0053).
   worker:
-    build: *worker-build
-    init: true # reaps and signals the simulation processes
-    command: ["archsim-api", "worker"]
+    <<: *archsim-app
+    command: ["worker"]
+    restart: on-failure
     # The API's settings: the worker reads ARCHSIM_AUTH_MODE and ARCHSIM_RATE_LIMITS from them,
     # and with limits on caps the runs each workspace kind simulates at once.
     env_file:
@@ -119,6 +94,8 @@ services:
         required: false
     environment:
       ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
+      ARCHSIM_MAX_CONCURRENT_RUNS: "3"
+      JAVA_TOOL_OPTIONS: -Xmx2g
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -135,12 +112,6 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:3000:3000"
-
-networks:
-  # Internal: no way out. Only the engine service and the API are on it; the service calls
-  # nothing, and the API reaches the outside (Prometheus, sign-in providers) through `default`.
-  engine:
-    internal: true
 
 volumes:
   pgdata:

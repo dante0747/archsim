@@ -77,6 +77,17 @@ class RateLimitRepository {
 	}
 
 	/**
+	 * Deletes the counters of windows that ended before a time.
+	 * @param now the time
+	 * @return how many were deleted
+	 */
+	int prune(Instant now) {
+		return this.jdbc.sql("DELETE FROM rate_limits WHERE expires_at < :now")
+			.param("now", Timestamp.from(now))
+			.update();
+	}
+
+	/**
 	 * A fixed window of time a count belongs to.
 	 *
 	 * @param start its start, in seconds since the epoch

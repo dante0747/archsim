@@ -23,15 +23,12 @@ import java.util.Map;
  * of its own, created afresh. It runs in a directory of its own under
  * {@code build/api-servers/}, so a {@code .env} file in the repository does not reach it,
  * and none of the caller's {@code ARCHSIM_*} variables do either: it gets its profile's
- * settings, in the environment the API and the Python processes read.
+ * settings, in the environment the API and its worker read.
  */
 final class LocalApi {
 
-	/** The setting the engine service reads: more folders of price snapshots. */
-	private static final String PRICES_DIR = "ARCHSIM_PRICES_DIR";
-
-	/** How far above an API's port the engine service next to it listens. */
-	private static final int ENGINE_PORT_OFFSET = 500;
+	/** The setting that says how many runs a worker takes at once. */
+	private static final String RUNS_AT_ONCE = "ARCHSIM_MAX_CONCURRENT_RUNS";
 
 	/** The port PostgreSQL listens on when a JDBC URL names none. */
 	private static final int DEFAULT_POSTGRES_PORT = 5432;
@@ -39,15 +36,18 @@ final class LocalApi {
 	/** What a JDBC URL starts with, before the database's own URL. */
 	private static final String JDBC_PREFIX = "jdbc:";
 
-	/** What a Python worker logs once it takes runs. */
+	/**
+	 * What the worker logs once it takes runs:
+	 * {@code worker <id> takes up to N run(s) at once}.
+	 */
 	private static final String WORKER_READY = "run(s) at once";
 
 	private LocalApi() {
 	}
 
 	/**
-	 * Starts an API as a server of a profile, the Python engine service before it and a
-	 * Python worker after it, and waits until they are healthy or ready.
+	 * Starts an API as a server of a profile and its worker after it, and waits until
+	 * they are healthy or ready.
 	 * @param config what the suite was told: ports, PostgreSQL, the repository
 	 * @param profile the profile to start a server of
 	 * @param api the API to start
@@ -60,10 +60,6 @@ final class LocalApi {
 		Map<String, String> settings = settings(config, profile, jdbcUrl, database);
 		List<ServerProcess> started = new ArrayList<>();
 		try {
-			URI engine = URI.create("http://127.0.0.1:" + (port + ENGINE_PORT_OFFSET));
-			started.add(launchEngineService(config, profile,
-					new ServerProcess.Urls(engine, jdbcUrl, engine.resolve("/health")), settings));
-			settings.put("ARCHSIM_ENGINE_URL", engine.toString());
 			URI url = URI.create("http://127.0.0.1:" + port);
 			ServerProcess server = launch(
 					new Launch(profile.id(), "the " + profile.id() + " Java API (" + url + ")",
@@ -88,7 +84,7 @@ final class LocalApi {
 	 * @param profile the profile the server serves
 	 * @param jdbcUrl the database's JDBC URL
 	 * @param database the database's name
-	 * @return the settings, which the caller may add to
+	 * @return the settings
 	 */
 	private static Map<String, String> settings(SuiteConfig config, Profile profile, String jdbcUrl, String database) {
 		Map<String, String> settings = new HashMap<>(profile.settings(config));
@@ -98,30 +94,10 @@ final class LocalApi {
 	}
 
 	/**
-	 * Starts the Python engine service for an API, with the one setting the engine reads:
-	 * the extra price snapshots ({@code ARCHSIM_PRICES_DIR}).
-	 * @param config what the suite was told: the repository
-	 * @param profile the profile the API serves
-	 * @param urls where the service listens and how to tell it is ready
-	 * @param settings the API's {@code ARCHSIM_*} settings
-	 * @return the running service
-	 */
-	private static ServerProcess launchEngineService(SuiteConfig config, Profile profile, ServerProcess.Urls urls,
-			Map<String, String> settings) {
-		Map<String, String> engineSettings = new HashMap<>();
-		if (settings.containsKey(PRICES_DIR)) {
-			engineSettings.put(PRICES_DIR, settings.get(PRICES_DIR));
-		}
-		return launch(
-				new Launch(profile.id() + "-engine", "the " + profile.id() + " engine service (" + urls.api() + ")",
-						StartableApi.engineServiceCommand(config, urls.api().getPort()), urls),
-				engineSettings, profile);
-	}
-
-	/**
-	 * Starts a Python worker for an API, with the API's settings: it takes the runs the
-	 * API queues in their shared database. It starts after the API, which has migrated
-	 * the database.
+	 * Starts the Java worker for an API, with the API's settings: it takes the runs the
+	 * API queues in their shared database, as many at once as its profile says, else
+	 * {@link StartableApi#WORKER_RUNS}, with a heap for them. It starts after the API,
+	 * which has migrated the database: the worker never migrates.
 	 * @param config what the suite was told: the repository
 	 * @param profile the profile the API serves
 	 * @param urls the API's address and database; a worker answers no HTTP
@@ -130,8 +106,12 @@ final class LocalApi {
 	 */
 	private static ServerProcess launchWorker(SuiteConfig config, Profile profile, ServerProcess.Urls urls,
 			Map<String, String> settings) {
+		String given = settings.get(RUNS_AT_ONCE);
+		int runs = (given != null) ? Integer.parseInt(given) : StartableApi.WORKER_RUNS;
+		Map<String, String> workerSettings = new HashMap<>(settings);
+		workerSettings.put(RUNS_AT_ONCE, Integer.toString(runs));
 		return launch(new Launch(profile.id() + "-worker", "the " + profile.id() + " worker",
-				StartableApi.workerCommand(config), urls), settings, profile);
+				StartableApi.workerCommand(config, runs), urls), workerSettings, profile);
 	}
 
 	/**
@@ -149,7 +129,6 @@ final class LocalApi {
 			.redirectOutput(logFile.toFile());
 		Map<String, String> env = builder.environment();
 		env.keySet().removeIf((variable) -> variable.toUpperCase(Locale.ROOT).startsWith("ARCHSIM_"));
-		env.put("PYTHONUNBUFFERED", "1");
 		env.putAll(settings);
 		String described = launch.name() + ", log " + logFile;
 		ServerProcess server = new ServerProcess(described, run(builder, described), launch.urls(), logFile);
@@ -225,8 +204,8 @@ final class LocalApi {
 	}
 
 	/**
-	 * Returns the URL the API and the worker reach their database at, as SQLAlchemy takes
-	 * it; the Java API reads it too.
+	 * Returns the URL the API and the worker reach their database at, as the Python API's
+	 * setting took it (SQLAlchemy's), which the Java API and worker read (ADR-0035).
 	 * @param config what the suite was told: the PostgreSQL user
 	 * @param jdbcUrl the database's JDBC URL
 	 * @param database the database's name

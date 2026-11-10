@@ -1,6 +1,7 @@
 package io.archsim.app.limits;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -155,6 +156,21 @@ class RateLimitsTests extends HostedTestSupport {
 			.isThrownBy(() -> this.limits.enforce(key, oncePerHour, "Too many."))
 			.satisfies((ex) -> assertThat(ex.headers().getFirst("Retry-After")).isEqualTo("3600"))
 			.withMessage("Too many. Try again in 60 min.");
+	}
+
+	@Test
+	void pruneEnded_countersOfEndedAndCurrentWindows_deletesTheEndedOnes() {
+		String ended = key();
+		String current = key();
+		RateLimits twoDaysAgo = new RateLimits(this.repository, this.properties,
+				Clock.offset(NOON, Duration.ofDays(-2)));
+		twoDaysAgo.enforce(ended, TWO_A_DAY, "Too many.");
+		this.limits.enforce(current, TWO_A_DAY, "Too many.");
+
+		this.limits.pruneEnded();
+
+		assertThat(count(ended)).isZero();
+		assertThat(count(current)).isEqualTo(1);
 	}
 
 	@Test

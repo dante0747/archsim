@@ -14,9 +14,10 @@ go to the workers through the shared queue (the worker role, below).
 
 ```bash
 ./gradlew :archsim-app:bootJar
-uv run archsim-api worker                       # simulates the runs the API queues (Python, until stage 4)
 java -jar archsim-app/build/libs/archsim-app.jar api --server.port=8000
 java -jar archsim-app/build/libs/archsim-app.jar migrate
+ARCHSIM_MAX_CONCURRENT_RUNS=3 java -Xmx2g -XX:+ExitOnOutOfMemoryError \
+  -jar archsim-app/build/libs/archsim-app.jar worker    # simulates the runs the API queues
 ```
 
 One jar runs in one of its roles, named by the first argument
@@ -26,18 +27,18 @@ to the latest schema and exits; `worker` takes the runs the API queues
 ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)), without the web
 layer, until it is stopped. The worker never migrates: it starts only on a database at its own
 build's schema, and otherwise says which version the database is at and to start the API first.
-It is being built in stage 4: it claims and simulates runs on the Java simulator as the Python
-worker does, but compose, the black-box suite and the end-to-end launcher still start
-`archsim-api worker` until the cut-over. The rest of the command line is Spring Boot's
+It took the Python worker's place in stage 4: compose, the black-box suite and the end-to-end
+launcher start it. The rest of the command line is Spring Boot's
 (`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
 address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
 [SECURITY.md](../SECURITY.md) first.
 
-In Docker, both roles run from one image, which Jib builds into the local Docker without a
+In Docker, every role runs from one image, which Jib builds into the local Docker without a
 Dockerfile (`./gradlew :archsim-app:jibDockerBuild`, or `make image`): `archsim-app:local`, on
 Eclipse Temurin's Java 25 runtime, with the examples in `/app/examples`. It listens on every
-interface of its container. The repository's `docker-compose.yml` runs it as `migrate` and `api`,
-next to the engine service and a Python worker, and publishes the API on `127.0.0.1` only.
+interface of its container, and exits when it runs out of heap (`-XX:+ExitOnOutOfMemoryError`).
+The repository's `docker-compose.yml` runs it as `migrate`, `api` and `worker`, and publishes the
+API on `127.0.0.1` only.
 
 Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 ([ADR-0035](../docs/adr/0035-read-the-python-apis-settings-unchanged.md)): `ARCHSIM_DATABASE_URL`
@@ -47,6 +48,30 @@ default) or a JDBC one. The worker reads the Python worker's timings,
 `ARCHSIM_REAP_SECONDS` (10) and `ARCHSIM_CANCEL_GRACE_SECONDS` (10), and takes
 `ARCHSIM_MAX_CONCURRENT_RUNS` runs at once (the cores less one). The OpenAPI document is at
 `/api/v1/openapi.json`, the interactive docs at `/api/v1/docs`.
+
+### The worker's heap
+
+A worker's runs share its heap
+([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)), so give it a
+maximum for the runs it takes at once: `-Xmx` of 512 MB a run (`ARCHSIM_MAX_CONCURRENT_RUNS`)
+and 256 MB besides for the application. Three runs at once take 1,792 MB; compose,
+`make worker` and the end-to-end launcher give theirs `-Xmx2g`, and the black-box suite works
+its workers' heaps out by the rule. Raising the runs at once means raising the heap with them.
+The image runs every role with `-XX:+ExitOnOutOfMemoryError`, and so should any other way of
+starting a worker: one whose heap runs out stops, compose starts it again, and once its lease
+ends the reaper requeues its runs once, then fails them.
+
+512 MB is about twice what the heaviest run measured needed, at the default
+`ARCHSIM_MAX_REQUESTS` of 2 million; a run can hold its requests in flight, so the heap a run
+needs grows with that limit, by about 128 MB a million. On 2026-11-10, runs of about 1.9 million
+requests were simulated by `archsim run` under smaller and smaller heaps: a message queue with
+no backlog limit and one slow consumer, which keeps nearly every request of the hour, needed
+246 MB (it ran out at 228); the 12-part `microservices-call-chain` at its own load and at ten
+times it, `black-friday-kubernetes` and a queue held at its default backlog limit (100,000)
+completed in 34 MB, 200 parts (the most a design may have) in 45 MB, and `social-feed-hot-key`,
+whose million keys are the most a design may have, in 67 MB. A design that sends each request
+to several queues without a backlog limit can hold more than its requests, and so more than
+this.
 
 ## The database
 
@@ -74,7 +99,7 @@ ways.
 | `examples` | `GET /examples`, `GET /examples/{id}` |
 | `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (archsim-engine's `DesignAnalyzer`) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
-| `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the Python workers until stage 4; two runs are compared by archsim-engine's `RunComparer`, and a seed group is summarized by its `SeedSummary` |
+| `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the worker role (`worker`); two runs are compared by archsim-engine's `RunComparer`, and a seed group is summarized by its `SeedSummary` |
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
@@ -86,7 +111,7 @@ ways.
 | `audit` | the history of changes, written in the transaction of each change |
 | `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it: `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`); an `Execution`, one claimed run simulated by a `RunSimulator` on a platform thread of the worker's (`RunParts`), observed for its progress and asked to stop, its hard deadline and cancel grace on `RunTimers`, its outcome shaped by `RunOutcomes` and written by a `RunWriter` that tries three times; and the worker at work: `Worker` starts and stops it, a `ClaimLoop` claims runs into its `Executions` on `WorkerThreads` while its `Heart` renews their leases, passes on cancels, beats and reaps, all wired in `WorkerConfiguration` with the Java `Simulator` as its `RunSimulator` and a `WorkerContext` |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
-| `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`) |
+| `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`), whose ended windows the API role prunes every minute |
 
 ## Endpoints ported
 
@@ -175,14 +200,13 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
   no-store` and `X-Robots-Tag: noindex`; FastAPI sent them only with a report.
 - A share link made from a run whose report's `reportVersion` is not a string (the engine always
   writes one) keeps `unknown`; Python kept `str()` of it.
-- The Java API has no embedded worker: the runs it queues are simulated by `archsim-api worker`
-  processes (Python) on the same database. `ARCHSIM_EMBEDDED_WORKER` is gone.
+- The Java API has no embedded worker: the runs it queues are simulated by `archsim-app worker`
+  processes on the same database. `ARCHSIM_EMBEDDED_WORKER` is gone.
 - With the hosted limits on, the Java worker gives a workspace of a kind it does not know the
   personal cap of runs at once (2), as the API's admission does; the Python worker gave it no
   cap.
-- The Java worker does not prune the rate-limit counters (`rate_limits`), which the Python
-  worker's reaper did: until the cut-over moves that to the API, a deployment whose workers are
-  all Java keeps the counters of windows that ended.
+- The API, not the worker, deletes the rate-limit counters of windows that ended (`rate_limits`),
+  when it starts and every minute after; the Python worker's reaper did it every reap.
 - There is no `--reload`, which `archsim-api serve` had: rebuild the jar, or run the API from an
   IDE.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote

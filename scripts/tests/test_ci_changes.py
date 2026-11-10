@@ -51,6 +51,8 @@ EVERY_JOB = {
         ),
         (["apps/web/src/test/fixtures/catalog.json"], {"python", "engine_tests", "web", "e2e"}),
         (["apps/web/src/test/fixtures/share.ts"], {"web", "e2e"}),
+        # the end-to-end launcher starts the worker, whose command line the Java tests check
+        (["apps/web/e2e/api-server.mjs"], {"web", "java", "e2e"}),
         (["services/api/src/archsim_api/db.py"], {"python", "workers", "java", "e2e"}),
         (["services/engine-service/src/archsim_engine_service/app.py"], {"python", "java", "e2e"}),
         (["packages/mcp/src/archsim_mcp/server.py"], {"python"}),

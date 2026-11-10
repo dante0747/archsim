@@ -1,7 +1,7 @@
 /**
  * Starts the ArchSim API for the end-to-end tests (playwright.config.ts runs it as a webServer):
- * the Java API (archsim-app), the Python engine service it calls, and a Python worker that
- * simulates the runs it queues, all on a fresh PostgreSQL database.
+ * the Java API (archsim-app) and the Java worker that simulates the runs it queues
+ * (`archsim-app worker`, ADR-0053), on a fresh PostgreSQL database.
  *
  * Each start gets a fresh folder under apps/web/.e2e/ with a copy of examples/, shortened to
  * E2E_RUN_SECONDS of simulated time (default 20; 0 keeps the templates as they are), with every
@@ -10,7 +10,7 @@
  * archsim_e2e_<port>) is dropped and made again on the PostgreSQL server of E2E_POSTGRES_URL.
  *
  * Environment:
- * - E2E_API_PORT (default 8002); the engine service listens on it plus 500;
+ * - E2E_API_PORT (default 8002);
  * - E2E_RUN_SECONDS;
  * - E2E_POSTGRES_URL, a database to connect to as a user who may make databases (default
  *   postgresql://archsim:archsim@127.0.0.1:5432/archsim, the compose stack's:
@@ -18,7 +18,8 @@
  * - E2E_DATABASE;
  * - JAVA_HOME, else `java` on PATH.
  *
- * Needs `uv` on PATH and the API's jar: ./gradlew :archsim-app:bootJar.
+ * Needs the API's jar (./gradlew :archsim-app:bootJar) and `uv` on PATH, for the Python
+ * environment's PostgreSQL driver that makes the database.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -28,7 +29,6 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "../../..");
 const port = Number(process.env.E2E_API_PORT ?? "8002");
-const enginePort = port + 500;
 const runSeconds = Number(process.env.E2E_RUN_SECONDS ?? "20");
 const postgres = new URL(process.env.E2E_POSTGRES_URL ?? "postgresql://archsim:archsim@127.0.0.1:5432/archsim");
 const database = process.env.E2E_DATABASE ?? `archsim_e2e_${port}`;
@@ -145,6 +145,24 @@ function start(name, command, args, settings) {
   return child;
 }
 
+/** Waits until a process logs a line holding `text`; one that does not in time stops the stack. */
+function waitForLine(name, child, text) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.error(`[${name}] did not log "${text}" within ${STARTUP_MS / 1000} s`);
+      stop(1);
+    }, Math.max(0, startupDeadline - Date.now()));
+    let seen = "";
+    child.stdout.on("data", (chunk) => {
+      seen = (seen + chunk).slice(-4096);
+      if (seen.includes(text)) {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  });
+}
+
 /** Waits until a server answers its health check; one that does not in time stops the stack. */
 async function waitUntilHealthy(name, url) {
   while (Date.now() < startupDeadline) {
@@ -182,18 +200,21 @@ function stop(code) {
 }
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => stop(0));
 
-// The API starts once the engine answers, so its first engine call does not fail; the worker
-// once the API has migrated the database, which it does before it is healthy.
-start(
-  "engine",
-  "uv",
-  ["run", "--no-sync", "archsim-engine-service", "--host", "127.0.0.1", "--port", String(enginePort)],
-  {},
-);
-await waitUntilHealthy("engine", `http://127.0.0.1:${enginePort}/health`);
+// As compose does: the database is migrated first (the worker never migrates), then the worker
+// starts and the API only once the worker takes runs, so an API that answers its health check
+// has a worker behind it (ADR-0053). The worker's heap holds the three runs it takes at once
+// (archsim-app's README), and it exits when the heap runs out, so its runs are requeued.
+const migrated = spawnSync(java, ["-jar", jar, "migrate"], {
+  cwd: repo,
+  stdio: "inherit",
+  env: { ...process.env, ARCHSIM_DATABASE_URL: databaseUrl.toString() },
+});
+if (migrated.status !== 0) throw new Error(`cannot migrate database ${database} (exit code ${migrated.status})`);
+const worker = start("worker", java, ["-Xmx2g", "-XX:+ExitOnOutOfMemoryError", "-jar", jar, "worker"], {
+  ARCHSIM_MAX_CONCURRENT_RUNS: "3",
+});
+await waitForLine("worker", worker, "run(s) at once");
 start("api", java, ["-jar", jar, "api", "--server.address=127.0.0.1", `--server.port=${port}`], {
   ARCHSIM_EXAMPLES_DIR: examples,
-  ARCHSIM_ENGINE_URL: `http://127.0.0.1:${enginePort}`,
 });
 await waitUntilHealthy("api", `http://127.0.0.1:${port}/api/v1/health`);
-start("worker", "uv", ["run", "--no-sync", "archsim-api", "worker"], {});

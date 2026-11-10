@@ -15,10 +15,13 @@ public final class Runs {
 	private static final Duration POLL_INTERVAL = Duration.ofMillis(50);
 
 	/**
-	 * How long the workload of {@link #startLongRun} runs, in simulated seconds: long
-	 * enough that the run is still queued or running when a test acts on it.
+	 * How long the workload of {@link #startLongRun} runs, in simulated seconds: the most
+	 * a design may ask for. The starter's 400 requests a second for 3,600 s are about 1.4
+	 * million requests, under a server's default limit (2 million) and tens of seconds'
+	 * work for the Java worker, so the run is still queued or running when a test acts on
+	 * it.
 	 */
-	private static final int LONG_RUN_DURATION_S = 120;
+	private static final int LONG_RUN_DURATION_S = 3600;
 
 	/** How long the workload of {@link #startLongRun} warms up, in simulated seconds. */
 	private static final int LONG_RUN_WARMUP_S = 5;
@@ -75,8 +78,8 @@ public final class Runs {
 	}
 
 	/**
-	 * Starts a run of the starter design simulated for 120 s, so that it is still queued
-	 * or running when this returns; fails the test unless it answers 202.
+	 * Starts a long run of the starter design ({@link #LONG_RUN_DURATION_S}), so that it
+	 * is still queued or running when this returns; fails the test unless it answers 202.
 	 * @param client the client that starts the run
 	 * @param projectId the project the run belongs to
 	 * @return the run's id

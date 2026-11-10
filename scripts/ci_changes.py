@@ -70,6 +70,8 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("apps/web/src/test/fixtures/starter.json", ENGINE_TESTS | {"web", "java", "e2e"}),
     ("apps/web/src/test/fixtures/catalog.json", ENGINE_TESTS | {"web", "e2e"}),
     ("apps/web/src/test/fixtures/analysis-starter.json", ENGINE_TESTS | {"web", "e2e"}),
+    # the end-to-end launcher: the Java tests check the worker's command line in it
+    ("apps/web/e2e/api-server.mjs", frozenset({"web", "java", "e2e"})),
     ("apps/web/", frozenset({"web", "e2e"})),
     # The Java build. The black-box API tests and the command line are not part of the app the
     # end-to-end tests run.

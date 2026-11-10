@@ -35,6 +35,11 @@ dependencies {
 tasks.test {
     // the examples, the golden files and the Python engine's price snapshots
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
+    // the worker's command lines, which WorkerCommandLineTests checks: a change to them alone
+    // runs the tests again rather than taking their result from the build cache
+    inputs.files(rootDir.resolve("docker-compose.yml"), rootDir.resolve("apps/web/e2e/api-server.mjs"), buildFile)
+        .withPropertyName("workerCommandLines")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.bootJar {
@@ -42,9 +47,9 @@ tasks.bootJar {
     archiveFileName = "archsim-app.jar"
 }
 
-// The image compose runs as `migrate` and `api` (ADR-0014), built into the local Docker with
-// ./gradlew :archsim-app:jibDockerBuild (make image), for this machine's processor. It carries the
-// examples, as the Python image did.
+// The image compose runs as `migrate`, `api` and `worker` (ADR-0014), built into the local Docker
+// with ./gradlew :archsim-app:jibDockerBuild (make image), for this machine's processor. It
+// carries the examples, as the Python image did.
 val imageExamples = "/app/examples"
 val buildsOnArm = providers.systemProperty("os.arch").get() in setOf("aarch64", "arm64")
 val imageArchitecture = if (buildsOnArm) "arm64" else "amd64"
@@ -64,6 +69,9 @@ jib {
     }
     container {
         mainClass = "io.archsim.app.ArchsimApplication"
+        // every role exits when its heap runs out rather than limp on: a worker's runs are then
+        // requeued (ADR-0053); compose gives the worker its heap
+        jvmFlags = listOf("-XX:+ExitOnOutOfMemoryError")
         args = listOf("api")
         ports = listOf("8000")
         // a user and group of its own, not root's group
