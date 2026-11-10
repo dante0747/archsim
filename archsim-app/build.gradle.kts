@@ -41,14 +41,15 @@ tasks.test {
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-// The libraries the engine shares with the app are pinned in the catalog at the versions Spring
-// Boot manages (ADR-0043, ADR-0057): the engine has no BOM, and the CLI ships it alone. A Boot
-// upgrade that moves one of them fails the build here, until the catalog follows.
+// The libraries the engine and the CLI take from the catalog are pinned at the versions Spring
+// Boot manages (ADR-0043, ADR-0057): the engine and the CLI have no BOM, and the CLI ships
+// alone, with slf4j-nop where the app has Boot's logging. A Boot upgrade that moves one of them
+// fails the build here, until the catalog follows.
 val bootManaged = configurations.create("bootManaged") {
     isCanBeConsumed = false
     description = "The versions Spring Boot manages of the libraries pinned in the catalog."
 }
-val pinnedAtBootsVersion = listOf(libs.snakeyaml, libs.httpclient5).map { it.get() }
+val pinnedAtBootsVersion = listOf(libs.snakeyaml, libs.httpclient5, libs.slf4j.nop).map { it.get() }
 
 dependencies {
     bootManaged(platform(libs.spring.boot.dependencies))

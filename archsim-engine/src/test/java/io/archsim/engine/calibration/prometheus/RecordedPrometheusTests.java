@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.calibration.mapping.TimeRange;
@@ -44,6 +45,15 @@ class RecordedPrometheusTests {
 		assertThatExceptionOfType(PrometheusException.class)
 			.isThrownBy(() -> RecordedPrometheus.of(JSON.readTree("{\"responses\": [1]}"), ""))
 			.withMessage("a recording's 'responses' must map each query to its response");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "[1, 2]", "null", "\"responses\"", "3" })
+	void of_aRecordingThatIsNotAnObject_isRefusedWherePythonFailedToReadIt(String recording) {
+		// Python raised AttributeError: 'list' object has no attribute 'get'
+		assertThatExceptionOfType(PrometheusException.class)
+			.isThrownBy(() -> RecordedPrometheus.of(JSON.readTree(recording), ""))
+			.withMessage("a recording must be a JSON object, with its 'responses'");
 	}
 
 	@Test

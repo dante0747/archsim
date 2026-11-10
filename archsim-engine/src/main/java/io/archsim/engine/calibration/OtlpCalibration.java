@@ -40,8 +40,6 @@ import io.archsim.model.text.PythonText;
  */
 public final class OtlpCalibration {
 
-	private static final String LABEL = "OpenTelemetry traces";
-
 	private static final String CPU_SHARE = "cpuShare";
 
 	private static final int SHARE_DIGITS = 4;
@@ -82,7 +80,7 @@ public final class OtlpCalibration {
 		TraceSummary summary = TraceSummaries.summarize(OtlpSpans.parse(request.traces()), cpuTime);
 		String range = CalibrationTimes.ofNanoseconds(summary.startNs()) + "/"
 				+ CalibrationTimes.ofNanoseconds(summary.endNs());
-		CalibrationRun run = new CalibrationRun(request.document(), this.clock, LABEL, range);
+		CalibrationRun run = new CalibrationRun(request.document(), this.clock, request.source(), range);
 		if (summary.spans() == 0) {
 			run.note("the file has no spans");
 			return run.unchanged();
@@ -114,7 +112,7 @@ public final class OtlpCalibration {
 		ObjectNode record = run.document()
 			.objectNode()
 			.put("at", run.now())
-			.put("source", LABEL)
+			.put("source", run.source())
 			.put("timeRange", run.timeRange())
 			.put("inputs", run.inputs());
 		record.set("replay", replay.checks());

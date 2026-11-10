@@ -64,8 +64,8 @@ class Calibrator {
 			throw CalibrationRefusals.unreadable("An OpenTelemetry calibration needs the traces (OTLP JSON)");
 		}
 		JsonNode mapping = Objects.requireNonNullElse(request.mapping(), this.json.nullNode());
-		return this.otlp.calibrate(new OtlpRequest(request.document(), traces, OtlpMappings.load(mapping).orElse(null),
-				OtlpRequest.DEFAULT_MIN_SAMPLES, replay));
+		return this.otlp.calibrate(new OtlpRequest(request.document(), traces, OtlpRequest.UNNAMED_SOURCE,
+				OtlpMappings.load(mapping).orElse(null), OtlpRequest.DEFAULT_MIN_SAMPLES, replay));
 	}
 
 }

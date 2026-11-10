@@ -8,6 +8,9 @@ plugins {
 dependencies {
     implementation(project(":archsim-engine"))
     implementation(libs.picocli)
+    // HttpClient (a calibration's Prometheus) logs through SLF4J, which would warn on standard
+    // error without a binding: the no-op one, at the version Spring Boot manages (ADR-0057)
+    runtimeOnly(libs.slf4j.nop)
 
     // the recorded runs of the Python CLI are compared as the simulator's recorded runs are, and
     // the JSON its commands printed as the golden files are

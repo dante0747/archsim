@@ -1,7 +1,5 @@
 package io.archsim.cli;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +53,7 @@ final class Replays {
 				assertThat(List.of(java.exitCode(), java.err())).containsExactly(recorded.get("exitCode").intValue(),
 						recorded.get("stderr").stringValue());
 				assertSameText(recorded.get("stdout").stringValue(), java.out());
-				assertSameFiles(recorded.path("files"), java.files());
+				assertSameFiles(recorded.path("files"), java.written());
 			}));
 	}
 
@@ -113,12 +111,20 @@ final class Replays {
 		}
 		JsonNode printed = JSON.readTree(text);
 		assertThat(JsonDiff.differences(JSON.readTree(python), printed)).isEmpty();
-		assertThat(text).isEqualTo(PythonJson.writeIndented(printed, RecordedCases.PYTHON_INDENT) + "\n");
+		assertThat(text).isEqualTo(PythonJson.writeIndented(printed, indent(python)) + "\n");
 	}
 
-	private static void assertSameFiles(JsonNode written, Map<String, Path> files) throws IOException {
-		for (Map.Entry<String, JsonNode> file : written.properties()) {
-			assertSameText(file.getValue().stringValue(), Files.readString(files.get(file.getKey())));
+	// the spaces Python indented its JSON by: two for what it printed and most files, one
+	// for a recording of Prometheus responses
+	private static int indent(String python) {
+		String second = python.lines().skip(1).findFirst().orElse("");
+		return second.length() - second.stripLeading().length();
+	}
+
+	private static void assertSameFiles(JsonNode recorded, Map<String, String> written) {
+		assertThat(written.keySet()).containsAll(recorded.propertyNames());
+		for (Map.Entry<String, JsonNode> file : recorded.properties()) {
+			assertSameText(file.getValue().stringValue(), written.getOrDefault(file.getKey(), ""));
 		}
 	}
 

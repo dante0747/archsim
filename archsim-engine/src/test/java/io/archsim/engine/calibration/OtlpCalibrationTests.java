@@ -55,6 +55,12 @@ class OtlpCalibrationTests {
 	}, Clock.fixed(Instant.parse("2026-11-02T00:00:00Z"), ZoneOffset.UTC));
 
 	@Test
+	void sourceNamed_aFile_isNamedAsThePythonEngineNamedTracesReadFromIt() {
+		// f"OpenTelemetry traces {Path(traces).name}"
+		assertThat(OtlpRequest.sourceNamed("checkout.otlp.json")).isEqualTo("OpenTelemetry traces checkout.otlp.json");
+	}
+
+	@Test
 	void calibrate_noSpans_leavesTheDesignAsItWasAndSaysSo() {
 		CalibrationOutcome outcome = calibrate(StarterDesign.read(), JSON.readTree("{\"resourceSpans\": []}"), null);
 
@@ -120,8 +126,8 @@ class OtlpCalibrationTests {
 	}
 
 	private CalibrationOutcome calibrate(JsonNode design, JsonNode traces, @Nullable OtlpMapping mapping) {
-		return this.calibration
-			.calibrate(new OtlpRequest(design, traces, mapping, OtlpRequest.DEFAULT_MIN_SAMPLES, null));
+		return this.calibration.calibrate(new OtlpRequest(design, traces, OtlpRequest.UNNAMED_SOURCE, mapping,
+				OtlpRequest.DEFAULT_MIN_SAMPLES, null));
 	}
 
 }

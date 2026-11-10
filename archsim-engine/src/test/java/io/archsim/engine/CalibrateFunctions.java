@@ -114,8 +114,8 @@ final class CalibrateFunctions {
 	 */
 	private static JsonNode calibrateOtlp(GoldenEntry entry, ReplaySimulator replays) {
 		CalibrationOutcome outcome = new OtlpCalibration(replays, FIXED_NOW).calibrate(new OtlpRequest(
-				entry.input("document"), entry.input("traces"), OtlpMappings.load(entry.input("mapping")).orElse(null),
-				entry.input("minSamples").intValue(), null));
+				entry.input("document"), entry.input("traces"), OtlpRequest.UNNAMED_SOURCE,
+				OtlpMappings.load(entry.input("mapping")).orElse(null), entry.input("minSamples").intValue(), null));
 		return outcome.toJson();
 	}
 

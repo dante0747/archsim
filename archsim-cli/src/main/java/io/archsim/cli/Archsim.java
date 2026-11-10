@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -18,11 +19,12 @@ import io.archsim.engine.version.EngineVersions;
 /**
  * The {@code archsim} command, whose subcommands do the work, as the Python engine's
  * CLI's did: {@code validate}, {@code run}, {@code compare}, {@code analyze},
- * {@code import}, {@code export}, {@code catalog} and {@code schema}.
+ * {@code calibrate}, {@code import}, {@code export}, {@code catalog} and {@code schema}.
  */
 @Command(name = "archsim", description = "ArchSim architecture simulator",
 		subcommands = { ValidateCommand.class, RunCommand.class, CompareCommand.class, AnalyzeCommand.class,
-				ImportCommand.class, ExportCommand.class, CatalogCommand.class, SchemaCommand.class },
+				CalibrateCommand.class, ImportCommand.class, ExportCommand.class, CatalogCommand.class,
+				SchemaCommand.class },
 		mixinStandardHelpOptions = true, version = Archsim.VERSION)
 public final class Archsim implements Runnable {
 
@@ -34,8 +36,11 @@ public final class Archsim implements Runnable {
 
 	private final InputStream standardInput;
 
-	private Archsim(InputStream standardInput) {
+	private final Clock clock;
+
+	private Archsim(InputStream standardInput, Clock clock) {
 		this.standardInput = standardInput;
+		this.clock = clock;
 	}
 
 	/**
@@ -59,17 +64,19 @@ public final class Archsim implements Runnable {
 	 * @return the command line
 	 */
 	static CommandLine commandLine() {
-		return commandLine(System.in);
+		return commandLine(System.in, Clock.systemUTC());
 	}
 
 	/**
 	 * The {@code archsim} command line, reading what a command reads from standard input
-	 * ({@code archsim import FORMAT -}) from a stream of its own.
+	 * ({@code archsim import FORMAT -}) from a stream of its own, and stamping the time a
+	 * calibration fits its inputs from a clock of its own.
 	 * @param standardInput the stream
+	 * @param clock the clock
 	 * @return the command line
 	 */
-	static CommandLine commandLine(InputStream standardInput) {
-		return new CommandLine(new Archsim(standardInput)).setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF))
+	static CommandLine commandLine(InputStream standardInput, Clock clock) {
+		return new CommandLine(new Archsim(standardInput, clock)).setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF))
 			.setExecutionExceptionHandler(Archsim::printRefusal);
 	}
 
@@ -89,6 +96,14 @@ public final class Archsim implements Runnable {
 	 */
 	InputStream standardInput() {
 		return this.standardInput;
+	}
+
+	/**
+	 * What tells a calibration the time it fits its inputs at.
+	 * @return the clock
+	 */
+	Clock clock() {
+		return this.clock;
 	}
 
 	/**

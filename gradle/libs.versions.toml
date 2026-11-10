@@ -10,6 +10,7 @@ jackson = "3.2.4"
 # ADR-0057)
 snakeyaml = "2.6"
 httpclient5 = "5.6.5"
+slf4j = "2.0.20"
 spring-boot = "4.1.2"
 springdoc = "3.2.0"
 embedded-postgres = "2.2.2"
@@ -39,6 +40,9 @@ snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 # the Prometheus client of calibrations: a connection pinned to the address checked (ADR-0046),
 # in the engine for the app and the CLI (ADR-0057)
 httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpclient5" }
+# HttpClient logs through SLF4J: the CLI binds it to nothing, so its standard error holds only
+# its own lines (ADR-0057)
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
 jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
 # the command line, `archsim` (ADR-0051)

@@ -39,10 +39,15 @@ public final class RecordedPrometheus implements PrometheusClient {
 	 * @param name the file it came from, for its source when it names none; empty for
 	 * none
 	 * @return the recorded responses
-	 * @throws PrometheusException when its responses are not an object of queries
+	 * @throws PrometheusException when it is not an object, or its responses are not an
+	 * object of queries
 	 * @throws io.archsim.model.codec.BindingException when its range is not one
 	 */
 	public static RecordedPrometheus of(JsonNode data, String name) {
+		if (!data.isObject()) {
+			// Python's from_dict called its get, and raised AttributeError
+			throw new PrometheusException("a recording must be a JSON object, with its 'responses'");
+		}
 		JsonNode window = data.path("range");
 		JsonNode responses = data.path("responses");
 		if (PythonText.truthy(responses) && !responses.isObject()) {

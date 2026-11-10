@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -86,7 +87,7 @@ class ImportCommandTests {
 		StringWriter out = new StringWriter();
 		StringWriter err = new StringWriter();
 
-		int exitCode = Archsim.commandLine(broken)
+		int exitCode = Archsim.commandLine(broken, Clock.systemUTC())
 			.setOut(new PrintWriter(out))
 			.setErr(new PrintWriter(err))
 			.execute("import", "compose", "-");

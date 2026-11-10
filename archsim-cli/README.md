@@ -29,6 +29,8 @@ errors are picocli's words; a usage error exits with code 2, as argparse's did.
 | `archsim run FILE [--scenario ID] [--seed N] [--sampled] [--out FILE]` | simulates a design: the summary line, a quick check's note, how far to trust the run, its findings and its digests ([below](#archsim-run)) |
 | `archsim compare FILE [--a ID] [--b ID]` | simulates two scenarios (or the design as drawn, `base`) and prints each run's summary line, what changed (`  - `) and why the runs may differ other than by their designs (`  ! `) |
 | `archsim analyze FILE [--scenario ID]` | the auto sizes, cost estimate, design review, technology tiers, inputs, instant estimate and confidence, as JSON; a design that cannot be read or resolved: `Cannot analyze: document is invalid` on standard error, its issues on standard output, exit code 1 |
+| `archsim calibrate prometheus FILE --map FILE (--url URL \| --recorded FILE) [--range START/END] [--step S] [--record FILE] [--no-replay] [-o FILE]` | a design's inputs set from Prometheus range queries, through a mapping of which query sets which input, from a server or from responses recorded earlier ([below](#archsim-calibrate)) |
+| `archsim calibrate otlp FILE --traces FILE [--map FILE] [-o FILE]` | a design's inputs set from an OpenTelemetry trace export (OTLP JSON), with an optional mapping of services and databases to parts |
 | `archsim import compose\|k8s\|terraform FILE [--name NAME] [-o FILE] [--report FILE]` | a design from a docker-compose file, Kubernetes manifests or a Terraform plan (`FILE` `-` for standard input; UTF-8, or UTF-16 after its byte order mark), as JSON; what was mapped, guessed and ignored, the links to confirm and the counts on standard error; text the import refuses: `cannot import: ...`, exit code 2 |
 | `archsim export compose\|k8s\|mermaid FILE [-o FILE]` | docker-compose, Kubernetes manifests or a Mermaid diagram of a design, auto-sized; an invalid design's issues on standard output, exit code 1 |
 | `archsim catalog` | every component type, as JSON |
@@ -47,6 +49,37 @@ value that is not a number above zero is a usage error, exit code 2). `--out` wr
 Python's `json.dumps(report, indent=2)` writes it, with the values the Python report held, in the
 Java engine's key order.
 
+### `archsim calibrate`
+
+What was set, the notes, the replay's lines and its summary go to standard error, and the
+calibrated design, as JSON, to standard output or `-o`. Whatever stops a calibration is one line,
+`Cannot calibrate: ...`, in the Python engine's words, with exit code 1: a file that cannot be read
+(`[Errno 2] No such file or directory: 'mapping.yaml'`), is not UTF-8 or is not JSON (`Expecting
+value: line 1 column 1 (char 0)`), a mapping or range the engine refuses, a server that cannot be
+reached or answers with an error (`  Prometheus said: ...` on the next line), an invalid design
+(its issues on standard output) or a replay over its limits. They are checked in Python's order, so
+of two problems the same one is reported: the mapping, the recording, the range, then the design.
+
+Files are read as Python's `Path.read_text(encoding="utf-8")` read them, a line ending in `\r\n` or
+`\r` read as one ending in `\n`, so a refusal's line and character are Python's for a file saved
+on Windows; and named as `pathlib` named them (`./mapping.yaml` is `'mapping.yaml'`, no name is
+`'.'`). A folder is refused as Python's `open` refused it there: `[Errno 13] Permission denied` on
+Windows, `[Errno 21] Is a directory` elsewhere; a name Windows refuses is `[Errno 22] Invalid
+argument`. An option given empty is not given, as Python tested each by its truth: `-o ""` prints
+the design, `--range ""` takes the mapping's range, `--record ""` records nothing, `--map ""` (for
+`otlp`) maps nothing, and `--recorded ""` asks the server, whose missing URL is then refused.
+
+`--url` calls the server on the open policy, as the Python CLI did: any host, at any address,
+private and loopback ones included, with no allowlist, under the engine's 30-second deadline and
+50 MiB cap on a response, connecting only to the address it resolved and following no redirects
+([ADR-0057](../docs/adr/0057-move-the-prometheus-client-into-the-engine.md)). The command runs
+where its user runs it, against the server they name; the app's server-side calls keep their own
+policy. `--record` writes every response as the Python engine's `RecordingPrometheus` saved them,
+for `--recorded` to replay. `--step` is read as argparse's `type=float` read it, by Python's
+`float()` (`PythonFloat`): `nan`, `inf`, underscores between digits and spaces around it are
+numbers, `1d` and `0x1p3` are not. The HTTP client logs through SLF4J, which the CLI binds to
+`slf4j-nop`, so nothing but the command's own lines reaches standard error.
+
 ### Departures
 
 Where the Python CLI crashed with a traceback, the Java CLI answers:
@@ -59,24 +92,46 @@ Where the Python CLI crashed with a traceback, the Java CLI answers:
 - `compare` of a design or scenario that cannot be simulated (Python caught nothing): refused as
   `run` refuses it, `Cannot compare: document is invalid` on standard error with the issues on
   standard output, or `Cannot compare:` and the limit's words, exit code 1.
+- `calibrate` with a mapping holding a scalar PyYAML failed to read (`!!int ''`,
+  `!!timestamp soon`; `!!bool maybe` for `prometheus`, whose `KeyError` it did not catch, where
+  `otlp` did): `Cannot calibrate:` and the exception's words, exit code 1.
+- `calibrate --recorded` of JSON that is not an object (`[1, 2]`, `null`; Python raised
+  `AttributeError`): `Cannot calibrate: a recording must be a JSON object, with its 'responses'`,
+  exit code 1.
+- `calibrate` of a file nested more than 1,000 levels deep: `Cannot calibrate: the JSON nests more
+  than 1000 levels deep`, exit code 1. Python read it up to its C recursion limit (about 3,000
+  levels on Windows, more elsewhere) and raised `RecursionError` past it.
 
 Elsewhere:
 
 - JSON is read as Python's `json.loads` reads it, `NaN` and `Infinity` included; Jackson also
   takes `+Infinity`, `INF`, `+INF` and `-INF`, which Python refused. A file nested more than 500
   levels deep, or with a number longer than 1,000 digits, is refused in one line, in Jackson's
-  words, where Python read it (no design comes near either).
+  words, where Python read it (no design comes near either). `calibrate` reads through the
+  engine's reader instead (`PythonJsonReader`), which refuses text in `json`'s words where no value
+  starts or something follows the value, and a number longer than 4,300 digits in Jackson's
+  (`Number value length (4301) exceeds the maximum allowed (4300)`): Python refused a whole number
+  that long in its own words and read a float of any length.
 - `import`: text that is not YAML is refused in SnakeYAML's words, not PyYAML's
   ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and
   Terraform text that is not JSON past its first character with Jackson's description of the
   problem in Python's form
   ([ADR-0044](../docs/adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md)), as
   `POST /import` refuses them.
-- A file a command writes (`run --out`, `import -o` and `--report`, `export -o`) ends its lines
+- `calibrate`: a mapping that is not YAML is refused in SnakeYAML's words, as `POST /calibrate`
+  refuses it, and a recording that is not JSON past its first character in Jackson's, with
+  Python's line, column and character; the refusal's start, `Cannot calibrate: the mapping is not
+  valid YAML:` or the position, is Python's. A step the range refuses (not above 0, or above a
+  day), given as `--step` or in a recording's range, is refused on one line,
+  `Cannot calibrate: step: Input should be greater than 0`, as `POST /calibrate` refuses it;
+  Python printed pydantic's whole error over four lines, with its count, model, type, the value
+  and a link to pydantic's documentation.
+- A file a command writes (`run --out`, `import -o` and `--report`, `export -o`, `calibrate -o`
+  and `--record`) ends its lines
   with `\n` on every system; Python's `write_text` wrote the system's line ends, `\r\n` on
   Windows.
 - An option is named in full
-  ([ADR-0056](../docs/adr/0056-the-java-cli-takes-options-by-their-full-names.md), proposed):
+  ([ADR-0056](../docs/adr/0056-the-java-cli-takes-options-by-their-full-names.md)):
   argparse took the start of its name (`--scen` for `--scenario`); picocli's abbreviations would
   take it too, but fail on `-`, the name `import` gives standard input.
 
@@ -84,7 +139,7 @@ Elsewhere:
 
 | Package | What it holds |
 | --- | --- |
-| `io.archsim.cli` | `Archsim` (the `archsim` command, its `main`, and the answer to a `CommandException`: its message alone, exit code 1), one class per command (`ValidateCommand`, `RunCommand`, `CompareCommand`, `AnalyzeCommand`, `ImportCommand`, `ExportCommand`, `CatalogCommand`, `SchemaCommand`), `Choices` (the formats `import` and `export` take, by name), `RunText` (what `run` and `compare` print of a run), `IssueLines` (a design's issues, in the Python CLI's words), `CommandFiles` (the files a command reads and writes, refused with the reason), `JsonOutput` (JSON as `json.dumps(value, indent=2)` wrote it), `TextOutput` (text as `sys.stdout.write` wrote it), `TextDecoding` (a file's text as `decode_text` read it: `Utf16` after its byte order mark, else `Utf8`, each finding where bytes stop being text in CPython's words) |
+| `io.archsim.cli` | `Archsim` (the `archsim` command, its `main`, and the answer to a `CommandException`: its message alone, exit code 1), one class per command (`ValidateCommand`, `RunCommand`, `CompareCommand`, `AnalyzeCommand`, `ImportCommand`, `ExportCommand`, `CatalogCommand`, `SchemaCommand`, and `CalibrateCommand` with `CalibratePrometheusCommand` and `CalibrateOtlpCommand`), `Choices` (the formats `import` and `export` take, by name), `RunText` (what `run` and `compare` print of a run), `IssueLines` (a design's issues, in the Python CLI's words), `CommandFiles` (the files a command reads and writes, refused with the reason), `JsonOutput` (JSON as `json.dumps(value, indent=2)` wrote it), `TextOutput` (text as `sys.stdout.write` wrote it), `TextDecoding` (a file's text as `decode_text` read it: `Utf16` after its byte order mark, else `Utf8`, each finding where bytes stop being text in CPython's words), `PythonFiles` (the files `calibrate` reads, as `read_text` read them, named as `pathlib` named them and refused in the words of Python's `OSError`, codec and `json`), `PythonOptions` (an option given empty is not given), `PrometheusCalibrator` (a calibration from Prometheus, in the Python CLI's order, from the `PrometheusOptions` asked and a `PrometheusSource`: a server or a recording), `PrometheusClients` (the server, on the open policy, the recorded responses, and a recording written), `CalibrationAttempt` (what stops a calibration, as `Cannot calibrate: ...`), `CalibrationText` (what a calibration prints, and the calibrated design) and `PythonFloat` (a number option read as Python's `float()` reads it) |
 
 ## Tests
 
@@ -116,12 +171,31 @@ Elsewhere:
     standard input, UTF-16 and UTF-8 with a byte order mark, sixteen kinds of bytes that are not
     text, text that is not the format, not JSON or not YAML, a format that is not one, a missing
     file;
+  - `calibrate`: from recorded responses (to standard output and a file, without the replay, over
+    a range the recording does not cover, recorded again) and from a server (a stub the case
+    describes: answering with the recorded responses, refusing the query, answering as a page that
+    is not Prometheus, or not there), URLs, ports and ranges that are not ones, a mapping, a
+    recording or a design missing or not readable, a design not JSON after Windows line ends, a
+    file named from `./`, a mapping of a part that is not there, YAML Python refused or failed to
+    read, recordings that are not objects or whose step is refused, steps refused, read as Python
+    reads them or not numbers, options given empty, a replay over the request limit, an invalid
+    design, and pairs of problems, to show which is reported; from OpenTelemetry traces, with and
+    without a mapping, to a file, traces missing, not JSON or not an export, a mapping Python
+    refused or failed to read, traces replayed over the request limit; and the usage errors. The
+    files a case reads, byte for byte, and the files it writes are recorded with it, and the time
+    a calibration stamps is fixed (`2026-11-10T12:00:00Z`) in Python and Java alike;
   - `catalog` and `schema`.
 - Where Python crashed, the case records the exception instead of the traceback, and a test of
   the Java answer replaces the replay: each file recorded as unreadable is refused in one line
   with Python's exit code (`Replays.unreadableFiles`); `AnalyzeCommandTests`,
   `ExportCommandTests` and `CompareCommandTests` check the designs Python crashed on, and
-  `ImportCommandTests` the YAML and JSON refused in the libraries' words; `CommandFilesTests` and
+  `ImportCommandTests` and `CalibrateCommandTests` the YAML and JSON refused in the libraries'
+  words (and `CalibrateCommandTests` the steps refused in pydantic's, and the mappings and
+  recordings Python crashed on); `PythonFilesTests` what the recordings cannot show on every
+  system: line ends, a byte order mark, bytes that are not UTF-8, folders, names Windows refuses,
+  files it may not read, and names as `pathlib` gives them; `PythonFloatTests` numbers as Python's `float()` reads them, each checked against
+  Python 3.12; `PrometheusClientsTests` the open policy (a loopback address and name, with no
+  allowlist, are called) and `slf4j-nop` as the only SLF4J provider; `CommandFilesTests` and
   `ArchsimTests` (a refusal prints no stack trace) the rest. `TextDecodingTests` checks text that
   decodes, at the edges of each codec.
 - `RunOptionsTests` checks what the recordings cannot: the two limits the Python `run` did not
