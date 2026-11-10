@@ -16,6 +16,7 @@ import platform
 import pstats
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,13 @@ from archsim_engine.engine import SimulationLimits  # noqa: E402
 
 OUT = ROOT / "benchmarks" / "perf"
 UNLIMITED = SimulationLimits(max_requests=50_000_000, max_wall_seconds=3600)
+
+
+def measured_at(taken: datetime | None = None) -> str:
+    """When a measurement was taken (now unless given), in UTC with its offset, as the harness and
+    the Java speed task write it: 2026-11-09T22:33:40Z."""
+    taken = taken if taken is not None else datetime.now(UTC)
+    return taken.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def target_design(rps: float = 10_000, duration_s: float = 600) -> dict[str, Any]:
@@ -47,7 +55,12 @@ def target_design(rps: float = 10_000, duration_s: float = 600) -> dict[str, Any
     nodes["api"]["config"]["replicas"] = 320
     nodes["db"]["config"].update(readReplicas=2, maxConnections=100, shards=4, queueCapacity=1000)
     d["architecture"]["nodes"].append(
-        {"id": "email", "type": "external_api", "label": "Email API", "config": {"technology": "email"}}
+        {
+            "id": "email",
+            "type": "external_api",
+            "label": "Email API",
+            "config": {"technology": "email"},
+        }
     )
     d["architecture"]["edges"].append(
         {
@@ -127,7 +140,7 @@ def main() -> None:
         )
     out: dict[str, Any] = {
         "label": args.label,
-        "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "at": measured_at(),
         "python": platform.python_version(),
         "machine": platform.machine(),
         "processor": platform.processor(),
