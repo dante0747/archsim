@@ -79,7 +79,7 @@ public final class LoadCurve {
 	/**
 	 * The service-time factor at a rate.
 	 * @param rps the requests per second one replica receives
-	 * @return the factor
+	 * @return the factor; the last point's for a rate that is not a number, as in Python
 	 */
 	public double factorAt(double rps) {
 		if (this.points.isEmpty()) {
@@ -90,7 +90,9 @@ public final class LoadCurve {
 		if (rps <= first.getKey()) {
 			return first.getValue();
 		}
-		if (rps >= last.getKey()) {
+		if (rps >= last.getKey() || Double.isNaN(rps)) {
+			// a rate that is not a number fails every comparison in Python's load_factor,
+			// which then gives the last point's factor
 			return last.getValue();
 		}
 		Map.Entry<Double, Double> below = this.points.lowerEntry(rps);

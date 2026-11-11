@@ -38,6 +38,13 @@ class LoadCurveTests {
 	}
 
 	@Test
+	void factorAt_aRateThatIsNotANumber_isTheLastPointsFactorAsInPython() {
+		// every comparison with NaN fails in Python's load_factor: it ends on the last
+		// point's factor
+		assertThat(CURVE.factorAt(Double.NaN)).isEqualTo(0.5);
+	}
+
+	@Test
 	void factorAt_betweenPoints_isInterpolatedInTheLogOfTheRate() {
 		assertThat(CURVE.factorAt(200)).isCloseTo(0.75, within(1e-12));
 	}
