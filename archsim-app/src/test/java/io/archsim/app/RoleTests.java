@@ -33,9 +33,17 @@ class RoleTests {
 	}
 
 	@Test
+	void of_seed_exitsOnceStartedWithoutServingHttp() {
+		Role role = Role.of(new String[] { "seed" });
+
+		assertThat(role.webApplicationType()).isEqualTo(WebApplicationType.NONE);
+		assertThat(role.exitsWhenStarted()).isTrue();
+	}
+
+	@Test
 	void of_noArguments_saysWhichRolesThereAre() {
 		assertThatIllegalArgumentException().isThrownBy(() -> Role.of(new String[0]))
-			.withMessageContaining("[api, migrate, worker]");
+			.withMessageContaining("[api, migrate, worker, seed]");
 	}
 
 	@Test

@@ -35,6 +35,15 @@ class ExampleServiceTests {
 	}
 
 	@Test
+	void ids_designs_areInFileNameOrder() throws IOException {
+		write("b-design.json", "{}");
+		write("a-design.json", "{}");
+		write("c-design.json", "{}");
+
+		assertThat(service().ids()).containsExactly("a-design", "b-design", "c-design");
+	}
+
+	@Test
 	void summaries_fileThatIsNotJson_isSkipped() throws IOException {
 		write("broken.json", "{not json");
 		write("fine.json", "{}");

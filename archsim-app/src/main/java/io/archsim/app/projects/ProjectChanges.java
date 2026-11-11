@@ -9,13 +9,11 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.JsonNode;
 
 import io.archsim.app.access.Access;
 import io.archsim.app.access.Principal;
 import io.archsim.app.audit.AuditLog;
 import io.archsim.app.audit.ProjectTarget;
-import io.archsim.app.store.Ids;
 import io.archsim.app.store.Times;
 import io.archsim.app.web.ApiException;
 
@@ -52,12 +50,7 @@ class ProjectChanges {
 	@Transactional(propagation = Propagation.MANDATORY)
 	Project create(NewProject project, Principal principal) {
 		this.room.check(project.workspaceId());
-		Instant now = now();
-		JsonNode metadata = project.design().path("metadata");
-		String description = (project.description() != null) ? project.description()
-				: metadata.path("description").asString(null);
-		Project made = new Project(Ids.newId(), project.workspaceId(), principal.userId(),
-				metadata.path("name").asString(), description, project.design(), 1, project.sourceExample(), now, now);
+		Project made = project.firstRevision(principal.userId(), now());
 		this.projects.insert(made);
 		this.audit.project("project.create", target(made), meta("fromExample", made.sourceExample()), principal);
 		return made;

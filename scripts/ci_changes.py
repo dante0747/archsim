@@ -50,7 +50,7 @@ JAVA = frozenset({"java", "e2e"})
 # build (ADR-0060), so its job checks a change to any of them.
 CHECK_ACTION = frozenset({"archsim_check"})
 # The frozen engine and the Python environment: every Python process imports them (the archsim
-# CLI, the MCP server, the migrations and seed, the end-to-end launcher's database maker), and
+# CLI, the MCP server, the migrations, the end-to-end launcher's database maker), and
 # PriceSnapshotsTests checks the model ships the engine's snapshots as they are.
 PYTHON_RUNTIME = EVERY - {"web"}
 
@@ -110,7 +110,7 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("packages/engine/", PYTHON_RUNTIME),
     ("pyproject.toml", PYTHON_RUNTIME),
     ("uv.lock", PYTHON_RUNTIME),
-    # the Alembic migrations and seed, until stage 6; the end-to-end launcher makes its database
+    # the Alembic migrations, until stage 6; the end-to-end launcher makes its database
     # through the environment their project declares (psycopg)
     ("services/api/pyproject.toml", frozenset({"python", "migrations", "e2e"})),
     ("services/api/", frozenset({"python", "migrations"})),

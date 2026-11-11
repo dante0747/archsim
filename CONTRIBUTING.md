@@ -52,7 +52,7 @@ java -jar archsim-app/build/libs/archsim-app.jar api   # http://127.0.0.1:8000 (
 make worker                                            # simulates the runs the API queues
 cd apps/web && npm run dev                             # http://localhost:3000
 
-uv run archsim-api seed           # optional: one project per example file
+java -jar archsim-app/build/libs/archsim-app.jar seed  # optional: one project per example file
 ```
 
 The API and the worker both default to compose's PostgreSQL

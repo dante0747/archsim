@@ -45,6 +45,18 @@ class ProjectRepositoryTests extends ProjectTestSupport {
 	}
 
 	@Test
+	void names_projectsInTwoWorkspaces_includeEveryName() {
+		workspace("names1", "team", "owner");
+		workspace("names2", "team", "owner");
+		storedProject("names1p", "names1", "local", null);
+		storedProject("names2p", "names2", "local", null);
+		jdbc().sql("UPDATE projects SET name = 'Fifth' WHERE id = 'names1p'").update();
+		jdbc().sql("UPDATE projects SET name = 'Sixth' WHERE id = 'names2p'").update();
+
+		assertThat(this.projects.names()).contains("Fifth", "Sixth");
+	}
+
+	@Test
 	void uneditedCopy_ofAnotherExample_isNone() {
 		workspace("repo3", "team", "owner");
 		storedProject("repo3p", "repo3", "local", "queueing-lab");

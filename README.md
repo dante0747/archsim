@@ -380,7 +380,7 @@ packages/engine/   Python simulation engine and domain model (no web dependencie
 archsim-app/       Java API (Spring Boot): projects, runs, workspaces, reviews, sharing, sign-in
 archsim-model/     Java design model: the document's records, upgrades and validation
 archsim-engine/    Java engine: the simulator and its deterministic parts (sizing, cost, ...)
-services/api/      Python Alembic migrations and seed, until stage 6 of the Java port
+services/api/      Python Alembic migrations, until stage 6 of the Java port
 apps/web/          Next.js editor: canvas, inspector, results and comparison
 examples/          Example architectures (versioned JSON) with scenarios
 docs/              Architecture, simulation model, schema, API, extension guide, roadmap

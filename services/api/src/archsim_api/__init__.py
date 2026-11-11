@@ -1,1 +1,1 @@
-"""ArchSim's Alembic migrations and seed, until stage 6 of the Java port."""
+"""ArchSim's Alembic migrations, until stage 6 of the Java port."""

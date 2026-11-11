@@ -1,5 +1,5 @@
 """Database engine, session factory and ORM models: the schema at Alembic's revision 0008, which
-Flyway's ``V1`` in ``archsim-app`` reproduces. ``seed`` writes projects through them, and the
+Flyway's ``V1`` in ``archsim-app`` reproduces. The
 migration tests compare them with what the migrations build.
 
 PostgreSQL is the target (JSONB columns); the tests also run on SQLite. Reports are written once
@@ -195,7 +195,7 @@ class Project(Base):
     __table_args__ = (Index("ix_projects_workspace_updated", "workspace_id", "updated_at"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    # Python-side default only: routes always set it; rows made directly (tests, `seed`) land in
+    # Python-side default only: routes always set it; rows made directly (tests) land in
     # the default workspace.
     workspace_id: Mapped[str] = mapped_column(
         String(32),

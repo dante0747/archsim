@@ -22,7 +22,7 @@ import static org.mockito.Mockito.mock;
 /**
  * When a started role migrates the database: the {@code api} role unless
  * {@code ARCHSIM_AUTO_MIGRATE=false}, the {@code migrate} role always, the {@code worker}
- * role never.
+ * and {@code seed} roles never.
  */
 class MigrationStrategyTests {
 
@@ -60,6 +60,16 @@ class MigrationStrategyTests {
 			.sql("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")
 			.query(Integer.class)
 			.single()).isZero();
+	}
+
+	@Test
+	void migrationStrategy_seedRoleWithAutoMigrate_refusesAnEmptyDatabaseNamingTheSeed() {
+		DataSource database = new DriverManagerDataSource(TestDatabases.freshJdbcUrl());
+		Flyway onTheDatabase = Flyway.configure().dataSource(database).load();
+
+		assertThatIllegalStateException().isThrownBy(() -> strategy(Role.SEED, true).migrate(onTheDatabase))
+			.withMessageContaining("this seed needs")
+			.withMessageEndingWith("start the API first");
 	}
 
 	private static FlywayMigrationStrategy strategy(Role role, boolean autoMigrate) {

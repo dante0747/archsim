@@ -1,15 +1,14 @@
 [project]
 name = "archsim-api"
 version = "0.3.0"
-description = "ArchSim's Alembic migrations (up to revision 0008, where archsim-app's Flyway takes over) and seed, until stage 6 of the Java port."
+description = "ArchSim's Alembic migrations (up to revision 0008, where archsim-app's Flyway takes over), until stage 6 of the Java port."
 readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
 dependencies = [
-  "archsim-engine",
   "sqlalchemy>=2.0.36",
   "alembic>=1.14",
-  # the migrations' and seed's PostgreSQL driver, which scripts/schema_snapshot.py and the
+  # the migrations' PostgreSQL driver, which scripts/schema_snapshot.py and the
   # end-to-end launcher (apps/web/e2e/api-server.mjs) use too, until stage 6
   "psycopg[binary]>=3.2",
   "pydantic-settings>=2.6",
@@ -17,9 +16,6 @@ dependencies = [
 
 [project.scripts]
 archsim-api = "archsim_api.__main__:main"
-
-[tool.uv.sources]
-archsim-engine = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.25"]

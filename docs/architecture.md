@@ -137,8 +137,8 @@ a calibration's replay for the API
 
 The SQLAlchemy models and Alembic migrations the schema started from (Flyway's `V1` reproduces
 their revision 0008, [ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)), with
-`archsim-api migrate`, which brings an older database to that revision, and `archsim-api seed`.
-They stay until stage 6 of the port.
+`archsim-api migrate`, which brings an older database to that revision. They stay until stage 6
+of the port; the seed is `archsim-app`'s `seed` role.
 
 ### Web app (`apps/web`)
 

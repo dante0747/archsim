@@ -36,6 +36,14 @@ public class ExampleService {
 	}
 
 	/**
+	 * Every example's id, in file-name order.
+	 * @return the ids
+	 */
+	public List<String> ids() {
+		return List.copyOf(this.examples.all().keySet());
+	}
+
+	/**
 	 * One example's design, as its file has it.
 	 * @param id the example's id
 	 * @return the design, a copy the caller may change

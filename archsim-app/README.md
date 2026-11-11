@@ -16,6 +16,7 @@ go to the workers through the shared queue (the worker role, below).
 ./gradlew :archsim-app:bootJar
 java -jar archsim-app/build/libs/archsim-app.jar api --server.port=8000
 java -jar archsim-app/build/libs/archsim-app.jar migrate
+java -jar archsim-app/build/libs/archsim-app.jar seed  # one project per example
 ARCHSIM_MAX_CONCURRENT_RUNS=3 java -Xmx2g -XX:+ExitOnOutOfMemoryError \
   -jar archsim-app/build/libs/archsim-app.jar worker    # simulates the runs the API queues
 ```
@@ -25,8 +26,11 @@ One jar runs in one of its roles, named by the first argument
 migrates the database first unless `ARCHSIM_AUTO_MIGRATE=false`); `migrate` brings the database
 to the latest schema and exits; `worker` takes the runs the API queues
 ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)), without the web
-layer, until it is stopped. The worker never migrates: it starts only on a database at its own
-build's schema, and otherwise says which version the database is at and to start the API first.
+layer, until it is stopped; `seed` makes one project per example in the default workspace (its
+design read and written back as the API saves one), unless a project of the example's name exists
+in any workspace, and exits. The worker and the seed never migrate: they start only on a
+database at their own build's schema, and otherwise say which version the database is at and to
+start the API first.
 It took the Python worker's place in stage 4: compose, the black-box suite and the end-to-end
 launcher start it. The rest of the command line is Spring Boot's
 (`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
@@ -92,13 +96,13 @@ ways.
 | --- | --- |
 | `io.archsim.app` | `ArchsimApplication` and its `Role`s |
 | `config` | `ArchsimProperties` (the `ARCHSIM_*` settings), the database URL and connection pool, the model's registry and price snapshots, and the `Simulator` the whole application shares |
-| `migration` | Flyway's takeover from Alembic; the worker's check that the database is at its build's schema |
+| `migration` | Flyway's takeover from Alembic; the worker's and the seed's check that the database is at their build's schema |
 | `web` | the HTTP contract every endpoint shares: `/api/v1`, error bodies, request bodies read by the model's codec, security headers, CORS, body-size limits ([ADR-0034](../docs/adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md)) |
 | `meta` | `GET /health`, `GET /meta` |
 | `catalog` | `GET /components`, `GET /pricing`, `GET /schema/architecture`, from [archsim-model](../archsim-model/README.md) |
 | `examples` | `GET /examples`, `GET /examples/{id}` |
 | `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (archsim-engine's `DesignAnalyzer`) |
-| `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export |
+| `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export; the `seed` role's `ExampleSeeding` |
 | `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the worker role (`worker`); two runs are compared by archsim-engine's `RunComparer`, and a seed group is summarized by its `SeedSummary` |
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |

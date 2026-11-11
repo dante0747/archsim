@@ -21,7 +21,13 @@ public enum Role {
 	 * Simulates the runs the API queues until it is stopped, on a database the API has
 	 * migrated (ADR-0053).
 	 */
-	WORKER(WebApplicationType.NONE, Lifetime.UNTIL_STOPPED);
+	WORKER(WebApplicationType.NONE, Lifetime.UNTIL_STOPPED),
+
+	/**
+	 * Makes one project per example, in the default workspace, unless a project of the
+	 * example's name exists; then exits. On a database the API has migrated.
+	 */
+	SEED(WebApplicationType.NONE, Lifetime.ONE_SHOT);
 
 	private final WebApplicationType webApplicationType;
 

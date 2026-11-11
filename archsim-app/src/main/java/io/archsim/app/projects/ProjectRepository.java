@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
@@ -97,6 +98,14 @@ class ProjectRepository {
 			.param("example", exampleId)
 			.query(this::project)
 			.optional();
+	}
+
+	/**
+	 * The names of every project, in any workspace.
+	 * @return the names
+	 */
+	Set<String> names() {
+		return Set.copyOf(this.jdbc.sql("SELECT name FROM projects").query(String.class).list());
 	}
 
 	void insert(Project project) {

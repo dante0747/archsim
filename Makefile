@@ -27,8 +27,9 @@ web:              ## run the web app on http://localhost:3000
 dev-db:           ## start PostgreSQL only, where the API and the workers look by default
 	docker compose up -d postgres
 
-seed:             ## create one project per example in the default workspace
-	uv run archsim-api seed
+seed:             ## create one project per example in the default workspace (start the API first)
+	./gradlew :archsim-app:bootJar
+	java -jar archsim-app/build/libs/archsim-app.jar seed
 
 test: test-py test-web
 

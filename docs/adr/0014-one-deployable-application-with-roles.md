@@ -44,6 +44,10 @@ Images are built with Jib, and `docker compose up` works as it does today.
 ([ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md)), and compose starts it.
 `archsim-api serve` and `archsim-api worker` are gone; `archsim-api migrate` stays until stage 6.
 
+**Status (12 Nov 2026):** a fourth role, `seed`, makes one project per example in the default
+workspace and exits, as `archsim-api seed` did, which is gone with the Python engine it read the
+examples with. Like the worker, it never migrates.
+
 ### Consequences
 
 - Good, because operators see the same three services as before the port.

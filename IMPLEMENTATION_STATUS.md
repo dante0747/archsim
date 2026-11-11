@@ -30,7 +30,8 @@ was verified, what is known to be limited, and what comes next. Nothing listed u
 - A calibration's replay runs on the Java simulator in the API's process, on platform threads of
   its own ([ADR 0054](docs/adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)).
 - The Python worker, `POST /simulate` and the engine service are deleted; `services/api` keeps
-  the Alembic migrations, `migrate` and `seed` until stage 6.
+  the Alembic migrations, `migrate` and `seed` until stage 6. Since stage 5's S5-10a (12 Nov) the
+  seed is `archsim-app seed`, and `services/api` keeps the migrations and `migrate`.
 - /accuracy and docs/validation.md say, in one sentence labelled re-simulated and in-sample, that
   1.0.0 re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65): the latest
   predictions they show are 0.16.0's, which 1.0.0 reproduces (older runs' are older engines').

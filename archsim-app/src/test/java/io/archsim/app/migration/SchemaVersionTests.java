@@ -9,6 +9,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
+import io.archsim.app.Role;
 import io.archsim.app.database.TestDatabases;
 
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
@@ -32,7 +33,8 @@ class SchemaVersionTests {
 		DataSource database = freshDatabase();
 		flyway(database, MIGRATIONS).migrate();
 
-		assertThatNoException().isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS)));
+		assertThatNoException()
+			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.WORKER));
 	}
 
 	@Test
@@ -42,7 +44,8 @@ class SchemaVersionTests {
 			.execute(database);
 		flyway(database, MIGRATIONS).migrate();
 
-		assertThatNoException().isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS)));
+		assertThatNoException()
+			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.WORKER));
 	}
 
 	@Test
@@ -50,7 +53,8 @@ class SchemaVersionTests {
 		DataSource database = freshDatabase();
 		flyway(database, MIGRATIONS).migrate();
 
-		assertThatIllegalStateException().isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, LATER_BUILD)))
+		assertThatIllegalStateException()
+			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, LATER_BUILD), Role.WORKER))
 			.withMessage("the database is at V1, this worker needs V9999; start the API first");
 	}
 
@@ -59,15 +63,27 @@ class SchemaVersionTests {
 		DataSource database = freshDatabase();
 		flyway(database, LATER_BUILD).migrate();
 
-		assertThatIllegalStateException().isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS)))
+		assertThatIllegalStateException()
+			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.WORKER))
 			.withMessage("the database is at V9999, this worker needs V1; start a worker of the API's release");
+	}
+
+	@Test
+	void requireCurrent_theSeedOnADatabaseAheadOfTheBuild_isRefusedNamingTheSeed() {
+		DataSource database = freshDatabase();
+		flyway(database, LATER_BUILD).migrate();
+
+		assertThatIllegalStateException()
+			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.SEED))
+			.withMessage("the database is at V9999, this seed needs V1; start a seed of the API's release");
 	}
 
 	@Test
 	void requireCurrent_emptyDatabase_isRefused() {
 		DataSource database = freshDatabase();
 
-		assertThatIllegalStateException().isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS)))
+		assertThatIllegalStateException()
+			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.WORKER))
 			.withMessage("the database has no schema history yet, this worker needs V1; start the API first");
 	}
 
