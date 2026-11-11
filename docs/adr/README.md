@@ -99,6 +99,6 @@ what the repository shows.
 | [0055](0055-the-java-clis-output-contract.md) | The Java CLI keeps the Python CLI's words, exit codes and JSON values | Accepted | 2026-11-10 |
 | [0056](0056-the-java-cli-takes-options-by-their-full-names.md) | The Java CLI takes options by their full names | Accepted | 2026-11-10 |
 | [0057](0057-move-the-prometheus-client-into-the-engine.md) | Move the Prometheus client into the engine, for the app and the CLI | Accepted | 2026-11-10 |
-| [0058](0058-serve-mcp-with-the-official-mcp-java-sdk.md) | Serve ArchSim's MCP tools with the official MCP Java SDK | Proposed | 2026-11-11 |
-| [0059](0059-read-files-as-python-did-in-the-engine.md) | Read files as Python did in the engine, for the CLI and the MCP server | Proposed | 2026-11-11 |
-| [0060](0060-run-the-check-action-in-an-image-the-job-builds.md) | Run the archsim-check action's CLI in an image the job builds | Proposed | 2026-11-11 |
+| [0058](0058-serve-mcp-with-the-official-mcp-java-sdk.md) | Serve ArchSim's MCP tools with the official MCP Java SDK | Accepted | 2026-11-11 |
+| [0059](0059-read-files-as-python-did-in-the-engine.md) | Read files as Python did in the engine, for the CLI and the MCP server | Accepted | 2026-11-11 |
+| [0060](0060-run-the-check-action-in-an-image-the-job-builds.md) | Run the archsim-check action's CLI in an image the job builds | Accepted | 2026-11-11 |
