@@ -567,8 +567,9 @@ Peak load comes from the static estimate below, with each TTL cache's hit ratio 
 its TTL and the key popularity (`load.ttl_miss_shares`; a cache whose memory holds fewer keys
 than the keyspace keeps the most popular ones).
 
-**The sizing audit** (`scripts/sizing_audit.py`, run by `test_sizing_audit.py` on every
-template) checks auto sizes against what the simulation then does: each auto-sized part's p95
+**The sizing audit** (`SizingAuditTests` in `archsim-engine`, on every template; the port of
+`scripts/sizing_audit.py`, which the frozen engine's `test_sizing_audit.py` runs until stage 5
+deletes it) checks auto sizes against what the simulation then does: each auto-sized part's p95
 busy cores per instance (from the per-bucket `cpuBusyCores` series of services, databases and
 caches) between 25% and 75% of its vCPU, unless it is on the smallest type its need allows,
 capped by its workers or connections, on a bigger type for its memory, or behind a part that

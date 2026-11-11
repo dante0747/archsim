@@ -351,6 +351,15 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   with each replay simulated in Java (`ReplaySimulator.of`, as the app replays it) in place of
   the report the frozen engine recorded: each replay gives that report, and the calibration its
   recorded outcome.
+- `SizingAuditTests` checks auto-sizing against what the simulation then does, on every
+  template's run compressed to 15 seconds: the port of `scripts/sizing_audit.py` (in
+  `sizing.audit`: `SizingAudit` runs `CpuCheck`, `ResourceChecks`, `ScaleChecks` and
+  `PerRequestCheck`, which read the Java engine's report as the script read Python's). Each
+  auto-sized part's p95 CPU is 25% to 75% of its vCPU or has a stated reason, no auto-sized part
+  is the bottleneck by its CPU or memory, memory peak ≤ need ≤ instance, a re-run gives the same
+  types and cost, 1.5 and 2 times the rate never give a cheaper type, per-request lines are within
+  10% of a hand calculation, and the monthly cost is at most 1.15 times a hand-picked reference.
+  On every template its checks are the script's on the frozen engine, part for part (301 checks).
 - `./gradlew :archsim-engine:parity` runs `SimulationParityTests` (tagged `parity`, left out of
   `test`): every template case of the frozen engine's simulation baselines (149 cases, 20 seeds
   each; `parity/simulation/` once recorded), simulated in Java and judged by the port plan's bar

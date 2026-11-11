@@ -55,7 +55,7 @@ public final class CostEstimator {
 			+ "plans, data transfer and NAT, and free tiers.";
 
 	/** The seconds a month's per-request costs are counted over. */
-	static final double SECONDS_PER_MONTH = HOURS_PER_MONTH * 3600.0;
+	public static final double SECONDS_PER_MONTH = HOURS_PER_MONTH * 3600.0;
 
 	private final ComponentRegistry registry;
 
