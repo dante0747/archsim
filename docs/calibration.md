@@ -275,7 +275,7 @@ notes.
 
 ## Example
 
-`packages/engine/tests/fixtures/calibration/` holds a calibration of the cache-aside starter:
+`parity/fixtures/calibration/` holds a calibration of the cache-aside starter:
 a mapping and Prometheus responses **generated** from known parameters
 (`scripts/make_calibration_fixture.py`), plus an OTLP export generated the same way
 (`scripts/make_otlp_fixture.py`). Calibrating the starter from them recovers the parameters
@@ -294,8 +294,8 @@ against your own telemetry says how well the model fits your system.
 
 ```bash
 uv run archsim calibrate prometheus examples/cache-aside-starter.json \
-  --map packages/engine/tests/fixtures/calibration/starter-mapping.yaml \
-  --recorded packages/engine/tests/fixtures/calibration/starter-prometheus.json -o calibrated.json
+  --map parity/fixtures/calibration/starter-mapping.yaml \
+  --recorded parity/fixtures/calibration/starter-prometheus.json -o calibrated.json
 ```
 
 ## Limits

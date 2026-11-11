@@ -343,8 +343,8 @@ uv run archsim run examples/cache-aside-starter.json --scenario one-api-replica 
 uv run archsim run long-steady-design.json --sampled   # answer a long steady run from a sample
 uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
 uv run archsim calibrate prometheus examples/cache-aside-starter.json \
-  --map packages/engine/tests/fixtures/calibration/starter-mapping.yaml \
-  --recorded packages/engine/tests/fixtures/calibration/starter-prometheus.json -o calibrated.json
+  --map parity/fixtures/calibration/starter-mapping.yaml \
+  --recorded parity/fixtures/calibration/starter-prometheus.json -o calibrated.json
 uv run archsim import compose docker-compose.yml -o design.json --report import-report.json
 uv run archsim export k8s examples/cache-aside-starter.json -o manifests.yaml
 uv run archsim check examples/cache-aside-starter.json --baseline-ref origin/main --fail-on regression

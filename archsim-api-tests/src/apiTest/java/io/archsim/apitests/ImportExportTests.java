@@ -42,7 +42,7 @@ class ImportExportTests {
 
 	@Test
 	void import_composeOrExport_reportsGuessesAndRoundTrips(ApiClient client) {
-		String text = Examples.text(Examples.engineFixture("import/voting-compose.yml"));
+		String text = Examples.text(Examples.fixture("import/voting-compose.yml"));
 		ApiResponse response = client.post("/import", Json.object("format", "compose", "text", text, "name", "Voting"));
 		assertThat(response.status()).as(response.text()).isEqualTo(200);
 		JsonNode out = response.json();

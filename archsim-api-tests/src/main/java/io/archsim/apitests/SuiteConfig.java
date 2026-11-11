@@ -23,7 +23,7 @@ import org.jspecify.annotations.Nullable;
  * rows. Tests of a profile without a URL are skipped.
  * </ul>
  *
- * @param repoRoot the repository, for the examples and the engine's test fixtures
+ * @param repoRoot the repository, for the examples and the test fixtures
  * @param start which API to start, or null to use the URLs given
  * @param basePort the port of the first started server; the others follow in profile
  * order

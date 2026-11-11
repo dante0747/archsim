@@ -223,7 +223,7 @@ ANALYZES: list[Json] = [
     *unreadable("analyze"),
 ]
 
-FIXTURES = Path(__file__).resolve().parent.parent / "packages/engine/tests/fixtures"
+FIXTURES = Path(__file__).resolve().parent.parent / "parity/fixtures"
 OUT_FILE = "{out}"
 """Stands for a file a command writes its result to (-o)."""
 

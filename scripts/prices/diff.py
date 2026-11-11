@@ -1,6 +1,7 @@
 """Summarize what changed between two price snapshots, as Markdown (the monthly refresh's PR body).
 
-    uv run python scripts/prices/diff.py packages/engine/src/archsim_engine/pricing/aws-us-east-1-2026-11-02.json
+    uv run python scripts/prices/diff.py \
+        archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/aws-us-east-1-2026-11-02.json
     uv run python scripts/prices/diff.py NEW.json --against OLD.json
 
 Without ``--against``, the newest older snapshot of the same provider and region in the new file's

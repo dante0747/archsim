@@ -46,7 +46,7 @@ from export_simulation_cases import CASES, busy_hour, clients, design, external,
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "archsim-mcp/src/test/resources/io/archsim/mcp/session.json.gz"
 GENERATOR = "scripts/export_mcp_cases.py (archsim_mcp 0.1.0, archsim_engine 0.16.0)"
-FIXTURES = ROOT / "packages/engine/tests/fixtures"
+FIXTURES = ROOT / "parity/fixtures"
 PLACEHOLDER = "{fixtures}"
 """Stands for the folder of the test fixtures in the recorded requests."""
 PROTOCOL = "2025-06-18"

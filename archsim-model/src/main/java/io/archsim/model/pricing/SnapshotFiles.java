@@ -3,6 +3,7 @@ package io.archsim.model.pricing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -11,14 +12,20 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Reads price snapshot files: the {@code *.json} files of extra folders, and the
- * snapshots ArchSim ships in this package's {@code snapshots/} resources.
+ * snapshots ArchSim ships in this package's {@code snapshots/} resources, which the build
+ * lists in {@code snapshots/index}.
  */
 final class SnapshotFiles {
+
+	/**
+	 * The resource, beside the shipped snapshots, that lists their file names one per
+	 * line in file order: the build writes it.
+	 */
+	private static final String INDEX = "index";
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -45,14 +52,22 @@ final class SnapshotFiles {
 
 	/**
 	 * The snapshots ArchSim ships.
-	 * @param names the file names of the shipped snapshots, in order
-	 * @return the shipped snapshots, in the same order
-	 * @throws IllegalStateException when one is missing from the jar
+	 * @return the shipped snapshots, in file order
+	 * @throws IllegalStateException when the index or a snapshot is missing from the jar
 	 */
-	static List<FoundSnapshot> shipped(List<String> names) {
-		return names.stream()
-			.map((name) -> new FoundSnapshot(PriceSnapshot.parse(resource(name)), name, true))
+	static List<FoundSnapshot> shipped() {
+		return shippedNames().stream()
+			.map((name) -> new FoundSnapshot(PriceSnapshot.parse(JSON.readTree(resource(name))), name, true))
 			.toList();
+	}
+
+	/**
+	 * The file names of the snapshots ArchSim ships, as the build listed them.
+	 * @return the names, in file order
+	 * @throws IllegalStateException when the index is missing from the jar
+	 */
+	static List<String> shippedNames() {
+		return new String(resource(INDEX), StandardCharsets.UTF_8).lines().toList();
 	}
 
 	private static List<FoundSnapshot> inFolder(Path folder) {
@@ -83,12 +98,13 @@ final class SnapshotFiles {
 		}
 	}
 
-	private static JsonNode resource(String name) {
+	// a file of the shipped snapshots' resources
+	private static byte[] resource(String name) {
 		try (InputStream input = SnapshotFiles.class.getResourceAsStream("snapshots/" + name)) {
 			if (input == null) {
-				throw new IllegalStateException("the shipped snapshot " + name + " is missing from the jar");
+				throw new IllegalStateException("the shipped snapshots' " + name + " is missing from the jar");
 			}
-			return JSON.readTree(input);
+			return input.readAllBytes();
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);

@@ -7,7 +7,7 @@ CI itself, a run started by hand, and a push without a usable base (a new branch
 that was rewritten). `Commit messages` always runs and is not decided here.
 
 When a test starts reading a file outside its own part of the repository (the Python tests read
-docs/assumptions.md, the Java tests read packages/engine/tests/fixtures and examples/), add that
+docs/assumptions.md, the Java tests read parity/fixtures and examples/), add that
 file or its folder to RULES, or a change to it alone will not run the test.
 
     python3 scripts/ci_changes.py --base BASE_SHA --head HEAD_SHA        # what runs, and why
@@ -51,7 +51,7 @@ JAVA = frozenset({"java", "e2e"})
 CHECK_ACTION = frozenset({"archsim_check"})
 # The frozen engine and the Python environment: every Python process imports them (the archsim
 # CLI, the MCP server, the migrations and seed, the end-to-end launcher's database maker), and
-# the Java build reads the engine's pricing data and test fixtures.
+# PriceSnapshotsTests checks the model ships the engine's snapshots as they are.
 PYTHON_RUNTIME = EVERY - {"web"}
 
 # (path, jobs). A path ending in "/" is a folder and covers everything in it, a path with a "*"
@@ -121,6 +121,9 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # reads two of these files, and no benchmark test reads any
     ("benchmarks/perf/", PYTHON),
     ("benchmarks/", BENCHMARK_TESTS),
+    # The fixtures the golden files and recordings were made from: the exporter reads them in the
+    # Python job, the API and app tests in the Java job.
+    ("parity/fixtures/", frozenset({"python", "java"})),
     # The golden files: export_golden.py --check writes them, the Java parity tests read them.
     ("parity/", frozenset({"python", "java", "e2e"})),
     # The templates: every part loads them.

@@ -58,8 +58,8 @@ ports.
 | `catalog/formatting.json.gz` | 1 | number-to-text and small numeric helpers on grids of values, where a port most easily differs: `explain.num`/`pct`/`erlang_c`/`zipf_share`, `load.js_num`/`fmt_int`/`fixed`/`round_half_up`/`mean_ms`/`ttl_hit_ratio`, `sizing.fmt`, `provenance.describe_value`, the `seeds` text helpers, distributions' `expected`/`describe`/`quantile`, `estimate.mmc_wait`, `sweep.levels`/`suggest_range`/`rps_cap`, and `report.canonical_digest` and `pricing.content_sha256` on awkward JSON (unicode, `1e-05`, `1e+22`, `-0.0`, big integers): Python's float and JSON spelling decide every digest |
 | `fixtures/migrations.json.gz` | 18 | the smallest template stamped with every schema version 1.0 to 1.7 (and `1.3` as a number), and bad versions (`1.10`, `2.0`, `0.9`, `1.3.0`, text, empty, missing, not an object): `migrate_document` and `load_document` |
 | `fixtures/invalid-documents.json.gz` | 56 | templates with one thing wrong (each case says what): the schema errors `load_document` reports, the issues `validate_document` reports, and what scenario resolution says |
-| `fixtures/importers.json.gz` | 14 | `import_design` on the compose, Kubernetes and Terraform fixtures of `packages/engine/tests/fixtures/import`, and on text it cannot read |
-| `fixtures/calibration.json.gz` | 6 | Prometheus and OpenTelemetry calibration from the fixtures of `packages/engine/tests/fixtures/calibration` (embedded under `files`), mappings and ranges with their errors, and every parse and fit the calibrations call, plus fits on synthetic points |
+| `fixtures/importers.json.gz` | 14 | `import_design` on the compose, Kubernetes and Terraform fixtures of `parity/fixtures/import`, and on text it cannot read |
+| `fixtures/calibration.json.gz` | 6 | Prometheus and OpenTelemetry calibration from the fixtures of `parity/fixtures/calibration` (embedded under `files`), mappings and ranges with their errors, and every parse and fit the calibrations call, plus fits on synthetic points |
 
 Each `.json.gz` is gzip (`mtime` 0) of **canonical JSON**: keys sorted, no whitespace (`,` and
 `:`), UTF-8 with non-ASCII characters as they are, no NaN. Compare decompressed content: another
@@ -260,3 +260,16 @@ uv run python scripts/schema_snapshot.py --url postgresql://postgres@localhost:5
 
 archsim-app's `MigrationTests` describe the database Flyway builds with the same query and expect
 the same document.
+
+## The test fixtures
+
+`parity/fixtures/` holds the files the golden files and recordings were made from, copied from the
+frozen engine's `packages/engine/tests/fixtures/` in stage 5 so they stay when the engine goes:
+`calibration/` (a mapping and Prometheus responses generated for the cache-aside starter by
+[`scripts/make_calibration_fixture.py`](../scripts/make_calibration_fixture.py), an OTLP trace
+export and its mapping by [`scripts/make_otlp_fixture.py`](../scripts/make_otlp_fixture.py)),
+`import/` (a compose file, Kubernetes manifests and a Terraform plan written for the importers'
+tests) and `pricing/` (a snapshot of a made-up provider). Unlike `golden/fixtures/`, a category of
+golden files, they are inputs. The golden exporter (`scripts/golden/paths.py`), the CLI, import
+and MCP recorders (`scripts/export_*_cases.py`), the API and app tests (`Examples.fixture`) and the
+API tests' local profile (its `ARCHSIM_PRICES_DIR`) read them.

@@ -100,14 +100,13 @@ public enum Profile {
 
 	/**
 	 * Returns the local profile's settings: two snapshots of a made-up provider besides
-	 * the shipped ones, the engine's fixture (2026-10-01) and a newer copy of it
-	 * (2026-11-01).
+	 * the shipped ones, the fixture (2026-10-01) and a newer copy of it (2026-11-01).
 	 * @param config what the suite was told, for the repository's root
 	 * @return the settings' values by name
 	 */
 	private static Map<String, String> localSettings(SuiteConfig config) {
 		String pricesDir = String.join(File.pathSeparator,
-				config.repoRoot().resolve("packages/engine/tests/fixtures/pricing").toString(),
+				config.repoRoot().resolve("parity/fixtures/pricing").toString(),
 				config.repoRoot().resolve("archsim-api-tests/fixtures/prices").toString());
 		return settingsOf("ARCHSIM_PRICES_DIR", pricesDir);
 	}

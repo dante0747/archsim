@@ -1,5 +1,5 @@
-"""The importers fixture: ``import_design`` on the engine's compose, Kubernetes and Terraform
-fixtures, and on text it cannot read."""
+"""The importers fixture: ``import_design`` on the compose, Kubernetes and Terraform fixtures of
+parity/fixtures, and on text it cannot read."""
 
 from __future__ import annotations
 

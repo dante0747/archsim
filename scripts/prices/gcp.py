@@ -105,7 +105,7 @@ def _items(key: str) -> Iterable[dict[str, Any]]:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--region", required=True, help="e.g. us-central1")
-    ap.add_argument("--out", help="output file (default: the engine's pricing directory)")
+    ap.add_argument("--out", help="output file (default: among archsim-model's snapshots)")
     args = ap.parse_args()
     key = os.environ.get("GOOGLE_API_KEY")
     if not key:

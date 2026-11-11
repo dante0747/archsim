@@ -32,7 +32,7 @@ dependencies {
 }
 
 tasks.test {
-    // the examples, the golden files and the Python engine's price snapshots
+    // the examples, the golden files and the test fixtures (parity/fixtures)
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
     // the worker's command lines, which WorkerCommandLineTests checks: a change to them alone
     // runs the tests again rather than taking their result from the build cache

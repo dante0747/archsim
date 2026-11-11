@@ -9,7 +9,8 @@ import java.nio.file.Path;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Test inputs from the repository: the example designs and the engine's test fixtures.
+ * Test inputs from the repository: the example designs and the test fixtures of
+ * {@code parity/fixtures}.
  */
 public final class Examples {
 
@@ -62,12 +63,12 @@ public final class Examples {
 	}
 
 	/**
-	 * Returns a file of the engine's test fixtures.
-	 * @param relative the file's path under {@code packages/engine/tests/fixtures}
+	 * Returns a file of the test fixtures the golden files and recordings were made from.
+	 * @param relative the file's path under {@code parity/fixtures}
 	 * @return the file's path
 	 */
-	public static Path engineFixture(String relative) {
-		return repoRoot().resolve("packages/engine/tests/fixtures").resolve(relative);
+	public static Path fixture(String relative) {
+		return repoRoot().resolve("parity/fixtures").resolve(relative);
 	}
 
 	/**

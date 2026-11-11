@@ -26,9 +26,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ApiTest(Profile.LOCAL)
 class CalibrationTests {
 
-	private static final JsonNode RECORDED = Json.read(Examples.engineFixture("calibration/starter-prometheus.json"));
+	private static final JsonNode RECORDED = Json.read(Examples.fixture("calibration/starter-prometheus.json"));
 
-	private static final String MAPPING = Examples.text(Examples.engineFixture("calibration/starter-mapping.yaml"));
+	private static final String MAPPING = Examples.text(Examples.fixture("calibration/starter-mapping.yaml"));
 
 	@Test
 	void calibrate_withRecordedPrometheusOrOtlp_returnsCalibratedDocument(ApiClient client) {
@@ -51,7 +51,7 @@ class CalibrationTests {
 			.path("valid")
 			.asBoolean()).isTrue();
 
-		JsonNode traces = Json.read(Examples.engineFixture("calibration/checkout-traces.otlp.json"));
+		JsonNode traces = Json.read(Examples.fixture("calibration/checkout-traces.otlp.json"));
 		response = client.post("/calibrate", Json.object("document", Examples.starter(), "source", "otlp", "traces",
 				traces, "mapping", "services: {checkout-api: api}\ndatabases: {orders: db}\n"));
 		assertThat(response.status()).as(response.text()).isEqualTo(200);

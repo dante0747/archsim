@@ -46,6 +46,8 @@ EVERY_JOB = {
             {"java", "e2e", "archsim_check"},
         ),
         (["archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java"], {"java"}),
+        # the exporter reads the fixtures in the Python job, the API and app tests in the Java job
+        (["parity/fixtures/calibration/starter-mapping.yaml"], {"python", "java"}),
         (["config/checkstyle/checkstyle.xml", "gradlew.bat"], {"java", "e2e"}),
         # the Python job checks the table repr reads against Python
         (

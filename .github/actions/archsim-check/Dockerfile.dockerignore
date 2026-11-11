@@ -1,6 +1,5 @@
 # The image's context is the repository's root; it holds only what building the CLI reads: the
-# Gradle build, the modules it configures and the price snapshots archsim-model packages (until
-# they move into its resources).
+# Gradle build and the modules it configures.
 *
 !gradlew
 !gradle/
@@ -8,7 +7,6 @@
 !gradle.properties
 !build-logic/
 !archsim-*/
-!packages/engine/src/archsim_engine/pricing/*.json
 **/build/
 **/.gradle/
 archsim-*/src/test/

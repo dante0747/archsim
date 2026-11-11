@@ -1,5 +1,6 @@
 """Shared pieces of the price refresh scripts: download with a local cache, and write a snapshot
-in ArchSim's format (``archsim.prices/1``), validated by the engine before it is saved.
+in ArchSim's format (``archsim.prices/1``) among the ones archsim-model ships, validated by the
+Python engine's parser before it is saved and by the model's tests after.
 
 These scripts are run by hand to refresh the data files; ArchSim never calls them (or any price
 API) at runtime. Downloads go only to the provider's public price endpoint named in each script.
@@ -15,7 +16,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-SNAPSHOT_DIR = ROOT / "packages" / "engine" / "src" / "archsim_engine" / "pricing"
+SNAPSHOT_DIR = ROOT / "archsim-model/src/main/resources/io/archsim/model/pricing/snapshots"
+"""The snapshots archsim-model ships: one written here ships with the next build."""
 USER_AGENT = "archsim-price-refresh"
 
 

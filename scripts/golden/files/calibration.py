@@ -1,4 +1,4 @@
-"""The calibration fixture: Prometheus and OpenTelemetry calibration from the engine's fixtures,
+"""The calibration fixture: Prometheus and OpenTelemetry calibration from parity/fixtures,
 mappings and ranges with their errors, every parse and fit the calibrations make, and fits on
 synthetic points."""
 

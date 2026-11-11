@@ -36,8 +36,13 @@ Each package uses only those below it, and ArchUnit checks it
 | `codec` | `RecordCodec`: records to JSON and back as pydantic does, and their JSON Schema; unions told apart by a property (`@Tagged`) or by which key an object has (`@TaggedByKey`), maps keyed by text or by a `JsonEnum` | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md), [0025](../docs/adr/0025-json-schema-generated-from-the-records.md) |
 | `text` | Python's way of writing numbers and values: `repr` (a string's characters escaped as Python 3.12's `str.isprintable()` judges them, from `nonprintable.tsv`, which `scripts/export_printable.py` writes), `format`, `json.dumps` | [0027](../docs/adr/0027-python-text-conventions-in-one-package.md) |
 
-The price snapshots ArchSim ships are the Python engine's files, copied into this module's
-resources by the build while the engine exists.
+The price snapshots ArchSim ships are this module's resources,
+`src/main/resources/io/archsim/model/pricing/snapshots/`: the build lists every file of the folder
+in an index `PriceSnapshots` reads, so the model ships what the folder holds. A refreshed snapshot
+(`scripts/prices`) is a file added there, but the golden pricing entries and some sizing tests
+still expect 0.16.0's two snapshots to be the only ones, so a refresh fails them until they stop
+assuming it. Until the frozen Python engine is deleted, a test checks its snapshots are shipped
+byte for byte.
 
 ## Tests
 

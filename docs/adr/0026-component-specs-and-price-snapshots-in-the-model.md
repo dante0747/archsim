@@ -53,6 +53,15 @@ simulating it, and they are what a client needs to check a design.
   Its schedule is off until stage 4, when the Python engine goes and the files move to the
   model's resources; it can still be run by hand.
 
+**Status (11 Nov 2026):** since stage 5's S5-7 the snapshots are the model's own resources
+(`archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/`), and the engine's files
+are a copy a test checks byte for byte until the engine is deleted. The build lists every file of
+the folder in an index `PriceSnapshots` reads, in place of the names it held in code, and
+`scripts/prices` writes a refresh there. The refresh's schedule stays off: a simulated refresh
+(a third snapshot) fails 21 tests that expect 0.16.0's two snapshots to be the only ones (the
+golden `catalog/pricing` entries and `invalid-documents`' missing snapshot in the model, and two
+sizing test classes in the engine), which must stop assuming it first.
+
 ### Consequences
 
 - Good, because one module answers "is this design valid?", with no simulator on the class path.

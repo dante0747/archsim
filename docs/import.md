@@ -144,5 +144,5 @@ with the same workload. Keep the original design, or calibrate again, when the n
   (listed as a guess). Replace that part in the editor.
 - Terraform target groups and listeners are not read: check the load balancer links the import
   guessed.
-- Fixtures in `packages/engine/tests/fixtures/import/` are written for these tests in the style
+- Fixtures in `parity/fixtures/import/` are written for these tests in the style
   of common examples; they are not real deployments.

@@ -11,7 +11,7 @@ import archsim_engine
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "parity" / "golden"
 EXAMPLES = ROOT / "examples"
-FIXTURES = ROOT / "packages" / "engine" / "tests" / "fixtures"
+FIXTURES = ROOT / "parity" / "fixtures"
 PRICES = Path(archsim_engine.__file__).parent / "pricing"
 
 STARTER = "cache-aside-starter"

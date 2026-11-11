@@ -59,9 +59,9 @@ class CalibrationsTests extends HostedTestSupport {
 	private static final JsonNode NO_SPANS = JSON.readTree("{\"resourceSpans\": []}");
 
 	private static final JsonNode RECORDED = JSON
-		.readTree(Examples.text(Examples.engineFixture("calibration/starter-prometheus.json")));
+		.readTree(Examples.text(Examples.fixture("calibration/starter-prometheus.json")));
 
-	private static final String MAPPING = Examples.text(Examples.engineFixture("calibration/starter-mapping.yaml"));
+	private static final String MAPPING = Examples.text(Examples.fixture("calibration/starter-mapping.yaml"));
 
 	@MockitoBean
 	private ReplaySimulator replay;

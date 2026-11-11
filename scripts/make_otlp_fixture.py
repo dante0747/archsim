@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "packages" / "engine" / "tests" / "fixtures" / "calibration"
+OUT = ROOT / "parity" / "fixtures" / "calibration"
 START_NS = 1790812800 * 10**9  # 2026-10-01T00:00:00Z
 TRACES = 400
 Z95 = 1.6448536269514722

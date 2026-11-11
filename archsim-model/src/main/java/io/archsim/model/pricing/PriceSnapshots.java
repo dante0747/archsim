@@ -32,12 +32,6 @@ public final class PriceSnapshots {
 	/** The region templates and new documents price with. */
 	public static final String DEFAULT_REGION = "us-east-1";
 
-	/**
-	 * The snapshots ArchSim ships, in this package's {@code snapshots/} resources, in
-	 * file order.
-	 */
-	static final List<String> SHIPPED = List.of("aws-us-east-1-2026-10-27.json", "aws-us-east-1-2026-10-28.json");
-
 	private final List<FoundSnapshot> found;
 
 	private PriceSnapshots(List<FoundSnapshot> found) {
@@ -203,7 +197,7 @@ public final class PriceSnapshots {
 	/** The shipped snapshots, read the first time they are needed. */
 	private static final class Shipped {
 
-		static final PriceSnapshots SNAPSHOTS = new PriceSnapshots(SnapshotFiles.shipped(SHIPPED));
+		static final PriceSnapshots SNAPSHOTS = new PriceSnapshots(SnapshotFiles.shipped());
 
 	}
 

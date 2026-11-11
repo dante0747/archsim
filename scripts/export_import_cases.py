@@ -51,7 +51,7 @@ from archsim_engine.importers.terraform import import_terraform
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "archsim-engine/src/test/resources/io/archsim/engine/imports/cases.json"
-FIXTURES = ROOT / "packages/engine/tests/fixtures/import"
+FIXTURES = ROOT / "parity/fixtures/import"
 EXAMPLES = ROOT / "examples"
 REGISTRY = create_default_registry(include_plugins=False)
 Json = dict[str, Any]

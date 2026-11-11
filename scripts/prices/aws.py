@@ -6,8 +6,9 @@ Reads the region's CSV offer files (streamed: the EC2 file is several hundred MB
 (Linux, shared tenancy, on-demand), RDS (Single-AZ, and its gp3 storage), ElastiCache, MSK
 brokers, EBS gp3 storage, Lambda, SQS, Application and Network Load Balancers (hours and capacity
 units), DynamoDB (on-demand request units, provisioned capacity units and storage), API Gateway
-(REST API requests) and the EKS control plane, and writes
-``packages/engine/src/archsim_engine/pricing/aws-<region>-<date>.json``.
+(REST API requests) and the EKS control plane, and writes ``aws-<region>-<date>.json`` among
+the snapshots archsim-model ships
+(``archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/``).
 
 Only the region's own current-generation prices are kept: a region's price list also carries
 Outposts and Local Zone rows (for hardware elsewhere, at other prices), Capacity Blocks and
@@ -402,7 +403,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--region", required=True, help="e.g. us-east-1")
     ap.add_argument("--cache", default=".cache/aws-prices", help="where the downloaded CSVs are kept")
-    ap.add_argument("--out", help="output file (default: the engine's pricing directory)")
+    ap.add_argument("--out", help="output file (default: among archsim-model's snapshots)")
     args = ap.parse_args()
     cache = Path(args.cache)
     files = {offer: download(offer, args.region, cache) for offer in OFFERS}

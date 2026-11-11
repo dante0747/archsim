@@ -22,14 +22,24 @@ dependencies {
     testImplementation(libs.jqwik)
 }
 
-// The price snapshots validation looks documents up in (ADR-0026). The Python engine ships them;
-// while it exists its folder stays the one copy, so the two never disagree. When it is deleted,
-// the files move to src/main/resources/io/archsim/model/pricing/snapshots/.
-tasks.processResources {
-    from(rootProject.layout.projectDirectory.dir("packages/engine/src/archsim_engine/pricing")) {
-        include("*.json")
-        into("io/archsim/model/pricing/snapshots")
+// The price snapshots validation looks documents up in (ADR-0026) are this module's resources, in
+// io/archsim/model/pricing/snapshots/. The build lists every file there in an index PriceSnapshots
+// reads, so the model ships what the folder holds, no list in code.
+val snapshotIndex = tasks.register("snapshotIndex") {
+    description = "Lists the price snapshots the model ships, for PriceSnapshots."
+    val snapshots = fileTree("src/main/resources/io/archsim/model/pricing/snapshots") { include("*.json") }
+    val generated = layout.buildDirectory.dir("generated/snapshot-index")
+    inputs.files(snapshots).withPropertyName("snapshots").withPathSensitivity(PathSensitivity.NAME_ONLY)
+    outputs.dir(generated).withPropertyName("index")
+    doLast {
+        val index = generated.get().file("io/archsim/model/pricing/snapshots/index").asFile
+        index.parentFile.mkdirs()
+        index.writeText(snapshots.files.map { it.name }.sorted().joinToString("") { "$it\n" })
     }
+}
+
+sourceSets.main {
+    resources.srcDir(snapshotIndex)
 }
 
 tasks.test {

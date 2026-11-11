@@ -14,16 +14,15 @@ name: Price refresh
 # PRICES_PR_TOKEN secret (a fine-grained token with contents and pull-requests write) to have CI
 # run on them, or close and reopen the pull request.
 #
-# Paused during the Java port: the snapshots live in the frozen Python engine, so a refresh can't
-# land there (ADR-0026, ADR-0017). The monthly schedule ("23 6 2 * *", 06:23 UTC on the 2nd)
-# comes back at stage 4, when the Python engine goes and the snapshots move to the model's
-# resources. It can still be run by hand.
+# The snapshots are archsim-model's resources (ADR-0026), every file of their folder shipped. The
+# monthly schedule ("23 6 2 * *", 06:23 UTC on the 2nd) is off, and it is run by hand only: the
+# golden pricing entries and some sizing tests still expect 0.16.0's two snapshots to be the only
+# ones, so a new snapshot fails them until they stop assuming it; and Actions minutes are short.
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: prices
@@ -34,39 +33,83 @@ env:
   REGION: us-east-1
 
 jobs:
-  refresh:
+  build:
+    # builds and checks the snapshot with the repository read-only: the downloads and the Gradle
+    # build never hold a token that can write
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+      date: ${{ steps.build.outputs.date }}
+      file: ${{ steps.build.outputs.file }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      # also checks the committed Gradle wrapper against Gradle's published checksums
+      - uses: gradle/actions/setup-gradle@v6
       - run: uv sync --frozen
       - name: Build the snapshot
         id: build
         run: |
           date="$(date -u +%F)"
-          out="packages/engine/src/archsim_engine/pricing/aws-${REGION}-${date}.json"
+          out="archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/aws-${REGION}-${date}.json"
           if [ -e "$out" ]; then echo "$out exists already"; exit 1; fi
           uv run python scripts/prices/aws.py --region "$REGION" --cache "$RUNNER_TEMP/aws-prices"
           echo "date=$date" >> "$GITHUB_OUTPUT"
           echo "file=$out" >> "$GITHUB_OUTPUT"
-      - name: Check it against the engine's tests
-        run: uv run pytest packages/engine/tests/test_pricing.py packages/engine/tests/test_price_scripts.py
+      - name: Check it with the model's tests, which read every snapshot
+        run: ./gradlew :archsim-model:test
+      - name: Check the scripts
+        run: uv run pytest packages/engine/tests/test_price_scripts.py
       - name: Summarize the price changes
         id: diff
-        run: uv run python scripts/prices/diff.py "${{ steps.build.outputs.file }}" | tee "$RUNNER_TEMP/summary.md"
-      - name: Open a pull request
+        run: |
+          mkdir -p "$RUNNER_TEMP/snapshot"
+          uv run python scripts/prices/diff.py "${{ steps.build.outputs.file }}" | tee "$RUNNER_TEMP/snapshot/summary.md"
+          cp "${{ steps.build.outputs.file }}" "$RUNNER_TEMP/snapshot/"
+      - uses: actions/upload-artifact@v7
         if: steps.diff.outputs.changed == 'true'
+        with:
+          name: price-snapshot
+          path: ${{ runner.temp }}/snapshot/
+          retention-days: 7
+      - name: No change
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "Prices are the same as the last snapshot; no pull request."
+
+  pull-request:
+    # the one job that writes: a branch with the checked snapshot, and its pull request
+    needs: build
+    if: needs.build.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: price-snapshot
+          path: ${{ runner.temp }}/snapshot
+      - name: Open a pull request
         env:
           GH_TOKEN: ${{ secrets.PRICES_PR_TOKEN || github.token }}
-          DATE: ${{ steps.build.outputs.date }}
-          FILE: ${{ steps.build.outputs.file }}
+          DATE: ${{ needs.build.outputs.date }}
+          FILE: ${{ needs.build.outputs.file }}
         run: |
           branch="prices/aws-${REGION}-${DATE}"
+          cp "$RUNNER_TEMP/snapshot/$(basename "$FILE")" "$FILE"
           {
-            cat "$RUNNER_TEMP/summary.md"
+            cat "$RUNNER_TEMP/snapshot/summary.md"
             echo
             echo "---"
             echo "Opened by the monthly price refresh (.github/workflows/prices.yml). Before merging:"
@@ -86,6 +129,3 @@ jobs:
             gh pr create --base "${{ github.event.repository.default_branch }}" --head "$branch" \
               --title "chore(pricing): add the AWS ${REGION} price snapshot of ${DATE}" --body-file "$RUNNER_TEMP/body.md"
           fi
-      - name: No change
-        if: steps.diff.outputs.changed != 'true'
-        run: echo "Prices are the same as the last snapshot; no pull request."

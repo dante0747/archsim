@@ -1,6 +1,7 @@
 package io.archsim.model.pricing;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -30,10 +31,34 @@ class PriceSnapshotsTests {
 
 	private static final PriceSnapshots SHIPPED = PriceSnapshots.shipped();
 
+	/** The snapshots ArchSim ships: the model's resources. */
+	private static final Path RESOURCES = Repository.root()
+		.resolve("archsim-model/src/main/resources/io/archsim/model/pricing/snapshots");
+
 	/** A valid snapshot file of aws prices: its region, date and note. */
 	private static final String SNAPSHOT = """
 			{"format": "archsim.prices/1", "provider": "aws", "region": "%s", "snapshotDate": "%s",
 			 "sources": [{"name": "test", "url": "https://example.com/prices"}], "note": "%s"}""";
+
+	// the newest shipped snapshot of the default provider and region: what an unpinned
+	// design prices with
+	private static AvailableSnapshot newestOfUsEast1() {
+		return SHIPPED.newest()
+			.stream()
+			.filter((snapshot) -> snapshot.provider().equals(PriceSnapshots.DEFAULT_PROVIDER)
+					&& snapshot.region().equals(PriceSnapshots.DEFAULT_REGION))
+			.findFirst()
+			.orElseThrow();
+	}
+
+	private static List<String> jsonFiles(Path folder) throws IOException {
+		try (Stream<Path> files = Files.list(folder)) {
+			return files.map((path) -> path.getFileName().toString())
+				.filter((name) -> name.endsWith(".json"))
+				.sorted()
+				.toList();
+		}
+	}
 
 	private static Path write(Path folder, String name, String content) throws IOException {
 		Files.createDirectories(folder);
@@ -41,13 +66,23 @@ class PriceSnapshotsTests {
 	}
 
 	@Test
-	void shipped_pythonEngineSnapshots_areTheSameFiles() throws IOException {
+	void shippedNames_everySnapshotFileOfTheResources_isShippedInFileOrder() throws IOException {
+		// a refreshed snapshot ships by adding its file: the build lists the folder
+		assertThat(SnapshotFiles.shippedNames()).containsExactlyElementsOf(jsonFiles(RESOURCES));
+	}
+
+	@Test
+	void shipped_pythonEngineSnapshots_areShippedAsTheyAre() throws IOException {
+		// the frozen engine's copy, until it is deleted: in the jar, byte for byte
 		Path engine = Repository.root().resolve("packages/engine/src/archsim_engine/pricing");
-		try (Stream<Path> files = Files.list(engine)) {
-			Stream<String> names = files.map((path) -> path.getFileName().toString());
-			assertThat(names.filter((name) -> name.endsWith(".json")).sorted())
-				.containsExactlyElementsOf(PriceSnapshots.SHIPPED);
-		}
+
+		assertThat(jsonFiles(engine)).isNotEmpty().allSatisfy((name) -> {
+			assertThat(SnapshotFiles.shippedNames()).contains(name);
+			try (InputStream shipped = SnapshotFiles.class.getResourceAsStream("snapshots/" + name);
+					InputStream copy = Files.newInputStream(engine.resolve(name))) {
+				assertThat(shipped).hasSameContentAs(copy);
+			}
+		});
 	}
 
 	@Test
@@ -81,7 +116,7 @@ class PriceSnapshotsTests {
 	void load_sameDateInExtraFolderAndShipped_takesTheExtraFolders(@TempDir Path folder) throws IOException {
 		write(folder, "aws-us-east-1-2026-10-28.json", SNAPSHOT.formatted("us-east-1", "2026-10-28", "extra folder"));
 
-		PriceSnapshot loaded = PriceSnapshots.with(List.of(folder)).load("aws", "us-east-1", null, null);
+		PriceSnapshot loaded = PriceSnapshots.with(List.of(folder)).load("aws", "us-east-1", "2026-10-28", null);
 
 		assertThat(loaded.note()).isEqualTo("extra folder");
 	}
@@ -120,9 +155,10 @@ class PriceSnapshotsTests {
 
 	@Test
 	void forPricing_unpinnedPrices_takeTheNewestSnapshot() {
-		PriceSnapshot newest = SHIPPED.forPricing(JSON.readTree("{\"provider\": \"aws\", \"region\": \"us-east-1\"}"));
-		assertThat(newest.label()).isEqualTo("aws us-east-1 (2026-10-28)");
-		assertThat(newest.families()).contains("m7g", "t4g");
+		PriceSnapshot found = SHIPPED.forPricing(JSON.readTree("{\"provider\": \"aws\", \"region\": \"us-east-1\"}"));
+
+		assertThat(found.label()).isEqualTo("aws us-east-1 (" + newestOfUsEast1().date() + ")");
+		assertThat(found.families()).contains("m7g", "t4g");
 	}
 
 	@Test
@@ -135,10 +171,13 @@ class PriceSnapshotsTests {
 
 	@Test
 	void pinned_unpinnedPrices_writeInTheSnapshotFound() {
+		AvailableSnapshot newest = newestOfUsEast1();
+
 		var pinned = Objects
 			.requireNonNull(SHIPPED.pinned(JSON.readTree("{\"provider\": \"aws\", \"region\": \"us-east-1\"}")));
-		assertThat(pinned.get("snapshotDate").stringValue()).isEqualTo("2026-10-28");
-		assertThat(pinned.get("snapshotSha256").stringValue()).startsWith("35599a05bdf9");
+
+		assertThat(pinned.get("snapshotDate").stringValue()).isEqualTo(newest.date());
+		assertThat(pinned.get("snapshotSha256").stringValue()).isEqualTo(newest.sha256());
 	}
 
 	@Test

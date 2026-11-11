@@ -115,9 +115,10 @@ Each cost line has a `priceSource`; the first that applies wins:
 
 ## Snapshots
 
-A snapshot is a JSON file in `packages/engine/src/archsim_engine/pricing/` (shipped in the
-engine's wheel) or in a directory named by `ARCHSIM_PRICES_DIR` (several are separated by the
-path separator), in the format `archsim.prices/1`:
+A snapshot is a JSON file in `archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/`
+(shipped in the model's jar: its build lists every file of the folder) or in a directory named by
+`ARCHSIM_PRICES_DIR` (several are separated by the path separator), in the
+format `archsim.prices/1`:
 
 ```json
 {
@@ -225,17 +226,18 @@ unpinned design whose provider has no snapshot here gets the same warning and ge
 The scripts in `scripts/prices/` read the providers' public price lists and write a snapshot.
 ArchSim never calls them, or any price API, at runtime.
 
-**Monthly AWS refresh.** `.github/workflows/prices.yml` runs on the 2nd of every month (and on
-demand): it rebuilds the us-east-1 snapshot, runs the price tests, and opens a pull request
-with the new file and a summary of what changed (`scripts/prices/diff.py`: types added, removed
-and repriced, largest changes first). When no price changed it opens nothing. A person reviews
-and merges it. Older snapshots stay in the package, so a design pinned to one reproduces.
-During the Java port the schedule is paused, because the snapshots live in the frozen Python
-engine ([ADR-0026](adr/0026-component-specs-and-price-snapshots-in-the-model.md)). It returns at
-stage 4, when the Java engine owns them.
+**Monthly AWS refresh.** `.github/workflows/prices.yml` rebuilds the us-east-1 snapshot among
+the model's, runs the model's tests, and opens a pull request with the new file and a summary of
+what changed (`scripts/prices/diff.py`: types added, removed and repriced, largest changes
+first). When no price changed it opens nothing. A person reviews and merges it. Older snapshots
+stay, so a design pinned to one reproduces. Its monthly schedule (the 2nd) is off, and it runs
+by hand only: the golden pricing entries and some sizing tests still expect 0.16.0's two
+snapshots to be the only ones, so a new snapshot fails them until they stop assuming it
+([ADR-0026](adr/0026-component-specs-and-price-snapshots-in-the-model.md)); and the repository's
+Actions minutes are short.
 
 After the merge, **new projects** pin the new snapshot (the API pins the newest AWS us-east-1
-snapshot the engine ships). **Templates** keep the date they name, because a new snapshot can
+snapshot the model ships). **Templates** keep the date they name, because a new snapshot can
 snap parts to other types and so change results. To move them: set `pricing.snapshotDate` in
 `examples/*.json` to the new date, then regenerate what depends on their results (as for any
 change to simulated results): delete `packages/engine/tests/snapshots/check-regression.md` and
@@ -247,7 +249,7 @@ By hand:
 
 ```bash
 uv run python scripts/prices/aws.py --region us-east-1      # AWS Price List bulk API (CSV, streamed)
-uv run python scripts/prices/diff.py packages/engine/src/archsim_engine/pricing/aws-us-east-1-<date>.json
+uv run python scripts/prices/diff.py archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/aws-us-east-1-<date>.json
 uv run python scripts/prices/azure.py --region eastus       # Azure Retail Prices API
 GOOGLE_API_KEY=... uv run python scripts/prices/gcp.py --region us-central1   # Cloud Billing Catalog API
 ```

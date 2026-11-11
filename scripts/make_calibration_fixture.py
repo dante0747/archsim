@@ -25,7 +25,7 @@ from archsim_engine import run_simulation
 from archsim_engine.load import mean_ms
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "packages" / "engine" / "tests" / "fixtures" / "calibration"
+OUT = ROOT / "parity" / "fixtures" / "calibration"
 START = 1790812800  # 2026-10-01T00:00:00Z
 SPAN_S = 120
 STEP_S = 5
