@@ -73,10 +73,11 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # the end-to-end launcher: the Java tests check the worker's command line in it
     ("apps/web/e2e/api-server.mjs", frozenset({"web", "java", "e2e"})),
     ("apps/web/", frozenset({"web", "e2e"})),
-    # The Java build. The black-box API tests and the command line are not part of the app the
-    # end-to-end tests run.
+    # The Java build. The black-box API tests, the command line and the MCP server are not part
+    # of the app the end-to-end tests run.
     ("archsim-api-tests/", frozenset({"java"})),
     ("archsim-cli/", frozenset({"java"})),
+    ("archsim-mcp/", frozenset({"java"})),
     ("archsim-app/", JAVA),
     ("archsim-engine/", JAVA),
     # scripts/export_printable.py writes the table PythonText reads, and scripts/tests checks

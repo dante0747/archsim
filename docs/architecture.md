@@ -82,12 +82,15 @@ from archsim_engine import run_simulation, compare_reports
 report = run_simulation(document_dict, scenario_id="three-api-replicas")
 ```
 
-### MCP server (`packages/mcp`, import name `archsim_mcp`)
+### MCP server (`archsim-mcp`, Java)
 
-A stdio [MCP](https://modelcontextprotocol.io) server on the official SDK (`archsim-mcp`) that
-calls the engine directly: tools to list, validate, analyze, simulate, compare, sweep, export
-and calibrate, plus resources for the templates, the JSON Schema and the simulation model.
-See [`agents.md`](agents.md).
+A stdio [MCP](https://modelcontextprotocol.io) server on the official MCP Java SDK
+([`archsim-mcp/README.md`](../archsim-mcp/README.md)) that calls the Java engine directly: tools
+to list, validate, analyze, simulate, compare, sweep, export, import and calibrate, plus
+resources for the templates, the JSON Schema and the simulation model. It replaces the Python
+server (`packages/mcp`) tool for tool, with the same schemas and values
+([ADR-0058](adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md)), until the Java port's stage 5
+removes it. See [`agents.md`](agents.md).
 
 ### API (`archsim-app`, Java)
 

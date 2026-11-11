@@ -1,0 +1,600 @@
+{
+  "name": "archsim",
+  "instructions": "ArchSim simulates distributed-system designs (services, databases, caches, queues, load balancers) with a discrete-event engine. Start with list_templates or list_part_types, get_template for a ready-made design document, validate_design and analyze_design before simulate. Documents are ArchSim JSON (schema at archsim://schema/architecture). Numbers are estimates from the model and its assumptions, not measurements.",
+  "tools": [
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Without a type: every kind of part (services, databases, caches, queues, load balancers,\n    clients, third-party APIs, Kubernetes clusters) with their technology presets and tiers.\n    With a type: its settings (key, kind, default, options, unit, limits, meaning), ports and presets.",
+      "inputSchema": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "title": "list_part_typesArguments"
+      },
+      "name": "list_part_types"
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Ready-made designs: id, name, description and scenario count.",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "list_templatesArguments"
+      },
+      "name": "list_templates",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Result",
+            "type": "array"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "title": "list_templatesOutput"
+      }
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "The full document of a template (edit it and pass it to the other tools).",
+      "inputSchema": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "title": "get_templateArguments"
+      },
+      "name": "get_template",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "get_templateDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Check a document: errors block a run, warnings do not. Each issue says how to fix it.",
+      "inputSchema": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Document"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "type": "object",
+        "title": "validate_designArguments"
+      },
+      "name": "validate_design",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "validate_designDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Without simulating: the engine's auto sizes (CPU, memory, storage per part), monthly cost\n    estimate, design review (capacity, timeouts, retries, single points of failure), technology\n    tiers, where every input came from, an instant latency and utilization estimate from queueing\n    formulas, and how much confidence the inputs deserve (high, medium or low, with why).",
+      "inputSchema": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Document"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scenario Id"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "type": "object",
+        "title": "analyze_designArguments"
+      },
+      "name": "analyze_design",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "analyze_designDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Run the discrete-event simulation of the design (or one of its scenarios). Returns the\n    verdict against the document's objectives, throughput, success rate, latency, findings (the\n    bottleneck and what to do), per-part status, monthly cost, run id and result digest (the\n    same document, scenario and seed always give the same digest). mode \"sampled\" answers a long\n    steady run from a steady sample (much faster; falls back to full when the load changes).",
+      "inputSchema": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Document"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scenario Id"
+          },
+          "mode": {
+            "default": "full",
+            "enum": [
+              "full",
+              "sampled"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "type": "object",
+        "title": "simulateArguments"
+      },
+      "name": "simulate",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "simulateDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "A run from this session by id: the summary again, or the full report (large).",
+      "inputSchema": {
+        "properties": {
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "detail": {
+            "default": "summary",
+            "enum": [
+              "summary",
+              "full"
+            ],
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "type": "object",
+        "title": "get_resultsArguments"
+      },
+      "name": "get_results",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "get_resultsDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Simulate two scenarios of the document (None = the design as drawn) and explain the\n    differences: KPIs with deltas and verdicts, and the input changes that caused them.",
+      "inputSchema": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Document"
+          },
+          "a": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "A"
+          },
+          "b": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "B"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "type": "object",
+        "title": "compareArguments"
+      },
+      "name": "compare",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "compareDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Find the highest load the design holds within its objectives: short constant-load runs from\n    from_rps to to_rps (default half to three times the baseline), the knee where it stops keeping\n    up, and the bottleneck there.",
+      "inputSchema": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Document"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scenario Id"
+          },
+          "from_rps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Rps"
+          },
+          "to_rps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Rps"
+          },
+          "steps": {
+            "default": 8,
+            "title": "Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "type": "object",
+        "title": "breaking_pointArguments"
+      },
+      "name": "breaking_point",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "breaking_pointDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Scaffolding generated from the design: docker-compose, Kubernetes manifests or a Mermaid\n    diagram (resources from the parts' specs or the engine's auto sizes). Review before use.",
+      "inputSchema": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Document"
+          },
+          "format": {
+            "enum": [
+              "compose",
+              "k8s",
+              "mermaid"
+            ],
+            "title": "Format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "format"
+        ],
+        "type": "object",
+        "title": "exportArguments"
+      },
+      "name": "export",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "title": "exportOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Set the design's inputs from telemetry files (no network): Prometheus responses recorded\n    with `archsim calibrate prometheus --record` plus a mapping file, or an OTLP JSON trace\n    export (optional mapping of service and database names to parts). Returns the calibrated\n    document, what changed (with fit errors) and the replay check against what was observed.",
+      "inputSchema": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Document"
+          },
+          "source": {
+            "enum": [
+              "prometheus",
+              "otlp"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "mapping_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mapping Path"
+          },
+          "recorded_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recorded Path"
+          },
+          "traces_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Traces Path"
+          }
+        },
+        "required": [
+          "document",
+          "source"
+        ],
+        "type": "object",
+        "title": "calibrateArguments"
+      },
+      "name": "calibrate",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "calibrateDictOutput"
+      }
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "A design from a docker-compose file, Kubernetes manifests or a Terraform plan (the JSON of\n    `terraform show -json`), with the import report: what was mapped, what was guessed (marked\n    assumed), what was ignored, links to confirm, and validation issues to fix before a run.",
+      "inputSchema": {
+        "properties": {
+          "format": {
+            "enum": [
+              "compose",
+              "k8s",
+              "terraform"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          }
+        },
+        "required": [
+          "format",
+          "text"
+        ],
+        "type": "object",
+        "title": "import_designArguments"
+      },
+      "name": "import_design",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "import_designDictOutput"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "description": "JSON Schema of ArchSim architecture documents.",
+      "mimeType": "application/json",
+      "name": "schema",
+      "uri": "archsim://schema/architecture"
+    },
+    {
+      "description": "What the simulation models and what it does not (docs/simulation-model.md).",
+      "mimeType": "text/markdown",
+      "name": "simulation_model",
+      "uri": "archsim://docs/simulation-model"
+    }
+  ],
+  "resourceTemplates": [
+    {
+      "description": "A ready-made design document.",
+      "mimeType": "application/json",
+      "name": "template",
+      "uriTemplate": "archsim://templates/{template_id}"
+    }
+  ]
+}

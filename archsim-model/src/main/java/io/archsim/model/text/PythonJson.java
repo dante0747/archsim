@@ -1,5 +1,6 @@
 package io.archsim.model.text;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,8 @@ import tools.jackson.databind.node.JsonNodeFactory;
  * it: no spaces, floats as their repr, NaN and the infinities by name, the keys in their
  * order or sorted by code point ({@code sort_keys=True}), and non-ASCII characters either
  * escaped (Python's default) or as they are ({@code ensure_ascii=False}); or, indented,
- * as {@code json.dumps(value, indent=n)} writes it.
+ * as {@code json.dumps(value, indent=n)} writes it; or as {@code pydantic_core.to_json}
+ * writes it, which differs only in its floats.
  */
 public final class PythonJson {
 
@@ -23,6 +25,11 @@ public final class PythonJson {
 	 */
 	private static final char SPACE = 0x20;
 
+	/**
+	 * The exponent pydantic_core writes out in full: {@code 1e-05} is {@code 0.00001}.
+	 */
+	private static final int WRITTEN_OUT_EXPONENT = 5;
+
 	private static final PythonJson IN_ORDER_ASCII = new PythonJson(Keys.IN_ORDER, Characters.ASCII);
 
 	private static final PythonJson IN_ORDER_AS_IS = new PythonJson(Keys.IN_ORDER, Characters.AS_IS);
@@ -30,6 +37,8 @@ public final class PythonJson {
 	private final Keys keys;
 
 	private final Characters characters;
+
+	private final Floats floats;
 
 	/** One level of indentation; {@code null} for none, the whole value on one line. */
 	private final @Nullable String indentation;
@@ -40,12 +49,13 @@ public final class PythonJson {
 	 * @param characters which characters are written as they are
 	 */
 	PythonJson(Keys keys, Characters characters) {
-		this(keys, characters, null);
+		this(keys, characters, Floats.REPR, null);
 	}
 
-	private PythonJson(Keys keys, Characters characters, @Nullable String indentation) {
+	private PythonJson(Keys keys, Characters characters, Floats floats, @Nullable String indentation) {
 		this.keys = keys;
 		this.characters = characters;
+		this.floats = floats;
 		this.indentation = indentation;
 	}
 
@@ -71,7 +81,21 @@ public final class PythonJson {
 	 * @return its text
 	 */
 	public static String writeIndented(JsonNode value, int spaces) {
-		return new PythonJson(Keys.IN_ORDER, Characters.ASCII, " ".repeat(spaces)).text(value);
+		return new PythonJson(Keys.IN_ORDER, Characters.ASCII, Floats.REPR, " ".repeat(spaces)).text(value);
+	}
+
+	/**
+	 * The JSON text of a value as {@code pydantic_core.to_json(value, indent=spaces)}
+	 * writes it, as the Python MCP SDK wrote a tool's result: laid out as
+	 * {@link #writeIndented(JsonNode, int)} lays it out, every character but the control
+	 * characters as it is, and a float as its repr but for its exponent: {@code -5}
+	 * written out ({@code 0.00001}), lower ones without their zero ({@code 5e-6}).
+	 * @param value the JSON value
+	 * @param spaces the spaces each level is indented by
+	 * @return its text
+	 */
+	public static String writePydantic(JsonNode value, int spaces) {
+		return new PythonJson(Keys.IN_ORDER, Characters.AS_IS, Floats.PYDANTIC, " ".repeat(spaces)).text(value);
 	}
 
 	/**
@@ -106,7 +130,7 @@ public final class PythonJson {
 			out.append(value.bigIntegerValue());
 		}
 		else if (value.isNumber()) {
-			out.append(number(value.doubleValue()));
+			out.append(this.floats.write(value.doubleValue()));
 		}
 		else if (value.isString()) {
 			string(value.stringValue(), out);
@@ -173,7 +197,7 @@ public final class PythonJson {
 	 * @param value the float
 	 * @return its JSON text
 	 */
-	private static String number(double value) {
+	private static String repr(double value) {
 		if (Double.isNaN(value)) {
 			return "NaN";
 		}
@@ -181,6 +205,25 @@ public final class PythonJson {
 			return (value > 0) ? "Infinity" : "-Infinity";
 		}
 		return PythonText.repr(value);
+	}
+
+	/**
+	 * A float as pydantic_core writes it: as {@link #repr(double)}, but for an exponent
+	 * of {@code -5} written out and a lower one without its zero.
+	 * @param value the float
+	 * @return its JSON text
+	 */
+	private static String pydantic(double value) {
+		String repr = repr(value);
+		int exponent = repr.indexOf("e-");
+		if (exponent < 0) {
+			return repr;
+		}
+		int power = Integer.parseInt(repr.substring(exponent + 2));
+		if (power == WRITTEN_OUT_EXPONENT) {
+			return new BigDecimal(repr).toPlainString();
+		}
+		return repr.substring(0, exponent + 2) + power;
 	}
 
 	/**
@@ -246,6 +289,23 @@ public final class PythonJson {
 
 		/** Sorted by code point ({@code sort_keys=True}). */
 		SORTED
+
+	}
+
+	/**
+	 * How floats are written.
+	 */
+	enum Floats {
+
+		/** As their repr, as Python's json module writes them. */
+		REPR,
+
+		/** As pydantic_core writes them. */
+		PYDANTIC;
+
+		String write(double value) {
+			return (this == PYDANTIC) ? pydantic(value) : repr(value);
+		}
 
 	}
 

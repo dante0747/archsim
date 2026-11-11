@@ -64,20 +64,25 @@ itself.
 
 ## MCP server (Claude Code, Claude Desktop, Cursor...)
 
-`packages/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio
-(the official `mcp` Python SDK). It runs the engine directly: no browser, API server or network
-is needed, and runs keep the engine's limits (120 s wall clock and 2 million requests by
-default; `ARCHSIM_MCP_MAX_WALL_SECONDS`, `ARCHSIM_MCP_MAX_REQUESTS`).
+`archsim-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio,
+on the official MCP Java SDK ([`archsim-mcp/README.md`](../archsim-mcp/README.md)). It runs the
+engine directly: no browser, API server or network is needed, and runs keep the engine's limits
+(120 s wall clock and 2 million requests by default; `ARCHSIM_MCP_MAX_WALL_SECONDS`,
+`ARCHSIM_MCP_MAX_REQUESTS`).
 
-Add it from a checkout of this repository (it is not published to a package index):
+Build it in a checkout of this repository (it is not published) with Java 25, then add the
+command it installs:
 
 ```bash
-claude mcp add archsim -- uv run --directory /path/to/archsim archsim-mcp
+./gradlew :archsim-mcp:installDist
+claude mcp add archsim -- /path/to/archsim/archsim-mcp/build/install/archsim-mcp/bin/archsim-mcp
 ```
 
-For Claude Desktop, Cursor and other clients, configure a stdio server with the command
-`uv` and the arguments `run --directory /path/to/archsim archsim-mcp`. Once the package is
-published, `uvx archsim-mcp` will work without a checkout.
+For Claude Desktop, Cursor and other clients, configure a stdio server with that command
+(`archsim-mcp.bat` on Windows). It serves the checkout's templates, from `examples/`;
+`ARCHSIM_EXAMPLES_DIR` names another folder. The Python server it replaces
+(`uv run --directory /path/to/archsim archsim-mcp`) gives the same tools until the Java port's
+stage 5 removes it.
 
 | Tool | What it does |
 | --- | --- |
@@ -88,7 +93,7 @@ published, `uvx archsim-mcp` will work without a checkout.
 | `simulate` | Runs the design or a scenario: verdict against the objectives, throughput, success, p50/p95/p99, findings, per-part status, cost, run id and result digest (deterministic). `mode: "sampled"` answers a long steady run from a steady sample ([performance.md](performance.md)). |
 | `get_results` | A run of this session again, as a summary or the full report. |
 | `compare` | Two scenarios side by side: KPI deltas and the input changes behind them. |
-| `breaking_point` | Steps the load to find the highest that meets the objectives, the knee and the bottleneck (the steps run in parallel processes). |
+| `breaking_point` | Steps the load to find the highest that meets the objectives, the knee and the bottleneck (the steps run in parallel). |
 | `export` | docker-compose, Kubernetes manifests or a Mermaid diagram of the design. |
 | `import_design` | A design from a docker-compose file, Kubernetes manifests or a Terraform plan, with the import report (mapped, guessed, ignored, links to confirm). |
 | `calibrate` | Sets inputs from telemetry files (recorded Prometheus responses plus a mapping, or an OTLP trace export); returns the calibrated document and the replay check. |

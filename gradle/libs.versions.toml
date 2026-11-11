@@ -27,6 +27,9 @@ checkstyle = "14.3.0"
 errorprone-plugin = "5.2.0"
 jib = "3.4.5"
 picocli = "4.7.7"
+# the official MCP Java SDK, which Spring Boot does not manage: the server and its Jackson 3 JSON
+# (ADR-0058)
+mcp-sdk = "2.1.0"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -47,6 +50,8 @@ archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" 
 jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
 # the command line, `archsim` (ADR-0051)
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
+mcp-core = { module = "io.modelcontextprotocol.sdk:mcp-core", version.ref = "mcp-sdk" }
+mcp-json-jackson3 = { module = "io.modelcontextprotocol.sdk:mcp-json-jackson3", version.ref = "mcp-sdk" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }

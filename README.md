@@ -176,11 +176,13 @@ clicking. Every agent edit shows on the canvas, is announced in a toast and can 
 is an experimental draft standard; see [docs/agents.md](docs/agents.md) for the tools and
 browser support.
 
-**AI coding agents (MCP):** `packages/mcp` is an MCP server over stdio for Claude Code, Claude
+**AI coding agents (MCP):** `archsim-mcp` is an MCP server over stdio for Claude Code, Claude
 Desktop, Cursor and others: list part types and templates, validate, analyze, simulate (with
-the verdict, findings and result digest), compare, find the breaking point, export and
-calibrate, with the engine's limits and no browser or API server
-(`claude mcp add archsim -- uv run --directory /path/to/archsim archsim-mcp`).
+the verdict, findings and result digest), compare, find the breaking point, export, import and
+calibrate, with the engine's limits and no browser or API server (`./gradlew
+:archsim-mcp:installDist`, then
+`claude mcp add archsim -- /path/to/archsim/archsim-mcp/build/install/archsim-mcp/bin/archsim-mcp`;
+see [docs/agents.md](docs/agents.md)).
 
 **Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and the
 Studio theme, dark by default, in dark and light (the sun/moon button at the top right picks one
