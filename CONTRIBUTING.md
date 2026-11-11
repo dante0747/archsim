@@ -76,6 +76,7 @@ Run everything CI runs before opening a pull request:
 uv run ruff check packages services
 uv run ruff format --check packages services
 uv run mypy packages/engine/src services/api/src packages/mcp/src
+./gradlew :archsim-cli:installDist             # the benchmarks' tests call it: a Java 25 on JAVA_HOME or the PATH
 uv run pytest                                   # the engine, its tools and the migrations (SQLite)
 
 # The migration tests against PostgreSQL (drops all tables in the target database!)

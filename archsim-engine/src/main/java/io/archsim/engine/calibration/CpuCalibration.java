@@ -16,6 +16,7 @@ import io.archsim.engine.calibration.prometheus.PrometheusSeries.Point;
 import io.archsim.engine.calibration.resources.CpuFit;
 import io.archsim.engine.calibration.resources.CpuFits;
 import io.archsim.engine.calibration.resources.LoadCurve;
+import io.archsim.engine.calibration.resources.LoadCurves;
 import io.archsim.engine.calibration.resources.RatePoint;
 import io.archsim.model.catalog.Setting;
 import io.archsim.model.text.PythonFormat;
@@ -25,12 +26,6 @@ import io.archsim.model.text.PythonFormat;
  * CPU per request changed with load, as the Python engine's {@code _fit_cpu} sets them.
  */
 final class CpuCalibration {
-
-	/**
-	 * The share a curve's factors must span to be set: less is within CPU counters'
-	 * noise.
-	 */
-	static final double MIN_CURVE_CHANGE = 0.10;
 
 	private static final String CPU_SHARE = "cpuShare";
 
@@ -91,15 +86,15 @@ final class CpuCalibration {
 
 	/**
 	 * Sets {@code serviceTimeByLoad} from how CPU per request changed with the rate per
-	 * replica, when it changed by more than {@link #MIN_CURVE_CHANGE}; a note when the
-	 * part has no such setting, or its replicas change with load.
+	 * replica, when it changed by more than {@link LoadCurves#MIN_CHANGE}; a note when
+	 * the part has no such setting, or its replicas change with load.
 	 * @param fitted the part and the query
 	 * @param fit the CPU fit, with its curve
 	 * @param config the part's parsed configuration
 	 */
 	private static void loadCurve(Fitted fitted, CpuFit fit, ObjectNode config) {
 		LoadCurve curve = fit.curve();
-		if (curve == null || curve.span() <= MIN_CURVE_CHANGE) {
+		if (curve == null || curve.span() <= LoadCurves.MIN_CHANGE) {
 			return;
 		}
 		Setting setting = fitted.run().settings(fitted.node()).get(BY_LOAD);

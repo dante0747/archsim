@@ -1,9 +1,9 @@
 """Fitted CPU and memory inputs against what pg-mixed run 5 measured, read from the committed
 results (benchmarks/results/pg-mixed/run-5); nothing starts Docker.
 
-Calibration fits the CPU share from CPU per request and memory from the working set
-(archsim_engine.calibration.resources). On the steps below the measured knee, as a calibration
-over normal operation would see them:
+Calibration fits the CPU share from CPU per request and memory from the working set (the engine's
+resource fits, which the harness asks the Java engine for: engine_functions). On the steps below
+the measured knee, as a calibration over normal operation would see them:
 
 - the CPU share predicts the API's CPU at the knee within 15%, where ArchSim predicted a full
   core before (it counted the whole service time as CPU). CPU per request falls with load (about
@@ -24,9 +24,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+import engine_functions
+
 from archsim_engine import run_simulation
-from archsim_engine.calibration.resources import MIN_PER_REQUEST_MB, fit_cpu_share, fit_memory
-from archsim_engine.load import mean_ms
 
 # run 5 (protocol v4, 28 Oct 2026), kept in run-5/ since the baseline campaign of 30 Oct
 RESULTS = Path(__file__).resolve().parents[1] / "results" / "pg-mixed" / "run-5"
@@ -59,7 +59,7 @@ def before(step: dict[str, Any]) -> dict[str, float]:
 
 def api_service_ms() -> float:
     api = next(n for n in DESIGN["architecture"]["nodes"] if n["id"] == "api")
-    return mean_ms(api["config"]["serviceTimeMs"])
+    return engine_functions.expected_ms(api["config"]["serviceTimeMs"])
 
 
 def held(step: dict[str, Any]) -> float:
@@ -73,10 +73,10 @@ def rel(a: float, b: float) -> float:
 
 def fitted() -> tuple[Any, Any]:
     below = steps()
-    cpu = fit_cpu_share(
+    cpu = engine_functions.fit_cpu_share(
         [(s["throughputRps"], used(s, "api")["cores"]) for s in below], api_service_ms()
     )
-    memory = fit_memory(
+    memory = engine_functions.fit_memory(
         [used(s, "api")["workingSetMiB"] for s in below],
         rate=[s["throughputRps"] for s in below],
     )
@@ -101,8 +101,6 @@ def test_cpu_share_from_cpu_per_request_predicts_the_cpu_at_the_knee() -> None:
 
 
 def test_cpu_per_request_falls_with_load_and_the_curve_follows_it() -> None:
-    from archsim_engine.components.load_curve import curve_of, load_factor
-
     cpu, _ = fitted()
     curve = cpu.curve
     assert curve is not None and curve.measured[0][1] > 2 * curve.measured[-1][1]
@@ -112,9 +110,9 @@ def test_cpu_per_request_falls_with_load_and_the_curve_follows_it() -> None:
     low = steps()[0]
     assert rel(cpu.predict(low["throughputRps"]), used(low, "api")["cores"]) < -0.4
     # ... and the curve's factor at each step's rate brings every step within 15%
-    table = curve_of(curve.table())
-    for s in steps():
-        cores = cpu.predict(s["throughputRps"]) * load_factor(table, s["throughputRps"])
+    factors = engine_functions.load_factors(curve.table(), [s["throughputRps"] for s in steps()])
+    for s, factor in zip(steps(), factors, strict=True):
+        cores = cpu.predict(s["throughputRps"]) * factor
         assert abs(rel(cores, used(s, "api")["cores"])) < 0.15, s["offeredRps"]
 
 
@@ -123,14 +121,14 @@ def test_memory_follows_the_request_rate_not_requests_held() -> None:
     ws = [used(s, "api")["workingSetMiB"] for s in below]
     _, by_rate = fitted()
     assert 0.06 < by_rate.per_rps_mb < 0.09 and by_rate.baseline_mb < 10
-    assert by_rate.per_request_mb == MIN_PER_REQUEST_MB  # not fitted against: its floor
+    assert by_rate.per_request_mb == engine_functions.min_per_request_mb()  # not fitted: its floor
     assert (
         max(
             abs(rel(by_rate.predict(s["throughputRps"]), w)) for s, w in zip(below, ws, strict=True)
         )
         < 0.3
     )
-    by_held = fit_memory(ws, held=[held(s) for s in below])
+    by_held = engine_functions.fit_memory(ws, held=[held(s) for s in below])
     assert by_held is not None
     assert (
         max(abs(rel(by_held.predict(held=held(s)), w)) for s, w in zip(below, ws, strict=True))
@@ -144,13 +142,13 @@ def test_over_the_whole_run_memory_does_not_grow_with_requests_held() -> None:
     assert max(held(s) for s in every) > 10 * max(
         held(s) for s in steps()
     )  # overload decouples them
-    both = fit_memory(
+    both = engine_functions.fit_memory(
         [used(s, "api")["workingSetMiB"] for s in every],
         rate=[s["throughputRps"] for s in every],
         held=[held(s) for s in every],
     )
     assert both is not None and both.against == ("rate", "held")
-    assert both.per_request_mb == MIN_PER_REQUEST_MB
+    assert both.per_request_mb == engine_functions.min_per_request_mb()
     assert any("did not grow with the requests held" in n for n in both.notes)
     assert 0.06 < both.per_rps_mb < 0.09
 

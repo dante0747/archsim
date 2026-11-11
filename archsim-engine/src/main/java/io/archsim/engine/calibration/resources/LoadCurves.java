@@ -28,6 +28,12 @@ public final class LoadCurves {
 	/** The most bins by rate a curve has. */
 	public static final int MAX_BINS = 6;
 
+	/**
+	 * The share a curve's factors must span for a calibration to set it: less is within
+	 * CPU counters' noise.
+	 */
+	public static final double MIN_CHANGE = 0.10;
+
 	private static final double MS_PER_S = 1000.0;
 
 	private LoadCurves() {

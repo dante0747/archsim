@@ -9,13 +9,14 @@ import copy
 import json
 from typing import Any
 
+import engine_functions
 import pytest
 import run
 
-from archsim_engine.components.host import Machine
-
 SIBLINGS = {str(c): [c - c % 2, c - c % 2 + 1] for c in range(8)}
-TRUTH = Machine(cores=4, threads_per_core=2, sibling_speed=0.5, all_core_clock=0.75)
+TRUTH = {"cores": 4, "threadsPerCore": 2, "siblingSpeed": 0.5, "allCoreClock": 0.75}
+"""The engine's machine the checks follow."""
+BUSY = (1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.0)
 
 
 def condition(busy: float, cost_us: float, mhz: float) -> dict[str, Any]:
@@ -28,9 +29,10 @@ def condition(busy: float, cost_us: float, mhz: float) -> dict[str, Any]:
 
 def check(rest: float = 0.4, k6_cores: float = 0.5) -> dict[str, Any]:
     """A contention check of a machine that follows ``TRUTH`` exactly."""
+    speeds = engine_functions.machine_speeds(TRUTH, BUSY)
     probe = [
-        condition(d, 30.0 / TRUTH.speed(d), 4000.0 * (1 - 0.25 * (d - 1) / 7))
-        for d in (1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.0)
+        condition(d, 30.0 / v, 4000.0 * (1 - 0.25 * (d - 1) / 7))
+        for d, v in zip(BUSY, speeds, strict=True)
     ]
     return {
         "at": "2026-11-01T03:00:00Z",
@@ -103,9 +105,9 @@ def test_inputs_at_full_speed_and_the_host_from_the_pass(monkeypatch: pytest.Mon
     got = inputs()
     run.machine_inputs(run.EXPERIMENTS["pg-mixed"], passes(), got)
     busy = 0.32 + 0.28 + 1600 * fit["k6CpuMsPerRequest"] / 1000 + fit["backgroundThreads"]
-    m = Machine(cores=4, threads_per_core=2, sibling_speed=fit["siblingSpeed"],
-                all_core_clock=fit["allCoreClock"])  # fmt: skip
-    speed = m.speed(busy)
+    machine = {"cores": 4, "threadsPerCore": 2, "siblingSpeed": fit["siblingSpeed"],
+               "allCoreClock": fit["allCoreClock"]}  # fmt: skip
+    (speed,) = engine_functions.machine_speeds(machine, [busy])
     assert speed < 1
     assert got["serviceTimeMs"]["value"]["median"] == pytest.approx(0.17 * speed, rel=1e-4)
     assert got["serviceTimeMs"]["value"]["p95"] == pytest.approx(0.45 * speed, rel=1e-4)

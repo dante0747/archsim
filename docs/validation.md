@@ -130,8 +130,11 @@ Re-simulated, in-sample: engine 1.0.0 (Java) re-simulates every kept calibration
 
 ## Reproduce
 
-Each stack is one command (Docker and [uv](https://docs.astral.sh/uv/) needed; 20 to 30 minutes
-per experiment on the machine below). Keep the machine otherwise idle while it runs: other work
+Each stack is one command (Docker, [uv](https://docs.astral.sh/uv/) and a Java 25 needed, with the
+Java CLI installed by `./gradlew :archsim-cli:installDist`, which the harness asks for the engine's
+functions, [ADR-0061](adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md); 20 to
+30 minutes per experiment on the machine below). Keep the machine otherwise idle while it runs:
+other work
 shows up in the measurements (see the protocol history). On a Windows laptop, keep it on mains
 power and set the power mode to Best performance: the runner records the mode, and runs under
 different modes are not compared with each other:

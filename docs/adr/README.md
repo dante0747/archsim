@@ -102,3 +102,4 @@ what the repository shows.
 | [0058](0058-serve-mcp-with-the-official-mcp-java-sdk.md) | Serve ArchSim's MCP tools with the official MCP Java SDK | Accepted | 2026-11-11 |
 | [0059](0059-read-files-as-python-did-in-the-engine.md) | Read files as Python did in the engine, for the CLI and the MCP server | Accepted | 2026-11-11 |
 | [0060](0060-run-the-check-action-in-an-image-the-job-builds.md) | Run the archsim-check action's CLI in an image the job builds | Accepted | 2026-11-11 |
+| [0061](0061-answer-the-harnesss-engine-calls-from-one-java-process.md) | Answer the benchmark harness's engine calls from one Java process | Proposed | 2026-11-11 |

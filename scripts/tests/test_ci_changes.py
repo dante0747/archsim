@@ -46,6 +46,39 @@ EVERY_JOB = {
             {"java", "e2e", "archsim_check"},
         ),
         (["archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java"], {"java"}),
+        # the harness asks the Java engine for these functions: the benchmarks' tests check them
+        (
+            ["archsim-cli/src/main/java/io/archsim/cli/HarnessFunctions.java"],
+            {"java", "archsim_check", "python", "benchmark_tests"},
+        ),
+        (
+            ["archsim-cli/src/main/java/io/archsim/cli/FunctionsCommand.java"],
+            {"java", "archsim_check", "python", "benchmark_tests"},
+        ),
+        (
+            ["archsim-cli/src/main/java/io/archsim/cli/Archsim.java"],
+            {"java", "archsim_check", "python", "benchmark_tests"},
+        ),
+        (
+            ["archsim-cli/src/main/java/io/archsim/cli/RunCommand.java"],
+            {"java", "archsim_check"},
+        ),
+        (
+            ["archsim-model/src/main/java/io/archsim/model/codec/RecordCodec.java"],
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
+        ),
+        (
+            ["archsim-engine/src/main/java/io/archsim/engine/settings/LoadCurve.java"],
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
+        ),
+        (
+            ["archsim-engine/src/main/java/io/archsim/engine/host/HostMachine.java"],
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
+        ),
+        (
+            ["archsim-model/src/main/java/io/archsim/model/distribution/LogNormal.java"],
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
+        ),
         # the exporter reads the fixtures in the Python job, the API and app tests in the Java job
         (["parity/fixtures/calibration/starter-mapping.yaml"], {"python", "java"}),
         (["config/checkstyle/checkstyle.xml", "gradlew.bat"], {"java", "e2e"}),

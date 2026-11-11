@@ -51,12 +51,13 @@ public final class LoadCurve {
 	}
 
 	/**
-	 * A curve read from JSON as a design that may not be valid yet is read (ADR-0038):
-	 * points without a positive, finite rate and factor are skipped.
+	 * A curve read from JSON as a design that may not be valid yet is read (ADR-0038),
+	 * and as the Python engine's {@code curve_of} read a table: points without a
+	 * positive, finite rate and factor are skipped.
 	 * @param points the {@code serviceTimeByLoad} list
 	 * @return the curve
 	 */
-	static LoadCurve ofJson(JsonNode points) {
+	public static LoadCurve ofJson(JsonNode points) {
 		TreeMap<Double, Double> sorted = new TreeMap<>();
 		for (JsonNode point : points) {
 			JsonNode rps = point.path("rps");

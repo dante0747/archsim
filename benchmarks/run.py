@@ -40,7 +40,8 @@ are sealed: until the engine running is a frozen one (benchmarks/engines.json) a
 uncommitted, the runner refuses to calibrate or measure them, and only ``smoke`` starts their
 stacks (it checks that every request succeeds and is counted, and keeps no latency or results).
 
-Only the Python standard library, Docker and the engine are needed.
+Only the Python standard library, Docker and the engine are needed: the engine's functions come
+from the Java CLI (``./gradlew :archsim-cli:installDist``, engine_functions.py, ADR-0061).
 """
 
 from __future__ import annotations
@@ -65,6 +66,8 @@ from datetime import UTC, datetime
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
+
+import engine_functions
 
 HERE = Path(__file__).resolve().parent
 RESULTS = HERE / "results"
@@ -163,15 +166,7 @@ work shares the CPU; the limit only decides whether a run finishes, never what i
 ENGINE_VARIABLE = "BENCH_ENGINE"
 """Set to ``java`` to simulate on the Java engine's ``archsim run`` instead of the frozen Python
 engine (ADR-0051)."""
-JAVA_CLI = (
-    HERE.parent
-    / "archsim-cli"
-    / "build"
-    / "install"
-    / "archsim"
-    / "bin"
-    / ("archsim.bat" if os.name == "nt" else "archsim")
-)
+JAVA_CLI = engine_functions.CLI
 """The Java engine's command, as ``./gradlew :archsim-cli:installDist`` installs it."""
 JAVA_ENGINE_SOURCES = ("archsim-engine", "archsim-model", "archsim-cli")
 """The Java engine's source trees, which provenance names (and counts changes to) on it."""
@@ -1455,27 +1450,21 @@ def service_time_by_load(
     ``passes``), when the top kept the CPUs at least EXTEND_MIN_BUSY busy and the fall stands out
     of the passes' scatter. A protocol v5 staircase stops at a third of the core, so its curve
     stays flat above the top either way. None without a staircase (protocols before v5), or when
-    the curve spans no more than MIN_CURVE_CHANGE."""
-    from archsim_engine.calibration.resources import (
-        MIN_CURVE_CHANGE,
-        extend_load_curve,
-        fit_load_curve,
-    )
-
+    the curve spans no more than the engine's ``min_curve_change()``."""
     pts = [
         (float(b["rateRps"]), b["rateRps"] * b["serviceCpuMsPerRequest"] / 1000.0)
         for b in by_load or []
         if b.get("serviceCpuMsPerRequest")
     ]
-    fit = fit_load_curve(pts, max_bins=len(pts)) if len(pts) >= 2 else None
+    fit = engine_functions.fit_load_curve(pts, max_bins=len(pts)) if len(pts) >= 2 else None
     if fit is None:
         return None
     form = form or CURVE_FORM
-    ext = extend_load_curve(passes, cores) if passes and form == "log" else None
+    ext = engine_functions.extend_load_curve(passes, cores) if passes and form == "log" else None
     top = fit.points[-1][1]
     curve = [(r, f / top) for r, f in fit.points] + (ext.factors() if ext else [])
     factors = [f for _, f in curve]
-    if max(factors) / min(factors) - 1.0 <= MIN_CURVE_CHANGE:
+    if max(factors) / min(factors) - 1.0 <= engine_functions.min_curve_change():
         return None
     table = [{"rps": round(r, 1), "factor": round(f, 4)} for r, f in curve]
     measured = ", ".join(f"{m:.4f} ms at {r:g}" for r, m in fit.measured)
@@ -1803,11 +1792,7 @@ def db_client(exp: Experiment, entry: Mapping[str, Any]) -> dict[str, Any]:
 
 def mean_ms(dist: Mapping[str, Any]) -> float:
     """The mean of a model input's distribution as the engine samples it (ms)."""
-    from pydantic import TypeAdapter
-
-    from archsim_engine.distributions import Distribution
-
-    return float(TypeAdapter(Distribution).validate_python(dict(dist)).expected())
+    return engine_functions.expected_ms(dist)
 
 
 def db_cpu_share(
@@ -2365,14 +2350,12 @@ def memory_inputs(exp: Experiment, passes: dict[str, Any]) -> dict[str, Any]:
     memory per request held is its floor. Nothing without passes at MEMORY_MIN_RATES rates or
     more (a staircase that did not rise): the model keeps its defaults (256 MiB at idle, 2 MiB per
     request held)."""
-    from archsim_engine.calibration.resources import fit_memory
-
     out: dict[str, Any] = {}
     for prefix, name in memory_containers(exp).items():
         pts = memory_points(passes, name)
         if len({r for r, _ in pts if r > 0}) < MEMORY_MIN_RATES:
             continue
-        fit = fit_memory([w for _, w in pts], rate=[r for r, _ in pts])
+        fit = engine_functions.fit_memory([w for _, w in pts], rate=[r for r, _ in pts])
         if fit is None:
             continue
         rates = [r for r, _ in pts if r > 0]
@@ -2612,12 +2595,10 @@ def host_fit(
     * all-core clock: Windows' actual frequency against the machine's busy logical processors,
       a line through every probe condition, at 8 busy threads over 1;
     * sibling speed: the probe's CPU per unit of work against the busy threads, given that clock
-      (``archsim_engine.components.host.Machine.speed``), least squares in log over a grid;
+      (the engine's ``Machine.speed``), least squares in log over a grid;
     * background: the machine's busy threads with the stack up and at rest;
     * k6's CPU per request: its container's busy cores over the rate, the median over the
       as-benchmarked steps below 90% of the service's core."""
-    from archsim_engine.components.host import Machine
-
     service = check if service is None else service
     rest = service.get("serviceAtRest") or {}
     background = rest.get("busyLogicalProcessors")
@@ -2647,9 +2628,10 @@ def host_fit(
     fit_pts = [p for p in pts if p[0] < HOST_FIT_MAX_BUSY]
     best: tuple[float, float, float] | None = None
     for s100 in range(20, 101):
-        m = Machine(cores=cores, threads_per_core=threads // cores, sibling_speed=s100 / 100,
-                    all_core_clock=clock)  # fmt: skip
-        logs = [math.log(c * m.speed(d)) for d, _, c in fit_pts]
+        machine = {"cores": cores, "threadsPerCore": threads // cores,
+                   "siblingSpeed": s100 / 100, "allCoreClock": clock}  # fmt: skip
+        speeds = engine_functions.machine_speeds(machine, [d for d, _, _ in fit_pts])
+        logs = [math.log(c * v) for (_, _, c), v in zip(fit_pts, speeds, strict=True)]
         mid = statistics.fmean(logs)
         err = sum((v - mid) ** 2 for v in logs)
         if best is None or err < best[0]:
@@ -2743,16 +2725,14 @@ def scale_value(value: Any, k: float) -> Any:
     return value
 
 
-def fitted_machine(fit: Mapping[str, Any]) -> Any:
-    """The engine's ``Machine`` of a contention fit (no other load)."""
-    from archsim_engine.components.host import Machine
-
-    return Machine(
-        cores=fit["physicalCores"],
-        threads_per_core=fit["threadsPerCore"],
-        sibling_speed=fit["siblingSpeed"],
-        all_core_clock=fit["allCoreClock"],
-    )
+def fitted_machine(fit: Mapping[str, Any]) -> dict[str, float]:
+    """The engine's machine of a contention fit (no other load), as ``machine_speeds`` takes it."""
+    return {
+        "cores": fit["physicalCores"],
+        "threadsPerCore": fit["threadsPerCore"],
+        "siblingSpeed": fit["siblingSpeed"],
+        "allCoreClock": fit["allCoreClock"],
+    }
 
 
 def pass_speed(entry: Mapping[str, Any]) -> tuple[float, float] | None:
@@ -2768,7 +2748,7 @@ def pass_speed(entry: Mapping[str, Any]) -> tuple[float, float] | None:
         return None
     cores = sum(ms / 1000.0 / wall_s for ms in used.values() if ms is not None)
     busy = cores + rate * fit["k6CpuMsPerRequest"] / 1000.0 + fit["backgroundThreads"]
-    return busy, fitted_machine(fit).speed(busy)
+    return busy, engine_functions.machine_speeds(fitted_machine(fit), [busy])[0]
 
 
 def machine_inputs(exp: Experiment, passes: Mapping[str, Any], inputs: dict[str, Any]) -> None:
@@ -2960,10 +2940,7 @@ def engine_label() -> str:
 def java_engine_version() -> str:
     """The installed Java engine's version, as ``archsim --version`` prints it
     (``archsim, engine 1.0.0``)."""
-    if not JAVA_CLI.exists():
-        raise RuntimeError(
-            f"the Java engine is not installed at {JAVA_CLI}: run ./gradlew :archsim-cli:installDist"
-        )
+    engine_functions.require_installed(JAVA_CLI)
     ran = subprocess.run(
         [str(JAVA_CLI), "--version"], capture_output=True, text=True, encoding="utf-8"
     )

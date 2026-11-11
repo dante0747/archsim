@@ -100,6 +100,17 @@ jobs:
       - name: Engine tests
         if: needs.changes.outputs.engine_tests == 'true'
         run: uv run pytest packages/engine/tests
+      # the harness asks the Java engine for its functions (ADR-0061), through the CLI installed
+      - uses: actions/setup-java@v6
+        if: needs.changes.outputs.benchmark_tests == 'true'
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        if: needs.changes.outputs.benchmark_tests == 'true'
+      - name: Install the Java CLI
+        if: needs.changes.outputs.benchmark_tests == 'true'
+        run: ./gradlew :archsim-cli:installDist
       - name: Benchmark tests
         if: needs.changes.outputs.benchmark_tests == 'true'
         run: uv run pytest benchmarks/tests

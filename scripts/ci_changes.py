@@ -81,6 +81,36 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # The Java build. The black-box API tests, the command line and the MCP server are not part
     # of the app the end-to-end tests run.
     ("archsim-api-tests/", frozenset({"java"})),
+    # The functions the benchmark harness asks the Java engine for (ADR-0061): the CLI's command
+    # and answers, the resource fits, the host machine, the load curve and the distributions, and
+    # the codec and writer that give the answers' fields and numbers; the benchmarks' tests check
+    # them.
+    (
+        "archsim-cli/src/main/java/io/archsim/cli/*Functions*.java",
+        frozenset({"java"}) | CHECK_ACTION | BENCHMARK_TESTS,
+    ),
+    (
+        "archsim-cli/src/main/java/io/archsim/cli/Archsim.java",
+        frozenset({"java"}) | CHECK_ACTION | BENCHMARK_TESTS,
+    ),
+    (
+        "archsim-engine/src/main/java/io/archsim/engine/calibration/resources/",
+        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
+    ),
+    ("archsim-engine/src/main/java/io/archsim/engine/host/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
+    (
+        "archsim-engine/src/main/java/io/archsim/engine/settings/LoadCurve.java",
+        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
+    ),
+    (
+        "archsim-model/src/main/java/io/archsim/model/distribution/",
+        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
+    ),
+    ("archsim-model/src/main/java/io/archsim/model/codec/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
+    (
+        "archsim-model/src/main/java/io/archsim/model/text/PythonJson.java",
+        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
+    ),
     ("archsim-cli/", frozenset({"java"}) | CHECK_ACTION),
     ("archsim-mcp/", frozenset({"java"})),
     ("archsim-app/", JAVA),

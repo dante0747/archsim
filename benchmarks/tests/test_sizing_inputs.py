@@ -17,10 +17,9 @@ import math
 import time
 from typing import Any
 
+import engine_functions
 import pytest
 import run
-
-from archsim_engine.calibration.resources import MIN_PER_REQUEST_MB
 
 CACHE = run.EXPERIMENTS["cache-aside"]
 PG_MIXED = run.EXPERIMENTS["pg-mixed"]
@@ -138,7 +137,7 @@ def test_memory_inputs_fit_the_staircase_and_the_idle_pass() -> None:
     }
     assert v["serviceMemoryBaselineMb"]["value"] == pytest.approx(40.0, abs=1e-3)
     assert v["serviceMemoryPerRpsMb"]["value"] == pytest.approx(0.05, abs=1e-6)
-    assert v["serviceMemoryPerRequestMb"]["value"] == MIN_PER_REQUEST_MB
+    assert v["serviceMemoryPerRequestMb"]["value"] == engine_functions.min_per_request_mb()
     how = v["serviceMemoryBaselineMb"]["how"]
     assert "9 points (at rest and 8 passes, 50 to 1,600 req/s)" in how
     assert "40.0 MiB + 0.0500 MiB per req/s" in how
@@ -164,7 +163,7 @@ def test_chain_fits_the_gateway_and_the_api_apart() -> None:
     nodes = {n["id"]: n["config"] for n in doc["architecture"]["nodes"]}
     assert nodes["gateway"]["memoryBaselineMb"] == v["serviceMemoryBaselineMb"]["value"]
     assert nodes["api"]["memoryPerRpsMb"] == v["apiMemoryPerRpsMb"]["value"]
-    assert nodes["api"]["memoryPerRequestMb"] == MIN_PER_REQUEST_MB
+    assert nodes["api"]["memoryPerRequestMb"] == engine_functions.min_per_request_mb()
 
 
 def fake_inputs() -> dict[str, Any]:
@@ -208,7 +207,7 @@ def test_calibrated_memory_moves_no_latency() -> None:
     memory = {
         "serviceMemoryBaselineMb": {"value": 40.0},
         "serviceMemoryPerRpsMb": {"value": 0.03},
-        "serviceMemoryPerRequestMb": {"value": MIN_PER_REQUEST_MB},
+        "serviceMemoryPerRequestMb": {"value": engine_functions.min_per_request_mb()},
     }
     plain = run.simulate(run.design(PG_MIXED, cal["inputs"], 1500, warm=2, duration=5))
     fitted = run.simulate(

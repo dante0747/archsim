@@ -40,6 +40,7 @@ Ask the owner instead.
 ```bash
 ./gradlew format && ./gradlew build          # Java: format, Checkstyle, Error Prone, tests
 uv run ruff check packages services scripts  # Python
+./gradlew :archsim-cli:installDist           # the benchmarks' tests ask the installed CLI
 uv run pytest
 uv run python scripts/check_commits.py --range main..HEAD
 ```
