@@ -10,6 +10,7 @@ import picocli.CommandLine.Model.CommandSpec;
 import io.archsim.engine.calibration.mapping.MappingException;
 import io.archsim.engine.calibration.mapping.ValidationMessages;
 import io.archsim.engine.calibration.prometheus.PrometheusException;
+import io.archsim.engine.files.PythonFileException;
 import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.engine.yaml.YamlKeyException;
 import io.archsim.engine.yaml.YamlScalarException;

@@ -78,6 +78,16 @@ class ArchitectureTests {
 	}
 
 	@Test
+	void appClasses_anyFeature_neverReadFilesThroughTheEngine() {
+		noClasses().should()
+			.dependOnClassesThat()
+			.resideInAPackage("io.archsim.engine.files..")
+			.because("a request's files reach the app as text; a path a caller names, read on the server, "
+					+ "would read any file the server can (ADR-0059)")
+			.check(APP);
+	}
+
+	@Test
 	void features_anyTwo_doNotDependOnEachOtherBothWays() {
 		slices().matching("io.archsim.app.(*)..").should().beFreeOfCycles().check(APP);
 	}

@@ -1,4 +1,4 @@
-package io.archsim.cli;
+package io.archsim.engine.files;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,18 +19,19 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.engine.text.JsonDecodeException;
 import io.archsim.engine.text.JsonTooDeepException;
 import io.archsim.engine.text.PythonJsonReader;
+import io.archsim.engine.text.UndecodableBytes;
+import io.archsim.engine.text.Utf8;
 import io.archsim.model.text.PythonText;
 
 /**
- * The files {@code calibrate} and {@code check} read and write, where the Python CLI
- * caught what went wrong and printed it, read and written as Python did, and refused in
- * the words its exceptions said:
- * {@code [Errno 2] No such file or directory: 'mapping.yaml'}, a codec's
- * {@code 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte}, or
- * {@code json}'s {@code Expecting value: line 1 column 1 (char 0)}. A file is named as
+ * Files read and written as the Python CLI's {@code calibrate} and {@code check} and the
+ * Python MCP server's {@code calibrate} read and wrote them, and refused in the words of
+ * Python's exceptions: {@code [Errno 2] No such file or directory: 'mapping.yaml'}, a
+ * codec's {@code 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte},
+ * or {@code json}'s {@code Expecting value: line 1 column 1 (char 0)}. A file is named as
  * {@code pathlib} names it: {@code ./mapping.yaml} is {@code mapping.yaml}.
  */
-final class PythonFiles {
+public final class PythonFiles {
 
 	/** Whether this is Windows, where Python's OSError said other words. */
 	static final boolean WINDOWS = File.separatorChar == '\\';
@@ -53,9 +54,9 @@ final class PythonFiles {
 	 * @return its text
 	 * @throws PythonFileException when the file cannot be read, or is not UTF-8
 	 */
-	static String readText(String file) {
+	public static String readText(String file) {
 		byte[] raw = bytes(file);
-		Optional<TextDecoding.DecodeError> error = Utf8.firstError(raw);
+		Optional<UndecodableBytes> error = Utf8.firstError(raw);
 		if (error.isPresent()) {
 			throw new PythonFileException(error.get().describe(Utf8.CODEC));
 		}
@@ -69,7 +70,7 @@ final class PythonFiles {
 	 * @throws PythonFileException when the file cannot be read, is not UTF-8, is not JSON
 	 * or nests deeper than it is read
 	 */
-	static JsonNode readJson(String file) {
+	public static JsonNode readJson(String file) {
 		return json(PythonJsonReader::read, readText(file));
 	}
 
@@ -80,7 +81,7 @@ final class PythonFiles {
 	 * @return its value
 	 * @throws PythonFileException when it is not JSON, or nests deeper than it is read
 	 */
-	static JsonNode json(Function<String, JsonNode> reader, String text) {
+	public static JsonNode json(Function<String, JsonNode> reader, String text) {
 		try {
 			return reader.apply(text);
 		}
@@ -106,7 +107,7 @@ final class PythonFiles {
 	 * @param file the file, as given
 	 * @return its last name; empty for none, as for {@code .}
 	 */
-	static String fileName(String file) {
+	public static String fileName(String file) {
 		List<String> parts = split(file).parts();
 		return parts.isEmpty() ? "" : parts.getLast();
 	}
@@ -119,7 +120,7 @@ final class PythonFiles {
 	 * @throws PythonFileException when the file cannot be written, in the words of
 	 * Python's {@code OSError}
 	 */
-	static void writeText(String file, String text) {
+	public static void writeText(String file, String text) {
 		String name = PythonText.repr(name(file));
 		Path path = openable(file, name);
 		try {

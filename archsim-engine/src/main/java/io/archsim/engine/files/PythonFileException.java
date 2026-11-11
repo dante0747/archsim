@@ -1,14 +1,14 @@
-package io.archsim.cli;
+package io.archsim.engine.files;
 
 import java.io.Serial;
 import java.util.Objects;
 
 /**
- * A file a command could not use, in the words of the exception Python raised for it,
- * which the Python CLI caught and printed after its own words
- * ({@code Cannot calibrate: }).
+ * A file that could not be used, in the words of the exception Python raised for it,
+ * which the Python CLI printed after its own words ({@code Cannot calibrate: }) and the
+ * MCP server answered with.
  */
-final class PythonFileException extends RuntimeException {
+public final class PythonFileException extends RuntimeException {
 
 	@Serial
 	private static final long serialVersionUID = 1L;
@@ -17,7 +17,7 @@ final class PythonFileException extends RuntimeException {
 	 * A file refused.
 	 * @param message what Python's exception said
 	 */
-	PythonFileException(String message) {
+	public PythonFileException(String message) {
 		super(Objects.requireNonNull(message, "message"));
 	}
 
@@ -26,7 +26,7 @@ final class PythonFileException extends RuntimeException {
 	 * @param message what Python's exception said
 	 * @param cause what Java raised
 	 */
-	PythonFileException(String message, Throwable cause) {
+	public PythonFileException(String message, Throwable cause) {
 		super(Objects.requireNonNull(message, "message"), cause);
 	}
 

@@ -8,6 +8,8 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.engine.check.CheckRequest;
 import io.archsim.engine.check.CheckResult;
 import io.archsim.engine.check.CheckText;
+import io.archsim.engine.files.PythonFileException;
+import io.archsim.engine.files.PythonFiles;
 import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.model.codec.RecordCodec;

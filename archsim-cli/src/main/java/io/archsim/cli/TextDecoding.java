@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import io.archsim.engine.imports.ImportRefusedException;
+import io.archsim.engine.text.UndecodableBytes;
+import io.archsim.engine.text.Utf8;
 
 /**
  * Text from a file's bytes, as the Python CLI's {@code decode_text} read it: UTF-16 after
@@ -39,7 +41,7 @@ final class TextDecoding {
 		return new String(raw, start, raw.length - start, StandardCharsets.UTF_8);
 	}
 
-	private static void refuse(DecodeError error, String codec) {
+	private static void refuse(UndecodableBytes error, String codec) {
 		throw new ImportRefusedException("the file is not UTF-8 or UTF-16 text (%s)".formatted(error.describe(codec)));
 	}
 
@@ -51,45 +53,6 @@ final class TextDecoding {
 	 */
 	static boolean startsWith(byte[] raw, byte[] prefix) {
 		return raw.length >= prefix.length && Arrays.equals(raw, 0, prefix.length, prefix, 0, prefix.length);
-	}
-
-	/**
-	 * Where bytes stop being text.
-	 *
-	 * @param start where the bytes a codec cannot decode start
-	 * @param end where they end, exclusive
-	 * @param first the first of them, unsigned
-	 * @param reason why the codec cannot decode them, in Python's words
-	 */
-	record DecodeError(int start, int end, int first, String reason) {
-
-		/**
-		 * The bytes a codec cannot decode.
-		 * @param bytes the bytes it read
-		 * @param start where the bytes it cannot decode start
-		 * @param end where they end, exclusive
-		 * @param reason why it cannot, in Python's words
-		 * @return the error
-		 */
-		static DecodeError at(byte[] bytes, int start, int end, String reason) {
-			return new DecodeError(start, end, Byte.toUnsignedInt(bytes[start]), reason);
-		}
-
-		/**
-		 * The error in Python's words: {@code 'utf-8' codec can't decode byte 0xff in
-		 * position 3: invalid start byte}.
-		 * @param codec the codec's name, as Python names it
-		 * @return the words
-		 */
-		String describe(String codec) {
-			if (this.end - this.start == 1) {
-				return "'%s' codec can't decode byte 0x%02x in position %d: %s".formatted(codec, this.first, this.start,
-						this.reason);
-			}
-			return "'%s' codec can't decode bytes in position %d-%d: %s".formatted(codec, this.start, this.end - 1,
-					this.reason);
-		}
-
 	}
 
 }

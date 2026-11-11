@@ -20,6 +20,7 @@ import io.archsim.engine.calibration.OtlpCalibration;
 import io.archsim.engine.calibration.OtlpRequest;
 import io.archsim.engine.calibration.otlp.OtlpMapping;
 import io.archsim.engine.calibration.otlp.OtlpMappings;
+import io.archsim.engine.files.PythonFiles;
 
 /**
  * {@code archsim calibrate otlp}: a design calibrated from an OpenTelemetry trace export

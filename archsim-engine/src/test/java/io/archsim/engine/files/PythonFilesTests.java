@@ -1,4 +1,4 @@
-package io.archsim.cli;
+package io.archsim.engine.files;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,9 +23,10 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
- * The files {@code calibrate} reads, as Python's {@code Path.read_text(encoding="utf-8")}
- * and {@code json.loads} read them, and refused in the words of Python's exceptions, with
- * the file named as {@code pathlib} names it.
+ * The files {@code calibrate} and {@code check} read and write, as Python's
+ * {@code Path.read_text(encoding="utf-8")}, {@code json.loads} and {@code write_text}
+ * read and wrote them, and refused in the words of Python's exceptions, with the file
+ * named as {@code pathlib} names it.
  */
 class PythonFilesTests {
 

@@ -1,18 +1,17 @@
-package io.archsim.cli;
+package io.archsim.engine.text;
 
+import java.util.Objects;
 import java.util.Optional;
-
-import io.archsim.cli.TextDecoding.DecodeError;
 
 /**
  * Where bytes stop being UTF-8, found as Python's decoder finds it, with its words: a
  * byte that cannot start a character, one that cannot continue it (an overlong form, a
  * surrogate, a code point past U+10FFFF), or a character the bytes end inside.
  */
-final class Utf8 {
+public final class Utf8 {
 
 	/** The codec's name, as Python names it. */
-	static final String CODEC = "utf-8";
+	public static final String CODEC = "utf-8";
 
 	/** The first byte that is not a character of its own. */
 	private static final int FIRST_NON_ASCII = 0x80;
@@ -68,25 +67,26 @@ final class Utf8 {
 	 * @param input the bytes
 	 * @return the first error, positions counted from the first byte; empty for UTF-8
 	 */
-	static Optional<DecodeError> firstError(byte[] input) {
+	public static Optional<UndecodableBytes> firstError(byte[] input) {
 		return firstError(input, 0);
 	}
 
 	/**
 	 * Where bytes stop being UTF-8, from a place on, in CPython's words.
 	 * @param input the bytes
-	 * @param from where to start reading them
+	 * @param from where to start reading them, from 0 to their length
 	 * @return the first error from there, positions counted from the bytes' first; empty
 	 * for UTF-8
+	 * @throws IndexOutOfBoundsException when {@code from} is not in the bytes
 	 */
-	static Optional<DecodeError> firstError(byte[] input, int from) {
-		int at = from;
+	public static Optional<UndecodableBytes> firstError(byte[] input, int from) {
+		int at = Objects.checkIndex(from, input.length + 1);
 		while (at < input.length) {
 			int length = length(Byte.toUnsignedInt(input[at]));
 			if (length == 0) {
-				return Optional.of(DecodeError.at(input, at, at + 1, "invalid start byte"));
+				return Optional.of(UndecodableBytes.at(input, at, at + 1, "invalid start byte"));
 			}
-			Optional<DecodeError> error = continuation(input, at, length);
+			Optional<UndecodableBytes> error = continuation(input, at, length);
 			if (error.isPresent()) {
 				return error;
 			}
@@ -114,14 +114,14 @@ final class Utf8 {
 
 	// each byte after the lead, in order: one that cannot continue it ends the error
 	// before it; the bytes ending first leave the character unfinished
-	private static Optional<DecodeError> continuation(byte[] input, int at, int length) {
+	private static Optional<UndecodableBytes> continuation(byte[] input, int at, int length) {
 		int lead = Byte.toUnsignedInt(input[at]);
 		for (int index = 1; index < length; index++) {
 			if (at + index >= input.length) {
-				return Optional.of(DecodeError.at(input, at, input.length, "unexpected end of data"));
+				return Optional.of(UndecodableBytes.at(input, at, input.length, "unexpected end of data"));
 			}
 			if (!continues(lead, index, Byte.toUnsignedInt(input[at + index]))) {
-				return Optional.of(DecodeError.at(input, at, at + index, "invalid continuation byte"));
+				return Optional.of(UndecodableBytes.at(input, at, at + index, "invalid continuation byte"));
 			}
 		}
 		return Optional.empty();

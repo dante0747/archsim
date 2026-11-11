@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.engine.files.PythonFileException;
 import io.archsim.model.text.PythonText;
 
 /**
@@ -36,6 +37,9 @@ final class GitBaseline {
 	private static final Pattern START_ERROR = Pattern.compile("error=(\\d+)");
 
 	private static final String NOT_FOUND = "2";
+
+	/** Whether this is Windows, where Python's subprocess said other words. */
+	private static final boolean WINDOWS = File.separatorChar == '\\';
 
 	private final List<String> git;
 
@@ -153,7 +157,7 @@ final class GitBaseline {
 		if (!error.find() || !NOT_FOUND.equals(error.group(1))) {
 			return String.valueOf(ex.getMessage());
 		}
-		return PythonFiles.WINDOWS ? "[WinError 2] The system cannot find the file specified"
+		return WINDOWS ? "[WinError 2] The system cannot find the file specified"
 				: "[Errno 2] No such file or directory: " + PythonText.repr(this.git.getFirst());
 	}
 

@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Optional;
 
-import io.archsim.cli.TextDecoding.DecodeError;
+import io.archsim.engine.text.UndecodableBytes;
 
 /**
  * UTF-16 after its byte order mark, and where bytes stop being it, found as Python's
@@ -79,26 +79,26 @@ enum Utf16 {
 	 * @return the first error, positions counted from the file's first byte; empty for
 	 * UTF-16
 	 */
-	Optional<DecodeError> firstError(byte[] raw) {
+	Optional<UndecodableBytes> firstError(byte[] raw) {
 		int at = MARK_LENGTH;
 		while (at + 1 < raw.length) {
 			char unit = unit(raw, at);
 			if (Character.isLowSurrogate(unit)) {
-				return Optional.of(DecodeError.at(raw, at, at + UNIT_LENGTH, "illegal encoding"));
+				return Optional.of(UndecodableBytes.at(raw, at, at + UNIT_LENGTH, "illegal encoding"));
 			}
 			if (!Character.isHighSurrogate(unit)) {
 				at += UNIT_LENGTH;
 				continue;
 			}
 			if (at + PAIR_LENGTH > raw.length) {
-				return Optional.of(DecodeError.at(raw, at, raw.length, "unexpected end of data"));
+				return Optional.of(UndecodableBytes.at(raw, at, raw.length, "unexpected end of data"));
 			}
 			if (!Character.isLowSurrogate(unit(raw, at + UNIT_LENGTH))) {
-				return Optional.of(DecodeError.at(raw, at, at + UNIT_LENGTH, "illegal UTF-16 surrogate"));
+				return Optional.of(UndecodableBytes.at(raw, at, at + UNIT_LENGTH, "illegal UTF-16 surrogate"));
 			}
 			at += PAIR_LENGTH;
 		}
-		return (at < raw.length) ? Optional.of(DecodeError.at(raw, at, raw.length, "truncated data"))
+		return (at < raw.length) ? Optional.of(UndecodableBytes.at(raw, at, raw.length, "truncated data"))
 				: Optional.empty();
 	}
 

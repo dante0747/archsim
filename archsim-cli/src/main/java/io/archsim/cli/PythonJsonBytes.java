@@ -8,8 +8,11 @@ import java.util.Optional;
 
 import tools.jackson.databind.JsonNode;
 
-import io.archsim.cli.TextDecoding.DecodeError;
+import io.archsim.engine.files.PythonFileException;
+import io.archsim.engine.files.PythonFiles;
 import io.archsim.engine.text.PythonJsonReader;
+import io.archsim.engine.text.UndecodableBytes;
+import io.archsim.engine.text.Utf8;
 
 /**
  * JSON read from bytes as Python's {@code json.loads(bytes)} reads it, as a check reads
@@ -127,9 +130,9 @@ final class PythonJsonBytes {
 	private static String utf8(byte[] raw) {
 		StringBuilder text = new StringBuilder(raw.length);
 		int from = 0;
-		Optional<DecodeError> error = Utf8.firstError(raw, from);
+		Optional<UndecodableBytes> error = Utf8.firstError(raw, from);
 		while (error.isPresent()) {
-			DecodeError found = error.get();
+			UndecodableBytes found = error.get();
 			if (!isSurrogate(raw, found.start())) {
 				throw new PythonFileException(found.describe(Utf8.CODEC));
 			}
@@ -160,7 +163,7 @@ final class PythonJsonBytes {
 			long point = Integer.toUnsignedLong(units.getInt(at));
 			if (point > Character.MAX_CODE_POINT) {
 				throw new PythonFileException(
-						DecodeError.at(raw, at, at + UTF32_UNIT, "code point not in range(0x110000)")
+						UndecodableBytes.at(raw, at, at + UTF32_UNIT, "code point not in range(0x110000)")
 							.describe(codec("utf-32", order)));
 			}
 			text.appendCodePoint((int) point);
@@ -176,7 +179,7 @@ final class PythonJsonBytes {
 
 	private static void refuseTruncated(byte[] raw, int at, String codec) {
 		if (at < raw.length) {
-			throw new PythonFileException(DecodeError.at(raw, at, raw.length, "truncated data").describe(codec));
+			throw new PythonFileException(UndecodableBytes.at(raw, at, raw.length, "truncated data").describe(codec));
 		}
 	}
 
