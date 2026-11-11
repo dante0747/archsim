@@ -6,6 +6,7 @@ the frozen Python engine's, which the golden files hold the Java engine to."""
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -146,6 +147,10 @@ def test_load_factors_leave_out_points_without_a_positive_rate_and_factor() -> N
     ]
 
     assert engine_functions.load_factors(table, [100.0, 400.0]) == [1.5, 1.5]
+
+
+def test_report_version_is_the_java_engines(java_engine_constant: Callable[[str], str]) -> None:
+    assert engine_functions.report_version() == java_engine_constant("REPORT")
 
 
 def test_constants_are_the_engines() -> None:

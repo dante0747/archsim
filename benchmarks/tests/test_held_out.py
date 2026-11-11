@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import gc
 import json
-import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -25,9 +25,6 @@ TREE = "f" * 40
 CLEAN = {"engineTree": TREE, "dirty": False}
 FROZEN = [{"version": "0.15.0", "engineTree": TREE, "frozenAt": "2026-11-05", "tag": "t"}]
 LAPTOP_SIBLINGS = {c: [c - c % 2, c - c % 2 + 1] for c in range(8)}
-JAVA_VERSIONS = (
-    run.HERE.parent / "archsim-engine/src/main/java/io/archsim/engine/version/EngineVersions.java"
-)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -105,12 +102,12 @@ def test_the_python_engines_entry_is_the_engine_in_this_tree() -> None:
     )
 
 
-def test_the_last_engine_entry_is_the_java_engine_not_frozen_yet() -> None:
+def test_the_last_engine_entry_is_the_java_engine_not_frozen_yet(
+    java_engine_constant: Callable[[str], str],
+) -> None:
     """The Java engine's version is its own (EngineVersions.ENGINE). Its source trees are pinned
     when it is frozen, before the next held-out campaign; until then nothing pins them."""
-    (java_version,) = re.findall(
-        r'String ENGINE = "([^"]+)";', JAVA_VERSIONS.read_text(encoding="utf-8")
-    )
+    java_version = java_engine_constant("ENGINE")
     last = report.engines()[-1]
 
     assert [last.get(k) for k in ("version", "engine", "engineTree", "frozenAt", "tag")] == [
@@ -150,6 +147,14 @@ def test_seal() -> None:
         assert "uncommitted" in (run.seal(java, {**CLEAN, "dirty": dirty}, FROZEN) or "")
     for e in TUNED_ON:  # never sealed
         assert run.seal(run.EXPERIMENTS[e], {"engineTree": None, "dirty": True}, []) is None
+
+
+def test_seal_on_the_java_engine_says_it_is_not_frozen_yet() -> None:
+    java_engine = {"engineSources": "a" * 64, "javaBuild": None, "dirty": False}
+
+    why = run.seal(run.EXPERIMENTS["java-mixed"], java_engine, FROZEN) or ""
+
+    assert ": the Java engine is not frozen yet (ADR-0062), so it may not be calibrated" in why
 
 
 def test_run_experiment_refuses_a_sealed_experiment(

@@ -20,6 +20,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.version.EngineVersions;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -212,6 +214,13 @@ class FunctionsCommandTests {
 	}
 
 	@Test
+	void functions_reportVersion_isTheEnginesReports() {
+		JsonNode version = call("report_version", "{}");
+
+		assertThat(version.stringValue()).isEqualTo(EngineVersions.REPORT);
+	}
+
+	@Test
 	void functions_constants_areTheEngines() {
 		JsonNode constants = call("constants", "{}");
 
@@ -250,7 +259,7 @@ class FunctionsCommandTests {
 		assertThat(answer.get("error")).isEqualTo(JSON.createObjectNode()
 			.put("type", "LookupError")
 			.put("message", "no function nowhere; functions: constants, expected, extend_load_curve, fit_cpu_share, "
-					+ "fit_load_curve, fit_memory, load_factor, machine_speed"));
+					+ "fit_load_curve, fit_memory, load_factor, machine_speed, report_version"));
 	}
 
 	@Test

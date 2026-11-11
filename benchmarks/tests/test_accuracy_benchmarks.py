@@ -8,6 +8,7 @@ import json
 import math
 import shutil
 import subprocess
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -18,7 +19,7 @@ import report
 import run
 
 from archsim_engine import run_simulation
-from archsim_engine.version import ENGINE_VERSION
+from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION
 
 PG_MIXED = run.EXPERIMENTS["pg-mixed"]
 
@@ -791,7 +792,10 @@ def test_machine_id_names_the_cpu_not_the_host(monkeypatch: pytest.MonkeyPatch) 
     assert run.machine_id("anything") == "ci-linux-8cpu"
 
 
-def test_provenance_names_the_engine_and_harness_by_git_object() -> None:
+def test_provenance_names_the_engine_and_harness_by_git_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    on_the_python_engine(monkeypatch)
     p = run.provenance()
     assert set(p) == {"commit", "engineTree", "harnessHash", "dirty", "machineId"}
     assert p["engineTree"] and len(p["engineTree"]) == 40
@@ -1024,12 +1028,41 @@ def test_simulate_on_the_java_engine_says_why_archsim_run_failed(
 
 
 JAVA_VERSION = "1.0.0"
+JAVA_REPORT_VERSION = "1.15"
+"""The stand-in Java engine's version and its reports'."""
 
 
 def on_the_java_engine(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``BENCH_ENGINE=java``, with an installed Java engine that says it is 1.0.0."""
-    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    """The Java engine, the default, installed and saying it is 1.0.0, its reports 1.15."""
+    monkeypatch.delenv(run.ENGINE_VARIABLE, raising=False)
     monkeypatch.setattr(run, "java_engine_version", lambda: JAVA_VERSION)
+    monkeypatch.setattr(run.engine_functions, "report_version", lambda: JAVA_REPORT_VERSION)
+
+
+def on_the_python_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``BENCH_ENGINE=python``: the frozen Python engine, until stage 5 deletes it."""
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "python")
+
+
+@pytest.mark.parametrize(
+    ("value", "java"), [(None, True), ("", True), ("java", True), ("python", False)]
+)
+def test_the_engine_is_java_unless_bench_engine_names_python(
+    monkeypatch: pytest.MonkeyPatch, value: str | None, java: bool
+) -> None:
+    if value is None:
+        monkeypatch.delenv(run.ENGINE_VARIABLE, raising=False)
+    else:
+        monkeypatch.setenv(run.ENGINE_VARIABLE, value)
+
+    assert run.java_engine() is java
+
+
+def test_bench_engine_naming_neither_engine_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "Java")
+
+    with pytest.raises(RuntimeError, match="BENCH_ENGINE is java or python, not 'Java'"):
+        run.java_engine()
 
 
 def test_engine_label_on_the_java_engine_is_its_version(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1094,18 +1127,45 @@ def test_java_engine_version_without_the_java_engine_says_how_to_install_it(
         run.java_engine_version()
 
 
-def test_predict_refuses_the_java_engine(monkeypatch: pytest.MonkeyPatch) -> None:
-    # a prediction is an experiment's own file: it names the frozen Python engine
-    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+def predicting_without_simulating(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``predict`` with a knee of 1,000 req/s, no range fit and stand-in simulations."""
+    monkeypatch.setattr(run, "predicted_knee", lambda exp, inputs: {"kneeRps": 1000.0})
+    monkeypatch.setattr(run, "read_range_fit", lambda: None)
+    monkeypatch.setattr(run, "ProcessPoolExecutor", ThreadPoolExecutor)
+    monkeypatch.setattr(run, "simulate", lambda doc: {"offeredRps": doc["workload"]["rps"]})
+    monkeypatch.setattr(run, "provenance", lambda: {})
 
-    with pytest.raises(RuntimeError, match="predict runs on the frozen Python engine only"):
-        run.predict(PG_MIXED, {"inputs": {}})
+
+def test_predict_on_the_java_engine_names_its_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+    on_the_java_engine(monkeypatch)
+    predicting_without_simulating(monkeypatch)
+    cal = json.loads((run.RESULTS / "pg-mixed" / "calibration.json").read_text(encoding="utf-8"))
+
+    prediction = run.predict(PG_MIXED, cal)
+
+    assert (prediction["engineVersion"], prediction["reportVersion"]) == (
+        JAVA_VERSION,
+        JAVA_REPORT_VERSION,
+    )
+
+
+def test_predict_on_the_python_engine_names_its_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+    on_the_python_engine(monkeypatch)
+    predicting_without_simulating(monkeypatch)
+    cal = json.loads((run.RESULTS / "pg-mixed" / "calibration.json").read_text(encoding="utf-8"))
+
+    prediction = run.predict(PG_MIXED, cal)
+
+    assert (prediction["engineVersion"], prediction["reportVersion"]) == (
+        ENGINE_VERSION,
+        REPORT_VERSION,
+    )
 
 
 def test_provenance_on_the_java_engine_hashes_its_three_source_trees(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    on_the_java_engine(monkeypatch)
     trees = [f"{p} {run.git('rev-parse', f'HEAD:{p}')}" for p in run.JAVA_ENGINE_SOURCES]
 
     assert (
@@ -1130,26 +1190,58 @@ def test_java_build_is_a_hash_of_the_installed_jars(
     assert run.java_build() == expected
 
 
-def test_range_fit_on_the_java_engine_writes_a_fit_of_its_own(
+def test_range_fit_on_the_java_engine_writes_the_committed_fit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     on_the_java_engine(monkeypatch)
 
-    assert run.range_fit_path() == run.HERE / f"knee-range-{JAVA_VERSION}.json"
+    assert run.range_fit_path() == run.RANGE_FIT
 
 
-def test_an_experiment_on_the_java_engine_is_refused_before_its_stack_starts(
+def test_range_fit_on_the_python_engine_writes_a_fit_of_its_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    on_the_python_engine(monkeypatch)
+
+    assert run.range_fit_path() == run.HERE / f"knee-range-{ENGINE_VERSION}.json"
+
+
+def test_engine_label_on_the_java_engine_needs_no_python_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # stage 5 deletes packages/engine: nothing on the Java engine's path may import it
+    on_the_java_engine(monkeypatch)
+    monkeypatch.setitem(sys.modules, "archsim_engine.version", None)
+
+    assert run.engine_label() == JAVA_VERSION
+
+
+def test_a_bench_engine_naming_neither_engine_is_refused_before_a_stack_starts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def started(*_: Any, **__: Any) -> None:
         raise AssertionError("the stack started")
 
-    monkeypatch.setenv(run.ENGINE_VARIABLE, "java")
+    monkeypatch.setenv(run.ENGINE_VARIABLE, "Java")
     monkeypatch.setattr(run, "stack_up", started)
 
     with pytest.raises(SystemExit) as refused:
         run.main(["postgres"])
     assert refused.value.code == 2
+
+
+def test_main_on_the_java_engine_refuses_no_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran: list[str] = []
+
+    def smoke(exp: run.Experiment, keep: bool = False) -> list[str]:
+        ran.append(exp.id)
+        return []
+
+    on_the_java_engine(monkeypatch)
+    monkeypatch.setattr(run, "smoke", smoke)
+
+    assert run.main(["smoke", "pg-mixed"]) == 0
+    assert ran == ["pg-mixed"]
 
 
 def test_dev_checks_reproduce_the_committed_predictions() -> None:
@@ -1955,7 +2047,8 @@ def test_archive_keeps_the_latest_run(tmp_path: Path) -> None:
     assert run.archive("cache-aside", tmp_path) is None  # no results at all
 
 
-def test_dev_label_is_the_engines_unless_one_is_asked_for() -> None:
+def test_dev_label_is_the_engines_unless_one_is_asked_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    on_the_python_engine(monkeypatch)
     assert (run.dev_label(), run.dev_label(f"{ENGINE_VERSION}-port")) == (
         ENGINE_VERSION,
         f"{ENGINE_VERSION}-port",
@@ -1963,7 +2056,10 @@ def test_dev_label_is_the_engines_unless_one_is_asked_for() -> None:
 
 
 @pytest.mark.parametrize("label", [f"{ENGINE_VERSION}-java", "0.15.0", f"{ENGINE_VERSION}port"])
-def test_dev_label_refuses_a_folder_that_does_not_name_the_frozen_engine(label: str) -> None:
+def test_dev_label_refuses_a_folder_that_does_not_name_the_frozen_engine(
+    monkeypatch: pytest.MonkeyPatch, label: str
+) -> None:
+    on_the_python_engine(monkeypatch)
     with pytest.raises(ValueError, match=f"names this engine: not {label}"):
         run.dev_label(label)
 
@@ -1985,6 +2081,7 @@ def test_dev_label_on_the_java_engine_keeps_to_its_own_folders(
 def test_resimulate_with_another_engines_label_is_refused_before_it_runs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    on_the_java_engine(monkeypatch)
     monkeypatch.setattr(run, "resimulate", lambda **_: pytest.fail("resimulate ran"))
 
     with pytest.raises(SystemExit) as stopped:
@@ -2012,7 +2109,8 @@ def stand_in_check(exp_id: str, d: Path, label: str, results: Path) -> dict[str,
 def test_resimulate_passes_the_label_it_writes_under_to_each_check(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    label = f"{ENGINE_VERSION}-port"
+    on_the_java_engine(monkeypatch)
+    label = f"{JAVA_VERSION}-port"
     monkeypatch.setattr(run, "ProcessPoolExecutor", ThreadPoolExecutor)
     monkeypatch.setattr(
         run, "result_dirs", lambda results: [("kafka", results / "kafka" / "run-1")]

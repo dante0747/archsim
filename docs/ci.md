@@ -154,15 +154,16 @@ each, used the month's minutes in five days. So:
   Run workflow). When a test starts reading a file from another part of the repository, add it to
   the script's `RULES`.
 - **The engine's and the benchmarks' tests run only when they can fail.** They are about 7 and
-  9 of the Python job's minutes. The engine is frozen at 0.16.0, and the benchmarks' tests
-  calibrate, simulate and render `docs/validation.md` with it, so the Python job runs them
-  (steps `Engine tests` and `Benchmark tests`) only on a change to the engine, the Python
-  environment, the templates or a file they read (`engine_tests` and `benchmark_tests` in the
-  script's `RULES`). The benchmarks' tests also ask the Java engine for the engine's functions
+  9 of the Python job's minutes. The Python engine is frozen at 0.16.0, and the benchmarks'
+  tests calibrate, simulate and render `docs/validation.md` with the Java engine
+  ([ADR-0062](adr/0062-make-the-java-engine-the-harnesss-default.md)), so the Python job runs
+  them (steps `Engine tests` and `Benchmark tests`) only on a change to an engine (for the Java
+  engine, what its CLI is built from), the Python environment, the templates or a file they
+  read (`engine_tests` and `benchmark_tests` in the script's `RULES`). The benchmarks' tests
+  also ask the Java engine for the engine's functions
   ([ADR-0061](adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)), so the job
-  installs a Java 25 and the CLI before them, and a change to those functions runs them too. A
-  change to the migrations (`services/api`), the MCP server or a script runs the rest of the
-  Python tests, about a minute.
+  installs a Java 25 and the CLI before them. A change to the migrations (`services/api`), the
+  MCP server or a script runs the rest of the Python tests, about a minute.
 - **Pushes to main never cancel one another**, since each push's run tests only what that push
   changed. A pull request's new commits still cancel its older run. A later push that skips a
   job does not retest it: when a job fails, its failure is in that push's run, and the job only

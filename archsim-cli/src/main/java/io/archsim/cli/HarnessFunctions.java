@@ -21,6 +21,7 @@ import io.archsim.engine.calibration.resources.LoadCurves;
 import io.archsim.engine.calibration.resources.MemoryFits;
 import io.archsim.engine.calibration.resources.RatePoint;
 import io.archsim.engine.host.HostMachine;
+import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.codec.BindingException;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.distribution.Distribution;
@@ -59,6 +60,7 @@ final class HarnessFunctions {
 		functions.put("fit_memory", HarnessFunctions::fitMemory);
 		functions.put("load_factor", HarnessFunctions::loadFactor);
 		functions.put("machine_speed", HarnessFunctions::machineSpeed);
+		functions.put("report_version", HarnessFunctions::reportVersion);
 		return Collections.unmodifiableMap(functions);
 	}
 
@@ -96,6 +98,11 @@ final class HarnessFunctions {
 		return NODES.objectNode()
 			.put("minCurveChange", LoadCurves.MIN_CHANGE)
 			.put("minPerRequestMb", MemoryFits.MIN_PER_REQUEST_MB);
+	}
+
+	// the version of the engine's reports, which the harness records with a prediction
+	private static JsonNode reportVersion(Input input) {
+		return NODES.stringNode(EngineVersions.REPORT);
 	}
 
 	private static JsonNode expected(Input input) {

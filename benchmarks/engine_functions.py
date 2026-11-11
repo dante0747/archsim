@@ -10,7 +10,8 @@ The functions take the Python engine's arguments and give its results: ``expecte
 distribution's mean), ``machine_speeds`` (``Machine.speed`` at each busy count),
 ``load_factors`` (``load_factor`` over ``curve_of`` a table), and the resource fits
 ``fit_load_curve``, ``extend_load_curve``, ``fit_memory`` and ``fit_cpu_share``, with
-``min_curve_change`` and ``min_per_request_mb``. An input the engine refuses is a ValueError in
+``min_curve_change``, ``min_per_request_mb`` and ``report_version`` (the version of the engine's
+reports, which a prediction records). An input the engine refuses is a ValueError in
 its words, as Python's was.
 """
 
@@ -285,6 +286,12 @@ def min_curve_change() -> float:
 def min_per_request_mb() -> float:
     """The smallest memory per request held calibration sets (MiB)."""
     return float(_constants()["minPerRequestMb"])
+
+
+@functools.cache
+def report_version() -> str:
+    """The version of the Java engine's reports, which the harness records with a prediction."""
+    return str(functions().call("report_version"))
 
 
 @functools.cache

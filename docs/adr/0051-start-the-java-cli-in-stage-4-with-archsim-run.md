@@ -71,6 +71,11 @@ indent=2)` writes it, as every command that writes JSON does
 ([ADR-0055](0055-the-java-clis-output-contract.md), proposed): the same values as before, in the
 Python layout rather than Jackson's.
 
+**Status (11 Nov 2026):** the Java engine is the harness's default for every command, and
+`BENCH_ENGINE=python` runs the frozen engine until stage 5 deletes it; the committed range fit is
+the Java engine's to write
+([ADR-0062](0062-make-the-java-engine-the-harnesss-default.md), proposed).
+
 ### Consequences
 
 - Good, because the harness simulates the same designs on both engines, so the knee bar can be

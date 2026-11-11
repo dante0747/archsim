@@ -37,7 +37,9 @@ was verified, what is known to be limited, and what comes next. Nothing listed u
 - The harness's move to the Java CLI and the Python engine's deletion moved to stage 5's exit
   (8 Nov): the MCP server and the `archsim check` action import the Python engine until stage 5
   ports them. Until then the harness simulates on the Java engine when asked (`BENCH_ENGINE=java`)
-  and names those checks by its version.
+  and names those checks by its version. Since stage 5's S5-9 (11 Nov) the Java engine is the
+  harness's default for every command, and `BENCH_ENGINE=python` runs the frozen engine
+  ([ADR-0062](docs/adr/0062-make-the-java-engine-the-harnesss-default.md)).
 - Not run during stage 4: CI on GitHub, which has started no job since 2026-11-05. Every slice
   passed CI's steps locally.
 

@@ -34,15 +34,45 @@ EVERY_JOB = {
     [
         (["archsim-app/src/main/java/io/archsim/app/runs/Comparisons.java"], {"java", "e2e"}),
         (["archsim-api-tests/src/main/java/io/archsim/apitests/Examples.java"], {"java"}),
-        # the archsim-check action builds the CLI from its modules and the Gradle build
-        (["archsim-cli/src/main/java/io/archsim/cli/RunCommand.java"], {"java", "archsim_check"}),
+        # the archsim-check action builds the CLI from its modules and the Gradle build, and the
+        # benchmarks' tests simulate on it
+        (
+            ["archsim-cli/src/main/java/io/archsim/cli/RunCommand.java"],
+            {"java", "archsim_check", "python", "benchmark_tests"},
+        ),
         (
             ["archsim-engine/src/main/java/io/archsim/engine/check/CheckRunner.java"],
-            {"java", "e2e", "archsim_check"},
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
         ),
-        (["gradle/libs.versions.toml"], {"java", "e2e", "archsim_check"}),
+        (
+            ["gradle/libs.versions.toml"],
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
+        ),
         (
             ["build-logic/src/main/kotlin/archsim.java-conventions.gradle.kts"],
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
+        ),
+        # a module's own tests, test fixtures and README are not in the CLI the benchmarks' tests
+        # run; its build file is
+        (["archsim-cli/README.md"], {"java", "archsim_check"}),
+        (
+            ["archsim-engine/src/testFixtures/java/io/archsim/engine/Fixture.java"],
+            {"java", "e2e", "archsim_check"},
+        ),
+        (
+            ["archsim-model/build.gradle.kts"],
+            {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
+        ),
+        (
+            ["archsim-cli/src/test/java/io/archsim/cli/RunCommandTests.java"],
+            {"java", "archsim_check"},
+        ),
+        (
+            ["archsim-engine/src/test/java/io/archsim/engine/settings/LoadCurveTests.java"],
+            {"java", "e2e", "archsim_check"},
+        ),
+        (
+            ["archsim-model/src/test/java/io/archsim/model/codec/RecordCodecTests.java"],
             {"java", "e2e", "archsim_check"},
         ),
         (["archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java"], {"java"}),
@@ -58,10 +88,6 @@ EVERY_JOB = {
         (
             ["archsim-cli/src/main/java/io/archsim/cli/Archsim.java"],
             {"java", "archsim_check", "python", "benchmark_tests"},
-        ),
-        (
-            ["archsim-cli/src/main/java/io/archsim/cli/RunCommand.java"],
-            {"java", "archsim_check"},
         ),
         (
             ["archsim-model/src/main/java/io/archsim/model/codec/RecordCodec.java"],
@@ -85,7 +111,7 @@ EVERY_JOB = {
         # the Python job checks the table repr reads against Python
         (
             ["archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv"],
-            {"python", "java", "e2e", "archsim_check"},
+            {"python", "java", "e2e", "archsim_check", "benchmark_tests"},
         ),
         (["apps/web/src/app/page.tsx", "apps/web/package-lock.json"], {"web", "e2e"}),
         (["apps/web/src/data/accuracy.json"], {"python", "benchmark_tests", "web", "e2e"}),

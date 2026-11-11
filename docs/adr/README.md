@@ -103,3 +103,4 @@ what the repository shows.
 | [0059](0059-read-files-as-python-did-in-the-engine.md) | Read files as Python did in the engine, for the CLI and the MCP server | Accepted | 2026-11-11 |
 | [0060](0060-run-the-check-action-in-an-image-the-job-builds.md) | Run the archsim-check action's CLI in an image the job builds | Accepted | 2026-11-11 |
 | [0061](0061-answer-the-harnesss-engine-calls-from-one-java-process.md) | Answer the benchmark harness's engine calls from one Java process | Proposed | 2026-11-11 |
+| [0062](0062-make-the-java-engine-the-harnesss-default.md) | Make the Java engine the benchmark harness's default | Proposed | 2026-11-11 |

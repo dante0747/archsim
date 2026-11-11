@@ -115,14 +115,14 @@ standard output, `{"output": VALUE}` or `{"error": {"type", "message"}}`, until 
 The functions are the Python engine's that the harness and its tests imported before, by their
 names: `expected` (a distribution's mean), `machine_speed` (a machine's thread speed at each busy
 count), `load_factor` (a `serviceTimeByLoad` table's factor at each rate), `fit_load_curve` (with
-its table), `extend_load_curve`, `fit_memory`, `fit_cpu_share` and `constants`. A fit is its
-record, or `null` when it finds none. Numbers are read and written as Python's `json` writes and
-reads them, `NaN` and `Infinity` included: the fits leave such points out as the Python engine's
-did, and a rate's load factor is the last point's as in Python, but a parameter that is one
-number must be finite. An input refused, or of the wrong shape, is a `ValueError` in the engine's
-words, and a name that is not a function a `LookupError`. A line that is not a request is
-answered with an error, and the next line still is. Each answer is flushed before the next line
-is read: the harness waits for it.
+its table), `extend_load_curve`, `fit_memory`, `fit_cpu_share`, `constants` and `report_version`
+(which the harness records with a prediction). A fit is its record, or `null` when it finds none.
+Numbers are read and written as Python's `json` writes and reads them, `NaN` and `Infinity`
+included: the fits leave such points out as the Python engine's did, and a rate's load factor is
+the last point's as in Python, but a parameter that is one number must be finite. An input
+refused, or of the wrong shape, is a `ValueError` in the engine's words, and a name that is not a
+function a `LookupError`. A line that is not a request is answered with an error, and the next
+line still is. Each answer is flushed before the next line is read: the harness waits for it.
 
 ### Departures
 

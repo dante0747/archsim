@@ -40,8 +40,10 @@ are sealed: until the engine running is a frozen one (benchmarks/engines.json) a
 uncommitted, the runner refuses to calibrate or measure them, and only ``smoke`` starts their
 stacks (it checks that every request succeeds and is counted, and keeps no latency or results).
 
-Only the Python standard library, Docker and the engine are needed: the engine's functions come
-from the Java CLI (``./gradlew :archsim-cli:installDist``, engine_functions.py, ADR-0061).
+Only the Python standard library, Docker and the Java engine are needed: its CLI, installed by
+``./gradlew :archsim-cli:installDist``, simulates (``archsim run``) and answers the engine's
+functions (engine_functions.py, ADR-0061). ``BENCH_ENGINE=python`` simulates on the frozen
+Python engine instead, until stage 5 of the Java port deletes it (ADR-0062).
 """
 
 from __future__ import annotations
@@ -164,15 +166,12 @@ SIM_WALL_S = 3600.0
 An overloaded ladder step holds up to 100,000 queued requests, which takes minutes when other
 work shares the CPU; the limit only decides whether a run finishes, never what it returns."""
 ENGINE_VARIABLE = "BENCH_ENGINE"
-"""Set to ``java`` to simulate on the Java engine's ``archsim run`` instead of the frozen Python
-engine (ADR-0051)."""
+"""``python`` to simulate on the frozen Python engine instead of the Java engine's ``archsim run``,
+the default (ADR-0051, ADR-0062); ``java``, empty or unset for the Java engine."""
 JAVA_CLI = engine_functions.CLI
 """The Java engine's command, as ``./gradlew :archsim-cli:installDist`` installs it."""
 JAVA_ENGINE_SOURCES = ("archsim-engine", "archsim-model", "archsim-cli")
 """The Java engine's source trees, which provenance names (and counts changes to) on it."""
-JAVA_COMMANDS = ("resimulate", "range-fit")
-"""What runs on the Java engine: what writes under its own label. Every other command writes an
-experiment's own files, which name the frozen Python engine."""
 
 
 @dataclass(frozen=True)
@@ -2923,8 +2922,12 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
 
 
 def java_engine() -> bool:
-    """Whether ``BENCH_ENGINE=java`` asks for the Java engine."""
-    return os.environ.get(ENGINE_VARIABLE) == "java"
+    """Whether the Java engine simulates: unless ``BENCH_ENGINE=python`` asks for the frozen
+    Python engine (ADR-0062). Another value is refused rather than taken for either."""
+    engine = os.environ.get(ENGINE_VARIABLE) or "java"
+    if engine not in ("java", "python"):
+        raise RuntimeError(f"{ENGINE_VARIABLE} is java or python, not {engine!r}")
+    return engine == "java"
 
 
 def engine_label() -> str:
@@ -2932,9 +2935,11 @@ def engine_label() -> str:
     the installed Java engine's (1.0.0 on), so the two engines' development checks and range fits
     never share a name or a path. Before it had a version of its own the Java engine wrote
     ``0.16.0-java``, which stays its record."""
+    if java_engine():
+        return java_engine_version()
     from archsim_engine.version import ENGINE_VERSION
 
-    return java_engine_version() if java_engine() else ENGINE_VERSION
+    return ENGINE_VERSION
 
 
 def java_engine_version() -> str:
@@ -2972,18 +2977,19 @@ def dev_label(label: str | None = None) -> str:
     return label
 
 
-def python_engine_only(command: str) -> None:
-    """Refuses ``command`` on the Java engine: it writes an experiment's own files, which name the
-    frozen Python engine."""
+def report_version() -> str:
+    """The version of the reports of the engine that simulates."""
     if java_engine():
-        raise RuntimeError(
-            f"{command} runs on the frozen Python engine only: unset {ENGINE_VARIABLE} (ADR-0051)"
-        )
+        return engine_functions.report_version()
+    from archsim_engine.version import REPORT_VERSION
+
+    return REPORT_VERSION
 
 
 def range_fit_path() -> Path:
-    """Where ``range-fit`` writes: the committed fit, or one labelled with the Java engine."""
-    return HERE / f"knee-range-{engine_label()}.json" if java_engine() else RANGE_FIT
+    """Where ``range-fit`` writes: the committed fit on the Java engine, the default; on the
+    frozen Python engine, a fit labelled with its version (ADR-0062)."""
+    return RANGE_FIT if java_engine() else HERE / f"knee-range-{engine_label()}.json"
 
 
 def java_build() -> str | None:
@@ -2999,8 +3005,8 @@ def java_build() -> str | None:
 
 
 def engine_report(doc: dict[str, Any]) -> dict[str, Any]:
-    """The report of a run of ``doc`` within ``SIM_WALL_S``: on the Java engine when
-    ``BENCH_ENGINE=java``, else on the frozen Python engine."""
+    """The report of a run of ``doc`` within ``SIM_WALL_S``: on the Java engine, or on the frozen
+    Python engine when ``BENCH_ENGINE=python``."""
     if java_engine():
         return java_report(doc)
     from archsim_engine import run_simulation
@@ -3348,9 +3354,6 @@ def in_range(knee_range: Mapping[str, Any] | None, measured: Mapping[str, Any]) 
 
 
 def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
-    from archsim_engine.version import ENGINE_VERSION, REPORT_VERSION
-
-    python_engine_only("predict")
     inputs = calibration["inputs"]
     log(f"predicting {exp.id}: searching the knee")
     knee = predicted_knee(exp, inputs)
@@ -3369,8 +3372,8 @@ def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
     return {
         "experiment": exp.id,
         "at": now(),
-        "engineVersion": ENGINE_VERSION,
-        "reportVersion": REPORT_VERSION,
+        "engineVersion": engine_label(),
+        "reportVersion": report_version(),
         "provenance": provenance(),
         "objective": {"p95Ms": OBJECTIVE_P95_MS, "minSuccess": MIN_SUCCESS},
         "knee": knee,
@@ -3874,9 +3877,6 @@ RESIMULATED = (
 def predict_resources(results: Path = RESULTS) -> list[Path]:
     """resources-predicted.json for each experiment's latest results whose predictions recorded
     no CPU or memory: every predicted step simulated again with this engine (no Docker)."""
-    from archsim_engine.version import ENGINE_VERSION
-
-    python_engine_only("predict-resources")
     written = []
     for exp_id in EXPERIMENTS:
         d = results / exp_id
@@ -3893,7 +3893,7 @@ def predict_resources(results: Path = RESULTS) -> list[Path]:
             {
                 "experiment": exp_id,
                 "at": now(),
-                "engineVersion": ENGINE_VERSION,
+                "engineVersion": engine_label(),
                 "how": RESIMULATED,
                 "steps": [
                     {"offeredRps": s, "resources": r["resources"]}
@@ -5221,9 +5221,13 @@ def seal(
         f"{exp.held_out.commit[:12]}) and stays sealed"
     )
     if not any(e.get("engineTree") == tree for e in frozen):
+        engine = (
+            "the Java engine is not frozen yet (ADR-0062)"
+            if "engineSources" in prov
+            else f"this engine (tree {str(tree)[:12]}) is not frozen in benchmarks/engines.json"
+        )
         return (
-            f"{sealed}: this engine (tree {str(tree)[:12]}) is not frozen in "
-            f"benchmarks/engines.json, so it may not be calibrated or measured. "
+            f"{sealed}: {engine}, so it may not be calibrated or measured. "
             f"`run.py smoke {exp.id}` checks its stack without measuring it."
         )
     if prov.get("dirty") is not False:
@@ -5462,11 +5466,10 @@ def main(argv: list[str] | None = None) -> int:
         "experiments; with more than one, every run first archives the one before",
     )
     args = ap.parse_args(argv)
-    if java_engine() and args.stack not in JAVA_COMMANDS:
-        ap.error(
-            f"{args.stack} runs on the frozen Python engine only: unset {ENGINE_VARIABLE} "
-            f"(ADR-0051); on the Java engine, run {' or '.join(JAVA_COMMANDS)}"
-        )
+    try:
+        java_engine()  # a BENCH_ENGINE that names neither engine, before anything starts
+    except RuntimeError as exc:
+        ap.error(str(exc))
     if (args.experiment is not None) != (args.stack == "smoke"):
         ap.error("an experiment is named with smoke, and only with smoke")
     if args.stack == "smoke":

@@ -509,6 +509,6 @@ def test_the_frozen_engines_checks_are_named_with_the_labelled_run_that_writes_t
 
     assert report.main([]) == 1
     assert (
-        "0.16.0-port is missing: run uv run python benchmarks/run.py resimulate --label "
-        "0.16.0-port" in capsys.readouterr().err
+        "0.16.0-port is missing: run BENCH_ENGINE=python uv run python benchmarks/run.py "
+        "resimulate --label 0.16.0-port" in capsys.readouterr().err
     )

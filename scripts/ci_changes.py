@@ -27,8 +27,8 @@ from pathlib import Path
 # The jobs of .github/workflows/ci.yml that run only when a change needs them. `engine_tests` and
 # `benchmark_tests` are steps of the Python job, about 7 and 9 of its minutes on a hosted
 # runner: the frozen engine's tests, and the accuracy benchmarks' (which calibrate, simulate and
-# render docs/validation.md with that engine). Only a change to the engine or to a file they read
-# can change their result.
+# render docs/validation.md with the Java engine, ADR-0062). Only a change to an engine or to a
+# file they read can change their result.
 JOBS = (
     "python",
     "engine_tests",
@@ -81,54 +81,31 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # The Java build. The black-box API tests, the command line and the MCP server are not part
     # of the app the end-to-end tests run.
     ("archsim-api-tests/", frozenset({"java"})),
-    # The functions the benchmark harness asks the Java engine for (ADR-0061): the CLI's command
-    # and answers, the resource fits, the host machine, the load curve and the distributions, and
-    # the codec and writer that give the answers' fields and numbers; the benchmarks' tests check
-    # them.
-    (
-        "archsim-cli/src/main/java/io/archsim/cli/*Functions*.java",
-        frozenset({"java"}) | CHECK_ACTION | BENCHMARK_TESTS,
-    ),
-    (
-        "archsim-cli/src/main/java/io/archsim/cli/Archsim.java",
-        frozenset({"java"}) | CHECK_ACTION | BENCHMARK_TESTS,
-    ),
-    (
-        "archsim-engine/src/main/java/io/archsim/engine/calibration/resources/",
-        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
-    ),
-    ("archsim-engine/src/main/java/io/archsim/engine/host/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
-    (
-        "archsim-engine/src/main/java/io/archsim/engine/settings/LoadCurve.java",
-        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
-    ),
-    (
-        "archsim-model/src/main/java/io/archsim/model/distribution/",
-        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
-    ),
-    ("archsim-model/src/main/java/io/archsim/model/codec/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
-    (
-        "archsim-model/src/main/java/io/archsim/model/text/PythonJson.java",
-        JAVA | CHECK_ACTION | BENCHMARK_TESTS,
-    ),
+    # The benchmarks' tests simulate on the installed Java CLI and ask it for the engine's
+    # functions (ADR-0061, ADR-0062): a change to what the CLI is built from (its, the engine's
+    # and the model's main sources and build files, and the Gradle build) runs them; the modules'
+    # tests, test fixtures and READMEs do not.
+    ("archsim-cli/src/main/", frozenset({"java"}) | CHECK_ACTION | BENCHMARK_TESTS),
+    ("archsim-cli/build.gradle.kts", frozenset({"java"}) | CHECK_ACTION | BENCHMARK_TESTS),
     ("archsim-cli/", frozenset({"java"}) | CHECK_ACTION),
     ("archsim-mcp/", frozenset({"java"})),
     ("archsim-app/", JAVA),
+    ("archsim-engine/src/main/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
+    ("archsim-engine/build.gradle.kts", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
     ("archsim-engine/", JAVA | CHECK_ACTION),
-    # scripts/export_printable.py writes the table PythonText reads, and scripts/tests checks
-    # it against Python in the Python job
-    (
-        "archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv",
-        JAVA | CHECK_ACTION | {"python"},
-    ),
+    # the model's main sources include the table PythonText reads, which
+    # scripts/export_printable.py writes and scripts/tests checks against Python in the Python
+    # job (BENCHMARK_TESTS runs that job)
+    ("archsim-model/src/main/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
+    ("archsim-model/build.gradle.kts", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
     ("archsim-model/", JAVA | CHECK_ACTION),
-    ("build-logic/", JAVA | CHECK_ACTION),
+    ("build-logic/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
     ("config/", JAVA),
-    ("gradle/", JAVA | CHECK_ACTION),
-    ("gradle.properties", JAVA | CHECK_ACTION),
-    ("gradlew", JAVA | CHECK_ACTION),
+    ("gradle/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
+    ("gradle.properties", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
+    ("gradlew", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
     ("gradlew.bat", JAVA),
-    ("settings.gradle.kts", JAVA | CHECK_ACTION),
+    ("settings.gradle.kts", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
     # Python
     ("packages/engine/", PYTHON_RUNTIME),
     ("pyproject.toml", PYTHON_RUNTIME),
