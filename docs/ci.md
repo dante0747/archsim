@@ -48,15 +48,26 @@ assumptions, and the comment says so.
 
 ## GitHub Action
 
-`.github/actions/archsim-check` is a composite action: it sets up uv, runs the check, writes the
-result to the job summary, uploads it as an artifact (`archsim-check-<design>`), posts or
-updates **one** comment per design (and scenario) on the pull request, and fails the job when
-the check fails or cannot run. The comment is found by a hidden marker naming the design, and
-only a comment the job's own account posted (`comment-author`, `github-actions[bot]` for the
-workflow's token) is updated: pushes update it instead of adding comments, several designs (or
-a matrix) each keep their own, and a comment someone else writes with the marker is left alone.
-When the check cannot run (exit 2), the comment says so instead of keeping the last verdict.
-The action is not published as a package or a Marketplace action.
+`.github/actions/archsim-check` is a composite action: it builds ArchSim's Java CLI into a Docker
+image from the ArchSim checkout, runs the check in it, writes the result to the job summary, uploads
+it as an artifact (`archsim-check-<design>`), posts or updates **one** comment per design (and
+scenario) on the pull request, and fails the job when the check fails or cannot run. The comment is
+found by a hidden marker naming the design, and only a comment the job's own account posted
+(`comment-author`, `github-actions[bot]` for the workflow's token) is updated: pushes update it
+instead of adding comments, several designs (or a matrix) each keep their own, and a comment someone
+else writes with the marker is left alone. When the check cannot run (exit 2), the comment says so
+instead of keeping the last verdict. The action is not published as a package or a Marketplace
+action, and its image is never pushed to a registry: each job builds it
+([ADR-0060](adr/0060-run-the-check-action-in-an-image-the-job-builds.md)).
+
+The action needs a **Linux runner with Docker** (`ubuntu-latest` has both); on another runner it
+stops with exit code 2. Building the image takes a few minutes on a GitHub-hosted runner, most of it
+downloading Gradle and the build's dependencies; the build's log is in the step's collapsed "Build
+the ArchSim image" group. The check runs in the container without a network, as the runner's user,
+with the workspace mounted read-only and a folder of the action's own to write its results in;
+the image is removed once the check has run. A runner that is not Linux, an image that does not
+build or a container Docker cannot run is a check that could not run (exit 2), and the comment
+says which.
 
 In **this** repository, use it by path:
 
@@ -84,7 +95,7 @@ jobs:
 
 `./.github/actions/archsim-check` only exists in a checkout of ArchSim itself. From **another**
 repository, reference the action in the ArchSim repository with a commit you trust (GitHub
-downloads that whole repository with the action, and the action runs ArchSim from it):
+downloads that whole repository with the action, and the action builds ArchSim from it):
 
 ```yaml
       - uses: actions/checkout@v7
@@ -98,8 +109,8 @@ downloads that whole repository with the action, and the action runs ArchSim fro
 
 Inputs: `design` (required, relative to the workspace), `scenario`, `baseline-ref`, `fail-on`
 (comma separated), `knee`, `max-p95-increase`, `max-cost-increase`, `comment` (`true`),
-`comment-author`, `archsim-directory` (another ArchSim checkout to run, relative to the
-workspace; empty runs the action's own repository). Outputs: `passed`, `exit-code`. Pull
+`comment-author`, `archsim-directory` (another ArchSim checkout to build and run, relative to the
+workspace; empty builds the action's own repository). Outputs: `passed`, `exit-code`. Pull
 requests from forks get a read-only token, so the comment step may fail there without failing
 the job; the job summary always has the result.
 
@@ -131,14 +142,17 @@ the month resets ("The job was not started because ... your spending limit needs
 increased"). In November 2026 a full CI run on every push to main, about 44 billed minutes
 each, used the month's minutes in five days. So:
 
-- **CI runs only the jobs a change can affect.** The `changes` job runs
-  `scripts/ci_changes.py` on the files a pull request or push changes; its log says which file
-  needs each job. A change to docs (other than the ones the Python tests read), the README or
-  `.claude/` runs no job but `Commit messages`; a web change runs Web and End-to-end; a Java
-  change runs Java and End-to-end. A path no rule names runs every job, and so does a change to
-  CI itself, a push that starts a branch or rewrites history, and a run started by hand
-  (Actions > CI > Run workflow). When a test starts reading a file from another part of the
-  repository, add it to the script's `RULES`.
+- **CI runs only the jobs a change can affect.** The `changes` job runs `scripts/ci_changes.py` on
+  the files a pull request or push changes; its log says which file needs each job. A change to docs
+  (other than the ones the Python tests read), the README or `.claude/` runs no job but
+  `Commit messages`; a web change runs Web and End-to-end; a Java change runs Java and
+  End-to-end, and a change to the CLI, the engine, the model or the Gradle build (Dependabot's
+  Gradle updates included) also runs `ArchSim check`, whose image build (several minutes cold,
+  [ADR-0060](adr/0060-run-the-check-action-in-an-image-the-job-builds.md)) costs more than the
+  Python action's set-up did. A path no rule names runs every job, and so does a change to CI
+  itself, a push that starts a branch or rewrites history, and a run started by hand (Actions > CI >
+  Run workflow). When a test starts reading a file from another part of the repository, add it to
+  the script's `RULES`.
 - **The engine's and the benchmarks' tests run only when they can fail.** They are about 7 and
   9 of the Python job's minutes. The engine is frozen at 0.16.0, and the benchmarks' tests
   calibrate, simulate and render `docs/validation.md` with it, so the Python job runs them

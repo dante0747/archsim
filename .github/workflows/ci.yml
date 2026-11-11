@@ -197,12 +197,16 @@ jobs:
           retention-days: 14
 
   archsim-check:
-    # the repository's own SLO gate action, on a template, against the base branch (pull
-    # requests) or the previous commit (pushes); see docs/ci.md
+    # the repository's own SLO gate action, which builds this checkout's CLI into its image
+    # (ADR-0060), on a template, against the base branch (pull requests) or the previous commit
+    # (pushes); see docs/ci.md
     name: ArchSim check (action on a template)
     needs: changes
     if: needs.changes.outputs.archsim_check == 'true'
     runs-on: ubuntu-latest
+    # the image's build downloads Gradle and the dependencies: minutes, which a hung download
+    # would otherwise spend up to GitHub's six hours
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write

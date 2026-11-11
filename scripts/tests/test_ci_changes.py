@@ -34,13 +34,23 @@ EVERY_JOB = {
     [
         (["archsim-app/src/main/java/io/archsim/app/runs/Comparisons.java"], {"java", "e2e"}),
         (["archsim-api-tests/src/main/java/io/archsim/apitests/Examples.java"], {"java"}),
-        (["archsim-cli/src/main/java/io/archsim/cli/RunCommand.java"], {"java"}),
+        # the archsim-check action builds the CLI from its modules and the Gradle build
+        (["archsim-cli/src/main/java/io/archsim/cli/RunCommand.java"], {"java", "archsim_check"}),
+        (
+            ["archsim-engine/src/main/java/io/archsim/engine/check/CheckRunner.java"],
+            {"java", "e2e", "archsim_check"},
+        ),
+        (["gradle/libs.versions.toml"], {"java", "e2e", "archsim_check"}),
+        (
+            ["build-logic/src/main/kotlin/archsim.java-conventions.gradle.kts"],
+            {"java", "e2e", "archsim_check"},
+        ),
         (["archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java"], {"java"}),
-        (["gradle/libs.versions.toml", "config/checkstyle/checkstyle.xml"], {"java", "e2e"}),
+        (["config/checkstyle/checkstyle.xml", "gradlew.bat"], {"java", "e2e"}),
         # the Python job checks the table repr reads against Python
         (
             ["archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv"],
-            {"python", "java", "e2e"},
+            {"python", "java", "e2e", "archsim_check"},
         ),
         (["apps/web/src/app/page.tsx", "apps/web/package-lock.json"], {"web", "e2e"}),
         (["apps/web/src/data/accuracy.json"], {"python", "benchmark_tests", "web", "e2e"}),

@@ -46,6 +46,9 @@ PYTHON = frozenset({"python"})
 ENGINE_TESTS = frozenset({"python", "engine_tests"})
 BENCHMARK_TESTS = frozenset({"python", "benchmark_tests"})
 JAVA = frozenset({"java", "e2e"})
+# The archsim-check action builds the Java CLI into its image from these modules and the Gradle
+# build (ADR-0060), so its job checks a change to any of them.
+CHECK_ACTION = frozenset({"archsim_check"})
 # The frozen engine and the Python environment: every Python process imports them (the archsim
 # CLI, the MCP server, the migrations and seed, the end-to-end launcher's database maker), and
 # the Java build reads the engine's pricing data and test fixtures.
@@ -58,7 +61,9 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # CI itself
     (".github/workflows/ci.yml", EVERY),
     ("scripts/ci_changes.py", EVERY),
-    # packages/engine/tests/test_check.py runs the action
+    # packages/engine/tests/test_check.py tests its comment,
+    # scripts/tests/test_archsim_check_action.py runs its check step, and the archsim-check job
+    # runs it
     (".github/actions/", frozenset({"python", "engine_tests", "archsim_check"})),
     # benchmarks/tests/test_held_out.py reads its cpuset loop
     (".github/workflows/benchmark.yml", BENCHMARK_TESTS),
@@ -76,21 +81,24 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # The Java build. The black-box API tests, the command line and the MCP server are not part
     # of the app the end-to-end tests run.
     ("archsim-api-tests/", frozenset({"java"})),
-    ("archsim-cli/", frozenset({"java"})),
+    ("archsim-cli/", frozenset({"java"}) | CHECK_ACTION),
     ("archsim-mcp/", frozenset({"java"})),
     ("archsim-app/", JAVA),
-    ("archsim-engine/", JAVA),
+    ("archsim-engine/", JAVA | CHECK_ACTION),
     # scripts/export_printable.py writes the table PythonText reads, and scripts/tests checks
     # it against Python in the Python job
-    ("archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv", JAVA | {"python"}),
-    ("archsim-model/", JAVA),
-    ("build-logic/", JAVA),
+    (
+        "archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv",
+        JAVA | CHECK_ACTION | {"python"},
+    ),
+    ("archsim-model/", JAVA | CHECK_ACTION),
+    ("build-logic/", JAVA | CHECK_ACTION),
     ("config/", JAVA),
-    ("gradle/", JAVA),
-    ("gradle.properties", JAVA),
-    ("gradlew", JAVA),
+    ("gradle/", JAVA | CHECK_ACTION),
+    ("gradle.properties", JAVA | CHECK_ACTION),
+    ("gradlew", JAVA | CHECK_ACTION),
     ("gradlew.bat", JAVA),
-    ("settings.gradle.kts", JAVA),
+    ("settings.gradle.kts", JAVA | CHECK_ACTION),
     # Python
     ("packages/engine/", PYTHON_RUNTIME),
     ("pyproject.toml", PYTHON_RUNTIME),

@@ -3,7 +3,8 @@ description: >-
   Simulate an ArchSim design, check its objectives, compare it with the base branch and post
   one sticky pull request comment per design (updated on every push). Fails the job when an
   objective is missed or a metric regresses past its threshold, as fail-on asks, and when the
-  check cannot run (exit 2).
+  check cannot run (exit 2). Runs ArchSim's Java CLI in an image the job builds from the ArchSim
+  checkout (ADR-0060): a Linux runner with Docker.
 inputs:
   design:
     description: Path of the design (ArchSim JSON) in the repository.
@@ -46,7 +47,7 @@ inputs:
     default: github-actions[bot]
   archsim-directory:
     description: >-
-      An ArchSim checkout to run, relative to the workspace. Empty (the default): the
+      An ArchSim checkout to build and run, relative to the workspace. Empty (the default): the
       repository this action comes from.
     required: false
     default: ""
@@ -60,7 +61,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: astral-sh/setup-uv@v7
     - id: check
       shell: bash
       env:
@@ -79,8 +79,11 @@ runs:
         # that checks several designs does not overwrite one result with another
         key="$DESIGN${SCENARIO:+#$SCENARIO}"
         slug=$(printf '%s' "$key" | tr -c 'A-Za-z0-9._-' '_')
-        md="$RUNNER_TEMP/archsim-check-$slug.md"
-        js="$RUNNER_TEMP/archsim-check-$slug.json"
+        # the action's own folder, the one the container may write in
+        files="$RUNNER_TEMP/archsim-check-$slug"
+        mkdir -p "$files"
+        md="$files/archsim-check-$slug.md"
+        js="$files/archsim-check-$slug.json"
         {
           echo "key=$key"
           echo "slug=$slug"
@@ -95,17 +98,47 @@ runs:
         IFS=',' read -ra modes <<< "$FAIL_ON"
         for m in "${modes[@]}"; do args+=(--fail-on "$(echo "$m" | xargs)"); done
         # the action's own repository (three levels up) unless another checkout is named
-        cd "${ARCHSIM_DIR:-$GITHUB_ACTION_PATH/../../..}"
-        uv sync --frozen --quiet
+        archsim="${ARCHSIM_DIR:+$GITHUB_WORKSPACE/$ARCHSIM_DIR}"
+        archsim="${archsim:-$GITHUB_ACTION_PATH/../../..}"
+        # the image by its ID, not a name another job on the same Docker could reuse
+        image="$files/image"
+        # why a check that could not run did not: the CLI's own refusal unless said otherwise
+        reason="The design or its baseline could not be used; the job log says why."
         set +e
-        uv run archsim check "${args[@]}"
-        code=$?
+        if [ "$RUNNER_OS" != "Linux" ]; then
+          echo "::error::The ArchSim check runs in a Linux container: use a Linux runner with Docker."
+          reason="The check runs in a Linux container: this runner is not Linux."
+          code=2
+        else
+          echo "::group::Build the ArchSim image"
+          docker build --file "$archsim/.github/actions/archsim-check/Dockerfile" --iidfile "$image" "$archsim"
+          built=$?
+          echo "::endgroup::"
+          if [ "$built" -ne 0 ]; then
+            echo "::error::ArchSim's image did not build (exit $built): the log of its build says why."
+            reason="ArchSim's image did not build; the job log says why."
+            code=2
+          else
+            # the runner's user, who owns the checkout, so git trusts it and the files written are
+            # the job's; the workspace to read and the action's folder to write, no network
+            docker run --rm --network none --user "$(id -u):$(id -g)" --env HOME=/tmp \
+              --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" --volume "$files:$files" \
+              --workdir "$GITHUB_WORKSPACE" "$(cat "$image")" check "${args[@]}"
+            code=$?
+            docker image rm "$(cat "$image")" > /dev/null
+            if [ "$code" -gt 2 ]; then
+              # Docker's own (125 to 127) or a kill's, not the CLI's
+              echo "::error::The check's container ended with exit code $code."
+              reason="The check's container did not run to its end; the job log says why."
+              code=2
+            fi
+          fi
+        fi
         set -e
         if [ "$code" -ne 0 ] && [ "$code" -ne 1 ]; then
           # replace an earlier verdict rather than leave it standing on the pull request
           printf '%s\n' '<!-- archsim-check -->' \
-            "### ⚠️ ArchSim check could not run (exit $code)" '' \
-            'The design or its baseline could not be used; the job log says why.' > "$md"
+            "### ⚠️ ArchSim check could not run (exit $code)" '' "$reason" > "$md"
         fi
         cat "$md" >> "$GITHUB_STEP_SUMMARY" || true
         echo "passed=$([ $code -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
