@@ -1267,7 +1267,7 @@ does not show how ArchSim does on other machines or on real applications.
 
 ## Proposed tier thresholds
 
-The owner decides tiers (docs/prompts/how-to-win.md); this is a proposal, not applied anywhere.
+The owner decides tiers; this is a proposal, not applied anywhere.
 
 A technology is **validated** when every benchmark that exercises it has, over at least three
 counted runs under the same protocol, machine, OS build, power mode and engine:

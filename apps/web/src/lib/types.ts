@@ -189,7 +189,7 @@ export interface Estimate {
   notes: string[];
 }
 
-/** A fault injected during a run (see docs/product-spec-v2.md). */
+/** A fault injected during a run (`Fault` in archsim-model). */
 export interface Fault {
   id: string;
   kind: "outage" | "slowdown" | "latency";

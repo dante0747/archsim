@@ -95,7 +95,7 @@ Every template as shipped (its own traffic shape and duration, no scenarios), be
 | retry-storm-ttl-cache | 19.5 s | 103,083 | 5,278 |
 | serverless-burst | 10.9 s | 33,768 | 3,105 |
 
-**The target** (Phase 8 of docs/prompts/how-to-win.md): a 10,000 req/s, 10-minute run of a
+**The target** (Phase 8 of the October 2026 roadmap): a 10,000 req/s, 10-minute run of a
 six-part design, about 6 million requests, answered in under 60 s. The design
 (`target_design` in `scripts/perf.py`, deleted with the Python engine): clients, a load
 balancer, 320 API replicas, a Redis cache,

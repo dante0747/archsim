@@ -5,8 +5,7 @@ measured on the held-out experiments; schema 1.7, report 1.15; the API, the engi
 the MCP server in Java, and Python left only for the benchmark harness and the repository's
 scripts). This file separates what is implemented,
 how it was verified, what is known to be limited, and what comes next. Nothing listed under
-"Implemented" is a stub or a mock. The product and UX brief for v2 is
-[docs/product-spec-v2.md](docs/product-spec-v2.md).
+"Implemented" is a stub or a mock.
 
 ## Implemented and covered by automated tests
 
@@ -1485,7 +1484,7 @@ serves 10 example designs (see below).
   and simulated again (100%, both objectives met), with toasts for each step. Not tested with a
   real browser agent: none was available here (WebMCP is behind a flag in Chrome).
 - One source of truth and limits that hold (engine 0.7.0, report 1.7, 2026-10-26; Phase 0 of
-  docs/prompts/how-to-win.md). The static load estimate, auto-sizing, the cost estimate and the
+  the October 2026 roadmap). The static load estimate, auto-sizing, the cost estimate and the
   design review moved from the web app to the engine (`load.py`, `sizing.py`, `cost.py`,
   `review.py`); before deleting the TypeScript copies, both versions ran on all ten templates
   and gave identical sizes (every explanation string), identical costs and identical review
@@ -1517,7 +1516,7 @@ serves 10 example designs (see below).
   Not verified: older reports have no `cost` (Results say to re-run); the amplification limit
   is not a setting of the API yet (default 10,000 everywhere); overhead measured on one machine
   with other work running.
-- Accuracy benchmarks (2026-10-26; Phase 2 of docs/prompts/how-to-win.md). `benchmarks/`
+- Accuracy benchmarks (2026-10-26; Phase 2 of the October 2026 roadmap). `benchmarks/`
   runs four experiments on real stacks in Docker (a small Node.js service, PostgreSQL 16, Redis
   7, Kafka 3.8, k6 as the open-loop load generator, every container pinned to its own CPUs):
   90/10 reads and writes on PostgreSQL, every request updating one row, cache-aside with Redis,
@@ -1549,7 +1548,7 @@ serves 10 example designs (see below).
   nothing is pushed), Linux (k6's output directory is now made writable for its uid, untested),
   the drain and health check between repeats (added after run 4, never run).
 - Technology tiers and discoverable assumptions (report 1.8, 2026-10-26; Phase 1 of
-  docs/prompts/how-to-win.md). Every technology profile has a tier: core (the roadmap's
+  the October 2026 roadmap). Every technology profile has a tier: core (the roadmap's
   suggested set: generic, Node.js, Java and Go services, PostgreSQL, Redis, Kafka, SQS-style,
   Nginx and ALB-style load balancers, upstream Kubernetes, and the generic part of each kind,
   which adds no technology behaviour; 15 profiles) or experimental (the other 36; none deleted).
@@ -1580,7 +1579,7 @@ serves 10 example designs (see below).
   note under "Yes, it holds up." and in Assumptions; no console errors. Not verified: the Markdown
   report and exports in the browser (unit-tested only); the 13 core / 25 experimental preset
   counts on the landing are computed from the catalog.
-- Performance (report 1.11, 2026-10-26; Phase 8 of docs/prompts/how-to-win.md). Measured first
+- Performance (report 1.11, 2026-10-26; Phase 8 of the October 2026 roadmap). Measured first
   (`scripts/perf.py`, numbers in `benchmarks/perf/` and [docs/performance.md](docs/performance.md)):
   full simulation runs about 2,000 to 5,000 requests per second per core on this laptop, with no
   single hot spot. Runs now execute in worker processes (`ProcessJobRunner`, the API default;
@@ -1602,7 +1601,7 @@ serves 10 example designs (see below).
   p95, throughput +0.15%): 50 times faster but **5.6 s over the 60 s target** on this laptop.
   Not done: a faster event loop or compiled core; sampled mode as the default for long runs
   (waits for the web app to show sampled reports); sampled mode through the API.
-- An SLO gate in CI (2026-10-26; Phase 7 of docs/prompts/how-to-win.md). `archsim check
+- An SLO gate in CI (2026-10-26; Phase 7 of the October 2026 roadmap). `archsim check
   design.json [--scenario] [--baseline other.json | --baseline-ref origin/main] [--fail-on
   objectives|regression] [--knee] --format markdown|json` exits 0 when it passes, 1 when an
   objective is missed or a metric regressed past its threshold (p95 +10%, success rate -0.1 pp,
@@ -1622,7 +1621,7 @@ serves 10 example designs (see below).
   this repository gets a correct comment and fails on a missed objective) is checked locally
   only: the same command, comment and exit code the action uses.
 - Price snapshots and real machine shapes (engine 0.9.0, schema 1.2, report 1.10, 2026-10-26;
-  Phase 6 of docs/prompts/how-to-win.md). A design names its price source in `pricing`
+  Phase 6 of the October 2026 roadmap). A design names its price source in `pricing`
   (`provider`, `region`, `purchaseOption`, `families`). `generic`, the default, is the
   illustrative per-vCPU, per-GiB and storage rates as before: no shapes, the same sizes and the
   same result digests. Any other provider names a price snapshot (`archsim.prices/1`: on-demand
@@ -1649,7 +1648,7 @@ serves 10 example designs (see below).
   types) is not met yet; the refresh scripts have not been run against the live price lists.
   Savings plans and reserved terms are not modeled.
 - Import from docker-compose, Kubernetes and Terraform (2026-10-26; Phase 5 of
-  docs/prompts/how-to-win.md). `archsim import compose|k8s|terraform FILE -o design.json
+  the October 2026 roadmap). `archsim import compose|k8s|terraform FILE -o design.json
   --report report.json`, `POST /import`, an "Import from compose, Kubernetes, Terraform" dialog
   in the editor (format detected from the file; shows the report; replaces the design, undoable)
   and an MCP tool `import_design`. Compose services become parts by image, `deploy.replicas`,
@@ -1672,7 +1671,7 @@ serves 10 example designs (see below).
   written for these tests in the style of common examples (a voting app, a shop on Kubernetes,
   an AWS plan) instead of vendored third-party files, which would need their licences added to
   the repository (listed as an owner decision).
-- MCP server for AI coding agents (2026-10-26; Phase 4 of docs/prompts/how-to-win.md).
+- MCP server for AI coding agents (2026-10-26; Phase 4 of the October 2026 roadmap).
   `packages/mcp` (`archsim-mcp`) is a Model Context Protocol server over stdio on the official
   `mcp` Python SDK (v2, `MCPServer`), running the engine directly: tools `list_part_types`,
   `list_templates`, `get_template`, `validate_design`, `analyze_design`, `simulate`,
@@ -1693,7 +1692,7 @@ serves 10 example designs (see below).
   yet). The web app keeps TypeScript copies of the SLO verdict and sweep analysis for its own
   pages (moving them onto the engine is open).
 - Calibration from telemetry (engine 0.8.0, schema 1.1, report 1.9, 2026-10-26; Phase 3 of
-  docs/prompts/how-to-win.md). Schema 1.1 adds `provenance` (per input: illustrative, assumed or
+  the October 2026 roadmap). Schema 1.1 adds `provenance` (per input: illustrative, assumed or
   measured, with source, query, time range, fit error and when) and a `calibration` record;
   1.0 documents migrate on load, newer ones are refused. New `empirical` distribution (a
   quantile table) and `trace` traffic pattern (rate points, linear between them).

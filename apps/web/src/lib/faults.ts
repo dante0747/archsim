@@ -2,7 +2,7 @@
  * Chaos experiments: fault helpers, one-click experiment presets, and the verdict of a run
  * against the steady-state hypothesis (the document's objectives).
  *
- * Faults live in `workload.faults` (see docs/product-spec-v2.md):
+ * Faults live in `workload.faults` (see `Fault` in archsim-model):
  *   outage   - a node rejects every request arriving in the window
  *   slowdown - service times at a node are multiplied by `factor`
  *   latency  - each traversal of an edge gets `extraMs` added (one way)
