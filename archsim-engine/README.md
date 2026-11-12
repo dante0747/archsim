@@ -360,6 +360,12 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   types and cost, 1.5 and 2 times the rate never give a cheaper type, per-request lines are within
   10% of a hand calculation, and the monthly cost is at most 1.15 times a hand-picked reference.
   On every template its checks are the script's on the frozen engine, part for part (301 checks).
+- `GeneratedFileTests` holds the repository's files the engine generates to its output: the
+  web app's engine fixtures (`apps/web/src/test/fixtures/catalog.json`, the component catalog
+  as `GET /api/v1/components` answers it, and `analysis-starter.json`, the starter's analysis
+  as `POST /api/v1/analyze` answers it), one `GeneratedFile` each.
+  `./gradlew :archsim-engine:generate` writes them (`GeneratedFile.main`); the test task declares
+  them as inputs, so an edit to one runs the check again.
 - `./gradlew :archsim-engine:parity` runs `SimulationParityTests` (tagged `parity`, left out of
   `test`): every template case of the frozen engine's simulation baselines (149 cases, 20 seeds
   each; `parity/simulation/` once recorded), simulated in Java and judged by the port plan's bar

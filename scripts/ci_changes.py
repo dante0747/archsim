@@ -68,13 +68,14 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # benchmarks/tests/test_held_out.py reads its cpuset loop
     (".github/workflows/benchmark.yml", BENCHMARK_TESTS),
     (".github/", NONE),
-    # The web app. The benchmarks' tests compare the accuracy page's copy with docs/validation/;
-    # the engine's tests check the fixtures scripts/export_web_fixtures.py writes, and
-    # archsim-model's DesignDocumentsTests reads the starter.
+    # The web app. The benchmarks' tests compare the accuracy page's copy with docs/validation/.
+    # archsim-engine's GeneratedFileTests (and the frozen engine's tests) check the fixtures
+    # `./gradlew :archsim-engine:generate` writes from the starter. archsim-model's
+    # DesignDocumentsTests reads the starter too.
     ("apps/web/src/data/accuracy.json", BENCHMARK_TESTS | {"web", "e2e"}),
     ("apps/web/src/test/fixtures/starter.json", ENGINE_TESTS | {"web", "java", "e2e"}),
-    ("apps/web/src/test/fixtures/catalog.json", ENGINE_TESTS | {"web", "e2e"}),
-    ("apps/web/src/test/fixtures/analysis-starter.json", ENGINE_TESTS | {"web", "e2e"}),
+    ("apps/web/src/test/fixtures/catalog.json", ENGINE_TESTS | {"web", "java", "e2e"}),
+    ("apps/web/src/test/fixtures/analysis-starter.json", ENGINE_TESTS | {"web", "java", "e2e"}),
     # the end-to-end launcher: the Java tests check the worker's command line in it
     ("apps/web/e2e/api-server.mjs", frozenset({"web", "java", "e2e"})),
     ("apps/web/", frozenset({"web", "e2e"})),
@@ -118,7 +119,7 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # The exporters write the Java tests' resources (archsim-engine/src/test/resources) and the
     # golden files (scripts/golden/, which export_golden.py --check compares in the Python job);
     # the engine's tests run export_web_fixtures.py, price and audit scripts.
-    ("scripts/export_web_fixtures.py", ENGINE_TESTS | {"java"}),
+    ("scripts/export_web_fixtures.py", ENGINE_TESTS),
     ("scripts/export_*", frozenset({"python", "java"})),
     ("scripts/golden/", frozenset({"python", "java"})),
     ("scripts/prices/", ENGINE_TESTS),

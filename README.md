@@ -384,7 +384,7 @@ services/api/      Python Alembic migrations, until stage 6 of the Java port
 apps/web/          Next.js editor: canvas, inspector, results and comparison
 examples/          Example architectures (versioned JSON) with scenarios
 docs/              Architecture, simulation model, schema, API, extension guide, roadmap
-scripts/           Developer scripts (e.g. regenerate the web test fixture)
+scripts/           Developer scripts (e.g. which CI jobs a change needs, the commit message check)
 ```
 
 ## Documentation

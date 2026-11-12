@@ -241,9 +241,9 @@ snapshot the model ships). **Templates** keep the date they name, because a new 
 snap parts to other types and so change results. To move them: set `pricing.snapshotDate` in
 `examples/*.json` to the new date, then regenerate what depends on their results (as for any
 change to simulated results): delete `packages/engine/tests/snapshots/check-regression.md` and
-run `uv run pytest packages/engine/tests/test_check.py`, run
-`uv run python scripts/export_web_fixtures.py`, copy `examples/cache-aside-starter.json` to
-`apps/web/src/test/fixtures/starter.json`, and run the whole test suite.
+run `uv run pytest packages/engine/tests/test_check.py`, copy `examples/cache-aside-starter.json`
+to `apps/web/src/test/fixtures/starter.json`, run `./gradlew :archsim-engine:generate` (which
+analyzes that starter), and run the whole test suite.
 
 By hand:
 

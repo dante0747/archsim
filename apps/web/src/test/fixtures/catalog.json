@@ -868,70 +868,70 @@
             "rate-limit"
           ],
           "sources": {
-            "rateLimitRps": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html",
-            "rateLimitBurst": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html"
+            "rateLimitBurst": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html",
+            "rateLimitRps": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html"
           },
           "tier": "experimental"
         }
       ],
       "linkDefaults": {},
       "technologyTraits": {
-        "nginx": [
+        "api_gateway": [
           {
-            "id": "proxy_read_timeout",
-            "title": "Upstream read timeout 60 s",
-            "detail": "nginx gives up on an upstream response after proxy_read_timeout (60 s by default) and returns 504.",
-            "source": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout"
+            "detail": "The gateway waits at most 29 s for the backend by default, then returns 504 (regional and private REST APIs can request more).",
+            "id": "integration_timeout",
+            "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html",
+            "title": "Integration timeout 29 s"
           },
           {
-            "id": "two_connections",
-            "title": "Two connections per proxied request",
-            "detail": "worker_connections counts every connection, including those to upstream servers, so each proxied request uses two and a worker serves half as many requests (the preset sizes it that way).",
-            "source": "https://nginx.org/en/docs/ngx_core_module.html#worker_connections"
-          }
-        ],
-        "envoy": [
-          {
-            "id": "circuit_breakers",
-            "title": "Circuit breakers (1,024 requests)",
-            "detail": "Each upstream cluster allows 1,024 concurrent requests by default; beyond that Envoy answers 503 at once instead of queueing.",
-            "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto"
-          },
-          {
-            "id": "route_timeout",
-            "title": "Route timeout 15 s",
-            "detail": "A route waits 15 s for the upstream response by default, then returns 504.",
-            "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+            "detail": "10,000 requests per second with a 5,000 burst per account and Region by default (token bucket; lower in some newer Regions); excess gets 429. The preset sets these.",
+            "id": "account_throttle",
+            "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html",
+            "title": "Account throttle"
           }
         ],
         "aws_alb": [
           {
-            "id": "idle_timeout",
-            "title": "Idle timeout 60 s",
             "detail": "The load balancer closes a connection idle for 60 s (default), which ends a slow upstream response with 504.",
-            "source": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html"
+            "id": "idle_timeout",
+            "source": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html",
+            "title": "Idle timeout 60 s"
           }
         ],
-        "api_gateway": [
+        "envoy": [
           {
-            "id": "integration_timeout",
-            "title": "Integration timeout 29 s",
-            "detail": "The gateway waits at most 29 s for the backend by default, then returns 504 (regional and private REST APIs can request more).",
-            "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html"
+            "detail": "Each upstream cluster allows 1,024 concurrent requests by default; beyond that Envoy answers 503 at once instead of queueing.",
+            "id": "circuit_breakers",
+            "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto",
+            "title": "Circuit breakers (1,024 requests)"
           },
           {
-            "id": "account_throttle",
-            "title": "Account throttle",
-            "detail": "10,000 requests per second with a 5,000 burst per account and Region by default (token bucket; lower in some newer Regions); excess gets 429. The preset sets these.",
-            "source": "https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html"
+            "detail": "A route waits 15 s for the upstream response by default, then returns 504.",
+            "id": "route_timeout",
+            "source": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+            "title": "Route timeout 15 s"
           }
         ],
         "kong": [
           {
-            "id": "service_timeouts",
-            "title": "Upstream timeouts 60 s",
             "detail": "A Kong service waits 60 s (read_timeout) for the upstream by default.",
-            "source": "https://developer.konghq.com/gateway/entities/service/"
+            "id": "service_timeouts",
+            "source": "https://developer.konghq.com/gateway/entities/service/",
+            "title": "Upstream timeouts 60 s"
+          }
+        ],
+        "nginx": [
+          {
+            "detail": "nginx gives up on an upstream response after proxy_read_timeout (60 s by default) and returns 504.",
+            "id": "proxy_read_timeout",
+            "source": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout",
+            "title": "Upstream read timeout 60 s"
+          },
+          {
+            "detail": "worker_connections counts every connection, including those to upstream servers, so each proxied request uses two and a worker serves half as many requests (the preset sizes it that way).",
+            "id": "two_connections",
+            "source": "https://nginx.org/en/docs/ngx_core_module.html#worker_connections",
+            "title": "Two connections per proxied request"
           }
         ]
       },
@@ -951,15 +951,15 @@
         }
       },
       "technologySources": {
-        "upstreamTimeoutMs": {
-          "nginx": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout",
-          "envoy": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
-          "aws_alb": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html",
-          "api_gateway": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html",
-          "kong": "https://developer.konghq.com/gateway/entities/service/"
-        },
         "circuitBreakerMaxRequests": {
           "envoy": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto"
+        },
+        "upstreamTimeoutMs": {
+          "api_gateway": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html",
+          "aws_alb": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html",
+          "envoy": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+          "kong": "https://developer.konghq.com/gateway/entities/service/",
+          "nginx": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout"
         }
       },
       "technologyTiers": {
@@ -1624,8 +1624,8 @@
             "blocking"
           ],
           "sources": {
-            "workersPerReplica": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
-            "queueCapacity": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
+            "queueCapacity": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+            "workersPerReplica": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
           },
           "tier": "core"
         },
@@ -1767,93 +1767,93 @@
             "cold-start"
           ],
           "sources": {
+            "concurrencyLimit": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
             "cpuCores": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html",
-            "memoryGib": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html",
-            "concurrencyLimit": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+            "memoryGib": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"
           },
           "tier": "core"
         }
       ],
       "linkDefaults": {},
       "technologyTraits": {
-        "nodejs": [
-          {
-            "id": "event_loop",
-            "title": "Single-threaded event loop",
-            "detail": "JavaScript runs on one thread per process: CPU work of every request queues for that one loop (event-loop lag), while I/O waits don't hold it. Add processes per replica (cluster mode) to use more cores.",
-            "source": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop"
-          },
-          {
-            "id": "v8_gc",
-            "title": "Short GC pauses",
-            "detail": "V8's scavenger pauses the loop for a couple of milliseconds now and then (illustrative).",
-            "source": "https://v8.dev/blog/trash-talk"
-          }
-        ],
-        "java": [
-          {
-            "id": "thread_per_request",
-            "title": "Thread per request",
-            "detail": "Spring MVC on Tomcat serves each request on a pool thread (200 by default) that stays busy during downstream calls.",
-            "source": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
-          },
-          {
-            "id": "gc_pauses",
-            "title": "Stop-the-world GC pauses",
-            "detail": "The garbage collector (G1 by default) pauses all application threads for a few milliseconds when the young generation fills up, more often under load (pause and frequency are illustrative).",
-            "source": "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html"
-          },
-          {
-            "id": "jit_warmup",
-            "title": "JIT warm-up",
-            "detail": "A new instance starts with interpreted or lightly optimised code and runs slower until the JIT has compiled the hot paths (factor and duration are illustrative).",
-            "source": "https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html"
-          }
-        ],
         "dotnet": [
           {
-            "id": "tiered_compilation",
-            "title": "Tiered compilation warm-up",
             "detail": "Methods start unoptimised and are recompiled once hot, so a fresh instance is slower at first (factor and duration are illustrative).",
-            "source": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation"
+            "id": "tiered_compilation",
+            "source": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation",
+            "title": "Tiered compilation warm-up"
           },
           {
-            "id": "gc_pauses",
-            "title": "GC pauses",
             "detail": "Gen0 collections pause managed threads briefly (illustrative).",
-            "source": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals"
+            "id": "gc_pauses",
+            "source": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals",
+            "title": "GC pauses"
           }
         ],
         "go": [
           {
-            "id": "goroutines",
-            "title": "Goroutines on every core",
             "detail": "Requests run as goroutines scheduled across all cores; the concurrent GC's stop-the-world pauses are usually under 100 microseconds.",
-            "source": "https://go.dev/doc/go1.8"
+            "id": "goroutines",
+            "source": "https://go.dev/doc/go1.8",
+            "title": "Goroutines on every core"
           }
         ],
-        "rust": [
+        "java": [
           {
-            "id": "no_gc",
-            "title": "No garbage collector",
-            "detail": "Memory is freed deterministically: no GC pauses and no JIT warm-up.",
-            "source": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+            "detail": "Spring MVC on Tomcat serves each request on a pool thread (200 by default) that stays busy during downstream calls.",
+            "id": "thread_per_request",
+            "source": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+            "title": "Thread per request"
+          },
+          {
+            "detail": "The garbage collector (G1 by default) pauses all application threads for a few milliseconds when the young generation fills up, more often under load (pause and frequency are illustrative).",
+            "id": "gc_pauses",
+            "source": "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html",
+            "title": "Stop-the-world GC pauses"
+          },
+          {
+            "detail": "A new instance starts with interpreted or lightly optimised code and runs slower until the JIT has compiled the hot paths (factor and duration are illustrative).",
+            "id": "jit_warmup",
+            "source": "https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html",
+            "title": "JIT warm-up"
           }
         ],
-        "python": [
+        "nodejs": [
           {
-            "id": "worker_processes",
-            "title": "Worker processes",
-            "detail": "Gunicorn-style sync workers handle one request each; each process is held to one core by the GIL (the docs suggest 2 x cores + 1 workers).",
-            "source": "https://gunicorn.org/design/"
+            "detail": "JavaScript runs on one thread per process: CPU work of every request queues for that one loop (event-loop lag), while I/O waits don't hold it. Add processes per replica (cluster mode) to use more cores.",
+            "id": "event_loop",
+            "source": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+            "title": "Single-threaded event loop"
+          },
+          {
+            "detail": "V8's scavenger pauses the loop for a couple of milliseconds now and then (illustrative).",
+            "id": "v8_gc",
+            "source": "https://v8.dev/blog/trash-talk",
+            "title": "Short GC pauses"
           }
         ],
         "php": [
           {
-            "id": "process_per_request",
-            "title": "Process per request (PHP-FPM)",
             "detail": "Each request takes a PHP-FPM child; pm.max_children (5 in the shipped www.conf) caps concurrency and memory is freed when the request ends.",
-            "source": "https://www.php.net/manual/en/install.fpm.configuration.php"
+            "id": "process_per_request",
+            "source": "https://www.php.net/manual/en/install.fpm.configuration.php",
+            "title": "Process per request (PHP-FPM)"
+          }
+        ],
+        "python": [
+          {
+            "detail": "Gunicorn-style sync workers handle one request each; each process is held to one core by the GIL (the docs suggest 2 x cores + 1 workers).",
+            "id": "worker_processes",
+            "source": "https://gunicorn.org/design/",
+            "title": "Worker processes"
+          }
+        ],
+        "rust": [
+          {
+            "detail": "Memory is freed deterministically: no GC pauses and no JIT warm-up.",
+            "id": "no_gc",
+            "source": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html",
+            "title": "No garbage collector"
           }
         ]
       },
@@ -1913,62 +1913,62 @@
         "coldStartMs": {
           "nodejs": {
             "kind": "lognormal",
-            "median": 250,
-            "p95": 700
+            "median": 250.0,
+            "p95": 700.0
           },
           "java": {
             "kind": "lognormal",
-            "median": 1200,
-            "p95": 3500
+            "median": 1200.0,
+            "p95": 3500.0
           },
           "dotnet": {
             "kind": "lognormal",
-            "median": 600,
-            "p95": 1500
+            "median": 600.0,
+            "p95": 1500.0
           },
           "go": {
             "kind": "lognormal",
-            "median": 100,
-            "p95": 300
+            "median": 100.0,
+            "p95": 300.0
           },
           "rust": {
             "kind": "lognormal",
-            "median": 60,
-            "p95": 200
+            "median": 60.0,
+            "p95": 200.0
           },
           "python": {
             "kind": "lognormal",
-            "median": 250,
-            "p95": 700
+            "median": 250.0,
+            "p95": 700.0
           },
           "php": {
             "kind": "lognormal",
-            "median": 300,
-            "p95": 900
+            "median": 300.0,
+            "p95": 900.0
           },
           "ruby": {
             "kind": "lognormal",
-            "median": 300,
-            "p95": 900
+            "median": 300.0,
+            "p95": 900.0
           },
           "generic": {
             "kind": "lognormal",
-            "median": 300,
-            "p95": 900
+            "median": 300.0,
+            "p95": 900.0
           }
         }
       },
       "technologySources": {
-        "runtimeModel": {
-          "nodejs": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
-          "java": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
-          "go": "https://go.dev/doc/go1.8",
-          "python": "https://gunicorn.org/design/",
-          "php": "https://www.php.net/manual/en/install.fpm.configuration.php"
-        },
         "gcPauseMs": {
           "go": "https://go.dev/doc/go1.8",
           "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+        },
+        "runtimeModel": {
+          "go": "https://go.dev/doc/go1.8",
+          "java": "https://docs.spring.io/spring-boot/appendix/application-properties/index.html",
+          "nodejs": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "php": "https://www.php.net/manual/en/install.fpm.configuration.php",
+          "python": "https://gunicorn.org/design/"
         },
         "warmupFactor": {
           "rust": "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
@@ -2509,52 +2509,52 @@
       ],
       "linkDefaults": {},
       "technologyTraits": {
+        "memcached": [
+          {
+            "detail": "Worker threads (4 by default) execute requests in parallel; memory is managed in slabs with LRU eviction and nothing is persisted.",
+            "id": "threads",
+            "source": "https://docs.memcached.org/serverguide/configuring/",
+            "title": "Multi-threaded"
+          }
+        ],
         "redis": [
           {
-            "id": "single_thread",
-            "title": "One thread executes commands",
             "detail": "Commands run one at a time on a single thread per node, however many cores it has; scale out with cluster shards (keys are split across 16,384 hash slots).",
-            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+            "id": "single_thread",
+            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+            "title": "One thread executes commands"
           },
           {
-            "id": "eviction",
-            "title": "Eviction policy",
             "detail": "With allkeys-lru the least recently used keys make room for new ones; with noeviction (Redis's own default) writes fail with an out-of-memory error once memory is full.",
-            "source": "https://redis.io/docs/latest/develop/reference/eviction/"
+            "id": "eviction",
+            "source": "https://redis.io/docs/latest/develop/reference/eviction/",
+            "title": "Eviction policy"
           },
           {
-            "id": "fork_stall",
-            "title": "Snapshot fork stalls",
             "detail": "With RDB snapshots on, each snapshot forks the process; the fork blocks the command thread for about 10-13 ms per GB of data on modern hardware (Redis's own measurements), far more on some older virtual machines.",
-            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+            "id": "fork_stall",
+            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+            "title": "Snapshot fork stalls"
           }
         ],
         "valkey": [
           {
-            "id": "single_thread",
-            "title": "One thread executes commands",
             "detail": "Valkey offloads socket I/O to I/O threads, which shortens each command, but commands still execute one at a time per node; scale out with cluster shards.",
-            "source": "https://valkey.io/blog/unlock-one-million-rps/"
+            "id": "single_thread",
+            "source": "https://valkey.io/blog/unlock-one-million-rps/",
+            "title": "One thread executes commands"
           },
           {
-            "id": "eviction",
-            "title": "Eviction policy",
             "detail": "With allkeys-lru the least recently used keys make room for new ones; with noeviction (Redis's own default) writes fail with an out-of-memory error once memory is full.",
-            "source": "https://redis.io/docs/latest/develop/reference/eviction/"
+            "id": "eviction",
+            "source": "https://redis.io/docs/latest/develop/reference/eviction/",
+            "title": "Eviction policy"
           },
           {
-            "id": "fork_stall",
-            "title": "Snapshot fork stalls",
             "detail": "With RDB snapshots on, each snapshot forks the process; the fork blocks the command thread for about 10-13 ms per GB of data on modern hardware (Redis's own measurements), far more on some older virtual machines.",
-            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
-          }
-        ],
-        "memcached": [
-          {
-            "id": "threads",
-            "title": "Multi-threaded",
-            "detail": "Worker threads (4 by default) execute requests in parallel; memory is managed in slabs with LRU eviction and nothing is persisted.",
-            "source": "https://docs.memcached.org/serverguide/configuring/"
+            "id": "fork_stall",
+            "source": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+            "title": "Snapshot fork stalls"
           }
         ]
       },
@@ -2582,16 +2582,16 @@
         }
       },
       "technologySources": {
-        "singleThreaded": {
-          "redis": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
-          "valkey": "https://valkey.io/blog/unlock-one-million-rps/",
-          "memcached": "https://docs.memcached.org/serverguide/configuring/"
-        },
         "evictionPolicy": {
           "memcached": "https://docs.memcached.org/serverguide/configuring/"
         },
         "persistence": {
           "memcached": "https://docs.memcached.org/serverguide/configuring/"
+        },
+        "singleThreaded": {
+          "memcached": "https://docs.memcached.org/serverguide/configuring/",
+          "redis": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+          "valkey": "https://valkey.io/blog/unlock-one-million-rps/"
         }
       },
       "technologyTiers": {
@@ -3671,280 +3671,280 @@
       ],
       "linkDefaults": {},
       "technologyTraits": {
-        "postgresql": [
+        "cassandra": [
           {
-            "id": "row_locks",
-            "title": "Row locks on writes",
-            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
-            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+            "detail": "Writes append to the commit log and an in-memory table: no read before write, no row locks, and the commit log syncs periodically rather than per write.",
+            "id": "lsm_writes",
+            "source": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html",
+            "title": "Cheap writes (log-structured storage)"
           },
           {
-            "id": "mvcc_reads",
-            "title": "Readers never wait for writers",
-            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
-            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
-          },
-          {
-            "id": "group_commit",
-            "title": "Commits wait for the log flush (group commit)",
-            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
-            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
-          },
-          {
-            "id": "async_replicas",
-            "title": "Asynchronous replicas with lag",
-            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
-            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
-          }
-        ],
-        "mysql": [
-          {
-            "id": "row_locks",
-            "title": "Row locks on writes",
-            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
-            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
-          },
-          {
-            "id": "mvcc_reads",
-            "title": "Readers never wait for writers",
-            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
-            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
-          },
-          {
-            "id": "group_commit",
-            "title": "Commits wait for the log flush (group commit)",
-            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
-            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
-          },
-          {
-            "id": "async_replicas",
-            "title": "Asynchronous replicas with lag",
-            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
-            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
-          },
-          {
-            "id": "parallel_replica",
-            "title": "Multithreaded replica apply",
-            "detail": "MySQL 8.0.27+ replicas apply transactions on 4 worker threads by default (replica_parallel_workers), so lag builds later than in PostgreSQL.",
-            "source": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-replica.html#sysvar_replica_parallel_workers"
-          }
-        ],
-        "mariadb": [
-          {
-            "id": "row_locks",
-            "title": "Row locks on writes",
-            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
-            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
-          },
-          {
-            "id": "mvcc_reads",
-            "title": "Readers never wait for writers",
-            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
-            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
-          },
-          {
-            "id": "group_commit",
-            "title": "Commits wait for the log flush (group commit)",
-            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
-            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
-          },
-          {
-            "id": "async_replicas",
-            "title": "Asynchronous replicas with lag",
-            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
-            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
-          }
-        ],
-        "oracle": [
-          {
-            "id": "row_locks",
-            "title": "Row locks on writes",
-            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
-            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
-          },
-          {
-            "id": "mvcc_reads",
-            "title": "Readers never wait for writers",
-            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
-            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html"
-          },
-          {
-            "id": "group_commit",
-            "title": "Commits wait for the log flush (group commit)",
-            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
-            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
-          },
-          {
-            "id": "async_replicas",
-            "title": "Asynchronous replicas with lag",
-            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
-            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
-          }
-        ],
-        "sqlserver": [
-          {
-            "id": "row_locks",
-            "title": "Row locks on writes",
-            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
-            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
-          },
-          {
-            "id": "locking_reads",
-            "title": "Readers wait for writers",
-            "detail": "Under the default READ COMMITTED isolation (without read committed snapshot) a read of a row that is being written waits for the writer's exclusive lock.",
-            "source": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide"
-          },
-          {
-            "id": "group_commit",
-            "title": "Commits wait for the log flush (group commit)",
-            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
-            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
-          },
-          {
-            "id": "async_replicas",
-            "title": "Asynchronous replicas with lag",
-            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
-            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+            "detail": "A read that misses memory may touch more than one SSTable on disk (2 on average here, illustrative), so cold reads cost more than writes.",
+            "id": "read_amplification",
+            "source": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html",
+            "title": "Reads merge several SSTables"
           }
         ],
         "cockroachdb": [
           {
-            "id": "row_locks",
-            "title": "Row locks on writes",
             "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
-            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
+            "id": "row_locks",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html",
+            "title": "Row locks on writes"
           },
           {
-            "id": "raft",
-            "title": "Consensus writes (Raft)",
             "detail": "Every write is replicated to a majority of the range's replicas (3 by default) before it commits: set the replication factor and quorum consistency to see the cost.",
-            "source": "https://docs.cockroachlabs.com/docs/stable/architecture/replication-layer"
+            "id": "raft",
+            "source": "https://docs.cockroachlabs.com/docs/stable/architecture/replication-layer",
+            "title": "Consensus writes (Raft)"
           },
           {
-            "id": "group_commit",
-            "title": "Commits wait for the log flush (group commit)",
             "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
-            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
-          }
-        ],
-        "yugabytedb": [
-          {
-            "id": "row_locks",
-            "title": "Row locks on writes",
-            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
-            "source": "https://www.postgresql.org/docs/current/explicit-locking.html"
-          },
-          {
             "id": "group_commit",
-            "title": "Commits wait for the log flush (group commit)",
-            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
-            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html"
-          }
-        ],
-        "mongodb": [
-          {
-            "id": "document_locks",
-            "title": "Document-level concurrency",
-            "detail": "WiredTiger lets writes to different documents run in parallel; two writes to the same document conflict and one waits.",
-            "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
-          },
-          {
-            "id": "tickets",
-            "title": "Concurrent transaction tickets",
-            "detail": "Each node runs at most 128 read and 128 write storage-engine transactions at once (since 7.0 MongoDB adjusts the limit dynamically, never above 128); more queue inside the server even when connections are free.",
-            "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
-          },
-          {
-            "id": "majority_writes",
-            "title": "Write concern \"majority\" by default",
-            "detail": "A write is acknowledged only after a majority of the replica set has it (the implicit default for replica sets without arbiters), so every write waits for the fastest secondary; slow or lagging secondaries slow writes down.",
-            "source": "https://www.mongodb.com/docs/manual/reference/write-concern/"
-          },
-          {
-            "id": "primary_reads",
-            "title": "Reads go to the primary by default",
-            "detail": "The default read preference is primary: secondaries only serve reads when you choose secondaryPreferred (read from replicas).",
-            "source": "https://www.mongodb.com/docs/manual/core/read-preference/"
-          },
-          {
-            "id": "mongos",
-            "title": "Router hop and broadcast queries when sharded",
-            "detail": "With shards, mongos routes each operation; queries without the shard key are sent to every shard and wait for the slowest.",
-            "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/"
-          }
-        ],
-        "cassandra": [
-          {
-            "id": "lsm_writes",
-            "title": "Cheap writes (log-structured storage)",
-            "detail": "Writes append to the commit log and an in-memory table: no read before write, no row locks, and the commit log syncs periodically rather than per write.",
-            "source": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
-          },
-          {
-            "id": "read_amplification",
-            "title": "Reads merge several SSTables",
-            "detail": "A read that misses memory may touch more than one SSTable on disk (2 on average here, illustrative), so cold reads cost more than writes.",
-            "source": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+            "title": "Commits wait for the log flush (group commit)"
           }
         ],
         "dynamodb": [
           {
-            "id": "partition_limits",
-            "title": "Per-partition throughput limits",
             "detail": "Each partition serves at most 3,000 read units and 1,000 write units per second. Keys hash to partitions, so a hot key is throttled even when the table has capacity left.",
-            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"
+            "id": "partition_limits",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html",
+            "title": "Per-partition throughput limits"
           },
           {
-            "id": "capacity_units",
-            "title": "Capacity units",
             "detail": "A strongly consistent read of up to 4 KB costs 1 read unit (eventually consistent: half); a write of up to 1 KB costs 1 write unit. Requests beyond the table's capacity are throttled.",
-            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html"
+            "id": "capacity_units",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html",
+            "title": "Capacity units"
           },
           {
-            "id": "burst",
-            "title": "Burst capacity",
             "detail": "Provisioned tables bank up to 300 seconds of unused capacity and spend it on spikes (here the bank starts full).",
-            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/burst-adaptive-capacity.html"
+            "id": "burst",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/burst-adaptive-capacity.html",
+            "title": "Burst capacity"
           }
         ],
         "elasticsearch": [
           {
-            "id": "fan_out",
-            "title": "Every search hits every shard",
             "detail": "A search runs on one copy of each shard and the coordinating node merges the results, so search latency follows the slowest shard and each search costs one query per shard.",
-            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+            "id": "fan_out",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+            "title": "Every search hits every shard"
           },
           {
-            "id": "sync_replicas",
-            "title": "Index writes wait for replicas",
             "detail": "An indexing operation is acknowledged after the primary and its in-sync replicas have it.",
-            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+            "id": "sync_replicas",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+            "title": "Index writes wait for replicas"
           },
           {
-            "id": "thread_pools",
-            "title": "Bounded thread pools (HTTP 429)",
             "detail": "Searches run on a fixed pool of (cores x 3 / 2) + 1 threads with a bounded queue (1,000 in 8.x, 1,000 per thread since 9.0); past it the node rejects with 429. The preset sizes connections and queue that way.",
-            "source": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings"
+            "id": "thread_pools",
+            "source": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings",
+            "title": "Bounded thread pools (HTTP 429)"
+          }
+        ],
+        "mariadb": [
+          {
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "id": "row_locks",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html",
+            "title": "Row locks on writes"
+          },
+          {
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "id": "mvcc_reads",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+            "title": "Readers never wait for writers"
+          },
+          {
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "id": "group_commit",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+            "title": "Commits wait for the log flush (group commit)"
+          },
+          {
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "id": "async_replicas",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
+            "title": "Asynchronous replicas with lag"
+          }
+        ],
+        "mongodb": [
+          {
+            "detail": "WiredTiger lets writes to different documents run in parallel; two writes to the same document conflict and one waits.",
+            "id": "document_locks",
+            "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+            "title": "Document-level concurrency"
+          },
+          {
+            "detail": "Each node runs at most 128 read and 128 write storage-engine transactions at once (since 7.0 MongoDB adjusts the limit dynamically, never above 128); more queue inside the server even when connections are free.",
+            "id": "tickets",
+            "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+            "title": "Concurrent transaction tickets"
+          },
+          {
+            "detail": "A write is acknowledged only after a majority of the replica set has it (the implicit default for replica sets without arbiters), so every write waits for the fastest secondary; slow or lagging secondaries slow writes down.",
+            "id": "majority_writes",
+            "source": "https://www.mongodb.com/docs/manual/reference/write-concern/",
+            "title": "Write concern \"majority\" by default"
+          },
+          {
+            "detail": "The default read preference is primary: secondaries only serve reads when you choose secondaryPreferred (read from replicas).",
+            "id": "primary_reads",
+            "source": "https://www.mongodb.com/docs/manual/core/read-preference/",
+            "title": "Reads go to the primary by default"
+          },
+          {
+            "detail": "With shards, mongos routes each operation; queries without the shard key are sent to every shard and wait for the slowest.",
+            "id": "mongos",
+            "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+            "title": "Router hop and broadcast queries when sharded"
+          }
+        ],
+        "mysql": [
+          {
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "id": "row_locks",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html",
+            "title": "Row locks on writes"
+          },
+          {
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "id": "mvcc_reads",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+            "title": "Readers never wait for writers"
+          },
+          {
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "id": "group_commit",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+            "title": "Commits wait for the log flush (group commit)"
+          },
+          {
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "id": "async_replicas",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
+            "title": "Asynchronous replicas with lag"
+          },
+          {
+            "detail": "MySQL 8.0.27+ replicas apply transactions on 4 worker threads by default (replica_parallel_workers), so lag builds later than in PostgreSQL.",
+            "id": "parallel_replica",
+            "source": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-replica.html#sysvar_replica_parallel_workers",
+            "title": "Multithreaded replica apply"
           }
         ],
         "opensearch": [
           {
-            "id": "fan_out",
-            "title": "Every search hits every shard",
             "detail": "A search runs on one copy of each shard and the coordinating node merges the results, so search latency follows the slowest shard and each search costs one query per shard.",
-            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+            "id": "fan_out",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+            "title": "Every search hits every shard"
           },
           {
-            "id": "sync_replicas",
-            "title": "Index writes wait for replicas",
             "detail": "An indexing operation is acknowledged after the primary and its in-sync replicas have it.",
-            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+            "id": "sync_replicas",
+            "source": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+            "title": "Index writes wait for replicas"
           },
           {
-            "id": "thread_pools",
-            "title": "Bounded thread pools (HTTP 429)",
             "detail": "Searches run on a fixed pool of (cores x 3 / 2) + 1 threads with a bounded queue (1,000 in 8.x, 1,000 per thread since 9.0); past it the node rejects with 429. The preset sizes connections and queue that way.",
-            "source": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings"
+            "id": "thread_pools",
+            "source": "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/thread-pool-settings",
+            "title": "Bounded thread pools (HTTP 429)"
+          }
+        ],
+        "oracle": [
+          {
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "id": "row_locks",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html",
+            "title": "Row locks on writes"
+          },
+          {
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "id": "mvcc_reads",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+            "title": "Readers never wait for writers"
+          },
+          {
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "id": "group_commit",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+            "title": "Commits wait for the log flush (group commit)"
+          },
+          {
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "id": "async_replicas",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
+            "title": "Asynchronous replicas with lag"
+          }
+        ],
+        "postgresql": [
+          {
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "id": "row_locks",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html",
+            "title": "Row locks on writes"
+          },
+          {
+            "detail": "Multi-version concurrency control: a read sees the last committed version instead of waiting for a row lock.",
+            "id": "mvcc_reads",
+            "source": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+            "title": "Readers never wait for writers"
+          },
+          {
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "id": "group_commit",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+            "title": "Commits wait for the log flush (group commit)"
+          },
+          {
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "id": "async_replicas",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
+            "title": "Asynchronous replicas with lag"
+          }
+        ],
+        "sqlserver": [
+          {
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "id": "row_locks",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html",
+            "title": "Row locks on writes"
+          },
+          {
+            "detail": "Under the default READ COMMITTED isolation (without read committed snapshot) a read of a row that is being written waits for the writer's exclusive lock.",
+            "id": "locking_reads",
+            "source": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide",
+            "title": "Readers wait for writers"
+          },
+          {
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "id": "group_commit",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+            "title": "Commits wait for the log flush (group commit)"
+          },
+          {
+            "detail": "Replicas replay the primary's log after the commit, on a limited number of workers (in PostgreSQL a single startup process replays the WAL), so under heavy writes the lag grows and replica reads can return stale data.",
+            "id": "async_replicas",
+            "source": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
+            "title": "Asynchronous replicas with lag"
+          }
+        ],
+        "yugabytedb": [
+          {
+            "detail": "Two writes to the same row (key) cannot run at once: the second waits until the first commits, holding its connection while it waits. With a skewed keyspace the hottest rows become a queue of their own.",
+            "id": "row_locks",
+            "source": "https://www.postgresql.org/docs/current/explicit-locking.html",
+            "title": "Row locks on writes"
+          },
+          {
+            "detail": "A write is durable only when the write-ahead log reaches disk. Commits that arrive while a flush is running share the next flush, so write throughput is not capped by fsyncs, but every write waits up to about 1.5 flushes.",
+            "id": "group_commit",
+            "source": "https://www.postgresql.org/docs/current/wal-async-commit.html",
+            "title": "Commits wait for the log flush (group commit)"
           }
         ]
       },
@@ -4067,28 +4067,12 @@
         }
       },
       "technologySources": {
-        "rowLocks": {
-          "postgresql": "https://www.postgresql.org/docs/current/explicit-locking.html",
-          "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
-          "cassandra": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
-        },
-        "readsWaitForWrites": {
-          "postgresql": "https://www.postgresql.org/docs/current/mvcc-intro.html",
-          "sqlserver": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide"
+        "capacityUnits": {
+          "dynamodb": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html"
         },
         "commitFlush": {
-          "postgresql": "https://www.postgresql.org/docs/current/wal-async-commit.html",
-          "cassandra": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
-        },
-        "replication": {
-          "postgresql": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
-          "mongodb": "https://www.mongodb.com/docs/manual/reference/write-concern/",
-          "elasticsearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
-          "opensearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
-        },
-        "replicaApplyWorkers": {
-          "postgresql": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION",
-          "mysql": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-replica.html#sysvar_replica_parallel_workers"
+          "cassandra": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html",
+          "postgresql": "https://www.postgresql.org/docs/current/wal-async-commit.html"
         },
         "readFrom": {
           "mongodb": "https://www.mongodb.com/docs/manual/core/read-preference/"
@@ -4096,15 +4080,31 @@
         "readTickets": {
           "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
         },
-        "writeTickets": {
-          "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
+        "readsWaitForWrites": {
+          "postgresql": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+          "sqlserver": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide"
         },
-        "capacityUnits": {
-          "dynamodb": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html"
+        "replicaApplyWorkers": {
+          "mysql": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-replica.html#sysvar_replica_parallel_workers",
+          "postgresql": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+        },
+        "replication": {
+          "elasticsearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+          "mongodb": "https://www.mongodb.com/docs/manual/reference/write-concern/",
+          "opensearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
+          "postgresql": "https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION"
+        },
+        "rowLocks": {
+          "cassandra": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html",
+          "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "postgresql": "https://www.postgresql.org/docs/current/explicit-locking.html"
         },
         "scatterReads": {
           "elasticsearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents",
           "opensearch": "https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents"
+        },
+        "writeTickets": {
+          "mongodb": "https://www.mongodb.com/docs/manual/core/wiredtiger/"
         }
       },
       "technologyTiers": {
@@ -5092,60 +5092,60 @@
       "technologyTraits": {
         "kafka": [
           {
-            "id": "partitions",
-            "title": "Ordered partitions, one consumer each",
             "detail": "Messages with the same key land on the same partition and are processed in order by the one consumer that owns it. A skewed key makes one partition, and its consumer, fall behind while others idle.",
-            "source": "https://kafka.apache.org/documentation/#intro_concepts_and_terms"
+            "id": "partitions",
+            "source": "https://kafka.apache.org/documentation/#intro_concepts_and_terms",
+            "title": "Ordered partitions, one consumer each"
           },
           {
-            "id": "acks_all",
-            "title": "acks=all",
             "detail": "The producer's acknowledgement waits until the in-sync replicas have the message (the default since Kafka 3.0).",
-            "source": "https://kafka.apache.org/documentation/#producerconfigs_acks"
+            "id": "acks_all",
+            "source": "https://kafka.apache.org/documentation/#producerconfigs_acks",
+            "title": "acks=all"
           },
           {
-            "id": "linger",
-            "title": "Batching (linger.ms)",
             "detail": "The producer holds a message up to linger.ms to batch it with others (5 ms by default in Kafka 4.0).",
-            "source": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms"
-          }
-        ],
-        "rabbitmq": [
-          {
-            "id": "memory_alarm",
-            "title": "Memory alarm blocks publishers",
-            "detail": "When queued messages use more memory than the high watermark, the broker blocks publishing connections until consumers catch up: producers slow down instead of getting errors. Needs memory and message size set.",
-            "source": "https://www.rabbitmq.com/docs/memory"
-          }
-        ],
-        "sqs": [
-          {
-            "id": "visibility_timeout",
-            "title": "Visibility timeout (30 s)",
-            "detail": "A received message is hidden for the visibility timeout. If processing takes longer, the message becomes visible again and another consumer processes it too: duplicate work.",
-            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"
-          },
-          {
-            "id": "fifo_limit",
-            "title": "FIFO throughput limit",
-            "detail": "FIFO queues accept about 300 publishes per second without batching; standard queues are effectively unlimited.",
-            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html"
-          }
-        ],
-        "pubsub": [
-          {
-            "id": "ack_deadline",
-            "title": "Ack deadline (10 s)",
-            "detail": "A message not acknowledged within the ack deadline is delivered again.",
-            "source": "https://docs.cloud.google.com/pubsub/docs/subscription-properties"
+            "id": "linger",
+            "source": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms",
+            "title": "Batching (linger.ms)"
           }
         ],
         "nats": [
           {
-            "id": "core_vs_jetstream",
-            "title": "Core NATS drops, JetStream persists",
             "detail": "Core NATS is at-most-once: a slow consumer's overflow is dropped and the publisher never knows. Choose at-least-once for JetStream.",
-            "source": "https://docs.nats.io/nats-concepts/core-nats"
+            "id": "core_vs_jetstream",
+            "source": "https://docs.nats.io/nats-concepts/core-nats",
+            "title": "Core NATS drops, JetStream persists"
+          }
+        ],
+        "pubsub": [
+          {
+            "detail": "A message not acknowledged within the ack deadline is delivered again.",
+            "id": "ack_deadline",
+            "source": "https://docs.cloud.google.com/pubsub/docs/subscription-properties",
+            "title": "Ack deadline (10 s)"
+          }
+        ],
+        "rabbitmq": [
+          {
+            "detail": "When queued messages use more memory than the high watermark, the broker blocks publishing connections until consumers catch up: producers slow down instead of getting errors. Needs memory and message size set.",
+            "id": "memory_alarm",
+            "source": "https://www.rabbitmq.com/docs/memory",
+            "title": "Memory alarm blocks publishers"
+          }
+        ],
+        "sqs": [
+          {
+            "detail": "A received message is hidden for the visibility timeout. If processing takes longer, the message becomes visible again and another consumer processes it too: duplicate work.",
+            "id": "visibility_timeout",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html",
+            "title": "Visibility timeout (30 s)"
+          },
+          {
+            "detail": "FIFO queues accept about 300 publishes per second without batching; standard queues are effectively unlimited.",
+            "id": "fifo_limit",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html",
+            "title": "FIFO throughput limit"
           }
         ]
       },
@@ -5202,21 +5202,21 @@
         }
       },
       "technologySources": {
-        "partitioning": {
-          "kafka": "https://kafka.apache.org/documentation/#intro_concepts_and_terms"
-        },
         "acks": {
           "kafka": "https://kafka.apache.org/documentation/#producerconfigs_acks"
-        },
-        "lingerMs": {
-          "kafka": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms"
         },
         "flowControl": {
           "rabbitmq": "https://www.rabbitmq.com/docs/memory"
         },
+        "lingerMs": {
+          "kafka": "https://kafka.apache.org/documentation/#producerconfigs_linger.ms"
+        },
+        "partitioning": {
+          "kafka": "https://kafka.apache.org/documentation/#intro_concepts_and_terms"
+        },
         "visibilityTimeoutS": {
-          "sqs": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html",
-          "pubsub": "https://docs.cloud.google.com/pubsub/docs/subscription-properties"
+          "pubsub": "https://docs.cloud.google.com/pubsub/docs/subscription-properties",
+          "sqs": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"
         }
       },
       "technologyTiers": {
@@ -5284,7 +5284,7 @@
           "max": 512,
           "unit": "vCPU",
           "group": "Node pool",
-          "step": 1
+          "step": 1.0
         },
         {
           "key": "nodeMemoryGib",
@@ -5621,196 +5621,196 @@
       ],
       "linkDefaults": {},
       "technologyTraits": {
-        "kubernetes": [
+        "aks": [
           {
-            "id": "requests",
-            "title": "Pods are scheduled by their requests",
             "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
-            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/"
+            "id": "requests",
+            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+            "title": "Pods are scheduled by their requests"
           },
           {
-            "id": "pending",
-            "title": "Pending pods",
             "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
-            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+            "id": "pending",
+            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+            "title": "Pending pods"
           },
           {
-            "id": "cluster_autoscaler",
-            "title": "Cluster autoscaler",
             "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
-            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md"
+            "id": "cluster_autoscaler",
+            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+            "title": "Cluster autoscaler"
           },
           {
-            "id": "image_pull",
-            "title": "Image pulls on new nodes",
             "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
-            "source": "https://kubernetes.io/docs/concepts/containers/images/"
+            "id": "image_pull",
+            "source": "https://kubernetes.io/docs/concepts/containers/images/",
+            "title": "Image pulls on new nodes"
           },
           {
-            "id": "hpa",
-            "title": "Horizontal Pod Autoscaler",
             "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
-            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+            "id": "hpa",
+            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+            "title": "Horizontal Pod Autoscaler"
           }
         ],
         "eks": [
           {
-            "id": "requests",
-            "title": "Pods are scheduled by their requests",
             "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
-            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/"
+            "id": "requests",
+            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+            "title": "Pods are scheduled by their requests"
           },
           {
-            "id": "pending",
-            "title": "Pending pods",
             "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
-            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+            "id": "pending",
+            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+            "title": "Pending pods"
           },
           {
-            "id": "cluster_autoscaler",
-            "title": "Cluster autoscaler",
             "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
-            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md"
+            "id": "cluster_autoscaler",
+            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+            "title": "Cluster autoscaler"
           },
           {
-            "id": "image_pull",
-            "title": "Image pulls on new nodes",
             "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
-            "source": "https://kubernetes.io/docs/concepts/containers/images/"
+            "id": "image_pull",
+            "source": "https://kubernetes.io/docs/concepts/containers/images/",
+            "title": "Image pulls on new nodes"
           },
           {
-            "id": "hpa",
-            "title": "Horizontal Pod Autoscaler",
             "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
-            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+            "id": "hpa",
+            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+            "title": "Horizontal Pod Autoscaler"
           }
         ],
         "gke": [
           {
-            "id": "requests",
-            "title": "Pods are scheduled by their requests",
             "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
-            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/"
-          },
-          {
-            "id": "pending",
-            "title": "Pending pods",
-            "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
-            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
-          },
-          {
-            "id": "cluster_autoscaler",
-            "title": "Cluster autoscaler",
-            "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
-            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md"
-          },
-          {
-            "id": "image_pull",
-            "title": "Image pulls on new nodes",
-            "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
-            "source": "https://kubernetes.io/docs/concepts/containers/images/"
-          },
-          {
-            "id": "hpa",
-            "title": "Horizontal Pod Autoscaler",
-            "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
-            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
-          }
-        ],
-        "aks": [
-          {
             "id": "requests",
-            "title": "Pods are scheduled by their requests",
-            "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
-            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/"
+            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+            "title": "Pods are scheduled by their requests"
           },
           {
-            "id": "pending",
-            "title": "Pending pods",
             "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
-            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+            "id": "pending",
+            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+            "title": "Pending pods"
           },
           {
-            "id": "cluster_autoscaler",
-            "title": "Cluster autoscaler",
             "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
-            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md"
+            "id": "cluster_autoscaler",
+            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+            "title": "Cluster autoscaler"
           },
           {
-            "id": "image_pull",
-            "title": "Image pulls on new nodes",
             "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
-            "source": "https://kubernetes.io/docs/concepts/containers/images/"
+            "id": "image_pull",
+            "source": "https://kubernetes.io/docs/concepts/containers/images/",
+            "title": "Image pulls on new nodes"
           },
           {
-            "id": "hpa",
-            "title": "Horizontal Pod Autoscaler",
             "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
-            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+            "id": "hpa",
+            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+            "title": "Horizontal Pod Autoscaler"
           }
         ],
         "k3s": [
           {
-            "id": "requests",
-            "title": "Pods are scheduled by their requests",
             "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
-            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/"
+            "id": "requests",
+            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+            "title": "Pods are scheduled by their requests"
           },
           {
-            "id": "pending",
-            "title": "Pending pods",
             "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
-            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+            "id": "pending",
+            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+            "title": "Pending pods"
           },
           {
-            "id": "cluster_autoscaler",
-            "title": "Cluster autoscaler",
             "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
-            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md"
+            "id": "cluster_autoscaler",
+            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+            "title": "Cluster autoscaler"
           },
           {
-            "id": "image_pull",
-            "title": "Image pulls on new nodes",
             "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
-            "source": "https://kubernetes.io/docs/concepts/containers/images/"
+            "id": "image_pull",
+            "source": "https://kubernetes.io/docs/concepts/containers/images/",
+            "title": "Image pulls on new nodes"
           },
           {
-            "id": "hpa",
-            "title": "Horizontal Pod Autoscaler",
             "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
-            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+            "id": "hpa",
+            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+            "title": "Horizontal Pod Autoscaler"
+          }
+        ],
+        "kubernetes": [
+          {
+            "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
+            "id": "requests",
+            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+            "title": "Pods are scheduled by their requests"
+          },
+          {
+            "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
+            "id": "pending",
+            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+            "title": "Pending pods"
+          },
+          {
+            "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
+            "id": "cluster_autoscaler",
+            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+            "title": "Cluster autoscaler"
+          },
+          {
+            "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
+            "id": "image_pull",
+            "source": "https://kubernetes.io/docs/concepts/containers/images/",
+            "title": "Image pulls on new nodes"
+          },
+          {
+            "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
+            "id": "hpa",
+            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+            "title": "Horizontal Pod Autoscaler"
           }
         ],
         "openshift": [
           {
-            "id": "requests",
-            "title": "Pods are scheduled by their requests",
             "detail": "Each pod reserves the CPU and memory it requests on one node; the scheduler only binds it to a node with that much unreserved, and prefers the least allocated node.",
-            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/"
+            "id": "requests",
+            "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/",
+            "title": "Pods are scheduled by their requests"
           },
           {
-            "id": "pending",
-            "title": "Pending pods",
             "detail": "When no node has room for a pod's requests it stays Pending: the replica the autoscaler asked for does not exist yet and takes no traffic.",
-            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+            "id": "pending",
+            "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+            "title": "Pending pods"
           },
           {
-            "id": "cluster_autoscaler",
-            "title": "Cluster autoscaler",
             "detail": "Every 10 s the cluster autoscaler looks for Pending pods and adds nodes for them; a new node takes minutes to boot and join. Nodes left empty for 10 minutes are removed.",
-            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md"
+            "id": "cluster_autoscaler",
+            "source": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md",
+            "title": "Cluster autoscaler"
           },
           {
-            "id": "image_pull",
-            "title": "Image pulls on new nodes",
             "detail": "The first pod of a service on a node pulls its container image before starting; later pods on that node reuse the cached image.",
-            "source": "https://kubernetes.io/docs/concepts/containers/images/"
+            "id": "image_pull",
+            "source": "https://kubernetes.io/docs/concepts/containers/images/",
+            "title": "Image pulls on new nodes"
           },
           {
-            "id": "hpa",
-            "title": "Horizontal Pod Autoscaler",
             "detail": "The HPA re-evaluates every 15 s by default and asks for more pods; they still have to be scheduled, pulled and started before they help.",
-            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+            "id": "hpa",
+            "source": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+            "title": "Horizontal Pod Autoscaler"
           }
         ]
       },

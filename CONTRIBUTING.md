@@ -148,7 +148,7 @@ held to the same checks and review as anyone's.
 - Do not commit secrets, `.env` files, local databases (`*.db`) or generated reports.
 - New dependencies need a reason in the PR description. No telemetry, no paid services.
 - If you change component metadata (fields, ports, defaults), regenerate the web test fixture
-  with `uv run python scripts/export_web_fixtures.py`.
+  with `./gradlew :archsim-engine:generate`.
 
 ## Bugs
 

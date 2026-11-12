@@ -115,13 +115,20 @@ EVERY_JOB = {
         ),
         (["apps/web/src/app/page.tsx", "apps/web/package-lock.json"], {"web", "e2e"}),
         (["apps/web/src/data/accuracy.json"], {"python", "benchmark_tests", "web", "e2e"}),
-        # the engine tests check the web fixtures export_web_fixtures.py writes; the Java model's
-        # tests read the starter
+        # the Java engine's tests (and the frozen engine's) check the web fixtures; the Java
+        # model's tests read the starter
         (
             ["apps/web/src/test/fixtures/starter.json"],
             {"python", "engine_tests", "web", "java", "e2e"},
         ),
-        (["apps/web/src/test/fixtures/catalog.json"], {"python", "engine_tests", "web", "e2e"}),
+        (
+            ["apps/web/src/test/fixtures/catalog.json"],
+            {"python", "engine_tests", "web", "java", "e2e"},
+        ),
+        (
+            ["apps/web/src/test/fixtures/analysis-starter.json"],
+            {"python", "engine_tests", "web", "java", "e2e"},
+        ),
         (["apps/web/src/test/fixtures/share.ts"], {"web", "e2e"}),
         # the end-to-end launcher starts the worker, whose command line the Java tests check
         (["apps/web/e2e/api-server.mjs"], {"web", "java", "e2e"}),
@@ -139,7 +146,7 @@ EVERY_JOB = {
         # the exporters write the Java tests' resources and the golden files
         (["scripts/export_report_cases.py"], {"python", "java"}),
         (["scripts/export_golden.py", "scripts/golden/codec.py"], {"python", "java"}),
-        (["scripts/export_web_fixtures.py"], {"python", "engine_tests", "java"}),
+        (["scripts/export_web_fixtures.py"], {"python", "engine_tests"}),
         (["parity/golden/manifest.json"], {"python", "java", "e2e"}),
         (["docs/validation.md", "docs/validation/accuracy.json"], {"python", "benchmark_tests"}),
         # stage 4's parity page and its runs: the page check in the Python job reads them, no

@@ -155,7 +155,7 @@ come from `POST /api/v1/export`. SLO evaluation, replay events and load sweep
 analysis still have TypeScript modules in `apps/web/src/lib/` (the engine has its own
 `slo.py` and `sweep.py` for the CLI and the MCP server; moving the web app onto them is open)
 with unit tests (web tests use engine fixtures written by
-`scripts/export_web_fixtures.py`); the simulation itself only ever runs in the engine.
+`./gradlew :archsim-engine:generate`); the simulation itself only ever runs in the engine.
 
 ## The document: four separate concerns
 

@@ -24,7 +24,7 @@ Layout:
 - `src/components/results/` - results panel: insights, timeline charts, components, compare,
   history, assumptions
 - `src/test/fixtures/` - catalog and example used by unit tests
-  (regenerate with `uv run python scripts/export_web_fixtures.py` from the repo root)
+  (regenerate with `./gradlew :archsim-engine:generate` from the repo root)
 
 Inspector forms are generated from the component catalog (`GET /api/v1/components`), so new
 component types need no frontend changes. See the root [README](../../README.md).

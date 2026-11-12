@@ -1,9 +1,7 @@
-"""Write the web app's engine fixtures: the component catalog (exactly as GET /api/v1/components
-returns it) and the engine's analysis of the starter fixture (as POST /api/v1/analyze returns
-it), so web tests use the engine's real output instead of re-implementing its rules. A Python
-test fails if a committed fixture drifts from the engine.
-
-Usage: uv run python scripts/export_web_fixtures.py
+"""The frozen Python engine's web app fixtures: its component catalog and its analysis of the
+starter fixture. Kept only for that engine's test_web_catalog_fixture_matches_registry, which
+compares them with the committed fixtures as parsed JSON, until stage 5 of the Java port deletes
+the engine. `./gradlew :archsim-engine:generate` writes the fixtures, from the Java engine.
 """
 
 from __future__ import annotations
@@ -28,14 +26,3 @@ def catalog() -> dict:
 def analysis() -> dict:
     registry = create_default_registry(include_plugins=False)
     return analyze_document(json.loads(STARTER.read_text(encoding="utf-8")), registry)
-
-
-def main() -> None:
-    FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-    for path, data in ((FIXTURE, catalog()), (ANALYSIS, analysis())):
-        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
-        print(f"wrote {path.relative_to(ROOT)}")
-
-
-if __name__ == "__main__":
-    main()

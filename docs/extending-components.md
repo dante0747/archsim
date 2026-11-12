@@ -236,8 +236,8 @@ Put tests next to the engine tests (`packages/engine/tests/`):
 - determinism: two runs with the same seed produce the same `resultDigest`.
 
 The web unit tests use a copy of the component catalog. After adding or changing a component,
-regenerate it with `uv run python scripts/export_web_fixtures.py`; the engine test
-`test_web_catalog_fixture_matches_registry` fails until you do.
+regenerate it with `./gradlew :archsim-engine:generate`; the engine test `GeneratedFileTests`
+fails until you do.
 
 If the component changes results for existing documents, bump the engine's version,
 `EngineVersions.ENGINE` (see [CONTRIBUTING.md](../CONTRIBUTING.md#changing-simulation-semantics)).

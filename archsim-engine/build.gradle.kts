@@ -33,6 +33,26 @@ tasks.test {
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
     // the simulator's measured runs take minutes to hours: the parity and speed tasks run them
     useJUnitPlatform { excludeTags("parity", "speed") }
+    // GeneratedFileTests reads the files the generate task writes, and the starter it analyzes:
+    // a change to any of them reruns it, after the generate task when both run
+    inputs.files(
+        listOf("catalog.json", "analysis-starter.json", "starter.json").map {
+            rootDir.resolve("apps/web/src/test/fixtures/$it")
+        },
+    ).withPropertyName("engineFixtures").withPathSensitivity(PathSensitivity.RELATIVE)
+    mustRunAfter("generate")
+}
+
+// Writes the repository's files the engine generates (the web app's engine fixtures, the
+// catalog and the starter's analysis), which GeneratedFileTests holds the committed files to.
+//
+//   ./gradlew :archsim-engine:generate
+tasks.register<JavaExec>("generate") {
+    description = "Writes the repository's files the engine generates: the web app's engine fixtures."
+    group = LifecycleBasePlugin.BUILD_GROUP
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass = "io.archsim.engine.generated.GeneratedFile"
+    systemProperty("archsim.repoRoot", rootDir.absolutePath)
 }
 
 // A measured run of the simulator, over the tests tagged with its name: never up to date (it
