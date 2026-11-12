@@ -32,6 +32,15 @@ public enum StartableApi {
 	/** Where a started API listens: only this machine can reach it. */
 	private static final String LOOPBACK = "127.0.0.1";
 
+	/**
+	 * The argument that caps the pool of database connections of each process the suite
+	 * starts at five. The suite starts an API and a worker for each of its profiles: at
+	 * Hikari's fixed pool of ten each they would hold 120, past PostgreSQL's default
+	 * limit of 100, which CI's PostgreSQL keeps. Five is enough: an API serves one test's
+	 * requests at a time, and a worker's runs borrow a connection only briefly, to write.
+	 */
+	private static final String SMALL_POOL_ARGUMENT = "--spring.datasource.hikari.maximum-pool-size=5";
+
 	/** archsim-app's runnable jar, relative to the repository. */
 	private static final String APP_JAR = "archsim-app/build/libs/archsim-app.jar";
 
@@ -50,7 +59,7 @@ public enum StartableApi {
 	}
 
 	/**
-	 * Returns the command that serves the API.
+	 * Returns the command that serves the API, with a small pool of connections.
 	 * @param config what the suite was told: the repository
 	 * @param port the port to listen on
 	 * @return the command and its arguments
@@ -58,13 +67,13 @@ public enum StartableApi {
 	 */
 	List<String> command(SuiteConfig config, int port) {
 		return List.of(java(), "-jar", jar(config).toString(), "api", "--server.address=" + LOOPBACK,
-				"--server.port=" + port);
+				"--server.port=" + port, SMALL_POOL_ARGUMENT);
 	}
 
 	/**
 	 * Returns the command that runs the Java worker: a heap for the runs it takes at
 	 * once, by the rule of archsim-app's README, and an exit when the heap runs out, so
-	 * its runs are requeued (ADR-0053).
+	 * its runs are requeued (ADR-0053); a small pool of connections, as the API's.
 	 * @param config what the suite was told: the repository
 	 * @param runs how many runs it takes at once ({@code ARCHSIM_MAX_CONCURRENT_RUNS})
 	 * @return the command and its arguments
@@ -72,7 +81,7 @@ public enum StartableApi {
 	 */
 	static List<String> workerCommand(SuiteConfig config, int runs) {
 		return List.of(java(), "-Xmx" + (RUN_HEAP_MB * runs + APP_HEAP_MB) + "m", "-XX:+ExitOnOutOfMemoryError", "-jar",
-				jar(config).toString(), "worker");
+				jar(config).toString(), "worker", SMALL_POOL_ARGUMENT);
 	}
 
 	private static Path jar(SuiteConfig config) {

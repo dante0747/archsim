@@ -19,8 +19,10 @@ builds the Java API's jar and starts it, on the JDK the suite runs on, once for 
 [profile](#profiles) the tests use: each on its own port (8101 and up) and its own database
 (`archsim_api_tests_<profile>`, dropped and created afresh). Next to each server the suite
 starts a Java worker from the same jar (`archsim-app.jar worker`, with a heap and
-`-XX:+ExitOnOutOfMemoryError`) with the server's settings. Then it runs the tests and stops
-them all. The logs are in `archsim-api-tests/build/api-servers/`: `<profile>.log` and
+`-XX:+ExitOnOutOfMemoryError`) with the server's settings. Each keeps five connections to its
+database (`--spring.datasource.hikari.maximum-pool-size=5`), so the six profiles' servers and
+workers stay well under PostgreSQL's default limit of 100 connections. Then it runs the tests
+and stops them all. The logs are in `archsim-api-tests/build/api-servers/`: `<profile>.log` and
 `<profile>-worker.log`.
 
 Against servers that are already running, give their URLs instead; tests of a profile without
