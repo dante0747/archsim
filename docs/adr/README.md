@@ -107,4 +107,4 @@ what the repository shows.
 | [0063](0063-retire-alembic-older-databases-upgrade-from-a-tag.md) | Retire Alembic: a database below revision 0008 upgrades first from the tag `alembic-0008` | Accepted | 2026-11-12 |
 | [0064](0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md) | Keep Python only for the benchmark harness and the repository's tooling, until stage 7 | Accepted | 2026-11-12 |
 | [0065](0065-move-sign-in-to-spring-security-after-the-port.md) | Move sign-in to Spring Security after the port, keeping its HTTP contract | Accepted | 2026-11-12 |
-| [0066](0066-ship-the-web-image-without-an-image-optimizer.md) | Ship the web image without Next.js's image optimizer, and so without sharp and libvips | Proposed | 2026-11-12 |
+| [0066](0066-ship-the-web-image-without-an-image-optimizer.md) | Ship the web image without Next.js's image optimizer, and so without sharp and libvips | Accepted | 2026-11-12 |
