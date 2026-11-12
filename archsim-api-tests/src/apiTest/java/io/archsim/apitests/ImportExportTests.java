@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.NullNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,6 +59,32 @@ class ImportExportTests {
 			.containsExactlyInAnyOrderElementsOf(
 					Json.strings(Examples.starter().path("architecture").path("nodes"), "id"));
 		assertThat(back.path("report").path("guessed").isEmpty()).isTrue();
+	}
+
+	/**
+	 * A CPU figure of 10,000 digits, which Python's {@code float()} read as infinity: the
+	 * design comes back without the figure and with the issue it raised, as the Python
+	 * API answered, not with an error of the server's.
+	 */
+	@Test
+	void import_cpuFigureOfTenThousandDigits_isNullWithTheLimitIssue(ApiClient client) {
+		String text = """
+				services:
+				  api:
+				    image: node:20
+				    deploy:
+				      resources:
+				        limits:
+				          cpus: "%s"
+				""".formatted("1".repeat(10_000));
+
+		ApiResponse response = client.post("/import", Json.object("format", "compose", "text", text));
+
+		assertThat(response.status()).as(response.text()).isEqualTo(200);
+		JsonNode api = response.json().path("document").path("architecture").path("nodes").path(0);
+		assertThat(api.path("config").path("cpuCores")).isEqualTo(NullNode.getInstance());
+		assertThat(Json.strings(response.json().path("report").path("issues"), "message"))
+			.containsExactly("api: 'cpuCores' input should be less than or equal to 512");
 	}
 
 	@Test

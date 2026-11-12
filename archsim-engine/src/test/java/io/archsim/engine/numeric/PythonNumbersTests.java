@@ -6,7 +6,10 @@ import java.util.HexFormat;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import io.archsim.model.text.PythonText;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -63,6 +66,61 @@ class PythonNumbersTests {
 		assertThatExceptionOfType(NumberFormatException.class)
 			.isThrownBy(() -> PythonNumbers.parseInt(Character.toString(0x1C) + "1"))
 			.withMessage("invalid literal for int() with base 10: '\\x1c1'");
+	}
+
+	/**
+	 * Python's {@code float()} reads a number of any length: past the largest float,
+	 * infinity.
+	 */
+	@ParameterizedTest
+	@ValueSource(ints = { 10_000, 1_000_000 })
+	void parseFloat_tenThousandOrAMillionDigits_isInfinity(int digits) {
+		assertThat(PythonNumbers.parseFloat("1".repeat(digits))).isEqualTo(Double.POSITIVE_INFINITY);
+	}
+
+	/** Mathematical bold digits, U+1D7CF and U+1D7D0: two UTF-16 units each. */
+	@Test
+	void parseFloat_digitsBeyondTheBasicPlaneWithAnUnderscore_areRead() {
+		String one = Character.toString(0x1D7CF);
+		String two = Character.toString(0x1D7D0);
+
+		assertThat(PythonNumbers.parseFloat(one + "_" + two)).isEqualTo(12.0);
+		assertThat(PythonNumbers.parseFloat("1_" + two)).isEqualTo(12.0);
+	}
+
+	@Test
+	void parseFloat_digitBeyondTheBasicPlaneThenAnUnderscore_isRefusedInPythonsWords() {
+		String text = Character.toString(0x1D7CF) + "_";
+
+		assertThatExceptionOfType(NumberFormatException.class).isThrownBy(() -> PythonNumbers.parseFloat(text))
+			.withMessage("could not convert string to float: " + PythonText.repr(text));
+	}
+
+	@Test
+	void parseFloat_longFractionWithUnderscores_isItsValue() {
+		assertThat(PythonNumbers.parseFloat("0." + "3_".repeat(5_000) + "3")).isEqualTo(1.0 / 3);
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', textBlock = """
+			1.           | 1.0
+			.5           | 0.5
+			1e5          | 100000.0
+			1.e5         | 100000.0
+			+.5E-1       | 0.05
+			-1_0.0_1e1_0 | -1.001E11
+			007          | 7.0
+			""")
+	void parseFloat_pythonsForms_areRead(String text, double value) {
+		assertThat(PythonNumbers.parseFloat(text)).isEqualTo(value);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "1__0", "1_", "_1", "1_.5", "1._5", "1e_1", "1e1_", ".", "1e", "e5", "+", "--1", "1 0",
+			"0x10", "1d", "1.5.2", ".e1", "1e+" })
+	void parseFloat_textPythonsFloatRefuses_isRefusedInPythonsWords(String text) {
+		assertThatExceptionOfType(NumberFormatException.class).isThrownBy(() -> PythonNumbers.parseFloat(text))
+			.withMessage("could not convert string to float: " + PythonText.repr(text));
 	}
 
 	@Test

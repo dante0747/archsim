@@ -17,14 +17,7 @@ import io.archsim.model.text.PythonText;
  */
 public final class PythonNumbers {
 
-	private static final Pattern FLOAT = Pattern.compile(
-			"[+-]?(?:(?:\\d(?:_?\\d)*)(?:\\.(?:\\d(?:_?\\d)*)?)?|\\.\\d(?:_?\\d)*)(?:[eE][+-]?\\d(?:_?\\d)*)?",
-			Pattern.UNICODE_CHARACTER_CLASS);
-
 	private static final Pattern SPECIAL = Pattern.compile("[+-]?(?:inf|infinity|nan)", Pattern.CASE_INSENSITIVE);
-
-	/** The first character past ASCII. */
-	private static final int ASCII_END = 0x80;
 
 	/**
 	 * The most digits Python converts in a base that is not a power of two
@@ -35,9 +28,6 @@ public final class PythonNumbers {
 
 	/** The prefix a base's digits may start with, by base. */
 	private static final Map<Integer, String> PREFIXES = Map.of(2, "0b", 8, "0o", 16, "0x");
-
-	/** The radix of the digits Python reads. */
-	private static final int DECIMAL = 10;
 
 	/**
 	 * The most characters of a text's repr that {@code int()}'s refusal quotes: CPython
@@ -65,10 +55,10 @@ public final class PythonNumbers {
 		if (SPECIAL.matcher(number).matches()) {
 			return special(number);
 		}
-		if (!FLOAT.matcher(number).matches()) {
+		if (!NumberText.isFloat(number)) {
 			throw new NumberFormatException("could not convert string to float: " + PythonText.repr(text));
 		}
-		return Double.parseDouble(ascii(number));
+		return Double.parseDouble(NumberText.ascii(number, NumberText.DECIMAL));
 	}
 
 	/**
@@ -78,7 +68,7 @@ public final class PythonNumbers {
 	 * @throws NumberFormatException with Python's words when it is not a whole number
 	 */
 	public static BigInteger parseInt(String text) {
-		return parseInt(text, DECIMAL);
+		return parseInt(text, NumberText.DECIMAL);
 	}
 
 	/**
@@ -103,11 +93,11 @@ public final class PythonNumbers {
 				number = number.substring(1);
 			}
 		}
-		if (!isDigits(number, radix)) {
+		if (!NumberText.isInteger(number, radix)) {
 			throw new NumberFormatException(
 					"invalid literal for int() with base " + radix + ": " + quoted(PythonText.repr(text)));
 		}
-		BigInteger value = fromDigits(ascii(number, radix), radix);
+		BigInteger value = fromDigits(NumberText.ascii(number, radix), radix);
 		return negative ? value.negate() : value;
 	}
 
@@ -253,7 +243,8 @@ public final class PythonNumbers {
 	}
 
 	private static boolean isStrippedSpace(char character) {
-		return (character < ASCII_END) ? ASCII_SPACES.indexOf(character) >= 0 : PythonStrings.isSpace(character);
+		return (character < NumberText.ASCII_END) ? ASCII_SPACES.indexOf(character) >= 0
+				: PythonStrings.isSpace(character);
 	}
 
 	/**
@@ -267,61 +258,6 @@ public final class PythonNumbers {
 			return repr;
 		}
 		return repr.substring(0, repr.offsetByCodePoints(0, QUOTED_CHARACTERS));
-	}
-
-	/**
-	 * Whether text is digits of a base, an underscore allowed between two of them.
-	 * @param digits the text
-	 * @param radix the base
-	 * @return {@code true} for digits
-	 */
-	private static boolean isDigits(String digits, int radix) {
-		if (digits.isEmpty() || digits.startsWith("_") || digits.endsWith("_") || digits.contains("__")) {
-			return false;
-		}
-		return digits.codePoints().allMatch((codePoint) -> codePoint == '_' || digit(codePoint, radix) >= 0);
-	}
-
-	/**
-	 * A digit's value in a base, as {@code int()} reads it: any script's decimal digits,
-	 * and ASCII letters, but not the letters of other scripts.
-	 * @param codePoint the character
-	 * @param radix the base
-	 * @return its value; {@code -1} when it is no digit of the base
-	 */
-	private static int digit(int codePoint, int radix) {
-		int value;
-		if (Character.isDigit(codePoint)) {
-			value = Character.digit(codePoint, DECIMAL);
-		}
-		else {
-			value = (codePoint < ASCII_END) ? Character.digit(codePoint, radix) : -1;
-		}
-		return (value < radix) ? value : -1;
-	}
-
-	/**
-	 * A number with its decimal digits in ASCII and without underscores.
-	 * @param number the number, as written
-	 * @return its text for Java's parsers
-	 */
-	private static String ascii(String number) {
-		return ascii(number, DECIMAL);
-	}
-
-	/**
-	 * A number with its digits in ASCII and without underscores.
-	 * @param number the number, as written
-	 * @param radix its base
-	 * @return its text for Java's parsers
-	 */
-	private static String ascii(String number, int radix) {
-		StringBuilder ascii = new StringBuilder(number.length());
-		number.codePoints().filter((codePoint) -> codePoint != '_').forEach((codePoint) -> {
-			int digit = digit(codePoint, radix);
-			ascii.append((digit >= 0) ? Character.forDigit(digit, radix) : (char) codePoint);
-		});
-		return ascii.toString();
 	}
 
 }
