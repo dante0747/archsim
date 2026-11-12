@@ -70,3 +70,38 @@ export function forwardResponseHeaders(incoming: Headers): Headers {
   for (const cookie of incoming.getSetCookie()) out.append("set-cookie", cookie);
   return out;
 }
+
+/** Where the API is: ARCHSIM_API_URL, read when the server starts, so one build works locally and in Docker. */
+export const API_URL = (process.env.ARCHSIM_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+
+/** How many proxies of yours stand in front of this server (see clientIp). */
+const TRUSTED_HOPS = Number(process.env.ARCHSIM_TRUSTED_HOPS ?? "0");
+
+/**
+ * Sends a browser's request on to the API at `target`, with the headers that cross, and the API's
+ * answer back; a 502 in the API's error shape when the API cannot be reached.
+ */
+export async function forwardTo(req: Request, target: string): Promise<Response> {
+  const hasBody = !["GET", "HEAD"].includes(req.method);
+  try {
+    const res = await fetch(target, {
+      method: req.method,
+      headers: forwardRequestHeaders(req.headers, TRUSTED_HOPS),
+      body: hasBody ? await req.arrayBuffer() : undefined,
+      cache: "no-store",
+      redirect: "manual",
+    });
+    const body = res.status === 204 || res.status === 304 ? null : res.body;
+    return new Response(body, { status: res.status, headers: forwardResponseHeaders(res.headers) });
+  } catch {
+    return Response.json(
+      {
+        detail: {
+          message: `Cannot reach the ArchSim API at ${API_URL}. Start it as the README's quick start shows, or set ARCHSIM_API_URL to where it runs.`,
+          issues: [],
+        },
+      },
+      { status: 502 },
+    );
+  }
+}

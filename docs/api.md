@@ -202,9 +202,9 @@ request with no token reaches public endpoints as before. With sign-in,
 `GET /.well-known/oauth-protected-resource/api/v1` (RFC 9728's address for the API; the same
 document is at `/.well-known/oauth-protected-resource`) describes the API as a protected
 resource: `{"resource": "<public URL>/api/v1", "bearer_methods_supported": ["header"],
-"tls_client_certificate_bound_access_tokens": false}`. It is served on the API's own address,
-not through the web server, which passes on only `/api/...`; a client can use it as RFC 9728
-metadata only where the public URL routes `/.well-known/oauth-protected-resource/**` to the API.
+"tls_client_certificate_bound_access_tokens": false}`. The web server passes
+`/.well-known/oauth-protected-resource/**`, and nothing else under `/.well-known`, on to the API,
+so the document is served at the public address it names.
 
 | Method | Path | Description |
 | --- | --- | --- |

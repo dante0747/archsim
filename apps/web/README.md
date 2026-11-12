@@ -3,7 +3,10 @@
 The ArchSim editor: a Next.js 16 app (React Flow canvas, Zustand stores, Tailwind CSS v4,
 Radix primitives, Recharts, elkjs). It talks to the API (`archsim-app`) through a same-origin proxy
 (`src/app/api/[...path]/route.ts`) that forwards to `ARCHSIM_API_URL`
-(default `http://127.0.0.1:8000`).
+(default `http://127.0.0.1:8000`). The API's protected resource metadata,
+`/.well-known/oauth-protected-resource/**`, goes the same way
+(`src/app/.well-known/oauth-protected-resource/[[...path]]/route.ts`); nothing else under
+`/.well-known` does.
 
 ```bash
 npm ci
