@@ -253,7 +253,7 @@ jobs:
   e2e:
     # the main path in Chromium against a production build and the real API: the Java API with a
     # Java worker, on PostgreSQL; see apps/web/e2e/api-server.mjs, which makes the database with
-    # the Python environment's driver
+    # the PostgreSQL driver in the API's jar
     name: End-to-end (Playwright, main path)
     needs: changes
     if: needs.changes.outputs.e2e == 'true'
@@ -286,11 +286,6 @@ jobs:
           java-version: 25
       - uses: gradle/actions/setup-gradle@v6
       - run: ./gradlew :archsim-app:bootJar
-        working-directory: .
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
         working-directory: .
       - uses: actions/setup-node@v7
         with:

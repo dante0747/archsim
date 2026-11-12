@@ -225,7 +225,7 @@ summaries are not.
 Prerequisites: **Java 25** (a JDK), **Node.js 20.9+** (24 recommended) with npm, and
 **PostgreSQL 16**, which Docker Compose can start for you. Python 3.11+ with
 [uv](https://docs.astral.sh/uv/) is needed only for development: the migrations' tests, the
-end-to-end tests, the benchmarks and the scripts ([CONTRIBUTING.md](CONTRIBUTING.md)).
+benchmarks and the scripts ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ```bash
 git clone <your-fork-url> archsim

@@ -47,8 +47,8 @@ JAVA = frozenset({"java", "e2e"})
 # build (ADR-0060), so its job checks a change to any of them.
 CHECK_ACTION = frozenset({"archsim_check"})
 # The Python environment, which the jobs that run Python sync: the Python job's tests, the
-# benchmarks' harness, the migrations and the end-to-end launcher's database maker.
-PYTHON_RUNTIME = BENCHMARK_TESTS | {"migrations", "e2e"}
+# benchmarks' harness and the migrations.
+PYTHON_RUNTIME = BENCHMARK_TESTS | {"migrations"}
 # The web app's engine fixtures: archsim-engine's GeneratedFileTests checks them against the
 # engine's output, and the web app's tests read them.
 WEB_FIXTURES = frozenset({"web", "java", "e2e"})
@@ -107,9 +107,7 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # Python
     ("pyproject.toml", PYTHON_RUNTIME),
     ("uv.lock", PYTHON_RUNTIME),
-    # the Alembic migrations, until stage 6; the end-to-end launcher makes its database
-    # through the environment their project declares (psycopg)
-    ("services/api/pyproject.toml", frozenset({"python", "migrations", "e2e"})),
+    # the Alembic migrations, until stage 6
     ("services/api/", frozenset({"python", "migrations"})),
     # The exporters write tables of Python's own answers (casefold, erfc, isprintable) that the
     # Java tests, and the model for export_printable.py, read; scripts/tests checks the printable

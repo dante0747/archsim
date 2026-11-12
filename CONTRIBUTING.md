@@ -118,9 +118,10 @@ that are already running.
 database `archsim_e2e_8002` in the PostgreSQL above, with the templates shortened
 to 20 s) and `next start` on :3002, so a stack running on :3000/:8000 is left alone; set
 `E2E_API_PORT`/`E2E_WEB_PORT` to move them, and `E2E_POSTGRES_URL` for another PostgreSQL. It
-needs `uv` on PATH, the API's jar (`./gradlew :archsim-app:bootJar`) and a fresh
-`npm run build`. On a failure, `npx playwright show-trace apps/web/test-results/<test>/trace.zip`
-replays it step by step. `npm run e2e:capture` retakes the README images in `docs/images/` and
+needs the API's jar (`./gradlew :archsim-app:bootJar`), a JDK 25 (`JAVA_HOME`, else `java` on
+PATH) and a fresh `npm run build`; it makes its database with the PostgreSQL driver in the jar.
+On a failure, `npx playwright show-trace apps/web/test-results/<test>/trace.zip` replays it step
+by step. `npm run e2e:capture` retakes the README images in `docs/images/` and
 records the demo GIF (it needs ffmpeg for the GIF and takes a few minutes).
 
 `uv run ruff format services benchmarks scripts` fixes the Python formatting. Tests must not

@@ -8,8 +8,7 @@ requires-python = ">=3.11"
 dependencies = [
   "sqlalchemy>=2.0.36",
   "alembic>=1.14",
-  # the migrations' PostgreSQL driver, which scripts/schema_snapshot.py and the
-  # end-to-end launcher (apps/web/e2e/api-server.mjs) use too, until stage 6
+  # the migrations' PostgreSQL driver, which scripts/schema_snapshot.py uses too, until stage 6
   "psycopg[binary]>=3.2",
   "pydantic-settings>=2.6",
 ]

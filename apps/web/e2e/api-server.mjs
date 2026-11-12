@@ -18,8 +18,9 @@
  * - E2E_DATABASE;
  * - JAVA_HOME, else `java` on PATH.
  *
- * Needs the API's jar (./gradlew :archsim-app:bootJar) and `uv` on PATH, for the Python
- * environment's PostgreSQL driver that makes the database.
+ * Needs the API's jar (./gradlew :archsim-app:bootJar) and a JDK 25. The database is made with
+ * the PostgreSQL driver in that jar, which Spring Boot's jar mode extracts, and a short Java
+ * program (FreshDatabase.java), so no other database client is needed.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -84,36 +85,45 @@ for (const name of readdirSync(path.join(repo, "examples")).filter((f) => f.ends
   writeFileSync(path.join(examples, name), JSON.stringify(shorten(doc, runSeconds), null, 2));
 }
 
-// A fresh database, through the Python environment's PostgreSQL driver (no Node one is needed).
-const created = spawnSync(
-  "uv",
-  [
-    "run",
-    "--no-sync",
-    "python",
-    "-c",
-    [
-      "import sys, psycopg",
-      "from psycopg import sql",
-      "name = sql.Identifier(sys.argv[2])",
-      "with psycopg.connect(sys.argv[1], autocommit=True) as c:",
-      "    c.execute(sql.SQL('DROP DATABASE IF EXISTS {} WITH (FORCE)').format(name))",
-      "    c.execute(sql.SQL('CREATE DATABASE {}').format(name))",
-    ].join("\n"),
-    postgres.toString(),
-    database,
-  ],
-  { cwd: repo, stdio: "inherit" },
-);
-if (created.status !== 0) {
-  throw new Error(`cannot make database ${database} on ${postgres.host} (is PostgreSQL running? docker compose up -d postgres)`);
+const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, "bin", "java") : "java";
+
+/** Runs `java` to its end; if it does not succeed, throws `failure`, with why. */
+function runJava(failure, args, options = {}) {
+  const result = spawnSync(java, args, { stdio: "inherit", ...options });
+  if (result.error) throw new Error(`${failure}: cannot run ${java}: ${result.error.message}`);
+  if (result.status !== 0) throw new Error(`${failure}: ${result.signal ?? `exit code ${result.status}`}`);
 }
+
+/** A URL's percent-encoded part, decoded; kept whole when it is not valid percent-encoding. */
+function decoded(part) {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
+}
+
+// A fresh database, through the PostgreSQL driver in the API's own jar: Spring Boot's jar mode
+// extracts the jar's libraries, and FreshDatabase.java drops and makes the database with it. The
+// user and password go in PGUSER and PGPASSWORD, as the URL gives them, not on the command line.
+const libraries = path.join(dir, "jar");
+runJava(`cannot extract the libraries of ${jar}`, ["-Djarmode=tools", "-jar", jar, "extract", "--destination", libraries]);
+const driver = readdirSync(path.join(libraries, "lib")).find((name) => /^postgresql-.*\.jar$/.test(name));
+if (!driver) throw new Error(`no PostgreSQL driver in ${jar}`);
+const admin = `jdbc:postgresql://${postgres.host}${postgres.pathname || "/"}${postgres.search}`;
+const credentials = {};
+if (postgres.username) credentials.PGUSER = decoded(postgres.username);
+if (postgres.password) credentials.PGPASSWORD = decoded(postgres.password);
+runJava(
+  `cannot make database ${database} on ${postgres.host} (is PostgreSQL running? docker compose up -d postgres)`,
+  ["-cp", path.join(libraries, "lib", driver), path.join(here, "FreshDatabase.java"), admin, database],
+  { env: { ...process.env, ...credentials } },
+);
 
 // E2E_POSTGRES_URL with the fresh database and SQLAlchemy's driver name, its user, host and query kept
 const databaseUrl = new URL(postgres);
 databaseUrl.protocol = "postgresql+psycopg:";
 databaseUrl.pathname = `/${database}`;
-const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, "bin", "java") : "java";
 const children = [];
 
 /**
@@ -204,12 +214,10 @@ for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => stop(0));
 // starts and the API only once the worker takes runs, so an API that answers its health check
 // has a worker behind it (ADR-0053). The worker's heap holds the three runs it takes at once
 // (archsim-app's README), and it exits when the heap runs out, so its runs are requeued.
-const migrated = spawnSync(java, ["-jar", jar, "migrate"], {
+runJava(`cannot migrate database ${database}`, ["-jar", jar, "migrate"], {
   cwd: repo,
-  stdio: "inherit",
   env: { ...process.env, ARCHSIM_DATABASE_URL: databaseUrl.toString() },
 });
-if (migrated.status !== 0) throw new Error(`cannot migrate database ${database} (exit code ${migrated.status})`);
 const worker = start("worker", java, ["-Xmx2g", "-XX:+ExitOnOutOfMemoryError", "-jar", jar, "worker"], {
   ARCHSIM_MAX_CONCURRENT_RUNS: "3",
 });
