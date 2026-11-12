@@ -2,6 +2,7 @@
 // NullAway (JSpecify annotations), JUnit with AssertJ, and JaCoCo coverage. `./gradlew check` runs
 // them all and fails on any finding; `./gradlew format` fixes the formatting. The rules are in
 // docs/java-conventions.md and config/checkstyle/.
+import io.spring.javaformat.gradle.tasks.CheckFormat
 import io.spring.javaformat.gradle.tasks.Format
 import net.ltgt.gradle.errorprone.CheckSeverity
 import net.ltgt.gradle.errorprone.errorprone
@@ -66,9 +67,12 @@ dependencies {
     "checkstyle"(lib("spring-javaformat-checkstyle"))
 }
 
-// `./gradlew format check` formats the sources first, then compiles and checks what it wrote.
+// `./gradlew format check` formats the sources first, then compiles and checks what it wrote. The
+// order is needed, not just tidy: Gradle refuses to run a task that reads what another task of the
+// same build writes unless the two are ordered.
 tasks.withType<JavaCompile>().configureEach { mustRunAfter(tasks.withType<Format>()) }
 tasks.withType<Checkstyle>().configureEach { mustRunAfter(tasks.withType<Format>()) }
+tasks.withType<CheckFormat>().configureEach { mustRunAfter(tasks.withType<Format>()) }
 
 jacoco {
     toolVersion = version("jacoco")
