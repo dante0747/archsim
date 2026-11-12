@@ -60,8 +60,8 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # CI itself
     (".github/workflows/ci.yml", EVERY),
     ("scripts/ci_changes.py", EVERY),
-    # scripts/tests/test_sticky_comment.py tests its comment, scripts/tests/
-    # test_archsim_check_action.py runs its check step, and the archsim-check job runs it
+    # scripts/tests/test_archsim_check_action.py runs its check step, and the archsim-check job
+    # tests its comment and runs it
     (".github/actions/", frozenset({"python", "archsim_check"})),
     # benchmarks/tests/test_held_out.py reads its cpuset loop
     (".github/workflows/benchmark.yml", BENCHMARK_TESTS),

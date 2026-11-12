@@ -60,7 +60,9 @@ found by a hidden marker naming the design, and only a comment the job's own acc
 (`comment-author`, `github-actions[bot]` for the workflow's token) is updated: pushes update it
 instead of adding comments, several designs (or a matrix) each keep their own, and a comment someone
 else writes with the marker is left alone. When the check cannot run (exit 2), the comment says so
-instead of keeping the last verdict. The action is not published as a package or a Marketplace
+instead of keeping the last verdict. The comment is posted with `actions/github-script` and the
+job's token ([ADR-0064](adr/0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md)):
+the runner needs no Python. The action is not published as a package or a Marketplace
 action, and its image is never pushed to a registry: each job builds it
 ([ADR-0060](adr/0060-run-the-check-action-in-an-image-the-job-builds.md)).
 

@@ -216,6 +216,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # the comment the action posts (ADR-0064), with Node's own test runner
+      - name: The action's comment
+        run: node --test .github/actions/archsim-check/sticky-comment.test.js
       - uses: ./.github/actions/archsim-check
         with:
           design: examples/cache-aside-starter.json

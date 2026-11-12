@@ -152,18 +152,29 @@ runs:
           ${{ steps.check.outputs.markdown }}
           ${{ steps.check.outputs.json }}
         if-no-files-found: ignore
+    # the action's own comment for the design, through github-script's client (ADR-0064)
     - if: github.event_name == 'pull_request' && inputs.comment == 'true'
       continue-on-error: true  # pull requests from forks get a read-only token
-      shell: bash
+      uses: actions/github-script@v8
       env:
-        GITHUB_TOKEN: ${{ github.token }}
-        PR: ${{ github.event.pull_request.number }}
+        MARKDOWN: ${{ steps.check.outputs.markdown }}
         KEY: ${{ steps.check.outputs.key }}
-        BODY: ${{ steps.check.outputs.markdown }}
         AUTHOR: ${{ inputs.comment-author }}
-      run: >-
-        python "$GITHUB_ACTION_PATH/sticky_comment.py" --repo "$GITHUB_REPOSITORY" --pr "$PR"
-        --body-file "$BODY" --key "$KEY" --author "$AUTHOR"
+        ACTION_PATH: ${{ github.action_path }}
+      with:
+        script: |
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const { upsert } = require(path.join(process.env.ACTION_PATH, "sticky-comment.js"));
+          const [done, id] = await upsert({
+            github,
+            ...context.repo,
+            pr: context.payload.pull_request.number,
+            markdown: fs.readFileSync(process.env.MARKDOWN, "utf8"),
+            key: process.env.KEY,
+            author: process.env.AUTHOR,
+          });
+          core.info(`${done} comment ${id}`);
     - shell: bash
       env:
         CODE: ${{ steps.check.outputs.exit-code }}
