@@ -1,6 +1,7 @@
 package io.archsim.app.web;
 
 import java.util.List;
+import java.util.Objects;
 
 import tools.jackson.databind.node.ObjectNode;
 
@@ -22,6 +23,16 @@ public record ErrorBody(Detail detail) {
 	 */
 	public static ErrorBody of(String message, List<Issue> issues) {
 		return new ErrorBody(new Detail(message, issues.stream().map(Issue::toJson).toList()));
+	}
+
+	/**
+	 * The body of a refusal the API answers with.
+	 * @param refusal the refusal, whose message is its status's reason when it has none
+	 * @return the body
+	 */
+	public static ErrorBody of(ApiException refusal) {
+		String message = Objects.requireNonNullElse(refusal.getMessage(), refusal.status().getReasonPhrase());
+		return of(message, refusal.issues());
 	}
 
 	/**

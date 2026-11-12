@@ -36,8 +36,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
 	@ExceptionHandler
 	ResponseEntity<ErrorBody> refused(ApiException ex) {
-		String message = Objects.requireNonNullElse(ex.getMessage(), ex.status().getReasonPhrase());
-		return ResponseEntity.status(ex.status()).headers(ex.headers()).body(ErrorBody.of(message, ex.issues()));
+		return ResponseEntity.status(ex.status()).headers(ex.headers()).body(ErrorBody.of(ex));
 	}
 
 	@ExceptionHandler

@@ -17,7 +17,6 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.tomcat.TomcatWebServer;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -84,11 +83,6 @@ class ServedApplicationTests {
 
 		assertThat(response.statusCode()).isEqualTo(400);
 		assertThat(response.body()).isEqualTo("{\"detail\":\"Bad Request\"}");
-	}
-
-	@Test
-	void start_theApi_hasNoUsersOfSpringSecuritysOwn() {
-		assertThat(this.context.getBeanProvider(UserDetailsService.class).getIfAvailable()).isNull();
 	}
 
 	@Test

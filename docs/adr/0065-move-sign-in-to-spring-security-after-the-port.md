@@ -41,6 +41,21 @@ black-box suite (`archsim-api-tests`) checks it.
   and `403` for a missing or wrong CSRF header. Public endpoints need nothing and ignore an
   `Authorization` header. An unknown path is `404` whoever asks.
 
+**Status (12 Nov 2026), API tokens:** a wrong API token is refused wherever it is sent, so for
+a request that carries one, two sentences of "Answers" no longer hold: that public endpoints
+ignore an `Authorization` header, and that an unknown path is `404` whoever asks. Spring
+Security's bearer token filter answers a revoked, expired, mistyped or malformed `Bearer` token
+with the `401` above (`WWW-Authenticate: Bearer`, the same `{"detail": …}`) before the request
+reaches an endpoint, so a public endpoint and an unknown path answer it `401` too. A request with
+no token, or with credentials of another kind (`Basic …`), still reaches the endpoint: public
+endpoints need nothing, and an unknown path is `404`. Decided in slice 2 under the owner's
+delegation, because the rule that a public endpoint ignores a token came from matching FastAPI,
+which no longer binds; a token's holder is better told at once that it is wrong than treated as
+anonymous, as GitHub's API does. The black-box suite's `TokensTests` checks both. With sign-in,
+the resource server also answers its metadata (RFC 9728) at
+`/.well-known/oauth-protected-resource/api/v1`, on the API's own address: it names the API and
+the header as the one way to send a token.
+
 ## Decision Drivers
 
 - Security code maintained and reviewed by Spring, where it fits: ADR-0007 chose Spring Boot

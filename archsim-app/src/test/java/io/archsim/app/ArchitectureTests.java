@@ -47,6 +47,17 @@ class ArchitectureTests {
 	}
 
 	@Test
+	void controllers_anyFeature_neverReadTheSecurityContext() {
+		noClasses().that()
+			.areAnnotatedWith(RestController.class)
+			.should()
+			.dependOnClassesThat()
+			.resideInAPackage("org.springframework.security..")
+			.because("a controller reads who is asking from a parameter, Principal or Person (ADR-0065)")
+			.check(APP);
+	}
+
+	@Test
 	void repositories_anyFeature_areSeenOnlyByTheirOwnFeature() {
 		classes().that()
 			.areAnnotatedWith(Repository.class)

@@ -20,10 +20,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Spring Security's chain keeps the API's answers: what it does for a site with a login
- * page of its own stays off, and it adds no headers of its own.
+ * page of its own stays off, it adds no headers of its own, and what its request firewall
+ * refuses once an endpoint reads it is answered as the API's {@code 400}.
  */
-@WebMvcTest(controllers = SecurityConfigurationTests.ChangeController.class)
-@Import({ SecurityConfiguration.class, SecurityConfigurationTests.ChangeController.class })
+@WebMvcTest(controllers = SecurityConfigurationTests.PublicController.class)
+@Import({ SecurityConfiguration.class, SecurityConfigurationTests.PublicController.class })
 class SecurityConfigurationTests {
 
 	private static final String CHANGE = "/api/v1/change";
@@ -80,11 +81,12 @@ class SecurityConfigurationTests {
 	}
 
 	/**
-	 * An endpoint that reads and changes, needing nobody, standing in for the API's
-	 * public ones.
+	 * Public endpoints, needing nobody, standing in for the API's: one that reads and
+	 * changes, one that reads every query parameter, and one that reads the
+	 * {@code User-Agent}.
 	 */
 	@RestController
-	static class ChangeController {
+	static class PublicController {
 
 		@GetMapping("/change")
 		Map<String, String> read() {

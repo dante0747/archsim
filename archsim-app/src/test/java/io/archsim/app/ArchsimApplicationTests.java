@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.ApplicationContext;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -28,10 +30,18 @@ class ArchsimApplicationTests {
 	@Autowired
 	private MockMvcTester mvc;
 
+	@Autowired
+	private ApplicationContext context;
+
 	@DynamicPropertySource
 	static void database(DynamicPropertyRegistry registry) {
 		String database = TestDatabases.freshJdbcUrl();
 		registry.add("archsim.database-url", () -> database);
+	}
+
+	@Test
+	void start_always_makesNoUsersOfSpringSecuritysOwn() {
+		assertThat(this.context.getBeanProvider(UserDetailsService.class).getIfAvailable()).isNull();
 	}
 
 	@Test

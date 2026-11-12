@@ -37,7 +37,8 @@ Domain errors use one shape:
 | Status | When |
 | --- | --- |
 | 400 | Contradictory request (e.g. both `document` and `exampleId`). |
-| 401 | Sign-in is on, and the request has no valid session cookie or API token (`WWW-Authenticate: Bearer`). |
+| 400 | Also: a request Spring Security's request firewall refuses (a method other than `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`, a path that is not normalized or holds an encoded `%`, `.` or backslash), answered `{"detail": "Bad Request"}`. |
+| 401 | Sign-in is on, and the request has no valid session cookie or API token where the endpoint needs someone, or carries a wrong API token wherever it goes, public endpoints and unknown paths included (`WWW-Authenticate: Bearer`). |
 | 403 | Your role in the workspace is too weak (a viewer editing), a cookie request without the right `X-ArchSim-CSRF` header, or an API token doing what only a signed-in person may. |
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
@@ -192,7 +193,15 @@ gets 403.
 
 **API tokens (CLI, CI, MCP).** Send `Authorization: Bearer asim_pat_...`; no cookie and no CSRF
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if
-it names one.
+it names one. A revoked, expired, mistyped or malformed token is refused with `401` wherever it
+is sent, public endpoints included, so a client learns at once that its token is wrong; a
+request with no token reaches public endpoints as before. With sign-in,
+`GET /.well-known/oauth-protected-resource/api/v1` (RFC 9728's address for the API; the same
+document is at `/.well-known/oauth-protected-resource`) describes the API as a protected
+resource: `{"resource": "<public URL>/api/v1", "bearer_methods_supported": ["header"],
+"tls_client_certificate_bound_access_tokens": false}`. It is served on the API's own address,
+not through the web server, which passes on only `/api/...`; a client can use it as RFC 9728
+metadata only where the public URL routes `/.well-known/oauth-protected-resource/**` to the API.
 
 | Method | Path | Description |
 | --- | --- | --- |

@@ -6,6 +6,9 @@ import java.util.Map;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -142,6 +145,55 @@ class TokensTests {
 		assertThat(client.get("/tokens").json().size()).isEqualTo(1);
 	}
 
+	// -- a token is read wherever it is sent (ADR-0065)
+
+	@ParameterizedTest
+	@ValueSource(strings = { "/health", "/public/shares/no-such-share", "/nothing-here" })
+	void request_withRevokedToken_isUnauthorizedAsOnAProtectedEndpoint(String path, ApiServer server) {
+		ApiClient client = server.signedIn("ada");
+		JsonNode revoked = token(client);
+		assertThat(client.delete("/tokens/" + Json.id(revoked)).status()).isEqualTo(204);
+		assertRefusedAsOnAProtectedEndpoint(anonymous(client), path, "Bearer " + secret(revoked));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "/health", "/public/shares/no-such-share", "/nothing-here" })
+	void request_withExpiredToken_isUnauthorizedAsOnAProtectedEndpoint(String path, ApiServer server) {
+		ApiClient client = server.signedIn("ada");
+		JsonNode expired = token(client);
+		server.db()
+			.update("UPDATE api_tokens SET expires_at = now() - interval '1 second' WHERE id = ?", Json.id(expired));
+		assertRefusedAsOnAProtectedEndpoint(anonymous(client), path, "Bearer " + secret(expired));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "/health", "/public/shares/no-such-share", "/nothing-here" })
+	void request_withMalformedToken_isUnauthorizedAsOnAProtectedEndpoint(String path, ApiServer server) {
+		assertRefusedAsOnAProtectedEndpoint(server.client(), path, "Bearer not a token");
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "/health,200", "/public/shares/no-such-share,404", "/nothing-here,404" })
+	void request_withoutToken_reachesTheEndpoint(String path, int status, ApiServer server) {
+		assertThat(server.client().get(path).status()).isEqualTo(status);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "/health,200", "/public/shares/no-such-share,404", "/nothing-here,404" })
+	void request_withBasicCredentials_reachesTheEndpoint(String path, int status, ApiServer server) {
+		ApiResponse response = server.client().get(path, Map.of("Authorization", "Basic YWRhOnB3"));
+		assertThat(response.status()).isEqualTo(status);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "/.well-known/oauth-protected-resource/api/v1", "/.well-known/oauth-protected-resource" })
+	void protectedResourceMetadata_withSignIn_describesTheApi(String path, ApiServer server) {
+		ApiResponse response = server.client().open(path);
+		assertThat(response.status()).isEqualTo(200);
+		assertThat(response.json()).isEqualTo(Json.object("resource", Profile.HOSTED_PUBLIC_URL + "/api/v1",
+				"bearer_methods_supported", Json.array("header"), "tls_client_certificate_bound_access_tokens", false));
+	}
+
 	// -- CSRF
 
 	@Test
@@ -204,6 +256,22 @@ class TokensTests {
 	}
 
 	// -- helpers
+
+	/**
+	 * Checks a wrong token's answer on a path: the {@code 401} a protected endpoint gives
+	 * it, header and body alike.
+	 * @param client a client without cookies
+	 * @param path where the token is sent
+	 * @param authorization the wrong {@code Authorization} header
+	 */
+	private static void assertRefusedAsOnAProtectedEndpoint(ApiClient client, String path, String authorization) {
+		Map<String, String> headers = Map.of("Authorization", authorization);
+		ApiResponse onProtected = client.get("/projects", headers);
+		ApiResponse response = client.get(path, headers);
+		assertThat(response.status()).as(response.text()).isEqualTo(401);
+		assertThat(response.header("www-authenticate")).hasValue("Bearer");
+		assertThat(response.json()).isEqualTo(onProtected.json());
+	}
 
 	/**
 	 * A new token named CI with {@code body}'s other fields; fails the test unless it is

@@ -13,7 +13,6 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.json.JsonMapper;
@@ -25,7 +24,7 @@ import io.archsim.app.config.ArchsimProperties;
  * it ({@code 413}), and a chunked body, whose size is not declared, on a request that
  * changes something ({@code 411}), with the API's error body. It runs right after Spring
  * Security's chain ({@code spring.security.filter.order}), so its answers carry the
- * security headers too.
+ * security headers and, for an allowed origin, the CORS headers too.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 2)
@@ -35,11 +34,11 @@ class BodySizeFilter extends OncePerRequestFilter {
 
 	private final long maxBodyBytes;
 
-	private final JsonMapper json;
+	private final ErrorResponses responses;
 
 	BodySizeFilter(ArchsimProperties properties, JsonMapper json) {
 		this.maxBodyBytes = properties.maxBodyBytes();
-		this.json = json;
+		this.responses = new ErrorResponses(json);
 	}
 
 	@Override
@@ -62,9 +61,7 @@ class BodySizeFilter extends OncePerRequestFilter {
 	}
 
 	private void refuse(HttpServletResponse response, HttpStatus status, String message) throws IOException {
-		response.setStatus(status.value());
-		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-		this.json.writeValue(response.getOutputStream(), ErrorBody.of(message, List.of()));
+		this.responses.write(response, new ApiException(status, message, List.of()));
 	}
 
 }

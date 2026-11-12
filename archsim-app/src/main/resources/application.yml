@@ -13,9 +13,6 @@ spring:
       # Spring Security's chain right after the character encoding and before the body-size
       # limit (BodySizeFilter), so every answer carries the security headers
       order: -2147483647
-  autoconfigure:
-    # people sign in with GitHub or Google, never as a user of Spring Security's own
-    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   datasource:
     hikari:
       # fail a health check within 10 s rather than 30, as the Python API's connect timeout

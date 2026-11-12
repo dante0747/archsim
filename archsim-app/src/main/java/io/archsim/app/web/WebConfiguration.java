@@ -60,7 +60,12 @@ public class WebConfiguration implements WebMvcConfigurer {
 
 	/**
 	 * CORS on every request, as Starlette's middleware wraps every request: what no
-	 * endpoint answers (a route that does not exist) is checked too.
+	 * endpoint answers (a route that does not exist) is checked too. Spring Security's
+	 * chain runs this filter by its bean name, {@code corsFilter}, so that its own
+	 * refusals carry the CORS headers; under another name the chain would fall back to
+	 * Spring MVC's CORS settings, which have none. Spring Boot also registers it with the
+	 * servlet container under the same name, a second pass that does nothing, as the
+	 * filter runs once a request.
 	 * @return the filter, with Starlette's settings and leniency
 	 */
 	@Bean
