@@ -337,7 +337,7 @@ doesn't change.
     slices; none is built yet.
   - Also: `NOTICE` lists the third-party software the images and the CLI bundle, none of it
     incompatible with Apache-2.0, and the web image leaves out sharp and its libvips
-    ([ADR-0066](../adr/0066-ship-the-web-image-without-an-image-optimizer.md), proposed); stage 5's
+    ([ADR-0066](../adr/0066-ship-the-web-image-without-an-image-optimizer.md)); stage 5's
     follow-ups are closed; and two gaps in the contract found in review are closed. The API ignores
     a request body's unknown keys, as FastAPI's request models did, and a number's text of any
     length is read as Python's `float()` and pydantic read it, where a few thousand digits or groups
@@ -374,9 +374,8 @@ doesn't change.
 - **Not done:** stage 0's exit was never run in full against the Python API, which is gone; the
   black-box suite passes in full against the Java API (137 tests). CI has not run on GitHub
   since Actions stopped starting jobs on 5 Nov 2026; every CI command runs locally.
-- **For the owner, before anything is published:** ADR-0066 (proposed; the web image without
-  sharp and its LGPL libvips, which nothing in it ran); when to build
-  ADR-0065's slices; `ARCHSIM_DATABASE_URL` keeps SQLAlchemy's form
+- **For the owner, before anything is published:** when to build ADR-0065's
+  slices; `ARCHSIM_DATABASE_URL` keeps SQLAlchemy's form
   ([ADR-0035](../adr/0035-read-the-python-apis-settings-unchanged.md)), which a plain
   `postgresql://` or JDBC URL could replace now that no Python reads it.
 
