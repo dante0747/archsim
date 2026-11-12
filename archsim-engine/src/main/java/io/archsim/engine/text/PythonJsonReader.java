@@ -16,6 +16,8 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.archsim.model.text.PythonInts;
+
 /**
  * JSON text read as Python's {@code json.loads} reads it: NaN and the infinities as
  * numbers, a key given twice in its first place with its last value, and nothing after
@@ -36,7 +38,7 @@ public final class PythonJsonReader {
 	 * The most digits a number's whole part, fraction or exponent may have: Python's most
 	 * for a whole number. Python reads floats of any length.
 	 */
-	private static final int MAX_NUMBER_DIGITS = 4300;
+	private static final int MAX_NUMBER_DIGITS = PythonInts.MAX_STR_DIGITS;
 
 	private static final JsonMapper JSON = JsonMapper
 		.builder(JsonFactory.builder()

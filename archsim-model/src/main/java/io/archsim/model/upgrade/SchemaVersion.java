@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import io.archsim.model.text.PythonInts;
+
 /**
  * A document's {@code schemaVersion}, {@code MAJOR.MINOR}, ordered as the Python engine
  * orders it: as a tuple of integers, so {@code 1.10} is newer than {@code 1.7}, and
@@ -16,10 +18,11 @@ import java.util.regex.Pattern;
 public record SchemaVersion(String text, List<BigInteger> parts) implements Comparable<SchemaVersion> {
 
 	/**
-	 * What Python's {@code int()} accepts: digits (any script's), maybe a sign and
-	 * underscores.
+	 * What Python's {@code int()} reads, but for its limit on digits: digits (any
+	 * script's), maybe a sign and underscores. The group repeats possessively, so Java
+	 * matches it in a loop: a greedy repeat would recurse once a group.
 	 */
-	private static final Pattern INTEGER = Pattern.compile("[+-]?\\p{Nd}+(?:_\\p{Nd}+)*");
+	private static final Pattern INTEGER = Pattern.compile("[+-]?\\p{Nd}+(?:_\\p{Nd}+)*+");
 
 	/** The base of the digits a version's parts are written in. */
 	private static final int DECIMAL = 10;
@@ -38,12 +41,16 @@ public record SchemaVersion(String text, List<BigInteger> parts) implements Comp
 		List<BigInteger> parts = new ArrayList<>();
 		for (String part : text.split("\\.", -1)) {
 			String trimmed = part.strip();
-			if (!INTEGER.matcher(trimmed).matches()) {
+			if (!INTEGER.matcher(trimmed).matches() || digitCount(trimmed) > PythonInts.MAX_STR_DIGITS) {
 				throw new UpgradeException("'%s' is not a valid schemaVersion".formatted(text));
 			}
 			parts.add(integer(trimmed.replace("_", "")));
 		}
 		return new SchemaVersion(text, parts);
+	}
+
+	private static long digitCount(String part) {
+		return part.codePoints().filter(Character::isDigit).count();
 	}
 
 	/**

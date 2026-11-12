@@ -13,7 +13,13 @@ import java.util.regex.Pattern;
  */
 final class LaxNumbers {
 
-	private static final String DIGITS = "\\d+(?:_\\d+)*";
+	/**
+	 * Digits, an underscore allowed between two of them. The group repeats possessively,
+	 * so Java matches it in a loop: a greedy repeat would recurse once a group. Nothing
+	 * after it starts with a digit or an underscore, so it matches what a greedy repeat
+	 * would.
+	 */
+	private static final String DIGITS = "\\d+(?:_\\d+)*+";
 
 	private static final Pattern FLOAT = Pattern.compile(
 			"[+-]?(?:" + DIGITS + "(?:\\." + "(?:" + DIGITS + ")?)?|\\." + DIGITS + ")(?:[eE][+-]?" + DIGITS + ")?");

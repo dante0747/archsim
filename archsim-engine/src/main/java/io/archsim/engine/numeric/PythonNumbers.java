@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import io.archsim.engine.text.PythonStrings;
+import io.archsim.model.text.PythonInts;
 import io.archsim.model.text.PythonText;
 
 /**
@@ -18,13 +19,6 @@ import io.archsim.model.text.PythonText;
 public final class PythonNumbers {
 
 	private static final Pattern SPECIAL = Pattern.compile("[+-]?(?:inf|infinity|nan)", Pattern.CASE_INSENSITIVE);
-
-	/**
-	 * The most digits Python converts in a base that is not a power of two
-	 * ({@code sys.int_info.default_max_str_digits}): its guard against conversions that
-	 * take quadratic time.
-	 */
-	private static final int MAX_DIGITS = 4300;
 
 	/** The prefix a base's digits may start with, by base. */
 	private static final Map<Integer, String> PREFIXES = Map.of(2, "0b", 8, "0o", 16, "0x");
@@ -187,10 +181,10 @@ public final class PythonNumbers {
 		if (Integer.bitCount(radix) == 1) {
 			return powerOfTwo(digits, radix);
 		}
-		if (digits.length() > MAX_DIGITS) {
-			throw new NumberFormatException(
-					"Exceeds the limit (" + MAX_DIGITS + " digits) for integer string conversion: value has "
-							+ digits.length() + " digits; use sys.set_int_max_str_digits() to increase the limit");
+		if (digits.length() > PythonInts.MAX_STR_DIGITS) {
+			throw new NumberFormatException("Exceeds the limit (" + PythonInts.MAX_STR_DIGITS
+					+ " digits) for integer string conversion: value has " + digits.length()
+					+ " digits; use sys.set_int_max_str_digits() to increase the limit");
 		}
 		return new BigInteger(digits, radix);
 	}

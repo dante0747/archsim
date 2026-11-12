@@ -11,19 +11,27 @@ import org.yaml.snakeyaml.resolver.Resolver;
  * type the Python engine gave it: SnakeYAML's own read {@code 1e5} as a number, where
  * PyYAML's floats need a point and a signed exponent. Its {@code =} (value) resolver is
  * kept: its safe loader cannot build that type, so a value written {@code =} is refused,
- * as PyYAML refuses it, while a key written so stays text.
+ * as PyYAML refuses it, while a key written so stays text. Two departures from PyYAML's
+ * text, each explained where it is made: a base-60 number's groups repeat possessively,
+ * and the resolvers read a scalar of any length.
  */
 final class PyYamlResolver extends Resolver {
 
 	private static final Pattern BOOL = Pattern
 		.compile("^(?:yes|Yes|YES|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)$");
 
+	/**
+	 * A float. A base-60 float's {@code :}-groups repeat possessively ({@code ++}), so
+	 * Java matches them in a loop: a greedy repeat would recurse once a group. Nothing
+	 * after a group starts with a digit, so it matches what PyYAML's pattern does.
+	 */
 	private static final Pattern FLOAT = Pattern.compile("^(?:[-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+][0-9]+)?"
-			+ "|\\.[0-9][0-9_]*(?:[eE][-+][0-9]+)?" + "|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*"
+			+ "|\\.[0-9][0-9_]*(?:[eE][-+][0-9]+)?" + "|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])++\\.[0-9_]*"
 			+ "|[-+]?\\.(?:inf|Inf|INF)" + "|\\.(?:nan|NaN|NAN))$");
 
+	/** An int; its base-60 groups repeat possessively, as {@link #FLOAT}'s do. */
 	private static final Pattern INT = Pattern.compile("^(?:[-+]?0b[0-1_]+" + "|[-+]?0[0-7_]+"
-			+ "|[-+]?(?:0|[1-9][0-9_]*)" + "|[-+]?0x[0-9a-fA-F_]+" + "|[-+]?[1-9][0-9_]*(?::[0-5]?[0-9])+)$");
+			+ "|[-+]?(?:0|[1-9][0-9_]*)" + "|[-+]?0x[0-9a-fA-F_]+" + "|[-+]?[1-9][0-9_]*(?::[0-5]?[0-9])++)$");
 
 	private static final Pattern MERGE = Pattern.compile("^(?:<<)$");
 
@@ -38,15 +46,22 @@ final class PyYamlResolver extends Resolver {
 	/** The first character SnakeYAML looks an empty scalar's resolvers up by. */
 	private static final String EMPTY = "\0";
 
+	/**
+	 * No limit to the length of a scalar the resolvers read, as PyYAML has none.
+	 * SnakeYAML's own stop at 1,024 characters, against patterns that can be slow on long
+	 * text; these run in time linear in the scalar.
+	 */
+	private static final int ANY_LENGTH = Integer.MAX_VALUE;
+
 	@Override
 	protected void addImplicitResolvers() {
-		addImplicitResolver(Tag.BOOL, BOOL, "yYnNtTfFoO");
-		addImplicitResolver(Tag.FLOAT, FLOAT, "-+0123456789.");
-		addImplicitResolver(Tag.INT, INT, "-+0123456789");
-		addImplicitResolver(Tag.MERGE, MERGE, "<");
-		addImplicitResolver(Tag.NULL, NULL, "~nN" + EMPTY);
-		addImplicitResolver(Tag.TIMESTAMP, TIMESTAMP, "0123456789");
-		addImplicitResolver(PyYamlConstructor.VALUE, VALUE, "=");
+		addImplicitResolver(Tag.BOOL, BOOL, "yYnNtTfFoO", ANY_LENGTH);
+		addImplicitResolver(Tag.FLOAT, FLOAT, "-+0123456789.", ANY_LENGTH);
+		addImplicitResolver(Tag.INT, INT, "-+0123456789", ANY_LENGTH);
+		addImplicitResolver(Tag.MERGE, MERGE, "<", ANY_LENGTH);
+		addImplicitResolver(Tag.NULL, NULL, "~nN" + EMPTY, ANY_LENGTH);
+		addImplicitResolver(Tag.TIMESTAMP, TIMESTAMP, "0123456789", ANY_LENGTH);
+		addImplicitResolver(PyYamlConstructor.VALUE, VALUE, "=", ANY_LENGTH);
 	}
 
 }

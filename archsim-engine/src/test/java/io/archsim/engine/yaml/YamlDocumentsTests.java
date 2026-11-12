@@ -1,5 +1,6 @@
 package io.archsim.engine.yaml;
 
+import java.math.BigInteger;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,35 @@ class YamlDocumentsTests {
 		assertThat(document).isEqualTo(JSON.readTree("""
 				{"a": true, "b": true, "c": 511, "d": 90, "e": "1e5", "f": 1500.0, "g": null, "h": 31, "k": 5,
 				 "m": 1000, "n": "-0o7", "o": "08"}"""));
+	}
+
+	/** SnakeYAML's own resolvers read no scalar longer than 1,024 characters. */
+	@Test
+	void one_intOfTwoThousandDigits_isAnInt() {
+		JsonNode document = YamlDocuments.one("a: " + "1".repeat(2_000));
+
+		assertThat(document.get("a").bigIntegerValue()).isEqualTo(new BigInteger("1".repeat(2_000)));
+	}
+
+	@Test
+	void one_floatOfTwoThousandDigits_isAFloat() {
+		JsonNode document = YamlDocuments.one("a: 1." + "0".repeat(2_000));
+
+		assertThat(document.get("a").doubleValue()).isEqualTo(1.0);
+	}
+
+	@Test
+	void one_timestampWithATwoThousandDigitFraction_isItsTextAsPythonWritesIt() {
+		JsonNode document = YamlDocuments.one("a: 2001-12-14 21:59:43." + "1".repeat(2_000));
+
+		assertThat(document.get("a").stringValue()).isEqualTo("2001-12-14 21:59:43.111111");
+	}
+
+	@Test
+	void one_baseSixtyIntOfTwentyThousandDigits_isItsValue() {
+		JsonNode document = YamlDocuments.one("a: 1" + ":00".repeat(20_000));
+
+		assertThat(document.get("a").bigIntegerValue()).isEqualTo(BigInteger.valueOf(60).pow(20_000));
 	}
 
 	@Test

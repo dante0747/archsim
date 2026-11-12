@@ -97,6 +97,11 @@ class QueryParametersTests {
 		assertThat(QueryParameters.integer(List.of("1_0"), "limit", 1, 200)).hasValue(10);
 	}
 
+	@Test
+	void integer_aHundredThousandUnderscoredGroups_isTheNumber() {
+		assertThat(QueryParameters.integer(List.of("0_".repeat(100_000) + "5"), "limit", 1, 200)).hasValue(5);
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { "", "abc", "5.5", "5.", "1__0", "1e2", "0x10", "٥", "5 0", "\u001c5" })
 	void integer_notAWholeNumber_isRefusedAsPydanticRefusesIt(String text) {

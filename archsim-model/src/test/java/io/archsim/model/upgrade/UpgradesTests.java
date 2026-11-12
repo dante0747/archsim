@@ -101,6 +101,28 @@ class UpgradesTests {
 	}
 
 	@Test
+	void parse_partOfAsManyDigitsAsPythonReads_isItsInteger() {
+		assertThat(SchemaVersion.parse("0_".repeat(4_299) + "1.7")).isEqualByComparingTo(SchemaVersion.parse("1.7"));
+	}
+
+	/** Python's {@code int()} reads at most 4,300 digits, leading zeros counted. */
+	@Test
+	void parse_partOfMoreDigitsThanPythonReads_isNotAValidSchemaVersion() {
+		String version = "1".repeat(4_301) + ".7";
+
+		assertThatThrownBy(() -> SchemaVersion.parse(version)).isInstanceOf(UpgradeException.class)
+			.hasMessage("'%s' is not a valid schemaVersion".formatted(version));
+	}
+
+	@Test
+	void parse_partOfAHundredThousandUnderscoredGroups_isNotAValidSchemaVersion() {
+		String version = "0_".repeat(100_000) + "1.7";
+
+		assertThatThrownBy(() -> SchemaVersion.parse(version)).isInstanceOf(UpgradeException.class)
+			.hasMessage("'%s' is not a valid schemaVersion".formatted(version));
+	}
+
+	@Test
 	void compareTo_dottedVersions_ordersThemAsTuplesOfIntegers() {
 		assertThat(SchemaVersion.parse("1.10")).isGreaterThan(SchemaVersion.parse("1.7"));
 		assertThat(SchemaVersion.parse("1.7.0")).isGreaterThan(SchemaVersion.parse("1.7"));

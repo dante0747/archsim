@@ -29,9 +29,11 @@ public final class QueryParameters {
 
 	/**
 	 * A whole number as pydantic reads one from text: white space around it, ASCII digits
-	 * with single underscores between them, and a fraction of zeros.
+	 * with single underscores between them, and a fraction of zeros. The group repeats
+	 * possessively, so Java matches it in a loop: a greedy repeat would recurse once a
+	 * group.
 	 */
-	private static final Pattern INTEGER = Pattern.compile("\\s*([+-]?[0-9]+(?:_[0-9]+)*)(?:\\.0+)?\\s*",
+	private static final Pattern INTEGER = Pattern.compile("\\s*([+-]?[0-9]+(?:_[0-9]+)*+)(?:\\.0+)?\\s*",
 			Pattern.UNICODE_CHARACTER_CLASS);
 
 	private QueryParameters() {

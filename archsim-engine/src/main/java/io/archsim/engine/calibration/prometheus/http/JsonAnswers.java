@@ -9,6 +9,8 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.archsim.model.text.PythonInts;
+
 /**
  * A Prometheus answer's body read as Python's {@code json.loads} reads bytes: UTF-8, -16
  * or -32, any value at the top, {@code NaN} and {@code Infinity}, a key written twice
@@ -22,7 +24,7 @@ final class JsonAnswers {
 	private static final int MAX_DEPTH = 1000;
 
 	/** The most digits a number may have: Python's most for a whole number. */
-	private static final int MAX_NUMBER_DIGITS = 4300;
+	private static final int MAX_NUMBER_DIGITS = PythonInts.MAX_STR_DIGITS;
 
 	/** The size cap bounds strings and keys, as Python reads them of any length. */
 	private static final JsonMapper JSON = JsonMapper
