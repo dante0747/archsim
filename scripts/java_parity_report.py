@@ -7,10 +7,10 @@ the Java simulator against the frozen engine 0.16.0, by the port plan's bar.
   -Parchsim.parity.out=docs/validation` writes from the baselines (ADR-0052).
 - Every kept calibration: the re-simulated knee within 2% of the frozen engine's, both from
   the same harness over every kept run with a two-pass calibration: the frozen engine's
-  development checks in benchmarks/results/dev/0.16.0-port/ (`BENCH_ENGINE=python uv run python
-  benchmarks/run.py resimulate --label 0.16.0-port`) against the Java engine's in dev/0.16.0-java/
-  (`BENCH_ENGINE=java uv run python benchmarks/run.py resimulate`), paired by file over both
-  folders, with whether their derived inputs agree.
+  development checks in benchmarks/results/dev/0.16.0-port/ (`uv run python benchmarks/run.py
+  resimulate --label 0.16.0-port`, on the frozen engine) against the Java engine's in
+  dev/0.16.0-java/ (`BENCH_ENGINE=java uv run python benchmarks/run.py resimulate`), paired by
+  file over both folders, with whether their derived inputs agree.
 - Speed, against docs/performance.md and not part of the bar: each template's median wall time
   over several runs on each engine, measured one after the other on a quiet machine, from
   benchmarks/perf/. While neither engine's measurement exists, the page says speed is not yet
@@ -53,11 +53,11 @@ PYTHON_SPEED = ROOT / "benchmarks" / "perf" / f"{PYTHON_SPEED_LABEL}.json"
 JAVA_SPEED = ROOT / JAVA_SPEED_FILE
 PARITY_COMMAND = "./gradlew :archsim-engine:parity -Parchsim.parity.out=docs/validation"
 """Writes simulation-parity.json from the baselines."""
-PYTHON_KNEES_COMMAND = (
-    f"BENCH_ENGINE=python uv run python benchmarks/run.py resimulate --label {PYTHON_KNEES}"
-)
-"""Writes the frozen engine's knees, dev/0.16.0-port/; the harness runs the Java engine unless
-told otherwise (ADR-0062)."""
+PYTHON_KNEES_COMMAND = f"uv run python benchmarks/run.py resimulate --label {PYTHON_KNEES}"
+"""Wrote the frozen engine's knees, dev/0.16.0-port/, while it was the harness's engine; the
+harness runs the Java engine only now (ADR-0062)."""
+PYTHON_KNEES_RESTORE = f"git checkout HEAD -- benchmarks/results/dev/{PYTHON_KNEES}"
+"""Brings the frozen engine's knees back: no engine writes that folder any more."""
 JAVA_KNEES_COMMAND = "BENCH_ENGINE=java uv run python benchmarks/run.py resimulate"
 """Wrote the Java engine's knees, dev/0.16.0-java/; it writes dev/<its version>/ now."""
 JAVA_KNEES_RESTORE = f"git checkout HEAD -- benchmarks/results/dev/{JAVA_KNEES}"
@@ -449,11 +449,11 @@ def _load(path: Path) -> Json:
 
 
 def _missing() -> list[str]:
-    """The inputs not there yet, each with the command that writes it, or for the Java engine's
+    """The inputs not there yet, each with the command that writes it, or for the two engines'
     knees the one that restores them. Speed is optional while neither engine is measured, never
     with one engine's measurement and not the other's."""
     inputs = {
-        DEV / PYTHON_KNEES: f"run {PYTHON_KNEES_COMMAND}",
+        DEV / PYTHON_KNEES: f"restore it with {PYTHON_KNEES_RESTORE}",
         DEV / JAVA_KNEES: f"restore it with {JAVA_KNEES_RESTORE}",
         PARITY: f"run {PARITY_COMMAND}",
     }

@@ -94,9 +94,9 @@ jobs:
       - name: Tests
         # every testpath but the two below (--ignore does not apply to a testpath itself)
         run: uv run pytest --deselect packages/engine/tests --deselect benchmarks/tests
-      # About 7 and 9 minutes. The engine is frozen, and the benchmarks' tests calibrate and
-      # simulate with it, so only a change to the engine or to a file they read can change their
-      # result (scripts/ci_changes.py).
+      # About 7 and 9 minutes. The Python engine is frozen; the benchmarks' tests calibrate and
+      # simulate with the Java engine (ADR-0062). Only a change to an engine or to a file they read
+      # can change their result (scripts/ci_changes.py).
       - name: Engine tests
         if: needs.changes.outputs.engine_tests == 'true'
         run: uv run pytest packages/engine/tests

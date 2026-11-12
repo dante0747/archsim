@@ -25,8 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import engine_functions
-
-from archsim_engine import run_simulation
+import run
 
 # run 5 (protocol v4, 28 Oct 2026), kept in run-5/ since the baseline campaign of 30 Oct
 RESULTS = Path(__file__).resolve().parents[1] / "results" / "pg-mixed" / "run-5"
@@ -162,7 +161,7 @@ def _simulate(design: dict[str, Any], rps: float) -> tuple[float, float]:
     """Mean CPU cores in the measurement window and the memory peak (MiB) of the API."""
     doc = copy.deepcopy(design)
     doc["workload"]["rps"] = rps
-    report = run_simulation(doc)
+    report = run.engine_report(doc)
     api = next(n for n in report["nodes"] if n["id"] == "api")
     window, ts = report["window"], report["timeseries"]
     busy = [

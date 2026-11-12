@@ -42,8 +42,7 @@ stacks (it checks that every request succeeds and is counted, and keeps no laten
 
 Only the Python standard library, Docker and the Java engine are needed: its CLI, installed by
 ``./gradlew :archsim-cli:installDist``, simulates (``archsim run``) and answers the engine's
-functions (engine_functions.py, ADR-0061). ``BENCH_ENGINE=python`` simulates on the frozen
-Python engine instead, until stage 5 of the Java port deletes it (ADR-0062).
+functions (engine_functions.py, ADR-0061, ADR-0062).
 """
 
 from __future__ import annotations
@@ -166,8 +165,9 @@ SIM_WALL_S = 3600.0
 An overloaded ladder step holds up to 100,000 queued requests, which takes minutes when other
 work shares the CPU; the limit only decides whether a run finishes, never what it returns."""
 ENGINE_VARIABLE = "BENCH_ENGINE"
-"""``python`` to simulate on the frozen Python engine instead of the Java engine's ``archsim run``,
-the default (ADR-0051, ADR-0062); ``java``, empty or unset for the Java engine."""
+"""Chose the frozen Python engine (``python``) over the Java engine until stage 5 of the port
+(ADR-0062). The harness runs the Java engine only: unset, empty or ``java`` is that engine, and
+another value is refused rather than ignored."""
 JAVA_CLI = engine_functions.CLI
 """The Java engine's command, as ``./gradlew :archsim-cli:installDist`` installs it."""
 JAVA_ENGINE_SOURCES = ("archsim-engine", "archsim-model", "archsim-cli")
@@ -2921,30 +2921,11 @@ def simulate(doc: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def java_engine() -> bool:
-    """Whether the Java engine simulates: unless ``BENCH_ENGINE=python`` asks for the frozen
-    Python engine (ADR-0062). Another value is refused rather than taken for either."""
-    engine = os.environ.get(ENGINE_VARIABLE) or "java"
-    if engine not in ("java", "python"):
-        raise RuntimeError(f"{ENGINE_VARIABLE} is java or python, not {engine!r}")
-    return engine == "java"
-
-
 def engine_label() -> str:
-    """The engine as what the harness writes names it: its version, the frozen Python engine's or
-    the installed Java engine's (1.0.0 on), so the two engines' development checks and range fits
-    never share a name or a path. Before it had a version of its own the Java engine wrote
-    ``0.16.0-java``, which stays its record."""
-    if java_engine():
-        return java_engine_version()
-    from archsim_engine.version import ENGINE_VERSION
-
-    return ENGINE_VERSION
-
-
-def java_engine_version() -> str:
-    """The installed Java engine's version, as ``archsim --version`` prints it
-    (``archsim, engine 1.0.0``)."""
+    """The engine as what the harness writes names it: the installed Java engine's version, as
+    ``archsim --version`` prints it (``archsim, engine 1.0.0``), so its development checks never
+    share a name or a path with the frozen Python engine's (0.16.0 and before). Before it had a
+    version of its own the Java engine wrote ``0.16.0-java``, which stays its record."""
     engine_functions.require_installed(JAVA_CLI)
     ran = subprocess.run(
         [str(JAVA_CLI), "--version"], capture_output=True, text=True, encoding="utf-8"
@@ -2962,34 +2943,17 @@ def java_engine_version() -> str:
 
 def dev_label(label: str | None = None) -> str:
     """The folder under results/dev/ that ``resimulate`` writes: the engine's label, or a label
-    that starts with it (``0.16.0-port`` for checks kept apart from earlier ones). It never names
-    the other engine, so neither writes over the other's checks; the frozen engine never writes
-    ``0.16.0-java``, the Java engine's record."""
+    that starts with it (``1.0.0-port`` for checks kept apart from earlier ones). It never names
+    another engine's, so it never writes over the frozen engine's checks (``0.16.0-port``) or
+    the Java engine's record from before its version (``0.16.0-java``)."""
     engine = engine_label()
     if label is None:
         return engine
-    if not label.startswith(f"{engine}-") or (
-        not java_engine() and label.startswith(f"{engine}-java")
-    ):
+    if not label.startswith(f"{engine}-"):
         raise ValueError(
             f"a development check's label starts with {engine}- and names this engine: not {label}"
         )
     return label
-
-
-def report_version() -> str:
-    """The version of the reports of the engine that simulates."""
-    if java_engine():
-        return engine_functions.report_version()
-    from archsim_engine.version import REPORT_VERSION
-
-    return REPORT_VERSION
-
-
-def range_fit_path() -> Path:
-    """Where ``range-fit`` writes: the committed fit on the Java engine, the default; on the
-    frozen Python engine, a fit labelled with its version (ADR-0062)."""
-    return RANGE_FIT if java_engine() else HERE / f"knee-range-{engine_label()}.json"
 
 
 def java_build() -> str | None:
@@ -3005,18 +2969,8 @@ def java_build() -> str | None:
 
 
 def engine_report(doc: dict[str, Any]) -> dict[str, Any]:
-    """The report of a run of ``doc`` within ``SIM_WALL_S``: on the Java engine, or on the frozen
-    Python engine when ``BENCH_ENGINE=python``."""
-    if java_engine():
-        return java_report(doc)
-    from archsim_engine import run_simulation
-    from archsim_engine.engine import SimulationLimits
-
-    return run_simulation(doc, limits=SimulationLimits(max_wall_seconds=SIM_WALL_S))
-
-
-def java_report(doc: dict[str, Any]) -> dict[str, Any]:
-    """The Java engine's report of a run of ``doc``: ``archsim run --out``, from a file each way."""
+    """The Java engine's report of a run of ``doc`` within ``SIM_WALL_S``: ``archsim run --out``,
+    from a file each way."""
     import tempfile
 
     with tempfile.TemporaryDirectory() as folder:
@@ -3373,7 +3327,7 @@ def predict(exp: Experiment, calibration: dict[str, Any]) -> dict[str, Any]:
         "experiment": exp.id,
         "at": now(),
         "engineVersion": engine_label(),
-        "reportVersion": report_version(),
+        "reportVersion": engine_functions.report_version(),
         "provenance": provenance(),
         "objective": {"p95Ms": OBJECTIVE_P95_MS, "minSuccess": MIN_SUCCESS},
         "knee": knee,
@@ -5110,23 +5064,13 @@ def provenance() -> dict[str, Any]:
     object ids, so the same on every machine and line-ending setting), whether either had
     uncommitted changes (then the ids do not describe what ran), and the machine."""
     parts = [f"{p} {git('rev-parse', f'HEAD:{p}')}" for p in HARNESS]
-    engine: dict[str, Any]
-    sources: tuple[str, ...]
-    if java_engine():
-        sources = JAVA_ENGINE_SOURCES
-        trees = [f"{p} {git('rev-parse', f'HEAD:{p}')}" for p in sources]
-        # a hash over the Java engine's three source trees, and the build that ran
-        engine = {
-            "engineSources": hashlib.sha256("\n".join(trees).encode()).hexdigest(),
-            "javaBuild": java_build(),
-        }
-    else:
-        sources = ("packages/engine",)
-        engine = {"engineTree": git("rev-parse", "HEAD:packages/engine")}
-    status = git("status", "--porcelain", "--", *sources, *HARNESS)
+    trees = [f"{p} {git('rev-parse', f'HEAD:{p}')}" for p in JAVA_ENGINE_SOURCES]
+    status = git("status", "--porcelain", "--", *JAVA_ENGINE_SOURCES, *HARNESS)
     return {
         "commit": git("rev-parse", "HEAD"),
-        **engine,
+        # a hash over the Java engine's three source trees, and the build that ran
+        "engineSources": hashlib.sha256("\n".join(trees).encode()).hexdigest(),
+        "javaBuild": java_build(),
         "harnessHash": hashlib.sha256("\n".join(parts).encode()).hexdigest(),
         "dirty": None if status is None else bool(status),
         "machineId": machine_id(),
@@ -5208,9 +5152,11 @@ def seal(
     engines: Sequence[Mapping[str, Any]] | None = None,
 ) -> str | None:
     """Why a held-out experiment may not be calibrated or measured now, or None when it may:
-    the engine here must be one frozen in engines.json (its source tree, as provenance() names
-    it), with nothing uncommitted in the engine or the harness, so that the prediction saved
-    before the first measurement is the frozen engine's. Other experiments are never sealed."""
+    the engine here must be one frozen in engines.json, with nothing uncommitted in the engine or
+    the harness, so that the prediction saved before the first measurement is the frozen
+    engine's. Other experiments are never sealed. A frozen engine is known by its tree, as the
+    Python engine's provenance named it; the Java engine's names its sources (engineSources), so
+    it stays sealed until its freeze says what identifies it (ADR-0062)."""
     if exp.held_out is None:
         return None
     prov = provenance() if prov is None else prov
@@ -5232,8 +5178,8 @@ def seal(
         )
     if prov.get("dirty") is not False:
         return (
-            f"{sealed}: packages/engine or the harness has uncommitted changes (or git cannot "
-            "tell), so the frozen engine's tree does not describe what would run."
+            f"{sealed}: the engine's sources or the harness have uncommitted changes (or git "
+            "cannot tell), so the frozen engine's sources do not describe what would run."
         )
     return None
 
@@ -5449,7 +5395,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--label",
         help="with resimulate: write the checks under results/dev/LABEL/, a label that starts "
-        "with the engine's (0.16.0-port, say) and names no other engine; the engine's own by "
+        "with the engine's (1.0.0-port, say) and names no other engine; the engine's own by "
         "default. It writes over that folder's checks of the same calibrations, committed or "
         "not",
     )
@@ -5466,10 +5412,12 @@ def main(argv: list[str] | None = None) -> int:
         "experiments; with more than one, every run first archives the one before",
     )
     args = ap.parse_args(argv)
-    try:
-        java_engine()  # a BENCH_ENGINE that names neither engine, before anything starts
-    except RuntimeError as exc:
-        ap.error(str(exc))
+    engine = os.environ.get(ENGINE_VARIABLE) or "java"
+    if engine != "java":  # before anything starts
+        ap.error(
+            f"{ENGINE_VARIABLE}={engine!r}: the harness runs the Java engine only (ADR-0062); "
+            "unset it"
+        )
     if (args.experiment is not None) != (args.stack == "smoke"):
         ap.error("an experiment is named with smoke, and only with smoke")
     if args.stack == "smoke":
@@ -5489,7 +5437,7 @@ def main(argv: list[str] | None = None) -> int:
             log(f"wrote {path.relative_to(HERE.parent).as_posix()}")
         return 0
     if args.stack == "range-fit":
-        out = range_fit_path()
+        out = RANGE_FIT
         fit = range_fit(out=out, reuse=args.reuse_dev)
         for fold, by in fit["check"]["counts"].items():
             hits, n = by[f"{RANGE_COVERAGE:g}"]

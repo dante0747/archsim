@@ -40,7 +40,8 @@ was verified, what is known to be limited, and what comes next. Nothing listed u
   ports them. Until then the harness simulates on the Java engine when asked (`BENCH_ENGINE=java`)
   and names those checks by its version. Since stage 5's S5-9 (11 Nov) the Java engine is the
   harness's default for every command, and `BENCH_ENGINE=python` runs the frozen engine
-  ([ADR-0062](docs/adr/0062-make-the-java-engine-the-harnesss-default.md)).
+  ([ADR-0062](docs/adr/0062-make-the-java-engine-the-harnesss-default.md)); since S5-10c
+  (12 Nov) it runs the Java engine only.
 - Not run during stage 4: CI on GitHub, which has started no job since 2026-11-05. Every slice
   passed CI's steps locally.
 

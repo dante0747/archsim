@@ -63,6 +63,13 @@ deletes it.
   CLI for them; `scripts/ci_changes.py` runs them for a change to what the CLI is built from (the
   CLI's, the engine's and the model's sources and the Gradle build), not to those modules' tests.
 
+**Status (12 Nov 2026):** ahead of the Python engine's deletion, the harness runs the Java
+engine only: the `BENCH_ENGINE=python` branches are gone, and a `BENCH_ENGINE` other than `java`
+is refused before a command starts. The frozen engine's development checks
+(`results/dev/0.16.0-port/`) are a record now, restored from git rather than written again.
+Provenance names the Java engine by its sources only, so the seal's matching of a frozen tree
+cannot be reached until the Java engine's freeze changes it.
+
 ### Consequences
 
 - Good, because a benchmark run from here on predicts with the engine that remains, and says so.

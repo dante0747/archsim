@@ -17,8 +17,8 @@ import pytest
 import report
 import run
 
-from archsim_engine.version import ENGINE_VERSION
-
+FROZEN_VERSION = "0.16.0"
+"""The frozen Python engine's version, as benchmarks/engines.json records it."""
 HELD_OUT = ["java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl"]
 TUNED_ON = ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
 TREE = "f" * 40
@@ -95,9 +95,9 @@ def test_the_python_engines_entry_is_the_engine_in_this_tree() -> None:
     head = run.git("rev-parse", "HEAD:packages/engine")
     if head is None:
         pytest.skip("not a git checkout")
-    (entry,) = [e for e in report.engines() if e["version"] == ENGINE_VERSION]
+    (entry,) = [e for e in report.engines() if e["version"] == FROZEN_VERSION]
     assert entry["engineTree"] == head, (
-        f"packages/engine has changed since engine {ENGINE_VERSION} was recorded in "
+        f"packages/engine has changed since engine {FROZEN_VERSION} was recorded in "
         "benchmarks/engines.json: give it a new version and a new entry"
     )
 
