@@ -61,6 +61,9 @@ final class SampleRecords {
 	record Drawing(Figure figure) {
 	}
 
+	record Versioned(@Const("v1") String version) {
+	}
+
 	record Window(double start, double end) {
 		Window {
 			if (end <= start) {

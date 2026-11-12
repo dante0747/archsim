@@ -36,6 +36,10 @@ final class EnumShape implements Shape {
 
 	@Override
 	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
+		if (Utf8Encoding.isUnencodableString(in)) {
+			Utf8Encoding.refuse(at, errors);
+			return null;
+		}
 		JsonEnum constant = in.isString() ? constant(in.stringValue()) : null;
 		if (constant == null) {
 			errors.add("literal_error", at, Messages.literal(Messages.quoted(strings())));

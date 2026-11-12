@@ -14,6 +14,7 @@ final class Messages {
 	static final String MISSING = "Field required";
 	static final String EXTRA_FORBIDDEN = "Extra inputs are not permitted";
 	static final String STRING_TYPE = "Input should be a valid string";
+	static final String STRING_UNICODE = "Input should be a valid string, unable to parse raw data as a unicode string";
 	static final String FLOAT_TYPE = "Input should be a valid number";
 	static final String FLOAT_PARSING = "Input should be a valid number, unable to parse string as a number";
 	static final String INT_TYPE = "Input should be a valid integer";

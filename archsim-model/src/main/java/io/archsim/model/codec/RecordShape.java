@@ -22,9 +22,11 @@ import io.archsim.model.text.PythonText;
  * fields.
  *
  * <p>
- * Reading checks the fields in declaration order, each looked up by its JSON name and
- * then by its Python name, and reports every unknown key after them, in the input's
- * order. When all of it is valid it calls the canonical constructor; an
+ * A key pydantic cannot encode to UTF-8 (one holding half of a surrogate pair) refuses
+ * the whole record, with one {@code string_unicode} at the record and nothing else.
+ * Otherwise, reading checks the fields in declaration order, each looked up by its JSON
+ * name and then by its Python name, and reports every unknown key after them, in the
+ * input's order. When all of it is valid it calls the canonical constructor; an
  * {@link IllegalArgumentException} from there is the record's own check failing (a
  * pydantic model validator), reported as a {@code value_error} at the object.
  */
@@ -74,6 +76,12 @@ final class RecordShape implements Shape {
 	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
 		if (!in.isObject()) {
 			errors.add("model_type", at, Messages.modelType(this.name));
+			return null;
+		}
+		if (in.propertyNames().stream().anyMatch(Utf8Encoding::cannotEncode)) {
+			// pydantic encodes every key to find the unknown ones, and gives up on the
+			// record at the first it cannot encode, whatever else it found
+			Utf8Encoding.refuse(at, errors);
 			return null;
 		}
 		int mark = errors.mark();

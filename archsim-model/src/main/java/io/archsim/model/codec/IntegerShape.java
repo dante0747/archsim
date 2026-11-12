@@ -61,14 +61,26 @@ record IntegerShape(Bounds bounds, boolean isLong) implements Shape {
 			return Optional.of(in.booleanValue() ? BigInteger.ONE : BigInteger.ZERO);
 		}
 		if (in.isString()) {
-			Optional<BigInteger> parsed = LaxNumbers.parseInteger(in.stringValue());
-			if (parsed.isEmpty()) {
-				errors.add("int_parsing", at, Messages.INT_PARSING);
-			}
-			return parsed;
+			return fromText(in.stringValue(), at, errors);
 		}
 		errors.add("int_type", at, Messages.INT_TYPE);
 		return Optional.empty();
+	}
+
+	/**
+	 * The integer a text stands for, when pydantic can encode it to UTF-8 and parse one
+	 * from it.
+	 */
+	private static Optional<BigInteger> fromText(String text, Location at, Errors errors) {
+		if (Utf8Encoding.cannotEncode(text)) {
+			Utf8Encoding.refuse(at, errors);
+			return Optional.empty();
+		}
+		Optional<BigInteger> parsed = LaxNumbers.parseInteger(text);
+		if (parsed.isEmpty()) {
+			errors.add("int_parsing", at, Messages.INT_PARSING);
+		}
+		return parsed;
 	}
 
 	/** The integer a float stands for, when it is finite, whole and within a long. */

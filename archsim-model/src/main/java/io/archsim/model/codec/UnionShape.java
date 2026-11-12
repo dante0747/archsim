@@ -45,10 +45,15 @@ final class UnionShape implements Shape {
 		RecordShape member = tag.isString() ? this.members.get(tag.stringValue()) : null;
 		if (member == null) {
 			errors.add("union_tag_invalid", at,
-					Messages.unionTagInvalid(PythonText.str(tag), this.property, List.copyOf(this.members.keySet())));
+					Messages.unionTagInvalid(tagText(tag), this.property, List.copyOf(this.members.keySet())));
 			return null;
 		}
 		return member.read(in, at.child(tag.stringValue()), errors);
+	}
+
+	// pydantic writes an unmatched tag lossily: three U+FFFD for each lone surrogate
+	private static String tagText(JsonNode tag) {
+		return tag.isString() ? Utf8Encoding.lossy(tag.stringValue()) : PythonText.str(tag);
 	}
 
 	@Override

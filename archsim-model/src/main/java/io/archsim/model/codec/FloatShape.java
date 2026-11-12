@@ -39,14 +39,26 @@ record FloatShape(Bounds bounds) implements Shape {
 			return Optional.of(in.booleanValue() ? 1.0 : 0.0);
 		}
 		if (in.isString()) {
-			Optional<Double> parsed = LaxNumbers.parseFloat(in.stringValue());
-			if (parsed.isEmpty()) {
-				errors.add("float_parsing", at, Messages.FLOAT_PARSING);
-			}
-			return parsed;
+			return fromText(in.stringValue(), at, errors);
 		}
 		errors.add("float_type", at, Messages.FLOAT_TYPE);
 		return Optional.empty();
+	}
+
+	/**
+	 * The number a text stands for, when pydantic can encode it to UTF-8 and parse one
+	 * from it.
+	 */
+	private static Optional<Double> fromText(String text, Location at, Errors errors) {
+		if (Utf8Encoding.cannotEncode(text)) {
+			Utf8Encoding.refuse(at, errors);
+			return Optional.empty();
+		}
+		Optional<Double> parsed = LaxNumbers.parseFloat(text);
+		if (parsed.isEmpty()) {
+			errors.add("float_parsing", at, Messages.FLOAT_PARSING);
+		}
+		return parsed;
 	}
 
 	@Override

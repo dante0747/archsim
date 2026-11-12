@@ -133,6 +133,9 @@ Where the Python CLI crashed with a traceback, the Java CLI answers:
 - A file it cannot read (missing, not UTF-8, not JSON: empty or cut short) or write (a folder
   that is not there, a name the system refuses), or standard input it cannot read: one line on
   standard error that names the file and the reason, exit code 1 (Python's crash exited with 1).
+- An issue whose words hold half of a surrogate pair (a node named by such an id): the issue,
+  with `?` for that character, as the console's encoder writes it; Python's `print` could not
+  encode it.
 - `analyze` and `export` of a design with a link to a part that does not exist: the analysis and
   the export, as `POST /analyze` and `POST /export` give them (Python raised `KeyError`).
 - `compare` of a design or scenario that cannot be simulated (Python caught nothing): refused as
@@ -162,7 +165,11 @@ Elsewhere:
   engine's reader instead (`PythonJsonReader`), which refuses text in `json`'s words where no value
   starts or something follows the value, and a number longer than 4,300 digits in Jackson's
   (`Number value length (4301) exceeds the maximum allowed (4300)`): Python refused a whole number
-  that long in its own words and read a float of any length.
+  that long in its own words and read a float of any length. A key holding a JSON escape of a
+  lone surrogate (U+D800 to U+DFFF without its partner) is refused in Jackson's words, as Jackson
+  reads only whole pairs in a key; Python read it, and the design was then refused for the object
+  holding it (`string_unicode`), as archsim-model refuses a tree holding one. In a value, such an
+  escape is read, and refused where pydantic refused it.
 - `import`: text that is not YAML is refused in SnakeYAML's words, not PyYAML's
   ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and
   Terraform text that is not JSON past its first character with Jackson's description of the

@@ -164,6 +164,16 @@ schema Flyway builds with the one Alembic builds (`parity/schema/`).
 - A `422` for a request body lists `type`, `loc`, `msg` and `input` for each error, as FastAPI
   does, but not pydantic's `ctx` (the bound a value broke). A body that is not JSON has a `ctx`
   with the JSON reader's own message and offset, which differ from Python's.
+- Half of a surrogate pair in a body (a JSON escape of U+D800 to U+DFFF without its partner):
+  - in a key, the body is refused as not JSON (`422`, `json_invalid`), because Jackson reads
+    only whole pairs in a key. FastAPI read it: a request model ignored the key, and a design
+    was refused with a `string_unicode` issue for the object holding it;
+  - in a value a request model checks (its length, pattern or literal, or a number or boolean
+    given as text), the answer is `422` with pydantic's `string_unicode` and the input written
+    back as the escape. FastAPI answered `500`: its `422` repeated the input, which Starlette
+    could not encode. In a design, the issue is Python's, but for a node's or link's id: the
+    issue names the part by it, which Python could not encode either (`500`), and Java answers
+    `422` with the issue, the id written as the escape.
 - A request body is read as JSON whatever its `Content-Type`; FastAPI read any other type as
   raw bytes and answered `422`.
 - A `405` that Tomcat answers itself (`TRACE`) lists Tomcat's methods in `Allow`.

@@ -37,7 +37,18 @@ final class CodecTestSupport {
 	 * @return the errors, which there must be
 	 */
 	static List<BindingError> errors(String text, Class<?> type) {
-		return catchThrowableOfType(BindingException.class, () -> RecordCodec.read(json(text), type)).errors();
+		return errors(json(text), type);
+	}
+
+	/**
+	 * The errors reading a JSON tree into a record gives, for an input JSON text cannot
+	 * carry.
+	 * @param input the input
+	 * @param type the record or union
+	 * @return the errors, which there must be
+	 */
+	static List<BindingError> errors(JsonNode input, Class<?> type) {
+		return catchThrowableOfType(BindingException.class, () -> RecordCodec.read(input, type)).errors();
 	}
 
 	/**

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.archsim.model.codec.Ge;
+import io.archsim.model.codec.MinLength;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,6 +29,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import({ WebBehaviourTests.ReadOnlyController.class, WebBehaviourTests.EchoController.class,
 		WebBehaviourTests.FailingController.class })
 class WebBehaviourTests {
+
+	/**
+	 * Half of a surrogate pair as a JSON escape, the only way it reaches the API in
+	 * UTF-8.
+	 */
+	private static final String LONE_SURROGATE = "\\u%04x".formatted((int) Character.MIN_HIGH_SURROGATE);
+
+	/** The same escape as Jackson writes it, with its hexadecimal digits in capitals. */
+	private static final String LONE_SURROGATE_WRITTEN = "\\u%04X".formatted((int) Character.MIN_HIGH_SURROGATE);
 
 	@Autowired
 	private MockMvcTester mvc;
@@ -137,6 +147,30 @@ class WebBehaviourTests {
 	}
 
 	@Test
+	void post_apiBodyWithALoneSurrogateInAKey_isAJsonDecodeError() {
+		String body = "{\"name\": \"ab\", \"count\": 1, \"" + LONE_SURROGATE + "\": 1}";
+
+		assertThat(this.mvc.post().uri("/api/v1/echo").contentType(MediaType.APPLICATION_JSON).content(body))
+			.hasStatus(422)
+			.bodyJson()
+			.extractingPath("$.detail[0].type")
+			.isEqualTo("json_invalid");
+	}
+
+	@Test
+	void post_apiBodyWithALoneSurrogateInAValueItChecks_isRefusedWithTheValueWrittenAsAnEscape() {
+		String body = "{\"name\": \"" + LONE_SURROGATE + "\", \"count\": 1}";
+
+		assertThat(this.mvc.post().uri("/api/v1/echo").contentType(MediaType.APPLICATION_JSON).content(body))
+			.hasStatus(422)
+			.bodyText()
+			.isEqualTo(
+					"{\"detail\":[{\"type\":\"string_unicode\",\"loc\":[\"body\",\"name\"],\"msg\":\"Input should be a valid "
+							+ "string, unable to parse raw data as a unicode string\",\"input\":\""
+							+ LONE_SURROGATE_WRITTEN + "\"}]}");
+	}
+
+	@Test
 	void anyResponse_always_carriesTheSecurityHeaders() {
 		assertThat(this.mvc.get().uri("/api/v1/read-only")).hasHeader("X-Content-Type-Options", "nosniff")
 			.hasHeader("X-Frame-Options", "DENY")
@@ -198,12 +232,12 @@ class WebBehaviourTests {
 	}
 
 	/**
-	 * A request body: a name and a count of at least one.
+	 * A request body: a name, which the codec checks, and a count of at least one.
 	 *
 	 * @param name what to echo
 	 * @param count how many times
 	 */
-	record Echo(String name, @Ge(1) int count) {
+	record Echo(@MinLength(1) String name, @Ge(1) int count) {
 
 	}
 

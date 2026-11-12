@@ -24,18 +24,36 @@ record BooleanShape() implements Shape {
 		if (in.isBoolean()) {
 			return in.booleanValue();
 		}
-		if (in.isIntegralNumber() || in.isString()) {
-			String text = in.isString() ? in.stringValue().toLowerCase(Locale.ROOT) : in.bigIntegerValue().toString();
-			if (TRUE.contains(text) || FALSE.contains(text)) {
-				return TRUE.contains(text);
-			}
-			errors.add("bool_parsing", at, Messages.BOOL_PARSING);
-			return null;
+		if (in.isString()) {
+			return fromText(in.stringValue(), at, errors);
+		}
+		if (in.isIntegralNumber()) {
+			return fromWord(in.bigIntegerValue().toString(), at, errors);
 		}
 		if (in.isNumber() && (in.doubleValue() == 0 || in.doubleValue() == 1)) {
 			return in.doubleValue() == 1;
 		}
 		errors.add("bool_type", at, Messages.BOOL_TYPE);
+		return null;
+	}
+
+	/**
+	 * The boolean a text stands for, when pydantic can encode it to UTF-8 and it is one
+	 * of the words.
+	 */
+	private static @Nullable Boolean fromText(String text, Location at, Errors errors) {
+		if (Utf8Encoding.cannotEncode(text)) {
+			Utf8Encoding.refuse(at, errors);
+			return null;
+		}
+		return fromWord(text.toLowerCase(Locale.ROOT), at, errors);
+	}
+
+	private static @Nullable Boolean fromWord(String word, Location at, Errors errors) {
+		if (TRUE.contains(word) || FALSE.contains(word)) {
+			return TRUE.contains(word);
+		}
+		errors.add("bool_parsing", at, Messages.BOOL_PARSING);
 		return null;
 	}
 

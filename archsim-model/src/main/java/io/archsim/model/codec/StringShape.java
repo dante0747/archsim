@@ -77,20 +77,31 @@ final class StringShape implements Shape {
 	}
 
 	private static String readConstant(String constant, JsonNode in, Location at, Errors errors) {
-		if (!in.isString() || !in.stringValue().equals(constant)) {
+		if (Utf8Encoding.isUnencodableString(in)) {
+			Utf8Encoding.refuse(at, errors);
+		}
+		else if (!in.isString() || !in.stringValue().equals(constant)) {
 			errors.add("literal_error", at, Messages.literal(Messages.quoted(List.of(constant))));
 		}
 		return constant;
 	}
 
 	/**
-	 * Adds an error for the first constraint a string breaks: its length, then its
-	 * pattern.
+	 * Adds an error for the first constraint a string breaks: that pydantic can encode it
+	 * to UTF-8, its length, then its pattern. A string without constraints is not
+	 * encoded, so it may hold half of a surrogate pair.
 	 * @param value the string read
 	 * @param at where it is in the input
 	 * @param errors where the error is added
 	 */
 	private void check(String value, Location at, Errors errors) {
+		if (!hasConstraint()) {
+			return;
+		}
+		if (Utf8Encoding.cannotEncode(value)) {
+			Utf8Encoding.refuse(at, errors);
+			return;
+		}
 		int length = value.codePointCount(0, value.length());
 		if (this.minLength != null && length < this.minLength) {
 			errors.add("string_too_short", at, Messages.stringTooShort(this.minLength));
@@ -101,6 +112,10 @@ final class StringShape implements Shape {
 		else if (this.pattern != null && this.regex != null && !this.regex.matcher(value).find()) {
 			errors.add("string_pattern_mismatch", at, Messages.patternMismatch(this.pattern));
 		}
+	}
+
+	private boolean hasConstraint() {
+		return this.minLength != null || this.maxLength != null || this.pattern != null;
 	}
 
 	@Override
