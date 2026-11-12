@@ -102,10 +102,8 @@ def dedupe(items: list[dict[str, Any]], what: str) -> list[dict[str, Any]]:
 
 
 def write_snapshot(snapshot: dict[str, Any], out: Path | None) -> Path:
-    """Validate with the engine's own parser, then write ``<provider>-<region>-<date>.json``."""
-    sys.path.insert(0, str(ROOT / "packages" / "engine" / "src"))
-    from archsim_engine.pricing import parse_snapshot
-
+    """Write ``<provider>-<region>-<date>.json``, its types in order. Whether the model reads it is
+    archsim-model's tests' to say, which the refresh workflow runs on it."""
     snapshot.setdefault("format", "archsim.prices/1")
     snapshot.setdefault("currency", "USD")
     snapshot.setdefault("snapshotDate", dt.date.today().isoformat())
@@ -114,8 +112,11 @@ def write_snapshot(snapshot: dict[str, Any], out: Path | None) -> Path:
             dedupe(snapshot.get(key, []), key),
             key=lambda s: (s["family"], s["vcpu"], s["memoryGib"], s["sku"], s.get("engines", [])),
         )
-    parse_snapshot(snapshot)  # raises with the reason when something is off
-    path = out or SNAPSHOT_DIR / f"{snapshot['provider']}-{snapshot['region']}-{snapshot['snapshotDate']}.json"
+    path = (
+        out
+        or SNAPSHOT_DIR
+        / f"{snapshot['provider']}-{snapshot['region']}-{snapshot['snapshotDate']}.json"
+    )
     path.write_text(json.dumps(snapshot, indent=1) + "\n", encoding="utf-8", newline="\n")
     counts = {k: len(snapshot.get(k, [])) for k in ("compute", "databases", "caches", "streams")}
     print(f"wrote {path} {counts}", file=sys.stderr)

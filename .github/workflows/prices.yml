@@ -68,7 +68,7 @@ jobs:
       - name: Check it with the model's tests, which read every snapshot
         run: ./gradlew :archsim-model:test
       - name: Check the scripts
-        run: uv run pytest packages/engine/tests/test_price_scripts.py
+        run: uv run pytest scripts/tests/test_price_refresh_scripts.py
       - name: Summarize the price changes
         id: diff
         run: |
