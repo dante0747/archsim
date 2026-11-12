@@ -104,5 +104,5 @@ what the repository shows.
 | [0060](0060-run-the-check-action-in-an-image-the-job-builds.md) | Run the archsim-check action's CLI in an image the job builds | Accepted | 2026-11-11 |
 | [0061](0061-answer-the-harnesss-engine-calls-from-one-java-process.md) | Answer the benchmark harness's engine calls from one Java process | Accepted | 2026-11-11 |
 | [0062](0062-make-the-java-engine-the-harnesss-default.md) | Make the Java engine the benchmark harness's default | Accepted | 2026-11-11 |
-| [0064](0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md) | Keep Python only for the benchmark harness and the repository's tooling, until stage 7 | Proposed | 2026-11-12 |
-| [0065](0065-move-sign-in-to-spring-security-after-the-port.md) | Move sign-in to Spring Security after the port, keeping its HTTP contract | Proposed | 2026-11-12 |
+| [0064](0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md) | Keep Python only for the benchmark harness and the repository's tooling, until stage 7 | Accepted | 2026-11-12 |
+| [0065](0065-move-sign-in-to-spring-security-after-the-port.md) | Move sign-in to Spring Security after the port, keeping its HTTP contract | Accepted | 2026-11-12 |
