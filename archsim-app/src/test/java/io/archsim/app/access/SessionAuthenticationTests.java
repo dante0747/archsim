@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import io.archsim.app.support.HostedTestSupport;
 
@@ -45,8 +46,11 @@ class SessionAuthenticationTests extends HostedTestSupport {
 		String token = token(ada.userId(), null, "read");
 		OffsetDateTime seen = staleSession(ada);
 
-		ada.cookie(this.mvc().get().uri(HEALTH)).header(HttpHeaders.AUTHORIZATION, "Bearer " + token).exchange();
+		MvcTestResult result = ada.cookie(this.mvc().get().uri(HEALTH))
+			.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+			.exchange();
 
+		assertThat(result).hasStatusOk();
 		assertThat(lastSeen(ada)).isEqualTo(seen);
 	}
 

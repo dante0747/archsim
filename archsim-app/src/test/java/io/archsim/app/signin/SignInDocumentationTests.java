@@ -29,6 +29,14 @@ class SignInDocumentationTests extends HostedTestSupport {
 	}
 
 	@Test
+	void me_always_documentsNoParameters() {
+		JsonNode document = json(this.mvc().get().uri("/api/v1/openapi.json").exchange());
+
+		assertThat(document.path("paths").path("/api/v1/auth/me").path("get").path("parameters").isMissingNode())
+			.isTrue();
+	}
+
+	@Test
 	void callback_query_isCodeStateAndErrorAsOptionalStrings() {
 		JsonNode state = documentedParameter("/api/v1/auth/{provider}/callback", "get", "state");
 

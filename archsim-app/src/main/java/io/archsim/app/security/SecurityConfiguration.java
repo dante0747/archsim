@@ -18,19 +18,21 @@ import io.archsim.app.web.SecurityHeaders;
  * says whom it needs through its parameters, so public endpoints, unknown paths and body
  * errors answer as before. It puts who is asking in the security context
  * ({@link RequestAuthentication}): the API token a request carries, refused wherever it
- * is sent when it is wrong, or its browser session; without sign-in, the local user. The
- * chain writes the security headers, runs the API's CORS filter (the {@code corsFilter}
- * bean), so that a browser on an allowed origin can read the chain's refusals too, and
- * guards against malformed paths. It leaves out what Spring Security does for a site with
- * its own login page: a login and a logout page, the saved request and the anonymous
- * user. Only the {@code api} role serves HTTP, so only it has the chain.
+ * is sent when it is wrong, or its browser session, whose changes need its CSRF token;
+ * without sign-in, the local user. The chain writes the security headers, runs the API's
+ * CORS filter (the {@code corsFilter} bean), so that a browser on an allowed origin can
+ * read the chain's refusals too, and guards against malformed paths. It leaves out what
+ * Spring Security does for a site with its own login page: a login and a logout page, the
+ * saved request and the anonymous user. Only the {@code api} role serves HTTP, so only it
+ * has the chain.
  *
  * <p>
  * The API keeps no HTTP sessions, and a browser session is read only when an endpoint
- * asks who is asking. So session management is off, whose filter reads every request's
- * context (with it goes its filter against session ids in URLs, which nothing here
- * makes); and so is the servlet API's view of who is asking, whose
- * {@code getUserPrincipal()} Spring MVC calls for every request it handles.
+ * asks who is asking, or a change that carries its cookie needs its CSRF token. So
+ * session management is off, whose filter reads every request's context (with it goes its
+ * filter against session ids in URLs, which nothing here makes); and so is the servlet
+ * API's view of who is asking, whose {@code getUserPrincipal()} Spring MVC calls for
+ * every request it handles.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication
@@ -46,7 +48,6 @@ public class SecurityConfiguration {
 			.requestCache(AbstractHttpConfigurer::disable)
 			.anonymous(AbstractHttpConfigurer::disable)
 			.logout(AbstractHttpConfigurer::disable)
-			.csrf(AbstractHttpConfigurer::disable)
 			.with(new RequestAuthentication(properties))
 			.build();
 	}

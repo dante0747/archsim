@@ -39,7 +39,7 @@ Domain errors use one shape:
 | 400 | Contradictory request (e.g. both `document` and `exampleId`). |
 | 400 | Also: a request Spring Security's request firewall refuses (a method other than `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`, a path that is not normalized or holds an encoded `%`, `.` or backslash), answered `{"detail": "Bad Request"}`. |
 | 401 | Sign-in is on, and the request has no valid session cookie or API token where the endpoint needs someone, or carries a wrong API token wherever it goes, public endpoints and unknown paths included (`WWW-Authenticate: Bearer`). |
-| 403 | Your role in the workspace is too weak (a viewer editing), a cookie request without the right `X-ArchSim-CSRF` header, or an API token doing what only a signed-in person may. |
+| 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. |
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
 | 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
@@ -188,8 +188,11 @@ sets the session cookie `__Host-archsim_session` (HttpOnly, Secure, SameSite=Lax
 cookie `__Host-archsim_csrf`, then redirects to `next` (a path on this site), or to
 `/signin?error=state|denied|provider|disabled`. `POST /auth/logout` ends the session
 (`?everywhere=true`: all of yours). Every request that changes something with the session
-cookie must send `X-ArchSim-CSRF: <csrfToken>` (from `GET /auth/me` or the CSRF cookie), or it
-gets 403.
+cookie must send `X-ArchSim-CSRF: <csrfToken>` (from `GET /auth/me` or the CSRF cookie) along
+with the CSRF cookie itself, or it gets 403, before the API looks at the path (Spring Security
+also takes the token as a `_csrf` form or query parameter in place of the header). The token
+is a random value in the cookie, which signing in sets for as long as the session lasts; when
+it is gone, `GET /auth/me` sets a new one, for the browser's session.
 
 **API tokens (CLI, CI, MCP).** Send `Authorization: Bearer asim_pat_...`; no cookie and no CSRF
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if

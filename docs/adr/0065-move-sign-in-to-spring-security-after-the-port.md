@@ -56,6 +56,20 @@ the resource server also answers its metadata (RFC 9728) at
 `/.well-known/oauth-protected-resource/api/v1`, on the API's own address: it names the API and
 the header as the one way to send a token.
 
+**Status (12 Nov 2026), CSRF:** a change a browser session signs in is refused without its
+CSRF header wherever it is sent, so for such a request, the "Answers" bullet's `404` for an
+unknown path (and `405` for a route that does not take the method) no longer holds: Spring
+Security's CSRF filter answers the `403` above before the request reaches an endpoint. A change
+without a session cookie still reaches its route. Decided in slice 4 under the owner's
+delegation, for the reason given for tokens above: matching FastAPI no longer binds, and the
+browser's own changes always carry the header (`apps/web/src/lib/session.ts`). Every change
+that needs someone takes a person, so an unknown path stands for a public endpoint in the
+black-box suite's `TokensTests`. As planned, the token is a random value in the
+`__Host-archsim_csrf` cookie, returned in `X-ArchSim-CSRF` (a double-submit cookie), so a change
+sends the cookie with the header. A browser signed in before keeps its cookie's old value as its
+token, rather than getting a new one at its next `/auth/me` as the plan expected: the filter
+compares the header with the cookie, and nothing has to change for it.
+
 ## Decision Drivers
 
 - Security code maintained and reviewed by Spring, where it fits: ADR-0007 chose Spring Boot

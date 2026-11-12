@@ -13,7 +13,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.apitests.FakeGitHub;
-import io.archsim.app.access.Csrf;
+import io.archsim.app.access.BrowserCsrf;
 import io.archsim.app.access.Principal;
 import io.archsim.app.support.HostedTestSupport;
 
@@ -268,7 +268,7 @@ class SignInTests extends HostedTestSupport {
 
 	private Browser signedIn(FakeGitHub.Account account) {
 		MvcTestResult done = signIn(account, null);
-		return new Browser(cookie(done, Principal.SESSION_COOKIE), cookie(done, Csrf.COOKIE));
+		return new Browser(cookie(done, Principal.SESSION_COOKIE), cookie(done, BrowserCsrf.COOKIE));
 	}
 
 	private static String userId(Browser browser) {
@@ -303,7 +303,7 @@ class SignInTests extends HostedTestSupport {
 	}
 
 	/**
-	 * A browser signed in: its session and CSRF cookies.
+	 * A browser signed in: its session and CSRF cookies, both of which it sends.
 	 */
 	private final class Browser {
 
@@ -324,15 +324,19 @@ class SignInTests extends HostedTestSupport {
 			return this.csrf;
 		}
 
+		Cookie csrfCookie() {
+			return new Cookie(BrowserCsrf.COOKIE, this.csrf);
+		}
+
 		MvcTestResult me() {
-			return mvc().get().uri(AUTH + "/me").cookie(session()).exchange();
+			return mvc().get().uri(AUTH + "/me").cookie(session(), csrfCookie()).exchange();
 		}
 
 		MvcTestResult logout(String query) {
 			return mvc().post()
 				.uri(AUTH + "/logout" + query)
-				.cookie(session())
-				.header(Csrf.HEADER, this.csrf)
+				.cookie(session(), csrfCookie())
+				.header(BrowserCsrf.HEADER, this.csrf)
 				.exchange();
 		}
 

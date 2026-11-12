@@ -5,7 +5,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-import io.archsim.app.access.Csrf;
+import io.archsim.app.access.BrowserCsrf;
 import io.archsim.app.access.Principal;
 
 /**
@@ -29,10 +29,11 @@ record BrowserCookie(String name, String sameSite, boolean httpOnly) {
 	static final BrowserCookie SESSION = new BrowserCookie(Principal.SESSION_COOKIE, "lax", true);
 
 	/**
-	 * The session's CSRF token: readable by the web app's scripts, never sent by another
-	 * site's requests.
+	 * The browser's CSRF token, which signing in sets, Spring Security's CSRF filter
+	 * reads ({@link BrowserCsrf}, which sets it again when it is gone) and signing out
+	 * clears: readable by the web app's scripts, never sent by another site's requests.
 	 */
-	static final BrowserCookie CSRF = new BrowserCookie(Csrf.COOKIE, "strict", false);
+	static final BrowserCookie CSRF = new BrowserCookie(BrowserCsrf.COOKIE, "strict", false);
 
 	private static final DateTimeFormatter EXPIRES = DateTimeFormatter
 		.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.ENGLISH)

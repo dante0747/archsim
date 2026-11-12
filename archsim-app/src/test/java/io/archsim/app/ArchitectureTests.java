@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -51,9 +52,10 @@ class ArchitectureTests {
 		noClasses().that()
 			.areAnnotatedWith(RestController.class)
 			.should()
-			.dependOnClassesThat()
-			.resideInAPackage("org.springframework.security..")
-			.because("a controller reads who is asking from a parameter, Principal or Person (ADR-0065)")
+			.dependOnClassesThat(JavaClass.Predicates.resideInAPackage("org.springframework.security..")
+				.and(DescribedPredicate.not(JavaClass.Predicates.equivalentTo(CsrfToken.class))))
+			.because("a controller reads who is asking from a parameter, Principal or Person (ADR-0065); "
+					+ "Spring Security's only type it takes is the browser's CSRF token")
 			.check(APP);
 	}
 

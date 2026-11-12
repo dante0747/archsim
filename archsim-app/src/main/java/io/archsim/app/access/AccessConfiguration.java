@@ -23,22 +23,19 @@ class AccessConfiguration implements WebMvcConfigurer {
 
 	private final Clock clock;
 
-	private final ObjectProvider<Csrf> csrf;
-
 	private final SecurityContextHolderStrategy contexts;
 
-	AccessConfiguration(ArchsimProperties properties, ObjectProvider<Clock> clock, ObjectProvider<Csrf> csrf,
+	AccessConfiguration(ArchsimProperties properties, ObjectProvider<Clock> clock,
 			ObjectProvider<SecurityContextHolderStrategy> contexts) {
 		this.properties = properties;
 		this.clock = clock.getIfAvailable(Clock::systemUTC);
-		this.csrf = csrf;
 		this.contexts = contexts.getIfAvailable(SecurityContextHolder::getContextHolderStrategy);
 	}
 
 	@Override
 	public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
 		ClientIps clientIps = new ClientIps(new TrustedProxies(this.properties.trustedProxies().hosts(), this.clock));
-		resolvers.add(new PrincipalResolver(clientIps, this.csrf, this.contexts));
+		resolvers.add(new PrincipalResolver(clientIps, this.contexts));
 		resolvers.add(new VisitorResolver(clientIps));
 		resolvers.add(new RequestedWorkspaceResolver());
 	}

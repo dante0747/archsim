@@ -244,6 +244,25 @@ class TokensTests {
 		assertThat(response.status()).isEqualTo(403);
 	}
 
+	// every change in hosted mode needs someone, so an unknown path and a route that does
+	// not
+	// take the method stand for a public one: the CSRF check comes first (ADR-0065)
+	@ParameterizedTest
+	@ValueSource(strings = { "/nothing-here", "/health" })
+	void change_anywhereWithCookieButNoCsrfHeader_isForbidden(String path, ApiServer server) {
+		ApiClient client = server.signedIn("ada");
+		client.header(CSRF, null);
+		ApiResponse response = client.post(path, Json.object());
+		assertThat(response.status()).as(response.text()).isEqualTo(403);
+		assertThat(response.message()).contains("X-ArchSim-CSRF");
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "/nothing-here,404", "/health,405" })
+	void change_anywhereWithoutSessionCookie_reachesTheRoute(String path, int status, ApiServer server) {
+		assertThat(server.client().post(path, Json.object()).status()).isEqualTo(status);
+	}
+
 	@Test
 	void change_withoutSignIn_needsNoCsrfHeaderOrToken(@On(Profile.LOCAL) ApiClient client) {
 		assertThat(client.post("/projects", Json.object("document", Examples.starter())).status()).isEqualTo(201);

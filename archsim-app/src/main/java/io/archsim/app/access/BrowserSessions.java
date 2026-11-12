@@ -28,13 +28,14 @@ import io.archsim.app.store.Times;
 /**
  * Browser sessions as Spring Security's context holds them: the {@code sessions} table,
  * read from the session cookie when the context is first asked for, and once. A request
- * that carries an {@code Authorization} header is the bearer token filter's, so its
- * session, if any, is never read; nor is a public endpoint's, as only an endpoint that
- * needs someone asks. Only the secret's SHA-256 is stored, so a session ends at once on
- * every instance when its row goes. How recently a session was used is kept, but written
- * at most every five minutes. A cookie that signs no one in (no such session, an expired
- * one, one of a disabled account) leaves the context empty, and the request says why
- * ({@link #refusal}). Starting a session is signing in's, which sets the cookie itself.
+ * that carries an {@code Authorization} header is signed in by that header or not at all,
+ * so its session, if any, is never read; nor is a public endpoint's, as only an endpoint
+ * that needs someone, or a change that needs a CSRF token, asks. Only the secret's
+ * SHA-256 is stored, so a session ends at once on every instance when its row goes. How
+ * recently a session was used is kept, but written at most every five minutes. A cookie
+ * that signs no one in (no such session, an expired one, one of a disabled account)
+ * leaves the context empty, and the request says why ({@link #refusal}). Starting a
+ * session is signing in's, which sets the cookie itself.
  */
 @Component
 public final class BrowserSessions implements SecurityContextRepository {
@@ -95,6 +96,16 @@ public final class BrowserSessions implements SecurityContextRepository {
 	}
 
 	/**
+	 * Whether a request says who it is in its {@code Authorization} header, which signs
+	 * it in, or not at all, whatever cookie it carries.
+	 * @param request the request
+	 * @return {@code true} when the header is there and not empty
+	 */
+	static boolean carriesAuthorization(HttpServletRequest request) {
+		return StringUtils.hasLength(request.getHeader(HttpHeaders.AUTHORIZATION));
+	}
+
+	/**
 	 * The session cookie a request carries.
 	 * @param request the request
 	 * @return the cookie's value, or empty when there is none, or it is empty
@@ -113,7 +124,7 @@ public final class BrowserSessions implements SecurityContextRepository {
 	}
 
 	private SecurityContext read(HttpServletRequest request) {
-		if (StringUtils.hasLength(request.getHeader(HttpHeaders.AUTHORIZATION))) {
+		if (carriesAuthorization(request)) {
 			return this.contexts.createEmptyContext();
 		}
 		return sessionCookie(request).map((cookie) -> signIn(cookie, request))

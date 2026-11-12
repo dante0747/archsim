@@ -1,6 +1,7 @@
 package io.archsim.app.signin;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -32,13 +33,15 @@ class SessionRepository {
 	}
 
 	/**
-	 * Whose a session is, whether or not it has expired.
+	 * Whose a session is, while it lasts.
 	 * @param id the session's id
-	 * @return the person's user id, if the session exists
+	 * @param now the time
+	 * @return the person's user id, if the session exists and has not expired
 	 */
-	Optional<String> userOf(String id) {
-		return this.jdbc.sql("SELECT user_id FROM sessions WHERE id = :id")
+	Optional<String> userOf(String id, Instant now) {
+		return this.jdbc.sql("SELECT user_id FROM sessions WHERE id = :id AND expires_at > :now")
 			.param("id", id)
+			.param("now", Timestamp.from(now))
 			.query(String.class)
 			.optional();
 	}

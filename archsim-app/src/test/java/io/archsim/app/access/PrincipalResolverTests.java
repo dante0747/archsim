@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -30,13 +29,10 @@ class PrincipalResolverTests {
 
 	private static final MethodParameter PARAMETER = mock();
 
-	private static final StaticListableBeanFactory NO_BEANS = new StaticListableBeanFactory();
-
 	private final SecurityContextHolderStrategy contexts = SecurityContextHolder.getContextHolderStrategy();
 
 	private final PrincipalResolver resolver = new PrincipalResolver(
-			new ClientIps(new TrustedProxies(List.of(), Clock.systemUTC())), NO_BEANS.getBeanProvider(Csrf.class),
-			this.contexts);
+			new ClientIps(new TrustedProxies(List.of(), Clock.systemUTC())), this.contexts);
 
 	@AfterEach
 	void clearContext() {

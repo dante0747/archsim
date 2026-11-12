@@ -26,7 +26,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.apitests.FakeGitHub;
-import io.archsim.app.access.Csrf;
+import io.archsim.app.access.BrowserCsrf;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.Secrets;
 import io.archsim.app.database.TestDatabases;
@@ -69,9 +69,6 @@ public abstract class HostedTestSupport {
 
 	@Autowired
 	private JdbcClient jdbc;
-
-	@Autowired
-	private Csrf csrf;
 
 	@DynamicPropertySource
 	static void settings(DynamicPropertyRegistry registry) {
@@ -140,7 +137,7 @@ public abstract class HostedTestSupport {
 			.param("now", Timestamp.from(now))
 			.param("expires", Timestamp.from(now.plus(SESSION_LENGTH)))
 			.update();
-		return new SignedIn(userId, workspaceId, secret, this.csrf.token(id));
+		return new SignedIn(userId, workspaceId, secret, Secrets.newSecret(""));
 	}
 
 	/**
@@ -315,18 +312,20 @@ public abstract class HostedTestSupport {
 	 * @param userId the person
 	 * @param workspaceId their personal workspace
 	 * @param cookie the session cookie's value
-	 * @param csrf the session's CSRF token
+	 * @param csrf the browser's CSRF token, which it keeps in a cookie
 	 */
 	public record SignedIn(String userId, String workspaceId, String cookie, String csrf) {
 
 		/**
-		 * A request as the web app sends it: with the session cookie and the CSRF header.
+		 * A request as the web app sends it: with the session and CSRF cookies, and the
+		 * CSRF header.
 		 * @param <B> the request builder's type
 		 * @param request the request
 		 * @return the request, signed in
 		 */
 		public <B extends AbstractMockHttpServletRequestBuilder<B>> B browser(B request) {
-			return cookie(request).header(Csrf.HEADER, this.csrf);
+			return cookie(request).cookie(new Cookie(BrowserCsrf.COOKIE, this.csrf))
+				.header(BrowserCsrf.HEADER, this.csrf);
 		}
 
 		/**

@@ -31,7 +31,7 @@ class SigningKeysTests {
 	void mac_withoutSecretKey_cannotSign() {
 		SigningKeys keys = new SigningKeys(TestProperties.signIn());
 
-		assertThatIllegalStateException().isThrownBy(() -> keys.mac("csrf", new byte[0]));
+		assertThatIllegalStateException().isThrownBy(() -> keys.mac("oauth-state", new byte[0]));
 	}
 
 }

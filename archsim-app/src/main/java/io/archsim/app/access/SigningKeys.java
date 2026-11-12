@@ -13,8 +13,8 @@ import io.archsim.app.config.SignInProperties;
 
 /**
  * Signs with keys derived from {@code ARCHSIM_SECRET_KEY}, one per purpose (the sign-in
- * state cookie, CSRF tokens), as the Python API derives them, so a value one API signs
- * the other accepts. Only a server with sign-in has a secret key.
+ * state cookie), as the Python API derives them, so a value one API signs the other
+ * accepts. Only a server with sign-in has a secret key.
  */
 @Component
 public class SigningKeys {

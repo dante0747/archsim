@@ -68,10 +68,13 @@ server at `https://<host>/api/v1`.
   once on every instance by signing out (or "sign out everywhere"). Disabled accounts are
   refused on their next request.
 - **CSRF.** Every request that changes something with the session cookie must carry
-  `X-ArchSim-CSRF`, an HMAC of the session derived from `ARCHSIM_SECRET_KEY`. Another site can
-  make a browser send the cookie but cannot read the token (it is in `__Host-archsim_csrf`,
-  readable only by this site's pages, and returned by `GET /auth/me`). SameSite=Lax is a second
-  layer. Bearer-token requests need no CSRF token (browsers never add them on their own).
+  `X-ArchSim-CSRF` with the value of the `__Host-archsim_csrf` cookie, a random token Spring
+  Security's CSRF filter checks (a double-submit cookie), wherever the request goes. What makes
+  that safe is that no one else can read or plant the cookie: only this site's pages read it
+  (and `GET /auth/me` returns it), and as a `__Host-` cookie (Secure, path `/`, no domain) no
+  subdomain can set or overwrite it. SameSite=Strict keeps other sites' requests from carrying it
+  at all, and SameSite=Lax on the session is a second layer. Bearer-token requests need no CSRF
+  token (browsers never add them on their own).
 - **API tokens.** `asim_pat_` plus 256 random bits, shown once, stored as SHA-256. A token acts
   as its owner; `read` tokens are viewers everywhere; a token can be limited to one workspace
   and can expire. Tokens cannot create tokens, workspaces or invitations, or accept
@@ -125,7 +128,7 @@ server at `https://<host>/api/v1`.
   (self only), framing and referrer headers.
 - **Secrets.** `ARCHSIM_SECRET_KEY` (32+ characters, the same on every API instance) and the
   OAuth client secrets come from the environment only. Rotating the key signs everyone out of
-  pending sign-ins and invalidates CSRF tokens (people reload); sessions themselves stay valid.
+  pending sign-ins (people start again); sessions and CSRF tokens stay valid.
 
 **What remains.** Resolving a host name is not covered by the per-query deadline (the
 system's resolver timeout applies). A workspace owner can read every design in it. Provider

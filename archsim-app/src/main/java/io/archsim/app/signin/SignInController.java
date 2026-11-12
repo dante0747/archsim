@@ -11,12 +11,10 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.archsim.app.access.Csrf;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.Visitor;
 import io.archsim.app.web.QueryParameters;
@@ -92,26 +90,24 @@ class SignInController {
 
 	/**
 	 * End this browser's session ({@code everywhere}: all of this account's), at once on
-	 * every instance. Needs the CSRF header like any change. Signed out already: nothing
-	 * to do.
+	 * every instance. Spring Security's CSRF filter has checked the CSRF header, as for
+	 * any change a session makes. Signed out already: nothing to do.
 	 * @param everywhere whether to end every session of the account
 	 * @param cookie the session cookie
-	 * @param csrfHeader the CSRF header
 	 * @return {@code 204}, clearing the cookies
 	 */
 	@PostMapping("/logout")
 	ResponseEntity<Void> logout(
 			@RequestParam(required = false) @Parameter(description = "End every session of this account",
 					schema = @Schema(type = "boolean", defaultValue = "false")) @Nullable List<String> everywhere,
-			@CookieValue(name = Principal.SESSION_COOKIE, required = false) @Nullable String cookie,
-			@RequestHeader(name = Csrf.HEADER, required = false) @Nullable String csrfHeader) {
+			@CookieValue(name = Principal.SESSION_COOKIE, required = false) @Nullable String cookie) {
 		boolean all = QueryParameters.flag(everywhere, "everywhere").orElse(false);
 		if (cookie != null && !cookie.isEmpty() && this.providers.hosted()) {
 			if (all) {
-				this.sessions.endEverywhere(cookie, csrfHeader);
+				this.sessions.endEverywhere(cookie);
 			}
 			else {
-				this.sessions.end(cookie, csrfHeader);
+				this.sessions.end(cookie);
 			}
 		}
 		return ResponseEntity.noContent()
