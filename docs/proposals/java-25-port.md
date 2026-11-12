@@ -322,7 +322,7 @@ doesn't change.
   - **Python removed** from what ArchSim ships and needs to run. `services/api`, the Alembic
     migrations Flyway took over from, is deleted with `scripts/schema_snapshot.py`; a database
     below Alembic's revision 0008 is brought there from the tag `alembic-0008` first
-    ([ADR-0063](../adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md), proposed),
+    ([ADR-0063](../adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)),
     and the schema snapshot is data recorded once. The end-to-end launcher makes its database
     with the PostgreSQL driver in the API's jar, and the action posts its comment with
     `github-script`. Python stays for the benchmark harness and the repository's scripts until
@@ -336,10 +336,12 @@ doesn't change.
     moves it to Spring Security after the port, keeping its HTTP contract, in six test-first
     slices; none is built yet.
   - Also: `NOTICE` lists the third-party software the images and the CLI bundle, none of it
-    incompatible with Apache-2.0; stage 5's follow-ups are closed; and two gaps in the contract
-    found in review are closed. The API ignores a request body's unknown keys, as FastAPI's
-    request models did, and a number's text of any length is read as Python's `float()` and
-    pydantic read it, where a few thousand digits or groups of them had overflowed the stack.
+    incompatible with Apache-2.0, and the web image leaves out sharp and its libvips
+    ([ADR-0066](../adr/0066-ship-the-web-image-without-an-image-optimizer.md), proposed); stage 5's
+    follow-ups are closed; and two gaps in the contract found in review are closed. The API ignores
+    a request body's unknown keys, as FastAPI's request models did, and a number's text of any
+    length is read as Python's `float()` and pydantic read it, where a few thousand digits or groups
+    of them had overflowed the stack.
 
 ### Stage 7 · The benchmark harness (after the port)
 - **What it covers:** `benchmarks/run.py`, `report.py` and their tests, rewritten in Java once
@@ -370,9 +372,10 @@ doesn't change.
   `alembic-0008` keeps the Alembic migrations, `archsim-api migrate` and the schema-snapshot
   script.
 - **Not done:** stage 0's exit was never run in full against the Python API, which is gone; the
-  black-box suite passes in full against the Java API (136 tests). CI has not run on GitHub
+  black-box suite passes in full against the Java API (137 tests). CI has not run on GitHub
   since Actions stopped starting jobs on 5 Nov 2026; every CI command runs locally.
-- **For the owner, before anything is published:** ADR-0063 (proposed); when to build
+- **For the owner, before anything is published:** ADR-0066 (proposed; the web image without
+  sharp and its LGPL libvips, which nothing in it ran); when to build
   ADR-0065's slices; `ARCHSIM_DATABASE_URL` keeps SQLAlchemy's form
   ([ADR-0035](../adr/0035-read-the-python-apis-settings-unchanged.md)), which a plain
   `postgresql://` or JDBC URL could replace now that no Python reads it.

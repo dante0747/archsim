@@ -17,7 +17,7 @@ how it was verified, what is known to be limited, and what comes next. Nothing l
   ([ADR 0064](docs/adr/0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md)).
   - `services/api`, the Alembic migrations Flyway took over from, is deleted, with
     `scripts/schema_snapshot.py`, its CI job and its dependencies (`9e5dd08f`, a breaking change;
-    [ADR 0063](docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md), proposed). A
+    [ADR 0063](docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)). A
     database below revision 0008 is refused with how to bring it there from the tag
     `alembic-0008`, a path run by hand from a database at 0007 to Flyway's takeover; the schema
     snapshot is data recorded once, and recording it again from the tag gives the same document.
