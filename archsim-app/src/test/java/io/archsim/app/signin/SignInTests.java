@@ -261,6 +261,16 @@ class SignInTests extends HostedTestSupport {
 	}
 
 	@Test
+	void logout_everywhereWithAComma_isRefusedAsFastApiRefusesIt() {
+		Browser browser = signedIn(account("Ada", null, false));
+
+		assertThat(browser.logout("?everywhere=no,yes")).hasStatus(422)
+			.bodyJson()
+			.extractingPath("$.detail[0].type")
+			.isEqualTo("bool_parsing");
+	}
+
+	@Test
 	void logout_everywhereThatIsNoBoolean_isRefusedAsFastApiRefusesIt() {
 		Browser browser = signedIn(account("Ada", null, false));
 

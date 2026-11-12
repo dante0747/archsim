@@ -105,6 +105,16 @@ class PublicSharesTests extends ShareTestSupport {
 		assertThat(open("not-a-slug")).hasStatus(404);
 	}
 
+	@Test
+	void open_viewWithAComma_isRefusedAsFastApiRefusesIt() {
+		String slug = sharedRun(signedIn("Ada"));
+
+		assertThat(this.mvc().get().uri("/api/v1/public/shares/" + slug + "?view=true,false")).hasStatus(422)
+			.bodyJson()
+			.extractingPath("$.detail[0].type")
+			.isEqualTo("bool_parsing");
+	}
+
 	private MvcTestResult open(String slug) {
 		return this.mvc().get().uri("/api/v1/public/shares/" + slug).exchange();
 	}

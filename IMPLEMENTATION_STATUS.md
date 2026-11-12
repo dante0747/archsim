@@ -10,8 +10,8 @@ how it was verified, what is known to be limited, and what comes next. Nothing l
 ## Implemented and covered by automated tests
 
 **After the port: sign-in on Spring Security
-([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)), and a plain
-database URL (2026-11-12).**
+([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)), a plain database
+URL, and query values read whole (2026-11-12).**
 
 - Spring Security's filter chain answers for who is asking, in six test-first slices; endpoints
   still say whom they need through their parameters, so public endpoints, unknown paths and body
@@ -35,6 +35,13 @@ database URL (2026-11-12).**
   `code` landing on the sign-in page.
 - `ARCHSIM_DATABASE_URL` takes a plain `postgresql://` URL, now the documented form
   (`7f061b73`, a dated note on ADR 0035).
+- A query parameter given once is read whole and as given, as FastAPI read a query value, where
+  Spring split it at its commas, trimmed the pieces and made an empty one no value, and the last
+  piece counted: an import named `Acme, Inc` was named `Inc`, a `limit` of `1,2` read as `2`,
+  and without sign-in a long `next` before a comma passed its length check. An empty value now
+  answers as FastAPI did: `?limit=` is refused `422` rather than read as not given (the default
+  50), and `compare?a=` looks for a run with an empty id (`404`) rather than saying `a` is
+  missing.
 
 **The clean-up: stage 6 of the Java port (2026-11-12).**
 
@@ -2023,13 +2030,6 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Known limitations
 
-- A query parameter an endpoint takes as `@RequestParam List<String>` (to read its last value,
-  as FastAPI did) is split at its commas, and the pieces trimmed, when it is given once:
-  Spring's `StringToCollectionConverter` does it. So `POST /projects/import?name=Acme, Inc`
-  names the project `Inc`, and the `next` check of a provider not set up sees only the last
-  piece. The sign-in callback's own resolver reads its query as sent, so its checks are not
-  affected. Fixing it, with a `Converter<String, List<String>>` that keeps the value whole, is a
-  follow-up.
 - Java 25 reads text by Unicode 16.0, where the frozen engine read it by Python 3.12's Unicode
   15.0: 80 more characters are digits (Garay, Gurung Khema, Kirat Rai, Sunuwar, Ol Onal, the
   Myanmar Extended-C digits and the outlined digits), 4,924 more are letters and 54 change case

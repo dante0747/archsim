@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.boot.webmvc.error.ErrorController;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.format.FormatterRegistry;
 import org.springframework.http.MediaType;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -56,6 +57,16 @@ public class WebConfiguration implements WebMvcConfigurer {
 	@Override
 	public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
 		resolvers.add(new ApiBodyResolver(this.json));
+	}
+
+	/**
+	 * Binds one text to a {@code List<String>} whole and as given, where Spring would
+	 * split it at its commas, in every binding of Spring MVC ({@link WholeQueryValue}).
+	 * @param registry the converters Spring MVC binds parameters with
+	 */
+	@Override
+	public void addFormatters(FormatterRegistry registry) {
+		registry.addConverter(new WholeQueryValue());
 	}
 
 	/**

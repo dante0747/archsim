@@ -41,6 +41,37 @@ class ActivityTests extends ReviewTestSupport {
 	}
 
 	@Test
+	void ofProject_limitWithAComma_isRefusedAsFastApiRefusesIt() {
+		SignedIn ada = signedIn("Ada");
+
+		assertThat(send(ada, HttpMethod.GET, PROJECTS + project(ada) + "/activity?limit=1,2", null)).hasStatus(422)
+			.bodyJson()
+			.extractingPath("$.detail[0].type")
+			.isEqualTo("int_parsing");
+	}
+
+	@Test
+	void ofProject_emptyLimit_isRefusedAsFastApiRefusesIt() {
+		SignedIn ada = signedIn("Ada");
+
+		assertThat(send(ada, HttpMethod.GET, PROJECTS + project(ada) + "/activity?limit=", null)).hasStatus(422)
+			.bodyJson()
+			.extractingPath("$.detail[0].type")
+			.isEqualTo("int_parsing");
+	}
+
+	@Test
+	void ofWorkspace_beforeWithAComma_isRefusedAsFastApiRefusesIt() {
+		SignedIn ada = signedIn("Ada");
+
+		assertThat(send(ada, HttpMethod.GET, "/api/v1/workspaces/" + ada.workspaceId() + "/activity?before=1,2", null))
+			.hasStatus(422)
+			.bodyJson()
+			.extractingPath("$.detail[0].type")
+			.isEqualTo("int_parsing");
+	}
+
+	@Test
 	void ofWorkspace_byOwner_showsWhereChangesCameFrom() {
 		SignedIn ada = signedIn("Ada");
 		comment(ada, project(ada), "{\"body\": \"Hi\"}");

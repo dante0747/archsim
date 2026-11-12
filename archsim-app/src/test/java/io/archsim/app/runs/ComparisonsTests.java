@@ -57,6 +57,28 @@ class ComparisonsTests extends RunTestSupport {
 	}
 
 	@Test
+	void compare_runIdWithAComma_isNotFound() {
+		prepares(42, null, true);
+		String project = project("team", "editor");
+		String first = started(start(project, "{}")).path("id").asString();
+		String second = started(start(project, "{}")).path("id").asString();
+		finish(first, 100.0, report(100.0, 1));
+		finish(second, 150.0, report(150.0, 3));
+
+		assertThat(this.mvc().get().uri("/api/v1/compare?a=x," + first + "&b=" + second)).hasStatus(404);
+	}
+
+	@Test
+	void compare_emptyRunId_isNotFound() {
+		prepares(42, null, true);
+		String project = project("team", "editor");
+		String second = started(start(project, "{}")).path("id").asString();
+		finish(second, 150.0, report(150.0, 3));
+
+		assertThat(this.mvc().get().uri("/api/v1/compare?a=&b=" + second)).hasStatus(404);
+	}
+
+	@Test
 	void compare_withoutRuns_isRefusedAsFastApiRefusesIt() {
 		assertThat(this.mvc().get().uri("/api/v1/compare")).hasStatus(422)
 			.bodyJson()

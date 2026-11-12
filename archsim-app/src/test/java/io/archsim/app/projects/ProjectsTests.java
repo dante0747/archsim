@@ -79,6 +79,15 @@ class ProjectsTests extends ProjectTestSupport {
 	}
 
 	@Test
+	void importDesign_nameWithAComma_keepsItWhole() {
+		JsonNode project = created(post("/api/v1/projects/import?name=Acme, Inc", """
+				{"schemaVersion": "1.0", "kind": "archsim.architecture", "metadata": {"name": "Old"},
+				 "architecture": {"nodes": [], "edges": []}}"""));
+
+		assertThat(project.path("name").asString()).isEqualTo("Acme, Inc");
+	}
+
+	@Test
 	void importDesign_bodyThatIsNoObject_isRefusedAsFastApiRefusesIt() {
 		assertThat(post("/api/v1/projects/import", "[1]")).hasStatus(422)
 			.bodyJson()

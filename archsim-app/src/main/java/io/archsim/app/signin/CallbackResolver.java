@@ -15,8 +15,7 @@ import io.archsim.app.web.RequestInvalidException;
 /**
  * Reads a sign-in callback's {@code code}, {@code state} and {@code error} from the query
  * string only, as FastAPI read them: the last of a repeated one counts, and one too long
- * is refused with {@code 422}. Not {@code @RequestParam List<String>} parameters: Spring
- * splits a value given once at its commas.
+ * is refused with {@code 422}.
  */
 class CallbackResolver implements HandlerMethodArgumentResolver {
 
