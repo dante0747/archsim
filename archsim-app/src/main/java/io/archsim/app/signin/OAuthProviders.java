@@ -6,12 +6,14 @@ import java.util.Map;
 import java.util.Optional;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.oauth2.client.CommonOAuth2Provider;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
@@ -91,6 +93,18 @@ class OAuthProviders {
 	String callbacks() {
 		return WebConfiguration.PREFIX + "/auth/{registrationId:" + String.join("|", this.providers.keySet())
 				+ "}/callback";
+	}
+
+	/**
+	 * The callbacks of the providers set up here as browsers come back to them, with
+	 * {@code GET} or {@code HEAD}: another method reaches {@link SignInController}, whose
+	 * route answers {@code 405}.
+	 * @return the matcher
+	 */
+	RequestMatcher callbackRequests() {
+		String callbacks = callbacks();
+		return new OrRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, callbacks),
+				PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.HEAD, callbacks));
 	}
 
 	/**

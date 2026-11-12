@@ -210,8 +210,7 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
   token's signature, issuer, audience and nonce checked, where Python read `userinfo` with the
   access token. A callback for a provider set up here whose `state` is too long lands on
   `/signin?error=state`, and one whose `code` is too long on `/signin?error=provider` (the
-  provider refuses it), where FastAPI refused both `422`; and that callback takes any method,
-  where FastAPI answered `405` but to `GET` and `HEAD`.
+  provider refuses it), where FastAPI refused both `422`.
 - The CSRF token is a random value in the `__Host-archsim_csrf` cookie, sent back in
   `X-ArchSim-CSRF` (a double-submit cookie), where Python's was an HMAC of the session under a
   key derived from `ARCHSIM_SECRET_KEY`: a change must send the cookie as well as the header.

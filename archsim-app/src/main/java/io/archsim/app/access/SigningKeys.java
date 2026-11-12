@@ -12,12 +12,12 @@ import org.springframework.stereotype.Component;
 import io.archsim.app.config.SignInProperties;
 
 /**
- * Signs with keys derived from {@code ARCHSIM_SECRET_KEY}, one per purpose (the sign-in
- * state cookie), as the Python API derives them, so a value one API signs the other
- * accepts. Only a server with sign-in has a secret key.
+ * Signs with keys made from {@code ARCHSIM_SECRET_KEY}, one per purpose (the sign-in
+ * state cookie's), as the Python API made them, so the cookie kept its format through the
+ * port. Only a server with sign-in has a secret key.
  */
 @Component
-public class SigningKeys {
+public final class SigningKeys {
 
 	private static final String HMAC_SHA256 = "HmacSHA256";
 
@@ -33,7 +33,7 @@ public class SigningKeys {
 
 	/**
 	 * The HMAC-SHA256 of some bytes, under the key of a purpose.
-	 * @param purpose what the signature is for, such as {@code csrf}
+	 * @param purpose what the signature is for, such as {@code oauth-state}
 	 * @param data the bytes to sign
 	 * @return the signature
 	 * @throws IllegalStateException when no secret key is set

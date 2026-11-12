@@ -37,12 +37,29 @@ class SignInDocumentationTests extends HostedTestSupport {
 	}
 
 	@Test
-	void callback_query_isCodeStateAndErrorAsOptionalStrings() {
+	void callback_state_isAnOptionalQueryStringOfAtMostTwoHundredCharacters() {
 		JsonNode state = documentedParameter("/api/v1/auth/{provider}/callback", "get", "state");
 
 		assertThat(state.path("in").asString()).isEqualTo("query");
 		assertThat(state.path("required").asBoolean(false)).isFalse();
 		assertThat(state.path("schema").path("maxLength").asInt()).isEqualTo(200);
+	}
+
+	@Test
+	void callback_code_isAStringOfAtMostTwoThousandCharacters() {
+		JsonNode code = documentedParameter("/api/v1/auth/{provider}/callback", "get", "code");
+
+		assertThat(code.path("schema").path("type").asString()).isEqualTo("string");
+		assertThat(code.path("schema").path("maxLength").asInt()).isEqualTo(2000);
+	}
+
+	@Test
+	void callback_error_isAnOptionalQueryStringOfAtMostTwoHundredCharacters() {
+		JsonNode error = documentedParameter("/api/v1/auth/{provider}/callback", "get", "error");
+
+		assertThat(error.path("in").asString()).isEqualTo("query");
+		assertThat(error.path("required").asBoolean(false)).isFalse();
+		assertThat(error.path("schema").path("maxLength").asInt()).isEqualTo(200);
 	}
 
 }

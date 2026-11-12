@@ -92,8 +92,11 @@ provider that is not set up still gets its `404` and the OpenAPI document still 
 start's `422` for a long `next` and its `429` are answered as the API answers them. A callback
 for a provider set up here is Spring's, so where a `code` or `state` too long was refused `422`,
 a long `state` lands on `/signin?error=state` and a long `code` on `/signin?error=provider` (the
-provider refuses it); and the callback takes any method, where it answered `405` but to `GET`
-and `HEAD`.
+provider refuses it). Slice 6 marked ADR-0037 superseded and kept the callback to `GET` and
+`HEAD`, as providers send the browser back, so another method is `405` as before. Nothing else
+of the hand-written sign-in was left to delete: the callback's own argument resolver stays for
+the paths of a provider not set up, since it reads the query as sent, where an annotated `List`
+parameter would split a value at its commas.
 
 ## Decision Drivers
 
@@ -208,7 +211,7 @@ controllers away from `SecurityContextHolder`: they read who is asking from a pa
 
 ## More Information
 
-- [ADR-0037](0037-sign-in-without-spring-security.md): the decision this would supersede.
+- [ADR-0037](0037-sign-in-without-spring-security.md): the decision this supersedes.
 - [ADR-0007](0007-spring-boot-4.md): Spring Boot, chosen partly for Spring Security.
 - [ADR-0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md): the HTTP contract kept in
   Spring MVC.

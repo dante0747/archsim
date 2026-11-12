@@ -68,11 +68,12 @@ archsim-model (plain Java library, usable without the simulator)
 - **Gradle 9 with Kotlin DSL**, a version catalog, and one Gradle module per box above, each
   added by the stage that first needs it.
 - **Spring Boot 4** (Spring Framework 7, Jackson 3), Spring Security's OAuth2 client for GitHub
-  and Google sign-in, CSRF protection and hashed API tokens, as today (ADR-0037, proposed, does
-  sign-in in plain Spring MVC instead, to keep the shared sessions and the HTTP contract). **One app,
-  `archsim-app`**, organised by feature: one package per feature, holding that feature's
-  controller, service and repository classes. It builds one image, started as `api`, `worker`
-  or `migrate` like today's Python image; the worker is a Spring profile without the web layer.
+  and Google sign-in, CSRF protection and hashed API tokens, as today (ADR-0037 did sign-in in
+  plain Spring MVC instead, to keep the shared sessions and the HTTP contract, until ADR-0065
+  moved it to Spring Security after the port). **One app, `archsim-app`**, organised by feature:
+  one package per feature, holding that feature's controller, service and repository classes.
+  It builds one image, started as `api`, `worker` or `migrate` like today's Python image; the
+  worker is a Spring profile without the web layer.
 - **PostgreSQL** through Spring's `JdbcClient` with explicit SQL. The run queue's claim (an
   advisory lock and a `row_number` pick) and its leases read best as plain SQL. **Flyway** takes
   over from Alembic at the current schema revision.
@@ -317,7 +318,9 @@ doesn't change.
 - **Docs:** CONTRIBUTING, the README and `IMPLEMENTATION_STATUS.md` rewritten for the Java build.
 - **Sign-in:** weigh moving it to Spring Security, now that the API contract can change. Stage 2
   signed people in with plain Spring MVC to keep FastAPI's contract
-  ([ADR-0037](../adr/0037-sign-in-without-spring-security.md)).
+  ([ADR-0037](../adr/0037-sign-in-without-spring-security.md));
+  [ADR-0065](../adr/0065-move-sign-in-to-spring-security-after-the-port.md) moved it after the
+  port.
 - **Built (12 Nov 2026):** in slices S6-1 to S6-8. Every item is met.
   - **Python removed** from what ArchSim ships and needs to run. `services/api`, the Alembic
     migrations Flyway took over from, is deleted with `scripts/schema_snapshot.py`; a database
@@ -333,8 +336,8 @@ doesn't change.
     `IMPLEMENTATION_STATUS.md`, `docs/extending-components.md` and the docs that described the
     Python engine as the product describe the Java build.
   - **Sign-in:** [ADR-0065](../adr/0065-move-sign-in-to-spring-security-after-the-port.md)
-    moves it to Spring Security after the port, keeping its HTTP contract, in six test-first
-    slices; none is built yet.
+    moves it to Spring Security after the port, keeping its HTTP contract but for the changes
+    it records, in six test-first slices, all built (12 Nov 2026).
   - Also: `NOTICE` lists the third-party software the images and the CLI bundle, none of it
     incompatible with Apache-2.0, and the web image leaves out sharp and its libvips
     ([ADR-0066](../adr/0066-ship-the-web-image-without-an-image-optimizer.md)); stage 5's
@@ -454,7 +457,7 @@ The Java conventions and stage 2 added eight:
 | The FastAPI API's HTTP contract kept in Spring MVC | [0034](../adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md) |
 | The Python API's `ARCHSIM_*` settings read unchanged | [0035](../adr/0035-read-the-python-apis-settings-unchanged.md) |
 | The engine's synchronous calls in a small internal Python service | [0036](../adr/0036-python-engine-service-for-synchronous-calls.md) |
-| Sign-in with plain Spring MVC, not Spring Security | [0037](../adr/0037-sign-in-without-spring-security.md) |
+| Sign-in with plain Spring MVC, not Spring Security | [0037](../adr/0037-sign-in-without-spring-security.md), superseded by [0065](../adr/0065-move-sign-in-to-spring-security-after-the-port.md) |
 
 Stage 3 added nine:
 

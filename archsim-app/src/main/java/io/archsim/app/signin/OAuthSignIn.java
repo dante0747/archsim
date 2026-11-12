@@ -5,7 +5,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2LoginConfigurer;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
 /**
@@ -56,7 +58,8 @@ public final class OAuthSignIn {
 				.authorizationRequestRepository(this.states))
 			.successHandler(providerTokens.droppedBefore(this.callbacks))
 			.failureHandler(this.callbacks)
-			.withObjectPostProcessor(new RefusedStarts(this.starts.refusals()));
+			.withObjectPostProcessor(new RefusedStarts(this.starts.refusals()))
+			.withObjectPostProcessor(new CallbacksByGetOrHead(this.providers.callbackRequests()));
 	}
 
 	/**
@@ -74,6 +77,27 @@ public final class OAuthSignIn {
 		@Override
 		public <O extends OAuth2AuthorizationRequestRedirectFilter> O postProcess(O filter) {
 			filter.setAuthenticationFailureHandler(this.refusals);
+			return filter;
+		}
+
+	}
+
+	/**
+	 * Lets the login finish a sign-in only at a callback the browser comes back to with
+	 * {@code GET} or {@code HEAD}, as providers send it, where Spring Security's login
+	 * takes any method.
+	 */
+	private static final class CallbacksByGetOrHead implements ObjectPostProcessor<OAuth2LoginAuthenticationFilter> {
+
+		private final RequestMatcher callbacks;
+
+		CallbacksByGetOrHead(RequestMatcher callbacks) {
+			this.callbacks = callbacks;
+		}
+
+		@Override
+		public <O extends OAuth2LoginAuthenticationFilter> O postProcess(O filter) {
+			filter.setRequiresAuthenticationRequestMatcher(this.callbacks);
 			return filter;
 		}
 

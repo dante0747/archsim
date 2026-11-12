@@ -38,7 +38,7 @@ Domain errors use one shape:
 | --- | --- |
 | 400 | Contradictory request (e.g. both `document` and `exampleId`). |
 | 400 | Also: a request Spring Security's request firewall refuses (a method other than `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`, a path that is not normalized or holds an encoded `%`, `.` or backslash), answered `{"detail": "Bad Request"}`. |
-| 401 | Sign-in is on, and the request has no valid session cookie or API token where the endpoint needs someone, or carries a wrong API token wherever it goes, public endpoints and unknown paths included (`WWW-Authenticate: Bearer`). |
+| 401 | Sign-in is on, and the request has no valid session cookie or API token where the endpoint needs someone, or carries a wrong API token wherever it goes, public endpoints and unknown paths included (`WWW-Authenticate: Bearer`). A token sent to the sign-in paths of a provider set up here is not read. |
 | 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. |
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
@@ -198,7 +198,9 @@ value in the cookie, which signing in sets for as long as the session lasts; whe
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if
 it names one. A revoked, expired, mistyped or malformed token is refused with `401` wherever it
 is sent, public endpoints included, so a client learns at once that its token is wrong; a
-request with no token reaches public endpoints as before. With sign-in,
+request with no token reaches public endpoints as before. The exception is the sign-in paths
+(`/auth/{provider}/login` and `/callback` of a provider set up here), browser navigations that
+Spring Security's OAuth2 login answers first: a token sent there is not read. With sign-in,
 `GET /.well-known/oauth-protected-resource/api/v1` (RFC 9728's address for the API; the same
 document is at `/.well-known/oauth-protected-resource`) describes the API as a protected
 resource: `{"resource": "<public URL>/api/v1", "bearer_methods_supported": ["header"],

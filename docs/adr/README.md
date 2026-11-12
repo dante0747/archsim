@@ -78,7 +78,7 @@ what the repository shows.
 | [0034](0034-keep-the-fastapi-http-contract-in-spring-mvc.md) | Keep the FastAPI API's HTTP contract in Spring MVC | Accepted | 2026-11-05 |
 | [0035](0035-read-the-python-apis-settings-unchanged.md) | Read the Python API's `ARCHSIM_*` settings unchanged | Accepted | 2026-11-05 |
 | [0036](0036-python-engine-service-for-synchronous-calls.md) | Run the engine's synchronous calls in a small internal Python service | Accepted | 2026-11-05 |
-| [0037](0037-sign-in-without-spring-security.md) | Sign people in with plain Spring MVC, not Spring Security | Accepted | 2026-11-05 |
+| [0037](0037-sign-in-without-spring-security.md) | Sign people in with plain Spring MVC, not Spring Security | Superseded by [0065](0065-move-sign-in-to-spring-security-after-the-port.md) | 2026-11-05 |
 | [0038](0038-engine-computes-on-typed-records.md) | The engine computes on the model's records and typed configs, not on JSON trees | Accepted | 2026-11-05 |
 | [0039](0039-engine-reads-reports-as-partial-records.md) | The engine reads a run's report as records of the parts it reads | Accepted | 2026-11-05 |
 | [0040](0040-comparison-copies-what-it-does-not-read.md) | A run comparison copies the report parts it shows and diffs the simulated inputs as stored | Accepted | 2026-11-06 |

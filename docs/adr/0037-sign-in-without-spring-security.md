@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0065
 date: 2026-11-05
 decision-makers: Majid Abarghooei (owner)
 ---

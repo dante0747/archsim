@@ -2,12 +2,10 @@ package io.archsim.apitests;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -315,6 +313,17 @@ class OAuthTests {
 			.isEqualTo(server.github().url() + "/login/oauth/authorize");
 	}
 
+	/**
+	 * Providers send the browser back with {@code GET}, as MVC's route takes it
+	 * (ADR-0065).
+	 */
+	@Test
+	void callback_post_isNotAllowed(ApiServer server) {
+		ApiResponse response = server.client().post("/auth/github/callback");
+
+		assertThat(response.status()).as(response.text()).isEqualTo(405);
+	}
+
 	@Test
 	void auth_withoutSignIn_hasNothingToSignInTo(@On(Profile.LOCAL) ApiClient client) {
 		assertThat(client.get("/auth/github/login").status()).isEqualTo(404);
@@ -353,17 +362,9 @@ class OAuthTests {
 		return uri.getScheme() + "://" + uri.getRawAuthority() + uri.getRawPath();
 	}
 
-	/** The query parameters of a URL, first value of each. */
+	/** The query parameters of a URL, first value of each, as the stand-in reads them. */
 	private static Map<String, String> queryParameters(String url) {
-		Map<String, String> out = new LinkedHashMap<>();
-		String query = URI.create(url).getRawQuery();
-		if (query != null) {
-			for (String pair : query.split("&", -1)) {
-				String[] nameAndValue = pair.split("=", 2);
-				out.putIfAbsent(decode(nameAndValue[0]), (nameAndValue.length > 1) ? decode(nameAndValue[1]) : "");
-			}
-		}
-		return out;
+		return FakeGitHub.form(URI.create(url).getRawQuery());
 	}
 
 	private static String queryParameter(String url, String name) {
@@ -372,10 +373,6 @@ class OAuthTests {
 			throw new AssertionError(url + " has no " + name);
 		}
 		return value;
-	}
-
-	private static String decode(String encoded) {
-		return URLDecoder.decode(encoded, StandardCharsets.UTF_8);
 	}
 
 	/**

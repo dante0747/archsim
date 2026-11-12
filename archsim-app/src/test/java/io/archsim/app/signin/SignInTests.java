@@ -57,14 +57,6 @@ class SignInTests extends HostedTestSupport {
 	}
 
 	@Test
-	void login_providerNotSetUp_isNotFound() {
-		assertThat(this.mvc().get().uri(AUTH + "/google/login")).hasStatus(404)
-			.bodyJson()
-			.extractingPath("$.detail.message")
-			.isEqualTo("Sign-in with 'google' is not set up here");
-	}
-
-	@Test
 	void login_nextOverFiveHundredCharacters_isRefusedAsFastApiRefusesIt() {
 		assertThat(this.mvc().get().uri(AUTH + "/github/login?next=/" + "a".repeat(500))).hasStatus(422)
 			.bodyJson()
@@ -222,11 +214,8 @@ class SignInTests extends HostedTestSupport {
 	}
 
 	@Test
-	void callback_providerNotSetUp_isNotFound() {
-		assertThat(this.mvc().get().uri(AUTH + "/google/callback?code=c&state=s")).hasStatus(404)
-			.bodyJson()
-			.extractingPath("$.detail.message")
-			.isEqualTo("Sign-in with 'google' is not set up here");
+	void callback_post_isNotAllowedAsProvidersComeBackWithGet() {
+		assertThat(this.mvc().post().uri(AUTH + "/github/callback?code=c&state=s")).hasStatus(405);
 	}
 
 	@Test

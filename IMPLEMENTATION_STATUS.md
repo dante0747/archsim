@@ -9,6 +9,33 @@ how it was verified, what is known to be limited, and what comes next. Nothing l
 
 ## Implemented and covered by automated tests
 
+**After the port: sign-in on Spring Security
+([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)), and a plain
+database URL (2026-11-12).**
+
+- Spring Security's filter chain answers for who is asking, in six test-first slices; endpoints
+  still say whom they need through their parameters, so public endpoints, unknown paths and body
+  errors keep their order:
+  - the chain, permitting every request, with the security headers and the request firewall in
+    it (`4bc4a50f`);
+  - API tokens through the resource server, an `OpaqueTokenIntrospector` over the tokens table,
+    with the RFC 9728 metadata, which the web app also serves (`2c44473f`, `bb1a711e`);
+  - browser sessions through a `SecurityContextRepository` over the sessions table (`efe659c6`);
+  - CSRF through Spring's filter: a random token in the `__Host-archsim_csrf` cookie, sent back
+    in `X-ArchSim-CSRF` and read from that header only (`1f7c3218`, a breaking change;
+    `8b4182cf`);
+  - GitHub and Google sign-in through `oauth2Login`, PKCE for both, the request kept in the
+    signed `__Host-archsim_oauth` cookie, Google checked through OpenID Connect (`c9478f3b`);
+  - ADR 0037 superseded, and the docs brought up to date (slice 6).
+- What changed for callers is in ADR 0065's dated notes and archsim-app's README: the CSRF
+  token's format, and a session's change without its CSRF header refused `403` wherever it is
+  sent, unknown paths and routes that do not take the method included; a wrong API token
+  refused `401` wherever it is sent but on the two sign-in paths; the request firewall's `400`s;
+  HSTS spelled as Spring spells it; Spring's sign-in state; and a callback's too long `state` or
+  `code` landing on the sign-in page.
+- `ARCHSIM_DATABASE_URL` takes a plain `postgresql://` URL, now the documented form
+  (`7f061b73`, a dated note on ADR 0035).
+
 **The clean-up: stage 6 of the Java port (2026-11-12).**
 
 - Python is gone from what ArchSim ships and needs to run; it stays only for the benchmark
@@ -48,8 +75,9 @@ how it was verified, what is known to be limited, and what comes next. Nothing l
     builds on one Docker take turns with Gradle's cache (two jobs at once on one Docker both
     pass) and uploads with `upload-artifact` v7 (`c0bf3753`, `e44f1752`, `3adf7de9`); two web
     comments name the Java code (`f6ee4734`).
-- Sign-in moves to Spring Security after the port, in six test-first slices, none built yet
-  ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md), `0298e1d9`).
+- Sign-in moves to Spring Security after the port, in six test-first slices
+  ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md), `0298e1d9`),
+  built since (above).
 - `NOTICE` lists the third-party software the images and the CLI bundle; none is incompatible with
   Apache-2.0 (`15b8a119`). The web image leaves out sharp and its libvips (LGPL-3.0-or-later), which
   only Next.js's image optimizer used: the app turns the optimizer off, and its build and CI fail if
@@ -1995,6 +2023,13 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Known limitations
 
+- A query parameter an endpoint takes as `@RequestParam List<String>` (to read its last value,
+  as FastAPI did) is split at its commas, and the pieces trimmed, when it is given once:
+  Spring's `StringToCollectionConverter` does it. So `POST /projects/import?name=Acme, Inc`
+  names the project `Inc`, and the `next` check of a provider not set up sees only the last
+  piece. The sign-in callback's own resolver reads its query as sent, so its checks are not
+  affected. Fixing it, with a `Converter<String, List<String>>` that keeps the value whole, is a
+  follow-up.
 - Java 25 reads text by Unicode 16.0, where the frozen engine read it by Python 3.12's Unicode
   15.0: 80 more characters are digits (Garay, Gurung Khema, Kirat Rai, Sunuwar, Ol Onal, the
   Myanmar Extended-C digits and the outlined digits), 4,924 more are letters and 54 change case
