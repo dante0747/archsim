@@ -1,4 +1,4 @@
-/** Share links, as the API returns them (routers/shares.py). */
+/** Share links, as the API returns them (archsim-app's `shares` package: `ShareView`, `PublicShareView`). */
 import type { Objectives, Report } from "./types";
 
 export type ShareStatus = "active" | "expired" | "revoked";

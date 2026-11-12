@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Design review panel: the engine's architecture linter (review.py, via POST /analyze) as a floating panel at the canvas
+ * Design review panel: the engine's architecture linter (`DesignReview`, via POST /analyze) as a floating panel at the canvas
  * bottom-left. Collapsed it is a chip with counts; clicking a finding selects and frames the
  * components and links it is about.
  */
