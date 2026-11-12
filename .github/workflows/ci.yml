@@ -214,6 +214,8 @@ jobs:
       - run: npm test
       # build first: it generates next-env.d.ts and route types that tsc needs
       - run: npm run build
+      # the standalone output, which the web image ships, holds no sharp or libvips (ADR-0066)
+      - run: node scripts/check-standalone.mjs
       - run: npm run typecheck
 
   e2e:

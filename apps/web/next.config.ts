@@ -32,6 +32,13 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Self-contained server bundle for the Docker image.
   output: "standalone",
+  // The app shows no image through next/image, so the server needs no image optimizer: images
+  // are served as they are, and the standalone output leaves out sharp and the libvips it
+  // bundles (LGPL-3.0-or-later), which the Docker image would carry and never run (ADR-0066;
+  // scripts/check-standalone.mjs checks the output). The key is "*", not the documented "/*":
+  // only "*" also matches "next-server", the server's own trace, which is what pulls in sharp.
+  images: { unoptimized: true },
+  outputFileTracingExcludes: { "*": ["node_modules/sharp/**", "node_modules/@img/**"] },
   poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

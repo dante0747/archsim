@@ -11,7 +11,8 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web/ ./
-RUN npm run build
+# next.config.ts leaves sharp and its libvips out of the standalone output; fail if they come back
+RUN npm run build && node scripts/check-standalone.mjs
 
 FROM node:24-alpine AS runner
 WORKDIR /app

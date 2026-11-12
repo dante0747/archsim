@@ -51,9 +51,12 @@ how it was verified, what is known to be limited, and what comes next. Nothing l
     comments name the Java code (`f6ee4734`).
 - Sign-in moves to Spring Security after the port, in six test-first slices, none built yet
   ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md), `0298e1d9`).
-- `NOTICE` lists the third-party software the images and the CLI bundle; none is incompatible
-  with Apache-2.0 (`15b8a119`). README, CONTRIBUTING, `docs/extending-components.md` and the
-  other docs that described the Python engine as the product describe the Java one (`9b1396bc`).
+- `NOTICE` lists the third-party software the images and the CLI bundle; none is incompatible with
+  Apache-2.0 (`15b8a119`). The web image leaves out sharp and its libvips (LGPL-3.0-or-later), which
+  only Next.js's image optimizer used: the app turns the optimizer off, and its build and CI fail if
+  they come back ([ADR 0066](docs/adr/0066-ship-the-web-image-without-an-image-optimizer.md),
+  proposed). README, CONTRIBUTING, `docs/extending-components.md` and the other docs that described
+  the Python engine as the product describe the Java one (`9b1396bc`).
 
 **The CLI, the MCP server and the action in Java, and the Python engine deleted: stage 5 of the
 Java port (2026-11-12).**
