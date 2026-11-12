@@ -10,6 +10,7 @@ CLI for real is the CI job's (``archsim-check``).
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -35,11 +36,7 @@ DOCKER = r"""#!/usr/bin/env bash
 (IFS=$'\x1f'; printf '%s\n' "$*") >> "$DOCKER_CALLS"
 case "$1" in
   build)
-    [ "${BUILD_EXIT:-0}" = 0 ] || exit "$BUILD_EXIT"
-    while [ $# -gt 0 ]; do
-      [ "$1" = --iidfile ] && printf 'sha256:built' > "$2"
-      shift
-    done ;;
+    [ "${BUILD_EXIT:-0}" = 0 ] || exit "$BUILD_EXIT" ;;
   run)
     # the CLI writes its comment to --out
     while [ $# -gt 0 ]; do
@@ -66,10 +63,15 @@ class Step:
         """The action's own folder for the design, where the container writes."""
         return self.temp / f"archsim-check-{self.outputs['slug']}"
 
+    def tag(self) -> str:
+        """The tag the step gave the image it built."""
+        build = self.docker[0]
+        return build[build.index("--tag") + 1]
+
     def check(self) -> list[str]:
         """The arguments the CLI was run with, in the image the step built."""
         run = self.docker[1]
-        return run[run.index("sha256:built") + 1 :]
+        return run[run.index(self.tag()) + 1 :]
 
 
 def run_step(tmp_path: Path, **case: str) -> Step:
@@ -83,7 +85,7 @@ def run_step(tmp_path: Path, **case: str) -> Step:
     temp = tmp_path / "temp"
     bin_dir = tmp_path / "bin"
     for folder in (workspace, temp, bin_dir):
-        folder.mkdir()
+        folder.mkdir(parents=True)
     docker = bin_dir / "docker"
     docker.write_text(DOCKER, encoding="utf-8")
     docker.chmod(docker.stat().st_mode | stat.S_IXUSR)
@@ -141,17 +143,33 @@ def test_the_image_is_built_from_the_actions_own_checkout(tmp_path: Path) -> Non
         "build",
         "--file",
         f"{archsim}/.github/actions/archsim-check/Dockerfile",
-        "--iidfile",
-        f"{step.files()}/image",
+        "--tag",
+        step.tag(),
         archsim,
     ]
 
 
-def test_the_image_is_removed_once_the_check_has_run(tmp_path: Path) -> None:
-    # a self-hosted runner keeps no image per job; BuildKit's cache stays
+def test_each_check_tags_its_image_with_a_name_of_its_own(tmp_path: Path) -> None:
+    # two jobs on one runner's Docker may build the same image: each gets its own tag
+    first = run_step(tmp_path / "first")
+    second = run_step(tmp_path / "second")
+
+    assert re.fullmatch(r"archsim-check:[0-9a-f-]{36}", first.tag())
+    assert first.tag() != second.tag()
+
+
+def test_the_check_runs_in_the_image_by_its_tag(tmp_path: Path) -> None:
     step = run_step(tmp_path)
 
-    assert step.docker[2] == ["image", "rm", "sha256:built"]
+    assert step.docker[1][step.docker[1].index(step.tag()) + 1] == "check"
+
+
+def test_only_the_checks_own_tag_is_removed_once_it_has_run(tmp_path: Path) -> None:
+    # a self-hosted runner keeps no image per job, and another job's tag keeps the image it
+    # shares with this one; BuildKit's cache stays
+    step = run_step(tmp_path)
+
+    assert step.docker[2] == ["image", "rm", step.tag()]
 
 
 def test_another_archsim_checkout_is_the_one_built(tmp_path: Path) -> None:
@@ -196,7 +214,7 @@ def test_the_container_has_no_network_the_runners_user_and_only_its_files(tmp_pa
 
     run = step.docker[1]
     files = step.files()
-    assert run[: run.index("sha256:built")] == [
+    assert run[: run.index(step.tag())] == [
         "run",
         "--rm",
         "--network",

@@ -100,8 +100,6 @@ runs:
         # the action's own repository (three levels up) unless another checkout is named
         archsim="${ARCHSIM_DIR:+$GITHUB_WORKSPACE/$ARCHSIM_DIR}"
         archsim="${archsim:-$GITHUB_ACTION_PATH/../../..}"
-        # the image by its ID, not a name another job on the same Docker could reuse
-        image="$files/image"
         # why a check that could not run did not: the CLI's own refusal unless said otherwise
         reason="The design or its baseline could not be used; the job log says why."
         set +e
@@ -110,8 +108,11 @@ runs:
           reason="The check runs in a Linux container: this runner is not Linux."
           code=2
         else
+          # a tag of this check's own: another job on the same Docker may build the same image,
+          # and removing a tag removes the image only when no other tag names it
+          image="archsim-check:$(cat /proc/sys/kernel/random/uuid)"
           echo "::group::Build the ArchSim image"
-          docker build --file "$archsim/.github/actions/archsim-check/Dockerfile" --iidfile "$image" "$archsim"
+          docker build --file "$archsim/.github/actions/archsim-check/Dockerfile" --tag "$image" "$archsim"
           built=$?
           echo "::endgroup::"
           if [ "$built" -ne 0 ]; then
@@ -123,9 +124,9 @@ runs:
             # the job's; the workspace to read and the action's folder to write, no network
             docker run --rm --network none --user "$(id -u):$(id -g)" --env HOME=/tmp \
               --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" --volume "$files:$files" \
-              --workdir "$GITHUB_WORKSPACE" "$(cat "$image")" check "${args[@]}"
+              --workdir "$GITHUB_WORKSPACE" "$image" check "${args[@]}"
             code=$?
-            docker image rm "$(cat "$image")" > /dev/null
+            docker image rm "$image" > /dev/null
             if [ "$code" -gt 2 ]; then
               # Docker's own (125 to 127) or a kill's, not the CLI's
               echo "::error::The check's container ended with exit code $code."

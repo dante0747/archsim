@@ -51,6 +51,11 @@ leaves the caller's job untouched, and builds the CLI exactly as the repository'
   mounted read-only and a folder of the action's own to write in; without a network, which the
   check does not use. The image is removed once the check has run; BuildKit's cache keeps the
   next build short.
+
+  **Since 12 Nov 2026** the image has a tag of the check's own (`archsim-check:<a UUID>`) and is
+  run and removed by it, not by its ID: two jobs on one Docker that build the same commit get the
+  same image, and removing it by its ID could take it from the other job before its run. Removing
+  a tag removes the image only once no other tag names it.
 - A runner that is not Linux, an image that does not build, or a container Docker cannot run (its
   own exit codes, 125 to 127, or a kill's) is a check that could not run: exit code 2, an error in
   the log, and a comment that says which, as a check that fails to start was.
