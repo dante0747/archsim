@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.tomcat.TomcatWebServer;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -67,6 +68,27 @@ class ServedApplicationTests {
 
 		assertThat(response.statusCode()).isEqualTo(404);
 		assertThat(response.body()).isEqualTo("{\"detail\":\"Not Found\"}");
+	}
+
+	@Test
+	void get_encodedPercentInThePath_isRefusedByTheFirewallWithTheApisBody() throws IOException, InterruptedException {
+		HttpResponse<String> response = send("GET", "/api/v1/meta%25");
+
+		assertThat(response.statusCode()).isEqualTo(400);
+		assertThat(response.body()).isEqualTo("{\"detail\":\"Bad Request\"}");
+	}
+
+	@Test
+	void propfind_methodTheFirewallRefuses_isABadRequestWithTheApisBody() throws IOException, InterruptedException {
+		HttpResponse<String> response = send("PROPFIND", "/api/v1/meta");
+
+		assertThat(response.statusCode()).isEqualTo(400);
+		assertThat(response.body()).isEqualTo("{\"detail\":\"Bad Request\"}");
+	}
+
+	@Test
+	void start_theApi_hasNoUsersOfSpringSecuritysOwn() {
+		assertThat(this.context.getBeanProvider(UserDetailsService.class).getIfAvailable()).isNull();
 	}
 
 	@Test

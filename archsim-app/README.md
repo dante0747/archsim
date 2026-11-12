@@ -124,6 +124,7 @@ ways.
 | `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (archsim-engine's `DesignAnalyzer`) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export; the `seed` role's `ExampleSeeding` |
 | `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the worker role (`worker`); two runs are compared by archsim-engine's `RunComparer`, and a seed group is summarized by its `SeedSummary` |
+| `security` | Spring Security's filter chain ([ADR-0065](../docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)): it authorizes every request, leaving each endpoint to say whom it needs; it writes the security headers and runs the request firewall, with Spring's sessions, login and logout pages and anonymous user switched off |
 | `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), `Person` (not a token), `Visitor` (address and browser); workspace roles, and the rule that what you may not see answers `404` ([ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)) |
 | `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
@@ -179,6 +180,20 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
   `400`. Browsers treat both the same.
 - `413` and `411` answers carry the security headers; Python's body-size check answered before
   its header middleware ran.
+- Spring Security's request firewall answers `400` with `{"detail": "Bad Request"}` to:
+  - a method other than `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`
+    (`PROPFIND`), which Starlette answered `405`;
+  - a path that is not normalized (`//`, `/./`, `/../`), or holds an encoded `%`, `.`,
+    backslash, NUL, CR or LF, or a character that is not printable ASCII, which Starlette
+    answered as it found it, usually `404`;
+  - a parameter name, or a header value an endpoint reads, with a control character in it
+    (a `User-Agent` whose UTF-8 bytes Tomcat reads as C1 controls), which Starlette served.
+
+  An encoded slash and a path parameter pass, as before. A refused method or path is answered
+  before the chain writes the security headers, so, like what Tomcat refuses itself, it carries
+  none.
+- HSTS is written `max-age=31536000 ; includeSubDomains`, Spring Security's spelling; Python
+  wrote no space before the `;`. Browsers read both the same.
 - `/api/v1/docs` redirects to Swagger UI under `/api/v1/swagger-ui/`; FastAPI served the page at
   `/api/v1/docs` itself.
 - A `422` for a request body lists `type`, `loc`, `msg` and `input` for each error, as FastAPI

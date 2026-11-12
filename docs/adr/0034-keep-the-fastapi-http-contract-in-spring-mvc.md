@@ -41,7 +41,10 @@ unchanged and each rule is written once.
   (`ApiExceptionHandler` extends `ResponseEntityExceptionHandler`). A failure is a logged `500`
   with Starlette's plain-text `Internal Server Error`. Errors the servlet container handles reach
   `ApiErrorController`, which answers them the same way, and `/error` itself is a route that does
-  not exist. Tomcat decodes `%2F` in a path, as Starlette does.
+  not exist. Tomcat decodes `%2F` in a path, as Starlette does; since
+  [ADR-0065](0065-move-sign-in-to-spring-security-after-the-port.md), Spring Security's request
+  firewall is set to let `%2F` and a path parameter (`;`) through, and refuses the rest of what
+  it refuses with `400` (archsim-app's README lists it).
 - **Request bodies.** An endpoint reads its body as a record with the model's codec (`@ApiBody`),
   which reports what does not fit as pydantic does; the answer is FastAPI's
   `422 {"detail": [{"type", "loc", "msg", "input"}]}`, which the web app shows.
@@ -49,7 +52,9 @@ unchanged and each rule is written once.
 - **CORS** with Starlette's settings (any method and header, preflight cached 600 s) and its
   leniency: a request from an origin that is not listed is served without CORS headers rather
   than refused, because requests the web server passes on carry the site's origin.
-- **Security headers** on every response (`SecurityHeadersFilter`): `nosniff`, `DENY` framing,
+- **Security headers** on every response (`SecurityHeadersFilter`; since
+  [ADR-0065](0065-move-sign-in-to-spring-security-after-the-port.md), Spring Security's
+  `headers()` as `SecurityHeaders` sets them): `nosniff`, `DENY` framing,
   `no-referrer`, same-origin resource policy, a permissions policy, a content-security policy
   except on the interactive docs, `no-store` on the private routes (`auth`, `tokens`,
   `workspaces`, `invitations`) and HSTS when `ARCHSIM_PUBLIC_URL` is `https`.

@@ -11,8 +11,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -41,6 +43,17 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler
 	ResponseEntity<Map<String, ArrayNode>> requestInvalid(RequestInvalidException ex) {
 		return ResponseEntity.unprocessableContent().body(Map.of("detail", ex.detail()));
+	}
+
+	/**
+	 * A header value or parameter name Spring Security's request firewall refuses when an
+	 * endpoint reads it, answered as the firewall answers the path it refuses up front.
+	 * @param ex the firewall's refusal
+	 * @return {@code 400 {"detail": "Bad Request"}}
+	 */
+	@ExceptionHandler
+	ResponseEntity<Object> rejected(RequestRejectedException ex) {
+		return StatusAnswers.of(HttpStatus.BAD_REQUEST, HttpHeaders.EMPTY);
 	}
 
 	/**

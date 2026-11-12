@@ -23,10 +23,12 @@ import io.archsim.app.config.ArchsimProperties;
 /**
  * Refuses a request body larger than {@code ARCHSIM_MAX_BODY_BYTES} before anything reads
  * it ({@code 413}), and a chunked body, whose size is not declared, on a request that
- * changes something ({@code 411}), with the API's error body.
+ * changes something ({@code 411}), with the API's error body. It runs right after Spring
+ * Security's chain ({@code spring.security.filter.order}), so its answers carry the
+ * security headers too.
  */
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 1)
+@Order(Ordered.HIGHEST_PRECEDENCE + 2)
 class BodySizeFilter extends OncePerRequestFilter {
 
 	private static final Set<String> WITH_BODY = Set.of("POST", "PUT", "PATCH");

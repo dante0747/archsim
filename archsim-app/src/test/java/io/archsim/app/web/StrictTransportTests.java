@@ -6,6 +6,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
+import io.archsim.app.security.SecurityConfiguration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -14,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @WebMvcTest(controllers = WebBehaviourTests.ReadOnlyController.class,
 		properties = "archsim.public-url=https://archsim.test")
-@Import(WebBehaviourTests.ReadOnlyController.class)
+@Import({ SecurityConfiguration.class, WebBehaviourTests.ReadOnlyController.class })
 class StrictTransportTests {
 
 	@Autowired
@@ -23,7 +25,7 @@ class StrictTransportTests {
 	@Test
 	void anyResponse_servedOverHttps_carriesStrictTransportSecurity() {
 		assertThat(this.mvc.get().uri("/api/v1/read-only")).hasHeader("Strict-Transport-Security",
-				"max-age=31536000; includeSubDomains");
+				"max-age=31536000 ; includeSubDomains");
 	}
 
 }

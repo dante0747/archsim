@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.archsim.app.security.SecurityConfiguration;
 import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.IgnoreUnknownKeys;
 import io.archsim.model.codec.MinLength;
@@ -27,8 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 		controllers = { WebBehaviourTests.ReadOnlyController.class, WebBehaviourTests.EchoController.class,
 				WebBehaviourTests.FailingController.class },
 		properties = { "archsim.max-body-bytes=10000", "archsim.cors-origins=https://allowed.test" })
-@Import({ WebBehaviourTests.ReadOnlyController.class, WebBehaviourTests.EchoController.class,
-		WebBehaviourTests.FailingController.class })
+@Import({ SecurityConfiguration.class, WebBehaviourTests.ReadOnlyController.class,
+		WebBehaviourTests.EchoController.class, WebBehaviourTests.FailingController.class })
 class WebBehaviourTests {
 
 	/**
@@ -184,6 +185,8 @@ class WebBehaviourTests {
 		assertThat(this.mvc.get().uri("/api/v1/read-only")).hasHeader("X-Content-Type-Options", "nosniff")
 			.hasHeader("X-Frame-Options", "DENY")
 			.hasHeader("Referrer-Policy", "no-referrer")
+			.hasHeader("Cross-Origin-Resource-Policy", "same-origin")
+			.hasHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 			.hasHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
 	}
 
@@ -205,6 +208,16 @@ class WebBehaviourTests {
 			.content("x".repeat(10_001))).hasStatus(413)
 			.bodyJson()
 			.isStrictlyEqualTo("{\"detail\": {\"message\": \"Request body too large\", \"issues\": []}}");
+	}
+
+	@Test
+	void post_bodyOverTheLimit_carriesTheSecurityHeaders() {
+		assertThat(this.mvc.post()
+			.uri("/api/v1/read-only")
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("x".repeat(10_001))).hasStatus(413)
+			.hasHeader("X-Content-Type-Options", "nosniff")
+			.hasHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
 	}
 
 	@Test

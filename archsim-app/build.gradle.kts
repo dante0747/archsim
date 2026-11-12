@@ -17,12 +17,14 @@ dependencies {
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.flyway)
     implementation(libs.spring.boot.starter.validation)
+    implementation(libs.spring.boot.starter.security)
     implementation(libs.flyway.database.postgresql)
     implementation(libs.springdoc.openapi.webmvc.ui)
     runtimeOnly(libs.postgresql)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.spring.boot.starter.jdbc.test)
+    testImplementation(libs.spring.boot.starter.security.test)
     testImplementation(libs.archunit)
     // the black-box suite's stand-in GitHub, for the sign-in tests
     testImplementation(project(":archsim-api-tests"))

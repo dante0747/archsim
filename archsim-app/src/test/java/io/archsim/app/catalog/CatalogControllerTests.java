@@ -5,15 +5,19 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import tools.jackson.databind.node.JsonNodeFactory;
+
+import io.archsim.app.security.SecurityConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
 /** {@code GET /components}, {@code GET /pricing} and {@code GET /schema/architecture}. */
 @WebMvcTest(CatalogController.class)
+@Import(SecurityConfiguration.class)
 class CatalogControllerTests {
 
 	@Autowired
