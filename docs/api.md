@@ -1,10 +1,11 @@
 # HTTP API (v1)
 
-Base path: `/api/v1`. JSON uses camelCase. Without sign-in (`ARCHSIM_AUTH_MODE=none`, the
-default) the API is local and single-user: every request is the local owner of the `default`
-workspace. With `ARCHSIM_AUTH_MODE=oauth` people sign in, and projects and runs belong to
-workspaces they are members of (see [Sign-in, workspaces and tokens](#sign-in-workspaces-and-tokens)
-and [SECURITY.md](../SECURITY.md)).
+Base path: `/api/v1`. JSON uses camelCase. A request body's keys the API does not know are ignored;
+a design document in a body is still validated against the schema, which refuses unknown keys.
+Without sign-in (`ARCHSIM_AUTH_MODE=none`, the default) the API is local and single-user: every
+request is the local owner of the `default` workspace. With `ARCHSIM_AUTH_MODE=oauth` people sign
+in, and projects and runs belong to workspaces they are members of (see [Sign-in, workspaces and
+tokens](#sign-in-workspaces-and-tokens) and [SECURITY.md](../SECURITY.md)).
 
 - OpenAPI document: `GET /api/v1/openapi.json`
 - Interactive docs: `GET /api/v1/docs`

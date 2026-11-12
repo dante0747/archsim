@@ -64,6 +64,10 @@ final class SampleRecords {
 	record Versioned(@Const("v1") String version) {
 	}
 
+	@IgnoreUnknownKeys
+	record Request(String name, @Nullable Part part) {
+	}
+
 	record Window(double start, double end) {
 		Window {
 			if (end <= start) {

@@ -5,6 +5,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Ge;
+import io.archsim.model.codec.IgnoreUnknownKeys;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.MaxLength;
 
@@ -21,6 +22,7 @@ import io.archsim.model.codec.MaxLength;
  * @param mode {@code sampled}: a quick check, answered from a steady sample when the
  * design qualifies; stored with the run, so a rerun uses it too
  */
+@IgnoreUnknownKeys
 record RunCreate(@MaxLength(64) @Nullable String scenarioId, @MaxLength(200) @Nullable String label,
 		@Nullable ObjectNode document, @Default("1") @Ge(1) @Le(10) int seeds, @Default("full") RunMode mode) {
 

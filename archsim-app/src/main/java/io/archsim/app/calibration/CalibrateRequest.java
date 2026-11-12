@@ -6,6 +6,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Gt;
+import io.archsim.model.codec.IgnoreUnknownKeys;
 import io.archsim.model.codec.Le;
 
 /**
@@ -23,6 +24,7 @@ import io.archsim.model.codec.Le;
  * @param traces OTLP JSON ({@code resourceSpans})
  * @param replay whether to check the result by replaying it
  */
+@IgnoreUnknownKeys
 record CalibrateRequest(ObjectNode document, CalibrationSource source, @Nullable JsonNode mapping,
 		@Nullable String prometheusUrl, @Nullable ObjectNode recorded, @Nullable String range,
 		@Gt(0) @Le(86_400) @Nullable Double step, @Nullable ObjectNode traces, @Default("true") boolean replay) {

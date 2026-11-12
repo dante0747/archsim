@@ -5,6 +5,8 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.codec.IgnoreUnknownKeys;
+
 /**
  * What {@code POST /validate} and {@code POST /analyze} take: a design, and the scenario
  * of it to look at, if any.
@@ -12,6 +14,7 @@ import tools.jackson.databind.node.ObjectNode;
  * @param document the design, as the editor holds it
  * @param scenarioId the scenario's id, or {@code null} (or empty) for the design itself
  */
+@IgnoreUnknownKeys
 record AnalysisRequest(ObjectNode document, @Nullable String scenarioId) {
 
 	/**

@@ -5,6 +5,7 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.codec.IgnoreUnknownKeys;
 import io.archsim.model.codec.MaxItems;
 import io.archsim.model.codec.MinItems;
 
@@ -14,6 +15,7 @@ import io.archsim.model.codec.MinItems;
  * @param scenarioIds the scenarios, {@code null} for the design itself
  * @param document simulate this design instead of the saved one
  */
+@IgnoreUnknownKeys
 record BatchRunCreate(@MinItems(1) @MaxItems(10) List<@Nullable String> scenarioIds, @Nullable ObjectNode document) {
 
 }

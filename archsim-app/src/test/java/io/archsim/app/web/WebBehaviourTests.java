@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.archsim.model.codec.Ge;
+import io.archsim.model.codec.IgnoreUnknownKeys;
 import io.archsim.model.codec.MinLength;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,6 +116,14 @@ class WebBehaviourTests {
 	void post_apiBodyThatFits_isReadByTheCodec() {
 		assertThat(this.mvc.post().uri("/api/v1/echo").contentType(MediaType.APPLICATION_JSON).content("""
 				{"name": "starter", "count": 2}""")).hasStatusOk()
+			.bodyJson()
+			.isStrictlyEqualTo("{\"name\": \"starter\", \"count\": 2}");
+	}
+
+	@Test
+	void post_apiBodyWithAnUnknownKey_isReadWithoutIt() {
+		assertThat(this.mvc.post().uri("/api/v1/echo").contentType(MediaType.APPLICATION_JSON).content("""
+				{"name": "starter", "count": 2, "colour": "blue"}""")).hasStatusOk()
 			.bodyJson()
 			.isStrictlyEqualTo("{\"name\": \"starter\", \"count\": 2}");
 	}
@@ -232,11 +241,13 @@ class WebBehaviourTests {
 	}
 
 	/**
-	 * A request body: a name, which the codec checks, and a count of at least one.
+	 * A request body, which ignores unknown keys as the API's do: a name, which the codec
+	 * checks, and a count of at least one.
 	 *
 	 * @param name what to echo
 	 * @param count how many times
 	 */
+	@IgnoreUnknownKeys
 	record Echo(@MinLength(1) String name, @Ge(1) int count) {
 
 	}

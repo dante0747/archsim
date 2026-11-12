@@ -22,6 +22,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureMockMvc
 class ArchsimApplicationTests {
 
+	private static final String VALIDATE_BODY_SCHEMA = "$.paths['/api/v1/validate'].post.requestBody"
+			+ ".content['application/json'].schema";
+
 	@Autowired
 	private MockMvcTester mvc;
 
@@ -73,8 +76,15 @@ class ArchsimApplicationTests {
 	void openApi_apiBody_isTheRequestBodyWithTheCodecsSchema() {
 		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
 			.bodyJson()
-			.extractingPath("$.paths['/api/v1/validate'].post.requestBody.content['application/json'].schema.required")
+			.extractingPath(VALIDATE_BODY_SCHEMA + ".required")
 			.isEqualTo(List.of("document"));
+	}
+
+	@Test
+	void openApi_apiBody_saysNothingOfUnknownKeys() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.doesNotHavePath(VALIDATE_BODY_SCHEMA + ".additionalProperties");
 	}
 
 	@Test

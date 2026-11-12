@@ -71,6 +71,13 @@ a body that didn't fit was `422` before access was checked, where FastAPI answer
 first; numbers came back spelled as Java writes them (`5.0E-4` for `0.0005`). The web app, the
 black-box suite and the Playwright tests passed with them.
 
+**Since 12 Nov 2026:** a request body ignores the keys it does not know, as FastAPI's request
+models did (their `ApiModel` set no `extra`, so pydantic ignored them). The Java API had refused
+them with `extra_forbidden`, a break of this contract nobody chose, found in stage 6 of the port
+and closed: each request record is marked `@IgnoreUnknownKeys`, a test holds every `@ApiBody`
+record to it, and the black-box suite's `UnknownKeysTests` checks it over HTTP. A design document
+in a body keeps its own models' rule and refuses its unknown keys, as the engine's did.
+
 ### Consequences
 
 - Good, because the web app, CLI and black-box suite ran against either API unchanged, apart

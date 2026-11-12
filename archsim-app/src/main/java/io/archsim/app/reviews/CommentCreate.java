@@ -3,6 +3,7 @@ package io.archsim.app.reviews;
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.model.codec.Default;
+import io.archsim.model.codec.IgnoreUnknownKeys;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinLength;
 
@@ -15,6 +16,7 @@ import io.archsim.model.codec.MinLength;
  * @param parentId reply to this comment's thread
  * @param body the text
  */
+@IgnoreUnknownKeys
 record CommentCreate(@Default("project") AnchorKind anchorKind, @MaxLength(MAX_ANCHOR_ID) @Nullable String anchorId,
 		@MaxLength(MAX_ID) @Nullable String runId, @MaxLength(MAX_ID) @Nullable String parentId,
 		@MinLength(1) @MaxLength(MAX_BODY) String body) {

@@ -1,5 +1,6 @@
 package io.archsim.app.workspaces;
 
+import io.archsim.model.codec.IgnoreUnknownKeys;
 import io.archsim.model.codec.MaxLength;
 import io.archsim.model.codec.MinLength;
 
@@ -9,6 +10,7 @@ import io.archsim.model.codec.MinLength;
  *
  * @param token the token from the link
  */
+@IgnoreUnknownKeys
 record InvitationToken(@MinLength(10) @MaxLength(200) String token) {
 
 }

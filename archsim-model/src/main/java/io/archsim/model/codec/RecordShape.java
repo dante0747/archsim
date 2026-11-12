@@ -19,14 +19,16 @@ import io.archsim.model.text.PythonText;
 
 /**
  * A pydantic model with {@code extra="forbid"}, as a Java record: a JSON object of its
- * fields.
+ * fields; or, for a record marked {@link IgnoreUnknownKeys}, one with
+ * {@code extra="ignore"}, which leaves its unknown keys out unread.
  *
  * <p>
- * A key pydantic cannot encode to UTF-8 (one holding half of a surrogate pair) refuses
- * the whole record, with one {@code string_unicode} at the record and nothing else.
- * Otherwise, reading checks the fields in declaration order, each looked up by its JSON
- * name and then by its Python name, and reports every unknown key after them, in the
- * input's order. When all of it is valid it calls the canonical constructor; an
+ * In a record that forbids unknown keys, a key pydantic cannot encode to UTF-8 (one
+ * holding half of a surrogate pair) refuses the whole record, with one
+ * {@code string_unicode} at the record and nothing else. Otherwise, reading checks the
+ * fields in declaration order, each looked up by its JSON name and then by its Python
+ * name, and reports every unknown key after them, in the input's order, unless the record
+ * ignores them. When all of it is valid it calls the canonical constructor; an
  * {@link IllegalArgumentException} from there is the record's own check failing (a
  * pydantic model validator), reported as a {@code value_error} at the object.
  */
@@ -41,6 +43,8 @@ final class RecordShape implements Shape {
 	private final @Nullable TagField tag;
 
 	private final Constructor<?> constructor;
+
+	private final boolean forbidsUnknownKeys;
 
 	/**
 	 * Builds the shape of a record from its components and their annotations.
@@ -58,6 +62,7 @@ final class RecordShape implements Shape {
 		this.description = (declared != null) ? declared.value() : null;
 		this.tag = tag;
 		this.constructor = Reflection.canonicalConstructor(type, components);
+		this.forbidsUnknownKeys = !type.isAnnotationPresent(IgnoreUnknownKeys.class);
 	}
 
 	/**
@@ -78,7 +83,7 @@ final class RecordShape implements Shape {
 			errors.add("model_type", at, Messages.modelType(this.name));
 			return null;
 		}
-		if (in.propertyNames().stream().anyMatch(Utf8Encoding::cannotEncode)) {
+		if (this.forbidsUnknownKeys && in.propertyNames().stream().anyMatch(Utf8Encoding::cannotEncode)) {
 			// pydantic encodes every key to find the unknown ones, and gives up on the
 			// record at the first it cannot encode, whatever else it found
 			Utf8Encoding.refuse(at, errors);
@@ -87,7 +92,9 @@ final class RecordShape implements Shape {
 		int mark = errors.mark();
 		readTag(in, at, errors);
 		@Nullable Object[] values = readFields(in, at, errors);
-		reportExtras(in, at, errors);
+		if (this.forbidsUnknownKeys) {
+			reportExtras(in, at, errors);
+		}
 		if (errors.since(mark)) {
 			return null;
 		}
@@ -225,7 +232,10 @@ final class RecordShape implements Shape {
 	 * @return the definition, for {@code $defs} or as a whole schema
 	 */
 	ObjectNode definition(Definitions definitions) {
-		ObjectNode definition = NODES.objectNode().put("additionalProperties", false);
+		ObjectNode definition = NODES.objectNode();
+		if (this.forbidsUnknownKeys) {
+			definition.put("additionalProperties", false);
+		}
 		if (this.description != null) {
 			definition.put("description", this.description);
 		}
