@@ -1,7 +1,7 @@
 # archsim-app
 
 ArchSim's HTTP API on Spring Boot 4: stage 2 of the [Java port](../docs/proposals/java-25-port.md),
-which replaced the FastAPI API in `services/api` endpoint for endpoint. It serves the same JSON,
+which replaced the Python API's FastAPI app endpoint for endpoint. It serves the same JSON,
 cookies and error bodies on the same PostgreSQL tables, so the web app, the CLI and the
 [black-box suite](../archsim-api-tests/README.md) work against it unchanged, and a database the
 Python API used carries on as it is. The engine runs in Java
@@ -80,9 +80,27 @@ this.
 ## The database
 
 Flyway owns the schema. `V1` reproduces Alembic's revision 0008 exactly; a database Alembic made
-is taken over at that revision, and one at any other revision is refused with the command that
-fixes it ([ADR-0032](../docs/adr/0032-flyway-takes-over-from-alembic.md)). SQL is written by hand
-with `JdbcClient`, in repositories only ([ADR-0008](../docs/adr/0008-jdbcclient-and-flyway.md)).
+is taken over at that revision ([ADR-0032](../docs/adr/0032-flyway-takes-over-from-alembic.md)).
+One at an older revision is refused before Flyway writes anything, with the way to bring it to
+0008: the Alembic migrations are gone, but the tag `alembic-0008` keeps them
+([ADR-0063](../docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)). Run them
+from a worktree of that tag, with Python 3.11 or later and [uv](https://docs.astral.sh/uv/), and
+the database's URL in SQLAlchemy's form (`postgresql+psycopg://`), the one the tag reads:
+
+```bash
+git worktree add ../archsim-alembic-0008 alembic-0008
+cd ../archsim-alembic-0008
+uv sync
+ARCHSIM_DATABASE_URL=postgresql+psycopg://user:password@host:5432/archsim uv run archsim-api migrate
+cd - && git worktree remove --force ../archsim-alembic-0008
+```
+
+Without a checkout (running the image, say), clone the tag instead:
+`git clone --branch alembic-0008 --depth 1 <repository URL> archsim-alembic-0008`. Then migrate
+again with this version.
+
+SQL is written by hand with `JdbcClient`, in repositories only
+([ADR-0008](../docs/adr/0008-jdbcclient-and-flyway.md)).
 
 ## Packages
 
@@ -143,7 +161,7 @@ Unit tests for classes, `@WebMvcTest` slices for each controller and the web con
 `ArchsimApplicationTests` for the whole application. The database tests run on an embedded
 PostgreSQL 16 from Maven Central, so they need no Docker
 ([ADR-0033](../docs/adr/0033-embedded-postgresql-for-tests.md)). `MigrationTests` compare the
-schema Flyway builds with the one Alembic builds (`parity/schema/`).
+schema Flyway builds with the one Alembic built at its revision 0008 (`parity/schema/`).
 
 ## Differences from the Python API
 

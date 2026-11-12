@@ -107,10 +107,10 @@ class TokensTests {
 
 ## What came from the Python tests
 
-Each class here comes from one or two files of the Python API's tests in `services/api/tests`
-(`test_api_review.py` became two classes), with one method per Python test. The methods are named
-`method_state_result`, like every Java test in ArchSim, rather than after the Python tests. One
-method per Python test is a deliberate exception to the
+Each class here comes from one or two files of the Python API's tests, in `services/api/tests` at
+the tag `engine-0.16.0` (`test_api_review.py` became two classes), with one method per Python test.
+The methods are named `method_state_result`, like every Java test in ArchSim, rather than after the
+Python tests. One method per Python test is a deliberate exception to the
 [conventions](../docs/java-conventions.md#tests)' "one behaviour per test", so each port can be
 traced to its source; a new test checks one behaviour. Of the 162 Python API tests, 120 are here, as
 122 methods: two are split in two because they need two server configurations. The other 42 were not
@@ -118,10 +118,10 @@ ported:
 
 - **In-process internals (26):** `test_api_queue.py`, `test_api_worker.py`,
   `test_api_process_runner.py` and `test_api_migrations.py`. They drive the run queue, workers,
-  simulation processes and Alembic from inside the process. The migrations' stay in
-  `services/api/tests`; the queue's and the workers' that apply to threads were ported to
-  `archsim-app`'s worker tests (`RunClaimsTests`, `LeaseRepositoryTests`, `WorkerLoopTests`),
-  and went with the Python worker in stage 4.
+  simulation processes and Alembic from inside the process. The migrations' went with the migrations
+  in stage 6 (the tag `alembic-0008` keeps them); the queue's and the workers' that apply to threads
+  were ported to `archsim-app`'s worker tests (`RunClaimsTests`, `LeaseRepositoryTests`,
+  `WorkerLoopTests`), and went with the Python worker in stage 4.
 - **Not observable over HTTP (16),** listed below with the reason in each class's Javadoc. Where
   they are checked now:
   - in `archsim-app`'s worker tests: `queue.claim` (`RunClaimsTests`), the quick checks

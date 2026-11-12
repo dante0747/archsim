@@ -166,9 +166,9 @@ each, used the month's minutes in five days. So:
   from), the Python environment, the templates or a file they read (`benchmark_tests` in the
   script's `RULES`). They also ask the Java engine for the engine's functions
   ([ADR-0061](adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)), so the job
-  installs a Java 25 and the CLI before them. A change to the migrations (`services/api`) or a
-  script runs the rest of the Python tests, about a minute. The Python engine's tests went with
-  it at stage 5 of the Java port.
+  installs a Java 25 and the CLI before them. A change to a script runs the rest of the Python
+  tests, about a minute. The Python engine's tests went with it at stage 5 of the Java port, and
+  the Alembic migrations' at stage 6.
 - **Pushes to main never cancel one another**, since each push's run tests only what that push
   changed. A pull request's new commits still cancel its older run. A later push that skips a
   job does not retest it: when a job fails, its failure is in that push's run, and the job only

@@ -26,7 +26,7 @@ what the code must do before the code exists, and it proves the code does it.
 | The HTTP contract (routes, JSON, status codes, cookies) | a black-box test in `archsim-api-tests` (`src/apiTest`), which runs against the running API |
 | Parity with the Python engine | the golden-file entry (`parity/golden/`) through the module's parity test |
 | A bug | a test that reproduces it and fails, before any fix |
-| Python code (`services/`, `benchmarks/`, `scripts/`) | a pytest test |
+| Python code (`benchmarks/`, `scripts/`) | a pytest test |
 | The web app | a Vitest test, or a Playwright test for a user path |
 
 ## Writing the test
@@ -44,7 +44,7 @@ what the code must do before the code exists, and it proves the code does it.
 ./gradlew :archsim-model:test --tests 'io.archsim.model.catalog.ComponentCatalogTests'
 ./gradlew :archsim-app:test --tests '*TokenServiceTests'
 ./gradlew :archsim-api-tests:apiTest -Parchsim.api.start=java --tests '*TokensTests'
-uv run pytest services/api/tests/test_api_migrations.py -k lock
+uv run pytest scripts/tests/test_ci_changes.py -k python_environment
 cd apps/web && npx vitest run src/lib/tier.test.ts
 ```
 

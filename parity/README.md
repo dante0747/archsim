@@ -225,14 +225,28 @@ the frozen engine's from `scripts/perf.py`, which went with it, and the Java eng
 
 ## The database schema
 
-`parity/schema/` holds the schema the Python API's Alembic migrations build, which the Java app's
-Flyway baseline must reproduce ([ADR-0032](../docs/adr/0032-flyway-takes-over-from-alembic.md)).
+`parity/schema/` holds the schema the Python API's Alembic migrations built at their last
+revision, 0008, which the Java app's Flyway baseline must reproduce
+([ADR-0032](../docs/adr/0032-flyway-takes-over-from-alembic.md)).
 [`describe.sql`](schema/describe.sql) describes the public tables (columns, constraints, indexes,
-sequences) as one canonical JSON document; `alembic-<revision>.json` is that document for Alembic's
-head, written by [`scripts/schema_snapshot.py`](../scripts/schema_snapshot.py):
+sequences) as one canonical JSON document; `alembic-0008.json` is that document for the database
+Alembic built. Like the golden files, it is data now, recorded once: stage 6 deleted the
+migrations ([ADR-0063](../docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)),
+and their revision 0008 never changes. The tag `alembic-0008` keeps them and the script that
+recorded it. The document needs recording again only when `describe.sql` changes (or a new
+PostgreSQL major version describes the same schema differently): in a worktree of the tag, with
+this tree's query, since the script reads the query beside it. It drops and creates the database
+`archsim_schema_snapshot` on the server it connects to:
 
 ```sh
+git worktree add ../archsim-alembic-0008 alembic-0008
+cp parity/schema/describe.sql ../archsim-alembic-0008/parity/schema/
+cd ../archsim-alembic-0008
+uv sync
 uv run python scripts/schema_snapshot.py --url postgresql://postgres@localhost:5432/postgres
+cd -
+cp ../archsim-alembic-0008/parity/schema/alembic-0008.json parity/schema/
+git worktree remove --force ../archsim-alembic-0008
 ```
 
 archsim-app's `MigrationTests` describe the database Flyway builds with the same query and expect

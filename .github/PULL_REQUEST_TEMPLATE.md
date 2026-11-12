@@ -8,8 +8,8 @@
 
 ## Checklist
 
-- [ ] `uv run ruff check services benchmarks scripts` and `uv run ruff format --check services benchmarks scripts` pass
-- [ ] `uv run mypy services/api/src` and `uv run mypy benchmarks` pass
+- [ ] `uv run ruff check benchmarks scripts` and `uv run ruff format --check benchmarks scripts` pass
+- [ ] `uv run mypy benchmarks` passes
 - [ ] `./gradlew :archsim-cli:installDist`, then `uv run pytest` passes
 - [ ] Web: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` pass (if `apps/web` changed)
 - [ ] Docs updated (schema, API, modeling assumptions or UI workflow, if affected)

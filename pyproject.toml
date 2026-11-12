@@ -1,18 +1,12 @@
 [project]
 name = "archsim-workspace"
 version = "0.2.0"
-description = "Development workspace for ArchSim's Python parts (the Alembic migrations, the benchmark harness, the scripts). Not published."
+description = "Development environment for ArchSim's Python parts (the benchmark harness and the repository's scripts). Not published."
 requires-python = ">=3.11"
-dependencies = ["archsim-api"]
+dependencies = []
 
 [tool.uv]
 package = false
-
-[tool.uv.workspace]
-members = ["services/api"]
-
-[tool.uv.sources]
-archsim-api = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -33,9 +27,6 @@ extend-exclude = ["apps", "node_modules"]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["E501", "RUF012"]
 
-[tool.ruff.lint.isort]
-known-first-party = ["archsim_api"]
-
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["B011"]
 
@@ -47,8 +38,7 @@ warn_redundant_casts = true
 check_untyped_defs = true
 disallow_incomplete_defs = true
 ignore_missing_imports = true
-plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-testpaths = ["services/api/tests", "benchmarks/tests", "scripts/tests"]
+testpaths = ["benchmarks/tests", "scripts/tests"]
 addopts = "-q"

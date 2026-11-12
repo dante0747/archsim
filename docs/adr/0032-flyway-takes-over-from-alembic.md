@@ -64,6 +64,12 @@ build their schema with it.
 the Alembic migrations, `archsim-api migrate` and `seed` until stage 6, and the migration tests and
 `scripts/schema_snapshot.py` still build their schema with it.
 
+**Status (12 Nov 2026):** stage 6 deleted `services/api` and `scripts/schema_snapshot.py`
+([ADR-0063](0063-retire-alembic-older-databases-upgrade-from-a-tag.md)). The tag `alembic-0008`
+keeps them: a database below revision 0008 is brought there with `archsim-api migrate` from that
+tag, which `AlembicTakeover`'s refusal now names, and the snapshot is data recorded once, as
+`parity/README.md` says. The takeover and `alembic_version` stay.
+
 ### Consequences
 
 - Good, because a database moves between the APIs with no data migration and no downtime.

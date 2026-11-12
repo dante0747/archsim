@@ -11,9 +11,6 @@ through [SECURITY.md](SECURITY.md), not public issues.
 ## Repository layout
 
 ```
-services/api/      Python package `archsim_api`: the SQLAlchemy models and Alembic migrations
-                   the schema started from, and their CLI (`archsim-api migrate`), until
-                   stage 6 of the Java port.
 benchmarks/        Python: the accuracy benchmarks' harness, on the Java engine's CLI.
 scripts/           Python: developer scripts (CI's changed parts, commit messages, prices).
 apps/web/          Next.js 16 + React Flow editor and results UI.
@@ -39,7 +36,7 @@ Prerequisites: a JDK 25, Python 3.11+ (3.12 recommended), [uv](https://docs.astr
 Node.js 24 with npm, and PostgreSQL 16 (Docker Compose starts one).
 
 ```bash
-# Python workspace (the migrations, and the dev tools the harness and scripts use) into .venv
+# Python environment (the dev tools the harness and scripts use) into .venv
 uv sync
 
 # Web app
@@ -65,7 +62,7 @@ both to use another. The `Makefile` wraps these commands (`make setup`, `make de
 shell.
 
 **Windows path length.** If the checkout lives in a very deep directory, loading compiled
-Python extensions (for example SQLAlchemy's) can fail with "The filename or extension is too
+Python extensions (for example mypy's) can fail with "The filename or extension is too
 long". Clone into a short path such as `C:\src\archsim`, or point uv at a short environment
 directory: `set UV_PROJECT_ENVIRONMENT=C:\venvs\archsim` before `uv sync`.
 
@@ -75,18 +72,11 @@ Run everything CI runs before opening a pull request:
 
 ```bash
 # Python
-uv run ruff check services benchmarks scripts
-uv run ruff format --check services benchmarks scripts
-uv run mypy services/api/src
+uv run ruff check benchmarks scripts
+uv run ruff format --check benchmarks scripts
 uv run mypy benchmarks
 ./gradlew :archsim-cli:installDist             # the benchmarks' tests call it: a Java 25 on JAVA_HOME or the PATH
-uv run pytest                                   # the migrations (SQLite), the benchmarks and the scripts
-
-# The migration tests against PostgreSQL (drops all tables in the target database!)
-docker compose up -d postgres
-docker compose exec postgres createdb -U archsim archsim_test   # once
-ARCHSIM_TEST_DATABASE_URL=postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test \
-  uv run pytest services/api/tests
+uv run pytest                                   # the benchmarks and the scripts
 
 # Web
 cd apps/web
@@ -124,7 +114,7 @@ On a failure, `npx playwright show-trace apps/web/test-results/<test>/trace.zip`
 by step. `npm run e2e:capture` retakes the README images in `docs/images/` and
 records the demo GIF (it needs ffmpeg for the GIF and takes a few minutes).
 
-`uv run ruff format services benchmarks scripts` fixes the Python formatting. Tests must not
+`uv run ruff format benchmarks scripts` fixes the Python formatting. Tests must not
 depend on wall-clock speed beyond generous limits, and simulations in tests should use short
 durations.
 
@@ -187,9 +177,9 @@ upgrade step at the end of `Upgrades.CHAIN` (archsim-model's `io.archsim.model.u
 [ADR-0023](docs/adr/0023-upgrade-chain-on-the-json.md)), and a test that an old document still
 loads. Changing the database schema requires a new Flyway migration in
 `archsim-app/src/main/resources/db/migration/` (Flyway owns the schema,
-[ADR-0032](docs/adr/0032-flyway-takes-over-from-alembic.md)), and a change to `services/api`'s
-SQLAlchemy models when they use the columns. Alembic stays at revision 0008:
-a later revision would make Flyway refuse the database.
+[ADR-0032](docs/adr/0032-flyway-takes-over-from-alembic.md)). The Alembic migrations the schema
+started from are gone; a database below their revision 0008 upgrades from the tag `alembic-0008`
+first ([ADR-0063](docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)).
 
 ## Adding a component type
 

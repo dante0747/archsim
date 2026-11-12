@@ -20,7 +20,6 @@ _spec.loader.exec_module(ci)
 EVERY_JOB = {
     "python",
     "benchmark_tests",
-    "migrations",
     "java",
     "archsim_check",
     "web",
@@ -121,9 +120,6 @@ EVERY_JOB = {
         (["apps/web/src/test/fixtures/share.ts"], {"web", "e2e"}),
         # the end-to-end launcher starts the worker, whose command line the Java tests check
         (["apps/web/e2e/api-server.mjs"], {"web", "java", "e2e"}),
-        # the Alembic migrations
-        (["services/api/src/archsim_api/db.py"], {"python", "migrations"}),
-        (["services/api/pyproject.toml"], {"python", "migrations"}),
         (["scripts/check_commits.py", "scripts/tests/test_check_commits.py"], {"python"}),
         (
             ["benchmarks/report.py", "benchmarks/results/pg-mixed/run-5/measured.json"],
@@ -154,7 +150,7 @@ def test_a_change_runs_the_jobs_that_read_its_files(files: list[str], jobs: set[
 
 @pytest.mark.parametrize("path", ["uv.lock", "pyproject.toml"])
 def test_the_python_environment_runs_the_jobs_that_run_python(path: str) -> None:
-    assert ci.jobs([path]) == {"python", "benchmark_tests", "migrations"}
+    assert ci.jobs([path]) == {"python", "benchmark_tests"}
 
 
 @pytest.mark.parametrize(

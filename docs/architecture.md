@@ -104,13 +104,6 @@ a calibration's replay for the API
 ([ADR-0036](adr/0036-python-engine-service-for-synchronous-calls.md),
 [ADR-0045](adr/0045-replay-calibrations-through-an-interim-simulate.md)); both are deleted.
 
-### Alembic migrations (`services/api`, import name `archsim_api`)
-
-The SQLAlchemy models and Alembic migrations the schema started from (Flyway's `V1` reproduces
-their revision 0008, [ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)), with
-`archsim-api migrate`, which brings an older database to that revision. They stay until stage 6
-of the port; the seed is `archsim-app`'s `seed` role.
-
 ### Web app (`apps/web`)
 
 A Next.js App Router application. The browser only talks to its own origin (`/api/v1/*`);
@@ -252,9 +245,11 @@ Deleting a project deletes its runs (`ON DELETE CASCADE`). Queue columns: `attem
 **`job_workers`** - one row per worker: host, process id, slots, runs in flight, status
 (`running` or `draining`) and its latest heartbeat.
 
-Flyway owns the schema: its `V1` reproduces Alembic's revision 0008, which `services/api`'s
-SQLAlchemy models still describe ([ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)).
-Documents are `JSONB`. The Alembic migrations' tests also run on SQLite, as CI does.
+Flyway owns the schema: its `V1` reproduces revision 0008 of the Alembic migrations the schema
+started from ([ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)). Stage 6 deleted those
+migrations; a database below their revision 0008 upgrades first from the tag `alembic-0008`
+([ADR-0063](adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)). Documents are
+`JSONB`.
 
 ## Determinism and provenance
 

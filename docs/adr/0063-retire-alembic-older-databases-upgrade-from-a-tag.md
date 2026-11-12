@@ -45,7 +45,7 @@ Python ArchSim runs and still gives an old database a way to reach Flyway.
 - The annotated tag `alembic-0008` marks commit 5def7c5 on main, which has `services/api` at
   revision 0008 and `scripts/schema_snapshot.py`. Its Flyway `V1` and takeover are today's.
 - `AlembicTakeover` refuses a database at another revision in the same words, and then says:
-  check out the tag `alembic-0008`, run `uv sync` and `uv run archsim-api migrate` there to bring
+  in a checkout of the tag `alembic-0008`, run `uv sync` and `uv run archsim-api migrate` to bring
   the database to 0008, then migrate again with this version.
   [`archsim-app`'s README](../../archsim-app/README.md) says the same.
 - `services/api` goes, and so do its tests, CI's job for them (`Migrations on PostgreSQL`), and
@@ -65,8 +65,9 @@ Python ArchSim runs and still gives an old database a way to reach Flyway.
 - Good, because a database at any Alembic revision still reaches Flyway, and its refusal says
   how.
 - Bad, because that one upgrade needs Python 3.11 or later, uv and a checkout of the tag.
-- Bad, because the snapshot can no longer be recorded again from the working tree. It never needs
-  to be: Alembic's revision 0008 doesn't change.
+- Bad, because the snapshot can no longer be recorded from the working tree alone. Alembic's
+  revision 0008 doesn't change, but a change to `describe.sql` means recording it again in a
+  worktree of the tag with the new query, as `parity/README.md` says.
 - Bad, because `AlembicTakeover` stays for as long as a database Alembic made may still turn up.
 
 ### Confirmation

@@ -31,7 +31,6 @@ from pathlib import Path
 JOBS = (
     "python",
     "benchmark_tests",
-    "migrations",
     "java",
     "archsim_check",
     "web",
@@ -46,9 +45,8 @@ JAVA = frozenset({"java", "e2e"})
 # The archsim-check action builds the Java CLI into its image from these modules and the Gradle
 # build (ADR-0060), so its job checks a change to any of them.
 CHECK_ACTION = frozenset({"archsim_check"})
-# The Python environment, which the jobs that run Python sync: the Python job's tests, the
-# benchmarks' harness and the migrations.
-PYTHON_RUNTIME = BENCHMARK_TESTS | {"migrations"}
+# The Python environment, which the Python job syncs: its tests and the benchmarks' harness.
+PYTHON_RUNTIME = BENCHMARK_TESTS
 # The web app's engine fixtures: archsim-engine's GeneratedFileTests checks them against the
 # engine's output, and the web app's tests read them.
 WEB_FIXTURES = frozenset({"web", "java", "e2e"})
@@ -107,8 +105,6 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # Python
     ("pyproject.toml", PYTHON_RUNTIME),
     ("uv.lock", PYTHON_RUNTIME),
-    # the Alembic migrations, until stage 6
-    ("services/api/", frozenset({"python", "migrations"})),
     # The exporters write tables of Python's own answers (casefold, erfc, isprintable) that the
     # Java tests, and the model for export_printable.py, read; scripts/tests checks the printable
     # table against Python in the Python job.

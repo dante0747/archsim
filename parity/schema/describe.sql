@@ -1,7 +1,7 @@
 -- The schema of the public tables, as one canonical JSON document: every table's columns in
 -- order (type, nullability, default), its constraints and indexes, and the sequences. Both the
--- Alembic-made database (scripts/schema_snapshot.py) and the Flyway-made one (archsim-app's
--- tests) are described with this query, and must give the same document.
+-- Alembic-made database (scripts/schema_snapshot.py, at the tag alembic-0008) and the Flyway-made
+-- one (archsim-app's tests) are described with this query, and must give the same document.
 SELECT jsonb_build_object(
     'tables', (
         SELECT jsonb_object_agg(t.relname, jsonb_build_object(

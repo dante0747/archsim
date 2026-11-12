@@ -52,7 +52,6 @@ jobs:
     outputs:
       python: ${{ steps.jobs.outputs.python }}
       benchmark_tests: ${{ steps.jobs.outputs.benchmark_tests }}
-      migrations: ${{ steps.jobs.outputs.migrations }}
       java: ${{ steps.jobs.outputs.java }}
       archsim_check: ${{ steps.jobs.outputs.archsim_check }}
       web: ${{ steps.jobs.outputs.web }}
@@ -74,7 +73,7 @@ jobs:
           fi
 
   python:
-    name: Python (migrations, harness, scripts; SQLite)
+    name: Python (harness, scripts)
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
@@ -85,11 +84,9 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen
       - name: Lint
-        run: uv run ruff check services benchmarks scripts
+        run: uv run ruff check benchmarks scripts
       - name: Format
-        run: uv run ruff format --check services benchmarks scripts
-      - name: Type check
-        run: uv run mypy services/api/src
+        run: uv run ruff format --check benchmarks scripts
       - name: Tests
         # every testpath but the benchmarks' (--ignore does not apply to a testpath itself)
         run: uv run pytest --deselect benchmarks/tests
@@ -116,37 +113,6 @@ jobs:
       # benchmarks/perf): it must still say what they say
       - name: The Java parity page matches its runs
         run: uv run python scripts/java_parity_report.py --check
-
-  api-postgres:
-    # services/api's Alembic migrations on PostgreSQL, until stage 6: they build the models'
-    # schema, and processes that migrate at once take turns
-    name: Migrations on PostgreSQL
-    needs: changes
-    if: needs.changes.outputs.migrations == 'true'
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: archsim
-          POSTGRES_PASSWORD: archsim
-          POSTGRES_DB: archsim_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U archsim -d archsim_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      ARCHSIM_TEST_DATABASE_URL: postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim_test
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
-      - run: uv run pytest services/api/tests
 
   java:
     # the Java build (Spring's formatting, Checkstyle, Error Prone and NullAway, unit tests,

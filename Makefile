@@ -40,16 +40,15 @@ test-web:
 	cd apps/web && npm test
 
 lint:
-	uv run ruff check services benchmarks scripts
-	uv run ruff format --check services benchmarks scripts
+	uv run ruff check benchmarks scripts
+	uv run ruff format --check benchmarks scripts
 	cd apps/web && npm run lint
 
 fmt:
-	uv run ruff check --fix services benchmarks scripts
-	uv run ruff format services benchmarks scripts
+	uv run ruff check --fix benchmarks scripts
+	uv run ruff format benchmarks scripts
 
 typecheck:
-	uv run mypy services/api/src
 	cd apps/web && npm run typecheck
 	uv run mypy benchmarks
 

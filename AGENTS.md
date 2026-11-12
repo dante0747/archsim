@@ -31,9 +31,9 @@ Ask the owner instead.
 - `parity/`: what the Python engine, frozen at 0.16.0, recorded for the Java tests (golden files,
   simulation baselines, test fixtures). It is data now, never recorded again: stage 5 deleted
   that engine and its MCP server (`packages/`; the tag `engine-0.16.0` keeps them).
-- `services/api/`: the Alembic schema Flyway took over from, with `archsim-api migrate`, until
-  stage 6; the Java app replaced its FastAPI app and its workers. `benchmarks/`: the Python
-  benchmark harness, on the Java engine. `apps/web/`: the Next.js app.
+- `benchmarks/`: the Python benchmark harness, on the Java engine. `apps/web/`: the Next.js app.
+  Stage 6 deleted `services/api`, the Alembic migrations Flyway took over from; a database below
+  their revision 0008 upgrades from the tag `alembic-0008` first (ADR-0063).
 - `docs/adr/`: architecture decisions. A significant decision gets a new ADR with
   `status: proposed`; never mark one accepted, that is the owner's call.
 
@@ -41,7 +41,7 @@ Ask the owner instead.
 
 ```bash
 ./gradlew format && ./gradlew build            # Java: format, Checkstyle, Error Prone, tests
-uv run ruff check services benchmarks scripts  # Python
+uv run ruff check benchmarks scripts           # Python
 ./gradlew :archsim-cli:installDist             # the benchmarks' tests ask the installed CLI
 uv run pytest
 uv run python scripts/check_commits.py --range main..HEAD

@@ -28,10 +28,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * Flyway builds the schema the Python API's Alembic migrations build, and takes over a
- * database Alembic made only at the revision its baseline reproduces (ADR-0032). The
- * schema is compared at V1, the version that reproduces Alembic's revision 0008, so a
- * later migration does not change the comparison.
+ * Flyway builds the schema the Python API's Alembic migrations built at their revision
+ * 0008 ({@code parity/schema}), and takes over a database Alembic made only at the
+ * revision its baseline reproduces (ADR-0032). The schema is compared at V1, the version
+ * that reproduces Alembic's revision 0008, so a later migration does not change the
+ * comparison.
  */
 class MigrationTests {
 
@@ -144,14 +145,24 @@ class MigrationTests {
 		assertThat(hasFlywayHistory(database)).isFalse();
 	}
 
+	/**
+	 * The Alembic migrations are gone (ADR-0063): the refusal names the tag that keeps
+	 * them, where {@code archsim-api migrate} brings the database to the revision Flyway
+	 * takes over.
+	 */
 	@Test
-	void migrate_databaseAtAnOlderAlembicRevision_isRefused() {
+	void migrate_databaseAtAnOlderAlembicRevision_isRefusedWithTheTagToUpgradeFrom() {
 		DataSource database = freshDatabase();
 		JdbcClient.create(database).sql("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)").update();
 		JdbcClient.create(database).sql("INSERT INTO alembic_version VALUES ('0007')").update();
 
+		// Flyway puts "Error while executing beforeBaseline callback: " before the
+		// callback's own words
 		assertThatExceptionOfType(FlywayException.class).isThrownBy(() -> flyway(database).migrate())
-			.withMessageContaining("at Alembic revision 0007");
+			.withMessageEndingWith("This database is at Alembic revision 0007: bring it to revision 0008 with the "
+					+ "Alembic migrations the tag `alembic-0008` keeps (in a checkout of that tag, `uv sync`, then "
+					+ "`uv run archsim-api migrate` with ARCHSIM_DATABASE_URL set to this database's "
+					+ "postgresql+psycopg:// URL), then migrate again with this version.");
 	}
 
 	@Test

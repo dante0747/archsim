@@ -16,12 +16,16 @@ import org.flywaydb.core.api.callback.Event;
  * they left it at the revision Flyway's baseline reproduces (ADR-0032). Flyway records
  * its baseline instead of migrating a database that already has tables; before it does,
  * this checks the Alembic revision, so a database at an older revision is never mistaken
- * for an up-to-date one.
+ * for an up-to-date one. Such a database is told to reach that revision from the git tag
+ * that keeps the Alembic migrations (ADR-0063).
  */
 class AlembicTakeover implements Callback {
 
 	/** The Alembic revision {@code V1__schema_at_alembic_0008.sql} reproduces. */
 	static final String BASELINE_REVISION = "0008";
+
+	/** The git tag that keeps the Alembic migrations and {@code archsim-api migrate}. */
+	private static final String ALEMBIC_TAG = "alembic-" + BASELINE_REVISION;
 
 	@Override
 	public boolean supports(Event event, Context context) {
@@ -42,8 +46,10 @@ class AlembicTakeover implements Callback {
 		}
 		if (!BASELINE_REVISION.equals(revision.get())) {
 			throw new FlywayException("This database is at Alembic revision " + revision.get()
-					+ ": bring it to revision " + BASELINE_REVISION + " with `uv run archsim-api migrate` "
-					+ "(services/api), then migrate again.");
+					+ ": bring it to revision " + BASELINE_REVISION + " with the Alembic migrations the tag `"
+					+ ALEMBIC_TAG + "` keeps (in a checkout of that tag, `uv sync`, then `uv run archsim-api migrate` "
+					+ "with ARCHSIM_DATABASE_URL set to this database's postgresql+psycopg:// URL), then migrate "
+					+ "again with this version.");
 		}
 	}
 

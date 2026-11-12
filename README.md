@@ -224,8 +224,8 @@ summaries are not.
 
 Prerequisites: **Java 25** (a JDK), **Node.js 20.9+** (24 recommended) with npm, and
 **PostgreSQL 16**, which Docker Compose can start for you. Python 3.11+ with
-[uv](https://docs.astral.sh/uv/) is needed only for development: the migrations' tests, the
-benchmarks and the scripts ([CONTRIBUTING.md](CONTRIBUTING.md)).
+[uv](https://docs.astral.sh/uv/) is needed only for development: the benchmarks and the
+repository's scripts ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ```bash
 git clone <your-fork-url> archsim
@@ -365,10 +365,9 @@ loop, and a design whose one request would fan out into more than 10,000 calls i
 ```bash
 ./gradlew build                                 # the Java code: format, Checkstyle, tests
 ./gradlew :archsim-cli:installDist              # the benchmarks' tests call the CLI
-uv run pytest                                   # the migrations, the benchmarks, the scripts
-uv run ruff check services benchmarks scripts
-uv run ruff format --check services benchmarks scripts
-uv run mypy services/api/src
+uv run pytest                                   # the benchmarks and the scripts
+uv run ruff check benchmarks scripts
+uv run ruff format --check benchmarks scripts
 uv run mypy benchmarks
 cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
 ```
@@ -377,9 +376,9 @@ The Java engine's tests replay the runs the frozen Python engine 0.16.0 recorded
 figure, and match its golden files ([parity/README.md](parity/README.md)). They also check the
 simulator against M/M/1 and M/M/c (Erlang C) queues and Little's law, the instant estimate
 against the simulation, and the starter example's scenarios against a directional reference
-benchmark, as that engine's own suite did. CI (GitHub Actions) also runs the migrations against
-PostgreSQL and the black-box API tests against the Java API and its worker. `make` targets wrap
-these commands (see the [Makefile](Makefile)).
+benchmark, as that engine's own suite did. CI (GitHub Actions) also runs the black-box API tests
+against the Java API and its worker on PostgreSQL. `make` targets wrap these commands (see the
+[Makefile](Makefile)).
 
 ## Repository layout
 
@@ -389,7 +388,6 @@ archsim-model/     Java design model: the document's records, upgrades and valid
 archsim-engine/    Java engine: the simulator and its deterministic parts (sizing, cost, ...)
 archsim-cli/       Java command line, `archsim`
 archsim-mcp/       Java MCP server for AI coding agents
-services/api/      Python Alembic migrations, until stage 6 of the Java port
 benchmarks/        Python accuracy benchmarks (k6 against real stacks), on the Java engine
 apps/web/          Next.js editor: canvas, inspector, results and comparison
 examples/          Example architectures (versioned JSON) with scenarios
