@@ -134,15 +134,4 @@ class Callbacks implements AuthenticationSuccessHandler, AuthenticationFailureHa
 		return String.valueOf(exception.getMessage());
 	}
 
-	/**
-	 * What the provider sent back, from the callback's query.
-	 *
-	 * @param code the code to exchange, if the person agreed
-	 * @param state the sign-in's state
-	 * @param error why the provider refused, if it did
-	 */
-	record Callback(@Nullable String code, @Nullable String state, @Nullable String error) {
-
-	}
-
 }

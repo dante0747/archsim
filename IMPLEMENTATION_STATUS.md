@@ -26,7 +26,10 @@ URL, and query values read whole (2026-11-12).**
     `8b4182cf`);
   - GitHub and Google sign-in through `oauth2Login`, PKCE for both, the request kept in the
     signed `__Host-archsim_oauth` cookie, Google checked through OpenID Connect (`c9478f3b`);
-  - ADR 0037 superseded, and the docs brought up to date (slice 6).
+  - ADR 0037 superseded, and the docs brought up to date (slice 6, `994b206c`); once query values
+    were read whole (below), the callback's own argument resolver and OpenAPI customizer went:
+    the controller declares `code`, `state` and `error` as `@RequestParam`s, as `login` declares
+    `next`.
 - What changed for callers is in ADR 0065's dated notes and archsim-app's README: the CSRF
   token's format, and a session's change without its CSRF header refused `403` wherever it is
   sent, unknown paths and routes that do not take the method included; a wrong API token

@@ -31,6 +31,15 @@ import io.archsim.app.web.QueryParameters;
 @RequestMapping("/auth")
 class SignInController {
 
+	/** The longest code a provider sends. */
+	private static final int MAX_CODE = 2000;
+
+	/** The longest state a provider sends back. */
+	private static final int MAX_STATE = 200;
+
+	/** The longest error a provider sends back. */
+	private static final int MAX_ERROR = 200;
+
 	private final OAuthProviders providers;
 
 	private final Sessions sessions;
@@ -72,12 +81,24 @@ class SignInController {
 	 * the page sign-in started from; on failure, to {@code /signin?error=<reason>}
 	 * ({@link Callbacks}). Reached only when the provider is not set up here.
 	 * @param provider the provider
-	 * @param callback the code, state and error the provider sent
+	 * @param code the code to exchange, if the person agreed
+	 * @param state the sign-in's state
+	 * @param error why the provider refused, if it did
 	 * @return never
 	 * @throws ApiException {@code 404}: the provider is not set up here
 	 */
 	@GetMapping("/{provider}/callback")
-	ResponseEntity<Void> callback(@PathVariable String provider, Callbacks.Callback callback) {
+	ResponseEntity<Void> callback(@PathVariable String provider,
+			@RequestParam(required = false) @Parameter(
+					schema = @Schema(type = "string", maxLength = MAX_CODE)) @Nullable List<String> code,
+			@RequestParam(required = false) @Parameter(
+					schema = @Schema(type = "string", maxLength = MAX_STATE)) @Nullable List<String> state,
+			@RequestParam(required = false) @Parameter(
+					schema = @Schema(type = "string", maxLength = MAX_ERROR)) @Nullable List<String> error) {
+		// a value too long is refused 422 before the 404, as FastAPI refused it
+		QueryParameters.text(code, "code", MAX_CODE);
+		QueryParameters.text(state, "state", MAX_STATE);
+		QueryParameters.text(error, "error", MAX_ERROR);
 		throw this.providers.notSetUp(provider);
 	}
 

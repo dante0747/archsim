@@ -93,12 +93,11 @@ start's `422` for a long `next` and its `429` are answered as the API answers th
 for a provider set up here is Spring's, so where a `code` or `state` too long was refused `422`,
 a long `state` lands on `/signin?error=state` and a long `code` on `/signin?error=provider` (the
 provider refuses it). Slice 6 marked ADR-0037 superseded and kept the callback to `GET` and
-`HEAD`, as providers send the browser back, so another method is `405` as before. Nothing else
-of the hand-written sign-in was left to delete: the callback's own argument resolver stays for
-the paths of a provider not set up. It read the query as sent where an annotated `List`
-parameter split a value at its commas; since `web.WholeQueryValue` (the same day) keeps a value
-whole, annotated parameters would read it alike, and replacing the resolver with them is a
-follow-up.
+`HEAD`, as providers send the browser back, so another method is `405` as before. The callback's
+own argument resolver and its OpenAPI customizer, the last of the hand-written sign-in, were kept
+while an annotated `List` parameter split a value at its commas; once `web.WholeQueryValue` kept
+a value whole (the same day), `SignInController` declared the callback's `code`, `state` and
+`error` as it declares `next`, and both went.
 
 ## Decision Drivers
 
