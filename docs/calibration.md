@@ -283,7 +283,8 @@ notes.
 a mapping and Prometheus responses **generated** from known parameters
 (`scripts/make_calibration_fixture.py`, which simulated them on the Python engine and went with
 it at stage 5 of the Java port: the files are data now), plus an OTLP export generated from known
-parameters too (`scripts/make_otlp_fixture.py`). Calibrating the starter from them recovers the
+parameters too (by `scripts/make_otlp_fixture.py`, deleted at stage 6: git history keeps it).
+Calibrating the starter from them recovers the
 parameters (median and p95 within 5%, hit ratio, memory and the database's working set exactly,
 CPU shares within 2%; the OTLP spans' CPU share exactly).
 

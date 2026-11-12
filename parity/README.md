@@ -244,7 +244,7 @@ the same document.
 frozen engine's `packages/engine/tests/fixtures/` in stage 5 so they stayed when the engine went:
 `calibration/` (a mapping and Prometheus responses generated for the cache-aside starter by
 `scripts/make_calibration_fixture.py`, which went with the engine, and an OTLP trace export and
-its mapping by [`scripts/make_otlp_fixture.py`](../scripts/make_otlp_fixture.py)), `import/` (a
+its mapping by `scripts/make_otlp_fixture.py`, deleted at stage 6 as data made once), `import/` (a
 compose file, Kubernetes manifests and a Terraform plan written for the importers' tests) and
 `pricing/` (a snapshot of a made-up provider). Unlike `golden/fixtures/`, a category of golden
 files, they are inputs. The golden exporter and the CLI, import and MCP recorders read them
