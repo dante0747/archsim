@@ -2,12 +2,58 @@
 
 State as of 2026-11-12 (engine 1.0.0, the Java engine, which reproduces the frozen engine 0.16.0
 measured on the held-out experiments; schema 1.7, report 1.15; the API, the engine, the CLI and
-the MCP server in Java, and the Python engine deleted). This file separates what is implemented,
+the MCP server in Java, and Python left only for the benchmark harness and the repository's
+scripts). This file separates what is implemented,
 how it was verified, what is known to be limited, and what comes next. Nothing listed under
 "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**The clean-up: stage 6 of the Java port (2026-11-12).**
+
+- Python is gone from what ArchSim ships and needs to run; it stays only for the benchmark
+  harness and the repository's scripts until stage 7
+  ([ADR 0064](docs/adr/0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md)).
+  - `services/api`, the Alembic migrations Flyway took over from, is deleted, with
+    `scripts/schema_snapshot.py`, its CI job and its dependencies (`9e5dd08f`, a breaking change;
+    [ADR 0063](docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md), proposed). A
+    database below revision 0008 is refused with how to bring it there from the tag
+    `alembic-0008`, a path run by hand from a database at 0007 to Flyway's takeover; the schema
+    snapshot is data recorded once, and recording it again from the tag gives the same document.
+  - The end-to-end launcher makes its database with the PostgreSQL driver in the API's jar
+    (`5e4f0fdc`); the `archsim-check` action posts its comment with `github-script` (`532edb41`);
+    the script that made the OTLP calibration fixture once is deleted (`901f007d`).
+- The API ignores a request body's unknown keys, as FastAPI's request models did, where it had
+  refused them with `extra_forbidden`; a design document in a body still refuses its own
+  (`91ed0b33`, a dated note on ADR 0034).
+- Python's `float()` reads a figure of any length: `PythonNumbers` checks the text in one pass,
+  where a regex recursed per digit and overflowed the stack at a few thousand digits, so an import
+  whose `cpus` held 10,000 digits ended in a server error. It now answers as Python did, the
+  infinity a component's settings hold written as `null`, as pydantic's JSON mode wrote it
+  (`7d164387`, `2b112d31`). The same recursion, once per group of digits, was in the model's
+  numbers read from strings, a schema version's parts, the query parameters' whole numbers and
+  the YAML resolver's base-60 numbers: their groups repeat possessively now, matching the same
+  texts in a loop, and the YAML resolvers read a scalar of any length, as PyYAML's did, where
+  SnakeYAML stopped at 1,024 characters (`22c6aebb`).
+- Stage 5's follow-ups:
+  - archsim-model refuses half of a surrogate pair wherever pydantic encoded the string
+    (`45132465`), and `PythonText.repr` writes the smallest subnormals as Python does
+    (`4e654d25`);
+  - the CLI takes an empty file option as not given (`9bd2da0d`), and reads `--seed` and its
+    float options as Python's `int()` and `float()` did (`f67b1e69`);
+  - the build runs `format` and `check` in one command, and registers its tasks as Gradle 10
+    will (`60f75718`, `bdd61020`); the black-box suite's servers take five database connections
+    each, so the whole suite fits PostgreSQL's default 100 (`6b3e2ec4`);
+  - the `archsim-check` action tags its image for each check and removes only that tag, lets
+    builds on one Docker take turns with Gradle's cache (two jobs at once on one Docker both
+    pass) and uploads with `upload-artifact` v7 (`c0bf3753`, `e44f1752`, `3adf7de9`); two web
+    comments name the Java code (`f6ee4734`).
+- Sign-in moves to Spring Security after the port, in six test-first slices, none built yet
+  ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md), `0298e1d9`).
+- `NOTICE` lists the third-party software the images and the CLI bundle; none is incompatible
+  with Apache-2.0 (`15b8a119`). README, CONTRIBUTING, `docs/extending-components.md` and the
+  other docs that described the Python engine as the product describe the Java one (`9b1396bc`).
 
 **The CLI, the MCP server and the action in Java, and the Python engine deleted: stage 5 of the
 Java port (2026-11-12).**
@@ -1947,6 +1993,13 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Known limitations
 
+- Java 25 reads text by Unicode 16.0, where the frozen engine read it by Python 3.12's Unicode
+  15.0: 80 more characters are digits (Garay, Gurung Khema, Kirat Rai, Sunuwar, Ol Onal, the
+  Myanmar Extended-C digits and the outlined digits), 4,924 more are letters and 54 change case
+  differently. So `int()` and `float()` read those digits where Python refused them, and names in
+  those scripts match `\w` and change case where Python's did not. `repr()` already follows
+  Python's own table. Matching would take Python's Unicode 15.0 tables for digits, letters and
+  case; only text in scripts encoded in 2023 and 2024 is affected.
 - A service's CPU per request is one number at every rate, but a real Node.js event loop gets
   cheaper per request as load rises (0.48 to 0.21 ms in pg-mixed). W17's fit weights it toward
   the busiest times, so light-load CPU reads low (0.13 cores against 0.27 at 560 req/s), and in
@@ -2041,11 +2094,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–5
-   are built (engine 1.0.0; the CLI, the MCP server and the action in Java, and the Python
-   engine deleted). Stage 6 is next: the Python code other than the benchmark harness removed
-   (the Alembic migrations, the scripts), the docs rewritten for the Java build, and sign-in on
-   Spring Security weighed.
+1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–6
+   are built (engine 1.0.0; everything ArchSim ships in Java, and Python left for the benchmark
+   harness and the scripts). Next, before anything is published, the owner's review: ADR 0063,
+   sign-in on Spring Security (ADR 0065), and what `docs/proposals/java-25-port.md`'s "where the
+   port ended" lists. Stage 7, the harness in Java, follows.
 2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
    experiments before they were measured (the harness can't predict with a second engine), so a
    before-and-after on them can only re-simulate 0.14.0, labelled as such.

@@ -5,7 +5,9 @@
 Stage 1 (the design model) is built and its exit check passes (see
 [Stage 1](#stage-1--design-model-and-schema-35-days)). Stage 2 (the API on Spring Boot) is built
 and its exit check passes (see
-[Stage 2](#stage-2--the-api-on-spring-boot-engine-still-python-12-weeks)).
+[Stage 2](#stage-2--the-api-on-spring-boot-engine-still-python-12-weeks)). Stages 3 to 6 are
+built, and the port ends there; [where the port ended](#where-the-port-ended) sums it up.
+Stage 7, the benchmark harness, follows it.
 
 **Why:** the owner works in Java and wants to maintain ArchSim. This is a port, not a redesign of
 what ArchSim does: the simulation model, the design format and the web app's behaviour stay the
@@ -316,6 +318,28 @@ doesn't change.
 - **Sign-in:** weigh moving it to Spring Security, now that the API contract can change. Stage 2
   signed people in with plain Spring MVC to keep FastAPI's contract
   ([ADR-0037](../adr/0037-sign-in-without-spring-security.md)).
+- **Built (12 Nov 2026):** in slices S6-1 to S6-8. Every item is met.
+  - **Python removed** from what ArchSim ships and needs to run. `services/api`, the Alembic
+    migrations Flyway took over from, is deleted with `scripts/schema_snapshot.py`; a database
+    below Alembic's revision 0008 is brought there from the tag `alembic-0008` first
+    ([ADR-0063](../adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md), proposed),
+    and the schema snapshot is data recorded once. The end-to-end launcher makes its database
+    with the PostgreSQL driver in the API's jar, and the action posts its comment with
+    `github-script`. Python stays for the benchmark harness and the repository's scripts until
+    stage 7
+    ([ADR-0064](../adr/0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md)):
+    uv's project keeps no dependency but the development tools.
+  - **Docs:** the README, CONTRIBUTING (its "Changing simulation semantics" included),
+    `IMPLEMENTATION_STATUS.md`, `docs/extending-components.md` and the docs that described the
+    Python engine as the product describe the Java build.
+  - **Sign-in:** [ADR-0065](../adr/0065-move-sign-in-to-spring-security-after-the-port.md)
+    moves it to Spring Security after the port, keeping its HTTP contract, in six test-first
+    slices; none is built yet.
+  - Also: `NOTICE` lists the third-party software the images and the CLI bundle, none of it
+    incompatible with Apache-2.0; stage 5's follow-ups are closed; and two gaps in the contract
+    found in review are closed. The API ignores a request body's unknown keys, as FastAPI's
+    request models did, and a number's text of any length is read as Python's `float()` and
+    pydantic read it, where a few thousand digits or groups of them had overflowed the stack.
 
 ### Stage 7 · The benchmark harness (after the port)
 - **What it covers:** `benchmarks/run.py`, `report.py` and their tests, rewritten in Java once
@@ -324,6 +348,34 @@ doesn't change.
   (medians, knees, spreads, digests of the reduced summaries), because past and future runs must
   stay comparable.
 - **Exit:** the harness runs from Gradle, and the last Python code is deleted.
+
+## Where the port ended
+
+- **In Java:** the design model, the engine (1.0.0), the API with its worker, seed and migrate
+  roles, the CLI, the MCP server and the `archsim-check` action's CLI. The web app stays Next.js
+  and talks to the Java API unchanged.
+- **Kept:** the design format (schema 1.7), the HTTP API's contract
+  ([ADR-0034](../adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md)), the CLI's output
+  ([ADR-0055](../adr/0055-the-java-clis-output-contract.md)) and the MCP tools. The Java
+  engine's tests replay the runs the frozen Python engine 0.16.0 recorded, figure for figure,
+  and match its golden files ([`parity/README.md`](../../parity/README.md)).
+- **Departures, each listed:** the API's in
+  [archsim-app's README](../../archsim-app/README.md#differences-from-the-python-api), the
+  CLI's in [archsim-cli's README](../../archsim-cli/README.md), and the Unicode version (Java
+  25's 16.0 against Python 3.12's 15.0) in `IMPLEMENTATION_STATUS.md`'s known limitations.
+- **Still Python:** the benchmark harness (`benchmarks/`, stage 7) and the repository's scripts
+  (`scripts/`); the benchmarked stacks under `benchmarks/service-*` are what the harness measures,
+  not part of ArchSim.
+- **Tags:** `engine-0.16.0` keeps the frozen engine, its MCP server and the Python API's tests;
+  `alembic-0008` keeps the Alembic migrations, `archsim-api migrate` and the schema-snapshot
+  script.
+- **Not done:** stage 0's exit was never run in full against the Python API, which is gone; the
+  black-box suite passes in full against the Java API (136 tests). CI has not run on GitHub
+  since Actions stopped starting jobs on 5 Nov 2026; every CI command runs locally.
+- **For the owner, before anything is published:** ADR-0063 (proposed); when to build
+  ADR-0065's slices; `ARCHSIM_DATABASE_URL` keeps SQLAlchemy's form
+  ([ADR-0035](../adr/0035-read-the-python-apis-settings-unchanged.md)), which a plain
+  `postgresql://` or JDBC URL could replace now that no Python reads it.
 
 ## Accuracy work during the port
 
