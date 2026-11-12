@@ -25,8 +25,11 @@ software, each under its own license, which is not part of this repository's sou
   (@xyflow/react), Zustand, Recharts, Radix UI, Sonner, clsx, class-variance-authority,
   tailwind-merge and their dependencies (MIT, ISC, Apache-2.0 and BSD licenses), styles built with
   Tailwind CSS (MIT), lucide-react (ISC), elkjs (Eclipse Public License 2.0, of its EPL-2.0 or
-  GPL-3.0-or-later choice) and Simple Icons (CC0-1.0). It leaves out sharp and the libvips that
-  sharp bundles: the app turns off Next.js's image optimizer, their only user.
+  GPL-3.0-or-later choice) and Simple Icons (CC0-1.0). Next.js draws a shared run's preview
+  image with the @vercel/og and Satori it bundles, under the Mozilla Public License 2.0 and
+  shipped unmodified; their source is at https://www.npmjs.com/package/@vercel/og and
+  https://github.com/vercel/satori. The image leaves out sharp and the libvips that sharp
+  bundles: the app turns off Next.js's image optimizer, their only user.
 - The web UI uses the Geist and Geist Mono typefaces (SIL Open Font License 1.1), downloaded at
   build time and served by the app itself.
 
