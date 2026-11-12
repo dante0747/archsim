@@ -62,6 +62,15 @@ class PythonTextTests {
 			1.7976931348623157e308  | 1.7976931348623157e+308
 			0.30000000000000004     | 0.30000000000000004
 			12345.678               | 12345.678
+			# subnormals of 1, 2, 12 and 20 ulps: Double.toString writes two digits, Python one
+			4.9e-324                | 5e-324
+			-4.9e-324               | -5e-324
+			9.9e-324                | 1e-323
+			5.9e-323                | 6e-323
+			9.9e-323                | 1e-322
+			# 3 ulps, which no one-digit decimal reads back as, and the smallest normal float
+			1.5e-323                | 1.5e-323
+			2.2250738585072014e-308 | 2.2250738585072014e-308
 			""")
 	void repr_float_isWhatPythonWrites(double value, String python) {
 		assertThat(PythonText.repr(value)).isEqualTo(python);

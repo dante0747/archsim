@@ -1,9 +1,14 @@
 package io.archsim.model.text;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import tools.jackson.databind.JsonNode;
 
@@ -45,9 +50,9 @@ public final class PythonText {
 
 	/**
 	 * Python's {@code repr(x)} of a float: the shortest digits that read back as
-	 * {@code x}, in fixed notation from 1e-4 up to 1e16 ({@code 0.0001}, {@code 2.5},
-	 * {@code 100.0}) and in scientific notation outside it ({@code 1e-05},
-	 * {@code 1e+16}).
+	 * {@code x}, the nearest of them when several do, in fixed notation from 1e-4 up to
+	 * 1e16 ({@code 0.0001}, {@code 2.5}, {@code 100.0}) and in scientific notation
+	 * outside it ({@code 1e-05}, {@code 1e+16}).
 	 * @param number the float
 	 * @return its repr
 	 */
@@ -210,8 +215,7 @@ public final class PythonText {
 	 * @return its repr
 	 */
 	private static String reprOfMagnitude(double magnitude) {
-		// Double.toString gives the shortest digits that round-trip, like Python's repr
-		BigDecimal shortest = new BigDecimal(Double.toString(magnitude)).stripTrailingZeros();
+		BigDecimal shortest = shortestDecimal(magnitude);
 		String digits = shortest.unscaledValue().toString();
 		// the decimal point's place in the digits
 		int point = digits.length() - shortest.scale();
@@ -220,6 +224,35 @@ public final class PythonText {
 		}
 		String mantissa = (digits.length() == 1) ? digits : digits.charAt(0) + "." + digits.substring(1);
 		return mantissa + exponent(point - 1);
+	}
+
+	/**
+	 * The shortest decimal that reads back as the float, the nearest one when several do,
+	 * as Python's {@code repr} chooses it. {@code Double.toString} chooses the same,
+	 * except where one digit reads back: it may then write two that are nearer (JDK 19's
+	 * rule), {@code 4.9E-324} where Python writes {@code 5e-324}, as for the smallest
+	 * subnormals.
+	 * @param magnitude the float, above zero
+	 * @return its shortest decimal, without trailing zeros
+	 */
+	private static BigDecimal shortestDecimal(double magnitude) {
+		BigDecimal toStringDecimal = new BigDecimal(Double.toString(magnitude)).stripTrailingZeros();
+		return (toStringDecimal.precision() == 2) ? nearestOneDigitDecimal(magnitude).orElse(toStringDecimal)
+				: toStringDecimal;
+	}
+
+	/**
+	 * Of the two one-digit decimals either side of the float, the nearer of those that
+	 * read back as it, if either does.
+	 * @param magnitude the float, above zero
+	 * @return the one-digit decimal, if one reads back as the float
+	 */
+	private static Optional<BigDecimal> nearestOneDigitDecimal(double magnitude) {
+		BigDecimal exact = new BigDecimal(magnitude);
+		return Stream.of(RoundingMode.FLOOR, RoundingMode.CEILING)
+			.map((rounding) -> exact.round(new MathContext(1, rounding)))
+			.filter((candidate) -> Double.parseDouble(candidate.toString()) == magnitude)
+			.min(Comparator.comparing((candidate) -> candidate.subtract(exact).abs()));
 	}
 
 	private static String fixed(String digits, int point) {
