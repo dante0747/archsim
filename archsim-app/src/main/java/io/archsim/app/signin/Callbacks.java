@@ -1,85 +1,137 @@
 package io.archsim.app.signin;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.Nullable;
-import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.stereotype.Component;
 
-import io.archsim.app.access.Visitor;
+import io.archsim.app.access.Visitors;
 
 /**
- * Finishes signing in when the provider sends the browser back: the state must match the
- * cookie's, the code is exchanged with the verifier, the person behind the account is
- * found or created, and a session starts. A failure lands on the sign-in page, saying why
+ * Finishes signing in when the provider sends the browser back to
+ * {@code /auth/<provider>/callback}, once Spring Security's OAuth2 login has checked the
+ * state against the cookie's, exchanged the code with the verifier and read the account:
+ * the person behind the account is found or created, a session starts, and the browser
+ * lands where sign-in started. A failure lands on the sign-in page, saying why
  * ({@code /signin?error=<reason>}).
  */
-@Service
-class Callbacks {
+@Component
+class Callbacks implements AuthenticationSuccessHandler, AuthenticationFailureHandler {
 
-	private final OAuthClient client;
+	private static final Logger LOGGER = LoggerFactory.getLogger(Callbacks.class);
 
-	private final StateCookies states;
+	/**
+	 * The OAuth2 login's errors for a callback that does not return a sign-in this
+	 * browser started: no code or state, or no state cookie that keeps the state.
+	 */
+	private static final Set<String> NOT_RETURNED = Set.of(OAuth2ErrorCodes.INVALID_REQUEST,
+			"authorization_request_not_found", "invalid_state_parameter");
 
 	private final Accounts accounts;
 
 	private final Sessions sessions;
 
-	Callbacks(OAuthClient client, StateCookies states, Accounts accounts, Sessions sessions) {
-		this.client = client;
-		this.states = states;
+	private final StateCookies states;
+
+	private final Visitors visitors;
+
+	Callbacks(Accounts accounts, Sessions sessions, StateCookies states, Visitors visitors) {
 		this.accounts = accounts;
 		this.sessions = sessions;
+		this.states = states;
+		this.visitors = visitors;
 	}
 
 	/**
-	 * Finishes signing in.
-	 * @param provider the provider in the callback's path
-	 * @param callback what the provider sent back
-	 * @param stateCookie the state cookie, if the browser kept it
-	 * @param visitor where the request comes from, which the session records
-	 * @return the redirect to where sign-in started, with the session's cookies, or to
-	 * the sign-in page with the reason it failed
+	 * Signs the account in: a session, with its cookies, and the way back to where
+	 * sign-in started.
+	 * @param request the callback
+	 * @param response its answer
+	 * @param authentication the account Spring Security read
+	 * @throws IOException when the answer cannot be written
 	 */
-	Redirect finish(OAuthProvider provider, Callback callback, @Nullable String stateCookie, Visitor visitor) {
-		List<String> cookies = new ArrayList<>(List.of(this.states.clearCookie()));
+	@Override
+	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+			Authentication authentication) throws IOException {
+		if (!(authentication instanceof OAuth2AuthenticationToken signedIn)
+				|| !(signedIn.getPrincipal() instanceof ProviderAccount account)) {
+			throw new IllegalStateException("OAuth2 login signed in no provider account: " + authentication);
+		}
 		try {
-			Verified verified = verified(provider, callback, stateCookie);
-			ProviderProfile profile = this.client.profile(provider, verified.code(), verified.state().verifier());
-			String userId = this.accounts.signIn(provider.name(), profile);
-			cookies.addAll(this.sessions.start(userId, visitor));
+			String userId = this.accounts.signIn(signedIn.getAuthorizedClientRegistrationId(), account.profile());
+			List<String> cookies = this.sessions.start(userId, this.visitors.of(request));
 			// the cookie is signed, but where to land is checked again on the way out
-			return new Redirect(Landing.safePath(verified.state().next()), cookies);
+			new Redirect(this.states.next(request), cookies).send(response);
 		}
 		catch (SignInFailure ex) {
-			return new Redirect("/signin?error=" + URLEncoder.encode(ex.code(), StandardCharsets.UTF_8), cookies);
+			onAuthenticationFailure(request, response, ex);
 		}
 	}
 
-	private Verified verified(OAuthProvider provider, Callback callback, @Nullable String stateCookie) {
-		if (isGiven(callback.error())) {
-			throw SignInFailure.denied();
+	/**
+	 * Lands on the sign-in page, saying why sign-in failed, and clears the state cookie.
+	 * @param request the callback
+	 * @param response its answer
+	 * @param exception why it failed
+	 * @throws IOException when the answer cannot be written
+	 */
+	@Override
+	public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException exception) throws IOException {
+		SignInFailure failure = failure(request.getParameter(OAuth2ParameterNames.ERROR), exception);
+		if (failure.atTheProvider()) {
+			LOGGER.warn("Sign-in with {} failed at the provider: {}",
+					OAuthProviders.callbackOf(request).orElse("a provider"), reason(exception));
 		}
-		String code = callback.code();
-		String state = callback.state();
-		if (code == null || state == null || code.isEmpty() || state.isEmpty()) {
-			throw SignInFailure.state();
-		}
-		SignInState saved = this.states.verify(stateCookie)
-			.filter((kept) -> kept.provider().equals(provider.name()) && same(kept.state(), state))
-			.orElseThrow(SignInFailure::state);
-		return new Verified(saved, code);
+		this.states.clear(response);
+		new Redirect(failure.page(), List.of()).send(response);
 	}
 
-	private static boolean isGiven(@Nullable String value) {
-		return value != null && !value.isEmpty();
+	/**
+	 * Why sign-in failed: the person said no at the provider; the callback returns no
+	 * sign-in of this browser's; the account is disabled; or the provider failed.
+	 * @param error the error the provider sent back, if any
+	 * @param exception what Spring Security, or reading the account, threw
+	 * @return the failure
+	 */
+	private static SignInFailure failure(@Nullable String error, AuthenticationException exception) {
+		if (error != null && !error.isEmpty()) {
+			return SignInFailure.denied();
+		}
+		if (exception instanceof SignInFailure failure) {
+			return failure;
+		}
+		if (exception instanceof OAuth2AuthenticationException oauth
+				&& NOT_RETURNED.contains(oauth.getError().getErrorCode())) {
+			return SignInFailure.state();
+		}
+		return SignInFailure.provider(reason(exception));
 	}
 
-	private static boolean same(String kept, String sent) {
-		return MessageDigest.isEqual(kept.getBytes(StandardCharsets.UTF_8), sent.getBytes(StandardCharsets.UTF_8));
+	/**
+	 * What went wrong, for the log: the OAuth 2 error's code, or the failure's message.
+	 * @param exception the failure
+	 * @return the reason
+	 */
+	private static String reason(AuthenticationException exception) {
+		if (exception instanceof OAuth2AuthenticationException oauth) {
+			return oauth.getError().getErrorCode();
+		}
+		return String.valueOf(exception.getMessage());
 	}
 
 	/**
@@ -90,16 +142,6 @@ class Callbacks {
 	 * @param error why the provider refused, if it did
 	 */
 	record Callback(@Nullable String code, @Nullable String state, @Nullable String error) {
-
-	}
-
-	/**
-	 * A callback whose state matches its cookie's.
-	 *
-	 * @param state the sign-in the cookie kept
-	 * @param code the code to exchange
-	 */
-	private record Verified(SignInState state, String code) {
 
 	}
 

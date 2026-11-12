@@ -41,20 +41,26 @@ black-box suite (`archsim-api-tests`) checks it.
   and `403` for a missing or wrong CSRF header. Public endpoints need nothing and ignore an
   `Authorization` header. An unknown path is `404` whoever asks.
 
-**Status (12 Nov 2026), API tokens:** a wrong API token is refused wherever it is sent, so for
-a request that carries one, two sentences of "Answers" no longer hold: that public endpoints
-ignore an `Authorization` header, and that an unknown path is `404` whoever asks. Spring
-Security's bearer token filter answers a revoked, expired, mistyped or malformed `Bearer` token
-with the `401` above (`WWW-Authenticate: Bearer`, the same `{"detail": …}`) before the request
-reaches an endpoint, so a public endpoint and an unknown path answer it `401` too. A request with
-no token, or with credentials of another kind (`Basic …`), still reaches the endpoint: public
-endpoints need nothing, and an unknown path is `404`. Decided in slice 2 under the owner's
-delegation, because the rule that a public endpoint ignores a token came from matching FastAPI,
-which no longer binds; a token's holder is better told at once that it is wrong than treated as
-anonymous, as GitHub's API does. The black-box suite's `TokensTests` checks both. With sign-in,
-the resource server also answers its metadata (RFC 9728) at
+**Status (12 Nov 2026), API tokens:** a wrong API token is refused wherever it is sent but for
+the two sign-in paths (below), so for a request that carries one, two sentences of "Answers" no
+longer hold: that public endpoints ignore an `Authorization` header, and that an unknown path is
+`404` whoever asks. Spring Security's bearer token filter answers a revoked, expired, mistyped or
+malformed `Bearer` token with the `401` above (`WWW-Authenticate: Bearer`, the same
+`{"detail": …}`) before the request reaches an endpoint, so a public endpoint and an unknown path
+answer it `401` too. A request with no token, or with credentials of another kind (`Basic …`),
+still reaches the endpoint: public endpoints need nothing, and an unknown path is `404`. Decided
+in slice 2 under the owner's delegation, because the rule that a public endpoint ignores a token
+came from matching FastAPI, which no longer binds; a token's holder is better told at once that
+it is wrong than treated as anonymous, as GitHub's API does. The black-box suite's `TokensTests`
+checks both. With sign-in, the resource server also answers its metadata (RFC 9728) at
 `/.well-known/oauth-protected-resource/api/v1`, on the API's own address: it names the API and
-the header as the one way to send a token.
+the header as the one way to send a token. Since slice 5 (12 Nov 2026),
+`GET /auth/{provider}/login` and `/auth/{provider}/callback` of a provider set up here are the
+exception: Spring Security's OAuth2 login answers them before its bearer token filter, so a wrong
+token sent there gets the same `302` as none. Decided under the owner's delegation, because both
+are browser navigations, which never carry an `Authorization` header, so no token holder is
+misled; refusing it there would take a branch in the chain and an answer of our own against
+Spring's design. `OAuthTests` checks it, so a change to the filter order shows.
 
 **Status (12 Nov 2026), CSRF:** a change a browser session signs in is refused without its
 CSRF header wherever it is sent, so for such a request, the "Answers" bullet's `404` for an
@@ -72,6 +78,22 @@ compares the header with the cookie, and nothing has to change for it. The handl
 one, reading the token from the header only: the `_csrf` form or query parameter the plain one
 also takes would put the token in URLs, logs and `Referer` headers, and the web app sends the
 header.
+
+**Status (12 Nov 2026), OAuth2 login:** Spring Security's `oauth2Login` signs people in, as
+planned. The registrations are Spring's GitHub and Google, with the site's addresses,
+`client_secret_post` and PKCE for both. Spring makes the state (44 characters of base64url with
+padding) and the verifier, which the signed `__Host-archsim_oauth` cookie keeps as before. Google
+signs in through OpenID Connect: Spring Security checks the ID token's signature, issuer,
+audience and nonce (kept in the cookie too), where the hand-written client read `userinfo` with
+the access token. Spring keeps a provider's access token for each person signed in; the success
+handler drops it once the account is read, as the hand-written client did. `SignInController`
+keeps the two sign-in paths, which Spring's filters answer for the providers set up here, so a
+provider that is not set up still gets its `404` and the OpenAPI document still lists them. The
+start's `422` for a long `next` and its `429` are answered as the API answers them. A callback
+for a provider set up here is Spring's, so where a `code` or `state` too long was refused `422`,
+a long `state` lands on `/signin?error=state` and a long `code` on `/signin?error=provider` (the
+provider refuses it); and the callback takes any method, where it answered `405` but to `GET`
+and `HEAD`.
 
 ## Decision Drivers
 

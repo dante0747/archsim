@@ -66,10 +66,8 @@ class OAuthTests {
 	void login_toGitHub_redirectsWithPkceAndSignedState(ApiServer server) {
 		ApiResponse response = server.client().get(ApiClient.query("/auth/github/login", "next", "/projects"));
 		assertThat(response.status()).isEqualTo(302);
-		URI url = URI.create(response.location());
 		Map<String, String> parameters = queryParameters(response.location());
-		assertThat(url.getScheme() + "://" + url.getRawAuthority() + url.getRawPath())
-			.isEqualTo(server.github().url() + "/login/oauth/authorize");
+		assertThat(page(response.location())).isEqualTo(server.github().url() + "/login/oauth/authorize");
 		assertThat(parameters.get("code_challenge_method")).isEqualTo("S256");
 		assertThat(parameters.get("code_challenge")).hasSize(43);
 		assertThat(parameters.get("redirect_uri"))
@@ -295,6 +293,28 @@ class OAuthTests {
 		assertThat(sessionIp(server, untrusted)).isEqualTo(UNTRUSTED);
 	}
 
+	/**
+	 * Spring Security's OAuth2 login answers before its bearer token filter, so a wrong
+	 * API token starts sign-in as no token does, where it is refused elsewhere
+	 * (ADR-0065).
+	 */
+	@Test
+	void login_withRevokedToken_redirectsAsWithoutOne(ApiServer server) {
+		ApiClient client = server.signedIn("ada");
+		JsonNode revoked = client.post("/tokens", Json.object("name", "CI")).expectStatus(201).json();
+		assertThat(client.delete("/tokens/" + Json.id(revoked)).status()).isEqualTo(204);
+		client.cookies().clear();
+		client.header("X-ArchSim-CSRF", null);
+
+		ApiResponse withToken = client.get("/auth/github/login",
+				Map.of("Authorization", "Bearer " + revoked.path("token").asString()));
+		ApiResponse without = client.get("/auth/github/login");
+
+		assertThat(withToken.status()).as(withToken.text()).isEqualTo(without.status()).isEqualTo(302);
+		assertThat(page(withToken.location())).isEqualTo(page(without.location()))
+			.isEqualTo(server.github().url() + "/login/oauth/authorize");
+	}
+
 	@Test
 	void auth_withoutSignIn_hasNothingToSignInTo(@On(Profile.LOCAL) ApiClient client) {
 		assertThat(client.get("/auth/github/login").status()).isEqualTo(404);
@@ -325,6 +345,12 @@ class OAuthTests {
 	private static String setCookie(ApiResponse response, String name) {
 		return response.setCookie(name)
 			.orElseThrow(() -> new AssertionError(response + " sets no " + name + ": " + response.setCookies()));
+	}
+
+	/** The page a URL names: its address without the query. */
+	private static String page(String url) {
+		URI uri = URI.create(url);
+		return uri.getScheme() + "://" + uri.getRawAuthority() + uri.getRawPath();
 	}
 
 	/** The query parameters of a URL, first value of each. */

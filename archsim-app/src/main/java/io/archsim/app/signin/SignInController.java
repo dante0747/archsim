@@ -16,33 +16,27 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.archsim.app.access.Principal;
-import io.archsim.app.access.Visitor;
+import io.archsim.app.web.ApiException;
 import io.archsim.app.web.QueryParameters;
 
 /**
  * Signing in and out. {@code GET /auth/config} says how people sign in here; with
  * {@code ARCHSIM_AUTH_MODE=oauth}, {@code /auth/<provider>/login} and
  * {@code /auth/<provider>/callback} sign in with GitHub or Google and
- * {@code POST /auth/logout} ends the session.
+ * {@code POST /auth/logout} ends the session. Spring Security's OAuth2 login answers the
+ * sign-in paths of the providers set up here before they reach this controller
+ * ({@link OAuthSignIn}); this answers the others, and documents them all.
  */
 @RestController
 @RequestMapping("/auth")
 class SignInController {
 
-	private static final int MAX_NEXT = 500;
-
 	private final OAuthProviders providers;
-
-	private final Logins logins;
-
-	private final Callbacks callbacks;
 
 	private final Sessions sessions;
 
-	SignInController(OAuthProviders providers, Logins logins, Callbacks callbacks, Sessions sessions) {
+	SignInController(OAuthProviders providers, Sessions sessions) {
 		this.providers = providers;
-		this.logins = logins;
-		this.callbacks = callbacks;
 		this.sessions = sessions;
 	}
 
@@ -57,35 +51,34 @@ class SignInController {
 	}
 
 	/**
-	 * Start signing in with {@code github} or {@code google}: redirects to the provider.
+	 * Start signing in with {@code github} or {@code google}: redirects to the provider
+	 * ({@link SignInStarts}). Reached only when the provider is not set up here.
 	 * @param provider the provider
 	 * @param next the path to land on after
-	 * @param visitor where the request comes from
-	 * @return {@code 302} to the provider's sign-in page
+	 * @return never
+	 * @throws ApiException {@code 404}: the provider is not set up here
 	 */
 	@GetMapping("/{provider}/login")
 	ResponseEntity<Void> login(@PathVariable String provider,
 			@RequestParam(required = false) @Parameter(description = "Path to land on after",
-					schema = @Schema(type = "string", maxLength = MAX_NEXT)) @Nullable List<String> next,
-			Visitor visitor) {
-		String path = QueryParameters.text(next, "next", MAX_NEXT).orElse(null);
-		return this.logins.start(this.providers.require(provider), path, visitor).answer();
+					schema = @Schema(type = "string", maxLength = Landing.MAX_PATH)) @Nullable List<String> next) {
+		// a next too long is refused 422 first, as for a provider that is set up
+		QueryParameters.text(next, "next", Landing.MAX_PATH);
+		throw this.providers.notSetUp(provider);
 	}
 
 	/**
 	 * Where the provider sends the browser back. Sets the session cookie and redirects to
-	 * the page sign-in started from; on failure, to {@code /signin?error=<reason>}.
+	 * the page sign-in started from; on failure, to {@code /signin?error=<reason>}
+	 * ({@link Callbacks}). Reached only when the provider is not set up here.
 	 * @param provider the provider
 	 * @param callback the code, state and error the provider sent
-	 * @param stateCookie the sign-in's state cookie
-	 * @param visitor where the request comes from
-	 * @return {@code 302}
+	 * @return never
+	 * @throws ApiException {@code 404}: the provider is not set up here
 	 */
 	@GetMapping("/{provider}/callback")
-	ResponseEntity<Void> callback(@PathVariable String provider, Callbacks.Callback callback,
-			@CookieValue(name = BrowserCookie.STATE_NAME, required = false) @Nullable String stateCookie,
-			Visitor visitor) {
-		return this.callbacks.finish(this.providers.require(provider), callback, stateCookie, visitor).answer();
+	ResponseEntity<Void> callback(@PathVariable String provider, Callbacks.Callback callback) {
+		throw this.providers.notSetUp(provider);
 	}
 
 	/**

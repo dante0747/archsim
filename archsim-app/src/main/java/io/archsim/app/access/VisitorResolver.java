@@ -3,7 +3,6 @@ package io.archsim.app.access;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -14,10 +13,10 @@ import org.springframework.web.method.support.ModelAndViewContainer;
  */
 class VisitorResolver implements HandlerMethodArgumentResolver {
 
-	private final ClientIps clientIps;
+	private final Visitors visitors;
 
-	VisitorResolver(ClientIps clientIps) {
-		this.clientIps = clientIps;
+	VisitorResolver(Visitors visitors) {
+		this.visitors = visitors;
 	}
 
 	@Override
@@ -32,8 +31,7 @@ class VisitorResolver implements HandlerMethodArgumentResolver {
 		if (servletRequest == null) {
 			throw new IllegalStateException("a visitor is only known for a servlet request");
 		}
-		return new Visitor(this.clientIps.of(servletRequest).orElse(null),
-				servletRequest.getHeader(HttpHeaders.USER_AGENT));
+		return this.visitors.of(servletRequest);
 	}
 
 }

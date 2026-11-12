@@ -1,5 +1,8 @@
 package io.archsim.app.signin;
 
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,9 +49,9 @@ class SignInTests extends HostedTestSupport {
 		MvcTestResult started = this.mvc().get().uri(AUTH + "/github/login?next=/projects").exchange();
 
 		assertThat(started).hasStatus(302);
-		assertThat(location(started)).startsWith(github().url() + "/login/oauth/authorize?response_type=code&")
-			.contains("code_challenge_method=S256",
-					"redirect_uri=https%3A%2F%2Farchsim.test%2Fapi%2Fv1%2Fauth%2Fgithub%2Fcallback");
+		assertThat(URLDecoder.decode(location(started), StandardCharsets.UTF_8))
+			.startsWith(github().url() + "/login/oauth/authorize?response_type=code&")
+			.contains("code_challenge_method=S256", "redirect_uri=https://archsim.test/api/v1/auth/github/callback");
 		assertThat(started.getResponse().getHeader(HttpHeaders.SET_COOKIE)).startsWith(STATE + "=")
 			.contains("HttpOnly", "Max-Age=600", "Path=/", "SameSite=lax", "Secure");
 	}
@@ -141,7 +144,7 @@ class SignInTests extends HostedTestSupport {
 
 		MvcTestResult done = this.mvc()
 			.get()
-			.uri(path(back).replaceFirst("state=[^&]+", "state=wrong"))
+			.uri(URI.create(path(back).replaceFirst("state=[^&]+", "state=wrong")))
 			.cookie(stateCookie(started))
 			.exchange();
 
@@ -155,7 +158,7 @@ class SignInTests extends HostedTestSupport {
 
 		MvcTestResult done = this.mvc()
 			.get()
-			.uri(path(back).replaceFirst("code=[^&]+", "code="))
+			.uri(URI.create(path(back).replaceFirst("code=[^&]+", "code=")))
 			.cookie(stateCookie(started))
 			.exchange();
 
@@ -179,10 +182,10 @@ class SignInTests extends HostedTestSupport {
 		MvcTestResult started = this.mvc().get().uri(AUTH + "/github/login").exchange();
 		String back = github().authorize(location(started), account("Ada", null, false).login());
 		SignInState kept = this.states.verify(cookie(started, STATE)).orElseThrow();
-		String foreign = this.states
-			.sign(new SignInState(kept.provider(), kept.state(), kept.verifier(), "//evil.example", kept.expiresAt()));
+		String foreign = this.states.sign(new SignInState(kept.provider(), kept.state(), kept.verifier(),
+				"//evil.example", kept.nonce(), kept.expiresAt()));
 
-		MvcTestResult done = this.mvc().get().uri(path(back)).cookie(new Cookie(STATE, foreign)).exchange();
+		MvcTestResult done = this.mvc().get().uri(URI.create(path(back))).cookie(new Cookie(STATE, foreign)).exchange();
 
 		assertThat(done).hasHeader(HttpHeaders.LOCATION, "/");
 	}
@@ -199,6 +202,31 @@ class SignInTests extends HostedTestSupport {
 	void callback_personSaidNo_landsOnTheSignInPage() {
 		assertThat(this.mvc().get().uri(AUTH + "/github/callback?error=access_denied")).hasHeader(HttpHeaders.LOCATION,
 				"/signin?error=denied");
+	}
+
+	@Test
+	void callback_personSaidNoAtTheProvider_landsOnTheSignInPageAndClearsTheState() {
+		MvcTestResult started = this.mvc().get().uri(AUTH + "/github/login").exchange();
+		String back = github().authorize(location(started), account("Ada", null, false).login());
+
+		MvcTestResult done = this.mvc()
+			.get()
+			.uri(URI.create(path(back).replaceFirst("code=[^&]+", "error=access_denied")))
+			.cookie(stateCookie(started))
+			.exchange();
+
+		assertThat(done).hasHeader(HttpHeaders.LOCATION, "/signin?error=denied");
+		assertThat(done.getResponse().getHeaders(HttpHeaders.SET_COOKIE)).singleElement()
+			.asString()
+			.startsWith(STATE + "=\"\";");
+	}
+
+	@Test
+	void callback_providerNotSetUp_isNotFound() {
+		assertThat(this.mvc().get().uri(AUTH + "/google/callback?code=c&state=s")).hasStatus(404)
+			.bodyJson()
+			.extractingPath("$.detail.message")
+			.isEqualTo("Sign-in with 'google' is not set up here");
 	}
 
 	@Test
@@ -263,7 +291,7 @@ class SignInTests extends HostedTestSupport {
 		String login = AUTH + "/github/login" + ((next != null) ? "?next=" + next : "");
 		MvcTestResult started = this.mvc().get().uri(login).exchange();
 		String back = github().authorize(location(started), account.login());
-		return this.mvc().get().uri(path(back)).cookie(stateCookie(started)).exchange();
+		return this.mvc().get().uri(URI.create(path(back))).cookie(stateCookie(started)).exchange();
 	}
 
 	private Browser signedIn(FakeGitHub.Account account) {
@@ -279,6 +307,11 @@ class SignInTests extends HostedTestSupport {
 		return String.valueOf(result.getResponse().getHeader(HttpHeaders.LOCATION));
 	}
 
+	/**
+	 * The path and query of the provider's return, which the test sends as a {@link URI}:
+	 * as a template, its escapes (Spring's state ends in {@code %3D}) would be escaped
+	 * again.
+	 */
 	private static String path(String url) {
 		return url.substring(PUBLIC_URL.length());
 	}

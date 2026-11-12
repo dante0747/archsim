@@ -2,36 +2,30 @@ package io.archsim.app.signin;
 
 import java.util.Map;
 
-import org.jspecify.annotations.Nullable;
-
-import io.archsim.app.config.ClientCredentials;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 
 /**
- * A provider people sign in with: OAuth 2's authorization code flow with PKCE.
+ * A provider people sign in with: OAuth 2's authorization code flow with PKCE, as Spring
+ * Security's OAuth2 login runs it.
  *
- * @param name {@code github} or {@code google}, as the sign-in paths name it
- * @param client the OAuth client's id and secret
- * @param endpoints where the browser signs in, the code is exchanged and the account is
- * read
- * @param scope what the API asks to read
- * @param extraParameters what else the sign-in page is told
- * @param format how the provider describes an account
- * @param redirectUri where the provider sends the browser back:
- * {@code <public address>/api/v1/auth/<name>/callback}
+ * @param registration the provider as Spring Security knows it: the client's id and
+ * secret, sent in the token request's body; where the browser signs in, the code is
+ * exchanged and the account is read; what the API asks to read; and where the provider
+ * sends the browser back, {@code <public address>/api/v1/auth/<name>/callback}
+ * @param signInParameters what else the provider's sign-in page is told
  */
-record OAuthProvider(String name, ClientCredentials client, Endpoints endpoints, String scope,
-		Map<String, String> extraParameters, ProfileFormat format, String redirectUri) {
+record OAuthProvider(ClientRegistration registration, Map<String, String> signInParameters) {
+
+	OAuthProvider {
+		signInParameters = Map.copyOf(signInParameters);
+	}
 
 	/**
-	 * Where a provider's steps happen.
-	 *
-	 * @param authorizeUrl where the browser signs in
-	 * @param tokenUrl where the code is exchanged for an access token
-	 * @param userUrl where the signed-in account is described
-	 * @param emailsUrl where its emails are listed, for a provider that lists them apart
+	 * The provider's name, as the sign-in paths name it.
+	 * @return {@code github} or {@code google}
 	 */
-	record Endpoints(String authorizeUrl, String tokenUrl, String userUrl, @Nullable String emailsUrl) {
-
+	String name() {
+		return this.registration.getRegistrationId();
 	}
 
 }

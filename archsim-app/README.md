@@ -124,9 +124,9 @@ ways.
 | `analysis` | `POST /validate` (archsim-engine resolves the design and its scenario, archsim-model validates it), `POST /analyze` (archsim-engine's `DesignAnalyzer`) |
 | `projects` | `/projects`: list, create (blank, a design, an example), import, read, update, delete, duplicate, export; the `seed` role's `ExampleSeeding` |
 | `runs` | `/projects/{id}/runs` (start, batch, list), `/runs/{id}` (read, report, input, cancel, rerun, delete), `/compare`, `/run-groups/{id}`: runs are prepared by archsim-engine's `RunPreparer`, queued in `simulation_runs`, and simulated by the worker role (`worker`); two runs are compared by archsim-engine's `RunComparer`, and a seed group is summarized by its `SeedSummary` |
-| `security` | Spring Security's filter chain ([ADR-0065](../docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)): it authorizes every request, leaving each endpoint to say whom it needs; it writes the security headers, runs CORS and the request firewall, and puts who is asking in the security context (`RequestAuthentication`): with sign-in, API tokens as a resource server (`ApiTokens`, over `access`'s `ApiTokenIntrospector`) and browser sessions (`access`'s `BrowserSessions`, read when an endpoint first asks or a change needs its CSRF token), with CSRF on a session's changes (`BrowserCsrf`, `SessionChanges`, `CsrfRefusal`), without it the local user (`LocalUserFilter`); Spring's HTTP sessions, login and logout pages and anonymous user are switched off |
-| `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), read from the security context by `PrincipalResolver`, `Person` (not a token), `Visitor` (address and browser); the adapters the chain uses (`ApiTokenIntrospector`, `BrowserSessions`, `LocalUserFilter`, `BrowserCsrf`, `SessionChanges`, `CsrfRefusal`); workspace roles, and the rule that what you may not see answers `404` ([ADR-0065](../docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md); OAuth sign-in is still [ADR-0037](../docs/adr/0037-sign-in-without-spring-security.md)'s until its last slices) |
-| `signin` | `/auth`: GitHub and Google sign-in (OAuth with PKCE), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
+| `security` | Spring Security's filter chain ([ADR-0065](../docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)): it authorizes every request, leaving each endpoint to say whom it needs; it writes the security headers, runs CORS and the request firewall, and puts who is asking in the security context (`RequestAuthentication`): with sign-in, API tokens as a resource server (`ApiTokens`, over `access`'s `ApiTokenIntrospector`) and browser sessions (`access`'s `BrowserSessions`, read when an endpoint first asks or a change needs its CSRF token), with CSRF on a session's changes (`BrowserCsrf`, `SessionChanges`, `CsrfRefusal`) and sign-in through OAuth2 login (`signin`'s `OAuthSignIn`), without it the local user (`LocalUserFilter`); Spring's HTTP sessions, login and logout pages and anonymous user are switched off |
+| `access` | who is asking: `Principal` (local, a session's cookie with its CSRF header, or an API token), read from the security context by `PrincipalResolver`, `Person` (not a token), `Visitor` (address and browser, also from `Visitors` outside Spring MVC); the adapters the chain uses (`ApiTokenIntrospector`, `BrowserSessions`, `LocalUserFilter`, `BrowserCsrf`, `SessionChanges`, `CsrfRefusal`); workspace roles, and the rule that what you may not see answers `404` ([ADR-0065](../docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)) |
+| `signin` | `/auth`: GitHub and Google sign-in through Spring Security's OAuth2 login with PKCE (`OAuthSignIn`: the providers' registrations in `OAuthProviders`, the start in `SignInStarts`, the signed state cookie in `StateCookies`, the token request and user services in `OAuthClients`, GitHub's email rule in `GitHubUsers`, Google's OpenID Connect claims in `GoogleUsers`, the session or the sign-in page in `Callbacks`), sessions, signing out, `GET /auth/me`, `GET /auth/config` |
 | `tokens` | `/tokens`: personal API tokens, made, listed and revoked in person |
 | `workspaces` | `/workspaces`: the asker's workspaces with their limits; team workspaces made, renamed and deleted; members and their roles; invitation links (`/invitations/preview`, `/invitations/accept`) |
 | `conversion` | `POST /export`: a design as docker-compose, Kubernetes manifests or a Mermaid diagram (archsim-engine's `DesignExporter`); `POST /import`: a design from docker-compose, Kubernetes manifests or a Terraform plan (archsim-engine's `DesignImporter`) |
@@ -195,13 +195,23 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - With sign-in, a wrong API token (revoked, expired, mistyped or malformed `Bearer`) is refused
   `401` wherever it is sent, public endpoints and unknown paths included, by Spring Security's
   bearer token filter (ADR-0065); FastAPI ignored a token where no endpoint needed one. A
-  request with no token, or a `Basic` header, reaches the endpoint as before.
+  request with no token, or a `Basic` header, reaches the endpoint as before. The exception is
+  the sign-in paths of a provider set up here (`/auth/{provider}/login` and `/callback`), which
+  Spring Security's OAuth2 login answers first: a wrong token there gets the same `302` as none,
+  as it did in Python.
   `GET /.well-known/oauth-protected-resource/api/v1` answers the resource server's metadata
   (RFC 9728), on the API's own address.
 - With sign-in, a change a session cookie signs in is refused `403` without its CSRF header
   wherever it is sent, an unknown path or a route that does not take the method included, by
   Spring Security's CSRF filter (ADR-0065); FastAPI checked the header only on an endpoint that
   needed someone, and answered such a request `404` or `405`.
+- With sign-in, Spring Security's OAuth2 login signs people in (ADR-0065). Its state is Spring's,
+  44 characters of base64url with padding. Google signs in through OpenID Connect, its ID
+  token's signature, issuer, audience and nonce checked, where Python read `userinfo` with the
+  access token. A callback for a provider set up here whose `state` is too long lands on
+  `/signin?error=state`, and one whose `code` is too long on `/signin?error=provider` (the
+  provider refuses it), where FastAPI refused both `422`; and that callback takes any method,
+  where FastAPI answered `405` but to `GET` and `HEAD`.
 - The CSRF token is a random value in the `__Host-archsim_csrf` cookie, sent back in
   `X-ArchSim-CSRF` (a double-submit cookie), where Python's was an HMAC of the session under a
   key derived from `ARCHSIM_SECRET_KEY`: a change must send the cookie as well as the header.

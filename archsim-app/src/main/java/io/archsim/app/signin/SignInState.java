@@ -7,8 +7,9 @@ package io.archsim.app.signin;
  * @param state the random value the provider hands back, which must match
  * @param verifier the PKCE verifier the code is exchanged with
  * @param next where to land afterwards
+ * @param nonce the OpenID Connect nonce the ID token must carry (Google), or empty
  * @param expiresAt when it stops being good, in seconds since the epoch
  */
-record SignInState(String provider, String state, String verifier, String next, double expiresAt) {
+record SignInState(String provider, String state, String verifier, String next, String nonce, double expiresAt) {
 
 }

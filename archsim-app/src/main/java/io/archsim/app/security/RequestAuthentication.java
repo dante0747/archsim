@@ -16,16 +16,19 @@ import io.archsim.app.access.CsrfRefusal;
 import io.archsim.app.access.LocalUserFilter;
 import io.archsim.app.access.SessionChanges;
 import io.archsim.app.config.ArchsimProperties;
+import io.archsim.app.signin.OAuthSignIn;
 import io.archsim.app.web.ErrorResponses;
 
 /**
  * Who is asking, as the chain puts it in Spring Security's context for each request
  * (ADR-0065): with sign-in, the API token a request carries (the resource server,
  * {@link ApiTokens}) or its browser session ({@link BrowserSessions}, read when the
- * context is first asked for), and the CSRF token every change a session makes must send
- * back ({@link BrowserCsrf}); without, the local user ({@link LocalUserFilter}) and no
- * CSRF token. A configurer of the chain of its own, so it finds the application's beans
- * as Spring Security's configurers do.
+ * context is first asked for), the CSRF token every change a session makes must send back
+ * ({@link BrowserCsrf}), and signing in with GitHub or Google, which starts a session
+ * (Spring Security's OAuth2 login, {@link OAuthSignIn}); without, the local user
+ * ({@link LocalUserFilter}) and no CSRF token. A configurer of the chain of its own, so
+ * it finds the application's beans as Spring Security's configurers do; the web layer's
+ * test slices have no sign-in.
  */
 final class RequestAuthentication extends AbstractHttpConfigurer<RequestAuthentication, HttpSecurity> {
 
@@ -54,6 +57,7 @@ final class RequestAuthentication extends AbstractHttpConfigurer<RequestAuthenti
 			.csrfTokenRequestHandler(BrowserCsrf.headerOnlyHandler())
 			.requireCsrfProtectionMatcher(new SessionChanges(getSecurityContextHolderStrategy())));
 		http.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(new CsrfRefusal(responses)));
+		context.getBeanProvider(OAuthSignIn.class).ifAvailable((signIn) -> http.oauth2Login(signIn::configure));
 	}
 
 	@Override

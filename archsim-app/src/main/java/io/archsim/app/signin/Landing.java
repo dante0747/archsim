@@ -15,7 +15,11 @@ final class Landing {
 	/** The page a browser lands on when the path it asked for will not do. */
 	static final String HOME = "/";
 
-	private static final int MAX_PATH = 500;
+	/**
+	 * The longest path to land on: a sign-in refuses a longer {@code next} ({@code 422}),
+	 * and a path kept longer is cut to it.
+	 */
+	static final int MAX_PATH = 500;
 
 	/**
 	 * What a redirect leaves unquoted besides letters, digits and {@code _.-~}, as

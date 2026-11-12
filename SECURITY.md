@@ -53,15 +53,16 @@ server at `https://<host>/api/v1`.
 
 **How each threat is handled.**
 
-- **Sign-in.** GitHub and Google OAuth 2 with PKCE (S256). The state and the PKCE verifier
-  live in a short-lived (10 min) HttpOnly cookie signed with `ARCHSIM_SECRET_KEY`
-  (HMAC-SHA256); the callback refuses a missing, expired, tampered or
-  different state, and a stolen authorization code is useless without the verifier. After
-  signing in the browser only ever lands on a path of this site (`next` cannot point
-  elsewhere). Accounts are matched by the provider's stable id; a second provider is linked to
-  an existing account only through an email both providers marked **verified**. Only a
-  verified email in `ARCHSIM_ADMIN_EMAILS` makes a new account an owner of `default`. The
-  provider's access token is discarded after reading the profile.
+- **Sign-in.** GitHub and Google OAuth 2 with PKCE (S256), through Spring Security's OAuth2
+  login; Google's through OpenID Connect, whose ID token Spring Security checks (signature,
+  issuer, audience, nonce). The state and the PKCE verifier live in a short-lived (10 min)
+  HttpOnly cookie signed with `ARCHSIM_SECRET_KEY` (HMAC-SHA256); the callback refuses a
+  missing, expired, tampered or different state, and a stolen authorization code is useless
+  without the verifier. After signing in the browser only ever lands on a path of this site
+  (`next` cannot point elsewhere). Accounts are matched by the provider's stable id; a second
+  provider is linked to an existing account only through an email both providers marked
+  **verified**. Only a verified email in `ARCHSIM_ADMIN_EMAILS` makes a new account an owner of
+  `default`. The provider's access token is discarded after reading the profile.
 - **Sessions.** `__Host-archsim_session`: HttpOnly, Secure, SameSite=Lax, path `/`, no domain.
   It holds 256 random bits; the database stores only its SHA-256, so a database leak does not
   hand out live sessions. Sessions expire after `ARCHSIM_SESSION_DAYS` (30) and are revoked at

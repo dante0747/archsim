@@ -1,8 +1,10 @@
 package io.archsim.app.web;
 
 import java.io.IOException;
+import java.util.Map;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -33,6 +35,18 @@ public final class ErrorResponses {
 		refusal.headers().forEach((name, values) -> values.forEach((value) -> response.addHeader(name, value)));
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		this.json.writeValue(response.getOutputStream(), ErrorBody.of(refusal));
+	}
+
+	/**
+	 * Answers a request with what is wrong with what it sent.
+	 * @param response the response, not yet committed
+	 * @param invalid what is wrong
+	 * @throws IOException when the body cannot be written
+	 */
+	public void write(HttpServletResponse response, RequestInvalidException invalid) throws IOException {
+		response.setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		this.json.writeValue(response.getOutputStream(), Map.of("detail", invalid.detail()));
 	}
 
 }
